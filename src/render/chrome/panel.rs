@@ -66,12 +66,28 @@ impl TextPipeline {
         let total = self.search_matches.len();
         let n = self.search_current.map(|i| i + 1).unwrap_or(0);
         let query = self.search_query.clone();
+        // ITEM 80 — the query never shapes as its raw, unbounded self: it's always
+        // exactly `PANEL_FIELD_CHARS` chars (scrolled/padded by the one shared rule,
+        // `field_view_window`), so typing/pasting a long query can never widen the
+        // card. See the constant's own doc.
+        let (query_view, query_view_caret) =
+            field_view_window(&query, self.search_query_caret, PANEL_FIELD_CHARS);
 
         // Labels, padded to a shared width so `query` and `replacement` start in the
         // same column (ASCII, so byte len == char count — the caret-offset math below
         // relies on that). "replace " is the widest at 8 cells.
         const FIND_LABEL: &str = "find    ";
         const REPLACE_LABEL: &str = "replace ";
+        // ITEM 80 — the fixed VISIBLE width (character cells) of the query/
+        // replacement VALUE field: typing/pasting past this many chars SCROLLS
+        // the field (`field_view_window`, the one clipping-rule owner shared by
+        // both fields) instead of widening the card. The card's own exterior
+        // width follows from this constant alone (plus the labels/gap/counter/Aa,
+        // all fixed-or-bounded text), NEVER from the actual query/replacement —
+        // the item 80 law (`find_replace_panel_card_width_is_invariant_across_
+        // short_long_short_queries`). Wide enough for a realistic search term
+        // without feeling cramped.
+        const PANEL_FIELD_CHARS: usize = 28;
         // The amber caret block rides a RESERVED cell shaped right after the focused
         // field's text; on the find row two clear cells then follow so the block can
         // never collide with the `N/M` digits at any query length. Keeping the reserved
@@ -94,8 +110,15 @@ impl TextPipeline {
         // SYMBOL_FAMILY face (the display/mono faces render them as tofu), the same
         // treatment the overlay chord column gives them.
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
+        // ITEM 80 — the query/replacement VALUE spans shape in a MONOSPACE family
+        // (never the active world's proportional `base`), so `field_view_window`'s
+        // fixed CHAR-COUNT contract yields a fixed PIXEL width too — see that
+        // function's own doc for why a proportional face would reopen the bug.
+        let field = |c| Attrs::new().family(Family::Monospace).color(c);
 
         let replacement = self.search_replacement.clone();
+        let (replacement_view, replacement_view_caret) =
+            field_view_window(&replacement, self.search_replacement_caret, PANEL_FIELD_CHARS);
         let replace_active = self.search_replace_active;
         let editing_replacement = replace_active && self.search_editing_replacement;
         // The dim key-hint line that teaches the replace actions — muted ink, present
@@ -114,19 +137,22 @@ impl TextPipeline {
             _ => muted,
         };
 
-        // Row 0 — the find field.
+        // Row 0 — the find field. `query_view` (item 80) is ALWAYS exactly
+        // `PANEL_FIELD_CHARS` chars — the fixed field the card sizes off — never
+        // the raw, unbounded `query`.
         let mut spans: Vec<(&str, Attrs)> = vec![
             (FIND_LABEL, mk(muted)),
-            (query.as_str(), mk(c_query)),
+            (query_view.as_str(), field(c_query)),
             (gap, mk(c_counter)),
             (counter.as_str(), mk(c_counter)),
             ("Aa", mk(c_toggle)),
         ];
         if replace_active {
-            // Row 1 — the replace field (label + replacement + reserved caret cell).
+            // Row 1 — the replace field (label + the SAME fixed-width windowed
+            // replacement + reserved caret cell).
             spans.push(("\n", mk(muted)));
             spans.push((REPLACE_LABEL, mk(muted)));
-            spans.push((replacement.as_str(), mk(ink)));
+            spans.push((replacement_view.as_str(), field(ink)));
             spans.push((" ", mk(ink)));
             // Row 2 — the dim key-hint line. Split so ⌘/⌥ ride the symbol face; the
             // rest stays in the world face. Each run is FURTHER split at the case-chunk
@@ -189,22 +215,23 @@ impl TextPipeline {
         // bytes, which would never match a line-1 glyph and drop the caret onto
         // the hardcoded-pitch fallback. `panel_layout` scopes its glyph scan to
         // `caret_row`, so a line-relative offset can never false-match the
-        // identically-numbered byte on the find row. At the field's END (the
-        // pre-item-10 ONLY position) the target byte lands on the reserved
-        // trailing cell (`gap`/the replace row's own trailing space), exactly as
-        // before; mid-field it lands on a real shaped glyph of the field's own text.
+        // identically-numbered byte on the find row.
+        //
+        // ITEM 80 — the byte/char offsets below are computed against the WINDOWED
+        // `query_view`/`replacement_view` (already scrolled so the caret sits
+        // inside it, via `field_view_window`), never the raw field text — so the
+        // caret always lands on a real shaped glyph of the FIXED-width field,
+        // including the reserved padding cell at a short field's own end.
         let (caret_byte, caret_fallback_chars, caret_row) = if editing_replacement {
-            let caret_char = self.search_replacement_caret.min(replacement.chars().count());
             (
-                REPLACE_LABEL.len() + field_caret_byte(&replacement, caret_char),
-                REPLACE_LABEL.chars().count() + caret_char,
+                REPLACE_LABEL.len() + field_caret_byte(&replacement_view, replacement_view_caret),
+                REPLACE_LABEL.chars().count() + replacement_view_caret,
                 1.0_f32,
             )
         } else {
-            let caret_char = self.search_query_caret.min(query.chars().count());
             (
-                FIND_LABEL.len() + field_caret_byte(&query, caret_char),
-                FIND_LABEL.chars().count() + caret_char,
+                FIND_LABEL.len() + field_caret_byte(&query_view, query_view_caret),
+                FIND_LABEL.chars().count() + query_view_caret,
                 0.0_f32,
             )
         };

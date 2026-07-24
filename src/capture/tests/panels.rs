@@ -1727,3 +1727,109 @@ fn light_world_card_still_reads_elevated_without_a_drop_shadow() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// ITEM 80 — LAW: the find/replace panel's CARD never widens (or narrows) as the
+/// query/replacement grows. Exterior geometry is asserted the Wagtail way — a
+/// pixel scan over the PNG, never inferred from the sidecar (a state oracle
+/// only) — finding the card's LEFT edge on a row safely inside its own top
+/// padding (above any glyph ink), for a SHORT query, a query FAR longer than
+/// the fixed field, and back to the SAME short query, plus the identical sweep
+/// over the REPLACE row's text. Every shot keeps the match count at zero (a
+/// haystack neither query/replacement substring appears in), so the `n/total`
+/// counter's own digit width — a separate, out-of-scope wobble — never
+/// confounds the assertion: this test isolates the QUERY/REPLACEMENT LENGTH
+/// axis alone. PROVEN NON-VACUOUS: fails on the pre-item-80 code (the long
+/// query/replacement measurably widens the card, moving its left edge left).
+#[test]
+fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() {
+    if !adapter_available() {
+        eprintln!(
+            "skipping find_replace_panel_card_width_is_invariant_across_short_long_short_queries: no wgpu adapter"
+        );
+        return;
+    }
+    let _tg = crate::testlock::serial();
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    let dir = std::env::temp_dir().join(format!("awl_panel_width_test_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+
+    // Neither "cat"/"qqq" nor the long fixture appear in this haystack — every
+    // capture below reports hit_count 0 ("0/0"), holding the counter's own
+    // width constant across the whole sweep.
+    let buf = Buffer::from_str("zzz zzz zzz\nzzz zzz zzz\n");
+
+    let short = "cat";
+    let long = "a very long search query that would have widened the old unclamped panel far past its normal width";
+
+    let card_left = |tag: &str, opts: &CaptureOpts| -> u32 {
+        let png = dir.join(format!("{tag}.png"));
+        capture_with(&png, &buf, opts).expect("capture");
+        let img = image::open(&png).expect("decode PNG").to_rgba8();
+        // The card's top sits at `margin(12) + menubar_reserve(0)`; y=20 is a few
+        // px inside the opaque card fill, above row 0's own text baseline.
+        find_card_left_edge(&img, 20).unwrap_or_else(|| panic!("{tag}: no card edge found in the PNG"))
+    };
+
+    // --- FIND row: short -> long -> short ------------------------------------
+    let x_short1 = card_left(
+        "find_short1",
+        &CaptureOpts { search: Some(short.to_string()), ..CaptureOpts::default() },
+    );
+    let x_long = card_left("find_long", &CaptureOpts { search: Some(long.to_string()), ..CaptureOpts::default() });
+    let x_short2 = card_left(
+        "find_short2",
+        &CaptureOpts { search: Some(short.to_string()), ..CaptureOpts::default() },
+    );
+    assert_eq!(x_short1, x_short2, "two identical short queries must land the exact same card edge");
+    assert_eq!(
+        x_long, x_short1,
+        "a query far longer than the fixed field must NOT widen the card \
+         (left edge: short={x_short1}px long={x_long}px) — item 80's invariant-exterior-rect law"
+    );
+
+    // --- REPLACE row: the SAME law over the replacement text ----------------
+    let base = CaptureOpts { search: Some("qqq".to_string()), search_replace_active: true, ..CaptureOpts::default() };
+    let r_short1 = card_left(
+        "rep_short1",
+        &CaptureOpts { search_replacement: short.to_string(), ..base.clone() },
+    );
+    let r_long = card_left("rep_long", &CaptureOpts { search_replacement: long.to_string(), ..base.clone() });
+    let r_short2 = card_left(
+        "rep_short2",
+        &CaptureOpts { search_replacement: short.to_string(), ..base.clone() },
+    );
+    assert_eq!(r_short1, r_short2, "two identical short replacements must land the exact same card edge");
+    assert_eq!(
+        r_long, r_short1,
+        "a replacement far longer than the fixed field must NOT widen the card \
+         (left edge: short={r_short1}px long={r_long}px)"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The panel card's own LEFT edge on row `y`, found by walking LEFT from a
+/// reference point known to sit INSIDE the card fill — a few px in from the
+/// canvas's own right edge, always card (never background) because the panel
+/// is right-anchored with a 12px margin — until the pixel departs that fill
+/// color by a perceptible margin. Unlike scanning for a departure FROM the
+/// background, this stays correct even when the card has grown so wide it
+/// swallows the whole row (the pre-item-80 bug): the walk simply reaches `x =
+/// 0` and reports it, still a valid, comparable measurement across captures.
+/// `None` only when the canvas is too narrow to hold a reference point.
+fn find_card_left_edge(img: &image::RgbaImage, y: u32) -> Option<u32> {
+    let w = img.width();
+    if y >= img.height() || w < 20 {
+        return None;
+    }
+    let card_ref = *img.get_pixel(w - 15, y);
+    let dist = |a: &image::Rgba<u8>, b: &image::Rgba<u8>| -> f32 {
+        let d = |i: usize| a[i] as f32 - b[i] as f32;
+        (d(0).powi(2) + d(1).powi(2) + d(2).powi(2)).sqrt()
+    };
+    let mut x = w - 15;
+    while x > 0 && dist(img.get_pixel(x - 1, y), &card_ref) <= 12.0 {
+        x -= 1;
+    }
+    Some(x)
+}
