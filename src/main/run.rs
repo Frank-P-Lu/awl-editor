@@ -3038,7 +3038,7 @@ mod tests {
     fn headless_replay_never_touches_the_recent_files_store() {
         // The RECENTLY-OPENED FILES determinism law as the same tripwire shape:
         // `push_recent_file` (and the `recent_files` load) live only on the live
-        // `App` (`app/files.rs`), which `replay_keys` never constructs — so a
+        // `App` (`app/files/`), which `replay_keys` never constructs — so a
         // `--keys` replay against a bare `Buffer` must never create
         // `recent-files.toml`, even after edits + a save.
         use std::sync::Arc;

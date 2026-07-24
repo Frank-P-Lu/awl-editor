@@ -15,7 +15,7 @@
 //!
 //! NO-PATH BUFFER (settled): a path-less buffer has no directory to hang
 //! `assets/` off of, so `App::try_paste_image` triggers the notes system's OWN
-//! auto-name save FIRST (`App::ensure_note_named_before_paste`, `app/files.rs`)
+//! auto-name save FIRST (`App::ensure_note_named_before_paste`, `app/files/`)
 //! before ever reaching [`assets_dir`]/[`image_ref`] below — the paste lands
 //! beside a real, notes-root file rather than this module's absolute data-root
 //! fallback whenever that save succeeds. [`assets_dir`]'s/[`image_ref`]'s `None`

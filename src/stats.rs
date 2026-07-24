@@ -8,7 +8,7 @@
 //! This module is the PURE data model + the mutation primitives + the injected-
 //! clock helpers + the (de)serializer; the App-side wiring (loading at launch,
 //! the tracking hooks on the keyboard-input path / caret moves / file opens, and
-//! the flush on the autosave triggers) lives in `app.rs` / `app/files.rs`. The
+//! the flush on the autosave triggers) lives in `app.rs` / `app/files/`. The
 //! HUD DISPLAY is a separate phase — it only needs the store + `App::stats` +
 //! this file's accessors.
 //!

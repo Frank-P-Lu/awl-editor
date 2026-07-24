@@ -80,12 +80,16 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   → `buffer/`: `edit`, `selection`, `motion`, `undo`, `focus`, `notes`, `tests`.
 - `buffers.rs` — the MULTI-BUFFER REGISTRY: `BufferKey` (a buffer's stable
   identity — a path, or the one `Scratch` sentinel) + `BufferRegistry<T>` (the
-  MRU-ordered, capped park/take store for every BACKGROUNDED buffer), shared
-  verbatim by the live `App` (`app/files.rs`'s `BufferExtra` payload) and the
-  headless `--keys` replay (`main/run.rs`'s `replay_keys`, payload `()`) — one
-  owner of "open a file that's already open switches to its live buffer,"
-  never two aligned copies. The ACTIVE buffer stays outside this module
-  (`App::buffer` / the replay's `buffer` local, unchanged).
+  MRU-ordered, capped park/take store for every BACKGROUNDED buffer) +
+  `Entry<T>` (a buffer plus its opaque per-buffer payload — the SAME type the
+  live App's `App::active` owned slot uses), shared verbatim by the live `App`
+  (`app/files/active.rs`'s `BufferExtra` payload) and the headless `--keys`
+  replay (`main/run.rs`'s `replay_keys`, payload `()`) — one owner of "open a
+  file that's already open switches to its live buffer," never two aligned
+  copies. `App::active` (`app/files/active.rs`'s SOLE ownership — a whole-slot
+  `mem::replace`/assignment on park/activate, never a field-by-field
+  snapshot/restore) is the live App's ACTIVE half; the replay's `buffer` local
+  is its own, unchanged.
 - `selection.rs` — the selection / region model (C-Space mark, kill/copy, drag).
 - `search.rs` — incremental search (isearch) state + match finding.
 - `spell.rs` / `spellunderline.rs` — spellcheck (spellbook) + underline data.

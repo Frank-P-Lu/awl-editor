@@ -23,6 +23,7 @@
 //! `main::run::tests::headless_replay_never_touches_the_session_file`.
 
 use super::*;
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
 impl App {

@@ -3,7 +3,7 @@
 //! Bopomofo / Han), and the two ladders built on top of it:
 //!
 //!  - [`dominant_cjk`] scans a WHOLE document once for the doc-language
-//!    WRITE-BACK detector (`app/files.rs`'s untagged-doc-open path): an
+//!    WRITE-BACK detector (`app/files/`'s untagged-doc-open path): an
 //!    unambiguous script (kana -> ja, hangul -> ko, bopomofo -> zh-Hant hint)
 //!    always wins over a merely-present Han run; a Han-ONLY document is
 //!    ambiguous and falls to the config `cjk_priority` tiebreak
@@ -118,7 +118,7 @@ pub fn script_runs(text: &str) -> Vec<(Range<usize>, Script)> {
 }
 
 /// The document's DOMINANT CJK script signal, scanning the WHOLE text once —
-/// the doc-lang WRITE-BACK detector's core (`app/files.rs`). Priority order
+/// the doc-lang WRITE-BACK detector's core (`app/files/`). Priority order
 /// (an UNAMBIGUOUS script always wins over a merely-present Han run): Kana
 /// (Japanese) > Hangul (Korean) > Bopomofo (a zh-Hant hint) > Han (ambiguous,
 /// falls to the `cjk_priority` tiebreak via [`doc_lang_for`]) > `None` (no CJK
