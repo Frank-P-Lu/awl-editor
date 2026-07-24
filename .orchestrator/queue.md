@@ -8,12 +8,9 @@
 
 Background Workflows off `main`; integrated serially on the merge gate as each verifies SHIP. Landed items sit on LOCAL main (not yet pushed — one batched both-conventions gate + CI push pending once build-contention drops). Workers report shas; the board is orchestrator-only.
 
-**Landed on local main (SHIP-verified, unpushed):** 76 (active-folder; SCHEMA /182) · 78 · 79 · 80 · 81 · 82 (image cull; re-verified after a stub verify) · 84 + 84-fix (@500c1a9 — selection clip + the page-off fence/pill overhang fix; audit-found regression cleared) · 85 (theme-picker hover) · 86 (light-world grounds; SCHEMA /183, reconciled by a merge subagent) · 83 (@910c07b — overlay room + query center; Fable ADJUST applied). Full suite 2869 both conventions at the 86 merge.
-**In flight:** 87 (Bombora drift; Fable static — **88 waits on 87**).
-**Fix in flight — MUST land before push:** 77-fix (item-77-fix-capture-door). 77's build @9d888a6 verified **HOLD** — a real data-loss defect: the headless `--screenshot [file]` door (main/run.rs::load_buffer) bypassed `openable::classify`, so a binary file there built a path-bound empty buffer a Save truncated to 0 bytes (verifier reproduced it). All other 77 doors (App::new, load_path, daemon) gated correctly. Fix routes the capture door through the one owner + adds the repro as a regression test. Merge the FIXED sha, not 9d888a6.
-**Queued:** 88 (after 87).
-
-_Note: item 83's Fable-apply tripped a benign git-amend security heuristic (apply amended the build commit per the workflow's design, in its own worktree). Investigated: single in-scope commit, no clobber — merged the adjusted sha 910c07b._
+**Landed on local main (SHIP-verified, unpushed) — 12/13:** 76 (active-folder; SCHEMA /182) · 77 (@acb6a9f — file-visibility + a headless-capture-door **data-loss fix**: an unverified door truncated binaries; verify caught it, fix re-confirmed independently — binary refused, bytes preserved) · 78 · 79 · 80 · 81 · 82 (image cull; re-verified after a stub verify) · 83 (overlay room + query center; Fable ADJUST) · 84 + 84-fix (selection clip + page-off overhang fix; audit-found regression cleared) · 85 (theme-picker hover) · 86 (light-world grounds; SCHEMA /183) · 87 (Bombora drift; params-slot reconciled with 86). 2890 both conventions at the 87 merge.
+**In flight:** 88 (Mulga asterism — the last item; a small mechanical swap).
+**After 88 lands:** one final both-conventions + wasm gate on the whole wave, then push + watch CI (the user gates pushes on CI).
 
 **Live-only flags to confirm by hand** (harness can't drive them): 80 — Find/Replace scroll smoothness over real typing · 81 — chevron mouse-press→toggle wiring (no GPU App in unit tests; geometry+toggle proven headlessly) · 85 — felt input→present lag (latency probe ms numbers are live-only) · 87 — Bombora drift speed / counter-motion / calmness (harness can't see time; user is the oracle).
 
