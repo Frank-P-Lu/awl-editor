@@ -1149,6 +1149,15 @@ impl App {
         // ONLY place in the whole codebase that may consult OS/browser motion
         // detection — never a headless capture path.
         crate::motion::apply_at_startup(&config);
+        // ITEM 77 — THE ONE CAPABILITY OWNER: an explicit CLI/OS-open LAUNCH
+        // argument that isn't openable text is refused HERE, before it can
+        // ever reach `Buffer::from_file` — the SAME door `App::load_path`
+        // guards (see `crate::openable`'s module doc). A refusal falls
+        // through to the ordinary no-argument path below (scratch/stash
+        // restore) exactly as if no file had been named at all; the refusal
+        // message surfaces as a sticky notice once `app` exists, below.
+        let file_refusal = file.as_ref().and_then(|p| crate::openable::classify(p).refusal_message());
+        let file = if file_refusal.is_some() { None } else { file };
         // SESSION RESTORE (native only) reads this BEFORE `file` moves into the
         // struct literal below — see `Self::apply_session_restore`'s doc for why
         // a launch WITH a file argument still restores the rest of the session
@@ -1408,6 +1417,12 @@ impl App {
         // which isn't "opening a document").
         if app.active.buffer.path().is_some() {
             app.write_back_lang_tag_once();
+        }
+        // ITEM 77: surface the launch-argument refusal (see above) now that
+        // `app` exists to carry it — a calm sticky notice, same wording every
+        // other door reports.
+        if let Some(msg) = file_refusal {
+            app.set_sticky_notice(msg);
         }
         // SESSION RESTORE (native only, kill-switch gated): the OTHER open
         // files (parked into the buffer registry) and, on a bare launch, the

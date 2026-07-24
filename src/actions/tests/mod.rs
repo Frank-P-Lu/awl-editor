@@ -505,7 +505,6 @@ pub(super) fn delete_flinch_fixture(
         | Action::ToggleFold
         | Action::CollapseOtherSections
         | Action::ToggleWritingNits
-        | Action::ToggleHiddenFiles
         | Action::ShowStatsHud
         | Action::OpenGoto
         | Action::OpenProject
@@ -707,7 +706,6 @@ pub(super) fn all_actions() -> Vec<Action> {
         | Action::ToggleFold
         | Action::CollapseOtherSections
             | Action::ToggleWritingNits
-            | Action::ToggleHiddenFiles
             | Action::ShowStatsHud
             | Action::OpenGoto
             | Action::OpenProject
@@ -816,7 +814,6 @@ pub(super) fn all_actions() -> Vec<Action> {
         Action::ToggleFold,
         Action::CollapseOtherSections,
         Action::ToggleWritingNits,
-        Action::ToggleHiddenFiles,
         Action::ShowStatsHud,
         Action::OpenGoto,
         Action::OpenProject,
@@ -982,7 +979,6 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::PreviousLine
         | Action::ToggleCaretMode
         | Action::ToggleSpellcheck
-        | Action::ToggleHiddenFiles
         | Action::TogglePageMode
         | Action::PageWider
         | Action::PageNarrower

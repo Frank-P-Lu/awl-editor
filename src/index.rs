@@ -330,16 +330,25 @@ pub struct DirEntry {
     pub is_git: bool,
 }
 
+/// The absolute directory `list_dir_level` (and any caller that needs the
+/// SAME resolved level, e.g. `overlay::build::browse_level`'s per-file
+/// [`crate::openable::classify`] calls) lists: `root` joined with `rel`, or
+/// `root` itself when `rel` is `None`/empty. The ONE owner of that join, so
+/// the two call sites can never resolve a level to two different paths.
+pub fn resolve_dir_level(root: &Path, rel: Option<&str>) -> PathBuf {
+    match rel {
+        Some(r) if !r.is_empty() => root.join(r),
+        _ => root.to_path_buf(),
+    }
+}
+
 /// List ONE directory level under `root`/`rel` (rel `None` = the root itself) for
 /// the browse navigator: directories first (sorted), then files (sorted). Junk
 /// dirs are skipped so the level stays clean. Each directory is probed (cheaply,
 /// `<dir>/.git`) for a git marker. Returns an empty list if the path can't be
 /// read (e.g. an ascend/descend past a vanished dir).
 pub fn list_dir_level(root: &Path, rel: Option<&str>) -> Vec<DirEntry> {
-    let dir = match rel {
-        Some(r) if !r.is_empty() => root.join(r),
-        _ => root.to_path_buf(),
-    };
+    let dir = resolve_dir_level(root, rel);
     let mut dirs: Vec<DirEntry> = Vec::new();
     let mut files: Vec<DirEntry> = Vec::new();
     let Ok(entries) = crate::fs::active().read_dir(&dir) else {

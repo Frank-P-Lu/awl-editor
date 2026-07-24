@@ -816,14 +816,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             preview_move(ctx.overlay.as_mut().unwrap());
             return Effect::None;
         }
-        Action::ToggleHiddenFiles => {
-            // Cmd-Shift-. : REVEAL / re-hide dot-prefixed entries in THIS picker (the
-            // Finder convention). A no-op for a non-file picker (`toggle_hidden`
-            // gates on the kind), so it's safe to route uniformly. Rebuilds the
-            // listing with the new `show_hidden` flag; the sidecar reflects it.
-            ctx.overlay.as_mut().unwrap().toggle_hidden();
-            return Effect::None;
-        }
         // NOTE (DIFF-AS-PREVIEW): Tab in the HISTORY picker is handled ABOVE (the
         // focus shift into the diff panel — the old Tab-TAKEOVER into a separate
         // read-only view is RETIRED; the diff IS the picker's live preview now).

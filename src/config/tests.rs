@@ -612,6 +612,7 @@ fn write_pref_persists_settings_menu_toggles() {
             "outline",
             "menu_bar",
             "typewriter_scroll",
+            "file_visibility",
         ] {
             Config::write_pref(&p, key, "false").unwrap();
             let cfg = Config::load(p.clone());
@@ -626,6 +627,7 @@ fn write_pref_persists_settings_menu_toggles() {
                 "outline" => cfg.outline,
                 "menu_bar" => cfg.menu_bar,
                 "typewriter_scroll" => cfg.typewriter_scroll,
+                "file_visibility" => cfg.file_visibility,
                 _ => unreachable!(),
             };
             assert_eq!(got, Some(false), "{key} did not round-trip false");

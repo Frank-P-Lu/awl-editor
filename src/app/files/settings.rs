@@ -54,6 +54,8 @@ impl App {
             "outline" => self.config.outline = Some(value == "true"),
             "menu_bar" => self.config.menu_bar = Some(value == "true"),
             "reduce_motion" => self.config.reduce_motion = Some(value == "true"),
+            // FILE VISIBILITY (item 77): a plain bool key, like the toggles above.
+            "file_visibility" => self.config.file_visibility = Some(value == "true"),
             // KEYMAP FLAVOR: a quoted string ("native"/"emacs"), not a bool — mirrors
             // "theme"/"caret_mode"/"dictionary" above, not the bool toggles.
             "keymap" => self.config.keymap = Some(value.trim_matches('"').to_string()),
@@ -140,6 +142,7 @@ impl App {
             "outline" => crate::outline::outline_on(),
             "menu_bar" => crate::menubar::menu_bar_on(),
             "reduce_motion" => crate::motion::reduced(),
+            "file_visibility" => crate::file_visibility::all_on(),
             _ => return, // unknown key: a calm no-op
         };
         let next = !now;
@@ -162,6 +165,7 @@ impl App {
             // `advance`'s three callees; nothing further to force here).
             "reduce_motion" => crate::motion::set_reduced(next),
             "menu_bar" => crate::menubar::set_menu_bar_on(next),
+            "file_visibility" => crate::file_visibility::set_all_on(next),
             _ => {} // mechanism-B: config-only, applied on read
         }
         // (b) Persist the negated value (the mirror-match keeps `self.config` in step).

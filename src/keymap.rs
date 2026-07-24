@@ -146,13 +146,6 @@ pub enum Action {
     /// (persisted like `writing_nits`). No default chord (palette-summoned);
     /// rebindable via `[keys]`. See `spell.rs`.
     ToggleSpellcheck,
-    /// Cmd-Shift-. : while a FILE PICKER is open (go-to / browse), REVEAL or re-hide
-    /// dot-prefixed entries (the Finder "show hidden files" convention). Handled ONLY
-    /// inside the overlay intercept (a no-op when no picker is open); flips the active
-    /// picker's transient `show_hidden` flag and rebuilds its listing. No buffer
-    /// change. Rebindable via `[keys] toggle_hidden_files`. See `overlay/` /
-    /// `index::is_hidden_entry`.
-    ToggleHiddenFiles,
     /// Toggle PAGE MODE — the centered, measure-capped writing column with per-world
     /// gradient margins. ON by default; toggling OFF lays text edge-to-edge from the
     /// fixed origin (the old behavior). Render-only (no buffer change, but it re-wraps
@@ -1086,8 +1079,9 @@ impl KeymapState {
         // Cmd-. (Super+'.', no Shift): CANCEL — the HIG's ancient cancel synonym
         // (predates Esc on the Mac; every dialog still honors it). Quiet: no
         // menu label, no palette entry, no advertisement — just the chord a Mac
-        // hand reaches for without thinking (P4). `!shift` distinguishes it from
-        // Cmd-Shift-. (ToggleHiddenFiles) above, so the two never collide.
+        // hand reaches for without thinking (P4). `!shift` keeps it distinct
+        // from plain Cmd-Shift-., which is unbound (item 77 retired the old
+        // "Show hidden files" toggle that used to live there).
         if native && !shift {
             if let Key::Character(s) = logical {
                 if s.chars().next() == Some('.') {
@@ -1113,12 +1107,6 @@ impl KeymapState {
                     return Action::ShowStatsHud;
                 }
             }
-        }
-
-        // Some layouts report the shifted glyph for the catalogued Cmd-Shift-.
-        // chord. Normalize that alternate logical-key spelling at the input edge.
-        if native && shift && matches!(logical, Key::Character(s) if s.as_str() == ">") {
-            return Action::ToggleHiddenFiles;
         }
 
         // Cmd-Option-F is a legacy uncatalogued alias for the catalogued Cmd-R
@@ -1684,7 +1672,6 @@ switch_theme|Cmd-T|C-t|
 caret_style|||
 dictionary|||
 toggle_spellcheck|||
-toggle_hidden_files|Cmd-S-.|C-S-.|
 toggle_caret_style|||
 toggle_page_mode|||
 toggle_writing_nits|||
@@ -2011,12 +1998,13 @@ keybindings|||
     #[test]
     fn cmd_period_cancels_quietly() {
         // P4: Cmd-. (Super+'.', no Shift) is the HIG's ancient cancel synonym —
-        // quiet, no menu label, no palette entry. Cmd-Shift-. stays
-        // ToggleHiddenFiles (the Finder convention), unaffected.
+        // quiet, no menu label, no palette entry. Cmd-Shift-. is unbound (item
+        // 77 retired the old "Show hidden files" toggle that used to live
+        // there), so `!shift` alone distinguishes the two.
         let mut km = KeymapState::new();
         assert_eq!(km.resolve(&ch("."), &sup()), Action::Cancel);
-        assert_eq!(km.resolve(&ch("."), &sup_shift()), Action::ToggleHiddenFiles);
-        assert_eq!(km.resolve(&ch(">"), &sup_shift()), Action::ToggleHiddenFiles);
+        assert_eq!(km.resolve(&ch("."), &sup_shift()), Action::Ignore, "Cmd-Shift-. is unbound");
+        assert_eq!(km.resolve(&ch(">"), &sup_shift()), Action::Ignore, "Cmd-Shift-. is unbound");
         // Plain '.' (no Super) still self-inserts.
         assert_eq!(km.resolve(&ch("."), &none()), Action::InsertChar('.'));
     }
@@ -2288,16 +2276,14 @@ keybindings|||
     }
 
     #[test]
-    fn cmd_shift_period_toggles_hidden_files() {
+    fn cmd_shift_period_is_retired_and_unbound() {
+        // ITEM 77: the old "Show hidden files" toggle (Cmd-Shift-.) is RETIRED —
+        // one sticky Settings-menu "File visibility" row replaces it (no chord).
+        // The shifted glyph arrives as '>' on a US layout OR stays '.' (headless
+        // `s-S-.`); neither resolves to anything special any more.
         let mut km = KeymapState::new();
-        // Cmd-Shift-. reveals/hides dotfiles in the active file picker. The shifted
-        // glyph arrives as '>' on a US layout OR stays '.' (headless `s-S-.`); accept
-        // either.
-        assert_eq!(km.resolve(&ch("."), &sup_shift()), Action::ToggleHiddenFiles);
-        assert_eq!(km.resolve(&ch(">"), &sup_shift()), Action::ToggleHiddenFiles);
-        // It is neither a motion nor an edit (palette-listed, undo-neutral).
-        assert!(!Action::ToggleHiddenFiles.is_motion());
-        assert!(!Action::ToggleHiddenFiles.is_edit());
+        assert_eq!(km.resolve(&ch("."), &sup_shift()), Action::Ignore);
+        assert_eq!(km.resolve(&ch(">"), &sup_shift()), Action::Ignore);
     }
 
     #[test]

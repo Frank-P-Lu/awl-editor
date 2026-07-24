@@ -158,6 +158,18 @@ impl App {
     /// disk for a first-time open. Shared by `open_rel` and the C-x b toggle so
     /// both keep the history honest.
     pub(in crate::app) fn load_path(&mut self, path: PathBuf) {
+        // ITEM 77 — THE ONE CAPABILITY OWNER, first: a binary/unsupported
+        // `path` is refused HERE, before the MAS grant probe below (never
+        // powerbox a file we're about to refuse) or any other side effect —
+        // the active buffer, `self.root`, and every remembered-context field
+        // stay exactly as they were. This is the door EVERY picker selection
+        // (open_rel), the C-x b toggle, AND the daemon's `open` handoff
+        // (`App::handle_daemon_event`, which calls this same fn) all share —
+        // see `crate::openable`'s module doc for the full door list.
+        if let Some(msg) = crate::openable::classify(&path).refusal_message() {
+            self.set_sticky_notice(msg);
+            return;
+        }
         // MAS SANDBOX GRANT GATE (native macOS `mas` builds only — see
         // `src/mas.rs`'s module doc): `path` may live outside the container.
         // `ensure_access` is a no-op fast-path for anything inside it or

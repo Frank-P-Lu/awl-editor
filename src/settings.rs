@@ -93,6 +93,7 @@ pub enum SettingId {
     DefaultFolder,
     ProjectsFolder,
     ProjectRoot,
+    FileVisibility,
     Autosave,
     LocalHistory,
     SessionRestore,
@@ -115,7 +116,7 @@ pub struct SettingRow {
     pub kind: SettingKind,
 }
 
-/// The 29-setting corpus, in stable display order (grouped by category). The ONE
+/// The 30-setting corpus, in stable display order (grouped by category). The ONE
 /// owner — the FacetScheme bucket + the value readout both key off this table.
 pub static SETTINGS: &[SettingRow] = &[
     // Editor —
@@ -149,6 +150,11 @@ pub static SETTINGS: &[SettingRow] = &[
     SettingRow { id: SettingId::DefaultFolder,      name: "Default folder",      category: "Files",       kind: SettingKind::Path },
     SettingRow { id: SettingId::ProjectsFolder,   name: "Projects folder",   category: "Files",       kind: SettingKind::Path },
     SettingRow { id: SettingId::ProjectRoot,      name: "Project root",      category: "Files",       kind: SettingKind::Path },
+    // ITEM 77: Text (default) lists decodable text only, non-hidden; All also
+    // reveals hidden entries + unsupported/binary files (still refused on
+    // open — see `crate::openable`). Replaces the old standalone "Show
+    // hidden files" toggle/chord.
+    SettingRow { id: SettingId::FileVisibility,   name: "File visibility",   category: "Files",       kind: SettingKind::Toggle },
     SettingRow { id: SettingId::Autosave,         name: "Autosave",          category: "Files",       kind: SettingKind::Toggle },
     SettingRow { id: SettingId::LocalHistory,     name: "Local history",     category: "Files",       kind: SettingKind::Toggle },
     SettingRow { id: SettingId::SessionRestore,   name: "Session restore",   category: "Files",       kind: SettingKind::Toggle },
@@ -346,6 +352,9 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::DefaultFolder => values.default_folder.clone(),
         SettingId::ProjectsFolder => values.workspace.clone(),
         SettingId::ProjectRoot => values.project_root.clone(),
+        // FILE VISIBILITY (item 77): reads the live process global, like
+        // Outline/Menu bar above — "Text" / "All".
+        SettingId::FileVisibility => crate::file_visibility::label().to_string(),
         SettingId::Autosave => on_off(values.autosave).to_string(),
         SettingId::LocalHistory => on_off(values.history).to_string(),
         SettingId::SessionRestore => on_off(values.session_restore).to_string(),
@@ -382,6 +391,7 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
         SettingId::Spellcheck => "spellcheck",
         SettingId::WritingNits => "writing_nits",
         // Files & Projects —
+        SettingId::FileVisibility => "file_visibility",
         SettingId::Autosave => "autosave",
         SettingId::LocalHistory => "history",
         SettingId::SessionRestore => "session_restore",
@@ -637,7 +647,8 @@ mod tests {
     use super::*;
 
     /// The table has the audited 28 rows (including the Keybindings sub-menu and
-    /// the two Advanced actions) PLUS "Date format", and
+    /// the two Advanced actions) PLUS "Date format" PLUS "File visibility"
+    /// (item 77), and
     /// every display name is UNIQUE (it is both the fuzzy corpus and the
     /// value-readout key). The exact count is asserted below so an added/removed
     /// row must touch this comment deliberately rather than drift silently.
@@ -650,7 +661,7 @@ mod tests {
         assert_eq!(SETTINGS.len(), seen.len());
         assert_eq!(
             SETTINGS.len(),
-            29,
+            30,
             "corpus size changed — update this count deliberately (and the doc comments \
              at the top of settings.rs) rather than let it drift"
         );
@@ -1153,6 +1164,7 @@ mod tests {
                 | SettingId::DefaultFolder
                 | SettingId::ProjectsFolder
                 | SettingId::ProjectRoot
+                | SettingId::FileVisibility
                 | SettingId::Autosave
                 | SettingId::LocalHistory
                 | SettingId::SessionRestore
@@ -1197,6 +1209,7 @@ mod tests {
             SettingId::DefaultFolder,
             SettingId::ProjectsFolder,
             SettingId::ProjectRoot,
+            SettingId::FileVisibility,
             SettingId::Autosave,
             SettingId::LocalHistory,
             SettingId::SessionRestore,
@@ -1206,7 +1219,7 @@ mod tests {
             SettingId::EditConfigAsText,
         ];
         roster.iter().for_each(|id| id.witness());
-        assert_eq!(roster.len(), 29, "the hand-listed roster changed size — update deliberately");
+        assert_eq!(roster.len(), 30, "the hand-listed roster changed size — update deliberately");
         assert_eq!(roster.len(), SETTINGS.len(), "roster/registry size drifted");
 
         let mut seen = std::collections::HashSet::new();
