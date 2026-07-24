@@ -52,7 +52,7 @@ pub enum SettingKind {
     /// (clamped + persisted via the named config key), Esc cancels. See
     /// [`value_key`] / [`clamp_page_width`] / [`parse_zoom`].
     Value,
-    /// A filesystem PATH (notes_root / workspace / project_root): Enter routes to the
+    /// A filesystem PATH (default_folder / workspace / project_root): Enter routes to the
     /// existing folder NAVIGATOR (the Project picker) with a `return_to = Settings`
     /// breadcrumb; the chosen folder writes the named key ([`path_key`]) and returns.
     Path,
@@ -90,7 +90,7 @@ pub enum SettingId {
     Dictionary,
     WritingNits,
     CjkReadsAs,
-    NotesFolder,
+    DefaultFolder,
     ProjectsFolder,
     ProjectRoot,
     Autosave,
@@ -146,7 +146,7 @@ pub static SETTINGS: &[SettingRow] = &[
     SettingRow { id: SettingId::WritingNits,      name: "Writing nits",      category: "Writing",     kind: SettingKind::Toggle },
     SettingRow { id: SettingId::CjkReadsAs,       name: "Ambiguous CJK reads as", category: "Writing", kind: SettingKind::Picker },
     // Files & Projects —
-    SettingRow { id: SettingId::NotesFolder,      name: "Notes folder",      category: "Files",       kind: SettingKind::Path },
+    SettingRow { id: SettingId::DefaultFolder,      name: "Default folder",      category: "Files",       kind: SettingKind::Path },
     SettingRow { id: SettingId::ProjectsFolder,   name: "Projects folder",   category: "Files",       kind: SettingKind::Path },
     SettingRow { id: SettingId::ProjectRoot,      name: "Project root",      category: "Files",       kind: SettingKind::Path },
     SettingRow { id: SettingId::Autosave,         name: "Autosave",          category: "Files",       kind: SettingKind::Toggle },
@@ -220,7 +220,7 @@ pub struct SettingsValues {
     pub page_width_prose: usize,
     pub page_width_code: usize,
     pub zoom: f32,
-    pub notes_root: String,
+    pub default_folder: String,
     pub workspace: String,
     pub project_root: String,
     pub autosave: bool,
@@ -267,7 +267,7 @@ impl SettingsValues {
             page_width_prose: config.measure_for(crate::page::PageClass::Prose),
             page_width_code: config.measure_for(crate::page::PageClass::Code),
             zoom,
-            notes_root: path_or_dash(&config.notes_root),
+            default_folder: path_or_dash(&config.default_folder),
             workspace: path_or_dash(&config.workspace),
             project_root: project_root.display().to_string(),
             autosave: config.autosave_on(),
@@ -343,7 +343,7 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
             .map(|l| l.label().to_string())
             .unwrap_or_else(|| "—".to_string()),
         // Files & Projects —
-        SettingId::NotesFolder => values.notes_root.clone(),
+        SettingId::DefaultFolder => values.default_folder.clone(),
         SettingId::ProjectsFolder => values.workspace.clone(),
         SettingId::ProjectRoot => values.project_root.clone(),
         SettingId::Autosave => on_off(values.autosave).to_string(),
@@ -413,7 +413,7 @@ pub fn value_key(id: SettingId) -> Option<&'static str> {
 /// UNCHANGED from before item 55 — see [`toggle_key`]'s doc.
 pub fn path_key(id: SettingId) -> Option<&'static str> {
     Some(match id {
-        SettingId::NotesFolder => "notes_root",
+        SettingId::DefaultFolder => "default_folder",
         SettingId::ProjectsFolder => "workspace",
         SettingId::ProjectRoot => "project_root",
         _ => return None,
@@ -711,7 +711,7 @@ mod tests {
             page_width_prose: 70,
             page_width_code: 100,
             zoom: 0.8,
-            notes_root: "/n".into(),
+            default_folder: "/n".into(),
             workspace: "/w".into(),
             project_root: "/p".into(),
             autosave: true,
@@ -1150,7 +1150,7 @@ mod tests {
                 | SettingId::Dictionary
                 | SettingId::WritingNits
                 | SettingId::CjkReadsAs
-                | SettingId::NotesFolder
+                | SettingId::DefaultFolder
                 | SettingId::ProjectsFolder
                 | SettingId::ProjectRoot
                 | SettingId::Autosave
@@ -1194,7 +1194,7 @@ mod tests {
             SettingId::Dictionary,
             SettingId::WritingNits,
             SettingId::CjkReadsAs,
-            SettingId::NotesFolder,
+            SettingId::DefaultFolder,
             SettingId::ProjectsFolder,
             SettingId::ProjectRoot,
             SettingId::Autosave,
@@ -1243,7 +1243,7 @@ mod tests {
             page_width_prose: 70,
             page_width_code: 100,
             zoom: 0.8,
-            notes_root: "/n".into(),
+            default_folder: "/n".into(),
             workspace: "/w".into(),
             project_root: "/p".into(),
             autosave: true,
@@ -1322,7 +1322,7 @@ mod tests {
         assert_eq!(value_key(SettingId::PageWidthCode), Some("page_width_code"));
         assert_eq!(value_key(SettingId::Zoom), Some("zoom"));
 
-        assert_eq!(path_key(SettingId::NotesFolder), Some("notes_root"));
+        assert_eq!(path_key(SettingId::DefaultFolder), Some("default_folder"));
         assert_eq!(path_key(SettingId::ProjectsFolder), Some("workspace"));
         assert_eq!(path_key(SettingId::ProjectRoot), Some("project_root"));
 

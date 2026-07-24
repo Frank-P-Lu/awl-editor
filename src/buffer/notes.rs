@@ -1,10 +1,12 @@
-//! QUICK-NOTE NAMING + FILE MOVES — the pure helpers behind note auto-naming and
-//! the C-x m / live-rename file operations: `first_nonempty_line` (a note's working
-//! title), `note_stem` / `slug_core` (title -> filename stem), and
-//! `unique_path` / `move_file` / `rename_to_stem` / `stem_matches_slug` (no-clobber
-//! path selection + true renames over the filesystem seam). Free functions carved
-//! out of `buffer.rs` verbatim; glob-re-exported from the module root so the
-//! `crate::buffer::*` call sites resolve unchanged.
+//! FRESH-DOCUMENT NAMING + FILE MOVES — the pure helpers behind a document's
+//! one-shot auto-naming and the C-x m move: `first_nonempty_line` (a fresh
+//! document's working title), `note_stem` / `slug_core` (title -> filename
+//! stem), and `unique_path` / `move_file` (no-clobber path selection + true
+//! moves over the filesystem seam). Free functions carved out of `buffer.rs`
+//! verbatim; glob-re-exported from the module root so the `crate::buffer::*`
+//! call sites resolve unchanged. Item 76 retired the LIVE-rename-to-title
+//! machinery (`rename_to_stem`/`stem_matches_slug`) — naming is now one-shot,
+//! at the first material save only (see `Buffer::save`'s doc).
 
 use std::path::{Path, PathBuf};
 
@@ -73,49 +75,6 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
     } else {
         natural
     };
-    crate::fs::active().rename(old, &new_path)?;
-    Ok(new_path)
-}
-
-/// True when `cur` already represents a note titled `stem` — either the exact
-/// slug or that slug plus a numeric collision suffix (`japanese-week-12`,
-/// `japanese-week-12-2`, …). Live-rename uses this to AVOID churning a file
-/// whose name only differs by the `-N` that disambiguated it from a same-titled
-/// sibling: such a file already tracks its title and must be left alone.
-fn stem_matches_slug(cur: &str, stem: &str) -> bool {
-    if cur == stem {
-        return true;
-    }
-    cur.strip_prefix(stem)
-        .and_then(|rest| rest.strip_prefix('-'))
-        .map(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
-        .unwrap_or(false)
-}
-
-/// LIVE-RENAME the note at `old` so its filename STEM becomes `stem`, keeping its
-/// extension + directory. A no-op (returns `old`) when the name already tracks
-/// `stem` ([`stem_matches_slug`]) — so a collision-suffixed note isn't churned.
-/// Otherwise pick a NON-CLOBBERING `<stem>.<ext>` in the same dir and
-/// `std::fs::rename` there (a true move, never a copy); creates the parent dir if
-/// needed, mirroring [`move_file`]. Returns the new path. This is the only
-/// file-WRITE live-rename performs (the same fence as the C-x m move).
-pub fn rename_to_stem(old: &Path, stem: &str) -> std::io::Result<PathBuf> {
-    let cur_stem = old
-        .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_default();
-    if stem_matches_slug(&cur_stem, stem) {
-        return Ok(old.to_path_buf()); // already named for this title
-    }
-    let dir = old.parent().map(Path::to_path_buf).unwrap_or_default();
-    let ext = old
-        .extension()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_default();
-    crate::fs::active().create_dir_all(&dir)?;
-    // `old`'s stem differs from `stem` (we passed the guard above), so the
-    // no-clobber scan never points back at `old` itself.
-    let new_path = unique_path(&dir, stem, &ext);
     crate::fs::active().rename(old, &new_path)?;
     Ok(new_path)
 }

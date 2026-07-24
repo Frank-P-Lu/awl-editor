@@ -252,7 +252,7 @@ pub struct OverlayState {
     /// the live cell. `None` for every other overlay and while just browsing Settings.
     pub value_edit: Option<ValueEdit>,
     /// FOLDER-NAVIGATOR opened FROM a Settings PATH row: the config key whose folder is
-    /// being picked ("notes_root"/"workspace"/"project_root"). `Some` turns the Project
+    /// being picked ("default_folder"/"workspace"/"project_root"). `Some` turns the Project
     /// navigator's Enter into a [`crate::actions::Effect::SettingPathPick`] (write the
     /// key + return to Settings) instead of the normal switch-project accept. `None` for
     /// every ordinary navigator summon.

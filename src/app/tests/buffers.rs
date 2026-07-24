@@ -137,7 +137,7 @@ fn load_path_switch_reapplies_custom_measure_overrides() {
 #[test]
 fn new_note_always_reapplies_the_prose_measure() {
     // A fresh quick note is always markdown (PROSE), regardless of what kind
-    // of buffer was active before it — `new_note` calls the same
+    // of buffer was active before it — `new_document` calls the same
     // `sync_page_measure` resync `load_path` does.
     use crate::fs::InMemoryFs;
     let b = PathBuf::from("/proj/b.rs");
@@ -148,7 +148,7 @@ fn new_note_always_reapplies_the_prose_measure() {
     let mut app = app_on(Some(b.clone()), "/proj", Config::empty());
 
     crate::page::set_measure(crate::page::DEFAULT_MEASURE_CODE);
-    app.new_note();
+    app.new_document();
     assert_eq!(
         crate::page::measure(),
         crate::page::DEFAULT_MEASURE,
@@ -486,7 +486,7 @@ fn new_note_parks_the_previous_buffer_for_a_later_reopen() {
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
     app.active.buffer.set_text("aaa EDITED\n");
     assert_eq!(app.open_buffer_count(), 1);
-    app.new_note();
+    app.new_document();
     assert_eq!(
         app.open_buffer_count(),
         2,
@@ -712,7 +712,7 @@ fn switching_buffers_isolates_the_spell_cache() {
 fn fresh_buffer_starts_with_default_buffer_extra() {
     // A newly-created buffer (never before backgrounded) gets `BufferExtra::
     // default()`, not a leaked carry-over from whatever was active before —
-    // proven at the seam that installs a FRESH entry (`new_note`'s
+    // proven at the seam that installs a FRESH entry (`new_document`'s
     // `start_fresh_note`, distinct from the registry-hit branch).
     use crate::fs::InMemoryFs;
     let a = PathBuf::from("/proj/a.md");
@@ -722,7 +722,7 @@ fn fresh_buffer_starts_with_default_buffer_extra() {
     app.active.extra.scroll_lines = 40; // dirty the CURRENT buffer's extra
     app.active.extra.history_preview = Some(("1".to_string(), "x".to_string()));
 
-    app.new_note(); // a brand-new, never-before-seen buffer
+    app.new_document(); // a brand-new, never-before-seen buffer
 
     assert_eq!(app.active.extra.scroll_lines, 0, "fresh-defaults, not carried over");
     assert!(!app.active.extra.shift_selecting);

@@ -669,7 +669,7 @@ fn scratch_stash_and_restore_round_trip() {
         app2.active.buffer.path().is_none(),
         "restored scratch stays path-less"
     );
-    assert!(app2.active.buffer.is_markdown() && !app2.active.buffer.is_note());
+    assert!(app2.active.buffer.is_markdown() && !app2.active.buffer.is_unnamed_fresh());
     // The restore stamped the stash mtime, so a follow-up edit + flush is not
     // mistaken for a two-instance clobber.
     app2.active.buffer.set_text("brain dump\nmore\n");
@@ -688,37 +688,36 @@ fn convert_scratch_and_save_promotes_the_buffer_and_retires_the_stash() {
     use crate::fs::{FileSystem, InMemoryFs};
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let notes = PathBuf::from("/notes");
     // Stash an OLD scratch content first, exactly like a real prior session
     // would have — the very ghost-copy risk the round's own doc names.
     let stash = crate::fs::scratch_stash_path();
     mem.write(&stash, b"yesterday's dump\n").unwrap();
 
-    let cfg = Config {
-        notes_root: Some(notes.clone()),
-        ..Config::empty()
-    };
-    let mut app = app_on(None, "/proj", cfg);
+    let mut app = app_on(None, "/proj", Config::empty());
     assert_eq!(
         app.active.buffer.text(),
         "yesterday's dump\n",
         "restored from the stash first"
     );
     assert!(
-        app.active.buffer.path().is_none() && !app.active.buffer.is_note(),
+        app.active.buffer.path().is_none() && !app.active.buffer.is_unnamed_fresh(),
         "still a true scratch"
     );
 
     app.convert_scratch_and_save();
 
+    // ONE-SHOT NAMING (item 76): the derive-a-name save ALSO clears the
+    // fresh-document marker in the same step — by the time this call
+    // returns, the buffer reads as an ORDINARY pathed file, not a lasting
+    // "note" identity.
     assert!(
-        app.active.buffer.is_note(),
-        "Cmd-S promoted the scratch buffer into a note"
+        !app.active.buffer.is_unnamed_fresh(),
+        "Cmd-S named the document once — it's an ordinary file now, not a lasting note identity"
     );
     let p = app.active.buffer.path().unwrap().to_path_buf();
     assert!(
-        p.starts_with(&notes),
-        "the note landed under notes_root: {p:?}"
+        p.starts_with("/proj"),
+        "item 76: the document lands under the ACTIVE folder, not a separate notes-root concept: {p:?}"
     );
     assert_eq!(mem.read_to_string(&p).unwrap(), "yesterday's dump\n");
     assert_eq!(
@@ -740,12 +739,7 @@ fn convert_scratch_and_save_second_save_is_a_plain_save() {
     use crate::fs::{FileSystem, InMemoryFs};
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let notes = PathBuf::from("/notes");
-    let cfg = Config {
-        notes_root: Some(notes),
-        ..Config::empty()
-    };
-    let mut app = app_on(None, "/proj", cfg);
+    let mut app = app_on(None, "/proj", Config::empty());
     app.active.buffer.set_text("first entry\n");
     app.convert_scratch_and_save();
     let named = app.active.buffer.path().unwrap().to_path_buf();
@@ -768,8 +762,8 @@ fn convert_scratch_and_save_second_save_is_a_plain_save() {
 }
 
 #[test]
-fn convert_scratch_and_save_unwritable_notes_root_raises_a_calm_notice_never_a_panic() {
-    // A `notes_root` that can't be written to (a full disk, a permissions
+fn convert_scratch_and_save_unwritable_active_folder_raises_a_calm_notice_never_a_panic() {
+    // An active folder that can't be written to (a full disk, a permissions
     // error, …) must surface as the SAME calm notice a failed manual save
     // gets — never a terminal print, never a crash, and the scratch stash
     // is left untouched (nothing succeeded to retire it over).
@@ -790,7 +784,7 @@ fn convert_scratch_and_save_unwritable_notes_root_raises_a_calm_notice_never_a_p
         fn write(&self, _p: &std::path::Path, _d: &[u8]) -> std::io::Result<()> {
             Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
-                "notes_root unwritable",
+                "folder unwritable",
             ))
         }
         fn create_dir_all(&self, _p: &std::path::Path) -> std::io::Result<()> {
@@ -799,7 +793,7 @@ fn convert_scratch_and_save_unwritable_notes_root_raises_a_calm_notice_never_a_p
         fn rename(&self, _f: &std::path::Path, _t: &std::path::Path) -> std::io::Result<()> {
             Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
-                "notes_root unwritable",
+                "folder unwritable",
             ))
         }
         fn exists(&self, _p: &std::path::Path) -> bool {
@@ -822,12 +816,7 @@ fn convert_scratch_and_save_unwritable_notes_root_raises_a_calm_notice_never_a_p
         }
     }
     let _g = crate::fs::FsGuard::install(Arc::new(UnwritableFs));
-    let notes = PathBuf::from("/notes");
-    let cfg = Config {
-        notes_root: Some(notes),
-        ..Config::empty()
-    };
-    let mut app = app_on(None, "/proj", cfg);
+    let mut app = app_on(None, "/proj", Config::empty());
     app.active.buffer.set_text("won't land\n");
 
     app.convert_scratch_and_save();
@@ -1071,12 +1060,15 @@ fn finish_manual_save_ok_is_silent_failure_notices_the_error() {
 }
 
 #[test]
-fn finish_manual_save_clears_a_notes_dirty_marker_immediately() {
-    // BUG LOCK-DOWN: `is_document_dirty` reads `autosave_saved_version` for a
-    // NOTE, but `finish_manual_save` used to stamp only `doc_saved_version`
-    // — so ⌘S on a note left it reading dirty (the title `•` + native
-    // titlebar dot lingering) until the note's ~400ms debounced autosave
-    // redundantly rewrote and finally stamped the field.
+fn finish_manual_save_clears_a_freshly_named_documents_dirty_marker_immediately() {
+    // BUG LOCK-DOWN (adapted for item 76's one-shot naming): `Buffer::save`
+    // derives the filename AND clears the fresh-document marker in the SAME
+    // step, so a document named by THIS save reads `is_unnamed_fresh() ==
+    // false` + `doc_saved_version`-tracked immediately — `finish_manual_save`
+    // must stamp `doc_saved_version` right here (the general, un-gated path
+    // below) or the title `•` + native titlebar dot would linger until the
+    // ordinary document autosave engine's next idle write incidentally
+    // stamped it.
     use crate::fs::InMemoryFs;
     let _l = crate::testlock::serial();
     let notes = PathBuf::from("/notes");
@@ -1084,31 +1076,28 @@ fn finish_manual_save_clears_a_notes_dirty_marker_immediately() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/notes", Config::empty());
 
-    // Make the active buffer a NOTE with content, then write it to disk the
-    // way `apply_core`'s `Action::Save` arm does before signalling SaveDone.
-    app.active.buffer.start_note(notes.clone());
+    // Make the active buffer an UNNAMED FRESH DOCUMENT with content, then
+    // write it to disk the way `apply_core`'s `Action::Save` arm does before
+    // signalling SaveDone.
+    app.active.buffer.start_fresh_doc(notes.clone());
     app.active.buffer.set_text("note body\n");
     app.active.buffer.save().unwrap();
     assert!(
-        app.active.buffer.is_note() && app.active.buffer.path().is_some(),
-        "arranged: a saved note"
+        !app.active.buffer.is_unnamed_fresh() && app.active.buffer.path().is_some(),
+        "arranged: the save named it once — an ordinary pathed file now"
     );
-    // Pre-bookkeeping the note reads DIRTY: `autosave_saved_version` is still
-    // stale (None) against the edited version.
+    // Pre-bookkeeping the document reads DIRTY: `doc_saved_version` is still
+    // stale (None) against the just-written version.
     assert!(
         app.is_document_dirty(),
-        "arranged: the note reads dirty pre-bookkeeping"
+        "arranged: the document reads dirty pre-bookkeeping"
     );
 
     app.finish_manual_save(true, "saved".to_string());
 
     assert!(
         !app.is_document_dirty(),
-        "a note is clean IMMEDIATELY after ⌘S, not ~400ms later"
-    );
-    assert!(
-        app.autosave_dirty_at.is_none(),
-        "the redundant ~400ms note rewrite is suppressed"
+        "clean IMMEDIATELY after ⌘S, not ~400ms later"
     );
 }
 
@@ -1126,7 +1115,7 @@ fn finish_manual_save_clears_a_regular_files_dirty_marker_immediately() {
     app.active.buffer.set_text("edited body\n");
     app.active.buffer.save().unwrap();
     assert!(
-        !app.active.buffer.is_note() && app.active.buffer.path().is_some(),
+        !app.active.buffer.is_unnamed_fresh() && app.active.buffer.path().is_some(),
         "arranged: a saved file"
     );
     assert!(
@@ -1457,46 +1446,53 @@ fn path_law_across_a_plain_file_lifecycle_open_rename_duplicate_close_toggle() {
 }
 
 #[test]
-fn path_law_across_a_note_lifecycle_new_note_autoname_rename_to_title_move() {
+fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_move() {
+    // item 76: New document lands in the ACTIVE folder (never a separate
+    // separate-notes-root jump); the first material save derives the filename EXACTLY
+    // ONCE; a LATER edit to the first line never re-derives/renames it; Move
+    // is relative to the active folder.
     use crate::fs::InMemoryFs;
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/proj", Config::empty());
-    app.notes_root = PathBuf::from("/notes");
 
-    // NEW NOTE: no path until it has content.
-    app.new_note();
-    assert_eq!(app.active.buffer.path(), None, "a fresh note is unnamed");
+    // NEW DOCUMENT: no path until it has content, and it lands in the
+    // CURRENT active folder — no root jump.
+    app.new_document();
+    assert_eq!(app.active.buffer.path(), None, "a fresh document is unnamed");
+    assert_eq!(app.root, PathBuf::from("/proj"), "no root jump on Cmd-N");
 
-    // FIRST SAVE (auto-name from the first line): the buffer gains a
-    // derived path with no separate field to keep in step.
+    // FIRST (MATERIAL) SAVE (auto-name from the first line): the buffer gains
+    // a derived path, under the ACTIVE folder, with no separate field to keep
+    // in step.
     app.active.buffer.insert_text("first draft\n");
     app.autosave_note();
     let named = app.active.buffer.path().map(|p| p.to_path_buf());
-    assert!(named.is_some(), "auto-name gave the note a path");
+    assert!(named.is_some(), "auto-name gave the document a path");
     assert!(
-        named.as_deref().unwrap().starts_with("/notes"),
-        "named under notes_root: {named:?}"
+        named.as_deref().unwrap().starts_with("/proj"),
+        "named under the ACTIVE folder, not a separate notes-root concept: {named:?}"
     );
+    assert!(!app.active.buffer.is_unnamed_fresh(), "one-shot: named once, ordinary now");
 
-    // RENAME-TO-TITLE: editing the FIRST LINE (not merely appending a new
-    // trailing line) live-renames the file.
+    // A LATER title edit NEVER renames (the old live-rename-to-title behavior
+    // is retired): editing the FIRST LINE again leaves the path untouched.
     let end_of_first_line = app.active.buffer.line_col_to_char(0, usize::MAX);
     app.active.buffer.set_cursor(end_of_first_line);
     app.active.buffer.insert_text(" retitled");
-    app.autosave_note(); // re-derives + renames to track the new title
-    let retitled = app.active.buffer.path().map(|p| p.to_path_buf());
-    assert_ne!(retitled, named, "the path followed the title edit");
+    app.autosave_note(); // is_unnamed_fresh() is false: this is now a no-op
+    let after_title_edit = app.active.buffer.path().map(|p| p.to_path_buf());
+    assert_eq!(after_title_edit, named, "later title edits never rename (one-shot naming)");
 
-    // MOVE (C-x m): re-points the buffer to the destination folder, keeping
-    // the filename.
-    let before_move = retitled.clone().unwrap();
-    app.move_current_note("sub");
+    // MOVE (C-x m): re-points the buffer to the destination folder (relative
+    // to the ACTIVE folder), keeping the filename.
+    let before_move = after_title_edit.clone().unwrap();
+    app.move_current_file("sub");
     let moved = app.active.buffer.path().map(|p| p.to_path_buf()).unwrap();
     assert_eq!(
         moved.file_name(),
         before_move.file_name(),
         "the filename survives the move"
     );
-    assert!(moved.starts_with("/notes/sub"), "moved under the dest folder: {moved:?}");
+    assert!(moved.starts_with("/proj/sub"), "moved under the active folder's dest: {moved:?}");
 }

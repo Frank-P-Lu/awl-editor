@@ -141,7 +141,7 @@ hermetic setup for automated input-state testing.
   part of the first-load seed set anymore, but the checker itself runs on
   any misspelling you type into a seeded page).
 - **Persistence** — edits are written to `localStorage` and survive a page reload.
-- **Config persistence** — theme/page-mode/caret-mode/`[keys]` rebinds/`notes_root`/
+- **Config persistence** — theme/page-mode/caret-mode/`[keys]` rebinds/`default_folder`/
   `workspace`/etc. write to a real `config.toml` over `localStorage`
   (`fs::web_config_path()`) and survive a page reload, exactly like native's
   `~/.config/awl/config.toml`. Cmd-P → "Keybindings…" (the game-style rebind
@@ -249,16 +249,16 @@ hermetic setup for automated input-state testing.
     `webreserved::MAC_WEB_RESERVED` / `LINUX_WEB_RESERVED` are the DATA (one
     table per `Convention`); `webreserved::is_reserved(chord, convention)` is
     the one pure membership test. **Consequence for the two affected catalog
-    commands — New note (Cmd/Ctrl-N) and Switch theme… (Cmd/Ctrl-T):** on
+    commands — New document (Cmd/Ctrl-N) and Switch theme… (Cmd/Ctrl-T):** on
     `Platform::Web` their native chord label goes BLANK everywhere
     (`commands::resolved_native_label_truthful`) rather than advertising a
     chord the browser will actually eat; neither carries a surviving emacs
     slot 2 today, so both go summon-by-name-only on the web (Cmd-P → "New
-    note" / "Switch theme…" still work — this is a LABEL fix, not a
+    document" / "Switch theme…" still work — this is a LABEL fix, not a
     reachability regression). **v1 does NOT invent a replacement chord for
     either** — a deliberate, logged v2 taste call, not an oversight (a web
     `config.toml` now exists — see the "Config on the web" bullet below — so a
-    user CAN pick their own `[keys] new_note`/`switch_theme` replacement today;
+    user CAN pick their own `[keys] new_document`/`switch_theme` replacement today;
     v1 just doesn't ship a built-in default one). Dispatch itself needs no new
     code: a reserved chord's `keydown` never reaches the canvas at all in a
     real browser, so the keymap arm simply never fires — this tier is
@@ -300,7 +300,7 @@ hermetic setup for automated input-state testing.
   writes, `[keys]` rebinds, the Settings "Edit config as text" buffer) already
   routed through `crate::fs::active()` + `crate::fs::write_atomic`, so they work
   over `WebFs` with no code change beyond the load-time path — a theme switch,
-  a keybinding rebind, or a hand-edited `notes_root`/`workspace` now survives a
+  a keybinding rebind, or a hand-edited `default_folder`/`workspace` now survives a
   page reload, exactly like a native relaunch reads its `~/.config/awl/config.toml`.
   Sticky preferences (theme / page mode / caret mode / page-width measure) are
   now APPLIED at web launch too (`Config::apply_sticky_globals`, previously

@@ -1,8 +1,11 @@
-//! src/app/files/verbs.rs — the NOTES/FILE VERBS: manual save finish +
-//! scratch-to-note conversion, rename (live-to-title + explicit), move,
-//! duplicate, the inline-image drag-resize write-back, the asset-cleaner
-//! trash verb, and the two local-history bridges (Keep version / Restore).
-//! Split out of the former `app/files.rs` monolith (item 56).
+//! src/app/files/verbs.rs — the GENERIC FILE VERBS: manual save finish +
+//! scratch-to-document conversion, rename, move, duplicate, the inline-image
+//! drag-resize write-back, the asset-cleaner trash verb, and the two
+//! local-history bridges (Keep version / Restore). Split out of the former
+//! `app/files.rs` monolith (item 56); item 76 retired the old LIVE
+//! rename-to-title behavior — a document's name is now derived exactly once
+//! (its first material save), and Rename is the one, explicit, generic verb
+//! thereafter.
 
 use crate::app::*;
 use std::path::Path;
@@ -66,41 +69,38 @@ impl App {
 
 
     /// SAVE-FEEDBACK round: finish an explicit manual save (`Effect::SaveDone`,
-    /// an already-pathed or already-note buffer's `C-x C-s` / `Cmd-S`) — the
-    /// core already ran the SAME `Buffer::save` call every save path uses,
-    /// `ok`/`message` report the outcome. On SUCCESS, capture a local-history
-    /// point (the store's git gate / history-off / dedup all decide what's
-    /// kept) and follow the AUTOSAVE ENGINE's own bookkeeping (the buffer
-    /// version is now on disk — no redundant idle write; the fresh mtime is
-    /// the clobber guard's new baseline — a manual save legitimately
-    /// force-writes over an external change).
+    /// an already-pathed buffer's `C-x C-s` / `Cmd-S`) — the core already ran
+    /// the SAME `Buffer::save` call every save path uses, `ok`/`message` report
+    /// the outcome. On SUCCESS, capture a local-history point (the store's git
+    /// gate / history-off / dedup all decide what's kept) and follow the
+    /// AUTOSAVE ENGINE's own bookkeeping (the buffer version is now on disk —
+    /// no redundant idle write; the fresh mtime is the clobber guard's new
+    /// baseline — a manual save legitimately force-writes over an external
+    /// change).
     ///
     /// A successful explicit save is a short live toast. Only a genuine FAILURE
     /// stays sticky (an
-    /// unnamed empty note's "save failed: empty note: nothing to save yet"
+    /// unnamed empty document's "save failed: empty note: nothing to save yet"
     /// included) — errors must never go silent (the round's own bug was that
     /// both fates once reached only a terminal `eprintln!`, invisible on a GUI
     /// launch). Autosave stays SILENT too — only a failed explicit user action
     /// is acknowledged.
+    ///
+    /// (item 76: `Effect::SaveDone{ok:true}` is emitted only right after a
+    /// SUCCESSFUL `Buffer::save`, which — one-shot naming — always leaves
+    /// `is_unnamed_fresh()` false by the time this runs: either the buffer was
+    /// already ordinary, or it just got named and its marker cleared in the
+    /// same step. So there is no longer a distinct "note" dirty-marker branch
+    /// to stamp here — the ordinary `doc_saved_version` stamp below always
+    /// covers it. `autosave_note` stamps that same baseline for the
+    /// DEBOUNCED naming save, so both save doors agree.)
     pub(in crate::app) fn finish_manual_save(&mut self, ok: bool, message: String) {
         if ok {
             self.snapshot_after_save();
             if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
                 self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
                 self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-            }
-            // A NOTE reads `autosave_saved_version` in `is_document_dirty`, not
-            // `doc_saved_version` — so stamp it here too (mirroring
-            // `convert_scratch_and_save`'s post-save bookkeeping). Without this,
-            // ⌘S on a note left the title `•` + native titlebar dot lingering
-            // until the note's own ~400ms debounced autosave redundantly
-            // rewrote and finally stamped the field. `Buffer::save()` does NOT
-            // bump `version()` (only edit/undo/redo/set_eol do), so the
-            // just-written version is the correct saved marker; clearing
-            // `autosave_dirty_at` also suppresses that redundant idle rewrite.
-            if self.active.buffer.is_note() {
-                self.autosave_saved_version = Some(self.active.buffer.version());
-                self.autosave_dirty_at = None;
+                self.active.extra.caret_synced_version = self.active.buffer.version();
             }
             // NOTES VERBS round: the held HUD's SAVED stat.
             self.last_saved_ok = Some(self.clock.now());
@@ -115,17 +115,17 @@ impl App {
     /// (`Effect::ConvertScratchAndSave`) — convert the pathless buffer into a
     /// real note, reusing the EXACT auto-name machinery
     /// [`Self::ensure_note_named_before_paste`] already established for the
-    /// paste-image door ([`crate::buffer::Buffer::save_as_note`]: `set_note_dir`
+    /// paste-image door ([`crate::buffer::Buffer::save_into_folder`]: `set_note_dir`
     /// then `Buffer::save`, which derives the filename from the first line via
     /// the same `note_stem` a `C-x n` note uses), then finish the bookkeeping a
     /// normal manual save would (title, go-to index, the fresh note's own
     /// sticky page measure — a brand-new note is always PROSE, mirroring
-    /// `new_note`'s resync) and RETIRE the persistent SCRATCH STASH: the
+    /// `new_document`'s resync) and RETIRE the persistent SCRATCH STASH: the
     /// content just became a real, named file, so a later bare relaunch must
     /// never resurrect a ghost copy of it from the old stash (best-effort —
     /// a failed remove never disrupts the save that already succeeded).
     /// Raises the SAME calm "saved" / "save failed: …" notice a plain manual
-    /// save does — never a terminal print. A `notes_root` that doesn't exist
+    /// save does — never a terminal print. An active folder that doesn't exist
     /// or isn't writable surfaces here as the failure notice, never a crash.
     ///
     /// USER-FLIPPABLE (logged, not hidden): this round settled on "scratch
@@ -134,9 +134,9 @@ impl App {
     /// notice-only ("nothing to save yet — start a note first"), leaving the
     /// scratch buffer untouched. Both are one function to swap here.
     pub(in crate::app) fn convert_scratch_and_save(&mut self) {
-        match self.active.buffer.save_as_note(&self.notes_root) {
+        match self.active.buffer.save_into_folder(&self.root) {
             Ok(()) => {
-                // `Buffer::save_as_note` already stamped the derived path onto
+                // `Buffer::save_into_folder` already stamped the derived path onto
                 // the buffer itself (the sole authoritative path, item 56).
                 self.update_title();
                 self.rescan_file_index();
@@ -186,7 +186,7 @@ impl App {
     /// Best-effort: any store error is swallowed inside `record_pinned`, so a failed
     /// pin never disrupts the buffer.
     pub(in crate::app) fn keep_version(&self, name: Option<&str>) {
-        let path = crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_note());
+        let path = crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_unnamed_fresh());
         if let Some(path) = path {
             crate::history::record_pinned(&path, &self.active.buffer.text(), &self.config, name);
         }
@@ -203,7 +203,7 @@ impl App {
     /// timeline restores too). A no-op for an unnamed note, or an unknown /
     /// unresolvable id (best-effort — a failed restore must never disrupt the buffer).
     pub(in crate::app) fn restore_history(&mut self, id: &str) {
-        let path = crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_note());
+        let path = crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_unnamed_fresh());
         if let Some(path) = path {
             if let Some(content) = crate::history::load(&path, id) {
                 self.active.buffer.set_text(&content);
@@ -237,70 +237,27 @@ impl App {
     }
 
 
-    /// LIVE-RENAME the active note's file to follow its FIRST LINE. Called after an
-    /// autosave of an already-named note: re-derive the title slug ([the same
-    /// derivation the first save uses](crate::buffer::note_stem)); if the file's
-    /// name no longer matches it, `fs::rename` to the fresh slug (non-clobbering,
-    /// mirroring [`Self::move_current_note`]) and re-sync the buffer's path, the
-    /// window title, and the go-to index. A no-op when the name already tracks
-    /// the title or the note has gone empty. Notes only.
-    pub(in crate::app) fn rename_note_to_title(&mut self) {
-        if !self.active.buffer.is_note() {
-            return;
-        }
-        let Some(old) = self.active.buffer.path().map(|p| p.to_path_buf()) else {
-            return;
-        };
-        let text = self.active.buffer.text();
-        // An emptied first line keeps the current name (nothing meaningful to
-        // re-derive); there is nothing to rename TO.
-        let Some(line) = crate::buffer::first_nonempty_line(&text) else {
-            return;
-        };
-        let stem = crate::buffer::note_stem(line);
-        let new_path = match crate::buffer::rename_to_stem(&old, &stem) {
-            Ok(p) => p,
-            // SAVE-FEEDBACK round: no terminal echo — a live-rename is a
-            // background autosave hiccup (the note is still safely saved
-            // under its OLD name; nothing was lost), never worth interrupting
-            // the user with a notice over.
-            Err(_) => return,
-        };
-        if new_path == old {
-            return; // name already tracks the title
-        }
-        // SAVE-FEEDBACK round: no terminal echo on success either — the
-        // window title already renders the new name.
-        self.active.buffer.set_path(new_path);
-        self.update_title();
-        // Re-scope the go-to index so the note is jump-able under its new name.
-        self.rescan_file_index();
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
-    }
-
-
-    /// C-x m accept: MOVE the current note into `dest_rel` (a directory relative to
-    /// the notes root; `""` = the notes root itself), keeping the filename. Creates
-    /// the destination folder if needed, refuses to clobber (numeric suffix), then
-    /// re-points the buffer so editing/auto-save continue at the new path. A true
-    /// `std::fs::rename` move — never a copy.
-    pub(in crate::app) fn move_current_note(&mut self, dest_rel: &str) {
+    /// C-x m accept: MOVE the current file into `dest_rel` (a directory relative
+    /// to the ACTIVE folder — item 76: the same folder Cmd-N creates a document
+    /// in, not a separate notes root; `""` = the active folder itself), keeping
+    /// the filename. Creates the destination folder if needed, refuses to
+    /// clobber (numeric suffix), then re-points the buffer so editing/auto-save
+    /// continue at the new path. A true `std::fs::rename` move — never a copy.
+    pub(in crate::app) fn move_current_file(&mut self, dest_rel: &str) {
         let Some(old) = self.active.buffer.path().map(|p| p.to_path_buf()) else {
             return; // no current file to move
         };
         let dest_dir = if dest_rel.is_empty() {
-            self.notes_root.clone()
+            self.root.clone()
         } else {
-            self.notes_root.join(dest_rel)
+            self.root.join(dest_rel)
         };
         // The actual mkdir + no-clobber + rename lives in `buffer::move_file` (the
         // one move primitive, unit-tested on a temp dir).
         let new_path = match crate::buffer::move_file(&old, &dest_dir) {
             Ok(p) => p,
             Err(e) => {
-                // SAVE-FEEDBACK round: an explicit "Move note" is a discrete
+                // SAVE-FEEDBACK round: an explicit "Move…" is a discrete
                 // user action, so a failure gets the SAME calm bottom-center
                 // notice a failed manual save does — never a terminal print.
                 self.set_sticky_notice(format!("move failed: {e}"));
@@ -312,8 +269,10 @@ impl App {
         }
         // No success notice — the window title already renders the new path.
         self.active.buffer.set_path(new_path);
-        // Keep auto-saving into the note's new home.
-        if self.active.buffer.is_note() {
+        // An UNNAMED fresh document being moved before its first save (rare —
+        // the picker only opens for a pathed file) keeps auto-saving into its
+        // new home.
+        if self.active.buffer.is_unnamed_fresh() {
             self.active.buffer.set_note_dir(dest_dir);
         }
         self.update_title();
@@ -332,7 +291,7 @@ impl App {
     /// local-history log ([`crate::history::rename`]) — the multi-buffer REGISTRY
     /// never needs touching here because it only ever holds BACKGROUNDED buffers,
     /// and a rename only ever acts on the ACTIVE one; the recent-files MRU and the
-    /// session file are left untouched, mirroring `move_current_note`'s own
+    /// session file are left untouched, mirroring `move_current_file`'s own
     /// established scope (a soft MRU / a machine-state snapshot, not a hard
     /// identity — both self-heal on the next open/quit). REFUSES calmly (a notice,
     /// no write) rather than clobbering: a NAME COLLISION with an existing file, or
@@ -370,7 +329,7 @@ impl App {
         // disrupts the rename that already succeeded on disk.
         let _ = crate::history::rename(&old, &dest);
         self.active.buffer.set_path(dest.clone());
-        if self.active.buffer.is_note() {
+        if self.active.buffer.is_unnamed_fresh() {
             if let Some(dir) = dest.parent() {
                 self.active.buffer.set_note_dir(dir.to_path_buf());
             }
@@ -393,9 +352,9 @@ impl App {
     /// (a brand-new `Buffer::from_file`, a brand-new local-history log — nothing
     /// carries over, since the copy is a new file). The sibling name is chosen by
     /// the SAME no-clobber dedup [`crate::buffer::unique_path`] uses elsewhere
-    /// (`move_current_note`/live-rename) — `name-2.md`, `name-3.md`, … — never a
+    /// (`move_current_file`) — `name-2.md`, `name-3.md`, … — never a
     /// space-separated `"name 2.md"`, matching the codebase's own established
-    /// convention. A pathless buffer (scratch / an unnamed note) is a calm no-op —
+    /// convention. A pathless buffer (scratch / an unnamed fresh document) is a calm no-op —
     /// there is nothing to duplicate yet. Flushes any pending debounced write
     /// FIRST so the ORIGINAL reliably exists on disk under its own name before the
     /// dedup scan runs (otherwise a not-yet-flushed `old` would look "free" to

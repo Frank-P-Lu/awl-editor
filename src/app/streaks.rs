@@ -237,7 +237,7 @@ mod tests {
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             // Create a fresh note the REAL way (the C-x n path).
-            app.new_note();
+            app.new_document();
             let today = app.streaks_local_today();
             // Type INTO the fresh note before any idle flush has fired.
             app.active.buffer.set_text("brand new words typed today");

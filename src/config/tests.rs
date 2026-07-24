@@ -12,7 +12,7 @@ use std::path::PathBuf;
 #[test]
 fn absent_config_is_all_defaults() {
     let cfg = Config::load(PathBuf::from("/nonexistent/awl/config.toml"));
-    assert!(cfg.notes_root.is_none());
+    assert!(cfg.default_folder.is_none());
     assert!(cfg.workspace.is_none());
     assert!(cfg.keys.is_empty());
 }
@@ -26,11 +26,11 @@ fn load_reads_folders_and_keys() {
     let p = PathBuf::from("/cfg/config.toml");
     let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(
         &p,
-        "notes_root = \"/tmp/my-notes\"\nworkspace = \"/tmp/ws\"\n[keys]\nswitch_theme = \"C-t\"\n",
+        "default_folder = \"/tmp/my-notes\"\nworkspace = \"/tmp/ws\"\n[keys]\nswitch_theme = \"C-t\"\n",
     ));
     crate::fs::with_fs(fs, || {
         let cfg = Config::load(p.clone());
-        assert_eq!(cfg.notes_root, Some(PathBuf::from("/tmp/my-notes")));
+        assert_eq!(cfg.default_folder, Some(PathBuf::from("/tmp/my-notes")));
         assert_eq!(cfg.workspace, Some(PathBuf::from("/tmp/ws")));
         assert_eq!(
             cfg.keys,
@@ -81,13 +81,13 @@ fn malformed_config_degrades_to_defaults() {
     );
     crate::fs::with_fs(fs, || {
         let cfg = Config::load(p.clone());
-        assert!(cfg.notes_root.is_none() && cfg.workspace.is_none() && cfg.keys.is_empty());
+        assert!(cfg.default_folder.is_none() && cfg.workspace.is_none() && cfg.keys.is_empty());
     });
 }
 
 #[test]
 fn tilde_in_folder_path_expands_to_home() {
-    // A `~/x` notes_root resolves against the CURRENT $HOME. We only READ $HOME,
+    // A `~/x` default_folder resolves against the CURRENT $HOME. We only READ $HOME,
     // but `config_path_env_precedence` MUTATES it, so hold the shared ENV_LOCK to
     // serialize against that writer (otherwise the read races its set_var).
     // Skipped if HOME is unset.
@@ -97,15 +97,15 @@ fn tilde_in_folder_path_expands_to_home() {
     };
     // expand_tilde directly...
     assert_eq!(expand_tilde("~/x"), PathBuf::from(&home).join("x"));
-    // ...and through the load seam (notes_root + workspace both expand), over the
+    // ...and through the load seam (default_folder + workspace both expand), over the
     // InMemoryFs seam (no temp file).
     use std::sync::Arc;
     let p = PathBuf::from("/cfg/config.toml");
     let fs = Arc::new(crate::fs::InMemoryFs::new()
-        .with_file(&p, "notes_root = \"~/n\"\nworkspace = \"~/w\"\n"));
+        .with_file(&p, "default_folder = \"~/n\"\nworkspace = \"~/w\"\n"));
     crate::fs::with_fs(fs, || {
         let cfg = Config::load(p.clone());
-        assert_eq!(cfg.notes_root, Some(PathBuf::from(&home).join("n")));
+        assert_eq!(cfg.default_folder, Some(PathBuf::from(&home).join("n")));
         assert_eq!(cfg.workspace, Some(PathBuf::from(&home).join("w")));
     });
     // A non-tilde path passes through verbatim.
@@ -199,7 +199,7 @@ fn write_binding_sets_replaces_and_resets_preserving_comments() {
     let p = PathBuf::from("/cfg/config.toml");
     let mem = crate::fs::InMemoryFs::new().with_file(
         &p,
-        "# my notes\nnotes_root = \"/tmp/n\"\n[keys]\nswitch_theme = \"C-t\"\n",
+        "# my notes\ndefault_folder = \"/tmp/n\"\n[keys]\nswitch_theme = \"C-t\"\n",
     );
     let fs = Arc::new(mem.clone());
     crate::fs::with_fs(fs, || {
@@ -209,7 +209,7 @@ fn write_binding_sets_replaces_and_resets_preserving_comments() {
         let get = |k: &str| cfg.keys.iter().find(|(n, _)| n == k).map(|(_, v)| v.clone());
         assert_eq!(get("save"), Some(vec!["Cmd-S".to_string(), "C-x C-s".to_string()]));
         assert_eq!(get("switch_theme"), Some(vec!["C-t".to_string()]));
-        assert_eq!(cfg.notes_root, Some(PathBuf::from("/tmp/n")));
+        assert_eq!(cfg.default_folder, Some(PathBuf::from("/tmp/n")));
         let raw = mem.read_to_string(&p).unwrap();
         assert!(raw.contains("# my notes"), "comment preserved: {raw}");
         // REPLACE an existing entry in place (live-reload picks up the new value).
@@ -254,7 +254,7 @@ fn write_default_then_load_roundtrips() {
         Config::write_default(&p).unwrap();
         let cfg = Config::load(p.clone());
         // The template's folder lines are COMMENTED, so a fresh default is all-None.
-        assert!(cfg.notes_root.is_none() && cfg.workspace.is_none());
+        assert!(cfg.default_folder.is_none() && cfg.workspace.is_none());
         // The new sticky-pref lines are ALSO commented examples → all-None default.
         assert!(cfg.theme.is_none() && cfg.zoom.is_none());
         assert!(cfg.page_mode.is_none() && cfg.caret_mode.is_none());
@@ -264,8 +264,6 @@ fn write_default_then_load_roundtrips() {
         assert!(cfg.spellcheck.is_none());
         // autosave rides the same commented-example pattern → None → default ON.
         assert!(cfg.autosave.is_none() && cfg.autosave_on());
-        // project_root is a commented example too → None → derive from file/cwd.
-        assert!(cfg.project_root.is_none());
         // wysiwyg rides the same commented-example pattern → None → default ON.
         assert!(cfg.wysiwyg.is_none(), "wysiwyg absent → the built-in default (ON)");
     });
@@ -793,7 +791,7 @@ fn stale_autosnapshot_secs_key_is_ignored() {
         assert_eq!(cfg.history, Some(true), "known keys still load");
         assert_eq!(cfg.autosave, None, "stale knob doesn't leak into autosave");
         assert!(cfg.autosave_on() && cfg.history_on(), "defaults intact");
-        assert!(cfg.notes_root.is_none() && cfg.keys.is_empty());
+        assert!(cfg.default_folder.is_none() && cfg.keys.is_empty());
     });
 }
 
@@ -966,7 +964,7 @@ fn write_pref_upserts_without_clobbering_keys_or_comments() {
     let p = PathBuf::from("/cfg/config.toml");
     let mem = crate::fs::InMemoryFs::new().with_file(
         &p,
-        "# my notes\nnotes_root = \"/tmp/n\"\n[keys]\nswitch_theme = \"C-t\"\n",
+        "# my notes\ndefault_folder = \"/tmp/n\"\n[keys]\nswitch_theme = \"C-t\"\n",
     );
     crate::fs::with_fs(Arc::new(mem.clone()), || {
         // SET each sticky pref. They must land ABOVE [keys] (top-level), the comment
@@ -985,7 +983,7 @@ fn write_pref_upserts_without_clobbering_keys_or_comments() {
             cfg.keys.iter().find(|(n, _)| n == "switch_theme").map(|(_, v)| v.clone()),
             Some(vec!["C-t".to_string()])
         );
-        assert_eq!(cfg.notes_root, Some(PathBuf::from("/tmp/n")));
+        assert_eq!(cfg.default_folder, Some(PathBuf::from("/tmp/n")));
         let raw = mem.read_to_string(&p).unwrap();
         assert!(raw.contains("# my notes"), "comment preserved: {raw}");
         // The sticky prefs must precede the [keys] header so they parse top-level.
@@ -1024,12 +1022,12 @@ fn write_pref_appends_when_no_table_header() {
     // A config with NO `[keys]`/table header: the pref just appends.
     use std::sync::Arc;
     let p = PathBuf::from("/cfg/config.toml");
-    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "notes_root = \"/tmp/n\"\n"));
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "default_folder = \"/tmp/n\"\n"));
     crate::fs::with_fs(fs, || {
         Config::write_pref(&p, "zoom", "0.800").unwrap();
         let cfg = Config::load(p.clone());
         assert_eq!(cfg.zoom, Some(0.8));
-        assert_eq!(cfg.notes_root, Some(PathBuf::from("/tmp/n")));
+        assert_eq!(cfg.default_folder, Some(PathBuf::from("/tmp/n")));
     });
 }
 
@@ -1253,61 +1251,6 @@ fn apply_sticky_globals_falls_back_to_default_for_retired_world_names() {
     crate::theme::set_active(theme0);
 }
 
-// ── STICKY PROJECT ROOT ─────────────────────────────────────────────────
-
-#[test]
-fn load_reads_project_root_pref_with_tilde_expansion() {
-    // project_root round-trips like the other sticky prefs, and expands a
-    // leading `~/` like notes_root/workspace (it's a path, after all).
-    let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let Some(home) = std::env::var_os("HOME") else {
-        return;
-    };
-    use std::sync::Arc;
-    let p = PathBuf::from("/cfg/config.toml");
-    let fs = Arc::new(
-        crate::fs::InMemoryFs::new().with_file(&p, "project_root = \"~/code/thing\"\n"),
-    );
-    crate::fs::with_fs(fs, || {
-        assert_eq!(
-            Config::load(p.clone()).project_root,
-            Some(PathBuf::from(&home).join("code/thing"))
-        );
-    });
-    // Absent -> None (today's default: derive from the launch file / cwd).
-    let fs2 = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "theme = \"Tawny\"\n"));
-    crate::fs::with_fs(fs2, || {
-        assert_eq!(Config::load(p.clone()).project_root, None);
-    });
-}
-
-#[test]
-fn write_pref_persists_project_root() {
-    // The switch-project write-on-commit path (mirrors
-    // `write_pref_persists_dictionary`): C-x p persists the new root as a
-    // quoted absolute path; a reload restores it, comments survive.
-    use std::sync::Arc;
-    let p = PathBuf::from("/cfg/config.toml");
-    let mem = crate::fs::InMemoryFs::new();
-    crate::fs::with_fs(Arc::new(mem.clone()), || {
-        Config::write_pref(&p, "project_root", "\"/home/me/work/repo-a\"").unwrap();
-        assert_eq!(
-            Config::load(p.clone()).project_root,
-            Some(PathBuf::from("/home/me/work/repo-a"))
-        );
-        // Switching AGAIN replaces in place (no duplicate line).
-        Config::write_pref(&p, "project_root", "\"/home/me/work/repo-b\"").unwrap();
-        assert_eq!(
-            Config::load(p.clone()).project_root,
-            Some(PathBuf::from("/home/me/work/repo-b"))
-        );
-        let raw = mem.read_to_string(&p).unwrap();
-        assert!(raw.contains("awl config"), "template comments survive: {raw}");
-        let lines = raw.lines().filter(|l| l.trim_start().starts_with("project_root =")).count();
-        assert_eq!(lines, 1, "no duplicate project_root line: {raw}");
-    });
-}
-
 #[test]
 fn sticky_prefs_and_keybindings_coexist_in_one_file() {
     // The two surgical writers (write_pref for top-level prefs, write_binding for
@@ -1360,7 +1303,7 @@ fn absent_linux_keep_emacs_is_empty() {
     assert!(Config::empty().linux_keep_emacs.is_empty());
     use std::sync::Arc;
     let p = PathBuf::from("/cfg/config.toml");
-    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "notes_root = \"/tmp/notes\"\n"));
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "default_folder = \"/tmp/notes\"\n"));
     crate::fs::with_fs(fs, || {
         assert!(Config::load(p.clone()).linux_keep_emacs.is_empty());
     });
@@ -1388,13 +1331,13 @@ fn linux_keep_emacs_wrong_type_is_ignored_not_a_crash() {
     let p = PathBuf::from("/cfg/config.toml");
     let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(
         &p,
-        "linux_keep_emacs = \"C-f\"\nnotes_root = \"/tmp/notes\"\n",
+        "linux_keep_emacs = \"C-f\"\ndefault_folder = \"/tmp/notes\"\n",
     ));
     crate::fs::with_fs(fs, || {
         let cfg = Config::load(p.clone());
         assert!(cfg.linux_keep_emacs.is_empty());
         // The rest of the file still loads fine — one bad key never poisons others.
-        assert_eq!(cfg.notes_root, Some(PathBuf::from("/tmp/notes")));
+        assert_eq!(cfg.default_folder, Some(PathBuf::from("/tmp/notes")));
     });
 }
 
@@ -1405,7 +1348,7 @@ fn keymap_flavor_absent_defaults_to_native() {
     assert_eq!(Config::empty().keymap_flavor(), crate::keymap::KeymapFlavor::Native);
     use std::sync::Arc;
     let p = PathBuf::from("/cfg/config.toml");
-    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "notes_root = \"/tmp/notes\"\n"));
+    let fs = Arc::new(crate::fs::InMemoryFs::new().with_file(&p, "default_folder = \"/tmp/notes\"\n"));
     crate::fs::with_fs(fs, || {
         assert_eq!(Config::load(p).keymap_flavor(), crate::keymap::KeymapFlavor::Native);
     });

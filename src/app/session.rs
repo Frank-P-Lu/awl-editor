@@ -1,11 +1,24 @@
 //! SESSION RESTORE's App-side wiring (native only — `cfg(not(target_arch =
 //! "wasm32"))`, mirroring the single-instance daemon's own gate): the CAPTURE
 //! half (`session_flush`, called from the same blur+quit doors the autosave
-//! engine's own flush uses) and the RESTORE half (`apply_session_restore`,
-//! called once from `App::new`). `crate::session` owns the pure data model +
-//! (de)serializer + window-frame clamp math; this file is the seam that folds
-//! it into the live `App` — the buffer registry, the active buffer, and (on
-//! `resumed()`, in `app.rs`) the window frame.
+//! engine's own flush uses, AND eagerly from `switch_project` on every folder
+//! switch) and the RESTORE half (`apply_session_restore`, called once from
+//! `App::new`). `crate::session` owns the pure data model + (de)serializer +
+//! window-frame clamp math; this file is the seam that folds it into the live
+//! `App` — the buffer registry, the active buffer, and (on `resumed()`, in
+//! `app.rs`) the window frame.
+//!
+//! **Item 76 — the ONE active-folder-context owner:** `SessionState.root` is
+//! now written by `session_flush` ALONGSIDE `active`/`buffers` in the exact
+//! same atomic write, so the folder and the active document restored from
+//! them can never disagree (the old, retired `config.project_root` was a
+//! SEPARATE store that could drift from the session's own `active`). The
+//! FOLDER side of the one launch-precedence law is read by
+//! `main/run.rs::resolve_launch_context` (via `crate::session::remembered_root`,
+//! gated on `Config::session_restore_on()`) BEFORE `App::new` is even called;
+//! this file's `apply_session_restore` owns only the DOCUMENT/buffer-registry
+//! side, reading the SAME underlying state — both single-read from one file,
+//! so they cannot disagree by construction.
 //!
 //! **Native-only scope trim (TASTE CALL, logged):** the whole engine is gated
 //! off on wasm, like the daemon. A browser tab has no discrete "quit, then
@@ -83,7 +96,12 @@ impl App {
                 height: size.height,
             })
         });
-        let state = crate::session::SessionState { active: active_path, buffers, window };
+        let state = crate::session::SessionState {
+            root: Some(self.root.clone()),
+            active: active_path,
+            buffers,
+            window,
+        };
         if let Err(e) = crate::session::save(&crate::session::session_path(), &state) {
             eprintln!("session save failed: {e}");
         }
@@ -195,6 +213,7 @@ mod tests {
         buffers: &[(&str, usize, usize, usize)],
     ) -> crate::session::SessionState {
         crate::session::SessionState {
+            root: None,
             active: active.map(PathBuf::from),
             buffers: buffers
                 .iter()
@@ -349,6 +368,7 @@ mod tests {
             app.session_flush();
 
             let saved = crate::session::load(&crate::session::session_path());
+            assert_eq!(saved.root, Some(PathBuf::from("/n")), "the ONE owner also carries the folder");
             assert_eq!(saved.active, Some(PathBuf::from("/n/b.md")));
             let a_pos = saved
                 .buffers
@@ -357,6 +377,71 @@ mod tests {
                 .map(|(_, pos)| *pos)
                 .expect("a.md was flushed as a backgrounded buffer");
             assert_eq!(a_pos, crate::session::BufferPos { line: 2, col: 1, scroll: 7 });
+        });
+    }
+
+    #[test]
+    fn switch_project_eagerly_flushes_the_new_root_not_only_on_blur_or_quit() {
+        // item 76: a crash/relaunch right after a folder switch — before any
+        // blur/quit ever fires — must still resume the NEW folder, not the
+        // pre-switch one. `switch_project` calls `session_flush` itself.
+        let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/a").with_dir("/b"));
+        crate::fs::with_fs(fake, || {
+            let mut app = App::new(None, PathBuf::from("/a"), None, None, Config::empty());
+            assert_eq!(
+                crate::session::load(&crate::session::session_path()).root,
+                None,
+                "nothing flushed yet"
+            );
+            app.switch_project(PathBuf::from("/b"));
+            assert_eq!(app.root, PathBuf::from("/b"));
+            assert_eq!(
+                crate::session::load(&crate::session::session_path()).root,
+                Some(PathBuf::from("/b")),
+                "the switch itself flushed the new root — no blur/quit needed"
+            );
+        });
+    }
+
+    #[test]
+    fn a_to_b_to_a_restores_folder_and_the_active_documents_view() {
+        // The launch-precedence law's document/view half: open A (folder FA),
+        // switch to folder FB and open a file there, flush (mirrors blur), then
+        // a FRESH App with nothing but the remembered session lands back in FA
+        // with FA's file + cursor/scroll intact (the buffer registry round-trip
+        // — `switch_project`/`load_path` never discard a buffer, only park it).
+        let fake = Arc::new(
+            crate::fs::InMemoryFs::new()
+                .with_file("/fa/one.md", "aaa\nbbb\nccc\n")
+                .with_file("/fb/two.md", "xxx\nyyy\n"),
+        );
+        crate::fs::with_fs(fake, || {
+            let mut app = App::new(Some(PathBuf::from("/fa/one.md")), PathBuf::from("/fa"), None, None, Config::empty());
+            app.active.buffer.set_cursor(app.active.buffer.line_col_to_char(2, 1));
+            app.active.extra.scroll_lines = 5;
+
+            app.switch_project(PathBuf::from("/fb"));
+            app.load_path(PathBuf::from("/fb/two.md"));
+            app.session_flush();
+
+            // A brand-new App, bare launch: `App::new`'s `root` here stands in
+            // for what `resolve_launch_context` would have handed it after
+            // reading `crate::session::remembered_root()` (tested standalone in
+            // `main::run::tests`) — this test's job is the DOCUMENT/view half.
+            let remembered_root = crate::session::remembered_root().unwrap();
+            assert_eq!(remembered_root, PathBuf::from("/fb"), "resumes the LAST active folder (FB)");
+            let mut app2 = App::new(None, remembered_root, None, None, Config::empty());
+            assert_eq!(app2.active.buffer.path(), Some(Path::new("/fb/two.md")));
+            assert!(app2
+                .buffer_registry
+                .contains(&crate::buffers::BufferKey::path(Path::new("/fa/one.md"))));
+
+            // Now actually flip BACK to FA (mirrors a Last-file / Goto back to
+            // it) and confirm the FULL previous location — folder + buffer +
+            // cursor/scroll — round-trips through the registry, not a fresh re-read.
+            app2.load_path(PathBuf::from("/fa/one.md"));
+            assert_eq!(app2.active.buffer.cursor_line_col(), (2, 1), "A's cursor survived");
+            assert_eq!(app2.active.extra.scroll_lines, 5, "A's scroll survived");
         });
     }
 }

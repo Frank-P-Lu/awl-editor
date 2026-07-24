@@ -29,28 +29,22 @@ pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
     }
 }
 
-/// Resolve the ACTIVE project root: explicit `--root` wins outright; otherwise,
-/// on a BARE launch (no file argument at all) the remembered STICKY PROJECT
-/// ROOT (`config.project_root`, written by every switch-project / Cmd-Shift-P commit)
-/// restores the last-worked-in project — mirroring the scratch-buffer stash's
-/// exact restore condition, so `awl` with no arguments reopens where you left
-/// off. A launch WITH a file argument is unaffected (still resolves from that
-/// file's own directory below), so opening some other file never silently
-/// redirects the project scope. Absent `sticky_root` (no config, or a config
-/// with no remembered project) reproduces today's behaviour exactly: the
-/// launch file's directory (if it's a dir), else its parent, else cwd.
-pub(crate) fn resolve_root(
-    root: &Option<PathBuf>,
-    file: &Option<PathBuf>,
-    sticky_root: Option<&std::path::Path>,
-) -> PathBuf {
+/// Resolve the ACTIVE folder from an EXPLICIT target only: `--root` wins
+/// outright; else a file/dir ARGUMENT resolves from its own location (a dir
+/// argument — including `awl .` — IS the folder; a file's PARENT is; a bare
+/// filename with no directory component falls to cwd, since that file lives
+/// in cwd). This is the "explicit target wins" half of the ONE
+/// launch-precedence law ([`resolve_launch_context`]) — used standalone by
+/// every HEADLESS capture mode, which is structurally free of remembered
+/// session state (the capture-gate law, `CLAUDE.md`) and therefore never
+/// consults anything beyond what its own flags/args named; a bare (no
+/// root, no file) capture invocation falls all the way to cwd, unchanged
+/// from before item 76 (capture was never a "remembered folder" launch
+/// door, so retiring the old sticky `config.project_root` — folded into the
+/// live-App-only session, item 76 — changes nothing observable here).
+pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> PathBuf {
     if let Some(r) = root {
         return r.clone();
-    }
-    if file.is_none() {
-        if let Some(p) = sticky_root {
-            return p.to_path_buf();
-        }
     }
     if let Some(f) = file {
         if crate::fs::active().is_dir(f) {
@@ -63,6 +57,38 @@ pub(crate) fn resolve_root(
         }
     }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// THE ONE launch-precedence law (item 76), for the WINDOWED launch door
+/// only (`Mode::Windowed` in [`run`]):
+///
+/// 1. **EXPLICIT TARGET WINS** — `--root`, or a file/dir argument (`awl .`
+///    included) — delegates to [`resolve_root`], unaffected by anything
+///    remembered.
+/// 2. **ARGUMENT-FREE LAUNCH RESTORES** — bare `awl`: the remembered active
+///    folder (`remembered`, from `crate::session::remembered_root`, gated by
+///    the caller on `Config::session_restore_on()`) wins if there is one.
+/// 3. **FIRST RUN** — bare launch, nothing remembered (a fresh install, or
+///    the session kill-switch is off): `default_folder` (the resolved
+///    `--default-folder`/config/`~/notes` value).
+///
+/// The DOCUMENT half of a bare launch (which file becomes active, the rest
+/// parked behind it) is owned by `App::apply_session_restore`, reading the
+/// SAME underlying session state — see `app/session.rs`'s module doc for why
+/// the two halves can never disagree.
+pub(crate) fn resolve_launch_context(
+    root: &Option<PathBuf>,
+    file: &Option<PathBuf>,
+    remembered: Option<&std::path::Path>,
+    default_folder: &std::path::Path,
+) -> PathBuf {
+    if root.is_some() || file.is_some() {
+        return resolve_root(root, file);
+    }
+    match remembered {
+        Some(p) => p.to_path_buf(),
+        None => default_folder.to_path_buf(),
+    }
 }
 
 /// Resolve the EFFECTIVE workspace whose child dirs are the switch-project
@@ -133,7 +159,7 @@ struct ReplayResult {
 /// overwrite. The headless replay's mirror of `App::park_active_buffer` — same
 /// behavior, same code, so EVERY "the active buffer is about to be replaced"
 /// site in [`replay_keys`] (a Goto switch, `Cmd-N`) backgrounds it identically
-/// rather than one path silently discarding it (the `Effect::NewNote` gap a
+/// rather than one path silently discarding it (the `Effect::NewDocument` gap a
 /// code review caught: it used to reset `buffer` in place with no park at
 /// all, permanently losing whatever the buffer being left held).
 fn park_active(buffer: &mut Buffer, registry: &mut crate::buffers::BufferRegistry<()>) {
@@ -158,7 +184,6 @@ fn replay_keys(
     corpus: &[String],
     root: &std::path::Path,
     workspace: Option<&std::path::Path>,
-    notes_root: &std::path::Path,
     config: &Config,
     oracle: Option<&mut capture::OraclePipeline>,
     km: &mut crate::keymap::KeymapState,
@@ -170,7 +195,6 @@ fn replay_keys(
         corpus,
         root,
         workspace,
-        notes_root,
         config,
         oracle,
         km,
@@ -195,13 +219,12 @@ fn replay_keys_mode(
     corpus: &[String],
     root: &std::path::Path,
     workspace: Option<&std::path::Path>,
-    notes_root: &std::path::Path,
     config: &Config,
     oracle: Option<&mut capture::OraclePipeline>,
     km: &mut crate::keymap::KeymapState,
 ) -> Result<ReplayResult> {
     let mut session =
-        ReplaySession::new(mode, buffer, corpus, root, workspace, notes_root, config, oracle, km);
+        ReplaySession::new(mode, buffer, corpus, root, workspace, config, oracle, km);
     for chord in keys {
         session.apply_chord(chord)?;
     }
@@ -222,7 +245,6 @@ pub(crate) struct ReplaySession<'a> {
     corpus: &'a [String],
     root: &'a std::path::Path,
     workspace: Option<&'a std::path::Path>,
-    notes_root: &'a std::path::Path,
     config: &'a Config,
     // The visual-line motion LAYOUT ORACLE (an offscreen-shaped pipeline), so the
     // headless replay sees the SAME wrap geometry the live window does. Held
@@ -273,7 +295,6 @@ impl<'a> ReplaySession<'a> {
         corpus: &'a [String],
         root: &'a std::path::Path,
         workspace: Option<&'a std::path::Path>,
-        notes_root: &'a std::path::Path,
         config: &'a Config,
         oracle: Option<&'a mut capture::OraclePipeline>,
         km: &'a mut crate::keymap::KeymapState,
@@ -286,7 +307,6 @@ impl<'a> ReplaySession<'a> {
             corpus,
             root,
             workspace,
-            notes_root,
             config,
             oracle,
             resolver,
@@ -426,7 +446,7 @@ impl<'a> ReplaySession<'a> {
         // overlay, so this never runs in a default capture.
         let history_entries: Vec<crate::history::TimelineRow> =
             if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                match crate::history::source_path(self.buffer.path(), self.buffer.is_note()) {
+                match crate::history::source_path(self.buffer.path(), self.buffer.is_unnamed_fresh()) {
                     Some(path) => crate::history::timeline_rows(
                         &path,
                         &self.buffer.text(),
@@ -488,15 +508,15 @@ impl<'a> ReplaySession<'a> {
         };
         let mut make_overlay =
             |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
-        let (root, notes_root, workspace) = (self.root, self.notes_root, self.workspace);
+        let (root, workspace) = (self.root, self.workspace);
         let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
             // Shared one-level builder: Project navigates the workspace by absolute
-            // path, MoveDest walks the NOTES root (folders only), Browse the active
-            // root (files + folders).
+            // path, MoveDest and Browse both walk the SAME active root (item 76 —
+            // MoveDest folders only, Browse files + folders).
             // The recent-PROJECTS MRU is live-only persisted state; the headless
             // replay passes an empty list (the determinism gate), so the Project
             // navigator's Recent lens is inert in a capture — byte-stable.
-            crate::overlay::browse_level(kind, rel, root, notes_root, workspace, &[])
+            crate::overlay::browse_level(kind, rel, root, workspace, &[])
         };
         let mut ctx = actions::ActionCtx {
             buffer: &mut *self.buffer,
@@ -571,17 +591,16 @@ impl<'a> ReplaySession<'a> {
         // so a single match suffices). Quit / LastBuffer are no-ops in capture (no
         // event loop, no 2-deep history); the rest mirror the live App's handling.
         match effect {
-            // New note (Cmd-N): PARK the buffer being left (exactly like the live
-            // `App::new_note` — a code-review-caught gap used to skip this and
+            // New document (Cmd-N): PARK the buffer being left (exactly like the live
+            // `App::new_document` — a code-review-caught gap used to skip this and
             // just reset `buffer` in place, silently discarding it) then reset
-            // to a fresh quick note bound to the notes root, so subsequent
-            // typed chars build the title and an explicit Cmd-S derives
-            // the filename + writes it. The root-switch is App-only; headless
-            // only needs the buffer to become a note so the Save flow is
-            // verifiable.
-            actions::Effect::NewNote => {
+            // to a fresh unnamed document bound to the ACTIVE root (item 76 — no
+            // separate notes-root jump, live or headless), so subsequent typed
+            // chars build the title and an explicit Cmd-S derives the filename +
+            // writes it.
+            actions::Effect::NewDocument => {
                 park_active(self.buffer, &mut self.registry);
-                self.buffer.start_note(self.notes_root.to_path_buf());
+                self.buffer.start_fresh_doc(self.root.to_path_buf());
             }
             // Settings: load the config file into the buffer (creating the commented
             // default first if missing), so the capture reflects the config CONTENTS
@@ -669,13 +688,13 @@ impl<'a> ReplaySession<'a> {
             }
             // SAVE-FEEDBACK round: `Action::Save` on the true scratch surface —
             // the ONE headless-reachable half of the effect (see its own doc):
-            // convert the buffer into a real note under the harness's own
-            // `notes_root`, using the SAME `Buffer::save_as_note` the live App
-            // calls. This actually writes through the active `fs` backend (the
-            // fixture / real disk), so the sidecar's `cursor`/buffer state and a
-            // later Goto both see the new file — no notice to reflect (live-only).
+            // convert the buffer into a real document under the ACTIVE root (item
+            // 76), using the SAME `Buffer::save_into_folder` the live App calls.
+            // This actually writes through the active `fs` backend (the fixture /
+            // real disk), so the sidecar's `cursor`/buffer state and a later Goto
+            // both see the new file — no notice to reflect (live-only).
             actions::Effect::ConvertScratchAndSave => {
-                let _ = self.buffer.save_as_note(self.notes_root);
+                let _ = self.buffer.save_into_folder(self.root);
             }
             // Go-to's HEADINGS lens accepted (the retired Outline picker): jump the
             // cursor to the accepted heading LINE so the capture's `cursor` block
@@ -729,13 +748,7 @@ impl<'a> ReplaySession<'a> {
             // `fs` backend); the daemon-notify + buffer-swap are live-App-only (no
             // daemon, no 2-deep buffer history, in a one-shot replay) — a no-op here,
             // exactly like `LastBuffer`.
-            // NOTES FLIP: the remembered pre-flip root is App-only 2-deep history
-            // (mirrors `LastBuffer` exactly, one level up — projects, not buffers),
-            // and the root-switch itself is App-only (see `Effect::NewNote`'s own
-            // note above) — a no-op here; the pure toggle-target resolution is
-            // unit-tested directly (`app::files::notes_flip_target`).
             actions::Effect::LastBuffer
-            | actions::Effect::NotesFlip
             | actions::Effect::Quit
             | actions::Effect::Recoil(_)
             | actions::Effect::TypeImpact
@@ -914,7 +927,7 @@ fn capture_screenshot(
     mut km: crate::keymap::KeymapState,
     root: Option<PathBuf>,
     workspace: Option<PathBuf>,
-    notes_root: PathBuf,
+    default_folder: PathBuf,
     config: Config,
     // STRICT REPLAY (`--strict-replay`): abort on any Unsupported effect, an
     // unbound/dangling chord (the resolver refuses at replay time), or a
@@ -922,8 +935,11 @@ fn capture_screenshot(
     strict: bool,
 ) -> Result<()> {
             // Resolve the active project + its file index BEFORE the replay so a
-            // `Cmd-O` in the key-spec summons a real, scoped go-to overlay.
-            let active_root = resolve_root(&root, &file, config.project_root.as_deref());
+            // `Cmd-O` in the key-spec summons a real, scoped go-to overlay. Capture
+            // is structurally free of remembered session state (the capture-gate
+            // law) — `resolve_root` only ever consults the EXPLICIT `--root`/file,
+            // never a "first run" default either (that's a windowed-launch concern).
+            let active_root = resolve_root(&root, &file);
             let proj = crate::project::Project::resolve(&active_root);
             let corpus = crate::index::build_index(&active_root);
             // Default the switch-project workspace to the active root's PARENT when
@@ -935,9 +951,9 @@ fn capture_screenshot(
                 name: proj.name.clone(),
                 branch: proj.branch.clone(),
                 dirty: proj.dirty,
-                // The EFFECTIVE notes_root / workspace (flag > config > default), so a
+                // The EFFECTIVE default_folder / workspace (flag > config > default), so a
                 // `--config`-driven launch shows the configured folders with no flags.
-                notes_root: Some(notes_root.clone()),
+                default_folder: Some(default_folder.clone()),
                 workspace: Some(effective_workspace.clone()),
                 keymap_flavor: config.keymap_flavor().config_name(),
             });
@@ -1007,7 +1023,6 @@ fn capture_screenshot(
                 &corpus,
                 &active_root,
                 Some(effective_workspace.as_path()),
-                &notes_root,
                 &config,
                 oracle.as_mut(),
                 &mut km,
@@ -1049,7 +1064,7 @@ fn capture_screenshot(
                             name: proj.name.clone(),
                             branch: proj.branch.clone(),
                             dirty: proj.dirty,
-                            notes_root: Some(notes_root.clone()),
+                            default_folder: Some(default_folder.clone()),
                             workspace: Some(effective_workspace.clone()),
                             keymap_flavor: config.keymap_flavor().config_name(),
                         });
@@ -1060,7 +1075,7 @@ fn capture_screenshot(
                     // keyed by the same shared `source_path` derivation.
                     crate::overlay::OverlayKind::History => {
                         if let Some(path) =
-                            crate::history::source_path(buffer.path(), buffer.is_note())
+                            crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())
                         {
                             if let Some(content) = crate::history::load(&path, val) {
                                 buffer.set_text(&content);
@@ -1215,7 +1230,7 @@ fn history_preview_for(
     // the highlighted version — built by the SAME one owner the live App renders
     // through (`history::diff_preview`), synchronously (the live debounce is a
     // wall-clock concern the deterministic capture never has).
-    crate::history::diff_preview(ov, buffer.path(), buffer.is_note(), &buffer.text())
+    crate::history::diff_preview(ov, buffer.path(), buffer.is_unnamed_fresh(), &buffer.text())
 }
 
 /// Execute the resolved [`Mode`]: render a headless capture, run the typing
@@ -1233,30 +1248,30 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             km,
             root,
             workspace,
-            notes_root,
+            default_folder,
             config,
             strict,
-        } => capture_screenshot(out, file, opts, keys, km, root, workspace, notes_root, config, strict),
+        } => capture_screenshot(out, file, opts, keys, km, root, workspace, default_folder, config, strict),
         Mode::ScreenshotMotion { out, file, keys, mut km } => {
             let mut buffer = load_buffer(&file);
-            let root = resolve_root(&None, &file, None);
-            replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None, &mut km);
+            let root = resolve_root(&None, &file);
+            replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None, &mut km);
             capture::capture_motion(&out, &buffer)?;
             println!("wrote {} (mid-glide, + sidecar .json)", out.display());
             Ok(())
         }
         Mode::ScreenshotMotionVertical { out, file, keys, mut km } => {
             let mut buffer = load_buffer(&file);
-            let root = resolve_root(&None, &file, None);
-            replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None, &mut km);
+            let root = resolve_root(&None, &file);
+            replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None, &mut km);
             capture::capture_motion_vertical(&out, &buffer)?;
             println!("wrote {} (mid-glide vertical, + sidecar .json)", out.display());
             Ok(())
         }
         Mode::ScreenshotMotionDiagonal { out, file, keys, mut km } => {
             let mut buffer = load_buffer(&file);
-            let root = resolve_root(&None, &file, None);
-            replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None, &mut km);
+            let root = resolve_root(&None, &file);
+            replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None, &mut km);
             capture::capture_motion_diagonal(&out, &buffer)?;
             println!("wrote {} (mid-glide diagonal, + sidecar .json)", out.display());
             Ok(())
@@ -1287,17 +1302,16 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             canvas,
             dpi,
         } => {
-            let active_root = resolve_root(&root, &file, None);
+            let active_root = resolve_root(&root, &file);
             let proj = crate::project::Project::resolve(&active_root);
             let corpus = crate::index::build_index(&active_root);
-            let notes_root = active_root.clone();
             let opts = CaptureOpts {
                 project: Some(capture::ProjectInfo {
                     root: active_root.clone(),
                     name: proj.name.clone(),
                     branch: proj.branch.clone(),
                     dirty: proj.dirty,
-                    notes_root: None,
+                    default_folder: None,
                     workspace: None,
                     keymap_flavor: "native",
                 }),
@@ -1318,17 +1332,7 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             // replay still resolves the glide chord (the split is at CHORD
             // boundaries now that resolution lives inside the replay loop).
             if !init.is_empty() {
-                replay_keys(
-                    &mut buffer,
-                    &init,
-                    &corpus,
-                    &active_root,
-                    None,
-                    &notes_root,
-                    &Config::empty(),
-                    None,
-                    &mut km,
-                );
+                replay_keys(&mut buffer, &init, &corpus, &active_root, None, &Config::empty(), None, &mut km);
             }
             let origin = buffer.cursor_line_col();
             if let Some(last) = last {
@@ -1338,7 +1342,6 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
                     &corpus,
                     &active_root,
                     None,
-                    &notes_root,
                     &Config::empty(),
                     None,
                     &mut km,
@@ -1363,17 +1366,16 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             canvas,
             dpi,
         } => {
-            let active_root = resolve_root(&root, &file, None);
+            let active_root = resolve_root(&root, &file);
             let proj = crate::project::Project::resolve(&active_root);
             let corpus = crate::index::build_index(&active_root);
-            let notes_root = active_root.clone();
             let opts = CaptureOpts {
                 project: Some(capture::ProjectInfo {
                     root: active_root.clone(),
                     name: proj.name.clone(),
                     branch: proj.branch.clone(),
                     dirty: proj.dirty,
-                    notes_root: None,
+                    default_folder: None,
                     workspace: None,
                     keymap_flavor: "native",
                 }),
@@ -1387,7 +1389,7 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             // (e.g. C-n's + C-f's to land mid-line); the held re-targeting then
             // drives the motion deterministically from there.
             if !keys.is_empty() {
-                replay_keys(&mut buffer, &keys, &corpus, &active_root, None, &notes_root, &Config::empty(), None, &mut km);
+                replay_keys(&mut buffer, &keys, &corpus, &active_root, None, &Config::empty(), None, &mut km);
             }
             let origin = buffer.cursor_line_col();
             capture::capture_held(&out, &buffer, origin, dir, &steps, &opts)?;
@@ -1398,9 +1400,9 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             );
             Ok(())
         }
-        Mode::Storyboard { board, file, out_dir, root, workspace, notes_root, config, km } => {
+        Mode::Storyboard { board, file, out_dir, root, workspace, default_folder, config, km } => {
             crate::story::run_storyboard(
-                board, file, out_dir, root, workspace, notes_root, config, km,
+                board, file, out_dir, root, workspace, default_folder, config, km,
             )
         }
         Mode::BenchTyping => bench::run(),
@@ -1432,25 +1434,42 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             file,
             root,
             workspace,
-            notes_root,
+            default_folder,
             config,
             wait,
             live,
         } => {
-            // STICKY PROJECT RESTORE: on a bare launch (no file argument, no
-            // explicit --root) the remembered project root wins; see
-            // `resolve_root`'s doc comment.
-            let active_root = resolve_root(&root, &file, config.project_root.as_deref());
+            // THE ONE LAUNCH-PRECEDENCE LAW (item 76): explicit --root/file wins;
+            // else a bare launch restores the remembered active folder (the
+            // session's one owner, native + kill-switch gated); else (first run,
+            // or the switch is off) the configured default folder.
+            #[cfg(not(target_arch = "wasm32"))]
+            let remembered = if config.session_restore_on() {
+                crate::session::remembered_root()
+            } else {
+                None
+            };
+            #[cfg(target_arch = "wasm32")]
+            let remembered: Option<PathBuf> = None; // session is native-only
+            let default_folder_resolved = crate::args::resolve_default_folder(
+                &default_folder.clone().or_else(|| config.default_folder.clone()),
+            );
+            let active_root = resolve_launch_context(
+                &root,
+                &file,
+                remembered.as_deref(),
+                &default_folder_resolved,
+            );
             // Pass the RAW flags + config; `App::new` folds them (flag > config >
             // default) and re-folds on a live config reload. `wait` (native-only,
             // the single-instance daemon's `--wait`) rides straight through, as
             // does `live` (the `--live-script` probe — see `crate::probe`).
             #[cfg(not(target_arch = "wasm32"))]
-            { app::run(file, active_root, workspace, notes_root, config, wait, None, live) }
+            { app::run(file, active_root, workspace, default_folder, config, wait, None, live) }
             #[cfg(target_arch = "wasm32")]
             {
                 let _ = live; // native-live-only; parsed as None on wasm
-                app::run(file, active_root, workspace, notes_root, config, wait)
+                app::run(file, active_root, workspace, default_folder, config, wait)
             }
         }
     }
@@ -1486,15 +1505,12 @@ mod tests {
         corpus: &[String],
         root: &std::path::Path,
         workspace: Option<&std::path::Path>,
-        notes_root: &std::path::Path,
         config: &Config,
         oracle: Option<&mut capture::OraclePipeline>,
     ) -> Result<ReplayResult> {
         let mut km =
             crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
-        super::replay_keys_mode(
-            mode, buffer, keys, corpus, root, workspace, notes_root, config, oracle, &mut km,
-        )
+        super::replay_keys_mode(mode, buffer, keys, corpus, root, workspace, config, oracle, &mut km)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1504,7 +1520,6 @@ mod tests {
         corpus: &[String],
         root: &std::path::Path,
         workspace: Option<&std::path::Path>,
-        notes_root: &std::path::Path,
         config: &Config,
         oracle: Option<&mut capture::OraclePipeline>,
     ) -> ReplayResult {
@@ -1515,7 +1530,6 @@ mod tests {
             corpus,
             root,
             workspace,
-            notes_root,
             config,
             oracle,
         ) {
@@ -1533,7 +1547,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("a b c C-Space Left Left").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(res.selection, Some(((0, 1), (0, 3))), "mark@3 + two Lefts -> [1,3)");
     }
 
@@ -1560,7 +1574,7 @@ mod tests {
         let mut buffer = Buffer::from_str(SHIFT_FIXTURE);
         let keys = keyspec::parse_keys(spec).unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         (res.selection, buffer.cursor_line_col())
     }
 
@@ -1737,7 +1751,7 @@ mod tests {
             &[],
             &root,
             None,
-            &root,
+            
             &Config::empty(),
             None,
         )
@@ -1768,7 +1782,7 @@ mod tests {
             &[],
             &root,
             None,
-            &root,
+            
             &Config::empty(),
             None,
         )
@@ -1793,7 +1807,7 @@ mod tests {
         buffer.set_cursor(1);
         let keys = keyspec::parse_keys("s-q C-c C-o s-Down").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(res.warnings.len(), 2, "one warning per crossing: {:?}", res.warnings);
         assert!(
             res.warnings[0].contains("skipped unsupported effect `quit`"),
@@ -1818,7 +1832,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("a b c C-a C-e").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.warnings.is_empty(), "{:?}", res.warnings);
         assert!(res.intercepts.is_empty());
     }
@@ -1857,7 +1871,7 @@ mod tests {
                 &[],
                 &dir,
                 None,
-                &dir,
+                
                 &Config::empty(),
                 None,
             )
@@ -1904,7 +1918,7 @@ mod tests {
                 &[],
                 &dir,
                 None,
-                &dir,
+                
                 &Config::empty(),
                 None,
             )
@@ -1944,7 +1958,7 @@ mod tests {
         let mut buffer = Buffer::from_str("say hi twice: hi");
         let keys = keyspec::parse_keys("C-s h i").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(buffer.text(), "say hi twice: hi", "the document is untouched");
         assert_eq!(res.search_query.as_deref(), Some("hi"));
         assert_eq!(buffer.cursor_char(), 4, "the caret sits on the first match");
@@ -1957,7 +1971,7 @@ mod tests {
         let mut buffer = Buffer::from_str("x.x.x");
         let keys = keyspec::parse_keys("C-s x Down C-s").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(res.search_query.as_deref(), Some("x"));
         assert_eq!(buffer.cursor_char(), 4, "two steps advanced 0 -> 2 -> 4");
 
@@ -1965,7 +1979,7 @@ mod tests {
         // only because the guard consumes it before resolution.
         let mut buffer = Buffer::from_str("Hello HELLO hello");
         let keys = keyspec::parse_keys("C-s h e l l o M-c").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.search_case, "M-c toggled case sensitivity inside the panel");
         assert_eq!(res.search_query.as_deref(), Some("hello"));
 
@@ -1977,7 +1991,7 @@ mod tests {
         let debug_before = crate::debug::debug_on();
         let mut buffer = Buffer::from_str("xr marks");
         let keys = keyspec::parse_keys("C-s x C-x r").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(res.search_query.as_deref(), Some("xr"), "C-x was eaten; r joined the query");
         assert_eq!(crate::debug::debug_on(), debug_before, "C-x r never reached the keymap");
     }
@@ -1989,7 +2003,7 @@ mod tests {
         let mut buffer = Buffer::from_str("line one\nline two\nline three");
         let keys = keyspec::parse_keys("C-s l i n e Tab r o w Enter").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(buffer.text(), "row one\nline two\nline three");
         assert_eq!(res.search_query.as_deref(), Some("line"));
         assert!(res.replace_active);
@@ -2000,7 +2014,7 @@ mod tests {
         // Cmd-Enter (s-Enter) REPLACES ALL remaining matches in one edit.
         let mut buffer = Buffer::from_str("line one\nline two\nline three");
         let keys = keyspec::parse_keys("C-s l i n e Tab r o w s-Enter").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(buffer.text(), "row one\nrow two\nrow three");
         assert!(res.replace_active, "the panel is still open after replace-all");
     }
@@ -2014,7 +2028,7 @@ mod tests {
         let mut buffer = Buffer::from_str("alpha beta alpha");
         let keys = keyspec::parse_keys("C-s b e t a Enter").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(res.search_query, None, "Enter closed the panel");
         assert_eq!(buffer.cursor_char(), 6, "the cursor stays on the accepted match");
         assert_eq!(crate::search::last_query(), "beta");
@@ -2024,7 +2038,7 @@ mod tests {
         // origin restore; that divergence is gone with the shared seam).
         let mut buffer = Buffer::from_str("alpha beta alpha");
         let keys = keyspec::parse_keys("C-f C-f C-s b e t a Esc").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(res.search_query, None, "Esc closed the panel");
         assert_eq!(buffer.cursor_char(), 2, "the origin cursor is restored");
         assert_eq!(buffer.text(), "alpha beta alpha");
@@ -2047,7 +2061,7 @@ mod tests {
             &[],
             &root,
             None,
-            &root,
+            
             &Config::empty(),
             None,
         )
@@ -2069,7 +2083,7 @@ mod tests {
             &[],
             &root,
             None,
-            &root,
+            
             &Config::empty(),
             None,
         )
@@ -2081,26 +2095,25 @@ mod tests {
     // ── SAVE-FEEDBACK round: Cmd-S on a scratch buffer is headless-reachable ──
 
     #[test]
-    fn replay_keys_cmd_s_on_scratch_buffer_converts_it_into_a_note_under_notes_root() {
+    fn replay_keys_cmd_s_on_scratch_buffer_converts_it_into_a_document_under_the_active_root() {
         // The scratch-conversion effect (`Effect::ConvertScratchAndSave`) IS
-        // headless-reachable, and behaves IDENTICALLY to the live App: a
-        // no-path, non-note buffer's Cmd-S creates a real file under the
-        // harness's own `notes_root`, through the active `fs` backend (here:
-        // an `InMemoryFs`, so the assertion is a real file-creation check,
-        // not a guess).
+        // headless-reachable, and behaves IDENTICALLY to the live App (item
+        // 76): a no-path, unnamed buffer's Cmd-S creates a real file under
+        // the replay's own ACTIVE ROOT — not a separate notes-root concept —
+        // through the active `fs` backend (here: an `InMemoryFs`, so the
+        // assertion is a real file-creation check, not a guess). One-shot
+        // naming: the promoted buffer is an ordinary named file immediately.
         use crate::fs::{FileSystem, InMemoryFs};
         let mem = InMemoryFs::new();
         let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
         let mut buffer = Buffer::scratch();
-        assert!(buffer.path().is_none() && !buffer.is_note());
+        assert!(buffer.path().is_none() && !buffer.is_unnamed_fresh());
         let keys = keyspec::parse_keys("m e a d o w s-s").unwrap();
         let root = PathBuf::from("/tmp");
-        let notes_root = PathBuf::from("/tmp/notes");
-        let _res =
-            replay_keys(&mut buffer, &keys, &[], &root, None, &notes_root, &Config::empty(), None);
-        assert!(buffer.is_note(), "Cmd-S promoted the scratch buffer into a note");
+        let _res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+        assert!(!buffer.is_unnamed_fresh(), "one-shot naming: an ordinary file immediately, not a lasting note identity");
         let p = buffer.path().expect("a real path was derived");
-        assert!(p.starts_with(&notes_root), "landed under the harness's own notes_root: {p:?}");
+        assert!(p.starts_with(&root), "landed under the replay's ACTIVE ROOT: {p:?}");
         assert_eq!(mem.read_to_string(p).unwrap(), "meadow");
     }
 
@@ -2108,7 +2121,7 @@ mod tests {
     fn replay_keys_cmd_s_on_an_already_pathed_buffer_is_a_plain_save() {
         // The contrast case: an already-pathed buffer's Cmd-S is a PLAIN save
         // (the pre-existing behavior) — never routed through the scratch
-        // conversion, never re-homed under notes_root.
+        // conversion, never re-homed.
         use crate::fs::{FileSystem, InMemoryFs};
         let mem = InMemoryFs::new().with_dir("/proj");
         let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
@@ -2116,10 +2129,8 @@ mod tests {
         buffer.set_path(PathBuf::from("/proj/a.md"));
         let keys = keyspec::parse_keys("h i s-s").unwrap();
         let root = PathBuf::from("/proj");
-        let notes_root = PathBuf::from("/tmp/notes");
-        let _res =
-            replay_keys(&mut buffer, &keys, &[], &root, None, &notes_root, &Config::empty(), None);
-        assert!(!buffer.is_note(), "an already-pathed buffer never becomes a note");
+        let _res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+        assert!(!buffer.is_unnamed_fresh(), "an already-pathed buffer never becomes a fresh document");
         assert_eq!(buffer.path(), Some(std::path::Path::new("/proj/a.md")));
         assert_eq!(mem.read_to_string(std::path::Path::new("/proj/a.md")).unwrap(), "hi");
     }
@@ -2137,7 +2148,7 @@ mod tests {
         buffer.set_path(PathBuf::from("/proj/old.md"));
         let keys = keyspec::parse_keys("s-p r e n a m e RET 2").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("Rename note… opens the minibuffer overlay");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Rename);
         assert_eq!(ov.accepts(), vec!["old.md2"], "typing extends the seeded name");
@@ -2154,7 +2165,7 @@ mod tests {
         buffer.set_path(PathBuf::from("/proj/old.md"));
         let keys = keyspec::parse_keys("s-p r e n a m e RET x Esc").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "Esc closes the minibuffer outright, no breadcrumb pop");
         assert_eq!(buffer.path(), Some(std::path::Path::new("/proj/old.md")), "no disk rename happened");
     }
@@ -2167,7 +2178,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p r e n a m e RET").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "nothing to rename on a pathless buffer");
     }
 
@@ -2183,7 +2194,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e e p RET d r a f t").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("Keep version… opens the naming minibuffer");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::KeepName);
         assert_eq!(ov.accepts(), vec!["draft"], "typing builds the name from empty");
@@ -2199,7 +2210,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e e p RET x Esc").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "Esc closes the minibuffer outright, nothing kept");
     }
 
@@ -2214,7 +2225,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("h i s-p k e e p RET d r a f t RET").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "commit closes the minibuffer");
         assert_eq!(buffer.text(), "hi", "the keep never edits the buffer");
     }
@@ -2231,7 +2242,7 @@ mod tests {
             keyspec::parse_keys("h e l l o C-Space Left Left Left Left Left s-k h t t p s : / / x . t e s t RET")
                 .unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "commit closes the minibuffer");
         assert_eq!(buffer.text(), "[hello](https://x.test)");
     }
@@ -2244,7 +2255,7 @@ mod tests {
         )
         .unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("Cmd-K opens the link minibuffer");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::InsertLink);
         assert_eq!(ov.accepts(), vec!["https://"]);
@@ -2263,7 +2274,7 @@ mod tests {
         let keys =
             keyspec::parse_keys("h e l l o C-Space Left Left Left Left Left s-k x x x Esc").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "Esc closes the minibuffer outright");
         assert_eq!(buffer.text(), "hello", "cancel never edits the buffer");
     }
@@ -2276,7 +2287,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("h i s-k RET").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none());
         assert_eq!(buffer.text(), "hi[]()");
     }
@@ -2290,7 +2301,7 @@ mod tests {
         assert!(!buffer.is_markdown());
         let keys = keyspec::parse_keys("s-k").unwrap();
         let root = PathBuf::from("/proj");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "Cmd-K is a calm no-op on a non-markdown buffer");
         assert_eq!(buffer.text(), "a");
     }
@@ -2304,7 +2315,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p g o t o RET").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(
             res.overlay.map(|o| o.kind),
             Some(crate::overlay::OverlayKind::Goto),
@@ -2323,7 +2334,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p g u i d e RET").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "the palette closed itself on accept, no overlay left open");
         let expected = crate::guide::render(crate::convention::Convention::current(), crate::commands::Platform::current());
         assert_eq!(buffer.text(), expected, "the buffer now holds the token-rendered guide text");
@@ -2340,7 +2351,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e y m a p").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("the palette is still open");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Command);
         assert!(
@@ -2366,7 +2377,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e y m a p RET").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "activating a settings row closes the palette");
     }
 
@@ -2380,7 +2391,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p t h e m e RET").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("palette chained into the theme picker");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Theme);
         assert_eq!(
@@ -2400,7 +2411,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p t h e m e RET Esc").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("Esc pops back to the palette, not the buffer");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Command, "back at the command palette");
         assert_eq!(ov.return_to, None, "single-level: the palette carries no breadcrumb");
@@ -2418,7 +2429,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p t h e m e RET RET").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "keeping a palette-launched theme lands in the buffer");
         assert!(
             matches!(res.accept, Some((crate::overlay::OverlayKind::Theme, _))),
@@ -2457,7 +2468,7 @@ mod tests {
         )
         .unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "the whole journey lands back in the buffer");
         assert_eq!(crate::theme::active().name, "Potoroo", "the theme switch landed");
 
@@ -2484,7 +2495,7 @@ mod tests {
         let corpus = vec!["doc-fixture.md".to_string()];
         let root = PathBuf::from("/tmp");
         let keys = keyspec::parse_keys("s-o RET").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &Config::empty(), None);
         assert!(res.overlay.is_none(), "opening a file closes the overlay to the buffer");
         assert_eq!(
             res.accept,
@@ -2508,7 +2519,7 @@ mod tests {
         let root = PathBuf::from("/tmp");
         // Open the go-to overlay (Cmd-O), then assert dotfiles are hidden.
         let keys = keyspec::parse_keys("s-o").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("goto overlay open");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Goto);
         assert!(!ov.show_hidden);
@@ -2519,7 +2530,7 @@ mod tests {
         // Now open + toggle: the reveal chord flips show_hidden and .gitignore appears.
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-o s-S-.").unwrap();
-        let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("goto overlay still open after toggle");
         assert!(ov.show_hidden, "Cmd-Shift-. revealed dotfiles");
         assert!(
@@ -2550,7 +2561,7 @@ mod tests {
             let mut buffer = Buffer::scratch();
             let keys = keyspec::parse_keys("s-p c l e a n RET").unwrap();
             let res =
-                replay_keys(&mut buffer, &keys, &corpus, &root, None, &root, &Config::empty(), None);
+                replay_keys(&mut buffer, &keys, &corpus, &root, None, &Config::empty(), None);
             let ov = res.overlay.expect("asset cleaner open after the palette chain");
             assert_eq!(ov.kind, crate::overlay::OverlayKind::Assets);
             // Only the UNREFERENCED asset is listed; the primary cell is the leaf name.
@@ -2582,7 +2593,7 @@ mod tests {
             let mut buffer = Buffer::scratch();
             let keys = keyspec::parse_keys("s-S-p").unwrap();
             let res = replay_keys(
-                &mut buffer, &keys, &[], &ws, Some(ws.as_path()), &ws, &Config::empty(), None,
+                &mut buffer, &keys, &[], &ws, Some(ws.as_path()), &Config::empty(), None,
             );
             let ov = res.overlay.expect("switch-project overlay open");
             assert_eq!(ov.kind, crate::overlay::OverlayKind::Project);
@@ -2608,7 +2619,7 @@ mod tests {
             let mut buffer = Buffer::scratch();
             let keys = keyspec::parse_keys("s-S-p s-S-.").unwrap();
             let res = replay_keys(
-                &mut buffer, &keys, &[], &ws, Some(ws.as_path()), &ws, &Config::empty(), None,
+                &mut buffer, &keys, &[], &ws, Some(ws.as_path()), &Config::empty(), None,
             );
             let ov = res.overlay.expect("project overlay still open after toggle");
             assert!(ov.show_hidden, "Cmd-Shift-. revealed dotfolders");
@@ -2627,7 +2638,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e y b RET u n d o RET RET q").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("the rebind menu stays open after a commit");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Keybindings);
         assert!(ov.capture.is_none(), "capture closed after committing the key");
@@ -2641,7 +2652,7 @@ mod tests {
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e y b RET s a v e RET Down RET").unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("menu open");
         let cap = ov.capture.expect("a capture is in progress");
         assert_eq!(cap.cmd_name, "Save");
@@ -2668,7 +2679,7 @@ mod tests {
         )
         .unwrap();
         let root = PathBuf::from("/tmp");
-        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+        let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
 
         // The live global was promoted (core-level — the reason this test needs no
         // App at all).
@@ -2719,7 +2730,7 @@ mod tests {
         );
         let _ = super::replay_keys_mode(
             crate::replay::Mode::Permissive,
-            &mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None, &mut km,
+            &mut buffer, &keys, &[], &root, None, &Config::empty(), None, &mut km,
         )
         .unwrap();
         assert_eq!(
@@ -2750,7 +2761,7 @@ mod tests {
         );
         let _ = super::replay_keys_mode(
             crate::replay::Mode::Permissive,
-            &mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None, &mut km,
+            &mut buffer, &keys, &[], &root, None, &Config::empty(), None, &mut km,
         )
         .unwrap();
         assert_eq!(
@@ -2782,11 +2793,11 @@ mod tests {
         crate::page::set_measure(1); // deliberately wrong, so the switch below can't coincide
 
         let keys_to_b = keyspec::parse_keys("s-o b . r s RET").unwrap();
-        let _ = replay_keys(&mut buffer, &keys_to_b, &corpus, &dir, None, &dir, &cfg, None);
+        let _ = replay_keys(&mut buffer, &keys_to_b, &corpus, &dir, None, &cfg, None);
         assert_eq!(crate::page::measure(), 120, "b.rs (code) picks up the configured code measure");
 
         let keys_to_a = keyspec::parse_keys("s-o a . m d RET").unwrap();
-        let _ = replay_keys(&mut buffer, &keys_to_a, &corpus, &dir, None, &dir, &cfg, None);
+        let _ = replay_keys(&mut buffer, &keys_to_a, &corpus, &dir, None, &cfg, None);
         assert_eq!(crate::page::measure(), 55, "back to a.md (prose) picks up the configured prose measure");
 
         crate::page::set_measure(measure0);
@@ -2816,7 +2827,7 @@ mod tests {
         let keys = keyspec::parse_keys("s-Down s-o s h o r t RET").unwrap();
         let corpus = vec!["long.txt".to_string(), "short.txt".to_string()];
         let res =
-            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &dir, &Config::empty(), None);
+            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &Config::empty(), None);
         let (kind, val) = res.accept.expect("Enter accepts the filtered picker row");
         assert_eq!(kind, crate::overlay::OverlayKind::Goto);
         assert_eq!(val, "short.txt");
@@ -2848,7 +2859,7 @@ mod tests {
         )
         .unwrap();
         let res =
-            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &dir, &Config::empty(), None);
+            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &Config::empty(), None);
         assert_eq!(
             buffer.text(),
             "Xalpha\n",
@@ -2874,7 +2885,7 @@ mod tests {
         let corpus = vec!["a.txt".to_string()];
         let keys = keyspec::parse_keys("X s-o a . t x t RET").unwrap();
         let res =
-            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &dir, &Config::empty(), None);
+            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &Config::empty(), None);
         assert_eq!(buffer.text(), "Xalpha\n", "the edit survives a no-op reopen of the active file");
         assert_eq!(res.buffers_open, 1, "nothing was ever backgrounded");
         let _ = std::fs::remove_dir_all(&dir);
@@ -2905,7 +2916,7 @@ mod tests {
         let keys =
             keyspec::parse_keys("X s-o b . t x t RET Y s-o a . t x t RET").unwrap();
         let res =
-            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &dir, &Config::empty(), None);
+            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &Config::empty(), None);
         assert_eq!(
             buffer.text(),
             "Xalpha\n",
@@ -2922,11 +2933,11 @@ mod tests {
 
     #[test]
     fn replay_keys_new_note_parks_the_leaving_buffer_instead_of_discarding_it() {
-        // REGRESSION (code review): `Effect::NewNote` used to reset `buffer` in
+        // REGRESSION (code review): `Effect::NewDocument` used to reset `buffer` in
         // place with no park at all, so A's live edit was gone for good and a
         // later Goto back to it silently re-read a stale disk copy. `Cmd-N`
         // must park the leaving buffer through the SAME registry a Goto switch
-        // uses, mirroring the live `App::new_note` (Cmd-N). (The note itself types
+        // uses, mirroring the live `App::new_document` (Cmd-N). (The note itself types
         // content but is never named in headless replay — no autosave engine
         // here to derive its filename — so it stays pathless and correctly
         // has NO stable identity to register; see `BufferKey::of`. Only A's
@@ -2940,7 +2951,7 @@ mod tests {
         // Edit A, spawn a new note (Cmd-N), type into the note, then Goto back to A.
         let keys = keyspec::parse_keys("X s-n Z s-o a . t x t RET").unwrap();
         let res =
-            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &dir, &Config::empty(), None);
+            replay_keys(&mut buffer, &keys, &corpus, &dir, None, &Config::empty(), None);
         assert_eq!(
             buffer.text(),
             "Xalpha\n",
@@ -2967,7 +2978,7 @@ mod tests {
             let keys = keyspec::parse_keys("h i RET t h e r e").unwrap();
             let root = PathBuf::from("/tmp");
             let _ =
-                replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+                replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             assert_eq!(buffer.text(), "hi\nthere", "the edits themselves landed");
             assert!(
                 crate::fs::active()
@@ -3002,7 +3013,7 @@ mod tests {
             let keys = keyspec::parse_keys("h i").unwrap();
             let root = PathBuf::from("/tmp");
             let _ =
-                replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+                replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             assert!(
                 !crate::crashlog::hook_installed_for_test(),
                 "a headless replay must never install the panic hook"
@@ -3024,7 +3035,7 @@ mod tests {
             let keys = keyspec::parse_keys("h i s-s").unwrap();
             let root = PathBuf::from("/tmp");
             let _ =
-                replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+                replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             assert!(
                 crate::fs::active()
                     .read(&crate::session::session_path())
@@ -3047,7 +3058,7 @@ mod tests {
             let keys = keyspec::parse_keys("h i s-s").unwrap();
             let root = PathBuf::from("/tmp");
             let _ =
-                replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+                replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             assert!(
                 crate::fs::active()
                     .read(&crate::recent_files::recent_files_path())
@@ -3074,7 +3085,7 @@ mod tests {
         let keys = keyspec::parse_keys("h i s-s").unwrap();
         let root = PathBuf::from("/tmp");
         let cfg = Config { reduce_motion: Some(true), ..Config::empty() };
-        let _ = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &cfg, None);
+        let _ = replay_keys(&mut buffer, &keys, &[], &root, None, &cfg, None);
         assert!(
             !crate::motion::reduced(),
             "a headless --keys replay must never apply the config's reduce_motion pref"
@@ -3099,7 +3110,7 @@ mod tests {
             let keys = keyspec::parse_keys("h i s-s").unwrap();
             let root = PathBuf::from("/tmp");
             let _ =
-                replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+                replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             assert!(
                 crate::fs::active().read(&crate::stats::stats_path()).is_err(),
                 "no stats file is ever written headlessly"
@@ -3197,7 +3208,7 @@ mod tests {
             let before = buffer.text();
             let keys = keyspec::parse_keys("Cmd-S-h C-n Esc").unwrap();
             let root = PathBuf::from("/notes");
-            let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+            let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             assert!(res.overlay.is_none(), "Esc closed the timeline");
             assert!(res.accept.is_none(), "nothing was accepted");
             assert_eq!(buffer.text(), before, "Esc leaves the buffer text exact");
@@ -3213,103 +3224,173 @@ mod tests {
             let mut buffer = Buffer::from_file(&p);
             let keys = keyspec::parse_keys("Cmd-S-h C-n RET").unwrap();
             let root = PathBuf::from("/notes");
-            let res = replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), None);
+            let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
             let (kind, id) = res.accept.expect("Enter accepts the highlighted version");
             assert_eq!(kind, crate::overlay::OverlayKind::History);
             // The capture arm's restore (same shared source_path + load + set_text).
-            let path = crate::history::source_path(buffer.path(), buffer.is_note())
+            let path = crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())
                 .expect("a pathed buffer keys under itself");
             let content = crate::history::load(&path, &id).expect("the id round-trips");
             buffer.set_text(&content);
             assert_eq!(buffer.text(), "v1\n", "the older version restored");
             // UNDO through the real keymap: one sealed edit, back to now.
             let undo = keyspec::parse_keys("s-z").unwrap();
-            replay_keys(&mut buffer, &undo, &[], &root, None, &root, &Config::empty(), None);
+            replay_keys(&mut buffer, &undo, &[], &root, None, &Config::empty(), None);
             assert_eq!(buffer.text(), "v2\n", "the restore is one undoable edit");
         });
     }
 
-    // ---- STICKY PROJECT ROOT (resolve_root precedence) -------------------
+    // ---- THE ONE LAUNCH-PRECEDENCE LAW (item 76) --------------------------
+    // `resolve_root` — the EXPLICIT-target half, used standalone by every
+    // headless capture mode. `resolve_launch_context` — the full law
+    // (explicit > remembered > default_folder), used by the windowed door.
 
     #[test]
-    fn resolve_root_explicit_flag_wins_over_sticky_and_file() {
-        // --root always wins, regardless of a remembered sticky root or a file arg.
+    fn resolve_root_explicit_flag_wins_over_file() {
+        // --root always wins, regardless of a file arg.
         let flag = PathBuf::from("/flag/root");
-        let sticky = PathBuf::from("/sticky/root");
+        let file = PathBuf::from("/some/file.txt");
+        assert_eq!(resolve_root(&Some(flag.clone()), &Some(file)), flag);
+    }
+
+    #[test]
+    fn resolve_root_file_argument_resolves_from_its_own_directory() {
+        let dir = std::env::temp_dir().join(format!("awl-resolve-root-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("note.txt");
+        std::fs::write(&file, "hi").unwrap();
+        assert_eq!(resolve_root(&None, &Some(file)), dir);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn resolve_root_bare_falls_to_cwd() {
+        // `resolve_root` alone (the explicit-only half) never consults a
+        // remembered folder or a default — that's `resolve_launch_context`'s
+        // job. Its own bare fallback stays cwd, unchanged.
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        assert_eq!(resolve_root(&None, &None), cwd);
+    }
+
+    #[test]
+    fn resolve_launch_context_explicit_root_wins_over_remembered_and_file() {
+        // Law point 1: --root wins outright, even over a remembered context
+        // AND a file argument.
+        let flag = PathBuf::from("/flag/root");
+        let remembered = PathBuf::from("/remembered/root");
+        let default_folder = PathBuf::from("/home/me/notes");
         let file = PathBuf::from("/some/file.txt");
         assert_eq!(
-            resolve_root(&Some(flag.clone()), &Some(file), Some(&sticky)),
+            resolve_launch_context(&Some(flag.clone()), &Some(file), Some(&remembered), &default_folder),
             flag
         );
     }
 
     #[test]
-    fn resolve_root_bare_launch_restores_sticky_root() {
-        // No --root, no file argument (the SAME condition the scratch-stash
-        // restore uses): the remembered project root wins over cwd.
-        let sticky = PathBuf::from("/home/me/work/repo-a");
-        assert_eq!(resolve_root(&None, &None, Some(&sticky)), sticky);
-    }
-
-    #[test]
-    fn resolve_root_file_argument_ignores_sticky_root() {
-        // A launch WITH a file argument still resolves from that file's own
-        // directory — the sticky root is never consulted, so opening some other
-        // file never silently redirects the project scope.
-        let sticky = PathBuf::from("/home/me/work/repo-a");
-        let dir = std::env::temp_dir().join(format!("awl-resolve-root-{}", std::process::id()));
+    fn resolve_launch_context_file_argument_wins_over_remembered() {
+        // Law point 1 (file half): `awl file.md` resolves from the file's own
+        // directory, ignoring the remembered document/folder entirely — the
+        // crisp "explicit beats resumed" rule.
+        let remembered = PathBuf::from("/remembered/root");
+        let default_folder = PathBuf::from("/home/me/notes");
+        let dir = std::env::temp_dir().join(format!("awl-launch-ctx-file-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("note.txt");
         std::fs::write(&file, "hi").unwrap();
-        assert_eq!(resolve_root(&None, &Some(file), Some(&sticky)), dir);
+        assert_eq!(
+            resolve_launch_context(&None, &Some(file), Some(&remembered), &default_folder),
+            dir
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn resolve_root_absent_sticky_reproduces_todays_default() {
-        // No --root, no file, no remembered sticky root: falls all the way to
-        // cwd (today's byte-identical default for an absent config key).
-        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        assert_eq!(resolve_root(&None, &None, None), cwd);
+    fn resolve_launch_context_dir_argument_awl_dot_is_explicit_not_remembered() {
+        // `awl .` — a DIR argument — is door 1 (explicit), the crisp
+        // bare-vs-dot distinction: it must win over whatever is remembered,
+        // exactly like a file argument does.
+        let dir = std::env::temp_dir().join(format!("awl-launch-ctx-dot-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let remembered = PathBuf::from("/remembered/root");
+        let default_folder = PathBuf::from("/home/me/notes");
+        assert_eq!(
+            resolve_launch_context(&None, &Some(dir.clone()), Some(&remembered), &default_folder),
+            dir
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
-    fn capture_scenario_bare_launch_restores_sticky_project_root() {
-        // The CAPTURE-LEVEL round trip for STICKY PROJECT RESTORE: a `--config`
-        // carrying a remembered `project_root`, driving a BARE capture (no file,
-        // no `--root`) through the real `capture_screenshot` seam — the sidecar
-        // `project.root` must report the RESTORED project, not cwd, exactly as a
-        // live bare relaunch would resolve it (`resolve_root`'s new arm above).
-        // Reads the REAL disk (Project::resolve / build_index walk it) -> hold
-        // the fs TEST_LOCK like the other real-fs test in this module.
+    fn resolve_launch_context_bare_launch_restores_remembered() {
+        // Law point 2: bare `awl` — no --root, no file — with a remembered
+        // active-folder context: it wins over the default folder.
+        let remembered = PathBuf::from("/home/me/work/repo-a");
+        let default_folder = PathBuf::from("/home/me/notes");
+        assert_eq!(
+            resolve_launch_context(&None, &None, Some(&remembered), &default_folder),
+            remembered
+        );
+    }
+
+    #[test]
+    fn resolve_launch_context_first_run_falls_to_default_folder() {
+        // Law point 3: bare launch, NOTHING remembered (a fresh install, or
+        // session_restore off) — opens the configured default folder, never
+        // cwd (the behavior item 76 replaces).
+        let default_folder = PathBuf::from("/home/me/notes");
+        assert_eq!(
+            resolve_launch_context(&None, &None, None, &default_folder),
+            default_folder
+        );
+        // Distinct from cwd in this test's own working directory, so the
+        // assertion above isn't accidentally true by coincidence.
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        assert_ne!(default_folder, cwd);
+    }
+
+    #[test]
+    fn capture_mode_bare_invocation_never_restores_a_remembered_folder() {
+        // The CAPTURE-GATE LAW: headless capture is structurally free of
+        // session state (item 76 folded the old sticky `config.project_root`
+        // into the live-App-only session) — a bare `--screenshot` (no file,
+        // no --root) always falls to cwd via the explicit-only `resolve_root`,
+        // never a remembered/default folder, regardless of what the config
+        // carries. Reads the REAL disk (Project::resolve / build_index walk
+        // it) -> hold the fs TEST_LOCK like the other real-fs test in this
+        // module.
         let _fs = crate::testlock::serial();
-        let dir = std::env::temp_dir().join(format!("awl-sticky-root-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("awl-capture-bare-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let config = Config {
-            project_root: Some(dir.clone()),
-            ..Config::empty()
-        };
+        let prev_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+        // macOS's temp dir sits behind a `/var` -> `/private/var` symlink, so
+        // read the CANONICAL cwd back rather than trusting `dir` verbatim —
+        // `std::env::current_dir()` (what `resolve_root` itself calls)
+        // resolves it.
+        let cwd = std::env::current_dir().unwrap();
+        let config = Config { default_folder: Some(PathBuf::from("/should/never/be/read")), ..Config::empty() };
         let out = dir.join("cap.png");
-        let notes_root = dir.join("notes");
-        capture_screenshot(
+        let default_folder = dir.join("notes");
+        let result = capture_screenshot(
             out.clone(),
-            None, // no file argument: a bare launch
+            None, // no file argument: a bare capture
             CaptureOpts::default(),
             Vec::new(),
             crate::keymap::KeymapState::new(),
             None, // no explicit --root
             None,
-            notes_root,
+            default_folder,
             config,
             false, // permissive (the legacy default)
-        )
-        .expect("capture succeeds");
+        );
+        std::env::set_current_dir(&prev_cwd).unwrap();
+        result.expect("capture succeeds");
         let json = std::fs::read_to_string(out.with_extension("json")).unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(
             v["project"]["root"].as_str().unwrap(),
-            dir.to_string_lossy(),
-            "sidecar project.root reflects the restored sticky project, not cwd"
+            cwd.to_string_lossy(),
+            "sidecar project.root reflects cwd, never the config default_folder"
         );
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -3497,7 +3578,7 @@ mod tests {
                 &[],
                 &root,
                 None,
-                &root,
+                
                 &Config::empty(),
                 Some(&mut op),
             );
@@ -3612,12 +3693,12 @@ mod tests {
             // One fewer C-n keeps us on line 0's LAST visual row...
             let mut b0 = Buffer::from_str(LONG);
             let keys_stay = keyspec::parse_keys(&"C-n ".repeat(steps - 1)).unwrap();
-            replay_keys(&mut b0, &keys_stay, &[], &root, None, &root, &Config::empty(), Some(&mut op));
+            replay_keys(&mut b0, &keys_stay, &[], &root, None, &Config::empty(), Some(&mut op));
             let stay = b0.cursor_line_col();
             // ...and the full count crosses into line 1's first visual row.
             let mut b1 = Buffer::from_str(LONG);
             let keys_cross = keyspec::parse_keys(&"C-n ".repeat(steps)).unwrap();
-            replay_keys(&mut b1, &keys_cross, &[], &root, None, &root, &Config::empty(), Some(&mut op));
+            replay_keys(&mut b1, &keys_cross, &[], &root, None, &Config::empty(), Some(&mut op));
             (stay, b1.cursor_line_col())
         });
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
@@ -3647,7 +3728,7 @@ mod tests {
         let opts = CaptureOpts::default();
 
         let mut logical = Buffer::from_str(text);
-        replay_keys(&mut logical, &keys, &[], &root, None, &root, &Config::empty(), None);
+        replay_keys(&mut logical, &keys, &[], &root, None, &Config::empty(), None);
 
         let mut visual = Buffer::from_str(text);
         let Some(mut op) = capture::build_oracle(&visual, &opts) else {
@@ -3655,7 +3736,7 @@ mod tests {
             eprintln!("skipping regression_non_wrapped byte-identical: no wgpu adapter");
             return;
         };
-        replay_keys(&mut visual, &keys, &[], &root, None, &root, &Config::empty(), Some(&mut op));
+        replay_keys(&mut visual, &keys, &[], &root, None, &Config::empty(), Some(&mut op));
 
         assert_eq!(
             visual.cursor_line_col(),
@@ -3722,7 +3803,7 @@ mod tests {
         spec.push("C-n".to_string()); // NextLine
         let keys = keyspec::parse_keys(&spec.join(" ")).unwrap();
         let root = PathBuf::from("/tmp");
-        replay_keys(&mut buffer, &keys, &[], &root, None, &root, &Config::empty(), Some(&mut op));
+        replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), Some(&mut op));
         let (line, col) = buffer.cursor_line_col();
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
         assert_eq!(line, 0, "Down follows the freshly-wrapped line 0 (stale geometry crossed into line 1)");
@@ -3750,7 +3831,7 @@ mod tests {
             return;
         };
         let keys_plain = keyspec::parse_keys("C-n").unwrap();
-        replay_keys(&mut plain, &keys_plain, &[], &root, None, &root, &Config::empty(), Some(&mut op1));
+        replay_keys(&mut plain, &keys_plain, &[], &root, None, &Config::empty(), Some(&mut op1));
         let (l1, c1) = plain.cursor_line_col();
 
         let mut zoomed = Buffer::from_str(&text);
@@ -3760,7 +3841,7 @@ mod tests {
             return;
         };
         let keys_zoom = keyspec::parse_keys("s-= C-n").unwrap();
-        replay_keys(&mut zoomed, &keys_zoom, &[], &root, None, &root, &Config::empty(), Some(&mut op2));
+        replay_keys(&mut zoomed, &keys_zoom, &[], &root, None, &Config::empty(), Some(&mut op2));
         let (l2, c2) = zoomed.cursor_line_col();
 
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
@@ -3803,7 +3884,7 @@ mod tests {
             return;
         };
         let keys = keyspec::parse_keys("s-o b . m d RET C-n").unwrap();
-        replay_keys(&mut buffer, &keys, &corpus, &dir, None, &dir, &cfg, Some(&mut op));
+        replay_keys(&mut buffer, &keys, &corpus, &dir, None, &cfg, Some(&mut op));
         let (line, col) = buffer.cursor_line_col();
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
         let _ = std::fs::remove_dir_all(&dir);
@@ -3836,7 +3917,7 @@ mod tests {
         crate::theme::set_active_by_name("Gumtree").unwrap();
         crate::caret::set_mode(crate::caret::CaretMode::Block);
         let mut buf = Buffer::scratch();
-        replay_keys(&mut buf, &keys, &[], &root, None, &root, &Config::empty(), None);
+        replay_keys(&mut buf, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(crate::theme::active().name, "Gumtree", "the journey lands back on Gumtree");
         assert!(!crate::caret::is_auto(), "an explicit pin is never cleared by a theme journey");
         assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Block);
@@ -3847,7 +3928,7 @@ mod tests {
         crate::caret::clear_override();
         crate::theme::set_active_by_name("Gumtree").unwrap();
         let mut buf2 = Buffer::scratch();
-        replay_keys(&mut buf2, &keys, &[], &root, None, &root, &Config::empty(), None);
+        replay_keys(&mut buf2, &keys, &[], &root, None, &Config::empty(), None);
         assert_eq!(crate::theme::active().name, "Gumtree");
         assert!(crate::caret::is_auto(), "a theme-only journey never pins auto");
         assert_eq!(
@@ -3912,7 +3993,7 @@ mod tests {
             crate::theme::set_active_by_name("Gumtree").unwrap();
             crate::caret::set_mode(mode);
             let mut detour_buf = Buffer::from_str(text);
-            replay_keys(&mut detour_buf, &detour_keys, &[], &root, None, &root, &Config::empty(), None);
+            replay_keys(&mut detour_buf, &detour_keys, &[], &root, None, &Config::empty(), None);
             assert_eq!(crate::theme::active().name, "Gumtree", "the detour lands back on Gumtree");
             assert_eq!(crate::caret::mode(), mode, "the detour never touched the pinned mode");
             let detour_png = dir.join(format!("awl_caret_stateless_detour_{mode:?}_{pid}.png"));

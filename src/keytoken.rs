@@ -5,7 +5,7 @@
 //!
 //! A literal chord glyph baked into a doc (`⌘P`) is a LIE the instant it's read
 //! under a different convention or platform — a Linux visitor sees a mac glyph
-//! that doesn't fire; a web visitor on a browser-reserved chord (New note,
+//! that doesn't fire; a web visitor on a browser-reserved chord (New document,
 //! Switch theme…) sees a chord that's silently eaten by the browser chrome
 //! before the page ever gets it. `{{key:slug}}` is the fix: a token substituted
 //! at the RIGHT moment for each surface (seed time for welcome/tour — see

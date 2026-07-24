@@ -128,7 +128,7 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
     let cfg_keys = vec![
         ("save".to_string(), vec!["C-x C-s".to_string()]),
         ("switch_theme".to_string(), vec!["C-x t".to_string()]),
-        ("new_note".to_string(), vec!["C-x n".to_string()]),
+        ("new_document".to_string(), vec!["C-x n".to_string()]),
     ];
     let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(&cfg_keys)
         .into_iter()
@@ -143,7 +143,7 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
     // plus the single-key ones.
     assert!(on_json.contains("[\"C-s\", \"Save\"]"), "save row: {on_json}");
     assert!(on_json.contains("[\"t\", \"Switch theme…\"]"), "theme row: {on_json}");
-    assert!(on_json.contains("[\"n\", \"New note\"]"), "note row: {on_json}");
+    assert!(on_json.contains("[\"n\", \"New document\"]"), "note row: {on_json}");
 
     let _ = std::fs::remove_dir_all(&dir);
 }

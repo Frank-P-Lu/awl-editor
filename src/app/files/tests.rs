@@ -1,11 +1,10 @@
 //! src/app/files/tests.rs — the former `app/files.rs` monolith's own test
 //! module, moved verbatim (item 56's directory split) — window_title, the
-//! Notes-flip pure/impure pair, the DOCUMENT AUTOSAVE ENGINE, save-feedback,
-//! rename/move/duplicate verbs, the dictionary + CJK-priority persistence,
-//! and the recent-projects/recent-files MRU. Behavior unchanged; only the
-//! module path moved (`app::files::tests::foo` unchanged — this file still
-//! surfaces as `app::files::tests`, since `files/mod.rs` declares
-//! `mod tests;`).
+//! DOCUMENT AUTOSAVE ENGINE, save-feedback, rename/move/duplicate verbs, the
+//! dictionary + CJK-priority persistence, and the recent-projects/
+//! recent-files MRU. Item 76 retired the two-desk "Notes" flip tests that
+//! used to live here. Module path: `app::files::tests`, since `files/mod.rs`
+//! declares `mod tests;`.
 
 use super::*;
 use std::sync::Arc;
@@ -36,209 +35,6 @@ fn window_title_untitled_note_and_bare_scratch_are_distinct() {
         window_title(None, true, "Tawny", false),
         window_title(None, false, "Tawny", false)
     );
-}
-
-// --- NOTES FLIP round (2026-07-22): the pure toggle-target resolution ---
-
-#[test]
-fn notes_flip_target_enters_notes_root_and_remembers_the_leaving_project() {
-    let current = Path::new("/w/proj-a");
-    let notes = Path::new("/home/me/notes");
-    assert_eq!(
-        notes_flip_target(current, notes, None),
-        NotesFlipTarget::Enter { target: notes.to_path_buf(), remember: current.to_path_buf() },
-        "not in notes_root yet: flip there, remembering the project being left"
-    );
-    // A previously-remembered root is IGNORED while entering (only consulted
-    // once we are actually standing IN notes_root) — a stray leftover from an
-    // unrelated earlier flip never leaks into a fresh Enter's target.
-    assert_eq!(
-        notes_flip_target(current, notes, Some(Path::new("/w/stale"))),
-        NotesFlipTarget::Enter { target: notes.to_path_buf(), remember: current.to_path_buf() }
-    );
-}
-
-#[test]
-fn notes_flip_target_round_trips_back_to_the_remembered_project() {
-    let notes = Path::new("/home/me/notes");
-    let prev = Path::new("/w/proj-a");
-    // Standing IN notes_root with a remembered previous root: flip BACK.
-    assert_eq!(
-        notes_flip_target(notes, notes, Some(prev)),
-        NotesFlipTarget::Back { target: prev.to_path_buf() }
-    );
-}
-
-#[test]
-fn notes_flip_target_already_home_with_nothing_remembered_is_inert() {
-    // Standing IN notes_root but NOTHING was remembered (e.g. a bare launch
-    // landed here directly, never having flipped) — no "back" to go to.
-    let notes = Path::new("/home/me/notes");
-    assert_eq!(notes_flip_target(notes, notes, None), NotesFlipTarget::AlreadyHome);
-}
-
-#[test]
-fn notes_flip_target_missing_notes_root_is_inert() {
-    // The empty-path sentinel (mirrors `persist_page_reset`'s own "no usable
-    // config path" idiom): a caller with nowhere to flip TO never touches
-    // the filesystem, whether or not a previous root happens to be remembered.
-    let current = Path::new("/w/proj-a");
-    let empty = Path::new("");
-    assert_eq!(notes_flip_target(current, empty, None), NotesFlipTarget::Inert);
-    assert_eq!(notes_flip_target(current, empty, Some(Path::new("/w/proj-b"))), NotesFlipTarget::Inert);
-    // Even standing "in" the empty path itself, still inert (never a Back).
-    assert_eq!(notes_flip_target(empty, empty, Some(current)), NotesFlipTarget::Inert);
-}
-
-#[test]
-fn notes_flip_round_trips_the_live_app_project_root() {
-    // The impure APPLY half, exercised end-to-end against a fake fs (mirrors
-    // `switch_project_pushes_and_persists_the_recent_root`'s own shape).
-    let fake = Arc::new(
-        crate::fs::InMemoryFs::new().with_dir("/w/proj-a").with_dir("/home/me/notes"),
-    );
-    crate::fs::with_fs(fake, || {
-        let mut app = App::new(None, PathBuf::from("/w/proj-a"), None, None, Config::empty());
-        app.notes_root = PathBuf::from("/home/me/notes");
-
-        // FIRST invocation: enters notes_root, remembering the home desk
-        // (proj-a, no open file). With nothing remembered from a prior visit
-        // a FRESH untitled note opens (item 59) rather than an arbitrary file.
-        app.notes_flip();
-        assert_eq!(app.root, PathBuf::from("/home/me/notes"));
-        assert_eq!(
-            app.notes_return.as_ref().map(|d| d.root.clone()),
-            Some(PathBuf::from("/w/proj-a"))
-        );
-        assert!(app.active.buffer.is_note(), "a first-ever visit opens a fresh untitled quick-note");
-        assert!(app.active.buffer.path().is_none(), "the fresh note is unnamed until it gains content");
-
-        // SECOND invocation: flips straight back, consuming the memory.
-        app.notes_flip();
-        assert_eq!(app.root, PathBuf::from("/w/proj-a"));
-        assert!(app.notes_return.is_none());
-
-        // A Notes flip is a VISIT, not a switch: it never touches the sticky
-        // project_root pref nor the recent-projects MRU (both stay exactly
-        // as a fresh launch left them — mirrors `new_note`'s own C-x n jump).
-        assert_eq!(app.config.project_root, None, "the flip never persists a sticky root");
-        assert!(app.recent_projects.is_empty(), "the flip never counts as a recent project");
-    });
-}
-
-#[test]
-fn notes_flip_is_a_two_desk_swap_of_root_and_active_buffer() {
-    // ITEM 59: "Notes" flips the WHOLE writing context — the active BUFFER
-    // travels with the root, not only the folder. Project A's file → the
-    // remembered notes file → back to EXACTLY A's file, and re-entering
-    // restores the last notes file (with its live buffer), never a fresh one.
-    let fake = Arc::new(
-        crate::fs::InMemoryFs::new()
-            .with_file("/w/proj-a/a.md", "alpha body")
-            .with_file("/home/me/notes/n.md", "note body"),
-    );
-    crate::fs::with_fs(fake, || {
-        let mut app = App::new(None, PathBuf::from("/w/proj-a"), None, None, Config::empty());
-        app.notes_root = PathBuf::from("/home/me/notes");
-        // Home desk: an open project file, with content.
-        app.load_path(PathBuf::from("/w/proj-a/a.md"));
-        assert_eq!(app.active.buffer.path(), Some(Path::new("/w/proj-a/a.md")));
-        assert!(app.active.buffer.text().contains("alpha"));
-
-        // ENTER Notes (first visit): root re-scoped, home file remembered,
-        // a fresh untitled note opened. The home buffer is parked, not lost.
-        app.notes_flip();
-        assert_eq!(app.root, PathBuf::from("/home/me/notes"));
-        assert_eq!(
-            app.notes_return.as_ref().and_then(|d| d.file.clone()),
-            Some(PathBuf::from("/w/proj-a/a.md")),
-            "the home desk's active file is the remembered return target"
-        );
-        assert!(app.active.buffer.is_note() && app.active.buffer.path().is_none());
-
-        // Work IN the notes desk: open a real notes file.
-        app.load_path(PathBuf::from("/home/me/notes/n.md"));
-        assert!(app.active.buffer.text().contains("note body"));
-
-        // FLIP BACK: exact prior project AND its active buffer/view restored.
-        app.notes_flip();
-        assert_eq!(app.root, PathBuf::from("/w/proj-a"));
-        assert_eq!(app.active.buffer.path(), Some(Path::new("/w/proj-a/a.md")));
-        assert!(app.active.buffer.text().contains("alpha"), "A's buffer came back, not re-read stale");
-        assert!(app.notes_return.is_none(), "the return memory is consumed");
-        assert_eq!(
-            app.notes_last_file,
-            Some(PathBuf::from("/home/me/notes/n.md")),
-            "the notes desk's last active file is remembered for re-entry"
-        );
-
-        // RE-ENTER: the last notes file returns (its live buffer), NOT a
-        // fresh untitled note and NOT an arbitrary pick.
-        app.notes_flip();
-        assert_eq!(app.root, PathBuf::from("/home/me/notes"));
-        assert_eq!(app.active.buffer.path(), Some(Path::new("/home/me/notes/n.md")));
-        assert!(app.active.buffer.text().contains("note body"));
-
-        // Still transient the whole way: no sticky root, no recent-project MRU.
-        assert_eq!(app.config.project_root, None);
-        assert!(app.recent_projects.is_empty());
-    });
-}
-
-#[test]
-fn notes_flip_parks_a_dirty_home_buffer_and_restores_it_unsaved() {
-    // ITEM 59: a DIRTY home buffer is PARKED across the visit — never
-    // discarded — and comes back with its unsaved edit intact. Autosave is
-    // turned OFF here to isolate the PARKING guarantee from awl's standard
-    // autosave-on-switch (which set_root fires for every project switch, so
-    // the flip never SPURIOUSLY saves — it rides the one existing door).
-    let fake = Arc::new(
-        crate::fs::InMemoryFs::new()
-            .with_file("/w/proj-a/a.md", "alpha body")
-            .with_dir("/home/me/notes"),
-    );
-    crate::fs::with_fs(fake, || {
-        let mut cfg = Config::empty();
-        cfg.autosave = Some(false);
-        let mut app = App::new(None, PathBuf::from("/w/proj-a"), None, None, cfg);
-        app.notes_root = PathBuf::from("/home/me/notes");
-        app.load_path(PathBuf::from("/w/proj-a/a.md"));
-        // Dirty the home buffer WITHOUT saving.
-        app.active.buffer.set_text("alpha body — UNSAVED EDIT");
-        assert!(app.active.buffer.is_dirty());
-
-        app.notes_flip(); // enter notes (parks the dirty home buffer)
-        // Disk untouched: with autosave off nothing was written on the flip.
-        assert_eq!(
-            crate::fs::active().read_to_string(Path::new("/w/proj-a/a.md")).unwrap(),
-            "alpha body",
-            "with autosave off the flip writes nothing to disk"
-        );
-
-        app.notes_flip(); // back home — the unsaved edit survives
-        assert_eq!(app.active.buffer.path(), Some(Path::new("/w/proj-a/a.md")));
-        assert!(app.active.buffer.text().contains("UNSAVED EDIT"), "the dirty edit came back intact");
-        assert!(app.active.buffer.is_dirty(), "still dirty — the parked buffer was never discarded");
-    });
-}
-
-#[test]
-fn notes_flip_denied_root_change_leaves_both_desks_untouched() {
-    // ITEM 59: root change + buffer activation are ONE transaction. If the
-    // root change is refused, BOTH desks and the remembered return target
-    // stay exactly as they were. Modeled with an EMPTY notes_root (the "no
-    // usable folder" sentinel → `Inert`): the command is a clean no-op.
-    let fake = Arc::new(crate::fs::InMemoryFs::new().with_file("/w/proj-a/a.md", "alpha"));
-    crate::fs::with_fs(fake, || {
-        let mut app = App::new(None, PathBuf::from("/w/proj-a"), None, None, Config::empty());
-        app.notes_root = PathBuf::new(); // no usable notes root
-        app.load_path(PathBuf::from("/w/proj-a/a.md"));
-
-        app.notes_flip();
-        assert_eq!(app.root, PathBuf::from("/w/proj-a"), "root unchanged");
-        assert_eq!(app.active.buffer.path(), Some(Path::new("/w/proj-a/a.md")), "active buffer unchanged");
-        assert!(app.notes_return.is_none(), "no return target remembered");
-    });
 }
 
 // --- SAVE-FEEDBACK round: the dirty edited-marker, dirty × scratch/note/file ---
@@ -396,13 +192,14 @@ fn trash_asset_failure_keeps_the_row_and_notes_the_error() {
 // ── NO-PATH PASTE SAVES FIRST (the paste-image seam, `app/apply.rs::
 // try_paste_image`) ──────────────────────────────────────────────────────
 
-/// A bare SCRATCH buffer (never summoned via C-x n) with real text in it: the
-/// pre-paste save promotes it into a note rooted at `notes_root` and derives
-/// a path from its first line — the SAME name/derivation a real quick note's
-/// first autosave would produce. Proves the "gains a path under notes_root"
-/// half of the paste-image contract.
+/// A bare SCRATCH buffer (never summoned via Cmd-N) with real text in it: the
+/// pre-paste save promotes it into an unnamed fresh document rooted at the
+/// ACTIVE folder (item 76 — `self.root`, NOT the `default_folder` fallback)
+/// and derives a path from its first line — the SAME name/derivation a real
+/// fresh document's first autosave would produce. Proves the "gains a path
+/// under the active folder" half of the paste-image contract.
 #[test]
-fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_notes_root() {
+fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_active_folder() {
     use crate::fs::{FileSystem, InMemoryFs};
     let fake = Arc::new(InMemoryFs::new());
     crate::fs::with_fs(fake.clone(), || {
@@ -410,25 +207,28 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_note
             None,
             PathBuf::from("/proj"),
             None,
-            Some(PathBuf::from("/notes")),
+            Some(PathBuf::from("/notes")), // default_folder: irrelevant once running
             Config::empty(),
         );
-        assert!(!app.active.buffer.is_note(), "a bare launch buffer starts as plain scratch");
+        assert!(!app.active.buffer.is_unnamed_fresh(), "a bare launch buffer starts as plain scratch");
         assert!(app.active.buffer.path().is_none());
         app.active.buffer.set_text("My Pasted Screenshot\n\nsome body text\n");
 
         app.ensure_note_named_before_paste();
 
-        assert!(app.active.buffer.is_note(), "promoted into a note living under notes_root");
+        // ONE-SHOT NAMING (item 76): the promotion AND the derive-a-name save
+        // happen in this one call, so by the time it returns the buffer is
+        // already an ORDINARY pathed document, not a lasting note identity.
+        assert!(!app.active.buffer.is_unnamed_fresh(), "named once — an ordinary file now");
         let path = app.active.buffer.path().expect("gained a path").to_path_buf();
         assert!(
-            path.starts_with("/notes"),
-            "the derived path lives under notes_root: {}",
+            path.starts_with("/proj"),
+            "the derived path lives under the ACTIVE folder, not default_folder: {}",
             path.display()
         );
         assert_eq!(path.extension().and_then(|e| e.to_str()), Some("md"));
-        // The slug came from the first non-empty line, matching the notes
-        // system's own derivation (`buffer::note_stem`).
+        // The slug came from the first non-empty line, matching the
+        // fresh-document system's own derivation (`buffer::note_stem`).
         assert!(
             path.file_stem().unwrap().to_string_lossy().contains("pasted-screenshot"),
             "filename derives from the first line: {}",
@@ -439,21 +239,21 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_note
             fake.read_to_string(&path).unwrap(),
             "My Pasted Screenshot\n\nsome body text\n"
         );
-        // `App.file` + the title track the freshly-named note, exactly like a
-        // real quick note's first autosave.
+        // `App.file` + the title track the freshly-named document, exactly like
+        // a real fresh document's first autosave.
         assert_eq!(app.active.buffer.path(), Some(path.as_path()));
     });
 }
 
-/// An ALREADY-STARTED note (`note_dir` set, still unnamed) is left pointed at
-/// its own dir — never re-promoted/re-rooted at `notes_root` a second time.
+/// An ALREADY-STARTED fresh document (`note_dir` set, still unnamed) is left
+/// pointed at its own dir — never re-promoted/re-rooted a second time.
 #[test]
 fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
     use crate::fs::InMemoryFs;
     let fake = Arc::new(InMemoryFs::new());
     crate::fs::with_fs(fake.clone(), || {
         let mut app = App::new(None, PathBuf::from("/proj"), None, Some(PathBuf::from("/notes")), Config::empty());
-        app.active.buffer.start_note(PathBuf::from("/elsewhere"));
+        app.active.buffer.start_fresh_doc(PathBuf::from("/elsewhere"));
         app.active.buffer.set_text("Elsewhere Note\n");
 
         app.ensure_note_named_before_paste();
@@ -461,7 +261,7 @@ fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
         let path = app.active.buffer.path().expect("gained a path");
         assert!(
             path.starts_with("/elsewhere"),
-            "an in-progress note's own dir is respected, not overridden: {}",
+            "an in-progress fresh document's own dir is respected, not overridden: {}",
             path.display()
         );
     });
@@ -470,8 +270,9 @@ fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
 /// An EMPTY buffer (no first line to derive a name from) fails the save
 /// quietly and stays path-less — the caller (`try_paste_image`) falls back to
 /// its pre-existing absolute data-root location rather than blocking the
-/// paste. Also proves the promotion side effect (now a note) survives the
-/// failed save, matching what typing-then-pausing would do from here.
+/// paste. Also proves the promotion side effect (now a fresh document)
+/// survives the failed save, matching what typing-then-pausing would do from
+/// here.
 #[test]
 fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
     use crate::fs::InMemoryFs;
@@ -483,7 +284,7 @@ fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
         app.ensure_note_named_before_paste();
 
         assert!(app.active.buffer.path().is_none(), "no first line to derive a name from");
-        assert!(app.active.buffer.is_note(), "promoted regardless — matches typing-then-pausing");
+        assert!(app.active.buffer.is_unnamed_fresh(), "promoted regardless — matches typing-then-pausing");
     });
 }
 

@@ -787,18 +787,19 @@ commits) and assert `dictionary == "en_AU"`; a `--config` file with
 `dictionary = "en_AU"` produces the same effective variant with no flags at
 all (`apply_sticky_globals`, mirroring `theme`/`caret_mode`).
 
-**STICKY PROJECT RESTORE.** A `--config` file may also remember the ACTIVE
-PROJECT ROOT (`project_root = "/path/to/repo"`, written on every switch-project
-/ C-x p commit — the live App's `App::persist_project_root`, mirroring
-`theme`/`caret_mode`). On a **bare** capture — no `file` argument AND no
-explicit `--root` flag, the same condition the scratch-buffer stash restores
-under — the remembered root resolves into the existing `project.root` field
-(no new schema field: this only changes WHICH root feeds it, and thus the
-`notes_root`/`workspace` derivations that hang off it). An explicit `--root`
-still wins outright; supplying a `file` argument keeps deriving from that
-file's own directory, unaffected. Verify with a seeded config:
-`cargo run -- --config /path/cfg.toml --screenshot OUT.png` (no file, no
-`--root`) and assert `project.root` equals the config's `project_root`.
+**CAPTURE IS STRUCTURALLY FREE OF REMEMBERED CONTEXT (item 76).** The one
+active-folder-context owner is the live App's session (native-only,
+`app/session.rs`) — a headless capture never constructs an `App`, so it never
+reads or writes it (the capture-gate law). A **bare** capture — no `file`
+argument AND no explicit `--root` flag — resolves `project.root` to **cwd**,
+always, regardless of what a `--config` file's `default_folder` key names —
+`default_folder` is a WINDOWED-launch-only, first-run fallback
+(see the launch-precedence law in `docs/platform.md`), never consulted by a
+capture. An explicit `--root` still wins outright; supplying a `file` argument
+keeps deriving from that file's own directory, unaffected. Verify with a
+seeded config: `cargo run -- --config /path/cfg.toml --screenshot OUT.png`
+(no file, no `--root`, run from a known cwd) and assert `project.root` equals
+that cwd, NOT the config's `default_folder`.
 
 Schema `awl-capture/40` (was `/37`; timeline `/41`, held `/42`) adds the top-level
 `hud` block for the SUMMONED-WHILE-HELD stats HUD — a calm centered metadata panel
@@ -1007,13 +1008,14 @@ The overlay has six summoned modes, all on the one transient card:
   (max 2, newest first), saved to `config.toml`, and live-reloaded (`overlay.notice`
   reflects the result; a CONFLICT moves the capture to `confirm` and warns before
   committing — live only). `Esc` cancels a capture / closes the menu.
-* `move` (`C-x m`) — the MOVE-DESTINATION picker for the current QUICK NOTE: the
-  browse navigator over the **notes root** (`--notes-root`), listing FOLDERS only.
+* `move` (`C-x m`) — the MOVE-DESTINATION picker for the current file: the
+  browse navigator over the **active folder** (item 76 — the SAME root `browse`
+  walks; no separate notes-root concept), listing FOLDERS only.
   `Right` DESCENDS into the highlighted folder, `Left` / `Backspace` ASCENDS,
   `Enter` ACCEPTS the
   destination — the highlighted folder, or, when the typed `query` matches no
   listed folder, a NEW folder of that name to create. `browse_dir` tracks the
-  level (notes-root-relative; `null` = the notes root). The actual mkdir + move is
+  level (active-folder-relative; `null` = the active folder itself). The actual mkdir + move is
   applied live in the windowed app (App-only, so a `--keys` capture stays
   byte-deterministic and never mutates fixtures); the picker itself is fully
   drivable + verifiable here.
@@ -1024,10 +1026,11 @@ filter), and with an empty `query` it ASCENDS one level exactly like `Left`.
 `browse_dir` is `null` for the `goto`/`theme`/`command` modes (and for the
 `browse`/`move` ROOT level); for `switch` it is the absolute directory currently
 shown. `bindings` is `[]` for every mode except `command` and `keybindings`. The `C-x b`
-last-buffer toggle and `C-x n` new-quick-note jump are editor actions, not
+last-buffer toggle and Cmd-N new-document swap are editor actions, not
 overlays, so they leave no `overlay` trace — their effect shows in `text` /
-`project` (after `C-x n` the project is the notes root and the buffer is a fresh
-empty note; the note's filename is derived from its first line on first save).
+`project` (after Cmd-N the buffer is a fresh, unnamed document IN THE SAME
+active folder — item 76, no project change; the filename is derived from
+its first line ONCE, on the first material save).
 
 Schema `awl-capture/3` (was `/2`) adds the `theme` block describing the active
 color world the frame was rendered with, and `font.family` reports that world's
@@ -1076,7 +1079,7 @@ world.)
   "text": "full buffer text, JSON-escaped",
   "first_lines": ["line 0", "line 1", "... up to 12 logical lines"],
   "search": { "query": "", "active": false, "case_sensitive": false, "hit_count": 0, "current": null, "replace_active": false, "replacement": "" },
-  "project": { "root": "/path/to/repo", "name": "repo", "branch": "feature/login", "dirty": false, "notes_root": "/home/me/notes", "workspace": "/home/me/code" },
+  "project": { "root": "/path/to/repo", "name": "repo", "branch": "feature/login", "dirty": false, "default_folder": "/home/me/notes", "workspace": "/home/me/code" },
   "overlay": { "active": false, "mode": null, "query": "", "selected_index": null, "browse_dir": null, "notice": "", "capture": null, "items": [], "bindings": [] }
 }
 ```

@@ -1,10 +1,11 @@
-//! src/app/files/open.rs — opening project-relative files, the last-buffer
-//! (C-x b) toggle, project switching + the recent-projects/recent-files MRU
-//! pushes, quick-note creation's root-jump half, and the i18n write-back-once
-//! + fold-reveal jump helpers. Split out of the former `app/files.rs`
-//! monolith (item 56); see `files/active.rs` for the owned slot this module
-//! swaps through `park_active_buffer`/`activate_from_registry`, and
-//! `files/notes.rs` for the two-desk Notes flip built on top of these.
+//! src/app/files/open.rs — opening folder-relative files, the last-buffer
+//! (C-x b) toggle, project/folder switching + the recent-projects/recent-files
+//! MRU pushes, Cmd-N's own re-scan half, and the i18n write-back-once +
+//! fold-reveal jump helpers. Split out of the former `app/files.rs` monolith
+//! (item 56); see `files/active.rs` for the owned slot this module swaps
+//! through `park_active_buffer`/`activate_from_registry`, and
+//! `files/document.rs` for the fresh-document buffer swap built on top of
+//! these.
 
 use crate::app::*;
 use super::active::BufferExtra;
@@ -76,15 +77,15 @@ impl App {
     }
 
 
-    /// SWITCH the active project to `new_root` — the ONE owner of a genuine
+    /// SWITCH the active folder to `new_root` — the ONE owner of a genuine
     /// switch-project (both the `Project` picker's accepted folder AND the
     /// Recent Projects picker route here). Re-scopes the root ([`Self::set_root`]),
-    /// persists it as the STICKY project (a plain relaunch reopens it,
-    /// [`Self::persist_project_root`]), AND pushes it to the front of the
-    /// persisted RECENT list ([`Self::push_recent_project`]). A quick-note jump
-    /// (C-x n) deliberately does NOT come through here — it calls `set_root`
-    /// directly, so it neither persists the sticky root nor counts as a "recent
-    /// project" (only an intentional switch does).
+    /// EAGERLY remembers it as the one active-folder-context (`session_flush`,
+    /// native only — see `app/session.rs`'s module doc; item 76 unified the old
+    /// separate "sticky project root" config key into the ONE session-owned
+    /// context, so a crash/relaunch right after a switch still resumes here,
+    /// not the pre-switch folder), AND pushes it to the front of the persisted
+    /// RECENT list ([`Self::push_recent_project`]).
     pub(in crate::app) fn switch_project(&mut self, new_root: PathBuf) {
         // A cancelled MAS grant panel (see `set_root`'s doc) means the switch
         // never happened — never persist/MRU a root we didn't actually move
@@ -92,7 +93,8 @@ impl App {
         if !self.set_root(new_root.clone()) {
             return;
         }
-        self.persist_project_root();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.session_flush();
         self.push_recent_project(new_root);
     }
 
@@ -407,26 +409,19 @@ impl App {
     }
 
 
-    /// C-x n: NEW QUICK NOTE in one gesture. Jump the active project to the notes
-    /// root AND swap in a fresh empty note buffer; the user starts typing
-    /// immediately. The filename is derived (slugified first line) + auto-saved on
-    /// the first pause — see [`Self::autosave_note`]. The file we are leaving
-    /// becomes the last-buffer (C-x b) target.
-    pub(in crate::app) fn new_note(&mut self) {
-        // The notes root may not exist yet; create it lazily so the project +
-        // index resolve and the first save has somewhere to land. (A MAS
-        // sandbox build against an ungranted external `notes_root` simply has
-        // this first attempt fail silently — see `set_root`'s own grant gate
-        // right below, which prompts and then this directory genuinely gets
-        // created on the buffer's first save.)
-        let _ = crate::fs::active().create_dir_all(&self.notes_root);
-        // A cancelled MAS grant panel means the jump never happened — bail
-        // before touching the buffer at all (mirrors `switch_project`).
-        if !self.set_root(self.notes_root.clone()) {
-            return;
-        }
-        // The buffer-swap half is shared with the two-desk Notes flip's
-        // first-ever visit (item 59) — one owner, `start_fresh_note`.
-        self.start_fresh_note();
+    /// Cmd-N: a fresh, unnamed DOCUMENT in the CURRENT active folder (item 76 —
+    /// no root jump: New document used to jump to a separate "notes root"; now
+    /// it lands wherever you already are). The user starts typing immediately;
+    /// the filename is derived (slugified first line) ONCE, on the first
+    /// material save — see [`Self::autosave_note`] / `Buffer::save`. The file
+    /// we are leaving becomes the last-buffer (C-x b) target.
+    pub(in crate::app) fn new_document(&mut self) {
+        // The active folder may not exist yet on a fresh machine; create it
+        // lazily so the buffer's first save has somewhere to land (best-effort
+        // — a MAS sandbox build against an ungranted external root simply has
+        // this attempt fail silently; the folder is already granted by
+        // construction, since it's the folder we are already working in).
+        let _ = crate::fs::active().create_dir_all(&self.root);
+        self.start_fresh_document();
     }
 }

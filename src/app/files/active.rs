@@ -17,25 +17,15 @@
 //! (the Wagtail/version-0 class of bug this round retires — see
 //! `CLAUDE.md`'s cache-key-discipline tripwire).
 //!
-//! NOT carried here (deliberately): the quick-NOTE debounce fields
+//! NOT carried here (deliberately): the fresh-document debounce fields
 //! (`autosave_dirty_at` / `autosave_saved_version`) stay App-global — they only
-//! ever matter while `buffer.is_note()`, and a note only becomes registry-
-//! keyable once it has been named (given a real path), at which point it is an
-//! ordinary pathed buffer for every OTHER purpose here; a stale value simply
-//! re-triggers one redundant (harmless) autosave on reactivation.
+//! ever matter while `buffer.is_unnamed_fresh()`, and a fresh document only
+//! becomes registry-keyable once it has been named (given a real path), at
+//! which point it is an ordinary pathed buffer for every OTHER purpose here; a
+//! stale value simply re-triggers one redundant (harmless) autosave on
+//! reactivation.
 
 use crate::app::*;
-
-/// A remembered "desk" for the two-desk "Notes" flip (item 59): the project
-/// ROOT to return to plus the FILE that was active there (`None` = a pathless
-/// scratch buffer, restored from the registry's `Scratch` slot). Entering Notes
-/// stashes the outgoing home desk here so a second flip restores the whole
-/// writing context — root AND the exact buffer/view — rather than only the root
-/// (the split state the Wave-4 user reported).
-pub(in crate::app) struct DeskReturn {
-    pub root: PathBuf,
-    pub file: Option<PathBuf>,
-}
 
 #[derive(Default)]
 pub(in crate::app) struct BufferExtra {
@@ -72,7 +62,7 @@ impl App {
     /// `crate::buffers::BufferKey::of`), leaving `self.active` a throwaway
     /// scratch-buffer-with-default-extra placeholder for the caller to
     /// immediately overwrite. The ONE door every "the active buffer is about
-    /// to be replaced" site goes through (`load_path`, `new_note`), so
+    /// to be replaced" site goes through (`load_path`, `new_document`), so
     /// backgrounding a buffer always preserves the same state.
     ///
     /// WHOLE-SLOT MOVE (item 56): `mem::replace` swaps the ENTIRE

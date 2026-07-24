@@ -33,7 +33,7 @@ formatting toggles (lists, highlight, blockquote…) live in the palette.
 | Getting a file out | "{{cmd:download_file}}" ({{key:command_palette}}) | Already on disk |
 
 A couple of native chords belong to the browser itself (new tab, new
-window, and similar) — {{key:new_note}} and {{key:switch_theme}}
+window, and similar) — {{key:new_document}} and {{key:switch_theme}}
 resolve to a working alternate here automatically. Every command is
 also reachable by name through {{key:command_palette}}.
 

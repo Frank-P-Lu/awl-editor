@@ -181,7 +181,7 @@ fn quit_action_is_a_no_op_through_apply_core_on_real_wasm() {
 // filter.
 
 /// TIER 2 on the real wasm binary: with the UA-detected convention set to Mac,
-/// "New note"'s native Cmd-N chord — a browser-reserved accelerator — never
+/// "New document"'s native Cmd-N chord — a browser-reserved accelerator — never
 /// appears in its EFFECTIVE binding label (the palette/rebind-menu door);
 /// v2 (the convention-truthful-surfaces round) shows its web-alternate
 /// chord (⌃J) there instead of a blank label. "Save"'s ordinary Cmd-S chord
@@ -193,8 +193,8 @@ fn web_reserved_native_chord_shows_its_web_alternate_on_the_real_palette_label()
     set_web_convention_from_ua("Macintosh");
     let binds = crate::commands::visible_effective_bindings(&[], &[]);
     let names = crate::commands::visible_names();
-    let new_note = names.iter().position(|n| n == "New note").unwrap();
-    assert_eq!(binds[new_note], "\u{2303}J", "New note's web alternate (Ctrl-J) should show, not Cmd-N");
+    let new_document = names.iter().position(|n| n == "New document").unwrap();
+    assert_eq!(binds[new_document], "\u{2303}J", "New document's web alternate (Ctrl-J) should show, not Cmd-N");
     let save = names.iter().position(|n| n == "Save").unwrap();
     assert_eq!(binds[save], "⌘S", "an ordinary chord is untouched");
     set_web_convention_from_ua(""); // leave the global in its default state
@@ -212,7 +212,7 @@ fn web_alternate_chord_dispatches_through_the_real_keymap_on_wasm() {
     let keys = crate::commands::web_alternate_keys(&[], Convention::current(), crate::commands::Platform::current());
     let mut km = crate::keymap::KeymapState::with_overrides(&keys);
     let (key, mods) = crate::keyspec::parse_chord("C-j").expect("C-j parses");
-    assert_eq!(km.resolve(&key, &mods), Action::NewNote);
+    assert_eq!(km.resolve(&key, &mods), Action::NewDocument);
     set_web_convention_from_ua(""); // leave the global in its default state
 }
 

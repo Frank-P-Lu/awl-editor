@@ -1058,7 +1058,7 @@ fn dispatch_settings_row(
                 .start_value_edit(key.to_string(), row.name.to_string());
             Effect::None
         }
-        // PATH (notes_root / workspace / project_root): open the folder NAVIGATOR (the
+        // PATH (default_folder / workspace / project_root): open the folder NAVIGATOR (the
         // Project picker, which roams the filesystem by absolute path) with a
         // `return_to = breadcrumb` + the config key stamped, so its accept writes THAT
         // key and returns rather than switching the project blindly.

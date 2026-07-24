@@ -28,7 +28,7 @@ impl App {
     /// write lands, manual save or autosave alike — matching every
     /// conventional editor's own dirty-dot behavior.
     pub(in crate::app) fn is_document_dirty(&self) -> bool {
-        if self.active.buffer.is_note() {
+        if self.active.buffer.is_unnamed_fresh() {
             self.autosave_saved_version != Some(self.active.buffer.version())
         } else if self.active.buffer.path().is_some() {
             self.active.extra.doc_saved_version != Some(self.active.buffer.version())
@@ -95,7 +95,7 @@ impl App {
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.set_title(&window_title(
                 self.active.buffer.path(),
-                self.active.buffer.is_note(),
+                self.active.buffer.is_unnamed_fresh(),
                 crate::theme::active().name,
                 dirty,
             ));
@@ -123,75 +123,91 @@ impl App {
     /// quit. A truly empty note still writes nothing (no litter); a non-note buffer
     /// or an already-saved version is a no-op.
     pub(in crate::app) fn flush_note(&mut self) {
-        if self.active.buffer.is_note() && self.autosave_saved_version != Some(self.active.buffer.version()) {
+        if self.active.buffer.is_unnamed_fresh() && self.autosave_saved_version != Some(self.active.buffer.version()) {
             self.autosave_dirty_at = None;
             self.autosave_note();
         }
     }
 
 
-    /// Auto-save the active NOTE (live only, debounced). The buffer derives its
-    /// filename from the first non-empty line on the first save (empty note writes
-    /// nothing — no litter); once named, the filename LOCKS. On the first naming
-    /// save we sync the title / the go-to index so the note is findable
-    /// (`Buffer::save` already stamped the derived path onto the buffer itself).
+    /// Auto-save the active UNNAMED FRESH DOCUMENT (live only, debounced). The
+    /// buffer derives its filename from the first non-empty line on this — its
+    /// FIRST — save (an empty document writes nothing — no litter); the moment
+    /// that happens, `Buffer::save` binds the path AND clears the fresh-document
+    /// marker in the SAME step (item 76's one-shot naming law), so
+    /// `is_unnamed_fresh()` is false by the time this function returns and every
+    /// LATER save (including a later edit to the first line) simply routes
+    /// through the ordinary document autosave engine instead — never a second
+    /// call here, never a live rename.
+    ///
+    /// **Hand-off bookkeeping:** since the buffer transitions from "fresh" to
+    /// "ordinary pathed document" in THIS call, also stamp the ordinary
+    /// document autosave engine's own baselines (`doc_saved_version`,
+    /// `disk_mtime`, `caret_synced_version`) here — mirroring
+    /// `App::finish_manual_save`/`convert_scratch_and_save`'s post-save
+    /// bookkeeping — so `is_document_dirty`'s `path().is_some()` branch (which
+    /// this buffer reads from the very next `sync_view`, `is_unnamed_fresh()`
+    /// now being false) sees a freshly-saved, clean baseline rather than a
+    /// stale/absent one that would misreport dirty.
     pub(in crate::app) fn autosave_note(&mut self) {
         self.autosave_saved_version = Some(self.active.buffer.version());
-        if !self.active.buffer.is_note() {
+        if !self.active.buffer.is_unnamed_fresh() {
             return;
         }
-        let had_path = self.active.buffer.path().is_some();
         match self.active.buffer.save() {
             Ok(()) => {
-                if !had_path {
-                    if self.active.buffer.path().is_some() {
-                        // SAVE-FEEDBACK round: no terminal echo — a background
-                        // autosave naming a fresh note is silent chatter (the
-                        // window title already renders the new name). `Buffer::
-                        // save` already stamped the derived path onto the buffer
-                        // itself (the sole authoritative path, item 56).
-                        self.update_title();
-                        // Re-scope the go-to index so the new note is jump-able.
-                        self.rescan_file_index();
-                    }
-                } else {
-                    // Already named: the filename LIVE-TRACKS the first line, so a
-                    // mid-typing typo fixed later renames the file to match.
-                    self.rename_note_to_title();
+                // `Buffer::save` only returns `Ok` here having derived + bound a
+                // path (an empty document, the ONLY other `Ok`-less case, bails
+                // into the `Err` arm below instead) — so `path()` is always
+                // `Some` on this arm.
+                let p = self.active.buffer.path().map(|p| p.to_path_buf());
+                self.active.extra.doc_saved_version = Some(self.active.buffer.version());
+                self.active.extra.caret_synced_version = self.active.buffer.version();
+                if let Some(p) = &p {
+                    self.active.extra.disk_mtime = Self::disk_mtime_of(p);
                 }
-                // AUTOMATIC LOCAL SNAPSHOT: a loose note just hit the disk, so capture
-                // a history point (git-managed files + history-off are skipped inside).
+                // SAVE-FEEDBACK round: no terminal echo — a background
+                // autosave naming a fresh document is silent chatter (the
+                // window title already renders the new name). `Buffer::save`
+                // already stamped the derived path onto the buffer itself
+                // (the sole authoritative path, item 56).
+                self.update_title();
+                // Re-scope the go-to index so the new document is jump-able.
+                self.rescan_file_index();
+                // AUTOMATIC LOCAL SNAPSHOT: a loose document just hit the disk, so
+                // capture a history point (git-managed files + history-off are
+                // skipped inside).
                 self.snapshot_after_save();
                 // NOTES VERBS round: the held HUD's SAVED stat.
                 self.last_saved_ok = Some(self.clock.now());
             }
-            // Empty note (no first line yet): nothing to write. Stay quiet.
+            // Empty document (no first line yet): nothing to write. Stay quiet.
             Err(_) => {}
         }
     }
 
 
     /// PASTE-IMAGE'S NO-PATH PRE-SAVE (`App::try_paste_image`, `app/apply.rs`): a
-    /// path-less buffer — the bare scratch surface, or an unnamed quick note —
-    /// has no directory to hang an `assets/` folder off of. Give it one FIRST by
-    /// reusing the EXISTING quick-note auto-name save (`Self::autosave_note` →
-    /// `Buffer::save`'s first-line-derived filename), rather than inventing a
-    /// parallel naming rule. A plain scratch buffer (never summoned via C-x n —
-    /// `note_dir` unset) is first PROMOTED into a note rooted at
-    /// `self.notes_root`, the same home C-x n uses, via `Buffer::set_note_dir`
-    /// (content-preserving — unlike `start_note`, nothing is reset) — so it now
-    /// follows the notes model going forward (its own debounced autosave,
-    /// live-rename-to-title, the aged-history ladder, …) exactly as if C-x n had
-    /// started it. An already-in-progress note (`note_dir` already set) is left
+    /// path-less buffer — the bare scratch surface, or an unnamed fresh
+    /// document — has no directory to hang an `assets/` folder off of. Give it
+    /// one FIRST by reusing the EXISTING fresh-document auto-name save
+    /// (`Self::autosave_note` → `Buffer::save`'s first-line-derived filename),
+    /// rather than inventing a parallel naming rule. A plain scratch buffer
+    /// (never summoned via Cmd-N — `note_dir` unset) is first PROMOTED into an
+    /// unnamed fresh document rooted at `self.root` (the ACTIVE folder — the
+    /// same home Cmd-N uses), via `Buffer::set_note_dir` (content-preserving —
+    /// unlike `start_fresh_doc`, nothing is reset) — so it now follows the
+    /// one-shot naming model exactly as if Cmd-N had started it. An
+    /// already-in-progress fresh document (`note_dir` already set) is left
     /// pointed at its own dir. An EMPTY buffer has no first line to derive a name
     /// from yet — `autosave_note` (via `Buffer::save`) errs quietly and the
     /// buffer stays path-less; the caller (`try_paste_image`) falls back to its
     /// pre-existing absolute data-root location rather than blocking the paste.
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn ensure_note_named_before_paste(&mut self) {
-        if !self.active.buffer.is_note() {
-            let _ = crate::fs::active().create_dir_all(&self.notes_root);
-            self.active.buffer.set_note_dir(self.notes_root.clone());
+        if !self.active.buffer.is_unnamed_fresh() {
+            let _ = crate::fs::active().create_dir_all(&self.root);
+            self.active.buffer.set_note_dir(self.root.clone());
         }
         self.autosave_note();
     }
@@ -264,7 +280,7 @@ impl App {
         if !self.config.autosave_on() {
             return;
         }
-        if self.active.buffer.is_note() {
+        if self.active.buffer.is_unnamed_fresh() {
             return; // notes have their own debounced autosave (flush_note)
         }
         if self.active.buffer.path().is_some() {

@@ -1472,7 +1472,7 @@
             // An EMPTY note writes nothing (no litter): save bails.
             let mut buf = Buffer::scratch();
             buf.set_note_dir(dir.clone());
-            assert!(buf.is_note());
+            assert!(buf.is_unnamed_fresh());
             assert!(buf.save().is_err());
             assert!(buf.path().is_none());
             // Type a title; save now DERIVES <slug>.md and writes it.
@@ -1581,7 +1581,7 @@
         });
     }
 
-    // --- SAVE-FEEDBACK round: `Buffer::save_as_note` (scratch -> note on manual save) ---
+    // --- SAVE-FEEDBACK round: `Buffer::save_into_folder` (scratch -> note on manual save) ---
 
     #[test]
     fn save_as_note_converts_a_true_scratch_buffer_and_writes_it() {
@@ -1594,13 +1594,15 @@
             for c in "brain dump".chars() {
                 buf.insert_char(c);
             }
-            assert!(!buf.is_note(), "a true scratch buffer starts as no note");
-            buf.save_as_note(&notes).unwrap();
-            assert!(buf.is_note(), "save_as_note promotes it to a note");
+            assert!(!buf.is_unnamed_fresh(), "a true scratch buffer starts as no note");
+            buf.save_into_folder(&notes).unwrap();
+            // ONE-SHOT NAMING (item 76): the SAME call that derives the name also
+            // clears the fresh-document marker — an ordinary pathed file from here.
+            assert!(!buf.is_unnamed_fresh(), "named once — an ordinary file now, not a lasting note identity");
             let p = buf.path().unwrap();
             assert_eq!(p.file_name().unwrap(), "brain-dump.md");
             assert!(p.starts_with(&notes));
-            assert!(mem.exists(p), "the notes_root dir was created and the file written");
+            assert!(mem.exists(p), "the folder was created and the file written");
         });
     }
 
@@ -1615,40 +1617,81 @@
             for c in "first draft".chars() {
                 buf.insert_char(c);
             }
-            buf.save_as_note(&notes).unwrap();
+            buf.save_into_folder(&notes).unwrap();
             let named = buf.path().unwrap().to_path_buf();
             for c in " continued".chars() {
                 buf.insert_char(c);
             }
             // A SECOND save (now that it's a real note) never re-derives or
             // re-homes the filename — it's a plain `save()` at the same path.
-            buf.save_as_note(&notes).unwrap();
+            buf.save_into_folder(&notes).unwrap();
             assert_eq!(buf.path().unwrap(), named);
             assert_eq!(mem.read_to_string(&named).unwrap(), "first draft continued");
         });
     }
 
     #[test]
-    fn save_as_note_already_a_note_is_untouched_by_the_conversion_step() {
-        // A buffer that is ALREADY a note (e.g. C-x n) keeps its OWN note_dir —
-        // `save_as_note` must never re-home it at the passed-in `notes_root`.
+    fn one_shot_naming_a_later_first_line_edit_never_renames_item_76() {
+        // item 76's one-shot naming law: `Buffer::save` derives the filename
+        // from the first line EXACTLY ONCE. Editing the first line AFTER that
+        // first save — even before a second save — never re-derives or
+        // renames the file; the old LIVE-rename-to-title behavior is retired.
+        use crate::fs::FileSystem;
         use std::sync::Arc;
-        let own_dir = std::path::PathBuf::from("/project/scratch-notes");
-        let other_notes_root = std::path::PathBuf::from("/notes");
-        let mem = crate::fs::InMemoryFs::new().with_dir(&own_dir).with_dir(&other_notes_root);
+        let dir = std::path::PathBuf::from("/docs");
+        let mem = crate::fs::InMemoryFs::new().with_dir(&dir);
         crate::fs::with_fs(Arc::new(mem.clone()), || {
             let mut buf = Buffer::scratch();
-            buf.start_note(own_dir.clone());
+            buf.start_fresh_doc(dir.clone());
+            assert!(buf.is_unnamed_fresh(), "arranged: a fresh unnamed document");
+            buf.set_text("first title");
+            buf.save().unwrap();
+            let named = buf.path().unwrap().to_path_buf();
+            assert_eq!(named.file_name().unwrap(), "first-title.md");
+            assert!(!buf.is_unnamed_fresh(), "one-shot: named once, ordinary now");
+
+            // Retitle the FIRST LINE entirely, then save again.
+            buf.set_text("totally different title");
+            buf.save().unwrap();
+
+            assert_eq!(
+                buf.path().unwrap(),
+                named,
+                "the path is UNCHANGED — a later title edit never renames"
+            );
+            assert!(
+                !mem.exists(&dir.join("totally-different-title.md")),
+                "no new file was ever created for the retitled first line"
+            );
+            assert_eq!(
+                mem.read_to_string(&named).unwrap(),
+                "totally different title",
+                "the CONTENT still updated at the original path"
+            );
+        });
+    }
+
+    #[test]
+    fn save_as_note_already_a_note_is_untouched_by_the_conversion_step() {
+        // A buffer that is ALREADY a note (e.g. C-x n) keeps its OWN note_dir —
+        // `save_into_folder` must never re-home it at the passed-in folder.
+        use std::sync::Arc;
+        let own_dir = std::path::PathBuf::from("/project/scratch-notes");
+        let other_folder = std::path::PathBuf::from("/notes");
+        let mem = crate::fs::InMemoryFs::new().with_dir(&own_dir).with_dir(&other_folder);
+        crate::fs::with_fs(Arc::new(mem.clone()), || {
+            let mut buf = Buffer::scratch();
+            buf.start_fresh_doc(own_dir.clone());
             for c in "already a note".chars() {
                 buf.insert_char(c);
             }
-            buf.save_as_note(&other_notes_root).unwrap();
+            buf.save_into_folder(&other_folder).unwrap();
             assert!(buf.path().unwrap().starts_with(&own_dir), "kept its own note home");
         });
     }
 
     /// A minimal [`crate::fs::FileSystem`] fake whose `write` ALWAYS fails —
-    /// standing in for a `notes_root` that exists but isn't writable (a full
+    /// standing in for a target folder that exists but isn't writable (a full
     /// disk, a permissions error, …). `InMemoryFs` has no such mode (every
     /// write always succeeds), so this is the smallest fake that can exercise
     /// the failure path `Buffer::save`'s `write_atomic` call can genuinely
@@ -1663,13 +1706,13 @@
             Err(std::io::Error::new(std::io::ErrorKind::NotFound, "unwritable fake"))
         }
         fn write(&self, _path: &std::path::Path, _data: &[u8]) -> std::io::Result<()> {
-            Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "notes_root unwritable"))
+            Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "folder unwritable"))
         }
         fn create_dir_all(&self, _path: &std::path::Path) -> std::io::Result<()> {
             Ok(()) // "creating" the dir succeeds; the WRITE into it is what fails
         }
         fn rename(&self, _from: &std::path::Path, _to: &std::path::Path) -> std::io::Result<()> {
-            Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "notes_root unwritable"))
+            Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "folder unwritable"))
         }
         fn exists(&self, _path: &std::path::Path) -> bool {
             false
@@ -1689,8 +1732,8 @@
     }
 
     #[test]
-    fn save_as_note_unwritable_notes_root_surfaces_as_an_err_never_panics() {
-        // A `notes_root` that exists but can't be WRITTEN to surfaces the
+    fn save_as_note_unwritable_folder_surfaces_as_an_err_never_panics() {
+        // A target folder that exists but can't be WRITTEN to surfaces the
         // failure as the same `Err` `save` already returns — the caller
         // (`App::convert_scratch_and_save`) turns it into a calm notice,
         // never a terminal print, never a panic.
@@ -1701,7 +1744,7 @@
             for c in "will not land".chars() {
                 buf.insert_char(c);
             }
-            assert!(buf.save_as_note(&notes).is_err());
+            assert!(buf.save_into_folder(&notes).is_err());
         });
     }
 
@@ -1799,7 +1842,7 @@
         // save derives a path. While you type the title, styling must already apply.
         let dir = note_tmp("md_gate");
         let mut note = Buffer::scratch();
-        note.start_note(dir);
+        note.start_fresh_doc(dir);
         assert!(note.path().is_none(), "a fresh note has no path yet");
         assert!(note.is_markdown(), "an unsaved note is markdown from the start");
         // ...and it must NOT be code-highlighted: syntax is path-based, a note has
@@ -1817,45 +1860,8 @@
         // is never code-highlighted, so markdown and code stay mutually exclusive.
         let scratch = Buffer::scratch();
         assert!(scratch.is_markdown(), "the scratch writing surface IS markdown");
-        assert!(!scratch.is_note(), "but it is not a quick note");
+        assert!(!scratch.is_unnamed_fresh(), "but it is not a quick note");
         assert!(scratch.syntax_lang().is_none(), "scratch is never code-highlighted");
-    }
-
-    #[test]
-    fn rename_to_stem_tracks_title_and_no_clobbers() {
-        // Live-rename (slug re-derive + true move + idempotence + no-clobber), all
-        // over the FILESYSTEM SEAM (InMemoryFs) — no temp dir.
-        use crate::fs::FileSystem;
-        use std::sync::Arc;
-        let dir = std::path::PathBuf::from("/notes");
-        let mem = crate::fs::InMemoryFs::new().with_dir(&dir);
-        crate::fs::with_fs(Arc::new(mem.clone()), || {
-            // A note frozen under a mid-typing TYPO: "strong opion" -> the file.
-            let typo = unique_path(&dir, &note_stem("strong opion"), "md");
-            assert_eq!(typo.file_name().unwrap(), "strong-opion.md");
-            mem.write(&typo, b"strong opion\nbody").unwrap();
-            // Fixing the title re-derives the slug and RENAMES the file to match;
-            // the content rides along (a true move), the typo path is gone.
-            let fixed = rename_to_stem(&typo, &note_stem("strong opinion")).unwrap();
-            assert_eq!(fixed.file_name().unwrap(), "strong-opinion.md");
-            assert!(mem.exists(&fixed) && !mem.exists(&typo));
-            assert_eq!(mem.read_to_string(&fixed).unwrap(), "strong opion\nbody");
-            // IDEMPOTENT: re-deriving the SAME title is a no-op (no churn).
-            let again = rename_to_stem(&fixed, &note_stem("strong opinion")).unwrap();
-            assert_eq!(again, fixed);
-            // A collision-suffixed sibling already TRACKS its title: not churned.
-            let sib = dir.join("strong-opinion-2.md");
-            mem.write(&sib, b"x").unwrap();
-            let sib_same = rename_to_stem(&sib, &note_stem("strong opinion")).unwrap();
-            assert_eq!(sib_same, sib, "a -N suffix already tracks the title");
-            // NO CLOBBER: renaming a THIRD note to a taken slug appends a suffix
-            // (strong-opinion.md + strong-opinion-2.md exist -> -3).
-            let third = dir.join("draft.md");
-            mem.write(&third, b"y").unwrap();
-            let third_new = rename_to_stem(&third, &note_stem("Strong Opinion")).unwrap();
-            assert_eq!(third_new.file_name().unwrap(), "strong-opinion-3.md");
-            assert!(mem.exists(&third_new) && !mem.exists(&third));
-        });
     }
 
     #[test]

@@ -172,20 +172,14 @@ static COMMAND_SEED: &[Command] = &[
     // rebindable via `[keys] keep_version`.
     Command { name: "Keep version…",     action: Action::KeepVersion,     native: "",        emacs: ""        , native_only: true, web_only: false },
     Command { name: "Last file",         action: Action::LastBuffer,      native: "",   emacs: ""        , native_only: false, web_only: false },
-    // NOTES FLIP (user-decided 2026-07-22): flip the active project to
-    // `notes_root` and back — the project-level sibling of "Last file", one row
-    // up. Palette-only, no default chord (rebindable via `[keys] notes`); same
-    // availability everywhere "Switch project…" is (native_only: false — the
-    // web build persists `notes_root`/`workspace` too, see WEB.md).
-    Command { name: "Notes",             action: Action::NotesFlip,       native: "",   emacs: ""        , native_only: false, web_only: false },
-    Command { name: "New note",          action: Action::NewNote,         native: "",   emacs: ""        , native_only: false, web_only: false },
-    Command { name: "Move note…",        action: Action::MoveNote,        native: "",        emacs: ""        , native_only: false, web_only: false },
-    // NOTES VERBS round: familiar Save-As-shaped jobs as calm notes-native verbs.
-    // Both are palette-only (no default chord, like Move note…) and WebFs-capable
+    Command { name: "New document",          action: Action::NewDocument,         native: "",   emacs: ""        , native_only: false, web_only: false },
+    Command { name: "Move…",             action: Action::MoveFile,        native: "",        emacs: ""        , native_only: false, web_only: false },
+    // NOTES VERBS round: familiar Save-As-shaped jobs as calm generic verbs.
+    // Both are palette-only (no default chord, like Move…) and WebFs-capable
     // (`FileSystem::rename` is implemented on both native and web) — native_only:
     // false. Availability is an ACCEPT-TIME concern (a pathless scratch buffer or a
     // git-managed file politely declines), not a palette-visibility one, mirroring
-    // Move note's own scoping.
+    // Move's own scoping.
     Command { name: "Rename note…",      action: Action::OpenRenameNote,  native: "",        emacs: ""        , native_only: false, web_only: false },
     Command { name: "Duplicate note",    action: Action::DuplicateNote,   native: "",        emacs: ""        , native_only: false, web_only: false },
     // FINISH FILE: the emacsclient "server-edit" convention — save, notify any daemon
@@ -618,7 +612,7 @@ pub fn resolved_native_label_truthful(c: &Command, convention: Convention, platf
 // ── CONVENTION-TRUTHFUL SURFACES ROUND — WEB-ALTERNATE CHORDS ─────────────────
 //
 // v1 (the web chord sanity round) deliberately left a browser-reserved command
-// (New note / Switch theme… — the only two catalog commands BOTH available on
+// (New document / Switch theme… — the only two catalog commands BOTH available on
 // `Platform::Web` AND carrying a reserved native chord; verified exhaustively
 // by `tests::exactly_new_note_and_switch_theme_are_web_reserved_and_available`)
 // bindless on the web: `resolved_native_label_truthful` just showed "". This
@@ -648,7 +642,7 @@ pub fn resolved_native_label_truthful(c: &Command, convention: Convention, platf
 // reason above, so Linux web keeps the Alt-letter ones).
 const WEB_ALTERNATE: &[(&str, &str, &str)] = &[
     // name              mac-web alt   linux-web alt
-    ("New note", "C-j", "M-n"),
+    ("New document", "C-j", "M-n"),
     ("Switch theme…", "C-t", "M-t"),
 ];
 
@@ -1155,7 +1149,7 @@ pub fn action_available(action: &Action, platform: Platform) -> bool {
 /// display names (ellipsis included), so both the palette faceting (keyed off the
 /// display name) and the menu drift-guard read one source of truth.
 const FILE_COMMANDS: &[&str] =
-    &["New note", "Browse files…", "Switch project…", "Recent projects…", "Save", "Finish file"];
+    &["New document", "Browse files…", "Switch project…", "Recent projects…", "Save", "Finish file"];
 /// … under **Edit**.
 const EDIT_COMMANDS: &[&str] = &["Undo", "Redo", "Cut", "Copy", "Paste", "Select all"];
 /// … under **View**.
@@ -1359,7 +1353,7 @@ mod tests {
         // (summoned by name, no default chord); the model is CAPPED at 2 — exactly
         // the two slots exist. The identity round RETIRED the emacs C-x defaults, so
         // the palette-only set grew: every command whose C-x default was retired
-        // WITHOUT gaining a native chord (Browse files… / Move note… / Toggle page
+        // WITHOUT gaining a native chord (Browse files… / Move… / Toggle page
         // mode / Toggle caret style / Widen page / Narrow page / Toggle debug) joins
         // the pre-existing bindless set here. Settings… and Finish file left this set
         // in the keybinding-idiom audit (P1 = Cmd-,, P5 = Cmd-W). About's + Recent
@@ -1390,9 +1384,6 @@ mod tests {
             "Download file",
             "Check for Updates",
             "Recent projects…",
-            // NOTES FLIP round (2026-07-22): no default chord, like Move note…
-            // just above — summoned by name, rebindable via [keys] notes.
-            "Notes",
             "Go to heading…",
             "Toggle typewriter scroll",
             "Toggle menu bar",
@@ -1401,8 +1392,8 @@ mod tests {
             "Compare with version…",
             // Emacs C-x default retired, no native chord assigned (identity round):
             "Browse files…",
-            "Move note…",
-            // NOTES VERBS round — same shape as Move note…, no native chord.
+            "Move…",
+            // NOTES VERBS round — same shape as Move…, no native chord.
             "Rename note…",
             "Duplicate note",
             "Toggle page mode",
@@ -1475,7 +1466,7 @@ mod tests {
     #[test]
     fn menu_section_buckets_known_commands() {
         assert_eq!(menu_section("Save"), Some("File"));
-        assert_eq!(menu_section("New note"), Some("File"));
+        assert_eq!(menu_section("New document"), Some("File"));
         assert_eq!(menu_section("Copy"), Some("Edit"));
         assert_eq!(menu_section("Select all"), Some("Edit"));
         assert_eq!(menu_section("Switch theme…"), Some("View"));
@@ -1556,25 +1547,21 @@ mod tests {
         assert_eq!(action_for_name("nope"), None);
     }
 
-    /// NOTES FLIP round (user-decided 2026-07-22): "Notes" is a real, findable,
-    /// rebindable catalog command — the presence + binding half of the round's
-    /// test contract (the actual toggle-target logic is unit-tested pure in
-    /// `app::files::tests`). Mirrors `action_for_name_matches_label_and_slug`'s
-    /// own shape for one command.
-    #[cfg(not(target_arch = "wasm32"))] // uses slug_for_action, which is native-only
+    /// LAW (item 76): the "Notes"/two-desk-flip command is COMPLETELY gone —
+    /// no catalog row named "Notes", no `Action`/`Effect` variant reachable
+    /// through the rebinder by that name or the old `notes` slug. A future
+    /// command literally named "Notes" (unlikely, but the point of a
+    /// no-wildcard sweep is to never assume) would need a NEW, deliberate
+    /// entry here — this test is grep-forced, not name-coincidental, since it
+    /// also asserts the retired slug resolves to nothing.
     #[test]
-    fn notes_command_exists_is_findable_and_rebindable() {
+    fn notes_project_flip_command_and_slug_are_fully_retired() {
         assert!(
-            COMMANDS.iter().any(|c| c.action == Action::NotesFlip),
-            "the catalog carries a command wired to Action::NotesFlip"
+            !COMMANDS.iter().any(|c| c.name == "Notes"),
+            "no catalog row is named \"Notes\" (the retired two-desk flip)"
         );
-        assert_eq!(action_for_name("Notes"), Some(Action::NotesFlip));
-        assert_eq!(action_for_name("notes"), Some(Action::NotesFlip), "the [keys] rebind slug");
-        assert_eq!(slug_for_action(&Action::NotesFlip).as_deref(), Some("notes"));
-        // Available everywhere "Switch project…" is (both native and web build
-        // notes_root/workspace) — not a native-only row.
-        let row = COMMANDS.iter().find(|c| c.action == Action::NotesFlip).unwrap();
-        assert!(!row.native_only && !row.web_only, "Notes is available on every platform");
+        assert_eq!(action_for_name("Notes"), None);
+        assert_eq!(action_for_name("notes"), None, "the retired [keys] rebind slug resolves to nothing");
     }
 
     #[test]
@@ -2524,7 +2511,7 @@ mod tests {
         }
     }
 
-    /// TIER 2, v2 (the convention-truthful-surfaces round): "New note" (Cmd-N)
+    /// TIER 2, v2 (the convention-truthful-surfaces round): "New document" (Cmd-N)
     /// and "Switch theme…" (Cmd-T) are exactly the two catalog commands this
     /// round's own bug report names as browser-shadowed — on `Platform::Web`
     /// their native chord label is no longer blank (v1's documented "no
@@ -2533,9 +2520,9 @@ mod tests {
     /// `keymap::tests::web_alternate_keys_dispatch_the_real_action_on_web`).
     #[test]
     fn web_reserved_native_chord_shows_its_web_alternate() {
-        let new_note = COMMANDS.iter().find(|c| c.name == "New note").unwrap();
+        let new_document = COMMANDS.iter().find(|c| c.name == "New document").unwrap();
         let switch_theme = COMMANDS.iter().find(|c| c.name == "Switch theme…").unwrap();
-        for c in [new_note, switch_theme] {
+        for c in [new_document, switch_theme] {
             assert_eq!(c.emacs.trim(), "", "{} must have no emacs slot for this test's claim", c.name);
             for convention in [Convention::Mac, Convention::Linux] {
                 let label = resolved_native_label_truthful(c, convention, Platform::Web);
@@ -2561,16 +2548,16 @@ mod tests {
     /// arm claims these).
     #[test]
     fn web_alternate_labels_are_convention_keyed() {
-        let new_note = COMMANDS.iter().find(|c| c.name == "New note").unwrap();
+        let new_document = COMMANDS.iter().find(|c| c.name == "New document").unwrap();
         let switch_theme = COMMANDS.iter().find(|c| c.name == "Switch theme…").unwrap();
-        assert_eq!(resolved_native_label_truthful(new_note, Convention::Mac, Platform::Web), "\u{2303}J");
+        assert_eq!(resolved_native_label_truthful(new_document, Convention::Mac, Platform::Web), "\u{2303}J");
         assert_eq!(resolved_native_label_truthful(switch_theme, Convention::Mac, Platform::Web), "\u{2303}T");
-        assert_eq!(resolved_native_label_truthful(new_note, Convention::Linux, Platform::Web), "Alt+N");
+        assert_eq!(resolved_native_label_truthful(new_document, Convention::Linux, Platform::Web), "Alt+N");
         assert_eq!(resolved_native_label_truthful(switch_theme, Convention::Linux, Platform::Web), "Alt+T");
     }
 
     /// Exhaustive availability check backing this round's own doc comment
-    /// (`WEB_ALTERNATE`'s module note): "New note" and "Switch theme…" are
+    /// (`WEB_ALTERNATE`'s module note): "New document" and "Switch theme…" are
     /// EXACTLY the catalog commands that are (a) available on `Platform::Web`
     /// and (b) carry a browser-reserved native chord on EITHER convention —
     /// no third command silently needs an alternate too.
@@ -2587,7 +2574,7 @@ mod tests {
             .map(|c| c.name)
             .collect();
         hit.sort_unstable();
-        assert_eq!(hit, vec!["New note", "Switch theme…"]);
+        assert_eq!(hit, vec!["New document", "Switch theme…"]);
     }
 
     /// [`web_alternate_keys`] is a no-op on [`Platform::Native`] (config
@@ -2601,13 +2588,13 @@ mod tests {
         on_web.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(
             on_web,
-            vec![("new_note".to_string(), vec!["C-j".to_string()]), ("switch_theme".to_string(), vec!["C-t".to_string()])]
+            vec![("new_document".to_string(), vec!["C-j".to_string()]), ("switch_theme".to_string(), vec!["C-t".to_string()])]
         );
         let mut on_web_linux = web_alternate_keys(&[], Convention::Linux, Platform::Web);
         on_web_linux.sort_by(|a, b| a.0.cmp(&b.0));
         assert_eq!(
             on_web_linux,
-            vec![("new_note".to_string(), vec!["M-n".to_string()]), ("switch_theme".to_string(), vec!["M-t".to_string()])]
+            vec![("new_document".to_string(), vec!["M-n".to_string()]), ("switch_theme".to_string(), vec!["M-t".to_string()])]
         );
     }
 
@@ -2617,9 +2604,9 @@ mod tests {
     /// by the user's config — still appears.
     #[test]
     fn web_alternate_keys_skips_a_command_the_user_has_already_rebound() {
-        let existing = vec![("new_note".to_string(), vec!["C-x C-n".to_string()])];
+        let existing = vec![("new_document".to_string(), vec!["C-x C-n".to_string()])];
         let on_web = web_alternate_keys(&existing, Convention::Mac, Platform::Web);
-        assert!(!on_web.iter().any(|(name, _)| name == "new_note"), "user's own new_note rebind must not be shadowed");
+        assert!(!on_web.iter().any(|(name, _)| name == "new_document"), "user's own new_document rebind must not be shadowed");
         assert!(on_web.iter().any(|(name, _)| name == "switch_theme"), "switch_theme's alternate is still added");
     }
 
@@ -2632,7 +2619,7 @@ mod tests {
         let keys = web_alternate_keys(&[], Convention::Mac, Platform::Web);
         let mut km = crate::keymap::KeymapState::with_overrides(&keys);
         let (key, mods) = crate::keyspec::parse_chord("C-j").expect("C-j parses");
-        assert_eq!(km.resolve(&key, &mods), Action::NewNote);
+        assert_eq!(km.resolve(&key, &mods), Action::NewDocument);
         let (key, mods) = crate::keyspec::parse_chord("C-t").expect("C-t parses");
         assert_eq!(km.resolve(&key, &mods), Action::OpenThemeMenu);
     }
@@ -2655,16 +2642,16 @@ mod tests {
         assert_eq!(join_slots_truthful(&synthetic, Convention::Mac, Platform::Native, &[]), "⌘N · C-k");
     }
 
-    /// TIER 2 on the LINUX convention: "New note"'s Ctrl-translated form
+    /// TIER 2 on the LINUX convention: "New document"'s Ctrl-translated form
     /// (`Ctrl-N`) is reserved on a Linux-flavored browser too (a NEW tab/
     /// window is universally browser-owned), independent of the Mac table.
     #[test]
     fn linux_web_reserved_uses_the_ctrl_translated_form() {
-        let new_note = COMMANDS.iter().find(|c| c.name == "New note").unwrap();
-        assert_eq!(resolved_native(new_note, Convention::Linux), "C-n");
+        let new_document = COMMANDS.iter().find(|c| c.name == "New document").unwrap();
+        assert_eq!(resolved_native(new_document, Convention::Linux), "C-n");
         assert!(crate::webreserved::is_reserved("C-n", Convention::Linux));
         // v2: no longer blank — the Linux web alternate (Alt-N) takes over slot 1.
-        assert_eq!(resolved_native_label_truthful(new_note, Convention::Linux, Platform::Web), "Alt+N");
+        assert_eq!(resolved_native_label_truthful(new_document, Convention::Linux, Platform::Web), "Alt+N");
     }
 
     /// TIER 3: "Search forward" (native Cmd-F, emacs `C-s`) under
@@ -2792,14 +2779,14 @@ mod tests {
     }
 
     /// An UNLISTED chord is unaffected: keeping `C-f` does not touch `C-n`'s own
-    /// displacement (New note's native still wins over Next line's emacs `C-n`).
+    /// displacement (New document's native still wins over Next line's emacs `C-n`).
     #[test]
     fn linux_keep_emacs_is_a_per_chord_door_not_a_policy_flip() {
         let keep = vec!["C-f".to_string()];
         let next_line = COMMANDS.iter().find(|c| c.name == "Next line").unwrap();
         assert_eq!(join_slots_truthful(next_line, Convention::Linux, Platform::Native, &keep), "");
-        let new_note = COMMANDS.iter().find(|c| c.name == "New note").unwrap();
-        assert_eq!(join_slots_truthful(new_note, Convention::Linux, Platform::Native, &keep), "Ctrl+N");
+        let new_document = COMMANDS.iter().find(|c| c.name == "New document").unwrap();
+        assert_eq!(join_slots_truthful(new_document, Convention::Linux, Platform::Native, &keep), "Ctrl+N");
     }
 
     /// `effective_bindings`/`visible_effective_bindings` (the palette/rebind-menu

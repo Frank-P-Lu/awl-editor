@@ -78,17 +78,36 @@ impl ScreenRect {
     }
 }
 
-/// The whole persisted session. `active` names which open file was in the
-/// foreground; `buffers` is every open PATHED file (the no-path scratch
-/// buffer is deliberately never a member here — it keeps its own persistent
-/// stash, see the module doc) paired with its remembered [`BufferPos`];
-/// `window` is the native frame, `None` when nothing was ever captured
-/// (wasm, or a pre-this-round session file).
+/// The whole persisted session. `root` is the ACTIVE FOLDER (item 76 — the
+/// ONE persisted active-folder-context owner: this field + `active` are
+/// written atomically together by `session_flush`, so the folder and the
+/// active document restored from them can never disagree — see
+/// `app/session.rs`'s module doc for the launch-precedence law that reads
+/// it). `active` names which open file was in the foreground; `buffers` is
+/// every open PATHED file (the no-path scratch buffer is deliberately never a
+/// member here — it keeps its own persistent stash, see the module doc)
+/// paired with its remembered [`BufferPos`]; `window` is the native frame,
+/// `None` when nothing was ever captured (wasm, or a pre-this-round session
+/// file).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SessionState {
+    pub root: Option<PathBuf>,
     pub active: Option<PathBuf>,
     pub buffers: Vec<(PathBuf, BufferPos)>,
     pub window: Option<WindowFrame>,
+}
+
+/// The remembered ACTIVE FOLDER, if session restore has anything to say — the
+/// ONE read every bare (argument-free) launch consults for the folder half of
+/// the launch-precedence law (`main/run.rs::resolve_launch_context`). Gated
+/// by NOTHING here (the caller gates on `Config::session_restore_on()`, the
+/// kill-switch); loads through the ordinary lenient [`load`] (a missing/
+/// malformed file yields `None`, never a crash). Native-only in spirit — this
+/// function is pure/available everywhere, but only the native windowed launch
+/// door ever calls it (the headless capture path is structurally free of
+/// session, per the capture-gate law).
+pub fn remembered_root() -> Option<PathBuf> {
+    load(&session_path()).root
 }
 
 /// Where the session file lives: beside the scratch stash, same data root.
@@ -124,6 +143,9 @@ pub fn save(path: &Path, state: &SessionState) -> std::io::Result<()> {
 /// the two halves never have to hand-agree on escaping rules.
 pub fn to_toml(state: &SessionState) -> String {
     let mut out = String::new();
+    if let Some(root) = &state.root {
+        out.push_str(&format!("root = {}\n", quote(root)));
+    }
     if let Some(active) = &state.active {
         out.push_str(&format!("active = {}\n", quote(active)));
     }
@@ -170,6 +192,9 @@ pub fn from_toml(src: &str) -> SessionState {
     let Ok(table) = src.parse::<toml::Table>() else {
         return state;
     };
+    if let Some(s) = table.get("root").and_then(|v| v.as_str()) {
+        state.root = Some(PathBuf::from(s));
+    }
     if let Some(s) = table.get("active").and_then(|v| v.as_str()) {
         state.active = Some(PathBuf::from(s));
     }
@@ -255,6 +280,7 @@ mod tests {
     #[test]
     fn round_trips_through_toml() {
         let state = SessionState {
+            root: Some(PathBuf::from("/proj")),
             active: Some(PathBuf::from("/proj/a.md")),
             buffers: vec![
                 (PathBuf::from("/proj/a.md"), BufferPos { line: 3, col: 5, scroll: 2 }),
@@ -263,6 +289,22 @@ mod tests {
             window: Some(WindowFrame { x: 10, y: 20, width: 1200, height: 800 }),
         };
         let text = to_toml(&state);
+        assert_eq!(from_toml(&text), state);
+    }
+
+    #[test]
+    fn root_is_absent_when_never_set() {
+        // A pre-item-76 session file (or one written before any folder switch
+        // this run) carries no `root` line at all — the ONE owner degrades to
+        // `None` (the launch law's "nothing remembered" tier), never a crash.
+        let state = SessionState {
+            root: None,
+            active: Some(PathBuf::from("/proj/a.md")),
+            buffers: Vec::new(),
+            window: None,
+        };
+        let text = to_toml(&state);
+        assert!(!text.contains("root ="), "no root line when unset: {text}");
         assert_eq!(from_toml(&text), state);
     }
 
@@ -277,6 +319,7 @@ mod tests {
         // A window parked to the LEFT of / ABOVE the primary monitor's origin
         // (a real multi-monitor arrangement) has negative outer coordinates.
         let state = SessionState {
+            root: None,
             active: None,
             buffers: Vec::new(),
             window: Some(WindowFrame { x: -1200, y: -40, width: 800, height: 600 }),
@@ -292,6 +335,7 @@ mod tests {
             let path = PathBuf::from("/data/session.toml");
             assert_eq!(load(&path), SessionState::default(), "missing file: empty session");
             let state = SessionState {
+                root: Some(PathBuf::from("/n")),
                 active: Some(PathBuf::from("/n/a.md")),
                 buffers: vec![(
                     PathBuf::from("/n/a.md"),
@@ -305,6 +349,18 @@ mod tests {
     }
 
     #[test]
+    fn remembered_root_reads_the_one_owner_at_its_real_path() {
+        use std::sync::Arc;
+        let fake = Arc::new(crate::fs::InMemoryFs::new());
+        crate::fs::with_fs(fake, || {
+            assert_eq!(remembered_root(), None, "nothing saved yet: nothing remembered");
+            let state = SessionState { root: Some(PathBuf::from("/w/proj")), ..Default::default() };
+            save(&session_path(), &state).unwrap();
+            assert_eq!(remembered_root(), Some(PathBuf::from("/w/proj")));
+        });
+    }
+
+    #[test]
     fn existing_buffers_skips_vanished_files_and_preserves_order() {
         use std::sync::Arc;
         let fake = Arc::new(
@@ -314,6 +370,7 @@ mod tests {
         );
         crate::fs::with_fs(fake, || {
             let state = SessionState {
+                root: None,
                 active: None,
                 buffers: vec![
                     (PathBuf::from("/n/keep1.md"), BufferPos::default()),

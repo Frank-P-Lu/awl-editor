@@ -86,7 +86,7 @@ impl BufferKey {
     pub fn of(buffer: &Buffer) -> Option<Self> {
         match buffer.path() {
             Some(p) => Some(BufferKey::path(p)),
-            None if !buffer.is_note() => Some(BufferKey::Scratch),
+            None if !buffer.is_unnamed_fresh() => Some(BufferKey::Scratch),
             None => None,
         }
     }

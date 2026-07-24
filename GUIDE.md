@@ -16,10 +16,13 @@ blur, buffer switch, quit (`$XDG_DATA_HOME/awl/scratch.md`, or
 web build, `localStorage`). Relaunch bare and the scratch buffer is
 where you left it, including parts you never explicitly saved.
 
-**Quick notes ({{key:new_note}}) work the same way, with a home.**
-{{key:new_note}} jumps to `notes_root` (`~/notes` by default,
-configurable) and opens a fresh note buffer. Nothing writes to disk
-until you type something.
+**A fresh document ({{key:new_document}}) works the same way, in the folder
+you're already in.** {{key:new_document}} opens a new, unnamed document
+in the ACTIVE folder — wherever you last opened a file or switched
+projects, never a separate jump. Nothing writes to disk until you type
+something. On a first launch with nothing to resume, that active
+folder starts out as `~/notes` (configurable — `default_folder` in the
+config).
 
 **Autosave runs on four triggers:** idle (about a second after you
 stop typing), window blur, buffer switch, quit. Writes are atomic (a
@@ -53,21 +56,20 @@ discarded. (`config.toml` is the one exception — a syntax error there
 keeps your last-known-good settings and shows a notice, since your
 editor buffer and undo history already hold your intended text.)
 
-## The notes model
+## Naming a fresh document
 
-A note starts as an ordinary scratch buffer. Save it — or keep typing
-and let autosave catch up — and awl slugifies the **first line** into
-a filename and writes it under `notes_root`. Change the first line and
-the file on disk renames to match, until you save it under a different
-name on purpose.
+A fresh document ({{key:new_document}}) starts unnamed, like the
+scratch buffer. Save it — or keep typing and let autosave catch up —
+and awl slugifies the **first line** into a filename and writes it in
+the active folder, ONCE. Changing the first line afterward never
+renames the file again; it's an ordinary document from that first save
+on, exactly like one you opened from disk.
 
-Three verbs live in the palette once a note exists:
+Three generic file verbs live in the palette for any document:
 
-- **{{cmd:rename_note}}** — pick a new name, breaking the
-  first-line-tracks-filename link.
+- **{{cmd:rename_note}}** — pick a new name.
 - **{{cmd:duplicate_note}}** — an immediate copy, no dialog.
-- **{{cmd:move_note}}** — file it elsewhere under (or out of) your notes
-  tree.
+- **{{cmd:move}}** — file it elsewhere under (or out of) the active folder.
 
 None carry a default chord — {{key:command_palette}}, type "rename", Enter.
 
@@ -132,9 +134,8 @@ drift into this page silently.
 | Clean unused assets… |  |  |
 | Keep version… |  |  |
 | Last file | ⌃Tab | Ctrl+Tab |
-| Notes |  |  |
-| New note | ⌘N | Ctrl+N |
-| Move note… |  |  |
+| New document | ⌘N | Ctrl+N |
+| Move… |  |  |
 | Rename note… |  |  |
 | Duplicate note |  |  |
 | Finish file | ⌘W | Ctrl+W |
@@ -276,7 +277,7 @@ running in a `<canvas>` with no native filesystem underneath it.
 local-version-history machinery with nothing to attach to in a browser tab.
 
 **A couple of native chords belong to the browser itself** (new tab,
-new window, and similar). {{key:new_note}} and {{key:switch_theme}}
+new window, and similar). {{key:new_document}} and {{key:switch_theme}}
 resolve to a working alternate chord on web automatically; every
 command is also reachable by name through {{key:command_palette}}.
 

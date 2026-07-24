@@ -163,13 +163,13 @@ mod tests {
         let keys = vec![
             ("save".to_string(), vec!["C-x C-s".to_string()]),
             ("switch_theme".to_string(), vec!["C-x t".to_string()]),
-            ("new_note".to_string(), vec!["C-x n".to_string()]),
+            ("new_document".to_string(), vec!["C-x n".to_string()]),
         ];
         let rows = continuations_cx(&keys);
         let has = |key: &str, name: &str| rows.iter().any(|r| r.key == key && r.name == name);
         assert!(has("C-s", "Save"));
         assert!(has("t", "Switch theme…"));
-        assert!(has("n", "New note"));
+        assert!(has("n", "New document"));
     }
 
     /// Only `C-x …` bindings become rows — a native-only / non-prefixed command
@@ -192,7 +192,7 @@ mod tests {
         let keys = vec![
             ("save".to_string(), vec!["C-x C-s".to_string()]),
             ("switch_theme".to_string(), vec!["C-x t".to_string()]),
-            ("new_note".to_string(), vec!["C-x n".to_string()]),
+            ("new_document".to_string(), vec!["C-x n".to_string()]),
         ];
         let rows = continuations_cx(&keys);
         let ks: Vec<&str> = rows.iter().map(|r| r.key.as_str()).collect();

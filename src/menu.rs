@@ -154,7 +154,7 @@ const APP_ITEMS: &[Routed] = &[
 ];
 
 const FILE_ITEMS: &[Routed] = &[
-    ri("awl.new_note", "New note"),
+    ri("awl.new_document", "New document"),
     // "Open…" is the Finder-style "choose a file" affordance — the closest
     // catalog match is "Browse files…" (a file-tree picker), not the fuzzy
     // "Go to file…" quick-open. The label below stays "Browse files…" (menus
@@ -341,7 +341,7 @@ fn roster_all() -> Vec<RosterMenu> {
         RosterMenu {
             title: "File",
             items: vec![
-                routed(&FILE_ITEMS[0]), // New note
+                routed(&FILE_ITEMS[0]), // New document
                 routed(&FILE_ITEMS[1]), // Browse files… ("Open…")
                 routed(&FILE_ITEMS[2]), // Switch project…
                 routed(&FILE_ITEMS[3]), // Recent projects… (opens the picker)
@@ -726,7 +726,7 @@ mod tests {
         );
     }
 
-    /// The File menu's exact clustered sequence: New note · Open… · Switch
+    /// The File menu's exact clustered sequence: New document · Open… · Switch
     /// project… · Recent projects… · —sep— · Save · Finish file, with the iconed
     /// items flagged and "Recent projects…" (a plain, un-iconed picker door)
     /// placed just after Switch project… — pinned so the cluster can't silently
@@ -738,7 +738,7 @@ mod tests {
         assert_eq!(
             file.items,
             vec![
-                RosterItem::Routed { id: "awl.new_note", label: "New note", icon: true },
+                RosterItem::Routed { id: "awl.new_document", label: "New document", icon: true },
                 RosterItem::Routed { id: "awl.open", label: "Browse files…", icon: true },
                 RosterItem::Routed { id: "awl.switch_project", label: "Switch project…", icon: true },
                 RosterItem::Routed { id: "awl.recent_projects", label: "Recent projects…", icon: false },
@@ -872,7 +872,7 @@ mod tests {
         assert_eq!(
             file.items,
             vec![
-                RosterItem::Routed { id: "awl.new_note", label: "New note", icon: true },
+                RosterItem::Routed { id: "awl.new_document", label: "New document", icon: true },
                 RosterItem::Routed { id: "awl.open", label: "Browse files…", icon: true },
                 RosterItem::Routed { id: "awl.switch_project", label: "Switch project…", icon: true },
                 RosterItem::Separator,

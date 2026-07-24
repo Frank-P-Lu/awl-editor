@@ -59,11 +59,16 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // 1 real-disk test (`finish_buffer_saves_...`), session_restore
         // disabled inline.
         ("app/daemon.rs", 1),
-        // 5 calls, every one inside a `crate::fs::with_fs(fake, || ..)`
+        // 8 calls, every one inside a `crate::fs::with_fs(fake, || ..)`
         // closure seeded with its own `InMemoryFs` — these tests exist
-        // specifically to prove what `apply_session_restore` reads back,
-        // so they can't use a constructor that forces it off.
-        ("app/session.rs", 5),
+        // specifically to prove what `apply_session_restore` reads back (5),
+        // plus item 76's 3 more: `switch_project` eagerly flushing the new
+        // ONE-OWNER root without waiting for blur/quit (1 call), and the
+        // A→B→A folder/document/view round-trip test (2 calls — a first App
+        // that switches + flushes, a second bare-launch App that resumes from
+        // the flushed state) — so they can't use a constructor that forces
+        // `session_restore` off.
+        ("app/session.rs", 8),
         // 3 store tests (2 recent-projects + 1 recent-files), each inside its
         // own `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they
         // exist specifically to prove what `App::switch_project` / `App::load_path`
@@ -90,20 +95,9 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `InMemoryFs` handle — they exist specifically to prove what
         // `App::reload_config` reads back from `config.path` on disk (and,
         // for the absent-key case, that it must NOT force a default), same
-        // CONTROL + INSPECT need `new_hermetic` hides. Plus 1 NOTES FLIP round
-        // test (`notes_flip_round_trips_the_live_app_project_root`), inside its
-        // own `fs::with_fs(fake, ..)` closure with an `InMemoryFs` handle — it
-        // exists specifically to prove `App::notes_flip` never writes the
-        // sticky `project_root` config key nor the recent-projects store, so it
-        // needs the same CONTROL + INSPECT access `new_hermetic` hides. Plus 3
-        // TWO-DESK NOTES FLIP tests (item 59: the flip swaps root AND active
-        // buffer — `notes_flip_is_a_two_desk_swap_of_root_and_active_buffer`,
-        // `notes_flip_parks_a_dirty_home_buffer_and_restores_it_unsaved`,
-        // `notes_flip_denied_root_change_leaves_both_desks_untouched`), each
-        // inside its own `fs::with_fs(fake, ..)` closure with an `InMemoryFs`
-        // handle — they drive `App::load_path`/`App::notes_flip` against
-        // controlled files + inspect the parked/restored buffer bytes, the same
-        // CONTROL + INSPECT need `new_hermetic` hides. Plus 2
+        // CONTROL + INSPECT need `new_hermetic` hides. (Item 76 REMOVED the 4
+        // two-desk "Notes" flip tests that used to be accounted for here — the
+        // command is retired; there is now exactly one active folder.) Plus 2
         // ADD-TO-DICTIONARY tests (item 39:
         // `add_to_dictionary_persists_the_word_and_silences_it_live` +
         // `startup_loads_the_personal_dictionary_so_an_added_word_never_squiggles_across_a_restart`),
@@ -114,7 +108,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `new_hermetic` hides. Item 56: this test module now lives in
         // `app/files/tests.rs` (the former `app/files.rs` monolith's split
         // moved its `#[cfg(test)] mod tests` verbatim into its own file).
-        ("app/files/tests.rs", 15),
+        ("app/files/tests.rs", 11),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's
@@ -133,7 +127,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // the injected fs (which `new_hermetic`'s private fs hides). Same
         // treatment as `app/stats.rs` above. `new_hermetic` also won't do here:
         // it restores the real backend on construction return, but these tests
-        // keep driving the fs AFTER construction (`new_note`, the summon flush),
+        // keep driving the fs AFTER construction (`new_document`, the summon flush),
         // so the fake must stay active across the whole closure. (The 3 added by
         // the anchor-swallow fix: fresh-note + fresh-scratch record words typed
         // before the first flush, and the card-summon-freshness flush.)
@@ -182,7 +176,7 @@ fn app_new_needle() -> String {
 #[cfg(test)]
 fn production_call_needle() -> String {
     format!(
-        "{}file, root, cli_workspace, cli_notes_root, config);",
+        "{}file, root, cli_workspace, cli_default_folder, config);",
         app_new_needle()
     )
 }
@@ -359,4 +353,52 @@ fn count_substr_in_dir(dir: &std::path::Path, needle: &str, total: &mut usize) {
         };
         *total += text.matches(needle).count();
     }
+}
+
+// ── ITEM 76: the two-desk project-flip command + the old quick-notes-home
+// config key are COMPLETELY retired — a grep-forced law, same source-scan
+// shape as the guard above. NOTE ON THE NEEDLES: built from concatenated
+// fragments AND never spelled out contiguously anywhere in THIS file's own
+// comments/strings either (the `app_new_needle` discipline, applied to six
+// names instead of one) — otherwise this very law's own source text would
+// match itself and inflate its own count.
+
+#[test]
+fn retired_item_76_identifiers_leave_no_trace_in_source() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    for needle in retired_item_76_needles() {
+        let mut hits = 0usize;
+        count_substr_in_dir(&root, &needle, &mut hits);
+        // ONE exemption: `capture.rs`'s `SCHEMA_VERSION` history table is
+        // DELIBERATELY append-only (never edits a past row, per its own
+        // module doc) — a couple of its rows accurately name a field as it
+        // was called AT THAT TIME, a legitimate historical record, not a
+        // live reference. Nothing else may carry a retired name.
+        let config_key_needle = ["notes", "_", "root"].concat();
+        if needle == config_key_needle {
+            let capture_hits = std::fs::read_to_string(root.join("capture.rs"))
+                .map(|text| text.matches(&needle).count())
+                .unwrap_or(0);
+            hits -= capture_hits;
+        }
+        assert_eq!(
+            hits, 0,
+            "retired by item 76 but still present in source outside capture.rs's own \
+             append-only schema history: {needle:?} (git log carries the rest)"
+        );
+    }
+}
+
+/// Every identifier item 76 retires, built from concatenated parts (not one
+/// contiguous literal) so THIS list can never accidentally match itself.
+#[cfg(test)]
+fn retired_item_76_needles() -> Vec<String> {
+    vec![
+        ["Notes", "Flip"].concat(),                   // the retired project-flip Action/Effect
+        ["notes", "_", "flip"].concat(),               // its fn names / [keys] slug
+        ["Desk", "Return"].concat(),                    // the retired two-desk return-memory type
+        ["notes", "_", "return"].concat(),              // the App field that held it
+        ["notes", "_", "last", "_", "file"].concat(),   // its file-side companion field
+        ["notes", "_", "root"].concat(),                // the retired quick-notes-home config key
+    ]
 }

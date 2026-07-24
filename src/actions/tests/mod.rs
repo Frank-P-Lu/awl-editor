@@ -512,9 +512,8 @@ pub(super) fn delete_flinch_fixture(
         | Action::OpenRecentProjects
         | Action::OpenBrowse
         | Action::LastBuffer
-        | Action::NotesFlip
-        | Action::NewNote
-        | Action::MoveNote
+        | Action::NewDocument
+        | Action::MoveFile
         | Action::OpenRenameNote
         | Action::DuplicateNote
         | Action::OpenSettings
@@ -715,9 +714,8 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::OpenRecentProjects
             | Action::OpenBrowse
             | Action::LastBuffer
-            | Action::NotesFlip
-            | Action::NewNote
-            | Action::MoveNote
+                | Action::NewDocument
+            | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
             | Action::OpenSettings
@@ -825,9 +823,8 @@ pub(super) fn all_actions() -> Vec<Action> {
         Action::OpenRecentProjects,
         Action::OpenBrowse,
         Action::LastBuffer,
-        Action::NotesFlip,
-        Action::NewNote,
-        Action::MoveNote,
+        Action::NewDocument,
+        Action::MoveFile,
         Action::OpenRenameNote,
         Action::DuplicateNote,
         Action::OpenSettings,
@@ -910,7 +907,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::OpenOutline
         | Action::OpenSpellSuggest
         | Action::OpenHistory
-        | Action::MoveNote
+        | Action::MoveFile
         | Action::OpenThemeMenu
         | Action::OpenCaretMenu
         | Action::OpenDictionaryMenu
@@ -935,8 +932,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         // Deferred effects (the pure core signals; the live App performs).
         Action::Quit
         | Action::LastBuffer
-        | Action::NotesFlip
-        | Action::NewNote
+        | Action::NewDocument
         | Action::OpenCredits
         | Action::OpenGuide
         | Action::FinishBuffer

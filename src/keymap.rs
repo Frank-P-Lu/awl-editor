@@ -350,7 +350,7 @@ pub enum Action {
     /// STRIKETHROUGH toggle: wrap in `~~…~~`.
     Strikethrough,
     /// EXPORT AS WORD (palette-only, markdown buffers): render the document to a
-    /// neutral-house-style `.docx` beside the file (or into `notes_root` for a
+    /// neutral-house-style `.docx` beside the file (or into the active folder for a
     /// scratch buffer) — the pure core signals [`crate::actions::Effect::Export`];
     /// the live App builds + writes the bytes (`crate::export`). No default chord.
     ExportWord,
@@ -385,29 +385,21 @@ pub enum Action {
     /// native last-file door (the emacs `C-x b` default is retired). A no-op when
     /// nothing was opened before.
     LastBuffer,
-    /// NOTES FLIP (palette "Notes", user-decided 2026-07-22): flip the ACTIVE
-    /// PROJECT between wherever it is now and `notes_root` — a project-level
-    /// sibling of [`LastBuffer`](Action::LastBuffer)'s buffer toggle. Invoke once
-    /// to jump into `notes_root` (remembering the project just left); invoke again
-    /// (or "Back") to flip straight back to it. A no-op with nothing to flip to
-    /// (already home, nothing remembered) or with no usable `notes_root`.
-    /// Palette-only, no default chord — see `app/files/::notes_flip` + its pure
-    /// `notes_flip_target`.
-    NotesFlip,
-    /// Cmd-N: NEW QUICK NOTE in ONE gesture — jump to the notes project AND open a
-    /// fresh empty note buffer (the emacs `C-x n` default is retired). The user just
-    /// starts typing; the first non-empty line names the file (slugified), and it
-    /// auto-saves.
-    NewNote,
-    /// MOVE the current note into a folder — summons the move-destination picker (the
-    /// Browse navigator over the notes root, folders only). Palette-only (the emacs
-    /// `C-x m` default is retired).
-    MoveNote,
+    /// Cmd-N: a fresh, unnamed document IN THE ACTIVE FOLDER (item 76 retired
+    /// the old "jump to a separate notes project" behavior — the emacs `C-x n`
+    /// default is retired too). The user just starts typing; the first
+    /// non-empty line names the file (slugified) on its first save — ONCE
+    /// (item 76's one-shot naming law) — and it auto-saves.
+    NewDocument,
+    /// MOVE the current file into a folder — summons the move-destination
+    /// picker (the Browse navigator over the ACTIVE folder, folders only).
+    /// Palette-only (the emacs `C-x m` default is retired).
+    MoveFile,
     /// NOTES VERBS round: RENAME the current file — summons a minibuffer-style prompt
     /// pre-filled with the current filename; Enter commits the rename on disk, Esc
     /// cancels. Palette-only, no default chord. A no-op summon (no overlay opens) on a
-    /// pathless buffer (scratch / an unnamed note) — there is nothing to rename yet.
-    /// See `app/files/::rename_current_file`.
+    /// pathless buffer (scratch / an unnamed fresh document) — there is nothing to
+    /// rename yet. See `app/files/::rename_current_file`.
     OpenRenameNote,
     /// NOTES VERBS round: DUPLICATE the current file to a sibling, auto-named via the
     /// same no-clobber dedup [`crate::buffer::unique_path`] uses (`name-2.md`, …), and
@@ -1391,7 +1383,7 @@ fn linux_displaces_emacs_default_raw(
 //
 //   Ctrl-S: Save               displaces  C-s: Search forward (emacs slot 2)
 //   Ctrl-P: Command palette    displaces  C-p: Previous line (static arm)
-//   Ctrl-N: New note           displaces  C-n: Next line (static arm)
+//   Ctrl-N: New document           displaces  C-n: Next line (static arm)
 //   Ctrl-W: Finish file        displaces  C-w: Cut (emacs slot 2)
 //   Ctrl-F: Search forward     displaces  C-f: Forward char (static arm)
 //   Ctrl-E: Inline code        displaces  C-e: Line end (emacs slot 2)
@@ -1679,9 +1671,8 @@ compare_with_version|||
 clean_unused_assets|||
 keep_version|||
 last_file|C-Tab|C-Tab|
-notes|||
-new_note|Cmd-N|C-n|
-move_note|||
+new_document|Cmd-N|C-n|
+move|||
 rename_note|||
 duplicate_note|||
 finish_file|Cmd-W|C-w|
@@ -1970,7 +1961,7 @@ keybindings|||
         let mut km = KeymapState::new();
         assert_eq!(km.resolve(&ch("o"), &sup()), Action::OpenGoto);
         assert_eq!(km.resolve(&ch("O"), &sup()), Action::OpenGoto);
-        assert_eq!(km.resolve(&ch("n"), &sup()), Action::NewNote);
+        assert_eq!(km.resolve(&ch("n"), &sup()), Action::NewDocument);
         assert_eq!(km.resolve(&ch("t"), &sup()), Action::OpenThemeMenu);
         assert_eq!(km.resolve(&ch("q"), &sup()), Action::Quit);
         assert_eq!(km.resolve(&ch("P"), &sup_shift()), Action::OpenProject);
@@ -1985,7 +1976,7 @@ keybindings|||
         // None is a motion or an edit (palette-eligible, undo-neutral).
         for a in [
             Action::OpenGoto,
-            Action::NewNote,
+            Action::NewDocument,
             Action::OpenThemeMenu,
             Action::OpenProject,
             Action::LastBuffer,
@@ -2215,7 +2206,7 @@ keybindings|||
             Action::ToggleDebug,
             Action::FinishBuffer,
             Action::OpenBrowse,
-            Action::MoveNote,
+            Action::MoveFile,
         ] {
             assert!(!a.is_motion(), "{a:?} must not be a motion");
             assert!(!a.is_edit(), "{a:?} must not be an edit");
@@ -2647,7 +2638,7 @@ keybindings|||
         assert_eq!(km.resolve(&ch("z"), &sup()), Action::Undo);
         assert_eq!(km.resolve(&ch("s"), &sup()), Action::Save);
         assert_eq!(km.resolve(&ch("p"), &sup()), Action::OpenCommandPalette);
-        assert_eq!(km.resolve(&ch("n"), &sup()), Action::NewNote);
+        assert_eq!(km.resolve(&ch("n"), &sup()), Action::NewDocument);
         assert_eq!(km.resolve(&ch("w"), &sup()), Action::FinishBuffer);
         assert_eq!(km.resolve(&ch("f"), &sup()), Action::SearchForward);
         assert_eq!(km.resolve(&ch("e"), &sup()), Action::InlineCode);
@@ -2728,7 +2719,7 @@ keybindings|||
         let displaced: &[(char, Action)] = &[
             ('s', Action::Save),
             ('p', Action::OpenCommandPalette),
-            ('n', Action::NewNote),
+            ('n', Action::NewDocument),
             ('w', Action::FinishBuffer),
             ('f', Action::SearchForward),
             ('e', Action::InlineCode),
@@ -2864,7 +2855,7 @@ keybindings|||
         // (the pre-round behavior — the round is a per-chord opt-in, not a flip).
         let mut plain = KeymapState::new_with_convention(Convention::Linux);
         assert_eq!(plain.resolve(&ch("f"), &ctrl()), Action::SearchForward);
-        assert_eq!(plain.resolve(&ch("n"), &ctrl()), Action::NewNote);
+        assert_eq!(plain.resolve(&ch("n"), &ctrl()), Action::NewDocument);
 
         // MAC IGNORES THE LIST ENTIRELY (the law): a keep-listed chord under
         // `Convention::Mac` resolves exactly as it would with an empty list —
@@ -2905,7 +2896,7 @@ keybindings|||
         let mut km = KeymapState::new_with_convention(Convention::Linux);
         km.apply_linux_keep(&["C-f".to_string()]);
         assert_eq!(km.resolve(&ch("f"), &ctrl()), Action::ForwardChar);
-        assert_eq!(km.resolve(&ch("n"), &ctrl()), Action::NewNote, "C-n not yet kept");
+        assert_eq!(km.resolve(&ch("n"), &ctrl()), Action::NewDocument, "C-n not yet kept");
         // Reload with a DIFFERENT list: C-f goes back to native, C-n is now kept.
         km.apply_linux_keep(&["C-n".to_string()]);
         assert_eq!(km.resolve(&ch("f"), &ctrl()), Action::SearchForward, "C-f reverted on reload");

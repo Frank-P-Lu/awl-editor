@@ -2,7 +2,7 @@
 //! outcomes — `Effect::ConvertScratchAndSave` for a TRUE scratch buffer (no
 //! path, never named as a note) and `Effect::SaveDone { ok, message }` for
 //! everything else (an already-pathed buffer, or a buffer already started as
-//! a note via `set_note_dir`/`start_note`, named or not).
+//! a note via `set_note_dir`/`start_fresh_doc`, named or not).
 
 use super::super::*;
 use crate::overlay::OverlayKind;
@@ -41,15 +41,15 @@ fn true_scratch_buffer_save_signals_convert_scratch_and_save() {
     }
     assert_eq!(drive_save(&mut buffer), Effect::ConvertScratchAndSave);
     // The core itself never touches the filesystem/buffer path for this
-    // effect — that's the caller's job (it has `notes_root`, the core doesn't).
+    // effect — that's the caller's job (it has the active folder, the core doesn't).
     assert!(buffer.path().is_none());
-    assert!(!buffer.is_note());
+    assert!(!buffer.is_unnamed_fresh());
 }
 
 #[test]
 fn empty_scratch_buffer_save_still_signals_convert_not_a_plain_save_failure() {
     // An EMPTY true-scratch buffer still gets the SAME gate decision (no
-    // path, not a note) — the caller's `save_as_note` is what discovers
+    // path, not a note) — the caller's `save_into_folder` is what discovers
     // there's nothing to name yet (an `Err`), not the core.
     let mut buffer = Buffer::scratch();
     assert_eq!(drive_save(&mut buffer), Effect::ConvertScratchAndSave);
@@ -73,12 +73,12 @@ fn already_pathed_buffer_save_writes_and_signals_save_done_ok() {
 #[test]
 fn already_a_note_buffer_named_or_not_never_signals_convert() {
     // A buffer that is ALREADY a note — even one that hasn't derived a
-    // filename yet (`start_note`, no path) — takes the ELSE branch: a plain
+    // filename yet (`start_fresh_doc`, no path) — takes the ELSE branch: a plain
     // `Buffer::save()` call, not the scratch-conversion effect. An EMPTY
     // named-nothing-yet note surfaces its OWN existing "empty note: nothing
     // to save yet" failure as `SaveDone { ok: false, .. }`.
     let mut buffer = Buffer::scratch();
-    buffer.start_note(std::path::PathBuf::from("/notes"));
+    buffer.start_fresh_doc(std::path::PathBuf::from("/notes"));
     let effect = drive_save(&mut buffer);
     assert_eq!(
         effect,
@@ -93,7 +93,7 @@ fn a_note_with_text_saves_and_derives_its_filename_via_save_done_ok() {
     let mem = crate::fs::InMemoryFs::new().with_dir(&dir);
     crate::fs::with_fs(Arc::new(mem.clone()), || {
         let mut buffer = Buffer::scratch();
-        buffer.start_note(dir.clone());
+        buffer.start_fresh_doc(dir.clone());
         for c in "first light".chars() {
             buffer.insert_char(c);
         }
@@ -119,7 +119,7 @@ fn second_save_on_a_converted_scratch_buffer_is_a_plain_save_done() {
             buffer.insert_char(c);
         }
         // Mirror what `App::convert_scratch_and_save` does for the FIRST save.
-        buffer.save_as_note(&dir).unwrap();
+        buffer.save_into_folder(&dir).unwrap();
         assert!(buffer.path().is_some());
 
         buffer.insert_char('!');

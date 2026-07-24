@@ -793,27 +793,17 @@ pub struct App {
     /// (a tiny 2-deep history: the current `file` + this one). `None` until a
     /// second file has been opened. Toggling swaps `file` <-> `prev_file`.
     prev_file: Option<PathBuf>,
-    /// The "home" DESK to return to on the NEXT "Notes" flip — the project root
-    /// AND the buffer that was active there, so the flip restores the WHOLE
-    /// writing context (root + active buffer/view), not just the root (Wave-4
-    /// user bug, item 59). `None` until a flip INTO `notes_root` has happened
-    /// (or after a flip BACK has consumed it — a third invocation flips fresh).
-    /// See [`crate::app::files::notes_flip_target`] for the pure toggle logic.
-    notes_return: Option<files::DeskReturn>,
-    /// The file that was active in the NOTES desk on the LAST visit, restored
-    /// (with full buffer/view state via `buffer_registry`) when Notes is
-    /// re-entered. `None` before the first-ever visit — or after a visit left an
-    /// unnamed/empty note behind — in which case a fresh untitled quick-note
-    /// opens instead of re-choosing an arbitrary existing file.
-    notes_last_file: Option<PathBuf>,
     /// The SUMMONED navigation overlay (go-to / switch-project). `None` when not
     /// showing. Lives here AND is threaded through `apply_core` so `--keys` can
     /// drive it identically.
     overlay: Option<crate::overlay::OverlayState>,
-    /// The NOTES ROOT: the home project where C-x n captures quick scrap notes
-    /// (default `~/notes`, overridable with `--notes-root`). C-x n jumps here and
-    /// opens a fresh note; C-x m moves the current note into a folder under it.
-    notes_root: PathBuf,
+    /// The DEFAULT FOLDER: the fallback active folder used ONLY when a launch has
+    /// nothing else to go on — no explicit `--root`/file/dir argument AND no
+    /// remembered active-folder context (first run, or session restore off).
+    /// (default `~/notes`, overridable with `--default-folder`). Once the editor
+    /// is running, "where does New document / Move… land" is always the ACTIVE
+    /// folder (`self.root`), never this field again — see item 76.
+    default_folder: PathBuf,
     /// When the active NOTE last changed and an auto-save is pending; the debounced
     /// write fires after `AUTOSAVE_DEBOUNCE` of quiet in `about_to_wait` (live
     /// only — headless never schedules this). `None` = nothing pending.
@@ -1001,9 +991,10 @@ pub struct App {
     /// Settings-open path). Re-loaded when the config file is SAVED in the editor,
     /// which live-reapplies the keymap + folders.
     config: Config,
-    /// The RAW `--notes-root` flag (None = unset), remembered so a live config reload
-    /// re-folds precedence (flag > config > default) without the flag ever losing.
-    cli_notes_root: Option<PathBuf>,
+    /// The RAW `--default-folder` flag (None = unset), remembered so a live config
+    /// reload re-folds precedence (flag > config > default) without the flag ever
+    /// losing.
+    cli_default_folder: Option<PathBuf>,
     /// The RAW `--workspace` flag (None = unset), remembered for the same reason.
     cli_workspace: Option<PathBuf>,
     /// MULTI-BUFFER REGISTRY: every OTHER currently-open buffer (backgrounded —
@@ -1148,7 +1139,7 @@ impl App {
         file: Option<PathBuf>,
         root: PathBuf,
         cli_workspace: Option<PathBuf>,
-        cli_notes_root: Option<PathBuf>,
+        cli_default_folder: Option<PathBuf>,
         config: Config,
     ) -> Self {
         // ACCESSIBILITY TIER 1 — REDUCE MOTION: resolve the config->OS ladder
@@ -1208,8 +1199,9 @@ impl App {
         // the raw CLI flags (the flag wins via `.or`), then the existing resolvers add
         // the built-in default (`~/notes`; the root's PARENT for the workspace), so
         // C-x n / C-x p work out of the box with the configured folders, no flags.
-        let notes_root =
-            crate::resolve_notes_root(&cli_notes_root.clone().or_else(|| config.notes_root.clone()));
+        let default_folder = crate::resolve_default_folder(
+            &cli_default_folder.clone().or_else(|| config.default_folder.clone()),
+        );
         let workspace_opt = cli_workspace.clone().or_else(|| config.workspace.clone());
         let workspace = Some(crate::resolve_workspace(&workspace_opt, &root));
         // Load the persisted RECENT PROJECT ROOTS (the Recent Projects picker's
@@ -1345,10 +1337,8 @@ impl App {
             recent_projects,
             recent_files,
             prev_file: None,
-            notes_return: None,
-            notes_last_file: None,
             overlay: None,
-            notes_root,
+            default_folder,
             autosave_dirty_at: None,
             autosave_saved_version: None,
             autosave_last_ok: None,
@@ -1373,7 +1363,7 @@ impl App {
             present_sync_on: false,
             present_sync_valid: false,
             config,
-            cli_notes_root,
+            cli_default_folder,
             cli_workspace,
             buffer_registry: crate::buffers::BufferRegistry::default(),
             #[cfg(not(target_arch = "wasm32"))]
@@ -1797,7 +1787,7 @@ impl ApplicationHandler<AwlEvent> for App {
         // first `update_title()` call to catch up.
         let title = files::window_title(
             self.active.buffer.path(),
-            self.active.buffer.is_note(),
+            self.active.buffer.is_unnamed_fresh(),
             crate::theme::active().name,
             self.is_document_dirty(),
         );
@@ -2208,7 +2198,7 @@ pub fn run(
     file: Option<PathBuf>,
     root: PathBuf,
     cli_workspace: Option<PathBuf>,
-    cli_notes_root: Option<PathBuf>,
+    cli_default_folder: Option<PathBuf>,
     config: Config,
     wait: bool,
     #[cfg(not(target_arch = "wasm32"))] soak: Option<crate::soak_gpu::SoakConfig>,
@@ -2326,7 +2316,7 @@ pub fn run(
         Config { session_restore: Some(false), autosave: Some(false), stats: Some(false), reduce_motion: Some(false), ..config }
     } else { config };
     #[allow(unused_mut)]
-    let mut app = App::new(file, root, cli_workspace, cli_notes_root, config);
+    let mut app = App::new(file, root, cli_workspace, cli_default_folder, config);
     #[cfg(not(target_arch = "wasm32"))]
     { app.soak = soak.map(crate::soak_gpu::Controller::new); }
     // NATIVE MACOS MENU BAR: stash a proxy clone now (before the daemon's own

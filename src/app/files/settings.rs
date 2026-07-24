@@ -1,10 +1,12 @@
 //! src/app/files/settings.rs — the STICKY-PREFERENCE writes (theme/zoom/
 //! page/caret/spellcheck/…, all through the ONE `persist_pref` owner), the
 //! Settings-menu toggle/value/path-pick doors, the sticky page-width pair,
-//! project-root persistence, and the live config reload. Split out of the
-//! former `app/files.rs` monolith (item 56); dictionary-specific persistence
-//! lives in `files/dictionary.rs`, the rebind-menu capture in
-//! `files/rebind.rs` (both peeled out to stay under the ~500-line ceiling).
+//! and the live config reload. Split out of the former `app/files.rs`
+//! monolith (item 56); dictionary-specific persistence lives in
+//! `files/dictionary.rs`, the rebind-menu capture in `files/rebind.rs` (both
+//! peeled out to stay under the ~500-line ceiling). Item 76 retired the
+//! `project_root` config key — the active folder is now remembered by the
+//! session's one owner (`app/session.rs::session_flush`), not written here.
 
 use crate::app::*;
 
@@ -63,9 +65,6 @@ impl App {
             // (already updated by the picker's core-level accept) rather than
             // re-parsing the formatted `value` string back into a `Vec<Lang>`.
             "cjk_priority" => self.config.cjk_priority = Some(crate::frontmatter::cjk_priority()),
-            "project_root" => {
-                self.config.project_root = Some(PathBuf::from(value.trim_matches('"')))
-            }
             _ => {}
         }
     }
@@ -310,15 +309,18 @@ impl App {
 
     /// SETTINGS MENU path pick (the folder navigator opened from a `SettingKind::Path`
     /// row accepted a folder): write the NAMED config key `key` for `path`. For
-    /// `project_root` this IS a genuine switch-project (re-index + persist +
-    /// recent-MRU, the ONE `switch_project` owner); for `notes_root`/`workspace` we
-    /// persist the key then `reload_config`, which re-folds `self.notes_root`/
-    /// `self.workspace` (flag > config > default) so the NEXT `C-x n`/`C-x p` uses the
-    /// new folder. Either way the still-open (re-summoned) menu's cell is refreshed.
+    /// `project_root` this IS a genuine switch-project (re-index + the session's
+    /// one active-folder-context owner + recent-MRU, the ONE `switch_project`
+    /// owner — item 76 retired the separate `project_root` config key it used to
+    /// write); for `default_folder`/`workspace` we persist the key then
+    /// `reload_config`, which re-folds `self.default_folder`/`self.workspace`
+    /// (flag > config > default) so the NEXT first-run launch / `C-x p` uses the
+    /// new folder. Either way the still-open (re-summoned) menu's cell is
+    /// refreshed.
     pub(in crate::app) fn setting_path_pick(&mut self, key: &str, path: &str) {
         match key {
             "project_root" => self.switch_project(PathBuf::from(path)),
-            "notes_root" | "workspace" => {
+            "default_folder" | "workspace" => {
                 self.persist_pref(key, &format!("\"{path}\""));
                 self.reload_config();
             }
@@ -384,7 +386,7 @@ impl App {
     /// unrecognized) reads `page_width_prose`, a recognized code file reads
     /// `page_width_code`, each falling back to its own built-in default when
     /// unconfigured ([`Config::measure_for`]). Called after every buffer swap
-    /// (`load_path`, `new_note`) and after a live config reload, so opening a
+    /// (`load_path`, `new_document`) and after a live config reload, so opening a
     /// `.rs` after a `.md` (or back) always shows THAT file's own measure — never
     /// a value carried over from whatever was active before.
     ///
@@ -404,15 +406,6 @@ impl App {
             let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
             gpu.pipeline.set_size(w, h);
         }
-    }
-
-
-    /// Persist the now-active PROJECT ROOT (write-on-change after a switch-project,
-    /// C-x p, commit) — the STICKY PROJECT pref: a plain relaunch (no file argument,
-    /// no `--root`) reopens this same project (see `resolve_root` in `main/run.rs`).
-    pub(in crate::app) fn persist_project_root(&mut self) {
-        let root = self.root.display().to_string();
-        self.persist_pref("project_root", &format!("\"{root}\""));
     }
 
 
@@ -446,10 +439,12 @@ impl App {
 
 
     /// Live-reload after the config file is SAVED in the editor: re-read it, rebuild
-    /// the keymap overrides, and re-fold notes_root/workspace (flag > config >
+    /// the keymap overrides, and re-fold default_folder/workspace (flag > config >
     /// default, so a CLI flag still wins). A bad chord keeps its default + prints a
-    /// note inside `apply_overrides`; nothing here can crash. Folder changes affect
-    /// the NEXT C-x n / C-x p; the keymap change is immediate.
+    /// note inside `apply_overrides`; nothing here can crash. `default_folder` only
+    /// ever matters again on a FUTURE first-run launch (item 76 — it is not the
+    /// active folder); the workspace change affects the NEXT C-x p; the keymap
+    /// change is immediate.
     ///
     /// SPELLCHECK and the PAGE-WIDTH pair (`page_width_prose`/`page_width_code`)
     /// are ALSO re-applied here (unlike the other sticky prefs — theme / page /
@@ -469,8 +464,9 @@ impl App {
         keys_with_web_alt.extend(crate::commands::web_alternate_keys(&cfg.keys, crate::convention::Convention::current(), crate::commands::Platform::current()));
         self.keymap.apply_overrides(&keys_with_web_alt);
         self.keymap.apply_linux_keep(&cfg.effective_linux_keep());
-        self.notes_root =
-            crate::resolve_notes_root(&self.cli_notes_root.clone().or_else(|| cfg.notes_root.clone()));
+        self.default_folder = crate::resolve_default_folder(
+            &self.cli_default_folder.clone().or_else(|| cfg.default_folder.clone()),
+        );
         let workspace_opt = self.cli_workspace.clone().or_else(|| cfg.workspace.clone());
         self.workspace = Some(crate::resolve_workspace(&workspace_opt, &self.root));
         // CACHE-KEY DISCIPLINE with `Config::apply_sticky_globals`: an ABSENT
