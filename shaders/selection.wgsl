@@ -95,8 +95,30 @@ struct Globals {
     // from the theme's own surface-ladder rung (`theme::derive::
     // card_texture_ink`, e.g. `muted`), NEVER a raw/amber literal baked into
     // this shader. Alpha is the dot's OWN peak coverage-multiplier (combines
-    // with `halftone` + the coverage/rolloff terms below).
+    // with `halftone` + the coverage/rolloff terms below). SHARED with the
+    // JAGGED-WAVE texture below (item 71) — a world assigns at most ONE
+    // `CardTexture` variant, so one derived ink field serves both.
     dot_color: vec4<f32>,
+    // JAGGED-WAVE (item 71, Bowerbird's woven printed-card texture): `0.0` =
+    // no wave texture (every world but Bowerbird's card FILL — border/shadow
+    // pipelines always leave this `0.0`, mirroring `halftone`). `> 0.0` is
+    // the overall ink-intensity ceiling `[0,1]` TWO or THREE nested,
+    // horizontally phase-offset triangle-wave ribbon tiers composite over
+    // the plain fill — see `jagged_wave_coverage` below. Meaningless on
+    // `fs_invert` and inside the dither/stroke/halftone branches (mutually
+    // exclusive fill modes).
+    wave: f32,
+    // The ribbon's horizontal meander wavelength, PHYSICAL px — BROAD
+    // (several hundred), never a fine repeating pitch.
+    wave_period_x: f32,
+    // The vertical spacing between tiled ribbon repeats, PHYSICAL px — fills
+    // the COMPLETE card-local field top-to-bottom, not just a thin band.
+    wave_period_y: f32,
+    // The ribbon's peak vertical excursion (amplitude), PHYSICAL px.
+    wave_amp: f32,
+    // Ribbon tier count (2.0 or 3.0) as a float, so the shader's fixed
+    // 3-iteration loop (`jagged_wave_coverage`) can compare it directly.
+    wave_tiers: f32,
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;
@@ -211,6 +233,83 @@ fn halftone_rolloff(tx: f32) -> f32 {
     return smoothstep(-0.35, 0.55, tx);
 }
 
+// ITEM 71's ONE JAGGED-WAVE RIBBON (Bowerbird's woven printed-card texture):
+// a broad TRIANGLE wave — the "jagged" half of the name is the wave's sharp
+// direction-reversal corners, the "wave" half is its broad periodic
+// meander — sampled at the ABSOLUTE canvas pixel `px` (the SAME reason
+// `halftone_coverage` above reads `in.px` rather than `in.local`: a card
+// drawn as TWO quad instances shares one continuous woven field across the
+// SPLIT-PANE gap instead of each restarting its own phase). Returns a soft
+// `[0,1]` coverage: 1.0 at a ribbon's own centerline, fading to 0.0 by
+// `thickness` px away. The centerline itself meanders in `px.y` as a
+// triangle-wave function of `px.x` (period `period_x`, amplitude `amp`),
+// then that curve is TILED vertically every `period_y` px (the `round()`
+// nearest-copy fold) — filling the COMPLETE card-local field top-to-bottom,
+// not just a thin band near one fixed baseline.
+fn jagged_wave_band(px: vec2<f32>, period_x: f32, period_y: f32, amp: f32, phase_x: f32) -> f32 {
+    let p = max(period_x, 1.0);
+    let py = max(period_y, 1.0);
+    // A broad triangle wave of x (period `p`), in [-1, 1]: the ribbon's
+    // meander shape. `fract` + a fold gives the sharp "jagged" corners.
+    let u = (px.x + phase_x) / p;
+    let tri = abs(fract(u) * 2.0 - 1.0) * 2.0 - 1.0;
+    let center_y = tri * amp;
+    // Distance from `px.y` to the NEAREST vertically-tiled copy of the
+    // ribbon centerline (`period_y` apart) — the `round()` fold is what
+    // tiles one meandering curve into a field covering the whole height.
+    let rel = px.y - center_y;
+    let m = rel - py * round(rel / py);
+    let d = abs(m);
+    let thickness = py * 0.22;
+    return 1.0 - smoothstep(thickness * 0.55, thickness, d);
+}
+
+// TWO or THREE ribbon tiers (`jagged_wave_band` above), each the identical
+// wave shape offset in horizontal PHASE by `period_x / tier_count` — so the
+// nested tiers interleave into ONE woven surface (crests filling the
+// troughs of their neighbours) rather than stacking in registration or
+// reading as separate stripes. `tier_count <= 0.0` (every world but
+// Bowerbird's card fill) returns `0.0` with the loop body never
+// contributing — a total no-op.
+fn jagged_wave_coverage(px: vec2<f32>, period_x: f32, period_y: f32, amp: f32, tier_count: f32) -> f32 {
+    var cov = 0.0;
+    for (var i = 0u; i < 3u; i = i + 1u) {
+        if (f32(i) >= tier_count) {
+            continue;
+        }
+        let phase = period_x * (f32(i) / max(tier_count, 1.0));
+        cov = max(cov, jagged_wave_band(px, period_x, period_y, amp, phase));
+    }
+    return clamp(cov, 0.0, 1.0);
+}
+
+// THE ONE JAGGED-WAVE ROLLOFF (item 71): "quieter beneath the content-heavy
+// middle" — a pure function of the instance-LOCAL position (mirroring
+// `halftone_rolloff`'s "shape gate stays per-instance, only the phase needs
+// the absolute-canvas trick" split above), built from TWO independent gates:
+//   * HORIZONTAL — reuses `halftone_rolloff` ITSELF (not a reimplementation):
+//     quiet on the LEFT content edge, strongest toward the RIGHT. This is
+//     the SAME law a `ListBacking::Card` spell popup already leans on
+//     (`render::tests::list_surfaces::
+//     spell_popup_floats_bare_on_bars_keeps_the_card_on_pane` samples a
+//     strip a few px inside the card's own LEFT edge and asserts it reads
+//     flat) — sharing the function means BOTH card textures keep that strip
+//     clear by construction, never two rolloff shapes that could drift.
+//   * VERTICAL — a quiet floor through the surface's own vertical middle
+//     (where the query line / candidate rows / selected band actually draw),
+//     rising toward full strength only near the surface's own top/bottom.
+// The product of the two keeps the card's immediate left edge (any `ty`) and
+// the content-heavy middle (any `tx`) BOTH quiet, while still reading as one
+// woven surface further right/toward the edges.
+fn jagged_wave_rolloff(local: vec2<f32>, hsize: vec2<f32>) -> f32 {
+    let tx = clamp(local.x / max(hsize.x, 1.0), -1.0, 1.0);
+    let ty = clamp(abs(local.y) / max(hsize.y, 1.0), 0.0, 1.0);
+    let h = halftone_rolloff(tx);
+    let floor = 0.35;
+    let v = floor + (1.0 - floor) * smoothstep(0.15, 0.85, ty);
+    return h * v;
+}
+
 // THE ONE WAGTAIL HIGHLIGHT TEXTURE's Bayer matrix — identical values to
 // `background.wgsl`'s copy (both mirror `src/render/dither.rs::BAYER8`; see
 // that file's module doc for why the small cross-file/cross-language
@@ -292,6 +391,19 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         let roll = halftone_rolloff(tx);
         let cov = halftone_coverage(in.px, g.halftone_angle, g.halftone_cell);
         let ink = cov * roll * g.halftone * g.dot_color.a;
+        rgb = mix(rgb, g.dot_color.rgb, clamp(ink, 0.0, 1.0));
+    }
+    // THE ONE JAGGED-WAVE COMPOSITE (item 71): only inside the silhouette
+    // (`d <= 0.0`), only when `g.wave > 0.0` (Bowerbird's card fill alone —
+    // every other pipeline/world uploads `0.0`, a total no-op that leaves
+    // `rgb` untouched, byte-identical). Mutually exclusive with the halftone
+    // branch above in practice (a world assigns at most one `CardTexture`),
+    // never a raw/amber literal, never a clock (both `jagged_wave_coverage`/
+    // `jagged_wave_rolloff` are pure functions of position alone).
+    if (g.wave > 0.0 && d <= 0.0) {
+        let roll = jagged_wave_rolloff(in.local, in.hsize);
+        let cov = jagged_wave_coverage(in.px, g.wave_period_x, g.wave_period_y, g.wave_amp, g.wave_tiers);
+        let ink = cov * roll * g.wave * g.dot_color.a;
         rgb = mix(rgb, g.dot_color.rgb, clamp(ink, 0.0, 1.0));
     }
     let a = clamp(fill, 0.0, 1.0) * in.color.a;

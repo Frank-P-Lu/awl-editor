@@ -913,9 +913,10 @@ pub struct RenderCaps {
     /// `faint`/`muted` ladder rungs) on every world; only a `Background::Lava`
     /// world's own glow-lit writing column needs a lift, dialed per-world here.
     pub fold_afford: FoldAfford,
-    /// ITEM 70's PRINTED-CARD dial: see [`CardTexture`]'s own doc.
+    /// ITEM 70/71's PRINTED-CARD dial: see [`CardTexture`]'s own doc.
     /// [`CardTexture::DEFAULT`] (`Flat`, byte-identical) on every world but
-    /// Quokka, whose card fill dials `HalftoneDots` as one-line DATA.
+    /// Quokka (`HalftoneDots`) and Bowerbird (`JaggedWave`), each dialing
+    /// their own card fill as one-line DATA.
     pub card_texture: CardTexture,
     /// ITEM 70's PRINTED-CARD dial: see [`CardShape`]'s own doc.
     /// [`CardShape::DEFAULT`] (`Rectangular`, byte-identical) on every world
@@ -1012,23 +1013,29 @@ impl FoldAfford {
     pub const DEFAULT: FoldAfford = FoldAfford { chevron_lift: 0.0, tail_lift: 0.0 };
 }
 
-/// ITEM 70's PRINTED-CARD capability: what material a [`ListBacking::Card`]
-/// surface's FILL draws over its flat color. `Flat` (byte-identical to before
-/// this field existed) on every world but Quokka. `HalftoneDots` lays a small
-/// rotated dot lattice over the fill, strongest at the card's far/right
-/// decorative side and rolling off before the left-aligned content-heavy
-/// side — never composited on the border/shadow surfaces, only the fill (the
-/// ONE render consumer is `render::chrome::mod::prepare_panel_card_elevation`
-/// + the spell-popup card arm, gated on [`ListBacking::Card`] alone — never a
-/// world-name branch, the `theme_caps_law` grep-law bans one under
-/// `src/render/`). The dot's own INK is never carried here: it is DERIVED at
-/// render time from the theme's own surface ladder
-/// ([`crate::theme::derive::card_texture_ink`]) — this struct only carries
-/// the lattice's geometry/intensity, never a color, so "raw color / amber" is
-/// structurally unreachable from this cap alone.
+/// ITEM 70's PRINTED-CARD capability (extended by item 71): what material a
+/// [`ListBacking::Card`] surface's FILL draws over its flat color. `Flat`
+/// (byte-identical to before this field existed) on every world but Quokka
+/// and Bowerbird. `HalftoneDots` lays a small rotated dot lattice over the
+/// fill, strongest at the card's far/right decorative side and rolling off
+/// before the left-aligned content-heavy side — Quokka's own printed-card
+/// identity. `JaggedWave` (item 71) lays TWO or THREE broad, horizontally
+/// phase-offset triangle-wave ribbon tiers across the COMPLETE card-local
+/// field, quietest through the content-heavy vertical middle and strongest
+/// near the card's own top/bottom edge — Bowerbird's own woven identity.
+/// Neither texture ever composites on the border/shadow surfaces, only the
+/// fill (the ONE render consumer is
+/// `render::chrome::mod::prepare_panel_card_elevation` + the spell-popup
+/// card arm, gated on [`ListBacking::Card`] alone — never a world-name
+/// branch, the `theme_caps_law` grep-law bans one under `src/render/`). The
+/// texture's own INK is never carried here: it is DERIVED at render time
+/// from the theme's own surface ladder
+/// ([`crate::theme::derive::card_texture_ink`]) — shared by BOTH variants —
+/// this struct only carries geometry/intensity, never a color, so "raw
+/// color / amber" is structurally unreachable from this cap alone.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CardTexture {
-    /// No texture — the plain flat fill. Every world but Quokka.
+    /// No texture — the plain flat fill. Every world but Quokka/Bowerbird.
     Flat,
     /// A rotated dot lattice (item 70, Quokka's printed-card identity).
     HalftoneDots {
@@ -1041,11 +1048,38 @@ pub enum CardTexture {
         /// composites at, at full coverage + full rolloff.
         density: f32,
     },
+    /// TWO or THREE nested, horizontally phase-offset triangle-wave ribbon
+    /// tiers (item 71, Bowerbird's woven printed-card identity) — see
+    /// `shaders/selection.wgsl`'s `jagged_wave_coverage`. Sampled at the
+    /// ABSOLUTE canvas pixel (like `HalftoneDots`), so a Split Pane's two
+    /// surfaces share one continuous woven field across the open gap.
+    JaggedWave {
+        /// Ribbon tier count: 2 or 3 — each an identical wave shape offset
+        /// in horizontal PHASE by `period_x / tiers`, so the nested tiers
+        /// interleave into one woven surface instead of stacking in
+        /// registration.
+        tiers: u8,
+        /// The ribbon's horizontal meander wavelength, LOGICAL px — BROAD
+        /// (several hundred), never a fine repeating pitch (the "not tiny
+        /// repeating zigzag wallpaper" spec).
+        period_x: f32,
+        /// The vertical spacing between tiled ribbon repeats, LOGICAL px —
+        /// what makes the pattern fill the COMPLETE card-local field
+        /// top-to-bottom, not just a thin band.
+        period_y: f32,
+        /// The ribbon's peak vertical excursion (amplitude), LOGICAL px.
+        amplitude: f32,
+        /// Overall ink-intensity ceiling `[0,1]`, at full coverage + full
+        /// rolloff — kept LOW (quiet) relative to `HalftoneDots`' density,
+        /// since the wave's coverage AREA is far larger than the dots'
+        /// sparse lattice.
+        density: f32,
+    },
 }
 
 impl CardTexture {
-    /// `Flat` — every world but Quokka, byte-identical to before this cap
-    /// existed (zero shader branches taken, zero extra draw work).
+    /// `Flat` — every world but Quokka/Bowerbird, byte-identical to before
+    /// this cap existed (zero shader branches taken, zero extra draw work).
     pub const DEFAULT: CardTexture = CardTexture::Flat;
 }
 

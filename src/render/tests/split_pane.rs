@@ -334,9 +334,14 @@ fn split_shows_ground_across_the_gap_and_no_glyph_escapes() {
     let (wi, hi) = (w as i64, h as i64);
 
     // Chromatic Pane worlds: a dark room (Currawong), a warm light (Bilby), a
-    // cool light (Gumtree). Wagtail (1-bit, ground == card == black) is covered
-    // by the border-count roster law instead — its gap reads by the rims.
-    for world in ["Currawong", "Bilby", "Gumtree"] {
+    // cool light (Gumtree), and ITEM 71's Bowerbird — its own woven
+    // `CardTexture::JaggedWave` fill samples the ABSOLUTE canvas pixel (the
+    // SAME reason `HalftoneDots` does), so this is also the "no paint in the
+    // gap" proof for the wave texture: it must never bleed past the two
+    // surfaces' own silhouettes into the real negative-space strip between
+    // them. Wagtail (1-bit, ground == card == black) is covered by the
+    // border-count roster law instead — its gap reads by the rims.
+    for world in ["Currawong", "Bilby", "Gumtree", "Bowerbird"] {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         for faceted in [false, true] {

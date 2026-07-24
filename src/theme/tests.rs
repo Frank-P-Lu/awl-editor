@@ -2594,9 +2594,25 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_shape: model::CardShape::Chamfered { cut_px: 11.0 },
                 ..RenderCaps::DEFAULT
             },
-            "Tawny" | "Mopoke" | "Potoroo" | "Bombora" | "Bowerbird" | "Mulga" => {
+            "Tawny" | "Mopoke" | "Potoroo" | "Bombora" | "Mulga" => {
                 RenderCaps::DEFAULT
             }
+            // ITEM 71 — Bowerbird alone assigns the woven printed-card
+            // texture (see `worlds::BOWERBIRD`'s own doc): THREE nested,
+            // horizontally phase-offset triangle-wave ribbon tiers spanning
+            // the complete card-local field, quietest through the
+            // content-heavy vertical middle. `card_shape` stays
+            // `Rectangular` — the wave never touches the silhouette.
+            "Bowerbird" => RenderCaps {
+                card_texture: model::CardTexture::JaggedWave {
+                    tiers: 3,
+                    period_x: 200.0,
+                    period_y: 120.0,
+                    amplitude: 46.0,
+                    density: 0.085,
+                },
+                ..RenderCaps::DEFAULT
+            },
             // CASSOWARY (the NERV-terminal statement world): the loud NERV console
             // overlay — a bold Archivo-Black wordmark placard (Auto corner derives
             // bottom-LEFT off the ITEM-45 RIGHT card), BORDERED elevation, the poster

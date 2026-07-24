@@ -1,39 +1,76 @@
 //! ITEM 70's PRINTED-CARD LAW SUITE — Quokka's `CardTexture::HalftoneDots` +
-//! `CardShape::Chamfered` caps. Structural rosters first (every OTHER world
+//! `CardShape::Chamfered` caps, extended by ITEM 71's `CardTexture::
+//! JaggedWave` (Bowerbird). Structural rosters first (every OTHER world
 //! stays `Flat`/`Rectangular`, no-wildcard match over both closed enums),
 //! then real-pixel proofs (the Wagtail tripwire: appearance is arithmetic
 //! over the PNG, never inferred from state) — a chamfered corner reads as a
 //! genuine 45° cut distinguishable from the pre-existing small rounded
-//! corner, the dot texture rolls off toward the left content side, and the
-//! split-pane gap carries no texture.
+//! corner, the dot texture rolls off toward the left content side, the wave
+//! texture rolls off toward the content-heavy vertical middle, and the
+//! split-pane gap carries no texture (either kind).
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff};
 
 // --- structural rosters --------------------------------------------------
 
-/// EXHAUSTIVE ROSTER: every world but Quokka carries the byte-identical
-/// `Flat`/`Rectangular` defaults — a no-wildcard match so a newly added
-/// `CardTexture`/`CardShape` variant can't silently dodge this sweep.
+/// EXHAUSTIVE ROSTER: every world but Quokka (`HalftoneDots`) and Bowerbird
+/// (`JaggedWave`) carries the byte-identical `Flat` `CardTexture` default;
+/// every world but Quokka carries the byte-identical `Rectangular`
+/// `CardShape` default (item 71's wave never touches the silhouette) — a
+/// no-wildcard match so a newly added `CardTexture`/`CardShape` variant
+/// can't silently dodge this sweep.
 #[test]
-fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
+fn card_caps_are_flat_rectangular_for_every_world_but_quokka_and_bowerbird() {
     for t in theme::THEMES {
         let is_flat = match t.render_caps.card_texture {
             theme::CardTexture::Flat => true,
             theme::CardTexture::HalftoneDots { .. } => false,
+            theme::CardTexture::JaggedWave { .. } => false,
         };
         let is_rect = match t.render_caps.card_shape {
             theme::CardShape::Rectangular => true,
             theme::CardShape::Chamfered { .. } => false,
         };
-        if t.name == "Quokka" {
-            assert!(!is_flat, "Quokka must assign a non-default CardTexture");
-            assert!(!is_rect, "Quokka must assign a non-default CardShape");
-        } else {
-            assert!(is_flat, "{} must keep CardTexture::Flat (item 70 is Quokka-only)", t.name);
-            assert!(is_rect, "{} must keep CardShape::Rectangular (item 70 is Quokka-only)", t.name);
+        match t.name {
+            "Quokka" => {
+                assert!(!is_flat, "Quokka must assign a non-default CardTexture");
+                assert!(!is_rect, "Quokka must assign a non-default CardShape");
+            }
+            "Bowerbird" => {
+                assert!(!is_flat, "Bowerbird must assign a non-default CardTexture");
+                assert!(is_rect, "Bowerbird must keep CardShape::Rectangular (item 71 never dials the silhouette)");
+            }
+            _ => {
+                assert!(is_flat, "{} must keep CardTexture::Flat (items 70/71 are Quokka/Bowerbird-only)", t.name);
+                assert!(is_rect, "{} must keep CardShape::Rectangular (item 70 is Quokka-only)", t.name);
+            }
         }
     }
+}
+
+/// Bowerbird's authored wave dials sit inside item 71's own spec: 2 or 3
+/// tiers, a BROAD (never fine) period, a positive amplitude, and a
+/// non-degenerate density strictly below Quokka's own halftone ceiling (the
+/// "wave coverage area is far larger, so density must stay LOWER" rule).
+#[test]
+fn bowerbird_wave_caps_are_within_the_rounds_authored_spec() {
+    let caps = theme::BOWERBIRD.render_caps;
+    match caps.card_texture {
+        theme::CardTexture::JaggedWave { tiers, period_x, period_y, amplitude, density } => {
+            assert!((2..=3).contains(&tiers), "tiers {tiers} outside 2..=3");
+            assert!(period_x >= 150.0, "period_x {period_x} is not BROAD (must be >= 150 logical px)");
+            assert!(period_y >= 80.0, "period_y {period_y} is not BROAD (must be >= 80 logical px)");
+            assert!(amplitude > 0.0, "amplitude must be positive");
+            assert!(density > 0.0 && density < 0.30, "density {density} must be quiet: (0, 0.30) — below Quokka's own 0.30 dot ceiling");
+        }
+        other => panic!("Bowerbird must ship JaggedWave, got {other:?}"),
+    }
+    assert_eq!(
+        caps.card_shape,
+        theme::CardShape::Rectangular,
+        "Bowerbird's card silhouette must stay Rectangular — item 71 is a fill texture only"
+    );
 }
 
 /// Quokka's authored dials sit inside the round's own spec bands: dot angle
@@ -47,7 +84,7 @@ fn quokka_card_caps_are_within_the_rounds_authored_spec() {
             assert!(cell_px > 0.0, "cell_px must be positive");
             assert!(density > 0.0 && density <= 1.0, "density {density} outside (0,1]");
         }
-        theme::CardTexture::Flat => panic!("Quokka must ship HalftoneDots"),
+        other => panic!("Quokka must ship HalftoneDots, got {other:?}"),
     }
     match caps.card_shape {
         theme::CardShape::Chamfered { cut_px } => {
@@ -103,6 +140,28 @@ fn render_theme_picker(world: &str) -> Option<(Vec<[u8; 4]>, i64, i64, [f32; 4])
 
 fn px_at(pixels: &[[u8; 4]], w: i64, x: i64, y: i64) -> [u8; 4] {
     pixels[(y * w + x) as usize]
+}
+
+/// [`render_theme_picker`]'s sibling — ALSO returns the split card's own two
+/// fill rects (`overlay_pane_fills_probe`), so a test can sample WITHIN one
+/// surface's own bounds (e.g. the lower rows surface alone, clear of the
+/// query line / gap) rather than the whole card's outer bounding box.
+fn render_theme_picker_fills(world: &str) -> Option<(Vec<[u8; 4]>, i64, i64, Vec<[f32; 4]>)> {
+    let (device, queue, mut p) = headless_dqp(1200.0, 800.0)?;
+    let _g = crate::testlock::serial();
+    theme::set_active_by_name(world).unwrap();
+    p.sync_theme();
+    let mut v = super::view("hello world\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_title = "themes";
+    v.overlay_items = theme::world_names().iter().map(|s| s.to_string()).collect();
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    let fills = p.overlay_pane_fills_probe();
+    let pixels = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    Some((pixels, 1200, 800, fills))
 }
 
 /// THE CHAMFER DISCRIMINATOR: at a point `(ex, ey)` inward from a corner
@@ -230,5 +289,99 @@ fn quokka_selected_row_text_stays_legible_over_the_dot_texture() {
         ink_pixels >= 200,
         "expected a healthy floor of real ink pixels (row text) over Quokka's textured \
          card, found only {ink_pixels}"
+    );
+}
+
+// --- ITEM 71: Bowerbird's woven JaggedWave --------------------------------
+
+/// THE VERTICAL ROLLOFF LAW: sampling a fixed column through the LOWER split
+/// surface's own interior — a band around its OWN vertical center (where the
+/// content-heavy candidate rows live) vs. an equal-sized band right at its
+/// OWN top/bottom edge — fewer pixels differ from the flat card-fill color in
+/// the middle than at the edges: "quieter beneath the content-heavy middle,
+/// strongest near the card's own top/bottom edge" (`jagged_wave_rolloff`).
+#[test]
+fn bowerbird_wave_is_quieter_beneath_the_content_heavy_middle_than_near_the_edges() {
+    let Some((pixels, w, _h, fills)) = render_theme_picker_fills("Bowerbird") else {
+        eprintln!(
+            "skipping bowerbird_wave_is_quieter_beneath_the_content_heavy_middle_than_near_the_edges: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    assert_eq!(fills.len(), 2, "Bowerbird's Pane picker must draw a split card (upper query + lower rows)");
+    let [lx, ly, lw, lh] = fills[1];
+    let card_fill = theme::BOWERBIRD.base_300.rgba_bytes();
+    let differs = |px: [u8; 4]| (0..3).any(|k| (px[k] as i16 - card_fill[k] as i16).abs() > 2);
+    // A column through the lower surface's own interior, clear of the
+    // left-aligned primary text column (a few px right of it).
+    let x = (lx + lw * 0.5) as i64;
+    let band = 0.06; // 6% of the surface's own height, each side/edge.
+    let count = |y0: i64, y1: i64| -> usize {
+        (y0..y1).filter(|&y| differs(px_at(&pixels, w, x, y))).count()
+    };
+    let mid_hits = count((ly + lh * (0.5 - band)) as i64, (ly + lh * (0.5 + band)) as i64);
+    let edge_hits = count((ly + 2.0) as i64, (ly + lh * band) as i64)
+        + count((ly + lh * (1.0 - band)) as i64, (ly + lh - 2.0) as i64);
+    assert!(edge_hits > 0, "the surface's own top/bottom edge band should show SOME wave texture (0 hits)");
+    assert!(
+        mid_hits <= edge_hits,
+        "wave texture should be quieter through the content-heavy vertical middle ({mid_hits} hits) \
+         than near the card's own top/bottom edge ({edge_hits} hits, equal-sized bands)"
+    );
+}
+
+/// TEXT/CARD CONTRAST: the theme picker's full card (query, candidate rows,
+/// selected-row band, muted/faint ink) still carries plenty of high-contrast
+/// ink pixels over Bowerbird's woven wave texture — the LOW density ceiling
+/// never washes out real content. Mirrors `quokka_selected_row_text_stays_
+/// legible_over_the_dot_texture`.
+#[test]
+fn bowerbird_selected_row_text_stays_legible_over_the_wave_texture() {
+    let Some((pixels, w, h, card)) = render_theme_picker("Bowerbird") else {
+        eprintln!("skipping bowerbird_selected_row_text_stays_legible_over_the_wave_texture: no wgpu adapter");
+        return;
+    };
+    let [cx, cy, cw, ch] = card;
+    let ink = theme::BOWERBIRD.base_content.rgba_bytes();
+    let near_ink = |px: [u8; 4]| (0..3).all(|k| (px[k] as i16 - ink[k] as i16).abs() <= 24);
+    let mut ink_pixels = 0usize;
+    let x0 = cx.max(0.0) as i64;
+    let x1 = ((cx + cw).min(w as f32)) as i64;
+    let y0 = cy.max(0.0) as i64;
+    let y1 = ((cy + ch).min(h as f32)) as i64;
+    for y in y0..y1 {
+        for x in x0..x1 {
+            if near_ink(px_at(&pixels, w as i64, x, y)) {
+                ink_pixels += 1;
+            }
+        }
+    }
+    assert!(
+        ink_pixels >= 200,
+        "expected a healthy floor of real ink pixels (row text) over Bowerbird's woven \
+         card, found only {ink_pixels}"
+    );
+}
+
+/// THE SILHOUETTE-CLIP LAW: Bowerbird's card corner stays the pre-existing
+/// small rounded corner (`CardShape::Rectangular` — item 71 never dials the
+/// silhouette), distinguishing it from Quokka's chamfer and proving the wave
+/// texture is clipped by the SAME plain rounded-rect boundary every
+/// non-Quokka world keeps.
+#[test]
+fn bowerbird_card_corner_is_not_chamfered() {
+    let Some((pixels, w, _h, card)) = render_theme_picker("Bowerbird") else {
+        eprintln!("skipping bowerbird_card_corner_is_not_chamfered: no wgpu adapter");
+        return;
+    };
+    let [cx, cy, _cw, _ch] = card;
+    let card_fill = theme::BOWERBIRD.base_300.rgba_bytes();
+    let corner_5 = px_at(&pixels, w, (cx + 5.0) as i64, (cy + 5.0) as i64);
+    let near = |a: [u8; 4], b: [u8; 4]| (0..3).all(|k| (a[k] as i16 - b[k] as i16).abs() <= 4);
+    assert!(
+        near(corner_5, card_fill),
+        "Bowerbird's card corner must stay the pre-existing small rounded corner (filled at \
+         5px inward), got {corner_5:?} vs fill {card_fill:?}"
     );
 }
