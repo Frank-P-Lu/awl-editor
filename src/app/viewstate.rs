@@ -59,7 +59,7 @@ impl App {
         // gpu-present check above), so the headless capture/replay never auto-writes
         // — the determinism + no-fixture-mutation guarantee. The write fires in
         // `about_to_wait` after a quiet period.
-        if self.active.buffer.is_note() && self.autosave_saved_version != Some(self.active.buffer.version()) {
+        if self.active.buffer.is_unnamed_fresh() && self.autosave_saved_version != Some(self.active.buffer.version()) {
             self.autosave_dirty_at = Some(self.clock.now());
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
@@ -67,7 +67,7 @@ impl App {
         // tracks `doc_saved_version`, the no-path scratch its stash version.
         // Same determinism guarantee as the note arming above: this lives ONLY
         // under the gpu-present gate, so headless can never schedule a write.
-        if self.config.autosave_on() && !self.active.buffer.is_note() {
+        if self.config.autosave_on() && !self.active.buffer.is_unnamed_fresh() {
             let unsaved = if self.active.buffer.path().is_some() {
                 self.active.extra.doc_saved_version != Some(self.active.buffer.version())
             } else {
@@ -561,7 +561,7 @@ impl App {
     /// re-materialise the rope only after a real edit. The resulting bytes are
     /// identical either way. The cache is keyed by the buffer VERSION alone, so a
     /// BUFFER SWAP (open / new note — a fresh buffer restarting at version 0) must
-    /// drop it at the swap site (`load_path` / `new_note`): an un-edited previous
+    /// drop it at the swap site (`load_path` / `new_document`): an un-edited previous
     /// buffer also sits at version 0, and its stale entry would otherwise be served
     /// as the NEW document's text (the live "open a file and nothing appears" bug).
     pub(super) fn view_text(&mut self) -> String {
@@ -609,7 +609,7 @@ impl App {
         let (id, transcript, _counts) = crate::history::diff_preview(
             ov,
             self.active.buffer.path(),
-            self.active.buffer.is_note(),
+            self.active.buffer.is_unnamed_fresh(),
             &current,
         )?;
         self.active.extra.history_preview = Some((id, transcript.clone()));

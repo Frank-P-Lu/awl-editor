@@ -1,9 +1,9 @@
-//! BUFFER + CONFIG management: opening project-relative files, the last-buffer
-//! toggle, quick-note creation / auto-save / live-rename / move, the window
-//! title, the active project root, the DOCUMENT AUTOSAVE ENGINE (config-gated,
-//! default ON: atomic write on idle/blur/switch/quit with a clobber guard, plus
-//! the persistent scratch stash), and the sticky-preference + rebind-menu
-//! config writes (open Settings, persist theme/zoom/page/caret, live reload,
+//! BUFFER + CONFIG management: opening folder-relative files, the last-buffer
+//! toggle, fresh-document creation / auto-name / move, the window title, the
+//! ACTIVE FOLDER, the DOCUMENT AUTOSAVE ENGINE (config-gated, default ON:
+//! atomic write on idle/blur/switch/quit with a clobber guard, plus the
+//! persistent scratch stash), and the sticky-preference + rebind-menu config
+//! writes (open Settings, persist theme/zoom/page/caret, live reload,
 //! commit/reset a captured binding).
 //!
 //! DECOMPOSED (item 56, 2026-07) out of the former single-file `app/files.rs`
@@ -12,34 +12,37 @@
 //!  - [`active`] — the OWNED ACTIVE BUFFER SLOT (`App::active`,
 //!    `BufferExtra`): the SOLE module that constructs/destructures the slot
 //!    or touches the park/activate swap.
-//!  - [`open`] — opening project-relative files, C-x b, project switching +
+//!  - [`open`] — opening folder-relative files, C-x b, folder switching +
 //!    the recent MRUs, the i18n write-back-once + fold-reveal jump.
-//!  - [`notes`] — the two-desk "Notes" flip's impure apply + its buffer-swap
-//!    halves.
-//!  - [`autosave`] — the document autosave engine, the note's own debounced
-//!    auto-name save, save-feedback dirty/title/HUD sync.
+//!  - [`document`] — the fresh-document buffer swap (item 76 retired the
+//!    two-desk "Notes" flip that used to live here).
+//!  - [`autosave`] — the document autosave engine, the fresh document's own
+//!    debounced ONE-SHOT auto-name save, save-feedback dirty/title/HUD sync.
 //!  - [`verbs`] — rename/move/duplicate/convert-scratch/manual-save-finish/
 //!    trash/the two local-history bridges.
 //!  - [`settings`] — the sticky-preference writes + Settings-menu doors +
 //!    page-width pair + config reload (dictionary persistence peeled to
 //!    [`dictionary`], the rebind-menu capture peeled to [`rebind`]).
-//! This file keeps only the PURE, testable-without-an-`App` leftovers
-//! (`window_title`, the "Notes" flip's toggle-target decision) plus the
-//! module wiring; `#[cfg(test)] mod tests` (the former files.rs's own test
-//! module) lives in [`tests`].
+//! This file keeps only the PURE, testable-without-an-`App` leftover
+//! (`window_title`) plus the module wiring; `#[cfg(test)] mod tests` (the
+//! former files.rs's own test module) lives in [`tests`].
 
 mod active;
 mod autosave;
 mod dictionary;
-mod notes;
+mod document;
 mod open;
 mod rebind;
 mod settings;
 mod verbs;
 
 pub(in crate::app) use active::BufferExtra;
-pub(in crate::app) use active::DeskReturn;
 
+// Only `tests` (below, via `use super::*`) needs the App-scope glob now that
+// this file's own pure leftover (`window_title`) needs nothing from it beyond
+// `Path` (imported separately) — cfg-gated identically to `mod tests` so a
+// non-test build carries no unused-import warning.
+#[cfg(all(test, not(target_arch = "wasm32")))]
 use crate::app::*;
 use std::path::Path;
 
@@ -66,67 +69,17 @@ use std::path::Path;
 /// see `App::update_title`'s doc for the matching native titlebar dot.
 pub(in crate::app) fn window_title(
     file: Option<&Path>,
-    is_note: bool,
+    is_unnamed_fresh: bool,
     theme_name: &str,
     dirty: bool,
 ) -> String {
     let name = match file {
         Some(p) => p.display().to_string(),
-        None if is_note => "scratch".to_string(),
+        None if is_unnamed_fresh => "scratch".to_string(),
         None => "*scratch*".to_string(),
     };
     let mark = if dirty { "\u{2022} " } else { "" };
     format!("awl - {mark}{name} [{theme_name}]")
-}
-
-/// THE "NOTES" FLIP — pure toggle-target resolution for the "Notes" command
-/// (`Action::NotesFlip`), unit-testable without a live `App` (mirrors
-/// `window_title`'s own pure/impure split just above). Given the ACTIVE
-/// project `current`, the (normally always-resolved) `notes_root`, and
-/// whatever pre-flip root is currently REMEMBERED (`previous`), decide where
-/// the flip lands — the exact same 2-deep-history SHAPE `last_buffer_toggle`
-/// uses for buffers, one level up: projects.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::app) enum NotesFlipTarget {
-    /// No usable `notes_root`: the command is a quiet no-op. `App::notes_root`
-    /// always resolves to a real default (`~/notes`, see
-    /// `main/args.rs::resolve_notes_root`) — this arm exists so the command
-    /// degrades gracefully rather than crashing if that ever changes, and so
-    /// the "missing notes_root" case is exercised by a pure unit test.
-    Inert,
-    /// Already IN `notes_root` with nothing remembered (e.g. a bare launch
-    /// landed here directly, having never flipped): nowhere to go BACK to.
-    AlreadyHome,
-    /// Not currently in `notes_root`: flip there, remembering `remember` (the
-    /// root being left) so the NEXT flip returns to it exactly.
-    Enter { target: PathBuf, remember: PathBuf },
-    /// Already in `notes_root` with a remembered previous root: flip BACK to
-    /// it (consuming the memory — a THIRD flip enters fresh).
-    Back { target: PathBuf },
-}
-
-/// `notes_root` is modeled as a `Path` that may be EMPTY (`Path::new("")`) —
-/// the same "no usable folder" sentinel [`App::persist_page_reset`] already
-/// uses for an unresolvable config path — rather than an `Option`, so a
-/// caller with nothing to flip TO degrades to [`NotesFlipTarget::Inert`]
-/// without ever needing to unwrap. Compares `current`/`notes_root` by plain
-/// `PathBuf` equality, exactly like `switch_project`'s own root bookkeeping.
-pub(in crate::app) fn notes_flip_target(
-    current: &Path,
-    notes_root: &Path,
-    previous: Option<&Path>,
-) -> NotesFlipTarget {
-    if notes_root.as_os_str().is_empty() {
-        return NotesFlipTarget::Inert;
-    }
-    if current == notes_root {
-        match previous {
-            Some(p) => NotesFlipTarget::Back { target: p.to_path_buf() },
-            None => NotesFlipTarget::AlreadyHome,
-        }
-    } else {
-        NotesFlipTarget::Enter { target: notes_root.to_path_buf(), remember: current.to_path_buf() }
-    }
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

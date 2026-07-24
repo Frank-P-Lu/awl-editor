@@ -107,7 +107,7 @@ pub fn classify(effect: &Effect) -> Classified {
         // ── APPLIED: the replay performs these for real (see the matching
         // arms in `main/run.rs::replay_keys_mode` / `capture_screenshot`). ──
         Effect::None => c("none", applied),
-        Effect::NewNote => c("new_note", applied),
+        Effect::NewDocument => c("new_document", applied),
         Effect::OpenSettings => c("open_settings", applied),
         Effect::OpenCredits => c("open_credits", applied),
         Effect::OpenGuide => c("open_guide", applied),
@@ -162,12 +162,6 @@ pub fn classify(effect: &Effect) -> Classified {
         Effect::LastBuffer => c(
             "last_buffer",
             unsupported("the 2-deep buffer history is live-App-only; the buffer switch would not happen"),
-        ),
-        Effect::NotesFlip => c(
-            "notes_flip",
-            unsupported(
-                "the remembered pre-flip root (2-deep, like LastBuffer) and the actual root switch are live-App-only; the project would not change",
-            ),
         ),
         Effect::FinishBuffer => c(
             "finish_buffer",
@@ -321,8 +315,7 @@ mod tests {
             Effect::None,
             Effect::Quit,
             Effect::LastBuffer,
-            Effect::NotesFlip,
-            Effect::NewNote,
+            Effect::NewDocument,
             Effect::OpenSettings,
             Effect::OpenCredits,
             Effect::OpenGuide,
@@ -346,7 +339,7 @@ mod tests {
             Effect::CopyPulse,
             Effect::SettingToggle { key: "wysiwyg".into() },
             Effect::SettingValueCommit { key: "page_width_prose".into(), value: "66".into() },
-            Effect::SettingPathPick { key: "notes_root".into(), path: "/tmp/n".into() },
+            Effect::SettingPathPick { key: "default_folder".into(), path: "/tmp/n".into() },
             Effect::TrashAsset { rel: "assets/orphan.png".into() },
             Effect::ConvertScratchAndSave,
             Effect::SaveDone { ok: true, message: "saved".into() },
@@ -361,7 +354,7 @@ mod tests {
         // The bucket each variant belongs to, pinned by NAME (the classify
         // match is the compile-time sweep; this is the reviewed membership).
         let applied = [
-            "none", "new_note", "open_settings", "open_credits", "open_guide", "run_action",
+            "none", "new_document", "open_settings", "open_credits", "open_guide", "run_action",
             "overlay_accept", "jump_to_line", "convert_scratch_and_save", "save_done", "recoil",
             "type_impact", "delete_squash", "gulp", "line_land", "copy_pulse", "insert_date",
         ];
@@ -370,7 +363,7 @@ mod tests {
             "trash_asset",
         ];
         let unsupported = [
-            "quit", "last_buffer", "notes_flip", "finish_buffer", "keep_version", "rebind_commit",
+            "quit", "last_buffer", "finish_buffer", "keep_version", "rebind_commit",
             "rebind_reset", "setting_toggle", "setting_value_commit", "setting_path_pick",
             "rename_note_commit", "duplicate_note",
         ];

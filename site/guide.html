@@ -51,10 +51,13 @@
         bare and the scratch buffer is where you left it, including parts you
         never explicitly saved.</p>
 
-        <p><strong>Quick notes (⌘N) work the same way, with a home.</strong>
-        ⌘N jumps to <code>notes_root</code> (<code>~/notes</code> by default,
-        configurable) and opens a fresh note buffer. Nothing writes to disk
-        until you type something.</p>
+        <p><strong>A fresh document (⌘N) works the same way, in the folder
+        you're already in.</strong> ⌘N opens a new, unnamed document in the
+        active folder — wherever you last opened a file or switched
+        projects, never a separate jump. Nothing writes to disk until you
+        type something. On a first launch with nothing to resume, that
+        active folder starts out as <code>~/notes</code> (configurable —
+        <code>default_folder</code> in the config).</p>
 
         <p><strong>Autosave runs on four triggers:</strong> idle (about a
         second after you stop typing), window blur, buffer switch, quit.
@@ -88,22 +91,21 @@
         keeps your last-known-good settings and shows a notice, since your
         editor buffer and undo history already hold your intended text.)</p>
 
-        <h2>The notes model</h2>
-        <p>A note starts as an ordinary scratch buffer. Save it — or keep
-        typing and let autosave catch up — and awl slugifies the
-        <strong>first line</strong> into a filename and writes it under
-        <code>notes_root</code>. Change the first line and the file on disk
-        renames to match, until you save it under a different name on
-        purpose.</p>
+        <h2>Naming a fresh document</h2>
+        <p>A fresh document (⌘N) starts unnamed, like the scratch buffer.
+        Save it — or keep typing and let autosave catch up — and awl
+        slugifies the <strong>first line</strong> into a filename and writes
+        it in the active folder, ONCE. Changing the first line afterward
+        never renames the file again; it's an ordinary document from that
+        first save on, exactly like one you opened from disk.</p>
 
-        <p>Three verbs live in the palette once a note exists:</p>
+        <p>Three generic file verbs live in the palette for any document:</p>
         <ul>
-          <li><strong>Rename note…</strong> — pick a new name, breaking the
-          first-line-tracks-filename link.</li>
+          <li><strong>Rename note…</strong> — pick a new name.</li>
           <li><strong>Duplicate note</strong> — an immediate copy, no
           dialog.</li>
-          <li><strong>Move note…</strong> — file it elsewhere under (or out
-          of) your notes tree.</li>
+          <li><strong>Move…</strong> — file it elsewhere under (or out
+          of) the active folder.</li>
         </ul>
         <p>None carry a default chord — ⌘P, type "rename", Enter.</p>
 
@@ -161,8 +163,8 @@ backward_word = ["M-Left", "M-b"]</code></pre>
           <tr><td>Clean unused assets…</td><td></td><td></td></tr>
           <tr><td>Keep version</td><td></td><td></td></tr>
           <tr><td>Last file</td><td>⌃Tab</td><td>Ctrl+Tab</td></tr>
-          <tr><td>New note</td><td>⌘N</td><td>Ctrl+N</td></tr>
-          <tr><td>Move note…</td><td></td><td></td></tr>
+          <tr><td>New document</td><td>⌘N</td><td>Ctrl+N</td></tr>
+          <tr><td>Move…</td><td></td><td></td></tr>
           <tr><td>Rename note…</td><td></td><td></td></tr>
           <tr><td>Duplicate note</td><td></td><td></td></tr>
           <tr><td>Finish file</td><td>⌘W</td><td>Ctrl+W</td></tr>
@@ -294,7 +296,7 @@ backward_word = ["M-Left", "M-b"]</code></pre>
         local-version-history machinery with nothing to attach to in a
         browser tab.</p>
         <p>A couple of native chords belong to the browser itself (new tab,
-        new window, and similar). New note and Switch theme… resolve to a
+        new window, and similar). New document and Switch theme… resolve to a
         working alternate chord on web automatically; every command is also
         reachable by name through the palette.</p>
         <p>The desktop build has no storage cap, real OS clipboard paste,

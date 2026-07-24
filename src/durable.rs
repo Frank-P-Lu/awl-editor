@@ -415,7 +415,9 @@ mod tests {
             // arriving_buffer`) — temp-dir test files, never a durable store;
             // two more are the hermetic-scenario tests' real-disk inputs
             // (seeded precisely to prove the sandbox never writes them back).
-            ("main/run.rs", 17),
+            // One more (item 76): `resolve_launch_context_file_argument_wins_
+            // over_remembered`'s own temp-dir fixture seed, same shape.
+            ("main/run.rs", 18),
             // The storyboard runner's `trace.json` write (`write_trace`): a
             // HARNESS DELIVERABLE, not app state — a storyboard run's active
             // backend IS the hermetic sandbox, so routing this through

@@ -224,7 +224,7 @@ fn scratch_buffer_lists_its_stash_history() {
     let mut app = app_on(None, "/proj", Config::empty());
     app.active.buffer.set_text("scratch thoughts\n");
     app.autosave_flush();
-    let key = crate::history::source_path(app.active.buffer.path(), app.active.buffer.is_note())
+    let key = crate::history::source_path(app.active.buffer.path(), app.active.buffer.is_unnamed_fresh())
         .expect("the true scratch keys under its stash");
     assert_eq!(key, crate::fs::scratch_stash_path());
     let rows =
@@ -245,7 +245,7 @@ fn notes_keep_their_own_autosave() {
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(None, "/proj", Config::empty());
-    app.active.buffer.start_note(PathBuf::from("/mynotes"));
+    app.active.buffer.start_fresh_doc(PathBuf::from("/mynotes"));
     app.active.buffer.set_text("a note in flight\n");
     app.autosave_flush();
     // The DOC engine leaves notes to their own 400ms flow (flush_note): no

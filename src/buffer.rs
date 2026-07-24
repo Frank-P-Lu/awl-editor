@@ -480,11 +480,12 @@ impl Buffer {
     }
 
     /// The buffer's DISPLAY NAME for the page-mode orientation gutter: the bound
-    /// file's name (`notes.md`) for a saved file, else the name a quick note WOULD
-    /// derive on its first save — the slugified first non-empty line plus `.md`, or
-    /// the `"scratch"` placeholder for an empty / untitled buffer. So a scratch
-    /// surface or an unsaved note still shows a stable, save-consistent name in the
-    /// gutter BEFORE it is ever written (matching [`Self::save`]'s naming).
+    /// file's name (`notes.md`) for a saved file, else the name a fresh document
+    /// WOULD derive on its first save — the slugified first non-empty line plus
+    /// `.md`, or the `"scratch"` placeholder for an empty / untitled buffer. So a
+    /// scratch surface or an unnamed fresh document still shows a stable,
+    /// save-consistent name in the gutter BEFORE it is ever written (matching
+    /// [`Self::save`]'s naming).
     pub fn display_name(&self) -> String {
         if let Some(p) = &self.path {
             return p
@@ -501,14 +502,15 @@ impl Buffer {
 
     /// True when this buffer is a MARKDOWN document. awl is a prose-first writing
     /// app, so the rule is unified and prose-leaning: a buffer with NO path — the
-    /// bare SCRATCH launch surface or an unsaved QUICK NOTE — defaults to markdown,
-    /// styling `# title` / **bold** as you type on the blank writing surface; a
-    /// SAVED file is markdown only by its `.md` / `.markdown` extension (case-
-    /// insensitive). So a `.rs` / `.txt` / `.env` file (a path with a non-markdown
-    /// extension) stays NOT markdown — code/.env files always open WITH a path, so
-    /// they are unaffected. (The no-path arm subsumes [`Self::is_note`] — a note
-    /// is always unsaved-then-`.md` — and is what makes a note read as markdown
-    /// from the first keystroke, before its first save derives a `.md` path.)
+    /// bare SCRATCH launch surface or an unnamed FRESH DOCUMENT — defaults to
+    /// markdown, styling `# title` / **bold** as you type on the blank writing
+    /// surface; a SAVED file is markdown only by its `.md` / `.markdown` extension
+    /// (case-insensitive). So a `.rs` / `.txt` / `.env` file (a path with a
+    /// non-markdown extension) stays NOT markdown — code/.env files always open
+    /// WITH a path, so they are unaffected. (The no-path arm subsumes
+    /// [`Self::is_unnamed_fresh`] — a fresh document is always unsaved-then-`.md`
+    /// — and is what makes it read as markdown from the first keystroke, before
+    /// its first save derives a `.md` path.)
     /// Gates the renderer's markdown styling pass. Syntax highlighting stays
     /// path-based ([`Self::syntax_lang`]), so a no-path buffer reports no code
     /// language and is never code-highlighted — markdown and code remain mutually
@@ -548,29 +550,34 @@ impl Buffer {
     }
 
     /// Re-point the buffer at a new file path. Future saves write here. Used by a
-    /// note's first auto-save (once its filename is derived) and by C-x m MOVE
-    /// (so editing continues at the moved path). The app keeps its own `file`
-    /// notion in sync alongside this.
+    /// fresh document's first auto-save (once its filename is derived) and by
+    /// C-x m MOVE (so editing continues at the moved path). The app keeps its own
+    /// `file` notion in sync alongside this.
     pub fn set_path(&mut self, p: PathBuf) {
         self.path = Some(p);
     }
 
-    /// Mark this buffer as a freshly-summoned QUICK NOTE living under `dir`: it
-    /// has no filename yet; the first non-empty line names it on the first save.
+    /// Mark this buffer as a freshly-summoned, UNNAMED document living under
+    /// `dir`: it has no filename yet; the first non-empty line names it ONCE, on
+    /// the first material save ([`Self::save`] then clears this — item 76's
+    /// one-shot naming law: a LATER title edit never re-triggers a rename, since
+    /// [`Self::is_unnamed_fresh`] is false from that first save on).
     pub fn set_note_dir(&mut self, dir: PathBuf) {
         self.note_dir = Some(dir);
     }
 
-    /// True when this buffer is a QUICK NOTE (auto-saved; auto-named on first save
-    /// from its first line). Ordinary files and scratch buffers are not notes.
-    pub fn is_note(&self) -> bool {
+    /// True when this buffer is an UNNAMED FRESH DOCUMENT (no path yet; the
+    /// first non-empty line names it on its first save — see [`Self::save`]).
+    /// `false` again the moment that first save lands (one-shot, item 76):
+    /// ordinary files, scratch buffers, and any ALREADY-named document are not.
+    pub fn is_unnamed_fresh(&self) -> bool {
         self.note_dir.is_some()
     }
 
-    /// Reset this buffer to a fresh, EMPTY, unsaved quick note bound to `dir`
-    /// (no file yet). Used by C-x n to start capturing immediately; the filename
-    /// is derived from the first non-empty line on the first save.
-    pub fn start_note(&mut self, dir: PathBuf) {
+    /// Reset this buffer to a fresh, EMPTY, unnamed document bound to `dir` (no
+    /// file yet). Used by Cmd-N to start capturing immediately; the filename is
+    /// derived from the first non-empty line on the first save.
+    pub fn start_fresh_doc(&mut self, dir: PathBuf) {
         *self = Self::from_rope(Rope::new(), None);
         self.note_dir = Some(dir);
     }
@@ -996,11 +1003,19 @@ impl Buffer {
 
     // --- Files ------------------------------------------------------------
 
-    /// Save to the bound path. For a QUICK NOTE that has not been named yet
-    /// (`path` is None but `note_dir` is set), DERIVE the filename from the first
-    /// non-empty line — slugified, collision-suffixed — under `note_dir`, bind it,
-    /// and write there; an EMPTY note bails (no file written, no litter). Returns
-    /// Err if there is no path and no name can be derived.
+    /// Save to the bound path. For an UNNAMED FRESH DOCUMENT that has not been
+    /// named yet (`path` is None but `note_dir` is set), DERIVE the filename from
+    /// the first non-empty line — slugified, collision-suffixed — under
+    /// `note_dir`, bind it, and write there; an EMPTY document bails (no file
+    /// written, no litter). Returns Err if there is no path and no name can be
+    /// derived.
+    ///
+    /// **ONE-SHOT NAMING (item 76):** this is the ONLY place a fresh document's
+    /// filename is ever derived. Once bound, `note_dir` is cleared in the SAME
+    /// step — [`Self::is_unnamed_fresh`] is false from this call on, so it reads
+    /// as an ORDINARY pathed file thereafter. A later edit to the first line
+    /// never re-derives or renames it (the old LIVE-rename-to-title behavior is
+    /// retired — Rename is now the one, explicit, generic verb for that).
     pub fn save(&mut self) -> anyhow::Result<()> {
         if self.path.is_none() {
             if let Some(dir) = self.note_dir.clone() {
@@ -1015,9 +1030,13 @@ impl Buffer {
                         crate::fs::active().create_dir_all(&dir)?;
                         let path = unique_path(&dir, &stem, "md");
                         self.path = Some(path);
+                        // ONE-SHOT: the name is derived exactly once — clear the
+                        // fresh-document marker so a later first-line edit never
+                        // re-triggers a rename.
+                        self.note_dir = None;
                     }
-                    // A truly empty note (no non-whitespace anywhere) is NEVER
-                    // written — no litter.
+                    // A truly empty document (no non-whitespace anywhere) is
+                    // NEVER written — no litter.
                     None => anyhow::bail!("empty note: nothing to save yet"),
                 }
             }
@@ -1037,21 +1056,22 @@ impl Buffer {
     }
 
     /// SAVE-FEEDBACK round: manual save on the TRUE scratch surface (no path,
-    /// never named as a note) converts it into a real note FIRST, then saves —
-    /// reusing the exact auto-name recipe [`Self::set_note_dir`] + [`Self::save`]
-    /// already give a C-x n note (the same one `App::ensure_note_named_before_paste`
-    /// established for the paste-image door, generalized here to manual save). A
-    /// buffer that is ALREADY a note (named or not) or already pathed is left
-    /// untouched — this only ever promotes a true scratch buffer, and only once
-    /// (`is_note()` is true from then on, so a second call is a plain `save()`).
-    /// `notes_root` need not exist yet: creating it is best-effort (mirroring
-    /// `App::new_note`); if it truly can't be created or written to, that failure
-    /// surfaces as the same `Err` `save` already returns, for the caller to turn
-    /// into a calm notice — never a terminal print.
-    pub fn save_as_note(&mut self, notes_root: &Path) -> anyhow::Result<()> {
-        if !self.is_note() {
-            let _ = crate::fs::active().create_dir_all(notes_root);
-            self.set_note_dir(notes_root.to_path_buf());
+    /// never a fresh-document marker) converts it into an unnamed fresh document
+    /// bound to `folder` FIRST, then saves — reusing the exact auto-name recipe
+    /// [`Self::set_note_dir`] + [`Self::save`] already give Cmd-N (the same one
+    /// `App::ensure_note_named_before_paste` established for the paste-image
+    /// door, generalized here to manual save). A buffer that is ALREADY an
+    /// unnamed fresh document, or already pathed, is left untouched — this only
+    /// ever promotes a true scratch buffer, and only once (`is_unnamed_fresh()`
+    /// is true from then on, so a second call is a plain `save()`). `folder`
+    /// need not exist yet: creating it is best-effort (mirroring
+    /// `App::new_document`); if it truly can't be created or written to, that
+    /// failure surfaces as the same `Err` `save` already returns, for the caller
+    /// to turn into a calm notice — never a terminal print.
+    pub fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
+        if !self.is_unnamed_fresh() {
+            let _ = crate::fs::active().create_dir_all(folder);
+            self.set_note_dir(folder.to_path_buf());
         }
         self.save()
     }

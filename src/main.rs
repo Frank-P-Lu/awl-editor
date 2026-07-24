@@ -151,9 +151,9 @@ mod websmoke;
 use anyhow::Result;
 
 // Re-exported across the crate so call sites keep resolving these by their old
-// `crate::` paths after the move into `main/`: `app.rs` reads the notes/workspace
+// `crate::` paths after the move into `main/`: `app.rs` reads the folder/workspace
 // resolvers.
-pub(crate) use args::resolve_notes_root;
+pub(crate) use args::resolve_default_folder;
 pub(crate) use run::resolve_workspace;
 
 use std::path::PathBuf;

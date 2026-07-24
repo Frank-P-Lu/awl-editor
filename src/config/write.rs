@@ -29,13 +29,14 @@ use std::path::Path;
 pub const DEFAULT_TEMPLATE: &str = "\
 # awl config — edit as text, then Cmd-S to save (live-reloads keys + folders).
 #
-# notes_root : where Cmd-N quick-notes live          (default: ~/notes)
+# default_folder : the active folder a first launch with nothing remembered
+#                opens                                (default: ~/notes)
 # workspace  : the parent dir whose children Cmd-Shift-P switches between
 #                                                     (default: the project's parent)
 #
 # [keys] : rebind a command. The ACTION NAME is the command-palette name
 #   lower-cased with spaces as underscores (go_to_file, switch_theme, save,
-#   new_note, ...). Every command takes UP TO 2 bindings — slot 1 = NATIVE
+#   new_document, ...). Every command takes UP TO 2 bindings — slot 1 = NATIVE
 #   (macOS Cmd), slot 2 = EMACS — and BOTH fire, so a value is a LIST of up to
 #   two chords. A single string is the one-chord form. A CHORD is a key spec:
 #   \"Cmd-S\", \"C-t\", \"M-g\", or \"C-x g\" (the C-x prefix plus one key) —
@@ -49,7 +50,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # resolve automatically, nothing to configure. Where a Ctrl-native chord collides
 # with a quiet emacs default (Ctrl-S save vs the emacs C-s search-forward, Ctrl-P
 # palette vs C-p previous-line, Ctrl-F search vs C-f forward-char, Ctrl-A select-all
-# vs C-a line-start, Ctrl-E inline-code vs C-e line-end, Ctrl-N new-note vs C-n
+# vs C-a line-start, Ctrl-E inline-code vs C-e line-end, Ctrl-N new-document vs C-n
 # next-line, Ctrl-W finish-file vs C-w cut, Ctrl-R replace vs C-r search-backward,
 # Ctrl-B bold vs C-b backward-char, Ctrl-G find-next vs C-g cancel, Ctrl-C copy vs
 # the bare C-c prefix, Ctrl-X cut vs the bare C-x prefix, Ctrl-V paste vs C-v
@@ -74,7 +75,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   Example, an emacs-hands setup that wants back the whole bare-control nav
 #   cluster:
 #     linux_keep_emacs = [\"C-f\", \"C-b\", \"C-n\", \"C-p\", \"C-a\", \"C-e\"]
-#   The trade: those letters' NATIVE meanings on Linux (Find/Bold/New note/
+#   The trade: those letters' NATIVE meanings on Linux (Find/Bold/New document/
 #   Command palette/Select all/Inline code) fall back to the palette or their
 #   other chord instead of a bare Ctrl-letter.
 
@@ -82,7 +83,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   SAME per-chord door as linux_keep_emacs above, for a Linux emacs hand who
 #   wants EVERY displaced bare-control chord back at once rather than naming
 #   them one by one: keymap = \"emacs\" keeps every letter the native-wins
-#   collision would otherwise claim (Find/Bold/New note/Command palette/Select
+#   collision would otherwise claim (Find/Bold/New document/Command palette/Select
 #   all/Inline code/Finish file/Replace/Backward char/Search backward/Copy/Cut/
 #   Paste), reachable instead by palette/menu/their other chord. On Mac this key
 #   is inert (no collisions exist there to keep). A [keys] rebind ALWAYS wins
@@ -96,7 +97,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #     paste = \"C-v\"
 #   Also flippable live: Settings -> Keybindings -> Keymap.
 
-# notes_root = \"~/notes\"
+# default_folder = \"~/notes\"
 # workspace = \"~/code\"
 
 # STICKY PREFERENCES — awl REMEMBERS these across launches and rewrites them here
@@ -133,9 +134,9 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #                window blur, file switch, and quit (default on). Writes are atomic
 #                and never overwrite a file changed outside awl (a calm notice instead).
 #                The unsaved scratch buffer stashes + restores across launches.
-#   project_root : the project folder a BARE launch (no file argument) reopens —
-#                set automatically by switch-project (C-x p); an explicit --root
-#                flag always wins over this.
+#                A BARE launch (no file argument, no --root) restores the last
+#                active folder + document — no separate project_root key; an
+#                explicit --root flag always wins over the remembered folder.
 #   wysiwyg    : conceal markdown markup off the caret's line (default on) — a
 #                heading's `#`, bold/italic `**`/`*`/`_`, inline `` ` `` backticks,
 #                and `==highlight==` marks hide until the caret lands on that
@@ -197,7 +198,6 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # spellcheck = true
 # history = true
 # autosave = true
-# project_root = \"~/code/my-project\"
 # wysiwyg = true
 # popover = true
 # inline_images = true

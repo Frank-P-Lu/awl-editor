@@ -377,7 +377,14 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // same "report the world's own authored data verbatim" shape as every other
 // arm (mirrors `/168`'s Lava bump). Every OTHER world's `page.background`
 // content is byte-unchanged; only the schema string bumps.
-pub const SCHEMA_VERSION: u32 = 181;
+// `/182` — item 76 (one active folder; ordinary documents): the `project`
+// block's `notes_root` key is RENAMED to `default_folder` — the fallback
+// value for a first launch with nothing remembered, no longer a separate
+// "quick notes home" (New document / Move… now target the ACTIVE folder,
+// `project.root`). Same `PathBuf|null` shape, same resolution (flag > config
+// > `~/notes`); only the key name changed, so a sidecar consumer keying off
+// the old name must update. Every other block is byte-unchanged.
+pub const SCHEMA_VERSION: u32 = 182;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
 pub fn schema_plain() -> String {

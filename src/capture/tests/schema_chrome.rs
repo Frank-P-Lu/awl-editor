@@ -115,7 +115,7 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
             name: project.to_string(),
             branch: None,
             dirty: false,
-            notes_root: None,
+            default_folder: None,
             workspace: None,
             keymap_flavor: "native",
         }),

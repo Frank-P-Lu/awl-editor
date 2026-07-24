@@ -37,7 +37,7 @@ use crate::storyboard::{
 
 /// Run one storyboard. `file` is the board's document resolved against the
 /// board's own directory (already seeded into the hermetic sandbox);
-/// `root`/`workspace`/`notes_root`/`config` mirror `capture_screenshot`'s
+/// `root`/`workspace`/`default_folder`/`config` mirror `capture_screenshot`'s
 /// context exactly, so a storyboard session and a `--keys` capture resolve the
 /// same project the same way.
 #[allow(clippy::too_many_arguments)] // mirrors capture_screenshot's own surface
@@ -47,7 +47,7 @@ pub(crate) fn run_storyboard(
     out_dir: PathBuf,
     root: Option<PathBuf>,
     workspace: Option<PathBuf>,
-    notes_root: PathBuf,
+    default_folder: PathBuf,
     config: Config,
     mut km: crate::keymap::KeymapState,
 ) -> Result<()> {
@@ -61,7 +61,7 @@ pub(crate) fn run_storyboard(
     // Project context — the same resolution capture_screenshot performs, inside
     // the hermetic sandbox (a seeded root resolves as non-git; the index walk
     // sees exactly the seeded files).
-    let active_root = crate::run::resolve_root(&root, &file, config.project_root.as_deref());
+    let active_root = crate::run::resolve_root(&root, &file);
     let proj = crate::project::Project::resolve(&active_root);
     let corpus = crate::index::build_index(&active_root);
     let effective_workspace = crate::run::resolve_workspace(&workspace, &active_root);
@@ -70,7 +70,7 @@ pub(crate) fn run_storyboard(
         name: proj.name.clone(),
         branch: proj.branch.clone(),
         dirty: proj.dirty,
-        notes_root: Some(notes_root.clone()),
+        default_folder: Some(default_folder.clone()),
         workspace: Some(effective_workspace.clone()),
         keymap_flavor: config.keymap_flavor().config_name(),
     };
@@ -95,7 +95,6 @@ pub(crate) fn run_storyboard(
         &corpus,
         &active_root,
         Some(effective_workspace.as_path()),
-        &notes_root,
         &config,
         oracle.as_mut(),
         &mut km,

@@ -14,8 +14,10 @@ use std::path::{Path, PathBuf};
 /// which the resolution paths read as "fall back to the built-in default", so a
 /// missing config file is indistinguishable from the old hardcoded behaviour.
 pub struct Config {
-    /// `notes_root` (quick-notes home for C-x n / C-x m). `None` = default `~/notes`.
-    pub notes_root: Option<PathBuf>,
+    /// `default_folder` — the fallback active folder for a first launch with
+    /// nothing remembered (New document / Move… also target the active
+    /// folder, not this key, once a folder is open). `None` = default `~/notes`.
+    pub default_folder: Option<PathBuf>,
     /// `workspace` (switch-project parent for C-x p). `None` = default `root.parent`.
     pub workspace: Option<PathBuf>,
     /// STICKY PREFERENCES — the launch state the editor REMEMBERS across runs. Each
@@ -67,15 +69,6 @@ pub struct Config {
     /// never snapshotted regardless (git owns its versioning — see
     /// [`crate::history`]); this only gates the loose-file store.
     pub history: Option<bool>,
-    /// `project_root` — the ACTIVE PROJECT ROOT last selected via switch-project
-    /// (C-x p), write-on-change like theme/caret/page (not a hand-edited folder
-    /// default like `notes_root`/`workspace`). `None` = no remembered project
-    /// (today's default: derive from the launch file's directory, or cwd).
-    /// Restored ONLY on a BARE launch — no file argument AND no explicit
-    /// `--root` — mirroring the scratch-buffer stash's exact restore condition
-    /// (see `resolve_root` in `main/run.rs`); opening a specific file still
-    /// scopes to that file's own directory, unaffected.
-    pub project_root: Option<PathBuf>,
     /// `autosave` — the quiet write-on-idle/blur/switch/quit engine on/off;
     /// `None` = the built-in default (ON). Gates the live App's idle autosave,
     /// the blur/switch/quit flushes, and the scratch-buffer stash — never the
@@ -237,7 +230,7 @@ impl Config {
     /// modes that take no `--config` so they share the one `replay_keys` seam.
     pub fn empty() -> Self {
         Config {
-            notes_root: None,
+            default_folder: None,
             workspace: None,
             theme: None,
             zoom: None,
@@ -250,7 +243,6 @@ impl Config {
             spellcheck: None,
             history: None,
             autosave: None,
-            project_root: None,
             wysiwyg: None,
             popover: None,
             inline_images: None,
@@ -422,7 +414,7 @@ impl Config {
     /// degrades to defaults, so a half-edited config never crashes the editor.
     pub fn load(path: PathBuf) -> Self {
         let mut cfg = Config {
-            notes_root: None,
+            default_folder: None,
             workspace: None,
             theme: None,
             zoom: None,
@@ -435,7 +427,6 @@ impl Config {
             spellcheck: None,
             history: None,
             autosave: None,
-            project_root: None,
             wysiwyg: None,
             popover: None,
             inline_images: None,
@@ -468,17 +459,11 @@ impl Config {
                 return cfg;
             }
         };
-        if let Some(s) = table.get("notes_root").and_then(|v| v.as_str()) {
-            cfg.notes_root = Some(expand_tilde(s));
+        if let Some(s) = table.get("default_folder").and_then(|v| v.as_str()) {
+            cfg.default_folder = Some(expand_tilde(s));
         }
         if let Some(s) = table.get("workspace").and_then(|v| v.as_str()) {
             cfg.workspace = Some(expand_tilde(s));
-        }
-        // STICKY PROJECT ROOT — a path like notes_root/workspace above, but
-        // WRITE-ON-CHANGE (persisted by `App::persist_project_root` on every
-        // switch-project commit) rather than hand-edited only. See the field doc.
-        if let Some(s) = table.get("project_root").and_then(|v| v.as_str()) {
-            cfg.project_root = Some(expand_tilde(s));
         }
         // STICKY PREFERENCES (theme/zoom/page/caret). Each is read leniently — a
         // wrong-typed value is simply ignored (stays None → the built-in default),

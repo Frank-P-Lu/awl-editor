@@ -244,7 +244,8 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 ///   * `Project` navigates by ABSOLUTE path (`rel` IS the absolute dir; `None` =
 ///     start at `workspace`). Lists child FOLDERS only (git-marked) with a
 ///     synthetic `.` accept-this-folder row on top. `None` when no workspace.
-///   * `MoveDest` walks the NOTES root (`notes_root`), listing FOLDERS only.
+///   * `MoveDest` walks the ACTIVE root (`active_root`), listing FOLDERS only —
+///     a document moves to a folder inside the SAME active folder it lives in.
 ///   * `Browse` walks the active root (`active_root`), listing files + folders.
 /// `rel` is the root-relative level for the latter two (`None` = the root).
 ///
@@ -257,7 +258,6 @@ pub fn browse_level(
     kind: OverlayKind,
     rel: Option<String>,
     active_root: &Path,
-    notes_root: &Path,
     workspace: Option<&Path>,
     recent_projects: &[String],
 ) -> Option<OverlayState> {
@@ -276,11 +276,10 @@ pub fn browse_level(
             .collect();
         return Some(OverlayState::new_project(dir, folders, recent_projects));
     }
-    // MoveDest (C-x m) walks the NOTES root, folders only; Browse walks the active
-    // root and lists files + folders.
+    // MoveDest (C-x m) and Browse both walk the active root; MoveDest lists
+    // folders only (a document moves to a folder), Browse lists files + folders.
     let move_dest = kind == OverlayKind::MoveDest;
-    let root = if move_dest { notes_root } else { active_root };
-    let level = crate::index::list_dir_level(root, rel.as_deref());
+    let level = crate::index::list_dir_level(active_root, rel.as_deref());
     let mut corpus = Vec::new();
     let mut git = Vec::new();
     let mut is_dir = Vec::new();

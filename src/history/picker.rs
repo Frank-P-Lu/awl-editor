@@ -289,14 +289,14 @@ pub fn auto_description(prev: &str, cur: &str) -> String {
 pub fn diff_preview(
     ov: &crate::overlay::OverlayState,
     buffer_path: Option<&Path>,
-    is_note: bool,
+    is_unnamed_fresh: bool,
     current: &str,
 ) -> Option<(String, String, crate::prosediff::DiffCounts)> {
     if ov.kind != crate::overlay::OverlayKind::History {
         return None;
     }
     let id = ov.selected_history_id()?.to_string();
-    let path = source_path(buffer_path, is_note)?;
+    let path = source_path(buffer_path, is_unnamed_fresh)?;
     let old = load(&path, &id)?;
     let label = ov.selected_value().unwrap_or("an earlier version");
     let title = format!("Comparing with {label}");
@@ -330,10 +330,10 @@ pub fn clamp_line_col(text: &str, line: usize, col: usize) -> (usize, usize) {
 /// used to also fall back to is gone — `Buffer::path()` is now the sole,
 /// authoritative source, so a caller never has a `file` distinct from
 /// `buffer_path` to pass in the first place.)
-pub fn source_path(buffer_path: Option<&Path>, is_note: bool) -> Option<PathBuf> {
+pub fn source_path(buffer_path: Option<&Path>, is_unnamed_fresh: bool) -> Option<PathBuf> {
     buffer_path
         .map(Path::to_path_buf)
-        .or_else(|| (!is_note).then(crate::fs::scratch_stash_path))
+        .or_else(|| (!is_unnamed_fresh).then(crate::fs::scratch_stash_path))
 }
 
 /// A calm, human RELATIVE-TIME label for a snapshot taken at `ts_ms`, read at

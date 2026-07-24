@@ -69,7 +69,7 @@ mod tests {
         // config file, the notes model's verbs, the theme picker.
         assert!(GUIDE_MD.contains("Settings"));
         assert!(GUIDE_MD.contains("Rename note"));
-        assert!(GUIDE_MD.contains("notes_root"));
+        assert!(GUIDE_MD.contains("default_folder"));
         assert!(GUIDE_MD.to_lowercase().contains("wysiwyg"));
     }
 

@@ -20,7 +20,7 @@
 //!
 //! **The icons themselves (TASTE CALL, logged):** Apple's own stock apps keep
 //! menus text-mostly — icons are the exception, not the rule — so this is a
-//! deliberately SMALL, minimal set: File → New note + Save; View → Switch theme.
+//! deliberately SMALL, minimal set: File → New document + Save; View → Switch theme.
 //! Each renders as a real macOS **SF Symbol** (the TextEdit/Zed look) via
 //! `mac_chrome::render_symbol_rgba` — [`symbol_for`] names the symbol per id
 //! (`square.and.pencil` / `square.and.arrow.down` / `paintpalette`). The symbol is
@@ -136,8 +136,8 @@ impl Canvas {
 
 const SIZE: i32 = 32;
 
-/// File → "New note": a plus sign (the universal "new" glyph).
-fn draw_new_note() -> (Vec<u8>, u32, u32) {
+/// File → "New document": a plus sign (the universal "new" glyph).
+fn draw_new_document() -> (Vec<u8>, u32, u32) {
     let mut c = Canvas::new(SIZE as u32);
     let mid = SIZE / 2;
     let arm = 10; // half-length of each bar
@@ -208,7 +208,7 @@ fn draw_switch_theme() -> (Vec<u8>, u32, u32) {
 /// fallback ([`draw_for`]) mirrors id-for-id, so the two can't drift.
 pub(crate) fn symbol_for(id: &str) -> Option<&'static str> {
     match id {
-        "awl.new_note" => Some("square.and.pencil"),        // the compose / new-note glyph
+        "awl.new_document" => Some("square.and.pencil"),        // the compose / new-note glyph
         "awl.open" => Some("folder"),                       // the Finder-style "open a file" glyph
         "awl.switch_project" => Some("folder.badge.gearshape"), // switch the active project folder
         "awl.save" => Some("square.and.arrow.down"),        // the standard save/download glyph
@@ -225,7 +225,7 @@ pub(crate) fn symbol_for(id: &str) -> Option<&'static str> {
 /// two enumerations stay in lockstep.
 fn draw_for(id: &str) -> Option<(Vec<u8>, u32, u32)> {
     Some(match id {
-        "awl.new_note" => draw_new_note(),
+        "awl.new_document" => draw_new_document(),
         "awl.open" => draw_open(),
         "awl.switch_project" => draw_switch_project(),
         "awl.save" => draw_save(),
@@ -286,7 +286,7 @@ mod tests {
     #[test]
     fn every_drawn_glyph_is_a_valid_nonzero_icon() {
         for (name, f) in [
-            ("new_note", draw_new_note as fn() -> (Vec<u8>, u32, u32)),
+            ("new_document", draw_new_document as fn() -> (Vec<u8>, u32, u32)),
             ("open", draw_open),
             ("switch_project", draw_switch_project),
             ("save", draw_save),
@@ -304,7 +304,7 @@ mod tests {
     #[test]
     fn icon_for_resolves_only_the_enumerated_ids() {
         for id in [
-            "awl.new_note",
+            "awl.new_document",
             "awl.open",
             "awl.switch_project",
             "awl.save",

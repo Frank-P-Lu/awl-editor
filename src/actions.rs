@@ -179,15 +179,10 @@ pub enum Effect {
     /// C-x b: flip to the previously-opened file. The 2-deep history lives on the
     /// caller; the core just signals the toggle.
     LastBuffer,
-    /// "Notes": flip the active project between wherever it is now and
-    /// `notes_root`, round-tripping back on a second invocation. The remembered
-    /// pre-flip root + the actual root switch live on the caller (the core never
-    /// touches the filesystem) — the project-level sibling of [`LastBuffer`].
-    NotesFlip,
-    /// C-x n: jump to the notes project and swap in a fresh empty note buffer. The
-    /// root-switch + buffer-swap are caller-level (the core never touches the
-    /// filesystem/window).
-    NewNote,
+    /// Cmd-N: swap in a fresh, unnamed document buffer IN THE ACTIVE FOLDER
+    /// (item 76 retired the old separate-notes-root jump). The buffer-swap is
+    /// caller-level (the core never touches the filesystem/window).
+    NewDocument,
     /// Settings: open the config file into the buffer for editing — creating the
     /// commented default first if it is missing. The path + filesystem live on the
     /// caller. Now the SETTINGS MENU's "Edit config as text" ACTION row (the raw
@@ -411,11 +406,11 @@ pub enum Effect {
     TrashAsset { rel: String },
     /// SAVE-FEEDBACK round: manual save (`Action::Save`) on the TRUE scratch
     /// surface — no path, never named as a note — cannot be performed by the
-    /// core alone (converting it into a real note needs `notes_root`, which
-    /// `ActionCtx` doesn't carry — a project-level concern, not a buffer one).
-    /// The caller (live App / headless `--keys` replay) calls
-    /// [`crate::buffer::Buffer::save_as_note`] with its own `notes_root` —
-    /// reusing the SAME auto-name machinery `App::ensure_note_named_before_paste`
+    /// core alone (converting it into a real document needs the ACTIVE
+    /// folder, which `ActionCtx` doesn't carry — a project-level concern, not
+    /// a buffer one). The caller (live App / headless `--keys` replay) calls
+    /// [`crate::buffer::Buffer::save_into_folder`] with its own active
+    /// folder — reusing the SAME auto-name machinery `App::ensure_note_named_before_paste`
     /// already established for the paste-image door — then finishes the
     /// bookkeeping a normal save would have (title, go-to index, sticky page
     /// measure, a "saved"/"save failed: …" notice). A buffer that is ALREADY a
@@ -447,7 +442,7 @@ pub enum Effect {
     /// typed name is a quiet no-op (the caller's own gate). LIVE-APP-ONLY: the
     /// headless `--keys` replay treats this like `MoveDest`'s own accept (reflected in
     /// the sidecar via the overlay's live prompt while typing; the actual disk rename
-    /// is live-App-only, mirroring `move_current_note`'s own precedent), so a settled
+    /// is live-App-only, mirroring `move_current_file`'s own precedent), so a settled
     /// capture never mutates the filesystem.
     RenameNoteCommit { new_name: String },
     /// NOTES VERBS round: DUPLICATE the current file (`Action::DuplicateNote`) — the
@@ -666,10 +661,10 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::PageScrollDown => scroll_page(ctx.buffer, ctx.scroll_page_lines, true),
         Action::PageScrollUp => scroll_page(ctx.buffer, ctx.scroll_page_lines, false),
         Action::Save => {
-            if ctx.buffer.path().is_none() && !ctx.buffer.is_note() {
+            if ctx.buffer.path().is_none() && !ctx.buffer.is_unnamed_fresh() {
                 // A TRUE scratch buffer (no path, never named as a note):
-                // convert it into a real note — the caller has `notes_root`,
-                // the core doesn't. See `Effect::ConvertScratchAndSave`.
+                // convert it into a real document — the caller has the
+                // active folder, the core doesn't. See `Effect::ConvertScratchAndSave`.
                 effect = Effect::ConvertScratchAndSave;
             } else {
                 effect = match ctx.buffer.save() {
@@ -1079,20 +1074,15 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::LastBuffer => {
             effect = Effect::LastBuffer;
         }
-        // "Notes": signal the notes-root project flip; the caller owns the
-        // remembered pre-flip root + the actual root switch (filesystem/window
-        // are caller-level, exactly like LastBuffer's 2-deep history).
-        Action::NotesFlip => {
-            effect = Effect::NotesFlip;
-        }
-        // C-x n: signal a new quick note; the caller jumps to the notes project and
-        // swaps in a fresh empty note buffer (filesystem/window are caller-level).
-        Action::NewNote => {
-            effect = Effect::NewNote;
+        // Cmd-N: signal a new fresh document; the caller swaps in a fresh
+        // unnamed buffer IN THE ACTIVE FOLDER (filesystem/window are
+        // caller-level; item 76 retired the old separate-root jump).
+        Action::NewDocument => {
+            effect = Effect::NewDocument;
         }
         // C-x m: summon the MOVE-DESTINATION picker (Browse navigator over the
-        // notes root, folders only). The accepted folder is acted on by the caller.
-        Action::MoveNote => {
+        // ACTIVE folder, folders only). The accepted folder is acted on by the caller.
+        Action::MoveFile => {
             *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::MoveDest, None);
         }
         // NOTES VERBS round: summon the RENAME minibuffer, pre-filled with the
@@ -1115,7 +1105,7 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             effect = Effect::DuplicateNote;
         }
         // Settings: signal the caller to open the config file into the buffer (it
-        // owns the path + the create-default-if-missing step). Like NewNote, the
+        // owns the path + the create-default-if-missing step). Like NewDocument, the
         // core only flips the flag; the filesystem/window work is caller-level.
         Action::OpenSettings => {
             effect = Effect::OpenSettings;

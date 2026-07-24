@@ -465,12 +465,12 @@ impl App {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
-        // LAST-EDITED RECENCY: for the NOTES root, re-order the go-to corpus
+        // LAST-EDITED RECENCY: for the DEFAULT folder, re-order the go-to corpus
         // most-recently-edited first and attach a relative "last edited" label per
         // file. Live-only (real mtime read here); the headless path passes `None`
         // so the capture stays byte-stable. Other roots keep name order (and skip
         // the per-file mtime stat) so a large repo's picker stays fast.
-        let recency_now = if self.root == self.notes_root {
+        let recency_now = if self.root == self.default_folder {
             Some(crate::clock::system_now())
         } else {
             None
@@ -557,7 +557,7 @@ impl App {
         // so this clock read never touches a default capture.
         let history_entries: Vec<crate::history::TimelineRow> =
             if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                match crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_note()) {
+                match crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_unnamed_fresh()) {
                     Some(path) => crate::history::timeline_rows(
                         &path,
                         &self.active.buffer.text(),
@@ -632,11 +632,11 @@ impl App {
             |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
         // Browse rebuild hook: list ONE level via the shared `overlay::browse_level`
         // builder. `Browse` (C-x j) walks the active root and shows files + folders;
-        // `MoveDest` (C-x m) walks the NOTES root and shows FOLDERS only (you move a
-        // note into a folder); `Project` (C-x p) walks the workspace by absolute
-        // path. Cloned roots dodge the &mut self.active.buffer borrow.
+        // `MoveDest` (C-x m) walks the SAME active root and shows FOLDERS only (you
+        // move a document into a folder within it); `Project` (C-x p) walks the
+        // workspace by absolute path. Cloned roots dodge the &mut self.active.buffer
+        // borrow.
         let browse_root = self.root.clone();
-        let notes_root = self.notes_root.clone();
         let workspace = self.workspace.clone();
         // The recent-PROJECTS MRU (absolute paths, newest-first) for the Project
         // navigator's Recent lens — captured as strings so the navigator can mark
@@ -644,14 +644,7 @@ impl App {
         let recent_projects: Vec<String> =
             self.recent_projects.iter().map(|p| p.display().to_string()).collect();
         let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
-            crate::overlay::browse_level(
-                kind,
-                rel,
-                &browse_root,
-                &notes_root,
-                workspace.as_deref(),
-                &recent_projects,
-            )
+            crate::overlay::browse_level(kind, rel, &browse_root, workspace.as_deref(), &recent_projects)
         };
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
         // the shaped wrap geometry. A shared borrow of `self.gpu` (disjoint from the
@@ -751,11 +744,8 @@ impl App {
             }
             // C-x b last-buffer toggle (history lives here).
             actions::Effect::LastBuffer => self.last_buffer_toggle(),
-            // "Notes": flip the active project to notes_root and back (2-deep
-            // history lives here, exactly like LastBuffer, one level up).
-            actions::Effect::NotesFlip => self.notes_flip(),
-            // C-x n new quick note (the jump + buffer swap + notes-root config here).
-            actions::Effect::NewNote => self.new_note(),
+            // Cmd-N: a fresh document in the ACTIVE folder (the buffer swap here).
+            actions::Effect::NewDocument => self.new_document(),
             // Settings: open the config file into the buffer (create the default
             // first if missing). The palette entry runs this via re-dispatch above.
             actions::Effect::OpenSettings => self.open_settings(),
@@ -770,20 +760,19 @@ impl App {
             // active `DateFormat`, as one undoable edit.
             actions::Effect::InsertDate => self.insert_date(),
             // The overlay ACCEPTED (Enter): open the chosen file / switch project /
-            // move the note. Browse emits its file picks as Goto, so Goto covers both.
+            // move the file. Browse emits its file picks as Goto, so Goto covers both.
             actions::Effect::OverlayAccept(kind, val) => match kind {
                 crate::overlay::OverlayKind::Goto => self.open_rel(&val),
                 // C-x p: the explorer accepted an ABSOLUTE directory; make it the
-                // active project root (re-resolve project + rebuild index), then
-                // PERSIST it as the STICKY PROJECT ROOT — a plain relaunch (no file
-                // argument, no --root) reopens this same project. A quick-note jump
-                // (C-x n, which also calls `set_root`) deliberately does NOT persist
-                // here — only a genuine switch-project counts as "the project".
+                // ACTIVE folder (re-resolve project + rebuild index), then remember it
+                // as the one active-folder context — a plain relaunch (no file
+                // argument, no --root) reopens this same folder + its active document
+                // (see `session::remembered_root`/`session_flush`, item 76).
                 crate::overlay::OverlayKind::Project => {
                     self.switch_project(PathBuf::from(val));
                 }
-                // C-x m: move the current note into the chosen destination folder.
-                crate::overlay::OverlayKind::MoveDest => self.move_current_note(&val),
+                // C-x m: move the current file into the chosen destination folder.
+                crate::overlay::OverlayKind::MoveDest => self.move_current_file(&val),
                 // The Theme picker COMMITTED (Enter) or REVERTED (C-g): the core
                 // already set the process-global active theme to `val`; the re-tint
                 // below (flagged by `theme_committed`) handles the GPU/title.
@@ -1141,8 +1130,8 @@ impl App {
 
     /// EXPORT (`Effect::Export`): render the active markdown buffer to `.docx`,
     /// standalone `.html`, or native `.pdf` and land it where the user can find it
-    /// — a SIBLING file beside a saved document (`doc.md` → `doc.pdf`), or under
-    /// `notes_root` for a path-less scratch/untitled buffer. Images embedded in
+    /// — a SIBLING file beside a saved document (`doc.md` → `doc.pdf`), or into the
+    /// ACTIVE folder (`self.root`) for a path-less scratch/untitled buffer. Images embedded in
     /// the export are read off the doc's own `assets/` directory through the
     /// filesystem seam (`export::FsImages`). A calm toast names the target on
     /// success; a write failure raises a sticky notice (export never crashes).
@@ -1167,7 +1156,7 @@ impl App {
                 Some(p) => (p.with_extension(format.ext()), false),
                 None => {
                     let stem = crate::web_export::export_stem(&self.active.buffer);
-                    (self.notes_root.join(format!("{stem}.{}", format.ext())), true)
+                    (self.root.join(format!("{stem}.{}", format.ext())), true)
                 }
             };
             if let Some(parent) = target.parent() {
@@ -1396,7 +1385,7 @@ impl App {
             _ => {}
         }
         // LIVE CONFIG RELOAD: a Save of the config file (Settings buffer) re-applies
-        // the keymap overrides + notes_root/workspace immediately. Other saves are
+        // the keymap overrides + default_folder/workspace immediately. Other saves are
         // untouched. An invalid config keeps prior values (see `reload_config`).
         if matches!(action, Action::Save)
             && self

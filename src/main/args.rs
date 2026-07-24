@@ -30,9 +30,11 @@ pub(crate) enum Mode {
         /// The RAW `--workspace` flag (None = unset). Folded with the config inside
         /// `App::new` so a later live config reload can re-apply precedence.
         workspace: Option<PathBuf>,
-        /// The RAW `--notes-root` flag (None = unset). Folded with the config (flag >
-        /// config > `~/notes`) inside `App::new`; kept raw so reload keeps flag wins.
-        notes_root: Option<PathBuf>,
+        /// The RAW `--default-folder` flag (None = unset). Folded with the config
+        /// (flag > config > `~/notes`) inside `App::new`; kept raw so reload keeps
+        /// flag wins. The FIRST-RUN fallback only (item 76) — never the active
+        /// folder once running.
+        default_folder: Option<PathBuf>,
         /// The loaded persistent config (keybinding overrides + folder defaults +
         /// the Settings-open path). Empty/all-None when no config file exists.
         config: Config,
@@ -62,9 +64,10 @@ pub(crate) enum Mode {
         /// Optional workspace parent (`--workspace`): its child dirs are the
         /// switch-project candidates a replayed `C-x p` lists (with git markers).
         workspace: Option<PathBuf>,
-        /// The notes root (`--notes-root`): scopes a replayed `C-x m` move-dest
-        /// picker so the sidecar `overlay` reflects the notes folders.
-        notes_root: PathBuf,
+        /// The EFFECTIVE default folder (`--default-folder`), surfaced ONLY in the
+        /// sidecar `project.default_folder` field (item 76 — no longer scopes the
+        /// `C-x m` move-dest picker, which now walks the ACTIVE root like Browse).
+        default_folder: PathBuf,
         /// The loaded persistent config: supplies the `[keys]` overrides reflected in
         /// the palette's effective bindings, and the Settings-open target.
         config: Config,
@@ -176,7 +179,7 @@ pub(crate) enum Mode {
         out_dir: PathBuf,
         root: Option<PathBuf>,
         workspace: Option<PathBuf>,
-        notes_root: PathBuf,
+        default_folder: PathBuf,
         config: Config,
         km: KeymapState,
     },
@@ -361,7 +364,7 @@ struct SuppliedHooks {
     capture_dpi: bool,
     root: bool,
     workspace: bool,
-    notes_root: bool,
+    default_folder: bool,
 }
 
 /// Return the supplied hooks that the chosen `kind` does NOT thread into its
@@ -370,7 +373,7 @@ struct SuppliedHooks {
 /// (`--sel`/`--zoom`/`--scroll`/`--preedit`/`--search`/`--search-case`) ride
 /// `CaptureOpts` and reach ONLY the plain `--screenshot` mode; `--capture-size`/
 /// `--capture-dpi` reach screenshot/timeline/held (not motion/windowed); `--root`
-/// reaches every mode but motion; `--workspace`/`--notes-root` reach only
+/// reaches every mode but motion; `--workspace`/`--default-folder` reach only
 /// screenshot + the windowed editor. An empty result means every supplied hook is
 /// honored. (Process-global flags — `--theme`/`--caret-mode`/`--measure`/`--page`/
 /// `--debug` — compose with every mode and so are never "unused".)
@@ -409,14 +412,14 @@ fn unused_hooks(kind: CaptureKind, h: &SuppliedHooks) -> Vec<&'static str> {
     if kind == CaptureKind::Motion && h.root {
         u.push("--root");
     }
-    // Workspace / notes-root: only the plain screenshot mode + the windowed editor.
+    // Workspace / default-folder: only the plain screenshot mode + the windowed editor.
     let ws_ok = matches!(kind, CaptureKind::Screenshot | CaptureKind::Windowed);
     if !ws_ok {
         if h.workspace {
             u.push("--workspace");
         }
-        if h.notes_root {
-            u.push("--notes-root");
+        if h.default_folder {
+            u.push("--default-folder");
         }
     }
     u
@@ -510,7 +513,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     let mut keys_spec: Option<String> = None;
     let mut root: Option<PathBuf> = None;
     let mut workspace: Option<PathBuf> = None;
-    let mut notes_root: Option<PathBuf> = None;
+    let mut default_folder: Option<PathBuf> = None;
     // `--config <path>` override for the config file location (also via `$AWL_CONFIG`),
     // so a test config can be pointed at headlessly.
     let mut config_arg: Option<PathBuf> = None;
@@ -907,11 +910,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
                     .ok_or_else(|| anyhow::anyhow!("--workspace requires a directory"))?;
                 workspace = Some(PathBuf::from(v));
             }
-            "--notes-root" => {
+            "--default-folder" => {
                 let v = args
                     .next()
-                    .ok_or_else(|| anyhow::anyhow!("--notes-root requires a directory"))?;
-                notes_root = Some(PathBuf::from(v));
+                    .ok_or_else(|| anyhow::anyhow!("--default-folder requires a directory"))?;
+                default_folder = Some(PathBuf::from(v));
             }
             "--wait" => {
                 wait_flag = true;
@@ -962,7 +965,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      \x20 --peek              summon the HOLD-⌘ shortcut peek (live: hold the convention's bare arming modifier — ⌘ on Mac, Ctrl on Linux — ~600ms; a capture shows the curated starter six)\n\
                      \x20 --streaks           summon the WRITING STREAKS card (live: palette \"Writing streaks\"; a capture shows a fixed synthetic year + streak numbers)\n\
                      \x20 --whichkey          summon the WHICH-KEY panel: the C-x prefix's follow-up keys (live: press C-x and pause ~500ms)\n\
-                     \x20 --notes-root DIR    quick-notes home for C-x n / C-x m (default ~/notes)\n\
+                     \x20 --default-folder DIR    fallback active folder for a first launch with nothing remembered (default ~/notes)\n\
                      \x20 --config PATH       load settings from PATH (default ~/.config/awl/config.toml)\n\
                      \x20 --wait              windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until C-x # finishes it (EDITOR=awl --wait for git)\n\
                      \x20 --keys \"SPEC\"        replay emacs chords (e.g. \"C-n C-n M->\") then capture\n\
@@ -987,7 +990,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
             || config_arg.is_some()
             || root.is_some()
             || workspace.is_some()
-            || notes_root.is_some()
+            || default_folder.is_some()
         {
             bail!("--soak-gpu is isolated; file/capture/input/config/folder arguments do not apply");
         }
@@ -1074,7 +1077,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
         capture_dpi: capture_dpi.is_some(),
         root: root.is_some(),
         workspace: workspace.is_some(),
-        notes_root: notes_root.is_some(),
+        default_folder: default_folder.is_some(),
     };
     let unused = unused_hooks(kind, &supplied);
     if !unused.is_empty() {
@@ -1209,7 +1212,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // BEHIND the flag (the flag wins via `.or`) before the existing resolvers add the
     // built-in default. The Windowed path keeps the RAW flag + config so a live reload
     // can re-fold; capture modes fold here (one-shot, no reload).
-    let notes_root_resolved = resolve_notes_root(&notes_root.clone().or_else(|| config.notes_root.clone()));
+    let default_folder_resolved = resolve_default_folder(&default_folder.clone().or_else(|| config.default_folder.clone()));
     let workspace_folded = workspace.clone().or_else(|| config.workspace.clone());
     // Thread the capture canvas size + dpi onto the screenshot opts (timeline/held
     // carry them on their Mode variants). Absent flags -> None -> byte-stable default.
@@ -1231,7 +1234,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
             out_dir,
             root,
             workspace: workspace_folded,
-            notes_root: notes_root_resolved,
+            default_folder: default_folder_resolved,
             config,
             km,
         });
@@ -1279,7 +1282,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
             km,
             root,
             workspace: workspace_folded,
-            notes_root: notes_root_resolved,
+            default_folder: default_folder_resolved,
             config,
             strict: strict_replay,
         },
@@ -1288,18 +1291,20 @@ pub(crate) fn parse_args() -> Result<Mode> {
             live,
             root,
             workspace,
-            notes_root,
+            default_folder,
             config,
             wait: wait_flag,
         },
     })
 }
 
-/// Resolve the NOTES ROOT: explicit `--notes-root`, else `~/notes` (`$HOME/notes`),
-/// else `./notes` if HOME is unset. The directory is created lazily on first use
-/// (C-x n / first note save), so it need not exist yet.
-pub(crate) fn resolve_notes_root(notes_root: &Option<PathBuf>) -> PathBuf {
-    if let Some(n) = notes_root {
+/// Resolve the DEFAULT FOLDER (item 76 — the first-run launch fallback ONLY,
+/// never the active folder once running): explicit `--default-folder`, else
+/// `~/notes` (`$HOME/notes`), else `./notes` if HOME is unset. The directory is
+/// created lazily on first use (Cmd-N / first document save), so it need not
+/// exist yet.
+pub(crate) fn resolve_default_folder(default_folder: &Option<PathBuf>) -> PathBuf {
+    if let Some(n) = default_folder {
         return n.clone();
     }
     match std::env::var_os("HOME") {
@@ -1458,7 +1463,7 @@ mod tests {
             capture_dpi: true,
             root: true,
             workspace: true,
-            notes_root: true,
+            default_folder: true,
         };
         assert!(unused_hooks(CaptureKind::Screenshot, &all).is_empty());
 
@@ -1476,17 +1481,17 @@ mod tests {
             "--capture-dpi",
             "--root",
             "--workspace",
-            "--notes-root",
+            "--default-folder",
         ] {
             assert!(motion.contains(&f), "motion should drop {f}");
         }
 
         // Timeline / held carry root + canvas/dpi but still drop the per-frame
-        // render hooks and workspace/notes-root.
+        // render hooks and workspace/default-folder.
         for kind in [CaptureKind::Timeline, CaptureKind::Held] {
             let u = unused_hooks(kind, &all);
             assert!(u.contains(&"--sel") && u.contains(&"--search-case"));
-            assert!(u.contains(&"--workspace") && u.contains(&"--notes-root"));
+            assert!(u.contains(&"--workspace") && u.contains(&"--default-folder"));
             assert!(!u.contains(&"--root"));
             assert!(!u.contains(&"--capture-size") && !u.contains(&"--capture-dpi"));
         }
@@ -1495,7 +1500,7 @@ mod tests {
         let win = unused_hooks(CaptureKind::Windowed, &all);
         assert!(win.contains(&"--sel") && win.contains(&"--capture-size"));
         assert!(!win.contains(&"--root"));
-        assert!(!win.contains(&"--workspace") && !win.contains(&"--notes-root"));
+        assert!(!win.contains(&"--workspace") && !win.contains(&"--default-folder"));
 
         // Nothing supplied → nothing unused, for every mode.
         let none = SuppliedHooks::default();

@@ -651,8 +651,7 @@ fn every_catalog_command_dispatches_without_panicking() {
                 let ok = match &c.action {
                     Action::Quit => eff == Effect::Quit,
                     Action::LastBuffer => eff == Effect::LastBuffer,
-                    Action::NotesFlip => eff == Effect::NotesFlip,
-                    Action::NewNote => eff == Effect::NewNote,
+                    Action::NewDocument => eff == Effect::NewDocument,
                     Action::OpenCredits => eff == Effect::OpenCredits,
                     Action::OpenGuide => eff == Effect::OpenGuide,
                     Action::FinishBuffer => eff == Effect::FinishBuffer,

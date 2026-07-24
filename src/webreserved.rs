@@ -11,7 +11,7 @@
 //! CLAIMS a chord the browser will actually eat.
 //!
 //! v1 SCOPE (logged, superseded by v2 below): no replacement chord was
-//! invented for an affected command (New note / Switch theme…) — a truthful
+//! invented for an affected command (New document / Switch theme…) — a truthful
 //! label (falling back to slot 2 emacs, or to no chord shown) was v1's whole
 //! answer. **v2, the CONVENTION-TRUTHFUL SURFACES round, executes that
 //! banked taste call:** `commands::WEB_ALTERNATE` gives each affected command
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn mac_reserved_catches_new_note_and_switch_theme() {
         // The two catalog commands this round's own bug report names as
-        // affected: New note (Cmd-N) and Switch theme… (Cmd-T).
+        // affected: New document (Cmd-N) and Switch theme… (Cmd-T).
         assert!(is_reserved("Cmd-N", Convention::Mac));
         assert!(is_reserved("Cmd-T", Convention::Mac));
         assert!(is_reserved("Cmd-Q", Convention::Mac));

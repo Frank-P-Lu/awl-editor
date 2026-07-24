@@ -11,7 +11,7 @@
 //! TOML at `$XDG_CONFIG_HOME/awl/config.toml` (or `~/.config/awl/...`):
 //!
 //! ```toml
-//! notes_root = "~/notes"
+//! default_folder = "~/notes"
 //! workspace  = "~/code"
 //! [keys]
 //! save         = ["Cmd-S", "C-x C-s"]  # up to 2 chords: native + your own emacs
@@ -26,7 +26,7 @@
 //! ABSENT config (or any absent field) reproduces the current defaults exactly —
 //! loading is purely additive and never changes behaviour on its own. The keymap
 //! consumes [`Config::keys`] (see `keymap::KeymapState::with_overrides`); `main` /
-//! `app` fold `notes_root`/`workspace` into the existing `resolve_*` paths.
+//! `app` fold `default_folder`/`workspace` into the existing `resolve_*` paths.
 
 mod apply;
 mod model;

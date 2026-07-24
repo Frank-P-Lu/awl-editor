@@ -51,16 +51,17 @@ pub struct ProjectInfo {
     pub name: String,
     pub branch: Option<String>,
     pub dirty: bool,
-    /// The EFFECTIVE notes_root (flag > config > `~/notes`), surfaced so a
+    /// The EFFECTIVE default_folder (flag > config > `~/notes`) — the FIRST-RUN
+    /// fallback only (item 76; not the active folder), surfaced so a
     /// `--config`-driven launch's configured folder is verifiable from the sidecar
     /// with no flags. `None` (timeline/held paths) -> JSON null.
-    pub notes_root: Option<std::path::PathBuf>,
+    pub default_folder: Option<std::path::PathBuf>,
     /// The EFFECTIVE workspace (flag > config > root.parent). `None` -> JSON null.
     pub workspace: Option<std::path::PathBuf>,
     /// THE KEYMAP FLAVOR ROUND — the EFFECTIVE keymap flavor's config NAME
     /// (`"native"`/`"emacs"`, see `crate::keymap::KeymapFlavor::config_name`),
     /// so a `--config`-driven launch's `keymap = "emacs"` is verifiable from the
-    /// sidecar with no flags, mirroring `notes_root`/`workspace` above. Every
+    /// sidecar with no flags, mirroring `default_folder`/`workspace` above. Every
     /// construction site defaults it to `"native"` (the built-in default),
     /// keeping a plain capture with no `--config` byte-identical.
     pub keymap_flavor: &'static str,

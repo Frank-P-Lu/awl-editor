@@ -28,8 +28,8 @@
 //!
 //! **What this module ADDS, then:** only the machinery for the moment awl
 //! reaches OUTSIDE that automatic safety — opening a file / switching a
-//! project root / jumping to `notes_root` / `workspace` that live outside
-//! the container. That is the iA Writer / powerbox model: the FIRST touch of
+//! project root / creating a fresh document under `workspace` that lives
+//! outside the container. That is the iA Writer / powerbox model: the FIRST touch of
 //! an ungranted root prompts the system `NSOpenPanel` (a folder picker,
 //! restricted + pre-navigated near the target); the chosen folder is
 //! persisted as a SECURITY-SCOPED BOOKMARK (`NSURL` bookmark data, resolved +

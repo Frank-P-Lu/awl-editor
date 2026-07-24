@@ -751,7 +751,7 @@ fn new_note_drops_the_stale_view_text_cache() {
     };
     let mut app = App::new(Some(file), dir.clone(), None, Some(notes), cfg);
     assert_eq!(app.view_text(), "prior document\n");
-    app.new_note();
+    app.new_document();
     assert_eq!(app.view_text(), "", "the fresh note starts blank on screen");
     let _ = std::fs::remove_dir_all(&dir);
 }

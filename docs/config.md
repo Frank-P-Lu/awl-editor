@@ -7,7 +7,7 @@
 Loads TOML at `$XDG_CONFIG_HOME/awl/config.toml` (else `~/.config/awl/config.toml`) at startup. **Absent config = defaults** (purely additive; unknown keys are silently inert — no migration code).
 
 ```toml
-notes_root = "~/notes"      # New note / Move note… home
+default_folder = "~/notes"  # fallback active folder for a first launch with nothing remembered
 workspace  = "~/code"       # Switch project… parent
 keymap     = "native"       # or "emacs" — whole-catalog flavor preset (see below)
 [keys]
@@ -22,7 +22,7 @@ search_forward = ["Cmd-F", "C-s"]        # up to 2 chords, capped at 2
 - **`linux_keep_emacs` (per-chord door):** on Linux, native-wins displaces the bare-control emacs cluster (`C-f`/`C-b`/`C-n`/`C-p`/`C-a`/`C-e`). This array lists chords that keep their emacs meaning under `Convention::Linux` only. Mac is inert (gated on `convention == Linux`). `C-c`/`C-x`/`C-v` must stay native (Omarchy forwards Super+C/X/V as Ctrl).
 - **Tripwire: `C-k` stays kill-line on Linux, both flavors, no config needed:** `k` is deliberately not in `LINUX_DISPLACED_LETTERS`; `keymap::linux_builtin_keep()` (`["C-k"]`) is an unconditional third keep-case. So Insert-link (Cmd-K on Mac) has no default Linux binding. Reclaim: `[keys] insert_link = "C-k"`.
 - **Retired defaults (platform rule, not taste):** the whole Meta-letter layer is empty by default — macOS reserves Option-letters for typing (accents é/ñ/ü, em dash `⌥⇧-`), which the writer audience needs. Survivors: bare-control nav, `C-s`/`C-r` search, `⌥←`/`⌥→` word motion, `⌥⌫` word delete. The prefix-sequence machinery + rebind-menu chord capture are kept permanently. Ten navigation motions are ordinary catalog entries, so `[keys]` can reach them (`forward_word = ["M-Right", "M-f"]` restores the retired chords). Plain unmodified arrows stay keymap-only (no chord to name).
-- **Precedence:** explicit CLI flag > config file > built-in default. **Settings command** (Cmd-P → "Settings", or Cmd-`,`) opens the config buffer. **Live reload:** saving it re-applies overrides + folders immediately (`App::reload_config`); an invalid config keeps prior values.
+- **Precedence:** explicit CLI flag > config file > built-in default. **Settings command** (Cmd-P → "Settings", or Cmd-`,`) opens the config buffer. **Live reload:** saving it re-applies overrides + folders immediately (`App::reload_config`); an invalid config keeps prior values. `default_folder` is a FIRST-RUN fallback only — the launch-precedence law that decides the ACTIVE folder (explicit target > remembered session > `default_folder`) lives in `docs/platform.md`'s Session restore section (item 76).
 
 ## Page width — the prose/code split (`page.rs`)
 
