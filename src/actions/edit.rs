@@ -1,11 +1,14 @@
 //! The MARKDOWN smart-Enter edit — the one dispatch arm whose behavior is richer
 //! than a bare buffer call. `apply_core`'s `Newline` arm asks [`smart_newline`] to
-//! continue a list / blockquote (ordered lists AUTO-INCREMENT), END the block on an
-//! empty ordered/quote item, PRESERVE the bullet on an empty unordered item (item 63),
-//! or carry leading indentation forward; a `false` return falls through
-//! to a plain `insert_newline`, byte-identical to before. The DECISION ([`SmartNewline`]
-//! + [`smart_newline_for`]) is pure over one line's text + cursor column, so it is
-//! unit-testable without a buffer/GPU. Carved out of `actions.rs` VERBATIM.
+//! continue a list / blockquote (ordered lists AUTO-INCREMENT), unconditionally END
+//! the block on an empty BLOCKQUOTE, PRESERVE-or-END an empty LIST item (bullet /
+//! numbered / task) by provenance (item 78, generalizing item 63), or carry leading
+//! indentation forward; a `false` return falls through to a plain `insert_newline`,
+//! byte-identical to before. The DECISION ([`SmartNewline`] + [`smart_newline_for`])
+//! is pure over one line's text + cursor column, so it is unit-testable without a
+//! buffer/GPU; the ONE impure bit — reading/writing the buffer's short-lived
+//! list-continuation provenance flag — lives here in [`smart_newline`] itself.
+//! Carved out of `actions.rs` VERBATIM (later split for item 78).
 
 use super::*;
 
@@ -29,25 +32,53 @@ pub(super) fn smart_newline(ctx: &mut ActionCtx) -> bool {
             ctx.buffer.replace_before_cursor(0, &s);
             true
         }
-        Some(SmartNewline::EndBlock { strip }) => {
-            // Empty ordered item / blockquote: drop the dangling marker, leaving the
-            // line blank with the caret at column 0 — the list/quote has ended.
+        Some(SmartNewline::ContinueListItem { prefix, bare }) => {
+            let mut s = String::with_capacity(prefix.len() + 1);
+            s.push('\n');
+            s.push_str(&prefix);
+            ctx.buffer.replace_before_cursor(0, &s);
+            if bare {
+                // Item 78: nothing followed the cursor on the split line, so the
+                // line this Enter just opened is ITSELF a bare, otherwise-empty
+                // list-item continuation — mark its provenance so the very next
+                // smart-newline decision on this line (if nothing intervenes)
+                // knows awl generated it, rather than guessing from its bytes.
+                ctx.buffer.mark_list_continuation_generated();
+            }
+            true
+        }
+        Some(SmartNewline::EndBlockquote { strip }) => {
+            // Empty blockquote: drop the dangling `>` run, leaving the line blank
+            // with the caret at column 0 — the quote has ended. Unconditional
+            // (item 78's provenance law does not cover blockquotes — see the
+            // type's own doc).
             ctx.buffer.replace_before_cursor(strip, "");
             true
         }
-        Some(SmartNewline::PreserveEmptyBullet) => {
-            // Item 63 (reverses item 40): Enter on an EMPTY unordered marker
-            // PRESERVES the bullet byte-semantically and opens a fresh PLAIN line
-            // below. Keep the whole marker line intact regardless of where the caret
-            // sits in its trailing whitespace (park at line end first), then insert
-            // ONE plain newline — one atomic undo group — so the caret lands at
-            // column 0 of the new empty line and the off-cursor `- ` renders as a
-            // concealed bullet. No second bullet is emitted; the required trailing
-            // space is untouched.
-            let (line, _) = ctx.buffer.cursor_line_col();
-            let end = ctx.buffer.line_col_to_char(line, usize::MAX);
-            ctx.buffer.set_cursor(end);
-            ctx.buffer.insert_newline();
+        Some(SmartNewline::EmptyListItem { strip }) => {
+            if ctx.buffer.take_list_continuation_generated() {
+                // Item 78: Enter on the empty continuation awl JUST generated
+                // (the immediately preceding action, nothing intervening) — strip
+                // the dangling marker, ending the list/run. Matches the ordinary
+                // "Enter twice to leave a list" gesture.
+                ctx.buffer.replace_before_cursor(strip, "");
+            } else {
+                // Item 63 (reverses item 40), generalized by item 78 to numbered
+                // and task items alongside bullets: a marker of ANY OTHER
+                // provenance — typed, loaded from disk, undone/redone back into
+                // place, or reached after any other edit — is PRESERVED
+                // byte-semantically, and a fresh PLAIN line opens below it. Park
+                // at line end first (regardless of where the caret sits in the
+                // marker's trailing whitespace), then insert ONE plain newline —
+                // one atomic undo group — so the caret lands at column 0 of the
+                // new empty line and the off-cursor marker renders concealed. No
+                // second marker is emitted; the required trailing space is
+                // untouched.
+                let (line, _) = ctx.buffer.cursor_line_col();
+                let end = ctx.buffer.line_col_to_char(line, usize::MAX);
+                ctx.buffer.set_cursor(end);
+                ctx.buffer.insert_newline();
+            }
             true
         }
         None => false,
@@ -117,30 +148,44 @@ fn selection_or_cursor_on_list(ctx: &ActionCtx) -> bool {
 
 /// The outcome of a markdown smart Enter, computed purely from one line.
 pub(super) enum SmartNewline {
-    /// Insert a newline then this continuation prefix (indent + the next marker).
+    /// Insert a newline then this continuation prefix — a BLOCKQUOTE run or bare
+    /// indentation. Not a list marker, so item 78's provenance law does not apply:
+    /// a blockquote's own empty-item Enter is unconditional (`EndBlockquote`), and
+    /// bare indentation has no "end" concept at all.
     Continue(String),
-    /// The current ordered item / blockquote is EMPTY: strip `strip` chars before
-    /// the cursor (the dangling indent + marker) and insert nothing, ending the block.
-    EndBlock { strip: usize },
-    /// The current UNORDERED item is EMPTY (`- `/`* `/`+ `): PRESERVE the marker line
-    /// byte-semantically as an empty list item and open a fresh PLAIN line below
-    /// (item 63, reversing item 40's "end the block"). Carries no data — the edit
-    /// keeps the whole marker line and inserts one newline at its end.
-    PreserveEmptyBullet,
+    /// Insert a newline then this LIST marker continuation (bullet / numbered /
+    /// task). `bare` is true when nothing on the split line followed the cursor,
+    /// so the line this opens is ITSELF a bare, otherwise-empty item — item 78's
+    /// provenance flag is set (by the caller, `smart_newline`) iff `bare`.
+    ContinueListItem { prefix: String, bare: bool },
+    /// The current BLOCKQUOTE is EMPTY: strip `strip` chars before the cursor (the
+    /// dangling indent + `>` run) and insert nothing, unconditionally ending the
+    /// block — provenance-independent (blockquotes sit outside item 78's law).
+    EndBlockquote { strip: usize },
+    /// The current LIST item (bullet `- `/`* `/`+ `, numbered `N.`/`N)`, or task
+    /// `- [ ] `/`- [x] `) is EMPTY. Item 78: whether Enter here PRESERVES the
+    /// marker (opening a fresh plain line below, item 63) or ENDS the list
+    /// (stripping `strip` chars before the cursor) depends on provenance the
+    /// buffer tracks, not on which marker kind this is — see `smart_newline`'s
+    /// `EmptyListItem` arm, the ONE place that reads it.
+    EmptyListItem { strip: usize },
 }
 
 /// Decide the markdown smart-Enter behavior for the current `line` text and
 /// cursor `col` (chars from the line start). Pure — no buffer / GPU. After any
 /// leading indentation it recognizes, in order:
 ///  * a blockquote (`>`…) — continued with the same `>` run;
-///  * an unordered list (`-`/`*`/`+` + space) — continued with the same bullet;
+///  * an unordered list (`-`/`*`/`+` + space), including a task checkbox (`[ ]`/
+///    `[x]`/`[X]` + space right after) — continued with the same bullet (a task
+///    item's checkbox continues UNCHECKED, never carrying `[x]` forward);
 ///  * an ordered list (`N.`/`N)` + space) — continued with the number INCREMENTED;
 ///  * else bare indentation — preserved on a plain Enter.
-/// An EMPTY ordered item / blockquote ends the block (`EndBlock`); an EMPTY UNORDERED
-/// item PRESERVES its bullet and opens a plain line below (`PreserveEmptyBullet`, item
-/// 63); bare indentation is only ever carried, never ended. Returns `None` when there's
-/// nothing to continue (plain prose, or the caret sits inside the marker), so the
-/// caller does an ordinary newline.
+/// An EMPTY blockquote unconditionally ends the block (`EndBlockquote`); an EMPTY
+/// list item (bullet / numbered / task) is `EmptyListItem` — its caller decides
+/// preserve-vs-end by provenance (item 78, generalizing item 63); bare indentation
+/// is only ever carried, never ended. Returns `None` when there's nothing to
+/// continue (plain prose, or the caret sits inside the marker), so the caller does
+/// an ordinary newline.
 pub(super) fn smart_newline_for(line: &str, col: usize) -> Option<SmartNewline> {
     let chars: Vec<char> = line.chars().collect();
     // Leading indentation (spaces / tabs) — shared by every branch below.
@@ -159,25 +204,37 @@ pub(super) fn smart_newline_for(line: &str, col: usize) -> Option<SmartNewline> 
             return None; // caret inside the marker → plain newline
         }
         if chars[j..].iter().all(|c| c.is_whitespace()) {
-            return Some(SmartNewline::EndBlock { strip: col });
+            return Some(SmartNewline::EndBlockquote { strip: col });
         }
         return Some(SmartNewline::Continue(chars[..j].iter().collect()));
     }
 
-    // Unordered list: '-' / '*' / '+' then a space.
+    // Unordered list: '-' / '*' / '+' then a space; optionally a task checkbox
+    // (`[ ]`/`[x]`/`[X]` then a space) immediately after.
     if i + 1 < chars.len() && matches!(chars[i], '-' | '*' | '+') && chars[i + 1] == ' ' {
-        let prefix_len = i + 2;
+        let bullet_len = i + 2;
+        let is_task = chars.len() >= bullet_len + 4
+            && chars[bullet_len] == '['
+            && matches!(chars[bullet_len + 1], ' ' | 'x' | 'X')
+            && chars[bullet_len + 2] == ']'
+            && chars[bullet_len + 3] == ' ';
+        let prefix_len = if is_task { bullet_len + 4 } else { bullet_len };
         if col < prefix_len {
             return None;
         }
-        if chars[prefix_len..].iter().all(|c| c.is_whitespace()) {
-            // Item 63: an empty unordered marker is PRESERVED (not stripped) — the
-            // bullet stays and a plain line opens below. Ordered/blockquote siblings
-            // keep EndBlock; only these `-`/`*`/`+` markers get the preserve rule.
-            return Some(SmartNewline::PreserveEmptyBullet);
-        }
         let indent: String = chars[..i].iter().collect();
-        return Some(SmartNewline::Continue(format!("{indent}{} ", chars[i])));
+        if chars[prefix_len..].iter().all(|c| c.is_whitespace()) {
+            // Item 63 (bullets)/item 78 (generalized): an empty list item's
+            // preserve-vs-end is the CALLER's provenance-gated decision.
+            return Some(SmartNewline::EmptyListItem { strip: col });
+        }
+        let prefix = if is_task {
+            format!("{indent}{} [ ] ", chars[i]) // continuation opens UNCHECKED
+        } else {
+            format!("{indent}{} ", chars[i])
+        };
+        let bare = chars[col..].iter().all(|c| c.is_whitespace());
+        return Some(SmartNewline::ContinueListItem { prefix, bare });
     }
 
     // Ordered list: a run of digits then '.' or ')' then a space.
@@ -191,14 +248,18 @@ pub(super) fn smart_newline_for(line: &str, col: usize) -> Option<SmartNewline> 
             return None;
         }
         if chars[prefix_len..].iter().all(|c| c.is_whitespace()) {
-            return Some(SmartNewline::EndBlock { strip: col });
+            return Some(SmartNewline::EmptyListItem { strip: col });
         }
         let indent: String = chars[..i].iter().collect();
         let n: usize = chars[i..d].iter().collect::<String>().parse().unwrap_or(0);
         let delim = chars[d];
         // `saturating_add` so a pathological `usize::MAX.` marker can't overflow
         // (panic in debug, wrap-to-0 in release) — it simply pins at usize::MAX.
-        return Some(SmartNewline::Continue(format!("{indent}{}{delim} ", n.saturating_add(1))));
+        let bare = chars[col..].iter().all(|c| c.is_whitespace());
+        return Some(SmartNewline::ContinueListItem {
+            prefix: format!("{indent}{}{delim} ", n.saturating_add(1)),
+            bare,
+        });
     }
 
     // Bare indentation: carry it forward on a plain Enter (only when the caret is

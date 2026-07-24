@@ -155,30 +155,50 @@ fn smart_newline_continues_lists_quotes_and_indent() {
 }
 
 #[test]
-fn smart_newline_empty_item_ends_the_block() {
-    // Enter on an empty ORDERED item strips the dangling marker (ends the list).
-    let mut b = md("1. ", 3);
+fn smart_newline_continues_a_task_item_unchecked_item_78() {
+    // A TASK item (checked or not) continues like a bullet, but carries the
+    // checkbox forward ALWAYS UNCHECKED — never `[x]`, even continuing a checked
+    // item (a fresh continuation line is new, unfinished work).
+    let mut b = md("- [ ] buy milk", 14);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "");
-    assert_eq!(b.cursor_char(), 0);
+    assert_eq!(b.text(), "- [ ] buy milk\n- [ ] ", "the checkbox continues, unchecked");
 
-    // … and an empty BLOCKQUOTE.
-    let mut b = md("> ", 2);
+    let mut b = md("- [x] done already", 19);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "");
+    assert_eq!(
+        b.text(),
+        "- [x] done already\n- [ ] ",
+        "continuing a CHECKED item still opens an UNCHECKED one"
+    );
 
-    // A NESTED empty ordered item ends its block too (strips indent + marker).
-    let mut b = md("  1. ", 5);
+    // Nested (indented) task items keep their indent too.
+    let mut b = md("  - [ ] nested", 14);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "", "empty ordered item ends the block, indent and all");
+    assert_eq!(b.text(), "  - [ ] nested\n  - [ ] ");
 }
 
 #[test]
-fn smart_newline_empty_bullet_is_preserved_item_63() {
-    // ITEM 63 (reverses item 40): Enter on an EMPTY unordered marker PRESERVES the
-    // bullet byte-semantically and opens a fresh PLAIN line below — it does NOT
-    // strip the marker (the old "end the block" behavior), and it does NOT emit a
-    // second bullet. Verify exact text + caret across the three unordered markers.
+fn smart_newline_empty_blockquote_always_ends_the_block() {
+    // Blockquotes sit OUTSIDE item 78's provenance law: an empty BLOCKQUOTE
+    // unconditionally strips the dangling `>` run and ends, regardless of the
+    // marker's origin (a directly-constructed `md()` buffer, exactly like bytes
+    // loaded from disk, carries no generated-provenance flag either way).
+    let mut b = md("> ", 2);
+    drive_newline(&mut b);
+    assert_eq!(b.text(), "");
+    assert_eq!(b.cursor_char(), 0);
+}
+
+#[test]
+fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved_item_63() {
+    // ITEM 63 (reverses item 40), GENERALIZED by item 78 to numbered and task
+    // items alongside bullets: Enter on an EMPTY list marker of ANY provenance
+    // OTHER than "awl's own immediately preceding continuation" PRESERVES the
+    // marker byte-semantically and opens a fresh PLAIN line below — it does NOT
+    // strip the marker, and it does NOT emit a second one. A buffer built
+    // directly via `md()` carries no generated-provenance flag, exactly like
+    // bytes loaded from disk or typed by hand — see the dedicated keystroke-driven
+    // tests below for the flag's actual set/clear lifecycle.
     for marker in ['-', '*', '+'] {
         let src = format!("{marker} a\n{marker} ");
         let mut b = md(&src, 6);
@@ -206,6 +226,131 @@ fn smart_newline_empty_bullet_is_preserved_item_63() {
     assert_eq!(b.text(), "  - \n", "the nested bullet (indent + marker) is preserved");
     assert_eq!(b.cursor_char(), 5);
     assert_eq!(b.cursor_line_col(), (1, 0));
+
+    // ITEM 78: an empty ORDERED item of unknown provenance is now ALSO preserved
+    // (generalizing item 63 — this REVERSES the old unconditional "ends the
+    // block" behavior for the non-generated case).
+    let mut b = md("1. ", 3);
+    drive_newline(&mut b);
+    assert_eq!(b.text(), "1. \n", "the ordered marker is preserved, plain line below");
+    assert_eq!(b.cursor_char(), 4);
+    assert_eq!(b.cursor_line_col(), (1, 0));
+
+    // A NESTED empty ordered item: indent + marker both preserved.
+    let mut b = md("  1. ", 5);
+    drive_newline(&mut b);
+    assert_eq!(b.text(), "  1. \n", "the nested ordered marker is preserved intact");
+
+    // An empty TASK item (unchecked box, no text) is preserved too.
+    let mut b = md("- [ ] ", 6);
+    drive_newline(&mut b);
+    assert_eq!(b.text(), "- [ ] \n", "the empty checkbox is preserved, plain line below");
+
+    // …and a CHECKED empty task item preserves the checked state.
+    let mut b = md("- [x] ", 6);
+    drive_newline(&mut b);
+    assert_eq!(b.text(), "- [x] \n", "the checked box is preserved as-is");
+}
+
+#[test]
+fn smart_newline_no_guess_provenance_law_item_78() {
+    // THE LAW (item 78): a lone empty list marker's Enter behavior depends on
+    // WHERE it came from, not on its bytes — identical bytes never let the
+    // second Enter guess "generated". Driven through the REAL `Action::Newline`
+    // dispatch (exactly what `--keys` replays), never by hand-assembling text.
+
+    // (1) A lone `- ` LOADED FROM DISK (here: constructed directly, identical
+    // bytes to a generated line, but NOT reached via awl's own continuation) —
+    // Enter PRESERVES the marker and opens a plain line below (item 63).
+    let mut loaded = md("- ", 2);
+    drive_act(&mut loaded, &Action::Newline);
+    assert_eq!(loaded.text(), "- \n", "a loaded/typed empty marker is preserved");
+    assert_eq!(loaded.cursor_line_col(), (1, 0));
+
+    // (2) The SAME bytes, but reached by awl's OWN continuation: type "- a",
+    // Enter (generates the bare "- " continuation line), Enter again —
+    // immediately, nothing intervening — must EXIT the list instead (the
+    // ordinary "Enter twice" gesture), even though the buffer momentarily held
+    // the EXACT SAME "- a\n- " text as scenario (1)'s sibling case.
+    let mut generated = md("", 0);
+    drive_act(&mut generated, &Action::InsertChar('-'));
+    drive_act(&mut generated, &Action::InsertChar(' '));
+    drive_act(&mut generated, &Action::InsertChar('a'));
+    drive_act(&mut generated, &Action::Newline); // continuation: "- a\n- "
+    assert_eq!(generated.text(), "- a\n- ", "the continuation opened a bare empty marker");
+    drive_act(&mut generated, &Action::Newline); // the "second Enter"
+    assert_eq!(
+        generated.text(),
+        "- a\n",
+        "Enter on AWL'S OWN generated empty continuation ends the list"
+    );
+    assert_eq!(generated.cursor_char(), 4, "caret parks at the now-blank line");
+
+    // (3) Non-vacuous by construction: (1) and (2) reach the SAME "- a\n- "
+    // intermediate text via different routes and DIVERGE on the very next
+    // Enter — a law that guessed from bytes alone (the pre-item-78 rule) could
+    // not tell them apart and would preserve both.
+
+    // (4) Any INTERVENING action between the generating Enter and the next one
+    // clears the provenance — the second Enter then falls back to "preserve",
+    // exactly like scenario (1). `acts` returns the caret to col 2 (the empty
+    // marker's end, needed for the probe Enter to see the marker at all rather
+    // than "caret inside it") via ANOTHER motion, so every step in the sequence
+    // is itself a legitimate intervening op — never a flag-blind reposition.
+    let intervenes = |acts: &[Action]| {
+        let mut b = md("", 0);
+        drive_act(&mut b, &Action::InsertChar('-'));
+        drive_act(&mut b, &Action::InsertChar(' '));
+        drive_act(&mut b, &Action::InsertChar('a'));
+        drive_act(&mut b, &Action::Newline); // "- a\n- ", flag SET, caret at col 2
+        for act in acts {
+            drive_act(&mut b, act);
+        }
+        drive_act(&mut b, &Action::Newline);
+        b.text()
+    };
+    assert_eq!(
+        intervenes(&[Action::BackwardChar, Action::ForwardChar]),
+        "- a\n- \n",
+        "an intervening motion clears the flag — the marker is preserved, not ended"
+    );
+    assert_eq!(
+        intervenes(&[Action::InsertChar('x'), Action::DeleteBackward]),
+        "- a\n- \n",
+        "intervening typing (even undone back to the identical bytes) clears the flag"
+    );
+    assert_eq!(
+        intervenes(&[Action::SetMark]),
+        "- a\n- \n",
+        "a selection change (C-Space) clears the flag too — caret untouched by SetMark"
+    );
+
+    // (5) Undo THEN redo also clears it, even though redo restores the exact
+    // generated bytes — the provenance is gone, not the text.
+    let mut undo_redo = md("", 0);
+    drive_act(&mut undo_redo, &Action::InsertChar('-'));
+    drive_act(&mut undo_redo, &Action::InsertChar(' '));
+    drive_act(&mut undo_redo, &Action::InsertChar('a'));
+    drive_act(&mut undo_redo, &Action::Newline); // "- a\n- ", flag SET
+    undo_redo.undo();
+    undo_redo.redo(); // back to "- a\n- ", byte-identical, provenance gone
+    assert_eq!(undo_redo.text(), "- a\n- ", "redo restored the identical bytes");
+    drive_act(&mut undo_redo, &Action::Newline);
+    assert_eq!(
+        undo_redo.text(),
+        "- a\n- \n",
+        "undo/redo cleared the flag — the marker is preserved, not ended"
+    );
+
+    // (6) C-g (Cancel → clear_mark) also clears it, independent of any motion.
+    let mut cancel = md("", 0);
+    drive_act(&mut cancel, &Action::InsertChar('-'));
+    drive_act(&mut cancel, &Action::InsertChar(' '));
+    drive_act(&mut cancel, &Action::InsertChar('a'));
+    drive_act(&mut cancel, &Action::Newline); // "- a\n- ", flag SET
+    drive_act(&mut cancel, &Action::Cancel);
+    drive_act(&mut cancel, &Action::Newline);
+    assert_eq!(cancel.text(), "- a\n- \n", "C-g clears the flag too — preserved, not ended");
 }
 
 #[test]
@@ -442,8 +587,9 @@ fn smart_newline_ordered_marker_at_usize_max_saturates_no_overflow() {
     let line = format!("{max}. item");
     let col = line.chars().count();
     match smart_newline_for(&line, col) {
-        Some(SmartNewline::Continue(prefix)) => {
+        Some(SmartNewline::ContinueListItem { prefix, bare }) => {
             assert_eq!(prefix, format!("{max}. "), "the number saturates, never overflows");
+            assert!(bare, "nothing followed the cursor — the opened line is bare");
         }
         _ => panic!("expected a continued ordered item at the usize::MAX marker"),
     }

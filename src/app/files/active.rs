@@ -85,6 +85,10 @@ impl App {
         let Some(key) = crate::buffers::BufferKey::of(&self.active.buffer) else {
             return;
         };
+        // Item 78: a buffer switch clears the short-lived list-continuation
+        // provenance flag — backgrounding it here is one of the two swap
+        // directions (the other is the activate below).
+        self.active.buffer.take_list_continuation_generated();
         let outgoing = std::mem::replace(
             &mut self.active,
             crate::buffers::Entry { buffer: Buffer::scratch(), extra: BufferExtra::default() },
@@ -101,7 +105,12 @@ impl App {
     /// COMPLETE entry in one assignment, never a half-moved slot.
     pub(super) fn activate_from_registry(&mut self, key: &crate::buffers::BufferKey) -> bool {
         match self.buffer_registry.take(key) {
-            Some(entry) => {
+            Some(mut entry) => {
+                // Item 78: the other swap direction — reactivating a backgrounded
+                // buffer clears its provenance flag too, so a switch-away-and-back
+                // never resurrects it across whatever happened while it was
+                // backgrounded.
+                entry.buffer.take_list_continuation_generated();
                 self.active = entry;
                 true
             }
