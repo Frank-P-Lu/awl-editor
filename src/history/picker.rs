@@ -289,7 +289,6 @@ pub fn auto_description(prev: &str, cur: &str) -> String {
 pub fn diff_preview(
     ov: &crate::overlay::OverlayState,
     buffer_path: Option<&Path>,
-    file: Option<&Path>,
     is_note: bool,
     current: &str,
 ) -> Option<(String, String, crate::prosediff::DiffCounts)> {
@@ -297,7 +296,7 @@ pub fn diff_preview(
         return None;
     }
     let id = ov.selected_history_id()?.to_string();
-    let path = source_path(buffer_path, file, is_note)?;
+    let path = source_path(buffer_path, is_note)?;
     let old = load(&path, &id)?;
     let label = ov.selected_value().unwrap_or("an earlier version");
     let title = format!("Comparing with {label}");
@@ -323,18 +322,16 @@ pub fn clamp_line_col(text: &str, line: usize, col: usize) -> (usize, usize) {
 /// The path a buffer's HISTORY is keyed under — the ONE owner of the
 /// derivation every consumer (the App's timeline gather, `restore_history`,
 /// the live preview loader, and the headless replay/preview) routes through,
-/// so they can never disagree: the buffer's own path, else the App-level
-/// `file`, else — for the TRUE SCRATCH (no path, NOT a note) — the persistent
-/// scratch stash, whose autosave records under exactly that path (so the
-/// scratch's timeline is summonable too). An unnamed NOTE has no history key
-/// yet (its first autosave names it) → `None`.
-pub fn source_path(
-    buffer_path: Option<&Path>,
-    file: Option<&Path>,
-    is_note: bool,
-) -> Option<PathBuf> {
+/// so they can never disagree: the buffer's own path, else — for the TRUE
+/// SCRATCH (no path, NOT a note) — the persistent scratch stash, whose
+/// autosave records under exactly that path (so the scratch's timeline is
+/// summonable too). An unnamed NOTE has no history key yet (its first
+/// autosave names it) → `None`. (Item 56: the App-level `file` mirror this
+/// used to also fall back to is gone — `Buffer::path()` is now the sole,
+/// authoritative source, so a caller never has a `file` distinct from
+/// `buffer_path` to pass in the first place.)
+pub fn source_path(buffer_path: Option<&Path>, is_note: bool) -> Option<PathBuf> {
     buffer_path
-        .or(file)
         .map(Path::to_path_buf)
         .or_else(|| (!is_note).then(crate::fs::scratch_stash_path))
 }

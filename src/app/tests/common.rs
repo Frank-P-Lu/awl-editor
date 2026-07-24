@@ -17,12 +17,12 @@ impl App {
     /// no GPU). Minimal builder closures: an overlay-opening action would
     /// no-op, which the preview-path read-only tests never need.
     pub(super) fn apply_core_for_test(&mut self, action: &Action) -> crate::actions::Effect {
-        let mut shift = self.shift_selecting;
+        let mut shift = self.active.extra.shift_selecting;
         let mut zoom = self.zoom;
         let mut make = |_k: crate::overlay::OverlayKind| None;
         let mut browse = |_k: crate::overlay::OverlayKind, _p: Option<String>| None;
         let mut ctx = crate::actions::ActionCtx {
-            buffer: &mut self.buffer,
+            buffer: &mut self.active.buffer,
             shift_selecting: &mut shift,
             zoom: &mut zoom,
             search: &mut self.search,

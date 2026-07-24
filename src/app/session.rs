@@ -23,16 +23,18 @@
 //! `main::run::tests::headless_replay_never_touches_the_session_file`.
 
 use super::*;
+use std::path::Path;
 
 impl App {
     /// SESSION FLUSH — the CAPTURE half's one door (mirrors the autosave
     /// engine's `autosave_flush`): snapshot every open PATHED buffer's path +
-    /// cursor + scroll (the active one, via `self.file`/`self.buffer`, plus
-    /// every backgrounded one still in the registry), which one is active,
-    /// and the native window frame, then write it atomically beside the
-    /// scratch stash. Config-gated (`session_restore`, default ON — the SAME
-    /// flag also gates the restore half, so turning it off makes the feature
-    /// vanish both ways); a no-op when off.
+    /// cursor + scroll (the active one, via `self.active.buffer` — `Buffer::path()`
+    /// is the sole authoritative path, item 56 — plus every backgrounded one
+    /// still in the registry), which one is active, and the native window
+    /// frame, then write it atomically beside the scratch stash. Config-gated
+    /// (`session_restore`, default ON — the SAME flag also gates the restore
+    /// half, so turning it off makes the feature vanish both ways); a no-op
+    /// when off.
     ///
     /// Called from the SAME two triggers the autosave engine's blur/quit
     /// flushes use (window blur + `exiting()`) — deliberately NOT idle or
@@ -48,11 +50,12 @@ impl App {
             return;
         }
         let mut buffers = Vec::new();
-        if let Some(path) = self.file.clone() {
-            let (line, col) = self.buffer.cursor_line_col();
+        let active_path = self.active.buffer.path().map(Path::to_path_buf);
+        if let Some(path) = active_path.clone() {
+            let (line, col) = self.active.buffer.cursor_line_col();
             buffers.push((
                 path,
-                crate::session::BufferPos { line, col, scroll: self.scroll_lines },
+                crate::session::BufferPos { line, col, scroll: self.active.extra.scroll_lines },
             ));
         }
         for (_key, entry) in self.buffer_registry.iter() {
@@ -79,15 +82,15 @@ impl App {
                 height: size.height,
             })
         });
-        let state = crate::session::SessionState { active: self.file.clone(), buffers, window };
+        let state = crate::session::SessionState { active: active_path, buffers, window };
         if let Err(e) = crate::session::save(&crate::session::session_path(), &state) {
             eprintln!("session save failed: {e}");
         }
     }
 
     /// SESSION RESTORE's apply half, called ONCE from `App::new` (after the
-    /// scratch-stash restore has already picked `self.buffer`/`self.file`).
-    /// `file_arg_given` is whether THIS launch named an explicit file:
+    /// scratch-stash restore has already picked `self.active.buffer`). `file_arg_given`
+    /// is whether THIS launch named an explicit file:
     ///
     ///  - a BARE launch (`false`): the session's own remembered `active`
     ///    file (if it SURVIVES — still exists on disk) becomes the active
@@ -95,8 +98,8 @@ impl App {
     ///    parked into the buffer registry (backgrounded, cursor/scroll
     ///    restored too). Composes with — never replaces — the scratch-stash
     ///    outcome: a session with no `active` (or an `active` that vanished)
-    ///    leaves `self.buffer`/`self.file` exactly as the stash restore left
-    ///    them, and its OTHER survivors still get parked.
+    ///    leaves `self.active.buffer` exactly as the stash restore left it,
+    ///    and its OTHER survivors still get parked.
     ///  - a launch WITH a file argument (`true`, TASTE CALL — logged in
     ///    CLAUDE.md): that file STAYS active (never overridden), but the
     ///    rest of the session still restores BEHIND it into the registry —
@@ -133,18 +136,22 @@ impl App {
         if let Some((path, pos)) = &active_path {
             let mut buffer = Buffer::from_file(path);
             Self::apply_restored_pos(&mut buffer, *pos);
-            self.disk_mtime = Self::disk_mtime_of(path);
-            self.doc_saved_version = Some(buffer.version());
-            self.caret_synced_version = buffer.version();
-            self.scroll_lines = pos.scroll;
-            self.buffer = buffer;
-            self.file = Some(path.clone());
+            // Build the COMPLETE entry locally and install it in ONE move
+            // (item 56: never a half-moved active slot).
+            let extra = files::BufferExtra {
+                scroll_lines: pos.scroll,
+                doc_saved_version: Some(buffer.version()),
+                disk_mtime: Self::disk_mtime_of(path),
+                caret_synced_version: buffer.version(),
+                ..Default::default()
+            };
+            self.active = crate::buffers::Entry { buffer, extra };
         }
         for (path, pos) in &survivors {
             if active_path.as_ref().map(|(p, _)| p) == Some(path) {
                 continue; // just became the active buffer above
             }
-            if self.file.as_deref() == Some(path.as_path()) {
+            if self.active.buffer.path() == Some(path.as_path()) {
                 continue; // already this launch's CLI-argument file
             }
             let mut buffer = Buffer::from_file(path);
@@ -215,16 +222,20 @@ mod tests {
 
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
 
-            assert_eq!(app.file, Some(PathBuf::from("/n/a.md")), "session active file wins");
-            assert_eq!(app.buffer.cursor_line_col(), (1, 2), "cursor restored");
-            assert_eq!(app.scroll_lines, 3, "scroll restored");
+            assert_eq!(
+                app.active.buffer.path(),
+                Some(Path::new("/n/a.md")),
+                "session active file wins"
+            );
+            assert_eq!(app.active.buffer.cursor_line_col(), (1, 2), "cursor restored");
+            assert_eq!(app.active.extra.scroll_lines, 3, "scroll restored");
             assert_eq!(app.buffer_registry.len(), 1, "the OTHER survivor is parked");
             assert!(app.buffer_registry.contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md"))));
 
             // Switching to it finds the restored cursor/scroll, not a fresh 0,0.
             app.load_path(PathBuf::from("/n/b.md"));
-            assert_eq!(app.buffer.cursor_line_col(), (0, 1));
-            assert_eq!(app.scroll_lines, 0);
+            assert_eq!(app.active.buffer.cursor_line_col(), (0, 1));
+            assert_eq!(app.active.extra.scroll_lines, 0);
         });
     }
 
@@ -249,9 +260,13 @@ mod tests {
                 Config::empty(),
             );
 
-            assert_eq!(app.file, Some(PathBuf::from("/n/a.md")), "the CLI file argument wins");
             assert_eq!(
-                app.buffer.cursor_line_col(),
+                app.active.buffer.path(),
+                Some(Path::new("/n/a.md")),
+                "the CLI file argument wins"
+            );
+            assert_eq!(
+                app.active.buffer.cursor_line_col(),
                 (0, 0),
                 "the CLI-argument file opens at its own start, not the session's remembered cursor"
             );
@@ -272,14 +287,14 @@ mod tests {
 
             // "/n/gone.md" never existed: it must never become active, and must
             // never appear in the registry.
-            assert_ne!(app.file, Some(PathBuf::from("/n/gone.md")));
+            assert_ne!(app.active.buffer.path(), Some(Path::new("/n/gone.md")));
             assert!(!app
                 .buffer_registry
                 .contains(&crate::buffers::BufferKey::path(Path::new("/n/gone.md"))));
             // "keep.md" survives and gets parked (it wasn't the session's
             // `active`, which vanished, so it's just a background survivor —
             // and since the session named no SURVIVING active file, the
-            // scratch-stash outcome for `self.buffer`/`self.file` stands).
+            // scratch-stash outcome for `self.active.buffer` stands).
             assert!(app
                 .buffer_registry
                 .contains(&crate::buffers::BufferKey::path(Path::new("/n/keep.md"))));
@@ -301,7 +316,11 @@ mod tests {
             let cfg = Config { session_restore: Some(false), ..Config::empty() };
             let app = App::new(None, PathBuf::from("/n"), None, None, cfg);
 
-            assert_eq!(app.file, None, "the kill-switch leaves the plain scratch buffer active");
+            assert_eq!(
+                app.active.buffer.path(),
+                None,
+                "the kill-switch leaves the plain scratch buffer active"
+            );
             assert_eq!(app.buffer_registry.len(), 0, "nothing is parked when the switch is off");
             assert_eq!(app.restored_window, None, "no window frame is restored either");
         });
@@ -322,8 +341,8 @@ mod tests {
                 None,
                 Config::empty(),
             );
-            app.buffer.set_cursor(app.buffer.line_col_to_char(2, 1));
-            app.scroll_lines = 7;
+            app.active.buffer.set_cursor(app.active.buffer.line_col_to_char(2, 1));
+            app.active.extra.scroll_lines = 7;
             app.load_path(PathBuf::from("/n/b.md")); // a.md is now backgrounded
 
             app.session_flush();

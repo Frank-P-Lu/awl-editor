@@ -32,21 +32,21 @@ fn gutter_press_never_moves_or_selects_document_text() {
     // first text column. The writing-column gate must leave the entire edit state
     // untouched — cursor, active selection, and drag arm alike.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
-    app.buffer.select_range(2, 7);
-    let before_cursor = app.buffer.cursor_char();
-    let before_selection = app.buffer.selection_range();
+    app.active.buffer.set_text("hello world");
+    app.active.buffer.select_range(2, 7);
+    let before_cursor = app.active.buffer.cursor_char();
+    let before_selection = app.active.buffer.selection_range();
 
     app.cursor_px = (0.0, TEXT_TOP);
     app.on_press(false, false);
 
     assert_eq!(
-        app.buffer.cursor_char(),
+        app.active.buffer.cursor_char(),
         before_cursor,
         "gutter press leaves the caret alone"
     );
     assert_eq!(
-        app.buffer.selection_range(),
+        app.active.buffer.selection_range(),
         before_selection,
         "gutter press neither creates nor clears a document selection"
     );
@@ -63,22 +63,22 @@ fn gutter_press_never_moves_or_selects_document_text() {
     // no-op: the gutter cannot become a delayed selection start.
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     move_by(&mut app, m.char_width * 4.0, 0.0);
-    assert_eq!(app.buffer.cursor_char(), before_cursor);
-    assert_eq!(app.buffer.selection_range(), before_selection);
+    assert_eq!(app.active.buffer.cursor_char(), before_cursor);
+    assert_eq!(app.active.buffer.selection_range(), before_selection);
 }
 
 #[test]
 fn plain_click_clears_the_mark_and_places_the_cursor() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
-    app.buffer.set_cursor(0);
-    app.buffer.set_mark(); // an existing selection from a prior gesture
+    app.active.buffer.set_text("hello world");
+    app.active.buffer.set_cursor(0);
+    app.active.buffer.set_mark(); // an existing selection from a prior gesture
     press_at_col(&mut app, 6, false); // "w" of "world"
     assert!(
-        !app.buffer.has_selection(),
+        !app.active.buffer.has_selection(),
         "a plain click drops any selection"
     );
-    assert_eq!(app.buffer.cursor_char(), 6);
+    assert_eq!(app.active.buffer.cursor_char(), 6);
 }
 
 #[test]
@@ -87,17 +87,17 @@ fn shift_click_extends_from_the_cursors_prior_position() {
     // cursor already sat (char 0), then move ONLY the cursor to the hit
     // point — never `clear_mark`.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
-    app.buffer.set_cursor(0);
-    assert!(app.buffer.anchor_char().is_none());
+    app.active.buffer.set_text("hello world");
+    app.active.buffer.set_cursor(0);
+    assert!(app.active.buffer.anchor_char().is_none());
     press_at_col(&mut app, 6, true);
     assert_eq!(
-        app.buffer.anchor_char(),
+        app.active.buffer.anchor_char(),
         Some(0),
         "mark drops at the prior cursor spot"
     );
-    assert_eq!(app.buffer.cursor_char(), 6, "cursor moves to the click");
-    assert_eq!(app.buffer.selection_range(), Some((0, 6)));
+    assert_eq!(app.active.buffer.cursor_char(), 6, "cursor moves to the click");
+    assert_eq!(app.active.buffer.selection_range(), Some((0, 6)));
 }
 
 #[test]
@@ -105,16 +105,16 @@ fn shift_click_keeps_an_already_active_mark() {
     // A mark is already active (e.g. from C-Space or a prior shift-click):
     // a further shift-click must NOT move the mark, only the cursor.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
-    app.buffer.set_cursor(2);
-    app.buffer.set_anchor(1); // mark pinned at char 1
+    app.active.buffer.set_text("hello world");
+    app.active.buffer.set_cursor(2);
+    app.active.buffer.set_anchor(1); // mark pinned at char 1
     press_at_col(&mut app, 9, true);
     assert_eq!(
-        app.buffer.anchor_char(),
+        app.active.buffer.anchor_char(),
         Some(1),
         "an active mark is never disturbed"
     );
-    assert_eq!(app.buffer.cursor_char(), 9);
+    assert_eq!(app.active.buffer.cursor_char(), 9);
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn double_and_triple_click_arms_ignore_shift() {
     // The word/line-select arms (click_count 2/3) are untouched by shift —
     // shift only modifies the single-click arm.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
+    app.active.buffer.set_text("hello world");
     // A first click at col 0 primes the multi-click detector; the SECOND
     // press at the same spot (inside `on_press`'s own `bump_click_count`
     // call) is recognized as the double-click, exactly as two real clicks
@@ -131,7 +131,7 @@ fn double_and_triple_click_arms_ignore_shift() {
     press_at_col(&mut app, 0, true);
     // A double click at col 0 still selects the word "hello" wholesale,
     // exactly as an un-shifted double click would.
-    assert_eq!(app.buffer.selection_range(), Some((0, 5)));
+    assert_eq!(app.active.buffer.selection_range(), Some((0, 5)));
 }
 
 // === THE PHANTOM-SELECTION-CLICK FIX ================================
@@ -203,16 +203,16 @@ fn stationary_pointer_after_press_never_arms_a_selection() {
     // spuriously re-delivered the pointer position (or a genuinely idle
     // pointer between press and release) — must read as a plain click.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
+    app.active.buffer.set_text("hello world");
     press_at_col(&mut app, 6, false);
-    assert_eq!(app.buffer.cursor_char(), 6);
+    assert_eq!(app.active.buffer.cursor_char(), 6);
     move_by(&mut app, 0.0, 0.0);
     assert!(
-        !app.buffer.has_selection(),
+        !app.active.buffer.has_selection(),
         "no travel must never arm a selection"
     );
     assert_eq!(
-        app.buffer.cursor_char(),
+        app.active.buffer.cursor_char(),
         6,
         "the caret stays at the press's own hit-test result"
     );
@@ -227,24 +227,24 @@ fn sub_slop_jitter_does_not_arm_a_selection_even_across_a_column_boundary() {
     // an otherwise-still pointer. The fix must gate on the pointer's own
     // travel, not on whatever the hit-test now returns.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
+    app.active.buffer.set_text("hello world");
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     // Half a cell short of column 6's boundary: rounds to column 6 today,
     // but a nudge of less than half a cell tips it to column 7.
     app.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
     app.on_press(false, true);
-    let pressed_at = app.buffer.cursor_char();
+    let pressed_at = app.active.buffer.cursor_char();
     assert!(
         DRAG_ARM_SLOP_PX < m.char_width / 2.0,
         "test fixture sanity: slop < half a cell"
     );
     move_by(&mut app, DRAG_ARM_SLOP_PX - 0.1, 0.0);
     assert!(
-        !app.buffer.has_selection(),
+        !app.active.buffer.has_selection(),
         "sub-slop travel must never arm a selection"
     );
     assert_eq!(
-        app.buffer.cursor_char(),
+        app.active.buffer.cursor_char(),
         pressed_at,
         "the caret must not drift under sub-slop jitter"
     );
@@ -256,16 +256,16 @@ fn real_drag_past_the_slop_arms_and_extends_the_selection() {
     // before: the selection extends live, char by char, as the pointer
     // moves.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
+    app.active.buffer.set_text("hello world");
     press_at_col(&mut app, 0, false);
-    assert!(!app.buffer.has_selection());
+    assert!(!app.active.buffer.has_selection());
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     move_by(&mut app, 6.0 * m.char_width, 0.0);
     assert!(
-        app.buffer.has_selection(),
+        app.active.buffer.has_selection(),
         "travel past the slop must arm a real drag"
     );
-    assert_eq!(app.buffer.selection_range(), Some((0, 6)));
+    assert_eq!(app.active.buffer.selection_range(), Some((0, 6)));
 }
 
 #[test]
@@ -274,16 +274,16 @@ fn once_armed_a_drag_stays_armed_through_further_sub_slop_moves() {
     // (armed is sticky for the rest of the gesture) — only the FIRST move of
     // a fresh press is slop-gated.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
+    app.active.buffer.set_text("hello world");
     press_at_col(&mut app, 0, false);
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     move_by(&mut app, 6.0 * m.char_width, 0.0); // arms the drag
-    assert_eq!(app.buffer.selection_range(), Some((0, 6)));
+    assert_eq!(app.active.buffer.selection_range(), Some((0, 6)));
     // A tiny further nudge (well under the slop) still extends, because the
     // gesture is already armed.
     move_by(&mut app, 1.0, 0.0);
     assert!(
-        app.buffer.has_selection(),
+        app.active.buffer.has_selection(),
         "an already-armed drag keeps extending on any move"
     );
 }
@@ -295,21 +295,21 @@ fn release_disarms_so_the_next_press_is_slop_gated_again() {
     // arm — proves `drag_armed` resets per press (belt-and-braces with the
     // release-time reset).
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text("hello world");
+    app.active.buffer.set_text("hello world");
     press_at_col(&mut app, 0, false);
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     move_by(&mut app, 6.0 * m.char_width, 0.0);
-    assert!(app.buffer.has_selection());
+    assert!(app.active.buffer.has_selection());
     app.dragging = false;
     app.drag_armed = false; // mirrors `on_mouse_input`'s Released arm
     press_at_col(&mut app, 3, false);
     assert!(
-        !app.buffer.has_selection(),
+        !app.active.buffer.has_selection(),
         "a fresh plain click drops the old selection"
     );
     move_by(&mut app, DRAG_ARM_SLOP_PX - 0.1, 0.0);
     assert!(
-        !app.buffer.has_selection(),
+        !app.active.buffer.has_selection(),
         "the new gesture is slop-gated again, not still armed"
     );
 }
@@ -338,10 +338,10 @@ fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
 
 fn folded_app() -> App {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer.set_text(FOLD_DOC);
-    app.buffer.set_cursor(0); // on # A
-    app.buffer.toggle_fold_at_cursor(); // fold # A -> hides a1,a2 (filtered: 0 # A / 1 # B / 2 b1)
-    assert!(app.buffer.folds().contains(&0), "precondition: # A is folded");
+    app.active.buffer.set_text(FOLD_DOC);
+    app.active.buffer.set_cursor(0); // on # A
+    app.active.buffer.toggle_fold_at_cursor(); // fold # A -> hides a1,a2 (filtered: 0 # A / 1 # B / 2 b1)
+    assert!(app.active.buffer.folds().contains(&0), "precondition: # A is folded");
     app
 }
 
@@ -353,12 +353,12 @@ fn clicking_the_collapsed_heading_tail_expands_the_fold() {
     // heading, and starts NO drag.
     press_at_row_col(&mut app, 0, 20, false);
     assert!(
-        app.buffer.folds().is_empty(),
+        app.active.buffer.folds().is_empty(),
         "a click on the tail affordance expanded the fold"
     );
-    assert_eq!(app.buffer.cursor_line_col().0, 0, "caret parked on the heading");
+    assert_eq!(app.active.buffer.cursor_line_col().0, 0, "caret parked on the heading");
     assert!(!app.dragging, "an expand click never starts a text-selection drag");
-    assert!(!app.buffer.has_selection());
+    assert!(!app.active.buffer.has_selection());
 }
 
 #[test]
@@ -368,10 +368,10 @@ fn clicking_the_heading_text_places_the_caret_without_expanding() {
     // collapsed — the affordance is the tail region past the text, not the text itself.
     press_at_row_col(&mut app, 0, 1, false);
     assert!(
-        app.buffer.folds().contains(&0),
+        app.active.buffer.folds().contains(&0),
         "clicking the heading text does not expand the fold"
     );
-    assert_eq!(app.buffer.cursor_line_col().0, 0, "caret is on the heading line");
+    assert_eq!(app.active.buffer.cursor_line_col().0, 0, "caret is on the heading line");
 }
 
 #[test]
@@ -381,7 +381,7 @@ fn a_shift_click_on_the_tail_never_expands() {
     // expand, even over the tail region.
     press_at_row_col(&mut app, 0, 20, true);
     assert!(
-        app.buffer.folds().contains(&0),
+        app.active.buffer.folds().contains(&0),
         "a shift-click extends a selection, it never expands a fold"
     );
 }
@@ -394,10 +394,10 @@ fn a_heading_jump_onto_a_hidden_line_reveals_its_fold() {
     let mut app = folded_app(); // # A folded, hiding a1 (line 1) and a2 (line 2)
     app.jump_to_line(1); // jump onto the hidden a1
     assert!(
-        app.buffer.folds().is_empty(),
+        app.active.buffer.folds().is_empty(),
         "a jump onto a hidden line revealed the fold"
     );
-    assert_eq!(app.buffer.cursor_line_col().0, 1, "caret parked on the now-visible line");
+    assert_eq!(app.active.buffer.cursor_line_col().0, 1, "caret parked on the now-visible line");
 }
 
 #[test]
@@ -425,7 +425,7 @@ fn outline_click_target_maps_a_fold_filtered_row_back_to_the_raw_heading_line() 
     // identity — today's no-fold outline click resolves to the same target as
     // before this fix.
     let mut plain = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    plain.buffer.set_text(FOLD_DOC);
+    plain.active.buffer.set_text(FOLD_DOC);
     assert_eq!(
         plain.outline_row_target_line(1),
         1,
@@ -441,17 +441,17 @@ fn a_shift_click_across_a_collapsed_section_reveals_the_fold_it_spans() {
     // spans the hidden a1/a2. It must never span a fold invisibly: the placement
     // owner reveals # A before the selection is shown.
     let mut app = folded_app();
-    assert_eq!(app.buffer.cursor_char(), 0, "precondition: caret on # A");
+    assert_eq!(app.active.buffer.cursor_char(), 0, "precondition: caret on # A");
     press_at_row_col(&mut app, 2, 0, true);
     assert!(
-        app.buffer.folds().is_empty(),
+        app.active.buffer.folds().is_empty(),
         "a shift-click whose selection spans the fold reveals it"
     );
-    assert!(app.buffer.has_selection(), "the shift-click built a selection");
-    let (start, end) = app.buffer.selection_range().unwrap();
+    assert!(app.active.buffer.has_selection(), "the shift-click built a selection");
+    let (start, end) = app.active.buffer.selection_range().unwrap();
     assert_eq!(start, 0, "mark stayed at the prior caret");
     // The far endpoint is the START of b1 — full line 4, now that the fold is open.
-    assert_eq!(end, app.buffer.line_col_to_char(4, 0), "selection reaches b1");
+    assert_eq!(end, app.active.buffer.line_col_to_char(4, 0), "selection reaches b1");
 }
 
 #[test]
@@ -463,18 +463,18 @@ fn a_drag_across_a_collapsed_section_reveals_every_fold_it_crosses() {
     let mut app = folded_app();
     press_at_row_col(&mut app, 0, 0, false); // caret on # A, drag armed on next travel
     assert!(app.dragging, "a press on the heading text arms a text drag");
-    assert!(app.buffer.folds().contains(&0), "the press alone does not reveal");
+    assert!(app.active.buffer.folds().contains(&0), "the press alone does not reveal");
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     // Travel two visible rows down (well past the slop) onto the b1 row.
     move_by(&mut app, 0.0, 2.0 * m.line_height);
     assert!(
-        app.buffer.folds().is_empty(),
+        app.active.buffer.folds().is_empty(),
         "the drag crossing the fold revealed it"
     );
-    assert!(app.buffer.has_selection(), "the drag extended a real selection");
+    assert!(app.active.buffer.has_selection(), "the drag extended a real selection");
     assert_eq!(
-        app.buffer.selection_range().unwrap(),
-        (0, app.buffer.line_col_to_char(4, 0)),
+        app.active.buffer.selection_range().unwrap(),
+        (0, app.active.buffer.line_col_to_char(4, 0)),
         "selection runs from # A to b1 with nothing hidden inside it"
     );
 }
@@ -488,9 +488,9 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
     let mut app = folded_app();
     press_at_row_col(&mut app, 1, 0, false);
     assert_eq!(
-        app.buffer.cursor_line_col().0,
+        app.active.buffer.cursor_line_col().0,
         3,
         "click on filtered row 1 lands on full line 3 (# B), not the hidden a1"
     );
-    assert!(app.buffer.folds().contains(&0), "clicking # B does not disturb the fold");
+    assert!(app.active.buffer.folds().contains(&0), "clicking # B does not disturb the fold");
 }

@@ -1027,21 +1027,18 @@ fn ladder_clock_rewind_overshoot_self_heals_once_time_advances() {
 }
 
 #[test]
-fn source_path_prefers_buffer_then_file_then_scratch_stash() {
+fn source_path_prefers_buffer_then_scratch_stash() {
+    // Item 56: `Buffer::path()` is the sole authoritative path (the old
+    // App-level `file` mirror this fell back to is gone), so the middle
+    // fallback arm retired along with it.
     use std::path::Path;
     let b = Path::new("/notes/buffer.md");
-    let f = Path::new("/notes/file.md");
-    // The buffer's own path wins; the App-level file backs it up.
-    assert_eq!(source_path(Some(b), Some(f), false).as_deref(), Some(b));
-    assert_eq!(source_path(None, Some(f), false).as_deref(), Some(f));
+    assert_eq!(source_path(Some(b), false).as_deref(), Some(b));
     // The TRUE SCRATCH (no path, not a note) keys under its stash — so the
     // persistent scratch has a summonable timeline.
-    assert_eq!(
-        source_path(None, None, false),
-        Some(crate::fs::scratch_stash_path())
-    );
+    assert_eq!(source_path(None, false), Some(crate::fs::scratch_stash_path()));
     // An unnamed NOTE has no history key yet (its first autosave names it).
-    assert_eq!(source_path(None, None, true), None);
+    assert_eq!(source_path(None, true), None);
 }
 
 // --- PRESERVE-ON-CORRUPT: parse_log_checked's trust flag + read_log's backup ---

@@ -8,7 +8,7 @@
 use super::*;
 
 impl App {
-    /// Recompute the KEYED spell-verdict cache (`self.spell_cache`, see
+    /// Recompute the KEYED spell-verdict cache (`self.active.extra.spell_cache`, see
     /// [`crate::spell::SpellVerdict`]) against the current buffer text — pure
     /// state mutation, no `sync_view` side effect, so [`Self::sync_view`] can
     /// call it INLINE on every version change (the EAGER half of the
@@ -16,15 +16,15 @@ impl App {
     /// recursing back into itself.
     pub(super) fn recompute_spell_cache(&mut self) {
         if let Some(spell) = self.spell.as_ref() {
-            let text = self.buffer.text();
+            let text = self.active.buffer.text();
             // The ONE spell-scope owner: a CODE buffer checks only its
             // prose-comment + string spans (identifiers never squiggle); a prose
             // buffer takes the unscoped path byte-identically.
-            let spans = spell.misspellings_for(&text, self.buffer.syntax_lang());
+            let spans = spell.misspellings_for(&text, self.active.buffer.syntax_lang());
             // KEYED against the SAME text the spans came from, so every fresh
             // verdict starts out valid by construction.
-            self.spell_cache = crate::spell::keyed(&text, spans);
-            self.spell_checked_version = Some(self.buffer.version());
+            self.active.extra.spell_cache = crate::spell::keyed(&text, spans);
+            self.active.extra.spell_checked_version = Some(self.active.buffer.version());
         }
     }
 
@@ -199,14 +199,14 @@ impl App {
         let Some(clip) = self.clipboard.as_mut() else {
             return;
         };
-        let killed = self.buffer.kill_buffer();
+        let killed = self.active.buffer.kill_buffer();
         if killed.is_empty() {
             return; // never clobber the OS clipboard with an empty kill
         }
         if self.clipboard_last_written.as_deref() == Some(killed) {
             return; // we already wrote exactly this; skip redundant write
         }
-        let owned = killed.to_string(); // drop the &self.buffer borrow
+        let owned = killed.to_string(); // drop the &self.active.buffer borrow
         match clip.set_text(owned.clone()) {
             Ok(()) => self.clipboard_last_written = Some(owned),
             Err(_) => {} // graceful degradation: ignore set errors quietly
@@ -231,7 +231,7 @@ impl App {
         if self.clipboard_last_written.as_deref() == Some(text.as_str()) {
             return; // it's our own value; nothing external changed
         }
-        self.buffer.set_kill(&text);
+        self.active.buffer.set_kill(&text);
         self.clipboard_last_written = Some(text);
     }
 
@@ -283,12 +283,12 @@ impl App {
         // empty buffer can't derive a name yet and simply stays path-less (see
         // `ensure_note_named_before_paste`'s doc comment) — the fallback still
         // makes the paste succeed.
-        if self.buffer.path().is_none() {
+        if self.active.buffer.path().is_none() {
             self.ensure_note_named_before_paste();
         }
         let fs = crate::fs::active();
         let data_root = crate::fs::data_root();
-        let doc_path = self.buffer.path().map(|p| p.to_path_buf());
+        let doc_path = self.active.buffer.path().map(|p| p.to_path_buf());
         let dir = paste_image::assets_dir(doc_path.as_deref(), &data_root);
         // Make the assets/ folder (idempotent). A failure → fall back to text.
         if fs.create_dir_all(&dir).is_err() {
@@ -314,10 +314,10 @@ impl App {
         // for a saved doc, absolute for a scratch buffer (nothing to be relative to
         // yet). Cmd-Z removes the ref text (the PNG stays, see the undo note above).
         let reference = paste_image::image_ref(doc_path.as_deref(), &data_root, &filename);
-        let (_, col) = self.buffer.cursor_line_col();
+        let (_, col) = self.active.buffer.cursor_line_col();
         let text = paste_image::insert_text(col == 0, &reference);
-        let at = self.buffer.cursor_char();
-        self.buffer.replace_char_range(at, at, &text);
+        let at = self.active.buffer.cursor_char();
+        self.active.buffer.replace_char_range(at, at, &text);
         // Refresh the view + repaint (self-contained, so ANY `apply` caller — a
         // keypress, the Edit menu's Paste — lands the same).
         self.sync_view(true);
@@ -415,7 +415,7 @@ impl App {
             self.refresh_kill_from_clipboard();
         }
 
-        let mut shift_selecting = self.shift_selecting;
+        let mut shift_selecting = self.active.extra.shift_selecting;
         let mut zoom = self.zoom;
         let mut search = self.search.take();
         let mut overlay = self.overlay.take();
@@ -444,7 +444,7 @@ impl App {
             .as_ref()
             .map(|o| o.kind == crate::overlay::OverlayKind::History)
             .unwrap_or(false);
-        // The config `[keys]` (cloned to dodge the &mut self.buffer borrow below) so
+        // The config `[keys]` (cloned to dodge the &mut self.active.buffer borrow below) so
         // the command palette can show each command's EFFECTIVE binding, plus the
         // EFFECTIVE `linux_keep_emacs` list (widened under `keymap = "emacs"`) that
         // shapes that SAME label under Linux.
@@ -478,7 +478,7 @@ impl App {
         let (goto_corpus, goto_times) =
             crate::index::with_recency(&self.root, self.file_index.clone(), recency_now);
         let goto_open: Vec<usize> = {
-            let active_rel = self.file.as_ref().and_then(|p| {
+            let active_rel = self.active.buffer.path().and_then(|p| {
                 p.strip_prefix(&self.root)
                     .ok()
                     .map(|r| r.to_string_lossy().replace('\\', "/"))
@@ -510,15 +510,15 @@ impl App {
         // GO-TO's HEADINGS lens corpus: the CURRENT buffer's markdown headings (each
         // title indented by depth, paired with its line) — the fold that retired the
         // standalone Outline picker. Read here, BEFORE the closure / the &mut
-        // self.buffer borrow below. A non-markdown buffer (or one with no headings)
+        // self.active.buffer borrow below. A non-markdown buffer (or one with no headings)
         // yields an empty list, so the Headings lens simply reads empty.
         // GATED on the action (like `spell_target` below): parsing the whole document
         // (`headings` allocates the full text + runs pulldown) is pure waste on every
         // OTHER keystroke — the corpus is only consumed when building a Go-to overlay,
         // which `OpenGoto` (Cmd-O) and `OpenOutline` ("Go to heading…") both do.
         let goto_headings: Vec<(String, usize)> =
-            if matches!(action, Action::OpenGoto | Action::OpenOutline) && self.buffer.is_markdown() {
-                crate::markdown::headings(&self.buffer.text())
+            if matches!(action, Action::OpenGoto | Action::OpenOutline) && self.active.buffer.is_markdown() {
+                crate::markdown::headings(&self.active.buffer.text())
                     .into_iter()
                     .map(|h| (h.label(), h.line))
                     .collect()
@@ -526,15 +526,15 @@ impl App {
                 Vec::new()
             };
         // SPELL picker target: the misspelled word the cursor is ON or ADJACENT to,
-        // plus its corrections — resolved HERE, before the &mut self.buffer borrow
+        // plus its corrections — resolved HERE, before the &mut self.active.buffer borrow
         // below, and ONLY when the spell binding actually fired (suggestion
         // generation isn't free). `None` when spell-check is off or the cursor isn't
         // on a flagged word, so the summon becomes a calm no-op.
         let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
             if matches!(action, Action::OpenSpellSuggest) {
                 self.spell.as_ref().and_then(|sc| {
-                    let (line, col) = self.buffer.cursor_line_col();
-                    sc.suggest_at(&self.buffer.text(), line, col, self.buffer.syntax_lang()).map(|t| {
+                    let (line, col) = self.active.buffer.cursor_line_col();
+                    sc.suggest_at(&self.active.buffer.text(), line, col, self.active.buffer.syntax_lang()).map(|t| {
                         (
                             t.suggestions,
                             (t.misspelling.line, t.misspelling.start_col, t.misspelling.end_col),
@@ -547,24 +547,20 @@ impl App {
             };
         // HISTORY TIMELINE rows: the current file's versions (newest-first), each
         // answering WHEN + WHICH with a "+N −M" changed-count vs the CURRENT buffer.
-        // Gathered HERE (before the &mut self.buffer borrow) and ONLY when the History
+        // Gathered HERE (before the &mut self.active.buffer borrow) and ONLY when the History
         // binding fired — reading + line-diffing the store is pure waste on every
         // other keystroke. The history key derivation lives in ONE place
-        // (`history::source_path`): buffer path, else `self.file`, else the persistent
-        // scratch's own stash path — so the no-path scratch has a timeline too; only
-        // an unnamed note has none (the picker then shows "no history yet"). `now`
-        // stamps the relative labels; History is an explicitly-summoned, non-default
-        // overlay, so this clock read never touches a default capture.
+        // (`history::source_path`): buffer path, else the persistent scratch's own
+        // stash path — so the no-path scratch has a timeline too; only an unnamed
+        // note has none (the picker then shows "no history yet"). `now` stamps the
+        // relative labels; History is an explicitly-summoned, non-default overlay,
+        // so this clock read never touches a default capture.
         let history_entries: Vec<crate::history::TimelineRow> =
             if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                match crate::history::source_path(
-                    self.buffer.path(),
-                    self.file.as_deref(),
-                    self.buffer.is_note(),
-                ) {
+                match crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_note()) {
                     Some(path) => crate::history::timeline_rows(
                         &path,
-                        &self.buffer.text(),
+                        &self.active.buffer.text(),
                         crate::history::now_millis(),
                     ),
                     None => Vec::new(),
@@ -573,7 +569,7 @@ impl App {
                 Vec::new()
             };
         // ASSET CLEANER orphan list: the unreferenced `assets/` images under the
-        // active project — scanned HERE (before the &mut self.buffer borrow) and ONLY
+        // active project — scanned HERE (before the &mut self.active.buffer borrow) and ONLY
         // when the "Clean unused assets" binding fired (walking the tree + reading
         // every doc is pure waste on every other keystroke). Native-only (gated like
         // the daemon: wasm has no Trash / fs walk, so a wasm summon shows the empty
@@ -594,7 +590,7 @@ impl App {
         // `commands::visible_hidden_mask` below — the ONE live fact behind the
         // "Finish file" row's visibility.
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-        let has_waiter = crate::buffers::BufferKey::of(&self.buffer)
+        let has_waiter = crate::buffers::BufferKey::of(&self.active.buffer)
             .is_some_and(|key| self.wait_conns.get(&key).is_some_and(|w| !w.is_empty()));
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
@@ -638,7 +634,7 @@ impl App {
         // builder. `Browse` (C-x j) walks the active root and shows files + folders;
         // `MoveDest` (C-x m) walks the NOTES root and shows FOLDERS only (you move a
         // note into a folder); `Project` (C-x p) walks the workspace by absolute
-        // path. Cloned roots dodge the &mut self.buffer borrow.
+        // path. Cloned roots dodge the &mut self.active.buffer borrow.
         let browse_root = self.root.clone();
         let notes_root = self.notes_root.clone();
         let workspace = self.workspace.clone();
@@ -659,7 +655,7 @@ impl App {
         };
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
         // the shaped wrap geometry. A shared borrow of `self.gpu` (disjoint from the
-        // `&mut self.buffer` below), so the same `apply_core` seam sees the SAME
+        // `&mut self.active.buffer` below), so the same `apply_core` seam sees the SAME
         // geometry headless replay sees through its offscreen pipeline. `None` before
         // the window's GPU exists; motion then falls back to LOGICAL lines.
         let oracle = self
@@ -667,7 +663,7 @@ impl App {
             .as_ref()
             .map(|g| &g.pipeline as &dyn actions::LayoutOracle);
         let mut ctx = actions::ActionCtx {
-            buffer: &mut self.buffer,
+            buffer: &mut self.active.buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
             search: &mut search,
@@ -678,7 +674,7 @@ impl App {
             oracle,
         };
         let effect = actions::apply_core(&mut ctx, &action, shift);
-        self.shift_selecting = shift_selecting;
+        self.active.extra.shift_selecting = shift_selecting;
         // ZoomIn/Out/Reset clamp inside the core; mirror the result back so the
         // next sync picks up the new metrics. A Cmd-zoom action ARMS the debounced
         // sticky-zoom write (the wheel path arms it in `set_zoom`).
@@ -966,7 +962,7 @@ impl App {
                 .map(|o| o.kind == crate::overlay::OverlayKind::History)
                 .unwrap_or(false)
         {
-            self.history_scroll_before = Some(self.scroll_lines);
+            self.active.extra.history_scroll_before = Some(self.active.extra.scroll_lines);
         }
         if history_overlay_before && self.overlay.is_none() {
             self.history_overlay_closed(history_accepted);
@@ -988,11 +984,11 @@ impl App {
     /// unit-testable without an event loop.
     pub(super) fn history_overlay_closed(&mut self, accepted: bool) {
         if accepted {
-            self.history_scroll_before = None;
-        } else if let Some(s) = self.history_scroll_before.take() {
-            self.scroll_lines = s;
+            self.active.extra.history_scroll_before = None;
+        } else if let Some(s) = self.active.extra.history_scroll_before.take() {
+            self.active.extra.scroll_lines = s;
         }
-        self.history_preview = None;
+        self.active.extra.history_preview = None;
     }
 
     /// The PgDn/PgUp intercept: page the BUFFER via the GPU-measured viewport (a
@@ -1041,9 +1037,9 @@ impl App {
                     if !self.scroll_page(1) {
                         self.caret_recoil = Some(crate::caret::RecoilDir::Up);
                     }
-                    self.buffer.seal_undo_group();
-                    if !self.buffer.has_selection() {
-                        self.shift_selecting = false;
+                    self.active.buffer.seal_undo_group();
+                    if !self.active.buffer.has_selection() {
+                        self.active.extra.shift_selecting = false;
                     }
                     return Some(false);
                 }
@@ -1052,9 +1048,9 @@ impl App {
                     if !self.scroll_page(-1) {
                         self.caret_recoil = Some(crate::caret::RecoilDir::Down);
                     }
-                    self.buffer.seal_undo_group();
-                    if !self.buffer.has_selection() {
-                        self.shift_selecting = false;
+                    self.active.buffer.seal_undo_group();
+                    if !self.active.buffer.has_selection() {
+                        self.active.extra.shift_selecting = false;
                     }
                     return Some(false);
                 }
@@ -1132,8 +1128,8 @@ impl App {
     pub(super) fn download_file(&self) {
         #[cfg(target_arch = "wasm32")]
         {
-            let filename = crate::web_export::filename_for(&self.buffer);
-            let text = self.buffer.text();
+            let filename = crate::web_export::filename_for(&self.active.buffer);
+            let text = self.active.buffer.text();
             crate::web_export::trigger_download(&filename, &text);
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -1154,23 +1150,23 @@ impl App {
     /// to the browser download shim (`web_export::trigger_download_bytes`) instead;
     /// PDF has no web command or format variant.
     pub(super) fn export_document(&mut self, format: crate::export::Format) {
-        let markdown = self.buffer.text();
-        let doc_dir = self.buffer.path().and_then(|p| p.parent()).map(|p| p.to_path_buf());
+        let markdown = self.active.buffer.text();
+        let doc_dir = self.active.buffer.path().and_then(|p| p.parent()).map(|p| p.to_path_buf());
         let images = crate::export::FsImages { doc_dir };
         let bytes = crate::export::to_bytes(&markdown, format, &images);
 
         #[cfg(target_arch = "wasm32")]
         {
-            let name = crate::web_export::export_name(&self.buffer, format);
+            let name = crate::web_export::export_name(&self.active.buffer, format);
             crate::web_export::trigger_download_bytes(&name, format.mime(), &bytes);
             self.set_toast_notice(format!("downloaded {name}"));
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let (target, show_full) = match self.buffer.path() {
+            let (target, show_full) = match self.active.buffer.path() {
                 Some(p) => (p.with_extension(format.ext()), false),
                 None => {
-                    let stem = crate::web_export::export_stem(&self.buffer);
+                    let stem = crate::web_export::export_stem(&self.active.buffer);
                     (self.notes_root.join(format!("{stem}.{}", format.ext())), true)
                 }
             };
@@ -1404,9 +1400,10 @@ impl App {
         // untouched. An invalid config keeps prior values (see `reload_config`).
         if matches!(action, Action::Save)
             && self
-                .file
-                .as_ref()
-                .map(|f| !self.config.path.as_os_str().is_empty() && f == &self.config.path)
+                .active
+                .buffer
+                .path()
+                .map(|f| !self.config.path.as_os_str().is_empty() && f == self.config.path.as_path())
                 .unwrap_or(false)
         {
             self.reload_config();

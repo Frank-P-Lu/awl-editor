@@ -170,7 +170,7 @@ impl App {
     ) {
         if let Some(dir) = crate::search::keys::intercept(
             &mut self.search,
-            &mut self.buffer,
+            &mut self.active.buffer,
             logical,
             mods.state(),
         ) {
@@ -196,7 +196,7 @@ impl App {
     pub(in crate::app) fn arm_zoom_anchor_pointer(&mut self) {
         let Some(gpu) = self.gpu.as_ref() else { return };
         let (px, py) = self.cursor_px;
-        let (line, col) = gpu.pipeline.hit_test(px, py, self.scroll_lines);
+        let (line, col) = gpu.pipeline.hit_test(px, py, self.active.extra.scroll_lines);
         self.zoom_anchor = Some(ZoomAnchor { line, col, screen_y: py });
     }
 
@@ -209,15 +209,15 @@ impl App {
         let Some(gpu) = self.gpu.as_ref() else { return };
         let height = gpu.config.height as f32;
         let top = render::TEXT_TOP + gpu.pipeline.menubar_reserve();
-        let (cl, cc) = self.buffer.cursor_line_col();
-        let caret_y = gpu.pipeline.char_screen_top(cl, cc, self.scroll_lines);
+        let (cl, cc) = self.active.buffer.cursor_line_col();
+        let caret_y = gpu.pipeline.char_screen_top(cl, cc, self.active.extra.scroll_lines);
         self.zoom_anchor = Some(if caret_y >= top && caret_y < height {
             ZoomAnchor { line: cl, col: cc, screen_y: caret_y }
         } else {
             // Caret off-screen: anchor whatever sits at the viewport centre.
             let cx = (gpu.config.width as f32) * 0.5;
             let cy = (top + height) * 0.5;
-            let (line, col) = gpu.pipeline.hit_test(cx, cy, self.scroll_lines);
+            let (line, col) = gpu.pipeline.hit_test(cx, cy, self.active.extra.scroll_lines);
             ZoomAnchor { line, col, screen_y: cy }
         });
     }
@@ -257,7 +257,7 @@ impl App {
     /// actually moved — `false` means the page was BLOCKED (already at the top /
     /// bottom), which the caller turns into a caret recoil.
     pub(in crate::app) fn scroll_page(&mut self, dir: isize) -> bool {
-        let cursor_before = self.buffer.cursor_line_col();
+        let cursor_before = self.active.buffer.cursor_line_col();
         let visible = if let Some(gpu) = self.gpu.as_ref() {
             let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
             render::visible_lines_z(gpu.config.height as f32, line_height)
@@ -275,7 +275,7 @@ impl App {
         // old behavior) when the pipeline isn't up yet.
         let start_row = match self.gpu.as_ref() {
             Some(gpu) => {
-                let (l, c) = self.buffer.cursor_line_col();
+                let (l, c) = self.active.buffer.cursor_line_col();
                 Some(gpu.pipeline.visual_row_of(l, c))
             }
             None => None,
@@ -283,13 +283,13 @@ impl App {
         // Hard cap on logical-line steps so we can never loop unbounded: at most
         // target_rows logical lines (each logical line is >= 1 visual row).
         for _ in 0..target_rows {
-            let before = self.buffer.cursor_line_col();
+            let before = self.active.buffer.cursor_line_col();
             if dir > 0 {
-                self.buffer.next_line();
+                self.active.buffer.next_line();
             } else {
-                self.buffer.previous_line();
+                self.active.buffer.previous_line();
             }
-            let after = self.buffer.cursor_line_col();
+            let after = self.active.buffer.cursor_line_col();
             // Reached a buffer boundary (cursor didn't move): stop.
             if after == before {
                 break;
@@ -302,7 +302,7 @@ impl App {
                 }
             }
         }
-        self.buffer.cursor_line_col() != cursor_before
+        self.active.buffer.cursor_line_col() != cursor_before
     }
 
     /// Handle a platform IME event (Japanese/CJK composition lifecycle).
@@ -333,7 +333,7 @@ impl App {
                 // is the only part that actually enters the buffer.
                 self.preedit.clear();
                 for c in text.chars() {
-                    self.buffer.insert_char(c);
+                    self.active.buffer.insert_char(c);
                 }
             }
         }

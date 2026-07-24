@@ -150,10 +150,10 @@ impl App {
         // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
         // gate), consumed here via the same single-`WaitUntil` pattern as the note
         // autosave above — no hot loop, and structurally unreachable headlessly.
-        if let Some(dirty) = self.doc_autosave_at {
+        if let Some(dirty) = self.active.extra.doc_autosave_at {
             match debounce_due(dirty, AUTOSAVE_IDLE, self.clock.now()) {
                 true => {
-                    self.doc_autosave_at = None;
+                    self.active.extra.doc_autosave_at = None;
                     self.autosave_flush();
                     // LIFETIME STATS: piggyback the same ~1s idle door, so the
                     // odometer is crash-safe without its own timer (native only;

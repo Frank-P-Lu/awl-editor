@@ -35,7 +35,7 @@ impl App {
                     gpu.window.request_redraw();
                 }
                 if let Some(w) = waiter {
-                    match crate::buffers::BufferKey::of(&self.buffer) {
+                    match crate::buffers::BufferKey::of(&self.active.buffer) {
                         Some(key) => {
                             self.wait_conns.entry(key).or_default().push(w);
                         }
@@ -62,9 +62,9 @@ impl App {
     /// "most-recently-open OTHER buffer" the spec asks for.
     pub(super) fn finish_buffer(&mut self) {
         self.snapshot_after_save();
-        if let Some(p) = self.buffer.path().map(|p| p.to_path_buf()) {
-            self.disk_mtime = Self::disk_mtime_of(&p);
-            self.doc_saved_version = Some(self.buffer.version());
+        if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
+            self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
+            self.active.extra.doc_saved_version = Some(self.active.buffer.version());
             self.clear_notice();
         }
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
@@ -74,10 +74,10 @@ impl App {
 
     /// Notify + drop every daemon connection waiting on the buffer we are
     /// ABOUT to leave (called BEFORE the `last_buffer_toggle` swap in
-    /// [`Self::finish_buffer`], while `self.buffer` is still the finished one).
+    /// [`Self::finish_buffer`], while `self.active.buffer` is still the finished one).
     #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
     fn notify_daemon_waiters(&mut self) {
-        let Some(key) = crate::buffers::BufferKey::of(&self.buffer) else {
+        let Some(key) = crate::buffers::BufferKey::of(&self.active.buffer) else {
             return;
         };
         if let Some(waiters) = self.wait_conns.remove(&key) {
@@ -109,7 +109,7 @@ mod tests {
     use std::os::unix::net::UnixStream;
 
     /// Drive `Action::FinishBuffer` through the REAL `actions::apply_core` seam
-    /// against `app.buffer` (mirroring exactly how `App::apply` wires
+    /// against `app.active.buffer` (mirroring exactly how `App::apply` wires
     /// `ActionCtx`, minus the `ActiveEventLoop` a live keypress carries — no
     /// window/GPU/quit path is exercised by this action), returning the
     /// resulting `Effect`.
@@ -121,7 +121,7 @@ mod tests {
         let mut make_overlay = |_: crate::overlay::OverlayKind| None;
         let mut browse_to = |_: crate::overlay::OverlayKind, _: Option<String>| None;
         let mut ctx = actions::ActionCtx {
-            buffer: &mut app.buffer,
+            buffer: &mut app.active.buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
             search: &mut search,
@@ -167,7 +167,7 @@ mod tests {
         let cfg = Config { session_restore: Some(false), ..Config::empty() };
         let mut app = App::new(Some(a.clone()), dir.clone(), None, None, cfg);
         app.load_path(b.clone());
-        assert_eq!(app.file, Some(b.clone()), "B is active");
+        assert_eq!(app.active.buffer.path(), Some(b.as_path()), "B is active");
         assert_eq!(app.prev_file, Some(a.clone()), "A is the last-buffer target");
 
         // Mock the waiter: a real connected pair, no listener/socket file.
@@ -178,7 +178,7 @@ mod tests {
             .or_default()
             .push(crate::daemon::Waiter::new(b.clone(), theirs));
 
-        app.buffer.set_text("beta\nedited\n");
+        app.active.buffer.set_text("beta\nedited\n");
         let effect = drive_finish_buffer(&mut app);
         assert_eq!(effect, actions::Effect::FinishBuffer, "the core signals FinishBuffer");
         app.finish_buffer();
@@ -201,7 +201,7 @@ mod tests {
         assert_eq!(n, 0, "the waiter closes its end right after notifying");
 
         // SWITCHED: the active buffer is A again (the previously-open other buffer).
-        assert_eq!(app.file, Some(a), "FinishBuffer switches to the previous buffer");
+        assert_eq!(app.active.buffer.path(), Some(a.as_path()), "FinishBuffer switches to the previous buffer");
         assert!(
             !app.wait_conns.contains_key(&crate::buffers::BufferKey::path(&b)),
             "the notified waiter entry is drained"

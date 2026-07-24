@@ -22,7 +22,7 @@ impl App {
         // sync before that redraw arrives.
         self.zoom_reflow.clear();
         let height = self.gpu.as_ref().unwrap().config.height as f32;
-        let (cursor_line, cursor_col) = self.buffer.cursor_line_col();
+        let (cursor_line, cursor_col) = self.active.buffer.cursor_line_col();
         // Re-run spell detection only when the buffer text changed. We detect a
         // change via the cheap edit VERSION (a `u64` bump per content mutation)
         // instead of cloning + comparing the whole rope string each keystroke. The
@@ -41,7 +41,7 @@ impl App {
         // `ViewState.misspelled`) as a second, independent guarantee: even within
         // this one call, a verdict this rescan is ABOUT to replace can never be
         // read as still describing the new text.
-        if self.spell.is_some() && self.spell_checked_version != Some(self.buffer.version()) {
+        if self.spell.is_some() && self.active.extra.spell_checked_version != Some(self.active.buffer.version()) {
             self.recompute_spell_cache();
         }
         // SAVE-FEEDBACK round: the window-title EDITED marker + the native
@@ -59,7 +59,7 @@ impl App {
         // gpu-present check above), so the headless capture/replay never auto-writes
         // — the determinism + no-fixture-mutation guarantee. The write fires in
         // `about_to_wait` after a quiet period.
-        if self.buffer.is_note() && self.autosave_saved_version != Some(self.buffer.version()) {
+        if self.active.buffer.is_note() && self.autosave_saved_version != Some(self.active.buffer.version()) {
             self.autosave_dirty_at = Some(self.clock.now());
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
@@ -67,14 +67,14 @@ impl App {
         // tracks `doc_saved_version`, the no-path scratch its stash version.
         // Same determinism guarantee as the note arming above: this lives ONLY
         // under the gpu-present gate, so headless can never schedule a write.
-        if self.config.autosave_on() && !self.buffer.is_note() {
-            let unsaved = if self.buffer.path().is_some() {
-                self.doc_saved_version != Some(self.buffer.version())
+        if self.config.autosave_on() && !self.active.buffer.is_note() {
+            let unsaved = if self.active.buffer.path().is_some() {
+                self.active.extra.doc_saved_version != Some(self.active.buffer.version())
             } else {
-                self.scratch_saved_version != Some(self.buffer.version())
+                self.active.extra.scratch_saved_version != Some(self.active.buffer.version())
             };
             if unsaved {
-                self.doc_autosave_at = Some(self.clock.now());
+                self.active.extra.doc_autosave_at = Some(self.clock.now());
             }
         }
         // DIFF-AS-PREVIEW: while the History picker is open, the page below the
@@ -90,7 +90,7 @@ impl App {
         let preview = self.history_preview_text();
         // DIFF-AS-PREVIEW scroll: while the diff preview is up, the page shows the
         // OVERLAY's own `diff_scroll` (PgUp/PgDn / panel-focus ↑/↓ / the wheel over
-        // the page all mutate it) — and `self.scroll_lines`, the DOCUMENT's
+        // the page all mutate it) — and `self.active.extra.scroll_lines`, the DOCUMENT's
         // viewport, is deliberately never touched, so "Esc = back to now exactly"
         // includes the scroll by construction. Clamped against the shaped
         // transcript below (with the clamp written back, so the sidecar reports
@@ -117,7 +117,7 @@ impl App {
         // pure navigation), so the caret slides as a plain block with no underline
         // however far it jumped (Enter, a wide glyph, a paste). Captured once per
         // sync so the re-push below reuses the same value.
-        let version = self.buffer.version();
+        let version = self.active.buffer.version();
         // A delete-word edit DID bump the version, but its caret should still
         // streak like the equivalent navigation move (M-b): the removed word
         // collapses while the caret glides left across the gap, as ONE concurrent
@@ -125,8 +125,8 @@ impl App {
         // move as navigation (not an edit) for the underline-suppression test only.
         // One-shot: reset it so the next sync goes back to the default.
         let streak_override = std::mem::take(&mut self.caret_edit_streaks);
-        let is_edit_move = version != self.caret_synced_version && !streak_override;
-        self.caret_synced_version = version;
+        let is_edit_move = version != self.active.extra.caret_synced_version && !streak_override;
+        self.active.extra.caret_synced_version = version;
         // Was the keypress driving this sync an OS auto-repeat (a HELD arrow)?
         // One-shot, like `caret_edit_streaks`: consumed here so a following
         // non-keyboard sync (IME/wheel) doesn't inherit a stale held flag.
@@ -141,13 +141,13 @@ impl App {
             && crate::popover::popover_on()
             && self.overlay.is_none()
             && self.search.is_none()
-            && self.buffer.has_selection()
+            && self.active.buffer.has_selection()
         {
             crate::actions::popover::plan(
-                &self.buffer.text(),
-                self.buffer.anchor_char(),
-                self.buffer.cursor_char(),
-                self.buffer.is_markdown(),
+                &self.active.buffer.text(),
+                self.active.buffer.anchor_char(),
+                self.active.buffer.cursor_char(),
+                self.active.buffer.is_markdown(),
             )
         } else {
             None
@@ -182,9 +182,9 @@ impl App {
         // transcript it would never match anyway.
         let misspelled = if preview.is_some() {
             let buffer_text = self.view_text();
-            crate::spell::visible(&self.spell_cache, &buffer_text)
+            crate::spell::visible(&self.active.extra.spell_cache, &buffer_text)
         } else {
-            crate::spell::visible(&self.spell_cache, &text)
+            crate::spell::visible(&self.active.extra.spell_cache, &text)
         };
 
         // Build the snapshot once and push it so the pipeline shapes the CURRENT
@@ -199,10 +199,10 @@ impl App {
             // The caret's wrap affinity (Upstream only right after a visual line-END
             // motion) — the pipeline reads it to render the caret on the row it
             // visually belongs to at a shared soft-wrap boundary.
-            caret_affinity: self.buffer.affinity(),
-            scroll_lines: diff_scroll.unwrap_or(self.scroll_lines),
+            caret_affinity: self.active.buffer.affinity(),
+            scroll_lines: diff_scroll.unwrap_or(self.active.extra.scroll_lines),
             zoom: self.zoom,
-            selection: self.buffer.selection_line_col(),
+            selection: self.active.buffer.selection_line_col(),
             preedit: self.preedit.clone(),
             misspelled,
             is_edit_move,
@@ -326,23 +326,24 @@ impl App {
             // derived scratch/slug name for an unsaved note) over the project name.
             // (While the History picker's diff preview is up, the card itself names
             // the compared version — the gutter keeps its ordinary identity.)
-            gutter_name: self.buffer.display_name(),
+            gutter_name: self.active.buffer.display_name(),
             gutter_project: self.project.name.clone(),
             // MARKDOWN STYLING gate: a buffer is "markdown" only once it has a
             // `.md`/`.markdown` path. An unnamed scratch / `.rs` / `.txt` buffer is
             // left untouched (no markup dimming of `#` comments etc.).
-            is_markdown: self.buffer.is_markdown(),
+            is_markdown: self.active.buffer.is_markdown(),
             // INLINE IMAGES: the directory a relative `![alt](img.png)` path
-            // resolves against — the open document's own parent dir (buffer path,
-            // else the launch `file`). `None` for a no-path scratch/note buffer
-            // (a relative image path then resolves against the process cwd).
+            // resolves against — the open document's own parent dir (`Buffer::path`,
+            // the sole authoritative path — item 56). `None` for a no-path
+            // scratch/note buffer (a relative image path then resolves against
+            // the process cwd).
             doc_dir: self
+                .active
                 .buffer
                 .path()
-                .or(self.file.as_deref())
                 .and_then(|p| p.parent())
                 .map(|d| d.to_path_buf()),
-            syn_lang: self.buffer.syntax_lang(),
+            syn_lang: self.active.buffer.syntax_lang(),
             // SPELL contextual panel: when the open overlay is the spell picker, its
             // target word span turns the overlay into a small floating panel anchored
             // at the word (no blur). `None` for every other overlay / no overlay.
@@ -359,7 +360,7 @@ impl App {
             cjk_priority: self.config.cjk_priority_or_default(),
             // LINE ENDINGS: the active buffer's on-disk ending, for the held stats
             // HUD's LINE ENDINGS row (a pure buffer fact, not re-derivable from text).
-            eol: self.buffer.eol(),
+            eol: self.active.buffer.eol(),
             // FORMAT POPOVER: the mouse-summoned format toolbar's model (computed
             // above), or `None` when down.
             popover,
@@ -426,12 +427,12 @@ impl App {
         // folded (byte-identical) and skipped during a history preview (its
         // substitute transcript owns the text). The action-seam auto-expand keeps
         // the caret + any selection on visible lines.
-        view.folds = self.buffer.folds().iter().copied().collect();
-        if preview.is_none() && self.buffer.has_folds() {
+        view.folds = self.active.buffer.folds().iter().copied().collect();
+        if preview.is_none() && self.active.buffer.has_folds() {
             crate::fold::apply_to_view(
                 &mut view,
-                &self.buffer.hidden_lines(),
-                &self.buffer.fold_tails(),
+                &self.active.buffer.hidden_lines(),
+                &self.active.buffer.fold_tails(),
             );
         }
         {
@@ -446,7 +447,7 @@ impl App {
         // (only nudge the scroll enough to reveal the row). For a non-wrapped doc the
         // cursor's visual row == its logical line, so the off path is identical to the
         // previous logical-line cursor-follow.
-        let prev_scroll = self.scroll_lines;
+        let prev_scroll = self.active.extra.scroll_lines;
         if let Some(anchor) = self.zoom_anchor.take() {
             // ZOOM ANCHOR wins this sync: this `set_view` just reshaped to the newly
             // changed zoom, so re-solve the scroll that keeps the anchored document
@@ -455,29 +456,29 @@ impl App {
             // screen by construction, and the off-screen fallback deliberately holds
             // the viewport centre rather than yanking to the caret.
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
-            self.scroll_lines =
+            self.active.extra.scroll_lines =
                 pipeline.zoom_anchor_scroll(anchor.line, anchor.col, anchor.screen_y, height);
         } else if follow {
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
             // Affinity-aware so cursor-follow tracks the row the caret VISUALLY sits
             // on at a shared boundary (Upstream → the upper row).
             let cursor_row =
-                pipeline.visual_row_of_aff(cursor_line, cursor_col, self.buffer.affinity());
-            self.scroll_lines = match follow_scroll_strategy(
+                pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
+            self.active.extra.scroll_lines = match follow_scroll_strategy(
                 crate::typewriter::typewriter_on(),
                 self.dragging,
             ) {
                 // Variable-row-height aware: scroll minimally so the cursor's row
                 // (taller on a heading) is fully visible, summing real row heights.
                 FollowScroll::ShowRow => {
-                    pipeline.scroll_to_show_row(cursor_row, self.scroll_lines, height)
+                    pipeline.scroll_to_show_row(cursor_row, self.active.extra.scroll_lines, height)
                 }
                 // TYPEWRITER: center the cursor's row (variable-height aware too).
                 FollowScroll::CenterRow => pipeline.scroll_to_center_row(cursor_row, height),
                 // A primary-button press is live: defer the recenter (leave the
                 // scroll exactly where it is) rather than move the view under a
                 // stationary pointer — see `follow_scroll_strategy`.
-                FollowScroll::Deferred => self.scroll_lines,
+                FollowScroll::Deferred => self.active.extra.scroll_lines,
             };
         }
         // Always keep scroll within document bounds (pixel-accurate "does it fit").
@@ -485,7 +486,7 @@ impl App {
         match diff_scroll {
             // DIFF-AS-PREVIEW: clamp the OVERLAY's diff scroll against the shaped
             // transcript and write the clamp back (state stays honest for the
-            // sidecar + the next key). `self.scroll_lines` is untouched — the
+            // sidecar + the next key). `self.active.extra.scroll_lines` is untouched — the
             // document's own viewport survives the whole preview.
             Some(ds) => {
                 let clamped = ds.min(max);
@@ -498,11 +499,11 @@ impl App {
                 }
             }
             None => {
-                self.scroll_lines = self.scroll_lines.min(max);
+                self.active.extra.scroll_lines = self.active.extra.scroll_lines.min(max);
                 // Re-push only if the scroll actually changed (cheap; avoids a
                 // redundant reshape on the common no-scroll-change path).
-                if self.scroll_lines != prev_scroll {
-                    view.scroll_lines = self.scroll_lines;
+                if self.active.extra.scroll_lines != prev_scroll {
+                    view.scroll_lines = self.active.extra.scroll_lines;
                     self.gpu.as_mut().unwrap().pipeline.set_view(&view);
                 }
             }
@@ -564,12 +565,12 @@ impl App {
     /// buffer also sits at version 0, and its stale entry would otherwise be served
     /// as the NEW document's text (the live "open a file and nothing appears" bug).
     pub(super) fn view_text(&mut self) -> String {
-        let text_version = self.buffer.version();
-        match &self.sync_text_cache {
+        let text_version = self.active.buffer.version();
+        match &self.active.extra.sync_text_cache {
             Some((v, t)) if *v == text_version => t.clone(),
             _ => {
-                let t = self.buffer.text();
-                self.sync_text_cache = Some((text_version, t.clone()));
+                let t = self.active.buffer.text();
+                self.active.extra.sync_text_cache = Some((text_version, t.clone()));
                 t
             }
         }
@@ -595,7 +596,7 @@ impl App {
             .as_ref()
             .filter(|o| o.kind == crate::overlay::OverlayKind::History)?;
         let id = ov.selected_history_id()?.to_string();
-        if let Some((cached_id, transcript)) = &self.history_preview {
+        if let Some((cached_id, transcript)) = &self.active.extra.history_preview {
             if *cached_id == id {
                 return Some(transcript.clone());
             }
@@ -607,12 +608,11 @@ impl App {
             .filter(|o| o.kind == crate::overlay::OverlayKind::History)?;
         let (id, transcript, _counts) = crate::history::diff_preview(
             ov,
-            self.buffer.path(),
-            self.file.as_deref(),
-            self.buffer.is_note(),
+            self.active.buffer.path(),
+            self.active.buffer.is_note(),
             &current,
         )?;
-        self.history_preview = Some((id, transcript.clone()));
+        self.active.extra.history_preview = Some((id, transcript.clone()));
         Some(transcript)
     }
 
@@ -641,8 +641,8 @@ impl App {
                 .iter()
                 .map(|m| {
                     (
-                        self.buffer.char_to_line_col(m.start),
-                        self.buffer.char_to_line_col(m.end),
+                        self.active.buffer.char_to_line_col(m.start),
+                        self.active.buffer.char_to_line_col(m.end),
                     )
                 })
                 .collect();

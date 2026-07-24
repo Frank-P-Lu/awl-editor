@@ -715,7 +715,7 @@ fn open_serves_the_new_files_text_despite_equal_buffer_versions() {
     // The first sync caches (version 0, old text) — the short-circuit at work.
     assert_eq!(app.view_text(), "the OLD document\n");
     assert_eq!(
-        app.buffer.version(),
+        app.active.buffer.version(),
         0,
         "an un-edited buffer sits at version 0"
     );
