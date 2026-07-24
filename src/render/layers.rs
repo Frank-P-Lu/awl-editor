@@ -29,16 +29,19 @@ const QUOTE_MARK_SCALE: f32 = 2.0;
 /// real type, not a symbol-font ornament.
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
 
-/// The collapsed-heading expand CHEVRON — U+203A SINGLE RIGHT-POINTING ANGLE
-/// QUOTATION MARK, a quiet right-pointing "opens into the heading" mark. Shaped in
-/// the world DISPLAY face (General Punctuation, like the elision ellipsis the
-/// picker already renders there), so it never tofus. Revealed only when the caret
-/// is on the heading or it is hovered ([`crate::fold::chevron_revealed`]); rest
-/// state shows none. **item 65 taste correction:** hung IMMEDIATELY LEFT of the
-/// heading (the writing column's own leading pad), OUTSIDE the shaped document
-/// glyph run, instead of the original right-of-text placement — see
-/// [`super::TextPipeline::fold_chevron_marks`]'s own doc for the geometry and the
-/// graceful no-room hide.
+/// The fold CHEVRON — U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK, a quiet
+/// "there's a fold control here" mark for ANY foldable heading, expanded or
+/// collapsed alike (item 81 widened this from collapsed-only). Shaped in the world
+/// DISPLAY face (General Punctuation, like the elision ellipsis the picker already
+/// renders there), so it never tofus. Revealed only when the caret is on the
+/// heading or it is hovered ([`crate::fold::chevron_revealed`]); rest state shows
+/// none. Since item 81 this is ALSO the click target for BOTH directions (fold an
+/// expanded heading, unfold a collapsed one — [`super::TextPipeline::fold_chevron_hit`]
+/// / [`crate::buffer::Buffer::toggle_fold_at_line`]), not merely a visual cue. **item
+/// 65 taste correction:** hung IMMEDIATELY LEFT of the heading (the writing column's
+/// own leading pad), OUTSIDE the shaped document glyph run, instead of the original
+/// right-of-text placement — see [`super::TextPipeline::fold_chevron_marks`]'s own
+/// doc for the geometry and the graceful no-room hide.
 const FOLD_CHEVRON: &str = "\u{203A}";
 
 /// The collapsed-heading TAIL text: `… N lines` (singular `… 1 line`). The leading
@@ -1228,12 +1231,14 @@ impl TextPipeline {
         let fence_lang_right = self.text_left() + self.text_wrap_width();
         let fence_lang_inset = m.char_width * 0.5;
 
-        // COLLAPSED-HEADING AFFORDANCES (item 47, item 65 taste correction): the
-        // quiet "… N lines" TAIL on every visible folded heading (to the RIGHT of
-        // its text), plus the small expand CHEVRON — now hung IMMEDIATELY LEFT of
-        // the heading, in the writing column's own leading pad, OUTSIDE the shaped
-        // document glyph run entirely (`fold_chevron_marks`'s own doc) — revealed
-        // when the caret is on the heading (or it is hovered — live only). Both are
+        // FOLD AFFORDANCES (item 47, item 65 taste correction, item 81 widened the
+        // chevron to every heading): the quiet "… N lines" TAIL on every visible
+        // FOLDED heading only (to the RIGHT of its text), plus the small fold
+        // CHEVRON — hung IMMEDIATELY LEFT of the heading, in the writing column's
+        // own leading pad, OUTSIDE the shaped document glyph run entirely
+        // (`fold_chevron_marks`'s own doc), for EVERY foldable heading, expanded or
+        // collapsed — revealed when the caret is on the heading (or it is hovered —
+        // live only). Both are
         // ornaments, never part of the shaped line, so they add NO row and never
         // touch the zero-height hidden-row law, and can never shift a heading
         // glyph's x. Each shapes at its OWN natural small-text row height

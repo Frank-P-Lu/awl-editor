@@ -714,37 +714,83 @@ impl TextPipeline {
             .collect()
     }
 
-    /// The expand CHEVRON for the collapsed headings whose chevron is REVEALED (caret
-    /// on the heading OR pointer hovering it — [`crate::fold::chevron_revealed`]):
-    /// `(baseline-y, left-x, filtered line)`. **item 65 taste correction:** the
-    /// chevron now hangs IMMEDIATELY LEFT of the heading, in the writing column's
-    /// own leading pad — OUTSIDE the editable text advance entirely (never part of
-    /// the shaped document glyph run, so it can never shift a heading glyph's x or
-    /// overlap its ink; [`Self::fold_chevron_left`]/[`Self::fold_chevron_has_room`]
-    /// keep it clear of both the heading text AND the persistent outline's own
-    /// margin). Previously it hung to the RIGHT, sharing a reserved slot with the
-    /// tail — moved because a leading (not trailing) affordance reads as the more
-    /// legible "there's a fold control here" cue, closer to a code editor's own
-    /// gutter chevron. Gracefully EMPTY when the pad has no room (edge-to-edge / a
-    /// very narrow custom page pad — [`Self::fold_chevron_has_room`]): the tail
-    /// alone still shows the "… N lines" count either way. Empty in a headless
-    /// capture unless the caret sits on a collapsed heading (no pointer → no
-    /// hover). One quiet marker, never amber (DESIGN §3), and NEVER itself a second
-    /// click target — clicking anywhere past the heading text (the tail's own
-    /// region, unchanged) still expands via [`crate::buffer::Buffer::fold_tail_hit`].
+    /// The fold CHEVRON for every heading whose chevron is REVEALED (caret on the
+    /// heading OR pointer hovering it — [`crate::fold::chevron_revealed`]) —
+    /// **item 81: EVERY visible heading, expanded or collapsed**, not merely a
+    /// collapsed one's tail (the item-47b/65 original scope). `(baseline-y, left-x,
+    /// filtered line)`. Reads [`Self::outline_headings`] rather than `fold_tails`: the
+    /// persistent-margin-outline list is already distilled from the shaped
+    /// fold-FILTERED text (so its `.line`s are already in the same filtered space
+    /// `fold_tails` reports in — see that field's own doc), and a collapsed heading's
+    /// own line is a MEMBER of that list too (its row is never hidden — only its body
+    /// is) — so this is a strict widening of the item-65 set, not a parallel one; a
+    /// heading buried inside a folded ancestor is structurally absent from both alike.
+    /// **item 65 taste correction (placement, unchanged by item 81):** the chevron
+    /// hangs IMMEDIATELY LEFT of the heading, in the writing column's own leading pad
+    /// — OUTSIDE the editable text advance entirely (never part of the shaped
+    /// document glyph run, so it can never shift a heading glyph's x or overlap its
+    /// ink; [`Self::fold_chevron_left`]/[`Self::fold_chevron_has_room`] keep it clear
+    /// of both the heading text AND the persistent outline's own margin). Gracefully
+    /// EMPTY when the pad has no room (edge-to-edge / a very narrow custom page pad —
+    /// [`Self::fold_chevron_has_room`]): a collapsed heading's tail alone still shows
+    /// the "… N lines" count either way. Empty in a headless capture unless the caret
+    /// sits on a foldable heading (no pointer → no hover). One quiet marker, never
+    /// amber (DESIGN §3) — and, since item 81, ITS OWN click target in BOTH
+    /// directions ([`Self::fold_chevron_hit`], the SAME geometry, driving
+    /// [`crate::buffer::Buffer::toggle_fold_at_line`]); a collapsed heading keeps its
+    /// tail region too ([`crate::buffer::Buffer::fold_tail_hit`], expand-only,
+    /// unchanged).
     pub(super) fn fold_chevron_marks(&self) -> Vec<(f32, f32, usize)> {
-        if self.fold_tails.is_empty() || !self.fold_chevron_has_room() {
+        if self.outline_headings.is_empty() || !self.fold_chevron_has_room() {
             return Vec::new();
         }
         let left = self.fold_chevron_left();
-        self.fold_tails
+        self.outline_headings
             .iter()
-            .filter(|t| {
-                crate::fold::chevron_revealed(t.line, self.cursor_line, self.hover_line)
-                    && self.line_ornament_visible(t.line)
+            .filter(|h| {
+                crate::fold::chevron_revealed(h.line, self.cursor_line, self.hover_line)
+                    && self.line_ornament_visible(h.line)
             })
-            .map(|t| (self.line_ornament_baseline(t.line), left, t.line))
+            .map(|h| (self.line_ornament_baseline(h.line), left, h.line))
             .collect()
+    }
+
+    /// item 81 — THE FOLD CHEVRON's own pixel HIT REGION: does `(px, py)` land on a
+    /// currently-REVEALED chevron, and if so which FILTERED heading line? The SAME
+    /// geometry [`Self::fold_chevron_marks`] draws — never a second, independently
+    /// derived box — so a click can only ever land where the chevron is actually
+    /// visible. Narrower than the heading's whole ROW: `px` must sit within the
+    /// chevron's own reserved glyph box (`fold_chevron_left()` ..
+    /// `+ FOLD_CHEVRON_WIDTH_CHARS`), not merely "somewhere left of the text" — a
+    /// click on the heading's own TEXT must place the caret, never toggle the fold.
+    /// `None` off every revealed chevron's box (including "no headings" / "no room in
+    /// the pad" / "this heading's chevron isn't revealed right now"). Drives BOTH the
+    /// pointing-hand cursor and the click-to-toggle action
+    /// ([`crate::buffer::Buffer::toggle_fold_at_line`]) through one hit-test, so the
+    /// two can never disagree on where the target is.
+    pub fn fold_chevron_hit(&self, px: f32, py: f32) -> Option<usize> {
+        if self.outline_headings.is_empty() || !self.fold_chevron_has_room() {
+            return None;
+        }
+        let left = self.fold_chevron_left();
+        let width = self.metrics.char_width * Self::FOLD_CHEVRON_WIDTH_CHARS;
+        if px < left || px > left + width {
+            return None;
+        }
+        self.outline_headings.iter().find_map(|h| {
+            if !crate::fold::chevron_revealed(h.line, self.cursor_line, self.hover_line)
+                || !self.line_ornament_visible(h.line)
+            {
+                return None;
+            }
+            let top = self.line_ornament_top(h.line);
+            let height = self
+                .visual_rows(h.line)
+                .first()
+                .map(|r| r.line_height)
+                .unwrap_or(self.metrics.line_height);
+            (py >= top && py < top + height).then_some(h.line)
+        })
     }
 
     /// The bullet GLYPHS the renderer would draw, in document order — the char half of

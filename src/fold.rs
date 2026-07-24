@@ -115,12 +115,15 @@ pub fn fold_tails(levels: &[u8], folds: &BTreeSet<usize>) -> Vec<(usize, usize)>
         .collect()
 }
 
-/// Whether a collapsed heading on FILTERED row `line` should reveal its small expand
+/// Whether ANY foldable heading on FILTERED row `line` should reveal its small fold
 /// CHEVRON: only when the caret is ON that heading (`cursor_line`) OR the pointer is
-/// hovering it (`hover_line`). The "… N lines" TAIL is always shown; the chevron is
-/// the quiet, SUMMONED affordance (DESIGN.md — summoned over persistent chrome). In a
-/// headless capture `hover_line` is `None` (no pointer), so only the caret-on-heading
-/// arm fires there — the reachable, tested path; the hover arm is live-only.
+/// hovering it (`hover_line`) — expanded or collapsed alike (item 81 widened this
+/// from collapsed-only). On a COLLAPSED heading the "… N lines" TAIL is always
+/// shown too; the chevron itself is the quiet, SUMMONED affordance (DESIGN.md —
+/// summoned over persistent chrome) that now ALSO doubles as the click target for
+/// BOTH directions (`Buffer::toggle_fold_at_line`). In a headless capture
+/// `hover_line` is `None` (no pointer), so only the caret-on-heading arm fires
+/// there — the reachable, tested path; the hover arm is live-only.
 pub fn chevron_revealed(line: usize, cursor_line: usize, hover_line: Option<usize>) -> bool {
     line == cursor_line || hover_line == Some(line)
 }
@@ -240,14 +243,33 @@ pub fn collapse_others(levels: &[u8], caret_line: usize) -> BTreeSet<usize> {
     folds
 }
 
-/// Toggle the fold on the heading enclosing `caret_line`. Returns the heading line
-/// that was toggled (so the caller can leave the caret sensibly placed), or `None`
-/// when there is no enclosing heading (nothing to fold).
-pub fn toggle_at(levels: &[u8], folds: &mut BTreeSet<usize>, caret_line: usize) -> Option<usize> {
-    let h = enclosing_heading(levels, caret_line)?;
+/// Toggle the fold on EXACTLY heading line `h` — fold it if open, unfold it if
+/// folded — regardless of caret position. Unlike [`toggle_at`] (which first
+/// resolves the CARET's enclosing heading), the heading line is already known
+/// here — e.g. a chevron click that hit a precise row (item 81). `false`
+/// (no-op) when `h` is out of range or is not a heading line (`levels[h] ==
+/// 0`): a click on body text can never invent a fold. THE ONE OWNER every
+/// fold-toggling door shares — [`toggle_at`] is a thin wrapper over this (so
+/// the caret-driven `C-c C-f` and a chevron click can never independently
+/// drift), and [`crate::buffer::Buffer::toggle_fold_at_line`] (the chevron's
+/// own click target) calls it directly.
+pub fn toggle_heading(levels: &[u8], folds: &mut BTreeSet<usize>, h: usize) -> bool {
+    if h >= levels.len() || levels[h] == 0 {
+        return false;
+    }
     if !folds.remove(&h) {
         folds.insert(h);
     }
+    true
+}
+
+/// Toggle the fold on the heading enclosing `caret_line`. Returns the heading line
+/// that was toggled (so the caller can leave the caret sensibly placed), or `None`
+/// when there is no enclosing heading (nothing to fold). A thin wrapper over
+/// [`toggle_heading`] — the ONE owner of the actual fold/unfold flip.
+pub fn toggle_at(levels: &[u8], folds: &mut BTreeSet<usize>, caret_line: usize) -> Option<usize> {
+    let h = enclosing_heading(levels, caret_line)?;
+    toggle_heading(levels, folds, h);
     Some(h)
 }
 

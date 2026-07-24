@@ -141,6 +141,49 @@ fn enclosing_heading_is_none_before_the_first_heading() {
 }
 
 #[test]
+fn toggle_heading_flips_a_specific_line_regardless_of_direction() {
+    // item 81: the fold chevron's own owner — no caret resolution, the heading
+    // line is already known (e.g. a precise pixel hit-test).
+    let levels = heading_levels(OUTLINE, true);
+    let mut f = BTreeSet::new();
+    assert!(toggle_heading(&levels, &mut f, 0), "# A is a real heading");
+    assert!(f.contains(&0), "now folded");
+    // The SAME function reverses it — one owner, both directions.
+    assert!(toggle_heading(&levels, &mut f, 0));
+    assert!(f.is_empty(), "now unfolded again");
+}
+
+#[test]
+fn toggle_heading_never_invents_a_fold_off_a_real_heading() {
+    let levels = heading_levels(OUTLINE, true);
+    let mut f = BTreeSet::new();
+    assert!(!toggle_heading(&levels, &mut f, 1), "line 1 is body text");
+    assert!(!toggle_heading(&levels, &mut f, 100), "out of range");
+    assert!(f.is_empty(), "neither call touched the fold set");
+}
+
+#[test]
+fn toggle_at_is_a_thin_wrapper_over_toggle_heading() {
+    // LAW: `toggle_at` (the caret door) and a direct `toggle_heading` call on the
+    // SAME resolved line must produce the IDENTICAL fold-set transition — proving
+    // `toggle_at` has no second implementation that could drift from the chevron
+    // click's own owner (`Buffer::toggle_fold_at_line`, which calls
+    // `toggle_heading` directly).
+    let levels = heading_levels(OUTLINE, true);
+    let mut via_caret = BTreeSet::new();
+    let mut via_line = BTreeSet::new();
+    // Caret in ## A.1's body (line 3) resolves to heading line 2.
+    assert_eq!(toggle_at(&levels, &mut via_caret, 3), Some(2));
+    toggle_heading(&levels, &mut via_line, 2);
+    assert_eq!(via_caret, via_line, "identical transition, fold direction");
+    // And the reverse (unfold) transition too.
+    assert_eq!(toggle_at(&levels, &mut via_caret, 3), Some(2));
+    toggle_heading(&levels, &mut via_line, 2);
+    assert_eq!(via_caret, via_line, "identical transition, unfold direction");
+    assert!(via_caret.is_empty());
+}
+
+#[test]
 fn toggle_folds_then_unfolds_the_enclosing_heading() {
     let levels = heading_levels(OUTLINE, true);
     let mut f = BTreeSet::new();
