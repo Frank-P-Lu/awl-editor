@@ -530,9 +530,12 @@ pub enum Action {
     /// process-global and performs the insert, and the headless `--keys`
     /// replay does the SAME insert against a FIXED placeholder date
     /// (`dateformat::CAPTURE_PLACEHOLDER_YMD`) so a capture stays
-    /// deterministic. No default chord (both slots empty, like Align Table) —
-    /// palette-summoned, rebindable via `[keys] insert_date`. See
-    /// `dateformat.rs`.
+    /// deterministic. Default chord Cmd-Shift-D (native) / `C-c .` (quiet
+    /// emacs slot — resolves through the same `C-c` prefix machinery as
+    /// Follow link's `C-c C-o`); on Linux the `C-c .` slot is displaced (Ctrl-C
+    /// is native Copy there), but the native slot translates to plain
+    /// Ctrl-Shift-D and still fires. Also palette-summoned, and independently
+    /// rebindable via `[keys] insert_date`. See `dateformat.rs`.
     InsertDate,
     // Prefix: C-x was pressed; we are waiting for the next key.
     BeginPrefix,
@@ -1710,7 +1713,7 @@ lifetime_stats|||
 writing_streaks|||
 line_endings|||
 align_table|||
-insert_date|||
+insert_date|Cmd-S-d|C-S-d|C-c .
 report_a_problem|||
 download_file|||
 check_for_updates|||
@@ -2038,6 +2041,52 @@ keybindings|||
         assert_eq!(km.resolve(&ch("l"), &none()), Action::InsertChar('l'));
         assert!(!Action::ToggleTaskList.is_motion());
         assert!(Action::ToggleTaskList.is_edit());
+    }
+
+    #[test]
+    fn insert_date_default_chords_both_conventions() {
+        // Queue item 79: Insert Date gets a useful default chord — Cmd-Shift-D
+        // (native) / `C-c .` (quiet emacs slot). BOTH-CONVENTION replay: the
+        // native slot fires under its OWN convention-resolved chord (Cmd-Shift-D
+        // on Mac, the naive Cmd->Ctrl translation Ctrl-Shift-D on Linux — 'd'
+        // needs no `LINUX_NATIVE_OVERRIDE` entry, since holding Shift already
+        // keeps it a distinct chord from bare Ctrl-D's own DeleteForward
+        // meaning, so nothing collides).
+        let mut km_mac = KeymapState::new_with_convention(Convention::Mac);
+        assert_eq!(km_mac.resolve(&ch("d"), &sup_shift()), Action::InsertDate);
+        assert_eq!(km_mac.resolve(&ch("D"), &sup_shift()), Action::InsertDate, "case-folded");
+        // Plain 'd' (no Super) still self-inserts — the chord doesn't shadow
+        // ordinary typing — and Cmd-D alone (no Shift) stays unbound (no command
+        // has ever claimed it; the unbound-super guard swallows it, never types).
+        assert_eq!(km_mac.resolve(&ch("d"), &none()), Action::InsertChar('d'));
+        assert_eq!(km_mac.resolve(&ch("d"), &sup()), Action::Ignore, "plain Cmd-D stays unbound");
+
+        let mut km_linux = KeymapState::new_with_convention(Convention::Linux);
+        let ctrl_shift = mods(ModifiersState::CONTROL | ModifiersState::SHIFT);
+        assert_eq!(km_linux.resolve(&ch("d"), &ctrl_shift), Action::InsertDate);
+        assert_eq!(km_linux.resolve(&ch("d"), &ctrl()), Action::DeleteForward, "bare Ctrl-D keeps its own meaning");
+
+        // EMACS quiet slot: `C-c .` resolves through the SAME `C-c` prefix
+        // machinery Follow link's `C-c C-o` uses — the second key is a bare,
+        // unmodified '.', which `parse_binding`/`resolve`'s mid-prefix arm
+        // accept just as readily as a `C-`-prefixed one.
+        let mut km = KeymapState::new_with_convention(Convention::Mac);
+        assert_eq!(km.resolve(&ch("c"), &ctrl()), Action::BeginPrefix);
+        assert!(km.in_prefix(), "C-c arms the prefix");
+        assert_eq!(km.resolve(&ch("."), &none()), Action::InsertDate);
+        assert!(!km.in_prefix(), "the second key clears the prefix");
+
+        // On Linux, `C-c .` is quietly displaced by native Copy — Ctrl-C now
+        // resolves straight to `CopyRegion` instead of arming the prefix, so
+        // `.` never reaches the `C-c` map (exactly Follow link's own `C-c C-o`
+        // situation). Insert Date is never fully unbound there, unlike Follow
+        // link, because its native Ctrl-Shift-D slot above still fires.
+        let mut km_linux2 = KeymapState::new_with_convention(Convention::Linux);
+        assert_eq!(km_linux2.resolve(&ch("c"), &ctrl()), Action::CopyRegion);
+        assert!(!km_linux2.in_prefix(), "native Copy wins outright, the prefix never arms");
+
+        assert!(!Action::InsertDate.is_motion());
+        assert!(!Action::InsertDate.is_edit(), "InsertDate only signals an Effect; the live insert isn't dispatched here");
     }
 
     #[test]
