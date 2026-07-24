@@ -121,7 +121,7 @@ pub struct Config {
     /// consult this). `None` (or an empty/all-unrecognized list) = the built-in
     /// default `["ja", "zh-Hans", "zh-Hant", "ko"]`
     /// ([`crate::frontmatter::DEFAULT_CJK_PRIORITY`]). Read by the live App's
-    /// write-back-once doc-lang detector (`app/files.rs`) and available to the
+    /// write-back-once doc-lang detector (`app/files/`) and available to the
     /// render resolution ladder; unrecognized tags in the list are simply
     /// skipped (never a crash).
     pub cjk_priority: Option<Vec<crate::frontmatter::Lang>>,

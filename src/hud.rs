@@ -151,7 +151,7 @@ pub fn odometer_rows(stats: Option<&HudStats>) -> [(&'static str, String); 5] {
 /// row used, and the one [`crate::debug`]'s own "still ·" perf lines still use
 /// today.
 /// Only ever CONSTRUCTED by the live App's `sync_hud_saved` (native-only — the
-/// wasm build has no such seam yet, see `app/files.rs`'s module doc); still
+/// wasm build has no such seam yet, see `app/files/`'s module doc); still
 /// matched on every platform by `saved_readout`/`hud_report`, mirroring
 /// `crashlog::PanicMeta::uptime_secs`'s own native-constructs/all-platforms-reads
 /// shape — hence the wasm-only dead-code allow rather than a broader gate.

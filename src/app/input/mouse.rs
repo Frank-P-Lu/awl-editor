@@ -32,11 +32,11 @@ impl App {
         // lands on the right glyph for mixed CJK + Latin lines. Falls back to the
         // fixed-pitch free function only if the pipeline is not yet up.
         match self.gpu.as_ref() {
-            Some(gpu) => gpu.pipeline.hit_test(px, py, self.scroll_lines),
+            Some(gpu) => gpu.pipeline.hit_test(px, py, self.active.extra.scroll_lines),
             None => render::hit_test(
                 px,
                 py,
-                self.scroll_lines,
+                self.active.extra.scroll_lines,
                 &render::Metrics::with_dpi(self.zoom, self.dpi),
                 render::TEXT_LEFT,
             ),
@@ -51,8 +51,8 @@ impl App {
     /// nothing is folded, so an unfolded click is byte-identical.
     pub(in crate::app) fn hit_test_char(&self) -> usize {
         let (line, col) = self.hit_test_line_col();
-        let full = self.buffer.visible_line_to_full(line);
-        self.buffer.line_col_to_char(full, col)
+        let full = self.active.buffer.visible_line_to_full(line);
+        self.active.buffer.line_col_to_char(full, col)
     }
 
     /// CLICK-TO-EXPAND (item 47c): if the current pointer lands on a collapsed
@@ -62,11 +62,11 @@ impl App {
     /// only, not a second click target; this hit region is unchanged. See
     /// [`crate::buffer::Buffer::fold_tail_hit`].
     fn fold_affordance_at_pointer(&self) -> Option<usize> {
-        if !self.buffer.has_folds() {
+        if !self.active.buffer.has_folds() {
             return None;
         }
         let (line, col) = self.hit_test_line_col();
-        self.buffer.fold_tail_hit(line, col)
+        self.active.buffer.fold_tail_hit(line, col)
     }
 
     /// Multi-click detection: same spot, within the time window (`MULTICLICK_MS`) —
@@ -135,16 +135,16 @@ impl App {
         // affordance) falls through to the normal caret placement below.
         if !shift {
             if let Some(h) = self.fold_affordance_at_pointer() {
-                self.buffer.seal_undo_group();
-                self.buffer.unfold_at(h);
-                self.buffer.clear_mark();
+                self.active.buffer.seal_undo_group();
+                self.active.buffer.unfold_at(h);
+                self.active.buffer.clear_mark();
                 return;
             }
         }
         let click_count = self.bump_click_count();
         // A click is a non-edit gesture: seal the open undo group so text typed
         // after relocating the cursor is its own undo step.
-        self.buffer.seal_undo_group();
+        self.active.buffer.seal_undo_group();
         let idx = self.hit_test_char();
         self.dragging = true;
         // Fresh gesture: neither armed nor traveled yet. `drag_press_px` anchors
@@ -165,31 +165,31 @@ impl App {
                 // relative to the NEW spot, since a shift-click is usually a
                 // fresh spot rather than a same-spot repeat).
                 self.drag_granularity = DragGranularity::Char;
-                if self.buffer.anchor_char().is_none() {
-                    self.buffer.set_anchor(self.buffer.cursor_char());
+                if self.active.buffer.anchor_char().is_none() {
+                    self.active.buffer.set_anchor(self.active.buffer.cursor_char());
                 }
-                self.buffer.set_cursor(idx);
-                self.shift_selecting = true;
+                self.active.buffer.set_cursor(idx);
+                self.active.extra.shift_selecting = true;
             }
             1 => {
                 // Single click: place the cursor, clear any selection.
                 self.drag_granularity = DragGranularity::Char;
-                self.buffer.set_cursor(idx);
-                self.buffer.clear_mark();
-                self.buffer.set_anchor(idx);
-                self.shift_selecting = false;
+                self.active.buffer.set_cursor(idx);
+                self.active.buffer.clear_mark();
+                self.active.buffer.set_anchor(idx);
+                self.active.extra.shift_selecting = false;
             }
             2 => {
                 // Double click: select the word under the cursor.
                 self.drag_granularity = DragGranularity::Word;
-                let (s, e) = self.buffer.word_bounds(idx);
-                self.buffer.select_range(s, e);
+                let (s, e) = self.active.buffer.word_bounds(idx);
+                self.active.buffer.select_range(s, e);
             }
             _ => {
                 // Triple click: select the whole line.
                 self.drag_granularity = DragGranularity::Line;
-                let (s, e) = self.buffer.line_bounds(idx);
-                self.buffer.select_range(s, e);
+                let (s, e) = self.active.buffer.line_bounds(idx);
+                self.active.buffer.select_range(s, e);
             }
         }
         // REVEALED PLACEMENT (folds): a shift-click whose new selection spans a
@@ -199,7 +199,7 @@ impl App {
         // (the fold-affordance click above already returned; it is a deliberate
         // unfold, not a placement). The caller's `sync_view(true)` repaints any
         // now-revealed section.
-        self.buffer.reveal_placement();
+        self.active.buffer.reveal_placement();
     }
 
     /// item 74 FIX: resolve an Outline row's hit-tested line (as
@@ -217,7 +217,7 @@ impl App {
     /// method so this pure line-space remap is unit-testable without a live GPU hit
     /// test (`outline_click`'s pixel half is live-only).
     pub(in crate::app) fn outline_row_target_line(&self, filtered_line: usize) -> usize {
-        self.buffer.visible_line_to_full(filtered_line)
+        self.active.buffer.visible_line_to_full(filtered_line)
     }
 
     /// CLICK-TO-JUMP on a persistent MARGIN OUTLINE row: hit-test the pointer against
@@ -251,8 +251,8 @@ impl App {
     /// mouse-affordance half of the identity round's "⌘-click Follow link" (the
     /// keyboard chord stays too).
     pub(in crate::app) fn follow_link_at_pointer(&self) -> bool {
-        let byte = self.buffer.char_to_byte(self.hit_test_char());
-        if let Some(url) = crate::markdown::link_at(&self.buffer.text(), byte) {
+        let byte = self.active.buffer.char_to_byte(self.hit_test_char());
+        if let Some(url) = crate::markdown::link_at(&self.active.buffer.text(), byte) {
             self.follow_link(&url);
             true
         } else {
@@ -445,13 +445,13 @@ impl App {
             // affordance whose only keyboard door is ⌘⌥C (bare ⌥c composes to 'ç'
             // on macOS). Recompute needs the haystack, so read it before borrowing.
             Some(crate::render::PanelHit::CaseToggle) => {
-                let hay = self.buffer.text();
+                let hay = self.active.buffer.text();
                 let target = self.search.as_mut().map(|st| {
                     st.toggle_case(&hay);
                     st.current_match()
                 });
                 if let Some(Some(m)) = target {
-                    self.buffer.set_cursor(m.start);
+                    self.active.buffer.set_cursor(m.start);
                 }
             }
             Some(crate::render::PanelHit::Find) => {
@@ -575,13 +575,13 @@ impl App {
             return;
         }
         // A click is a non-edit gesture: seal the open undo group first.
-        self.buffer.seal_undo_group();
+        self.active.buffer.seal_undo_group();
         let idx = self.hit_test_char();
         self.dragging = false;
-        self.buffer.set_cursor(idx);
-        self.buffer.clear_mark();
-        self.buffer.set_anchor(idx);
-        self.shift_selecting = false;
+        self.active.buffer.set_cursor(idx);
+        self.active.buffer.clear_mark();
+        self.active.buffer.set_anchor(idx);
+        self.active.extra.shift_selecting = false;
         // Fire the spell picker for the word now under the cursor (same Action the
         // Cmd-`;` chord runs, so the overlay + sidecar behave identically). A right-click
         // is a direct, learned gesture — the FAST path, not a discovery browse — so the
@@ -602,25 +602,25 @@ impl App {
         }
         let idx = self.hit_test_char();
         match self.drag_granularity {
-            DragGranularity::Char => self.buffer.set_cursor(idx),
+            DragGranularity::Char => self.active.buffer.set_cursor(idx),
             DragGranularity::Word => {
                 // Extend by whole words: keep the original anchor word, move the
                 // cursor to the far edge of the word under the pointer.
-                let anchor = self.buffer.anchor_char().unwrap_or(idx);
-                let (ws, we) = self.buffer.word_bounds(idx);
+                let anchor = self.active.buffer.anchor_char().unwrap_or(idx);
+                let (ws, we) = self.active.buffer.word_bounds(idx);
                 if idx >= anchor {
-                    self.buffer.set_cursor(we);
+                    self.active.buffer.set_cursor(we);
                 } else {
-                    self.buffer.set_cursor(ws);
+                    self.active.buffer.set_cursor(ws);
                 }
             }
             DragGranularity::Line => {
-                let anchor = self.buffer.anchor_char().unwrap_or(idx);
-                let (ls, le) = self.buffer.line_bounds(idx);
+                let anchor = self.active.buffer.anchor_char().unwrap_or(idx);
+                let (ls, le) = self.active.buffer.line_bounds(idx);
                 if idx >= anchor {
-                    self.buffer.set_cursor(le);
+                    self.active.buffer.set_cursor(le);
                 } else {
-                    self.buffer.set_cursor(ls);
+                    self.active.buffer.set_cursor(ls);
                 }
             }
         }
@@ -628,7 +628,7 @@ impl App {
         // collapsed section reveals every intersected fold before the selection is
         // shown, through the ONE placement owner — so a drag can never span hidden
         // lines invisibly. A cheap no-op unless a section is folded.
-        self.buffer.reveal_placement();
+        self.active.buffer.reveal_placement();
     }
 
     /// LIVE-ONLY: recompute the CONTEXT-AWARE OS cursor shape (`cursor_shape.rs`) for
@@ -745,9 +745,9 @@ impl App {
         };
         // Round toward the scroll direction so small notches still move.
         let delta = lines.round() as isize;
-        let cur = self.scroll_lines as isize;
+        let cur = self.active.extra.scroll_lines as isize;
         let next = (cur + delta).clamp(0, max as isize);
-        self.scroll_lines = next as usize;
+        self.active.extra.scroll_lines = next as usize;
     }
 
     /// `WindowEvent::CursorMoved`: track the pointer, un-hide the auto-hidden OS
@@ -824,10 +824,10 @@ impl App {
     /// chevron never lingers when the pointer leaves the text). See
     /// [`crate::fold::chevron_revealed`].
     pub(in crate::app) fn update_fold_hover(&mut self) {
-        let folded = self.buffer.has_folds();
+        let folded = self.active.buffer.has_folds();
         let over_col = folded && self.pointer_over_writing_column();
         let (px, py) = self.cursor_px;
-        let scroll = self.scroll_lines;
+        let scroll = self.active.extra.scroll_lines;
         let Some(gpu) = self.gpu.as_mut() else { return };
         let line = if over_col {
             Some(gpu.pipeline.hit_test(px, py, scroll).0)
@@ -1015,8 +1015,8 @@ impl App {
                 // cursor and does NOT extend a phantom selection. A real
                 // drag (or double/triple-click) leaves cursor != anchor,
                 // i.e. has_selection(), so its mark is preserved.
-                if !self.buffer.has_selection() {
-                    self.buffer.clear_mark();
+                if !self.active.buffer.has_selection() {
+                    self.active.buffer.clear_mark();
                 }
                 // FORMAT POPOVER: a MOUSE selection that leaves a non-empty
                 // selection SUMMONS the reveal-on-select format toolbar (a
@@ -1027,8 +1027,8 @@ impl App {
                 // it down. A popover-button press returned early above, so its own
                 // release just re-affirms `true` here (stays open across applies).
                 self.popover_open = crate::popover::popover_on()
-                    && self.buffer.has_selection()
-                    && self.buffer.is_markdown()
+                    && self.active.buffer.has_selection()
+                    && self.active.buffer.is_markdown()
                     && self.overlay.is_none()
                     && self.search.is_none();
                 self.sync_view(true);
@@ -1059,7 +1059,7 @@ impl App {
             };
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.cursor_px;
-                let scroll = self.scroll_lines;
+                let scroll = self.active.extra.scroll_lines;
                 if let Some(gpu) = self.gpu.as_mut() {
                     if gpu.pipeline.try_table_pan(px, py, scroll, dx) {
                         gpu.window.request_redraw();

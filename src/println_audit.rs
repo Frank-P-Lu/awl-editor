@@ -75,7 +75,18 @@ const EXPECTED: &[(&str, usize)] = &[
     // failure (I/O error, unresolvable path) — non-fatal by design (the word is
     // already silenced in memory that session), same best-effort-write class as
     // the sticky-pref writes above; a future notice-routing candidate.
-    ("app/files.rs", 14),
+    // Item 56: the former `app/files.rs` monolith split into `app/files/`;
+    // the same 14 best-effort-write sites, redistributed by which submodule
+    // now owns each verb (open/credits/guide + the recent MRUs in
+    // `open.rs`; sticky-pref + page-width-reset in `settings.rs`; the
+    // rebind-menu writes in `rebind.rs`; the autosave/scratch-stash engine
+    // in `autosave.rs`; the dictionary switch + personal-dictionary append
+    // in `dictionary.rs`) — same total, same reasons, just relocated.
+    ("app/files/open.rs", 5),
+    ("app/files/settings.rs", 2),
+    ("app/files/rebind.rs", 2),
+    ("app/files/autosave.rs", 2),
+    ("app/files/dictionary.rs", 3),
     // GPU/render-pipeline errors (`prepare`/`render`) retain a stderr
     // diagnostic while App-owned recovery also paints the calm notice.
     ("app/gpu.rs", 2),

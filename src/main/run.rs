@@ -426,7 +426,7 @@ impl<'a> ReplaySession<'a> {
         // overlay, so this never runs in a default capture.
         let history_entries: Vec<crate::history::TimelineRow> =
             if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                match crate::history::source_path(self.buffer.path(), None, self.buffer.is_note()) {
+                match crate::history::source_path(self.buffer.path(), self.buffer.is_note()) {
                     Some(path) => crate::history::timeline_rows(
                         &path,
                         &self.buffer.text(),
@@ -1060,7 +1060,7 @@ fn capture_screenshot(
                     // keyed by the same shared `source_path` derivation.
                     crate::overlay::OverlayKind::History => {
                         if let Some(path) =
-                            crate::history::source_path(buffer.path(), None, buffer.is_note())
+                            crate::history::source_path(buffer.path(), buffer.is_note())
                         {
                             if let Some(content) = crate::history::load(&path, val) {
                                 buffer.set_text(&content);
@@ -1215,7 +1215,7 @@ fn history_preview_for(
     // the highlighted version — built by the SAME one owner the live App renders
     // through (`history::diff_preview`), synchronously (the live debounce is a
     // wall-clock concern the deterministic capture never has).
-    crate::history::diff_preview(ov, buffer.path(), None, buffer.is_note(), &buffer.text())
+    crate::history::diff_preview(ov, buffer.path(), buffer.is_note(), &buffer.text())
 }
 
 /// Execute the resolved [`Mode`]: render a headless capture, run the typing
@@ -3038,7 +3038,7 @@ mod tests {
     fn headless_replay_never_touches_the_recent_files_store() {
         // The RECENTLY-OPENED FILES determinism law as the same tripwire shape:
         // `push_recent_file` (and the `recent_files` load) live only on the live
-        // `App` (`app/files.rs`), which `replay_keys` never constructs — so a
+        // `App` (`app/files/`), which `replay_keys` never constructs — so a
         // `--keys` replay against a bare `Buffer` must never create
         // `recent-files.toml`, even after edits + a save.
         use std::sync::Arc;
@@ -3217,7 +3217,7 @@ mod tests {
             let (kind, id) = res.accept.expect("Enter accepts the highlighted version");
             assert_eq!(kind, crate::overlay::OverlayKind::History);
             // The capture arm's restore (same shared source_path + load + set_text).
-            let path = crate::history::source_path(buffer.path(), None, buffer.is_note())
+            let path = crate::history::source_path(buffer.path(), buffer.is_note())
                 .expect("a pathed buffer keys under itself");
             let content = crate::history::load(&path, &id).expect("the id round-trips");
             buffer.set_text(&content);

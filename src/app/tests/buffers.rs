@@ -17,13 +17,13 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
         .with_file(&b, "beta\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
-    app.buffer.set_text("ALPHA EDITED\n");
-    app.buffer.set_cursor(3);
+    app.active.buffer.set_text("ALPHA EDITED\n");
+    app.active.buffer.set_cursor(3);
     assert_eq!(app.open_buffer_count(), 1, "only A is open so far");
 
     app.load_path(b.clone());
     assert_eq!(
-        app.buffer.text(),
+        app.active.buffer.text(),
         "beta\n",
         "B loads fresh from disk (first open)"
     );
@@ -32,27 +32,27 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
         2,
         "A is now backgrounded, not closed"
     );
-    app.buffer.set_text("BETA EDITED\n");
+    app.active.buffer.set_text("BETA EDITED\n");
 
     mem.write(&a, b"ALPHA CHANGED ON DISK\n").unwrap();
 
     app.load_path(a.clone());
     assert_eq!(
-        app.buffer.text(),
+        app.active.buffer.text(),
         "ALPHA EDITED\n",
         "the LIVE unsaved edit survived the round trip, not a re-read from disk"
     );
     assert_eq!(
-        app.buffer.cursor_char(),
+        app.active.buffer.cursor_char(),
         3,
         "the cursor position survived too"
     );
-    assert!(app.buffer.is_dirty(), "the unsaved edit is still unsaved");
+    assert!(app.active.buffer.is_dirty(), "the unsaved edit is still unsaved");
     assert_eq!(app.open_buffer_count(), 2, "A active again, B backgrounded");
 
     // And B's OWN edit is preserved too (not silently dropped when we left it).
     app.load_path(b.clone());
-    assert_eq!(app.buffer.text(), "BETA EDITED\n", "B's edit also survived");
+    assert_eq!(app.active.buffer.text(), "BETA EDITED\n", "B's edit also survived");
 }
 
 // ── PROSE/CODE PAGE-WIDTH SPLIT (App-level buffer-switch resync) ────────
@@ -317,11 +317,11 @@ fn load_path_reopening_the_active_file_is_a_noop() {
     let mem = InMemoryFs::new().with_file(&a, "alpha\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
-    app.buffer.set_text("EDITED IN PLACE\n");
-    app.buffer.set_cursor(2);
+    app.active.buffer.set_text("EDITED IN PLACE\n");
+    app.active.buffer.set_cursor(2);
     app.load_path(a.clone());
-    assert_eq!(app.buffer.text(), "EDITED IN PLACE\n");
-    assert_eq!(app.buffer.cursor_char(), 2);
+    assert_eq!(app.active.buffer.text(), "EDITED IN PLACE\n");
+    assert_eq!(app.active.buffer.cursor_char(), 2);
     assert_eq!(app.open_buffer_count(), 1, "no phantom second entry");
 }
 
@@ -341,7 +341,7 @@ fn load_path_recognizes_the_same_file_under_a_differently_spelled_path() {
     let mem = InMemoryFs::new().with_file(&b, "beta\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(messy.clone()), "/proj", Config::empty());
-    app.buffer.set_text("ALPHA EDITED\n");
+    app.active.buffer.set_text("ALPHA EDITED\n");
     assert_eq!(app.open_buffer_count(), 1);
 
     app.load_path(b.clone());
@@ -353,7 +353,7 @@ fn load_path_recognizes_the_same_file_under_a_differently_spelled_path() {
 
     app.load_path(clean.clone());
     assert_eq!(
-        app.buffer.text(),
+        app.active.buffer.text(),
         "ALPHA EDITED\n",
         "the CLEAN path found A's live entry (parked under the MESSY spelling) instead of \
          opening a fresh, orphaned copy"
@@ -396,8 +396,8 @@ fn load_path_opens_a_relative_launch_path_then_finds_it_again_via_absolute_path(
     };
     // The launch argument stays exactly as typed: relative, no directory.
     let mut app = App::new(Some(PathBuf::from("a.txt")), dir.clone(), None, None, cfg);
-    app.buffer.set_text("ALPHA EDITED\n");
-    app.buffer.set_cursor(3);
+    app.active.buffer.set_text("ALPHA EDITED\n");
+    app.active.buffer.set_cursor(3);
     assert_eq!(
         app.open_buffer_count(),
         1,
@@ -407,13 +407,13 @@ fn load_path_opens_a_relative_launch_path_then_finds_it_again_via_absolute_path(
     // Reopen via the ABSOLUTE spelling.
     app.load_path(dir.join("a.txt"));
     assert_eq!(
-        app.buffer.text(),
+        app.active.buffer.text(),
         "ALPHA EDITED\n",
         "the live edit survived — the absolute spelling found the SAME buffer, not a fresh \
          disk read"
     );
     assert_eq!(
-        app.buffer.cursor_char(),
+        app.active.buffer.cursor_char(),
         3,
         "the cursor position survived too"
     );
@@ -468,7 +468,7 @@ fn switching_away_from_a_dirty_file_still_autosaves() {
         .with_file(&b, "bbb\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
-    app.buffer.set_text("aaa EDITED\n");
+    app.active.buffer.set_text("aaa EDITED\n");
     app.load_path(b.clone());
     assert_eq!(
         mem.read_to_string(&a).unwrap(),
@@ -484,7 +484,7 @@ fn new_note_parks_the_previous_buffer_for_a_later_reopen() {
     let mem = InMemoryFs::new().with_file(&a, "aaa\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
-    app.buffer.set_text("aaa EDITED\n");
+    app.active.buffer.set_text("aaa EDITED\n");
     assert_eq!(app.open_buffer_count(), 1);
     app.new_note();
     assert_eq!(
@@ -492,10 +492,10 @@ fn new_note_parks_the_previous_buffer_for_a_later_reopen() {
         2,
         "A is parked; the fresh note is active"
     );
-    assert_eq!(app.buffer.text(), "", "the new note starts blank");
+    assert_eq!(app.active.buffer.text(), "", "the new note starts blank");
     app.load_path(a.clone());
     assert_eq!(
-        app.buffer.text(),
+        app.active.buffer.text(),
         "aaa EDITED\n",
         "A's edit survived being backgrounded by C-x n"
     );
@@ -522,7 +522,7 @@ fn registry_cap_evicts_the_lru_clean_buffer_not_a_dirty_one() {
         "/proj",
         Config::empty(),
     );
-    app.buffer.set_text("EDITED, NEVER EVICT ME\n");
+    app.active.buffer.set_text("EDITED, NEVER EVICT ME\n");
     // Open every clean file in turn (backgrounding the dirty one first, then
     // each clean one), pushing the registry to (and one past) the cap.
     for i in 0..crate::buffers::MAX_OPEN_BUFFERS {
@@ -537,7 +537,7 @@ fn registry_cap_evicts_the_lru_clean_buffer_not_a_dirty_one() {
     );
     app.load_path(PathBuf::from("/proj/dirty.txt"));
     assert_eq!(
-        app.buffer.text(),
+        app.active.buffer.text(),
         "EDITED, NEVER EVICT ME\n",
         "the dirty buffer survived the whole cap-pressure run"
     );
@@ -583,4 +583,158 @@ fn right_click_word_summons_spell_suggestions() {
             .is_none(),
         "correct word: no summon"
     );
+}
+
+// ── ITEM 56: THE OWNED SLOT — every App-level per-buffer field travels ──
+// with its buffer because the WHOLE `Entry<BufferExtra>` moves atomically on
+// park/activate, never a field enumerated by hand (`files/active.rs`'s
+// `park_active_buffer`/`activate_from_registry`). These tests witness that
+// law directly, at the seam most likely to regress it: a NEW buffer-scoped
+// field added to `App` (instead of `BufferExtra`) rather than a forgotten
+// entry in a hand-written snapshot/restore pair.
+
+#[test]
+fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let b = PathBuf::from("/proj/b.md");
+    let c = PathBuf::from("/proj/c.md");
+    let mem = InMemoryFs::new()
+        .with_file(&a, "# a\nhelo world\n")
+        .with_file(&b, "# b\n")
+        .with_file(&c, "# c\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // Autosave OFF: this test's whole point is the SWAP mechanics, isolated
+    // from the (unrelated) autosave engine's own clobber-guard bookkeeping,
+    // which would otherwise treat the hand-set `doc_saved_version`/
+    // `disk_mtime` sentinels below as a genuine external change and quietly
+    // re-stamp them the moment the switch's own `autosave_flush` runs.
+    let cfg = Config { autosave: Some(false), ..Config::empty() };
+    let mut app = app_on(Some(a.clone()), "/proj", cfg);
+
+    // Mutate EVERY BufferExtra field on A to a value distinguishable from
+    // both `BufferExtra::default()` and whatever B/C will carry.
+    app.active.extra.shift_selecting = true;
+    app.active.extra.scroll_lines = 11;
+    app.run_spellcheck_now(); // populates spell_cache + spell_checked_version
+    assert!(!app.active.extra.spell_cache.is_empty(), "fixture text must actually misspell");
+    let a_spell_len = app.active.extra.spell_cache.len();
+    let _ = app.view_text(); // populates sync_text_cache
+    assert!(app.active.extra.sync_text_cache.is_some());
+    app.active.extra.caret_synced_version = 999;
+    app.active.extra.doc_saved_version = Some(777);
+    app.active.extra.scratch_saved_version = Some(888);
+    app.active.extra.disk_mtime = Some(crate::fs::Metadata {
+        modified: Some(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(111)),
+        len: Some(222),
+    });
+    app.active.extra.scratch_mtime = Some(crate::fs::Metadata {
+        modified: Some(std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(333)),
+        len: Some(444),
+    });
+    // NOTE: `doc_autosave_at` is deliberately EXCLUDED from the round-trip set
+    // below — `autosave_flush` (called on every switch-OUT, at the very top of
+    // `load_path`, regardless of whether autosave itself is on) unconditionally
+    // clears the OUTGOING buffer's own pending-idle-write marker as part of
+    // treating the switch itself as a flush trigger; that is pre-existing,
+    // deliberate behavior this round left untouched, not a slot-ownership leak
+    // (a switch away from a buffer always retires its own pending autosave).
+    app.active.extra.history_preview = Some(("42".to_string(), "old text".to_string()));
+    app.active.extra.history_scroll_before = Some(55);
+
+    app.load_path(b.clone()); // A parks whole-slot; B activates FRESH
+    assert_eq!(app.active.extra.scroll_lines, 0, "B never sees A's sentinel");
+    assert!(!app.active.extra.shift_selecting);
+    assert!(app.active.extra.spell_cache.is_empty());
+    assert_eq!(app.active.extra.caret_synced_version, app.active.buffer.version());
+    assert_eq!(app.active.extra.doc_saved_version, Some(app.active.buffer.version()));
+    assert_eq!(app.active.extra.history_preview, None);
+    assert_eq!(app.active.extra.history_scroll_before, None);
+
+    app.load_path(a.clone()); // A reactivates: every sentinel round-trips.
+    assert!(app.active.extra.shift_selecting);
+    assert_eq!(app.active.extra.scroll_lines, 11);
+    assert_eq!(app.active.extra.spell_cache.len(), a_spell_len);
+    assert_eq!(app.active.extra.spell_checked_version, Some(app.active.buffer.version()));
+    assert!(app.active.extra.sync_text_cache.is_some());
+    assert_eq!(app.active.extra.caret_synced_version, 999);
+    assert_eq!(app.active.extra.doc_saved_version, Some(777));
+    assert_eq!(app.active.extra.scratch_saved_version, Some(888));
+    assert!(app.active.extra.disk_mtime.is_some());
+    assert!(app.active.extra.scratch_mtime.is_some());
+    assert_eq!(app.active.extra.history_preview, Some(("42".to_string(), "old text".to_string())));
+    assert_eq!(app.active.extra.history_scroll_before, Some(55));
+
+    // A -> B -> C -> A: not merely a 2-slot toggle artifact.
+    app.load_path(b.clone());
+    app.load_path(c.clone());
+    app.load_path(a.clone());
+    assert_eq!(app.active.extra.scroll_lines, 11, "A's state survives a 3-way swap too");
+    assert_eq!(app.active.extra.caret_synced_version, 999);
+    assert_eq!(app.active.extra.history_preview, Some(("42".to_string(), "old text".to_string())));
+}
+
+#[test]
+fn switching_buffers_isolates_the_spell_cache() {
+    // The SAME version-0 isolation law `switching_buffers_isolates_the_view_
+    // text_cache` proves for `sync_text_cache`, extended to `spell_cache` /
+    // `spell_checked_version`: a fresh buffer restarts its edit version at 0,
+    // so a KEYED spell verdict computed for one buffer must never paint over
+    // another buffer sitting at the same version (CLAUDE.md's cache-key-
+    // discipline tripwire).
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let b = PathBuf::from("/proj/b.md");
+    let mem = InMemoryFs::new()
+        .with_file(&a, "helo world\n") // misspelled: "helo"
+        .with_file(&b, "hello world\n"); // correctly spelled
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.run_spellcheck_now();
+    assert!(!app.active.extra.spell_cache.is_empty(), "A misspells");
+    assert_eq!(app.active.extra.spell_checked_version, Some(app.active.buffer.version()));
+
+    app.load_path(b.clone());
+    // B is FRESH: no stale spell cache carried over from A, and its own
+    // (empty) verdict must not be confused with A's checked version — both
+    // buffers can sit at version 0 simultaneously.
+    assert!(app.active.extra.spell_cache.is_empty(), "B must not inherit A's verdicts");
+    assert_eq!(app.active.extra.spell_checked_version, None, "B has not been checked yet");
+    app.run_spellcheck_now();
+    assert!(app.active.extra.spell_cache.is_empty(), "B is correctly spelled");
+    assert_eq!(app.active.extra.spell_checked_version, Some(app.active.buffer.version()));
+
+    app.load_path(a.clone());
+    assert!(!app.active.extra.spell_cache.is_empty(), "A's OWN verdicts are restored, not B's empty one");
+}
+
+#[test]
+fn fresh_buffer_starts_with_default_buffer_extra() {
+    // A newly-created buffer (never before backgrounded) gets `BufferExtra::
+    // default()`, not a leaked carry-over from whatever was active before —
+    // proven at the seam that installs a FRESH entry (`new_note`'s
+    // `start_fresh_note`, distinct from the registry-hit branch).
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let mem = InMemoryFs::new().with_file(&a, "# a\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.active.extra.scroll_lines = 40; // dirty the CURRENT buffer's extra
+    app.active.extra.history_preview = Some(("1".to_string(), "x".to_string()));
+
+    app.new_note(); // a brand-new, never-before-seen buffer
+
+    assert_eq!(app.active.extra.scroll_lines, 0, "fresh-defaults, not carried over");
+    assert!(!app.active.extra.shift_selecting);
+    assert!(app.active.extra.spell_cache.is_empty());
+    assert_eq!(app.active.extra.spell_checked_version, None);
+    assert_eq!(app.active.extra.sync_text_cache, None);
+    assert_eq!(
+        app.active.extra.caret_synced_version,
+        app.active.buffer.version(),
+        "the synced version matches the fresh buffer's own version"
+    );
+    assert_eq!(app.active.extra.history_preview, None);
+    assert_eq!(app.active.extra.history_scroll_before, None);
+    assert!(app.active.buffer.folds().is_empty(), "a fresh note has no folds");
 }

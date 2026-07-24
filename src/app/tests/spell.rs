@@ -28,24 +28,24 @@ fn recompute_spell_cache_reflects_the_current_text_immediately() {
         return; // bundled dictionary unavailable in this environment
     }
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer = Buffer::from_str("helo world\n");
+    app.active.buffer = Buffer::from_str("helo world\n");
     app.recompute_spell_cache();
-    let visible = crate::spell::visible(&app.spell_cache, &app.buffer.text());
+    let visible = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
     assert_eq!(visible.len(), 1, "helo starts out flagged: {visible:?}");
     assert_eq!((visible[0].start_col, visible[0].end_col), (0, 4));
 
     // Correct it IN PLACE at the SAME start column the verdict above is
     // keyed to ("helo" -> "hello", inserting 'l' before the trailing 'o').
-    let idx = app.buffer.line_col_to_char(0, 3);
-    app.buffer.set_cursor(idx);
-    app.buffer.insert_text("l");
-    assert_eq!(app.buffer.text(), "hello world\n");
+    let idx = app.active.buffer.line_col_to_char(0, 3);
+    app.active.buffer.set_cursor(idx);
+    app.active.buffer.insert_text("l");
+    assert_eq!(app.active.buffer.text(), "hello world\n");
 
     // EAGER rescan (what the very next `sync_view` does): the cache is fresh
     // again immediately — no leftover flagged span for the now-correct word,
     // and nothing else newly flagged either.
     app.recompute_spell_cache();
-    let visible2 = crate::spell::visible(&app.spell_cache, &app.buffer.text());
+    let visible2 = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
     assert!(
         visible2.is_empty(),
         "the corrected word must not still be flagged: {visible2:?}"
@@ -64,24 +64,24 @@ fn a_stale_cache_never_paints_through_the_visible_filter_after_an_edit() {
         return;
     }
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer = Buffer::from_str("helo world\n");
+    app.active.buffer = Buffer::from_str("helo world\n");
     app.recompute_spell_cache();
-    let stale_cache = app.spell_cache.clone();
+    let stale_cache = app.active.extra.spell_cache.clone();
     assert_eq!(
-        crate::spell::visible(&stale_cache, &app.buffer.text()).len(),
+        crate::spell::visible(&stale_cache, &app.active.buffer.text()).len(),
         1,
         "sanity: the pre-edit cache does flag helo"
     );
 
     // The SAME correction as above, WITHOUT calling `recompute_spell_cache` —
     // simulating a read that lands before the eager rescan has caught up.
-    let idx = app.buffer.line_col_to_char(0, 3);
-    app.buffer.set_cursor(idx);
-    app.buffer.insert_text("l");
-    assert_eq!(app.buffer.text(), "hello world\n");
+    let idx = app.active.buffer.line_col_to_char(0, 3);
+    app.active.buffer.set_cursor(idx);
+    app.active.buffer.insert_text("l");
+    assert_eq!(app.active.buffer.text(), "hello world\n");
 
     assert!(
-        crate::spell::visible(&stale_cache, &app.buffer.text()).is_empty(),
+        crate::spell::visible(&stale_cache, &app.active.buffer.text()).is_empty(),
         "a verdict keyed to the pre-edit text must never paint on the post-edit text"
     );
 }
@@ -97,25 +97,25 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
         return;
     }
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
-    app.buffer = Buffer::from_str("helo wrld\n");
+    app.active.buffer = Buffer::from_str("helo wrld\n");
     app.recompute_spell_cache();
-    let v1 = crate::spell::visible(&app.spell_cache, &app.buffer.text());
+    let v1 = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
     assert_eq!(v1.len(), 2, "both helo and wrld start out flagged: {v1:?}");
 
     // Fix only "helo" -> "hello".
-    let idx = app.buffer.line_col_to_char(0, 3);
-    app.buffer.set_cursor(idx);
-    app.buffer.insert_text("l");
-    assert_eq!(app.buffer.text(), "hello wrld\n");
+    let idx = app.active.buffer.line_col_to_char(0, 3);
+    app.active.buffer.set_cursor(idx);
+    app.active.buffer.insert_text("l");
+    assert_eq!(app.active.buffer.text(), "hello wrld\n");
     app.recompute_spell_cache();
 
-    let v2 = crate::spell::visible(&app.spell_cache, &app.buffer.text());
+    let v2 = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
     assert_eq!(v2.len(), 1, "only wrld remains flagged: {v2:?}");
-    let w2 = crate::spell::word_at(&app.buffer.text(), &v2[0]);
+    let w2 = crate::spell::word_at(&app.active.buffer.text(), &v2[0]);
     assert_eq!(w2, "wrld", "the surviving flag is the real, still-unfixed typo");
 
     // A second eager pass over UNCHANGED text is idempotent.
     app.recompute_spell_cache();
-    let v3 = crate::spell::visible(&app.spell_cache, &app.buffer.text());
+    let v3 = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
     assert_eq!(v3, v2, "a repeat rescan of unchanged text must not move anything");
 }

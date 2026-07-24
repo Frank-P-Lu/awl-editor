@@ -11,8 +11,8 @@ use super::App;
 fn pdf_export_writes_saved_sibling_and_scratch_notes_root_without_other_formats() {
     let saved_fs = InMemoryFs::new().with_dir("/docs");
     let mut saved = App::new_hermetic(None, PathBuf::from("/docs"), Config::empty());
-    saved.buffer = Buffer::from_str("# Saved PDF\n\nSibling export body.\n");
-    saved.buffer.set_path(PathBuf::from("/docs/draft.md"));
+    saved.active.buffer = Buffer::from_str("# Saved PDF\n\nSibling export body.\n");
+    saved.active.buffer.set_path(PathBuf::from("/docs/draft.md"));
     crate::fs::with_fs(Arc::new(saved_fs.clone()), || {
         saved.export_document(crate::export::Format::Pdf);
         let pdf = saved_fs.read(Path::new("/docs/draft.pdf")).unwrap();
@@ -25,7 +25,7 @@ fn pdf_export_writes_saved_sibling_and_scratch_notes_root_without_other_formats(
     let scratch_fs = InMemoryFs::new().with_dir("/notes");
     let mut scratch = App::new_hermetic(None, PathBuf::from("/project"), Config::empty());
     scratch.notes_root = PathBuf::from("/notes");
-    scratch.buffer = Buffer::from_str("# Scratch PDF\n\nNotes-root export body.\n");
+    scratch.active.buffer = Buffer::from_str("# Scratch PDF\n\nNotes-root export body.\n");
     crate::fs::with_fs(Arc::new(scratch_fs.clone()), || {
         scratch.export_document(crate::export::Format::Pdf);
         let target = Path::new("/notes/scratch-pdf.pdf");

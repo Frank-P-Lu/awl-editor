@@ -501,8 +501,18 @@ mod stats;
 mod streaks;
 
 pub struct App {
-    file: Option<PathBuf>,
-    buffer: Buffer,
+    /// THE OWNED ACTIVE BUFFER SLOT (item 56): the live `Buffer` plus every
+    /// App-level per-buffer field that must travel WITH it across a park/
+    /// activate swap (scroll, spell cache, sync/autosave bookkeeping — see
+    /// `files::BufferExtra`), as ONE `Entry<BufferExtra>` — the SAME type a
+    /// backgrounded buffer parks as in `buffer_registry`, so a swap is a
+    /// single whole-slot MOVE, never a field-by-field snapshot/restore. THE
+    /// SOLE owner constructing or destructuring this field is `files/active.rs`
+    /// (`park_active_buffer` / `activate_from_registry`); every other reader
+    /// goes through `self.active.buffer` / `self.active.extra.<field>` directly
+    /// — no accessor method (a whole-self borrow would reintroduce the exact
+    /// friction this slot design avoids).
+    active: crate::buffers::Entry<files::BufferExtra>,
     keymap: KeymapState,
     mods: Modifiers,
     /// WHICH-KEY: when a multi-key PREFIX (`C-x`) is pending its second key, the
@@ -516,7 +526,6 @@ pub struct App {
     /// (no ongoing tick); reset to false — and the panel put down — the instant the
     /// prefix resolves/aborts.
     whichkey_shown: bool,
-    scroll_lines: usize,
     gpu: Option<Gpu>,
     recovery_window: Option<Arc<Window>>,
     gpu_lifecycle: GpuLifecycle,
@@ -686,9 +695,6 @@ pub struct App {
     click_count: u32,
     /// Accumulated trackpad pixel scroll not yet converted to a whole line.
     scroll_px_accum: f32,
-    /// True while the active selection was begun with Shift (TRANSIENT: a later
-    /// unshifted motion collapses it). C-Space marks set this false (sticky).
-    shift_selecting: bool,
     /// The in-progress IME composition (romaji->kana->kanji) string. Empty when
     /// not composing. Shown as an underlined overlay at the caret WITHOUT being
     /// inserted into the ropey buffer; a Commit finalizes it into the buffer.
@@ -715,41 +721,11 @@ pub struct App {
     popover_open: bool,
     /// The spell-check engine (bundled en_US Hunspell), loaded ONCE at startup.
     /// `None` if the dictionary failed to parse (reported to stderr); spell-check
-    /// then no-ops rather than crashing the editor.
+    /// then no-ops rather than crashing the editor. App-GLOBAL (not buffer-scoped
+    /// — the checker itself is shared; `spell_cache`/`spell_checked_version`,
+    /// the PER-BUFFER verdict cache, live in `files::BufferExtra` instead, see
+    /// `self.active.extra`).
     spell: Option<crate::spell::SpellChecker>,
-    /// Cached KEYED misspelling verdicts (see [`crate::spell::SpellVerdict`])
-    /// plus the buffer EDIT VERSION they were computed for. A whole-buffer
-    /// re-check only runs when the version actually changed (cursor moves /
-    /// scroll reuse the cached spans); comparing a `u64` version avoids
-    /// cloning + comparing the whole rope string on every keystroke (the old
-    /// hot path did `spell_cache.0 != buffer.text()`).
-    ///
-    /// EAGER + KEYED (the completed-word-lag fix): recomputed SYNCHRONOUSLY
-    /// (`App::recompute_spell_cache`) the instant the version changes — no
-    /// debounce window in which a stale verdict could paint. The "don't flag
-    /// mid-typing" job the old ~150ms debounce did now belongs entirely to
-    /// the DISPLAY-side caret-word suppression (`word_at_caret` in
-    /// `render/rects.rs`): the caret's own word is always freshly checked,
-    /// just not SHOWN while the caret sits in it. Each entry is additionally
-    /// KEYED to the exact word text it judged, so even a verdict this sync
-    /// doesn't (yet) replace can never paint over text that has since
-    /// changed underneath it (`ViewState.misspelled` is built by filtering
-    /// through `SpellVerdict::still_valid` in `sync_view`).
-    spell_cache: Vec<crate::spell::SpellVerdict>,
-    /// Buffer version the `spell_cache` reflects. `None` until the first check, so
-    /// the first edit always schedules one.
-    spell_checked_version: Option<u64>,
-    /// Buffer version at the previous `sync_view`. A change since then means the
-    /// cursor moved BECAUSE of an edit (typing/delete/paste/newline), so the
-    /// caret slides as a plain block; an unchanged version means navigation.
-    caret_synced_version: u64,
-    /// CACHED document text for [`Self::sync_view`], keyed by the buffer VERSION at
-    /// the clone. A pure cursor move / scroll / selection change does NOT bump the
-    /// version, yet `sync_view` runs every one of them and would re-materialise the
-    /// whole rope into a `String` each time; this reuses the last clone (a cheap
-    /// memcpy) whenever the version is unchanged, walking the rope only after an
-    /// actual edit. Same bytes either way, so the pushed `ViewState.text` is identical.
-    sync_text_cache: Option<(u64, String)>,
     /// Set by `apply` for the ONE next `sync_view` when an edit should still
     /// streak its caret glide (delete-word-backward), so the removed span and the
     /// caret motion read as a single concurrent move instead of "text vanishes,
@@ -845,28 +821,12 @@ pub struct App {
     /// Buffer version the note was last auto-saved at, so an unchanged buffer is
     /// not re-written. `None` until the first save.
     autosave_saved_version: Option<u64>,
-    /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending; the
-    /// debounced flush fires after [`AUTOSAVE_IDLE`] of quiet in `about_to_wait`
-    /// (live only — armed exclusively in `sync_view` behind the gpu-present gate,
-    /// so the headless capture can never schedule it). `None` = nothing pending.
-    doc_autosave_at: Option<Instant>,
-    /// Buffer version of the open document whose content is known to be ON DISK
-    /// (from load, a manual save, or an autosave), so an unchanged buffer is
-    /// never re-written. `None` until known.
-    doc_saved_version: Option<u64>,
-    /// Our last-known on-disk STAT (mtime + byte length) of the open file (stamped
-    /// on load and after each of our own writes) — the CLOBBER GUARD's baseline: an
-    /// autosave first re-stats the file, and a mismatch (moved mtime OR a
-    /// same-tick size change) means someone else wrote it, so the write is HELD
-    /// with a calm notice instead of overwriting external edits. Wasm-safe (the
-    /// times are `crate::clock::SystemTime`, never std).
-    disk_mtime: Option<crate::fs::Metadata>,
-    /// Buffer version of the no-path SCRATCH buffer last stashed to
-    /// [`crate::fs::scratch_stash_path`], so an unchanged scratch isn't re-written.
-    scratch_saved_version: Option<u64>,
-    /// Last-known on-disk stat of the scratch stash (two-instance clobber
-    /// safety, mirroring `disk_mtime`).
-    scratch_mtime: Option<crate::fs::Metadata>,
+    /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
+    /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
+    /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
+    /// (item 56), so they now live in `files::BufferExtra` (`self.active.extra`)
+    /// instead of here: see `doc_autosave_at`/`doc_saved_version`/`disk_mtime`/
+    /// `scratch_saved_version`/`scratch_mtime` on that type.
     /// When the AUTOSAVE ENGINE last wrote successfully THIS session (the doc
     /// autosave OR the scratch stash) — stamped ONLY inside `autosave_doc_now` /
     /// `stash_scratch_now`'s `Ok` arms (i.e. exclusively through
@@ -909,23 +869,10 @@ pub struct App {
     /// that writes it back in step (so ANY caller of `update_title`, not just
     /// `sync_view`'s own comparison, keeps this cache honest).
     title_dirty: bool,
-    /// DIFF-AS-PREVIEW cache: the `(id, transcript)` of the WRITER'S DIFF the open
-    /// History overlay's highlighted row resolves to — the marked-up-manuscript
-    /// comparison of the CURRENT buffer against that version, built once per id by
-    /// the one owner [`crate::history::diff_preview`] so an arrow/hover/wheel burst
-    /// over the rows never re-diffs per sync. The preview itself is DERIVED at
-    /// ViewState-build time (`sync_view` overrides the pushed text) — the Buffer,
-    /// its version, and its undo history are NEVER touched. Dropped the moment the
-    /// overlay closes (Esc = back to now exactly). `None` = no preview. (The old
-    /// read-only Compare TAKEOVER that used to own the transcript is RETIRED —
-    /// this preview override seam is the one surviving diff surface.)
-    history_preview: Option<(String, String)>,
-    /// The document scroll (visual rows) captured when the History timeline
-    /// OPENED, restored on a close-without-restore — a shorter previewed version
-    /// can destructively clamp `scroll_lines` against ITS max-scroll, and "Esc =
-    /// back to now exactly" includes the viewport. Taken (not restored) on a real
-    /// Enter-restore. `None` while the timeline isn't open.
-    history_scroll_before: Option<usize>,
+    /// DIFF-AS-PREVIEW cache (`history_preview`) + the pre-open scroll
+    /// (`history_scroll_before`): buffer-scoped (item 56), folded into
+    /// `files::BufferExtra` (`self.active.extra`) — see that type for the full
+    /// doc, unchanged from here.
     /// When the zoom last changed and a STICKY-ZOOM write is pending; the debounced
     /// write fires after `ZOOM_PERSIST_DEBOUNCE` of quiet in `about_to_wait`, so a
     /// rapid Cmd-=/Cmd-- run persists the SETTLED value once instead of per step.
@@ -1060,7 +1007,7 @@ pub struct App {
     /// The RAW `--workspace` flag (None = unset), remembered for the same reason.
     cli_workspace: Option<PathBuf>,
     /// MULTI-BUFFER REGISTRY: every OTHER currently-open buffer (backgrounded —
-    /// not the active `self.buffer`), keyed by stable identity. Opening a path
+    /// not the active `self.active.buffer`), keyed by stable identity. Opening a path
     /// already resident here SWITCHES to its live buffer (unsaved edits, cursor,
     /// scroll, undo, spell state all survive) instead of re-reading disk — the
     /// v1 multi-buffer win. See `files::BufferExtra` + `files::park_active_buffer`.
@@ -1300,15 +1247,32 @@ impl App {
         let clock: Box<dyn crate::clock::Clock> = Box::new(crate::clock::RealClock);
         #[cfg(not(target_arch = "wasm32"))]
         let stats_origin = clock.now();
-        let mut app = Self {
-            file,
+        // THE OWNED ACTIVE SLOT (item 56): a fresh buffer's `BufferExtra` starts
+        // at its inert defaults EXCEPT the version-keyed fields, which must be
+        // stamped to `initial_version`/the launch mtimes right here — this is
+        // the sole App-construction site, so it is the one place that ever
+        // builds an `Entry` from raw pieces rather than a whole-slot move (see
+        // `files/active.rs`'s `park_active_buffer`/`activate_from_registry`).
+        let active = crate::buffers::Entry {
             buffer,
+            extra: files::BufferExtra {
+                caret_synced_version: initial_version,
+                // The just-loaded buffer IS the on-disk content (and a just-
+                // restored scratch IS the stash), so neither starts "unsaved".
+                doc_saved_version: Some(initial_version),
+                disk_mtime,
+                scratch_saved_version: Some(initial_version),
+                scratch_mtime,
+                ..Default::default()
+            },
+        };
+        let mut app = Self {
+            active,
             keymap,
             clock,
             mods: Modifiers::default(),
             prefix_pending_at: None,
             whichkey_shown: false,
-            scroll_lines: 0,
             gpu: None,
             recovery_window: None,
             gpu_lifecycle: GpuLifecycle::AwaitingWindow,
@@ -1351,7 +1315,6 @@ impl App {
             last_click_px: (0.0, 0.0),
             click_count: 0,
             scroll_px_accum: 0.0,
-            shift_selecting: false,
             preedit: String::new(),
             ime_enabled: false,
             search: None,
@@ -1363,10 +1326,6 @@ impl App {
                     None
                 }
             },
-            spell_cache: Vec::new(),
-            spell_checked_version: None,
-            caret_synced_version: initial_version,
-            sync_text_cache: None,
             caret_edit_streaks: false,
             caret_held: false,
             caret_impact: None,
@@ -1392,13 +1351,6 @@ impl App {
             notes_root,
             autosave_dirty_at: None,
             autosave_saved_version: None,
-            doc_autosave_at: None,
-            // The just-loaded buffer IS the on-disk content (and a just-restored
-            // scratch IS the stash), so neither starts "unsaved".
-            doc_saved_version: Some(initial_version),
-            disk_mtime,
-            scratch_saved_version: Some(initial_version),
-            scratch_mtime,
             autosave_last_ok: None,
             last_saved_ok: None,
             notice: None,
@@ -1406,8 +1358,6 @@ impl App {
             notice_expires_at: None,
             pending_crash: None,
             title_dirty: false,
-            history_preview: None,
-            history_scroll_before: None,
             zoom_persist_at: None,
             zoom_reflow: ZoomReflow::default(),
             zoom_anchor: None,
@@ -1466,7 +1416,7 @@ impl App {
         // C-x f / C-x b / goto path's own call in `App::load_path` — a real
         // FILE only (never the no-argument scratch/stash-restore buffer,
         // which isn't "opening a document").
-        if app.file.is_some() {
+        if app.active.buffer.path().is_some() {
             app.write_back_lang_tag_once();
         }
         // SESSION RESTORE (native only, kill-switch gated): the OTHER open
@@ -1485,7 +1435,7 @@ impl App {
         // (CLI arg or session-restored active) keeps the LAZY anchor — its
         // pre-existing words are not "writing" — so `streaks_baseline` stays `None`.
         #[cfg(not(target_arch = "wasm32"))]
-        if app.file.is_none() {
+        if app.active.buffer.path().is_none() {
             app.streaks_anchor_now();
         }
         // A previous crash is passive state, not a startup interruption: retain
@@ -1846,8 +1796,8 @@ impl ApplicationHandler<AwlEvent> for App {
         // the active world) rather than starting bare and waiting for the
         // first `update_title()` call to catch up.
         let title = files::window_title(
-            self.file.as_deref(),
-            self.buffer.is_note(),
+            self.active.buffer.path(),
+            self.active.buffer.is_note(),
             crate::theme::active().name,
             self.is_document_dirty(),
         );

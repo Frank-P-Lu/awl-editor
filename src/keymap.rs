@@ -391,7 +391,7 @@ pub enum Action {
     /// to jump into `notes_root` (remembering the project just left); invoke again
     /// (or "Back") to flip straight back to it. A no-op with nothing to flip to
     /// (already home, nothing remembered) or with no usable `notes_root`.
-    /// Palette-only, no default chord — see `app/files.rs::notes_flip` + its pure
+    /// Palette-only, no default chord — see `app/files/::notes_flip` + its pure
     /// `notes_flip_target`.
     NotesFlip,
     /// Cmd-N: NEW QUICK NOTE in ONE gesture — jump to the notes project AND open a
@@ -407,7 +407,7 @@ pub enum Action {
     /// pre-filled with the current filename; Enter commits the rename on disk, Esc
     /// cancels. Palette-only, no default chord. A no-op summon (no overlay opens) on a
     /// pathless buffer (scratch / an unnamed note) — there is nothing to rename yet.
-    /// See `app/files.rs::rename_current_file`.
+    /// See `app/files/::rename_current_file`.
     OpenRenameNote,
     /// NOTES VERBS round: DUPLICATE the current file to a sibling, auto-named via the
     /// same no-clobber dedup [`crate::buffer::unique_path`] uses (`name-2.md`, …), and
@@ -440,13 +440,13 @@ pub enum Action {
     /// the warm, human-readable thank-you (type designers, the dictionary, the
     /// tools-of-thought influences), pointing at `THIRD-PARTY-LICENSES.md` for the
     /// full generated crate inventory. Mirrors the Settings-opens-a-buffer door
-    /// exactly (see `App::open_credits`, `app/files.rs`). No default chord (summon
+    /// exactly (see `App::open_credits`, `app/files/`). No default chord (summon
     /// by name); see `credits.rs`.
     OpenCredits,
     /// Guide (command palette): open the embedded `GUIDE.md` into the buffer —
     /// the user guide (where your words live, the notes model, keys, looks, the
     /// config file). Mirrors the Credits-opens-a-buffer door exactly (see
-    /// `App::open_guide`, `app/files.rs`). No default chord (summon by name);
+    /// `App::open_guide`, `app/files/`). No default chord (summon by name);
     /// see `guide.rs`.
     OpenGuide,
     /// Cmd-Shift-H (Super+Shift+H): summon the HISTORY TIMELINE — a summoned,

@@ -43,8 +43,9 @@ const ALLOWED: &[(&str, usize)] = &[
     ("app/gpu.rs", 3),
     // `set_dictionary`'s parse-cost measurement (`parsed in {:.2}ms`): times the
     // real dictionary reconstruction — wall-clock by necessity, a diagnostic,
-    // not a scheduled deadline.
-    ("app/files.rs", 1),
+    // not a scheduled deadline. Item 56: `set_dictionary` now lives in
+    // `app/files/dictionary.rs` (the former `app/files.rs` monolith's split).
+    ("app/files/dictionary.rs", 1),
     // The `--soak-gpu` recovery-latency feed (`observe_recovered(kind, ..)`):
     // records WHEN a GPU-fault recovery presented so the soak report can measure
     // its real duration. `--soak-gpu` is an isolated, live-only stress harness

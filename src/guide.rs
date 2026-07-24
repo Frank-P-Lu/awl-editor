@@ -3,7 +3,7 @@
 //!
 //! Summoned via Cmd-P → "Guide" (`Action::OpenGuide` / `Effect::OpenGuide`, see
 //! `commands.rs` + `actions.rs`), which opens this text into the buffer exactly
-//! like Credits opens `CREDITS.md` — see `App::open_guide` (`app/files.rs`) for
+//! like Credits opens `CREDITS.md` — see `App::open_guide` (`app/files/`) for
 //! why it is written to a real on-disk path (under `fs::data_root()`, refreshed
 //! to the embedded text on every open) rather than left path-less: a path-less
 //! buffer is indistinguishable from the SCRATCH surface to the autosave engine

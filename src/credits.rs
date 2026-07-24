@@ -4,7 +4,7 @@
 //! Summoned via Cmd-P → "Credits" (`Action::OpenCredits` / `Effect::OpenCredits`,
 //! see `commands.rs` + `actions.rs`), which opens this text into the buffer
 //! exactly like Settings opens the config file — see `App::open_credits`
-//! (`app/files.rs`) for why it is written to a real on-disk path (under
+//! (`app/files/`) for why it is written to a real on-disk path (under
 //! `fs::data_root()`, refreshed to the embedded text on every open) rather than
 //! left path-less: a path-less buffer is indistinguishable from the SCRATCH
 //! surface to the autosave engine (`App::autosave_flush`'s `buffer.path().is_none()`

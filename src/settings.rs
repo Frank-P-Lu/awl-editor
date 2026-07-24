@@ -492,7 +492,7 @@ pub fn value_cells(values: &SettingsValues) -> Vec<String> {
 // ── PLATFORM-SCOPED ROWS (RESOLVED — the web-config round) ─────────────────────
 //
 // "Edit config as text" used to hide on `Web`: `App::open_settings`
-// (`app/files.rs`, the live handler `Effect::OpenSettings` reaches) early-returns
+// (`app/files/`, the live handler `Effect::OpenSettings` reaches) early-returns
 // on an empty `config.path`, and the web build used to hard-code `Config::empty()`
 // (no `$XDG_CONFIG_HOME/awl/config.toml` in a browser sandbox — WEB.md's former
 // "No config file on the web" gap). `main::wasm_start` now loads a real
