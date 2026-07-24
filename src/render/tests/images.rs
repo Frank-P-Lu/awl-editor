@@ -1531,3 +1531,192 @@ fn image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump() {
     );
     restore();
 }
+
+/// ITEM 82, LAW — a row's culling test must read its own BOX (`[top, top +
+/// height]`), never just its TOP against a flat margin: a row taller than the
+/// margin can have its top scrolled well past it while its BOTTOM is still
+/// genuinely on-screen. Pure/deterministic — no fixture, no GPU device.
+///
+/// NON-VACUOUS: the straddling case is built so its top alone already fails
+/// the OLD top-only formula (`top > -margin`) — spelled out inline below —
+/// while [`TextPipeline::row_box_visible`] (the fix) correctly keeps it. A
+/// revert of `row_box_visible` back to the top-only test fails this test's
+/// first assertion.
+#[test]
+fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_margin() {
+    let Some(p) = headless_pipeline() else {
+        eprintln!("skipping row_box_visible_law: no wgpu adapter");
+        return;
+    };
+    let margin = p.metrics.line_height * 8.0;
+    let window_h = p.window_h;
+
+    // A 500px-tall row (the shape of a genuinely tall inline image) whose top
+    // has scrolled deep past the margin but whose bottom lands 40px on-screen.
+    let dh = 500.0;
+    let straddling_top = -dh + 40.0;
+    assert!(
+        straddling_top < -margin,
+        "sanity: this row's TOP alone is already past the flat margin (the pre-fix cull condition): top={straddling_top} margin={margin}"
+    );
+    let old_top_only_formula = straddling_top > -margin && straddling_top < window_h + margin;
+    assert!(
+        !old_top_only_formula,
+        "sanity: a top-only test would have wrongly culled this straddling row"
+    );
+    assert!(
+        p.row_box_visible(straddling_top, dh),
+        "THE FIX: the row's own bottom ({}) is still on-screen, so the box test keeps it visible",
+        straddling_top + dh
+    );
+
+    // Once the row's OWN bottom has also passed the margin, it is genuinely
+    // gone — both the old and new tests agree here (sanity upper bound).
+    let gone_top = -(margin + dh + 10.0);
+    assert!(
+        !p.row_box_visible(gone_top, dh),
+        "once the bottom itself clears the margin the row is correctly culled: bottom={}",
+        gone_top + dh
+    );
+
+    // A zero-height row (an ordinary text ornament) is byte-identical to the
+    // old top-only test — `row_box_visible` is a strict generalization.
+    assert!(p.row_box_visible(-margin + 1.0, 0.0), "just inside the top margin: visible");
+    assert!(!p.row_box_visible(-margin - 1.0, 0.0), "just outside the top margin: culled");
+}
+
+/// ITEM 82, END-TO-END — a TALL inline image (viewport-fraction capped, well
+/// past the flat ornament-cull margin) stays LAID OUT + DRAWN through the
+/// exact scroll boundary where its top has scrolled off but its bottom is
+/// still on-screen — a real `prepare()` GPU pass witnessing actual image
+/// shaping (decode + quad placement), not just the row-height table
+/// `image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump` checks.
+/// Places the viewport (`scroll_lines`, the one LIVE-REPORTED scroll unit —
+/// see `ViewState::scroll_lines`'s field doc) through three states:
+///   1. flush top (`scroll_lines == image_row`) — fully visible, the baseline.
+///   2. `scroll_lines == image_row + 1` — the row-granular scroll model's own
+///      boundary: the image's bottom edge is pinned to exactly `TEXT_TOP`, a
+///      small but genuine on-screen sliver. THIS is the state the pre-fix
+///      top-only cull dropped outright (dh comfortably exceeds the margin).
+///   3. far enough past that the image's bottom has cleared the margin too —
+///      correctly gone (the "disappears only once its bottom has passed
+///      above the viewport" half of the law).
+/// Scrolling back to state 1 then re-asserts BYTE-IDENTICAL geometry (no
+/// jump, no drift, no stale placeholder) — the "restores the same
+/// pixels/row geometry" half. The caret/selection are never touched across
+/// any of the four frames (scroll is the only axis moved), so cursor/
+/// selection displacement is structurally excluded, not merely asserted.
+///
+/// MUTATION CHECK: reverting `prepare_images`'/`image_hit_rects`' cull back to
+/// `line_ornament_visible` (top-only) makes state 2 read 0 quads / 0 hit
+/// rects instead of 1 — this test fails there first. Fixture: `samples/photo.png`.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scroll_up() {
+    let _w = crate::testlock::serial();
+    let _pg = crate::testlock::serial();
+    if std::fs::metadata("samples/photo.png").is_err() {
+        eprintln!("skipping: samples/photo.png fixture not present");
+        return;
+    }
+    let prev = crate::markdown::inline_images_on();
+    let prevw = crate::markdown::wysiwyg_on();
+    crate::markdown::set_inline_images_on(true);
+    crate::markdown::set_wysiwyg_on(true);
+    let restore = || {
+        crate::markdown::set_inline_images_on(prev);
+        crate::markdown::set_wysiwyg_on(prevw);
+    };
+    let Some((device, queue, mut p)) = headless_pipeline_dq() else {
+        eprintln!("skipping tall_image_survives_the_viewport_top_boundary: no wgpu adapter");
+        restore();
+        return;
+    };
+    // Line 0: a `|1200` hint upscales past the column so it caps at the
+    // viewport-fraction ceiling (the same recipe
+    // `image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump` proved
+    // lands dh > 400px). 24 short trailing lines give room to scroll well
+    // past the image without wrapping (each stays its own 1-row LINE_HEIGHT).
+    let mut text = String::from("![pic|1200](samples/photo.png)\n");
+    for i in 0..24 {
+        text.push_str(&format!("line {i}\n"));
+    }
+    // Caret parked well off the image line for every frame below — only
+    // `scroll_lines` ever changes between frames.
+    let mut v = view(&text, 10, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+
+    let dh = p.images_report()[0].display_h;
+    let lh = p.metrics.line_height;
+    let margin = lh * 8.0;
+    assert!(
+        dh > margin,
+        "sanity: this image is genuinely taller than the flat cull margin: dh={dh} margin={margin}"
+    );
+    assert_eq!(p.image_pipeline.instance_count(), 1, "state 1 (flush top): the image draws");
+    assert_eq!(p.image_placeholder_pipeline.instance_count(), 0, "a readable fixture: never a placeholder");
+    let base_rects = p.image_hit_rects();
+    assert_eq!(base_rects.len(), 1, "state 1: one resize-handle target");
+    let base_rect = base_rects[0].1;
+
+    // STATE 2 — THE LIVE-REPORTED BOUNDARY: scroll one row past the image, so
+    // its bottom edge sits at exactly TEXT_TOP.
+    v.scroll_lines = 1;
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    assert_eq!(
+        p.image_pipeline.instance_count(),
+        1,
+        "state 2: the image's bottom sliver still genuinely intersects the viewport, so it stays drawn"
+    );
+    assert_eq!(
+        p.image_placeholder_pipeline.instance_count(),
+        0,
+        "state 2: still no stale placeholder"
+    );
+    assert_eq!(
+        p.image_hit_rects().len(),
+        1,
+        "state 2: the resize handle stays armed through the boundary"
+    );
+
+    // STATE 3 — far enough past that the image's own BOTTOM has also cleared
+    // the margin: correctly, fully gone.
+    let extra_rows_past_margin = ((margin - TEXT_TOP) / lh).ceil() as usize + 3;
+    let far_scroll = 1 + extra_rows_past_margin;
+    v.scroll_lines = far_scroll;
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    assert_eq!(
+        p.image_pipeline.instance_count(),
+        0,
+        "state 3: the image's bottom has now cleared the margin too — correctly culled, no ghost quad"
+    );
+    assert_eq!(
+        p.image_hit_rects().len(),
+        0,
+        "state 3: no phantom resize handle once the image is genuinely gone"
+    );
+
+    // SCROLL BACK UP to state 1: byte-identical restored geometry — no jump,
+    // no blank collapse, no stale placeholder.
+    v.scroll_lines = 0;
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    assert_eq!(p.image_pipeline.instance_count(), 1, "scrolled back up: the image redraws");
+    assert_eq!(
+        p.image_placeholder_pipeline.instance_count(),
+        0,
+        "scrolled back up: still never a placeholder"
+    );
+    let restored_rects = p.image_hit_rects();
+    assert_eq!(restored_rects.len(), 1, "scrolled back up: one resize-handle target, same as the baseline");
+    assert_eq!(
+        restored_rects[0].1, base_rect,
+        "scrolling back up restores BYTE-IDENTICAL geometry: {:?} vs baseline {base_rect:?}",
+        restored_rects[0].1
+    );
+    restore();
+}
