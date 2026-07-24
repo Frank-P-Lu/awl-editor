@@ -4,14 +4,15 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
-## In flight (cooking wave 1 — 2026-07-25)
+## In flight (cooking — 2026-07-25)
 
-Background Workflows off `main`; integrate serially on the merge gate as each verifies SHIP. Workers report shas — the board is orchestrator-only.
+Background Workflows off `main`; integrated serially on the merge gate as each verifies SHIP. Landed items sit on LOCAL main (not yet pushed — one batched both-conventions gate + CI push pending once build-contention drops). Workers report shas; the board is orchestrator-only.
 
-- 76 — active-folder migration (Opus plan → Sonnet build → Opus verify). **77 waits on 76.**
-- 78 — empty-list Enter provenance. 79 — Insert Date chord. 80 — Find/Replace stable width. 81 — heading left-chevron fold. 82 — inline image scroll/cull. (each Sonnet build → adversarial verify.)
+**Landed on local main (SHIP-verified, unpushed):** 78 (list provenance @18052e3) · 79 (date chord @a196b69) · 80 (Find/Replace width @3f68a46) · 81 (heading chevron @c71d703).
+**In flight:** 76 (active-folder; Opus→Sonnet→Opus — **77 waits on 76**) · 82 (image scroll/cull) · 84 (selection clip) · 83 (overlay room + query center; Fable) · 85 (theme-picker hover) · 86 (light-world grounds; Fable — **87 then 88 wait on 86**).
+**Queued:** 87 (after 86) · 88 (after 86/87) · 77 (after 76).
 
-Queued next: 83, 84, 85 (independent); then the theme trio **86 → 87 (after 86) → 88 (not concurrent with 86/87)**.
+**Live-only flags to confirm by hand** (harness can't drive them): 80 — Find/Replace scroll smoothness over real typing (per-frame correctness proven) · 81 — chevron mouse-press→toggle wiring (no GPU App in unit tests; geometry+toggle proven headlessly) · 85 — felt input→present lag (probe added; user is the oracle).
 
 ## Ready — current user-visible wave
 
