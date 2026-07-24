@@ -7,9 +7,15 @@
 //   * outside (the margins) -> a per-world gradient (mix(from,to,t) along `dir`),
 //     alpha 1, painting the ground the page floats on.
 //
-// Static (no time uniform) so the headless capture is byte-deterministic. The
-// gradient colors arrive in LINEAR space (the render target is sRGB; the host
-// converts the per-world theme bytes before upload), like the selection shader.
+// Almost entirely static (no per-doc/per-glyph input ever reaches this
+// pipeline). The ONE exception (item 87) is `params.z` — Bombora's WAVES
+// phase drift, a single scalar the host uploads each frame from the SAME
+// shared ambient clock the lava lamp and twinkling stars ride; it is `0.0`
+// for every non-Waves ground and for every headless capture (that clock never
+// advances there), so the render stays exactly as byte-deterministic as
+// before at rest. The gradient colors arrive in LINEAR space (the render
+// target is sRGB; the host converts the per-world theme bytes before
+// upload), like the selection shader.
 //
 // When page mode is OFF the host passes col_w == viewport width, so the column
 // covers everything and the margins vanish — identical to the old flat clear.
@@ -38,7 +44,8 @@ struct Globals {
     // `c_from`/`c_pat`/`c_to` read as tones 0/1/2 (see `bands_rgb`/`waves_rgb`).
     c_pat: vec4<f32>,
     // Per-ground params: params.x = Dots proximity flag (0/1), params.y = the
-    // Stripes/Bands angle (radians), .zw reserved. Both are 0 for every
+    // Stripes/Bands angle (radians), params.z = WAVES phase-drift radians
+    // (item 87; see `waves_rgb` below), .w reserved. x/y are 0 for every
     // unchanged ground, so those grounds take their exact original code path.
     params: vec4<f32>,
 };
@@ -232,7 +239,10 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // scalloped crests, horizontally phase-offset tier-to-tier so they read as
 // layered swells, never a grid). Tier geometry (amplitude/wavelength/phase) is
 // a FIXED constant, never per-world data — every `Waves` world shares this
-// exact shape (only the three tones differ). Static: pure function of `px`. ---
+// exact shape (only the three tones differ). Pure function of `px` PLUS one
+// scalar, `g.params.z` — the item-87 phase DRIFT (radians), `0.0` at rest so
+// the settled/headless-capture render is byte-identical to the pre-drift
+// shape. ---
 //
 // The viewport height splits into thirds; each of the two boundaries between
 // tiers is that third's y plus a sine wobble in x (a "scallop"), with tier 2's
@@ -240,14 +250,27 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // visibly drift apart ("layer") instead of tracking each other like a grid.
 // The wobble amplitude is held well under a third of the viewport height for
 // any real window, so the two boundaries never cross — the three tiers stay
-// NON-OVERLAPPING by construction.
+// NON-OVERLAPPING by construction (drift never changes the amplitude, only a
+// crest's x-position, so this bound holds at every phase too).
+//
+// DRIFT (item 87): `b1`'s phase ADVANCES by `drift`, `b2`'s RETARDS by the
+// SAME amount — equal magnitude, opposite sign (see `src/background.rs`'s
+// module doc for the full derivation of why opposite-sign is the one choice
+// that avoids the whole field sliding as a single rigid "sheet": a same-sign
+// drift on both curves is provably an exact horizontal translation of the
+// entire composition, including the middle tier, so it produces ZERO relative
+// motion between tiers). Under opposite signs each OUTER tier (top/bottom)
+// sweeps with its own single boundary curve's sign, while the MIDDLE tier —
+// bounded by both — visibly shears/breathes counter to them: the sea reads as
+// independently layered swells, never a sheet translating behind the margin.
 const WAVE_AMP: f32 = 22.0;
 const WAVE_FREQ: f32 = 0.024166097; // 2*pi / 260px — wide, shallow scallops
 const WAVE_PHASE_1: f32 = 0.0;
 const WAVE_PHASE_2: f32 = 2.4;
 fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
-    let b1 = g.viewport.y * (1.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_1);
-    let b2 = g.viewport.y * (2.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_2);
+    let drift = g.params.z;
+    let b1 = g.viewport.y * (1.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_1 + drift);
+    let b2 = g.viewport.y * (2.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_2 - drift);
     return tri_tone_mix(px.y, b1, b2, 1.5);
 }
 

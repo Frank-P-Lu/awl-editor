@@ -49,6 +49,7 @@ mod folds;
 mod pixeldiff;
 mod stars;
 mod syntax_ligatures;
+mod waves_drift_item87;
 mod syntax_roles;
 mod tables;
 mod split_pane;

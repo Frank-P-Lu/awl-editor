@@ -256,16 +256,19 @@ impl App {
             }
         }
         // AMBIENT TICK — the slow ~10 fps drift clock behind awl's time-varying
-        // grounds: the lava lamp (Firetail/Mangrove) AND the twinkling stars
-        // (Currawong) — ONE clock, two consumers (`TextPipeline::lava_phase`).
-        // A single `WaitUntil` cadence (NEVER the caret spring's hot per-frame
-        // `Poll` loop): when it elapses, advance the phase, request ONE redraw,
-        // and re-arm. Armed ONLY while `lava::lava_should_tick` holds — an
-        // ambient-motion world is active (`Theme::has_ambient_motion`, the ONE
-        // gate) AND `ambient_motion` is on AND motion is not reduced AND the
-        // window is focused (pause on blur). Every static world schedules ZERO
-        // ambient frames — preserving 0% idle CPU there.
-        let lava_active = crate::theme::active().has_ambient_motion();
+        // grounds: the lava lamp (Firetail/Mangrove), the twinkling stars
+        // (Currawong), AND (item 87) Bombora's wave-tier phase drift — ONE
+        // clock, three consumers (`TextPipeline::lava_phase`). A single
+        // `WaitUntil` cadence (NEVER the caret spring's hot per-frame `Poll`
+        // loop): when it elapses, advance the phase, request ONE redraw, and
+        // re-arm. Armed ONLY while `lava::lava_should_tick` holds — an
+        // ambient-tick world is active (`Theme::has_ambient_tick`, the ONE
+        // scheduling gate — a strict superset of `has_ambient_motion`, see its
+        // doc) AND `ambient_motion` is on AND motion is not reduced AND the
+        // window is focused (pause on blur). Every static world (and, among
+        // ambient worlds, every frozen/paused/reduced-motion moment) schedules
+        // ZERO ambient frames — preserving 0% idle CPU there.
+        let lava_active = crate::theme::active().has_ambient_tick();
         let lava_paused = crate::lava::lava_paused(
             self.resize_settle_at.is_some(),
             self.move_settle_at.is_some(),

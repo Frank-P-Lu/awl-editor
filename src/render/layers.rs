@@ -154,8 +154,21 @@ impl TextPipeline {
         } else {
             (0.0, width as f32)
         };
+        // WAVES PHASE DRIFT (item 87): a single scalar radians value, `0.0` for
+        // every ground that isn't the active world's `Background::Waves` — so
+        // every other ground, and Waves at the settled/headless phase, upload
+        // the EXACT same `0.0` this pipeline always has (byte-identical). The
+        // effective phase rides the SAME shared ambient clock the lava lamp
+        // and twinkling stars read (`Self::waves_render_phase`), so
+        // `ambient_motion` off / Reduce Motion / a headless capture all freeze
+        // it to `0.0` for free, with no Bombora-specific scheduling of its own.
+        let drift = if self.effective_background().is_waves() {
+            crate::background::waves_drift_radians(self.waves_render_phase())
+        } else {
+            0.0
+        };
         self.background_pipeline
-            .prepare(queue, width, height, bg_left, bg_w);
+            .prepare(queue, width, height, bg_left, bg_w, drift);
     }
 
     /// Per-frame LAVA-LAMP GROUND ([`crate::theme::Background::Lava`]): a slow 2D
