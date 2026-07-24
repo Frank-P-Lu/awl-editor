@@ -47,6 +47,7 @@ mod overlay_right_hug_law;
 mod page_frame;
 mod folds;
 mod pixeldiff;
+mod selection_clip_law;
 mod stars;
 mod syntax_ligatures;
 mod syntax_roles;

@@ -626,17 +626,22 @@ impl TextPipeline {
         // drawing. Only `prepare_caret_block`, when it runs on a one-bit
         // world, repopulates it with this frame's real rect.
         self.caret_invert.prepare(device, queue, width, height, &[]);
-        // DIFF-AS-PREVIEW: the caret is parked on the transcript's line 1; once
-        // the diff scrolls, that row leaves the panel band — park every caret
-        // quad rather than let it paint over the card's rim / the margin above
-        // (quads don't clip to `TextBounds` the way glyphs do).
-        if let Some((band_top, band_bottom)) = self.doc_clip_band(height as f32) {
-            let (_, cy, _, ch) = self.caret_pixel_rect();
-            if cy < band_top || cy + ch > band_bottom {
-                self.caret_pipeline.prepare_empty();
-                self.caret_glyph_pipeline.clear();
-                return;
-            }
+        // ITEM 84 / DIFF-AS-PREVIEW: the caret is SELECTION-ADJACENT geometry
+        // too (quads don't clip to `TextBounds` the way glyphs do), so it reads
+        // the SAME `content_clip` every other selection-quad path routes
+        // through — the writing column horizontally (always), narrowed to the
+        // diff panel's own inset band vertically while a preview is up. Outside
+        // either bound, park every caret quad rather than let it paint over the
+        // card's rim / page margin. In the ordinary (non-diff) case the caret's
+        // x is always inside the writing column by construction, so this is a
+        // no-op there — the diff-scroll-past-the-band case is what actually
+        // trips it.
+        let (cx0, cy0, cx1, cy1) = self.content_clip();
+        let (cx, cy, cw, ch) = self.caret_pixel_rect();
+        if cx < cx0 || cx + cw > cx1 || cy < cy0 || cy + ch > cy1 {
+            self.caret_pipeline.prepare_empty();
+            self.caret_glyph_pipeline.clear();
+            return;
         }
         // MORPH FOLDS TO BLOCK ON AN INK-CARET WORLD (both special block styles;
         // documented call — see CLAUDE.md's "1-bit Wagtail caret" round /

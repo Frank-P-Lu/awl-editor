@@ -873,23 +873,51 @@ impl TextPipeline {
         line_top + line_height > -margin && line_top < self.window_h + margin
     }
 
-    /// DIFF-AS-PREVIEW: clip a list of emitted quads to the panel's content band
-    /// (drop fully-outside rows, TRIM partial ones at the band edge) — the quad
-    /// counterpart of the text layer's `TextBounds` clip, so a scrolled
-    /// transcript's washes/pills/panels stop AT the card edge instead of sliding
-    /// over the margin above/below it. Identity on an ordinary frame (no band).
+    /// THE CONTENT CLIP (item 84): the ONE resolved region every document-
+    /// content, selection-adjacent quad — the selection wash, the search-match
+    /// highlight, the IME preedit underline, and the caret — must stay inside.
+    /// Horizontally it is ALWAYS the writing column (`column_left()` ..
+    /// `+column_width()`) — the SAME box [`Self::diff_panel_rect`] draws its own
+    /// card at, so "the writing column" and "the active card" are one region,
+    /// never two competing ideas. Vertically it is the whole canvas on an
+    /// ordinary frame, narrowed to the diff panel's own inset band while a diff
+    /// preview is up ([`Self::doc_clip_band`]). A drag that clamps its
+    /// hit-test to the page's own left edge, or a diff transcript that scrolls a
+    /// selected / composing row out of the card, both resolve through this ONE
+    /// rect — this bounds PAINT only, never what's SELECTABLE (the document
+    /// range in the sidecar is untouched either way).
+    pub(super) fn content_clip(&self) -> (f32, f32, f32, f32) {
+        let x0 = self.column_left();
+        let x1 = x0 + self.column_width();
+        let (y0, y1) = self
+            .doc_clip_band(self.window_h)
+            .unwrap_or((f32::NEG_INFINITY, f32::INFINITY));
+        (x0, y0, x1, y1)
+    }
+
+    /// Clip a list of emitted quads to [`Self::content_clip`] (drop
+    /// fully-outside rects, TRIM partial ones at whichever axis's edge they
+    /// cross) — the quad counterpart of the text layer's `TextBounds` clip, so
+    /// a scrolled diff transcript's washes/pills/panels stop AT the card edge
+    /// instead of sliding over the margin above/below it, AND (item 84) so a
+    /// selection / search-match / preedit rect dragged past the page's own
+    /// left or right edge stops at the writing column instead of bleeding into
+    /// the margin. Identity on an ordinary frame with no dragged/scrolled
+    /// overflow — the one owner every caller below routes through, so a future
+    /// quad emitter can't silently dodge the clip.
     fn clip_rects_to_band(&self, mut rects: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
-        let Some((top, bottom)) = self.doc_clip_band(self.window_h) else {
-            return rects;
-        };
+        let (x0, y0, x1, y1) = self.content_clip();
         rects.retain_mut(|r| {
-            let y0 = r[1];
-            let y1 = r[1] + r[3];
-            if y1 <= top || y0 >= bottom {
+            let (rx0, ry0) = (r[0], r[1]);
+            let (rx1, ry1) = (r[0] + r[2], r[1] + r[3]);
+            if rx1 <= x0 || rx0 >= x1 || ry1 <= y0 || ry0 >= y1 {
                 return false;
             }
-            let ny0 = y0.max(top);
-            r[3] = y1.min(bottom) - ny0;
+            let nx0 = rx0.max(x0);
+            let ny0 = ry0.max(y0);
+            r[2] = rx1.min(x1) - nx0;
+            r[3] = ry1.min(y1) - ny0;
+            r[0] = nx0;
             r[1] = ny0;
             true
         });
@@ -1967,7 +1995,13 @@ impl TextPipeline {
                 rects.push([x, y, w, row_caret_h]);
             }
         }
-        rects
+        // ITEM 84: route through the SAME content clip every other document-
+        // content quad uses, so a selection extended past the page's edge (or a
+        // diff-preview transcript scrolled past its card) stops painting at that
+        // boundary instead of bleeding into the margin — a visual bound only;
+        // the selection RANGE above is untouched. Shared by `selection_rects`
+        // and `search_match_rects` (both funnel through here).
+        self.clip_rects_to_band(rects)
     }
 
     /// Translucent highlight rects for ALL active search matches (one set per
@@ -2082,6 +2116,10 @@ impl TextPipeline {
         let cell_top = line_top + (m.line_height - m.caret_h) * 0.5;
         let thickness = PREEDIT_UNDERLINE_H * m.zoom;
         let y = cell_top + m.caret_h - thickness;
-        vec![[x, y, w, thickness]]
+        // ITEM 84: the SAME auxiliary-selection-geometry clip `range_rects`
+        // routes through — a composing preedit is selection-adjacent (it rides
+        // the SAME translucent-quad pipeline), so it stops at the same page /
+        // card boundary rather than bleeding into the margin.
+        self.clip_rects_to_band(vec![[x, y, w, thickness]])
     }
 }
