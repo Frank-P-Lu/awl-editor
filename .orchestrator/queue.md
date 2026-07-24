@@ -8,8 +8,6 @@
 
 ## Ready — shared ownership and performance
 
-56. **Move active buffer + buffer-scoped state as one owned slot, then remove the shadow active path.** In sequential phases: (A) move buffer identity, folds/view state, and caches atomically between active state and the registry, retiring manual snapshot/restore ownership; (B) make `Buffer::path` authoritative and remove duplicate `App.file`, retaining separately named metadata only for genuinely different concepts. Do not add a generic session framework or broad live/headless driver. Verify exhaustive A→B→A sentinels, version-zero cache isolation, fresh defaults, and path laws across open/new-note first save/autoname/rename/move/duplicate/close/autosave/history/session restore; native + wasm gates. Decompose `app/files.rs` along the new private ownership boundaries. **DISPATCH after the user-visible wave; high-risk sequential round.**
-
 ## Timed — not blocked
 
 20. **Pre-tag taste pass.** At the user’s explicit tag/release start, the implementation/release owner generates one current world screenshot export, then Fable judges only those images for per-world bullets, squiggle size/baseline including Bilby, dash padding, and Saltpan font outcomes; Fable never implements or edits. Ordinary pushes do not trigger it.
