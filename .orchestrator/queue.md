@@ -8,10 +8,11 @@
 
 Background Workflows off `main`; integrated serially on the merge gate as each verifies SHIP. Landed items sit on LOCAL main (not yet pushed — one batched both-conventions gate + CI push pending once build-contention drops). Workers report shas; the board is orchestrator-only.
 
-**Landed on local main (SHIP-verified, unpushed):** 76 (@b60a34b, active-folder; SCHEMA /182) · 78 · 79 · 80 · 81 · 82 (@110f71a, image cull; re-verified after a stub verify) · 84 (@f94293b — fix pending, see below) · 85 (@7830a47, theme-picker hover) · 86 (merge 7f37327, light-world grounds; SCHEMA /183, reconciled with 76 by a merge subagent). Full suite 2869 both conventions at the 86 merge.
-**Fix in flight — MUST land before push:** 84-fix (item-84-fix-wash-clip). Item 84's content_clip over-broadened: with page mode OFF it wrongly clips the fence-panel (8px) and inline code-pill (3px) decorative overhangs (a follow-up audit found it — two law tests written that fail on current main). 84's own selection-spill fix is correct and stays.
-**In flight:** 83 (overlay room + query center; Fable) · 77 (file-visibility; after 76) · 87 (Bombora drift; Fable static — **88 waits on 87**).
+**Landed on local main (SHIP-verified, unpushed):** 76 (active-folder; SCHEMA /182) · 78 · 79 · 80 · 81 · 82 (image cull; re-verified after a stub verify) · 84 + 84-fix (@500c1a9 — selection clip + the page-off fence/pill overhang fix; audit-found regression cleared) · 85 (theme-picker hover) · 86 (light-world grounds; SCHEMA /183, reconciled by a merge subagent) · 83 (@910c07b — overlay room + query center; Fable ADJUST applied). Full suite 2869 both conventions at the 86 merge.
+**In flight:** 77 (file-visibility; after 76) · 87 (Bombora drift; Fable static — **88 waits on 87**).
 **Queued:** 88 (after 87).
+
+_Note: item 83's Fable-apply tripped a benign git-amend security heuristic (apply amended the build commit per the workflow's design, in its own worktree). Investigated: single in-scope commit, no clobber — merged the adjusted sha 910c07b._
 
 **Live-only flags to confirm by hand** (harness can't drive them): 80 — Find/Replace scroll smoothness over real typing · 81 — chevron mouse-press→toggle wiring (no GPU App in unit tests; geometry+toggle proven headlessly) · 85 — felt input→present lag (latency probe ms numbers are live-only) · 87 — Bombora drift speed / counter-motion / calmness (harness can't see time; user is the oracle).
 
