@@ -57,9 +57,10 @@ impl App {
 
     /// CLICK-TO-EXPAND (item 47c): if the current pointer lands on a collapsed
     /// heading's "… N lines" tail (past the heading text), the FULL-document heading
-    /// line to expand; else `None`. Cheap no-op unless a section is folded. The
-    /// summoned expand chevron (item 65) lives in the LEFT margin now — a visual cue
-    /// only, not a second click target; this hit region is unchanged. See
+    /// line to expand; else `None`. Cheap no-op unless a section is folded. The fold
+    /// CHEVRON (item 65) lives in the LEFT margin — since item 81 its OWN separate hit
+    /// region ([`Self::fold_chevron_at_pointer`]) is a second, generous click target
+    /// (both directions); this tail-region hit test is unchanged. See
     /// [`crate::buffer::Buffer::fold_tail_hit`].
     fn fold_affordance_at_pointer(&self) -> Option<usize> {
         if !self.active.buffer.has_folds() {
@@ -67,6 +68,19 @@ impl App {
         }
         let (line, col) = self.hit_test_line_col();
         self.active.buffer.fold_tail_hit(line, col)
+    }
+
+    /// item 81 — THE FOLD CHEVRON's own click/hover target: if the pointer lands on a
+    /// currently-REVEALED chevron (any foldable heading, expanded OR collapsed —
+    /// [`crate::render::TextPipeline::fold_chevron_hit`]), the FULL-document heading
+    /// line to toggle; else `None`. `None` with no GPU pipeline up (headless has no
+    /// live pointer to begin with). The ONE hit-test [`Self::sync_cursor_icon`]'s
+    /// pointing-hand decision also reads, so hover, cursor, and click can never
+    /// disagree on where the target is.
+    fn fold_chevron_at_pointer(&self) -> Option<usize> {
+        let (px, py) = self.cursor_px;
+        let filtered = self.gpu.as_ref()?.pipeline.fold_chevron_hit(px, py)?;
+        Some(self.active.buffer.visible_line_to_full(filtered))
     }
 
     /// Multi-click detection: same spot, within the time window (`MULTICLICK_MS`) —
@@ -127,12 +141,28 @@ impl App {
         if !over_writing_column {
             return;
         }
+        // FOLD CHEVRON CLICK (item 81): a plain click on a REVEALED fold chevron
+        // toggles that heading's section EITHER direction (fold an expanded heading,
+        // unfold a collapsed one) through the ONE owner
+        // (`Buffer::toggle_fold_at_line`) — never starts a text selection or a drag.
+        // Checked FIRST: the chevron's narrow left-margin lane never overlaps the
+        // tail's own hit region (past the heading text, to the right), so order is
+        // only for clarity, not correctness.
+        if !shift {
+            if let Some(h) = self.fold_chevron_at_pointer() {
+                self.active.buffer.seal_undo_group();
+                self.active.buffer.toggle_fold_at_line(h);
+                self.active.buffer.clear_mark();
+                return;
+            }
+        }
         // CLICK-TO-EXPAND (item 47c): a plain click on a collapsed heading's "… N lines"
-        // tail / chevron affordance OPENS that fold and parks the caret on the heading —
-        // it never starts a text selection or a drag (returns before `self.dragging`).
-        // The caller's `sync_view(true)` repaints the now-expanded section. A shift-click
-        // is left to extend a selection as usual; a click on the heading TEXT (not the
-        // affordance) falls through to the normal caret placement below.
+        // tail (past the heading text) OPENS that fold and parks the caret on the
+        // heading — it never starts a text selection or a drag (returns before
+        // `self.dragging`). The caller's `sync_view(true)` repaints the now-expanded
+        // section. A shift-click is left to extend a selection as usual; a click on
+        // the heading TEXT (not the affordance) falls through to the normal caret
+        // placement below.
         if !shift {
             if let Some(h) = self.fold_affordance_at_pointer() {
                 self.active.buffer.seal_undo_group();
@@ -705,6 +735,12 @@ impl App {
         // popover's OWN hit-test (`popover_hit`) — the SAME geometry a click reads.
         // `None`/false when the popover is down.
         let over_popover_button = self.popover_open && gpu.pipeline.popover_hit(px, py).is_some();
+        // item 81: a REVEALED fold chevron (any foldable heading, expanded OR
+        // collapsed) reads as click-to-toggle (the pointing hand) — reuses the SAME
+        // `fold_chevron_hit` the press path uses, so a hover can never disagree with
+        // where a click would land. Only while no overlay is open (its scrim covers
+        // the document).
+        let over_fold_chevron = !overlay_open && gpu.pipeline.fold_chevron_hit(px, py).is_some();
         let ctx = crate::cursor_shape::CursorContext {
             dragging_edge: self.page_resizing,
             dragging_text: self.dragging,
@@ -721,6 +757,7 @@ impl App {
             image_drag: self.image_resizing.map(|d| d.handle),
             image_hover,
             over_popover_button,
+            over_fold_chevron,
         };
         let desired = crate::cursor_shape::cursor_icon_for(ctx);
         let hidden = self.pointer_hide == crate::pointer_hide::PointerHide::Hidden;
@@ -804,9 +841,10 @@ impl App {
                 }
             }
         }
-        // FOLD CHEVRON HOVER (item 47b, LIVE only): reveal a collapsed heading's
-        // expand chevron while the pointer rests on its row. Cheap no-op unless
-        // something is folded; only redraws when the hovered row actually changes.
+        // FOLD CHEVRON HOVER (item 47b, widened by item 81, LIVE only): reveal a
+        // heading's fold chevron — expanded or collapsed alike — while the pointer
+        // rests on its row. Cheap no-op on a non-markdown buffer; only redraws when
+        // the hovered row actually changes.
         self.update_fold_hover();
         // CONTEXT-AWARE CURSOR SHAPE: recompute on every move regardless of which
         // branch above fired (a text-selection drag still reads as "over text",
@@ -815,17 +853,21 @@ impl App {
         self.sync_cursor_icon();
     }
 
-    /// Mirror the FILTERED document row under the pointer into the pipeline so the
-    /// fold-tail CHEVRON reveals on hover (LIVE only — the headless capture has no
-    /// pointer, so this never runs there and only the caret-on-heading reveal fires).
-    /// A no-op unless a section is folded; requests a redraw only when the hovered row
-    /// changes (so a chevron flip repaints without a per-move redraw storm). The row
-    /// is the pointer's hit-test line when over the writing column, else `None` (so a
-    /// chevron never lingers when the pointer leaves the text). See
-    /// [`crate::fold::chevron_revealed`].
+    /// Mirror the FILTERED document row under the pointer into the pipeline so a
+    /// heading's fold CHEVRON reveals on hover — item 81 widened this from a
+    /// collapsed heading's tail-row-only reveal to EVERY foldable heading, expanded
+    /// or collapsed (LIVE only — the headless capture has no pointer, so this never
+    /// runs there and only the caret-on-heading reveal fires). Gated on
+    /// `is_markdown()` (cheap — an `O(1)` extension check, unlike a fold-set scan):
+    /// ANY markdown buffer may have a heading to hover, whether or not anything in
+    /// it is currently folded, so this can no longer cheaply short-circuit on
+    /// `has_folds()` the way the item-47b original did. Requests a redraw only when
+    /// the hovered row changes (so a chevron flip repaints without a per-move redraw
+    /// storm). The row is the pointer's hit-test line when over the writing column,
+    /// else `None` (so a chevron never lingers when the pointer leaves the text).
+    /// See [`crate::fold::chevron_revealed`].
     pub(in crate::app) fn update_fold_hover(&mut self) {
-        let folded = self.active.buffer.has_folds();
-        let over_col = folded && self.pointer_over_writing_column();
+        let over_col = self.active.buffer.is_markdown() && self.pointer_over_writing_column();
         let (px, py) = self.cursor_px;
         let scroll = self.active.extra.scroll_lines;
         let Some(gpu) = self.gpu.as_mut() else { return };

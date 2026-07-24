@@ -141,6 +141,13 @@ pub struct CursorContext {
     /// from the popover's OWN hit-test (`TextPipeline::popover_hit`); only ever set
     /// while the popover is up (and it never coexists with an open overlay/search).
     pub over_popover_button: bool,
+    /// item 81: the pointer is over a REVEALED FOLD CHEVRON — a heading's own
+    /// left-margin fold-toggle target, expanded or collapsed alike. A clickable
+    /// affordance signal like an outline row, computed from the SAME hit-test the
+    /// click handler uses (`TextPipeline::fold_chevron_hit`), so a hovered chevron
+    /// can never disagree with a clickable one. Only ever set while no overlay is
+    /// open (an overlay's scrim covers the document).
+    pub over_fold_chevron: bool,
 }
 
 /// The OS cursor glyph for a given inline-image resize HANDLE: a horizontal
@@ -200,6 +207,10 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 /// 8. hovering a clickable MARGIN-OUTLINE row gets the pointing HAND — the same
 ///    click-to-jump affordance signal as a picker row, below the page edge (the
 ///    outline lives just inside the column, so the edge grab wins where they meet);
+/// 8b. hovering a REVEALED FOLD CHEVRON gets the pointing HAND too — item 81's
+///    click-to-toggle affordance, ranked with the outline row (the two never
+///    geometrically overlap: the chevron sits in the leading pad, the outline
+///    further left still, so which one is set never matters, only that either is);
 /// 9. plain document text gets the I-beam;
 /// 10. everywhere else (margins, scrim, gutter) is the plain arrow.
 pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
@@ -230,7 +241,7 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         CursorIcon::ColResize
     } else if let Some(handle) = ctx.image_hover {
         image_handle_icon(handle)
-    } else if ctx.over_outline_row {
+    } else if ctx.over_outline_row || ctx.over_fold_chevron {
         CursorIcon::Pointer
     } else if ctx.over_text {
         CursorIcon::Text
@@ -283,6 +294,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -305,6 +317,7 @@ mod tests {
             image_drag: Some(handle),
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -327,6 +340,7 @@ mod tests {
             image_drag: None,
             image_hover: Some(handle),
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -349,6 +363,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -371,6 +386,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -393,6 +409,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -415,6 +432,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -637,6 +655,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         };
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
     }
@@ -677,6 +696,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         };
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
     }
@@ -727,6 +747,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -749,6 +770,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -797,6 +819,7 @@ mod tests {
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
+            over_fold_chevron: false,
         }
     }
 
@@ -831,6 +854,55 @@ mod tests {
     #[test]
     fn an_active_edge_drag_still_beats_the_query_input_i_beam() {
         assert_eq!(cursor_icon_for(ctx_query(true, false, false)), CursorIcon::ColResize);
+    }
+
+    // --- item 81: a REVEALED fold chevron earns the pointing HAND, either direction
+
+    /// A context with the fold-chevron flag set (no overlay — its scrim would cover
+    /// the chevron, so the two never co-occur).
+    fn ctx_fold_chevron(dragging_edge: bool, over_edge: bool, over_text: bool) -> CursorContext {
+        CursorContext {
+            dragging_edge,
+            dragging_text: false,
+            overlay_open: false,
+            over_edge,
+            over_text,
+            over_clickable_overlay_row: false,
+            over_clickable_lens: false,
+            over_query_input: false,
+            over_outline_row: false,
+            over_menu_hand: false,
+            over_menu_bar: false,
+            over_case_toggle: false,
+            image_drag: None,
+            image_hover: None,
+            over_popover_button: false,
+            over_fold_chevron: true,
+        }
+    }
+
+    #[test]
+    fn a_revealed_fold_chevron_is_the_pointing_hand() {
+        // Whichever direction the heading currently faces (expanded or collapsed),
+        // the SAME hit-test feeds this flag, so there is only one hand decision.
+        assert_eq!(cursor_icon_for(ctx_fold_chevron(false, false, false)), CursorIcon::Pointer);
+    }
+
+    #[test]
+    fn the_fold_chevron_hand_beats_the_plain_text_beneath_it() {
+        // The chevron sits inside the writing column's own leading pad, which also
+        // reads `over_text` true — the hand still wins over the I-beam.
+        assert_eq!(cursor_icon_for(ctx_fold_chevron(false, false, true)), CursorIcon::Pointer);
+    }
+
+    #[test]
+    fn an_active_page_edge_drag_still_beats_the_fold_chevron_hand() {
+        assert_eq!(cursor_icon_for(ctx_fold_chevron(true, false, false)), CursorIcon::ColResize);
+    }
+
+    #[test]
+    fn the_page_edge_still_beats_a_fold_chevron_where_they_meet() {
+        assert_eq!(cursor_icon_for(ctx_fold_chevron(false, true, false)), CursorIcon::ColResize);
     }
 
     // --- the inline-image resize handles (hover + drag): one glyph per edge/corner

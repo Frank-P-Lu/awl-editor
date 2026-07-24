@@ -655,9 +655,11 @@ impl Buffer {
     /// text (which places the caret for editing, unchanged). Column-based (no pixel
     /// geometry): a click past the last glyph is unambiguously "the affordance", never
     /// content. **item 65 note:** the expand CHEVRON moved to the LEFT margin (a
-    /// summoned VISUAL cue only — see `render::layers::FOLD_CHEVRON`'s doc); it is
-    /// not itself a second click target, so this hit region — and this fn's behavior —
-    /// is UNCHANGED by that move. Clicking anywhere past the heading text (where the
+    /// summoned VISUAL cue); this hit region — and this fn's behavior — is UNCHANGED
+    /// by that move. **item 81 update:** the chevron IS now its own (separate,
+    /// left-margin, pixel-hit) click target — see [`Self::toggle_fold_at_line`] — so a
+    /// collapsed heading keeps TWO generous expand doors: this tail region, still
+    /// unchanged, plus the chevron. Clicking anywhere past the heading text (where the
     /// tail still hangs) keeps expanding exactly as before.
     pub fn fold_tail_hit(&self, visible_line: usize, col: usize) -> Option<usize> {
         if self.folds.is_empty() {
@@ -699,6 +701,28 @@ impl Buffer {
             self.set_cursor(self.line_start(h));
         }
         Some(h)
+    }
+
+    /// THE FOLD CHEVRON's own click target (item 81): toggle the fold on EXACTLY
+    /// `heading_line` — fold it if open, unfold it if folded — regardless of where
+    /// the caret currently sits. The ONE owner BOTH directions of a chevron click
+    /// share (`crate::fold::toggle_heading`, the same function
+    /// [`Self::toggle_fold_at_cursor`]'s own `toggle_at` routes through), unlike
+    /// [`Self::unfold_at`] (the tail's expand-only click target). On a FOLD (not an
+    /// unfold), the caret parks on the heading line — mirrors
+    /// `toggle_fold_at_cursor`'s "never leave the caret inside the section it just
+    /// hid" rule; an UNFOLD leaves the caret exactly where it was. Returns `false`
+    /// (no-op) when `heading_line` does not name a real heading (a stale line after
+    /// an edit, or an out-of-range index) — a click can never invent a fold.
+    pub fn toggle_fold_at_line(&mut self, heading_line: usize) -> bool {
+        let levels = self.heading_levels();
+        if !crate::fold::toggle_heading(&levels, &mut self.folds, heading_line) {
+            return false;
+        }
+        if self.folds.contains(&heading_line) {
+            self.set_cursor(self.line_start(heading_line));
+        }
+        true
     }
 
     /// "Collapse other sections": fold every heading except the caret's section and

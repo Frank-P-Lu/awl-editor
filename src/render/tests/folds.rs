@@ -4,7 +4,7 @@
 //! `sync_view` and the headless capture use, then shaped by a real headless
 //! pipeline so the geometry is the true one.
 
-use super::{headless_pipeline, view_md};
+use super::{headless_pipeline, view, view_md};
 use crate::render::FoldTail;
 use std::collections::BTreeSet;
 
@@ -342,6 +342,191 @@ fn fold_chevron_hides_gracefully_with_no_room_edge_to_edge() {
         p.fold_tail_marks().len(),
         1,
         "the tail is unaffected by the chevron's room gate — still shows the count"
+    );
+    crate::page::set_page_on(true);
+}
+
+// ITEM 81 — the fold chevron is now REVEALED (and clickable) on an EXPANDED
+// heading too, not merely a collapsed one's tail row. Pre-fix, `fold_chevron_marks`
+// read only `fold_tails` (empty whenever nothing is folded), so hovering an
+// unfolded heading never showed anything — this test's middle assertion FAILS
+// against that old behavior.
+#[test]
+fn fold_chevron_reveals_and_hits_on_an_expanded_heading_too() {
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("no GPU adapter; skipping fold-chevron expanded-heading law");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    crate::page::set_page_on(true);
+
+    // UNFOLDED DOC, caret away from the heading: rest state shows no chevron.
+    let view = view_md(DOC, 4, 0);
+    p.set_view(&view);
+    p.set_hover_line(None);
+    assert!(
+        p.fold_chevron_marks().is_empty(),
+        "rest state: an expanded heading shows no chevron either"
+    );
+
+    // HOVER the expanded heading's row (line 0, never folded): its chevron
+    // reveals — the NEW behavior.
+    p.set_hover_line(Some(0));
+    let marks = p.fold_chevron_marks();
+    assert_eq!(
+        marks.len(),
+        1,
+        "hovering an EXPANDED heading reveals its chevron too, not just a \
+         collapsed one's — fails pre-item-81 (fold_chevron_marks read fold_tails, \
+         empty when nothing is folded)"
+    );
+    let (_, left, line) = marks[0];
+    assert_eq!(line, 0);
+
+    // The revealed chevron's own pixel box hit-tests to this heading line.
+    let top = p.line_ornament_top(line);
+    assert_eq!(
+        p.fold_chevron_hit(left + 1.0, top + 1.0),
+        Some(0),
+        "the chevron's own pixel box hit-tests to the heading"
+    );
+
+    // Off the chevron's narrow lane — over the heading's own TEXT instead — is
+    // NOT a hit: a click there must place the caret, never toggle the fold.
+    assert_eq!(
+        p.fold_chevron_hit(p.text_left() + 5.0, top + 1.0),
+        None,
+        "a click on the heading's own text is not the chevron's hit region"
+    );
+    // Above/below the row entirely is not a hit either.
+    assert_eq!(p.fold_chevron_hit(left + 1.0, top - 50.0), None);
+    crate::page::set_page_on(true);
+}
+
+// The item-65 no-overlap pixel law, extended to an EXPANDED heading: revealing
+// its chevron via hover must never shift the heading's own shaped glyph
+// positions, row top, or visual-row count — it is a left-margin ornament outside
+// the shaped text run, exactly like the collapsed case.
+#[test]
+fn fold_chevron_reveal_on_an_expanded_heading_never_shifts_glyph_positions() {
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("no GPU adapter; skipping fold-chevron expanded no-overlap law");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    crate::page::set_page_on(true);
+    // Caret away from the heading in BOTH states, so WYSIWYG conceal on the
+    // heading line never varies — only hover does (mirrors the collapsed-case law).
+    let view = view_md(DOC, 4, 0);
+
+    p.set_view(&view);
+    p.set_hover_line(None);
+    assert!(p.fold_chevron_marks().is_empty(), "rest state: no chevron");
+    let xs_rest = p.line_glyph_xs(0);
+    let top_rest = p.line_ornament_top(0);
+    let rows_rest = p.total_visual_rows();
+
+    p.set_hover_line(Some(0));
+    assert_eq!(p.fold_chevron_marks().len(), 1, "chevron revealed: hovering the heading");
+    let xs_reveal = p.line_glyph_xs(0);
+    let top_reveal = p.line_ornament_top(0);
+    let rows_reveal = p.total_visual_rows();
+
+    assert_eq!(
+        xs_rest, xs_reveal,
+        "the expanded heading's shaped glyph x-boundaries must be IDENTICAL \
+         whether or not the chevron is revealed"
+    );
+    assert_eq!(top_rest, top_reveal, "the heading row's top never moves either");
+    assert_eq!(rows_rest, rows_reveal, "revealing the chevron adds no visual row");
+    crate::page::set_page_on(true);
+}
+
+// LAW (required): the chevron's hit region resolves for a heading whichever way
+// it currently faces, and toggling through the ONE owner (`crate::fold::
+// toggle_heading`) flips it correctly BOTH times — an expanded heading's
+// "collapse" click and a collapsed heading's "expand" click are never two
+// separate code paths that could drift. Non-vacuous: pre-item-81, the first
+// (expanded) hit-test below returns `None` (no chevron existed to hit at all),
+// so this test fails before the fix exactly like the reveal law above.
+#[test]
+fn fold_chevron_hit_toggles_through_one_owner_both_directions() {
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("no GPU adapter; skipping fold-chevron one-owner law");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    crate::page::set_page_on(true);
+    let levels = crate::fold::heading_levels(DOC, true);
+    let mut folds: BTreeSet<usize> = BTreeSet::new();
+
+    // EXPANDED: hover heading 0, hit its chevron, toggle via the one owner.
+    let view = view_md(DOC, 4, 0);
+    p.set_view(&view);
+    p.set_hover_line(Some(0));
+    let marks = p.fold_chevron_marks();
+    assert_eq!(marks.len(), 1, "expanded heading's chevron must be revealed to hit it");
+    let (_, left, line) = marks[0];
+    let top = p.line_ornament_top(line);
+    let hit = p
+        .fold_chevron_hit(left + 1.0, top + 1.0)
+        .expect("the expanded chevron's own pixel box must hit-test");
+    assert!(
+        crate::fold::toggle_heading(&levels, &mut folds, hit),
+        "hit resolves to a real heading line"
+    );
+    assert!(folds.contains(&0), "the expanded heading is now folded");
+
+    // COLLAPSED: rebuild the folded view through the SAME real fold seam, re-hover
+    // the same row, hit its chevron again, toggle via the SAME owner.
+    let tails = crate::fold::fold_tails(&levels, &folds);
+    let hidden = crate::fold::hidden_lines(&levels, &folds);
+    let mut folded_view = view_md(DOC, 4, 0);
+    crate::fold::apply_to_view(&mut folded_view, &hidden, &tails);
+    p.set_view(&folded_view);
+    p.set_hover_line(Some(0));
+    let marks2 = p.fold_chevron_marks();
+    assert_eq!(marks2.len(), 1, "collapsed heading's chevron must be revealed to hit it");
+    let (_, left2, line2) = marks2[0];
+    let top2 = p.line_ornament_top(line2);
+    let hit2 = p
+        .fold_chevron_hit(left2 + 1.0, top2 + 1.0)
+        .expect("the collapsed chevron's own pixel box must hit-test");
+    assert!(crate::fold::toggle_heading(&levels, &mut folds, hit2));
+    assert!(
+        !folds.contains(&0),
+        "the SAME owner reverses it — one function, both directions"
+    );
+    crate::page::set_page_on(true);
+}
+
+// Non-heading rows and non-Markdown files show no fold affordance at all.
+#[test]
+fn no_chevron_off_a_heading_or_off_a_markdown_buffer() {
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("no GPU adapter; skipping fold-chevron gating law");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    crate::page::set_page_on(true);
+
+    // A markdown buffer, hovering a BODY (non-heading) row: no chevron.
+    let md_view = view_md(DOC, 4, 0);
+    p.set_view(&md_view);
+    p.set_hover_line(Some(1)); // "a1", a body row
+    assert!(
+        p.fold_chevron_marks().is_empty(),
+        "a non-heading row never shows a chevron, even hovered"
+    );
+    assert_eq!(p.fold_chevron_hit(p.column_left() + 1.0, p.line_ornament_top(1) + 1.0), None);
+
+    // The SAME text, NOT flagged markdown: no chevron even hovering the heading row.
+    let plain_view = view(DOC, 4, 0);
+    p.set_view(&plain_view);
+    p.set_hover_line(Some(0));
+    assert!(
+        p.fold_chevron_marks().is_empty(),
+        "a non-markdown buffer offers no fold affordance at all"
     );
     crate::page::set_page_on(true);
 }

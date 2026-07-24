@@ -27,6 +27,48 @@ fn toggle_fold_collapses_then_expands_the_section_under_the_caret() {
     assert!(buffer.folds().is_empty(), "toggling again unfolds");
 }
 
+// item 81 — the fold CHEVRON's own click target: `Buffer::toggle_fold_at_line`
+// toggles a SPECIFIC heading line directly (no caret resolution), the owner a
+// mouse click on the chevron drives (mirrored live-only by `mouse.rs`'s
+// `fold_chevron_at_pointer`).
+#[test]
+fn toggle_fold_at_line_flips_a_specific_heading_both_directions() {
+    let mut buffer = Buffer::from_str(OUTLINE);
+    // Fold heading 0 directly BY LINE — the caret never moves near it first,
+    // unlike `toggle_fold_at_cursor`.
+    assert!(buffer.toggle_fold_at_line(0));
+    assert!(buffer.folds().contains(&0), "now folded");
+    // The SAME function reverses it — one owner, both directions (the law
+    // `fold::tests::toggle_at_is_a_thin_wrapper_over_toggle_heading` pins the pure
+    // half; this pins the buffer-level door the click actually calls).
+    assert!(buffer.toggle_fold_at_line(0));
+    assert!(buffer.folds().is_empty(), "now unfolded again");
+    // Body text / an out-of-range line never invents a fold — a click can only
+    // ever land on a real heading's own chevron.
+    assert!(!buffer.toggle_fold_at_line(1));
+    assert!(!buffer.toggle_fold_at_line(999));
+    assert!(buffer.folds().is_empty());
+}
+
+#[test]
+fn toggle_fold_at_line_parks_the_caret_only_on_a_fold_not_an_unfold() {
+    let mut buffer = Buffer::from_str(OUTLINE);
+    buffer.set_cursor(buffer.line_col_to_char(3, 2)); // inside ## A.1's body
+    assert!(buffer.toggle_fold_at_line(2)); // fold ## A.1 directly, caret elsewhere
+    assert_eq!(
+        buffer.cursor_line_col(),
+        (2, 0),
+        "a FOLD parks the caret on the just-collapsed heading, mirroring \
+         toggle_fold_at_cursor's own rule"
+    );
+    assert!(buffer.toggle_fold_at_line(2)); // unfold again
+    assert_eq!(
+        buffer.cursor_line_col(),
+        (2, 0),
+        "an UNFOLD never re-parks the caret — it stays exactly where it was"
+    );
+}
+
 #[test]
 fn fold_is_never_on_the_undo_timeline() {
     let mut buffer = Buffer::from_str(OUTLINE);
