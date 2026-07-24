@@ -903,8 +903,14 @@ impl TextPipeline {
     /// selection / search-match / preedit rect dragged past the page's own
     /// left or right edge stops at the writing column instead of bleeding into
     /// the margin. Identity on an ordinary frame with no dragged/scrolled
-    /// overflow — the one owner every caller below routes through, so a future
-    /// quad emitter can't silently dodge the clip.
+    /// overflow. **SELECTION-ADJACENT QUADS ONLY** — [`Self::range_rects`]
+    /// (feeding `selection_rects` + `search_match_rects`) and
+    /// [`Self::preedit_rects`]; the caret gate in `layers.rs` reads
+    /// [`Self::content_clip`] directly. The DECORATIVE-OVERHANG emitters
+    /// ([`Self::fence_panel_rects`], [`Self::code_pill_rects`]) and the
+    /// column-bound washes ([`Self::wash_rects`]) route through
+    /// [`Self::clip_decorative_rects_to_band`] instead — see item 84-fix's
+    /// note on that fn for why this one is wrong for them.
     fn clip_rects_to_band(&self, mut rects: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
         let (x0, y0, x1, y1) = self.content_clip();
         rects.retain_mut(|r| {
@@ -918,6 +924,49 @@ impl TextPipeline {
             r[2] = rx1.min(x1) - nx0;
             r[3] = ry1.min(y1) - ny0;
             r[0] = nx0;
+            r[1] = ny0;
+            true
+        });
+        rects
+    }
+
+    /// DIFF-AS-PREVIEW: clip a list of emitted quads to the panel's content Y
+    /// band alone (drop fully-outside rows, TRIM partial ones at the band
+    /// edge) — the quad counterpart of the text layer's `TextBounds` clip, so
+    /// a scrolled transcript's washes/pills/panels stop AT the card edge
+    /// instead of sliding over the margin above/below it. Identity on an
+    /// ordinary frame (no band). X is deliberately UNCLIPPED: the owner for
+    /// the DECORATIVE-OVERHANG emitters ([`Self::fence_panel_rects`],
+    /// [`Self::code_pill_rects`]) plus the column-bound washes
+    /// ([`Self::wash_rects`]'s comment/string/highlight buckets), none of
+    /// which want [`Self::clip_rects_to_band`]'s strict writing-column X
+    /// bound. **item 84-fix:** an audit found item 84 had routed these
+    /// decorative emitters through `clip_rects_to_band` too, which X-clipped
+    /// the fence panel's [`FENCE_PANEL_INSET_X`] and the code pill's
+    /// [`CODE_PILL_INSET_X`] overhang flush to the bare glyph column —
+    /// invisible with page mode on (the page pad dwarfs both insets) but
+    /// UNIVERSAL with page mode off (`text_pad()` is hard-zeroed then, so
+    /// there is no margin to absorb the inset): every fenced block's panel
+    /// clipped flush on both edges every frame, and an inline-code pill lost
+    /// its left cap whenever the span touched column 0 or the wrap edge. This
+    /// fn restores their PRE-84 behaviour: only the diff-panel Y band, their
+    /// intended overhang untouched. The wash buckets are structurally
+    /// column-bound already (glyph-wrapped), so routing them here instead of
+    /// `clip_rects_to_band` is a no-op for them either way — kept on this fn
+    /// for one consistent "decorative content, Y-clipped only" story rather
+    /// than mixing the two owners without a reason.
+    fn clip_decorative_rects_to_band(&self, mut rects: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
+        let Some((top, bottom)) = self.doc_clip_band(self.window_h) else {
+            return rects;
+        };
+        rects.retain_mut(|r| {
+            let y0 = r[1];
+            let y1 = r[1] + r[3];
+            if y1 <= top || y0 >= bottom {
+                return false;
+            }
+            let ny0 = y0.max(top);
+            r[3] = y1.min(bottom) - ny0;
             r[1] = ny0;
             true
         });
@@ -1611,10 +1660,12 @@ impl TextPipeline {
             }
             merge_row_bands(out)
         };
-        let comment = self.clip_rects_to_band(build(&self.wash_cache.comment_protos.borrow()));
-        let string = self.clip_rects_to_band(build(&self.wash_cache.string_protos.borrow()));
+        let comment =
+            self.clip_decorative_rects_to_band(build(&self.wash_cache.comment_protos.borrow()));
+        let string =
+            self.clip_decorative_rects_to_band(build(&self.wash_cache.string_protos.borrow()));
         let highlight =
-            self.clip_rects_to_band(build(&self.wash_cache.highlight_protos.borrow()));
+            self.clip_decorative_rects_to_band(build(&self.wash_cache.highlight_protos.borrow()));
         (comment, string, highlight)
     }
 
@@ -1663,7 +1714,10 @@ impl TextPipeline {
             let (y, h) = self.row_band_for(p.line, p.line_height, line_top);
             out.push([x, y - inset_y, w, h + 2.0 * inset_y]);
         }
-        self.clip_rects_to_band(merge_row_bands(out))
+        // item 84-fix: the DECORATIVE Y-only clip, not the strict writing-
+        // column `clip_rects_to_band` — the pill's own `CODE_PILL_INSET_X`
+        // overhang is intended to survive at column 0 / the wrap edge.
+        self.clip_decorative_rects_to_band(merge_row_bands(out))
     }
 
     /// Build the `~~strikethrough~~` STRIKE LINES — one flat [`Squiggle`]
@@ -1870,7 +1924,11 @@ impl TextPipeline {
             }
             out.push([x, line_top, w, p.line_height]);
         }
-        self.clip_rects_to_band(merge_row_bands(out))
+        // item 84-fix: the DECORATIVE Y-only clip, not the strict writing-
+        // column `clip_rects_to_band` — the panel's own `FENCE_PANEL_INSET_X`
+        // overhang is by design (reads as a distinct surface, not clipped
+        // exactly to the glyph edges) and must survive with page mode off.
+        self.clip_decorative_rects_to_band(merge_row_bands(out))
     }
 
     /// The fence-panel cache's current version key, or `None` before the first
@@ -1995,12 +2053,14 @@ impl TextPipeline {
                 rects.push([x, y, w, row_caret_h]);
             }
         }
-        // ITEM 84: route through the SAME content clip every other document-
-        // content quad uses, so a selection extended past the page's edge (or a
-        // diff-preview transcript scrolled past its card) stops painting at that
-        // boundary instead of bleeding into the margin — a visual bound only;
-        // the selection RANGE above is untouched. Shared by `selection_rects`
-        // and `search_match_rects` (both funnel through here).
+        // ITEM 84: route through the SAME content clip every other SELECTION-
+        // ADJACENT quad uses, so a selection extended past the page's edge (or
+        // a diff-preview transcript scrolled past its card) stops painting at
+        // that boundary instead of bleeding into the margin — a visual bound
+        // only; the selection RANGE above is untouched. Shared by
+        // `selection_rects` and `search_match_rects` (both funnel through
+        // here). NOT `clip_decorative_rects_to_band` — that owner is for the
+        // decorative-overhang emitters (item 84-fix).
         self.clip_rects_to_band(rects)
     }
 
