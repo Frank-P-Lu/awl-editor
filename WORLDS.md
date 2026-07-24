@@ -28,7 +28,7 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 | **Potoroo**    | dark burnt-orange           | Stripes           | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✶ ✦ ◆                             | Dusk  | Humble   | Technical | Warm    |
 | **Mopoke**     | warm charcoal               | Dots              | iA Writer Quattro S | IBM Plex Mono   | Junicode · damask / candelabra / damask-tile  | Dusk  | Humble   | Modern    | Warm    |
 | **Bombora**    | dark violet                 | Waves             | EB Garamond         | Monaspace Xenon | EB Garamond · ☙ ❧ ❦                           | Night | Refined  | Literary  | Cool    |
-| **Mulga**      | blackish-olive              | Starfield         | Zilla Slab          | Monaspace Xenon | Junicode · ⁂ ⁑ ❦                              | Night | Everyday | Literary  | Cool    |
+| **Mulga**      | blackish-olive              | Starfield         | Zilla Slab          | Monaspace Xenon | Junicode · ⁑ ⁂ ❦                              | Night | Everyday | Literary  | Cool    |
 | **Bowerbird**  | midnight-navy               | Dots              | IBM Plex Sans       | JetBrains Mono  | Awl Marks · ❂ ✴ ◈                             | Night | Everyday | Modern    | Cool    |
 | **Brolga**     | pale sky-blue               | Gradient          | IBM Plex Sans       | IBM Plex Mono   | Awl Marks · ✧ ✴ ⬥                             | Day   | —        | —         | Cool    |
 | **Mangrove**   | dark tidal-teal             | Lava · dithered   | JetBrains Mono      | JetBrains Mono  | Awl Marks · ❖ ◈ ⬥                             | Night | Humble   | Technical | Cool    |
