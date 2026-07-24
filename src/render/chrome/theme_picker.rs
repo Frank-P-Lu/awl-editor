@@ -285,6 +285,9 @@ impl TextPipeline {
         // rides its own name line so the bar hugs `label + gap + shortcut`. `&[]`
         // otherwise — byte-identical (no trailing spans).
         trailing: &[String],
+        // ITEM 83 — see [`TextPipeline::overlay_shape_text`]'s doc; threaded to
+        // [`Self::shape_theme_spans`], the door to the plan rows' own elision.
+        elide: bool,
     ) -> bool {
         // Build the strip LINE ("\n" then the faceting-lens labels) as one owned string,
         // tracking each label's byte range so the ACTIVE label's glyphs can be underlined.
@@ -327,11 +330,11 @@ impl TextPipeline {
             }
             _ => ink,
         };
-        self.shape_theme_spans(geom, ink, active_ink, muted, selected_ink, covered, &strip_s, &label_ranges, &sep_ranges, trailing, 1.0);
+        self.shape_theme_spans(geom, ink, active_ink, muted, selected_ink, covered, &strip_s, &label_ranges, &sep_ranges, trailing, 1.0, elide);
         let strip_w = self.theme_strip_px();
         if strip_w > geom.text_w {
             let scale = (geom.text_w / strip_w).max(0.5);
-            self.shape_theme_spans(geom, ink, active_ink, muted, selected_ink, covered, &strip_s, &label_ranges, &sep_ranges, trailing, scale);
+            self.shape_theme_spans(geom, ink, active_ink, muted, selected_ink, covered, &strip_s, &label_ranges, &sep_ranges, trailing, scale, elide);
         }
 
         // Record the active-lens mark from the shaped strip glyphs (line 1). Line-1
@@ -549,6 +552,13 @@ impl TextPipeline {
         // `overlay_shape_theme`); `&[]` on a non-hug frame.
         trailing: &[String],
         strip_scale: f32,
+        // ITEM 83 — see [`TextPipeline::overlay_shape_text`]'s doc. `false` only
+        // from the [`TextPipeline::measure_overlay_content_w`] measurement path:
+        // every plan ITEM row shapes at its own natural (unelided) width instead
+        // of `rowlayout::fit_primary`'s char-estimate truncation, so a
+        // content-hugging faceted card (the Cmd-P palette) can't size itself to
+        // text this SAME pass already shortened.
+        elide: bool,
     ) {
         let m = self.metrics;
         let faint = theme::faint().to_glyphon();
@@ -578,8 +588,11 @@ impl TextPipeline {
         let slant_tax = slant
             .map(|s| crate::render::slant_max_offset(&s, geom.plan.len()))
             .unwrap_or(0.0);
-        let total_chars = if m.char_width > 0.0 {
-            (((geom.text_w - slant_tax).max(0.0)) / m.char_width).floor() as usize
+        // ITEM 83: the overlay's own (smaller) char width, not the bare document
+        // `m.char_width` — see `overlay_char_width`'s doc (`overlay_shape.rs`).
+        let char_w = self.overlay_char_width();
+        let total_chars = if char_w > 0.0 {
+            (((geom.text_w - slant_tax).max(0.0)) / char_w).floor() as usize
         } else {
             usize::MAX
         };
@@ -591,7 +604,11 @@ impl TextPipeline {
                 ThemeLine::Header(_) => None,
                 ThemeLine::Item(i) => {
                     let name = self.overlay_items.get(*i).map(|s| s.as_str()).unwrap_or("");
-                    Some(rowlayout::fit_primary(name, row_budget).to_string())
+                    Some(if elide {
+                        rowlayout::fit_primary(name, row_budget).to_string()
+                    } else {
+                        name.to_string()
+                    })
                 }
             })
             .collect();

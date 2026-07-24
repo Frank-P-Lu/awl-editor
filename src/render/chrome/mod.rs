@@ -934,6 +934,23 @@ pub(super) fn overlay_row_top(
 /// strip shape at the overlay body size, whose ascent+descent sits well under the
 /// row pitch). Pixel-law-tested per world. THE ONE owner the fill
 /// ([`TextPipeline::overlay_pane_fills`]) and the split-outcome law both read.
+///
+/// ITEM 83 (FACETED branch only) — the query TEXT itself never moves (it stays
+/// pinned to `text_top`, exactly as documented above), but the UPPER SURFACE's
+/// own bottom edge historically sat FLUSH against the query box's natural end
+/// (`text_top + line_height`, zero breathing room below the glyphs) while its
+/// TOP edge carries the card's own `pad` (12px) breathing room above them — so
+/// the query read visibly BOTTOM-HEAVY inside its own small strip (Quokka's
+/// command palette: the query/caret sit closer to the strip's bottom edge than
+/// its top, never truly centred). [`FACETED_BREATHE_FRAC`] borrows a slice of
+/// the SAME already-proven-safe `header_gap·(1 - 2·frac)` slack the doc above
+/// establishes (the strip's own quiet headroom, unused by anything) as
+/// SYMMETRIC breathing below the query box before the visible gap starts —
+/// widening the drawn upper surface (a pure FILL change, `overlay_pane_fills`'s
+/// only consumer) without moving the gap's WIDTH, the strip's box, or a single
+/// glyph. The FLAT branch (`header_rows == 1`) is already at its ceiling — its
+/// gap already sits flush against the first candidate row (`lower_top`, sacred:
+/// moving it would shift every row below) — so it keeps its historical formula.
 pub(super) fn overlay_split_bounds(
     text_top: f32,
     header_rows: usize,
@@ -953,12 +970,25 @@ pub(super) fn overlay_split_bounds(
     } else {
         // FACETED: the query line 0 is plain `lh` (glyph HIGH) and the strip
         // (line 1) is inflated (labels centred LOW); hug the gap to the query box
-        // bottom (`text_top + lh`) so the clear band is the strip box's inflated
-        // head, well above the strip labels.
-        let upper_bottom = text_top + line_height;
+        // bottom PLUS a symmetric breathing margin (ITEM 83), so the clear band
+        // still starts well above the strip labels but the upper surface itself
+        // reads centred around the (unmoved) query glyphs.
+        let breathe = header_gap * FACETED_BREATHE_FRAC;
+        let upper_bottom = text_top + line_height + breathe;
         Some((upper_bottom, upper_bottom + gap))
     }
 }
+
+/// ITEM 83 — the FACETED upper-surface breathing margin, as a fraction of the
+/// query beat (`header_gap`). [`overlay_split_bounds`]'s own centring-bound doc
+/// already proves `header_gap · (1 - 2 · SPLIT_GAP_FRAC)` — `0.2` at the shipped
+/// `SPLIT_GAP_FRAC = 0.4` — sits glyph-free above the strip's own labels; this
+/// spends that FULL proven-safe slack as symmetric breathing below the query box
+/// instead, which is what gets the query nearest to true optical centre inside
+/// its historical `pad` (12px) top margin without touching the strip's own box.
+/// A LITERAL `0.2` (not `1.0 - 2.0 * SPLIT_GAP_FRAC`) so a future `SPLIT_GAP_FRAC`
+/// retune doesn't silently widen this past the bound it was proven against.
+const FACETED_BREATHE_FRAC: f32 = 0.2;
 
 /// SPLIT-PANE COMPOSITION — the visible-background gap between a split Pane
 /// card's two surfaces, as a fraction of the query BEAT (`header_gap`). `0.4`

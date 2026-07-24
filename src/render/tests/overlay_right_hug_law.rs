@@ -305,3 +305,148 @@ fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
     set_list_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
+
+// ---------------------------------------------------------------------------
+// 6. ITEM 83 — a long primary with NO secondary of its own is never squeezed
+//    by some OTHER row's long chord ("Compare with version…" beside "Toggle
+//    outline"'s real compound keybinding, the reported specimen).
+// ---------------------------------------------------------------------------
+
+/// Two bugs, one root: `rowlayout`'s SHARED row-budget char estimate reads the
+/// bare DOCUMENT `char_width`, not the overlay's own smaller
+/// `OVERLAY_UI_SCALE`-stepped one (`overlay_char_width`) — so it under-counts
+/// how many (smaller) overlay chars a device-px width holds, tightening the
+/// estimate enough to elide a primary that has real, measured pixel room. On a
+/// content-hugging right-anchored card this ALSO poisoned the width measurement
+/// itself (`measure_overlay_content_w` used to read the ALREADY-elided text's
+/// pixel width as "the content"), so the card never grew enough to show it.
+#[test]
+fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_another_rows_long_chord(
+) {
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!(
+            "skipping right_anchored_long_primary_with_no_secondary_of_its_own: no wgpu adapter"
+        );
+        return;
+    };
+    let _g = crate::testlock::serial();
+    set_list_style_test_override(Some(hug_label_bars()));
+
+    // "Compare with version…" carries NO chord of its own; "Toggle outline"
+    // carries a genuinely long COMPOUND chord (13 chars) — the real keybindings
+    // corpus's own shape (`⌘⇧E · C-c C-f`) — that must not squeeze an unrelated
+    // row's primary just because the row budget is shared.
+    let items = ["Go to file…", "Compare with version…", "Toggle outline"];
+    let binds = ["⌘O", "", "⌘⇧E · C-c C-f"];
+    p.set_view(&right_flat(&items, &binds));
+    p.prepare(&device, &queue, w, h).unwrap();
+
+    let elided = p.overlay_elided_candidates(w);
+    assert!(
+        elided.is_empty(),
+        "a wide window has usable width — no primary may elide while it remains, \
+         but these did: {elided:?} (content-sized must never be computed from \
+         text an earlier pass already truncated)"
+    );
+
+    // NON-VACUOUS: reconstruct the PRE-ITEM-83 estimate inline — the SAME WIDE
+    // PROVISIONAL width `measure_overlay_content_w` shapes against (before the
+    // fix, this width alone was believed to guarantee no elision at all), fed
+    // the bare DOCUMENT char width instead of `overlay_char_width` — and show
+    // it WOULD have elided this exact row. That squeeze is what used to poison
+    // the very width decision: the card was sized off text this SAME estimate
+    // had already shortened, so it never grew enough to show the row whole.
+    let text_w = p.overlay_card_desired_w(chrome::CARD_MAX_W) - 2.0 * p.overlay_text_hpad();
+    let doc_char_w = p.metrics.char_width;
+    let total_chars_old = (text_w / doc_char_w).floor() as usize;
+    let widest_secondary_chars = binds.iter().map(|s| s.chars().count()).max().unwrap();
+    let old_budget = match rowlayout::plan(total_chars_old, Some(widest_secondary_chars)) {
+        rowlayout::Plan::Full { primary } | rowlayout::Plan::Split { primary } => primary,
+        rowlayout::Plan::Measure => usize::MAX,
+    };
+    let long_primary = "Compare with version…";
+    assert!(
+        old_budget < long_primary.chars().count(),
+        "sanity: the historical document-scale char estimate WOULD have elided \
+         this row (budget {old_budget} < {} chars) — confirms the law is non-vacuous",
+        long_primary.chars().count()
+    );
+
+    set_list_style_test_override(None);
+    theme::set_active(theme::DEFAULT_THEME);
+}
+
+// ---------------------------------------------------------------------------
+// 7. ITEM 83 ADJUST (Fable's audit, item83-mangrove-plain-picker.png) — a
+//    right-anchored card's content width, when DRIVEN by a candidate row's own
+//    widest primary (no query/lens/footer line is wider), still shows that
+//    exact row whole.
+// ---------------------------------------------------------------------------
+
+/// The Dictionary picker's real shape (the reported specimen): three language
+/// names, each paired with a descriptive secondary label too long to EVER show
+/// beside any of them — the right column yields whole, so the card's content
+/// width is driven by the widest PRIMARY alone. `rowlayout::full_budget`'s
+/// no-secondary-shown fallback reserves one char by design (`total - 1`); a
+/// card measured off the primary's bare pixel width, with no room for that
+/// reserve, then loses exactly the widest row's own trailing character to
+/// elision ("English (Australia)" -> "English …ustralia)") even though the
+/// card plainly has room for it.
+///
+/// PINNED to the real world (`Mangrove`, the reported specimen's own
+/// JetBrains Mono), not this suite's usual theme-agnostic style: the shared
+/// row-budget char ESTIMATE (`render::CHAR_WIDTH`, a fixed nominal constant —
+/// see its own doc) is not font-specific, so how tight the pre-fix one-char
+/// shortfall reads depends on how closely a world's REAL font tracks that
+/// nominal width. Mangrove's JetBrains Mono tracks it almost exactly
+/// (the reported specimen's own numbers), which is exactly what makes a
+/// one-char pad the right, minimal fix THERE; a font that tracks it less
+/// closely (the default test-harness theme, or Cassowary's narrower Iosevka)
+/// can still under-elide by more than one char at this same tight fixture —
+/// a separate, pre-existing estimate-vs-real-glyph gap this fix does not
+/// (and was not asked to) close. Non-vacuous: the fixture's widest primary
+/// (19 chars) sits EXACTLY at the pre-fix budget edge on Mangrove — the row a
+/// one-char margin either closes or misses.
+#[test]
+fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_the_fallback_reserve(
+) {
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!(
+            "skipping right_anchored_content_driven_by_its_own_widest_primary: no wgpu adapter"
+        );
+        return;
+    };
+    let _g = crate::testlock::serial();
+    theme::set_active_by_name("Mangrove");
+    set_list_style_test_override(Some(hug_label_bars()));
+
+    let items = ["English (US)", "English (UK)", "English (Australia)"];
+    let binds = [
+        "Hunspell en_US — American spelling",
+        "Hunspell en_GB — British spelling",
+        "Hunspell en_AU — Australian spelling",
+    ];
+    p.set_view(&right_flat(&items, &binds));
+    p.prepare(&device, &queue, w, h).unwrap();
+
+    // Sanity: the descriptive secondary genuinely never fits beside any primary
+    // here (the scenario this law targets — content driven by primary alone).
+    assert!(
+        !p.overlay_right_shown,
+        "sanity: the descriptive secondary must yield whole for this fixture \
+         (otherwise the card's width would be driven by primary+gap+secondary, \
+         not primary alone, and this law would be vacuous)"
+    );
+
+    let elided = p.overlay_elided_candidates(w);
+    assert!(
+        elided.is_empty(),
+        "a card sized off its own widest primary must show that primary whole — \
+         but these elided: {elided:?}"
+    );
+
+    set_list_style_test_override(None);
+    theme::set_active(theme::DEFAULT_THEME);
+}

@@ -540,13 +540,13 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
         }
         w
     };
-    p.overlay_shape_text(&geom, ink, muted, None, None);
+    p.overlay_shape_text(&geom, ink, muted, None, None, true);
     let plain_w = widest(&p);
     assert!(plain_w > 0.0);
 
     // A hefty stair: 40px/row over 3 rows = an 80px tax.
     set_slant_test_override(Some(SlantProbe { px_per_row: 40.0, italic: false }));
-    p.overlay_shape_text(&geom, ink, muted, None, None);
+    p.overlay_shape_text(&geom, ink, muted, None, None, true);
     let slanted_w = widest(&p);
     set_slant_test_override(None);
 
@@ -555,13 +555,26 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
         "the slant's width tax must shorten the elided rows \
          (plain {plain_w:.1}px vs slanted {slanted_w:.1}px, tax 80px)"
     );
-    // And the shifted deepest row still fits the card's text column: the
-    // shaped width plus the max stair offset stays inside text_w (the whole
-    // point of taxing the budget rather than letting the clip eat the text).
+    // And the shifted deepest row still fits the card's text column, WITHIN one
+    // estimated char of slack: the shaped width plus the max stair offset stays
+    // inside text_w (the whole point of taxing the budget rather than letting
+    // the clip eat the text) — modulo the row-budget's OWN granularity. The
+    // estimate (`rowlayout::full_budget`'s `-1` char reserve) is measured in
+    // WHOLE CHARS of [`TextPipeline::overlay_char_width`] (ITEM 83's overlay-
+    // scaled estimate); `CHAR_WIDTH` itself (`render.rs`) is a flat, FONT-
+    // AGNOSTIC constant (not measured per world), so a real, specific glyph
+    // (this probe's repeated "a" on Firetail's own display face) can run a
+    // FRACTION of one estimated char wider than the mean — the same slack the
+    // `-1` reserve already exists to absorb, just measured in the OVERLAY's own
+    // (smaller, more accurate) char unit post-item-83 rather than the
+    // document's. A GPU `TextBounds` clip is the hard backstop either way (no
+    // glyph ever paints past the card into the backdrop).
+    let slack = p.overlay_char_width();
     assert!(
-        slanted_w + 80.0 <= text_w + 1.0,
-        "deepest shifted row must still land inside the text column \
-         ({slanted_w:.1} + 80 > {text_w:.1})"
+        slanted_w + 80.0 <= text_w + slack + 1.0,
+        "deepest shifted row must still land inside the text column (+ one \
+         estimated char of slack {slack:.1}) \
+         ({slanted_w:.1} + 80 > {text_w:.1} + {slack:.1})"
     );
 }
 
