@@ -734,7 +734,10 @@ mod tests {
     /// `note_presented_frame` closes it out against a "presented" frame and records
     /// the sample, and `latency_distribution` reports it. Global state (like the
     /// flight recorder above), so this takes `serial()` and disarms everything on
-    /// the way out.
+    /// the way out. Native-only, same as the flight-recorder law test above: every
+    /// symbol under test (`LATENCY_PENDING`, `arm_flight`, `recording`, …) is itself
+    /// `#[cfg(not(target_arch = "wasm32"))]`.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
         let _g = crate::testlock::serial();
@@ -785,7 +788,9 @@ mod tests {
     }
 
     /// Outside recording (no probe, no flight recorder) both doors are cheap no-ops
-    /// — a plain launch must never even arm the clock.
+    /// — a plain launch must never even arm the clock. Native-only: same reason as
+    /// the pairing test above — the symbols under test don't exist on wasm.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn movement_latency_is_a_no_op_outside_recording() {
         let _g = crate::testlock::serial();
