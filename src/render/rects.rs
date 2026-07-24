@@ -375,15 +375,30 @@ impl TextPipeline {
         self.ornament_cache.table_blocks.borrow().clone()
     }
 
+    /// True when a row spanning `[top, top + height]` (absolute screen px) could
+    /// paint into the canvas — its box INTERSECTS the viewport plus a GENEROUS
+    /// margin (many line-heights, far more than any single glyph's vertical
+    /// extent), not just its top point. A normal ornament's `height` is ~0 (a
+    /// single row is already well inside the margin), but a TALL row — an inline
+    /// image's reserved `dh`, which can run to hundreds of px, far past the flat
+    /// margin — needs its own BOTTOM edge tested too: a top-only test culls a tall
+    /// row the instant its top scrolls `margin` px above the viewport even while
+    /// its bottom is still fully on-screen (item 82 — the "disappears mid-scroll"
+    /// bug). Byte-identical to the old top-only test at `height == 0.0`.
+    pub(super) fn row_box_visible(&self, top: f32, height: f32) -> bool {
+        let margin = self.metrics.line_height * 8.0;
+        top + height > -margin && top < self.window_h + margin
+    }
+
     /// True when logical `line`'s ornament could paint into the canvas — its top is
     /// within the viewport plus a GENEROUS margin (many line-heights, far more than
     /// any single glyph's vertical extent). An ornament outside this band is fully
     /// off-screen and would be CLIPPED to nothing by glyphon's `TextBounds` anyway, so
     /// culling it is byte-identical to keeping it; culling merely skips the shaping.
+    /// A zero-height point test — see [`Self::row_box_visible`] for a row with real
+    /// vertical extent (a tall inline image).
     pub(super) fn line_ornament_visible(&self, line: usize) -> bool {
-        let margin = self.metrics.line_height * 8.0;
-        let top = self.line_ornament_top(line);
-        top > -margin && top < self.window_h + margin
+        self.row_box_visible(self.line_ornament_top(line), 0.0)
     }
 
     /// Logical line indices that carry a Markdown `Rule` span (a thematic break)

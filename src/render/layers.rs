@@ -2451,10 +2451,7 @@ impl TextPipeline {
             // (`compute_image_layout`'s doc comment — the raw source wraps as
             // plain text instead), so there is no well-defined place to draw
             // the image; skip it for that one frame, like the `!wysiwyg` arm.
-            if !self.line_ornament_visible(im.line)
-                || (im.revealed && !wysiwyg)
-                || (im.revealed && !self.image_row_reserved(im.line))
-            {
+            if (im.revealed && !wysiwyg) || (im.revealed && !self.image_row_reserved(im.line)) {
                 continue;
             }
             let dw = im.display_w.max(1.0);
@@ -2465,6 +2462,14 @@ impl TextPipeline {
             // forcing glyph landed on (`Self::image_draw_top`'s doc) — directly
             // below the untouched marker+caption row, never overlapping it.
             let row_top = self.image_draw_top(im.line);
+            // ITEM 82: cull on the row's OWN box (top..top+dh), not a fixed small
+            // margin around its top alone — a tall image's top can scroll well
+            // past the margin while its bottom is still on-screen, and a top-only
+            // test would drop it (a hard "blank collapse" mid-scroll instead of
+            // the progressive clip a normal document row gets for free).
+            if !self.row_box_visible(row_top, dh) {
+                continue;
+            }
             // Revealed: the image stays at the row top, DIMMED, and the source
             // reveals CENTRED over it (the caption model). Off-cursor / missing: full
             // opacity, source concealed. A missing placeholder never dims.

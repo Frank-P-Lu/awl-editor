@@ -727,15 +727,19 @@ impl TextPipeline {
             // ITEM 5 REWORK: a REVEALED MIXED line has no reservation this frame
             // (`compute_image_layout`'s doc comment) — no well-defined position
             // to arm a handle at, so it's skipped like `im.missing`.
-            if im.missing
-                || !self.line_ornament_visible(im.line)
-                || (im.revealed && !self.image_row_reserved(im.line))
-            {
+            if im.missing || (im.revealed && !self.image_row_reserved(im.line)) {
                 continue;
             }
             let dw = im.display_w.max(1.0);
             let dh = im.display_h.max(1.0);
             let top = self.image_draw_top(im.line);
+            // ITEM 82: the same tall-row box cull `prepare_images` uses (never the
+            // top-only `line_ornament_visible`) — a resize handle must stay armed
+            // for exactly as long as the image itself stays drawn, all the way
+            // through the "bottom still on-screen, top scrolled off" band.
+            if !self.row_box_visible(top, dh) {
+                continue;
+            }
             let left = text_left + (wrap - dw).max(0.0) * 0.5;
             out.push((im.range, [left, top, dw, dh]));
         }
