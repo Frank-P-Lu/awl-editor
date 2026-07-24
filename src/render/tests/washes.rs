@@ -458,6 +458,134 @@ fn multiline_comment_wash_merges_into_one_continuous_band() {
     );
 }
 
+/// ITEM 84-FIX — the fence panel's [`FENCE_PANEL_INSET_X`] overhang survives
+/// item 84's writing-column content clip, with PAGE MODE OFF (the case with
+/// zero slack: `text_pad()` is hard-zeroed then, so `text_left() ==
+/// column_left()` and there is no margin to absorb the inset if the strict
+/// clip were applied here). Before item 84-fix, `fence_panel_rects` routed
+/// through the SAME `clip_rects_to_band` the selection-adjacent quads use,
+/// which X-clips to `[column_left(), column_left()+column_width())` — flush
+/// with the bare glyph column, eating the panel's whole INTENDED overhang on
+/// both edges, universally (every fenced block, every frame, page off). This
+/// asserts the fix: the panel's left edge sits `FENCE_PANEL_INSET_X` PAST
+/// `text_left()` (== `column_left()` here) rather than clamped flush to it,
+/// and the right edge keeps its own `+inset` past the column's right edge.
+#[test]
+fn fence_panel_overhang_survives_content_clip_with_page_mode_off() {
+    let _w = crate::testlock::serial();
+    let prev_page = crate::page::page_on();
+    crate::page::set_page_on(false);
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping fence_panel_overhang_survives_content_clip_with_page_mode_off: no wgpu adapter"
+        );
+        crate::page::set_page_on(prev_page);
+        return;
+    };
+    let text = "```rust\nlet x = 1;\n```\n";
+    let mut v = view(text, 0, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+
+    // PRECONDITION: zero slack — page mode off means text_left() ==
+    // column_left() exactly (text_pad() == 0.0), so a clip clamped to
+    // column_left() would leave NO room to still show the inset; a pass here
+    // cannot be an accident of leftover page padding.
+    assert_eq!(p.text_pad(), 0.0, "precondition: page mode off => text_pad is hard-zeroed");
+    assert!(
+        (p.text_left() - p.column_left()).abs() < 1e-4,
+        "precondition: text_left == column_left with zero slack between them: {} vs {}",
+        p.text_left(), p.column_left()
+    );
+
+    let rects = p.fence_panel_rects();
+    assert_eq!(rects.len(), 1, "one fenced block => one merged panel quad: {rects:?}");
+    let [rx, _ry, rw, _rh] = rects[0];
+
+    let inset = FENCE_PANEL_INSET_X * p.metrics.zoom;
+    let want_left = p.text_left() - inset;
+    let want_right = p.text_left() + p.text_wrap_width() + inset;
+    assert!(
+        (rx - want_left).abs() < 1e-2,
+        "panel left keeps its FENCE_PANEL_INSET_X overhang past text_left ({}), \
+         not clamped to column_left ({}): got {rx}",
+        want_left, p.column_left()
+    );
+    assert!(
+        rx < p.column_left() - 1e-2,
+        "panel left must sit STRICTLY past column_left (the bug clamped it flush): \
+         left={rx}, column_left={}",
+        p.column_left()
+    );
+    assert!(
+        (rx + rw - want_right).abs() < 1e-2,
+        "panel right keeps its +inset overhang: got right={}, want={want_right}",
+        rx + rw
+    );
+
+    crate::page::set_page_on(prev_page);
+}
+
+/// ITEM 84-FIX — the inline-code pill's [`CODE_PILL_INSET_X`] LEFT overhang
+/// survives item 84's content clip at COLUMN 0 (line start), with PAGE MODE
+/// OFF. Mirrors the fence-panel test above: `text_pad()` is zero, so
+/// `text_left() == column_left()`, and a span starting at column 0 has its
+/// pill's un-inset left edge sitting EXACTLY at that shared boundary — the
+/// worst case for the item 84 bug (item 84's X-clip would clamp the pill's
+/// left cap away entirely, not merely narrow it).
+#[test]
+fn code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off() {
+    let _w = crate::testlock::serial();
+    let prev_page = crate::page::page_on();
+    crate::page::set_page_on(false);
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off: \
+             no wgpu adapter"
+        );
+        crate::page::set_page_on(prev_page);
+        return;
+    };
+    // The inline code span starts at column 0 — the marker byte is the very
+    // first glyph of the line, so its span's own xs_s == 0 and the pill's
+    // un-inset left edge lands exactly on text_left().
+    let text = "`code` at line start\n";
+    let mut v = view(text, 1, 0); // caret elsewhere so the ` ` markers conceal
+    v.is_markdown = true;
+    p.set_view(&v);
+
+    // PRECONDITION: zero slack, same as the fence-panel test.
+    assert_eq!(p.text_pad(), 0.0, "precondition: page mode off => text_pad is hard-zeroed");
+    assert!(
+        (p.text_left() - p.column_left()).abs() < 1e-4,
+        "precondition: text_left == column_left with zero slack between them: {} vs {}",
+        p.text_left(), p.column_left()
+    );
+
+    let rects = p.code_pill_rects();
+    assert_eq!(rects.len(), 1, "one inline-code span => one pill quad: {rects:?}");
+    let [rx, ..] = rects[0];
+
+    let inset = CODE_PILL_INSET_X * p.metrics.zoom;
+    let want_left = p.text_left() - inset;
+    assert!(
+        (rx - want_left).abs() < 1e-2,
+        "pill left keeps its CODE_PILL_INSET_X cap past text_left ({}), not clamped to \
+         column_left ({}): got {rx}",
+        want_left, p.column_left()
+    );
+    assert!(
+        rx < p.column_left() - 1e-2,
+        "pill left must sit STRICTLY past column_left (the bug clamped it flush at column 0): \
+         left={rx}, column_left={}",
+        p.column_left()
+    );
+
+    crate::page::set_page_on(prev_page);
+}
+
 /// FENCE-PANEL CACHE contract, mirroring `wash_cache_and_geometry_contract`:
 /// a cursor move / scroll keeps the proto cache warm (no rebuild); an edit
 /// reshapes once and rebuilds it (a new version key).
