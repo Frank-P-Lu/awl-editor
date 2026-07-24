@@ -8,8 +8,9 @@
 
 Background Workflows off `main`; integrated serially on the merge gate as each verifies SHIP. Landed items sit on LOCAL main (not yet pushed — one batched both-conventions gate + CI push pending once build-contention drops). Workers report shas; the board is orchestrator-only.
 
-**Landed on local main (SHIP-verified, unpushed):** 78 (list provenance @18052e3) · 79 (date chord @a196b69) · 80 (Find/Replace width @3f68a46) · 81 (heading chevron @c71d703).
-**In flight:** 76 (active-folder; Opus→Sonnet→Opus — **77 waits on 76**) · 82 (image scroll/cull) · 84 (selection clip) · 83 (overlay room + query center; Fable) · 85 (theme-picker hover) · 86 (light-world grounds; Fable — **87 then 88 wait on 86**).
+**Landed on local main (SHIP-verified, unpushed):** 78 (@18052e3) · 79 (@a196b69) · 80 (@3f68a46) · 81 (@c71d703) · 84 (@f94293b — has a follow-up fix, see below).
+**Fix in flight — MUST land before push:** 84-fix (item-84-fix-wash-clip). Item 84's content_clip over-broadened: with page mode OFF it wrongly clips the fence-panel (8px) and inline code-pill (3px) decorative overhangs (a follow-up audit found it — two law tests written that fail on current main). 84's own selection-spill fix is correct and stays.
+**In flight:** 76 (active-folder; Opus→Sonnet→Opus — **77 waits on 76**) · 82 (image cull — build @110f71a done, RE-verifying; first verify returned a stub) · 83 (overlay room + query center; Fable) · 85 (theme-picker hover) · 86 (light-world grounds; Fable — **87 then 88 wait on 86**).
 **Queued:** 87 (after 86) · 88 (after 86/87) · 77 (after 76).
 
 **Live-only flags to confirm by hand** (harness can't drive them): 80 — Find/Replace scroll smoothness over real typing (per-frame correctness proven) · 81 — chevron mouse-press→toggle wiring (no GPU App in unit tests; geometry+toggle proven headlessly) · 85 — felt input→present lag (probe added; user is the oracle).
