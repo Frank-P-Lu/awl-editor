@@ -478,8 +478,12 @@ pub const MULGA: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    // Slab world → austere typographic Junicode marks (⁂ asterism + ⁑ + ❦ floral heart).
-    ornaments: Ornaments { dash: '⁂', star: '⁑', underscore: '❦' },
+    // Slab world → austere typographic Junicode marks: the literal three-star
+    // asterism ⁂ for `***` (the natural match — see `Ornaments::star`'s own doc),
+    // its companion two-star asterism ⁑ for `---`, + ❦ floral heart for `___`
+    // (item 88 — swapped from the pre-item-88 {dash: ⁂, star: ⁑} so `***` finally
+    // conceals to the glyph that IS three stars).
+    ornaments: Ornaments { dash: '⁑', star: '⁂', underscore: '❦' },
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     // Slab-sturdy literary night → reversed leaf + floral heart (distinct from its
