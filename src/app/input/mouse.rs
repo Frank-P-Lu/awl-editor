@@ -268,18 +268,20 @@ impl App {
     /// pointer is off the rows or already on the highlighted one. Uniform across EVERY
     /// picker kind — the row geometry comes from the one `overlay_row_at` hit-test.
     pub(in crate::app) fn overlay_hover(&mut self) {
-        let hit = self
-            .gpu
-            .as_ref()
-            .and_then(|g| g.pipeline.overlay_row_at(self.cursor_px.0, self.cursor_px.1));
-        let Some(idx) = hit else { return };
-        // Re-highlight ONLY the row genuinely under the pointer AMONG THE VISIBLE ROWS.
-        // `hover_select` never moves the scroll window (and rejects a row outside the
-        // visible band / already-selected), so hovering the top/bottom edge can't make
-        // the list auto-scroll — a hover highlights, it never scrolls.
+        let (px, py) = self.cursor_px;
+        let hit = self.gpu.as_ref().and_then(|g| g.pipeline.overlay_row_at(px, py));
+        // ITEM 85 — `OverlayState::hover_at` is the REAL-MOTION GATE: it re-hit-tests
+        // + re-highlights ONLY when `(px, py)` genuinely changed since the last hover
+        // check, so a world jump's own re-layout (a reanchor, a Pane↔Bars row-pitch
+        // change, a settling font reshape) under an otherwise-STATIONARY pointer can
+        // never synthesize a new selection on its own — every `CursorMoved`, real
+        // travel or a platform-synthesized duplicate at the identical coordinates,
+        // funnels through the same gate. `hover_select` itself still owns the
+        // visible-band + no-op checks; `hover_at` never moves the scroll window
+        // either, so hovering the top/bottom edge can't auto-scroll the list.
         let kind = match self.overlay.as_mut() {
             Some(ov) => {
-                if !ov.hover_select(idx) {
+                if !ov.hover_at(px, py, hit) {
                     return;
                 }
                 ov.kind
@@ -361,6 +363,19 @@ impl App {
     ///     picker stays modal; it never falls through to `on_press`, which would place
     ///     the document cursor beneath the card).
     /// Always consumes the click while an overlay is open.
+    ///
+    /// ITEM 85 — THE ONE EXPLICIT ACTIVATION RULE: only `WindowEvent::MouseButton`
+    /// `ElementState::Pressed` reaches this door (see `on_mouse_input`'s match arms
+    /// below — `Released` never re-enters it), and it hit-tests `self.cursor_px` at
+    /// that SAME instant. So "the row a click activates" is, unconditionally, THE
+    /// ROW UNDER THE PRESS — never a release position, and never re-derived from
+    /// whatever `overlay_hover` last computed (a hover between an earlier motion and
+    /// this press only ever moved `selected` to a row the pointer was ACTUALLY over
+    /// at the time; this fresh hit-test can only agree with or refine that, never
+    /// contradict a stationary pointer). A picker offers no drag-to-a-different-row
+    /// gesture, so a press/release pair over a world-jump-relaid-out card can never
+    /// activate two different rows depending on which edge you read — there is only
+    /// the one edge this fires on.
     pub(in crate::app) fn overlay_click(&mut self, event_loop: &ActiveEventLoop) {
         let (px, py) = self.cursor_px;
         let (row_hit, lens_hit, card) = self

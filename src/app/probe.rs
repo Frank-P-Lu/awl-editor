@@ -38,6 +38,16 @@ impl App {
                 self.on_mouse_wheel(winit::event::MouseScrollDelta::LineDelta(0.0, n));
             }
             crate::probe::ProbeEvent::Shot(path) => self.probe_shot(&path),
+            crate::probe::ProbeEvent::Latency => {
+                // ITEM 85: print ONE `LIVE-PROBE latency …` protocol line, mirroring
+                // the `shot` line's contract — the wrapping script can assert on it
+                // exactly like a screenshot outcome. `none` is a valid, non-failing
+                // report (a script that never actually moved the theme picker).
+                match crate::probe::latency_distribution() {
+                    Some(dist) => println!("LIVE-PROBE latency ok {dist}"),
+                    None => println!("LIVE-PROBE latency ok none (no movement sampled)"),
+                }
+            }
             crate::probe::ProbeEvent::Quit => {
                 let exited = self.apply(
                     crate::keymap::Action::Quit,

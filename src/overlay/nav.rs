@@ -316,6 +316,37 @@ impl OverlayState {
         }
     }
 
+    /// ITEM 85 — THE REAL-MOTION GATE: [`Self::hover_select`]'s caller-facing door,
+    /// gated on the pointer having GENUINELY moved since the last hover check. A
+    /// theme-picker world jump can relocate every row under an otherwise-stationary
+    /// pointer — a keyboard/wheel crossing re-anchors the card to the destination
+    /// world's own rail (`reanchor`), a Pane↔Bars crossing changes the row pitch, a
+    /// deferred font reshape settles into a different line height — and the very
+    /// next `CursorMoved`, whether it is a real pixel of travel or a platform-
+    /// synthesized duplicate at the IDENTICAL coordinates (a redraw-triggered
+    /// spurious event), must not read that RELAYOUT as a pointer gesture. Comparing
+    /// `(px, py)` against [`Self::last_hover_px`] is the one test that tells the two
+    /// apart: the pointer's own physical position is the only thing that may drive a
+    /// re-hit-test/re-select, never a hit-test RESULT changing on its own.
+    ///
+    /// `hit` is the row the CALLER already resolved under `(px, py)` (a plain
+    /// injected value, not a pipeline call — keeps this pure/unit-testable). Always
+    /// records `(px, py)` as the new `last_hover_px` (even off a row / on a no-op
+    /// motion), so leaving-then-returning to a row and a genuinely-off-row hover both
+    /// track correctly. Returns whether the highlight actually moved, mirroring
+    /// [`Self::hover_select`]'s own return.
+    pub fn hover_at(&mut self, px: f32, py: f32, hit: Option<usize>) -> bool {
+        let moved = self.last_hover_px != Some((px, py));
+        self.last_hover_px = Some((px, py));
+        if !moved {
+            return false;
+        }
+        match hit {
+            Some(idx) => self.hover_select(idx),
+            None => false,
+        }
+    }
+
     /// ITEM 52 — RE-STAMP the card's frozen [`Self::align`] to the CURRENTLY-active
     /// world's own anchor. Called on a DELIBERATE selection crossing (keyboard nav,
     /// wheel, page/jump moves) AFTER [`crate::actions::preview_overlay`] has made the
