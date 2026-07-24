@@ -1231,6 +1231,54 @@ pub(super) fn field_caret_byte(text: &str, caret_char: usize) -> usize {
     text.char_indices().nth(caret_char).map(|(b, _)| b).unwrap_or(text.len())
 }
 
+/// ITEM 80 — THE ONE FIXED-WIDTH FIELD RULE: given a panel VALUE field's FULL
+/// `text` and its CHAR-index `caret_char`, returns `(view, view_caret)` — a
+/// WINDOW of EXACTLY `cap` chars that always contains the caret. Typing or
+/// pasting past `cap` chars into the find query / replace text used to widen
+/// the panel (`panel_layout` sized the card off the panel_buffer's ACTUAL
+/// shaped width, which grew unbounded with the query); every consumer that
+/// promises a FIXED exterior geometry (today: [`TextField::FindQuery`],
+/// [`TextField::ReplaceText`] — see `textbox.rs`'s `TextField::ALL` law) must
+/// shape THIS window, never the raw field text, so the reserved column is
+/// always exactly `cap` cells regardless of what's typed.
+///
+/// `text` shorter than `cap` is RIGHT-PADDED with spaces to the full `cap` —
+/// not left as its own (shorter) length — so a three-letter query reserves the
+/// SAME width as an empty one; only a `text` longer than `cap` SCROLLS,
+/// windowed to the `cap` chars ending at the caret once the caret has advanced
+/// past the cap (so typing/pasting at the end — the common case — keeps
+/// revealing the newest chars), or the leading `cap` chars while the caret
+/// hasn't reached the cap yet (Home, or a fresh short field). The caret is
+/// ALWAYS inside `[0, cap]` in the returned view — never lost off either edge,
+/// regardless of typing, Backspace, word-delete, Home/End, or a mouse-placed
+/// caret; the SAME rule for both the find query and the replace text (there is
+/// no second, field-specific version of this scroll).
+///
+/// Callers MUST shape `view` in a MONOSPACE family ([`Family::Monospace`]):
+/// the fixed-CHAR-COUNT contract above only yields a fixed PIXEL width when
+/// every cell advances the same amount — a proportional face would let "cat"
+/// and "WWW" occupy the same `cap` chars but different pixels, reopening this
+/// exact bug one level down.
+pub(super) fn field_view_window(text: &str, caret_char: usize, cap: usize) -> (String, usize) {
+    if cap == 0 {
+        return (String::new(), 0);
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let caret_char = caret_char.min(len);
+    if len <= cap {
+        let mut view: String = chars.into_iter().collect();
+        view.extend(std::iter::repeat(' ').take(cap - len));
+        return (view, caret_char);
+    }
+    // SCROLL: once the caret has advanced past the cap, slide the window's
+    // start along with it one char per caret step, so the caret always lands
+    // at the window's own trailing edge — visible, never hidden past it.
+    let start = caret_char.saturating_sub(cap);
+    let view: String = chars[start..start + cap].iter().collect();
+    (view, caret_char - start)
+}
+
 /// The ONE bounded scroll-WINDOW owner shared by EVERY summoned picker — the flat
 /// pickers (over `items`), the contextual spell popup (over its suggestion rows), AND
 /// the faceted/grouped path (over the DISPLAY plan, headers + rows counted together).
@@ -1496,6 +1544,181 @@ mod window_tests {
     #[test]
     fn empty_list_yields_an_empty_window() {
         assert_eq!(scroll_window(0, 0, 0, 12), (0, 0));
+    }
+}
+
+#[cfg(test)]
+mod field_view_window_tests {
+    use super::field_view_window;
+
+    #[test]
+    fn short_text_is_right_padded_to_the_full_cap() {
+        // "cat" reserves the SAME width as an empty field — a short query must not
+        // narrow the card either, only a long one must not widen it.
+        let (view, caret) = field_view_window("cat", 3, 8);
+        assert_eq!(view, "cat     "); // 3 + 5 spaces = 8
+        assert_eq!(view.chars().count(), 8);
+        assert_eq!(caret, 3);
+    }
+
+    #[test]
+    fn empty_text_is_all_padding_caret_at_zero() {
+        let (view, caret) = field_view_window("", 0, 5);
+        assert_eq!(view, "     ");
+        assert_eq!(caret, 0);
+    }
+
+    #[test]
+    fn caret_past_the_text_end_is_clamped_before_windowing() {
+        let (view, caret) = field_view_window("ab", 99, 5);
+        assert_eq!(view, "ab   ");
+        assert_eq!(caret, 2, "clamped to the text's own length");
+    }
+
+    #[test]
+    fn text_exactly_at_the_cap_needs_no_padding_or_scroll() {
+        let (view, caret) = field_view_window("abcdefgh", 8, 8);
+        assert_eq!(view, "abcdefgh");
+        assert_eq!(caret, 8, "one past the last char — a valid landing cell");
+    }
+
+    #[test]
+    fn long_text_caret_at_the_end_scrolls_to_the_trailing_cap_chars() {
+        // The common case: typing/pasting appends at the end.
+        let text = "abcdefghijklmnopqrstuvwxyz01"; // 28 chars
+        let (view, caret) = field_view_window(text, 28, 8);
+        assert_eq!(view, "uvwxyz01", "the last 8 chars");
+        assert_eq!(caret, 8, "pinned at the window's own trailing edge");
+    }
+
+    #[test]
+    fn long_text_caret_at_the_start_shows_the_leading_cap_chars_unscrolled() {
+        // Home (caret 0) on an overflowing field shows the BEGINNING, not the end.
+        let text = "abcdefghijklmnopqrstuvwxyz01";
+        let (view, caret) = field_view_window(text, 0, 8);
+        assert_eq!(view, "abcdefgh");
+        assert_eq!(caret, 0);
+    }
+
+    #[test]
+    fn scrolling_by_one_char_slides_the_window_by_one_char() {
+        // Backspace/insert stepping through the scrolled region moves the window's
+        // start in lockstep with the caret — no jump, no stall.
+        let text = "0123456789"; // 10 chars, cap 4 -> scrolls once caret > 4
+        assert_eq!(field_view_window(text, 4, 4), ("0123".to_string(), 4));
+        assert_eq!(field_view_window(text, 5, 4), ("1234".to_string(), 4));
+        assert_eq!(field_view_window(text, 6, 4), ("2345".to_string(), 4));
+        assert_eq!(field_view_window(text, 10, 4), ("6789".to_string(), 4));
+    }
+
+    #[test]
+    fn multibyte_text_windows_by_char_not_byte() {
+        // CJK is multibyte in UTF-8 but ONE caret step each (item 10's discipline).
+        let text = "日本語のテキスト検索ですよ"; // 13 chars
+        let (view, caret) = field_view_window(text, 13, 6);
+        assert_eq!(view.chars().count(), 6);
+        assert_eq!(caret, 6);
+        assert_eq!(view, "ト検索ですよ", "the trailing 6 chars, caret at the end");
+    }
+
+    #[test]
+    fn the_view_is_always_exactly_cap_chars_and_the_caret_is_always_inside_it() {
+        // ITEM 80's INVARIANT, swept over every len/caret/cap combination: the
+        // returned view NEVER narrows or widens past `cap`, and the caret NEVER
+        // lands outside it — the property `panel_layout`'s fixed card geometry
+        // (and the caret-visibility guarantee) both lean on.
+        let texts: Vec<String> = vec![
+            String::new(),
+            "a".repeat(1),
+            "a".repeat(7),
+            "a".repeat(8),
+            "a".repeat(9),
+            "a".repeat(50),
+        ];
+        for text in &texts {
+            let len = text.chars().count();
+            for caret in [0, len / 2, len, len + 5] {
+                for cap in [1usize, 4, 8, 16] {
+                    let (view, view_caret) = field_view_window(text, caret, cap);
+                    assert_eq!(
+                        view.chars().count(),
+                        cap,
+                        "len {len} caret {caret} cap {cap}: view must be exactly cap chars"
+                    );
+                    assert!(
+                        view_caret <= cap,
+                        "len {len} caret {caret} cap {cap}: caret {view_caret} must be inside [0, cap]"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cap_zero_is_an_inert_empty_field() {
+        assert_eq!(field_view_window("anything", 3, 0), (String::new(), 0));
+    }
+
+    /// ITEM 80 — THE ONE CLIPPING-RULE LAW: every [`crate::textbox::TextField`]
+    /// that PROMISES a fixed exterior geometry (today: the find/replace panel's
+    /// two VALUE fields — `panel_shape_text`'s `query`/`replacement`, whose card
+    /// must never widen as you type/paste, see
+    /// `capture::tests::panels::find_replace_panel_card_width_is_invariant_across_
+    /// short_long_short_queries`) routes through `field_view_window` — never a
+    /// second, field-specific clipping scheme. A NO-WILDCARD match over
+    /// [`crate::textbox::TextField::ALL`], mirroring `textbox.rs`'s own
+    /// `all_seven_fields_have_a_home_no_wildcard`: a future field that starts
+    /// promising fixed geometry (a new summoned card) must flip its arm to
+    /// `true` HERE and pass the contract sweep below, or the match fails to
+    /// compile on an 8th field — it can never dodge this law silently.
+    #[test]
+    fn every_fixed_geometry_textfield_routes_through_the_one_clipping_rule() {
+        use crate::textbox::TextField;
+        for f in TextField::ALL {
+            let promises_fixed_geometry = match f {
+                TextField::FindQuery => true,
+                TextField::ReplaceText => true,
+                // None of these promise fixed exterior geometry today: the
+                // picker's query elides ITS ROW via `rowlayout` instead of
+                // scrolling (a different, already-tested rule), and
+                // Rename/InsertLink/KeepVersion/SettingsValue are single-shot
+                // minibuffers with no "the card must never resize" contract.
+                // A future item that adds that promise to one of these flips
+                // it to `true` HERE — the no-wildcard match forces the
+                // decision to be conscious, never a silent gap.
+                TextField::PickerQuery => false,
+                TextField::Rename => false,
+                TextField::InsertLink => false,
+                TextField::KeepVersion => false,
+                TextField::SettingsValue => false,
+            };
+            if !promises_fixed_geometry {
+                continue;
+            }
+            // The shared rule's own contract, swept at a representative set of
+            // caps/texts/carets for THIS field: the returned view is always
+            // EXACTLY `cap` chars (never narrower for a short value, never
+            // wider for a long one) and the caret always lands inside it.
+            for cap in [1usize, 8, 28] {
+                for (text, caret) in [
+                    ("", 0usize),
+                    ("hi", 2),
+                    ("a very long value that overflows any realistic field width by a lot", 71),
+                    ("mid caret text", 4),
+                ] {
+                    let (view, view_caret) = field_view_window(text, caret, cap);
+                    assert_eq!(
+                        view.chars().count(),
+                        cap,
+                        "{f:?} cap {cap} text {text:?}: the fixed field must always be exactly `cap` chars"
+                    );
+                    assert!(
+                        view_caret <= cap,
+                        "{f:?} cap {cap} text {text:?}: the caret must always land inside the fixed field"
+                    );
+                }
+            }
+        }
     }
 }
 
