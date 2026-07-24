@@ -8,9 +8,9 @@
 
 Background Workflows off `main`; integrated serially on the merge gate as each verifies SHIP. Landed items sit on LOCAL main (not yet pushed — one batched both-conventions gate + CI push pending once build-contention drops). Workers report shas; the board is orchestrator-only.
 
-**Landed on local main (SHIP-verified, unpushed) — 12/13:** 76 (active-folder; SCHEMA /182) · 77 (@acb6a9f — file-visibility + a headless-capture-door **data-loss fix**: an unverified door truncated binaries; verify caught it, fix re-confirmed independently — binary refused, bytes preserved) · 78 · 79 · 80 · 81 · 82 (image cull; re-verified after a stub verify) · 83 (overlay room + query center; Fable ADJUST) · 84 + 84-fix (selection clip + page-off overhang fix; audit-found regression cleared) · 85 (theme-picker hover) · 86 (light-world grounds; SCHEMA /183) · 87 (Bombora drift; params-slot reconciled with 86). 2890 both conventions at the 87 merge.
-**In flight:** 88 (Mulga asterism — the last item; a small mechanical swap).
-**After 88 lands:** one final both-conventions + wasm gate on the whole wave, then push + watch CI (the user gates pushes on CI).
+**All 13 landed + PUSHED @022bce5** (76 · 77+data-loss-fix · 78 · 79 · 80 · 81 · 82 · 83 · 84+84-fix · 85 · 86 · 87 · 88). Local both-conventions + wasm-*build* gate green (2904/2904).
+**CI RED — merge train paused:** run 30129670187 on 022bce5 = mac ✅ · mac live-probe ✅ · linux ✅ · **web ❌**. The web job's L2 (`cargo test --target wasm32`, which the local gate + every worktree SKIPPED — no node runner locally) fails to compile: item 85's native-only latency-probe symbols (LATENCY_PENDING/SAMPLES, FLIGHT_ACTIVE/SINK, arm_flight, recording, note_presented_frame, latency_distribution, mark_movement_input) are referenced ungated on the wasm test path (25× E0425). Not a runtime bug; a missing `cfg(not(wasm32))` gate.
+**Fix in flight — MUST land + re-push before this is done:** item-85-wasm-probe-fix (gate the probe refs out of the wasm test compile; repro = `cargo test --target wasm32 --no-run`). **Gate lesson: add `cargo test --target wasm32 --no-run` to the local gate — build-only misses this.**
 
 **Live-only flags to confirm by hand** (harness can't drive them): 80 — Find/Replace scroll smoothness over real typing · 81 — chevron mouse-press→toggle wiring (no GPU App in unit tests; geometry+toggle proven headlessly) · 85 — felt input→present lag (latency probe ms numbers are live-only) · 87 — Bombora drift speed / counter-motion / calmness (harness can't see time; user is the oracle).
 
