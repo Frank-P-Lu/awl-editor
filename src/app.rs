@@ -2060,6 +2060,18 @@ impl ApplicationHandler<AwlEvent> for App {
         self.streaks_flush();
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
         self.daemon_shutdown();
+        // ITEM 85 — final MOVEMENT-LATENCY distribution into the flight recorder's
+        // black box (if armed), mirroring the odometer/streaks final flush right
+        // above: whatever the user's session sampled from real theme-picker
+        // navigation is worth one closing line, even without an explicit `latency`
+        // probe step. A no-op under a plain launch or the automated `--live-script`
+        // probe (which reports via its own explicit `latency` step instead).
+        #[cfg(not(target_arch = "wasm32"))]
+        if crate::probe::flight_active() {
+            if let Some(dist) = crate::probe::latency_distribution() {
+                crate::probe::trace(format_args!("movement-latency distribution: {dist}"));
+            }
+        }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {

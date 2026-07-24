@@ -295,6 +295,17 @@ pub struct OverlayState {
     /// top) — see the reset lines in `move_sel`/`hover_select`/`set_facet_lens`/
     /// `refilter`. Inert (always 0) for every other kind.
     pub diff_scroll: usize,
+    /// ITEM 85 -- THE REAL-MOTION GATE's memory: the PHYSICAL pointer position
+    /// `(px, py)` at the last hover check, or `None` before the first one. Read
+    /// + stamped ONLY by [`Self::hover_at`] -- a previewed world jump can
+    /// relocate every row under an otherwise-stationary pointer (a reanchor to
+    /// a new rail, a Pane<->Bars row-pitch change, a font-reshape settling
+    /// into a different line height); comparing the CALLER's `(px, py)`
+    /// against this recorded value is what lets a hover tell "the pointer
+    /// itself moved" apart from "the content moved under it" -- only the
+    /// former may re-hit-test/re-select. `None` on a fresh summon (the very
+    /// first hover always re-hit-tests).
+    pub last_hover_px: Option<(f32, f32)>,
 }
 
 impl OverlayState {
@@ -388,6 +399,9 @@ impl OverlayState {
             // DIFF-AS-PREVIEW: focus opens on the version LIST, diff at its top.
             diff_focus: false,
             diff_scroll: 0,
+            // ITEM 85: no hover has happened yet at a fresh summon, so the very
+            // first real hover always re-hit-tests (nothing to compare against).
+            last_hover_px: None,
         };
         s.refilter();
         s

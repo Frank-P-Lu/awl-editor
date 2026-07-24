@@ -91,6 +91,13 @@ pub enum Step {
     /// `on_mouse_wheel` seam; an open picker advances its selection + previews
     /// (`overlay_wheel` → `retint_theme_preview`), coordinate-free.
     Wheel(f32),
+    /// ITEM 85 — print the accumulated THEME-PICKER MOVEMENT-LATENCY distribution
+    /// (event → first presented frame) as one `LIVE-PROBE latency …` stdout line,
+    /// the live companion to the offscreen `--bench-theme-burst` — this one times
+    /// the REAL end-to-end path (dispatch, relayout, encode/submit, and the actual
+    /// compositor present), not the pipeline's reshape cost alone. A no-op-safe
+    /// report when no movement has been sampled yet.
+    Latency,
     /// Clean exit via `Action::Quit`.
     Quit,
 }
@@ -123,6 +130,9 @@ pub enum ProbeEvent {
     MouseMove(f64, f64),
     /// Mouse wheel by N notches through the real `on_mouse_wheel`.
     Wheel(f32),
+    /// ITEM 85 — print the movement-latency distribution (main-thread, so it can
+    /// read + format the samples without crossing a lock into the driver thread).
+    Latency,
     /// Clean exit through `Action::Quit`.
     Quit,
 }
@@ -285,6 +295,82 @@ pub fn trace(args: std::fmt::Arguments) {
     }
 }
 
+/// ITEM 85 — MOVEMENT-LATENCY SAMPLES (native live-only): the pending mark's
+/// `Instant`, `Some` from the moment a THEME-PICKER movement step begins its real
+/// relayout work ([`mark_movement_input`], called from `App::retint_theme_preview`
+/// — the ONE owner every input kind, keyboard nav / mouse hover / wheel, funnels a
+/// world-changing preview through) until it is closed out against the FIRST frame
+/// actually presented afterward ([`note_presented_frame`], called from
+/// `Gpu::redraw` at the exact point the existing `"present"` trace already fires).
+#[cfg(not(target_arch = "wasm32"))]
+static LATENCY_PENDING: std::sync::Mutex<Option<std::time::Instant>> = std::sync::Mutex::new(None);
+
+/// The accumulated samples, in whole nanoseconds (event → first presented frame),
+/// one per theme-picker movement step that actually got a frame out the door.
+#[cfg(not(target_arch = "wasm32"))]
+static LATENCY_SAMPLES: std::sync::Mutex<Vec<u128>> = std::sync::Mutex::new(Vec::new());
+
+/// Arm the latency clock for ONE theme-picker movement step. A cheap no-op unless
+/// [`recording`] — the same gate every other diagnostic trace point uses, so a
+/// plain launch never even reads the clock. Overwrites any still-pending mark
+/// rather than queuing one per step: only the LATEST input's round trip is
+/// meaningful (an intermediate step in a fast arrow-key burst never gets its own
+/// frame once the picker moves again before the next present — exactly what
+/// `retint_theme_preview`'s own debounced-reshape deferral already does for the
+/// font half, mirrored here for the latency sample).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn mark_movement_input() {
+    if !recording() {
+        return;
+    }
+    if let Ok(mut pending) = LATENCY_PENDING.lock() {
+        *pending = Some(std::time::Instant::now());
+    }
+}
+
+/// Close out a pending movement mark against a frame that was just PRESENTED
+/// (called unconditionally from `Gpu::redraw`'s present point — cheap, and a
+/// no-op both when nothing is pending — an ordinary frame unrelated to any
+/// picker movement — and when recording is off). Pushes the elapsed duration
+/// into [`LATENCY_SAMPLES`] and traces it via the shared [`trace`] door.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn note_presented_frame() {
+    if !recording() {
+        return;
+    }
+    let armed = LATENCY_PENDING.lock().ok().and_then(|mut g| g.take());
+    if let Some(t0) = armed {
+        let ns = t0.elapsed().as_nanos();
+        if let Ok(mut samples) = LATENCY_SAMPLES.lock() {
+            samples.push(ns);
+        }
+        trace(format_args!("movement-latency {:.3}ms", ns as f64 / 1.0e6));
+    }
+}
+
+/// Format the collected movement-latency distribution — count + min/p50/p95/max
+/// in milliseconds — or `None` when nothing has been recorded yet. Sorts a COPY
+/// (never drains `LATENCY_SAMPLES`), so a script that reports mid-run keeps
+/// accumulating and a later report reflects the running total.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn latency_distribution() -> Option<String> {
+    let mut ns: Vec<u128> = LATENCY_SAMPLES.lock().ok()?.clone();
+    if ns.is_empty() {
+        return None;
+    }
+    ns.sort_unstable();
+    let n = ns.len();
+    let ms = |v: u128| v as f64 / 1.0e6;
+    let pctl = |p: f64| ms(ns[(((n - 1) as f64 * p).round() as usize).min(n - 1)]);
+    Some(format!(
+        "n={n} min={:.3}ms p50={:.3}ms p95={:.3}ms max={:.3}ms",
+        ms(ns[0]),
+        pctl(0.5),
+        pctl(0.95),
+        ms(ns[n - 1]),
+    ))
+}
+
 /// Parse the `--live-script` grammar. A malformed step names itself in the
 /// error (this is our own harness input — fail fast, the lenient-user-config
 /// posture does not apply). Appends a trailing [`Step::Quit`] when absent so a
@@ -337,8 +423,9 @@ pub fn parse_script(spec: &str) -> Result<Vec<Step>> {
                     .map_err(|_| anyhow::anyhow!("--live-script: `wheel` needs a notch count (e.g. \"wheel -2\"), got {rest:?}"))?;
                 steps.push(Step::Wheel(n));
             }
+            "latency" => steps.push(Step::Latency),
             "quit" => steps.push(Step::Quit),
-            other => bail!("--live-script: unknown step {other:?} (keys|sleep|shot|move|wheel|quit)"),
+            other => bail!("--live-script: unknown step {other:?} (keys|sleep|shot|move|wheel|latency|quit)"),
         }
     }
     if steps.is_empty() {
@@ -388,6 +475,7 @@ pub fn spawn_driver(
                     Step::Shot(name) => {
                         post(ProbeEvent::Shot(script.shots_dir.join(format!("{name}.png"))))
                     }
+                    Step::Latency => post(ProbeEvent::Latency),
                     Step::Quit => {
                         let _ = post(ProbeEvent::Quit);
                         return;
@@ -633,5 +721,80 @@ mod tests {
                 "{spec:?} should fail mentioning {needle:?}, got: {err}"
             );
         }
+    }
+
+    #[test]
+    fn parse_covers_the_latency_step() {
+        let steps = parse_script("keys Down; latency").expect("parses");
+        assert_eq!(steps[1], Step::Latency);
+        assert_eq!(steps.last(), Some(&Step::Quit), "still terminates");
+    }
+
+    /// ITEM 85 — the MOVEMENT-LATENCY pairing: `mark_movement_input` arms the clock,
+    /// `note_presented_frame` closes it out against a "presented" frame and records
+    /// the sample, and `latency_distribution` reports it. Global state (like the
+    /// flight recorder above), so this takes `serial()` and disarms everything on
+    /// the way out.
+    #[test]
+    fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
+        let _g = crate::testlock::serial();
+        // Clean slate: a sibling test's leftover mark/sample must never leak in.
+        if let Ok(mut p) = LATENCY_PENDING.lock() { *p = None; }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() { s.clear(); }
+
+        let path = std::env::temp_dir().join(format!("awl-latency-test-{}.log", std::process::id()));
+        let _ = std::fs::remove_file(&path);
+        arm_flight(&path);
+        assert!(recording(), "the flight recorder alone is enough to arm `recording()`");
+
+        // A `note` with nothing pending is a harmless no-op (an ordinary frame,
+        // unrelated to any picker movement).
+        note_presented_frame();
+        assert!(latency_distribution().is_none(), "nothing sampled yet");
+
+        mark_movement_input();
+        assert!(LATENCY_PENDING.lock().unwrap().is_some(), "the mark armed the clock");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        note_presented_frame();
+        assert!(LATENCY_PENDING.lock().unwrap().is_none(), "closing out clears the pending mark");
+
+        let dist = latency_distribution().expect("one sample now recorded");
+        assert!(dist.starts_with("n=1"), "exactly one sample so far, got: {dist}");
+        for field in ["min=", "p50=", "p95=", "max="] {
+            assert!(dist.contains(field), "{dist:?} is missing {field:?}");
+        }
+
+        let body = std::fs::read_to_string(&path).expect("the flight file exists");
+        assert!(body.contains("movement-latency"), "the sample traced into the black box:\n{body}");
+
+        // A SECOND `note` with nothing pending (already closed out above) must not
+        // fabricate a phantom sample.
+        note_presented_frame();
+        assert!(
+            latency_distribution().unwrap().starts_with("n=1"),
+            "a no-op note must not add a sample"
+        );
+
+        // Disarm everything so no global leaks into a sibling test.
+        FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
+        if let Ok(mut s) = FLIGHT_SINK.lock() { *s = None; }
+        if let Ok(mut p) = LATENCY_PENDING.lock() { *p = None; }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() { s.clear(); }
+        let _ = std::fs::remove_file(&path);
+        assert!(!recording(), "disarmed again — no leak into sibling tests");
+    }
+
+    /// Outside recording (no probe, no flight recorder) both doors are cheap no-ops
+    /// — a plain launch must never even arm the clock.
+    #[test]
+    fn movement_latency_is_a_no_op_outside_recording() {
+        let _g = crate::testlock::serial();
+        assert!(!recording(), "no probe/flight armed in a plain unit test");
+        if let Ok(mut p) = LATENCY_PENDING.lock() { *p = None; }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() { s.clear(); }
+        mark_movement_input();
+        assert!(LATENCY_PENDING.lock().unwrap().is_none(), "a mark outside recording never arms");
+        note_presented_frame();
+        assert!(latency_distribution().is_none());
     }
 }

@@ -57,7 +57,10 @@ const EXPECTED: &[(&str, usize)] = &[
     // init failures above; when the recorder can't open its file it says so and
     // stays off rather than failing the launch.
     ("probe.rs", 3),
-    ("app/probe.rs", 5),
+    // ITEM 85 adds TWO: the `LIVE-PROBE latency …` protocol line's ok/none arms
+    // (`ProbeEvent::Latency`) — the movement-latency distribution report,
+    // mirroring the existing per-shot line's fate (c) exactly.
+    ("app/probe.rs", 7),
     // "follow link: could not open …" — a rare OS-handoff failure
     // (C-c C-o). Flagged as a future notice-routing candidate, not fixed
     // this round (out of the reported bug's scope).

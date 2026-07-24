@@ -1590,6 +1590,112 @@ fn hover_only_highlights_visible_rows_and_never_scrolls() {
     assert!(!ov.hover_select(19));
 }
 
+/// ITEM 85 — THE REAL-MOTION GATE LAW: a world's re-layout under a STATIONARY
+/// pointer must never synthesize a new hover selection. `hover_at` is the
+/// production seam `app/input/mouse.rs::overlay_hover` calls on every
+/// `CursorMoved` (real travel OR a platform-synthesized duplicate at the
+/// identical coordinates); its ONLY input beyond the OverlayState itself is the
+/// `(px, py, hit)` triple the caller resolved, so this test drives it exactly
+/// like the live seam does — no GPU/window needed.
+///
+/// NON-VACUOUS: the test first shows the hazard is REAL — the SAME `hover_select`
+/// this gate wraps WOULD flip the highlight if called directly with the
+/// post-relayout hit (simulating the pre-item-85 code, which called it
+/// unconditionally) — before showing the gated `hover_at` refuses to.
+#[test]
+fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
+    let mut ov = deep(10);
+    assert_eq!(ov.last_hover_px, None, "a fresh summon has no hover memory yet");
+
+    // The pointer's FIRST real hover: it rests at (100.0, 200.0), which the
+    // caller's hit-test resolves to row 3 (whatever picker layout was current).
+    assert!(
+        ov.hover_at(100.0, 200.0, Some(3)),
+        "the first hover at a fresh position always re-hit-tests"
+    );
+    assert_eq!(ov.selected, 3);
+    assert_eq!(ov.last_hover_px, Some((100.0, 200.0)));
+
+    // A THEME-PICKER WORLD JUMP relayouts the card (reanchor / Pane<->Bars row
+    // pitch / font-reshape settle) — simulated here as "the row now under THE
+    // EXACT SAME PIXEL is different" (row 7, not row 3). The pointer itself never
+    // moved a single pixel.
+    let relayout_hit = Some(7usize);
+
+    // PROVE THE HAZARD IS REAL (non-vacuous): calling `hover_select` directly with
+    // the post-relayout hit — exactly what the pre-item-85 `overlay_hover` did
+    // unconditionally — DOES cascade the highlight onto the new row.
+    let mut naive = ov.clone();
+    assert!(
+        naive.hover_select(relayout_hit.unwrap()),
+        "an UNGATED re-hit-test really would flip the highlight — the bug is real"
+    );
+    assert_eq!(naive.selected, 7, "the naive path cascades onto whatever row the relayout put there");
+
+    // THE ACTUAL LAW: the SAME stationary pixel, run back through the gated
+    // `hover_at`, must NOT move the highlight — the pointer didn't move, only the
+    // content under it did.
+    assert!(
+        !ov.hover_at(100.0, 200.0, relayout_hit),
+        "a relayout under a stationary pointer must not report a hover move"
+    );
+    assert_eq!(ov.selected, 3, "the highlighted world stays stable across its own re-layout");
+    assert_eq!(
+        ov.last_hover_px,
+        Some((100.0, 200.0)),
+        "the stationary position is still recorded (idempotent, not a no-op on the memory)"
+    );
+
+    // A SECOND spurious duplicate at the identical position (e.g. another
+    // synthesized CursorMoved before the user's hand ever moves) is likewise
+    // inert — this isn't a one-shot debounce, it holds indefinitely under a
+    // genuinely still pointer (no cascade across MULTIPLE spurious events either).
+    assert!(!ov.hover_at(100.0, 200.0, Some(2)));
+    assert_eq!(ov.selected, 3);
+
+    // REAL MOTION, finally: the pointer genuinely moves to a new pixel. NOW the
+    // gate re-hit-tests and the highlight follows — real travel is never
+    // suppressed, only a stationary re-layout is.
+    assert!(
+        ov.hover_at(101.0, 200.0, Some(7)),
+        "a genuine 1px pointer move must still re-hit-test normally"
+    );
+    assert_eq!(ov.selected, 7);
+    assert_eq!(ov.last_hover_px, Some((101.0, 200.0)));
+}
+
+/// A hover that lands OFF every row (`hit: None`) — e.g. the query line, a foot
+/// hint, an inter-row gap — still records the pointer's position (so leaving then
+/// returning to a row tracks correctly) but never touches `selected`, matching
+/// `hover_select`'s own off-row behavior.
+#[test]
+fn hover_at_off_a_row_records_position_without_selecting() {
+    let mut ov = deep(10);
+    ov.move_sel(2); // selected = 2, established by keyboard (not hover)
+    assert!(!ov.hover_at(50.0, 50.0, None), "off a row: no selection move");
+    assert_eq!(ov.selected, 2, "the keyboard-set selection is untouched");
+    assert_eq!(ov.last_hover_px, Some((50.0, 50.0)), "position still recorded");
+}
+
+/// ITEM 85 — the keyboard half of the law: ↓/↑ (`move_sel(±1)`, what
+/// `Action::NextLine`/`PreviousLine` drive) advances EXACTLY one visible row per
+/// press, from wherever the selection actually sits — including right after a
+/// mouse hover moved it, proving the two input kinds compose cleanly (a hover's
+/// own pixel bookkeeping in `last_hover_px` never leaks into how far a keypress
+/// travels).
+#[test]
+fn keyboard_advances_exactly_one_visible_row_per_press_even_after_a_hover() {
+    let mut ov = deep(20);
+    assert!(ov.hover_at(10.0, 10.0, Some(4)), "a mouse hover selects row 4");
+    assert_eq!(ov.selected, 4);
+    ov.move_sel(1);
+    assert_eq!(ov.selected, 5, "one keyboard press = exactly one row of movement");
+    ov.move_sel(1);
+    assert_eq!(ov.selected, 6);
+    ov.move_sel(-1);
+    assert_eq!(ov.selected, 5, "PreviousLine likewise moves exactly one row back");
+}
+
 #[test]
 fn keyboard_move_keeps_selection_in_the_window() {
     let mut ov = deep(40);

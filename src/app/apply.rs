@@ -75,6 +75,14 @@ impl App {
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub(super) fn retint_theme_preview(&mut self, prev: crate::theme::Theme) {
+        // ITEM 85 — arm the MOVEMENT-LATENCY clock: this is the ONE owner every input
+        // kind (keyboard nav, mouse hover, mouse wheel) funnels a theme-picker world
+        // change through, so marking HERE — right before the real relayout work below
+        // — measures the actual event → first-presented-frame round trip regardless
+        // of which input drove it. Closed out in `Gpu::redraw` at the exact point the
+        // frame this step produces gets presented. A no-op unless `probe::recording()`.
+        #[cfg(not(target_arch = "wasm32"))]
+        crate::probe::mark_movement_input();
         // DEBUG settle readout (live-only): stamp the input that triggered this preview
         // step as the switch's start. Re-stamped every arrow, so once the selection
         // rests and the deferred reshape settles, the felt total measures from the LAST
