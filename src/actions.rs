@@ -610,11 +610,14 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::BufferEnd => ctx.buffer.buffer_end(),
         Action::InsertChar(c) => ctx.buffer.insert_char(*c),
         // MARKDOWN smart Enter: continue a list / blockquote (ordered lists
-        // AUTO-INCREMENT), END the block on an empty item (strip the dangling
-        // marker), or carry leading indentation forward. Pure + `--keys`-drivable
-        // (reads only the current line + cursor, edits via the buffer's atomic
-        // seam). A non-markdown buffer — or any line the helper declines — falls
-        // through to a plain newline, byte-identical to before.
+        // AUTO-INCREMENT), unconditionally END an empty BLOCKQUOTE, PRESERVE-or-
+        // END an empty LIST item (bullet/numbered/task) by provenance (item 78 —
+        // ends the list only when awl's own immediately preceding continuation
+        // generated that empty marker; preserves it otherwise), or carry leading
+        // indentation forward. Pure + `--keys`-drivable (reads only the current
+        // line + cursor, edits via the buffer's atomic seam). A non-markdown
+        // buffer — or any line the helper declines — falls through to a plain
+        // newline, byte-identical to before.
         Action::Newline => {
             if !smart_newline(ctx) {
                 ctx.buffer.insert_newline();

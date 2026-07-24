@@ -55,6 +55,33 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
     assert_eq!(app.active.buffer.text(), "BETA EDITED\n", "B's edit also survived");
 }
 
+#[test]
+fn buffer_switch_clears_the_list_continuation_provenance_flag_item_78() {
+    // Item 78: the short-lived "awl just generated this empty list continuation"
+    // flag must NOT survive a park/activate round trip (`load_path`'s switch) —
+    // even though the buffer's cursor/text/undo history all correctly DO survive
+    // it (the test above). Simulate the flag as smart_newline would leave it
+    // (`mark_list_continuation_generated`, pub(crate) — same crate, no need to
+    // drive a real Enter here) rather than the flag's OWN clear masking a park/
+    // activate bug behind an edit that would have cleared it anyway.
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let b = PathBuf::from("/proj/b.md");
+    let mem = InMemoryFs::new().with_file(&a, "- \n").with_file(&b, "beta\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.active.buffer.mark_list_continuation_generated();
+
+    // Switch away (parks A) and back (activates A): both halves of the swap.
+    app.load_path(b.clone());
+    app.load_path(a.clone());
+
+    assert!(
+        !app.active.buffer.take_list_continuation_generated(),
+        "a buffer switch clears the provenance flag — it must not survive backgrounding"
+    );
+}
+
 // ── PROSE/CODE PAGE-WIDTH SPLIT (App-level buffer-switch resync) ────────
 
 #[test]

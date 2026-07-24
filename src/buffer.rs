@@ -284,6 +284,22 @@ pub struct Buffer {
     /// pipeline reads it (via [`Self::affinity`]) to disambiguate the two legit
     /// renders of the boundary column.
     affinity: crate::caret::Affinity,
+    /// LIST-CONTINUATION PROVENANCE (item 78, short-lived): true for exactly one
+    /// beat after `actions::edit::smart_newline`'s list-item Continue arm opens a
+    /// BARE, otherwise-empty bullet/numbered/task continuation line (nothing
+    /// carried over from the split line) — so the very next smart-newline
+    /// decision on THIS line can tell "awl just generated this empty marker"
+    /// apart from "this empty marker's bytes came from anywhere else" (typed,
+    /// loaded from disk, undone/redone back into place, or reached after any
+    /// other edit/motion/selection change). Read-and-cleared by
+    /// [`Self::take_list_continuation_generated`]; the SET is the one place in
+    /// `smart_newline`. Cleared — never left to go stale — by every one of this
+    /// buffer's mutation/motion choke points (`apply_edit`, `clear_kill_flag`,
+    /// `undo`/`redo`, `clear_mark`, `set_cursor_visual`) and by a buffer
+    /// park/activate swap (`app/files/active.rs`), so identical bytes loaded
+    /// from disk — or reached by ANY route other than that one immediately
+    /// preceding continuation — are never guessed to be generated.
+    list_continuation_generated: bool,
     /// The file this buffer is bound to (for Cmd-S). `None` for scratch.
     path: Option<PathBuf>,
     /// This buffer's line-ending discipline (the VS Code model): the rope is
@@ -378,6 +394,7 @@ impl Buffer {
             goal_col: None,
             goal_x: None,
             affinity: crate::caret::Affinity::Downstream,
+            list_continuation_generated: false,
             path,
             eol: Eol::Lf,
             note_dir: None,
@@ -836,6 +853,29 @@ impl Buffer {
         // `Upstream` AFTER its `set_cursor`, so only that survives (see
         // `crate::caret::Affinity`).
         self.affinity = crate::caret::Affinity::Downstream;
+        // Item 78: any plain motion / edit routed through here is exactly the kind
+        // of "something intervened" this provenance flag must not survive.
+        self.list_continuation_generated = false;
+    }
+
+    /// Item 78: true iff `smart_newline`'s list-item Continue arm generated the
+    /// CURRENT empty marker line on the immediately preceding action, with
+    /// nothing intervening since (see the field's own doc for the full clear
+    /// list). READ-AND-CLEAR — the ONE reader is `smart_newline`'s
+    /// `EmptyListItem` arm, deciding preserve-vs-end, and the flag exists only
+    /// to answer that ONE following question.
+    pub(crate) fn take_list_continuation_generated(&mut self) -> bool {
+        std::mem::take(&mut self.list_continuation_generated)
+    }
+
+    /// Item 78: mark that `smart_newline`'s list-item Continue arm JUST opened a
+    /// bare, otherwise-empty bullet/numbered/task continuation line (nothing
+    /// carried over from the split line). The ONE setter — called by
+    /// `actions::edit::smart_newline` immediately after performing that edit
+    /// (whose own `replace_before_cursor` already ran `clear_kill_flag`, so this
+    /// assignment is the last word for this action).
+    pub(crate) fn mark_list_continuation_generated(&mut self) {
+        self.list_continuation_generated = true;
     }
 
     /// The caret's current wrap AFFINITY (which visual row it renders on at a
