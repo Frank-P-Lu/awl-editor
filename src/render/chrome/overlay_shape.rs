@@ -424,6 +424,23 @@ impl TextPipeline {
     /// regime reproduces the historical char budget byte-for-byte; when the
     /// estimate goes tight the shaped PIXELS arbitrate ([`rowlayout::fits`]) and
     /// the right column YIELDS whole rather than ever painting over a name.
+    ///
+    /// `elide` is `false` ONLY from [`Self::measure_overlay_content_w`] (ITEM 83)
+    /// — every real-draw call site passes `true`, byte-identical to before this
+    /// parameter existed. The reservation this module's char-budget estimate
+    /// makes for a right column is SHARED across every row (`rowlayout`'s own
+    /// documented "one row budget" — a genuinely long chord on ONE row tightens
+    /// the estimate for EVERY row's primary), which is the right call once a
+    /// card's width is already fixed, but is EXACTLY WRONG while still deciding
+    /// how wide a content-hugging card SHOULD be: measuring the width of primary
+    /// text that this SAME pass already elided under that shared-budget squeeze
+    /// bakes the squeeze into the "natural" content width, so the card sizes
+    /// itself to the elided text and never grows enough to show it whole (the
+    /// no-usable-width-remains report — "Compare with version…" reading
+    /// "Compare …version…" beside a chord-bearing row that has nothing to do
+    /// with it). `elide=false` skips straight to the UNELIDED shaping every
+    /// primary already falls back to under [`rowlayout::Plan::Measure`], so
+    /// [`Self::widest_candidate_px`] reads each row's true natural width.
     pub(in crate::render) fn overlay_shape_text(
         &mut self,
         geom: &OverlayGeom,
@@ -442,6 +459,9 @@ impl TextPipeline {
         // (the demo surface is the Cmd-P palette, which is faceted) so the ink
         // rides the band wherever the fill animates it.
         covered: Option<&[usize]>,
+        // ITEM 83 — `false` shapes every primary UNELIDED (see the doc above);
+        // `true` (every real-draw call site) is byte-identical to pre-item-83.
+        elide: bool,
     ) -> bool {
         // FACETED (lens-strip) pickers — the theme worlds AND the Cmd-P command
         // palette / Settings / Browse / … once a lens strip is populated — lay out
@@ -454,7 +474,7 @@ impl TextPipeline {
         // (the demo surface) exactly like the flat pickers.
         self.overlay_right_shown = false;
         if geom.theme {
-            return self.shape_faceted(geom, ink, muted, selected_ink, covered);
+            return self.shape_faceted(geom, ink, muted, selected_ink, covered, elide);
         }
         let visible = geom.visible;
         let top_idx = geom.top_idx;
@@ -494,9 +514,12 @@ impl TextPipeline {
             .map(|s| crate::render::slant_max_offset(&s, visible))
             .unwrap_or(0.0);
         let slant_text_w = (geom.text_w - slant_tax).max(0.0);
-        let m = self.metrics;
-        let total_chars = if m.char_width > 0.0 {
-            (slant_text_w / m.char_width).floor() as usize
+        // ITEM 83: the row-budget estimate reads the overlay's OWN (smaller,
+        // `OVERLAY_UI_SCALE`-stepped) char width, not the bare document
+        // `self.metrics.char_width` — see `overlay_char_width`'s doc.
+        let char_w = self.overlay_char_width();
+        let total_chars = if char_w > 0.0 {
+            (slant_text_w / char_w).floor() as usize
         } else {
             usize::MAX
         };
@@ -511,7 +534,10 @@ impl TextPipeline {
         if has_right && super::bars_inline_shortcut() {
             let full = rowlayout::full_budget(total_chars);
             let rows: Vec<String> = (0..visible)
-                .map(|row| rowlayout::fit_primary(&self.overlay_items[top_idx + row], full))
+                .map(|row| {
+                    let item = &self.overlay_items[top_idx + row];
+                    if elide { rowlayout::fit_primary(item, full) } else { item.clone() }
+                })
                 .collect();
             let trailing: Vec<String> = (0..visible)
                 .map(|row| match right_labels.get(top_idx + row) {
@@ -527,9 +553,18 @@ impl TextPipeline {
         } else {
             None
         };
-        let budget = match rowlayout::plan(total_chars, widest_right) {
-            rowlayout::Plan::Full { primary } | rowlayout::Plan::Split { primary } => Some(primary),
-            rowlayout::Plan::Measure => None,
+        // ITEM 83: `!elide` (measurement only) always takes the UNELIDED branch
+        // below (`budget = None`) — the shared-budget char ESTIMATE
+        // (`rowlayout::plan`'s `Split`) is exactly the mechanism whose squeeze
+        // must NOT leak into a content-hugging card's own width decision (see
+        // this fn's doc). The real-draw call (`elide == true`) is untouched.
+        let budget = if !elide {
+            None
+        } else {
+            match rowlayout::plan(total_chars, widest_right) {
+                rowlayout::Plan::Full { primary } | rowlayout::Plan::Split { primary } => Some(primary),
+                rowlayout::Plan::Measure => None,
+            }
         };
         let rows: Vec<String> = (0..visible)
             .map(|row| {
@@ -554,10 +589,20 @@ impl TextPipeline {
         // re-shape owning the full row (elided only if a name alone overflows).
         let name_px = self.widest_candidate_px(geom);
         let right_px = self.widest_right_px();
-        let gap_px = rowlayout::GAP_CHARS as f32 * m.char_width;
+        let gap_px = rowlayout::GAP_CHARS as f32 * char_w;
         if rowlayout::fits(slant_text_w, gap_px, name_px, right_px) {
             self.overlay_right_shown = true;
             return true;
+        }
+        // ITEM 83: measuring (`!elide`) stops here — the secondary genuinely
+        // doesn't fit beside the UNELIDED primary even at this wide provisional
+        // geometry, so it YIELDS (the caller already reads `has_right == false`
+        // as "no secondary width to add"); re-eliding the primary here would
+        // bake a squeeze into the very measurement that decides the card's
+        // width (the bug this parameter exists to close) — `panel_buffer`
+        // already holds the unelided rows from the shaping above.
+        if !elide {
+            return false;
         }
         let full = rowlayout::full_budget(total_chars);
         let rows: Vec<String> = (0..visible)
@@ -577,15 +622,24 @@ impl TextPipeline {
     ///
     /// It shapes the overlay through the REAL shaper ([`Self::overlay_shape_text`])
     /// against a PROVISIONAL WIDE geometry — the caller reset `overlay_content_w` to
-    /// `0.0` first, so [`Self::overlay_geometry`] uses the fixed wide cap here and
-    /// nothing elides that a narrower card wouldn't — then reads the widest shaped
-    /// run, so the measurement can NEVER disagree with what the draw path shapes. The
-    /// content the card must hold is the WIDEST of: any single LEFT-side line (the
-    /// query line, the lens strip, a bare primary, the footer hint) AND a candidate
-    /// row's PRIMARY + gap + right-aligned SECONDARY (which sit side by side, in two
-    /// buffers). The standard cell gap is charged ONLY when a secondary column is
-    /// actually shown, so the label-to-shortcut gap stays content-bounded — the
-    /// scanning column begins right after the widest primary, never at a remote edge.
+    /// `0.0` first, so [`Self::overlay_geometry`] uses the fixed wide cap here —
+    /// UNELIDED (ITEM 83: `elide=false`), so nothing this pass measures was ALREADY
+    /// truncated by a card width still being decided. Before item 83 this passed
+    /// `elide=true` on the (false) assumption that the wide provisional cap alone
+    /// guaranteed no elision; it does not — `rowlayout`'s SHARED row-budget
+    /// estimate (`Plan::Split`) can still squeeze a primary at the wide cap
+    /// whenever some OTHER row's secondary (chord/time/git label) is long, even
+    /// though that row's own primary carries no secondary at all ("Compare with
+    /// version…" reading "Compare …version…" beside a compound-chord row it
+    /// shares nothing with). `elide=false` reads each row's TRUE natural width —
+    /// then reads the widest shaped run, so the measurement can NEVER disagree
+    /// with what the draw path shapes AT THAT width. The content the card must
+    /// hold is the WIDEST of: any single LEFT-side line (the query line, the lens
+    /// strip, a bare primary, the footer hint) AND a candidate row's PRIMARY +
+    /// gap + right-aligned SECONDARY (which sit side by side, in two buffers).
+    /// The standard cell gap is charged ONLY when a secondary column is actually
+    /// shown, so the label-to-shortcut gap stays content-bounded — the scanning
+    /// column begins right after the widest primary, never at a remote edge.
     pub(in crate::render) fn measure_overlay_content_w(&mut self) -> f32 {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
@@ -594,17 +648,37 @@ impl TextPipeline {
         // widths are exactly the ones the draw path will lay out.
         let geom = self.overlay_geometry(self.window_w as u32);
         self.overlay_remetric();
-        let has_right = self.overlay_shape_text(&geom, ink, muted, None, None);
+        let has_right = self.overlay_shape_text(&geom, ink, muted, None, None, false);
         // The widest LEFT-side element (query / lens strip / bare primary / footer).
         let mut left = 0.0_f32;
         for run in self.panel_buffer.layout_runs() {
             left = left.max(run.line_w);
         }
         // A candidate row's own content: primary + gap + right-aligned secondary.
-        let primary = self.widest_candidate_px(&geom);
+        //
+        // ITEM 83 ADJUST (Fable's audit, item83-mangrove-plain-picker.png): a
+        // right-anchored card whose width is DRIVEN by a candidate row's own
+        // primary (the widest element is a row, not the query/footer line) still
+        // elides that exact row by one character — the SAME row's real draw pass
+        // reaches `rowlayout::full_budget`/`Plan::Full`'s built-in `total - 1`
+        // margin (every no-secondary-shown fallback reserves one char, by
+        // design — `rowlayout::full_budget`'s own doc), but THIS measurement
+        // sized the card to the row's bare pixel width with no room for that
+        // reserve, so the draw pass's `total_chars` lands exactly one character
+        // short and the widest (here: the selected) row's own label pays for it
+        // ("English (Australia)" -> "English …ustralia)" even though the card
+        // plainly has room). One extra char of width absorbs that reserve
+        // before elision ever kicks in — the row was going to occupy that
+        // pixel width regardless, this just stops the fallback budget from
+        // undercutting a width the card already grew to hold. `overlay_desired_w`
+        // still clamps the result to the SAME normal wide cap, so a genuinely
+        // long corpus elides exactly as before; this only closes the
+        // one-char-short gap for a content-hugging card sized off its own
+        // widest row.
+        let primary = self.widest_candidate_px(&geom) + self.overlay_char_width();
         let secondary = if has_right { self.widest_right_px() } else { 0.0 };
         let gap = if secondary > 0.0 {
-            rowlayout::GAP_CHARS as f32 * self.metrics.char_width
+            rowlayout::GAP_CHARS as f32 * self.overlay_char_width()
         } else {
             0.0
         };
@@ -649,6 +723,9 @@ impl TextPipeline {
         // `None` on every ordinary run → the theme shaper flips exactly the
         // selected item (byte-identical).
         covered: Option<&[usize]>,
+        // ITEM 83 — see [`TextPipeline::overlay_shape_text`]'s doc; threaded
+        // through to [`TextPipeline::overlay_shape_theme`] unchanged.
+        elide: bool,
     ) -> bool {
         // The dim RIGHT column through the SAME one-owner precedence the flat path
         // reads (bindings → times → git; only one is ever populated). Empty on the
@@ -700,11 +777,34 @@ impl TextPipeline {
         };
         // The section-grouped name column + the active-lens underline (unchanged,
         // save the inline shortcuts composed onto the ITEM rows under hug bars).
-        self.overlay_shape_theme(geom, ink, muted, selected_ink, covered, &trailing);
+        self.overlay_shape_theme(geom, ink, muted, selected_ink, covered, &trailing, elide);
         if !has_right || hug_inline {
             return false;
         }
         self.shape_overlay_right(geom, ink, muted, &bind_strs);
+
+        // ITEM 83 — THE NO-OVERLAP LAW, extended to the faceted path: unlike the
+        // flat shaper, `shape_theme_spans`'s primary NEVER reserves budget for a
+        // secondary at all (its char estimate is always `full_budget`), so a
+        // genuinely long chord/time/git label beside a full-width primary had NO
+        // yield mechanism — the two could sit closer than the flat path's own
+        // `rowlayout::fits` bar allows, or a proportional-font primary the
+        // estimate under-measured could shade into the secondary's column. Read
+        // the SAME real shaped pixels the flat path's law reads; the secondary
+        // YIELDS (whole column dropped, `false`) rather than ever painting
+        // toward a name — the primary stays exactly as already shaped (it never
+        // budgeted FOR a secondary, so it needs no re-shape on yield).
+        let name_px = self.widest_candidate_px(geom);
+        let right_px = self.widest_right_px();
+        let slant = crate::render::overlay_slant();
+        let slant_tax = slant
+            .map(|s| crate::render::slant_max_offset(&s, geom.plan.len()))
+            .unwrap_or(0.0);
+        let slant_text_w = (geom.text_w - slant_tax).max(0.0);
+        let gap_px = rowlayout::GAP_CHARS as f32 * self.overlay_char_width();
+        if !rowlayout::fits(slant_text_w, gap_px, name_px, right_px) {
+            return false;
+        }
         self.overlay_right_shown = true;
         true
     }

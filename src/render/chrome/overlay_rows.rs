@@ -559,8 +559,17 @@ impl TextPipeline {
                 // no glyph sits over an unplated backdrop. FullWidth already covers
                 // the chord (its plate spans the card); HugText composes it INLINE —
                 // so a chord plate is needed ONLY for a hug extent that leaves the
-                // chord in the right column (`!inline_shortcut`).
-                let chord_px = if hug && !extent.inline_shortcut() {
+                // chord in the right column (`!inline_shortcut`). ITEM 83: also
+                // gated on `overlay_right_shown` — the ONE flag the shaper sets
+                // (`false` at the top of every `overlay_shape_text` call, `true`
+                // only once the right column genuinely fits and is uploaded).
+                // `panel_bind_buffer` keeps whatever it last shaped even on a
+                // YIELD (the buffer isn't re-shaped empty — `overlay_upload_text`
+                // simply skips uploading it), so reading it unconditionally drew
+                // a chord PLATE with no chord in it once the faceted path first
+                // gained a real yield path (this round) — a bare plate is a worse
+                // affordance than the plate's own absence.
+                let chord_px = if hug && !extent.inline_shortcut() && self.overlay_right_shown {
                     self.overlay_row_secondary_px(geom)
                 } else {
                     std::collections::BTreeMap::new()

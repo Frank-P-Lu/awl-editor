@@ -239,6 +239,28 @@ impl TextPipeline {
             + self.overlay_row_gap()
     }
 
+    /// THE ONE OWNER of the overlay row's MEAN GLYPH WIDTH (device px) — the
+    /// horizontal twin of [`Self::overlay_lh`]. `self.metrics.char_width` is the
+    /// DOCUMENT body's full-size advance; overlay row text (query/primary/
+    /// secondary/hint) shapes at [`Self::overlay_metrics`]'s smaller
+    /// `OVERLAY_UI_SCALE`-stepped face (`overlay_remetric` only ever re-metrics
+    /// the cosmic-text BUFFERS, never `self.metrics` itself), so a row-budget
+    /// estimate reading the bare document `char_width` OVER-COUNTS how many
+    /// device px one overlay char costs — undercounting `total_chars` and
+    /// under-granting [`rowlayout::plan`]'s char-estimate `Split` budget even
+    /// though the REAL (smaller) glyphs have room (ITEM 83: "Compare with
+    /// version…" reading "Compare …version…" beside an unrelated row's long
+    /// chord, on a card with a real corridor of genuinely spare width). Mirrors the
+    /// established margin-chrome precedent (`outline`/`gutter`'s own
+    /// `char_width * type_scale::LABEL` step for their smaller LABEL-rung text)
+    /// — same shape of bug, same shape of fix. Every overlay row-budget site
+    /// (`total_chars`, the shared-cell `gap_px`) reads THIS, never the bare
+    /// `self.metrics.char_width`, so the estimate and the actually-shaped
+    /// glyphs can never disagree on how many chars a device-px budget holds.
+    pub(in crate::render) fn overlay_char_width(&self) -> f32 {
+        self.metrics.char_width * crate::render::effective_overlay_scale()
+    }
+
     /// THE ONE OWNER of the summoned takeover card's horizontal BOX — its
     /// `(left, width)`. Composes three things so the flat [`Self::overlay_geometry`]
     /// and faceted [`TextPipeline::theme_overlay_geometry`] can never disagree
@@ -351,7 +373,10 @@ impl TextPipeline {
     #[cfg(test)]
     pub(in crate::render) fn overlay_elided_candidates(&self, width: u32) -> Vec<String> {
         let geom = self.overlay_geometry(width);
-        let cw = self.metrics.char_width;
+        // ITEM 83: the overlay's own (smaller) char width — see
+        // `overlay_char_width`'s doc; this test hook must reconstruct the SAME
+        // budget `overlay_shape_text`/`shape_theme_spans` actually shape at.
+        let cw = self.overlay_char_width();
         let total_chars = if cw > 0.0 {
             (geom.text_w / cw).floor() as usize
         } else {

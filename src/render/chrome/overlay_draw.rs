@@ -83,8 +83,14 @@ impl TextPipeline {
         // target row keeps its off-band ink until the band arrives. `None`
         // recovers the old state-tied flip (the settled selected row).
         let living_covered = self.living_covered_rows(&geom);
-        let has_right =
-            self.overlay_shape_text(&geom, ink, muted, selected_ink, living_covered.as_deref());
+        let has_right = self.overlay_shape_text(
+            &geom,
+            ink,
+            muted,
+            selected_ink,
+            living_covered.as_deref(),
+            true,
+        );
         self.overlay_upload_text(
             device, queue, width, height, &geom, has_right, ink, muted, placard,
         )?;

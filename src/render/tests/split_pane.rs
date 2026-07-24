@@ -51,6 +51,63 @@ fn split_bounds_carve_the_query_beat_above_the_first_row() {
     }
 }
 
+/// ITEM 83 — THE FACETED QUERY OPTICAL-CENTERING LAW: the query text/caret
+/// never move (pinned to `text_top`; `overlay_query_center`'s own contract), but
+/// the DRAWN upper surface historically carried the card's `pad` (12px)
+/// breathing room ABOVE them and NONE below (`[card_y, text_top + line_height]`
+/// exactly) — so the query read bottom-heavy inside its own strip (Quokka's
+/// command palette, the reported specimen: the eye reads generous headroom
+/// above "commands › |" and almost none below, before the visible gap). Proven
+/// NON-VACUOUS: the pre-fix offset is reconstructed inline from the historical
+/// formula (not read back from the fix) and asserted to be the bigger one.
+#[test]
+fn faceted_query_strip_is_optically_centered_not_bottom_heavy() {
+    let pad = 12.0_f32;
+    let (line_height, header_gap) = (27.2_f32, 35.0_f32);
+    let card_y = 100.0_f32;
+    let text_top = card_y + pad;
+    let header_rows = 2;
+
+    let (gap_top, gap_bottom) =
+        chrome::overlay_split_bounds(text_top, header_rows, header_gap, line_height).unwrap();
+    assert!(gap_bottom > gap_top, "a real, non-degenerate gap");
+
+    // The query text's own (UNMOVED) vertical center — `overlay_query_center`'s
+    // exact formula for the faceted (plain, uninflated query-line) case.
+    let text_center = text_top + line_height * 0.5;
+
+    // The drawn upper surface is `overlay_pane_fills`'s exact rect for this
+    // branch: `[card_y, gap_top]`.
+    let surface_center = (card_y + gap_top) * 0.5;
+    let fixed_offset = (text_center - surface_center).abs();
+
+    // NON-VACUOUS: the PRE-FIX surface (`[card_y, text_top + line_height]` — zero
+    // breathing below the query box, reconstructed from the documented
+    // pre-item-83 formula, not from the fix under test) centred here instead.
+    let pre_fix_bottom = text_top + line_height;
+    let pre_fix_center = (card_y + pre_fix_bottom) * 0.5;
+    let pre_fix_offset = (text_center - pre_fix_center).abs();
+    assert!(
+        (pre_fix_offset - pad / 2.0).abs() < 1e-3,
+        "sanity: the historical offset is exactly pad/2 ({pre_fix_offset} vs {})",
+        pad / 2.0
+    );
+
+    assert!(
+        fixed_offset < pre_fix_offset * 0.5,
+        "the query must read centred, not bottom-heavy: fixed offset ({fixed_offset}) \
+         should be well under half the pre-fix skew ({pre_fix_offset})"
+    );
+
+    // The added breathing margin stays inside the split gap's own proven-safe
+    // budget (`SPLIT_GAP_FRAC`'s own doc): the gap band itself is UNCHANGED in
+    // width (still exactly `0.4 * header_gap`) — only its position shifted.
+    assert!(
+        (gap_bottom - gap_top - header_gap * 0.4).abs() < 1e-3,
+        "the visible gap band keeps its historical width, only its position moved"
+    );
+}
+
 // --- `overlay_pane_fills`: the fill rects the card draws ----------------------
 
 /// Build an open Pane picker view. `faceted` adds the lens strip; `n` candidate
