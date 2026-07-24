@@ -288,6 +288,56 @@ fn once_armed_a_drag_stays_armed_through_further_sub_slop_moves() {
     );
 }
 
+// --- ITEM 84: dragging past the page's left edge ------------------------
+//
+// The PAINT-side half of item 84 (selection wash / search-match / preedit /
+// caret never spill past the active content clip) is proven over real
+// pixel/geometry arithmetic in `render::tests::selection_clip_law` — that
+// half needs a GPU pipeline. This half is the STATE seam: hit-testing a drag
+// that has traveled into the margin, well left of the writing column, must
+// clamp to the nearest valid document position (the row's own first
+// column) — never panic, never leave a stale/partial selection — and this
+// is a purely GPU-less `App`-level concern.
+
+#[test]
+fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    app.active.buffer.set_text("hello\nworld");
+    // Press mid-word on line 1: "wor|ld" (char 9 = line-1 start(6) + col 3).
+    press_at_row_col(&mut app, 1, 3, false);
+    assert_eq!(app.active.buffer.cursor_char(), 9);
+    assert!(!app.active.buffer.has_selection());
+
+    // Drag the pointer far LEFT of the writing column's own origin — well past
+    // the page's left edge, deep in the margin — but keep it on the SAME row.
+    let m = Metrics::with_dpi(app.zoom, app.dpi);
+    app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
+        (TEXT_LEFT - 500.0) as f64,
+        (TEXT_TOP + 1.5 * m.line_height) as f64,
+    ));
+
+    // The clamp lands on the row's OWN first column (char 6, "world"'s own
+    // start) — never a negative/OOB index, never the document's absolute
+    // start (line 0) just because x went negative; y still picks the row.
+    assert!(
+        app.active.buffer.has_selection(),
+        "travel far past the slop must still arm a real drag"
+    );
+    assert_eq!(
+        app.active.buffer.selection_range(),
+        Some((6, 9)),
+        "the drag clamps to the row's nearest valid column, not a narrower selectable range"
+    );
+
+    // Dragging even FURTHER left changes nothing further — the clamp is
+    // idempotent, not a crash-prone unbounded extrapolation.
+    app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
+        (TEXT_LEFT - 100_000.0) as f64,
+        (TEXT_TOP + 1.5 * m.line_height) as f64,
+    ));
+    assert_eq!(app.active.buffer.selection_range(), Some((6, 9)));
+}
+
 #[test]
 fn release_disarms_so_the_next_press_is_slop_gated_again() {
     // The armed flag must not leak across gestures: after a real drag then
