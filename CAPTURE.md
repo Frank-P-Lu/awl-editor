@@ -474,8 +474,10 @@ out of `hud`); the `focus` block REMOVED (`/145`); new overlay modes `assets`
 block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 `/165`); `project.keymap_flavor` (`/164`); `about.checked` (Check for Updates,
 `/166`); `page.background`'s `lava` arm (`/168`); `about.pending_crash`
-(passive crash recovery, `/169`); and `page.background`'s `bands`/`waves` arms
-(item 69's Gumtree grass-bands + Bombora wave-tiers, `/181`). Every one of
+(passive crash recovery, `/169`); `page.background`'s `bands`/`waves` arms
+(item 69's Gumtree grass-bands + Bombora wave-tiers, `/181`); and
+`page.background`'s `zigzag` arm (item 86's light-worlds taste round — Quokka
+and Gumtree both moved to a repeating chevron ground, `/183`). Every one of
 these bumps preserved byte-identical DEFAULT captures apart from the named
 field — see the table.
 

@@ -22,15 +22,23 @@ struct Globals {
     to: [f32; 4],
     dir: [f32; 2],
     /// Procedural ground discriminant: 0=gradient, 1=dots, 2=starfield,
-    /// 3=pinstripe, 4=stripes, 5=bands, 6=waves (see `Background::shader_id`).
+    /// 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag (see
+    /// `Background::shader_id`).
     shader: u32,
     _pad: u32,
     /// Mark/band tint (linear rgb) + its max coverage in `a`.
     pat: [f32; 4],
-    /// Extra per-ground params: `params.x` = edge/proximity flag (0/1, Dots),
-    /// `params.y` = stripe/band angle in radians (Stripes, Bands), `.zw`
-    /// reserved. Bands/Waves read `from`/`to`/`tint` above as their three
-    /// authored TONES (not a gradient) — no new uniform slots needed.
+    /// Extra per-ground params — the SAME four slots read with different
+    /// per-shader meanings (exactly one ground is ever active, so there is
+    /// no real overlap): `params.x` = edge/proximity flag (0/1, Dots) OR
+    /// Zigzag's `period_px` (item 86 — the two never coexist, since `edge`
+    /// is always `false` off a Zigzag world and `period_px` is always `0.0`
+    /// off a Dots world, so the two contributions simply SUM); `params.y` =
+    /// stripe/band angle in radians (Stripes, Bands) OR Zigzag's own chevron
+    /// travel angle; `params.z` = Zigzag's `amplitude_px`; `params.w` =
+    /// Zigzag's `density`. Bands/Waves read `from`/`to`/`tint` above as
+    /// their three authored TONES (not a gradient) — no new uniform slots
+    /// needed for those two.
     params: [f32; 4],
 }
 
@@ -52,8 +60,18 @@ pub struct BgDesc {
     pub tint: [u8; 3],
     /// Proximity-scaling flag (Dots only).
     pub edge: bool,
-    /// Stripe angle in radians (Stripes only; 0 otherwise).
+    /// Stripe/Bands angle, or Zigzag's own chevron travel angle, in radians
+    /// (0 for every other ground).
     pub angle: f32,
+    /// Zigzag's chevron repeat wavelength, device px (item 86; `0.0` for
+    /// every other ground).
+    pub period_px: f32,
+    /// Zigzag's chevron peak vertical excursion, device px (item 86; `0.0`
+    /// for every other ground).
+    pub amplitude_px: f32,
+    /// Zigzag's extra coverage multiplier `[0,1]` (item 86; `0.0` for every
+    /// other ground).
+    pub density: f32,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -177,7 +195,7 @@ impl BackgroundPipeline {
             dir: [desc.dir.0, desc.dir.1],
             shader: desc.shader,
             pat: pattern_tint(desc.tint),
-            params: ground_params(desc.edge, desc.angle),
+            params: ground_params(&desc),
         }
     }
 
@@ -189,7 +207,7 @@ impl BackgroundPipeline {
         self.dir = [desc.dir.0, desc.dir.1];
         self.shader = desc.shader;
         self.pat = pattern_tint(desc.tint);
-        self.params = ground_params(desc.edge, desc.angle);
+        self.params = ground_params(&desc);
     }
 
     /// Upload the per-frame globals: the viewport + the page column rect (in
@@ -250,11 +268,21 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
 }
 
 /// Pack the per-ground params the shader reads: `x` = the Dots proximity flag
-/// (0/1), `y` = the Stripes angle in radians, `zw` reserved. For every UNCHANGED
-/// ground both are 0, so the shader takes its exact original code path (a
-/// byte-identical render).
-fn ground_params(edge: bool, angle: f32) -> [f32; 4] {
-    [if edge { 1.0 } else { 0.0 }, angle, 0.0, 0.0]
+/// (0/1) SUMMED with Zigzag's `period_px` (item 86 — the two grounds never
+/// coexist, so this is never a real collision, just two mutually-exclusive
+/// contributions sharing one slot), `y` = the Stripes/Bands angle in radians
+/// OR Zigzag's own chevron travel angle, `z` = Zigzag's `amplitude_px`, `w` =
+/// Zigzag's `density`. For every ground this round didn't touch, `period_px`/
+/// `amplitude_px`/`density` are all `0.0`, so `x`/`z`/`w` reduce to exactly
+/// their pre-round values (`edge` alone / `0.0` / `0.0`) — a byte-identical
+/// render.
+fn ground_params(desc: &BgDesc) -> [f32; 4] {
+    [
+        if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
+        desc.angle,
+        desc.amplitude_px,
+        desc.density,
+    ]
 }
 
 // ---------------------------------------------------------------------------

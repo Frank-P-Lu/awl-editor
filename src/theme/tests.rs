@@ -189,13 +189,17 @@ fn every_world_has_a_valid_background() {
         assert_eq!(bg.to().a, 0xFF, "{} background to must be opaque", t.name);
         assert_eq!(bg.tint().a, 0xFF, "{} background tint must be opaque", t.name);
         // 0..=4 the five original static grounds (Lava also degrades to 0 for
-        // this base-margin pass), 5=Bands, 6=Waves (item 69).
-        assert!(bg.shader_id() <= 6, "{} bad shader id", t.name);
+        // this base-margin pass), 5=Bands, 6=Waves (item 69), 7=Zigzag (item 86).
+        assert!(bg.shader_id() <= 7, "{} bad shader id", t.name);
     }
-    // Every STATIC ground type is still exercised across the worlds.
+    // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
+    // Bands is dormant infrastructure since item 86 moved Gumtree to Zigzag
+    // (reusable DATA, like `edge: true` Dots below — a feature may ship with
+    // zero worlds until one wants it again), so it is deliberately NOT in
+    // this roster; the dormancy is pinned directly, further down.
     let used: std::collections::HashSet<&str> =
         THEMES.iter().map(|t| t.background.as_str()).collect();
-    for p in ["gradient", "dots", "starfield", "pinstripe", "stripes", "bands", "waves"] {
+    for p in ["gradient", "dots", "starfield", "pinstripe", "stripes", "waves", "zigzag"] {
         assert!(used.contains(p), "ground {p} unused by any world");
     }
     // Stripes stays Potoroo's alone.
@@ -205,20 +209,21 @@ fn every_world_has_a_valid_background() {
         .map(|t| t.name)
         .collect();
     assert_eq!(stripes, ["Potoroo"], "Stripes is Potoroo's alone");
-    // Bands stays Gumtree's alone; Waves stays Bombora's alone (item 69 — each
-    // is reusable DATA, but only one world currently picks it).
-    let bands: Vec<&str> = THEMES
-        .iter()
-        .filter(|t| matches!(t.background, Background::Bands { .. }))
-        .map(|t| t.name)
-        .collect();
-    assert_eq!(bands, ["Gumtree"], "Bands is Gumtree's alone");
+    // Waves stays Bombora's alone (item 69 — reusable DATA, but only one
+    // world currently picks it).
     let waves: Vec<&str> = THEMES
         .iter()
         .filter(|t| matches!(t.background, Background::Waves { .. }))
         .map(|t| t.name)
         .collect();
     assert_eq!(waves, ["Bombora"], "Waves is Bombora's alone");
+    // ITEM 86: Zigzag ships on EXACTLY Quokka and Gumtree, in THEMES order.
+    let zigzag: Vec<&str> = THEMES
+        .iter()
+        .filter(|t| matches!(t.background, Background::Zigzag { .. }))
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(zigzag, ["Gumtree", "Quokka"], "Zigzag ships on Gumtree and Quokka alone");
     // Mulga is the roster's SOLE remaining shipping Starfield world — Bombora's
     // former Starfield became Waves (item 69).
     let starfield: Vec<&str> = THEMES
@@ -227,21 +232,11 @@ fn every_world_has_a_valid_background() {
         .map(|t| t.name)
         .collect();
     assert_eq!(starfield, ["Mulga"], "Starfield is Mulga's alone since item 69");
-    // ITEM 69 PALETTE LAW: Gumtree's Bands and Bombora's Waves use ONLY their
-    // OWN ground ladder — `tones` is exactly `[base_100, base_200, base_300]`,
-    // no separately-tuned tint (unlike the retired Dots/Starfield tints they
-    // replace) — and the three rungs are pairwise distinct (a real tone-on-tone
-    // field, not a flat repeat).
-    match GUMTREE.background {
-        Background::Bands { tones, .. } => {
-            assert_eq!(tones, [GUMTREE.base_100, GUMTREE.base_200, GUMTREE.base_300],
-                "Gumtree's Bands tones must be exactly its own ground ladder");
-            assert_ne!(tones[0], tones[1]);
-            assert_ne!(tones[1], tones[2]);
-            assert_ne!(tones[0], tones[2]);
-        }
-        _ => panic!("Gumtree must ship Background::Bands"),
-    }
+    // ITEM 69 PALETTE LAW (Bombora's Waves alone, post item-86 — Gumtree's own
+    // Zigzag carries its own, separately-checked, palette law below): `tones`
+    // is exactly `[base_100, base_200, base_300]`, no separately-tuned tint,
+    // and the three rungs are pairwise distinct (a real tone-on-tone field,
+    // not a flat repeat).
     match BOMBORA.background {
         Background::Waves { tones } => {
             assert_eq!(tones, [BOMBORA.base_100, BOMBORA.base_200, BOMBORA.base_300],
@@ -252,20 +247,45 @@ fn every_world_has_a_valid_background() {
         }
         _ => panic!("Bombora must ship Background::Waves"),
     }
-    // Gumtree's band angle sits in the requested 30-35° grass cut, and is its
-    // OWN angle — never Potoroo's Stripes angle (the two diagonal grounds must
-    // never read as siblings).
+    // ITEM 86 PALETTE LAW: Gumtree's Zigzag uses ONLY its own ground ladder —
+    // `from`/`to`/`tint` are exactly its `base_100`/`base_200`/`base_300` —
+    // same restraint the retired Bands field kept.
     match GUMTREE.background {
-        Background::Bands { angle, .. } => {
-            let deg = angle.to_degrees();
-            assert!((30.0..=35.0).contains(&deg), "Gumtree band angle {deg:.1}° escaped 30-35°");
-            match POTOROO.background {
-                Background::Stripes { angle: pa, .. } => assert_ne!(angle, pa, "Gumtree Bands and Potoroo Stripes must not share an angle"),
-                _ => panic!("Potoroo must ship Background::Stripes"),
-            }
+        Background::Zigzag { from, to, tint, .. } => {
+            assert_eq!(from, GUMTREE.base_100, "Gumtree's Zigzag `from` must be its own base_100");
+            assert_eq!(to, GUMTREE.base_200, "Gumtree's Zigzag `to` must be its own base_200");
+            assert_eq!(tint, GUMTREE.base_300, "Gumtree's Zigzag `tint` must be its own base_300");
         }
-        _ => unreachable!(),
+        _ => panic!("Gumtree must ship Background::Zigzag"),
     }
+    // ITEM 86 DISTINCTNESS LAW: Quokka and Gumtree's Zigzag fields must NOT
+    // read as a recolor of one asset — every one of the four authored dials
+    // (scale/spacing, profile, direction, contrast) differs, and Gumtree's
+    // is the "broader and quieter" of the pair per the round's own brief.
+    match (QUOKKA.background, GUMTREE.background) {
+        (
+            Background::Zigzag { period_px: qp, amplitude_px: qa, angle: qang, density: qd, .. },
+            Background::Zigzag { period_px: gp, amplitude_px: ga, angle: gang, density: gd, .. },
+        ) => {
+            assert_ne!(qp, gp, "period_px (scale/spacing) must differ between Quokka and Gumtree");
+            assert_ne!(qa, ga, "amplitude_px (profile) must differ between Quokka and Gumtree");
+            assert_ne!(qang, gang, "angle (direction) must differ between Quokka and Gumtree");
+            assert_ne!(qd, gd, "density (contrast) must differ between Quokka and Gumtree");
+            assert!(gp > qp, "Gumtree's period must be BROADER (larger) than Quokka's");
+            assert!(gd < qd, "Gumtree's density must be QUIETER (lower) than Quokka's");
+        }
+        _ => unreachable!("both Quokka and Gumtree must ship Background::Zigzag"),
+    }
+    // Bands is DORMANT (item 86 moved its one assignee, Gumtree, to Zigzag) —
+    // reusable infrastructure with zero current worlds, the exact shape
+    // `edge: true` Dots and (pre-Firetail/Mangrove) `Background::Lava` once
+    // held, never a bug.
+    let bands: Vec<&str> = THEMES
+        .iter()
+        .filter(|t| matches!(t.background, Background::Bands { .. }))
+        .map(|t| t.name)
+        .collect();
+    assert!(bands.is_empty(), "Bands is dormant since item 86 moved Gumtree to Zigzag, got {bands:?}");
     // PROXIMITY-SCALED Dots (`edge: true`) rode Mangrove alone, and Mangrove
     // folded into a lava ground (2026-07), so no world carries proximity Dots
     // now — the `edge: bool` machinery is intact but currently unassigned (like
@@ -296,7 +316,7 @@ fn exactly_firetail_and_mangrove_ship_lava() {
     assert_eq!(lava, ["Mangrove", "Firetail"], "exactly Mangrove + Firetail are lava worlds");
     for t in THEMES.iter().filter(|t| !t.background.is_lava()) {
         assert!(
-            t.background.shader_id() <= 6,
+            t.background.shader_id() <= 7,
             "{}: a non-lava world stays a static ground",
             t.name
         );
@@ -650,14 +670,15 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
     for t in THEMES.iter() {
         // NO-WILDCARD: a future ground variant must decide its frost story here.
         let (ground, blob_lo, blob_hi) = match t.background {
-            // The seven static grounds carry no lava — no frost.
+            // The eight static grounds carry no lava — no frost.
             Background::Gradient { .. }
             | Background::Dots { .. }
             | Background::Starfield { .. }
             | Background::Pinstripe { .. }
             | Background::Stripes { .. }
             | Background::Bands { .. }
-            | Background::Waves { .. } => continue,
+            | Background::Waves { .. }
+            | Background::Zigzag { .. } => continue,
             Background::Lava { ground, blob_lo, blob_hi, .. } => (ground, blob_lo, blob_hi),
         };
         // FROST-AS-CAPABILITY: read the WORLD's own recipe (`render_caps.frost`),
@@ -782,14 +803,15 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
     for t in THEMES.iter() {
         // NO-WILDCARD: a future ground variant must decide its frost story here.
         let (ground, blob_lo, blob_hi) = match t.background {
-            // The seven static grounds carry no lava — no frost, byte-identical.
+            // The eight static grounds carry no lava — no frost, byte-identical.
             Background::Gradient { .. }
             | Background::Dots { .. }
             | Background::Starfield { .. }
             | Background::Pinstripe { .. }
             | Background::Stripes { .. }
             | Background::Bands { .. }
-            | Background::Waves { .. } => continue,
+            | Background::Waves { .. }
+            | Background::Zigzag { .. } => continue,
             Background::Lava { ground, blob_lo, blob_hi, .. } => (ground, blob_lo, blob_hi),
         };
         // FROST-AS-CAPABILITY: the WORLD's own recipe (`render_caps.frost`), so a
@@ -2594,25 +2616,12 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_shape: model::CardShape::Chamfered { cut_px: 11.0 },
                 ..RenderCaps::DEFAULT
             },
-            "Tawny" | "Mopoke" | "Potoroo" | "Bombora" | "Mulga" => {
+            // ITEM 86 — Bowerbird's item-71 woven `JaggedWave` card texture
+            // was RETIRED (summoned cards returned to plain flat); it now
+            // rides the plain default alongside its neighbors here.
+            "Tawny" | "Mopoke" | "Potoroo" | "Bombora" | "Mulga" | "Bowerbird" => {
                 RenderCaps::DEFAULT
             }
-            // ITEM 71 — Bowerbird alone assigns the woven printed-card
-            // texture (see `worlds::BOWERBIRD`'s own doc): THREE nested,
-            // horizontally phase-offset triangle-wave ribbon tiers spanning
-            // the complete card-local field, quietest through the
-            // content-heavy vertical middle. `card_shape` stays
-            // `Rectangular` — the wave never touches the silhouette.
-            "Bowerbird" => RenderCaps {
-                card_texture: model::CardTexture::JaggedWave {
-                    tiers: 3,
-                    period_x: 200.0,
-                    period_y: 120.0,
-                    amplitude: 46.0,
-                    density: 0.085,
-                },
-                ..RenderCaps::DEFAULT
-            },
             // CASSOWARY (the NERV-terminal statement world): the loud NERV console
             // overlay — a bold Archivo-Black wordmark placard (Auto corner derives
             // bottom-LEFT off the ITEM-45 RIGHT card), BORDERED elevation, the poster

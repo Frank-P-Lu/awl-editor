@@ -19,11 +19,11 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 
 | World          | Ground                      | Margin background | Display             | Mono            | Ornament (`---`/`***`/`___`)                  | Time  | Register | Voice     | Temp    |
 | -------------- | --------------------------- | ----------------- | ------------------- | --------------- | --------------------------------------------- | ----- | -------- | --------- | ------- |
-| **Gumtree**    | pale eucalyptus-green       | Bands             | Literata            | Monaspace Xenon | Junicode · botanical sprig / spray / fleur    | Day   | Refined  | Literary  | Cool    |
-| **Bilby**      | palest rose-gold dawn       | Gradient          | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | Literary  | Warm    |
+| **Gumtree**    | pale eucalyptus-green       | Zigzag             | Literata            | Monaspace Xenon | Junicode · botanical sprig / spray / fleur    | Day   | Refined  | Literary  | Cool    |
+| **Bilby**      | palest rose-gold dawn (paled, item 86) | Gradient | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | Literary  | Warm    |
 | **Magpie**     | paper-white, high-contrast  | Pinstripe         | Bitter              | Monaspace Xenon | Junicode · quatrefoil / lattice / damask-tile | Day   | Everyday | Literary  | Neutral |
 | **Saltpan**    | warm ecru salt-flat         | Pinstripe         | Fraunces            | Monaspace Xenon | Junicode · running-vine / vine-scroll ×2      | Dawn  | Refined  | Literary  | Warm    |
-| **Quokka**     | warm peach reef             | Dots              | Sour Gummy          | IBM Plex Mono   | Awl Marks · ✿ ❀ ✽                             | Dawn  | Everyday | Modern    | Warm    |
+| **Quokka**     | warm peach reef             | Zigzag             | Sour Gummy          | IBM Plex Mono   | Awl Marks · ✿ ❀ ✽                             | Dawn  | Everyday | Modern    | Warm    |
 | **Galah**      | dusty-pink                  | Gradient          | Figtree             | IBM Plex Mono   | Awl Marks · ❁ ❂ ✿                             | Dawn  | Everyday | Modern    | Warm    |
 | **Potoroo**    | dark burnt-orange           | Stripes           | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✶ ✦ ◆                             | Dusk  | Humble   | Technical | Warm    |
 | **Mopoke**     | warm charcoal               | Dots              | iA Writer Quattro S | IBM Plex Mono   | Junicode · damask / candelabra / damask-tile  | Dusk  | Humble   | Modern    | Warm    |
@@ -51,12 +51,13 @@ uses the world's own quiet palette, and never spends the caret accent.
 | Background | What it draws | Shipping worlds |
 | ---------- | ------------- | --------------- |
 | **Gradient** | A directional colour blend with no built-in marks. | Bilby, Currawong, Galah, Brolga, Wagtail |
-| **Dots** | A regular grid of small round dots over a gradient. All shipping dot worlds currently use the uniform form; the available page-edge proximity form is unassigned. | Quokka, Mopoke, Bowerbird, Tawny |
+| **Dots** | A regular grid of small round dots over a gradient. All shipping dot worlds currently use the uniform form; the available page-edge proximity form is unassigned. | Mopoke, Bowerbird, Tawny |
 | **Starfield** | Deterministically scattered dots with occasional four-point sparkles. Static in captures and independent of the caret. | Mulga |
 | **Pinstripe** | Fine parallel print/ledger lines over a gradient. | Magpie, Saltpan, Cassowary |
 | **Stripes** | A diagonal striped band concentrated at the page boundary and dissolved outward into the margin. | Potoroo |
 | **Lava** | A slow metaball field in the margins. Reduce Motion can still it; deterministic captures use a fixed phase. Firetail is smooth wine; Mangrove is dithered deep-sea blue. | Firetail, Mangrove |
-| **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. | Gumtree |
+| **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. Reusable infrastructure, currently DORMANT — Gumtree (its one-time assignee) moved to Zigzag in item 86. | *(none — dormant)* |
+| **Zigzag** (item 86) | A repeating chevron ("V") mark over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. Four per-world dials (repeat wavelength, peak excursion, travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/shallow/quiet. | Quokka, Gumtree |
 | **Waves** (item 69) | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
 
 Currawong's base margin background is **Gradient**. Its slowly appearing and
@@ -84,6 +85,8 @@ background used by Bombora and Mulga; the at-a-glance table writes
 ### Gumtree
 **A pale eucalyptus-green reading room, calm and cool in clear daylight.**
 Literata's easygoing book-serif on cool green paper; Shippori Mincho for Japanese; Monaspace Xenon for code.
+Its margins carry a broad, quiet eucalyptus zigzag (item 86) — a lazy, shallow chevron
+mark in the ground's own ladder, replacing the room's original grass-bands field.
 Day · Refined · Literary · Cool.
 
 ### Bilby
@@ -93,8 +96,10 @@ a cool violet-grey ink ladder (dawn's complementary structure), one sunrise-gold
 and a 1px ink hairline framing the writing column — the light pole's page frame,
 Wagtail's 2px white frame mirrored. The bilby is a dawn-active desert marsupial;
 its world is dawn itself (the 2026-07-18 differentiation round — it was the
-pale-blue near-pair of Gumtree before). Shippori Mincho for Japanese; Monaspace
-Xenon for code.
+pale-blue near-pair of Gumtree before). Item 86 nudged the ground planes a
+little paler and less peach (composition, caret, and ink untouched) so the
+room no longer reads as near-Quokka's own peach reef. Shippori Mincho for
+Japanese; Monaspace Xenon for code.
 Dawn · Refined · Literary · Warm.
 
 ### Magpie
@@ -112,7 +117,9 @@ Dawn · Refined · Literary · Warm.
 Sour Gummy's bouncy display face on warm peach; Klee One for Japanese; IBM Plex Mono for code.
 Its summoned cards are a printed-card statement — a crisp 45° chamfered
 silhouette and a small rotated halftone-dot texture, strongest at the card's
-right decorative edge and rolling off before the left content column.
+right decorative edge and rolling off before the left content column. Its
+margins carry a tight, bold repeating zigzag (item 86), replacing the room's
+original dot grid.
 Dawn · Everyday · Modern · Warm.
 
 ### Galah

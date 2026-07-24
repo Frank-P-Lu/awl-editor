@@ -1177,6 +1177,14 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
             "{{ \"kind\": \"waves\", \"tones\": [{}, {}, {}] }}",
             hex(tones[0]), hex(tones[1]), hex(tones[2])
         ),
+        // ITEM 86: a repeating chevron mark over a gradient — the same
+        // "report the world's own authored data verbatim" shape as every
+        // other arm, plus the four distinctness dials (see
+        // `Background::Zigzag`'s own doc).
+        Background::Zigzag { from, to, dir, tint, period_px, amplitude_px, angle, density } => format!(
+            "{{ \"kind\": \"zigzag\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"period_px\": {}, \"amplitude_px\": {}, \"angle\": {}, \"density\": {} }}",
+            hex(from), hex(to), dir.0, dir.1, hex(tint), period_px, amplitude_px, angle, density
+        ),
     }
 }
 

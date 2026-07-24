@@ -54,19 +54,27 @@ pub const GUMTREE: Theme = Theme {
     primary_content: Srgb::rgb(0xFB, 0xEC, 0xEC),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0x88, 0x8F, 0x5D, 0x52),
-    // GRASS-BANDS (item 69) — three large tone-on-tone diagonal bands across
-    // the WHOLE margin field (cut-paper grass), not a repeating dot-grid
-    // wallpaper. ONLY the eucalyptus ground ladder — `base_100`/`base_200`/
-    // `base_300` verbatim, no separately-tuned tint — at a ~32° cut (cf.
-    // Potoroo's Stripes at 0.6rad/34°, deliberately its own angle+shape so the
-    // two diagonal grounds never read as siblings).
-    background: Background::Bands {
-        tones: [
-            Srgb::rgb(0xE4, 0xF8, 0xE2),
-            Srgb::rgb(0xCF, 0xF3, 0xCC),
-            Srgb::rgb(0xB7, 0xEF, 0xB4),
-        ],
-        angle: 0.56,
+    // EUCALYPTUS ZIGZAG (item 86) — the grass-BANDS field (item 69) RETIRES
+    // here: a distinct, BROADER and QUIETER chevron ground replaces it, so
+    // the two light zigzag worlds (this one and Quokka's) read as
+    // separately authored fields, not a recolor of one asset. A BROAD,
+    // lazy profile — 190px period (vs. Quokka's 50px: nearly 4x the
+    // spacing), 60px amplitude (ratio ~0.32: a looser, more open "V" than
+    // Quokka's tight 0.20), a SHALLOW ~15° near-horizontal travel angle (vs.
+    // Quokka's steep ~54° diagonal — branch-like, not a chevron stitch), and
+    // a LOW 0.20 density (a third of Quokka's 0.60 — a quiet whisper mark
+    // over the gradient, not an opaque field). ONLY the eucalyptus ground
+    // ladder — `base_100`/`base_200`/`base_300` verbatim, no
+    // separately-tuned tint, same restraint the old Bands field kept.
+    background: Background::Zigzag {
+        from: Srgb::rgb(0xE4, 0xF8, 0xE2),
+        to: Srgb::rgb(0xCF, 0xF3, 0xCC),
+        dir: (0.0, 1.0),
+        tint: Srgb::rgb(0xB7, 0xEF, 0xB4),
+        period_px: 190.0,
+        amplitude_px: 60.0,
+        angle: 0.26,
+        density: 0.20,
     },
     font: "Literata",
     // Literary serif world → the slab-serif Monaspace Xenon: a mono that keeps a
@@ -170,12 +178,26 @@ pub const POTOROO: Theme = Theme {
 ///   pyrite (hue ~37°, more present on the paler ground).
 /// - **Selection**: pools the night's violet — dawn's cool side, ~135° off
 ///   the caret's gold.
+///
+/// ITEM 86 (2026-07, the light-worlds taste round): a SMALL follow-up —
+/// `base_100` and every other token (caret, ink, selection) stay exactly the
+/// DAWN-ROUND values above; only `base_200`/`base_300` (and the margin
+/// gradient that tracks them) paled and lost some orange cast, so the room
+/// no longer reads as near-Quokka's peach reef (whole-ground-ladder RMS
+/// redmean vs. Quokka: 30.1 -> 44.0).
 pub const BILBY: Theme = Theme {
     name: "Bilby",
     dark: false,
     base_100: Srgb::rgb(0xFF, 0xF7, 0xEF),
-    base_200: Srgb::rgb(0xFB, 0xE9, 0xDC),
-    base_300: Srgb::rgb(0xF6, 0xD9, 0xC6),
+    // ITEM 86 (light-worlds taste round) — a SMALL differentiation, paler and
+    // less peach than the original FBE9DC/F6D9C6 pair: composition, type,
+    // and identity (the caret, the ink ladder, the selection tint) are all
+    // UNTOUCHED, only these two ground planes nudge lighter with a reduced
+    // orange cast, so the room no longer reads as near-Quokka's peach reef.
+    // Whole-ground-ladder RMS redmean vs. Quokka moved 30.1 -> 44.0 (see
+    // `theme::tests::bilby_ground_reads_distinct_from_quokka_after_item_86`).
+    base_200: Srgb::rgb(0xFB, 0xED, 0xE6),
+    base_300: Srgb::rgb(0xF3, 0xE1, 0xD6),
     base_content: Srgb::rgb(0x26, 0x20, 0x38),
     muted: Srgb::rgb(0x6B, 0x65, 0x7A),
     faint: Srgb::rgb(0xA7, 0x9D, 0xB6),
@@ -187,8 +209,8 @@ pub const BILBY: Theme = Theme {
     // cooler pale rose above, rose-gold at the bottom edge, where first light
     // actually lives.
     background: Background::Gradient {
-        from: Srgb::rgb(0xFB, 0xE9, 0xDC),
-        to: Srgb::rgb(0xF6, 0xD9, 0xC6),
+        from: Srgb::rgb(0xFB, 0xED, 0xE6),
+        to: Srgb::rgb(0xF3, 0xE1, 0xD6),
         dir: (0.0, 1.0),
     },
     // Newsreader registers under this exact fontdb family name (it ships as the
@@ -310,12 +332,24 @@ pub const QUOKKA: Theme = Theme {
     primary_content: Srgb::rgb(0xE6, 0xF6, 0xF6),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0xBB, 0x80, 0x20, 0x52),
-    background: Background::Dots {
+    // ITEM 86 — the page-margin dot grid RETIRES here: a repeating chevron
+    // ZIGZAG field replaces it (Quokka's own light-world differentiation
+    // pass), same gradient underlay verbatim. A TIGHT, playful profile —
+    // 50px period, only 10px amplitude (ratio ~0.20: a sharp, close-set "V",
+    // not a lazy meander), a steep ~54° travel angle (echoes the old dot
+    // grid's own (0.7,0.7) diagonal), and the round's boldest density (0.60)
+    // — deliberately the loud pole of the two zigzag worlds so it never
+    // reads as a recolor of Gumtree's broader, quieter, shallower field
+    // below (distinct scale/profile/direction/contrast, all four dials).
+    background: Background::Zigzag {
         from: Srgb::rgb(0xFF, 0xDF, 0xCF),
         to: Srgb::rgb(0xFF, 0xD2, 0xBD),
         dir: (0.7, 0.7),
         tint: Srgb::rgb(0xE0, 0xAE, 0x92),
-        edge: false,
+        period_px: 50.0,
+        amplitude_px: 10.0,
+        angle: 0.95,
+        density: 0.60,
     },
     // ITEM 70 — Quokka becomes awl's deliberately playful printed-card world:
     // OFL Sour Gummy (google/fonts ofl/sourgummy; see `docs/fonts.md` +
@@ -672,29 +706,13 @@ pub const BOWERBIRD: Theme = Theme {
     // Curated: a headliner on ALL four — the crisp midnight dive reads clearly Night / Everyday / Modern / Cool.
     tags: ThemeTags { time: Some("Night"), register: Some("Everyday"), voice: Some("Modern"), temperature: Some("Cool") },
     role_overrides: RoleOverrides::NONE,
-    // ITEM 71 — Bowerbird ALONE assigns the woven printed-card texture: THREE
-    // nested, horizontally phase-offset triangle-wave ribbon tiers spanning
-    // the complete card-local field, quietest through the content-heavy
-    // vertical middle (`shaders/selection.wgsl`'s `jagged_wave_rolloff`) so
-    // the query line, candidate rows, muted/faint ink, hint chips and the
-    // selected-row band all stay legible. A broad 200×120 logical-px
-    // wavelength (never a fine repeating pitch) and a LOW 0.085 density
-    // ceiling keep the read as one quiet woven surface, not wallpaper — the
-    // implementer's first pick, captured for Fable's veto pass alongside a
-    // 2-tier and a quiet/medium contrast variant (not yet a graduated
-    // user sign-off, mirroring Quokka's own item 70 caveat). `card_shape`
-    // stays `Rectangular` — the wave is Bowerbird's own statement, never
-    // Quokka's chamfer.
-    render_caps: RenderCaps {
-        card_texture: CardTexture::JaggedWave {
-            tiers: 3,
-            period_x: 200.0,
-            period_y: 120.0,
-            amplitude: 46.0,
-            density: 0.085,
-        },
-        ..RenderCaps::DEFAULT
-    },
+    // ITEM 86 (light-worlds taste round) — Bowerbird's summoned cards RETURN
+    // to the plain flat treatment: item 71's woven `CardTexture::JaggedWave`
+    // (three nested triangle-wave ribbon tiers) is REMOVED from this world.
+    // Bowerbird was the variant's one assignee, so `JaggedWave` itself was
+    // retired from `theme::model::CardTexture`'s closed roster rather than
+    // left as a dead arm nothing constructs — see that type's own doc.
+    render_caps: RenderCaps::DEFAULT,
 };
 
 /// Currawong — a near-pure-black OLED world: the deepest base awl ships, planes

@@ -4134,6 +4134,9 @@ fn background_desc() -> BgDesc {
         tint: bg.tint().rgb_bytes(),
         edge: bg.edge(),
         angle: bg.angle(),
+        period_px: bg.period_px(),
+        amplitude_px: bg.amplitude_px(),
+        density: bg.density(),
     }
 }
 

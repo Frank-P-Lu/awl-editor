@@ -384,7 +384,17 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // `project.root`). Same `PathBuf|null` shape, same resolution (flag > config
 // > `~/notes`); only the key name changed, so a sidecar consumer keying off
 // the old name must update. Every other block is byte-unchanged.
-pub const SCHEMA_VERSION: u32 = 182;
+// `/183` — item 86 (light-worlds taste round): `page.background` gains a
+// third new tagged arm, `{ "kind": "zigzag", from, to, dir, tint, period_px,
+// amplitude_px, angle, density }` (a repeating chevron mark over a
+// gradient) — Gumtree's grass-bands ground and Quokka's dot ground both
+// move to this, each with its own distinct dials (see `Background::Zigzag`'s
+// doc). Bowerbird's `render_caps` also lost its item-71 `JaggedWave` card
+// texture (not sidecar-visible — `card_texture` was never reported here),
+// and Bilby's `page.background` colors nudge paler/less-peach (values only,
+// same tagged shape). Every OTHER world's `page.background` content is
+// byte-unchanged; only the schema string bumps.
+pub const SCHEMA_VERSION: u32 = 183;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
 pub fn schema_plain() -> String {

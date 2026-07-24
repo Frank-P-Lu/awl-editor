@@ -29,17 +29,25 @@ struct Globals {
     // stripe angle.
     dir: vec2<f32>,
     // Procedural margin ground: 0=plain gradient, 1=dots, 2=starfield,
-    // 3=pinstripe, 4=stripes, 5=bands, 6=waves. Matches `Background::shader_id`
-    // in src/theme/model.rs.
+    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag. Matches
+    // `Background::shader_id` in src/theme/model.rs.
     shader: u32,
     pad: u32,
     // Mark/band tint (LINEAR rgb; a is the max coverage of the marks/band). For
     // shader 5/6 (Bands/Waves) this is the MIDDLE of three authored tones —
     // `c_from`/`c_pat`/`c_to` read as tones 0/1/2 (see `bands_rgb`/`waves_rgb`).
+    // For shader 7 (Zigzag) this is the chevron mark's own tint, same role as
+    // Dots/Pinstripe's `tint`.
     c_pat: vec4<f32>,
-    // Per-ground params: params.x = Dots proximity flag (0/1), params.y = the
-    // Stripes/Bands angle (radians), .zw reserved. Both are 0 for every
-    // unchanged ground, so those grounds take their exact original code path.
+    // Per-ground params — the SAME four slots read with a DIFFERENT meaning
+    // per shader (exactly one ground is ever active at a time, so there is no
+    // real collision): params.x = Dots proximity flag (0/1) OR shader 7's
+    // chevron repeat wavelength `period_px` (item 86); params.y = the
+    // Stripes/Bands angle (radians) OR shader 7's own chevron travel angle;
+    // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
+    // shader 7's extra coverage multiplier `density`. All four are 0 for
+    // every ground this round didn't touch, so those grounds take their
+    // exact original code path.
     params: vec4<f32>,
 };
 
@@ -172,6 +180,39 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
             cov = max(cov, clamp(cross, 0.0, 1.0));
         }
         return cov;
+    }
+    // --- 7: ZIGZAG — a periodic chevron ("V") line mark, whisper-composited
+    // over the gradient like Dots/Pinstripe (item 86). Four independently
+    // authored dials (see `Background::Zigzag`'s own doc): `period` is the
+    // chevron's horizontal repeat wavelength (the SCALE/SPACING dial), `amp`
+    // its peak vertical excursion (the PROFILE dial — also derives the
+    // stroke's own thickness, so a broader profile draws a bolder line),
+    // `a` the direction the chevrons themselves travel (the DIRECTION dial,
+    // independent of the base gradient's own `dir`), and `dens` an extra
+    // per-world coverage multiplier (the CONTRAST dial) stacked with the
+    // shared `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
+    if (g.shader == 7u) {
+        let period = max(g.params.x, 1.0);
+        let a = g.params.y;
+        let amp = max(g.params.z, 0.0);
+        let dens = clamp(g.params.w, 0.0, 1.0);
+        let ca = cos(a);
+        let sa = sin(a);
+        // Rotate into the chevron's own travel frame: `rx` runs ALONG the
+        // travel direction (the triangle-wave meander axis), `ry` across it
+        // (the axis the "V" excursion is measured on).
+        let rx = px.x * ca + px.y * sa;
+        let ry = -px.x * sa + px.y * ca;
+        // A broad triangle wave of `rx` (period `period`), in [-1, 1] — the
+        // SAME fold `jagged_wave_band` (`shaders/selection.wgsl`, item 71,
+        // retired) used: `fract` + a fold gives the sharp "jagged" corners a
+        // chevron needs.
+        let tri = abs(fract(rx / period) * 2.0 - 1.0) * 2.0 - 1.0;
+        let center = tri * amp;
+        let d = abs(ry - center);
+        let thickness = max(amp * 0.10, 1.2);
+        let line = 1.0 - smoothstep(thickness * 0.6, thickness, d);
+        return line * dens;
     }
     // 0: plain gradient — no marks.
     return 0.0;
