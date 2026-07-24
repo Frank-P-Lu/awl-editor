@@ -672,7 +672,29 @@ pub const BOWERBIRD: Theme = Theme {
     // Curated: a headliner on ALL four — the crisp midnight dive reads clearly Night / Everyday / Modern / Cool.
     tags: ThemeTags { time: Some("Night"), register: Some("Everyday"), voice: Some("Modern"), temperature: Some("Cool") },
     role_overrides: RoleOverrides::NONE,
-    render_caps: RenderCaps::DEFAULT,
+    // ITEM 71 — Bowerbird ALONE assigns the woven printed-card texture: THREE
+    // nested, horizontally phase-offset triangle-wave ribbon tiers spanning
+    // the complete card-local field, quietest through the content-heavy
+    // vertical middle (`shaders/selection.wgsl`'s `jagged_wave_rolloff`) so
+    // the query line, candidate rows, muted/faint ink, hint chips and the
+    // selected-row band all stay legible. A broad 200×120 logical-px
+    // wavelength (never a fine repeating pitch) and a LOW 0.085 density
+    // ceiling keep the read as one quiet woven surface, not wallpaper — the
+    // implementer's first pick, captured for Fable's veto pass alongside a
+    // 2-tier and a quiet/medium contrast variant (not yet a graduated
+    // user sign-off, mirroring Quokka's own item 70 caveat). `card_shape`
+    // stays `Rectangular` — the wave is Bowerbird's own statement, never
+    // Quokka's chamfer.
+    render_caps: RenderCaps {
+        card_texture: CardTexture::JaggedWave {
+            tiers: 3,
+            period_x: 200.0,
+            period_y: 120.0,
+            amplitude: 46.0,
+            density: 0.085,
+        },
+        ..RenderCaps::DEFAULT
+    },
 };
 
 /// Currawong — a near-pure-black OLED world: the deepest base awl ships, planes
