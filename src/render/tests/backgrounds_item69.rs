@@ -1,9 +1,23 @@
-//! ITEM 69 — REAL-PIXEL proofs for Gumtree's grass-BANDS and Bombora's
-//! wave-TIERS: the two new [`crate::theme::Background`] variants
-//! (`Background::Bands` / `Background::Waves`) that replace Gumtree's uniform
-//! Dots grid and Bombora's static Starfield. Mirrors `dither.rs`'s pattern —
-//! drive `BackgroundPipeline` directly (the purest reachable seam, no text/
-//! markdown involved) and read the real GPU output back.
+//! ITEM 69 — REAL-PIXEL proofs for `Background::Bands` (three broad
+//! tone-on-tone diagonal bands) and Bombora's wave-TIERS
+//! (`Background::Waves`), the two grounds that replaced Gumtree's old
+//! uniform Dots grid and Bombora's static Starfield. Mirrors `dither.rs`'s
+//! pattern — drive `BackgroundPipeline` directly (the purest reachable seam,
+//! no text/markdown involved) and read the real GPU output back.
+//!
+//! **Post item-86 note:** Gumtree's OWN ground moved on again — from Bands
+//! to a repeating chevron `Background::Zigzag` (see `backgrounds_item86.rs`
+//! for that ground's own real-pixel laws) — so `Background::Bands` is now
+//! DORMANT reusable infrastructure with zero shipping worlds (exactly the
+//! "a feature may ship with zero worlds until one wants it" shape
+//! `theme::tests::every_world_has_a_valid_background` already documents for
+//! proximity Dots). The Bands-specific laws below still hold real value as
+//! REGRESSION coverage for that dormant variant, so rather than delete them
+//! they now drive an explicit literal `Background::Bands` value (Gumtree's
+//! OLD tones/angle, preserved verbatim) instead of reading a live world's
+//! `background` field — the geometry/continuity/determinism laws a variant
+//! must hold are about the SHAPE, never about which (if any) world currently
+//! wears it.
 //!
 //! Per the project tripwire (the sidecar is a STATE oracle, never an
 //! APPEARANCE oracle — it once reported a selected row that rendered fully
@@ -17,7 +31,7 @@
 use crate::background::BgDesc;
 use crate::theme;
 
-fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
+pub(super) fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
     pollster::block_on(async {
         let instance =
             wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
@@ -39,7 +53,7 @@ fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
 /// `render::background_desc` does for the live/headless renderer — one owner
 /// of the accessor call sequence, reused here so the test drives the exact
 /// same upload shape production code does.
-fn bg_desc_for(bg: theme::Background) -> BgDesc {
+pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
     BgDesc {
         from: bg.from().rgba_bytes(),
         to: bg.to().rgba_bytes(),
@@ -48,6 +62,9 @@ fn bg_desc_for(bg: theme::Background) -> BgDesc {
         tint: bg.tint().rgb_bytes(),
         edge: bg.edge(),
         angle: bg.angle(),
+        period_px: bg.period_px(),
+        amplitude_px: bg.amplitude_px(),
+        density: bg.density(),
     }
 }
 
@@ -56,7 +73,7 @@ fn bg_desc_for(bg: theme::Background) -> BgDesc {
 /// — the whole canvas is margin, the purest scan surface for the band/tier
 /// count laws). Mirrors `dither.rs::render_background`, generalized with the
 /// column params this file's continuity law needs.
-fn render_bg(
+pub(super) fn render_bg(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     desc: BgDesc,
@@ -124,12 +141,27 @@ fn runs(labels: &[usize]) -> Vec<usize> {
     out
 }
 
-fn gumtree_tones() -> [[u8; 4]; 3] {
-    match theme::GUMTREE.background {
+/// The DORMANT `Background::Bands` value under regression test here — Gumtree's
+/// OLD tones/angle (item 69, before item 86 moved Gumtree to `Zigzag`),
+/// preserved verbatim as a literal so this file's geometry laws keep proving
+/// the variant's own shape rather than a live world's current pick.
+fn bands_test_bg() -> theme::Background {
+    theme::Background::Bands {
+        tones: [
+            theme::Srgb::rgb(0xE4, 0xF8, 0xE2),
+            theme::Srgb::rgb(0xCF, 0xF3, 0xCC),
+            theme::Srgb::rgb(0xB7, 0xEF, 0xB4),
+        ],
+        angle: 0.56,
+    }
+}
+
+fn bands_tones() -> [[u8; 4]; 3] {
+    match bands_test_bg() {
         theme::Background::Bands { tones, .. } => {
             [tones[0].rgba_bytes(), tones[1].rgba_bytes(), tones[2].rgba_bytes()]
         }
-        _ => panic!("Gumtree must ship Background::Bands"),
+        _ => unreachable!(),
     }
 }
 
@@ -178,17 +210,17 @@ fn region_widths(pixels: &[[u8; 4]], w: u32, y: u32, tones: [[u8; 4]; 3]) -> [u3
 /// two transitions) — never more (a repeating stripe-tile) and never fewer (a
 /// degenerate flat fill).
 #[test]
-fn gumtree_canonical_mid_field_crosses_exactly_three_bands() {
+fn bands_canonical_mid_field_crosses_exactly_three_bands() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping gumtree_canonical_mid_field_crosses_exactly_three_bands: no wgpu adapter");
+        eprintln!("skipping bands_canonical_mid_field_crosses_exactly_three_bands: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
 
     let (w, h) = (crate::capture::CANVAS_WIDTH, crate::capture::CANVAS_HEIGHT);
-    let desc = bg_desc_for(theme::GUMTREE.background);
+    let desc = bg_desc_for(bands_test_bg());
     let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
-    let tones = gumtree_tones();
+    let tones = bands_tones();
 
     let seq = scan_row(&pixels, w, h / 2, tones);
     assert_eq!(seq.len(), 3, "expected exactly 3 bands crossed, got run sequence {seq:?}");
@@ -219,15 +251,15 @@ fn gumtree_canonical_mid_field_crosses_exactly_three_bands() {
 /// the boundary at a near-constant PIXEL offset, so its FRACTION would shrink
 /// as the canvas grows — the opposite of what a scaled field does).
 #[test]
-fn gumtree_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile() {
+fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping gumtree_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile: no wgpu adapter");
+        eprintln!("skipping bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
 
-    let desc = bg_desc_for(theme::GUMTREE.background);
-    let tones = gumtree_tones();
+    let desc = bg_desc_for(bands_test_bg());
+    let tones = bands_tones();
 
     let mut first_boundary_x = Vec::new();
     for side in [700u32, 1200, 1800] {
@@ -264,17 +296,17 @@ fn gumtree_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_t
 /// default window size silently degraded the whole grass-band idea to two
 /// flat tones even though the mid-field scanline still read as three bands.
 #[test]
-fn gumtree_canonical_margin_slivers_each_catch_a_band_edge() {
+fn bands_canonical_margin_slivers_each_catch_a_band_edge() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping gumtree_canonical_margin_slivers_each_catch_a_band_edge: no wgpu adapter");
+        eprintln!("skipping bands_canonical_margin_slivers_each_catch_a_band_edge: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
 
     let (w, h) = (crate::capture::CANVAS_WIDTH, crate::capture::CANVAS_HEIGHT);
-    let desc = bg_desc_for(theme::GUMTREE.background);
+    let desc = bg_desc_for(bands_test_bg());
     let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
-    let tones = gumtree_tones();
+    let tones = bands_tones();
 
     // A representative column near each edge, well inside a 16px margin
     // sliver (the same order of magnitude a page-mode margin actually is).
@@ -397,13 +429,13 @@ fn assert_left_right_continuity_through_the_page(bg: theme::Background, device: 
 }
 
 #[test]
-fn gumtree_bands_are_continuous_left_and_right_of_the_hidden_page() {
+fn bands_are_continuous_left_and_right_of_the_hidden_page() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping gumtree_bands_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter");
+        eprintln!("skipping bands_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
-    assert_left_right_continuity_through_the_page(theme::GUMTREE.background, &device, &queue);
+    assert_left_right_continuity_through_the_page(bands_test_bg(), &device, &queue);
 }
 
 #[test]
@@ -454,13 +486,13 @@ fn assert_boundary_scales_with_resolution(bg: theme::Background, tones: [[u8; 4]
 }
 
 #[test]
-fn gumtree_band_boundary_scales_proportionally_with_physical_resolution() {
+fn bands_boundary_scales_proportionally_with_physical_resolution() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping gumtree_band_boundary_scales_proportionally_with_physical_resolution: no wgpu adapter");
+        eprintln!("skipping bands_boundary_scales_proportionally_with_physical_resolution: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
-    assert_boundary_scales_with_resolution(theme::GUMTREE.background, gumtree_tones(), &device, &queue, false);
+    assert_boundary_scales_with_resolution(bands_test_bg(), bands_tones(), &device, &queue, false);
 }
 
 /// Bombora's tier BASELINE (the viewport-relative 1/3, 2/3 split) scales with
@@ -532,7 +564,7 @@ fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
     };
     let _g = crate::testlock::serial();
 
-    for bg in [theme::GUMTREE.background, theme::BOMBORA.background] {
+    for bg in [bands_test_bg(), theme::BOMBORA.background] {
         let desc = bg_desc_for(bg);
         let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0);
         let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0);
@@ -559,7 +591,9 @@ fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
 fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
     // Pins the EXACT roster of shader ids item 69 could plausibly have
     // disturbed, one line per world, so a future accidental edit to any of
-    // these worlds' `background` field fails HERE first.
+    // these worlds' `background` field fails HERE first. Quokka and Gumtree
+    // are EXCLUDED (item 86 moved both onto `Zigzag`, id 7 — asserted
+    // separately below, alongside Bombora's own item-69 id).
     let expected: &[(&str, u32)] = &[
         ("Potoroo", 4),   // Stripes — untouched
         ("Mulga", 2),     // Starfield — the sole remaining Starfield world
@@ -567,7 +601,6 @@ fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
         ("Bilby", 0),
         ("Magpie", 3),
         ("Saltpan", 3),
-        ("Quokka", 1),
         ("Galah", 0),
         ("Mopoke", 1),
         ("Bowerbird", 1),
@@ -582,7 +615,10 @@ fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
         let t = theme::THEMES.iter().find(|t| t.name == name).unwrap_or_else(|| panic!("world {name} not found"));
         assert_eq!(t.background.shader_id(), want, "{name}: shader id drifted");
     }
-    // And the two item-69 worlds carry their NEW ids, never the old ones.
-    assert_eq!(theme::GUMTREE.background.shader_id(), 5, "Gumtree must be Bands (5), not the old Dots (1)");
+    // The item-69 Waves world carries its NEW id, never the old Starfield one.
     assert_eq!(theme::BOMBORA.background.shader_id(), 6, "Bombora must be Waves (6), not the old Starfield (2)");
+    // The item-86 Zigzag worlds carry their NEW id, never their old ones
+    // (Quokka was Dots/1, Gumtree was Bands/5 — see `backgrounds_item86.rs`).
+    assert_eq!(theme::QUOKKA.background.shader_id(), 7, "Quokka must be Zigzag (7), not the old Dots (1)");
+    assert_eq!(theme::GUMTREE.background.shader_id(), 7, "Gumtree must be Zigzag (7), not Bands (5)");
 }

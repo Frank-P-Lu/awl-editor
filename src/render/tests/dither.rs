@@ -189,6 +189,9 @@ fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
         tint: [0, 0, 0],
         edge: false,
         angle: 0.0,
+        period_px: 0.0,
+        amplitude_px: 0.0,
+        density: 0.0,
     };
     let pixels = render_background(&device, &queue, desc, 64, 128);
     for (i, p) in pixels.iter().enumerate() {
@@ -223,6 +226,9 @@ fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_
         tint: [0, 0, 0],
         edge: false,
         angle: 0.0,
+        period_px: 0.0,
+        amplitude_px: 0.0,
+        density: 0.0,
     };
     let (w, h) = (48u32, 220u32);
     let pixels = render_background(&device, &queue, desc, w, h);

@@ -67,34 +67,12 @@ struct Globals {
     /// HALFTONE dot ink (item 70), LINEAR RGBA — derived Rust-side from the
     /// theme's own surface ladder (`theme::derive::card_texture_ink`), never
     /// a raw/amber literal. `[0.0; 4]` (construction default, fully
-    /// transparent) is a no-op paired with `halftone == 0.0`. SHARED with
-    /// the JAGGED-WAVE texture below (item 71) — the two textures are
-    /// mutually exclusive per world, so one derived ink field serves both.
+    /// transparent) is a no-op paired with `halftone == 0.0`. (Item 71 once
+    /// shared this field with a second, JAGGED-WAVE texture — Bowerbird's
+    /// own woven card identity — retired outright by item 86; `dot_color`
+    /// ends the struct at byte 64, already a multiple of the largest
+    /// member's 16-byte alignment, so no further tail padding is needed.)
     dot_color: [f32; 4],
-    /// JAGGED-WAVE density ceiling (item 71) — see `shaders/selection.wgsl`'s
-    /// `fs_main`: `0.0` (construction default) draws no wave texture. Every
-    /// pipeline but Bowerbird's card fill carries `0.0`.
-    wave: f32,
-    /// JAGGED-WAVE horizontal meander wavelength, PHYSICAL px (item 71).
-    wave_period_x: f32,
-    /// JAGGED-WAVE vertical tile spacing between ribbon repeats, PHYSICAL px
-    /// (item 71) — what fills the complete card-local field top-to-bottom.
-    wave_period_y: f32,
-    /// JAGGED-WAVE peak vertical excursion (amplitude), PHYSICAL px (item 71).
-    wave_amp: f32,
-    /// JAGGED-WAVE ribbon tier count (2.0 or 3.0), as a float so the shader's
-    /// fixed-3-iteration loop can compare it directly (item 71).
-    wave_tiers: f32,
-    /// TAIL padding: a WGSL uniform-address-space struct's own alignment is
-    /// its LARGEST member's alignment (`dot_color`'s `vec4<f32>`, 16 bytes),
-    /// and the struct's total SIZE must round up to a multiple of that
-    /// alignment — `wave_tiers` above lands the struct at byte 84, so naga
-    /// pads the WGSL type up to 96 automatically. This Rust struct has no
-    /// such implicit padding, so it must spell the same 12 bytes out by hand
-    /// (mirrors `_pad2`'s exact reasoning) — omitting it is a
-    /// `wgpu::Buffer` size mismatch (`bound with size 84 where the shader
-    /// expects 96`), not a silent misread.
-    _pad3: [f32; 3],
 }
 
 /// The selection render pipeline: an instanced quad draw, BEFORE the caret +
@@ -156,24 +134,10 @@ pub struct SelectionPipeline {
     halftone_cell: f32,
     /// HALFTONE dot ink (LINEAR RGBA) uploaded into `Globals::dot_color`
     /// (item 70) — set via [`Self::set_halftone`], always a theme-ladder
-    /// derived color (see that fn's doc). SHARED with [`Self::set_wave`]
-    /// (item 71) — the two textures are mutually exclusive per world.
+    /// derived color (see that fn's doc). (Item 71 once shared this field
+    /// with a second, JAGGED-WAVE texture via a `set_wave` sibling —
+    /// Bowerbird's own woven card identity — retired outright by item 86.)
     dot_color: [f32; 4],
-    /// JAGGED-WAVE density ceiling (item 71) uploaded into `Globals::wave`.
-    /// `0.0` (construction default) draws no wave texture — every pipeline
-    /// but Bowerbird's card fill.
-    wave: f32,
-    /// JAGGED-WAVE horizontal wavelength (PHYSICAL px) uploaded into
-    /// `Globals::wave_period_x` (item 71).
-    wave_period_x: f32,
-    /// JAGGED-WAVE vertical tile spacing (PHYSICAL px) uploaded into
-    /// `Globals::wave_period_y` (item 71).
-    wave_period_y: f32,
-    /// JAGGED-WAVE amplitude (PHYSICAL px) uploaded into `Globals::wave_amp`
-    /// (item 71).
-    wave_amp: f32,
-    /// JAGGED-WAVE tier count uploaded into `Globals::wave_tiers` (item 71).
-    wave_tiers: f32,
 }
 
 /// The ORIGINAL straight-alpha over-blend (`fs_main`'s non-dither path and
@@ -379,11 +343,6 @@ impl SelectionPipeline {
             halftone_angle: 0.0,
             halftone_cell: 6.0,
             dot_color: [0.0; 4],
-            wave: 0.0,
-            wave_period_x: 1.0,
-            wave_period_y: 1.0,
-            wave_amp: 0.0,
-            wave_tiers: 0.0,
         }
     }
 
@@ -493,45 +452,6 @@ impl SelectionPipeline {
         self.halftone
     }
 
-    /// Set the JAGGED-WAVE texture (item 71) the NEXT `prepare` uploads into
-    /// `Globals::wave`/`wave_period_x`/`wave_period_y`/`wave_amp`/
-    /// `wave_tiers`. `density <= 0.0` disables the texture entirely
-    /// (`Globals::wave` stays `0.0`, `fs_main`'s composite is skipped
-    /// outright — byte-identical to a pipeline that never calls this, the
-    /// default every pipeline but Bowerbird's card FILL carries). `ink`
-    /// MUST already be a theme-ladder derived sRGBA color (the SAME
-    /// `theme::derive::card_texture_ink` [`Self::set_halftone`] uses) — this
-    /// setter does no derivation of its own. Mutually exclusive with
-    /// [`Self::set_halftone`] in practice (a world assigns at most one
-    /// `CardTexture` variant), but nothing here enforces that — the caller
-    /// (`render::chrome::card_shape_texture`) always sets the OTHER texture
-    /// to its own `0.0`-density off state first.
-    #[allow(clippy::too_many_arguments)]
-    pub fn set_wave(
-        &mut self,
-        density: f32,
-        period_x_px: f32,
-        period_y_px: f32,
-        amp_px: f32,
-        tiers: f32,
-        ink: [u8; 4],
-    ) {
-        self.wave = density.clamp(0.0, 1.0);
-        self.wave_period_x = period_x_px.max(1.0);
-        self.wave_period_y = period_y_px.max(1.0);
-        self.wave_amp = amp_px.max(0.0);
-        self.wave_tiers = tiers.max(0.0);
-        self.dot_color = srgba_u8_to_linear(ink);
-    }
-
-    /// The current JAGGED-WAVE density ceiling (`0.0` = off). A cheap
-    /// headless assertion hook mirroring [`Self::halftone`] (used by the
-    /// render tests; no non-test caller in the shipping binary).
-    #[allow(dead_code)]
-    pub fn wave(&self) -> f32 {
-        self.wave
-    }
-
     /// How many quad instances the last `prepare` uploaded (0 = nothing drawn). A cheap
     /// headless assertion hook for "is this summoned rect present this frame?" (used by
     /// the render tests; no non-test caller in the shipping binary).
@@ -624,12 +544,6 @@ impl SelectionPipeline {
             halftone_cell: self.halftone_cell,
             _pad2: [0.0; 2],
             dot_color: self.dot_color,
-            wave: self.wave,
-            wave_period_x: self.wave_period_x,
-            wave_period_y: self.wave_period_y,
-            wave_amp: self.wave_amp,
-            wave_tiers: self.wave_tiers,
-            _pad3: [0.0; 3],
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
 
@@ -676,12 +590,6 @@ impl SelectionPipeline {
             halftone_cell: self.halftone_cell,
             _pad2: [0.0; 2],
             dot_color: self.dot_color,
-            wave: self.wave,
-            wave_period_x: self.wave_period_x,
-            wave_period_y: self.wave_period_y,
-            wave_amp: self.wave_amp,
-            wave_tiers: self.wave_tiers,
-            _pad3: [0.0; 3],
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
 

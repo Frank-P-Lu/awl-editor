@@ -913,10 +913,13 @@ pub struct RenderCaps {
     /// `faint`/`muted` ladder rungs) on every world; only a `Background::Lava`
     /// world's own glow-lit writing column needs a lift, dialed per-world here.
     pub fold_afford: FoldAfford,
-    /// ITEM 70/71's PRINTED-CARD dial: see [`CardTexture`]'s own doc.
+    /// ITEM 70's PRINTED-CARD dial: see [`CardTexture`]'s own doc.
     /// [`CardTexture::DEFAULT`] (`Flat`, byte-identical) on every world but
-    /// Quokka (`HalftoneDots`) and Bowerbird (`JaggedWave`), each dialing
-    /// their own card fill as one-line DATA.
+    /// Quokka (`HalftoneDots`), dialing its own card fill as one-line DATA.
+    /// (Bowerbird's `JaggedWave` sibling — item 71 — was RETIRED by item 86's
+    /// taste round: Bowerbird's summoned cards returned to the plain flat
+    /// treatment, and with zero remaining assignees the variant itself was
+    /// cut, keeping this closed roster exhaustive and dead-arm-free.)
     pub card_texture: CardTexture,
     /// ITEM 70's PRINTED-CARD dial: see [`CardShape`]'s own doc.
     /// [`CardShape::DEFAULT`] (`Rectangular`, byte-identical) on every world
@@ -1013,29 +1016,30 @@ impl FoldAfford {
     pub const DEFAULT: FoldAfford = FoldAfford { chevron_lift: 0.0, tail_lift: 0.0 };
 }
 
-/// ITEM 70's PRINTED-CARD capability (extended by item 71): what material a
-/// [`ListBacking::Card`] surface's FILL draws over its flat color. `Flat`
-/// (byte-identical to before this field existed) on every world but Quokka
-/// and Bowerbird. `HalftoneDots` lays a small rotated dot lattice over the
-/// fill, strongest at the card's far/right decorative side and rolling off
-/// before the left-aligned content-heavy side — Quokka's own printed-card
-/// identity. `JaggedWave` (item 71) lays TWO or THREE broad, horizontally
-/// phase-offset triangle-wave ribbon tiers across the COMPLETE card-local
-/// field, quietest through the content-heavy vertical middle and strongest
-/// near the card's own top/bottom edge — Bowerbird's own woven identity.
-/// Neither texture ever composites on the border/shadow surfaces, only the
-/// fill (the ONE render consumer is
-/// `render::chrome::mod::prepare_panel_card_elevation` + the spell-popup
-/// card arm, gated on [`ListBacking::Card`] alone — never a world-name
-/// branch, the `theme_caps_law` grep-law bans one under `src/render/`). The
-/// texture's own INK is never carried here: it is DERIVED at render time
-/// from the theme's own surface ladder
-/// ([`crate::theme::derive::card_texture_ink`]) — shared by BOTH variants —
-/// this struct only carries geometry/intensity, never a color, so "raw
-/// color / amber" is structurally unreachable from this cap alone.
+/// ITEM 70's PRINTED-CARD capability: what material a [`ListBacking::Card`]
+/// surface's FILL draws over its flat color. `Flat` (byte-identical to
+/// before this field existed) on every world but Quokka. `HalftoneDots` lays
+/// a small rotated dot lattice over the fill, strongest at the card's
+/// far/right decorative side and rolling off before the left-aligned
+/// content-heavy side — Quokka's own printed-card identity. The texture
+/// never composites on the border/shadow surfaces, only the fill (the ONE
+/// render consumer is `render::chrome::mod::prepare_panel_card_elevation` +
+/// the spell-popup card arm, gated on [`ListBacking::Card`] alone — never a
+/// world-name branch, the `theme_caps_law` grep-law bans one under
+/// `src/render/`). The texture's own INK is never carried here: it is
+/// DERIVED at render time from the theme's own surface ladder
+/// ([`crate::theme::derive::card_texture_ink`]) — this struct only carries
+/// geometry/intensity, never a color, so "raw color / amber" is
+/// structurally unreachable from this cap alone.
+///
+/// (item 71 added a SECOND variant, `JaggedWave` — Bowerbird's own woven
+/// card identity, a woven triangle-wave ribbon field. Item 86's light-worlds
+/// taste round returned Bowerbird's cards to the plain flat treatment; with
+/// zero remaining assignees the variant was retired outright rather than
+/// left as a dead arm — see `git log -p` for its removed shape.)
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CardTexture {
-    /// No texture — the plain flat fill. Every world but Quokka/Bowerbird.
+    /// No texture — the plain flat fill. Every world but Quokka.
     Flat,
     /// A rotated dot lattice (item 70, Quokka's printed-card identity).
     HalftoneDots {
@@ -1048,38 +1052,18 @@ pub enum CardTexture {
         /// composites at, at full coverage + full rolloff.
         density: f32,
     },
-    /// TWO or THREE nested, horizontally phase-offset triangle-wave ribbon
-    /// tiers (item 71, Bowerbird's woven printed-card identity) — see
-    /// `shaders/selection.wgsl`'s `jagged_wave_coverage`. Sampled at the
-    /// ABSOLUTE canvas pixel (like `HalftoneDots`), so a Split Pane's two
-    /// surfaces share one continuous woven field across the open gap.
-    JaggedWave {
-        /// Ribbon tier count: 2 or 3 — each an identical wave shape offset
-        /// in horizontal PHASE by `period_x / tiers`, so the nested tiers
-        /// interleave into one woven surface instead of stacking in
-        /// registration.
-        tiers: u8,
-        /// The ribbon's horizontal meander wavelength, LOGICAL px — BROAD
-        /// (several hundred), never a fine repeating pitch (the "not tiny
-        /// repeating zigzag wallpaper" spec).
-        period_x: f32,
-        /// The vertical spacing between tiled ribbon repeats, LOGICAL px —
-        /// what makes the pattern fill the COMPLETE card-local field
-        /// top-to-bottom, not just a thin band.
-        period_y: f32,
-        /// The ribbon's peak vertical excursion (amplitude), LOGICAL px.
-        amplitude: f32,
-        /// Overall ink-intensity ceiling `[0,1]`, at full coverage + full
-        /// rolloff — kept LOW (quiet) relative to `HalftoneDots`' density,
-        /// since the wave's coverage AREA is far larger than the dots'
-        /// sparse lattice.
-        density: f32,
-    },
 }
 
 impl CardTexture {
-    /// `Flat` — every world but Quokka/Bowerbird, byte-identical to before
-    /// this cap existed (zero shader branches taken, zero extra draw work).
+    /// `Flat` — every world but Quokka, byte-identical to before this cap
+    /// existed (zero shader branches taken, zero extra draw work).
+    ///
+    /// (item 71's `JaggedWave` — Bowerbird's own woven card identity — was
+    /// RETIRED by item 86: Bowerbird's summoned cards returned to this plain
+    /// flat treatment, and with the variant's one assignee gone it was cut
+    /// outright rather than left as a dead arm nothing constructs. See
+    /// `git log -p` on this file for the removed shape if a future world
+    /// wants to reintroduce a woven texture.)
     pub const DEFAULT: CardTexture = CardTexture::Flat;
 }
 
@@ -1276,6 +1260,41 @@ pub enum Background {
     /// `shaders/background.wgsl`'s `waves_rgb`). Reusable data: any world may
     /// pick `Waves`, not just Bombora.
     Waves { tones: [Srgb; 3] },
+    /// A repeating chevron ("V") line MARK over the gradient (item 86) —
+    /// unlike `Bands`/`Waves` (which compute the field's final color
+    /// directly, no gradient underneath), `Zigzag` is a whisper-mark ground
+    /// in the SAME family as `Dots`/`Pinstripe`/`Starfield`: `from`/`to`/`dir`
+    /// still drive a base gradient, and the chevron composites over it at
+    /// low coverage through the shared `pattern_coverage` pipeline (never a
+    /// separate final-color branch). Four independently-authored dials let
+    /// two worlds sharing this ONE variant read as separately designed
+    /// fields rather than a recolor of one asset:
+    /// - `period_px` — the chevron's horizontal repeat wavelength: the
+    ///   SCALE/SPACING dial (device px — this ground family carries no DPI
+    ///   uniform, matching `Dots`' fixed 24px cell's own unscaled
+    ///   convention).
+    /// - `amplitude_px` — the "V"'s peak vertical excursion: the PROFILE
+    ///   dial (a small amplitude relative to `period_px` reads as a tight,
+    ///   sharp zigzag; a large one reads as a broad, lazy meander — the
+    ///   stroke's own thickness is derived from this, so a broader profile
+    ///   also draws a bolder line).
+    /// - `angle` (radians) — the direction the chevrons themselves travel
+    ///   (0 = vertical chevrons meandering left-right as y increases): the
+    ///   DIRECTION dial, independent of the underlying gradient's own `dir`.
+    /// - `density` `[0,1]` — an extra per-world multiplier on the mark's own
+    ///   coverage (stacked with the shared `PATTERN_MAX_COVERAGE` ceiling
+    ///   every whisper-mark ground already carries): the CONTRAST dial —
+    ///   quieter worlds dial this down.
+    Zigzag {
+        from: Srgb,
+        to: Srgb,
+        dir: (f32, f32),
+        tint: Srgb,
+        period_px: f32,
+        amplitude_px: f32,
+        angle: f32,
+        density: f32,
+    },
 }
 
 /// The [`Background::Lava`] margin-boundary treatment — how the metaball field
@@ -1332,6 +1351,7 @@ impl Background {
             Background::Lava { .. } => 0,
             Background::Bands { .. } => 5,
             Background::Waves { .. } => 6,
+            Background::Zigzag { .. } => 7,
         }
     }
     /// Lowercase variant name for the capture sidecar.
@@ -1345,6 +1365,7 @@ impl Background {
             Background::Lava { .. } => "lava",
             Background::Bands { .. } => "bands",
             Background::Waves { .. } => "waves",
+            Background::Zigzag { .. } => "zigzag",
         }
     }
     /// Gradient START endpoint. For [`Background::Lava`] this is the margin
@@ -1355,7 +1376,8 @@ impl Background {
             | Background::Dots { from, .. }
             | Background::Starfield { from, .. }
             | Background::Pinstripe { from, .. }
-            | Background::Stripes { from, .. } => *from,
+            | Background::Stripes { from, .. }
+            | Background::Zigzag { from, .. } => *from,
             Background::Lava { ground, .. } => *ground,
             // BANDS/WAVES carry no gradient — `tones[0]` (the field's first
             // authored tone) fills the same "opaque margin-ground endpoint" slot
@@ -1373,7 +1395,8 @@ impl Background {
             | Background::Dots { to, .. }
             | Background::Starfield { to, .. }
             | Background::Pinstripe { to, .. }
-            | Background::Stripes { to, .. } => *to,
+            | Background::Stripes { to, .. }
+            | Background::Zigzag { to, .. } => *to,
             Background::Lava { ground, .. } => *ground,
             // The field's LAST authored tone — see `from()`'s doc. `tones[0] !=
             // tones[2]` on every shipping `Bands`/`Waves` world (the non-degenerate
@@ -1392,23 +1415,25 @@ impl Background {
             Background::Gradient { dir, .. }
             | Background::Dots { dir, .. }
             | Background::Starfield { dir, .. }
-            | Background::Pinstripe { dir, .. } => *dir,
+            | Background::Pinstripe { dir, .. }
+            | Background::Zigzag { dir, .. } => *dir,
             Background::Stripes { angle, .. } | Background::Bands { angle, .. } => {
                 (angle.cos(), angle.sin())
             }
             Background::Lava { .. } | Background::Waves { .. } => (0.0, 1.0),
         }
     }
-    /// The marks/band tint: the dot / star / pinstripe tint, or the stripe band.
-    /// A plain [`Background::Gradient`] has NO marks; it returns its `from`
-    /// endpoint as an inert placeholder (shader id 0 draws no marks). [`Background::Lava`]
-    /// likewise has no margin-ground marks (the metaballs are the lava layer's), so
-    /// it returns `ground`.
+    /// The marks/band tint: the dot / star / pinstripe / zigzag tint, or the
+    /// stripe band. A plain [`Background::Gradient`] has NO marks; it returns
+    /// its `from` endpoint as an inert placeholder (shader id 0 draws no
+    /// marks). [`Background::Lava`] likewise has no margin-ground marks (the
+    /// metaballs are the lava layer's), so it returns `ground`.
     pub fn tint(&self) -> Srgb {
         match self {
             Background::Dots { tint, .. }
             | Background::Starfield { tint, .. }
-            | Background::Pinstripe { tint, .. } => *tint,
+            | Background::Pinstripe { tint, .. }
+            | Background::Zigzag { tint, .. } => *tint,
             Background::Stripes { band, .. } => *band,
             Background::Gradient { from, .. } => *from,
             Background::Lava { ground, .. } => *ground,
@@ -1424,10 +1449,39 @@ impl Background {
     pub fn edge(&self) -> bool {
         matches!(self, Background::Dots { edge: true, .. })
     }
-    /// Stripe/Bands angle in radians (0 for every other ground).
+    /// Stripe/Bands angle, or [`Background::Zigzag`]'s own chevron travel
+    /// angle, in radians (0 for every other ground).
     pub fn angle(&self) -> f32 {
         match self {
-            Background::Stripes { angle, .. } | Background::Bands { angle, .. } => *angle,
+            Background::Stripes { angle, .. }
+            | Background::Bands { angle, .. }
+            | Background::Zigzag { angle, .. } => *angle,
+            _ => 0.0,
+        }
+    }
+    /// [`Background::Zigzag`]'s chevron repeat wavelength (device px) — the
+    /// SCALE/SPACING dial. `0.0` for every other ground.
+    pub fn period_px(&self) -> f32 {
+        match self {
+            Background::Zigzag { period_px, .. } => *period_px,
+            _ => 0.0,
+        }
+    }
+    /// [`Background::Zigzag`]'s chevron peak vertical excursion (device px)
+    /// — the PROFILE dial. `0.0` for every other ground.
+    pub fn amplitude_px(&self) -> f32 {
+        match self {
+            Background::Zigzag { amplitude_px, .. } => *amplitude_px,
+            _ => 0.0,
+        }
+    }
+    /// [`Background::Zigzag`]'s extra coverage multiplier `[0,1]` — the
+    /// CONTRAST dial, stacked with the shared whisper-mark coverage ceiling
+    /// every mark-family ground already carries. `0.0` for every other
+    /// ground (an inert no-op: those grounds never read this accessor).
+    pub fn density(&self) -> f32 {
+        match self {
+            Background::Zigzag { density, .. } => *density,
             _ => 0.0,
         }
     }

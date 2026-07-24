@@ -51,39 +51,17 @@ const DIFF_PANEL_BOTTOM: f32 = 14.0;
 /// dumb float-carrier, never re-deriving theme state itself. `None` (every
 /// non-Quokka card, every which-key/HUD/menu/popover/diff-panel float) draws
 /// no texture at all — `fs_main`'s `g.halftone` stays `0.0`.
+///
+/// (Item 71 added a sibling `CardWave`/`CardTextureDraw` wrapper enum for
+/// Bowerbird's own woven card texture; item 86 retired it — Bowerbird's
+/// cards returned to plain flat, so this is once again the ONE card
+/// texture, carried as a bare `Option` rather than a one-armed enum.)
 #[derive(Clone, Copy)]
 pub(in crate::render) struct CardHalftone {
     pub density: f32,
     pub angle_rad: f32,
     pub cell_px: f32,
     pub ink: [u8; 4],
-}
-
-/// ITEM 71's WOVEN printed-card texture (Bowerbird's own identity), resolved
-/// to PHYSICAL px + a concrete sRGBA ink — the exact sibling of
-/// [`CardHalftone`], built at the SAME one call site
-/// ([`TextPipeline::card_shape_texture`]). `None` (every non-Bowerbird card)
-/// draws no wave at all — `fs_main`'s `g.wave` stays `0.0`.
-#[derive(Clone, Copy)]
-pub(in crate::render) struct CardWave {
-    pub density: f32,
-    pub period_x_px: f32,
-    pub period_y_px: f32,
-    pub amp_px: f32,
-    pub tiers: f32,
-    pub ink: [u8; 4],
-}
-
-/// The ONE [`ListBacking::Card`] texture a world may draw over its fill —
-/// Quokka's dot lattice or Bowerbird's woven wave, mutually exclusive by
-/// construction (a [`theme::CardTexture`] is one enum, never both at once).
-/// [`set_float_quads_rects`] reads this instead of taking two separate
-/// `Option` parameters, so a caller can never accidentally pass BOTH a
-/// halftone and a wave for the same card.
-#[derive(Clone, Copy)]
-pub(in crate::render) enum CardTextureDraw {
-    Halftone(CardHalftone),
-    Wave(CardWave),
 }
 
 /// THE ONE CHAMFER NARROWING RULE (item 70): "narrow layouts reduce the
@@ -109,29 +87,6 @@ fn awl_card_caps_force() -> &'static Option<String> {
     static ONCE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| std::env::var("AWL_CARD_CAPS_FORCE").ok())
 }
-
-/// ITEM 71's DEV-ONLY GALLERY PROBE (mirrors [`awl_card_caps_force`]'s exact
-/// "total no-op unless set" contract): `AWL_WAVE_FORCE` stages Bowerbird's
-/// OWN authored `CardTexture::JaggedWave` dials down for the round's
-/// "2-tier / 3-tier × quiet / medium contrast" capture sequence, so each
-/// stage is a REAL render of the shipped mechanism (only `tiers`/`density`
-/// move) rather than a synthetic mockup. Recognized values: `"2q"`/`"2m"`
-/// (2 tiers, quiet/medium density) and `"3q"`/`"3m"` (3 tiers,
-/// quiet/medium). Unset (every normal run) or unrecognized is a no-op — the
-/// active world's own authored data renders untouched. Inert on every world
-/// but Bowerbird (only read when `caps.card_texture` is already
-/// `JaggedWave`, never invents the variant on a `Flat` world).
-fn awl_wave_force() -> &'static Option<String> {
-    static ONCE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| std::env::var("AWL_WAVE_FORCE").ok())
-}
-
-/// The two contrast poles [`awl_wave_force`]'s capture probe compares —
-/// "quiet" (Bowerbird's own shipped density) and "medium" (roughly 1.7× —
-/// still well under Quokka's 0.30 dot ceiling, since the wave's coverage
-/// AREA is far larger than the dots' sparse lattice).
-const WAVE_DENSITY_QUIET: f32 = 0.085;
-const WAVE_DENSITY_MEDIUM: f32 = 0.145;
 
 /// How much of the float trio draws around a summoned card's opaque fill — the
 /// ONE elevation vocabulary every [`set_float_quads`] caller names explicitly
@@ -197,7 +152,7 @@ fn set_float_quads(
     rect: Option<[f32; 4]>,
     elevation: FloatElevation,
     chamfer_px: f32,
-    texture: Option<CardTextureDraw>,
+    texture: Option<CardHalftone>,
 ) {
     // A single-rect float delegates to the multi-rect owner (SPLIT-PANE round);
     // `None` parks both border/card empty (an empty slice).
@@ -244,7 +199,7 @@ fn set_float_quads_rects(
     rects: &[[f32; 4]],
     elevation: FloatElevation,
     chamfer_px: f32,
-    texture: Option<CardTextureDraw>,
+    texture: Option<CardHalftone>,
 ) {
     // THE ONE SILHOUETTE (item 70): fill/border/shadow all share the SAME
     // chamfer, so their eight-edge boundaries trace identically even though
@@ -252,25 +207,9 @@ fn set_float_quads_rects(
     shadow.set_chamfer(chamfer_px);
     border.set_chamfer(chamfer_px);
     card.set_chamfer(chamfer_px);
-    // ITEM 71: the two card textures are mutually exclusive (one
-    // `CardTexture` enum per world), but `SelectionPipeline` carries both
-    // setters independently — always turn the OTHER one off first, then
-    // (if requested) turn the real one on, so `dot_color` (shared by both)
-    // ends the call holding whichever texture is actually active, never a
-    // stale value from a previous frame's different active world.
     match texture {
-        Some(CardTextureDraw::Halftone(t)) => {
-            card.set_wave(0.0, 1.0, 1.0, 0.0, 0.0, [0; 4]);
-            card.set_halftone(t.density, t.angle_rad, t.cell_px, t.ink);
-        }
-        Some(CardTextureDraw::Wave(w)) => {
-            card.set_halftone(0.0, 0.0, 1.0, [0; 4]);
-            card.set_wave(w.density, w.period_x_px, w.period_y_px, w.amp_px, w.tiers, w.ink);
-        }
-        None => {
-            card.set_halftone(0.0, 0.0, 1.0, [0; 4]);
-            card.set_wave(0.0, 1.0, 1.0, 0.0, 0.0, [0; 4]);
-        }
+        Some(t) => card.set_halftone(t.density, t.angle_rad, t.cell_px, t.ink),
+        None => card.set_halftone(0.0, 0.0, 1.0, [0; 4]),
     }
     // RETIRED (dark-depth Option C, 2026-07-22): the shadow quad never
     // uploads an instance any more — see `FloatElevation`'s doc. Parked once,
@@ -597,7 +536,7 @@ impl TextPipeline {
         rect: Option<[f32; 4]>,
         elevation: FloatElevation,
         chamfer_px: f32,
-        texture: Option<CardTextureDraw>,
+        texture: Option<CardHalftone>,
     ) {
         set_float_quads(
             &mut self.float_shadow,
@@ -764,21 +703,19 @@ impl TextPipeline {
         );
     }
 
-    /// ITEM 70/71's ONE RESOLVER — the active world's `render_caps.card_shape`/
-    /// `card_texture` (`RenderCaps::DEFAULT` on every world but Quokka and
-    /// Bowerbird), converted from the AUTHORED logical dials into the
-    /// PHYSICAL px this frame's `SelectionPipeline` calls want: the chamfer
-    /// scales by DPI then narrows to the smallest of `rects`
-    /// ([`narrowed_chamfer_px`]); the texture's own geometry (dot cell, or
-    /// wave period/amplitude) scales by DPI and its ink is derived fresh
-    /// from the theme ladder ([`theme::card_texture_ink`]) — shared by BOTH
-    /// texture kinds, never cached, so a live theme switch re-derives it for
-    /// free. Read by BOTH
-    /// `prepare_panel_card_elevation` (the plain Pane picker) and
+    /// ITEM 70's ONE RESOLVER — the active world's `render_caps.card_shape`/
+    /// `card_texture` (`RenderCaps::DEFAULT` on every world but Quokka),
+    /// converted from the AUTHORED logical dials into the PHYSICAL px this
+    /// frame's `SelectionPipeline` calls want: the chamfer scales by DPI
+    /// then narrows to the smallest of `rects` ([`narrowed_chamfer_px`]);
+    /// the dot texture's own geometry (cell size) scales by DPI and its ink
+    /// is derived fresh from the theme ladder ([`theme::card_texture_ink`]),
+    /// never cached, so a live theme switch re-derives it for free. Read by
+    /// BOTH `prepare_panel_card_elevation` (the plain Pane picker) and
     /// `overlay_draw_card`'s SPELL-popup arm (Quokka's "small card popup") —
     /// the ONE owner so the two `ListBacking::Card` call sites can never
     /// disagree on the card's own silhouette/texture.
-    pub(super) fn card_shape_texture(&self, rects: &[[f32; 4]]) -> (f32, Option<CardTextureDraw>) {
+    pub(super) fn card_shape_texture(&self, rects: &[[f32; 4]]) -> (f32, Option<CardHalftone>) {
         let mut caps = theme::active().render_caps;
         // DEV-ONLY GALLERY PROBE (mirrors `AWL_CJK_FORCE`'s "total no-op unless
         // set" contract — no config key, no CLI flag): `AWL_CARD_CAPS_FORCE`
@@ -813,47 +750,14 @@ impl TextPipeline {
                     .max(0.0)
             }
         };
-        // ITEM 71's DEV-ONLY GALLERY PROBE — see `awl_wave_force`'s own doc.
-        // Only ever touches `caps.card_texture` when it is ALREADY
-        // `JaggedWave` (Bowerbird's own data) — never invents the variant on
-        // a `Flat` world, mirroring `AWL_CARD_CAPS_FORCE`'s "stage the
-        // world's own shipped mechanism down" contract.
-        if let theme::CardTexture::JaggedWave { tiers, period_x, period_y, amplitude, density } =
-            caps.card_texture
-        {
-            if let Some(force) = awl_wave_force() {
-                let (tiers, density) = match force.as_str() {
-                    "2q" => (2, WAVE_DENSITY_QUIET),
-                    "2m" => (2, WAVE_DENSITY_MEDIUM),
-                    "3q" => (3, WAVE_DENSITY_QUIET),
-                    "3m" => (3, WAVE_DENSITY_MEDIUM),
-                    _ => (tiers, density),
-                };
-                caps.card_texture =
-                    theme::CardTexture::JaggedWave { tiers, period_x, period_y, amplitude, density };
-            }
-        }
         let texture = match caps.card_texture {
             theme::CardTexture::Flat => None,
-            theme::CardTexture::HalftoneDots { angle_deg, cell_px, density } => {
-                Some(CardTextureDraw::Halftone(CardHalftone {
-                    density,
-                    angle_rad: angle_deg.to_radians(),
-                    cell_px: cell_px * self.dpi.max(1.0),
-                    ink: theme::card_texture_ink().rgba_bytes(),
-                }))
-            }
-            theme::CardTexture::JaggedWave { tiers, period_x, period_y, amplitude, density } => {
-                let dpi = self.dpi.max(1.0);
-                Some(CardTextureDraw::Wave(CardWave {
-                    density,
-                    period_x_px: period_x * dpi,
-                    period_y_px: period_y * dpi,
-                    amp_px: amplitude * dpi,
-                    tiers: tiers as f32,
-                    ink: theme::card_texture_ink().rgba_bytes(),
-                }))
-            }
+            theme::CardTexture::HalftoneDots { angle_deg, cell_px, density } => Some(CardHalftone {
+                density,
+                angle_rad: angle_deg.to_radians(),
+                cell_px: cell_px * self.dpi.max(1.0),
+                ink: theme::card_texture_ink().rgba_bytes(),
+            }),
         };
         (chamfer_px, texture)
     }

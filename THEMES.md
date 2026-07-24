@@ -44,10 +44,21 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   DESIGN.md §3's ambient-motion amendment. Item 69 (2026-07) added two more
   reusable static grounds authored as three-tone FIELDS, not whisper-marks: **`Bands`**
   (three broad tone-on-tone diagonal bands spanning the whole margin — Gumtree's
-  cut-paper grass) and **`Waves`** (three stacked, non-overlapping, phase-offset
-  scalloped wave tiers — Bombora's swell). Both compute their final color directly
-  from three world-supplied tones (the ground ladder itself) rather than mixing a
-  low-coverage mark over a two-color gradient.
+  ORIGINAL cut-paper grass, since retired — see below) and **`Waves`** (three
+  stacked, non-overlapping, phase-offset scalloped wave tiers — Bombora's
+  swell). Both compute their final color directly from three world-supplied
+  tones (the ground ladder itself) rather than mixing a low-coverage mark
+  over a two-color gradient. Item 86 (2026-07, the light-worlds taste round)
+  added a ninth ground, **`Zigzag`** — a repeating chevron ("V") whisper-MARK
+  over the gradient, back in the `Dots`/`Pinstripe`/`Starfield` family rather
+  than `Bands`/`Waves`' own final-color shape. Quokka's dot grid AND
+  Gumtree's `Bands` field both moved here, each with FOUR independently
+  authored dials (repeat wavelength, peak excursion, travel angle, an extra
+  coverage multiplier) so the two worlds' fields read as separately designed,
+  not a recolor of one asset — Quokka's is tight/steep/bold (50px period, 10px
+  amplitude, ~54°, density 0.60), Gumtree's is broad/shallow/quiet (190px
+  period, 60px amplitude, ~15°, density 0.20). `Bands` is now DORMANT
+  reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
 - **A CJK fallback** matched to its character: serif worlds get the mincho list,
   sans/mono worlds get the gothic list (`cjk_fallback_matches_world_character`).
   Generalized to a per-script `FontId` ladder (ja/zh-Hans/zh-Hant/ko) by the

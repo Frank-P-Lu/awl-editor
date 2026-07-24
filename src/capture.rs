@@ -377,7 +377,17 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // same "report the world's own authored data verbatim" shape as every other
 // arm (mirrors `/168`'s Lava bump). Every OTHER world's `page.background`
 // content is byte-unchanged; only the schema string bumps.
-pub const SCHEMA_VERSION: u32 = 181;
+// `/182` — item 86 (light-worlds taste round): `page.background` gains a
+// third new tagged arm, `{ "kind": "zigzag", from, to, dir, tint, period_px,
+// amplitude_px, angle, density }` (a repeating chevron mark over a
+// gradient) — Gumtree's grass-bands ground and Quokka's dot ground both
+// move to this, each with its own distinct dials (see `Background::Zigzag`'s
+// doc). Bowerbird's `render_caps` also lost its item-71 `JaggedWave` card
+// texture (not sidecar-visible — `card_texture` was never reported here),
+// and Bilby's `page.background` colors nudge paler/less-peach (values only,
+// same tagged shape). Every OTHER world's `page.background` content is
+// byte-unchanged; only the schema string bumps.
+pub const SCHEMA_VERSION: u32 = 182;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
 pub fn schema_plain() -> String {
