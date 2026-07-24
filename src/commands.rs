@@ -203,7 +203,6 @@ static COMMAND_SEED: &[Command] = &[
     // `Action` (unlike the `writing_nits` sentinel below), so it is unambiguous
     // through `RunAction` and independently rebindable via `[keys]`.
     Command { name: "Toggle spellcheck", action: Action::ToggleSpellcheck, native: "",     emacs: ""        , native_only: false, web_only: false },
-    Command { name: "Toggle hidden files", action: Action::ToggleHiddenFiles, native: "", emacs: ""  , native_only: false, web_only: false },
     Command { name: "Toggle caret style", action: Action::ToggleCaretMode, native: "",       emacs: ""        , native_only: false, web_only: false },
     Command { name: "Toggle page mode",  action: Action::TogglePageMode,  native: "",        emacs: ""        , native_only: false, web_only: false },
     // TOGGLE WRITING NITS: the quiet mechanical-typo underline highlighter (default
@@ -1121,7 +1120,7 @@ pub fn visible_hidden_mask(has_waiter: bool) -> Vec<bool> {
 /// This is the BELT to `visible`'s BRACES: even if a chord is still configured/rebound
 /// to fire a hidden command, or a stray `Effect::RunAction` re-dispatch names one
 /// directly, this stops the actual mutation — hiding a picker row alone is not enough
-/// (a keymap chord bypasses the picker entirely). Cheap: at most `COMMANDS.len()` (60)
+/// (a keymap chord bypasses the picker entirely). Cheap: at most `COMMANDS.len()` (59)
 /// enum comparisons, no allocation. (Was a Native short-circuit before `web_only`
 /// existed — now a plain `available_on` lookup on both platforms, since a `web_only`
 /// row must actually be gated on Native too.)

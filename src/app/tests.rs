@@ -7,6 +7,7 @@ mod common;
 mod files;
 mod history;
 mod lifecycle;
+mod openable;
 mod source_audit;
 mod spell;
 mod which_key;

@@ -69,22 +69,33 @@ impl OverlayState {
         // valid. A no-op (no row ever carries the tag) for every kind but the
         // Command palette.
         ranked.retain(|&i| !matches!(self.rows.get(i).map(|r| &r.meta), Some(RowMeta::CommandHidden)));
-        // DOTFILE DISPLAY FILTER (file pickers only, gated on `show_hidden`): drop any
-        // corpus entry whose basename / ancestor component starts with `.` (except
-        // `.env*`). The full corpus is untouched — this is purely what's SHOWN — so
-        // flipping `show_hidden` and re-running `refilter` reveals them with no
-        // filesystem re-read. A no-op for non-file pickers (theme/command/…) and when
-        // dotfiles are revealed.
+        // FILE VISIBILITY (item 77 — file pickers only, gated on the ONE sticky
+        // process global `crate::file_visibility::all_on`): Text (the default)
+        // drops any corpus entry whose basename / ancestor component starts with
+        // `.` (except `.env*`) AND any BROWSE row already marked unsupported
+        // (`OverlayRow::secondary` carries the type label — see
+        // `overlay::build::browse_level`); All reveals both. The full corpus is
+        // untouched — this is purely what's SHOWN — so flipping the setting and
+        // re-running `refilter` reveals/re-hides them with no filesystem re-read.
+        // A no-op for non-file pickers (theme/command/…).
         // The Project explorer's synthetic "." accept-this-folder row is EXEMPT — it is
-        // the "pick THIS folder" affordance, not a dotfile — so it survives the filter
-        // (and is never revealed/re-hidden by the toggle either). Go-to HEADING rows are
-        // likewise exempt (a heading title is prose, not a dotfile path).
-        if !self.show_hidden && self.kind.hides_dotfiles() {
+        // the "pick THIS folder" affordance, not a dotfile — so it survives the filter.
+        // Go-to HEADING rows are likewise exempt (a heading title is prose, not a
+        // dotfile path).
+        if !crate::file_visibility::all_on() && self.kind.hides_dotfiles() {
             ranked.retain(|&i| {
                 self.rows[i].accept == "."
                     || matches!(self.rows[i].meta, RowMeta::GotoHeading { .. })
                     || !crate::index::is_hidden_entry(&self.rows[i].accept)
             });
+            // UNSUPPORTED FILES (Browse only — see `browse_level`'s doc for why
+            // this classification is scoped to one directory level, not the
+            // whole project): a non-empty `secondary` on a FILE row IS the
+            // type label `browse_level` stamped, so its presence alone marks
+            // the row unsupported — Browse never otherwise sets `secondary`.
+            if self.kind == OverlayKind::Browse {
+                ranked.retain(|&i| self.rows[i].is_dir || self.rows[i].secondary.is_empty());
+            }
         }
         // HEADINGS-LENS GATE (Go-to only): a REFINEMENT lens other than Headings
         // (Recent / This folder) still lists files only — the appended document-
@@ -206,24 +217,6 @@ impl OverlayState {
     /// ITEM 10 — word MOTION left, the mirror of [`Self::query_word_right`].
     pub fn query_word_left(&mut self) {
         self.query.word_left();
-    }
-
-    /// Cmd-Shift-. : REVEAL / re-hide dot-prefixed entries in THIS file picker (the
-    /// Finder "show hidden files" convention). Flips `show_hidden` and re-runs the
-    /// display filter (`refilter`) so the listing rebuilds with dotfiles shown/hidden
-    /// — no filesystem re-read (the corpus already holds every entry). Resets the
-    /// selection to the top (the row set changed under it). A calm NO-OP for a
-    /// non-file picker (theme/command/…): those don't hide dotfiles, so there is
-    /// nothing to reveal. Returns whether the flag actually flipped.
-    pub fn toggle_hidden(&mut self) -> bool {
-        if !self.kind.hides_dotfiles() {
-            return false;
-        }
-        self.show_hidden = !self.show_hidden;
-        self.selected = 0;
-        self.scroll = 0;
-        self.refilter();
-        true
     }
 
     /// The per-kind visible ROW CAP (delegates to [`OverlayKind::window_rows`], the ONE

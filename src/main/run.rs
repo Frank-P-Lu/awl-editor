@@ -1190,7 +1190,11 @@ pub(crate) fn overlay_capture_info(
         preview_id: preview.map(|(id, _, _)| id),
         diff_focus: ov.diff_focus,
         diff_scroll: ov.diff_scroll,
-        show_hidden: ov.show_hidden,
+        // ITEM 77: `OverlayState::show_hidden` (a per-picker field) is retired —
+        // this now mirrors the sticky `file_visibility` global, but ONLY for a
+        // file-picker kind, so a non-file picker (Theme/Settings/…) still
+        // reports `false` unconditionally, exactly like before.
+        show_hidden: ov.kind.hides_dotfiles() && crate::file_visibility::all_on(),
         capture: ov.capture.as_ref().map(|c| capture::CaptureInfo {
             command: c.cmd_name.clone(),
             stage: match c.stage {
@@ -2505,10 +2509,15 @@ mod tests {
     }
 
     #[test]
-    fn replay_keys_goto_hides_dotfiles_until_cmd_shift_period() {
-        // The go-to picker HIDES dot-prefixed corpus entries by default; Cmd-Shift-.
-        // (headless `s-S-.`) reveals them. Drive it end-to-end through the real
-        // keymap + apply_core, asserting the overlay listing at each phase.
+    fn replay_keys_goto_hides_dotfiles_until_file_visibility_is_all() {
+        // The go-to picker HIDES dot-prefixed corpus entries under Text (the
+        // default); the sticky `file_visibility` global (item 77 — no chord
+        // any more, Cmd-Shift-. is retired) reveals them under All. Drive it
+        // end-to-end through the real keymap + apply_core, asserting the
+        // overlay listing at each phase.
+        let _g = crate::testlock::serial();
+        let saved = crate::file_visibility::all_on();
+        crate::file_visibility::set_all_on(false);
         let mut buffer = Buffer::scratch();
         let corpus = vec![
             ".gitignore".to_string(),
@@ -2522,22 +2531,24 @@ mod tests {
         let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &Config::empty(), None);
         let ov = res.overlay.expect("goto overlay open");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Goto);
-        assert!(!ov.show_hidden);
+        assert!(!crate::file_visibility::all_on());
         let shown = ov.item_strings();
         assert!(!shown.iter().any(|s| s == ".gitignore"), "dotfile hidden by default: {shown:?}");
         assert!(shown.iter().any(|s| s == ".env"), ".env stays visible: {shown:?}");
         assert!(shown.iter().any(|s| s == "doc-fixture.md"));
-        // Now open + toggle: the reveal chord flips show_hidden and .gitignore appears.
+        // Flip to All -> .gitignore appears.
+        crate::file_visibility::set_all_on(true);
         let mut buffer = Buffer::scratch();
-        let keys = keyspec::parse_keys("s-o s-S-.").unwrap();
+        let keys = keyspec::parse_keys("s-o").unwrap();
         let res = replay_keys(&mut buffer, &keys, &corpus, &root, None, &Config::empty(), None);
-        let ov = res.overlay.expect("goto overlay still open after toggle");
-        assert!(ov.show_hidden, "Cmd-Shift-. revealed dotfiles");
+        let ov = res.overlay.expect("goto overlay open under All");
+        assert!(crate::file_visibility::all_on(), "File visibility All reveals dotfiles");
         assert!(
             ov.item_strings().iter().any(|s| s == ".gitignore"),
-            "dotfile shown after the reveal toggle: {:?}",
+            "dotfile shown under All: {:?}",
             ov.item_strings()
         );
+        crate::file_visibility::set_all_on(saved);
     }
 
     #[test]
@@ -2576,11 +2587,15 @@ mod tests {
     #[test]
     fn replay_keys_project_hides_dotfolders_marks_git_tag() {
         // The switch-project picker (Cmd-Shift-P) over a real (in-memory) workspace: it now
-        // HIDES dotfolders (`.claude`) by default while keeping the synthetic "."
-        // accept row; a git-repo child carries a `"git"` SECONDARY-column tag (no name
-        // bullet); Cmd-Shift-. reveals the dotfolders. Driven end-to-end through the
-        // real keymap + apply_core + `browse_level`'s filesystem seam.
+        // HIDES dotfolders (`.claude`) under Text (the default) while keeping the synthetic
+        // "." accept row; a git-repo child carries a `"git"` SECONDARY-column tag (no name
+        // bullet); the sticky `file_visibility` global set to All reveals the dotfolders
+        // (item 77 — no chord any more, Cmd-Shift-. is retired). Driven end-to-end through
+        // the real keymap + apply_core + `browse_level`'s filesystem seam.
         use std::sync::Arc;
+        let _g = crate::testlock::serial();
+        let saved = crate::file_visibility::all_on();
+        crate::file_visibility::set_all_on(false);
         let ws = PathBuf::from("/ws");
         let mem = crate::fs::InMemoryFs::new()
             .with_dir("/ws/.claude")
@@ -2597,7 +2612,7 @@ mod tests {
             );
             let ov = res.overlay.expect("switch-project overlay open");
             assert_eq!(ov.kind, crate::overlay::OverlayKind::Project);
-            assert!(!ov.show_hidden);
+            assert!(!crate::file_visibility::all_on());
             let shown = ov.item_strings();
             // The "." accept-this-folder row survives the dotfolder filter.
             assert!(shown.iter().any(|s| s == "."), "'.' accept row kept: {shown:?}");
@@ -2614,19 +2629,21 @@ mod tests {
             assert_eq!(tags[ipos("repo")], "git", "repo is git-tagged");
             assert_eq!(tags[ipos("plain")], "", "plain folder has no tag");
 
-            // Cmd-Shift-. reveals the overlay-hidden dotfolder (`.claude`); junk `.git`
-            // stays hidden (it never reaches the overlay corpus).
+            // File visibility All reveals the overlay-hidden dotfolder (`.claude`);
+            // junk `.git` stays hidden (it never reaches the overlay corpus).
+            crate::file_visibility::set_all_on(true);
             let mut buffer = Buffer::scratch();
-            let keys = keyspec::parse_keys("s-S-p s-S-.").unwrap();
+            let keys = keyspec::parse_keys("s-S-p").unwrap();
             let res = replay_keys(
                 &mut buffer, &keys, &[], &ws, Some(ws.as_path()), &Config::empty(), None,
             );
-            let ov = res.overlay.expect("project overlay still open after toggle");
-            assert!(ov.show_hidden, "Cmd-Shift-. revealed dotfolders");
+            let ov = res.overlay.expect("project overlay open under All");
+            assert!(crate::file_visibility::all_on(), "File visibility All reveals dotfolders");
             let revealed = ov.item_strings();
             assert!(revealed.iter().any(|s| s.starts_with(".claude")), "revealed: {revealed:?}");
             assert!(revealed.iter().any(|s| s == "."), "'.' still present after reveal");
         });
+        crate::file_visibility::set_all_on(saved);
     }
 
     #[test]

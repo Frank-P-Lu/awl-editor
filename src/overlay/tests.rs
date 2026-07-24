@@ -124,6 +124,9 @@ fn typing_filters() {
 fn goto_hides_dotfiles_until_revealed() {
     // A go-to corpus with a hidden dotfile, a hidden dir entry, an `.env` (the
     // earned exception), and ordinary files.
+    let _g = crate::testlock::serial();
+    let saved = crate::file_visibility::all_on();
+    crate::file_visibility::set_all_on(false);
     let corpus = vec![
         ".gitignore".to_string(),
         ".env".to_string(),
@@ -132,30 +135,33 @@ fn goto_hides_dotfiles_until_revealed() {
         "src/main.rs".to_string(),
     ];
     let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
-    // Default: dotfiles hidden, `.env` and ordinary files visible.
+    // Default (Text): dotfiles hidden, `.env` and ordinary files visible.
     let shown = ov.item_strings();
     assert!(!shown.iter().any(|s| s == ".gitignore"), "dotfile hidden: {shown:?}");
     assert!(!shown.iter().any(|s| s == "src/.hidden/x.rs"), "nested dot dir hidden: {shown:?}");
     assert!(shown.iter().any(|s| s == ".env"), ".env stays visible: {shown:?}");
     assert!(shown.iter().any(|s| s == "README.md"));
     assert!(shown.iter().any(|s| s == "src/main.rs"));
-    assert!(!ov.show_hidden);
-    // Toggle -> dotfiles now revealed alongside everything.
-    assert!(ov.toggle_hidden());
-    assert!(ov.show_hidden);
+    // Flip to All -> dotfiles now revealed alongside everything.
+    crate::file_visibility::set_all_on(true);
+    ov.refilter();
     let shown = ov.item_strings();
     assert!(shown.iter().any(|s| s == ".gitignore"), "dotfile revealed: {shown:?}");
     assert!(shown.iter().any(|s| s == "src/.hidden/x.rs"), "nested dot dir revealed: {shown:?}");
     assert!(shown.iter().any(|s| s == ".env"));
-    // Toggle back -> hidden again.
-    assert!(ov.toggle_hidden());
-    assert!(!ov.show_hidden);
+    // Flip back to Text -> hidden again.
+    crate::file_visibility::set_all_on(false);
+    ov.refilter();
     assert!(!ov.item_strings().iter().any(|s| s == ".gitignore"));
+    crate::file_visibility::set_all_on(saved);
 }
 
 #[test]
 fn browse_hides_dot_leaves_until_revealed() {
     // Browse lists one directory LEVEL: bare leaf names.
+    let _g = crate::testlock::serial();
+    let saved = crate::file_visibility::all_on();
+    crate::file_visibility::set_all_on(false);
     let corpus = vec![
         ".config".to_string(),
         "notes.md".to_string(),
@@ -176,13 +182,57 @@ fn browse_hides_dot_leaves_until_revealed() {
     assert!(!shown.iter().any(|s| s.starts_with(".config")), "dot dir hidden: {shown:?}");
     assert!(shown.iter().any(|s| s == "notes.md"));
     assert!(shown.iter().any(|s| s == ".env"), ".env visible in browse too");
-    assert!(ov.toggle_hidden());
+    crate::file_visibility::set_all_on(true);
+    ov.refilter();
     assert!(ov.item_strings().iter().any(|s| s.starts_with(".config")), "dot dir revealed");
+    crate::file_visibility::set_all_on(saved);
 }
 
 #[test]
-fn non_file_picker_ignores_hidden_toggle() {
-    // A theme/command picker never hides dotfiles and the toggle is a no-op.
+fn browse_listing_hides_unsupported_files_in_text_and_labels_them_in_all() {
+    // ITEM 77: the REAL `overlay::build::browse_level` (not the hand-built
+    // `new_marked` fixture the other tests above use), over a seeded
+    // InMemoryFs directory, so this exercises the actual per-file
+    // `crate::openable::classify` wiring — a supported unusual-extension
+    // file, a binary file, and a folder.
+    use crate::fs::{FileSystem, InMemoryFs};
+    use std::sync::Arc;
+    let _g_lock = crate::testlock::serial();
+    let saved = crate::file_visibility::all_on();
+    let mem = InMemoryFs::new();
+    mem.write(std::path::Path::new("/proj/notes.xyzzy"), b"real prose, odd extension\n").unwrap();
+    mem.write(
+        std::path::Path::new("/proj/logo.png"),
+        &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00],
+    )
+    .unwrap();
+    mem.create_dir_all(std::path::Path::new("/proj/sub")).unwrap();
+    let _g_fs = crate::fs::FsGuard::install(Arc::new(mem));
+
+    crate::file_visibility::set_all_on(false);
+    let ov = crate::overlay::browse_level(OverlayKind::Browse, None, std::path::Path::new("/proj"), None, &[])
+        .expect("a browse level always builds");
+    let shown = ov.item_strings();
+    assert!(shown.iter().any(|s| s == "notes.xyzzy"), "unusual-extension TEXT stays listed: {shown:?}");
+    assert!(shown.iter().any(|s| s == "sub/"), "folders always list: {shown:?}");
+    assert!(!shown.iter().any(|s| s == "logo.png"), "Text mode hides the unsupported file: {shown:?}");
+
+    crate::file_visibility::set_all_on(true);
+    let ov = crate::overlay::browse_level(OverlayKind::Browse, None, std::path::Path::new("/proj"), None, &[])
+        .expect("a browse level always builds");
+    let shown = ov.item_strings();
+    let secs = ov.item_bindings(); // the secondary column, parallel to item_strings
+    let i = shown.iter().position(|s| s == "logo.png").expect("All mode reveals the unsupported file");
+    assert_eq!(secs[i], "PNG", "the row carries a concise type label");
+
+    crate::file_visibility::set_all_on(saved);
+}
+
+#[test]
+fn non_file_picker_ignores_file_visibility() {
+    // A theme/command picker never hides dotfiles regardless of the global.
+    let _g = crate::testlock::serial();
+    let saved = crate::file_visibility::all_on();
     let mut ov = OverlayState::new_command(
         vec!["Save".into(), ".secret command".into()],
         vec!["C-x C-s".into(), String::new()],
@@ -190,9 +240,10 @@ fn non_file_picker_ignores_hidden_toggle() {
     );
     assert!(!ov.kind.hides_dotfiles());
     let before = ov.item_strings();
-    assert!(!ov.toggle_hidden(), "toggle is a no-op for a non-file picker");
-    assert!(!ov.show_hidden);
-    assert_eq!(ov.item_strings(), before, "listing unchanged");
+    crate::file_visibility::set_all_on(!crate::file_visibility::all_on());
+    ov.refilter();
+    assert_eq!(ov.item_strings(), before, "listing unchanged for a non-file picker");
+    crate::file_visibility::set_all_on(saved);
 }
 
 #[test]
@@ -300,6 +351,9 @@ fn new_project_pins_accept_row_and_marks_git() {
 #[test]
 fn project_hides_dotfolders_but_keeps_accept_row_and_env() {
     // A workspace level with dotfolders (.git/.claude), an .env, and plain folders.
+    let _g = crate::testlock::serial();
+    let saved = crate::file_visibility::all_on();
+    crate::file_visibility::set_all_on(false);
     let folders = vec![
         (".git".to_string(), false),
         (".claude".to_string(), false),
@@ -324,12 +378,14 @@ fn project_hides_dotfolders_but_keeps_accept_row_and_env() {
     let tags = ov.item_git_tags();
     let repo_i = shown.iter().position(|s| s.starts_with("repo")).unwrap();
     assert_eq!(tags[repo_i], "git");
-    // Cmd-Shift-. reveals the dotfolders for Project too.
-    assert!(ov.toggle_hidden(), "the reveal toggle flips for Project");
+    // File visibility: All reveals the dotfolders for Project too.
+    crate::file_visibility::set_all_on(true);
+    ov.refilter();
     let revealed = ov.item_strings();
     assert!(revealed.iter().any(|s| s.starts_with(".git")), "revealed: {revealed:?}");
     assert!(revealed.iter().any(|s| s.starts_with(".claude")), "revealed: {revealed:?}");
     assert!(revealed.iter().any(|s| s == "."), "'.' still present after reveal");
+    crate::file_visibility::set_all_on(saved);
 }
 
 #[test]

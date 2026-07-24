@@ -144,7 +144,6 @@ drift into this page silently.
 | Caret style… |  |  |
 | Dictionary… |  |  |
 | Toggle spellcheck |  |  |
-| Toggle hidden files | ⌘⇧. | Ctrl+Shift+. |
 | Toggle caret style |  |  |
 | Toggle page mode |  |  |
 | Toggle writing nits |  |  |

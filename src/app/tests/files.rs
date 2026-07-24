@@ -187,7 +187,7 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
 /// writing nits / outline / menu bar / reduce motion) is back to its
 /// pre-test value by the time the lock releases — no leak into a sibling
 /// test, mirroring the `page::measure()` save/restore convention used
-/// elsewhere in this file.
+/// elsewhere in this file. (16 toggles as of item 77's "File visibility" row.)
 #[test]
 fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
     use crate::fs::InMemoryFs;
@@ -207,7 +207,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
         .collect();
     assert_eq!(
         toggle_rows.len(),
-        15,
+        16,
         "the toggle roster changed size — update this sweep deliberately"
     );
 

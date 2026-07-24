@@ -152,6 +152,13 @@ impl Config {
         if let Some(on) = self.typewriter_scroll {
             crate::typewriter::set_typewriter_on(on);
         }
+        // FILE VISIBILITY (item 77) has no CLI flag either: the remembered
+        // Text/All applies unconditionally when present; absent leaves the
+        // global at its own built-in default (Text/OFF), which
+        // `file_visibility::ALL_ON` already carries.
+        if let Some(on) = self.file_visibility {
+            crate::file_visibility::set_all_on(on);
+        }
         // CJK AMBIGUITY LADDER: seed the live process global (`frontmatter::
         // cjk_priority()`, read by the Settings menu's "Ambiguous CJK reads as"
         // row) from a configured list, normalized to a well-formed 4-member

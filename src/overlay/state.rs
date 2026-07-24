@@ -257,14 +257,6 @@ pub struct OverlayState {
     /// key + return to Settings) instead of the normal switch-project accept. `None` for
     /// every ordinary navigator summon.
     pub setting_path_key: Option<String>,
-    /// File pickers only ([`OverlayKind::hides_dotfiles`]): whether dot-prefixed
-    /// entries are REVEALED. Default `false` — the go-to / browse corpus HIDES any
-    /// entry whose basename or an ancestor component starts with `.` (except `.env*`,
-    /// [`crate::index::is_hidden_entry`]). `Cmd-Shift-.` (the Finder convention) flips
-    /// it via [`Self::toggle_hidden`], which re-runs the display filter in
-    /// [`Self::refilter`]. TRANSIENT: every fresh summon defaults hidden again (it's
-    /// a field of the live picker, not a sticky global). Ignored by non-file pickers.
-    pub show_hidden: bool,
     /// NOTES VERBS round: the RENAME minibuffer's live typed-state (`Some` only for
     /// `OverlayKind::Rename`, armed the instant the overlay is built by
     /// [`Self::new_rename`] — never toggled on later, unlike `value_edit`/`capture`,
@@ -377,8 +369,6 @@ impl OverlayState {
             // menu arms these when Enter lands on a Value / Path row.
             value_edit: None,
             setting_path_key: None,
-            // Fresh summon: dotfiles HIDDEN by default (the toggle is transient).
-            show_hidden: false,
             // No rename edit on a fresh summon; `new_rename` arms it right after.
             rename_edit: None,
             // No link edit on a fresh summon; `new_link_edit` arms it right after.

@@ -280,9 +280,16 @@ pub fn browse_level(
     // folders only (a document moves to a folder), Browse lists files + folders.
     let move_dest = kind == OverlayKind::MoveDest;
     let level = crate::index::list_dir_level(active_root, rel.as_deref());
+    // ITEM 77: Browse alone classifies each FILE entry's openability up front
+    // (bounded to ONE directory level — see `crate::openable::classify`'s doc
+    // for why this is scoped here rather than the whole project's Goto index),
+    // so `refilter`'s Text-mode filter can hide it and an "All" listing can
+    // label it, with no second disk read on open.
+    let dir_path = (kind == OverlayKind::Browse).then(|| crate::index::resolve_dir_level(active_root, rel.as_deref()));
     let mut corpus = Vec::new();
     let mut git = Vec::new();
     let mut is_dir = Vec::new();
+    let mut secondary = Vec::new();
     for e in &level {
         if move_dest && !e.is_dir {
             continue; // destinations are folders only
@@ -290,10 +297,27 @@ pub fn browse_level(
         corpus.push(e.name.clone());
         git.push(e.is_git);
         is_dir.push(e.is_dir);
+        let label = match (&dir_path, e.is_dir) {
+            (Some(dir), false) => match crate::openable::classify(&dir.join(&e.name)) {
+                crate::openable::Openable::Unsupported { label } => label,
+                crate::openable::Openable::Text => String::new(),
+            },
+            _ => String::new(),
+        };
+        secondary.push(label);
     }
-    Some(OverlayState::new_marked(
+    let mut ov = OverlayState::new_marked(
         kind, corpus, git, is_dir, Vec::new(), Vec::new(), rel,
-    ))
+    );
+    if kind == OverlayKind::Browse {
+        // `new_marked` already ran ONE `refilter()` before any row had its
+        // secondary/type-label stamped (construction order), so a fresh Text-
+        // mode summon would show every unsupported file until the NEXT
+        // refilter — re-run it now that the labels are in place.
+        ov.set_secondaries(secondary);
+        ov.refilter();
+    }
+    Some(ov)
 }
 
 /// Middle-truncate `s` to at most `max` CHARS with a single `…`, keeping the HEAD and

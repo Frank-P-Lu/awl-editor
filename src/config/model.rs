@@ -152,6 +152,15 @@ pub struct Config {
     /// live by the "Toggle typewriter scroll" command / settings menu, and read by
     /// `sync_view`'s cursor-follow + the capture scroll computation.
     pub typewriter_scroll: Option<bool>,
+    /// `file_visibility` — item 77's ONE picker-listing switch: `false`
+    /// (`"text"`, the default) lists decodable text only, non-hidden; `true`
+    /// (`"all"`) also reveals hidden entries + unsupported/binary files
+    /// (still refused on open — see `crate::openable`). `None` = the
+    /// built-in default (OFF/Text). Applied at launch to the
+    /// `crate::file_visibility::ALL_ON` process-global (`apply_sticky_globals`),
+    /// flipped live by the Settings menu's "File visibility" row. Replaces
+    /// the retired standalone "Show hidden files" toggle.
+    pub file_visibility: Option<bool>,
     /// `stats` — the LIFETIME STATS odometer (chars typed, keystrokes, active-
     /// writing time, files touched, caret travel, per-world time) on/off; `None`
     /// = the built-in default (ON, like autosave/session_restore — a quiet
@@ -252,6 +261,7 @@ impl Config {
             outline: None,
             menu_bar: None,
             typewriter_scroll: None,
+            file_visibility: None,
             stats: None,
             reduce_motion: None,
             ambient_motion: None,
@@ -436,6 +446,7 @@ impl Config {
             outline: None,
             menu_bar: None,
             typewriter_scroll: None,
+            file_visibility: None,
             stats: None,
             reduce_motion: None,
             ambient_motion: None,
@@ -559,6 +570,11 @@ impl Config {
         // `stats` — the lifetime odometer, default ON (native-only, LOCAL/PRIVATE).
         if let Some(b) = table.get("stats").and_then(|v| v.as_bool()) {
             cfg.stats = Some(b);
+        }
+        // `file_visibility` (item 77) — the Text/All picker-listing switch,
+        // default OFF (Text). `true` = All.
+        if let Some(b) = table.get("file_visibility").and_then(|v| v.as_bool()) {
+            cfg.file_visibility = Some(b);
         }
         // `reduce_motion` — ACCESSIBILITY TIER 1, default `auto` (absent). An
         // explicit `true`/`false` here always wins over the OS/browser read.

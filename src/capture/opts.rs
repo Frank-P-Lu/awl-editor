@@ -146,10 +146,14 @@ pub struct OverlayInfo {
     /// (PgUp/PgDn / panel ↑/↓ / the wheel over the page). Emitted as
     /// `overlay.diff_scroll`; always 0 elsewhere.
     pub diff_scroll: usize,
-    /// File pickers only (go-to / browse): whether dot-prefixed entries are REVEALED
-    /// (`Cmd-Shift-.` toggled them on). Default `false` for a fresh summon; `items`
-    /// already reflects the filtering, so this is the explicit flag to assert. Emitted
-    /// as `overlay.show_hidden` (always `false` for a non-file picker).
+    /// File pickers only (go-to / browse): whether dot-prefixed entries (AND,
+    /// since item 77, unsupported/binary Browse rows) are REVEALED. Mirrors the
+    /// STICKY `crate::file_visibility::all_on()` global (Settings -> Files ->
+    /// "File visibility") gated on `kind.hides_dotfiles()`, NOT a per-picker
+    /// flag any more (item 77 retired the old `Cmd-Shift-.` toggle +
+    /// `OverlayState::show_hidden`) — so the OBSERVABLE CONTRACT is unchanged:
+    /// `false` for a non-file picker (Theme/Settings/…), `items` already
+    /// reflects the filtering either way. Emitted as `overlay.show_hidden`.
     pub show_hidden: bool,
     /// BREADCRUMB: the summoning overlay's mode string (`"settings"` / `"command"`) to
     /// re-summon when THIS picker POPS (Esc / value-pick), or `None` for a top-level

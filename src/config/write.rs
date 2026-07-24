@@ -168,6 +168,10 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #                marginalia TOC that tracks the section you are in.
 #   menu_bar   : the awl-rendered menu bar across the top (web/Linux only, default
 #                on there; absent on macOS, which has the native menu bar).
+#   file_visibility : the Browse file picker's listing switch (default false =
+#                Text: decodable text only, non-hidden). true = All: also reveals
+#                hidden entries + unsupported/binary files (still refused on open).
+#                Also toggleable from Settings -> Files -> File visibility.
 #   typewriter_scroll : pin the caret's line centered so the document scrolls
 #                under a stationary caret (default OFF, opt-in) — iA Writer-style;
 #                the caret rides the doc edges naturally (no centering above the
@@ -206,6 +210,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # session_restore = true
 # outline = true
 # menu_bar = true
+# file_visibility = false
 # typewriter_scroll = false
 # stats = true
 # ambient_motion = true
