@@ -59,6 +59,10 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   amplitude, ~54°, density 0.60), Gumtree's is broad/shallow/quiet (190px
   period, 60px amplitude, ~15°, density 0.20). `Bands` is now DORMANT
   reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
+  **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
+  PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
+  the settled/theme-crossing composition stay byte-identical) — see "The
+  waves phase-drift law" below.
 - **A CJK fallback** matched to its character: serif worlds get the mincho list,
   sans/mono worlds get the gothic list (`cjk_fallback_matches_world_character`).
   Generalized to a per-script `FontId` ladder (ja/zh-Hans/zh-Hant/ko) by the
@@ -758,6 +762,62 @@ All star numbers (tint, cell, density, size, peak/floor) are TASTE TUNABLE
 data on `worlds.rs::CURRAWONG` — the round shipped BUILD + GALLERY + HOLD,
 landing only on the user's gallery pick; the twinkle's FEEL over real seconds
 is live-only and flagged for human confirmation, never claimed verified.
+
+### The waves phase-drift law (`Background::Waves` — item 87, 2026-07-25)
+
+Bombora's static wave-tier ground (item 69) gained a THIRD consumer of the
+shared ambient clock (lava lamp, twinkling stars, now `Waves`): a very slow,
+seamless horizontal PHASE DRIFT on the two boundary curves the three tones
+split across. Palette, band count (three), the two boundaries' base geometry
+(amplitude, wavelength, static phase offset), and the settled composition are
+UNCHANGED — the drift is one added scalar, `0.0` at rest.
+
+- **Opposite-sign drift, not a "one sheet" slide.** The top/middle boundary's
+  phase advances by `+drift`, the middle/bottom boundary's RETARDS by the
+  SAME amount. A same-sign drift on both curves is mathematically an EXACT
+  rigid horizontal translation of the entire three-tier field — every tier,
+  the middle included, would share IDENTICAL motion, reading as one sheet
+  sliding behind the margin, never as layered swells. Opposite signs are the
+  only choice that breaks that rigid-translation identity: each OUTER tier
+  (top, bottom) sweeps with its own single boundary curve's sign, while the
+  MIDDLE tier — bounded by both — visibly shears/breathes counter to them.
+  Derivation + the "not a rigid translation" proof:
+  `background::waves_drift_tests::drift_is_not_a_rigid_one_sheet_translation`.
+- **One clock, THREE consumers.** The drift rides the exact SAME shared
+  ambient phase the lava lamp and twinkling stars already share
+  (`TextPipeline::lava_phase`, resolved through
+  [`Theme::has_ambient_tick`](../src/theme/model.rs) — a STRICT SUPERSET of
+  the lava/stars-only `Theme::has_ambient_motion`, read ONLY by the App's tick
+  arm). No Bombora-specific scheduling, no second clock: `ambient_motion` off,
+  Reduce Motion, a paused/blurred/moving/resizing window, and a non-Bombora
+  active world all schedule ZERO ambient frames — the SAME freeze machinery
+  lava/stars already have, inherited by construction. Deliberately NOT folded
+  into `has_ambient_motion` itself: unlike the lava lamp / starfield (which
+  live ENTIRELY in the margins and vanish outright without page mode, so THAT
+  gate also forces page mode on at launch), Bombora's wave ground was already
+  shipping (item 69) as an OPTIONAL margin decoration — so joining the shared
+  TICK doesn't also force page mode or the move-stream present hold.
+- **Integer cycles per ambient loop (the twinkling-stars precedent).** The
+  drift completes an EXACT one full turn (`WAVE_DRIFT_CYCLES = 1.0`) over one
+  shared-clock loop (`crate::lava::LAVA_LOOP_CYCLES`, ~67s), so it meets its
+  own endpoint exactly where the clock wraps — seamless, no pop — and a theme
+  crossing INTO Bombora always starts from the clock's own frozen phase
+  (`0.0`), never a random jump. Laws:
+  `background::waves_drift_tests::{drift_is_zero_at_the_settled_phase,
+  drift_wraps_seamlessly_at_the_shared_clocks_loop_endpoint,
+  boundaries_never_cross_at_any_drift_phase}`.
+- **Real-pixel end-to-end proof.** `render::tests::waves_drift_item87` drives
+  the FULL `TextPipeline` render path (not just the isolated
+  `BackgroundPipeline` unit): two settled captures are byte-identical; two
+  captures well apart on the ambient clock genuinely differ, confined to the
+  margins (never bleeding into the writing column), with every OTHER
+  GPU-instanced layer's count unchanged (the drift is one uniform float on
+  the SAME single fullscreen-triangle draw call — never a new instance per
+  glyph or doc line). Cadence/scheduling law:
+  `theme::tests::bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition`.
+- The drift's FEEL over real seconds (speed, the middle tier's counter-motion
+  reading as "layered," calmness) is live-only and flagged for human
+  confirmation — the harness proves the arithmetic, not the taste.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 

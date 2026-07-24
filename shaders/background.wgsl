@@ -7,9 +7,15 @@
 //   * outside (the margins) -> a per-world gradient (mix(from,to,t) along `dir`),
 //     alpha 1, painting the ground the page floats on.
 //
-// Static (no time uniform) so the headless capture is byte-deterministic. The
-// gradient colors arrive in LINEAR space (the render target is sRGB; the host
-// converts the per-world theme bytes before upload), like the selection shader.
+// Almost entirely static (no per-doc/per-glyph input ever reaches this
+// pipeline). The ONE exception (item 87) is `drift` — Bombora's WAVES
+// phase drift, a single scalar the host uploads each frame from the SAME
+// shared ambient clock the lava lamp and twinkling stars ride; it is `0.0`
+// for every non-Waves ground and for every headless capture (that clock never
+// advances there), so the render stays exactly as byte-deterministic as
+// before at rest. The gradient colors arrive in LINEAR space (the render
+// target is sRGB; the host converts the per-world theme bytes before
+// upload), like the selection shader.
 //
 // When page mode is OFF the host passes col_w == viewport width, so the column
 // covers everything and the margins vanish — identical to the old flat clear.
@@ -32,7 +38,14 @@ struct Globals {
     // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag. Matches
     // `Background::shader_id` in src/theme/model.rs.
     shader: u32,
-    pad: u32,
+    // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
+    // `pad` after `shader`. `0.0` for every non-Waves ground and every
+    // settled/headless frame (so those renders stay byte-identical); shader 6
+    // reads it as `g.drift` in `waves_rgb`. Kept OUT of `params` because item
+    // 86's Zigzag (shader 7) already uses all four `params` slots — routing the
+    // drift through `params.z` would zero a Zigzag world's amplitude every
+    // frame. Must byte-match `Globals.drift` in src/background.rs.
+    drift: f32,
     // Mark/band tint (LINEAR rgb; a is the max coverage of the marks/band). For
     // shader 5/6 (Bands/Waves) this is the MIDDLE of three authored tones —
     // `c_from`/`c_pat`/`c_to` read as tones 0/1/2 (see `bands_rgb`/`waves_rgb`).
@@ -47,7 +60,8 @@ struct Globals {
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
     // shader 7's extra coverage multiplier `density`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
-    // exact original code path.
+    // exact original code path. (Waves' item-87 drift is NOT here — it rides
+    // the dedicated `drift` slot above.)
     params: vec4<f32>,
 };
 
@@ -273,7 +287,10 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // scalloped crests, horizontally phase-offset tier-to-tier so they read as
 // layered swells, never a grid). Tier geometry (amplitude/wavelength/phase) is
 // a FIXED constant, never per-world data — every `Waves` world shares this
-// exact shape (only the three tones differ). Static: pure function of `px`. ---
+// exact shape (only the three tones differ). Pure function of `px` PLUS one
+// scalar, `g.drift` — the item-87 phase DRIFT (radians), `0.0` at rest so
+// the settled/headless-capture render is byte-identical to the pre-drift
+// shape. ---
 //
 // The viewport height splits into thirds; each of the two boundaries between
 // tiers is that third's y plus a sine wobble in x (a "scallop"), with tier 2's
@@ -281,14 +298,27 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // visibly drift apart ("layer") instead of tracking each other like a grid.
 // The wobble amplitude is held well under a third of the viewport height for
 // any real window, so the two boundaries never cross — the three tiers stay
-// NON-OVERLAPPING by construction.
+// NON-OVERLAPPING by construction (drift never changes the amplitude, only a
+// crest's x-position, so this bound holds at every phase too).
+//
+// DRIFT (item 87): `b1`'s phase ADVANCES by `drift`, `b2`'s RETARDS by the
+// SAME amount — equal magnitude, opposite sign (see `src/background.rs`'s
+// module doc for the full derivation of why opposite-sign is the one choice
+// that avoids the whole field sliding as a single rigid "sheet": a same-sign
+// drift on both curves is provably an exact horizontal translation of the
+// entire composition, including the middle tier, so it produces ZERO relative
+// motion between tiers). Under opposite signs each OUTER tier (top/bottom)
+// sweeps with its own single boundary curve's sign, while the MIDDLE tier —
+// bounded by both — visibly shears/breathes counter to them: the sea reads as
+// independently layered swells, never a sheet translating behind the margin.
 const WAVE_AMP: f32 = 22.0;
 const WAVE_FREQ: f32 = 0.024166097; // 2*pi / 260px — wide, shallow scallops
 const WAVE_PHASE_1: f32 = 0.0;
 const WAVE_PHASE_2: f32 = 2.4;
 fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
-    let b1 = g.viewport.y * (1.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_1);
-    let b2 = g.viewport.y * (2.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_2);
+    let drift = g.drift;
+    let b1 = g.viewport.y * (1.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_1 + drift);
+    let b2 = g.viewport.y * (2.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_2 - drift);
     return tri_tone_mix(px.y, b1, b2, 1.5);
 }
 

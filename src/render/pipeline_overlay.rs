@@ -380,6 +380,23 @@ impl TextPipeline {
         )
     }
 
+    /// THE EFFECTIVE WAVES DRIFT PHASE this frame (item 87) — the SAME
+    /// determinism ladder as [`Self::lava_render_phase`] /
+    /// [`Self::stars_render_phase`] (one resolver, [`crate::lava::lava_phase_for`]),
+    /// with no dev-gallery override (Bombora's settled captures are the ones
+    /// item 87 ships): Reduce Motion pins [`crate::lava::LAVA_FROZEN_PHASE`] >
+    /// the App-driven ambient [`Self::lava_phase`] (ONE clock, now THREE
+    /// consumers — lava, stars, waves; frozen at `0.0` in every headless
+    /// capture, since the capture never ticks, so a Bombora capture always
+    /// renders the pre-drift settled composition). Read by
+    /// [`Self::prepare_background_layer`] alone — unlike lava/stars, the
+    /// resolved phase isn't separately surfaced on the capture sidecar (no new
+    /// state to assert beyond the pixels themselves; the sidecar's `page.
+    /// background` block already names the `Waves` ground).
+    pub fn waves_render_phase(&self) -> f32 {
+        crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), None)
+    }
+
     /// Advance the lava lamp's animation phase by `dt` seconds — called ONLY by
     /// the live App's slow ambient tick (`App::about_to_wait`), NEVER `advance()`'s
     /// hot per-frame loop (the lava's whole point is a ~10 fps sparse cadence, not

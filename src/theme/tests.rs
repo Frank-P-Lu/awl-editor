@@ -3060,3 +3060,104 @@ fn fold_tail_ink_clears_the_readable_floor_and_stays_quieter_than_heading_ink() 
         }
     }
 }
+
+/// ITEM 87's SCHEDULING-GATE COMPOSITION law (mirrors `stars.rs`'s
+/// `currawong_alone_carries_the_stars_and_the_ambient_gate_composes` — same
+/// "one owner" shape): [`Theme::has_ambient_tick`] is EXACTLY
+/// `has_ambient_motion() || background.is_waves()` for every world, no
+/// per-world name comparison and no re-derived OR at a call site.
+///
+/// (1) Composition holds for all sixteen worlds.
+/// (2) It is a STRICT SUPERSET of `has_ambient_motion` — the only worlds it
+///     flips true that `has_ambient_motion` didn't are the `Waves` worlds
+///     (today: Bombora alone).
+/// (3) NON-VACUOUS: at least one world (Bombora) is flipped by the extra
+///     `is_waves()` arm — the widening has a live consumer, not dead data.
+#[test]
+fn has_ambient_tick_composes_has_ambient_motion_or_waves_one_owner() {
+    let mut saw_a_flipped_waves_world = false;
+    for t in THEMES.iter() {
+        let motion = t.has_ambient_motion();
+        let tick = t.has_ambient_tick();
+        assert_eq!(
+            tick,
+            motion || t.background.is_waves(),
+            "{}: has_ambient_tick must be exactly has_ambient_motion OR is_waves — one owner",
+            t.name
+        );
+        // The superset property: has_ambient_tick can only ADD worlds relative
+        // to has_ambient_motion, never remove one.
+        assert!(
+            !motion || tick,
+            "{}: has_ambient_tick must stay true wherever has_ambient_motion is",
+            t.name
+        );
+        if tick && !motion {
+            saw_a_flipped_waves_world = true;
+            assert!(
+                t.background.is_waves(),
+                "{}: the only way has_ambient_tick can differ from has_ambient_motion \
+                 is a Waves ground",
+                t.name
+            );
+        }
+    }
+    assert!(
+        saw_a_flipped_waves_world,
+        "at least one world (Bombora) must be a Waves world the widening actually reaches"
+    );
+    assert!(BOMBORA.background.is_waves(), "Bombora ships Background::Waves (item 69/87)");
+    assert!(
+        BOMBORA.has_ambient_tick() && !BOMBORA.has_ambient_motion(),
+        "Bombora joins the shared tick WITHOUT joining the auto-page-on/move-hold gate \
+         (has_ambient_motion) — its ground was already an OPTIONAL margin decoration \
+         (item 69), so item 87 must not silently force page mode on at launch"
+    );
+}
+
+/// ITEM 87's SCHEDULING law (mirrors the lava/stars precedents in
+/// `lava::tests` / `stars.rs`): every freeze condition the round promises —
+/// `ambient_motion` off, Reduce Motion, a paused (blurred/moving/resizing)
+/// window, and a non-Bombora active world — closes `lava_should_tick`'s gate
+/// for Bombora's wave drift, scheduling EXACTLY ZERO frames (no `WaitUntil`
+/// re-arm, no phase advance, no redraw request — the whole ambient-tick `if`
+/// body in `app/schedule.rs` is skipped). NON-VACUOUS: with the OLD
+/// `has_ambient_motion()` (pre-item-87) fed here instead of
+/// `has_ambient_tick()`, EVERY one of these assertions already held for the
+/// trivial reason that Bombora could never arm at all — the meaningful,
+/// newly-non-vacuous case is the LAST one (`ambient_motion` on, not reduced,
+/// focused, not paused), which must be TRUE now and was FALSE before this
+/// round (Bombora had no tick path at all).
+#[test]
+fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
+    let active = BOMBORA.has_ambient_tick();
+    assert!(active, "Bombora must join the shared tick gate (item 87)");
+
+    // ambient_motion = false.
+    assert!(!crate::lava::lava_should_tick(active, false, false, true, false));
+    // Reduce Motion.
+    assert!(!crate::lava::lava_should_tick(active, true, true, true, false));
+    // Paused: window blurred / mid-move / mid-resize (the shared `paused` OR).
+    assert!(!crate::lava::lava_should_tick(active, true, false, true, true));
+    // Unfocused window.
+    assert!(!crate::lava::lava_should_tick(active, true, false, false, false));
+    // A non-Bombora active world never arms at all (Wagtail: 1-bit, no ambient
+    // capability of any kind).
+    let other = WAGTAIL.has_ambient_tick();
+    assert!(!other, "Wagtail carries no ambient ground of any kind");
+    assert!(!crate::lava::lava_should_tick(other, true, false, true, false));
+
+    // Deterministic headless capture: `App::new_hermetic`'s / the capture
+    // pipeline's `lava_phase` field starts (and, absent a live `about_to_wait`
+    // tick, stays) at `LAVA_FROZEN_PHASE` — so the resolved drift is 0.0
+    // regardless of the scheduling gate above. See
+    // `render::pipeline_draw`'s `lava_phase: crate::lava::LAVA_FROZEN_PHASE`
+    // initializer and `crate::background::waves_drift_radians`'s own
+    // `drift_is_zero_at_the_settled_phase` law.
+    assert_eq!(crate::lava::LAVA_FROZEN_PHASE, 0.0);
+
+    // The genuinely NEW, non-vacuous case: every gate open, Bombora active —
+    // the tick MUST arm (this is false for every OTHER world with no ambient
+    // capability, and was unreachable for Bombora before this round).
+    assert!(crate::lava::lava_should_tick(active, true, false, true, false));
+}

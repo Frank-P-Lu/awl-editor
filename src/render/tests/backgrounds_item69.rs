@@ -71,8 +71,10 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
 /// Draw a `BackgroundPipeline` covering a `width`x`height` canvas, with a page
 /// column hole at `[col_left, col_left+col_w)` (pass `col_w = 0.0` for NO hole
 /// — the whole canvas is margin, the purest scan surface for the band/tier
-/// count laws). Mirrors `dither.rs::render_background`, generalized with the
-/// column params this file's continuity law needs.
+/// count laws), and (item 87) a WAVES phase `drift` in radians — inert
+/// (`0.0`) for every non-Waves ground (item 86's Zigzag callers pass `0.0`).
+/// Mirrors `dither.rs::render_background`, generalized with the column + drift
+/// params this file's laws (and the item 86 sibling module's) need.
 pub(super) fn render_bg(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -81,9 +83,10 @@ pub(super) fn render_bg(
     height: u32,
     col_left: f32,
     col_w: f32,
+    drift: f32,
 ) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
-    bg.prepare(queue, width, height, col_left, col_w);
+    bg.prepare(queue, width, height, col_left, col_w, drift);
     let (texture, tview) = super::dither::offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl item69-bg-test encoder"),
@@ -219,7 +222,7 @@ fn bands_canonical_mid_field_crosses_exactly_three_bands() {
 
     let (w, h) = (crate::capture::CANVAS_WIDTH, crate::capture::CANVAS_HEIGHT);
     let desc = bg_desc_for(bands_test_bg());
-    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
     let tones = bands_tones();
 
     let seq = scan_row(&pixels, w, h / 2, tones);
@@ -264,7 +267,7 @@ fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_til
     let mut first_boundary_x = Vec::new();
     for side in [700u32, 1200, 1800] {
         let (w, h) = (side, side);
-        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
         let labels: Vec<usize> = (0..w).map(|x| classify(pixels[(h / 2 * w + x) as usize], tones)).collect();
         let seq = runs(&labels);
         assert_eq!(seq.len(), 3, "side={side}: expected exactly 3 bands, got {seq:?}");
@@ -305,7 +308,7 @@ fn bands_canonical_margin_slivers_each_catch_a_band_edge() {
 
     let (w, h) = (crate::capture::CANVAS_WIDTH, crate::capture::CANVAS_HEIGHT);
     let desc = bg_desc_for(bands_test_bg());
-    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
     let tones = bands_tones();
 
     // A representative column near each edge, well inside a 16px margin
@@ -340,7 +343,7 @@ fn bombora_canonical_mid_field_exposes_exactly_three_wave_tiers() {
 
     let (w, h) = (crate::capture::CANVAS_WIDTH, crate::capture::CANVAS_HEIGHT);
     let desc = bg_desc_for(theme::BOMBORA.background);
-    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
     let tones = bombora_tones();
 
     let seq = scan_col(&pixels, w, h, w / 2, tones);
@@ -366,7 +369,7 @@ fn bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid() {
 
     let (w, h) = (1200u32, 800u32);
     let desc = bg_desc_for(theme::BOMBORA.background);
-    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+    let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
     let tones = bombora_tones();
 
     let mut middle_thickness = Vec::new();
@@ -399,9 +402,9 @@ fn bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid() {
 fn assert_left_right_continuity_through_the_page(bg: theme::Background, device: &wgpu::Device, queue: &wgpu::Queue) {
     let (w, h) = (1200u32, 800u32);
     let desc = bg_desc_for(bg);
-    let reference = render_bg(device, queue, desc, w, h, 0.0, 0.0);
+    let reference = render_bg(device, queue, desc, w, h, 0.0, 0.0, 0.0);
     let (col_left, col_w) = (350.0f32, 500.0f32); // a representative centered page column
-    let occluded = render_bg(device, queue, desc, w, h, col_left, col_w);
+    let occluded = render_bg(device, queue, desc, w, h, col_left, col_w, 0.0);
 
     // Sanity: the page column itself DOES differ from the unoccluded reference
     // somewhere (the hole is actually punched, not a no-op render) — checked
@@ -473,8 +476,8 @@ fn assert_boundary_scales_with_resolution(bg: theme::Background, tones: [[u8; 4]
         }
     };
 
-    let p1 = render_bg(device, queue, desc, w1, h1, 0.0, 0.0);
-    let p2 = render_bg(device, queue, desc, w2, h2, 0.0, 0.0);
+    let p1 = render_bg(device, queue, desc, w1, h1, 0.0, 0.0, 0.0);
+    let p2 = render_bg(device, queue, desc, w2, h2, 0.0, 0.0, 0.0);
     let b1 = find_boundary(&p1, w1, h1);
     let b2 = find_boundary(&p2, w2, h2);
 
@@ -518,7 +521,7 @@ fn bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled
     let desc = bg_desc_for(theme::BOMBORA.background);
     let tones = bombora_tones();
     let wobble_amplitude = |w: u32, h: u32| -> u32 {
-        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
         let mut rows = Vec::new();
         for x in (0..w).step_by(20) {
             let labels: Vec<usize> = (0..h).map(|y| classify(pixels[(y * w + x) as usize], tones)).collect();
@@ -566,8 +569,8 @@ fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
 
     for bg in [bands_test_bg(), theme::BOMBORA.background] {
         let desc = bg_desc_for(bg);
-        let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0);
-        let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0);
+        let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
+        let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
         assert_eq!(a, b, "{}: two draws of the identical desc diverged", bg.as_str());
     }
 }

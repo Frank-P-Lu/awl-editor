@@ -131,7 +131,9 @@ fn zigzag_pattern_never_paints_inside_the_page_column_on_either_world() {
         // `vec4(0,0,0,0)` inside `[col_left, col_left+col_w)`, unconditionally,
         // BEFORE any per-shader branch runs) — so "never paints inside the
         // column" reduces to "every column pixel stays the alpha-0 clear".
-        let pixels = render_bg(&device, &queue, desc, w, h, col_left, col_w);
+        // Zigzag is a static ground — `drift` (item 87's Waves phase) is
+        // inert `0.0` here and does not touch this world's `params` dials.
+        let pixels = render_bg(&device, &queue, desc, w, h, col_left, col_w, 0.0);
         let (from, to) = (bg.from().rgba_bytes(), bg.to().rgba_bytes());
         let is_mark = |p: [u8; 4]| {
             let near = |c: [u8; 4]| (0..3).all(|k| (p[k] as i16 - c[k] as i16).abs() <= 2);
@@ -185,8 +187,9 @@ fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
     let peak_deviation = |bg: theme::Background| -> i32 {
         let desc = bg_desc_for(bg);
         // No page hole (col_w = 0): the WHOLE canvas is margin, the purest
-        // scan surface for a peak-intensity measurement.
-        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0);
+        // scan surface for a peak-intensity measurement. `drift = 0.0` (item
+        // 87's Waves phase is inert for this static Zigzag ground).
+        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
         let (from, to) = (bg.from().rgba_bytes(), bg.to().rgba_bytes());
         let dist_from_nearest_endpoint = |p: [u8; 4]| {
             let d = |c: [u8; 4]| (0..3).map(|k| (p[k] as i32 - c[k] as i32).abs()).sum::<i32>();
@@ -222,8 +225,10 @@ fn zigzag_renders_byte_identically_across_two_independent_draws() {
         ("Gumtree", theme::GUMTREE.background),
     ] {
         let desc = bg_desc_for(bg);
-        let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0);
-        let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0);
+        // `drift = 0.0`: Zigzag is static; item 87's Waves phase never
+        // reaches these worlds' `params`.
+        let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
+        let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
         assert_eq!(a, b, "{name}: two draws of the identical desc diverged");
     }
 }

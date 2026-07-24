@@ -1492,6 +1492,14 @@ impl Background {
     pub fn is_lava(&self) -> bool {
         matches!(self, Background::Lava { .. })
     }
+    /// True iff this world's margin ground is [`Background::Waves`] — the ONE
+    /// gate item 87's PHASE-DRIFT scheduling reads ([`Theme::has_ambient_tick`]),
+    /// never a per-world name comparison (`render::tests::theme_caps_law`'s
+    /// grep-law bans it). Reusable data (any world may pick `Waves`, not just
+    /// Bombora, the one assignment today).
+    pub fn is_waves(&self) -> bool {
+        matches!(self, Background::Waves { .. })
+    }
     /// The lava metaball's `(ground, blob_lo, blob_hi, edge, dithered)` params, or
     /// `None` for the five static grounds — the pipeline uploads these when active
     /// and skips the draw entirely when `None` (so every non-lava world stays
@@ -1836,15 +1844,37 @@ impl Theme {
         self.primary == self.base_content
     }
 
-    /// True iff this world's GROUND carries AMBIENT MOTION — the lava lamp
+    /// True iff this world's GROUND carries AMBIENT MOTION whose ABSENCE
+    /// without page mode would break the world's own identity — the lava lamp
     /// ([`Background::is_lava`]) or the twinkling stars
-    /// ([`AmbientStyle::is_animated`]). THE ONE gate every ambient-scheduling
-    /// decision reads (the App's ~10 fps tick arm, the move-stream present hold,
-    /// the launch-time auto-page-on) — never a per-world name comparison and never a
-    /// re-derived OR at a call site, so the lava and stars consumers can
-    /// never disagree about "does this world tick".
+    /// ([`AmbientStyle::is_animated`]), both of which live ENTIRELY in the
+    /// margins and vanish outright when page mode is off. THE ONE gate the
+    /// move-stream present hold and the launch-time auto-page-on read (never a
+    /// per-world name comparison and never a re-derived OR at a call site, so
+    /// the lava and stars consumers can never disagree). **Not** the
+    /// scheduling gate for the shared ambient tick — see
+    /// [`Self::has_ambient_tick`] (item 87), a strict superset that also
+    /// includes [`Background::Waves`]' phase drift: Bombora's swell was
+    /// already shipping (item 69) as an OPTIONAL margin decoration that simply
+    /// doesn't draw with page mode off, so it deliberately does NOT join the
+    /// auto-page-on override — only the clock that ticks it.
     pub fn has_ambient_motion(&self) -> bool {
         self.background.is_lava() || self.render_caps.ambient.is_animated()
+    }
+
+    /// THE SHARED AMBIENT-CLOCK SCHEDULING GATE (item 87) — whether the App's
+    /// single ~10 fps `WaitUntil` tick (`crate::lava`'s cadence, the ONE clock
+    /// [`crate::render::pipeline_overlay`]'s `lava_phase` field IS, now THREE
+    /// consumers: the lava lamp, the twinkling stars, and Bombora's wave
+    /// drift) may arm for this world: [`Self::has_ambient_motion`] (lava OR
+    /// stars) OR [`Background::is_waves`]. A strict superset of
+    /// `has_ambient_motion` — read ONLY by the tick arm
+    /// (`app/schedule.rs::about_to_wait_impl`); the move-stream present hold
+    /// and the auto-page-on override deliberately keep reading the narrower
+    /// `has_ambient_motion` (see its own doc). Never a per-world name
+    /// comparison (`render::tests::theme_caps_law`'s grep-law bans it).
+    pub fn has_ambient_tick(&self) -> bool {
+        self.has_ambient_motion() || self.background.is_waves()
     }
 }
 
