@@ -40,6 +40,26 @@
 //! mirrored color math to drift out of lockstep. `INK_FLOOR` is the per-pixel
 //! total-channel difference that counts as material.
 //!
+//! **ITEM 100 — the teeth.** Item 89's own independent re-verify reverted the
+//! pitch rule to the broken `row_h = period_px` and five of the thirteen laws
+//! here went red — but the HEADLINE one,
+//! [`zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds`],
+//! survived it, at 1.43x its floor against 5.48x healthy. Its grid was a 3x3
+//! partition of each margin — cells up to ~116x266 px, coarse enough that a
+//! field with hard 38px blank lanes still dropped material into every one of
+//! them. A headline law that survives the exact regression it names is
+//! decorative. It is regraded here on a grid DERIVED from the field's own
+//! geometry (see [`occupancy_cell_px`]) — 4712 cells across the same sweep
+//! instead of 324, at the finest granularity the field's own claimed rhythm
+//! can fill — and on a per-cell ink floor stated as a fraction of the field's
+//! own structural areal density rather than a bare non-zero. With the shader's
+//! pitch rule reverted it now fails on 1595 blank cells.
+//!
+//! Item 100 also records the RESIDUAL that grid deliberately does not grade:
+//! below the minimal cell, voids DO exist and
+//! [`zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`] pins their
+//! shape (isolated, never adjacent) and population rather than hiding them.
+//!
 //! Skips (with a printed note, not a failure) on a machine with no wgpu
 //! adapter, exactly like every other GPU-backed render test in this tree.
 
@@ -90,20 +110,25 @@ const SWEEP: [(u32, u32, usize); 12] = [
     (900, 1600, 60),  // tall portrait.
 ];
 
-/// The occupancy grid's smallest permitted cell edge (device px). A margin is
-/// partitioned into up to [`GRID`] columns, but never into cells thinner than
-/// this — the granularity the verified defect was reported at (a 26px-wide cell
-/// of a 80px margin), and roughly `Dots`' own 24px lattice cell, this
-/// whisper-mark family's reference for "fine-grained".
+/// The floor under either edge of a graded cell (device px) — the granularity
+/// the verified defect was reported at (a 26px-wide cell of an 80px margin),
+/// and roughly `Dots`' own 24px lattice cell, this whisper-mark family's
+/// reference for "fine-grained". A world whose derived cell
+/// ([`occupancy_cell_px`]) comes out finer than this on an axis is graded at
+/// this instead: below it a "cell" stops being a patch of ground a reader
+/// could notice and becomes a few pixels of stroke.
 const MIN_CELL: u32 = 26;
-/// Cells per margin edge, at most.
-const GRID: u32 = 3;
-/// A cell counts as occupied when at least this FRACTION of its pixels carry
-/// real material...
-const MIN_INKED_FRAC: f32 = 0.01;
-/// ...but never fewer than this many pixels, so a tiny cell cannot pass on two
-/// stray antialiased pixels.
-const MIN_INKED_FLOOR: usize = 24;
+/// A cell must carry at least this FRACTION of the ink an average patch of the
+/// same field carries — see [`cell_ink_floor`], which turns it into a pixel
+/// count against the field's own structural areal density. A twentieth: the
+/// minimal cell is, by construction, the smallest rect one row's ribbon can
+/// cross, and a ribbon that clips only a corner of it legitimately leaves far
+/// less than the mean (measured tightest across the sweep: 1.7x this floor on
+/// Gumtree, 2.2x on Quokka).
+const CELL_INK_FRAC_OF_STRUCTURAL: f32 = 0.05;
+/// ...but never fewer than this many pixels, so a small cell cannot pass on a
+/// handful of stray antialiased pixels.
+const MIN_INKED_FLOOR: usize = 8;
 
 /// The two worlds that wear this ground (the exhaustive no-wildcard roster law
 /// lives in `backgrounds_item86.rs`).
@@ -168,23 +193,77 @@ fn row_crossings(field: &[i32], w: u32, h: u32, x: u32, peak: i32) -> usize {
     runs
 }
 
+/// THE OCCUPANCY GRID'S CELL, derived from the FIELD's own geometry rather
+/// than picked — `(width, height)` in device px, floored at [`MIN_CELL`] per
+/// axis.
+///
+/// A chevron field is a family of ribbons stacked one row pitch `P` apart
+/// along the ACROSS-TRAVEL axis. So the smallest axis-aligned rect that can be
+/// asked to hold a whole row is the one whose longest chord in that direction
+/// reaches `P`: travelling along `ry` = `(-sin a, cos a)` from inside a `w x h`
+/// rect you leave through the vertical edge after `w/|sin a|` and through the
+/// horizontal edge after `h/|cos a|`, so the longest across-travel chord is
+/// `min(w/|sin a|, h/|cos a|)`, and it reaches `P` exactly when
+/// `w >= P*|sin a|` AND `h >= P*|cos a|`. That pair IS the cell: Quokka's steep
+/// 54° field grades 41x30 px, Gumtree's near-horizontal 15° one 33x122 px.
+///
+/// This is the whole reason the grid is not simply "as fine as possible".
+/// ANYTHING SMALLER IS UNSATISFIABLE BY ANY SPARSE ROW FIELD — a narrower or
+/// shorter rect can lie wholly between two neighbouring ribbons no matter how
+/// perfect the coverage — so a law grading finer would be pinning noise, and a
+/// law grading coarser (item 89's 3x3, up to 116x266 px) is the slack the
+/// broken pitch rule hid inside. The measured population at exactly this
+/// granularity is 4712 cells over the sweep, ZERO of them blank; at the broken
+/// pitch rule, 1595 blank.
+///
+/// Both inputs come from the ONE owner each (`Background::zigzag_row_pitch_px`
+/// — the host mirror of the shader's abutment rule — and `Background::angle`),
+/// never a re-derivation here.
+fn occupancy_cell_px(bg: theme::Background) -> (u32, u32) {
+    let p = bg.zigzag_row_pitch_px();
+    let (sa, ca) = (bg.angle().sin().abs(), bg.angle().cos().abs());
+    (
+        ((p * sa).ceil() as u32).max(MIN_CELL),
+        ((p * ca).ceil() as u32).max(MIN_CELL),
+    )
+}
+
+/// The pixel count a `cw x ch` cell of this field must carry to count as
+/// occupied: [`CELL_INK_FRAC_OF_STRUCTURAL`] of the ink an average patch of
+/// the same field carries, floored at [`MIN_INKED_FLOOR`].
+///
+/// The field's STRUCTURAL areal ink density is a closed form, and — the point
+/// of stating the floor this way — a CONSTANT the abutment rule fixes: a
+/// ribbon is `2*t` wide across a pitch of `2*amp + t`, so the inked fraction of
+/// the plane is `2t/(2*amp + t)`, which is `~9.5%` for ANY dials once `t` is
+/// `0.10*amp` (both shipping worlds, and every future one that stays off the
+/// `1.2px` stroke floor). So this floor scales itself with a world's contrast
+/// and dials instead of pinning one authored geometry's pixel count.
+fn cell_ink_floor(bg: theme::Background, cw: u32, ch: u32) -> usize {
+    let structural = 2.0 * bg.zigzag_stroke_px() / bg.zigzag_row_pitch_px().max(1.0);
+    let need = structural * CELL_INK_FRAC_OF_STRUCTURAL * (cw * ch) as f32;
+    (need.round() as usize).max(MIN_INKED_FLOOR)
+}
+
 /// The cell rects of one margin's occupancy grid, as `(x0, x1, y0, y1)` in
-/// device px. Up to [`GRID`] cells per edge, but never thinner than
-/// [`MIN_CELL`]: a 182px margin grades 3 columns of 60px, an 80px one 3 columns
-/// of 26px, a 46px one 1 column of 46px. Returns nothing at all for a margin
+/// device px: a uniform tiling in cells of EXACTLY `cw x ch` (never a stretched
+/// remainder — the cell size is the law's whole premise), with the last column
+/// and row pulled flush against the far edge so they overlap their neighbour
+/// instead of leaving an ungraded strip. Returns nothing at all for a margin
 /// narrower than one cell (a hairline sliver of ground, not a field).
-fn cells(x0: u32, x1: u32, h: u32) -> Vec<(u32, u32, u32, u32)> {
+fn cells(x0: u32, x1: u32, h: u32, cw: u32, ch: u32) -> Vec<(u32, u32, u32, u32)> {
     let span = x1.saturating_sub(x0);
-    if span < MIN_CELL || h < MIN_CELL {
+    if span < cw || h < ch {
         return Vec::new();
     }
-    let cols = (span / MIN_CELL).min(GRID).max(1);
-    let rows = (h / MIN_CELL).min(GRID).max(1);
-    let cw = span / cols;
-    let ch = h / rows;
-    (0..rows)
+    let (ncol, nrow) = (span.div_ceil(cw), h.div_ceil(ch));
+    (0..nrow)
         .flat_map(|r| {
-            (0..cols).map(move |c| (x0 + c * cw, x0 + (c + 1) * cw, r * ch, (r + 1) * ch))
+            let cy0 = (r * ch).min(h - ch);
+            (0..ncol).map(move |c| {
+                let cx0 = (x0 + c * cw).min(x1 - cw);
+                (cx0, cx0 + cw, cy0, cy0 + ch)
+            })
         })
         .collect()
 }
@@ -221,12 +300,28 @@ fn margins(w: u32, col_left: f32, col_w: f32) -> [(u32, u32); 2] {
 /// For each of [`SWEEP`]'s twelve `(window, measure)` shapes, on BOTH worlds:
 /// resolve the page column through the app's OWN adaptive-placement owner
 /// (`TextPipeline::column_left`/`column_width` — the live geometry every
-/// downstream reader composes, not a synthetic constant), partition each
-/// resulting margin into a grid of substantial cells, and require EVERY cell to
-/// hold real chevron material — not merely a nonzero pixel, but
-/// [`MIN_INKED_FRAC`] of its area AND a local peak at least half the field's own
-/// global peak (an actual ribbon core crosses it, not a feather tail leaking in
-/// from a neighbour).
+/// downstream reader composes, not a synthetic constant), tile each resulting
+/// margin in cells of exactly [`occupancy_cell_px`] — the finest granularity
+/// the field's own claimed row pitch can fill — and require EVERY cell to hold
+/// real chevron material: at least [`cell_ink_floor`] inked pixels (a fraction
+/// of the ink an average patch of the SAME field carries, not a bare non-zero)
+/// AND a local peak at least half the field's own global peak (an actual ribbon
+/// core crosses it, not a feather tail leaking in from a neighbour).
+///
+/// **ITEM 100 — why the grid moved.** As item 89 shipped it, this law graded a
+/// 3x3 partition of each margin: 324 cells of up to 116x266 px, each needing 1%
+/// of its own area inked. Item 89's independent re-verify reverted the shader's
+/// pitch rule to the broken `row_h = period_px` — a field with a hard 38px lane
+/// no chevron enters — and this law STILL PASSED, at 1.43x its floor against
+/// 5.48x healthy: cells that big catch a row somewhere no matter how sparse the
+/// field gets. The two laws that did catch it were the blank-LANE law and the
+/// evenness bound. So the headline claim is now graded at the cell the field's
+/// own geometry defines (4712 cells, ~7-40x smaller), where the same revert
+/// leaves 1595 cells with literally zero ink.
+///
+/// What this law deliberately does NOT claim: coverage BELOW that cell. See
+/// [`zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`], which grades
+/// exactly that residual instead of leaving it unspoken.
 #[test]
 fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds() {
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
@@ -265,21 +360,21 @@ fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds(
                 peak >= 6,
                 "{name}: {ww}x{wh}@{measure} — the zigzag field must reach real ink (peak {peak})"
             );
+            let (cw, ch) = occupancy_cell_px(bg);
+            let need = cell_ink_floor(bg, cw, ch);
             for (mi, (mx0, mx1)) in margins(ww, col_left, col_w).iter().enumerate() {
-                for cell in cells(*mx0, *mx1, wh) {
+                for cell in cells(*mx0, *mx1, wh, cw, ch) {
                     let (x0, x1, y0, y1) = cell;
-                    let area = ((x1 - x0) * (y1 - y0)) as usize;
-                    let need =
-                        ((area as f32 * MIN_INKED_FRAC) as usize).max(MIN_INKED_FLOOR);
                     let (inked, cell_peak) = cell_stats(&field, ww, cell);
                     graded += 1;
                     tightest = tightest.min(inked as f32 / need as f32);
                     assert!(
                         inked >= need,
                         "{name}: {ww}x{wh}@{measure} margin {mi} cell x[{x0},{x1}) \
-                         y[{y0},{y1}) is BLANK ({inked} inked px, need {need}) — the zigzag \
-                         field must tile every margin at every viewport shape, not only at \
-                         the one geometry its author picked"
+                         y[{y0},{y1}) ({cw}x{ch}) is BLANK ({inked} inked px, need {need}) — \
+                         the zigzag field must tile every margin at every viewport shape, not \
+                         only at the one geometry its author picked, and at the cell its own \
+                         row pitch defines, not at whatever grid happens to hide the gaps"
                     );
                     assert!(
                         cell_peak * 2 >= peak,
@@ -297,11 +392,14 @@ fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds(
 
     // NON-VACUITY: the sweep really did grade a substantial population of
     // cells (a geometry list that silently produced no margins would pass
-    // every assertion above).
+    // every assertion above). Measured 4712 at item 100's derived cell — the
+    // bound is set well under it so an authored dial change may move the cell
+    // size without tripping a bookkeeping assert, but a grid that collapsed
+    // back toward item 89's 324 could not survive it.
     assert!(
-        graded >= 200,
+        graded >= 2_000,
         "the viewport sweep graded only {graded} margin cells — it is not exercising \
-         the geometry axis it exists for"
+         the geometry axis it exists for at the granularity item 100 set"
     );
     eprintln!(
         "zigzag sweep: {graded} margin cells graded, tightest occupancy {tightest:.2}x the floor"
@@ -347,12 +445,11 @@ fn zigzag_field_covers_every_margin_cell_in_the_outline_rail_regime_too() {
             shifted += 1;
             let field = mark_field(&device, &queue, bg, ww, wh, col_left, col_w);
             let peak = field.iter().copied().max().unwrap_or(0);
+            let (cw, ch) = occupancy_cell_px(bg);
+            let need = cell_ink_floor(bg, cw, ch);
             for (mi, (mx0, mx1)) in margins(ww, col_left, col_w).iter().enumerate() {
-                for cell in cells(*mx0, *mx1, wh) {
+                for cell in cells(*mx0, *mx1, wh, cw, ch) {
                     let (x0, x1, y0, y1) = cell;
-                    let area = ((x1 - x0) * (y1 - y0)) as usize;
-                    let need =
-                        ((area as f32 * MIN_INKED_FRAC) as usize).max(MIN_INKED_FLOOR);
                     let (inked, cell_peak) = cell_stats(&field, ww, cell);
                     assert!(
                         inked >= need,
@@ -510,11 +607,228 @@ fn the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis() {
     }
 }
 
+/// THE TOOTH BOUND on the no-lane guarantee (item 100) — the fixture behind
+/// the honest wording of `Background::zigzag_row_pitch_px`'s own doc comment.
+///
+/// That comment used to claim the abutment rule leaves no blank lane "at ANY
+/// dials, at any angle, at any viewport size or aspect". The first two thirds
+/// are provable and proven (over the PLANE: [`the_abutment_rule_forbids_a_blank_lane_at_every_dial_setting`]).
+/// The last clause was false, and this is the counterexample: a viewport sees a
+/// ROTATED RECTANGLE of that plane, not a whole strip of it, so it inherits the
+/// guarantee only when it actually holds the travel the excursion needs. Give
+/// the field a tooth wider than the canvas's own travel extent — `period_px`
+/// 2000 against the 1365px a 1200x800 canvas spans along a 15° travel axis —
+/// and the triangle wave never completes a cycle in view: part of the
+/// across-travel axis is never visited, measured at a 78px blank lane.
+///
+/// The regime is bounded by the TOOTH, and `theme::ZIGZAG_MAX_ROW_PITCH_PX`
+/// does not bound the tooth (it bounds the PITCH, which the tooth no longer
+/// sets). So the second half of this law is the authored guard that keeps
+/// shipping worlds far outside it: every `Zigzag` world's `period_px` must sit
+/// under a quarter of the travel extent of the SHORTEST viewport this file
+/// sweeps — Gumtree's 170px tooth against a 394px allowance, Quokka's 100px
+/// against 320px.
+#[test]
+fn the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold() {
+    // The data half needs no GPU, so it runs on an adapter-less machine too.
+    let travel = |w: u32, h: u32, a: f32| w as f32 * a.cos().abs() + h as f32 * a.sin().abs();
+    let mut seen = 0usize;
+    for t in theme::THEMES {
+        if !matches!(t.background, theme::Background::Zigzag { .. }) {
+            continue;
+        }
+        seen += 1;
+        let bg = t.background;
+        let shortest = SWEEP
+            .iter()
+            .map(|(w, h, _)| travel(*w, *h, bg.angle()))
+            .fold(f32::INFINITY, f32::min);
+        assert!(
+            bg.period_px() * 4.0 <= shortest,
+            "{}: a {}px tooth against only {shortest:.0}px of travel on the sweep's shortest \
+             viewport — a field whose tooth the viewport cannot comfortably hold never sweeps \
+             its full excursion in view, and the abutment rule's no-lane guarantee (a claim \
+             about the PLANE) stops transferring to the margin",
+            t.name,
+            bg.period_px()
+        );
+    }
+    assert!(seen >= 2, "expected both Zigzag worlds in the roster (saw {seen})");
+
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!("skipping the GPU half of the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    // An OFF-ROSTER dial pair, deliberately: this is the boundary of the
+    // guarantee, not a world anyone ships.
+    let huge_tooth = theme::Background::Zigzag {
+        from: theme::Srgb::rgb(20, 30, 20),
+        to: theme::Srgb::rgb(40, 60, 40),
+        dir: (0.0, 1.0),
+        tint: theme::Srgb::rgb(240, 240, 240),
+        period_px: 2000.0,
+        amplitude_px: 150.0,
+        angle: 0.26,
+        density: 0.6,
+    };
+    let (w, h) = (W, H);
+    let field = mark_field(&device, &queue, huge_tooth, w, h, 0.0, 0.0);
+    let peak = field.iter().copied().max().unwrap_or(0);
+    let lane = widest_blank_ry_lane(&field, w, h, huge_tooth.angle(), (peak / 2).max(INK_FLOOR));
+    assert!(
+        lane >= 30,
+        "a {}px tooth on a {w}x{h} canvas ({:.0}px of travel) left only a {lane}px lane — this \
+         fixture exists to hold `zigzag_row_pitch_px`'s doc comment honest about the ONE regime \
+         the abutment rule does not cover; if the regime is gone, the comment must change with it",
+        huge_tooth.period_px(),
+        travel(w, h, huge_tooth.angle())
+    );
+    eprintln!("zigzag tooth bound: a 2000px tooth on {w}x{h} leaves a {lane}px lane");
+}
+
+/// The sub-pitch grid the RESIDUAL is graded on: [`MIN_CELL`] wide by this
+/// tall, the granularity item 89's re-verify reported its pockets at. It is
+/// deliberately FINER than [`occupancy_cell_px`] on at least one axis for both
+/// worlds (Quokka's cell needs 41px of width, Gumtree's 122px of height), i.e.
+/// finer than any sparse row field can guarantee.
+const SUB_PITCH_CELL_H: u32 = 100;
+/// The share of sub-pitch cells that may come up blank, per world. Measured
+/// across the sweep: Quokka 0.21% (3 of 1424), Gumtree 4.71% (67 of 1424); at
+/// the broken `row_h = period_px` pitch rule, 15.4% and 18.9%.
+const MAX_SUB_PITCH_VOID_FRAC: f32 = 0.08;
+
+/// THE RESIDUAL, PINNED (item 100) — what the occupancy law deliberately does
+/// not claim, measured rather than left unspoken.
+///
+/// Grade the same swept margins on a grid FINER than the field's own row pitch
+/// can fill ([`MIN_CELL`] x [`SUB_PITCH_CELL_H`]) and blank cells do appear:
+/// ~30x100px lens-shaped pockets between two neighbouring ribbons, flanked by
+/// ink on both sides. Item 89's re-verify named three of them on Gumtree
+/// (1200x800@m70 `x[32,64) y[300,400)`, 1400x700@m86 `x[1346,1373) y[0,100)`
+/// and `x[1373,1400) y[500,600)`); this sweep's own tiling finds 67 of 1424,
+/// the same shape at more offsets, and 3 on Quokka.
+///
+/// **The decision, stated rather than tuned away: PINNED as a bounded
+/// residual, not failed on.** A pocket that size is not a lane and not a
+/// coverage defect — it is what a SPARSE ROW field IS below its own pitch, and
+/// no shader change can remove it: shrinking the pitch enough to fill a
+/// sub-pitch cell means a denser field, which is an authored TASTE dial
+/// (`amplitude_px`), not a correctness rule. Failing here would therefore
+/// pressure the next dial edit toward density for a law's sake. What CAN be
+/// held, and is held here, is the residual's SHAPE and SIZE:
+///
+/// - **isolated** — no blank cell touches another, in either axis, anywhere in
+///   the sweep. A void may be a pocket; it may never join its neighbour into a
+///   band, a column, or a lane. (Measured: longest blank run 1 cell both ways;
+///   at the broken pitch rule, 2 vertically and 3 horizontally.)
+/// - **rare** — at most [`MAX_SUB_PITCH_VOID_FRAC`] of a world's sub-pitch
+///   cells.
+///
+/// Both bounds go red at the broken pitch rule, so this is a second detector
+/// rather than a place to file the inconvenient cells. Zero pockets is allowed
+/// (a future denser dial pair is an improvement, not a violation) — only the
+/// doc's recorded numbers would go stale, and the printed line below reports
+/// them every run.
+#[test]
+fn zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane() {
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let was_page_on = crate::page::page_on();
+    let was_measure = crate::page::measure();
+    let was_theme = theme::active().name;
+    crate::page::set_page_on(true);
+
+    for (name, bg) in zigzag_worlds() {
+        let (mut total, mut blank) = (0usize, 0usize);
+        for (ww, wh, measure) in SWEEP {
+            crate::page::set_measure(measure);
+            p.set_size(ww as f32, wh as f32);
+            theme::set_active_by_name(name).unwrap();
+            p.sync_theme();
+            p.set_view(&view("some plain prose here, no headings at all\n", 0, 0));
+            let (col_left, col_w) = (p.column_left(), p.column_width());
+            let field = mark_field(&device, &queue, bg, ww, wh, col_left, col_w);
+            for (mi, (mx0, mx1)) in margins(ww, col_left, col_w).iter().enumerate() {
+                // A PLAIN tiling here (no flush-to-edge overlap): adjacency is
+                // the claim, so neighbouring cells must not share pixels.
+                let (ncol, nrow) = (mx1.saturating_sub(*mx0) / MIN_CELL, wh / SUB_PITCH_CELL_H);
+                if ncol == 0 || nrow == 0 {
+                    continue;
+                }
+                let mut void = vec![false; (ncol * nrow) as usize];
+                for r in 0..nrow {
+                    for c in 0..ncol {
+                        let cell = (
+                            mx0 + c * MIN_CELL,
+                            mx0 + (c + 1) * MIN_CELL,
+                            r * SUB_PITCH_CELL_H,
+                            (r + 1) * SUB_PITCH_CELL_H,
+                        );
+                        total += 1;
+                        if cell_stats(&field, ww, cell).0 == 0 {
+                            blank += 1;
+                            void[(r * ncol + c) as usize] = true;
+                        }
+                    }
+                }
+                for r in 0..nrow {
+                    for c in 0..ncol {
+                        if !void[(r * ncol + c) as usize] {
+                            continue;
+                        }
+                        let right = c + 1 < ncol && void[(r * ncol + c + 1) as usize];
+                        let below = r + 1 < nrow && void[((r + 1) * ncol + c) as usize];
+                        assert!(
+                            !right && !below,
+                            "{name}: {ww}x{wh}@{measure} margin {mi} — the blank sub-pitch cell \
+                             at column {c} row {r} (x[{},{}) y[{},{})) has a blank neighbour \
+                             ({}{}). A residual void may be an isolated pocket between two \
+                             ribbons; two touching voids are a BAND, and a band is the blank \
+                             lane the abutment rule exists to forbid",
+                            mx0 + c * MIN_CELL,
+                            mx0 + (c + 1) * MIN_CELL,
+                            r * SUB_PITCH_CELL_H,
+                            (r + 1) * SUB_PITCH_CELL_H,
+                            if right { "to its right" } else { "" },
+                            if below { " below it" } else { "" },
+                        );
+                    }
+                }
+            }
+        }
+        assert!(
+            total >= 1_000,
+            "{name}: only {total} sub-pitch cells graded — this law is not measuring the \
+             residual it exists to bound"
+        );
+        let frac = blank as f32 / total as f32;
+        eprintln!(
+            "zigzag sub-pitch residual on {name}: {blank} blank of {total} cells ({:.2}%)",
+            100.0 * frac
+        );
+        assert!(
+            frac <= MAX_SUB_PITCH_VOID_FRAC,
+            "{name}: {blank} of {total} sub-pitch cells ({:.2}%) are blank, past the \
+             {:.0}% bound item 100 pinned the residual at — the pockets stopped being a \
+             residual and became the field's character",
+            100.0 * frac,
+            100.0 * MAX_SUB_PITCH_VOID_FRAC
+        );
+    }
+    crate::page::set_page_on(was_page_on);
+    crate::page::set_measure(was_measure);
+    theme::set_active_by_name(was_theme).unwrap();
+}
+
 /// THE MARGIN-EVENNESS LAW, swept: over every geometry in [`SWEEP`], on both
 /// worlds, at the app's real column geometry, no margin carries a fully-blank
 /// horizontal band taller than [`MAX_BLANK_BAND_PX`].
 ///
-/// This is the companion the occupancy grid alone cannot give: a 3x3 grid says
+/// This is the companion the occupancy grid alone cannot give: a grid says
 /// every CELL holds material, which a field with one tall stripe of nothing
 /// straddling a cell boundary could still satisfy. Measured exactly the way the
 /// verification report measured the defect it names (scan the margin's full
@@ -580,8 +894,9 @@ fn zigzag_margin_bands_stay_even_across_the_sweep() {
 /// of its cost: the row pitch is no longer free to be as broad as the tooth
 /// wavelength (that freedom WAS the blank lane), so Gumtree reads ~5 broad rows
 /// down an ordinary window where item 89's first cut read ~3. Its BROADNESS now
-/// lives in the tooth wavelength (480px against Quokka's 100px) and in a row
-/// pitch still 2.7x Quokka's.
+/// lives in the tooth wavelength (170px against Quokka's 100px) and in a row
+/// pitch still 2.5x Quokka's. (The two numbers read 480px and 2.7x until item
+/// 100 — a stale record of a dial pair that never shipped.)
 #[test]
 fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
     let Some((device, queue)) = headless_dq() else {

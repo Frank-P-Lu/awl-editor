@@ -267,9 +267,14 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // and its ribbon CORE (`d <= 0.6*t`) sweep `2*amp + 1.2*t` — a pitch
         // PLUS `0.2*t` of overlap. Consecutive rows therefore ABUT (strictly
         // overlap) across the travel axis for ANY authored dials, so a void
-        // band is impossible BY CONSTRUCTION rather than by tuning: the
-        // covering property no longer depends on the period/amplitude ratio,
-        // on the angle, or on the viewport's size or aspect. It also retires
+        // band is impossible BY CONSTRUCTION rather than by tuning: over the
+        // PLANE the covering property no longer depends on the
+        // period/amplitude ratio or on the angle. (ITEM 100 — the one bound:
+        // a VIEWPORT sees a rotated rectangle of that plane, so it inherits
+        // the guarantee only while it holds a whole tooth of travel; a canvas
+        // narrower than one `period` never sweeps the full excursion. See
+        // `Background::zigzag_row_pitch_px`'s doc comment — no shipping
+        // world's tooth is within 4x of that regime.) It also retires
         // item 89's row-collision clamp — abutting rows cannot smear together
         // (each ribbon is `2*t` wide inside a `2*amp + t` lane), so there is
         // nothing left to guard.

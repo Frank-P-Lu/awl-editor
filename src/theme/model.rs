@@ -1538,11 +1538,27 @@ impl Background {
     /// triangle wave sweeps its full excursion, i.e. a span of `2*amp + 2*t`;
     /// its ribbon CORE (`d <= 0.6*t`, the half-peak criterion the occupancy
     /// laws measure) spans `2*amp + 1.2*t`. Both exceed `pitch = 2*amp + t`,
-    /// so consecutive rows' sweeps OVERLAP — the field can carry no blank
-    /// lane across its travel axis for ANY authored dials, at any angle, at
-    /// any viewport size or aspect. Item 89's first cut set `pitch =
-    /// period_px`, which left a lane of `period_px - 2*amp - 2*t` (~63px on
-    /// the then-authored Gumtree) that no chevron ever entered.
+    /// so consecutive rows' sweeps OVERLAP — over the PLANE the family
+    /// reaches every value of `ry`, for ANY authored dials and at any angle.
+    /// Item 89's first cut set `pitch = period_px`, which left a lane of
+    /// `period_px - 2*amp - 2*t` (~63px on the then-authored Gumtree) that no
+    /// chevron ever entered.
+    ///
+    /// **The one bound on that guarantee (item 100 — this comment used to
+    /// claim "at any viewport size or aspect", and that clause was false).**
+    /// A viewport sees a ROTATED RECTANGLE of the plane, not a whole strip of
+    /// it, so it inherits the guarantee only when it actually holds the travel
+    /// the excursion needs: a canvas whose extent along the travel axis is
+    /// under one tooth `period_px` never completes a cycle in view, the wave
+    /// never sweeps its full excursion, and part of the across-travel axis
+    /// goes unvisited. Measured at `period_px: 2000` / `amplitude_px: 150` on
+    /// a 1200x800 canvas (1365px of travel): a 78px blank lane. That regime is
+    /// bounded by the TOOTH, which [`ZIGZAG_MAX_ROW_PITCH_PX`] does not bound
+    /// — it bounds the PITCH, which the tooth no longer sets. No shipping
+    /// world is near it (Quokka's 100px and Gumtree's 170px teeth against
+    /// 1280px and 1578px of travel on the shortest swept viewport), and the
+    /// authored guard plus the counterexample are law-tested together by
+    /// `render::tests::backgrounds_item89::the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold`.
     /// `cfg(test)` for the same reason the constants are.
     #[cfg(test)]
     pub fn zigzag_row_pitch_px(&self) -> f32 {

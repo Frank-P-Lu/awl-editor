@@ -833,7 +833,7 @@ UNCHANGED — the drift is one added scalar, `0.0` at rest.
   reading as "layered," calmness) is live-only and flagged for human
   confirmation — the harness proves the arithmetic, not the taste.
 
-### The zigzag field law (`Background::Zigzag` — item 89, 2026-07-26)
+### The zigzag field law (`Background::Zigzag` — item 89, hardened by item 100, 2026-07-26)
 
 Item 86's chevron ground repeated its TEETH along one travel line but never
 repeated that LINE across the margin: `abs(ry - center(rx))` describes a single
@@ -862,10 +862,22 @@ and typography of both worlds are untouched.
   deviation, both at the app's real adaptive column geometry). The pitch is now
   `row_h = 2*amp + thickness`, so each row's ribbon sweeps exactly its own lane
   and its ribbon CORE sweeps a lane plus `0.2*t` of overlap: consecutive rows
-  ABUT for ANY authored dials, at any angle, at any viewport size or aspect.
-  Coverage stopped being a property of the dial pair and became a property of
-  the shader. The old amplitude-vs-period collision clamp retired with it —
-  abutting rows cannot smear together, so there was nothing left to guard.
+  ABUT for ANY authored dials, at any angle. Coverage stopped being a property
+  of the dial pair and became a property of the shader. The old
+  amplitude-vs-period collision clamp retired with it — abutting rows cannot
+  smear together, so there was nothing left to guard.
+  **Item 100 corrected the scope of that claim.** It read "at any viewport size
+  or aspect" until then, and that clause was false: a viewport sees a ROTATED
+  RECTANGLE of the plane, not a whole strip, so it inherits the guarantee only
+  while it holds a whole tooth of travel. A canvas whose travel extent is under
+  one `period_px` never completes a cycle in view, the wave never sweeps its
+  full excursion, and part of the across-travel axis goes unvisited — measured
+  at `period_px: 2000` / `amplitude_px: 150` on a 1200x800 canvas (1365px of
+  travel): a 78px blank lane. The regime is bounded by the TOOTH, which
+  `ZIGZAG_MAX_ROW_PITCH_PX` does not bound (it bounds the PITCH). No shipping
+  world is within 4x of it, and that ratio is now the authored guard, tested
+  alongside the counterexample by
+  `render::tests::backgrounds_item89::the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold`.
 - **The dials, and what each one now means.** `period_px` is the TOOTH
   wavelength alone; `amplitude_px` is the profile depth AND (through the
   abutment rule) the row pitch and the ribbon thickness. Quokka 100px/24px
@@ -893,10 +905,9 @@ and typography of both worlds are untouched.
   passed it. It now sweeps twelve `(window, measure)` shapes (heights 500..1600,
   aspect ratios 0.56..2.37, including both verified failures) at the app's OWN
   adaptive-column owner (`TextPipeline::column_left`/`column_width`), in BOTH
-  placement regimes (symmetric, and the outline-rail shift), partitions each
-  resulting margin into cells no thinner than 26px, and requires EVERY cell on
-  BOTH worlds to hold a real ribbon core. 324 cells graded; tightest occupancy
-  5.5x the floor. Measured DIFFERENTIALLY: the same world rendered as authored
+  placement regimes (symmetric, and the outline-rail shift), tiles each
+  resulting margin, and requires EVERY cell on BOTH worlds to hold a real
+  ribbon core. Measured DIFFERENTIALLY: the same world rendered as authored
   minus the same world with its mark coverage zeroed, so the gradient, its
   dither and the sRGB quantization cancel exactly and the number is the mark
   alone.
@@ -914,6 +925,32 @@ and typography of both worlds are untouched.
   WGSL structural tripwire on both the fold and the abutment rule; and a host
   mirror kept in lockstep with the GPU, carrying the first cut's pitch rule as a
   second arm purely so the laws can be proven capable of catching what it did.
+- **ITEM 100 — THE OCCUPANCY LAW'S TEETH, and the residual it does not claim.**
+  Item 89's own re-verify reverted the pitch rule to the broken
+  `row_h = period_px` and five of thirteen laws went red — but the HEADLINE
+  occupancy law survived it (1.43x its floor against 5.48x healthy). Its 3x3
+  partition made cells up to 116x266px: coarse enough that a field with hard
+  38px blank lanes still dropped material into every one of them. The cell is
+  now DERIVED from the field's own geometry — `P*|sin a|` by `P*|cos a|` for a
+  row pitch `P` and travel angle `a`, the smallest axis-aligned rect whose
+  across-travel chord reaches a whole row pitch (Quokka 41x30px, Gumtree
+  33x122px) — and the per-cell ink floor is stated as a twentieth of the field's
+  own structural areal density (`2t/pitch`, a constant ~9.5% the abutment rule
+  fixes for any dials) instead of a bare non-zero. 4712 cells graded, tightest
+  occupancy 1.5x the floor; the same revert now leaves 1595 of them at literally
+  zero ink, so the headline law fails on the bug it names.
+- **The residual, PINNED rather than hidden.** Below that cell, voids DO exist —
+  ~30x100px lens shapes between two neighbouring ribbons, flanked by ink on both
+  sides (67 of 1424 sub-pitch cells on Gumtree, 3 on Quokka). Grading finer than
+  the field's own pitch is unsatisfiable for ANY sparse row field, and closing
+  them means a denser field, which is an authored TASTE dial, not a correctness
+  rule — so the law bounds their SHAPE and POPULATION instead of failing on
+  them: no blank cell may touch another in either axis (a pocket may never join
+  its neighbour into a band), and at most 8% of a world's sub-pitch cells may be
+  blank. Both bounds go red at the broken pitch rule (blank runs of 2-3 cells;
+  15-19% blank), so the pin is a second detector, not a place to file
+  inconvenient cells. Law:
+  `render::tests::backgrounds_item89::zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 
