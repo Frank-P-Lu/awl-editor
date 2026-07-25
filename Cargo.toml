@@ -25,6 +25,24 @@ license = "GPL-3.0-only"
 [features]
 mas = ["objc2-foundation/NSArray", "objc2-foundation/NSData"]
 
+# --- Dev profile: debug-info diet -------------------------------------------
+# Trims DWARF from dev builds, which matters because every orchestrator worktree
+# carries its own `target/` (27 of them once reached 132 GB — hence
+# `.orchestrator/README.md`'s cleanup rule). `line-tables-only` keeps exactly
+# what we read — file:line in panic and test backtraces, so a failing capture
+# still points at a line — and drops the variable/type DWARF we never touch:
+# verification here is headless captures + sidecar assertions, not an
+# interactive debugger. Flip back to `debug = true` for a session that genuinely
+# needs lldb variable inspection.
+# MEASURED on this repo (clean target dir, 2026-07-25), so nobody re-derives it:
+# `cargo build` 1.5G → 1.2G; `cargo build + test --no-run` 3.5G → 2.7G. That is
+# ~23% — real, but the SMALL lever. Prompt worktree removal is the big one.
+# (`split-debuginfo` is deliberately NOT set: `unpacked` is already the macOS
+# dev default — target/debug carries no .dSYM bundles — so pinning it would be
+# noise, and Linux/wasm are better left on their own defaults.)
+[profile.dev]
+debug = "line-tables-only"
+
 [dependencies]
 anyhow = "1.0.102"
 glyphon = "0.11.0"

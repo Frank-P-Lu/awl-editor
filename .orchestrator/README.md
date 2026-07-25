@@ -179,7 +179,11 @@ These are orchestration rules, not live queue state:
 - **Clean up after every landed wave.** Once a worktree is clean and its patch
   is merged (or patch-equivalent on main), remove the worktree and prune stale
   registrations. Leave dirty, unmerged, locked, or differently-owned
-  worktrees alone unless their owner explicitly hands them back.
+  worktrees alone unless their owner explicitly hands them back. Not deferrable
+  bookkeeping: each worktree carries its own `target/`, and 27 of them reached
+  132 GB before the first sweep. `git worktree remove` deletes the checkout, not
+  the branch — removing a merged worktree loses nothing, so the only ones worth
+  keeping are those holding uncommitted or untracked work.
 - **Preserve gate truth.** Never pipe a build/test gate through `head`, `tail`,
   or anything else that can hide its exit status. Run the wasm gate on every
   train as required by `AGENTS.md`.
