@@ -23,3 +23,4 @@
 # (scripts/smoke-export-html.sh); its node_modules is scratch, never committed.
 /test/export-html/node_modules/
 /test/export-html/package-lock.json
+.DS_Store
