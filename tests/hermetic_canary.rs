@@ -24,7 +24,8 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
+mod common;
 
 /// Atomically claim a fresh tempdir under the OS temp root (no `tempfile` dep).
 ///
@@ -97,14 +98,16 @@ fn run_awl(home: &Path, args: &[&str]) {
         .expect("canary home has a parent dir")
         .join("xdg-cache");
     std::fs::create_dir_all(&cache).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_awl"))
+    // `common::awl_in_home` pins `$HOME` + `$XDG_CONFIG_HOME` into the canary
+    // tree and removes `$AWL_CONFIG` — the ONE place in the suite where that
+    // removal is correct, because this test's whole subject is the ladder's
+    // fall-through and the rung it falls to is the canary's own bait config,
+    // never the developer's (item 93; see `tests/common/mod.rs`).
+    let out = common::awl_in_home(home)
         .args(args)
-        .env("HOME", home)
-        .env("XDG_CONFIG_HOME", home.join(".config"))
         .env("XDG_DATA_HOME", home.join(".local").join("share"))
         .env("XDG_CACHE_HOME", &cache)
         .env("AWL_CONVENTION_FORCE", "mac")
-        .env_remove("AWL_CONFIG")
         .env_remove("AWL_CJK_FORCE")
         .env_remove("AWL_FAULT_DELAY_MS")
         .output()

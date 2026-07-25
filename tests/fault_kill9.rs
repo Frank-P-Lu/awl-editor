@@ -35,7 +35,9 @@
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Stdio};
+
+mod common;
 
 /// A run's deterministic payload for iteration `i` — MUST mirror `main.rs`'s
 /// `--fault-write-loop` loop body exactly, so this test can recognize which
@@ -63,7 +65,11 @@ fn tmp_dir(tag: &str) -> PathBuf {
 /// running the suite can see it) — never asserted on, since a SIGKILL exit
 /// carries no stderr contract.
 fn spawn_write_loop(target: &Path, count: u32, delay_ms: u64) -> Child {
-    Command::new(env!("CARGO_BIN_EXE_awl"))
+    // Through the one spawn door (item 93): `--fault-write-loop` never loads a
+    // config today, but the law in `tests/spawn_config_law.rs` admits no
+    // exemptions — an exempt spawn is exactly how the inverted-isolation idiom
+    // would creep back in.
+    common::awl(target.parent().unwrap_or(target))
         .arg("--fault-write-loop")
         .arg(target)
         .arg(count.to_string())

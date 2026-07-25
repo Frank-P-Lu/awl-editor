@@ -29,7 +29,8 @@
 //! overlay open, so that axis does not apply here.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
+mod common;
 
 /// A fresh, uniquely-named tempdir under the OS temp root (mirrors
 /// `tests/frost_rail_pixels.rs`'s `tmp_dir`).
@@ -65,17 +66,32 @@ const CONTROL_DOC: &str = "a\n\nsomething\n";
 /// door) and left this exact test failing under CI's real Linux convention
 /// (item 75) while passing on a macOS dev box. Returns `false` iff no GPU
 /// adapter was available (mirrors the suite's `adapter_available()` tolerance).
+///
+/// ZOOM IS PINNED TO 1.0 (item 93). The row-band arithmetic below reads
+/// `font.line_height` out of the sidecar, but the sidecar reports the BASE
+/// constant `render::LINE_HEIGHT` there, while `text_origin` / `page.column`
+/// are EFFECTIVE (zoom×dpi-scaled) pixels. At any zoom but 1.0 the two
+/// disagree and `top + n * line_height` silently addresses the WRONG ROW —
+/// which is how a personal `zoom = 1.5` in the developer's config (reached
+/// because `capture` used to `env_remove("AWL_CONFIG")`, see
+/// `tests/common/mod.rs`) aimed this test's band at row 0, where the two
+/// fixtures legitimately differ, and reported 118 phantom "stray mark" pixels.
+/// `common::awl` already shuts that door; `--zoom 1.0` additionally makes the
+/// band math's "row pitch == sidecar line_height" assumption true BY
+/// DECLARATION rather than by hope, and documents the dependency.
 fn capture(out: &Path, doc: &Path, theme: &str) -> bool {
-    let output = Command::new(env!("CARGO_BIN_EXE_awl"))
+    let sandbox = out.parent().expect("capture target has a parent dir");
+    let output = common::awl(sandbox)
         .arg("--theme")
         .arg(theme)
+        .arg("--zoom")
+        .arg("1.0")
         .arg("--screenshot")
         .arg(out)
         .arg("--keys")
         .arg("Down Down")
         .arg(doc)
         .env_remove("AWL_CJK_FORCE")
-        .env_remove("AWL_CONFIG")
         .output()
         .expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl");
     if !output.status.success()

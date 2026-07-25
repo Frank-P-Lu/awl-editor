@@ -24,7 +24,9 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Output;
+
+mod common;
 
 /// A fresh, uniquely-named tempdir under the OS temp root (no `tempfile` dep —
 /// mirrors `tests/hermetic_canary.rs`).
@@ -37,18 +39,24 @@ fn tmp_dir(tag: &str) -> PathBuf {
 }
 
 /// Spawn the real binary from the repo root (so `scenarios/…` resolves), with
-/// `$AWL_CONFIG` scrubbed (a pointed-at config would seed the sandbox) and the
-/// child's CONVENTION pinned to Mac: the checked-in storyboards speak
-/// Mac-convention chords (scenarios/demo.toml's own header says so), so the
-/// child must read them under `Convention::Mac` even when the parent suite is
-/// swept under `AWL_CONVENTION_FORCE=linux` (the parent's env would otherwise
-/// leak into the child and unbind `s-Down`/`s-w`/`s-p`).
+/// `$AWL_CONFIG` PINNED at an empty test-owned sandbox and the child's
+/// CONVENTION pinned to Mac: the checked-in storyboards speak Mac-convention
+/// chords (scenarios/demo.toml's own header says so), so the child must read
+/// them under `Convention::Mac` even when the parent suite is swept under
+/// `AWL_CONVENTION_FORCE=linux` (the parent's env would otherwise leak into the
+/// child and unbind `s-Down`/`s-w`/`s-p`).
+///
+/// The header comment here used to say `$AWL_CONFIG` was "scrubbed (a pointed-at
+/// config would seed the sandbox)" — naming exactly the intent that
+/// `env_remove` INVERTS: removing that variable is the one value that makes
+/// `config_path()` fall through to the developer's real `~/.config/awl/`
+/// (item 93). Pointing it at an absent path in a test-owned dir is the fix; see
+/// `tests/common/mod.rs`.
 fn run_awl(args: &[&str], extra_path: Option<&Path>) -> Output {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_awl"));
+    let mut cmd = common::awl(&common::shared_sandbox());
     cmd.args(args)
         .current_dir(env!("CARGO_MANIFEST_DIR"))
-        .env("AWL_CONVENTION_FORCE", "mac")
-        .env_remove("AWL_CONFIG");
+        .env("AWL_CONVENTION_FORCE", "mac");
     if let Some(dir) = extra_path {
         let path = std::env::var_os("PATH").unwrap_or_default();
         let mut parts = vec![dir.to_path_buf()];

@@ -38,7 +38,8 @@
 //! part (4): coverage is exactly 0 outside every pill.)
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
+mod common;
 
 /// A fresh, uniquely-named tempdir under the OS temp root (no `tempfile` dep —
 /// mirrors `tests/hermetic_canary.rs`).
@@ -96,7 +97,13 @@ height to judge both margins at once, still without a single heading line.
 /// produced no PNG) — the caller then skips, mirroring the suite's
 /// `adapter_available()` tolerance on a headless box.
 fn capture(out: &Path, doc: &Path, theme: &str, lava: Option<&str>, frost: bool) -> bool {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_awl"));
+    // `common::awl` PINS the config ladder inside the sandbox (item 93): this
+    // helper used to `env_remove("AWL_CONFIG")`, which let the child fall
+    // through to the developer's own `~/.config/awl/config.toml` — a personal
+    // `zoom`/`theme` there rescaled the rail geometry and turned this test red
+    // on one box only. See `tests/common/mod.rs`.
+    let sandbox = out.parent().expect("capture target has a parent dir");
+    let mut cmd = common::awl(sandbox);
     cmd.arg("--theme")
         .arg(theme)
         .arg("--screenshot")
@@ -105,8 +112,7 @@ fn capture(out: &Path, doc: &Path, theme: &str, lava: Option<&str>, frost: bool)
         // The frost path memoizes `AWL_LAVA_FROST` once per process, so each cell
         // is a fresh child. ON must NOT inherit an ambient `off` from the parent
         // suite env; OFF sets it explicitly. Same for `AWL_LAVA` below.
-        .env_remove("AWL_CJK_FORCE")
-        .env_remove("AWL_CONFIG");
+        .env_remove("AWL_CJK_FORCE");
     if frost {
         cmd.env_remove("AWL_LAVA_FROST");
     } else {

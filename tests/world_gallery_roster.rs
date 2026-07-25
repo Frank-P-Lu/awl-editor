@@ -13,7 +13,7 @@
 //! same shape as `theme::tests::worlds_eleven_dark_seven_light`'s hard-coded
 //! `18` — never read `theme::THEMES` directly from here; the whole point is a
 //! snapshot independent of the roster's own source.
-use std::process::Command;
+mod common;
 
 /// The roster as of item 68, in `theme::THEMES` cycle order. Update this list
 /// (and `scripts/capture-worlds.sh`'s expectations, and CAPTURE.md if the
@@ -39,13 +39,19 @@ const EXPECTED_WORLDS: [&str; 18] = [
     "Cassowary",
 ];
 
-fn awl_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_awl")
+/// The real binary with its config ladder pinned inside a test-owned sandbox
+/// (item 93 — `tests/common/mod.rs` owns that rule for the whole suite). These
+/// three probes print-and-exit or fail on `--theme`, so today no personal
+/// setting could bend their stdout; routing them through the one door anyway is
+/// what makes the law in `tests/spawn_config_law.rs` a clean sweep with no
+/// exemptions to remember.
+fn awl_bin() -> std::process::Command {
+    common::awl(&common::shared_sandbox())
 }
 
 #[test]
 fn list_worlds_matches_the_expected_roster_exactly() {
-    let out = Command::new(awl_bin())
+    let out = awl_bin()
         .arg("--list-worlds")
         .output()
         .expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl");
@@ -71,7 +77,7 @@ fn list_worlds_matches_the_expected_roster_exactly() {
 
 #[test]
 fn help_text_names_every_world_and_advertises_list_worlds() {
-    let out = Command::new(awl_bin())
+    let out = awl_bin()
         .arg("--help")
         .output()
         .expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl");
@@ -90,7 +96,7 @@ fn help_text_names_every_world_and_advertises_list_worlds() {
 
 #[test]
 fn unknown_theme_error_names_every_world() {
-    let out = Command::new(awl_bin())
+    let out = awl_bin()
         .args(["--theme", "NoSuchWorldXYZ", "--screenshot"])
         .arg(std::env::temp_dir().join("awl-world-gallery-roster-law.png"))
         .output()
