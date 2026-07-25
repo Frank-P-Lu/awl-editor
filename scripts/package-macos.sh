@@ -155,14 +155,23 @@ mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 cp "$BIN_PATH" "$CONTENTS/MacOS/awl"
 chmod +x "$CONTENTS/MacOS/awl"
 
-# ICON: a placeholder path, wired but commented out below — the user's icon
-# (Awl.icns) is in progress. Drop it at assets/macos/Awl.icns and uncomment
-# the two lines to wire it in; the bundle builds and runs fine without one
-# (macOS just shows the generic app icon).
+# ICON: the canonical bundle icon — the DEFAULT world's pre-rendered app icon,
+# cut by `awl --pack-icns` and committed (see `src/app_icon/`, item 92). This is
+# what FINDER, the Dock's launch tile and the About panel show; a bundle icon is
+# a property of the bundle, not of the session, so it never follows the user's
+# chosen world. The RUNNING app swaps its own Dock/app-switcher image to the
+# active world (`app_icon::adopt`) — Finder keeps this one.
+#
+# Missing file = a loud warning + the generic application icon, never a hard
+# failure: this script must stay runnable against an older checkout (same rule
+# as the license docs below). `CFBundleIconFile` is written further down under
+# the same `-f` test, so the plist can never name an icon that is not there.
 ICON_SRC="$ROOT/assets/macos/Awl.icns"
-# if [ -f "$ICON_SRC" ]; then
-#   cp "$ICON_SRC" "$CONTENTS/Resources/Awl.icns"
-# fi
+if [ -f "$ICON_SRC" ]; then
+  cp "$ICON_SRC" "$CONTENTS/Resources/Awl.icns"
+else
+  echo "warning: $ICON_SRC not found — bundling WITHOUT an icon (macOS will draw the generic application icon). Run scripts/export-icons.sh." >&2
+fi
 
 # LICENSING: LICENSE (GPL-3.0 full text), CREDITS.md (the human-readable
 # thank-you), and THIRD-PARTY-LICENSES.md (the generated crate inventory)

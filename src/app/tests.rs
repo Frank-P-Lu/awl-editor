@@ -4,6 +4,9 @@ use super::*;
 
 mod buffers;
 mod common;
+// THE DOCK-CHURN LAW: a theme PREVIEW must never restamp the app icon; only a
+// commit (and startup) may. Counts adoptions across a full preview sweep.
+mod dock_icon;
 mod files;
 mod history;
 mod lifecycle;

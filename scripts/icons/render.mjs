@@ -227,7 +227,11 @@ async function main() {
   } finally {
     cdp.close();
     proc.kill("SIGKILL");
-    fs.rmSync(profile, { recursive: true, force: true });
+    // The SIGKILLed browser can still have writes in flight against its own
+    // profile directory, so a bare rmSync races it and throws ENOTEMPTY —
+    // failing a render that had already written every PNG. Retry the unlink
+    // rather than reporting a successful export as broken.
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   }
   console.error(`render.mjs: wrote ${written} PNGs -> ${outDir}`);
 }

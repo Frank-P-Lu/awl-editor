@@ -1389,14 +1389,27 @@ Checklist:
    derivation at all (a monochrome world), in which case pin every role fg +
    wash and let `role_style_laws_hold_for_every_world` prove the pins still
    clear every law on their own.
-6. Add the const to `THEMES`; run `cargo test` — the structural laws
+6. Pick the world's **app-icon logo-cursor** (`icon_cursor`: `Block`, `Pill` or
+   `Narrow` — `src/app_icon/`). The icon is `aw` plus an ordinary lowercase `l`
+   in this world's own display face, with a fake cursor shape behind the `l`,
+   painted in this world's `base_100` / `base_content` / `primary` /
+   `primary_content`. The choice follows the FACE's `l`: a footed or serifed
+   stem wants the mass of a block (or a pill, whose round bottom crops a serif
+   foot — check it), a bare geometric stem is the only kind that can wear the
+   super-narrow pill without an overhang poking outside it. If the new world
+   shares a face with an existing one, or lands near it in palette, take the
+   OTHER preset — silhouette is what separates a near-pair in a 24px dock row.
+   Then regenerate the icons (`scripts/export-icons.sh`, offline; it rewrites
+   `assets/macos/`, the canonical `Awl.icns` and `src/app_icon/embedded.rs`) and
+   commit them with the world; the bijection law fails until you do.
+7. Add the const to `THEMES`; run `cargo test` — the structural laws
    (`worlds_eleven_dark_seven_light` will need its counts updated), the role-style
    laws, and the ink-ladder/selection laws all sweep `THEMES` automatically, so a
    new world is enrolled in every law the moment it's in the array. A new WORLD
    CLASS (Wagtail's monochrome one) may also need its own new law, per §2/§3's
    "name the test that enforces it" rule — see "The monochrome law" above.
-7. Capture the eyeball set (§6) before calling it done.
-8. **Capture the SUMMONED-SURFACE gallery.** The motivating note for this
+8. Capture the eyeball set (§6) before calling it done.
+9. **Capture the SUMMONED-SURFACE gallery.** The motivating note for this
    step: the Wagtail gallery that shipped alongside its original round
    contained zero open pickers — every shot was a plain document, no
    overlay, no menu, no search panel — and that is exactly how six

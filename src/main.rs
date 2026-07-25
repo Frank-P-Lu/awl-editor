@@ -19,6 +19,14 @@
 mod about;
 mod actions;
 mod app;
+// PER-WORLD APP ICONS: the pre-rendered macOS icon set (`assets/macos/`), the
+// `.icns` packer behind `--pack-icns`, and the one door that adopts a world's
+// icon into the live Dock. NATIVE-only (like `icon_manifest` above it): the
+// packer reads files off disk, and a browser tab has neither a Dock nor a
+// bundle. Compiled on every NATIVE target so the law tests sweep the committed
+// assets on Linux CI too; only the macOS build embeds the bytes.
+#[cfg(not(target_arch = "wasm32"))]
+mod app_icon;
 // The two halves of this binary's front matter, split out of a once-monster
 // `main.rs` into a `main/` directory (an explicit `#[path]` because `main.rs` is
 // the crate root, so its submodules do not auto-resolve into a `main/` dir like a

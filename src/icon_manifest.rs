@@ -33,7 +33,12 @@ use crate::theme::{Theme, THEMES};
 
 /// Bumped when the JSON SHAPE changes (fields added/renamed/removed), so a
 /// stale exporter fails loudly instead of silently reading a missing key.
-pub const MANIFEST_SCHEMA: u32 = 1;
+///
+/// * 1 — worlds (palette + face + ambient flag) and faces (files + weights).
+/// * 2 — each world also carries the `cursor` its SHIPPED icon wears
+///   ([`crate::theme::IconCursor`]), so the exporter's "what actually ships"
+///   sheet reads the assignment from `worlds.rs` instead of a second list.
+pub const MANIFEST_SCHEMA: u32 = 2;
 
 /// The default fonts directory, relative to the repo root.
 pub const DEFAULT_FONTS_DIR: &str = "assets/fonts";
@@ -164,7 +169,7 @@ fn world_json(t: &Theme) -> String {
     // icon ground, base_content inks "aw", primary is the fake cursor,
     // primary_content inks the "l" sitting on it.
     format!(
-        "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"ambient_motion\": {} }}",
+        "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
         json_string(t.name),
         t.dark,
         json_string(&t.base_100.hex()),
@@ -172,6 +177,11 @@ fn world_json(t: &Theme) -> String {
         json_string(&t.primary.hex()),
         json_string(&t.primary_content.hex()),
         json_string(t.font),
+        // The SHIPPED logo-cursor for this world, straight off the `Theme`
+        // (`worlds.rs`) — so the exporter's shipped sheet and the packer that
+        // cuts the .icns both read the assignment from the world literal that
+        // a new world cannot compile without filling in.
+        json_string(t.icon_cursor.slug()),
         // Mangrove's and Firetail's lava grounds are the only worlds whose real
         // canvas MOVES. An icon is one still frame, so the exporter flattens
         // them to base_100 — recorded here so that flattening is a declared

@@ -281,6 +281,41 @@ function dockPage(manifest, tuning, preset, surface, faceOf) {
   };
 }
 
+/** WHAT ACTUALLY SHIPS: each world at the ONE preset its `Theme` assigns.
+ *
+ * The assignment is not repeated here — it rides in on the manifest's `cursor`
+ * field, straight off `worlds.rs`'s `icon_cursor`, which a new world cannot
+ * compile without filling in. So this sheet cannot show a stale roster: it
+ * shows whatever the worlds currently declare, or it fails to build. */
+function shippedPage(manifest, tuning, surface, faceOf) {
+  const shown = [256, 128, 64, 44, 32, 24];
+  let rows = `<div class="grid" style="grid-template-columns: 150px repeat(${shown.length}, auto); justify-content: start">`;
+  rows += `<div></div>` + shown.map((s) => `<div class="hdr">${s}px</div>`).join("");
+  for (const world of manifest.worlds) {
+    if (!tuning.presets[world.cursor]) {
+      throw new Error(`${world.name} declares cursor ${world.cursor}, which is not one of the three presets`);
+    }
+    const geom = geometry(tuning, world.cursor, world.font);
+    rows += `<div class="world" style="width:150px">${esc(world.name)}<div class="cap" style="font-weight:400">${esc(
+      tuning.presets[world.cursor].label
+    )}</div></div>`;
+    for (const size of shown) rows += `<div>${tile(world, faceOf(world.font), geom, size)}</div>`;
+  }
+  rows += `</div>`;
+  return {
+    file: `shipped-${surface}.html`,
+    surface,
+    shots: [{ out: `gallery/shipped-${surface}.png`, full: true }],
+    html: page({
+      title: `awl app icons — shipped — ${surface}`,
+      surface,
+      body: `<div class="sheet"><h1>awl app icons — the shipped set</h1>
+<p class="sub">Each world at the ONE logo-cursor its world literal assigns (<code>Theme::icon_cursor</code>), down the sizes a Dock and an app switcher actually draw. ${surface} surface.</p>
+<div class="strip">${rows}</div></div>`,
+    }),
+  };
+}
+
 /** One world, all three presets, big and small, on both surfaces at once. */
 function worldPage(manifest, tuning, world, faceOf) {
   const presets = Object.keys(tuning.presets);
@@ -330,7 +365,7 @@ function main() {
   }
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const tuning = JSON.parse(fs.readFileSync(tuningPath, "utf8"));
-  if (manifest.schema !== 1) throw new Error(`manifest schema ${manifest.schema} is not the 1 this builder reads`);
+  if (manifest.schema !== 2) throw new Error(`manifest schema ${manifest.schema} is not the 2 this builder reads`);
   assertNoWorldKeys(tuning, manifest);
   const faceOf = (family) => {
     const f = manifest.faces.find((x) => x.family === family);
@@ -348,6 +383,7 @@ function main() {
   const pages = [];
   for (const size of SIZES) pages.push(tilesPage(manifest, tuning, size, faceOf));
   for (const surface of ["dark", "light"]) pages.push(overviewPage(manifest, tuning, surface, faceOf));
+  for (const surface of ["dark", "light"]) pages.push(shippedPage(manifest, tuning, surface, faceOf));
   for (const preset of Object.keys(tuning.presets)) {
     for (const surface of ["dark", "light"]) {
       pages.push(sizesPage(manifest, tuning, preset, surface, faceOf));

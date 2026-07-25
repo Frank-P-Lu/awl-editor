@@ -3,7 +3,7 @@
 #
 #   scripts/export-icons.sh [--out DIR] [--check] [--only SUBSTR]
 #
-# Three steps, each one a separate program so each can be re-run alone:
+# Four steps, each one a separate program so each can be re-run alone:
 #
 #   1. `cargo run -- --icon-manifest`   the theme-derived manifest: every world's
 #      icon palette + display face, straight out of `theme::THEMES`, and every
@@ -13,6 +13,11 @@
 #      with the fonts inlined as data: URLs.
 #   3. `scripts/icons/render.mjs`       one pinned, offline Chromium renders
 #      every tile and gallery sheet.
+#   4. `cargo run -- --pack-icns`       cut each world's tiles, at the ONE
+#      preset its world literal assigns, into a real `.icns`; write the
+#      canonical bundle icon; regenerate `src/app_icon/embedded.rs`. Pure
+#      Rust — no `iconutil`, so the container has one owner and `cargo test`
+#      can re-pack a committed asset and demand identical bytes.
 #
 # NO BROWSER IN THE BUILD: this script is the ONLY thing that runs Chromium. An
 # ordinary `cargo build`, `cargo test`, and the shipping app never invoke it —
@@ -61,6 +66,19 @@ fi
 
 echo "==> pixel checks"
 python3 scripts/icons/verify.py --manifest "$BUILD/manifest.json" --tiles "$OUT/tiles" --report "$OUT/legibility.txt"
+
+# --- 4. PACK (Rust, no browser, no `iconutil`) ------------------------------
+# Cut each SHIPPED world's tiles — at the ONE preset its world literal assigns
+# (`Theme::icon_cursor`) — into a real multi-representation `.icns`, write the
+# canonical bundle icon (the DEFAULT world's), and regenerate the embedded
+# table `src/app_icon/embedded.rs`. Skipped when only a subset was rendered
+# (`--only`), since the pack needs every size.
+if [ -z "$ONLY" ]; then
+  echo "==> pack (.icns per world + the canonical bundle icon)"
+  cargo run --quiet -- --pack-icns "$OUT/tiles"
+else
+  echo "==> pack SKIPPED (--only renders a subset; the pack needs every size)"
+fi
 
 if [ "$CHECK" = "1" ]; then
   echo "==> determinism: second render into a scratch tree, hashes compared"

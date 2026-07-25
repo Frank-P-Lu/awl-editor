@@ -34,8 +34,8 @@ use objc2_app_kit::{
     NSWorkspace,
 };
 use objc2_foundation::{
-    NSAttributedString, NSDictionary, NSFileManager, NSInteger, NSPoint, NSRect, NSSize, NSString,
-    NSURL,
+    NSAttributedString, NSData, NSDictionary, NSFileManager, NSInteger, NSPoint, NSRect, NSSize,
+    NSString, NSURL,
 };
 
 /// Run the standard macOS OPEN panel (files only, single selection) modally
@@ -163,6 +163,37 @@ pub fn show_about_panel() {
     // SAFETY: the options dictionary holds the exact key/value types the
     // About panel expects (name/version = NSString, credits = NSAttributedString).
     unsafe { app.orderFrontStandardAboutPanelWithOptions(&options) };
+}
+
+/// Set the live DOCK / app-switcher image from a complete `.icns` in memory —
+/// the AppKit half of [`crate::app_icon::adopt`], and the ONLY writer of the
+/// application icon image.
+///
+/// The bytes are a multi-representation icon file (16…1024px), so AppKit picks
+/// the rep that matches whatever the Dock, the ⌘-Tab switcher or Mission
+/// Control is drawing at, instead of resampling one master down. Returns
+/// whether the image was actually installed; off the main thread or on
+/// undecodable bytes it is a calm `false` and the previous icon stands — an
+/// icon that failed to load must never take down an editor.
+///
+/// NOTE the deliberate split: this changes the RUNNING app's tile only. The
+/// `.app` bundle's own Finder icon is `CFBundleIconFile` (the canonical
+/// `Awl.icns` copied in by `scripts/package-macos.sh`) and is not touched here
+/// — a document's icon in Finder is a property of the bundle, not of whichever
+/// world the user last chose.
+pub fn set_dock_icon(icns: &[u8]) -> bool {
+    let Some(mtm) = MainThreadMarker::new() else {
+        return false;
+    };
+    let data = NSData::with_bytes(icns);
+    let Some(image) = NSImage::initWithData(NSImage::alloc(), &data) else {
+        return false;
+    };
+    // SAFETY: `setApplicationIconImage:` accepts any NSImage (and `nil` to
+    // restore the bundle icon); we pass a real, successfully decoded one, on
+    // the main thread, which is where AppKit UI mutation belongs.
+    unsafe { NSApplication::sharedApplication(mtm).setApplicationIconImage(Some(&image)) };
+    true
 }
 
 /// The square pixel edge of a rasterized menu icon. 36px = an ~18pt menu-item
