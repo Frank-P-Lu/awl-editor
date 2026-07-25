@@ -52,24 +52,31 @@ pub fn set_active_by_name(name: &str) -> Option<Theme> {
     Some(set_active(idx))
 }
 
-/// THE ONE RESTORE OWNER for the active-world global (item 94's third repair).
+/// AN EXPLICIT RESTORE for the active-world global — the tool a test that
+/// renders a NAMED world reaches for (item 94).
 ///
 /// [`ACTIVE`] is process-GLOBAL, and a test that swaps worlds and forgets to put
 /// the old one back leaves every LATER test rendering in a world its author
 /// never chose. That is not hypothetical: `capture::tests::pickers_faceted`
 /// ended on `set_active_by_name("Tawny")` and never restored, which is what made
-/// `range_rail`'s thumb law pass or fail depending on test ORDER — the classic
-/// unrestored-global leak, and a standing flake suspect anywhere else the world
-/// is read.
+/// `render::tests::range_rail`'s thumb law pass or fail depending on test ORDER
+/// — the classic unrestored-global leak, and a standing flake suspect anywhere
+/// else the world is read.
 ///
 /// A `WorldPin` snapshots the active index at construction and stores it back on
 /// DROP, whatever happened in between (any number of [`set_active`] /
 /// [`set_active_by_name`] / [`cycle`] calls — the pin does not care HOW the
-/// global moved, only that it goes home). It is held for the whole window by
-/// `crate::testlock::serial`'s outermost guard, so EVERY test that takes the
-/// standing serialization guard is world-clean on exit by construction, with no
-/// per-test bookkeeping to forget. `theme_global_law` sweeps the crate to keep
-/// it that way.
+/// global moved, only that it goes home), including on the UNWIND path, so a law
+/// that fails mid-sweep still hands the next test a clean world.
+///
+/// DELIBERATELY OPT-IN, never ambient. Attaching a pin to the standing
+/// serialization guard (`crate::testlock::serial`) was tried and reverted: that
+/// guard is also taken, under `cfg(test)`, by PRODUCTION writers — `apply_core`
+/// holds it for a whole action, and the theme picker's live preview sets the
+/// world INSIDE that window — so an ambient restore reverted the world the
+/// PRODUCT had just set the instant the action returned. A test that swaps
+/// worlds says so by holding a pin; nothing restores the world behind an
+/// action's back.
 #[must_use = "a WorldPin restores the active world when it drops; binding it to `_` drops it immediately"]
 pub struct WorldPin {
     prev: usize,

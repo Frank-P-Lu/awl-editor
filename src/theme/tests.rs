@@ -3161,3 +3161,61 @@ fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
     // capability, and was unreachable for Bombora before this round).
     assert!(crate::lava::lava_should_tick(active, true, false, true, false));
 }
+
+/// THE WORLD PIN, at its own seam (item 94): [`WorldPin`] is the EXPLICIT tool a
+/// test reaches for when it renders a specific world — it snapshots the active
+/// index on construction and stores it back on DROP, however the global moved in
+/// between (one swap, five swaps, a `cycle`). It is deliberately opt-in: the
+/// active world is a process GLOBAL that PRODUCTION code writes too (the theme
+/// picker's live preview), so nothing ambient may restore it behind an action's
+/// back — a test that swaps worlds says so by holding a pin.
+///
+/// Run while holding the standing serialization guard, so no other thread can
+/// move the global under the assertions.
+#[test]
+fn a_world_pin_restores_the_active_world_however_it_moved() {
+    let _g = crate::testlock::serial();
+    let before = active_index();
+    {
+        let _pin = WorldPin::snapshot();
+        set_active_by_name("Tawny");
+        cycle(1);
+        // A world that is never `before`, whatever `before` is (18 worlds).
+        set_active(before + 5);
+        assert_ne!(
+            active_index(),
+            before,
+            "the pin's window really did move the global (a vacuous law otherwise)"
+        );
+    }
+    assert_eq!(
+        active_index(),
+        before,
+        "a WorldPin must put the world it snapshotted back when it drops"
+    );
+    // The pinning CONSTRUCTOR: pin + switch in one move, same restore.
+    {
+        let pin = WorldPin::world("Bombora").expect("Bombora is a world");
+        assert_eq!(pin.restores_to(), before);
+        assert_eq!(active().name, "Bombora");
+    }
+    assert_eq!(active_index(), before, "…including WorldPin::world");
+    assert!(
+        WorldPin::world("Not A World").is_none(),
+        "an unknown world changes nothing and yields no pin"
+    );
+    assert_eq!(active_index(), before);
+
+    // AND ON THE UNWIND PATH: a law that fails mid-sweep (the 18-world rail
+    // sweep is exactly this shape) must still hand the next test a clean world —
+    // the restore rides `Drop`, so a panic through the pin's scope restores it.
+    let quiet = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {})); // the deliberate panic prints nothing
+    let out = std::panic::catch_unwind(|| {
+        let _pin = WorldPin::world("Bombora").expect("Bombora is a world");
+        panic!("a law failing inside the pin's window");
+    });
+    std::panic::set_hook(quiet);
+    assert!(out.is_err(), "the panic really happened (non-vacuous)");
+    assert_eq!(active_index(), before, "the pin restores while unwinding, not just on a clean exit");
+}

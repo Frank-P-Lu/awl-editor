@@ -118,11 +118,9 @@ pub fn page_on() -> bool {
 
 /// Set page mode on/off explicitly (the `--page on|off` flag, a settings write).
 pub fn set_page_on(on: bool) {
-    // Writers self-serialize under test via the PRODUCTION door,
-    // crate::testlock::serial_nopin() (reentrant, no world restore — these are
-    // live settings writers, not tests; see `testlock`'s module doc).
+    // Writers self-serialize under test via crate::testlock::serial() (reentrant).
     #[cfg(test)]
-    let _g = crate::testlock::serial_nopin();
+    let _g = crate::testlock::serial();
     PAGE_ON.store(on, Ordering::Relaxed);
 }
 
@@ -130,7 +128,7 @@ pub fn set_page_on(on: bool) {
 pub fn toggle() -> bool {
     // The guard spans the whole read-modify-write, not just the store.
     #[cfg(test)]
-    let _g = crate::testlock::serial_nopin();
+    let _g = crate::testlock::serial();
     let next = !page_on();
     PAGE_ON.store(next, Ordering::Relaxed);
     next
@@ -145,13 +143,13 @@ pub fn measure() -> usize {
 /// Setting a measure does NOT itself enable page mode; callers that want the
 /// column visible also call [`set_page_on`].
 pub fn set_measure(chars: usize) {
-    // Writers self-serialize under test via the production door (reentrant). This
+    // Writers self-serialize under test via crate::testlock::serial() (reentrant). This
     // is the seam that un-flaked `run::tests::visual_*`: transitive writers
     // (`replay_keys`' Goto measure resync, `App::sync_page_measure`,
     // `apply_sticky_globals`) all land here, so no test can interleave a write
     // into another test's locked read window.
     #[cfg(test)]
-    let _g = crate::testlock::serial_nopin();
+    let _g = crate::testlock::serial();
     MEASURE.store(chars.max(1), Ordering::Relaxed);
 }
 
@@ -163,7 +161,7 @@ pub fn widen() -> usize {
     // The guard spans the whole read-modify-write; the nested `set_measure`
     // acquire is the reentrant no-op case.
     #[cfg(test)]
-    let _g = crate::testlock::serial_nopin();
+    let _g = crate::testlock::serial();
     let next = (measure() + MEASURE_STEP).min(MAX_MEASURE);
     set_measure(next);
     next
@@ -174,7 +172,7 @@ pub fn widen() -> usize {
 pub fn narrow() -> usize {
     // See `widen` — same whole-RMW guard, same reentrant nested acquire.
     #[cfg(test)]
-    let _g = crate::testlock::serial_nopin();
+    let _g = crate::testlock::serial();
     let next = measure().saturating_sub(MEASURE_STEP).max(MIN_MEASURE);
     set_measure(next);
     next

@@ -62,12 +62,12 @@ pub use derive::{
     placard_stipple_density, primary, selected_row_ink, selected_row_secondary_ink, selection,
     set_active, set_active_by_name,
     surface_selected,
-    WorldPin,
 };
-#[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for: public API
-// surface, no NON-TEST in-crate caller today (tag_for's real callers all live
-// under `#[cfg(test)]`).
-pub use derive::{cycle, overlay_scrim, primary_content, tag_for};
+#[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for/WorldPin:
+// public API surface, no NON-TEST in-crate caller today (tag_for's real callers
+// all live under `#[cfg(test)]`; `WorldPin` is the explicit world restore a test
+// that renders a NAMED world holds — deliberately never taken by product code).
+pub use derive::{cycle, overlay_scrim, primary_content, tag_for, WorldPin};
 pub use model::{Background, LavaEdge, Theme, WashOverride};
 #[allow(unused_imports)] // Lens/RoleOverrides/ThemeTags: public API surface, no
 // NON-TEST in-crate caller today.

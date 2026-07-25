@@ -24,8 +24,12 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     std::fs::create_dir_all(&dir).unwrap();
     let buf = Buffer::from_str("preview me\n");
 
-    // Build the REAL flat overlay: open on Potoroo, the active world.
-    crate::theme::set_active_by_name("Potoroo");
+    // Build the REAL flat overlay: open on Potoroo, the active world. The swap is
+    // held by an explicit `WorldPin`, so the world this test renders in goes home
+    // when it ends — it used to end on a swap to TAWNY (not to the world it
+    // found), which handed its world to whatever ran next and made
+    // `render::tests::range_rail`'s thumb law pass or fail on test ORDER.
+    let _pin = crate::theme::WorldPin::world("Potoroo").expect("Potoroo is a world");
     let names: Vec<String> = crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect();
     let ov = crate::overlay::OverlayState::new_theme(names.clone(), crate::theme::active_index());
     assert!(!ov.is_faceting(), "the theme picker is flat");
@@ -87,10 +91,6 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     assert_eq!(items, names, "every world in declaration order, ungrouped");
     assert_eq!(items[o["selected_index"].as_u64().unwrap() as usize], serde_json::json!("Potoroo"));
 
-    // (No hand-rolled world restore: this test used to end on a swap to TAWNY —
-    // not to the world it found — which left the global dirty for whatever ran
-    // next and made `render::tests::range_rail`'s thumb law order-dependent. The
-    // serial guard above now owns the restore; see `crate::theme_global_law`.)
     let _ = std::fs::remove_dir_all(&dir);
 }
 

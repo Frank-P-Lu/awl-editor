@@ -213,8 +213,8 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
 ///
 /// 1. IT PINNED NO WORLD, so it rendered in whatever world the previous test left
 ///    behind — green on world 6, red on world 0. The axis the author didn't think
-///    of IS the world, so it now sweeps EVERY world under a [`theme::WorldPin`]
-///    (which also restores, per `theme_global_law`).
+///    of IS the world, so it now sweeps EVERY world under an explicit
+///    [`theme::WorldPin`] (which also puts the world it found back).
 /// 2. ITS ORACLE FOUND THE FILL, NOT THE THUMB. The rail paints a FILL from the
 ///    head to the thumb in the SAME ink as the thumb, so "the column farthest
 ///    from the ground" is a flat TIE across the whole filled track, and the
@@ -343,8 +343,8 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
     };
     // One LIGHT world and one DARK world, both `Pane` (a card behind the rows) so
     // the rail's ground is the card/band rather than the live page. The world is
-    // pinned through the ONE restore owner rather than by a hand-rolled
-    // save/restore pair (see `crate::theme_global_law`).
+    // held by an explicit [`theme::WorldPin`] rather than a hand-rolled
+    // save/restore pair, so it goes home even if an assert below fails.
     for world in ["Bilby", "Bombora"] {
         let Some(_pin) = theme::WorldPin::world(world) else { continue };
         p.sync_theme();
