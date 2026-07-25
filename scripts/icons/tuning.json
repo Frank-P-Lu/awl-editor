@@ -1,0 +1,36 @@
+{
+  "_note": "BOUNDED OPTICAL TUNING. Two layers and no third: a PRESET (the three logo-cursor shapes) plus a per-FAMILY delta. Family keys — never world keys — are what make the five shared faces (Bitter, IBM Plex Sans, Iosevka, JetBrains Mono, Monaspace Xenon) carry exactly one tuning across both of their worlds; a per-world special case is not expressible here, and build.mjs rejects any key that is not a family named by the manifest.",
+
+  "_units": "insetX/insetTop/insetBottom are PERCENTAGES of the 'l' glyph's own inline box (advance width; font-derived content height). Negative grows the cursor past the glyph, positive shrinks it inside. A face delta is ADDED to the preset value (percentage points) — mono faces pull in, because a monospaced 'l' carries wide side bearings the cursor should not inherit; tight serifs push out. radius is in em, or the string 'capsule'. weight names which bundled FILE to use, and the CSS weight is then whatever that file declares (IBM Plex Mono's regular is 300 — docs/fonts.md).",
+
+  "allowed": ["insetX", "insetTop", "insetBottom", "radius", "weight"],
+
+  "bounds": {
+    "delta": [-20, 20],
+    "final": [-30, 45],
+    "radius": [0, 0.6],
+    "weight": ["regular", "bold"]
+  },
+
+  "presets": {
+    "block": { "label": "block", "insetX": -8, "insetTop": 12, "insetBottom": 2, "radius": 0.09 },
+    "pill": { "label": "pill", "insetX": -8, "insetTop": 12, "insetBottom": 2, "radius": "capsule" },
+    "narrow": { "label": "super-narrow pill", "insetX": 6, "insetTop": 12, "insetBottom": 2, "radius": "capsule" }
+  },
+
+  "faces": {
+    "IBM Plex Mono": { "insetX": 12 },
+    "Iosevka": { "insetX": 8 },
+    "JetBrains Mono": { "insetX": 10 },
+    "Monaspace Xenon": { "insetX": 10 },
+    "Sour Gummy": { "insetX": 2, "radius": 0.13 },
+    "EB Garamond": { "insetX": -4 },
+    "Fraunces 9pt": { "insetX": -3 },
+    "Newsreader 16pt 16pt": { "insetX": -4 },
+    "Literata": { "insetX": -2 },
+    "Bitter": { "insetX": -2 },
+    "Zilla Slab": { "insetX": -2 },
+    "Figtree": { "insetX": -2 },
+    "IBM Plex Sans": { "insetX": -2 }
+  }
+}

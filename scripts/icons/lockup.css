@@ -1,0 +1,82 @@
+/* THE LOCKUP — the whole icon, in eight rules.
+ *
+ * The wordmark is "aw" plus an ordinary lowercase "l" in the world's display
+ * face, at the SAME font size and on the SAME baseline: they are one inline run
+ * of text, so that is true by construction rather than by arithmetic. There are
+ * no glyph coordinates anywhere in this file — ordinary web shaping owns the
+ * letterspacing, exactly as it would in a paragraph.
+ *
+ * The cursor is a deliberately FAKE logo shape: a rounded box painted BEHIND
+ * the "l" (`z-index:-1` under a `position:relative` inline that is NOT a
+ * stacking context, so it lands above the tile ground and below the glyph). It
+ * is never awl's live Block/Morph/I-beam caret renderer, and it never moves.
+ *
+ * Every geometry knob is a CSS variable set per tile, and every one of them is
+ * RELATIVE:
+ *   --ix / --it / --ib  percentages of the "l" glyph's own inline box — its
+ *                       advance width, and its font-derived content area
+ *                       (ascent+descent). A NEGATIVE inset grows the box past
+ *                       the glyph (block/pill); a POSITIVE one shrinks it
+ *                       inside the glyph (the super-narrow pill). This is what
+ *                       makes one rule fit a 0.6em mono "l" and a 0.28em serif
+ *                       "l" without a per-face branch.
+ *   --r                 corner radius in em (font-relative), or 999px for a
+ *                       true capsule.
+ *   --fw                font-weight, always the weight the FONT FILE declares
+ *                       (IBM Plex Mono's regular slot is 300 — see docs/fonts.md).
+ * so the entire tile scales exactly with --s, from 1024 down to 16.
+ */
+
+:root {
+  /* GLOBAL, never per-face: the wordmark's size as a fraction of the tile, and
+   * the macOS squircle corner. Per-face tuning is bounded to radius / padding /
+   * weight — a face that needs its own SIZE would mean the lockup is wrong. */
+  --scale: 0.48;
+  --corner: 0.2237;
+}
+
+.tile {
+  width: var(--s);
+  height: var(--s);
+  border-radius: calc(var(--s) * var(--corner));
+  background: var(--ground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.mark {
+  font-family: var(--face);
+  font-weight: var(--fw);
+  font-size: calc(var(--s) * var(--scale));
+  color: var(--ink);
+  line-height: 1;
+  white-space: nowrap;
+  /* No letterspacing, no kerning override, no optical fiddling: whatever the
+   * face's own metrics say "awl" is, is what the icon shows. */
+  font-kerning: normal;
+  font-variant-ligatures: none;
+  /* The wordmark owns its own stacking context so the cursor lands BETWEEN the
+   * tile ground and the glyphs. Without it a negative-z-index child paints in
+   * the root context's step 2 — BEFORE ancestor block backgrounds (step 3) —
+   * and the tile's own ground quietly covers the cursor entirely. */
+  isolation: isolate;
+}
+
+.cur {
+  position: relative;
+  color: var(--curink);
+}
+
+.cur::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: var(--ix);
+  right: var(--ix);
+  top: var(--it);
+  bottom: var(--ib);
+  background: var(--cursor);
+  border-radius: var(--r);
+}

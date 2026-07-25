@@ -68,6 +68,12 @@ mod fuzzy;
 mod guide;
 mod history;
 mod hud;
+// THE ICON EXPORT MANIFEST (`--icon-manifest`): serializes the per-world icon
+// palette + display-face facts straight out of `theme::THEMES` for the offline
+// icon compositor in `scripts/icons/`. Native-only — it reads the bundled font
+// files off disk, and nothing on wasm exports app icons.
+#[cfg(not(target_arch = "wasm32"))]
+mod icon_manifest;
 mod image_pipeline;
 mod index;
 mod keymap;
