@@ -52,6 +52,56 @@ pub fn set_active_by_name(name: &str) -> Option<Theme> {
     Some(set_active(idx))
 }
 
+/// THE ONE RESTORE OWNER for the active-world global (item 94's third repair).
+///
+/// [`ACTIVE`] is process-GLOBAL, and a test that swaps worlds and forgets to put
+/// the old one back leaves every LATER test rendering in a world its author
+/// never chose. That is not hypothetical: `capture::tests::pickers_faceted`
+/// ended on `set_active_by_name("Tawny")` and never restored, which is what made
+/// `range_rail`'s thumb law pass or fail depending on test ORDER — the classic
+/// unrestored-global leak, and a standing flake suspect anywhere else the world
+/// is read.
+///
+/// A `WorldPin` snapshots the active index at construction and stores it back on
+/// DROP, whatever happened in between (any number of [`set_active`] /
+/// [`set_active_by_name`] / [`cycle`] calls — the pin does not care HOW the
+/// global moved, only that it goes home). It is held for the whole window by
+/// `crate::testlock::serial`'s outermost guard, so EVERY test that takes the
+/// standing serialization guard is world-clean on exit by construction, with no
+/// per-test bookkeeping to forget. `theme_global_law` sweeps the crate to keep
+/// it that way.
+#[must_use = "a WorldPin restores the active world when it drops; binding it to `_` drops it immediately"]
+pub struct WorldPin {
+    prev: usize,
+}
+
+impl WorldPin {
+    /// Pin the CURRENT world: the active index is restored when this drops.
+    pub fn snapshot() -> Self {
+        WorldPin { prev: ACTIVE.load(Ordering::Relaxed) }
+    }
+
+    /// Pin the current world and switch to `name` (case-insensitive) in one
+    /// move — `None` (having changed nothing) if no world matches. The form a
+    /// test that renders one specific world wants.
+    pub fn world(name: &str) -> Option<Self> {
+        let pin = WorldPin::snapshot();
+        set_active_by_name(name)?;
+        Some(pin)
+    }
+
+    /// The index this pin will restore to.
+    pub fn restores_to(&self) -> usize {
+        self.prev % THEMES.len()
+    }
+}
+
+impl Drop for WorldPin {
+    fn drop(&mut self) {
+        ACTIVE.store(self.prev, Ordering::Relaxed);
+    }
+}
+
 // --- Active-theme token accessors (read by the render call sites) ----------
 //
 // These replace the old fixed `const` tokens: each returns the matching field

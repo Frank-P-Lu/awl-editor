@@ -201,8 +201,30 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
 
 /// THE THUMB TRACKS THE VALUE — real pixels: rendering the same card at the band
 /// FLOOR and at the band CEILING puts the thumb's ink at opposite ends of the
-/// track (and the value cell agrees), so the drawn control genuinely reports the
-/// setting rather than sitting decoratively still.
+/// track, so the drawn control genuinely reports the setting rather than sitting
+/// decoratively still.
+///
+/// THIRD-REPAIR NOTE — this law shipped with three faults, each of which made it
+/// pass by luck rather than by measurement, and it is written here the way the
+/// principle demands (sweep the axis the author didn't think of; find the thing
+/// you name, not something that merely correlates with it):
+///
+/// 1. IT PINNED NO WORLD, so it rendered in whatever world the previous test left
+///    behind — green on world 6, red on world 0. The axis the author didn't think
+///    of IS the world, so it now sweeps EVERY world under a [`theme::WorldPin`]
+///    (which also restores, per `theme_global_law`).
+/// 2. ITS ORACLE FOUND THE FILL, NOT THE THUMB. The rail paints a FILL from the
+///    head to the thumb in the SAME ink as the thumb, so "the column farthest
+///    from the ground" is a flat TIE across the whole filled track, and the
+///    leftmost tie wins — at max zoom that answered the rail's HEAD while the
+///    thumb sat at its tail. The thumb differs from its own fill by HEIGHT (a
+///    half-row mark against a hairline), so the oracle now measures each column's
+///    vertical ink EXTENT.
+/// 3. IT MEASURED THE HIGH FRAME AGAINST THE LOW FRAME'S TRACK. The readout text
+///    changes width with the value, so the track shifts between the two frames;
+///    judging the 300 % thumb against the 50 % frame's `x0..x1` is exactly the
+///    drift `RangeDrag` snapshots a scale to avoid. Each frame is now reduced to
+///    a FRACTION of its own track before anything is compared.
 #[test]
 fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
     let _g = crate::testlock::serial();
@@ -214,9 +236,12 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
     };
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
 
-    // The x of the thumb's ink, measured on the rendered frame within the rail's
-    // own row band — the DRAWN position, not the computed one.
-    let thumb_x = |p: &mut TextPipeline, zoom: f32| -> (f32, f32, f32) {
+    // The thumb's drawn position as a FRACTION OF ITS OWN FRAME'S TRACK. The
+    // thumb is found by vertical EXTENT: track and fill are a hairline
+    // (`RAIL_H_LH` = 0.09 row heights), the thumb is `THUMB_H_LH` = 0.50 — so
+    // the thumb's columns paint several times more ink down the row band than
+    // the fill they emerge from, whatever ink they share.
+    let thumb_frac = |p: &mut TextPipeline, zoom: f32| -> f32 {
         let ov = settings_state(zoom);
         let v = settings_view(&ov);
         p.set_view(&v);
@@ -227,37 +252,69 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
             .map(|y| y as f32)
             .filter(|&y| p.overlay_range_at(mid, y).is_some())
             .collect();
-        let row_y = (ys[0] + ys[ys.len() - 1]) * 0.5;
+        let (band_top, band_bot) = (ys[0] as i64, ys[ys.len() - 1] as i64);
         let pixels = pixeldiff::render_frame(p, &device, &queue, w, h);
-        // Scan the track's own y for the column whose ink is FARTHEST from the
-        // card ground: the thumb is the tallest, most present mark on the rail.
-        let bg = theme::base_300().rgba_bytes();
-        let mut best = (0.0f32, -1i64);
-        let mut x = x0 - 12.0;
-        while x <= x1 + 12.0 {
-            let idx = ((row_y as usize) * (w as usize)) + (x as usize);
-            let c = pixels[idx];
-            let d: i64 = (0..3).map(|k| (c[k] as i64 - bg[k] as i64).abs()).sum();
-            if d > best.1 {
-                best = (x, d);
-            }
-            x += 1.0;
-        }
-        assert!(best.1 > 0, "the rail must paint SOMETHING at zoom {zoom}");
-        (best.0, x0, x1)
+        let at = |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
+        // GROUND IS PER COLUMN, sampled from the column's OWN top-of-band pixel —
+        // above the half-row thumb and the hairline track alike. One shared
+        // ground sample is not good enough: a LAVA world's ground varies with x,
+        // so every column read as "inked" against a sample taken at the far end
+        // and the whole track tied (Mangrove answered the track's MIDDLE).
+        //
+        // The scan stays strictly INSIDE the track: the thumb's centre is `x0` at
+        // the floor and `x1` at the ceiling, so half of it is always in view,
+        // while the padding past the ends buys nothing and buys trouble — on
+        // Mangrove the ground just past `x1` paints a taller vertical run than
+        // the thumb itself.
+        let (lo, hi) = (x0.ceil() as i64, x1.floor() as i64);
+        let extents: Vec<i32> = (lo..=hi)
+            .map(|x| {
+                let ground = at(x, band_top);
+                (band_top..=band_bot)
+                    .filter(|&y| {
+                        let c = at(x, y);
+                        (0..3).map(|k| (c[k] as i64 - ground[k] as i64).abs()).sum::<i64>() > 16
+                    })
+                    .count() as i32
+            })
+            .collect();
+        let peak = *extents.iter().max().unwrap_or(&0);
+        // The mark found must genuinely be the HALF-ROW thumb, not the hairline
+        // track (which is `RAIL_H_LH`/`THUMB_H_LH` = under a fifth as tall) — so
+        // an oracle that lost the thumb says so instead of answering with furniture.
+        assert!(
+            peak * 4 > (band_bot - band_top) as i32,
+            "zoom {zoom}: the tallest mark on the track ({peak}px of a \
+             {}px band) is too short to be the thumb",
+            band_bot - band_top
+        );
+        let hits: Vec<i64> =
+            (lo..=hi).zip(&extents).filter(|&(_, &e)| e == peak).map(|(x, _)| x).collect();
+        let cx = (hits[0] + hits[hits.len() - 1]) as f32 * 0.5;
+        // Judged against THIS frame's own track — the scale drifts with the
+        // readout's width, so the low frame's ends must never judge the high one.
+        rowlayout::rail_frac_at(cx, x0, x1)
     };
 
-    let (low_x, x0, x1) = thumb_x(&mut p, spec.min);
-    let (high_x, _, _) = thumb_x(&mut p, spec.max);
-    assert!(
-        low_x < x0 + (x1 - x0) * 0.25,
-        "at the band FLOOR the thumb sits at the rail's head ({low_x} in {x0}..{x1})"
-    );
-    assert!(
-        high_x > x0 + (x1 - x0) * 0.75,
-        "at the band CEILING the thumb sits at the rail's tail ({high_x} in {x0}..{x1})"
-    );
-    assert!(high_x > low_x + (x1 - x0) * 0.5, "the thumb genuinely travelled");
+    // EVERY WORLD: the pixel oracle must find the thumb on all of them, not on
+    // whichever one happened to be active. Each iteration pins its own world
+    // (and restores it) through the one owner.
+    for world in theme::world_names() {
+        let _pin = theme::WorldPin::world(world).expect("a named world exists");
+        p.sync_theme();
+        let low = thumb_frac(&mut p, spec.min);
+        let high = thumb_frac(&mut p, spec.max);
+        assert!(
+            low < 0.25,
+            "{world}: at the band FLOOR the thumb sits at the rail's head (frac {low})"
+        );
+        assert!(
+            high > 0.75,
+            "{world}: at the band CEILING the thumb sits at the rail's tail (frac {high})"
+        );
+        assert!(high > low + 0.5, "{world}: the thumb genuinely travelled ({low} -> {high})");
+    }
+    p.sync_theme();
 }
 
 /// LEGIBILITY IN BOTH LIGHT AND DARK — real pixels: on a light world and a dark
@@ -274,13 +331,12 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
         eprintln!("skipping the_rail_reads_against_its_ground_in_light_and_dark: no wgpu adapter");
         return;
     };
-    let saved = theme::active().name.to_string();
     // One LIGHT world and one DARK world, both `Pane` (a card behind the rows) so
-    // the rail's ground is the card/band rather than the live page.
+    // the rail's ground is the card/band rather than the live page. The world is
+    // pinned through the ONE restore owner rather than by a hand-rolled
+    // save/restore pair (see `crate::theme_global_law`).
     for world in ["Bilby", "Bombora"] {
-        if theme::set_active_by_name(world).is_none() {
-            continue;
-        }
+        let Some(_pin) = theme::WorldPin::world(world) else { continue };
         p.sync_theme();
         for &selected in &[true, false] {
             let mut ov = settings_state(1.4);
@@ -352,7 +408,6 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             assert!(!near_accent(track.1), "{ctx}: the track must not be the accent");
         }
     }
-    theme::set_active_by_name(&saved);
     p.sync_theme();
 }
 

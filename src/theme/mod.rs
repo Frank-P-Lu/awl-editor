@@ -62,6 +62,7 @@ pub use derive::{
     placard_stipple_density, primary, selected_row_ink, selected_row_secondary_ink, selection,
     set_active, set_active_by_name,
     surface_selected,
+    WorldPin,
 };
 #[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for: public API
 // surface, no NON-TEST in-crate caller today (tag_for's real callers all live

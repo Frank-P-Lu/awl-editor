@@ -138,6 +138,11 @@ mod streaks;
 mod syntax;
 mod textbox;
 mod theme;
+// ITEM 94 (third repair) — the ACTIVE-WORLD global's hygiene sweep: no test-side
+// world swap may happen outside `testlock::serial`'s restoring window. Walks
+// `src/` from disk, so a test file written tomorrow is already under the law.
+#[cfg(test)]
+mod theme_global_law;
 // THE THEME-SWITCH SETTLE-LATENCY readout (debug-mode, live-only): a once-per-switch
 // felt-latency + per-phase breakdown, pure-formatted here, fed real millis by the
 // live App. Absent from every headless capture (see the module doc).

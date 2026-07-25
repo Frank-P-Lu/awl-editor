@@ -48,7 +48,22 @@ thread_local! {
 /// The guard [`serial`] returns. `inner: None` is the reentrant (already-held)
 /// case: dropping it releases nothing; only the outermost guard clears the
 /// thread flag and unlocks the mutex.
+///
+/// The outermost guard also carries a [`crate::theme::WorldPin`] — THE restore
+/// owner for the active-WORLD global (item 94's third repair). Serializing the
+/// world was never enough on its own: a test that swapped worlds and forgot to
+/// swap back handed its world to whatever ran NEXT, which is exactly how
+/// `range_rail`'s thumb law came to pass or fail on test ORDER. Snapshotting it
+/// here makes the restore structural — every test that takes the standing guard
+/// is world-clean on exit whether or not its author thought about it.
+///
+/// FIELD ORDER IS LOAD-BEARING: `_world` is declared BEFORE `inner`, and fields
+/// drop in declaration order, so the world goes home BEFORE the mutex is
+/// released — no other thread can ever observe the dirty global.
 pub(crate) struct SerialGuard {
+    /// Never read — it exists to be DROPPED (that is the restore). Declared
+    /// first so it drops first; see the note above.
+    _world: Option<crate::theme::WorldPin>,
     inner: Option<MutexGuard<'static, ()>>,
 }
 
@@ -66,11 +81,16 @@ impl Drop for SerialGuard {
 /// ONLY door to the mutex.
 pub(crate) fn serial() -> SerialGuard {
     if HELD.with(|h| h.get()) {
-        return SerialGuard { inner: None };
+        // Nested: the OUTERMOST guard already pinned the world — a second pin
+        // here would restore mid-test, at the inner guard's drop.
+        return SerialGuard { _world: None, inner: None };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     HELD.with(|h| h.set(true));
-    SerialGuard { inner: Some(guard) }
+    SerialGuard {
+        _world: Some(crate::theme::WorldPin::snapshot()),
+        inner: Some(guard),
+    }
 }
 
 /// True iff THIS thread currently holds the guard (via a live [`serial`]
@@ -150,6 +170,73 @@ mod tests {
         crate::page::set_measure(33);
         assert_eq!(crate::page::measure(), 33, "the nested writer's write lands");
         crate::page::set_measure(crate::page::DEFAULT_MEASURE); // leave as found
+    }
+
+    /// THE WORLD PIN, at its own seam: whatever a test does to the active-world
+    /// global inside the pin's window — one swap, five swaps, a `cycle` — the
+    /// pin puts the ORIGINAL world back when it drops. Run while holding the
+    /// outer guard, so no other thread can move the global under the assert.
+    #[test]
+    fn a_world_pin_restores_the_active_world_however_it_moved() {
+        let _g = serial();
+        let before = crate::theme::active_index();
+        {
+            let _pin = crate::theme::WorldPin::snapshot();
+            crate::theme::set_active_by_name("Tawny");
+            crate::theme::cycle(1);
+            // A world that is never `before`, whatever `before` is (18 worlds).
+            crate::theme::set_active(before + 5);
+            assert_ne!(
+                crate::theme::active_index(),
+                before,
+                "the pin's window really did move the global (a vacuous law otherwise)"
+            );
+        }
+        assert_eq!(
+            crate::theme::active_index(),
+            before,
+            "a WorldPin must put the world it snapshotted back when it drops"
+        );
+        // The pinning CONSTRUCTOR: pin + switch in one move, same restore.
+        {
+            let pin = crate::theme::WorldPin::world("Bombora").expect("Bombora is a world");
+            assert_eq!(pin.restores_to(), before);
+            assert_eq!(crate::theme::active().name, "Bombora");
+        }
+        assert_eq!(crate::theme::active_index(), before, "…including WorldPin::world");
+        assert!(
+            crate::theme::WorldPin::world("Not A World").is_none(),
+            "an unknown world changes nothing and yields no pin"
+        );
+        assert_eq!(crate::theme::active_index(), before);
+    }
+
+    /// THE WIRING — the bug this repair names: a test that swaps worlds and never
+    /// swaps back must NOT hand its world to whatever runs next. The outermost
+    /// serial guard owns that restore, so a window that ends dirty comes back
+    /// clean without the test doing anything.
+    ///
+    /// Why re-acquiring to read is stable rather than racy: any test that runs in
+    /// the gap holds the same guard and therefore restores whatever it found, so
+    /// the global can only be sitting at `before` — UNLESS the restore is missing,
+    /// which is precisely the state this law exists to catch (verified RED by
+    /// removing the `WorldPin` from `serial`'s outermost guard).
+    #[test]
+    fn the_outermost_guard_restores_a_world_the_test_body_left_dirty() {
+        let before = {
+            let _g = serial();
+            let b = crate::theme::active_index();
+            crate::theme::set_active_by_name("Tawny").expect("Tawny is a world");
+            crate::theme::set_active(b + 5); // never `b`, whatever `b` is
+            assert_ne!(crate::theme::active_index(), b, "the window ends genuinely dirty");
+            b
+        };
+        let _g = serial();
+        assert_eq!(
+            crate::theme::active_index(),
+            before,
+            "the outermost guard must restore the world its window dirtied"
+        );
     }
 
     #[test]

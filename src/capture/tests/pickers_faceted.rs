@@ -87,7 +87,10 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     assert_eq!(items, names, "every world in declaration order, ungrouped");
     assert_eq!(items[o["selected_index"].as_u64().unwrap() as usize], serde_json::json!("Potoroo"));
 
-    crate::theme::set_active_by_name("Tawny");
+    // (No hand-rolled world restore: this test used to end on a swap to TAWNY —
+    // not to the world it found — which left the global dirty for whatever ran
+    // next and made `render::tests::range_rail`'s thumb law order-dependent. The
+    // serial guard above now owns the restore; see `crate::theme_global_law`.)
     let _ = std::fs::remove_dir_all(&dir);
 }
 
