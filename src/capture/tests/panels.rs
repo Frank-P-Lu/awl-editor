@@ -159,6 +159,7 @@ fn replace_panel_reports_labeled_fields_and_find_focus() {
         eprintln!("skipping replace_panel_reports_labeled_fields_and_find_focus: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_replace_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     // A .txt buffer (no markdown spans) with several "the" matches.

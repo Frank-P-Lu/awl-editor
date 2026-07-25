@@ -105,6 +105,7 @@ use geometry::*;
 /// into its glyphon buffer through its font system — so the submodule is purely a
 /// physical home for that cohesive cluster, carved out verbatim. Byte-identical.
 mod text;
+pub use text::ScriptFontReports;
 
 /// STATE REPORTS — the read-only capture-sidecar reports over the shaped state
 /// (`md_report` / `wysiwyg_report` / `outline_report` / `syn_report` /
