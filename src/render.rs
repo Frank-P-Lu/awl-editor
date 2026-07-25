@@ -250,6 +250,22 @@ pub const CARET_BLOCK_H: f32 = CARET_H * 0.80; // ~22.4 px
 /// Applied ONLY when the glyph actually dips; scaled by the pixel scale (zoom × dpi)
 /// at the draw site, so it's ~1 logical px on a retina display.
 pub const CARET_DESCENDER_PAD: f32 = 1.5;
+/// ITEM 91 — the CELL caret's INK PAD (px, at zoom 1.0): how far the settled
+/// Block / folded-Morph quad grows BEYOND the anchored glyph's own full raster ink
+/// box, top and bottom alike, once the caret sizes itself to that box rather than
+/// to the generic line cell (`CARET_BLOCK_H`). ONE number for every letter and
+/// every world — the whole point is that the pad is letter-INDEPENDENT while the
+/// box under it is not, so an `a`, an `l` and a `g` each get the same small,
+/// even margin instead of the 8–9px of empty caret that used to hang above every
+/// non-ascender.
+///
+/// Sized deliberately ABOVE [`CARET_MORPH_DILATE_PX`] (the morph silhouette's own
+/// fattening) so that on a world whose block KNOCKS THE GLYPH OUT of the cell
+/// (`CaretBlockStyle::Filled` — the CRT phosphor cursor) the lit cell always keeps
+/// a visible rim around the punched letter instead of being eaten by its own
+/// knockout. Scaled by the pixel scale (zoom × dpi) at the geometry site, exactly
+/// like [`CARET_DESCENDER_PAD`].
+pub const CARET_INK_PAD: f32 = 3.0;
 /// Thickness (px, at zoom 1.0) of the MOTION trailing-underline streak: the thin
 /// bar the block collapses to once it drops to the baseline. A touch thicker and
 /// cleaner than the spell squiggle stroke (1.8) so the amber streak reads as

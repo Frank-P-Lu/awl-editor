@@ -760,38 +760,23 @@ impl TextPipeline {
     }
 
     /// BLOCK-caret upload — the settle-driven resting square ⇄ trailing-underline
-    /// streak, oriented along the true travel vector. Folds in the DESCENDER-AWARE
-    /// bottom so a dipping cursor glyph (g/y/p/q/j) stays inside the reverse-video
-    /// block. The fast-travel MORPH path defers here too (the per-glyph silhouette
-    /// would strobe), so this is the shared block/streak draw. Lifted verbatim out of
-    /// [`prepare_caret_layer`]'s final dispatch arm; byte-identical on every ORDINARY
-    /// world — see the one-bit branch at the bottom (added by THE 1-BIT CARET ROUND)
-    /// for the true-inverse-video path.
+    /// streak, oriented along the true travel vector. The fast-travel MORPH path
+    /// defers here too (the per-glyph silhouette would strobe), so this is the shared
+    /// block/streak draw. Lifted verbatim out of [`prepare_caret_layer`]'s final
+    /// dispatch arm; byte-identical on every ORDINARY world — see the one-bit branch
+    /// at the bottom (added by THE 1-BIT CARET ROUND) for the true-inverse-video path.
+    ///
+    /// ITEM 91: this site computes NO geometry of its own. The caret's vertical
+    /// extent — the anchored glyph's padded INK BOX on a proportional world, the
+    /// row-scaled line cell WITH its descender-aware bottom on a mono / ligature /
+    /// glyphless anchor — belongs entirely to `caret_cell_vertical`, folded into
+    /// `caret_geometry`'s rest endpoints. The descender extension used to be
+    /// re-derived HERE off the already motion-blended rect; keeping a second
+    /// vertical rule at the draw site is exactly how the top edge came to disagree
+    /// with the bottom. `render::tests::caret_ink_box`'s grep-law fails if a raster
+    /// box, a descender depth or a line-cell height reappears in this file.
     fn prepare_caret_block(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, width: u32, height: u32) {
         let (cx, cy, cw, ch, ccorner, ax, ay) = self.caret_geometry();
-        // DESCENDER-AWARE BOTTOM (stable top): keep the block TOP fixed and drop
-        // ONLY its bottom edge to cover the cursor glyph's real per-glyph
-        // descender ink, so dippers (g/y/p/q/j) stay inside the reverse-video
-        // block while a/m/C are unchanged (extend == 0 when the glyph doesn't dip
-        // below the existing block bottom). Scaled by the settle factor so the
-        // moving thin streak is untouched mid-glide; at rest (settled capture,
-        // s == 1) the extension is deterministic.
-        let s = self.caret.settle_factor();
-        let descender = self.cursor_glyph_descender();
-        // Pad a dipping glyph's descender a hair (pixel-scaled) so its antialiased
-        // ink edge stays inside the block; non-dippers (descender 0) are untouched.
-        let desc_pad = if descender > 0.0 {
-            CARET_DESCENDER_PAD * (self.metrics.caret_h / CARET_H)
-        } else {
-            0.0
-        };
-        let block_bottom = cy + ch * 0.5;
-        let desc_bottom = self.caret_baseline_y() + descender + desc_pad;
-        let extend = (desc_bottom - block_bottom).max(0.0) * s;
-        // `ch += extend; cy += extend/2` drops the bottom by `extend` while the
-        // top (`cy - ch/2`) is invariant.
-        let ch = ch + extend;
-        let cy = cy + extend * 0.5;
         let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
 
         match theme::active().render_caps.caret_block_style {

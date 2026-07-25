@@ -148,6 +148,10 @@ fn caret_geometry_orients_trail_along_travel_axis() {
 /// descender (block unchanged); a dipping `g` measures a positive depth (block
 /// bottom extends to wrap it). Font-correct (read from the swash placement box),
 /// not a hardcoded letter list.
+///
+/// ITEM 91 moved the measurement onto the shared full-raster [`InkBox`]
+/// (`descent()`), so the depth the block's bottom rides is the SAME box its top
+/// now rides — one raster read, one box. The assertions are unchanged.
 #[test]
 fn block_descender_extends_only_for_dippers() {
     // The descender reads the caret's ANCHOR cell, which is MODE-KEYED (Morph
@@ -160,10 +164,13 @@ fn block_descender_extends_only_for_dippers() {
         return;
     };
     let text = "ag"; // col 0 = 'a' (sits on the baseline), col 1 = 'g' (descender)
+    let descent = |p: &mut TextPipeline| {
+        p.caret_anchor_raster_box().map(|b| b.descent()).unwrap_or(0.0)
+    };
     p.set_view(&view(text, 0, 0));
-    let a = p.cursor_glyph_descender();
+    let a = descent(&mut p);
     p.set_view(&view(text, 0, 1));
-    let g = p.cursor_glyph_descender();
+    let g = descent(&mut p);
     assert!(a < 1.5, "non-dipping 'a' must have ~zero descender, got {a}");
     assert!(g > 2.0, "dipping 'g' must extend below the baseline, got {g}");
     assert!(g > a + 2.0, "'g' must dip further than 'a': g={g} a={a}");

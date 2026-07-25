@@ -146,7 +146,7 @@ async fn run_async() -> anyhow::Result<()> {
         // Warm the target-line-local record + the cursor-line visual-row memo, exactly
         // as the first per-frame lookup does, so the timed loop is the STEADY cost.
         let _ = p.caret_baseline_y();
-        let _ = p.cursor_glyph_descender();
+        let _ = p.caret_anchor_raster_box();
         let _ = p.caret_anchor_ink_box();
         let _ = p.caret_inhabited_key();
 
@@ -165,11 +165,11 @@ async fn run_async() -> anyhow::Result<()> {
         for _ in 0..ITERS {
             let t0 = crate::clock::Instant::now();
             let a = p.caret_baseline_y();
-            let b = p.cursor_glyph_descender();
+            let b = p.caret_anchor_raster_box();
             let c = p.caret_anchor_ink_box();
             let d = p.caret_inhabited_key();
             new.push(t0.elapsed().as_nanos());
-            std::hint::black_box((a, b, c, d.is_some()));
+            std::hint::black_box((a, b.is_some(), c.is_some(), d.is_some()));
         }
 
         cells.push(Cell {
