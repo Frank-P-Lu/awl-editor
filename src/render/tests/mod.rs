@@ -24,6 +24,7 @@ mod chrome_panels;
 mod cjk;
 mod date_picker_ink;
 mod dither;
+mod facepitch;
 mod firetail_showcase;
 mod float_surface_law;
 mod frost;

@@ -25,6 +25,13 @@ use crate::theme;
 /// physics + mode + GPU pipelines live in [`crate::caret`] / [`crate::caret_glyph`].
 mod caret;
 
+/// FACE PITCH — "is this bundled display family monospaced?", MEASURED from the
+/// face's own advance widths (queue item 97) instead of recognised by name. The
+/// caret's mono/proportional fork ([`crate::caret::font_is_mono`]) reads it, and
+/// [`FONT_THEME_FACES`] declares each face's pitch alongside its bytes so a newly
+/// bundled face cannot enter the build without one. See the module doc.
+pub(crate) mod facepitch;
+
 /// ORDERED (BAYER) DITHER — the pure math mirror of `shaders/background.wgsl`'s
 /// banding-kill offset and `shaders/selection.wgsl`'s one-bit highlight/search
 /// stipple. See [`dither`]'s own module doc for the "why one matrix, two uses"
@@ -458,6 +465,14 @@ impl Metrics {
 /// `Family::Monospace`).
 pub const FONT_DATA: &[u8] = include_bytes!("../assets/fonts/IBMPlexMono-Light.ttf");
 
+/// [`FONT_DATA`]'s declared [`facepitch::Pitch`] — it is a MONOSPACE, and the
+/// display face of Tawny. Declared here rather than inside [`FONT_THEME_FACES`]
+/// only because this face is loaded separately (it doubles as the registered
+/// `Family::Monospace` fallback, and `AWL_FONT` can swap the loaded bytes);
+/// `render::bundled_display_faces` splices the pair back into the one roster the
+/// pitch laws sweep, so it is no less swept than its fourteen neighbours.
+pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
+
 /// Bundled SYMBOL / ORNAMENT face (a hand-merged subset built from CLEAN OFL
 /// sources — the previous face's DejaVu/Bitstream-Vera dependency, the app's only
 /// non-OFL asset, is gone). Decomposed glyph outlines were copied from four SIL
@@ -504,41 +519,58 @@ pub const SYMBOL_FAMILY: &str = "Awl Marks";
 /// correctly. Every face here is a static Regular/400 (Monaspace Xenon was
 /// instanced from its variable master at `wght=400`), so no `mono_safe_weight`
 /// exception is needed beyond IBM Plex Mono's Light.
-pub const FONT_THEME_FACES: &[&[u8]] = &[
-    include_bytes!("../assets/fonts/Literata-Regular.ttf"),
-    include_bytes!("../assets/fonts/Newsreader-Regular.ttf"),
-    include_bytes!("../assets/fonts/IBMPlexSans-Regular.ttf"),
-    include_bytes!("../assets/fonts/ZillaSlab-Regular.ttf"),
-    // JetBrains Mono — Mangrove's crisp coding face (registers as "JetBrains Mono").
-    include_bytes!("../assets/fonts/JetBrainsMono.ttf"),
+///
+/// EACH FACE DECLARES ITS PITCH (queue item 97). The second tuple field is the
+/// face's [`facepitch::Pitch`] — the tuple type is the point: a new
+/// `include_bytes!` here CANNOT COMPILE without a conscious Mono/Proportional
+/// call, which is what the caret's mono/proportional fork used to get wrong by
+/// omission (a hardcoded three-name list in `caret::font_is_mono` silently missed
+/// Iosevka, so Currawong and Cassowary lost the uniform caret grid). The
+/// declaration does not DRIVE the caret — [`facepitch`] measures each face's own
+/// advance widths and the caret rides the measurement — it exists so a wrong or
+/// missing call FAILS `render::tests::facepitch` instead of quietly changing how
+/// the caret looks.
+pub const FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
+    (include_bytes!("../assets/fonts/Literata-Regular.ttf"), facepitch::Pitch::Proportional),
+    (include_bytes!("../assets/fonts/Newsreader-Regular.ttf"), facepitch::Pitch::Proportional),
+    (include_bytes!("../assets/fonts/IBMPlexSans-Regular.ttf"), facepitch::Pitch::Proportional),
+    (include_bytes!("../assets/fonts/ZillaSlab-Regular.ttf"), facepitch::Pitch::Proportional),
+    // JetBrains Mono — Mangrove's + Wagtail's crisp coding face (registers as
+    // "JetBrains Mono"); a real fixed pitch.
+    (include_bytes!("../assets/fonts/JetBrainsMono.ttf"), facepitch::Pitch::Mono),
     // Figtree — Galah's friendly humanist sans (registers as "Figtree").
-    include_bytes!("../assets/fonts/Figtree-Regular.ttf"),
-    // iA Writer Quattro S — a duospaced writing face (registers as
+    (include_bytes!("../assets/fonts/Figtree-Regular.ttf"), facepitch::Pitch::Proportional),
+    // iA Writer Quattro S — a DUOSPACED writing face (registers as
     // "iA Writer Quattro S"); bundled + bold-paired, currently unassigned to a
     // world (Mopoke moved to Bitter, queue item 30). SIL OFL, github.com/iaolo/iA-Fonts.
-    include_bytes!("../assets/fonts/iAWriterQuattroS-Regular.ttf"),
-    // Monaspace Xenon — Potoroo's slab-serif monospace (registers as
+    // Near a grid is not on one: it declares (and measures) PROPORTIONAL, which
+    // is the caret look it has always had.
+    (
+        include_bytes!("../assets/fonts/iAWriterQuattroS-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
+    // Monaspace Xenon — Potoroo's/Firetail's slab-serif monospace (registers as
     // "Monaspace Xenon"). SIL OFL, github.com/githubnext/monaspace.
-    include_bytes!("../assets/fonts/MonaspaceXenon-Regular.ttf"),
+    (include_bytes!("../assets/fonts/MonaspaceXenon-Regular.ttf"), facepitch::Pitch::Mono),
     // Fraunces 9pt — Saltpan's warm old-style serif at the text optical size
     // (registers as "Fraunces 9pt"). SIL OFL, github.com/undercasetype/Fraunces.
-    include_bytes!("../assets/fonts/Fraunces9pt-Regular.ttf"),
+    (include_bytes!("../assets/fonts/Fraunces9pt-Regular.ttf"), facepitch::Pitch::Proportional),
     // EB Garamond — Bombora's classic Garamond serif (registers as
     // "EB Garamond"). SIL OFL, github.com/octaviopardo/EBGaramond12.
-    include_bytes!("../assets/fonts/EBGaramond-Regular.ttf"),
+    (include_bytes!("../assets/fonts/EBGaramond-Regular.ttf"), facepitch::Pitch::Proportional),
     // Fira Sans — a humanist sans (registers as "Fira Sans"), Latin-subset.
     // SIL OFL, github.com/google/fonts/tree/main/ofl/firasans. Registered for
     // addressability; not yet assigned to any world (wiring follows).
-    include_bytes!("../assets/fonts/FiraSans-Regular.ttf"),
-    // Iosevka — a narrow monospace (registers as "Iosevka", isFixedPitch),
-    // Latin-subset. SIL OFL, github.com/be5invis/Iosevka. Registered for
-    // addressability; not yet assigned to any world.
-    include_bytes!("../assets/fonts/Iosevka-Regular.ttf"),
+    (include_bytes!("../assets/fonts/FiraSans-Regular.ttf"), facepitch::Pitch::Proportional),
+    // Iosevka — a narrow MONOSPACE (registers as "Iosevka", isFixedPitch),
+    // Latin-subset. SIL OFL, github.com/be5invis/Iosevka. The display + code face
+    // of Currawong and Cassowary — the face the retired name list forgot.
+    (include_bytes!("../assets/fonts/Iosevka-Regular.ttf"), facepitch::Pitch::Mono),
     // Bitter — a slab serif for reading (registers as "Bitter"), instanced at
     // wght=400 then Latin-subset. SIL OFL, github.com/google/fonts/tree/main/
     // ofl/bitter. The shared body face of Magpie (stark-paper masthead) and
     // Mopoke (warm cosy dark, queue item 30) — precedented face-sharing.
-    include_bytes!("../assets/fonts/Bitter-Regular.ttf"),
+    (include_bytes!("../assets/fonts/Bitter-Regular.ttf"), facepitch::Pitch::Proportional),
     // Sour Gummy — Quokka's printed-card display face (item 70, registers as
     // "Sour Gummy"), instanced from the OFL variable master
     // (google/fonts ofl/sourgummy) at `wght=400 wdth=100`, Latin+punctuation
@@ -546,8 +578,17 @@ pub const FONT_THEME_FACES: &[&[u8]] = &[
     // `assets/fonts/LICENSES.md` for the full provenance + the documented
     // 21-codepoint upstream gap, and [`FONT_SOURGUMMY_HEAVY_CANDIDATE`] for
     // the bundled 900 A/B candidate.
-    include_bytes!("../assets/fonts/SourGummy-Regular.ttf"),
+    (include_bytes!("../assets/fonts/SourGummy-Regular.ttf"), facepitch::Pitch::Proportional),
 ];
+
+/// THE ONE ROSTER of bundled DISPLAY faces + their declared pitch: [`FONT_DATA`]
+/// (loaded separately, as the `Family::Monospace` fallback) spliced in front of
+/// [`FONT_THEME_FACES`]. Every consumer that wants "the faces a `Theme::font` can
+/// name" reads this rather than remembering that the default face lives in its own
+/// const — the exact shape of forgetting this round is fixing.
+pub fn bundled_display_faces() -> impl Iterator<Item = (&'static [u8], facepitch::Pitch)> {
+    std::iter::once((FONT_DATA, FONT_DATA_PITCH)).chain(FONT_THEME_FACES.iter().copied())
+}
 
 /// BUNDLED BOLD (700) display faces — the WYSIWYG-pivot bold round. awl's bundled
 /// display faces were Regular-only, so `**bold**` (whose `MdKind::Bold` arm in
@@ -1299,7 +1340,7 @@ fn build_font_system() -> FontSystem {
     // (see FONT_THEME_FACES). The mono default above stays the registered
     // monospace family, so it remains the fallback for any glyph a proportional
     // face is missing, and the panel/UI text keeps its mono look.
-    for &face_bytes in FONT_THEME_FACES {
+    for &(face_bytes, _pitch) in FONT_THEME_FACES {
         font_system.db_mut().load_font_source(
             glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
                 face_bytes.to_vec(),
