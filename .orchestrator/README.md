@@ -103,6 +103,17 @@ active quota budget, not raw fan-out:
    genuinely user-gated items (a permission grant, an approval, a taste call the
    user reserved) wait; everything else proceeds. "If you get stuck, do
    everything else before pausing to wait for my say" (user).
+4. **Never interrupt the cook to interview the user (user rule, 2026-07-26:
+   "you can just block it, and note it down in the queue… the cooking agent is
+   just focused on cooking").** A fork only the user can settle does NOT become
+   an interactive question — it BLOCKS its item, gets written into the queue as
+   a stated question with the options and a recommendation, and the wave moves
+   on to the next independent item. Do not answer it yourself either: a taste or
+   feel call the user reserved is theirs, and an orchestrator-invented answer
+   buried in a queue item is worse than an honest block, because it looks
+   decided. Write the question so it can be answered cold, then keep cooking.
+   Design SESSIONS are the opposite case — there the user opened the
+   conversation, so interview ruthlessly (§Design sessions).
 
 ## Dynamic harnesses inside queue items (user rule)
 
