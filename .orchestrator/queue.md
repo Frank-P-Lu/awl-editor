@@ -6,6 +6,8 @@
 
 ## Ready — current user-visible wave
 
+89. **Item-86 zigzag-field correctness follow-up — tile Quokka and Gumtree’s page-margin zigzags across the field.** Reopen item 86’s light-world ground as a correctness repair: the current shader repeats teeth along one wandering chevron line but does not tile lines vertically across the margin field, while the previous tests proved only that some pattern pixels existed. Replace that isolated stroke with a genuinely repeated Mario-like zigzag field so every substantial page-margin region visibly contains material rather than large blank areas. Keep the writing column untouched. At an ordinary window height, show roughly three broad visible zigzag rows, with Quokka tighter and more playful and Gumtree broader and quieter. Preserve both worlds’ cards, typography, and palettes, and leave Bombora unchanged; do not open a new taste round unless real captures expose a genuine design fork. Add real-pixel occupancy laws that sample multiple vertical and horizontal cells, assert exclusion from the writing column and deterministic rendering, generate representative Quokka and Gumtree captures at multiple sizes, run the standing vision smoke and frame-cost check, then pass the full native and wasm gates. **Unclaimed; correctness follow-up only.**
+
 ## Ready — shared ownership and performance
 
 ## Timed — not blocked
