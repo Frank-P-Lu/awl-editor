@@ -1192,6 +1192,33 @@ pub enum HighlightTreatment {
 
 /// The MARGIN ground a world paints behind its centered page (PAGE MODE).
 ///
+/// [`Background::Zigzag`]'s ribbon stroke half-width as a fraction of the
+/// authored `amplitude_px` — the HOST MIRROR of `ZIGZAG_STROKE_FRAC` in
+/// `shaders/background.wgsl` (kept in lockstep by the grep-law
+/// `render::tests::backgrounds_item89::the_wgsl_zigzag_branch_abuts_its_rows`).
+///
+/// `cfg(test)` on purpose, not `allow(dead_code)`: the GPU is the only runtime
+/// consumer of this number — the host side reads it ONLY to state and check the
+/// field's geometry laws. The same discipline the Bombora `WAVE_*` mirrors take.
+#[cfg(test)]
+pub const ZIGZAG_STROKE_FRAC: f32 = 0.10;
+/// The absolute floor under [`ZIGZAG_STROKE_FRAC`]'s product, so a tiny-profile
+/// field still draws a visible hairline rather than vanishing. Mirrors the
+/// shader's `max(..., 1.2)`.
+#[cfg(test)]
+pub const ZIGZAG_MIN_STROKE_PX: f32 = 1.2;
+/// The largest ROW PITCH ([`Background::zigzag_row_pitch_px`]) a shipping
+/// `Zigzag` world may author. The abutment rule alone guarantees the field has
+/// no blank LANE at any dials; this bound is the separate, coarser claim that
+/// the field stays FINE-GRAINED RELATIVE TO A PAGE MARGIN — a pitch wider than
+/// a margin cell lets an individual cell fall between two rows even though the
+/// lane itself is covered. Set from the sweep's own smallest graded cell (a
+/// third of a narrow margin's width by a third of a short viewport's height,
+/// ~27x166 px at 1400x500), with real slack measured on both shipping worlds.
+/// Law: `render::tests::backgrounds_item89::authored_zigzag_row_pitch_stays_fine_grained_against_a_page_margin`.
+#[cfg(test)]
+pub const ZIGZAG_MAX_ROW_PITCH_PX: f32 = 160.0;
+
 /// A TAGGED union — the user's locked model: the theme DECLARES which ground it
 /// wants and SUPPLIES exactly the colors/params that ground needs; no field is
 /// carried by a variant that does not use it. Every variant is a pure
@@ -1268,26 +1295,34 @@ pub enum Background {
     /// chevrons composite over it at low coverage through the shared
     /// `pattern_coverage` pipeline (never a separate final-color branch).
     /// **Item 89** made it a genuine FIELD: the chevron repeats ACROSS its
-    /// travel direction as well as along it (rows stacked every `period_px`,
-    /// a square lattice in the travel frame), so any margin at any window
+    /// travel direction as well as along it, so any margin at any window
     /// height carries the same row rhythm instead of one wandering stroke
-    /// with large blank areas. Four independently-authored dials let two
-    /// worlds sharing this ONE variant read as separately designed fields
-    /// rather than a recolor of one asset:
-    /// - `period_px` — the chevron's repeat wavelength ALONG its travel AND
-    ///   the row-to-row spacing ACROSS it (item 89's square lattice): the
-    ///   SCALE/SPACING dial, scaling the whole field isotropically — halve it
-    ///   and both the teeth and the rows halve, so "how many chevron rows
-    ///   does a window show" is this one dial's (and `angle`'s) business
-    ///   (device px — this ground family carries no DPI uniform, matching
-    ///   `Dots`' fixed 24px cell's own unscaled convention).
+    /// with large blank areas. **Item 89's coverage repair** then made the
+    /// row PITCH a DERIVED quantity rather than a second reading of
+    /// `period_px`: the shader stacks rows every `2*amplitude_px + thickness`
+    /// so each row's ribbon sweeps exactly its own lane, and neighbouring
+    /// rows ABUT. That is what makes coverage STRUCTURAL — with the pitch
+    /// authored independently (the first cut used `period_px`), any dial pair
+    /// with `2*amplitude_px + 2*thickness < period_px` left a hard blank lane
+    /// no chevron ever entered, and a short window's narrow margin could land
+    /// inside one. Four independently-authored dials let two worlds sharing
+    /// this ONE variant read as separately designed fields rather than a
+    /// recolor of one asset:
+    /// - `period_px` — the chevron's repeat wavelength ALONG its travel: the
+    ///   SCALE dial for the TEETH (device px — this ground family carries no
+    ///   DPI uniform, matching `Dots`' fixed 24px cell's own unscaled
+    ///   convention). It does NOT set the row pitch; together with
+    ///   `amplitude_px` it sets the tooth SLOPE (`4*amplitude_px/period_px` —
+    ///   a long period against a small excursion is a lazy meander, a short
+    ///   one against the same excursion is a sharp zigzag).
     /// - `amplitude_px` — the "V"'s peak excursion across travel: the PROFILE
-    ///   dial (a small amplitude relative to `period_px` reads as a tight,
-    ///   sharp zigzag; a large one reads as a broad, lazy meander — the
-    ///   stroke's own thickness is derived from this, so a broader profile
-    ///   also draws a bolder ribbon). Bounded in the shader to 40% of
-    ///   `period_px` so neighbouring rows can never collide into a smear;
-    ///   both shipping worlds author well inside that bound.
+    ///   dial, and through the abutment rule the field's ROW PITCH and (via
+    ///   `ZIGZAG_STROKE_FRAC`) the ribbon's own thickness. So "how many
+    ///   chevron rows does a window show" is this dial's (and `angle`'s)
+    ///   business: rows every `2*amplitude_px + thickness` px across travel.
+    ///   No clamp is needed — abutting rows cannot collide into a smear
+    ///   (each ribbon is `2*thickness` wide inside its own wider lane), and
+    ///   they cannot separate into a blank lane either.
     /// - `angle` (radians) — the direction the chevrons themselves travel
     ///   (0 = vertical chevrons meandering left-right as y increases): the
     ///   DIRECTION dial, independent of the underlying gradient's own `dir`.
@@ -1470,7 +1505,7 @@ impl Background {
         }
     }
     /// [`Background::Zigzag`]'s chevron repeat wavelength (device px) — the
-    /// SCALE/SPACING dial. `0.0` for every other ground.
+    /// SCALE dial for the TEETH. `0.0` for every other ground.
     pub fn period_px(&self) -> f32 {
         match self {
             Background::Zigzag { period_px, .. } => *period_px,
@@ -1484,6 +1519,34 @@ impl Background {
             Background::Zigzag { amplitude_px, .. } => *amplitude_px,
             _ => 0.0,
         }
+    }
+    /// [`Background::Zigzag`]'s ribbon stroke half-width (device px) — the
+    /// HOST MIRROR of `shaders/background.wgsl`'s
+    /// `max(amp * ZIGZAG_STROKE_FRAC, 1.2)`. Derived, never authored.
+    /// `cfg(test)` for the same reason the constants are.
+    #[cfg(test)]
+    pub fn zigzag_stroke_px(&self) -> f32 {
+        (self.amplitude_px() * ZIGZAG_STROKE_FRAC).max(ZIGZAG_MIN_STROKE_PX)
+    }
+    /// [`Background::Zigzag`]'s ROW PITCH across the travel axis (device px) —
+    /// the HOST MIRROR of the shader's ABUTMENT RULE, `row_h = 2*amp +
+    /// thickness`, and the ONE owner every host-side law reads (never a
+    /// re-derivation at a test site).
+    ///
+    /// **Why this exact expression is the coverage guarantee.** Row `k`'s
+    /// ribbon visits `ry` in `[k*pitch - amp - t, k*pitch + amp + t]` as the
+    /// triangle wave sweeps its full excursion, i.e. a span of `2*amp + 2*t`;
+    /// its ribbon CORE (`d <= 0.6*t`, the half-peak criterion the occupancy
+    /// laws measure) spans `2*amp + 1.2*t`. Both exceed `pitch = 2*amp + t`,
+    /// so consecutive rows' sweeps OVERLAP — the field can carry no blank
+    /// lane across its travel axis for ANY authored dials, at any angle, at
+    /// any viewport size or aspect. Item 89's first cut set `pitch =
+    /// period_px`, which left a lane of `period_px - 2*amp - 2*t` (~63px on
+    /// the then-authored Gumtree) that no chevron ever entered.
+    /// `cfg(test)` for the same reason the constants are.
+    #[cfg(test)]
+    pub fn zigzag_row_pitch_px(&self) -> f32 {
+        2.0 * self.amplitude_px() + self.zigzag_stroke_px()
     }
     /// [`Background::Zigzag`]'s extra coverage multiplier `[0,1]` — the
     /// CONTRAST dial, stacked with the shared whisper-mark coverage ceiling

@@ -13,12 +13,14 @@
 //! **Post item-89 note:** this ground was reopened as a CORRECTNESS repair —
 //! item 86's chevron repeated its teeth ALONG one travel line but never tiled
 //! that line ACROSS the margin field, so a page margin carried a single
-//! wandering stroke with large blank areas. The field laws (occupancy across a
-//! grid of margin cells, row rhythm, height scaling, column exclusion,
-//! determinism) all live in `backgrounds_item89.rs`; the round's own
-//! per-world dials were rescaled there too (Quokka 100/24, Gumtree 250/85).
-//! What stays here is item 86's DESIGN brief — the roster, and the four dials'
-//! authored distinctness.
+//! wandering stroke with large blank areas; and the fold that first tiled it
+//! stacked rows every `period_px`, which left a blank LANE between rows
+//! wherever the excursion did not span the period. The field laws (per-cell
+//! occupancy SWEPT over viewport geometry, the no-blank-lane law, the abutment
+//! theorem, row rhythm, height scaling, column exclusion, determinism) all live
+//! in `backgrounds_item89.rs`; the per-world dials were re-derived there too
+//! (Quokka 100/24 unchanged, Gumtree 170/60). What stays here is item 86's
+//! DESIGN brief — the roster, and the four dials' authored distinctness.
 //!
 //! Per the project tripwire (the sidecar is a STATE oracle, never an
 //! APPEARANCE oracle), every contrast/distinctness/column-exclusion claim

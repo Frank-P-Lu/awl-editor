@@ -68,6 +68,12 @@ pub use derive::{
 // under `#[cfg(test)]`).
 pub use derive::{cycle, overlay_scrim, primary_content, tag_for};
 pub use model::{Background, LavaEdge, Theme, WashOverride};
+// ITEM 89's ZIGZAG geometry mirror — `cfg(test)` at the source (see their own
+// docs: the GPU is the only runtime consumer; the host reads them ONLY to state
+// the field's laws), so the re-export is gated identically rather than carrying
+// an `allow(dead_code)` a future genuinely-dead constant could hide behind.
+#[cfg(test)]
+pub use model::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
 #[allow(unused_imports)] // Lens/RoleOverrides/ThemeTags: public API surface, no
 // NON-TEST in-crate caller today.
 pub use model::{Lens, RoleOverrides, ThemeTags};

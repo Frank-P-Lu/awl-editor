@@ -59,16 +59,19 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   tight/steep/bold (50px period, 10px amplitude, ~54°, density 0.60) and
   Gumtree's broad/shallow/quiet (190px period, 60px amplitude, ~15°, density
   0.20). **Item 89 (2026-07)** repaired
-  that ground as a FIELD: item 86's chevron repeated its teeth ALONG one travel
-  line but never tiled that line ACROSS the margin, so a page margin carried a
-  single wandering stroke with large blank areas and a taller window gained no
-  second row. The shader now folds the across-travel coordinate through the row
-  period — chevron rows stacked every `period_px`, a square lattice in the
-  travel frame — and both worlds' dials were rescaled to that field (Quokka
-  100px/24px, Gumtree 250px/85px: about three broad rows down an ordinary
-  window on Gumtree, roughly twice as many on the tighter Quokka; angles,
-  tints, densities and every palette rung unchanged). See "The zigzag field
-  law" below. `Bands` is now DORMANT
+  that ground as a FIELD, in two steps: item 86's chevron repeated its teeth
+  ALONG one travel line but never tiled that line ACROSS the margin, so a page
+  margin carried a single wandering stroke with large blank areas and a taller
+  window gained no second row; and the first fold that tiled it stacked rows
+  every `period_px`, which left a hard blank LANE between neighbouring rows
+  whenever the excursion did not span the period. The shader now folds the
+  across-travel coordinate through a DERIVED pitch — `2*amplitude_px +
+  thickness`, so consecutive rows always abut and coverage is a property of the
+  shader rather than of the authored dial pair — and both worlds' dials sit in
+  that field (Quokka 100px/24px unchanged, Gumtree 170px/60px: about six broad
+  rows down an ordinary window on Gumtree, roughly twice as many on the tighter
+  Quokka; angles, tints, densities and every palette rung unchanged). See "The
+  zigzag field law" below. `Bands` is now DORMANT
   reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
   **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
   PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
@@ -842,35 +845,75 @@ one, held literally zero ink). Item 89 is the correctness repair, not a new
 taste round: the palettes, tints, gradients, travel angles, densities, cards
 and typography of both worlds are untouched.
 
-- **The field FOLD.** The shader folds the across-travel coordinate through the
-  row period — `d = |fract((ry - center)/row_h + 0.5) - 0.5| * row_h` — turning
+- **The field FOLD.** The shader folds the across-travel coordinate through a
+  row pitch — `d = |fract((ry - center)/row_h + 0.5) - 0.5| * row_h` — turning
   the single curve into the infinite family `center + k * row_h`. A genuinely
   tiled Mario-like zigzag field: any margin, at any window height, carries the
   same row rhythm.
-- **One dial, isotropic.** `row_h` IS `period_px` — the SCALE dial governs the
-  teeth and the row spacing together (a square lattice in the travel frame), so
-  no fifth dial and no new uniform slot were needed, and "how many rows does a
-  window show" stays the business of `period_px` and `angle` alone. The
-  amplitude is bounded in the shader to 40% of the period so neighbouring rows
-  can never collide into a smear; both worlds author well inside that bound
-  (law:
-  `render::tests::backgrounds_item89::authored_zigzag_amplitude_stays_inside_the_shaders_row_collision_bound`).
-- **Rescaled to the field.** Quokka 100px/24px, Gumtree 250px/85px: on the
-  deterministic 1200x800 canvas Gumtree reads as ~3 broad chevron rows down a
-  margin and Quokka as ~6 tighter ones — the two worlds' authored characters
-  (tight/steep/bold against broad/shallow/quiet) now separated by row RHYTHM as
-  well as by scale, profile, direction and contrast.
-- **Real-pixel occupancy, not "some mark exists."** `render::tests::backgrounds_item89`
-  partitions EACH page margin into a 3x3 grid of substantial cells and requires
-  every one of the 18 cells, on both worlds, to hold a real ribbon core — the
-  law item 86 lacked (its positive half passed on one stroke anywhere in the
-  margin). Measured DIFFERENTIALLY: the same world rendered as authored minus
-  the same world with its mark coverage zeroed, so the gradient, its dither and
-  the sRGB quantization cancel exactly and the number is the mark alone. Plus a
-  row-rhythm law, a height-scaling law (double the canvas, double the rows —
-  the defect's own signature inverted), zero mark ink inside the writing
-  column, byte-determinism at two canvas sizes, and a non-vacuity self-proof
-  that the occupancy grid really does reject item 86's untiled stroke.
+- **THE ABUTMENT RULE — why the pitch is DERIVED, not a second reading of
+  `period_px`.** The fold's first cut set `row_h = period_px` (a square lattice
+  in the travel frame). That TILES but it does not COVER: row `k`'s ribbon only
+  ever visits `ry` in `[k*row_h - amp - t, k*row_h + amp + t]`, so whenever
+  `2*amp + 2*t < period_px` the field carries a hard BLANK LANE of
+  `period_px - 2*amp - 2*t` that NO chevron enters at ANY point of the plane —
+  ~70px every 250px on the dials that first shipped, and a short window's narrow
+  margin could sit wholly inside one (verified: an 80x182px band of a 1600x600
+  right margin, and a 27x234px cell of a 1400x700 left margin, at literally zero
+  deviation, both at the app's real adaptive column geometry). The pitch is now
+  `row_h = 2*amp + thickness`, so each row's ribbon sweeps exactly its own lane
+  and its ribbon CORE sweeps a lane plus `0.2*t` of overlap: consecutive rows
+  ABUT for ANY authored dials, at any angle, at any viewport size or aspect.
+  Coverage stopped being a property of the dial pair and became a property of
+  the shader. The old amplitude-vs-period collision clamp retired with it —
+  abutting rows cannot smear together, so there was nothing left to guard.
+- **The dials, and what each one now means.** `period_px` is the TOOTH
+  wavelength alone; `amplitude_px` is the profile depth AND (through the
+  abutment rule) the row pitch and the ribbon thickness. Quokka 100px/24px
+  (unchanged — its field was already fine-grained enough to cover every margin
+  cell at every swept viewport), Gumtree 170px/60px, the SAME ~0.35 profile
+  ratio item 86 authored (85/250) with the whole field scaled to a pitch a page
+  margin can hold. On the deterministic 1200x800 canvas Gumtree reads ~6 broad
+  chevron rows down a margin and Quokka ~12 tighter ones; Gumtree's row pitch is
+  2.5x Quokka's and its tooth wavelength 1.7x, at a third of the contrast.
+  **The cost, recorded honestly:** the first cut read ~3 broad rows on Gumtree,
+  and that reading is not recoverable — a void-free chevron field's teeth span
+  its own row pitch by construction, so "rows three times the height of their
+  own teeth" and "no blank lane" are mutually exclusive. Broadness now lives in
+  the tooth wavelength, the pitch ratio against Quokka, and the low density.
+- **A pitch bound is the one authored discipline abutment does NOT give free.**
+  Abutment kills the LANE; it says nothing about the pitch being fine-grained
+  relative to a page MARGIN, and a pitch wider than a margin cell lets an
+  individual cell fall between two rows even though the lane is covered. Every
+  shipping Zigzag world therefore authors a profile whose derived pitch clears
+  `theme::ZIGZAG_MAX_ROW_PITCH_PX` (law:
+  `render::tests::backgrounds_item89::authored_zigzag_row_pitch_stays_fine_grained_against_a_page_margin`).
+- **The law SWEEPS viewport geometry.** The occupancy law item 89 first shipped
+  graded ONE fixed geometry — a 1200x800 canvas with a synthetic 350/500 column
+  — and never varied the aspect ratio, which is why a real user-visible gap
+  passed it. It now sweeps twelve `(window, measure)` shapes (heights 500..1600,
+  aspect ratios 0.56..2.37, including both verified failures) at the app's OWN
+  adaptive-column owner (`TextPipeline::column_left`/`column_width`), in BOTH
+  placement regimes (symmetric, and the outline-rail shift), partitions each
+  resulting margin into cells no thinner than 26px, and requires EVERY cell on
+  BOTH worlds to hold a real ribbon core. 324 cells graded; tightest occupancy
+  5.5x the floor. Measured DIFFERENTIALLY: the same world rendered as authored
+  minus the same world with its mark coverage zeroed, so the gradient, its
+  dither and the sRGB quantization cancel exactly and the number is the mark
+  alone.
+- **The rest of the suite.** A no-blank-LANE law over real pixels, scanned on
+  the across-travel axis the rows stack along (a screen-`y` scan cannot see a
+  lane at all once the travel angle is nonzero — the trap that hid this defect);
+  an EVENNESS bound pinning the widest fully-blank horizontal band of any swept
+  margin (174px as first shipped → 57px, 60px at real GPU pixels — a narrow
+  margin gives a shallow ribbon too little x to travel a whole pitch in, so an
+  ordinary between-rows gap there is unavoidable for any sparse row field, and
+  the honest claim is that it more than halved); the abutment THEOREM over 1600
+  arbitrary dial settings; a row-rhythm law; a height-scaling law (double the
+  canvas, double the rows — the original defect's own signature inverted); zero
+  mark ink inside the writing column; byte-determinism at two canvas sizes; a
+  WGSL structural tripwire on both the fold and the abutment rule; and a host
+  mirror kept in lockstep with the GPU, carrying the first cut's pitch rule as a
+  second arm purely so the laws can be proven capable of catching what it did.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 

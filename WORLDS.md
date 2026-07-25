@@ -57,7 +57,7 @@ uses the world's own quiet palette, and never spends the caret accent.
 | **Stripes** | A diagonal striped band concentrated at the page boundary and dissolved outward into the margin. | Potoroo |
 | **Lava** | A slow metaball field in the margins. Reduce Motion can still it; deterministic captures use a fixed phase. Firetail is smooth wine; Mangrove is dithered deep-sea blue. | Firetail, Mangrove |
 | **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. Reusable infrastructure, currently DORMANT — Gumtree (its one-time assignee) moved to Zigzag in item 86. | *(none — dormant)* |
-| **Zigzag** (item 86, tiled in item 89) | A TILED FIELD of repeating chevron ("V") rows over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. The chevron repeats both along its travel direction and across it, so every part of a margin carries rows at any window height. Four per-world dials (repeat wavelength — which also sets the row spacing — peak excursion, travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/shallow/quiet. | Quokka, Gumtree |
+| **Zigzag** (item 86, tiled in item 89) | A TILED FIELD of repeating chevron ("V") rows over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. The chevron repeats both along its travel direction and across it, and consecutive rows abut by construction, so every part of a margin carries rows at any window size or shape. Four per-world dials (tooth wavelength, peak excursion — which also sets the row pitch — travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/open/quiet. | Quokka, Gumtree |
 | **Waves** (item 69) | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
 
 Currawong's base margin background is **Gradient**. Its slowly appearing and
@@ -85,9 +85,9 @@ background used by Bombora and Mulga; the at-a-glance table writes
 ### Gumtree
 **A pale eucalyptus-green reading room, calm and cool in clear daylight.**
 Literata's easygoing book-serif on cool green paper; Shippori Mincho for Japanese; Monaspace Xenon for code.
-Its margins carry a broad, quiet eucalyptus zigzag field (item 86, tiled in item 89) — lazy,
-shallow chevron rows in the ground's own ladder, about three of them down an ordinary window,
-replacing the room's original grass-bands field.
+Its margins carry a broad, quiet eucalyptus zigzag field (item 86, tiled in item 89) — shallow,
+near-horizontal chevron rows in the ground's own ladder, about six of them down an ordinary
+window, replacing the room's original grass-bands field.
 Day · Refined · Literary · Cool.
 
 ### Bilby
@@ -120,7 +120,7 @@ Its summoned cards are a printed-card statement — a crisp 45° chamfered
 silhouette and a small rotated halftone-dot texture, strongest at the card's
 right decorative edge and rolling off before the left content column. Its
 margins carry a tight, bold repeating zigzag field (item 86, tiled in item 89) — the same
-ground as Gumtree's, dialled 2.5x tighter and steeper, so roughly twice as many
+ground as Gumtree's, dialled 2.5x tighter and much steeper, so roughly twice as many
 chevron rows cross the margin — replacing the room's original dot grid.
 Dawn · Everyday · Modern · Warm.
 
