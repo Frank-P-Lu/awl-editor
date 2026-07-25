@@ -838,6 +838,46 @@ impl TextPipeline {
         // probe mid-flight where the leading band and echo overlap).
         self.overlay_cross
             .prepare(device, queue, width, height, &cross_rects);
+        // ITEM 94 — THE RANGE ROW'S RAIL. Every visible range row's track / fill /
+        // thumb, resolved by the ONE rail owner (`overlay_rails`, which the pointer
+        // hit-test reads too — so the control is clickable exactly where it is
+        // drawn). EMPTY for every other card (both pipelines park → byte-identical).
+        //
+        // INK: two quiet rungs, never the amber accent (DESIGN §3) — `faint` for the
+        // track, `muted` for the fill + thumb. When the SELECTED row carries a rail
+        // AND the highlight band would wash `muted` out, the fill/thumb flip through
+        // the ONE `theme::selected_row_secondary_ink` owner — the SAME mechanism the
+        // value TEXT beside it already uses, so rail and number stay legible together
+        // on every world rather than either growing its own contrast rule.
+        let rails = self.overlay_rails(geom);
+        let (mut track_rects, mut thumb_rects): (Vec<[f32; 4]>, Vec<[f32; 4]>) =
+            (Vec::new(), Vec::new());
+        for (_item, rail) in &rails {
+            track_rects.push(rail.track);
+            if rail.fill[2] > 0.0 {
+                thumb_rects.push(rail.fill);
+            }
+            thumb_rects.push(rail.thumb);
+        }
+        let selected_rail = rails
+            .iter()
+            .any(|(item, _)| Some(*item) == sel_disp.and_then(|k| self.overlay_item_at_row(geom, k)));
+        let thumb_ink = if selected_rail && super::selected_secondary_on_band() {
+            match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band())
+            {
+                theme::HighlightTreatment::InverseFill { ink, .. } => ink,
+                theme::HighlightTreatment::ValueBand(b) => theme::selected_row_secondary_ink(b),
+            }
+        } else {
+            theme::muted()
+        };
+        self.overlay_range_track
+            .set_color(theme::faint().rgba_bytes());
+        self.overlay_range_thumb.set_color(thumb_ink.rgba_bytes());
+        self.overlay_range_track
+            .prepare(device, queue, width, height, &track_rects);
+        self.overlay_range_thumb
+            .prepare(device, queue, width, height, &thumb_rects);
         // FACETED STRIP active-lens mark: the rect the shaper recorded (its SHAPE
         // set by `facet_style` — hairline underline / band / active chip); a
         // non-theme card parks it empty (so a stale rect never lingers).

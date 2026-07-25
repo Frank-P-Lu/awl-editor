@@ -195,6 +195,15 @@ pub fn classify(effect: &Effect) -> Classified {
             "setting_path_pick",
             unsupported("the config folder-key write is live-App-only; the path would not take effect"),
         ),
+        // ITEM 94 — a RANGE row's step: unlike its Toggle/Value siblings above, the
+        // VALUE CHANGE ITSELF already happened in the shared core (`apply_core`
+        // stepped `ActionCtx::zoom` through the range spec and mirrored the row's
+        // readout + thumb), so the replay session observes exactly what live does —
+        // the SAME reason the Theme/Caret/Date accepts are Applied. What the replay
+        // skips is the live tail (a metric reflow it has no pipeline for, and the
+        // sticky config write the capture path is structurally free of), neither of
+        // which is observable in a capture. Applied, not a gap.
+        Effect::SettingRangeStep { .. } => c("setting_range_step", applied),
         Effect::RenameNoteCommit { .. } => c(
             "rename_note_commit",
             unsupported("the disk rename is live-App-only; the buffer would keep its old path"),
@@ -340,6 +349,7 @@ mod tests {
             Effect::SettingToggle { key: "wysiwyg".into() },
             Effect::SettingValueCommit { key: "page_width_prose".into(), value: "66".into() },
             Effect::SettingPathPick { key: "default_folder".into(), path: "/tmp/n".into() },
+            Effect::SettingRangeStep { key: "zoom".into() },
             Effect::TrashAsset { rel: "assets/orphan.png".into() },
             Effect::ConvertScratchAndSave,
             Effect::SaveDone { ok: true, message: "saved".into() },
@@ -357,6 +367,9 @@ mod tests {
             "none", "new_document", "open_settings", "open_credits", "open_guide", "run_action",
             "overlay_accept", "jump_to_line", "convert_scratch_and_save", "save_done", "recoil",
             "type_impact", "delete_squash", "gulp", "line_land", "copy_pulse", "insert_date",
+            // ITEM 94: a range STEP applies in the shared core (unlike its
+            // Toggle/Value siblings, which are Unsupported below) — see its arm.
+            "setting_range_step",
         ];
         let intercepted = [
             "follow_link", "report_problem", "download_file", "export", "check_for_updates",

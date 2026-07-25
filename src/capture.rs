@@ -394,7 +394,14 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // and Bilby's `page.background` colors nudge paler/less-peach (values only,
 // same tagged shape). Every OTHER world's `page.background` content is
 // byte-unchanged; only the schema string bumps.
-pub const SCHEMA_VERSION: u32 = 183;
+// `/184` — item 94 (reusable Settings range rows): the `overlay` block gains
+// `ranges` — a per-row array parallel to `items`, `null` for an ordinary row and
+// a 0..1 RAIL FRACTION for a `SettingKind::Range` row (Zoom today), so a
+// `--keys`-driven rail step is assertable straight from the sidecar beside the
+// value TEXT the row's `bindings` cell already carried. EMPTY for every mode but
+// the Settings menu, so every other capture's `overlay` content is unchanged;
+// only the schema string bumps.
+pub const SCHEMA_VERSION: u32 = 184;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
 pub fn schema_plain() -> String {

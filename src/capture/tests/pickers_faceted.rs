@@ -42,6 +42,7 @@ fn theme_picker_is_flat_and_reports_no_lens() {
         query: ov.query.text().to_string(),
         items: ov.item_strings(),
         bindings: ov.item_bindings(),
+        ranges: ov.item_range_fracs(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: ov.foot_hint(),
@@ -113,6 +114,7 @@ fn overlay_empty_state_renders_and_reports() {
         query: ov.query.text().to_string(),
         items: ov.item_strings(),
         bindings: ov.item_bindings(),
+        ranges: ov.item_range_fracs(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: ov.foot_hint(),
@@ -200,6 +202,7 @@ fn file_pickers_faceted_lens_render_and_report() {
             query: ov.query.text().to_string(),
             items: ov.item_strings(),
             bindings: ov.item_bindings(),
+            ranges: ov.item_range_fracs(),
             git: ov.item_git_tags(),
             selected_index: ov.selected,
             hint: ov.foot_hint(),
@@ -316,6 +319,7 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
             query: ov.query.text().to_string(),
             items: ov.item_strings(),
             bindings: ov.item_bindings(),
+            ranges: ov.item_range_fracs(),
             git: ov.item_git_tags(),
             selected_index: ov.selected,
             hint: ov.foot_hint(),
@@ -443,6 +447,7 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
             query: ov.query.text().to_string(),
             items: ov.item_strings(),
             bindings: ov.item_bindings(),
+            ranges: ov.item_range_fracs(),
             git: ov.item_git_tags(),
             selected_index: ov.selected,
             hint: ov.foot_hint(),
@@ -732,6 +737,7 @@ fn history_preview_folds_text_and_reports_preview_id() {
         query: String::new(),
         items: vec!["2 hr ago · edited \"Old\"".into()],
         bindings: vec!["+2 −1".into()],
+        ranges: Vec::new(),
         git: Vec::new(),
         selected_index: 0,
         hint: crate::overlay::OverlayKind::History.hint(),
@@ -763,5 +769,104 @@ fn history_preview_folds_text_and_reports_preview_id() {
     let col = j["cursor"]["col"].as_u64().unwrap();
     assert!(line <= 1, "cursor clamped into the preview's rows: {line}");
     assert!(col <= 3, "cursor clamped into the preview's cols: {col}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// ITEM 94 — THE RANGE ROW THROUGH THE REAL REPLAY + SIDECAR SEAM: drive RIGHT on
+/// the Settings menu's Zoom row through the SAME `apply_core` a `--keys` replay
+/// runs, fold the still-open overlay through the SAME
+/// [`crate::run::overlay_capture_info`] owner the one-shot capture uses, and
+/// render it. The sidecar then reports the stepped value TWICE — as the row's
+/// value TEXT (`bindings`) and as its RAIL FRACTION (`ranges`) — and the two must
+/// agree, because both come from the one range spec. Every non-range row reports
+/// `null`, so no other picker gains a rail.
+#[test]
+fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
+    if !adapter_available() {
+        eprintln!("skipping a_settings_range_row_steps_and_reports_its_rail: no wgpu adapter");
+        return;
+    }
+    let _tg = crate::testlock::serial();
+    let dir = std::env::temp_dir().join(format!("awl_rangerow_test_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut buf = Buffer::from_str("preview me\n");
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+
+    // The REAL Settings overlay, built exactly as `overlay::build` builds it.
+    let values = crate::settings::SettingsValues {
+        zoom: spec.default,
+        today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
+        ..Default::default()
+    };
+    let mut ov = crate::overlay::OverlayState::new(
+        crate::overlay::OverlayKind::Settings,
+        crate::settings::visible_names(),
+        vec![],
+        vec![],
+    );
+    ov.set_secondaries(crate::settings::visible_value_cells(&values));
+    ov.set_range_cells(crate::settings::visible_range_cells(&values));
+    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    ov.selected = zi;
+
+    // RIGHT, through the shared core — the exact seam `--keys` drives. The value
+    // change lands IN THE CORE (that is why the effect is replay-`Applied`), so a
+    // headless session observes it exactly as the live app does.
+    let mut zoom = spec.default;
+    let mut overlay = Some(ov);
+    let mut shift = false;
+    let mut search = None;
+    let mut make = |_k: crate::overlay::OverlayKind| None;
+    let mut browse = |_k: crate::overlay::OverlayKind, _p: Option<String>| None;
+    let eff = {
+        let mut ctx = crate::actions::ActionCtx {
+            buffer: &mut buf,
+            shift_selecting: &mut shift,
+            zoom: &mut zoom,
+            search: &mut search,
+            scroll_page_lines: 10,
+            overlay: &mut overlay,
+            make_overlay: &mut make,
+            browse_to: &mut browse,
+            oracle: None,
+        };
+        crate::actions::apply_core(&mut ctx, &crate::keymap::Action::ForwardChar, false)
+    };
+    assert_eq!(eff, crate::actions::Effect::SettingRangeStep { key: "zoom".to_string() });
+    let stepped = spec.stepped(spec.default, 1);
+    assert_eq!(zoom, stepped, "the replay session's own zoom scalar moved one step");
+
+    // Fold + render through the SAME owner the one-shot `--keys` capture uses.
+    let ov = overlay.as_ref().unwrap();
+    let (info, _preview, _diff) = crate::run::overlay_capture_info(ov, &buf);
+    let mut opts = CaptureOpts::default();
+    opts.overlay = Some(info);
+    let png = dir.join("range.png");
+    capture_with(&png, &buf, &opts).expect("the settings range row captures");
+    let j: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
+    let o = &j["overlay"];
+    assert_eq!(o["mode"], serde_json::json!("settings"));
+
+    let items: Vec<String> =
+        o["items"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let ranges = o["ranges"].as_array().unwrap();
+    let bindings = o["bindings"].as_array().unwrap();
+    assert_eq!(ranges.len(), items.len(), "the rail column is parallel to the rows");
+    let row = items.iter().position(|n| n == "Zoom").unwrap();
+    // The VALUE TEXT and the RAIL FRACTION are the same stepped value.
+    assert_eq!(bindings[row], serde_json::json!(spec.format(stepped)));
+    let frac = ranges[row].as_f64().expect("the Zoom row reports a rail fraction");
+    assert!(
+        (frac - spec.frac_of(stepped) as f64).abs() < 1e-3,
+        "the reported thumb ({frac}) must be the spec's fraction for {stepped}"
+    );
+    // Every other row is railless.
+    for (i, name) in items.iter().enumerate() {
+        if i != row {
+            assert_eq!(ranges[i], serde_json::json!(null), "{name} must report no rail");
+        }
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }

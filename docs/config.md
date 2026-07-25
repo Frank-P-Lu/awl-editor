@@ -24,6 +24,11 @@ search_forward = ["Cmd-F", "C-s"]        # up to 2 chords, capped at 2
 - **Retired defaults (platform rule, not taste):** the whole Meta-letter layer is empty by default — macOS reserves Option-letters for typing (accents é/ñ/ü, em dash `⌥⇧-`), which the writer audience needs. Survivors: bare-control nav, `C-s`/`C-r` search, `⌥←`/`⌥→` word motion, `⌥⌫` word delete. The prefix-sequence machinery + rebind-menu chord capture are kept permanently. Ten navigation motions are ordinary catalog entries, so `[keys]` can reach them (`forward_word = ["M-Right", "M-f"]` restores the retired chords). Plain unmodified arrows stay keymap-only (no chord to name).
 - **Precedence:** explicit CLI flag > config file > built-in default. **Settings command** (Cmd-P → "Settings", or Cmd-`,`) opens the config buffer. **Live reload:** saving it re-applies overrides + folders immediately (`App::reload_config`); an invalid config keeps prior values. `default_folder` is a FIRST-RUN fallback only — the launch-precedence law that decides the ACTIVE folder (explicit target > remembered session > `default_folder`) lives in `docs/platform.md`'s Session restore section (item 76).
 
+## Zoom — a sticky RANGE preference (`range.rs`, item 94)
+
+- `zoom` is a sticky config key (a factor, written `{:.3}`), and its authored band lives in ONE place: `crate::range::ZOOM` (0.5–3.0, 0.1 step, default 1.0, shown as a whole percent). Every door — ⌘=/⌘-, ⌘-wheel, `--zoom`, a hand-edited `zoom = 1.4`, the Settings row's rail, and a typed `125%` — lands on that same grid (`render::clamp_zoom` delegates to it).
+- The Settings "Zoom" row is a `SettingKind::Range`: rail + thumb + value, Left/Right for one authored step, click/drag the rail, Enter for exact entry. Mechanism: docs/render.md's range-rows section.
+
 ## Page width — the prose/code split (`page.rs`)
 
 - Two sticky config keys: `page_width_prose` (default 70, Butterick's band) and `page_width_code` (default 100, rustfmt's `max_width`). The retired single `page_width` key is inert.

@@ -13,7 +13,6 @@
 use crate::buffer::Buffer;
 use crate::keymap::Action;
 use crate::overlay::OverlayState;
-use crate::render;
 use crate::search::{Direction, SearchState};
 
 // The dispatch (`apply_core`) + its public seam (the [`LayoutOracle`] trait,
@@ -392,6 +391,19 @@ pub enum Effect {
     /// (`App::setting_path_pick`), then the menu is already re-summoned via the
     /// `return_to` breadcrumb. Headless replay reflects nothing (live-App-only).
     SettingPathPick { key: String, path: String },
+    /// ITEM 94 — SETTINGS MENU: a RANGE row's value moved by exactly one authored
+    /// STEP (Left/Right on the selected row). UNLIKE the effects above, the value
+    /// change ALREADY HAPPENED IN THE CORE — `apply_core` read the live scalar
+    /// (`ActionCtx::zoom`), stepped it through the ONE range spec, wrote it back,
+    /// and mirrored the new readout + thumb into the still-open menu's own row —
+    /// so a headless `--keys` replay observes the new value exactly as live does.
+    ///
+    /// What the CALLER still owns is the live-App tail: re-metric/reflow for the
+    /// new value and the DISCRETE sticky-setting PERSIST of the named `key`
+    /// (`App::setting_range_step`) — the same "one write per discrete commit" path
+    /// a Toggle takes. Skipping it headlessly diverges nothing observable (the
+    /// capture path is structurally free of config writes).
+    SettingRangeStep { key: String },
     /// ASSET CLEANER: Enter on an orphan row REQUESTED that its file (root-relative
     /// `rel`) be moved to the OS Trash. The pure core can't reach the Trash / the
     /// filesystem (no root, no [`crate::assets::TrashCan`]), so it signals `rel` back
@@ -655,9 +667,12 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             ctx.buffer.select_all();
             *ctx.shift_selecting = false;
         }
-        Action::ZoomIn => *ctx.zoom = render::clamp_zoom(*ctx.zoom + render::ZOOM_STEP),
-        Action::ZoomOut => *ctx.zoom = render::clamp_zoom(*ctx.zoom - render::ZOOM_STEP),
-        Action::ZoomReset => *ctx.zoom = render::clamp_zoom(1.0),
+        // ITEM 94: ⌘= / ⌘- move exactly ONE AUTHORED STEP of the zoom range spec —
+        // the same `stepped` owner Right/Left on the Settings rail row use, so the
+        // two keyboards can never disagree about what one zoom increment is.
+        Action::ZoomIn => *ctx.zoom = crate::range::ZOOM.stepped(*ctx.zoom, 1),
+        Action::ZoomOut => *ctx.zoom = crate::range::ZOOM.stepped(*ctx.zoom, -1),
+        Action::ZoomReset => *ctx.zoom = crate::range::ZOOM.default,
         Action::PageScrollDown => scroll_page(ctx.buffer, ctx.scroll_page_lines, true),
         Action::PageScrollUp => scroll_page(ctx.buffer, ctx.scroll_page_lines, false),
         Action::Save => {

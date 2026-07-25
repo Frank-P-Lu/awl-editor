@@ -894,6 +894,10 @@ impl App {
             // SETTINGS MENU path pick: write the named folder key (and re-scope the
             // project for `project_root`), then refresh the re-summoned menu's cell.
             actions::Effect::SettingPathPick { key, path } => self.setting_path_pick(&key, &path),
+            // ITEM 94 — SETTINGS MENU range step: the CORE already applied the new
+            // value (and mirrored the cell + thumb); the live tail is the reflow +
+            // the discrete sticky persist of the named key.
+            actions::Effect::SettingRangeStep { key } => self.setting_range_step(&key),
             // ASSET CLEANER: move the highlighted orphan to the OS Trash (recoverable),
             // then — only on SUCCESS — remove its row from the still-open picker. A
             // failure leaves the row and shows a calm notice. Live-App-only (the trash

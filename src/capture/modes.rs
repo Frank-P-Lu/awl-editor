@@ -372,6 +372,9 @@ pub(super) fn settled_viewstate(
     vstate.overlay_items = opts.overlay.as_ref().map(|o| o.items.clone()).unwrap_or_default();
     vstate.overlay_empty = opts.overlay.as_ref().and_then(|o| o.empty.clone());
     vstate.overlay_bindings = opts.overlay.as_ref().map(|o| o.bindings.clone()).unwrap_or_default();
+    // ITEM 94: the rail fractions ride the sidecar's own `overlay.ranges` block, so
+    // a JSON-driven capture draws the same thumbs the live picker does.
+    vstate.overlay_ranges = opts.overlay.as_ref().map(|o| o.ranges.clone()).unwrap_or_default();
     vstate.overlay_git = opts.overlay.as_ref().map(|o| o.git.clone()).unwrap_or_default();
     vstate.overlay_selected = opts.overlay.as_ref().map(|o| o.selected_index).unwrap_or(0);
     // Scroll window: keep the selection visible with the same min-scroll math

@@ -268,6 +268,111 @@ pub fn gutter_plan(avail_chars: usize) -> Option<GutterPlan> {
     })
 }
 
+// ── ITEM 94 — THE RANGE ROW'S RAIL (the one geometry owner) ──────────────────
+//
+// A `SettingKind::Range` row draws a quiet TRACK, a FILLED portion, and a THUMB
+// in its own value cell, just LEFT of the right-aligned number. Every pixel of
+// that — where the track starts and ends, where the thumb sits, and (crucially)
+// which pointer positions COUNT as the rail — comes out of `rail_geom` alone, so
+// the drawn control and its hit target are the same rectangle by construction.
+// The row's TEXT still rides `plan`/`fits` above; nothing here is hand-placed.
+//
+// Everything scales off the row's own line height, so the rail grows with zoom
+// exactly like the glyphs beside it.
+
+/// Track LENGTH, in row heights.
+const RAIL_W_LH: f32 = 3.2;
+/// Track THICKNESS, in row heights (a hairline — the rail is quiet furniture).
+const RAIL_H_LH: f32 = 0.09;
+/// Thumb WIDTH / HEIGHT, in row heights. The thumb reads as the figure against
+/// the hairline track by SHAPE and SIZE (and one value step of ink), never by a
+/// second colour — the caret keeps the only accent (DESIGN §3).
+const THUMB_W_LH: f32 = 0.22;
+const THUMB_H_LH: f32 = 0.50;
+/// Breath between the track's right end and the value text's left edge.
+const RAIL_GAP_LH: f32 = 0.45;
+/// THE GENEROUS HIT TARGET: how far past each end of the track a press still
+/// counts as the rail, in row heights. Vertically the whole row band is live —
+/// a visually small thumb must never demand pixel-hunting.
+const RAIL_HIT_PAD_LH: f32 = 0.55;
+
+/// One range row's resolved rail geometry, in device px. `track`/`fill`/`thumb`
+/// are `[x, y, w, h]` quads for the draw path; `hit` is the (larger) pointer
+/// band; `x0`/`x1` are the track's own ends — the scale a pointer x maps against
+/// ([`rail_frac_at`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rail {
+    pub track: [f32; 4],
+    pub fill: [f32; 4],
+    pub thumb: [f32; 4],
+    pub hit: [f32; 4],
+    pub x0: f32,
+    pub x1: f32,
+}
+
+/// The rail for a row whose value TEXT ends at `text_right` and is `value_w` px
+/// wide, whose band starts at `row_top` and is `lh` tall, with its thumb at
+/// `frac` (0..1 — always a value the range spec produced).
+///
+/// `None` when the row is too narrow to seat a rail without colliding with the
+/// label (`avail` is the px from the card's text LEFT edge to the value text):
+/// the rail is a secondary-column element and yields before the primary, exactly
+/// like the secondary TEXT does under [`fits`].
+pub fn rail_geom(
+    text_right: f32,
+    value_w: f32,
+    avail: f32,
+    row_top: f32,
+    lh: f32,
+    frac: f32,
+) -> Option<Rail> {
+    if lh <= 0.0 {
+        return None;
+    }
+    let w = RAIL_W_LH * lh;
+    let gap = RAIL_GAP_LH * lh;
+    // The rail needs its own length plus its gap, and must still leave the label
+    // at least its own gap of room.
+    if avail < w + gap * 2.0 {
+        return None;
+    }
+    let x1 = text_right - value_w - gap;
+    let x0 = x1 - w;
+    let frac = if frac.is_nan() { 0.0 } else { frac.clamp(0.0, 1.0) };
+    let th = (RAIL_H_LH * lh).max(1.0);
+    let ty = row_top + (lh - th) * 0.5;
+    let tw = (THUMB_W_LH * lh).max(2.0);
+    let thh = (THUMB_H_LH * lh).max(3.0);
+    let cx = x0 + frac * w;
+    let pad = RAIL_HIT_PAD_LH * lh;
+    Some(Rail {
+        track: [x0, ty, w, th],
+        fill: [x0, ty, (w * frac).max(0.0), th],
+        thumb: [cx - tw * 0.5, row_top + (lh - thh) * 0.5, tw, thh],
+        hit: [x0 - pad, row_top, w + pad * 2.0, lh],
+        x0,
+        x1,
+    })
+}
+
+/// The rail FRACTION a pointer x maps to, clamped to the track's own ends — so a
+/// press inside the generous hit band but past the track's end resolves to that
+/// end (the nearest step), never to a value off the rail. The ONE px→fraction
+/// owner: the click, every drag move, and the tests all read it.
+pub fn rail_frac_at(px: f32, x0: f32, x1: f32) -> f32 {
+    if x1 <= x0 {
+        return 0.0;
+    }
+    ((px - x0) / (x1 - x0)).clamp(0.0, 1.0)
+}
+
+/// Is `(px, py)` inside a rail's hit band? The ONE containment test the pointer
+/// path uses (a press, and the cursor-shape probe).
+pub fn rail_hit(rail: &Rail, px: f32, py: f32) -> bool {
+    let [x, y, w, h] = rail.hit;
+    px >= x && px <= x + w && py >= y && py <= y + h
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

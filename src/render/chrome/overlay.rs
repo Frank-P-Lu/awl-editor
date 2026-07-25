@@ -913,6 +913,98 @@ impl TextPipeline {
         }
     }
 
+    /// ITEM 94 — the `overlay_items` INDEX drawn at display row `k`, or `None` when
+    /// that row is a section HEADER / past the window. The ONE display-row→item map:
+    /// the rail draw and the rail hit-test both read it, so a clicked rail and a
+    /// drawn rail always belong to the same row (the faceted card interleaves
+    /// headers, so `k` is NOT `top_idx + k` there).
+    pub(in crate::render) fn overlay_item_at_row(
+        &self,
+        geom: &OverlayGeom,
+        k: usize,
+    ) -> Option<usize> {
+        if geom.theme {
+            return match geom.plan.get(k) {
+                Some(ThemeLine::Item(i)) => Some(*i),
+                _ => None,
+            };
+        }
+        if k >= geom.visible {
+            return None;
+        }
+        let idx = geom.top_idx + k;
+        (idx < geom.n_items).then_some(idx)
+    }
+
+    /// ITEM 94 — THE RAIL GEOMETRY OWNER for the whole card: every VISIBLE range
+    /// row's `(item index, rail)` pair, resolved through `rowlayout::rail_geom`
+    /// against the SAME shaped-glyph measurements the value column draws from
+    /// (`overlay_row_secondary_px` / `overlay_row_primary_px`) and the SAME row-y
+    /// owner (`overlay_row_top`) the highlight band uses.
+    ///
+    /// EMPTY unless the card genuinely carries rails AND the secondary column was
+    /// granted (`overlay_right_shown` — a rail beside a yielded value column would
+    /// be a control with no readout), so every other picker is byte-identical.
+    /// Called by BOTH the draw path and the pointer hit-test — a rail is clickable
+    /// exactly where it is drawn, by construction.
+    pub(in crate::render) fn overlay_rails(
+        &self,
+        geom: &OverlayGeom,
+    ) -> Vec<(usize, crate::render::rowlayout::Rail)> {
+        if self.overlay_ranges.is_empty() || !self.overlay_right_shown {
+            return Vec::new();
+        }
+        let lh = self.overlay_lh();
+        let secondary = self.overlay_row_secondary_px(geom);
+        let primary = self.overlay_row_primary_px(geom);
+        let rows = if geom.theme { geom.plan.len() } else { geom.visible };
+        let mut out = Vec::new();
+        for k in 0..rows {
+            let Some(item) = self.overlay_item_at_row(geom, k) else { continue };
+            let Some(Some(frac)) = self.overlay_ranges.get(item).copied() else { continue };
+            let value_w = secondary.get(&k).copied().unwrap_or(0.0);
+            let label_w = primary.get(&k).copied().unwrap_or(0.0);
+            let text_right = geom.text_left + geom.text_w;
+            let avail = (text_right - value_w) - (geom.text_left + label_w);
+            let top = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, k, lh);
+            if let Some(rail) =
+                crate::render::rowlayout::rail_geom(text_right, value_w, avail, top, lh, frac)
+            {
+                out.push((item, rail));
+            }
+        }
+        out
+    }
+
+    /// ITEM 94 — POINTER HIT-TEST for the rails: the `overlay_items` index and the
+    /// rail FRACTION under `(px, py)`, or `None` when the pointer is not on a rail's
+    /// (generous) band. The pointer's whole vocabulary for a range row: a press here
+    /// sets + begins a scrub; a press anywhere else on the row merely selects.
+    pub fn overlay_range_at(&self, px: f32, py: f32) -> Option<(usize, f32)> {
+        if !self.overlay_active {
+            return None;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        self.overlay_rails(&geom).into_iter().find_map(|(item, rail)| {
+            crate::render::rowlayout::rail_hit(&rail, px, py)
+                .then(|| (item, crate::render::rowlayout::rail_frac_at(px, rail.x0, rail.x1)))
+        })
+    }
+
+    /// ITEM 94 — the rail's px SCALE for the row holding `item` (`x0`, `x1`), so a
+    /// drag can snapshot it at PRESS and keep scrubbing against a stable track even
+    /// as the value TEXT beside it changes width (`"80%"` → `"100%"` would otherwise
+    /// shift the rail under the pointer mid-gesture — the page-drag anchor lesson).
+    pub fn overlay_range_scale(&self, item: usize) -> Option<(f32, f32)> {
+        if !self.overlay_active {
+            return None;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        self.overlay_rails(&geom)
+            .into_iter()
+            .find_map(|(i, rail)| (i == item).then_some((rail.x0, rail.x1)))
+    }
+
     pub fn overlay_row_at(&self, px: f32, py: f32) -> Option<usize> {
         if !self.overlay_active {
             return None;

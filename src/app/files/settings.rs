@@ -268,6 +268,9 @@ impl App {
         if let Some(ov) = self.overlay.as_mut() {
             if ov.kind == crate::overlay::OverlayKind::Settings {
                 ov.set_secondaries(crate::settings::visible_value_cells(&values));
+                // ITEM 94: the rail thumbs are refreshed from the SAME gathered
+                // values as the number beside them, in the same call.
+                ov.set_range_cells(crate::settings::visible_range_cells(&values));
             }
         }
     }
@@ -308,6 +311,61 @@ impl App {
             gpu.window.request_redraw();
         }
         self.refresh_settings_overlay();
+    }
+
+
+    /// ITEM 94 — SETTINGS MENU RANGE step (Left/Right on a rail row): the CORE
+    /// already stepped the live scalar through the range spec and mirrored the new
+    /// readout + thumb into the still-open menu, so this owns only the LIVE TAIL:
+    /// re-metric/reflow for the new value, then the DISCRETE sticky persist — one
+    /// `persist_pref` write per authored step, the same "write on every discrete
+    /// commit" path a Toggle takes (deliberately NOT the debounced wheel/⌘± path;
+    /// key repeat already throttles this to human speed).
+    ///
+    /// The one owner of the range settings' live-side wiring, keyed by config key —
+    /// `range_persist` writes it, `range_apply_live` (the POINTER path) applies it.
+    pub(in crate::app) fn setting_range_step(&mut self, key: &str) {
+        match key {
+            // ZOOM: the value is already in `self.zoom` (mirrored back from the core
+            // right after `apply_core`); queue the metric reflow the ⌘± path queues.
+            "zoom" => self.zoom_reflow.queue(),
+            _ => {}
+        }
+        self.range_persist(key);
+        self.sync_view(true);
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
+        }
+        self.refresh_settings_overlay();
+    }
+
+
+    /// ITEM 94 — THE ONE LIVE-APPLY DOOR for a range setting's POINTER path (a rail
+    /// click, and every resolved step of a drag): apply `value` — already quantized
+    /// by the spec, never a raw pointer number — through the setting's own live
+    /// owner. NEVER persists: a drag writes config exactly once, on release
+    /// ([`Self::range_persist`], from `end_range_drag`).
+    pub(in crate::app) fn range_apply_live(&mut self, id: crate::settings::SettingId, value: f32) {
+        match id {
+            // The SAME `set_zoom` owner the ⌘± / ⌘-wheel doors use (it re-clamps
+            // through `clamp_zoom` -> the same spec, so this is idempotent).
+            crate::settings::SettingId::Zoom => self.set_zoom(value),
+            _ => {}
+        }
+    }
+
+    /// ITEM 94 — THE ONE PERSIST DOOR for a range setting (a keyboard step, or a
+    /// drag RELEASE). Writes the sticky value once and CANCELS any pending
+    /// debounced write the live-apply armed, so a whole drag gesture costs exactly
+    /// one config write rather than one-plus-a-trailing-debounce.
+    pub(in crate::app) fn range_persist(&mut self, key: &str) {
+        match key {
+            "zoom" => {
+                self.zoom_persist_at = None; // the debounce is superseded by this write
+                self.persist_zoom_now();
+            }
+            _ => {}
+        }
     }
 
 

@@ -134,6 +134,12 @@ impl TextPipeline {
         // a closed picker carries no stale crossing quad into the next frame.
         self.overlay_cross
             .prepare(device, queue, width, height, &[]);
+        // ITEM 94: the range rail's track + thumb park empty too, so a closed
+        // Settings menu carries no stale rail quads into the next frame.
+        self.overlay_range_track
+            .prepare(device, queue, width, height, &[]);
+        self.overlay_range_thumb
+            .prepare(device, queue, width, height, &[]);
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &[]);
         // V6 P5: the Chips ghost pills park empty too, so a closed picker carries

@@ -170,7 +170,41 @@ pub(super) fn settings_overlay() -> OverlayState {
         vec![],
     );
     ov.set_secondaries(crate::settings::value_cells(&Default::default()));
+    // ITEM 94: the rail column, exactly as `overlay::build`'s Settings arm sets it
+    // (so a drive test exercises the real row shape, rails included). The default
+    // `SettingsValues` carries `zoom: 0.0`, which the spec clamps to the band floor.
+    ov.set_range_cells(crate::settings::visible_range_cells(&Default::default()));
     ov
+}
+
+/// ITEM 94 — like [`settings_drive`], but with the caller's OWN zoom scalar
+/// threaded through `ActionCtx`, so a test can assert what a rail step did to the
+/// live value (the same field the live App mirrors back after `apply_core`).
+pub(super) fn settings_drive_zoom(
+    overlay: &mut Option<OverlayState>,
+    action: &Action,
+    zoom: &mut f32,
+) -> Effect {
+    let mut buffer = Buffer::scratch();
+    let mut shift = false;
+    let mut search = None;
+    let mut make_overlay = |k: OverlayKind| match k {
+        OverlayKind::Settings => Some(settings_overlay()),
+        _ => None,
+    };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| None;
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        overlay,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    apply_core(&mut ctx, action, false)
 }
 
 /// A make_overlay for the settings interaction tests: re-summons Settings (the

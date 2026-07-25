@@ -176,6 +176,11 @@ impl TextPipeline {
         // empty on every ordinary run, so this is inert there.
         self.overlay_cross
             .set_color(theme::overlay_band_overlap().rgba_bytes());
+        // ITEM 94 — keep the range rail's two ink rungs coherent on a world switch
+        // (their real per-frame colour is re-read at draw time, where the
+        // selected-row contrast flip is resolved). Parked empty off Settings.
+        self.overlay_range_track.set_color(theme::faint().rgba_bytes());
+        self.overlay_range_thumb.set_color(theme::muted().rgba_bytes());
         // The theme picker's active-lens underline re-tints to the new world's ink (it
         // is drawn while the picker is up AND the world previews live, so the hairline
         // tracks the previewed world's ink).
@@ -578,6 +583,7 @@ impl TextPipeline {
         self.overlay_items = view.overlay_items.clone();
         self.overlay_empty = view.overlay_empty.clone();
         self.overlay_bindings = view.overlay_bindings.clone();
+        self.overlay_ranges = view.overlay_ranges.clone();
         self.overlay_times = view.overlay_times.clone();
         self.overlay_git = view.overlay_git.clone();
         self.overlay_selected = view.overlay_selected;

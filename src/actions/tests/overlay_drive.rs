@@ -5,7 +5,7 @@
 
 use super::super::*;
 use crate::overlay::OverlayKind;
-use super::{drive, drive_eff, settings_overlay, settings_drive};
+use super::{drive, drive_eff, settings_drive, settings_drive_zoom, settings_overlay};
 
 #[test]
 fn browse_path_helpers() {
@@ -1002,4 +1002,163 @@ fn palette_query_word_motion_routes_through_apply_core_list_move_untouched() {
         selected_before,
         "NextLine still moves the selection (more than one command exists)"
     );
+}
+
+// ── ITEM 94 — SETTINGS RANGE ROWS (the keyboard half, at the REAL apply seam) ──
+
+/// Fuzzy-filter the Settings menu down to the Zoom row and return the overlay.
+fn zoom_row_overlay() -> Option<OverlayState> {
+    let mut overlay = Some(settings_overlay());
+    for c in "zoom".chars() {
+        settings_drive(&mut overlay, &Action::InsertChar(c));
+    }
+    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("Zoom"));
+    overlay
+}
+
+#[test]
+fn right_on_a_range_row_steps_one_authored_increment_and_mirrors_its_cell() {
+    let _g = crate::testlock::serial();
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    let mut overlay = zoom_row_overlay();
+    let mut zoom = 1.0f32;
+    // RIGHT: exactly ONE authored step up, applied IN THE CORE (so `--keys` replay
+    // sees it), signalling the caller for the live tail + the discrete persist.
+    let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+    assert_eq!(eff, Effect::SettingRangeStep { key: "zoom".to_string() });
+    assert_eq!(zoom, spec.stepped(1.0, 1), "one authored step, not a parallel number");
+    // The row's own cell + rail step moved with it, in the same call.
+    let ci = overlay.as_ref().unwrap().selected_corpus_index().unwrap();
+    assert_eq!(overlay.as_ref().unwrap().rows[ci].secondary, spec.format(zoom));
+    assert_eq!(
+        overlay.as_ref().unwrap().selected_range().unwrap().step,
+        spec.step_of(zoom),
+        "the drawn thumb tracks the value it stepped to"
+    );
+    // LEFT walks it straight back — the step is symmetric.
+    settings_drive_zoom(&mut overlay, &Action::BackwardChar, &mut zoom);
+    assert_eq!(zoom, 1.0);
+    // ORDINARY KEY REPEAT is the only long-travel gesture: N presses == N steps.
+    for _ in 0..4 {
+        settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+    }
+    assert_eq!(zoom, spec.stepped(1.0, 4));
+}
+
+#[test]
+fn a_range_row_saturates_at_both_ends_of_its_authored_band() {
+    let _g = crate::testlock::serial();
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    let mut overlay = zoom_row_overlay();
+    let mut zoom = spec.max;
+    settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+    assert_eq!(zoom, spec.max, "a step past the ceiling stays at the ceiling");
+    zoom = spec.min;
+    settings_drive_zoom(&mut overlay, &Action::BackwardChar, &mut zoom);
+    assert_eq!(zoom, spec.min, "a step past the floor stays at the floor");
+}
+
+/// THE GATE the whole Left/Right claim rests on: only a RANGE row takes the keys.
+/// Every other Settings row — and every other faceted picker — keeps cycling its
+/// lens, exactly as before item 94.
+#[test]
+fn left_right_still_cycle_the_lens_on_every_non_range_row() {
+    let _g = crate::testlock::serial();
+    let mut overlay = Some(settings_overlay());
+    for c in "page mode".chars() {
+        settings_drive(&mut overlay, &Action::InsertChar(c));
+    }
+    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("Page mode"));
+    let lens0 = overlay.as_ref().unwrap().facet_lens;
+    let mut zoom = 1.0f32;
+    let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+    assert_eq!(eff, Effect::None, "a non-range row signals no range step");
+    assert_ne!(overlay.as_ref().unwrap().facet_lens, lens0, "the lens still cycles");
+    assert_eq!(zoom, 1.0, "and nothing touched the zoom value");
+}
+
+/// A range row's ENTER is UNCHANGED: it still opens the exact numeric-entry
+/// sub-state and commits through the same `SettingValueCommit` seam a Value row
+/// does (item 94 keeps the typed path verbatim).
+#[test]
+fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
+    let _g = crate::testlock::serial();
+    let mut overlay = zoom_row_overlay();
+    let eff = settings_drive(&mut overlay, &Action::Newline);
+    assert_eq!(eff, Effect::None);
+    assert!(overlay.as_ref().unwrap().value_edit.is_some(), "a Range row arms the edit");
+    for _ in 0..8 {
+        settings_drive(&mut overlay, &Action::DeleteBackward);
+    }
+    for c in "140%".chars() {
+        settings_drive(&mut overlay, &Action::InsertChar(c));
+    }
+    let eff = settings_drive(&mut overlay, &Action::Newline);
+    assert_eq!(
+        eff,
+        Effect::SettingValueCommit { key: "zoom".to_string(), value: "140%".to_string() },
+        "the typed commit rides the SAME effect + key it always did"
+    );
+    // …and the App-side parse of that raw string lands on the authored grid.
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    assert_eq!(crate::settings::parse_zoom("140%"), Some(spec.value_of_step(14)));
+}
+
+/// KEYBOARD / POINTER PARITY: a rail fraction the POINTER resolves and the value a
+/// keyboard step reaches are the same numbers on the same grid — the pointer can
+/// never reach a value the keyboard cannot, and vice versa.
+#[test]
+fn the_pointer_and_the_keyboard_reach_exactly_the_same_values() {
+    let _g = crate::testlock::serial();
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    let mut overlay = zoom_row_overlay();
+    let mut zoom = spec.min;
+    // Walk the whole band by keyboard, and at each stop check that the POINTER's
+    // own resolver (fraction -> value) lands on the identical number.
+    for k in spec.min_step()..=spec.max_step() {
+        assert_eq!(zoom.to_bits(), spec.value_of_step(k).to_bits(), "keyboard at step {k}");
+        let pointer = spec.value_at_frac(spec.frac_of(zoom));
+        assert_eq!(pointer.to_bits(), zoom.to_bits(), "pointer at step {k}");
+        settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+    }
+    assert_eq!(zoom, spec.max);
+}
+
+/// THE CORE-SIDE PORT SWEEP: EVERY row the corpus marks `SettingKind::Range` —
+/// enumerated straight off `settings::visible_rows()`, never hand-copied —
+/// answers RIGHT with a `SettingRangeStep` carrying its OWN config key, and
+/// genuinely moves its own step. A future range setting whose live scalar was
+/// never wired into `ActionCtx` (so `range_ctx_value` returns `None`) falls
+/// through to the lens-cycler and fails HERE, instead of shipping a rail that
+/// draws but cannot be moved.
+#[test]
+fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
+    let _g = crate::testlock::serial();
+    let range_rows: Vec<crate::settings::SettingRow> = crate::settings::visible_rows()
+        .into_iter()
+        .filter(|r| r.kind == crate::settings::SettingKind::Range)
+        .copied()
+        .collect();
+    assert_eq!(range_rows.len(), 1, "the range roster changed size — update this sweep");
+    for row in range_rows {
+        let key = crate::settings::value_key(row.id).expect("a Range row always has a key");
+        let spec = crate::settings::range_spec(row.id).expect("a Range row always has a spec");
+        let mut overlay = Some(settings_overlay());
+        for c in row.name.to_lowercase().chars() {
+            settings_drive(&mut overlay, &Action::InsertChar(c));
+        }
+        assert_eq!(overlay.as_ref().unwrap().selected_value(), Some(row.name));
+        let before = overlay.as_ref().unwrap().selected_range().expect("the row carries a rail");
+        let mut zoom = spec.default;
+        let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+        assert_eq!(
+            eff,
+            Effect::SettingRangeStep { key: key.to_string() },
+            "{}: RIGHT must signal this row's own key",
+            row.name
+        );
+        let after = overlay.as_ref().unwrap().selected_range().unwrap();
+        assert_ne!(after.step, before.step, "{}: the drawn step must move", row.name);
+        assert_eq!(after.id, row.id, "{}: the cell keeps its identity", row.name);
+    }
 }

@@ -106,6 +106,7 @@ fn capture_date_picker(dir: &std::path::Path, world: &str, selected: usize, tag:
         items,
         empty: None,
         bindings: labels,
+        ranges: Vec::new(),
         git: Vec::new(),
         selected_index: selected,
         hint: crate::overlay::OverlayKind::Date.hint().to_string(),

@@ -91,6 +91,14 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   snapshot/restore) is the live App's ACTIVE half; the replay's `buffer` local
   is its own, unchanged.
 - `selection.rs` — the selection / region model (C-Space mark, kill/copy, drag).
+- `range.rs` — the RANGE SPEC owner (item 94): one typed description of a bounded,
+  stepped setting (`min`/`max`/`step`/`default`, a display unit, and a linear or
+  logarithmic rail mapping) plus every derivation from it — quantization, the step
+  grid, both directions of the rail mapping, keyboard stepping, the readout, the
+  exact-entry parse, and the persisted RHS. `settings::range_spec` maps a settings
+  row to its spec; `render::clamp_zoom` delegates here. Keyboard, pointer, render,
+  sidecar and persistence all route through it, so no input path computes a
+  parallel value. See docs/render.md.
 - `search.rs` — incremental search (isearch) state + match finding.
 - `spell.rs` / `spellunderline.rs` — spellcheck (spellbook) + underline data.
 

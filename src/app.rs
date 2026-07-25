@@ -681,6 +681,14 @@ pub struct App {
     /// undoable edit. Mutually exclusive with `page_resizing` AND a text-selection
     /// `dragging` — the press begins exactly one of the three. See `app/input/`.
     image_resizing: Option<crate::app::input::ImageDrag>,
+    /// ITEM 94 — SETTINGS RANGE SCRUB (live app only): `Some` while a press that
+    /// landed on a range row's RAIL is being dragged. Carries the setting's typed
+    /// identity plus the track's px scale SNAPSHOTTED AT PRESS, so the scrub keeps
+    /// resolving against a stable rail even as the value text beside it changes
+    /// width (`"80%"` -> `"100%"`) — the page-drag anchor lesson. Every resolved
+    /// step applies LIVE; the RELEASE persists exactly once. Mutually exclusive with
+    /// the other pointer owners (a summoned picker owns the pointer outright).
+    range_drag: Option<crate::app::input::RangeDrag>,
     /// The CACHED last icon actually handed to `Window::set_cursor` — the invariant
     /// `cursor_shape::cursor_icon_change` leans on (this always equals the OS's real
     /// last-set icon), so the context-aware cursor (`sync_cursor_icon`) only ever
@@ -1310,6 +1318,7 @@ impl App {
             page_resize_edge: None,
             page_resize_anchor: None,
             image_resizing: None,
+            range_drag: None,
             cursor_icon: CursorIcon::Default,
             drag_granularity: DragGranularity::Char,
             last_click_time: None,

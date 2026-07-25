@@ -795,6 +795,11 @@ impl<'a> ReplaySession<'a> {
             // still-open menu's cell reflects the typed value; only the commit is inert.
             | actions::Effect::SettingValueCommit { .. }
             | actions::Effect::SettingPathPick { .. }
+            // ITEM 94 — a RANGE row's step: the value change ALREADY happened in the
+            // shared core (see `Effect::SettingRangeStep`'s doc), so the capture's
+            // still-open menu genuinely shows the stepped value + thumb; only the
+            // live tail (reflow + the sticky config write) is skipped here.
+            | actions::Effect::SettingRangeStep { .. }
             | actions::Effect::FinishBuffer
             // KEEP THIS VERSION: pinning a (possibly NAMED) snapshot writes the
             // local-history store, a live-App-only concern (`App::keep_version`) —
@@ -1205,6 +1210,8 @@ pub(crate) fn overlay_capture_info(
         items: ov.item_strings(),
         empty: ov.empty_notice(),
         bindings: ov.item_bindings(),
+        // ITEM 94: the rail fractions beside the value strings above.
+        ranges: ov.item_range_fracs(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
         hint: ov.foot_hint(),

@@ -33,7 +33,7 @@ pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, Renam
 #[allow(unused_imports)] // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
 pub use kind::{format_hint, AcceptDisposition, HintAction, OverlayKind, HINT_SEP, PIN_TAG};
 #[allow(unused_imports)] // OverlayRow/RowMeta/RowMetaTag: used by overlay::tests + item 55's follow-up
-pub use state::{OverlayRow, OverlayState, RowMeta, RowMetaTag};
+pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
 
 #[cfg(test)]
 mod tests;

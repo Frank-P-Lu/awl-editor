@@ -217,6 +217,11 @@ impl TextPipeline {
         // `twoshape` probe with an open Pane overlay ever uploads a rect.
         let overlay_cross =
             SelectionPipeline::new(device, format, theme::overlay_band_overlap().rgba_bytes());
+        // ITEM 94 — the Settings range row's rail. Two quiet INK rungs (never the
+        // accent): the faintest for the track, one step up for the fill + thumb.
+        // Both start parked; only an open Settings card with a range row uploads.
+        let overlay_range_track = SelectionPipeline::new(device, format, theme::faint().rgba_bytes());
+        let overlay_range_thumb = SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
         // THE STIPPLE PLACARD: the corner wordmark's Bayer-stipple renderer
         // (see the field's own doc). Ink + density re-read per re-tint; starts
         // parked (zero instances) — only a stipple-placard world with an open
@@ -481,6 +486,8 @@ impl TextPipeline {
             overlay_lens_underline,
             overlay_facet_ghost,
             overlay_cross,
+            overlay_range_track,
+            overlay_range_thumb,
             placard_stipple,
             overlay_theme_underline: None,
             overlay_theme_facet_ghosts: Vec::new(),
@@ -573,6 +580,7 @@ impl TextPipeline {
             overlay_items: Vec::new(),
             overlay_empty: None,
             overlay_bindings: Vec::new(),
+            overlay_ranges: Vec::new(),
             overlay_times: Vec::new(),
             overlay_git: Vec::new(),
             overlay_selected: 0,

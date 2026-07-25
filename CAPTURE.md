@@ -477,9 +477,13 @@ block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 (passive crash recovery, `/169`); `page.background`'s `bands`/`waves` arms
 (item 69's Gumtree grass-bands + Bombora wave-tiers, `/181`); and
 `page.background`'s `zigzag` arm (item 86's light-worlds taste round — Quokka
-and Gumtree both moved to a repeating chevron ground, `/183`). Every one of
-these bumps preserved byte-identical DEFAULT captures apart from the named
-field — see the table.
+and Gumtree both moved to a repeating chevron ground, `/183`); and
+`overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
+`overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
+row, so a `--keys`-driven rail step is assertable beside the value TEXT the
+row's `bindings` cell already carried; empty for every mode but `settings`,
+`/184`). Every one of these bumps preserved byte-identical DEFAULT captures
+apart from the named field — see the table.
 
 Schema `/99` (was `/98`; timeline `/100`, held `/101`) is the **SUMMONED
 ABOUT CARD** (`about.rs` + `menu.rs`'s routed About item, which replaced

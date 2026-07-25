@@ -106,6 +106,10 @@ mod probe;
 mod println_audit;
 mod project;
 mod prosediff;
+// ITEM 94 — the RANGE SPEC owner (min/max/step/default/unit/rail mapping) every
+// Settings range row's keyboard, pointer, readout, apply and persistence route
+// through. `render::clamp_zoom` delegates here.
+mod range;
 mod recent_files;
 mod recents;
 mod render;

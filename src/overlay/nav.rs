@@ -4,7 +4,7 @@
 //! the former `overlay.rs` monolith (2026-07 code-organization pass); every
 //! item's path is unchanged -- only the file it lives in moved.
 
-use super::{OverlayKind, OverlayState, RowMeta};
+use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
 use crate::fuzzy::{self, Tier};
 
 impl OverlayState {
@@ -532,6 +532,56 @@ impl OverlayState {
     /// cell without re-deriving it.
     pub fn item_bindings(&self) -> Vec<String> {
         self.items.iter().map(|&i| self.rows[i].secondary.clone()).collect()
+    }
+
+    /// ITEM 94 — the per-row RAIL FRACTION (0..1), in the same row order as
+    /// [`item_strings`]: `Some(frac)` for a range row, `None` for every ordinary
+    /// row. EMPTY when NO visible row carries a rail, so every other picker feeds
+    /// the renderer nothing at all (byte-identical there).
+    ///
+    /// The fraction is derived — never stored — through the ONE spec owner
+    /// (`settings::range_spec` -> `RangeSpec::frac_of_step`), so the drawn thumb
+    /// sits exactly where the authored mapping (linear or logarithmic) puts the
+    /// row's own quantized step.
+    pub fn item_range_fracs(&self) -> Vec<Option<f32>> {
+        if !self.items.iter().any(|&i| self.rows[i].range.is_some()) {
+            return Vec::new();
+        }
+        self.items
+            .iter()
+            .map(|&i| {
+                let cell = self.rows[i].range?;
+                let spec = crate::settings::range_spec(cell.id)?;
+                Some(spec.frac_of_step(cell.step))
+            })
+            .collect()
+    }
+
+    /// ITEM 94 — the RANGE CELL of the row at `items` index `i` (the index a
+    /// pointer hit-test returns), or `None` when that row carries no rail. The one
+    /// door the pointer path resolves "did this click land on a range row?" through.
+    pub fn range_of_item(&self, i: usize) -> Option<RangeCell> {
+        self.rows.get(*self.items.get(i)?)?.range
+    }
+
+    /// ITEM 94 — the HIGHLIGHTED row's range cell, or `None` when the selection is
+    /// not a range row. The keyboard step's gate: Left/Right only claim the key
+    /// when this is `Some` (otherwise the faceting lens keeps them, exactly as before).
+    pub fn selected_range(&self) -> Option<RangeCell> {
+        self.rows.get(self.selected_corpus_index()?)?.range
+    }
+
+    /// ITEM 94 — write the highlighted range row's new STEP and value READOUT in
+    /// place (keyboard step / pointer scrub). Mirrors the value straight into the
+    /// still-open menu's own cell, so the number and the thumb move together in the
+    /// same frame — live AND in a headless `--keys` replay, which has no App to
+    /// refresh the overlay afterwards. A no-op when the selection carries no rail.
+    pub fn set_selected_range(&mut self, step: u16, readout: String) {
+        let Some(ci) = self.selected_corpus_index() else { return };
+        let Some(row) = self.rows.get_mut(ci) else { return };
+        let Some(cell) = row.range.as_mut() else { return };
+        cell.step = step;
+        row.secondary = readout;
     }
 
     /// The filtered relative-time LABELS, in the same row order as [`item_strings`]

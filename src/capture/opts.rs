@@ -91,6 +91,14 @@ pub struct OverlayInfo {
     /// current chord). Empty for every other mode; emitted as a parallel array so
     /// the palette's binding column is verifiable from the sidecar.
     pub bindings: Vec<String>,
+    /// ITEM 94 — SETTINGS menu only: the RAIL FRACTION (0..1) parallel to `items` —
+    /// `Some(frac)` for a `SettingKind::Range` row, `None` for an ordinary row, and
+    /// the whole vec EMPTY for every other mode. Emitted as `overlay.ranges`, so a
+    /// `--keys` step of the rail is assertable from the sidecar (the row's `bindings`
+    /// cell carries the same value as TEXT — the two must agree). From the one owner
+    /// [`crate::overlay::OverlayState::item_range_fracs`], which derives it through
+    /// the range spec from the row's own quantized step.
+    pub ranges: Vec<Option<f32>>,
     /// Project / Browse pickers only: a dim `"git"` tag parallel to `items` for each
     /// row that is itself a git repo (`""` otherwise); EMPTY when no row is a git repo.
     /// From the one owner [`crate::overlay::OverlayState::item_git_tags`]; emitted as a
