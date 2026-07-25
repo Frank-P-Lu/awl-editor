@@ -82,11 +82,13 @@ pub struct BgDesc {
     /// Stripe/Bands angle, or Zigzag's own chevron travel angle, in radians
     /// (0 for every other ground).
     pub angle: f32,
-    /// Zigzag's chevron repeat wavelength, device px (item 86; `0.0` for
-    /// every other ground).
+    /// Zigzag's chevron repeat wavelength ALONG its travel — and (item 89)
+    /// the row-to-row spacing ACROSS it, the field tiling on a square lattice
+    /// in the travel frame — device px (item 86; `0.0` for every other
+    /// ground).
     pub period_px: f32,
-    /// Zigzag's chevron peak vertical excursion, device px (item 86; `0.0`
-    /// for every other ground).
+    /// Zigzag's chevron peak excursion across its travel, device px (item 86;
+    /// `0.0` for every other ground).
     pub amplitude_px: f32,
     /// Zigzag's extra coverage multiplier `[0,1]` (item 86; `0.0` for every
     /// other ground).
@@ -143,9 +145,23 @@ const PATTERN_MAX_COVERAGE: f32 = 0.55;
 // imperceptible." Pure; MUST match `shaders/background.wgsl`'s own `drift`
 // read off `g.drift` and its `waves_rgb`'s
 // `WAVE_AMP`/`WAVE_FREQ`/`WAVE_PHASE_1`/`WAVE_PHASE_2`.
+//
+// ITEM 89 SCOPE NOTE: the four SHAPE constants below, and the
+// [`waves_boundaries`] mirror that reads them, exist ONLY so those tier-geometry
+// laws can be unit-tested without a GPU — the shipping renderer reads the
+// WGSL's own copies (`shaders/background.wgsl`'s `waves_rgb`), never these. They
+// are therefore `#[cfg(test)]`-gated and module-PRIVATE (no cross-module test
+// calls them; `render/tests/backgrounds_item69.rs` only mentions `WAVE_AMP` in a
+// comment) rather than carrying an `allow(dead_code)` that would let a genuinely
+// dead future constant hide here. `WAVE_DRIFT_CYCLES` stays ungated: it feeds
+// the RUNTIME [`waves_drift_radians`].
+#[cfg(test)]
 const WAVE_AMP: f32 = 22.0;
+#[cfg(test)]
 const WAVE_FREQ: f32 = 0.024166097;
+#[cfg(test)]
 const WAVE_PHASE_1: f32 = 0.0;
+#[cfg(test)]
 const WAVE_PHASE_2: f32 = 2.4;
 const WAVE_DRIFT_CYCLES: f32 = 1.0;
 
@@ -164,8 +180,11 @@ pub fn waves_drift_radians(phase: f32) -> f32 {
 /// `b2` (bottom third, phase-RETARDED by `drift` — the opposite sign).
 /// `viewport_h` in px; returns `(b1, b2)` in px. MUST stay in lockstep with
 /// the shader; unit-tested here without a GPU (the `lava.rs`/`dither.rs`
-/// shader-mirror idiom).
-pub fn waves_boundaries(x: f32, viewport_h: f32, drift: f32) -> (f32, f32) {
+/// shader-mirror idiom). TEST-ONLY and module-private (item 89) — the runtime
+/// path reads the WGSL's own copy of this math; see the scope note above the
+/// `WAVE_*` constants.
+#[cfg(test)]
+fn waves_boundaries(x: f32, viewport_h: f32, drift: f32) -> (f32, f32) {
     let b1 = viewport_h * (1.0 / 3.0) + WAVE_AMP * (x * WAVE_FREQ + WAVE_PHASE_1 + drift).sin();
     let b2 = viewport_h * (2.0 / 3.0) + WAVE_AMP * (x * WAVE_FREQ + WAVE_PHASE_2 - drift).sin();
     (b1, b2)

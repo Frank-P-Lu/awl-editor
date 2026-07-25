@@ -55,9 +55,20 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   Gumtree's `Bands` field both moved here, each with FOUR independently
   authored dials (repeat wavelength, peak excursion, travel angle, an extra
   coverage multiplier) so the two worlds' fields read as separately designed,
-  not a recolor of one asset — Quokka's is tight/steep/bold (50px period, 10px
-  amplitude, ~54°, density 0.60), Gumtree's is broad/shallow/quiet (190px
-  period, 60px amplitude, ~15°, density 0.20). `Bands` is now DORMANT
+  not a recolor of one asset — as first authored, Quokka's was
+  tight/steep/bold (50px period, 10px amplitude, ~54°, density 0.60) and
+  Gumtree's broad/shallow/quiet (190px period, 60px amplitude, ~15°, density
+  0.20). **Item 89 (2026-07)** repaired
+  that ground as a FIELD: item 86's chevron repeated its teeth ALONG one travel
+  line but never tiled that line ACROSS the margin, so a page margin carried a
+  single wandering stroke with large blank areas and a taller window gained no
+  second row. The shader now folds the across-travel coordinate through the row
+  period — chevron rows stacked every `period_px`, a square lattice in the
+  travel frame — and both worlds' dials were rescaled to that field (Quokka
+  100px/24px, Gumtree 250px/85px: about three broad rows down an ordinary
+  window on Gumtree, roughly twice as many on the tighter Quokka; angles,
+  tints, densities and every palette rung unchanged). See "The zigzag field
+  law" below. `Bands` is now DORMANT
   reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
   **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
   PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
@@ -818,6 +829,48 @@ UNCHANGED — the drift is one added scalar, `0.0` at rest.
 - The drift's FEEL over real seconds (speed, the middle tier's counter-motion
   reading as "layered," calmness) is live-only and flagged for human
   confirmation — the harness proves the arithmetic, not the taste.
+
+### The zigzag field law (`Background::Zigzag` — item 89, 2026-07-26)
+
+Item 86's chevron ground repeated its TEETH along one travel line but never
+repeated that LINE across the margin: `abs(ry - center(rx))` describes a single
+continuous "V" curve embedded in the plane, so a page margin carried one
+wandering stroke with large blank areas, and a taller window bought no second
+row — it only let the same stroke travel further before running off the bottom
+(measured: 62% of a tall Gumtree margin, and the right two thirds of a Quokka
+one, held literally zero ink). Item 89 is the correctness repair, not a new
+taste round: the palettes, tints, gradients, travel angles, densities, cards
+and typography of both worlds are untouched.
+
+- **The field FOLD.** The shader folds the across-travel coordinate through the
+  row period — `d = |fract((ry - center)/row_h + 0.5) - 0.5| * row_h` — turning
+  the single curve into the infinite family `center + k * row_h`. A genuinely
+  tiled Mario-like zigzag field: any margin, at any window height, carries the
+  same row rhythm.
+- **One dial, isotropic.** `row_h` IS `period_px` — the SCALE dial governs the
+  teeth and the row spacing together (a square lattice in the travel frame), so
+  no fifth dial and no new uniform slot were needed, and "how many rows does a
+  window show" stays the business of `period_px` and `angle` alone. The
+  amplitude is bounded in the shader to 40% of the period so neighbouring rows
+  can never collide into a smear; both worlds author well inside that bound
+  (law:
+  `render::tests::backgrounds_item89::authored_zigzag_amplitude_stays_inside_the_shaders_row_collision_bound`).
+- **Rescaled to the field.** Quokka 100px/24px, Gumtree 250px/85px: on the
+  deterministic 1200x800 canvas Gumtree reads as ~3 broad chevron rows down a
+  margin and Quokka as ~6 tighter ones — the two worlds' authored characters
+  (tight/steep/bold against broad/shallow/quiet) now separated by row RHYTHM as
+  well as by scale, profile, direction and contrast.
+- **Real-pixel occupancy, not "some mark exists."** `render::tests::backgrounds_item89`
+  partitions EACH page margin into a 3x3 grid of substantial cells and requires
+  every one of the 18 cells, on both worlds, to hold a real ribbon core — the
+  law item 86 lacked (its positive half passed on one stroke anywhere in the
+  margin). Measured DIFFERENTIALLY: the same world rendered as authored minus
+  the same world with its mark coverage zeroed, so the gradient, its dither and
+  the sRGB quantization cancel exactly and the number is the mark alone. Plus a
+  row-rhythm law, a height-scaling law (double the canvas, double the rows —
+  the defect's own signature inverted), zero mark ink inside the writing
+  column, byte-determinism at two canvas sizes, and a non-vacuity self-proof
+  that the occupancy grid really does reject item 86's untiled stroke.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 

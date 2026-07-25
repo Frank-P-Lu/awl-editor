@@ -1260,24 +1260,34 @@ pub enum Background {
     /// `shaders/background.wgsl`'s `waves_rgb`). Reusable data: any world may
     /// pick `Waves`, not just Bombora.
     Waves { tones: [Srgb; 3] },
-    /// A repeating chevron ("V") line MARK over the gradient (item 86) —
-    /// unlike `Bands`/`Waves` (which compute the field's final color
-    /// directly, no gradient underneath), `Zigzag` is a whisper-mark ground
-    /// in the SAME family as `Dots`/`Pinstripe`/`Starfield`: `from`/`to`/`dir`
-    /// still drive a base gradient, and the chevron composites over it at
-    /// low coverage through the shared `pattern_coverage` pipeline (never a
-    /// separate final-color branch). Four independently-authored dials let
-    /// two worlds sharing this ONE variant read as separately designed
-    /// fields rather than a recolor of one asset:
-    /// - `period_px` — the chevron's horizontal repeat wavelength: the
-    ///   SCALE/SPACING dial (device px — this ground family carries no DPI
-    ///   uniform, matching `Dots`' fixed 24px cell's own unscaled
-    ///   convention).
-    /// - `amplitude_px` — the "V"'s peak vertical excursion: the PROFILE
+    /// A TILED FIELD of repeating chevron ("V") rows over the gradient (item
+    /// 86; tiled by item 89) — unlike `Bands`/`Waves` (which compute the
+    /// field's final color directly, no gradient underneath), `Zigzag` is a
+    /// whisper-mark ground in the SAME family as `Dots`/`Pinstripe`/
+    /// `Starfield`: `from`/`to`/`dir` still drive a base gradient, and the
+    /// chevrons composite over it at low coverage through the shared
+    /// `pattern_coverage` pipeline (never a separate final-color branch).
+    /// **Item 89** made it a genuine FIELD: the chevron repeats ACROSS its
+    /// travel direction as well as along it (rows stacked every `period_px`,
+    /// a square lattice in the travel frame), so any margin at any window
+    /// height carries the same row rhythm instead of one wandering stroke
+    /// with large blank areas. Four independently-authored dials let two
+    /// worlds sharing this ONE variant read as separately designed fields
+    /// rather than a recolor of one asset:
+    /// - `period_px` — the chevron's repeat wavelength ALONG its travel AND
+    ///   the row-to-row spacing ACROSS it (item 89's square lattice): the
+    ///   SCALE/SPACING dial, scaling the whole field isotropically — halve it
+    ///   and both the teeth and the rows halve, so "how many chevron rows
+    ///   does a window show" is this one dial's (and `angle`'s) business
+    ///   (device px — this ground family carries no DPI uniform, matching
+    ///   `Dots`' fixed 24px cell's own unscaled convention).
+    /// - `amplitude_px` — the "V"'s peak excursion across travel: the PROFILE
     ///   dial (a small amplitude relative to `period_px` reads as a tight,
     ///   sharp zigzag; a large one reads as a broad, lazy meander — the
     ///   stroke's own thickness is derived from this, so a broader profile
-    ///   also draws a bolder line).
+    ///   also draws a bolder ribbon). Bounded in the shader to 40% of
+    ///   `period_px` so neighbouring rows can never collide into a smear;
+    ///   both shipping worlds author well inside that bound.
     /// - `angle` (radians) — the direction the chevrons themselves travel
     ///   (0 = vertical chevrons meandering left-right as y increases): the
     ///   DIRECTION dial, independent of the underlying gradient's own `dir`.

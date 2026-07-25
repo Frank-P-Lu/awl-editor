@@ -54,25 +54,29 @@ pub const GUMTREE: Theme = Theme {
     primary_content: Srgb::rgb(0xFB, 0xEC, 0xEC),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0x88, 0x8F, 0x5D, 0x52),
-    // EUCALYPTUS ZIGZAG (item 86) — the grass-BANDS field (item 69) RETIRES
-    // here: a distinct, BROADER and QUIETER chevron ground replaces it, so
-    // the two light zigzag worlds (this one and Quokka's) read as
-    // separately authored fields, not a recolor of one asset. A BROAD,
-    // lazy profile — 190px period (vs. Quokka's 50px: nearly 4x the
-    // spacing), 60px amplitude (ratio ~0.32: a looser, more open "V" than
-    // Quokka's tight 0.20), a SHALLOW ~15° near-horizontal travel angle (vs.
-    // Quokka's steep ~54° diagonal — branch-like, not a chevron stitch), and
-    // a LOW 0.20 density (a third of Quokka's 0.60 — a quiet whisper mark
-    // over the gradient, not an opaque field). ONLY the eucalyptus ground
-    // ladder — `base_100`/`base_200`/`base_300` verbatim, no
-    // separately-tuned tint, same restraint the old Bands field kept.
+    // EUCALYPTUS ZIGZAG (item 86; FIELD-tiled + rescaled by item 89) — the
+    // grass-BANDS field (item 69) RETIRES here: a distinct, BROADER and
+    // QUIETER chevron ground replaces it, so the two light zigzag worlds
+    // (this one and Quokka's) read as separately authored fields, not a
+    // recolor of one asset. A BROAD, lazy profile — 250px period (vs.
+    // Quokka's 100px: 2.5x the spacing, and — since item 89 tiles the field
+    // on a square lattice — 2.5x the ROW spacing too, so this world reads as
+    // ~3 broad chevron rows down an ordinary window where Quokka reads ~6),
+    // 85px amplitude (ratio ~0.34: a looser, more open "V" than Quokka's
+    // tight ~0.24, and a correspondingly BROADER ~8.5px ribbon), a SHALLOW
+    // ~15° near-horizontal travel angle (vs. Quokka's steep ~54° diagonal —
+    // branch-like, not a chevron stitch), and a LOW 0.20 density (a third of
+    // Quokka's 0.60 — a quiet whisper mark over the gradient, not an opaque
+    // field). ONLY the eucalyptus ground ladder —
+    // `base_100`/`base_200`/`base_300` verbatim, no separately-tuned tint,
+    // same restraint the old Bands field kept.
     background: Background::Zigzag {
         from: Srgb::rgb(0xE4, 0xF8, 0xE2),
         to: Srgb::rgb(0xCF, 0xF3, 0xCC),
         dir: (0.0, 1.0),
         tint: Srgb::rgb(0xB7, 0xEF, 0xB4),
-        period_px: 190.0,
-        amplitude_px: 60.0,
+        period_px: 250.0,
+        amplitude_px: 85.0,
         angle: 0.26,
         density: 0.20,
     },
@@ -334,20 +338,25 @@ pub const QUOKKA: Theme = Theme {
     selection: Srgb::rgba(0xBB, 0x80, 0x20, 0x52),
     // ITEM 86 — the page-margin dot grid RETIRES here: a repeating chevron
     // ZIGZAG field replaces it (Quokka's own light-world differentiation
-    // pass), same gradient underlay verbatim. A TIGHT, playful profile —
-    // 50px period, only 10px amplitude (ratio ~0.20: a sharp, close-set "V",
-    // not a lazy meander), a steep ~54° travel angle (echoes the old dot
-    // grid's own (0.7,0.7) diagonal), and the round's boldest density (0.60)
-    // — deliberately the loud pole of the two zigzag worlds so it never
-    // reads as a recolor of Gumtree's broader, quieter, shallower field
-    // below (distinct scale/profile/direction/contrast, all four dials).
+    // pass), same gradient underlay verbatim; item 89 TILED that field across
+    // the whole margin and rescaled the dials so the rows read as rows. A
+    // TIGHT, playful profile — 100px period (2.5x tighter than Gumtree's
+    // 250px, both along the teeth AND row-to-row, so this world reads ~6
+    // close-set chevron rows down an ordinary window against Gumtree's ~3
+    // broad ones), only 24px amplitude (ratio ~0.24: a sharp, close-set "V",
+    // not Gumtree's lazy ~0.34 meander — and a fine ~2.4px ribbon), a steep
+    // ~54° travel angle (echoes the old dot grid's own (0.7,0.7) diagonal),
+    // and the round's boldest density (0.60) — deliberately the loud pole of
+    // the two zigzag worlds so it never reads as a recolor of Gumtree's
+    // broader, quieter, shallower field below (distinct
+    // scale/profile/direction/contrast, all four dials).
     background: Background::Zigzag {
         from: Srgb::rgb(0xFF, 0xDF, 0xCF),
         to: Srgb::rgb(0xFF, 0xD2, 0xBD),
         dir: (0.7, 0.7),
         tint: Srgb::rgb(0xE0, 0xAE, 0x92),
-        period_px: 50.0,
-        amplitude_px: 10.0,
+        period_px: 100.0,
+        amplitude_px: 24.0,
         angle: 0.95,
         density: 0.60,
     },

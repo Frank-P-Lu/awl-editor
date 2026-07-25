@@ -195,26 +195,36 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         }
         return cov;
     }
-    // --- 7: ZIGZAG — a periodic chevron ("V") line mark, whisper-composited
-    // over the gradient like Dots/Pinstripe (item 86). Four independently
-    // authored dials (see `Background::Zigzag`'s own doc): `period` is the
-    // chevron's horizontal repeat wavelength (the SCALE/SPACING dial), `amp`
-    // its peak vertical excursion (the PROFILE dial — also derives the
-    // stroke's own thickness, so a broader profile draws a bolder line),
-    // `a` the direction the chevrons themselves travel (the DIRECTION dial,
-    // independent of the base gradient's own `dir`), and `dens` an extra
-    // per-world coverage multiplier (the CONTRAST dial) stacked with the
-    // shared `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
+    // --- 7: ZIGZAG — a TILED field of repeating chevron ("V") rows,
+    // whisper-composited over the gradient like Dots/Pinstripe (item 86;
+    // FIELD-tiled by item 89). Four independently authored dials (see
+    // `Background::Zigzag`'s own doc): `period` is the chevron's repeat
+    // wavelength ALONG its travel (the SCALE/SPACING dial — and, per item 89,
+    // the row-to-row spacing ACROSS travel too: the field tiles on a SQUARE
+    // lattice in the travel frame, so one dial scales the whole field
+    // isotropically), `amp` its peak excursion across travel (the PROFILE
+    // dial — also derives the stroke's own thickness, so a broader profile
+    // draws a bolder ribbon), `a` the direction the chevrons themselves
+    // travel (the DIRECTION dial, independent of the base gradient's own
+    // `dir`), and `dens` an extra per-world coverage multiplier (the CONTRAST
+    // dial) stacked with the shared `PATTERN_MAX_COVERAGE` ceiling every mark
+    // ground already carries. ---
     if (g.shader == 7u) {
         let period = max(g.params.x, 1.0);
         let a = g.params.y;
-        let amp = max(g.params.z, 0.0);
+        // ITEM 89 GUARD: the excursion is bounded to a fraction of the row
+        // spacing, so neighbouring chevron rows can never collide/merge into
+        // a solid smear no matter what a future world authors. Both shipping
+        // worlds sit BELOW this bound (law-tested in
+        // `render/tests/backgrounds_item89.rs`), so it is inert on real data.
+        let amp = clamp(g.params.z, 0.0, period * 0.40);
         let dens = clamp(g.params.w, 0.0, 1.0);
         let ca = cos(a);
         let sa = sin(a);
         // Rotate into the chevron's own travel frame: `rx` runs ALONG the
         // travel direction (the triangle-wave meander axis), `ry` across it
-        // (the axis the "V" excursion is measured on).
+        // (the axis the "V" excursion is measured on, and the axis the rows
+        // stack along).
         let rx = px.x * ca + px.y * sa;
         let ry = -px.x * sa + px.y * ca;
         // A broad triangle wave of `rx` (period `period`), in [-1, 1] — the
@@ -223,7 +233,20 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // chevron needs.
         let tri = abs(fract(rx / period) * 2.0 - 1.0) * 2.0 - 1.0;
         let center = tri * amp;
-        let d = abs(ry - center);
+        // ITEM 89 — THE FIELD FOLD. `center` is a function of `rx` ALONE, so
+        // `abs(ry - center)` (item 86's original) describes ONE continuous
+        // chevron LINE embedded in the plane: teeth repeat along travel, but
+        // nothing repeats it ACROSS travel, so a tall margin showed one
+        // wandering stroke with large blank areas and a taller window only
+        // let that single stroke travel further before running off-canvas.
+        // Folding `(ry - center)` through the row period turns that one line
+        // into the INFINITE FAMILY `center + k * row_h` — a genuinely tiled
+        // Mario-like zigzag field that covers any viewport, at any height,
+        // with the same row rhythm.
+        let row_h = period;
+        let u = (ry - center) / row_h;
+        // Signed distance to the NEAREST row line (px): fold to [-0.5, 0.5).
+        let d = abs(fract(u + 0.5) - 0.5) * row_h;
         let thickness = max(amp * 0.10, 1.2);
         let line = 1.0 - smoothstep(thickness * 0.6, thickness, d);
         return line * dens;
