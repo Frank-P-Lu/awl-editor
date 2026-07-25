@@ -314,7 +314,13 @@ pub const CARET_MORPH_SETTLE_SHOW: f32 = 0.65;
 pub const CARET_MORPH_DILATE_PX: f32 = 2.0;
 
 /// Zoom clamps and step. Effective metrics = base metric * zoom. 1.0 is the
-/// default (and the only zoom used by the deterministic `--screenshot` path).
+/// default — but NOT, despite what this comment used to claim, the only zoom the
+/// `--screenshot` path ever sees: `--zoom` sets it, and STICKY ZOOM folds
+/// `config.zoom` in behind that flag for captures too (`main/args.rs`). A
+/// capture-based test whose arithmetic assumes the base constants must PIN
+/// `--zoom` (see `tests/bullet_blank_line_nit_pixels.rs`); believing this
+/// comment is how a personal `zoom = 1.5` turned a pixel test red with no
+/// product change behind it (queue item 93).
 pub const ZOOM_MIN: f32 = 0.5;
 pub const ZOOM_MAX: f32 = 3.0;
 pub const ZOOM_STEP: f32 = 0.1;
