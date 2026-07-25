@@ -103,6 +103,17 @@ fn hash21(p: vec2<f32>) -> f32 {
 // Stripes band + the proximity-scaled Dots — the "play area radiates into the
 // ground" feel. Pure pixel math, no time.
 const EDGE_FALLOFF: f32 = 90.0;
+
+// ZIGZAG (shader 7) — the chevron ribbon's own stroke half-width as a fraction
+// of the authored `amplitude_px`, so a broader profile draws a proportionally
+// bolder ribbon (never an absolute px thickness that a scaled-up field would
+// leave hairline). It ALSO derives the field's row pitch through the abutment
+// rule (`row_h = 2*amp + thickness`, see `pattern_coverage`'s `shader == 7u`
+// branch) — hence a named constant rather than an inline literal: the host
+// mirror in `render/tests/backgrounds_item89.rs` pins the same number, and a
+// grep-law asserts this line still reads it.
+const ZIGZAG_STROKE_FRAC: f32 = 0.10;
+
 fn edge_intensity(px: vec2<f32>) -> f32 {
     var d = 0.0;
     if (px.x < g.col_left) {
@@ -195,16 +206,19 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         }
         return cov;
     }
-    // --- 7: ZIGZAG — a periodic chevron ("V") line mark, whisper-composited
-    // over the gradient like Dots/Pinstripe (item 86). Four independently
-    // authored dials (see `Background::Zigzag`'s own doc): `period` is the
-    // chevron's horizontal repeat wavelength (the SCALE/SPACING dial), `amp`
-    // its peak vertical excursion (the PROFILE dial — also derives the
-    // stroke's own thickness, so a broader profile draws a bolder line),
-    // `a` the direction the chevrons themselves travel (the DIRECTION dial,
-    // independent of the base gradient's own `dir`), and `dens` an extra
-    // per-world coverage multiplier (the CONTRAST dial) stacked with the
-    // shared `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
+    // --- 7: ZIGZAG — a TILED field of repeating chevron ("V") rows,
+    // whisper-composited over the gradient like Dots/Pinstripe (item 86;
+    // FIELD-tiled by item 89). Four independently authored dials (see
+    // `Background::Zigzag`'s own doc): `period` is the chevron's repeat
+    // wavelength ALONG its travel (the SCALE dial — the tooth wavelength
+    // ALONE; the row-to-row pitch ACROSS travel is DERIVED, see the abutment
+    // rule below), `amp` its peak excursion across travel (the PROFILE dial —
+    // which also derives the stroke's own thickness AND, through the
+    // abutment rule, the row pitch), `a` the direction the chevrons
+    // themselves travel (the DIRECTION dial, independent of the base
+    // gradient's own `dir`), and `dens` an extra per-world coverage
+    // multiplier (the CONTRAST dial) stacked with the shared
+    // `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
     if (g.shader == 7u) {
         let period = max(g.params.x, 1.0);
         let a = g.params.y;
@@ -214,7 +228,8 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let sa = sin(a);
         // Rotate into the chevron's own travel frame: `rx` runs ALONG the
         // travel direction (the triangle-wave meander axis), `ry` across it
-        // (the axis the "V" excursion is measured on).
+        // (the axis the "V" excursion is measured on, and the axis the rows
+        // stack along).
         let rx = px.x * ca + px.y * sa;
         let ry = -px.x * sa + px.y * ca;
         // A broad triangle wave of `rx` (period `period`), in [-1, 1] — the
@@ -223,8 +238,45 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // chevron needs.
         let tri = abs(fract(rx / period) * 2.0 - 1.0) * 2.0 - 1.0;
         let center = tri * amp;
-        let d = abs(ry - center);
-        let thickness = max(amp * 0.10, 1.2);
+        let thickness = max(amp * ZIGZAG_STROKE_FRAC, 1.2);
+        // ITEM 89 — THE FIELD FOLD. `center` is a function of `rx` ALONE, so
+        // `abs(ry - center)` (item 86's original) describes ONE continuous
+        // chevron LINE embedded in the plane: teeth repeat along travel, but
+        // nothing repeats it ACROSS travel, so a tall margin showed one
+        // wandering stroke with large blank areas and a taller window only
+        // let that single stroke travel further before running off-canvas.
+        // Folding `(ry - center)` through the row pitch turns that one line
+        // into the INFINITE FAMILY `center + k * row_h` — a genuinely tiled
+        // Mario-like zigzag field that covers any viewport, at any height,
+        // with the same row rhythm.
+        //
+        // ITEM 89-FIX — THE ABUTMENT RULE, and why the pitch is NOT `period`.
+        // Item 89's first cut set `row_h = period` (a square lattice in the
+        // travel frame). That tiles, but it does NOT COVER: row `k`'s ribbon
+        // only ever visits `ry` in `[k*row_h - amp - t, k*row_h + amp + t]`,
+        // so when `2*amp + 2*t < period` the field carries a VOID BAND of
+        // `period - 2*amp - 2*t` px between every pair of neighbouring rows
+        // that NO chevron enters at ANY `rx` — a hard blank lane across the
+        // whole margin. On Gumtree's authored 250/85 that lane was ~70px
+        // wide, and a short window's narrow margin could land inside one
+        // (measured: a 182x80 band of a 1600x600 right margin at literally
+        // zero deviation).
+        //
+        // So the pitch is DERIVED from the profile instead: `row_h = 2*amp +
+        // thickness` makes each row's ribbon sweep exactly one pitch wide,
+        // and its ribbon CORE (`d <= 0.6*t`) sweep `2*amp + 1.2*t` — a pitch
+        // PLUS `0.2*t` of overlap. Consecutive rows therefore ABUT (strictly
+        // overlap) across the travel axis for ANY authored dials, so a void
+        // band is impossible BY CONSTRUCTION rather than by tuning: the
+        // covering property no longer depends on the period/amplitude ratio,
+        // on the angle, or on the viewport's size or aspect. It also retires
+        // item 89's row-collision clamp — abutting rows cannot smear together
+        // (each ribbon is `2*t` wide inside a `2*amp + t` lane), so there is
+        // nothing left to guard.
+        let row_h = 2.0 * amp + thickness;
+        let u = (ry - center) / row_h;
+        // Signed distance to the NEAREST row line (px): fold to [-0.5, 0.5).
+        let d = abs(fract(u + 0.5) - 0.5) * row_h;
         let line = 1.0 - smoothstep(thickness * 0.6, thickness, d);
         return line * dens;
     }

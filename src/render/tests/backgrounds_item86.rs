@@ -6,8 +6,21 @@
 //! ONE renderer (`shaders/background.wgsl`'s `pattern_coverage`, shader id
 //! 7). Mirrors `backgrounds_item69.rs`'s pattern — drive `BackgroundPipeline`
 //! directly (the purest reachable seam, no text/markdown involved) and read
-//! the real GPU output back, reusing its `headless_dq`/`bg_desc_for`/
-//! `render_bg` trio rather than re-deriving them.
+//! the real GPU output back, reusing its `headless_dq` device helper rather
+//! than re-deriving it, and item 89's `mark_field` differential oracle for the
+//! one pixel measurement left here.
+//!
+//! **Post item-89 note:** this ground was reopened as a CORRECTNESS repair —
+//! item 86's chevron repeated its teeth ALONG one travel line but never tiled
+//! that line ACROSS the margin field, so a page margin carried a single
+//! wandering stroke with large blank areas; and the fold that first tiled it
+//! stacked rows every `period_px`, which left a blank LANE between rows
+//! wherever the excursion did not span the period. The field laws (per-cell
+//! occupancy SWEPT over viewport geometry, the no-blank-lane law, the abutment
+//! theorem, row rhythm, height scaling, column exclusion, determinism) all live
+//! in `backgrounds_item89.rs`; the per-world dials were re-derived there too
+//! (Quokka 100/24 unchanged, Gumtree 170/60). What stays here is item 86's
+//! DESIGN brief — the roster, and the four dials' authored distinctness.
 //!
 //! Per the project tripwire (the sidecar is a STATE oracle, never an
 //! APPEARANCE oracle), every contrast/distinctness/column-exclusion claim
@@ -17,7 +30,7 @@
 //! adapter, exactly like every other GPU-backed render test in this tree.
 
 use crate::theme;
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
+use super::backgrounds_item69::headless_dq;
 
 // ---------------------------------------------------------------------------
 // STRUCTURAL ROSTER — exhaustive, no wildcard (background-ground half of the
@@ -105,76 +118,36 @@ fn zigzag_dials_are_measurably_distinct_between_quokka_and_gumtree() {
 // REAL-PIXEL LAWS
 // ---------------------------------------------------------------------------
 
-/// THE COLUMN-EXCLUSION LAW: the zigzag mark NEVER paints inside the page
-/// column, for either world — every pixel inside `[col_left, col_left+col_w)`
-/// stays the exact CLEAR color (the shader's own alpha-0 hole), while the
-/// margins DO show real mark pixels (a sanity check that the render is
-/// actually doing something, not a vacuously-empty pass). This is also the
-/// ground's own "text stays legible" proof: the writing column the glyphs
-/// render into is structurally untouched by this ground, on both worlds.
-#[test]
-fn zigzag_pattern_never_paints_inside_the_page_column_on_either_world() {
-    let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping zigzag_pattern_never_paints_inside_the_page_column_on_either_world: no wgpu adapter");
-        return;
-    };
-    let _g = crate::testlock::serial();
-    let (w, h) = (1200u32, 800u32);
-    let (col_left, col_w) = (350.0f32, 500.0f32);
-
-    for (name, bg) in [
-        ("Quokka", theme::QUOKKA.background),
-        ("Gumtree", theme::GUMTREE.background),
-    ] {
-        let desc = bg_desc_for(bg);
-        // The shader's OWN column hole is alpha-0 (the fragment returns
-        // `vec4(0,0,0,0)` inside `[col_left, col_left+col_w)`, unconditionally,
-        // BEFORE any per-shader branch runs) — so "never paints inside the
-        // column" reduces to "every column pixel stays the alpha-0 clear".
-        // Zigzag is a static ground — `drift` (item 87's Waves phase) is
-        // inert `0.0` here and does not touch this world's `params` dials.
-        let pixels = render_bg(&device, &queue, desc, w, h, col_left, col_w, 0.0);
-        let (from, to) = (bg.from().rgba_bytes(), bg.to().rgba_bytes());
-        let is_mark = |p: [u8; 4]| {
-            let near = |c: [u8; 4]| (0..3).all(|k| (p[k] as i16 - c[k] as i16).abs() <= 2);
-            !near(from) && !near(to)
-        };
-        // Straight-alpha blend at src-alpha 0 leaves the framebuffer's own
-        // CLEAR value untouched (`result = dst`) — `render_bg` clears to
-        // opaque black, so an untouched column pixel reads `[0,0,0,255]`,
-        // NOT a literal `[0,0,0,0]` (that would be the shader's OWN write,
-        // which alpha-0 blending never actually composites in).
-        const CLEARED: [u8; 4] = [0, 0, 0, 255];
-        let mut column_all_clear = true;
-        let mut margin_has_mark = false;
-        for y in (0..h).step_by(23) {
-            for x in (0..w).step_by(7) {
-                let idx = (y * w + x) as usize;
-                let is_col = (x as f32) >= col_left && (x as f32) < col_left + col_w;
-                if is_col {
-                    if pixels[idx] != CLEARED {
-                        column_all_clear = false;
-                    }
-                } else if is_mark(pixels[idx]) {
-                    margin_has_mark = true;
-                }
-            }
-        }
-        assert!(column_all_clear, "{name}: a zigzag pixel leaked inside the page column");
-        assert!(margin_has_mark, "{name}: the margin must actually show the chevron mark (sanity)");
-    }
-}
+// SUPERSEDED BY ITEM 89: this file's original column-exclusion law lived here.
+// Its negative half (nothing paints inside the page column) was sound; its
+// POSITIVE half was `margin_has_mark = true` if ANY single pixel of a strided
+// margin scan differed from the two gradient endpoints — which one wandering
+// chevron stroke satisfies trivially, and which is exactly why item 86's
+// non-tiling field (60-95% of a tall margin blank) shipped green. Both halves
+// now live, strengthened and differential, in `backgrounds_item89.rs`
+// (`zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds` +
+// the 18-cell occupancy grid). The determinism law that followed it moved
+// there too, widened to two canvas sizes.
 
 /// THE DISTINCTNESS LAW (real-pixel half, CONTRAST): over the SAME canvas
-/// geometry, Quokka's higher-`density` chevron field reaches a HIGHER PEAK
-/// deviation from its own base gradient than Gumtree's lower-`density` one —
-/// the real-GPU-output confirmation of the data-level `density` inequality
-/// above (never trusted from the struct literal alone — the Wagtail lesson).
+/// geometry, Quokka's higher-`density` chevron field lays down BOLDER ink than
+/// Gumtree's lower-`density` one — the real-GPU-output confirmation of the
+/// data-level `density` inequality above (never trusted from the struct
+/// literal alone — the Wagtail lesson). Measured through item 89's
+/// DIFFERENTIAL oracle (`backgrounds_item89::mark_field`: the world rendered
+/// as authored minus the same world with its mark coverage zeroed), so the
+/// number really is the MARK's own peak deviation. The original form of this
+/// law measured each pixel's distance from the nearer gradient ENDPOINT, which
+/// on a two-tone gradient is dominated by the mid-gradient tone itself (up to
+/// half the endpoint span — 24 on Gumtree, against a mark that only reaches
+/// 11), i.e. it compared the two worlds' gradient spans as much as their
+/// marks; the differential field has no such confound.
+///
 /// Peak deviation (not total marked-pixel AREA) is the right proxy for
-/// "bolder/quieter": `line * density` peaks exactly AT `density` at a
-/// chevron's own centerline regardless of the stroke's width, so this
-/// isolates the CONTRAST dial from the PROFILE dial's own (also authored,
-/// also distinct) effect on stroke thickness / marked area.
+/// "bolder/quieter": `line * density` peaks exactly AT `density` on a
+/// chevron's own centerline regardless of the ribbon's width, so this isolates
+/// the CONTRAST dial from the PROFILE dial's own (also authored, also
+/// distinct) effect on ribbon thickness / marked area.
 #[test]
 fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
     let Some((device, queue)) = headless_dq() else {
@@ -184,53 +157,24 @@ fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
     let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
 
-    let peak_deviation = |bg: theme::Background| -> i32 {
-        let desc = bg_desc_for(bg);
-        // No page hole (col_w = 0): the WHOLE canvas is margin, the purest
-        // scan surface for a peak-intensity measurement. `drift = 0.0` (item
-        // 87's Waves phase is inert for this static Zigzag ground).
-        let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
-        let (from, to) = (bg.from().rgba_bytes(), bg.to().rgba_bytes());
-        let dist_from_nearest_endpoint = |p: [u8; 4]| {
-            let d = |c: [u8; 4]| (0..3).map(|k| (p[k] as i32 - c[k] as i32).abs()).sum::<i32>();
-            d(from).min(d(to))
-        };
-        pixels.iter().map(|&p| dist_from_nearest_endpoint(p)).max().unwrap_or(0)
+    // No page hole (col_w = 0): the WHOLE canvas is margin, the purest scan
+    // surface for a peak-intensity measurement.
+    let peak_ink = |bg: theme::Background| -> i32 {
+        super::backgrounds_item89::mark_field(&device, &queue, bg, w, h, 0.0, 0.0)
+            .into_iter()
+            .max()
+            .unwrap_or(0)
     };
 
-    let quokka_peak = peak_deviation(theme::QUOKKA.background);
-    let gumtree_peak = peak_deviation(theme::GUMTREE.background);
+    let quokka_peak = peak_ink(theme::QUOKKA.background);
+    let gumtree_peak = peak_ink(theme::GUMTREE.background);
     assert!(quokka_peak > 0, "Quokka's zigzag must reach SOME real ink");
     assert!(gumtree_peak > 0, "Gumtree's zigzag must reach SOME real ink");
     assert!(
         quokka_peak > gumtree_peak,
-        "Quokka's higher-density zigzag (peak deviation {quokka_peak}) must reach a HIGHER \
-         peak contrast than Gumtree's lower-density one (peak deviation {gumtree_peak})"
+        "Quokka's higher-density zigzag (peak mark deviation {quokka_peak}) must lay down BOLDER \
+         ink than Gumtree's lower-density one (peak mark deviation {gumtree_peak})"
     );
-}
-
-/// DETERMINISM: two independent renders of the SAME desc are byte-for-byte
-/// identical — no clock, no randomness (the pipeline's `Globals` carries no
-/// time uniform at all), the same static-ground promise every other margin
-/// pattern already holds.
-#[test]
-fn zigzag_renders_byte_identically_across_two_independent_draws() {
-    let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping zigzag_renders_byte_identically_across_two_independent_draws: no wgpu adapter");
-        return;
-    };
-    let _g = crate::testlock::serial();
-    for (name, bg) in [
-        ("Quokka", theme::QUOKKA.background),
-        ("Gumtree", theme::GUMTREE.background),
-    ] {
-        let desc = bg_desc_for(bg);
-        // `drift = 0.0`: Zigzag is static; item 87's Waves phase never
-        // reaches these worlds' `params`.
-        let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
-        let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
-        assert_eq!(a, b, "{name}: two draws of the identical desc diverged");
-    }
 }
 
 /// SANE, POSITIVE DIALS: both worlds' `period_px`/`amplitude_px` are finite
