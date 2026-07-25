@@ -280,6 +280,101 @@ fn every_test_side_world_swap_happens_under_the_serial_guard() {
     );
 }
 
+/// THE COMPANION RUNTIME LAW (item 94, FOURTH repair) — the other half of the
+/// world global's hygiene, and the half the sweep above structurally CANNOT
+/// express: a world a PRODUCTION action sets must SURVIVE that action.
+///
+/// The hazard the restore owner introduced, of exactly the class it set out to
+/// kill: `actions::apply_core` itself acquires the serialization guard under
+/// `cfg(test)` for its whole body, and the theme picker's live preview
+/// (`actions::preview_overlay` → `theme::set_active_by_name`) sets the world
+/// INSIDE that window. For any caller that does not ALREADY hold the guard,
+/// `apply_core`'s own acquire is the OUTERMOST one — so a pin attached to it
+/// reverts the world the product just set the instant the action returns. The
+/// pin's window would be "one production ACTION" rather than "one TEST".
+///
+/// Why the textual sweep cannot catch it: the sweep's whole question is "does
+/// this function contain an acquire?", and `apply_core` textually does. The rule
+/// that catches it has to be a RUNTIME one — drive the real action, then look at
+/// the global. Nothing was breaking today only because every existing test that
+/// drives a theme through `apply_core` happens to hold the guard already; a
+/// `--keys` capture replay would have failed SILENTLY, rendering the pre-action
+/// world while the sidecar reported the picker's selection — precisely the
+/// "harness stays real" invariant.
+///
+/// The cure this law fixes in place: production writers take
+/// `testlock::serial_nopin` (same lock, same reentrancy, no world restore) and
+/// only the `serial` that TESTS call carries the pin.
+///
+/// THIS LAW DELIBERATELY DOES NOT HOLD THE GUARD across the drive — holding it
+/// would make `apply_core`'s acquire nested and hide the very hazard. So the
+/// restore is owned here EXPLICITLY, by a `WorldPin` of our own, and the read of
+/// the global is taken under a fresh guard. An interloping test may still hold
+/// the guard with its own world active while we run, which is ambient noise, not
+/// the law: the failing direction is DETERMINISTIC (the pin reverts on every
+/// attempt), so the retries can only ever rescue a true pass from a collision.
+#[test]
+fn a_world_a_production_action_sets_survives_that_action() {
+    use crate::actions::ActionCtx;
+    use crate::keymap::Action;
+    use crate::overlay::{OverlayKind, OverlayState};
+
+    let _pin = crate::theme::WorldPin::snapshot(); // our own restore; see the doc
+    let names: Vec<String> =
+        crate::theme::world_names().iter().map(|n| n.to_string()).collect();
+    let mut observed = String::new();
+    let mut previewed = String::new();
+    for _ in 0..8 {
+        crate::theme::set_active(0);
+        let start = crate::theme::active().name.to_string();
+        let mut overlay = Some(OverlayState::new_theme(names.clone(), 0));
+        let mut buffer = crate::buffer::Buffer::scratch();
+        let mut shift = false;
+        let mut zoom = 1.0f32;
+        let mut search = None;
+        let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
+        let mut browse_to =
+            |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+        let mut ctx = ActionCtx {
+            buffer: &mut buffer,
+            shift_selecting: &mut shift,
+            zoom: &mut zoom,
+            search: &mut search,
+            scroll_page_lines: 1,
+            overlay: &mut overlay,
+            make_overlay: &mut make_overlay,
+            browse_to: &mut browse_to,
+            oracle: None,
+        };
+        // END in the open Theme picker: jump to the LAST world, previewed LIVE —
+        // the real seam a `--keys "End"` replay drives, not a stand-in.
+        crate::actions::apply_core(&mut ctx, &Action::LineEnd, false);
+        previewed = overlay
+            .as_ref()
+            .and_then(|ov| ov.selected_value())
+            .expect("the theme picker has a selected world")
+            .to_string();
+        assert_ne!(previewed, start, "the drive must genuinely move the world (non-vacuous)");
+        // Read the global under the guard, so a test running concurrently is
+        // either finished (having restored what it found) or blocked behind us.
+        observed = {
+            let _g = crate::testlock::serial();
+            crate::theme::active().name.to_string()
+        };
+        if observed == previewed {
+            break;
+        }
+    }
+    assert_eq!(
+        observed, previewed,
+        "the world the ACTION set must survive the action: `apply_core` previewed \
+         `{previewed}` and the global came back as `{observed}`. A pin on the guard \
+         `apply_core` itself takes reverts the product's own write the moment the call \
+         returns — production writers must take `testlock::serial_nopin`, and only the \
+         `serial` that TESTS call may carry a `WorldPin`."
+    );
+}
+
 /// The sweep must be able to SEE a violation — proved on synthetic sources rather
 /// than by breaking the crate, and on both shapes of test code (a `tests/` file
 /// and a `#[cfg(test)]` island in a runtime file).

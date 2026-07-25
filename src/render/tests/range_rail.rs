@@ -204,10 +204,12 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
 /// track, so the drawn control genuinely reports the setting rather than sitting
 /// decoratively still.
 ///
-/// THIRD-REPAIR NOTE — this law shipped with three faults, each of which made it
-/// pass by luck rather than by measurement, and it is written here the way the
-/// principle demands (sweep the axis the author didn't think of; find the thing
-/// you name, not something that merely correlates with it):
+/// THIRD-REPAIR NOTE — this law shipped with three faults, and it is written here
+/// the way the principle demands (sweep the axis the author didn't think of; find
+/// the thing you name, not something that merely correlates with it). Two of the
+/// three were LOAD-BEARING (1 and 2 — fixing either alone left the law red on
+/// some world); the third is a correctness improvement that was measured NOT to
+/// change any verdict — see its own note:
 ///
 /// 1. IT PINNED NO WORLD, so it rendered in whatever world the previous test left
 ///    behind — green on world 6, red on world 0. The axis the author didn't think
@@ -224,7 +226,15 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
 ///    changes width with the value, so the track shifts between the two frames;
 ///    judging the 300 % thumb against the 50 % frame's `x0..x1` is exactly the
 ///    drift `RangeDrag` snapshots a scale to avoid. Each frame is now reduced to
-///    a FRACTION of its own track before anything is compared.
+///    a FRACTION of its own track before anything is compared. HONEST SCOPE
+///    (fourth-repair correction, measured across all 18 worlds): this one was NOT
+///    load-bearing. Judging the high frame on the LOW frame's track moves its
+///    reading by at most 0.1129 (worst case 0.9832 own -> 0.8704 shared), and the
+///    weakest shared-track reading, 0.8704, still cleared this law's `> 0.75`;
+///    the floor frame is the reference track, so its reading does not move at
+///    all. Only the world sweep (1) and the extent oracle (2) ever flipped a
+///    verdict. This fix stays because judging a frame on another frame's geometry
+///    is wrong on its own terms, not because it was rescuing this law.
 #[test]
 fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
     let _g = crate::testlock::serial();
@@ -437,3 +447,4 @@ fn a_card_with_no_range_rows_carries_no_rail_at_all() {
         y += 11.0;
     }
 }
+

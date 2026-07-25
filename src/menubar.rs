@@ -69,7 +69,7 @@ pub fn set_menu_bar_on(on: bool) {
     // test that holds the same lock from observing a half-flipped bar. No-op in a real
     // (non-test) build.
     #[cfg(test)]
-    let _g = crate::testlock::serial();
+    let _g = crate::testlock::serial_nopin();
     MENU_BAR_ON.store(on, Ordering::Relaxed);
     if !on {
         set_open(None);
@@ -100,7 +100,7 @@ pub fn set_open(i: Option<usize>) {
     // rides the shown bar's reserved strip); reentrant, so `set_menu_bar_on`'s internal
     // `set_open(None)` is a nested no-op. No-op in a real build.
     #[cfg(test)]
-    let _g = crate::testlock::serial();
+    let _g = crate::testlock::serial_nopin();
     OPEN_MENU.store(i.unwrap_or(NONE), Ordering::Relaxed);
 }
 

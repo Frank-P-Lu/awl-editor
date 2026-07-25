@@ -14,9 +14,10 @@
 //! The cure is STRUCTURAL: ONE lock for all of it. Every test — and every
 //! `cfg(test)` global WRITER: the `page` measure setters, `apply_core`'s
 //! card-dismissal intercepts, `fs::FsGuard` / `fs::CwdGuard` / `assets`'s
-//! `with_trash`, `daemon`'s socket-dir gate — acquires [`serial`]. With a
-//! single lock there is no acquire order left to invert, so the ABBA class is
-//! UNREPRESENTABLE.
+//! `with_trash`, `daemon`'s socket-dir gate — acquires it (tests through
+//! [`serial`], production writers through [`serial_nopin`] — see TWO DOORS
+//! below). With a single lock there is no acquire order left to invert, so the
+//! ABBA class is UNREPRESENTABLE.
 //!
 //! The one subtlety a single lock forces is REENTRANCY: a test holds the guard
 //! across its whole window and then calls a writer (or drives `apply_core`,
@@ -32,6 +33,23 @@
 //! tests still run fully parallel). This is the single owner that replaced the
 //! old `theme::TEST_LOCK` / `fs::TEST_LOCK` / `page::test_lock` /
 //! `about`+`lifetime` composite / caret / debug / hud / … family.
+//!
+//! TWO DOORS, ONE LOCK (item 94's fourth repair). The outermost guard also
+//! RESTORES the active world ([`crate::theme::WorldPin`]) — right for a TEST,
+//! wrong for a PRODUCTION writer. `actions::apply_core` acquires this guard
+//! under `cfg(test)` for its whole body, and the theme picker's live preview
+//! (`actions::preview_overlay`) sets the world global INSIDE that window. When
+//! the caller does not already hold the guard, `apply_core`'s own acquire is the
+//! OUTERMOST one, so a pin attached to it would revert the world THE PRODUCT
+//! JUST SET the instant the action returned — the pin's window would be "one
+//! production action" rather than "one test", and a `--keys` replay would render
+//! the pre-action world while the sidecar reported the picker's selection
+//! (SILENT, not loud). So production writers take [`serial_nopin`] — the same
+//! mutual exclusion, the same reentrancy, no world restore — and only the
+//! [`serial`] that TEST code calls carries the pin. The runtime companion law is
+//! `theme_global_law::a_world_a_production_action_sets_survives_that_action`;
+//! the textual sweep cannot express it, because `apply_core` does textually
+//! contain an acquire.
 
 use std::cell::Cell;
 use std::sync::{Mutex, MutexGuard};
@@ -49,8 +67,10 @@ thread_local! {
 /// case: dropping it releases nothing; only the outermost guard clears the
 /// thread flag and unlocks the mutex.
 ///
-/// The outermost guard also carries a [`crate::theme::WorldPin`] — THE restore
-/// owner for the active-WORLD global (item 94's third repair). Serializing the
+/// The outermost guard from [`serial`] also carries a [`crate::theme::WorldPin`]
+/// — THE restore owner for the active-WORLD global (item 94's third repair; the
+/// outermost guard from [`serial_nopin`] deliberately carries none, so a world a
+/// production action set survives that action). Serializing the
 /// world was never enough on its own: a test that swapped worlds and forgot to
 /// swap back handed its world to whatever ran NEXT, which is exactly how
 /// `range_rail`'s thumb law came to pass or fail on test ORDER. Snapshotting it
@@ -77,18 +97,39 @@ impl Drop for SerialGuard {
 
 /// Acquire THE process-wide test-serialization lock: blocks until free, absorbs
 /// poison, and is REENTRANT per thread (a nested acquire on a thread that
-/// already holds it returns a no-op guard instead of self-deadlocking). The
-/// ONLY door to the mutex.
+/// already holds it returns a no-op guard instead of self-deadlocking). The door
+/// TEST code takes: an outermost guard from here also PINS the active world, so
+/// a test that swaps worlds and forgets to swap back still goes home clean.
+///
+/// A PRODUCTION writer wants [`serial_nopin`] instead — see the module doc.
 pub(crate) fn serial() -> SerialGuard {
+    acquire(true)
+}
+
+/// The same lock, the same reentrancy, WITHOUT the world pin — the door for
+/// `cfg(test)`-gated acquires that live in PRODUCTION code (`actions::apply_core`
+/// and its card-open arms, the `page` measure/mode writers, the `menubar`
+/// writers). Those functions run for real under a `--keys` replay, and a world
+/// the ACTION set (the theme picker's live preview) must survive the action:
+/// pinning here would silently revert the product's own write at the moment the
+/// call returned. Restoring the world is a TEST's business, and [`serial`] is
+/// where tests get it.
+pub(crate) fn serial_nopin() -> SerialGuard {
+    acquire(false)
+}
+
+/// The ONE door to the mutex, behind both public spellings. `pin` decides only
+/// whether the OUTERMOST guard carries a [`crate::theme::WorldPin`]; a nested
+/// acquire never pins either way (the outermost guard's pin, if any, owns the
+/// window — a second pin would restore at the INNER guard's drop, mid-test).
+fn acquire(pin: bool) -> SerialGuard {
     if HELD.with(|h| h.get()) {
-        // Nested: the OUTERMOST guard already pinned the world — a second pin
-        // here would restore mid-test, at the inner guard's drop.
         return SerialGuard { _world: None, inner: None };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     HELD.with(|h| h.set(true));
     SerialGuard {
-        _world: Some(crate::theme::WorldPin::snapshot()),
+        _world: pin.then(crate::theme::WorldPin::snapshot),
         inner: Some(guard),
     }
 }
@@ -237,6 +278,51 @@ mod tests {
             before,
             "the outermost guard must restore the world its window dirtied"
         );
+    }
+
+    /// THE TWO DOORS, at their own seam (item 94's fourth repair): an outermost
+    /// [`serial_nopin`] guard — the one PRODUCTION writers take — must leave the
+    /// world exactly where its window left it, while an outermost [`serial`]
+    /// guard restores. Same lock either way, so the whole check runs with no
+    /// other thread able to move the global.
+    ///
+    /// Nested acquires are the same both ways: neither pins, so an inner guard's
+    /// drop never restores mid-window.
+    #[test]
+    fn the_production_door_keeps_the_world_its_window_set_and_the_test_door_restores_it() {
+        let before = {
+            let _g = serial();
+            crate::theme::active_index()
+        };
+        // The PRODUCTION door: what the window set is what the caller keeps.
+        {
+            let _g = serial_nopin();
+            crate::theme::set_active(before + 5); // never `before`, whatever it is
+        }
+        let kept = {
+            let _g = serial_nopin();
+            crate::theme::active_index()
+        };
+        assert_ne!(
+            kept, before,
+            "an outermost `serial_nopin` guard must NOT revert a world its window set — \
+             that revert is the hazard: `apply_core` takes this door, and the theme \
+             picker's live preview sets the world inside it"
+        );
+        // The TEST door, same window shape: restored on drop.
+        {
+            let _g = serial();
+            crate::theme::set_active(kept + 3);
+        }
+        let after = {
+            let _g = serial_nopin();
+            crate::theme::active_index()
+        };
+        assert_eq!(after, kept, "an outermost `serial` guard restores what its window dirtied");
+        // Leave the global as we found it (this test owns both doors, so neither
+        // guard is going to do it for us).
+        let _g = serial_nopin();
+        crate::theme::set_active(before);
     }
 
     #[test]

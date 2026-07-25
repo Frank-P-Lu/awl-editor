@@ -497,8 +497,20 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // nests here for free, and there is no lock ORDER left to ABBA (the page
     // writers acquire the SAME guard, reentrantly). Held for the whole function;
     // zero cost outside `cfg(test)`.
+    //
+    // THE NON-PINNING DOOR (item 94, fourth repair): `serial_nopin`, not
+    // `serial`. This is PRODUCTION code — actions run for real under `--keys` —
+    // and several arms below set process globals the caller is entitled to keep,
+    // the theme picker's live preview (`preview_overlay` → `theme::set_active_by_name`)
+    // most visibly. `serial`'s outermost guard RESTORES the active world on drop,
+    // which is right for a test and wrong here: when the caller doesn't already
+    // hold the guard, THIS acquire is the outermost one, so a pin would revert the
+    // world this very action just set the instant it returned — silently, with the
+    // sidecar still reporting the picker's selection. Same lock, same reentrancy,
+    // no restore. See `testlock`'s module doc and the runtime law in
+    // `theme_global_law`.
     #[cfg(test)]
-    let _test_guard = crate::testlock::serial();
+    let _test_guard = crate::testlock::serial_nopin();
 
     // PLATFORM-SCOPED COMMANDS: the DISPATCH gate. Hiding a command from the palette
     // / rebind menu / menu bar (`commands::visible`) is not enough on its own — a
@@ -829,9 +841,10 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             // holds this same process-wide lock for the WHOLE call, so this
             // re-take costs nothing extra (outside `cfg(test)`, nothing at all) —
             // kept as a local, self-documenting guard on the open-flag WRITE
-            // rather than leaning on the caller to already hold it.
+            // rather than leaning on the caller to already hold it. Production
+            // code, so the non-pinning door (see `_test_guard` above).
             #[cfg(test)]
-            let _g = crate::testlock::serial();
+            let _g = crate::testlock::serial_nopin();
             crate::about::set_open(true);
         }
         // OPEN the summoned Lifetime stats card (the personal odometer). Stays
@@ -840,9 +853,9 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         // `app/input/mouse.rs`). Render-only (no buffer change). See `lifetime.rs`.
         Action::LifetimeStats => {
             // Reentrant no-op under the same whole-function `_test_guard` above —
-            // see the comment on the `Action::About` arm.
+            // see the comment on the `Action::About` arm (same non-pinning door).
             #[cfg(test)]
-            let _g = crate::testlock::serial();
+            let _g = crate::testlock::serial_nopin();
             crate::lifetime::set_open(true);
         }
         // OPEN the summoned Writing streaks card (the year-calendar heatmap). Stays
@@ -851,7 +864,7 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         // Render-only (no buffer change). See `streaks.rs`.
         Action::WritingStreaks => {
             #[cfg(test)]
-            let _g = crate::testlock::serial();
+            let _g = crate::testlock::serial_nopin();
             crate::streaks::set_open(true);
         }
         // Toggle the active buffer's line-ending discipline (LF <-> CRLF). The rope
