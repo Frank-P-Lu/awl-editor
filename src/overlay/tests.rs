@@ -2394,3 +2394,44 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
     ov.set_selected_range(0, "nope".into());
     assert_eq!(ov.item_bindings()[0], cell0);
 }
+
+/// THE FOOT LINE FOLLOWS THE SELECTION, and its wording is pinned here. On a rail
+/// row the `←/→` cell reads `adjust` (what the keys do there); one row up or down it
+/// is back to `lens` (what they do everywhere else). The rest of the line — the
+/// universal lead, `↵ edit`, `esc close` — is character-identical between the two, so
+/// the variant can only ever differ in the cell it is meant to differ in. (The
+/// keys-vs-hint OUTCOME sweep, driven through the real core, is
+/// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)
+#[test]
+fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
+    let _g = crate::testlock::serial();
+    let mut ov = settings_with_rails(1.0);
+    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+
+    ov.selected = zi;
+    assert_eq!(
+        ov.foot_hint(),
+        "type to filter   \u{21B5} edit   \u{2190}/\u{2192} adjust   esc close",
+        "the Zoom row advertises the step, not the lens"
+    );
+    // The neighbours (a non-rail row either side) keep the kind's own line.
+    for other in [zi.saturating_sub(1), (zi + 1).min(ov.items.len() - 1)] {
+        if other == zi {
+            continue;
+        }
+        ov.selected = other;
+        assert_eq!(ov.foot_hint(), OverlayKind::Settings.hint(), "row {other} keeps the lens line");
+    }
+    // The two variants differ in EXACTLY the ←/→ cell.
+    let plain_line = OverlayKind::Settings.hint();
+    let ranged_line = OverlayKind::Settings.range_row_hint();
+    let plain: Vec<&str> = plain_line.split(HINT_SEP).collect();
+    let ranged: Vec<&str> = ranged_line.split(HINT_SEP).collect();
+    assert_eq!(plain.len(), ranged.len(), "the range variant adds no cells");
+    for (a, b) in plain.iter().zip(&ranged) {
+        if a != b {
+            assert_eq!(*a, "\u{2190}/\u{2192} lens");
+            assert_eq!(*b, "\u{2190}/\u{2192} adjust");
+        }
+    }
+}

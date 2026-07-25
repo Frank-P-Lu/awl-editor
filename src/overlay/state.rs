@@ -826,6 +826,15 @@ impl OverlayState {
                 super::HintAction { glyph: "tab", label: "back" },
             ]);
         }
+        // ITEM 94 — RANGE ROW: the highlighted row carries a RAIL, so ←/→ step its
+        // VALUE instead of cycling the lens. Gated on `selected_range()` — the exact
+        // predicate `actions::overlay_nav`'s ForwardChar/BackwardChar arms consult
+        // before claiming the keys, so what the foot line advertises and what the keys
+        // do are the same decision, made once. (The hint follows the SELECTION, so
+        // arrowing onto and off the Zoom row re-writes the line as the user moves.)
+        if self.selected_range().is_some() {
+            return self.kind.range_row_hint();
+        }
         self.kind.hint()
     }
 

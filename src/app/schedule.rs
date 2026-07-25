@@ -194,22 +194,20 @@ impl App {
         // so a rapid Cmd-=/Cmd-- run writes the final value once (not one-per-step).
         // Each new zoom step RE-STAMPS `zoom_persist_at` (via `mark_zoom_dirty`), so the
         // deadline keeps sliding forward until the user pauses — the debounce contract.
-        if let Some(dirty) = self.zoom_persist_at {
+        //
+        // THE QUIET WINDOW IS AN INFERENCE, and `zoom_persist_held` is the ONE gate that
+        // says when it may run (see its doc): a gesture that owns an explicit END — the
+        // Settings rail's button release — pays its own single write there, and must not
+        // have a mid-gesture value written out from under it just because the user paused
+        // to read the number. While held this branch is entirely inert: no write, and no
+        // `WaitUntil` either (nothing is waiting to fire), so the loop still falls quiet.
+        if let Some(dirty) = self.zoom_persist_at.filter(|_| !self.zoom_persist_held()) {
             match debounce_due(dirty, ZOOM_PERSIST_DEBOUNCE, self.clock.now()) {
-                true => {
-                    self.zoom_persist_at = None;
-                    self.persist_zoom_now();
-                    // The gesture settled: clear the floating zoom readout (armed per
-                    // step in `mark_zoom_dirty`), parking its label off-screen again.
-                    // Fire like the sibling debounces above: request a redraw so the
-                    // RedrawRequested handler re-decides control flow (Wait when settled),
-                    // instead of leaving it at this now-elapsed WaitUntil — which would
-                    // busy-spin the loop at ~100% CPU until the next input (DESIGN §6).
-                    if let Some(gpu) = self.gpu.as_mut() {
-                        gpu.pipeline.set_zoom_readout(None);
-                        gpu.window.request_redraw();
-                    }
-                }
+                // The quiet window elapsed with no gesture owning the end: THIS is the
+                // end. Settle through the one owner (`settle_zoom_persist` — write,
+                // disarm, drop the floating readout, redraw the settled frame), the
+                // exact call the rail's release makes, so the two doors cannot drift.
+                true => self.settle_zoom_persist(),
                 false if self.last_frame.is_none() => {
                     event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
                 }

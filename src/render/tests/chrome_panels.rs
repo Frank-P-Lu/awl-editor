@@ -1803,10 +1803,13 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
 #[test]
 fn jump_hint_is_present_and_never_clips_for_every_kind() {
     use crate::overlay::OverlayKind;
-    // (1) PRESENT — no adapter needed: every kind's foot hint teaches the jump.
+    // (1) PRESENT — no adapter needed: every kind's foot hint teaches the jump. Both
+    // VARIANTS of the line are swept: the ordinary one and item 94's RANGE-ROW one
+    // (`←/→ adjust`), which is a genuinely wider string and therefore its own clip risk.
     for k in OverlayKind::ALL {
-        let h = k.hint();
-        assert!(h.contains("type to filter"), "{k:?} hint must teach type-to-filter: {h:?}");
+        for h in [k.hint(), k.range_row_hint()] {
+            assert!(h.contains("type to filter"), "{k:?} hint must teach type-to-filter: {h:?}");
+        }
     }
     // (2) IN-BOUNDS — the shaped footer fits the flat card at the default zoom.
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
@@ -1818,23 +1821,31 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
     for world in ["Tawny", "Mopoke", "Wagtail"] {
         theme::set_active_by_name(world).unwrap();
         for k in OverlayKind::ALL {
-            let mut v = view("hello\n", 0, 0);
-            v.overlay_active = true;
-            v.zoom = 0.8; // the config-default render zoom (what `--screenshot` uses)
-            v.overlay_items = vec!["Alpha".into(), "Beta".into(), "Gamma".into()];
-            v.overlay_selected = 0;
-            // The REAL per-kind hint (universal lead + kind actions). FLAT card (no
-            // lens strip) = the narrowest card, the worst clip budget.
-            v.overlay_hint = k.hint();
-            p.set_view(&v);
-            p.prepare(&device, &queue, width, 800).unwrap();
-            let _ = pixeldiff::render_frame(&mut p, &device, &queue, width, 800);
-            let (footer_px, text_w) = p.overlay_footer_fit_probe(width);
-            assert!(footer_px > 1.0, "{world}/{k:?}: the footer hint actually shaped glyphs");
-            assert!(
-                footer_px <= text_w,
-                "{world}/{k:?}: footer {footer_px:.1}px must fit the flat card text {text_w:.1}px (no clip)"
-            );
+            // BOTH variants of the real line: the ordinary one, and item 94's
+            // range-row one (its `adjust` cell is two glyphs wider than `lens`, so it
+            // gets its own measured budget rather than riding the other's).
+            for (variant, hint) in [("plain", k.hint()), ("range-row", k.range_row_hint())] {
+                let mut v = view("hello\n", 0, 0);
+                v.overlay_active = true;
+                v.zoom = 0.8; // the config-default render zoom (what `--screenshot` uses)
+                v.overlay_items = vec!["Alpha".into(), "Beta".into(), "Gamma".into()];
+                v.overlay_selected = 0;
+                // The REAL per-kind hint (universal lead + kind actions). FLAT card (no
+                // lens strip) = the narrowest card, the worst clip budget.
+                v.overlay_hint = hint;
+                p.set_view(&v);
+                p.prepare(&device, &queue, width, 800).unwrap();
+                let _ = pixeldiff::render_frame(&mut p, &device, &queue, width, 800);
+                let (footer_px, text_w) = p.overlay_footer_fit_probe(width);
+                assert!(
+                    footer_px > 1.0,
+                    "{world}/{k:?}/{variant}: the footer hint actually shaped glyphs"
+                );
+                assert!(
+                    footer_px <= text_w,
+                    "{world}/{k:?}/{variant}: footer {footer_px:.1}px must fit the flat card text {text_w:.1}px (no clip)"
+                );
+            }
         }
     }
     theme::set_active(theme::DEFAULT_THEME);

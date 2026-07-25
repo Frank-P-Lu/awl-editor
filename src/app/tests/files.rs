@@ -1596,6 +1596,129 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     assert_eq!(app.config.zoom, Some(settled), "the in-memory config mirrors the write");
 }
 
+/// THE PAUSED SCRUB — the same accounting rule, but with REAL TIME PASSING inside
+/// the gesture. The test above never advances the clock, so it only ever proved the
+/// UNINTERRUPTED case; this one drives the actual `about_to_wait` scheduling body
+/// under a [`crate::clock::VirtualClock`] (the which-key frame-loop pattern) while
+/// the pointer is held STILL for several times the sticky-zoom debounce window —
+/// an entirely ordinary "pause to look at the number" gesture.
+///
+/// The class it closes: the live apply goes through `set_zoom` -> `mark_zoom_dirty`,
+/// which arms the SAME quiet-window debounce ⌘±/⌘-wheel use, and that debounce infers
+/// "the gesture ended" from silence. A held-still drag IS silence, so before
+/// `App::zoom_persist_held` gated it, half a second of pausing wrote the mid-gesture
+/// value to config — a value the user never released on. Nothing may be written until
+/// the button comes up, and then exactly once, with the released value.
+#[test]
+fn a_paused_mid_drag_persists_nothing_until_the_release() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new();
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g = crate::testlock::serial();
+    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let mut app = app_on(None, "/proj", cfg);
+    // VIRTUAL TIME: the App's own clock, so `about_to_wait_impl` sees the pause as a
+    // live idle loop would — deterministically, with no sleeping.
+    let clock = crate::clock::VirtualClock::new();
+    app.set_clock(Box::new(clock.clone()));
+
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    app.zoom = spec.default;
+    let (ov, zi) = settings_overlay_with_rail(&app);
+    app.overlay = Some(ov);
+    let (x0, x1) = (100.0f32, 300.0f32);
+    app.range_drag = Some(crate::app::input::RangeDrag {
+        id: crate::settings::SettingId::Zoom,
+        item: zi,
+        x0,
+        x1,
+    });
+    let config_text = |mem: &InMemoryFs| -> String {
+        mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default()
+    };
+    // The LIVE `zoom = …` lines actually in the file (the commented template lines the
+    // config writer emits are not settings) — the compact oracle every step below reads.
+    let zoom_lines = |mem: &InMemoryFs| -> Vec<String> {
+        config_text(mem)
+            .lines()
+            .filter(|l| l.trim_start().starts_with("zoom"))
+            .map(|l| l.trim().to_string())
+            .collect()
+    };
+
+    // PRESS + a first move to a low value the user will NOT release on.
+    app.cursor_px = (x0 + (x1 - x0) * 0.15, 0.0);
+    app.on_range_drag();
+    let paused = app.zoom;
+    assert_ne!(paused, spec.default, "the scrub genuinely moved off the default");
+    assert!(
+        app.zoom_persist_at.is_some(),
+        "the live apply still ARMS the in-flight stamp (the zoom gesture is live — the \
+         hold-⌘ peek suppression reads exactly this); it is the WRITE that is held"
+    );
+
+    // NOW THE USER PAUSES, pointer down, for 4x the debounce window — stepping the
+    // REAL scheduling body once per 100ms frame, exactly as an idle winit loop does.
+    let win_ms = ZOOM_PERSIST_DEBOUNCE.as_millis() as u64;
+    let sched = RecordingScheduler::new();
+    let mut wakes = Vec::new();
+    for frame in 1..=(win_ms * 4 / 100) {
+        clock.advance_ms(100);
+        sched.begin_step();
+        app.step_scheduling(&sched);
+        let t = frame * 100;
+        assert_eq!(
+            zoom_lines(&mem),
+            Vec::<String>::new(),
+            "t={t}ms into a held pause (debounce window {win_ms}ms): a mid-gesture value \
+             must NEVER reach the config — only the release writes"
+        );
+        assert_eq!(app.zoom.to_bits(), paused.to_bits(), "t={t}ms: the value itself is untouched");
+        assert!(app.range_drag.is_some(), "t={t}ms: the gesture is still in flight");
+        wakes.push((t, sched.scheduled_this_step()));
+    }
+    // HELD MEANS INERT: no write AND no wake armed — the loop still falls quiet
+    // (DESIGN §6), rather than spinning on a deadline it will never honour.
+    assert!(
+        wakes.iter().all(|(_, cf)| cf.is_none()),
+        "a held debounce must arm no WaitUntil: {wakes:?}"
+    );
+
+    // The pause ends: the user drags on to a genuinely different value and releases.
+    app.cursor_px = (x0 + (x1 - x0) * 0.95, 0.0);
+    app.on_range_drag();
+    let settled = app.zoom;
+    assert_ne!(settled.to_bits(), paused.to_bits(), "the release value differs from the paused one");
+    assert_eq!(
+        zoom_lines(&mem),
+        Vec::<String>::new(),
+        "still nothing written before the button comes up"
+    );
+    app.end_range_drag();
+
+    // EXACTLY ONE write, of the RELEASED value — never the paused one.
+    assert_eq!(
+        zoom_lines(&mem),
+        vec![format!("zoom = {}", spec.persist_value(settled))],
+        "the whole paused gesture writes ONE line, and it is the RELEASED value \
+         (the paused one would have been `zoom = {}`)",
+        spec.persist_value(paused)
+    );
+    let written = config_text(&mem);
+
+    // …and nothing trails behind it: quiet time after the release adds no second write.
+    for _ in 0..(win_ms * 2 / 100) {
+        clock.advance_ms(100);
+        sched.begin_step();
+        app.step_scheduling(&sched);
+    }
+    assert_eq!(
+        config_text(&mem),
+        written,
+        "the settled release leaves no debounced write trailing behind it"
+    );
+}
+
 /// THE KEYBOARD'S OWN PERSISTENCE PATH is the DISCRETE one: each authored step
 /// writes once, immediately (the same "write on every discrete commit" rule a
 /// Toggle follows) — no debounce left pending afterwards.

@@ -473,7 +473,7 @@ impl OverlayKind {
             // dir), ←/→ switch the lens, ⌫ ascends a level — matching Browse.
             OverlayKind::Project => vec![
                 enter("select"),
-                key("\u{2190}/\u{2192}", "lens"),
+                key(ARROWS_LR, "lens"),
                 key("\u{232B}", "up"),
             ],
             // Select context: ↵ MOVES the note into the folder; → descends, ← ascends.
@@ -486,11 +486,11 @@ impl OverlayKind {
             // ←/→ switch the lens, ⌫ ascends a level.
             OverlayKind::Browse => vec![
                 enter("open"),
-                key("\u{2190}/\u{2192}", "lens"),
+                key(ARROWS_LR, "lens"),
                 key("\u{232B}", "up"),
             ],
             // Go-to is a FACETED flat picker: ↵ opens, ←/→ switch the lens.
-            OverlayKind::Goto => vec![enter("open"), key("\u{2190}/\u{2192}", "lens")],
+            OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens")],
             // The flat theme picker: ↵ keeps, esc reverts to the opening theme. (↑/↓
             // moves the world with live preview — taught by the shared universal
             // `↑/↓ move` lead, so it is not repeated here.) The runtime lens strip was
@@ -509,7 +509,7 @@ impl OverlayKind {
             OverlayKind::Date => vec![enter("apply")],
             // The faceted command palette: ↵ runs, ←/→ switch the lens (All / File /
             // Edit / View / Recent).
-            OverlayKind::Command => vec![enter("run"), key("\u{2190}/\u{2192}", "lens")],
+            OverlayKind::Command => vec![enter("run"), key(ARROWS_LR, "lens")],
             OverlayKind::Spell => vec![enter("replace")],
             // The rebind menu: ↵ starts a capture, del resets the highlighted command,
             // esc closes. (In a capture the prompt teaches Key/Chord/Enter/Esc.)
@@ -531,14 +531,14 @@ impl OverlayKind {
             OverlayKind::History => vec![
                 enter("restore"),
                 key("tab", "diff"),
-                key("\u{2190}/\u{2192}", "lens"),
+                key(ARROWS_LR, "lens"),
             ],
             // The faceted settings menu: ↵ edits the highlighted setting (toggle /
             // open a sub-picker — wired next phase), ←/→ switch the category lens,
             // esc closes.
             OverlayKind::Settings => vec![
                 enter("edit"),
-                key("\u{2190}/\u{2192}", "lens"),
+                key(ARROWS_LR, "lens"),
                 key("esc", "close"),
             ],
             // The asset cleaner: ↵ TRASHES the highlighted orphan (recoverable; the
@@ -568,6 +568,34 @@ impl OverlayKind {
     /// cancel order). Rendered + surfaced to the sidecar so it stays agent-verifiable.
     pub fn hint(self) -> String {
         format_hint(&self.hint_actions())
+    }
+
+    /// ITEM 94 — the RANGE-ROW variant of this kind's foot line: the same line, with the
+    /// `←/→` cell RELABELLED from what the kind does by default (cycle the lens) to what
+    /// a rail row actually does with those keys — step the VALUE.
+    ///
+    /// Not cosmetic. The card's footer is the only place awl states what a key will do,
+    /// and there is no accessibility tree behind it to fall back on (ACCESSIBILITY.md:
+    /// the GPU-drawn surface has no screen-reader story yet), so a keyboard-only user
+    /// reading "←/→ lens" on the Zoom row and pressing Right to change category instead
+    /// silently changed — and persisted — their zoom. The footer must describe the keys
+    /// this ROW has, not the keys its KIND usually has.
+    ///
+    /// Derived from [`Self::hint_actions`] rather than written out, so the rest of the
+    /// line (the universal lead, `↵`, `esc`) can never drift from the ordinary variant,
+    /// and a kind with no `←/→` cell to relabel simply GAINS one. Routed through the
+    /// same [`format_hint`] shape owner as every other foot line.
+    ///
+    /// The gate that selects it is [`crate::overlay::OverlayState::selected_range`] —
+    /// the SAME predicate `actions::overlay_nav`'s Left/Right arms check before claiming
+    /// the keys, so the advertised keys and the live keys cannot disagree.
+    pub fn range_row_hint(self) -> String {
+        let mut actions = self.hint_actions();
+        match actions.iter_mut().find(|a| a.glyph == ARROWS_LR) {
+            Some(cell) => cell.label = RANGE_LR_LABEL,
+            None => actions.push(HintAction { glyph: ARROWS_LR, label: RANGE_LR_LABEL }),
+        }
+        format_hint(&actions)
     }
 
     /// The calm line a picker shows when its CORPUS is empty (nothing to list at
@@ -773,6 +801,17 @@ pub struct HintAction {
 /// The ONE separator between hint actions — a calm triple space, shared by every
 /// picker so the foot line never reads unevenly spaced.
 pub const HINT_SEP: &str = "   ";
+
+/// The LEFT/RIGHT key-pair glyph, the one hint vocabulary entry every horizontal-axis
+/// cell shares (the faceting lens on five pickers, a range row's value step on the
+/// sixth). One const so a relabelling variant ([`OverlayKind::range_row_hint`]) can
+/// FIND the cell it must rewrite instead of matching a re-typed string literal.
+pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
+
+/// What LEFT/RIGHT do on a row that carries a RAIL: move the value by one authored
+/// step. One calm word in the foot line's existing voice (`lens` / `open` / `up`),
+/// standing in for `lens` on exactly those rows.
+pub const RANGE_LR_LABEL: &str = "adjust";
 
 /// THE CONSCIOUS MARK's picker label: the calm, dim tag a KEPT (pinned) history
 /// version wears in the timeline's faint secondary column (see

@@ -848,6 +848,18 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
             .unwrap();
     let o = &j["overlay"];
     assert_eq!(o["mode"], serde_json::json!("settings"));
+    // …and the CARD'S OWN FOOT LINE, through the same `foot_hint` seam the live card
+    // draws, advertises what ←/→ just did here — step the value, NOT cycle the lens.
+    // The footer is awl's only statement of what a key does and there is no
+    // accessibility tree behind it (ACCESSIBILITY.md), so this is agent-verifiable on
+    // the sidecar rather than only in the pixels.
+    assert_eq!(
+        o["hint"],
+        serde_json::json!(crate::overlay::OverlayKind::Settings.range_row_hint()),
+        "a selected rail row must advertise its own ←/→ meaning: {:?}",
+        o["hint"]
+    );
+    assert_eq!(o["lens_strip"][0][1], serde_json::json!(true), "the lens did NOT move");
 
     let items: Vec<String> =
         o["items"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();

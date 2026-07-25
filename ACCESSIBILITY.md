@@ -14,6 +14,17 @@ this one sits alongside.
   advertised layer, a quiet Emacs second slot) means the whole editor — open,
   edit, save, search, format, switch project, rebind keys, everything — is
   operable without ever touching a pointing device.
+- **The picker footer names the keys THIS row has.** Every summoned card
+  carries one dim line of control hints, and because there is no
+  accessibility tree behind the surface (see the gap below), that line is the
+  only statement awl makes about what a key will do. So it is per-ROW wherever
+  a row's keys differ from its picker's default: on a Settings row with a
+  value rail (Zoom), where Left/Right step the value instead of switching
+  category, the line reads `←/→ adjust` rather than `←/→ lens`. The rule is
+  law-tested as an outcome — the key is driven for real on every Settings row
+  and the hint must have named what happened — because a footer that says the
+  wrong thing is worse than no footer: it invites a keyboard-only user to
+  change a setting they were only trying to navigate past.
 - **Zoom.** Cmd-=/Cmd–/Cmd-0 (and the Settings "Zoom" row) scale the whole
   document glyph-for-glyph, independent of the page column measure.
 - **14 curated theme worlds, each contrast-law-tested.** Every world's ink

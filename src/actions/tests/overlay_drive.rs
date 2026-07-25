@@ -1162,3 +1162,71 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
         assert_eq!(after.id, row.id, "{}: the cell keeps its identity", row.name);
     }
 }
+
+/// ACCESSIBILITY LAW — THE FOOT LINE MUST NAME THE KEYS THIS ROW HAS. Item 94 gave
+/// Left/Right a SECOND meaning on Settings rows that carry a rail (step the value)
+/// while the card's footer kept advertising the kind's default one (switch the lens).
+/// awl has no screen-reader tree behind that surface (ACCESSIBILITY.md), so the foot
+/// line IS the affordance map: a keyboard-only user who read "←/→ lens" on the Zoom
+/// row and pressed Right to change category silently changed — and persisted — their
+/// zoom instead.
+///
+/// The law is an OUTCOME sweep over EVERY visible Settings row, never a string check
+/// on one: select the row, read the foot line, then drive the REAL `ForwardChar`
+/// through `apply_core` and see what actually happened. Whichever of the two things
+/// the key did, the line must have said so beforehand — and exactly one of them may
+/// happen. A future range row, or a row that gains a rail, is swept in automatically.
+#[test]
+fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
+    let _g = crate::testlock::serial();
+    let rows = settings_overlay().items.len();
+    assert!(rows > 1, "the Settings corpus must have rows to sweep");
+    let mut rails = 0usize;
+    for i in 0..rows {
+        // A FRESH overlay per row: a lens cycle regroups the list, so each row is
+        // judged from the same clean start rather than from the last row's aftermath.
+        let mut overlay = Some(settings_overlay());
+        for _ in 0..i {
+            settings_drive(&mut overlay, &Action::NextLine);
+        }
+        let ov = overlay.as_ref().unwrap();
+        let name = ov.selected_value().unwrap_or("").to_string();
+        let hint = ov.foot_hint();
+        let lens_before = ov.facet_lens;
+        // The exact cell the footer devotes to the ←/→ axis, whatever it says.
+        let advertised = hint
+            .split(crate::overlay::HINT_SEP)
+            .find(|cell| cell.starts_with(crate::overlay::ARROWS_LR))
+            .unwrap_or_else(|| panic!("{name}: the foot line must carry a ←/→ cell: {hint:?}"))
+            .to_string();
+
+        let mut zoom = 1.0f32;
+        let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
+        let stepped_value = matches!(eff, Effect::SettingRangeStep { .. });
+        let cycled_lens = overlay.as_ref().unwrap().facet_lens != lens_before;
+        assert!(
+            stepped_value ^ cycled_lens,
+            "{name}: RIGHT must do exactly one of step-the-value / cycle-the-lens \
+             (stepped={stepped_value}, cycled={cycled_lens})"
+        );
+        match stepped_value {
+            true => {
+                rails += 1;
+                assert_eq!(
+                    advertised,
+                    format!("{} {}", crate::overlay::ARROWS_LR, crate::overlay::RANGE_LR_LABEL),
+                    "{name}: RIGHT stepped the value, so the foot line must have said so \
+                     (it said {advertised:?}) — full line: {hint:?}"
+                );
+                assert_ne!(zoom, 1.0, "{name}: the step genuinely moved the live value");
+            }
+            false => assert_eq!(
+                advertised,
+                format!("{} lens", crate::overlay::ARROWS_LR),
+                "{name}: RIGHT cycled the lens, so the foot line must still say lens \
+                 (it said {advertised:?}) — full line: {hint:?}"
+            ),
+        }
+    }
+    assert!(rails > 0, "the sweep must have crossed at least one rail row (Zoom)");
+}
