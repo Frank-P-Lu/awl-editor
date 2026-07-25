@@ -441,20 +441,26 @@ impl CaretMode {
 static MODE_OVERRIDE: AtomicU8 = AtomicU8::new(0);
 
 
-/// True when `family` is one of the bundled MONOSPACE faces. Three of the
-/// fourteen worlds' display faces are mono — "IBM Plex Mono" (Tawny), "JetBrains
-/// Mono" (Currawong, Mangrove), "Monaspace Xenon" (Potoroo) — and the same three
-/// are every world's code-buffer companion (`Theme::mono`); every other face is
-/// proportional ("iA Writer Quattro S" included — a quattro, NOT a mono). Block
-/// is the better default on mono (a fixed cell never obscures a glyph), Morph on
-/// proportional (where a block would hide a thin "l").
+/// True when `family` is a bundled MONOSPACE display face. Block is the better
+/// default on mono (a fixed cell never obscures a glyph), Morph on proportional
+/// (where a block would hide a thin "l"); the block caret's uniform cell grid and
+/// the item-91 ink box fork on this same answer
+/// (`render::caret::caret_anchor_ink_box`).
 ///
-/// (Historically this listed only IBM Plex Mono — then the only mono face — so
-/// when Potoroo moved to Monaspace Xenon and the JetBrains Mono worlds landed,
-/// those worlds silently lost their Block default and the block caret's mono
-/// cell floor. Keep this list in sync with theme/worlds.rs's mono faces.)
+/// MEASURED, NOT NAMED (queue item 97). This delegates to
+/// [`crate::render::facepitch::family_is_mono`], which reads each bundled face's
+/// OWN advance widths through cosmic-text's font stack. It used to be a literal
+/// three-name match, and a literal list is exactly the wrong mechanism for a
+/// membership question: it silently lost Monaspace Xenon and JetBrains Mono once
+/// (Potoroo/Mangrove regressed to Morph and lost the mono cell floor), and it
+/// never had Iosevka at all — so Currawong and Cassowary, two genuinely
+/// fixed-pitch worlds, drew a caret that hugged each glyph's ink instead of
+/// holding the grid. Derivation ends that class: a mono face bundled tomorrow is
+/// mono here on the day it ships, and `FONT_THEME_FACES`'s per-face `Pitch`
+/// declaration plus `render::tests::facepitch` make an unregistered one fail the
+/// suite rather than change the caret quietly. See `render/facepitch.rs`.
 pub fn font_is_mono(family: &str) -> bool {
-    matches!(family, "IBM Plex Mono" | "JetBrains Mono" | "Monaspace Xenon")
+    crate::render::facepitch::family_is_mono(family)
 }
 
 /// The font-derived DEFAULT caret mode for the active theme: Block on mono,

@@ -10,15 +10,47 @@ fn font_mono_detection() {
     // ALL the bundled mono faces (display faces AND the code companions in
     // theme/worlds.rs) are detected — Potoroo/Currawong/Mangrove regressed to Morph
     // defaults (and lost the block's mono cell floor) when this listed only
-    // IBM Plex Mono.
+    // IBM Plex Mono, and Currawong/Cassowary lost the uniform caret grid again
+    // (item 97) while it listed only the three below.
     assert!(font_is_mono("IBM Plex Mono"));
     assert!(font_is_mono("JetBrains Mono"));
     assert!(font_is_mono("Monaspace Xenon"));
+    assert!(font_is_mono("Iosevka"));
     // The proportional faces stay proportional — iA Writer Quattro S is a
     // quattro (near-mono spacing but NOT a fixed grid), not a mono.
     assert!(!font_is_mono("Literata"));
     assert!(!font_is_mono("Newsreader 16pt 16pt"));
     assert!(!font_is_mono("iA Writer Quattro S"));
+    // The predicate is no longer a name list to keep in sync: it reads each
+    // bundled face's own advance widths (`render::facepitch`), and the roster
+    // sweep that makes a new face fail rather than be forgotten lives in
+    // `render::tests::facepitch`. These spot-checks stay as the readable
+    // statement of the rule.
+}
+
+/// The FONT-DERIVED default caret mode follows the measured pitch for every
+/// world: Block on a mono display, Morph on a proportional one. A no-wildcard
+/// sweep of `theme::THEMES` — a new world takes whichever default its face's own
+/// metrics earn it, and cannot land in neither camp.
+#[test]
+fn default_mode_follows_the_measured_pitch_in_every_world() {
+    let _t = crate::testlock::serial();
+    let restore = crate::theme::active_index();
+    for (i, t) in crate::theme::THEMES.iter().enumerate() {
+        crate::theme::set_active(i);
+        crate::caret::clear_override();
+        let expected =
+            if font_is_mono(t.font) { CaretMode::Block } else { CaretMode::Morph };
+        assert_eq!(
+            default_mode(),
+            expected,
+            "{} ({}): the auto caret mode must follow the face's measured pitch",
+            t.name,
+            t.font
+        );
+    }
+    crate::theme::set_active(restore);
+    crate::caret::clear_override();
 }
 
 #[test]

@@ -100,7 +100,9 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   card. The big file (still the largest in the tree).
   → `render/`: `caret`, `chrome` (status strip / HUD card / readout), `geometry`,
   `rowgeom` (per-row geometry table for variable heading heights), `spans`
-  (md/CJK/syntax/focus `AttrsList` layering), `text`, `focus`, `rects`, `layers`.
+  (md/CJK/syntax/focus `AttrsList` layering), `text`, `focus`, `rects`, `layers`,
+  `facepitch` (is a bundled family monospaced? — measured from each face's own
+  advance widths; the caret's mono/proportional fork reads it).
 - `caret.rs` — caret position + its springy motion/glide animation (the "streak"
   / motion work).
   → `caret/`: `spring`, `morph`, `juice`, `preview`, `pipeline`, `tests`.

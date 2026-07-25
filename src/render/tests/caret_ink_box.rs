@@ -240,6 +240,15 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
 /// non-dipper, and the ONLY variation is the descender extension dropping the
 /// BOTTOM for a real dipper — byte-identical to the pre-item-91 geometry, which
 /// applied that extension at the draw site.
+///
+/// ITEM 97 widened this from the hand-listed pair `["Tawny", "Mangrove"]` to a
+/// SWEEP over every mono-display world in the roster
+/// (`super::facepitch::mono_display_worlds`, derived from each face's own
+/// measured advance widths). The old pair is precisely how the bug hid: Currawong
+/// and Cassowary shape in Iosevka — a real fixed pitch the retired
+/// `font_is_mono` name list did not know — so they took the proportional ink-box
+/// arm and this law never looked. It now fails for any mono-faced world that
+/// loses the grid.
 #[test]
 fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
     let _t = crate::testlock::serial();
@@ -252,8 +261,9 @@ fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
     };
     let text = "lamgy";
 
-    // Both bundled mono families that a world uses as its DISPLAY face.
-    for world in ["Tawny", "Mangrove"] {
+    let worlds = super::facepitch::mono_display_worlds();
+    assert!(worlds.len() >= 7, "every mono-display world is swept, got {worlds:?}");
+    for world in worlds {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
 
@@ -300,6 +310,63 @@ fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
             );
         }
     }
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// THE OTHER HALF OF ITEM 97'S SWEEP: every PROPORTIONAL-display world still
+/// takes the ink-box arm, with a per-letter top — unchanged by the pitch
+/// predicate becoming a measurement.
+///
+/// The risk a widened `font_is_mono` carries is over-reach: a predicate that
+/// mistook a near-gridded face (iA Writer Quattro S is bundled and duospaced) for
+/// a mono would flip that world's caret from ink-hugging to a fixed cell, a
+/// silent look change in the opposite direction. This is the complement of
+/// `mono_world_caret_grid_stays_uniform_and_line_box_sized` over the SAME roster
+/// split, so between them every world in `theme::THEMES` is asserted to be in
+/// exactly the arm its face's own advance widths put it in.
+#[test]
+fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
+    let _t = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping proportional_worlds_still_ink_align_with_a_per_letter_top: no wgpu adapter");
+        return;
+    };
+    let text = "lamgy";
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        let mut tops: Vec<f32> = Vec::new();
+        for (col, ch) in text.chars().enumerate() {
+            p.set_view(&view(text, 0, col));
+            p.settle_caret();
+            assert!(
+                p.caret_anchor_ink_box().is_some(),
+                "{} ({}): a proportional world must ink-align ('{ch}')",
+                t.name,
+                t.font
+            );
+            let (cy, h) = p.caret_cell_vertical();
+            tops.push(cy - h * 0.5);
+        }
+        // An ASCENDER's ink starts higher than an x-height letter's, so the tops
+        // must genuinely differ — the property the mono arm deliberately lacks.
+        let spread = tops.iter().cloned().fold(f32::MIN, f32::max)
+            - tops.iter().cloned().fold(f32::MAX, f32::min);
+        assert!(
+            spread > 1.0,
+            "{} ({}): the ink-box top must move with the letter (spread {spread})",
+            t.name,
+            t.font
+        );
+        checked += 1;
+    }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
