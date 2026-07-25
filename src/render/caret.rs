@@ -59,6 +59,43 @@ pub(super) struct CaretLineGlyphs {
     clusters: Vec<(usize, usize, CacheKey)>,
 }
 
+/// ITEM 91 — the anchored glyph's FULL RASTER INK BOX, in px relative to the pen
+/// origin the caret's own geometry is built around: the caret's ONE description of
+/// "where this letter's ink actually is". Every field is a straight read of the
+/// swash [`cosmic_text::Placement`] the renderer rasterizes the glyph from, so the
+/// caret and the real glyph cannot disagree by construction.
+///
+/// * `left` / `width` — the HORIZONTAL box, px right of the pen x. Already the
+///   settled Block quad's width + x since the kerned-glyph round.
+/// * `top` / `height` — the VERTICAL box: `top` is px from the BASELINE UP to the
+///   raster top, `height` the raster's full height, so the box spans
+///   `[baseline - top, baseline - top + height]` and the depth BELOW the baseline
+///   is `height - top` ([`Self::descent`]). These were rasterized-and-discarded
+///   before item 91; the caret took its top from the generic line cell, which is
+///   why a caret on an x-height letter hung 8–9px of empty accent above the ink.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(super) struct InkBox {
+    /// Px from the pen x to the raster's LEFT edge (a kerned glyph's left bearing;
+    /// can be negative).
+    pub left: f32,
+    /// Px from the BASELINE UP to the raster's TOP edge (negative for a glyph whose
+    /// ink starts below the baseline).
+    pub top: f32,
+    /// Raster width in px.
+    pub width: f32,
+    /// Raster height in px.
+    pub height: f32,
+}
+
+impl InkBox {
+    /// Px the ink DIPS BELOW the baseline: `0` for a non-dipping glyph (`a`/`m`/`C`),
+    /// positive for a descender (`g`/`y`/`p`/`q`/`j`). Font-correct (measured off the
+    /// raster), never a hardcoded letter list.
+    pub fn descent(self) -> f32 {
+        (self.height - self.top).max(0.0)
+    }
+}
+
 impl TextPipeline {
     /// Populate [`Self::caret_line_glyphs`] with `line`'s shaped glyph clusters if the
     /// cached record is stale (a different line, or a newer shaped-geometry
@@ -301,10 +338,47 @@ impl TextPipeline {
         cluster_span_at(&line_text, &clusters, cur_byte)
     }
 
+    /// THE ONE RASTER READ on the caret path: the anchored glyph's full swash
+    /// placement box ([`InkBox`] — left/top/width/height, the whole box, not just
+    /// the horizontal half), or `None` when the anchor cell has no rasterizable ink
+    /// at all (end-of-line, an empty line, whitespace, an emoji, a zero-size mask).
+    /// UNGATED by caret policy: this is the raw measurement every vertical/horizontal
+    /// caret rule is derived from — the ink-box override ([`Self::caret_anchor_ink_box`],
+    /// which adds the mono / ligature policy gate) and the descender depth
+    /// ([`InkBox::descent`], which must keep working on a MONO world where the
+    /// override deliberately does not apply) both come off this one box.
+    ///
+    /// `pub(super)` so the sibling `--bench-caret` witness can time the real
+    /// per-frame raster read; NO render path may consume it directly — the cell
+    /// caret's vertical/horizontal geometry has exactly one owner
+    /// ([`Self::caret_cell_vertical`] / [`Self::caret_anchor_ink_box`]), and
+    /// `render::tests::caret_ink_box`'s grep-law fails if `layers.rs` reads a
+    /// raster box or a line-cell height of its own.
+    pub(super) fn caret_anchor_raster_box(&mut self) -> Option<InkBox> {
+        let key = self.cursor_glyph_key_at(self.cursor_line, self.caret_anchor_col())?;
+        let Self {
+            swash_cache,
+            font_system,
+            ..
+        } = self;
+        let img = swash_cache.get_image(font_system, key).as_ref()?;
+        if img.placement.width == 0 || img.placement.height == 0 {
+            return None;
+        }
+        Some(InkBox {
+            left: img.placement.left as f32,
+            top: img.placement.top as f32,
+            width: img.placement.width as f32,
+            height: img.placement.height as f32,
+        })
+    }
+
     /// The BLOCK caret's INK-ALIGNED box at the caret's ANCHOR cell this frame —
-    /// `(left, width)` in pixels relative to the cell's pen x
+    /// the anchored glyph's own [`InkBox`] in pixels relative to the cell's pen x
+    /// and the row's baseline
     /// ([`Self::caret_target_xy`]'s x — the SAME pen MORPH's masks position
-    /// against) — when the anchor col maps ONE-TO-ONE onto a single shaped
+    /// against — and [`Self::caret_baseline_y`]) — when the anchor col maps
+    /// ONE-TO-ONE onto a single shaped
     /// glyph on a PROPORTIONAL world: the glyph's own swash placement, exactly
     /// the box MORPH already recolours. This is the fix for the reported
     /// kerned-glyph misalignment (`block draws from the naive advance CELL,
@@ -328,7 +402,14 @@ impl TextPipeline {
     ///   * a GLYPHLESS anchor (whitespace / end-of-line / an empty line / a
     ///     zero-size mask): nothing to recolour — the space-bar / default-cell
     ///     fallback already handles it.
-    pub(super) fn caret_anchor_ink_box(&mut self) -> Option<(f32, f32)> {
+    ///
+    /// ITEM 91 widened the returned box from the horizontal `(left, width)` pair to
+    /// the FULL raster box, so the settled cell caret's TOP and BOTTOM come off the
+    /// same measurement its left and right already did. The three `None` cases above
+    /// are the ONE funnel for "no ink to size to", so the vertical rule inherits
+    /// every existing fallback (mono grid, ligature cell split, space bar,
+    /// end-of-line) unchanged — see [`Self::caret_cell_vertical`].
+    pub(super) fn caret_anchor_ink_box(&mut self) -> Option<InkBox> {
         if crate::caret::font_is_mono(self.shaped_font) {
             return None;
         }
@@ -337,17 +418,71 @@ impl TextPipeline {
         if self.cluster_char_span(line, col) != Some(1) {
             return None;
         }
-        let key = self.cursor_glyph_key_at(line, col)?;
-        let Self {
-            swash_cache,
-            font_system,
-            ..
-        } = self;
-        let img = swash_cache.get_image(font_system, key).as_ref()?;
-        if img.placement.width == 0 || img.placement.height == 0 {
-            return None;
+        self.caret_anchor_raster_box()
+    }
+
+    /// THE ONE OWNER of the CELL-form caret's VERTICAL extent: `(center_y, height)`
+    /// in absolute pixels for the caret's RESTING pose. Every caret that draws as a
+    /// CELL reads its top and bottom from here and nowhere else — the Block quad,
+    /// Morph's fast-travel / ink-caret-world fold to that quad
+    /// ([`Self::caret_geometry`]), and the glyphless SPACE BAR
+    /// ([`Self::caret_space_bar_geometry`]). The BAR forms deliberately do NOT:
+    /// the I-beam and Morph's line-start degrade span the LINE BOX by design
+    /// ([`Self::ibeam_bar_dims`] — an insertion bar marks a boundary between glyphs,
+    /// so it has no glyph of its own to hug).
+    ///
+    /// Two arms, gated by the ONE ink funnel ([`Self::caret_anchor_ink_box`]):
+    ///
+    /// * **INK BOX (item 91 — a proportional world, one glyph, real ink).** The
+    ///   caret spans the anchored glyph's own full raster box grown by
+    ///   [`CARET_INK_PAD`] top and bottom. This is the fix for the reported vertical
+    ///   misalignment: the line-cell arm below is a FIXED fraction of the row height
+    ///   (`CARET_BLOCK_H == CARET_H * 0.8`) centred on the line box, so its top sat
+    ///   at the same y for every letter while the ink's top moves with the letter —
+    ///   8–9px of empty accent above an `a`/`m`/`g`/`y`, ~3px above an `l`. Sizing to
+    ///   the box makes the margin a small letter-INDEPENDENT pad instead, and covers
+    ///   DESCENDERS through the very same box (`height - top` is already below the
+    ///   baseline, so `g`/`y` need no separate rule).
+    /// * **LINE CELL (mono / a ligature cluster / no ink).** The historical geometry,
+    ///   byte-identical: `caret_block_h` row-scaled, centred on the spring anchor,
+    ///   with the DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded
+    ///   in here rather than at the draw site — a mono world keeps its uniform grid
+    ///   (a fixed top, a bottom that drops only for a dipper) and a ligature keeps
+    ///   its fair cell split.
+    ///
+    /// The extension used to live in `layers.rs::prepare_caret_block`, applied to the
+    /// already motion-blended rect and re-scaled by the settle factor. Folding it
+    /// into the REST endpoint here is algebraically identical at rest (settle 1 — the
+    /// deterministic capture) and lets `motion_geometry` blend it out with everything
+    /// else mid-glide, so the travelling streak has exactly one thickness rule.
+    pub(super) fn caret_cell_vertical(&mut self) -> (f32, f32) {
+        let m = self.metrics;
+        // Pixel scale (zoom × dpi), the same factor `CARET_DESCENDER_PAD` rides.
+        let px = m.caret_h / CARET_H;
+        if let Some(ink) = self.caret_anchor_ink_box() {
+            let baseline = self.caret_baseline_y();
+            // Box spans [baseline - top, baseline - top + height]; pad both ends.
+            let cy = baseline - ink.top + ink.height * 0.5;
+            let h = ink.height + 2.0 * CARET_INK_PAD * px;
+            return (cy, h);
         }
-        Some((img.placement.left as f32, img.placement.width as f32))
+        // LINE-CELL arm: the generic row-scaled cell, plus the descender-aware BOTTOM
+        // drop so a dipping glyph stays inside the block on a mono / ligature anchor.
+        let cy = self.caret.pos.y;
+        let h = m.caret_block_h * self.cursor_scale();
+        let descender = self
+            .caret_anchor_raster_box()
+            .map(|b| b.descent())
+            .unwrap_or(0.0);
+        if descender <= 0.0 {
+            return (cy, h);
+        }
+        // Pad a dipping glyph's descender a hair so its antialiased ink edge stays
+        // inside the block; non-dippers (handled above) are untouched.
+        let desc_bottom = self.caret_baseline_y() + descender + CARET_DESCENDER_PAD * px;
+        let extend = (desc_bottom - (cy + h * 0.5)).max(0.0);
+        // `h += extend; cy += extend/2` drops the bottom while the top is invariant.
+        (cy + extend * 0.5, h + extend)
     }
 
     /// The [`CacheKey`] of the glyph the caret's ANCHOR cell INHABITS right now,
@@ -373,31 +508,6 @@ impl TextPipeline {
             return None;
         }
         self.cursor_glyph_key_at(self.cursor_line, self.caret_anchor_col())
-    }
-
-    /// Pixels the ANCHORED glyph's real rasterized ink DIPS BELOW the baseline
-    /// (the cursor glyph in Block/I-beam; Morph's anchor one char back) — the
-    /// font-correct descender depth measured from the glyph's swash placement box
-    /// (NOT a hardcoded letter list), so it is right across all 11 worlds' faces.
-    /// `placement.top` is the px from the baseline UP to the raster top; the raster
-    /// bottom is `top - height`, so the depth below the baseline is
-    /// `(height - top).max(0)`: 0 for non-dipping glyphs (`a`/`m`/`C`), positive for
-    /// descenders (`g`/`y`/`p`/`q`/`j`). Used by the BLOCK caret to drop ONLY its
-    /// bottom edge so the reverse-video glyph's descender stays inside the block.
-    /// Returns 0 on a glyphless cell (end-of-line / space / empty line).
-    pub(super) fn cursor_glyph_descender(&mut self) -> f32 {
-        let Some(key) = self.cursor_glyph_key_at(self.cursor_line, self.caret_anchor_col()) else {
-            return 0.0;
-        };
-        let Self {
-            swash_cache,
-            font_system,
-            ..
-        } = self;
-        match swash_cache.get_image(font_system, key) {
-            Some(img) => (img.placement.height as i32 - img.placement.top).max(0) as f32,
-            None => 0.0,
-        }
     }
 
     /// Ensure `slot`'s cached mask matches `key`, rasterizing only when the key
@@ -629,23 +739,23 @@ impl TextPipeline {
     /// fast-motion deferral, and the I-beam.
     ///
     /// AT REST, when the anchor cell maps onto a single shaped glyph on a
-    /// proportional world, the resting square's width AND x are pulled onto that
-    /// glyph's own ink box ([`Self::caret_anchor_ink_box`]) rather than the naive
-    /// advance cell — see that method's doc for why (the kerned-glyph
-    /// misalignment fix). The ink x-shift is scaled by the settle factor `s`, so
-    /// it applies only to the settled quad; a travelling streak still leads from
-    /// the plain pen x, unaffected. `&mut self` because the glyph lookup rides the
-    /// swash raster cache (the same cost `cursor_glyph_descender` already pays
-    /// every Block frame).
+    /// proportional world, the resting square is pulled onto that glyph's own full
+    /// ink box ([`Self::caret_anchor_ink_box`]) rather than the naive advance cell —
+    /// its width AND x horizontally (the kerned-glyph misalignment fix), and its
+    /// height AND y vertically through the ONE vertical owner
+    /// ([`Self::caret_cell_vertical`], which also carries the descender and the
+    /// mono / ligature / glyphless line-cell fallback — item 91). BOTH ink
+    /// corrections are scaled by the settle factor `s`, so they apply only to the
+    /// settled quad; a travelling streak still leads from the plain pen x at the
+    /// plain line-box centre, unaffected. `&mut self` because the glyph lookup rides
+    /// the swash raster cache (the same cost the descender read already paid every
+    /// Block frame).
     pub(super) fn caret_geometry(&mut self) -> (f32, f32, f32, f32, f32, f32, f32) {
         let m = self.metrics;
         let s = self.caret.settle_factor();
 
         // --- Shape endpoints --------------------------------------------------
         let block_w = self.caret_block_w(); // real glyph advance (narrow i, wide m)
-        // Scale the resting block height to the cursor's row so it COVERS a big
-        // heading glyph (1.0 on body text -> byte-identical there).
-        let block_h = m.caret_block_h * self.cursor_scale();
         let streak_thin = m.caret_streak_h; // the streak's thin cross-dimension
         // Corner radius: small bar radius in motion, large soft radius at rest.
         let corner =
@@ -667,13 +777,20 @@ impl TextPipeline {
             m.caret_streak_max_len,
             m.caret_held_len,
         );
-        // Ink-aligned override of the rest endpoints (see the doc above): `None`
-        // leaves `block_w` and the shift untouched, so mono / ligature / glyphless
-        // anchors are byte-identical to before.
+        // Ink-aligned override of the HORIZONTAL rest endpoints (see the doc above):
+        // `None` leaves `block_w` and the shift untouched, so mono / ligature /
+        // glyphless anchors are byte-identical to before.
         let (block_w, ink_shift) = match self.caret_anchor_ink_box() {
-            Some((left, width)) => (width, left * s),
+            Some(ink) => (ink.width, ink.left * s),
             None => (block_w, 0.0),
         };
+        // VERTICAL rest endpoints from the ONE owner (item 91): the anchored glyph's
+        // padded ink box on a proportional world, else the row-scaled line cell with
+        // its descender-aware bottom. `motion_geometry` blends the height toward the
+        // thin streak by `s`, and the centre correction is itself scaled by `s`, so a
+        // travelling caret is unchanged and the settled quad is exact.
+        let (cell_cy, block_h) = self.caret_cell_vertical();
+        let ink_rise = (cell_cy - self.caret.pos.y) * s;
         let (center, half_along, half_across, axis) = self.caret.motion_geometry(
             block_w,
             block_h,
@@ -684,7 +801,7 @@ impl TextPipeline {
         );
         let center = Sample {
             x: center.x + ink_shift,
-            y: center.y,
+            y: center.y + ink_rise,
         };
         (
             center.x,
@@ -728,23 +845,25 @@ impl TextPipeline {
     /// the space gap exactly where the block would. It rides the spring anchor
     /// (`pos`) so it slides with the caret. Drawn through the BLOCK pipeline (a
     /// solid accent rounded rect), which is exactly the slim-bar look we want.
-    pub(super) fn caret_space_bar_geometry(&self) -> (f32, f32, f32, f32, f32) {
-        let m = &self.metrics;
-        let w = CARET_SPACE_BAR_W * m.zoom;
-        // ~the glyph cell height tall (the same box the resting block covers), so
-        // the bar reads as a line-tall thin caret on the empty cell. Row-scaled so a
-        // glyphless heading line gets a tall bar too (1.0 on body text -> unchanged).
-        let h = m.caret_block_h * self.cursor_scale();
+    pub(super) fn caret_space_bar_geometry(&mut self) -> (f32, f32, f32, f32, f32) {
+        let zoom = self.metrics.zoom;
+        let w = CARET_SPACE_BAR_W * zoom;
+        // VERTICALLY the same cell every other CELL-form caret takes — through the
+        // ONE owner ([`Self::caret_cell_vertical`]), never a private copy of the
+        // cell height. A glyphless anchor is exactly the owner's line-cell arm (the
+        // ink funnel returns `None` with no ink to size to), so the bar keeps its
+        // historical row-scaled `caret_block_h` on `pos.y` by construction — this is
+        // the "glyphless fallback survives item 91" seam, not a special case.
+        let (cy, h) = self.caret_cell_vertical();
         // CENTER the thin bar on the cell using the real advance, mirroring the
         // resting block's `pos.x + advance*0.5`. This lands it in the middle of the
         // space gap (not pinned to the left edge as before).
         let advance = self.caret_target_w();
         let cx = self.caret.pos.x + advance * 0.5;
-        let cy = self.caret.pos.y;
         // Same generous resting corner radius as the fat caret (so it reads as a
         // narrow version of the same rounded caret), clamped so a thin bar can't
         // over-round into a lozenge.
-        let corner = (CORNER_RADIUS * m.zoom).min(w * 0.5);
+        let corner = (CORNER_RADIUS * zoom).min(w * 0.5);
         (cx, cy, w, h, corner)
     }
 

@@ -190,9 +190,12 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
     let (_cell_x, cell_adv) = p.col_x_and_advance(0, 1);
 
     // The glyph's real ink box — the SAME swash lookup MORPH's silhouette reads.
-    let (ink_left, ink_w) = p
+    // (ITEM 91 widened this to the FULL raster box; the horizontal half asserted
+    // here is unchanged, and the vertical half has its own laws in `caret_ink_box`.)
+    let ink = p
         .caret_anchor_ink_box()
         .expect("a single 'w' glyph on a proportional world must yield an ink box");
+    let (ink_left, ink_w) = (ink.left, ink.width);
 
     // Fixture sanity: this glyph's ink really DOES diverge from its advance
     // cell (a nonzero left bearing and/or a width mismatch) — otherwise this
