@@ -104,6 +104,43 @@ active quota budget, not raw fan-out:
    user reserved) wait; everything else proceeds. "If you get stuck, do
    everything else before pausing to wait for my say" (user).
 
+## Dynamic harnesses inside queue items (user rule)
+
+**A queue item is the unit of outcome, not the unit of agency.** Keep each agent
+on one bounded role with a fresh context, but choose the item's internal
+workflow dynamically from its risk and the evidence it produces. The workflow
+owns branching, loops, barriers, and synthesis; one long generalist agent is
+not the default.
+
+Use the smallest shape that can establish the promised outcome:
+
+- **Routine, deterministic change:** one implementer, then an independent
+  verifier.
+- **Unknown root cause:** parallel competing hypotheses from disjoint evidence,
+  an evidence-based selector, the fix, then the standing neighborhood audit.
+- **State/ownership migration:** the qualifying Opus ownership map, focused
+  invariant/call-site probes, Sonnet implementation, then adversarial
+  verification against those invariants.
+- **Visual/taste round:** bounded candidate generation, real awl captures,
+  Fable selection against the decided rubric, implementer-applied verdict, then
+  Sonnet pixel/perf verification. Fable still never implements.
+- **Broad audit or open-ended hunt:** enumerate the cells, fan out bounded
+  probes, synthesize/dedupe, and repeat only until a stated stop condition
+  (green, no new findings, or no progress) is met.
+
+Dynamic does not mean unbounded. Default to fewer than five agents inside one
+item and retain the machine-wide ~3–4 active-workstream limit. Name a stop
+condition and token/repair budget before any loop or tournament; routine work
+does not earn speculative fan-out. Evidence may add a repair, re-verification,
+or merge specialist, but never silently expand product scope.
+
+The top-level orchestrator still exclusively owns `queue.md`, local-main
+integration, push trains, remote CI, and user gates. A workflow returns
+structured evidence and commits from its worktree; it never writes the board,
+merges or pushes main, or replaces durable queue/worktree state. Save a workflow
+script only after the same orchestration shape has proved genuinely reusable;
+per-task scripts are disposable, not repository cruft.
+
 ## Push trains and remote CI (user rule)
 
 Local gates protect a commit; remote CI protects `main`. Treat them as two
