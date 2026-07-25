@@ -1,0 +1,55 @@
+world           face                  preset   'l' legible down to
+Tawny           IBM Plex Mono         block    64px
+Tawny           IBM Plex Mono         pill     64px
+Tawny           IBM Plex Mono         narrow   64px
+Mopoke          Bitter                block    64px
+Mopoke          Bitter                pill     64px
+Mopoke          Bitter                narrow   64px
+Currawong       Iosevka               block    64px
+Currawong       Iosevka               pill     64px
+Currawong       Iosevka               narrow   128px
+Potoroo         Monaspace Xenon       block    32px
+Potoroo         Monaspace Xenon       pill     32px
+Potoroo         Monaspace Xenon       narrow   32px
+Gumtree         Literata              block    32px
+Gumtree         Literata              pill     32px
+Gumtree         Literata              narrow   32px
+Bilby           Newsreader 16pt 16pt  block    64px
+Bilby           Newsreader 16pt 16pt  pill     64px
+Bilby           Newsreader 16pt 16pt  narrow   128px
+Saltpan         Fraunces 9pt          block    32px
+Saltpan         Fraunces 9pt          pill     32px
+Saltpan         Fraunces 9pt          narrow   32px
+Quokka          Sour Gummy            block    64px
+Quokka          Sour Gummy            pill     64px
+Quokka          Sour Gummy            narrow   64px
+Bombora         EB Garamond           block    64px
+Bombora         EB Garamond           pill     64px
+Bombora         EB Garamond           narrow   64px
+Bowerbird       IBM Plex Sans         block    24px
+Bowerbird       IBM Plex Sans         pill     24px
+Bowerbird       IBM Plex Sans         narrow   24px
+Mulga           Zilla Slab            block    64px
+Mulga           Zilla Slab            pill     32px
+Mulga           Zilla Slab            narrow   64px
+Mangrove        JetBrains Mono        block    24px
+Mangrove        JetBrains Mono        pill     24px
+Mangrove        JetBrains Mono        narrow   24px
+Galah           Figtree               block    24px
+Galah           Figtree               pill     24px
+Galah           Figtree               narrow   24px
+Magpie          Bitter                block    64px
+Magpie          Bitter                pill     64px
+Magpie          Bitter                narrow   64px
+Brolga          IBM Plex Sans         block    24px
+Brolga          IBM Plex Sans         pill     24px
+Brolga          IBM Plex Sans         narrow   24px
+Wagtail         JetBrains Mono        block    24px
+Wagtail         JetBrains Mono        pill     24px
+Wagtail         JetBrains Mono        narrow   24px
+Firetail        Monaspace Xenon       block    32px
+Firetail        Monaspace Xenon       pill     32px
+Firetail        Monaspace Xenon       narrow   32px
+Cassowary       Iosevka               block    64px
+Cassowary       Iosevka               pill     64px
+Cassowary       Iosevka               narrow   128px

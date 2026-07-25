@@ -1421,8 +1421,19 @@ impl App {
         // (`theme_committed`), never on a live PREVIEW (`theme_overlay_before` while
         // the picker is still open) — so scrolling through worlds doesn't hammer the
         // disk; the SETTLED choice is what's remembered for next launch.
+        //
+        // THE DOCK ICON rides this exact guard, for the same reason and one more:
+        // a preview must not churn the Dock. Arrowing or sweeping the pointer
+        // through eighteen worlds re-tints pipelines through
+        // `retint_theme_preview`, which has no route to `app_icon` at all — so the
+        // "no churn" property is structural, not a rule anybody has to remember.
+        // The two doors that DO adopt are both settled states: this commit/revert,
+        // and startup after the sticky theme has been restored (`app.rs`'s
+        // `resumed`). See `app_icon`'s module doc.
         if theme_committed {
             self.persist_theme();
+            #[cfg(not(target_arch = "wasm32"))]
+            crate::app_icon::adopt(&crate::theme::active());
         }
 
         // After a cut/copy push the on-buffer kill ring out to the OS clipboard

@@ -932,6 +932,49 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 }
                 std::process::exit(0);
             }
+            // THE ICON EXPORT MANIFEST (item 92) — the same one-owner move as
+            // `--list-worlds`, one step richer: the offline icon compositor in
+            // `scripts/icons/` needs each world's four icon palette tokens and
+            // its display face, so it SHELLS OUT for them rather than keeping a
+            // second copy of the palette that could drift from `worlds.rs`.
+            // Reads the bundled faces from `assets/fonts` relative to the
+            // CURRENT DIRECTORY (run it from the repo root) — never a path
+            // baked in at build time, which would end up personal-machine
+            // specific in a public repo.
+            #[cfg(not(target_arch = "wasm32"))]
+            "--icon-manifest" => {
+                let dir = PathBuf::from(crate::icon_manifest::DEFAULT_FONTS_DIR);
+                print!("{}", crate::icon_manifest::manifest_json(&dir)?);
+                std::process::exit(0);
+            }
+            // THE PACK STEP (item 92) — cut every shipped world's rendered
+            // tiles into a real `.icns`, write the canonical bundle icon, and
+            // regenerate the embedded table. Run from the repo root, AFTER the
+            // web compositor has rendered the tiles; `scripts/export-icons.sh`
+            // does both in order. Packing lives in the binary rather than in a
+            // shell script so the container format has one owner and the
+            // determinism law can re-pack a committed asset inside `cargo test`.
+            #[cfg(not(target_arch = "wasm32"))]
+            "--pack-icns" => {
+                let tiles = args
+                    .next()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| PathBuf::from("assets/macos/candidates/tiles"));
+                let root = PathBuf::from(".");
+                let written = crate::app_icon::pack_all(&tiles, &root)?;
+                let total: usize = written.iter().map(|(_, n)| n).sum();
+                for (world, bytes) in &written {
+                    println!("{world:<12} {bytes:>8} bytes");
+                }
+                println!(
+                    "packed {} worlds ({total} bytes) -> {}/  +  {} (canonical: {})",
+                    written.len(),
+                    crate::app_icon::WORLD_ICON_DIR,
+                    crate::app_icon::CANONICAL_ICNS,
+                    crate::app_icon::canonical_world().name
+                );
+                std::process::exit(0);
+            }
             "-h" | "--help" => {
                 // Built from the same one-owner roster as `--theme`'s error
                 // and `--list-worlds` (item 68) — never a hand-copied list.
@@ -954,6 +997,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      \x20 --search-case       make --search case-sensitive\n\
                      \x20 --theme NAME        set the active color theme ({world_names_csv})\n\
                      \x20 --list-worlds       print every theme name, one per line, then exit (the roster `--theme` accepts; see scripts/capture-worlds.sh)\n\
+                     \x20 --icon-manifest     print the app-icon export manifest as JSON (per world: icon palette tokens + display face + its logo-cursor; per face: the bundled font files), then exit — run from the repo root; see scripts/icons/\n\
+                     \x20 --pack-icns [DIR]   cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/<World>.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh\n\
                      \x20 --caret-mode MODE   caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph)\n\
                      \x20 --capture-size WxH  physical canvas size for the capture (default 1200x800)\n\
                      \x20 --capture-dpi N      renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window\n\

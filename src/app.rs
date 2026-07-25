@@ -1957,6 +1957,15 @@ impl ApplicationHandler<AwlEvent> for App {
                     // pre-baked flat gray `menu_icons.rs` draws — must run AFTER
                     // `install` has handed the real NSMenu tree to AppKit.
                     crate::mac_chrome::mark_menu_icons_as_templates();
+                    // THE DOCK ICON, once, from a SETTLED state: the sticky theme
+                    // has already been restored (`Config::apply_sticky_globals`
+                    // runs in `main/args.rs`, long before the event loop), so
+                    // `theme::active()` here is the world the user actually
+                    // relaunched into — and its pre-rendered image replaces the
+                    // bundle's canonical icon on the running app's tile. The only
+                    // other adopter is the theme picker's COMMIT (`app/apply.rs`);
+                    // a hover preview cannot reach either. See `app_icon`.
+                    crate::app_icon::adopt(&crate::theme::active());
                 }
             }
             Err(e) => {

@@ -80,7 +80,8 @@ pub use model::{Lens, RoleOverrides, ThemeTags};
 pub use model::{
     AmbientStyle, Backdrop, BandResponse, BarCoverage, BarExtent, CardAnchor, CardShape,
     CardTexture, CaretBlockStyle, ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle,
-    FoldAfford, Frost, HighlightTexture, HighlightTreatment, ImageReveal, ListBacking, ListStyle,
+    FoldAfford, Frost, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
+    ListStyle,
     MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner, PlacardInk, RenderCaps,
     SelectionStyle, TitleStyle,
 };

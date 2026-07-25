@@ -175,6 +175,14 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "NSObject",
     # NSRect/NSPoint/NSSize (+ CGFloat) for the symbol-rasterization draw rect.
     "NSGeometry",
+    # PER-WORLD APP ICON (item 92, `mac_chrome::set_dock_icon`): the active
+    # world's pre-rendered `.icns` is handed to `NSImage(data:)` as an NSData,
+    # which then feeds `NSApplication.setApplicationIconImage:`. Already enabled
+    # in practice — objc2-app-kit's own "NSImage" feature (above) turns
+    # `objc2-foundation/NSData` on and Cargo unifies the two — so listing it
+    # here changes NOTHING about the built feature set; it just makes the edge
+    # we actually depend on explicit instead of incidental.
+    "NSData",
     # NSFileManager `trashItemAtURL:resultingItemURL:error:` — the RECOVERABLE
     # delete the Asset Cleaner routes through (`mac_chrome::trash_path`); NSError
     # carries the failure message. Already-in-tree door, no new crate.

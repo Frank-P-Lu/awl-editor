@@ -107,14 +107,35 @@ instead of a GitHub Release, and no tag or release is created.
 | `awl-web-dist.zip` (the `trunk build --release` output) | GitHub Release or workflow artifact `awl-web` |
 | the live website + `/editor/` demo | Fly.io (`awl-editor`, `site/fly.toml`) — via `deploy-web.yml`, separately |
 
-### Icon TODO
+### Icons (RESOLVED — the per-world app-icon round)
 
-`scripts/package-macos.sh` looks for `assets/macos/Awl.icns` and wires it
-into the bundle's `Contents/Resources/` + `Info.plist` (`CFBundleIconFile`)
-**only if that file exists** — the bundle builds and runs fine without one
-today (generic app icon). Once the user's icon is ready: drop the `.icns` at
-`assets/macos/Awl.icns` and uncomment the two `cp`/wiring lines flagged in
-`scripts/package-macos.sh` (search for "ICON:").
+`assets/macos/Awl.icns` is committed, and `scripts/package-macos.sh` copies
+it into `Contents/Resources/` and names it in `Info.plist`'s
+`CFBundleIconFile`. A release bundle no longer falls back to the generic
+application icon. (A missing file is still only a loud warning, so the script
+stays runnable against an older checkout.)
+
+| Icon | What it is | Changes when |
+|---|---|---|
+| `Contents/Resources/Awl.icns` | the canonical bundle icon Finder, Launchpad and the About panel draw | never at runtime — a bundle icon belongs to the bundle |
+| the running app's Dock / ⌘-Tab tile | the ACTIVE world's own icon (`app_icon::adopt`) | at launch after the sticky theme is restored, and on a theme picker **commit** — never on a hover preview |
+
+The canonical file is the DEFAULT world's icon, byte for byte (a law test
+pins it to `DEFAULT_THEME`), so retargeting the default retargets Finder's
+icon with it.
+
+**Regenerating** (only when a world's palette/face changes, a world is added,
+or the lockup is retuned) — offline, pinned, no network:
+
+```sh
+scripts/export-icons.sh            # manifest -> pages -> PNGs -> pixel checks -> .icns
+scripts/export-icons.sh --check    # ... and re-render, comparing sha256s
+```
+
+It rewrites `assets/macos/world/<World>.icns`, `assets/macos/Awl.icns` and the
+generated `src/app_icon/embedded.rs`; commit all three together. An ordinary
+`cargo build` runs none of it. See `scripts/icons/README.md` and
+`src/app_icon/`.
 
 ## 4. The LICENSE gap (RESOLVED — the LICENSE + CREDITS round)
 

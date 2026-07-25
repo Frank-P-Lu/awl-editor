@@ -19,8 +19,19 @@
 # (scenarios/*.toml + fixtures) are checked in; their runs never are.
 *.run/
 
+# Per-world app-icon candidates (scripts/export-icons.sh). The GALLERY sheets,
+# the 1024 masters and the legibility ladder are committed — they are what a
+# preset gets judged from. The intermediate tile sizes are pure derivatives of
+# the same deterministic run (about a minute to regenerate, byte-identical), so
+# they stay untracked rather than bloating the history.
+/assets/macos/candidates/tiles/*
+!/assets/macos/candidates/tiles/*-1024.png
+
 # The HTML-export Playwright harness bootstraps Playwright on first run
 # (scripts/smoke-export-html.sh); its node_modules is scratch, never committed.
 /test/export-html/node_modules/
 /test/export-html/package-lock.json
 .DS_Store
+
+# Python bytecode from ad-hoc imports of the icon verifier
+__pycache__/

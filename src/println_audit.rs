@@ -124,9 +124,11 @@ const EXPECTED: &[(&str, usize)] = &[
     ("main.rs", 2),
     // `--help`'s big usage dump, plus `--list-worlds` (item 68): a
     // machine-readable roster dump for `scripts/capture-worlds.sh` and any
-    // other script that wants the world list without parsing --help. Both
-    // are fate (c) — genuine CLI/diagnostic stdout, not app-runtime chatter.
-    ("main/args.rs", 2),
+    // other script that wants the world list without parsing --help. Plus
+    // `--pack-icns`'s two lines (item 92): the per-world byte table and the
+    // summary the icon export prints as its deliverable receipt. All four are
+    // fate (c) — genuine CLI/diagnostic stdout, not app-runtime chatter.
+    ("main/args.rs", 4),
     // `--screenshot`/`--screenshot-motion*`/`--screenshot-frames`/`--capture-*`'s
     // "wrote …" deliverable output — this IS the CLI's product, read by
     // scripts/agents — plus the permissive `--keys` replay's ONE stderr warning

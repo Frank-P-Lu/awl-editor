@@ -396,6 +396,17 @@ mod tests {
             ("app/tests/buffers.rs", 1),
             ("app/tests/lifecycle.rs", 3),
             ("app/daemon.rs", 3),
+            // THE ICON PACK STEP (`app_icon::pack_all`, `awl --pack-icns`): a
+            // build-time tool that writes REPO ARTIFACTS — the per-world
+            // `.icns` files, the canonical bundle icon, and the generated
+            // `src/app_icon/embedded.rs`. Not a durable user store: a torn
+            // write means re-running `scripts/export-icons.sh`, and the result
+            // is reviewed in a diff before it is committed. Routing it through
+            // `write_atomic`/`fs::active()` would also send it into a hermetic
+            // sandbox under test, swallowing the very files the caller asked
+            // for — the same reason the capture PNG and the storyboard trace
+            // write with plain `std::fs` (see `main/story.rs` below).
+            ("app_icon/mod.rs", 3),
             ("buffers.rs", 1),
             ("crashlog.rs", 1),
             ("daemon.rs", 1),

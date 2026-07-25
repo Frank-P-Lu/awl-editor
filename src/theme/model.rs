@@ -1514,6 +1514,57 @@ impl Background {
     }
 }
 
+/// WHICH FAKE LOGO-CURSOR this world's APP ICON wears behind its `l`
+/// (`crate::app_icon`, the pre-rendered per-world macOS icon set).
+///
+/// The icon's lockup is `aw` plus an ordinary lowercase `l` in this world's
+/// [`Theme::font`], with a deliberately FAKE cursor shape painted BEHIND the
+/// `l` — never awl's live Block/Morph/I-beam caret renderer, and it never
+/// moves. There are exactly THREE shapes and there is no fourth: a shape a
+/// face needs but this enum lacks would mean the lockup is wrong, not that
+/// the roster is short.
+///
+/// **This lives on [`Theme`] — not in a side table — so a NEW WORLD CANNOT
+/// COMPILE WITHOUT CHOOSING ONE.** Every world literal in `worlds.rs` names
+/// every field (there is no `..DEFAULT` spread), so the icon assignment is
+/// exhaustive by construction rather than by a sweep somebody has to remember
+/// to run. The colours the icon spends are this world's own `base_100` /
+/// `base_content` / `primary` / `primary_content`; the assignment below is the
+/// ONLY editorial bit an icon adds to a world.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum IconCursor {
+    /// A rectangular slab, grown past the glyph — the block caret made emblem.
+    /// Mass at small sizes; keeps a footed/serifed `l` whole inside the
+    /// knockout (a pill's round bottom crops a serif foot).
+    Block,
+    /// A capsule, grown past the glyph. Softer silhouette; suits rounded and
+    /// soft-terminal faces, and is the roster's way of splitting two worlds
+    /// that share a face.
+    Pill,
+    /// A SUPER-NARROW capsule sitting INSIDE the glyph's own advance. Honest
+    /// only on a bare geometric stem: on a footed or serifed face the
+    /// overhang falls outside the pill and reads as `‖` or `aw!`.
+    Narrow,
+}
+
+impl IconCursor {
+    /// The exporter's own name for this shape — the `<World>-<preset>-<size>`
+    /// tile filename and the `tuning.json` preset key. A no-wildcard match:
+    /// a fourth variant fails to compile here rather than exporting as one of
+    /// the three by accident.
+    pub fn slug(self) -> &'static str {
+        match self {
+            IconCursor::Block => "block",
+            IconCursor::Pill => "pill",
+            IconCursor::Narrow => "narrow",
+        }
+    }
+
+    /// Every shape, in the order the exporter lists its presets — the roster a
+    /// sweep iterates instead of writing the three names out again.
+    pub const ALL: [IconCursor; 3] = [IconCursor::Block, IconCursor::Pill, IconCursor::Narrow];
+}
+
 /// One palette "world": eight color tokens plus the chosen display font.
 ///
 /// Field names mirror the DaisyUI tokens. `selection` is the only token with a
@@ -1579,6 +1630,14 @@ pub struct Theme {
     /// each world's doc). Code needs the true fixed grid a proportional face can't
     /// give; the mono is selected in `render.rs::doc_attrs` when the buffer is code.
     pub mono: &'static str,
+    /// Which fake logo-cursor this world's pre-rendered APP ICON wears behind
+    /// its `l` ([`IconCursor`] — the shape is chosen per world by eye against
+    /// this world's own face and palette, then pinned by the law tests in
+    /// `crate::app_icon`). Sits beside [`Theme::font`] because the choice is a
+    /// consequence of the face's `l`: a footed or serifed stem needs the mass
+    /// a block or pill gives it, a bare geometric stem can wear the narrow
+    /// pill. Icon DATA, no code path — nothing here branches per world.
+    pub icon_cursor: IconCursor,
     /// ONE BIT of per-world HEADING-WEIGHT data (the heading-weight round,
     /// user-decided shape): `true` ⇒ a markdown SECTION (`##`) and SUBHEAD
     /// (`###`+) heading shapes at real `Weight::BOLD` — the world's own bundled

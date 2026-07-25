@@ -11,8 +11,8 @@ use super::color::Srgb;
 use super::model::{
     AmbientStyle, Backdrop, Background, CardAnchor, CardShape, CardTexture, CaretBlockStyle,
     ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost,
-    HighlightTexture, ImageReveal, LavaEdge, ListStyle, MotionJuice, PageFrame, PaneSplit,
-    PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SelectionStyle,
+    HighlightTexture, IconCursor, ImageReveal, LavaEdge, ListStyle, MotionJuice, PageFrame,
+    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SelectionStyle,
     SPELL_UNDERLINE_GAP_DEFAULT, Theme, ThemeTags, TitleStyle, WashOverride,
 };
 use super::ornament::{
@@ -80,6 +80,9 @@ pub const GUMTREE: Theme = Theme {
     // Literary serif world → the slab-serif Monaspace Xenon: a mono that keeps a
     // whisper of the serif so the code page still reads as this world's kin.
     mono: "Monaspace Xenon",
+    // The rectangle keeps Literata's full serif `l` — head AND foot — whole inside the
+    // knockout; a pill's round bottom crops the foot. Red on sage pops at 24px.
+    icon_cursor: IconCursor::Block,
     // Literata's serif contrast carries hierarchy structurally — size alone reads.
     heading_bold: false,
     cjk: CJK_JA_SHIPPORI,
@@ -134,6 +137,10 @@ pub const POTOROO: Theme = Theme {
     font: "Monaspace Xenon",
     // Display face is ALREADY a monospace → reuse it for code (no second grid).
     mono: "Monaspace Xenon",
+    // Monaspace Xenon's slab `l` knocks out crisply in the peach rectangle at every size,
+    // and the HARD silhouette is what separates Potoroo from Firetail — same face, near-
+    // identical warm-black ground. The two must never share a preset.
+    icon_cursor: IconCursor::Block,
     // Monaspace Xenon's uniform mono strokes need weight to mark a section head.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -218,6 +225,10 @@ pub const BILBY: Theme = Theme {
     font: "Newsreader 16pt 16pt",
     // Refined display serif → the slab-serif Monaspace Xenon for a literary code page.
     mono: "Monaspace Xenon",
+    // Gold on cream is the roster's lowest-contrast pairing; the block's mass is what keeps
+    // the mark present at 44/24 on a light Dock. Also splits the cream-serif near-pair with
+    // Saltpan. Narrow is disqualified here — it reads "aw!" and needs 128px.
+    icon_cursor: IconCursor::Block,
     // Newsreader's display-serif contrast IS its hierarchy — bold would coarsen it.
     heading_bold: false,
     cjk: CJK_JA_SHIPPORI,
@@ -294,6 +305,9 @@ pub const SALTPAN: Theme = Theme {
     // Old-style literary serif → Monaspace Xenon: the slab-serif mono echoes
     // Fraunces' serifed warmth on the code grid.
     mono: "Monaspace Xenon",
+    // The rounded brown pill matches Fraunces' soft wonk and stays clear at 24px; taking
+    // the pill is what splits the cream-serif near-pair with Bilby.
+    icon_cursor: IconCursor::Pill,
     // The origin of the serif instinct: Fraunces' wonk + contrast carry it Regular.
     heading_bold: false,
     cjk: CJK_MINCHO,
@@ -359,6 +373,9 @@ pub const QUOKKA: Theme = Theme {
     font: "Sour Gummy",
     // Warm friendly humanist sans → the warm humanist IBM Plex Mono for code.
     mono: "IBM Plex Mono",
+    // Sour Gummy is all rounded strokes; the fat teal capsule echoes the gummy letterforms.
+    // The narrow pill's thin stroke nearly vanishes at 24-32px.
+    icon_cursor: IconCursor::Pill,
     // Sour Gummy's real 700 companion (`FONT_THEME_BOLD_FACES`) carries the weight — no blur-into-body risk.
     heading_bold: true,
     cjk: CJK_JA_KLEE,
@@ -433,6 +450,9 @@ pub const BOMBORA: Theme = Theme {
     // Classic Garamond serif nocturne → Monaspace Xenon: a refined slab-serif mono
     // for a literary code page.
     mono: "Monaspace Xenon",
+    // EB Garamond's small x-height needs rose MASS on the deep indigo ground, and its serif
+    // `l` knocked out of the rectangle is the most literate lockup in the set.
+    icon_cursor: IconCursor::Block,
     // EB Garamond's old-style modelling carries hierarchy; its bold reads foreign to the page.
     heading_bold: false,
     cjk: CJK_JA_SHIPPORI,
@@ -506,6 +526,9 @@ pub const MULGA: Theme = Theme {
     font: "Zilla Slab",
     // Slab-serif display → Monaspace Xenon: the only slab-serif mono, matching Zilla.
     mono: "Monaspace Xenon",
+    // The legibility ladder decides it: the pill holds its knocked-out `l` two size steps
+    // further down than block or narrow, and the rounded form suits Zilla Slab's soft terminals.
+    icon_cursor: IconCursor::Pill,
     // Zilla Slab's chunky slab serifs already assert structure — Regular keeps it calm.
     heading_bold: false,
     cjk: CJK_MINCHO,
@@ -560,6 +583,9 @@ pub const TAWNY: Theme = Theme {
     font: "IBM Plex Mono",
     // The home mono IS the display face → reuse it for code.
     mono: "IBM Plex Mono",
+    // IBM Plex Mono is terminal lineage: the amber block with the knocked-out `l` is the
+    // block caret made emblem, and it holds its mass down to 24px on the neutral slate ground.
+    icon_cursor: IconCursor::Block,
     // Plex Mono's Light-300 body makes the 700 head a real jump — mono needs the weight.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -631,6 +657,9 @@ pub const MOPOKE: Theme = Theme {
     font: "Bitter",
     // Warm cosy charcoal → the warm humanist IBM Plex Mono (kin to Tawny's home look).
     mono: "IBM Plex Mono",
+    // Bitter's serif head rising above the copper pill reads as a two-tone `l` and softens
+    // the night-owl register; it also splits the Bitter twins (Magpie takes the block).
+    icon_cursor: IconCursor::Pill,
     // Bitter's slab weight sections cleanly — the bundled Bitter-Bold carries headings.
     heading_bold: true,
     cjk: CJK_JA_KLEE,
@@ -692,6 +721,9 @@ pub const BOWERBIRD: Theme = Theme {
     font: "IBM Plex Sans",
     // Cool technical navy → the crisp JetBrains Mono (a coding face for a coding den).
     mono: "JetBrains Mono",
+    // Plex Sans' tailed `l` sits naturally in the amber pill, and the capsule separates
+    // Bowerbird's silhouette from the amber-BLOCK dark worlds at app-switcher size.
+    icon_cursor: IconCursor::Pill,
     // Plex Sans' even grotesque strokes give size little help — weight does the sectioning.
     heading_bold: true,
     cjk: CJK_JA_ZENMARU,
@@ -745,6 +777,10 @@ pub const CURRAWONG: Theme = Theme {
     font: "Iosevka",
     // Display face is ALREADY the narrow, mechanical Iosevka mono → reuse it for code.
     mono: "Iosevka",
+    // The slender yellow pill suits Iosevka's slight frame and the quiet starfield register,
+    // and splits the near-black Iosevka twins (Cassowary owns the block). Narrow is
+    // disqualified: its `l` does not resolve above 128px.
+    icon_cursor: IconCursor::Pill,
     // Iosevka's narrow mechanical grid is all uniform strokes — weight marks the head.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -875,6 +911,9 @@ pub const MANGROVE: Theme = Theme {
     font: "JetBrains Mono",
     // Display face is ALREADY JetBrains Mono → reuse it for code.
     mono: "JetBrains Mono",
+    // JetBrains Mono's flag-and-tail `l` is unmistakable inside the amber block down to 24px —
+    // the strongest mono knockout in the roster. The flattened flat-teal ground carries the rest.
+    icon_cursor: IconCursor::Block,
     // JetBrains Mono's uniform coding strokes need weight to lift a section head.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -961,6 +1000,10 @@ pub const GALAH: Theme = Theme {
     font: "Figtree",
     // Warm friendly humanist sans → the warm humanist IBM Plex Mono.
     mono: "IBM Plex Mono",
+    // THE ROSTER'S ONE NARROW, EARNED: Figtree's bare geometric stem is the single `l` with
+    // no serif or tail to poke outside the pill, so nothing gets painted `primary_content`
+    // out on the ground. The thin magenta caret reads cleanly at 24px.
+    icon_cursor: IconCursor::Narrow,
     // Figtree's geometric sans is stroke-uniform by design — weight does the sectioning.
     heading_bold: true,
     cjk: CJK_JA_ZENMARU,
@@ -1031,6 +1074,9 @@ pub const MAGPIE: Theme = Theme {
     font: "Bitter",
     // Sharp high-contrast slab display → Monaspace Xenon: the slab-serif mono matches Bitter's stance.
     mono: "Monaspace Xenon",
+    // The hard orange rectangle matches the black-and-white editorial character; on a white
+    // Dock the tile's own edge vanishes and the block's mass is what registers at 24px.
+    icon_cursor: IconCursor::Block,
     // Bitter's sharp slab contrast carries hierarchy on its own — Regular stays sharp.
     heading_bold: false,
     cjk: CJK_MINCHO,
@@ -1139,6 +1185,10 @@ pub const BROLGA: Theme = Theme {
     // Cool clean sans → its own type-family kin, the humanist IBM Plex Mono for
     // the code grid (the Plex superfamily; distinct from Bowerbird's JetBrains).
     mono: "IBM Plex Mono",
+    // Coral on pale periwinkle is mid-contrast; the pill keeps enough mass at small sizes
+    // while staying softer than Bowerbird, its same-face sibling — whose opposed palette
+    // already does the separating, so a third silhouette would be over-fitting.
+    icon_cursor: IconCursor::Pill,
     // Plex Sans' even grotesque strokes give size little help — weight sections.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -1374,6 +1424,10 @@ pub const WAGTAIL: Theme = Theme {
     // greyscale round's logged font-sharing consequence).
     font: "JetBrains Mono",
     mono: "JetBrains Mono",
+    // PINNED BY THE 1-BIT LAW, not re-judgeable taste: white block, black knocked-out `l` —
+    // inverse video as an icon. A rounded preset introduces a softness foreign to a world
+    // with exactly two legal values.
+    icon_cursor: IconCursor::Block,
     // A 1-bit world has NO ink rungs to spend — weight is the only second axis it owns.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -1549,6 +1603,9 @@ pub const FIRETAIL: Theme = Theme {
     // remains Firetail's own. The display face IS mono, so code reuses it.
     font: "Monaspace Xenon",
     mono: "Monaspace Xenon",
+    // The ember pill's molten round bottom suits the lava world, and the ROUND silhouette is
+    // the required split from Potoroo — same face, near-identical ground (see Potoroo).
+    icon_cursor: IconCursor::Pill,
     // The poster world's mono display: uniform slab-mono strokes take the bold head.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -1733,6 +1790,10 @@ pub const CASSOWARY: Theme = Theme {
     // Iosevka — the narrow mechanical terminal-readout face, display AND code.
     font: "Iosevka",
     mono: "Iosevka",
+    // PINNED BY THIS WORLD'S OWN LAW: an ink-caret world draws `CaretBlockStyle::Filled`, and
+    // the lit green cell with the glyph knocked out in the ground IS that caret. Narrow is
+    // disqualified (its `l` needs 128px).
+    icon_cursor: IconCursor::Block,
     // Iosevka's uniform mechanical strokes need weight to mark a section head.
     heading_bold: true,
     cjk: CJK_GOTHIC,
@@ -1832,6 +1893,9 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
     },
     font: "Iosevka",
     mono: "Iosevka",
+    // Not in `THEMES`, so it exports no icon (see `app_icon`'s bijection law). It mirrors
+    // Cassowary's block so the console pair could never disagree if this one is ever shipped.
+    icon_cursor: IconCursor::Block,
     heading_bold: true,
     cjk: CJK_GOTHIC,
     zh_hans: CJK_ZH_HANS_SANS,
