@@ -822,58 +822,187 @@ fn the_mark_survives_at_app_switcher_size() {
     }
 }
 
-/// EVERY PAIR OF WORLDS STAYS APART at app-switcher size. Compares each pair's
-/// 32px reps pixel by pixel and requires a real difference — which is what
-/// stops the two same-face near-pairs (Potoroo/Firetail, Saltpan/Bilby) from
-/// reading as one app in a ⌘-Tab row. The named pairs are asserted harder,
-/// since their palettes are nearly the same and the SILHOUETTE is doing the
-/// work.
+/// EVERY PAIR OF WORLDS STAYS APART at app-switcher size — and WHICH pair stays
+/// apart least is COMPUTED from the rendered set on every run, never guessed.
+///
+/// The predecessor of this law hand-picked two "near pairs" by shared-FACE
+/// reasoning (Potoroo/Firetail, Saltpan/Bilby) and asserted those two harder. It
+/// missed the actual global minimum by a wide margin: **Currawong/Cassowary
+/// differ on only 12.3% of their 32px pixels**, because those two share a
+/// near-black GROUND (`#050506` vs `#060607`) and at 32px the ground IS most of
+/// the tile. Three things were wrong with the list, and all three are the same
+/// mistake — a human predicting which pair to watch:
+///   * it missed the minimum, which was pinned by NOTHING but the generic floor;
+///   * shared face is *anti*-predictive — the five same-face pairs span 12.3%
+///     (Currawong/Cassowary) to 97.3% (Mopoke/Magpie), so the criterion selects
+///     nothing;
+///   * one of the two hand-picked pairs did not even share a face (Saltpan is
+///     Fraunces, Bilby is Newsreader) — the list had drifted off its own stated
+///     rule, silently, because a name list is not checked against anything.
+///
+/// So nothing here names a pair. All 153 combinations are measured, the minimum
+/// on each axis is found, and the MINIMUM is what the assertions bind. A world
+/// rename cannot make this sweep quietly assert less, the way
+/// `near_pairs.contains(..)` could.
+///
+/// THREE AXES, because the obvious one is a liar on its own:
+///   * `differing` — fraction of pixels that visibly differ. Ground-dominated;
+///     it is exactly what hid Currawong/Cassowary.
+///   * `mean` — mean channel distance across the whole tile, UNthresholded, so a
+///     pair differing a lot on a few pixels cannot read as identical.
+///   * `ink` — fraction of NON-GROUND pixels that differ. The ground-independent
+///     axis. It is the one that shows the near-black twins are in fact fine (86%
+///     of their ink differs — mint-green vs golden-yellow), and it finds a
+///     DIFFERENT global minimum: Potoroo/Firetail at 51%. Two axes, two
+///     different closest pairs — which is the whole reason one hand-picked list
+///     could never have covered this.
+///
+/// EACH AXIS CARRIES TWO BARS, doing different jobs:
+///   * an ABSOLUTE FLOOR — the perceptual claim, "these two are not the same
+///     app". Deliberately loose, and deliberately NOT retuned to sit just under
+///     today's measurement: a genuine near-duplicate world lands near ZERO (see
+///     the non-vacuity note below), so the floor does not need to be tight to
+///     catch one, and a floor at 12% would encode the false claim that 12.3% is
+///     near the edge of legibility when the ink axis says that pair differs on
+///     86% of its ink. `differing`'s floor is the 10% this law already carried —
+///     chosen before anyone had measured the minimum, and therefore not tuned to
+///     it.
+///   * a RATCHET against today's measured minimum, with [`RATCHET_SLACK`] of
+///     relative give for an exporter re-render's antialiasing. This is the bar
+///     that actually notices EROSION, and it needs no theory of which pair is at
+///     risk: a new world that crowds ANY existing one below the current worst
+///     fails here and is NAMED. It also survives roster growth, which a
+///     per-pair baseline table would not — adding a nineteenth world adds
+///     eighteen pairs and invalidates nothing.
+///
+/// The stricter 20% tier the two hand-picked pairs used to carry is GONE, not
+/// weakened: its premise (same face ⇒ at risk) is false by measurement above,
+/// applying it to the computed same-face set would fail today, and the one real
+/// thing it pinned — Potoroo/Firetail's silhouette doing the work its palette
+/// does not — is now pinned harder and roster-wide by the `ink` axis, on which
+/// that pair IS the global minimum and therefore holds the ratchet.
+///
+/// Non-vacuity: adding a world that clones an existing palette and preset drives
+/// `differing` to ~1% and trips the floor and all three ratchets, naming the
+/// cloned pair.
 #[test]
 fn small_sizes_keep_every_pair_of_worlds_apart() {
     let _g = crate::testlock::serial();
-    let imgs: Vec<(&str, image::RgbaImage)> = THEMES
+
+    /// Relative give on each ratchet: enough to absorb a handful of
+    /// antialiased pixels shifting when the offline exporter is re-run, far
+    /// too little to absorb a pair actually moving closer together.
+    const RATCHET_SLACK: f64 = 0.02;
+
+    /// One pair's separation at 32px, on every axis this law knows.
+    struct Pair {
+        a: &'static str,
+        b: &'static str,
+        differing: f64,
+        mean: f64,
+        ink: f64,
+    }
+
+    let imgs: Vec<(&'static Theme, image::RgbaImage)> = THEMES
         .iter()
-        .map(|t| (t.name, rep_rgba(&icon_bytes(t.name), 32)))
+        .map(|t| (t, rep_rgba(&icon_bytes(t.name), 32)))
         .collect();
-    let near_pairs = [("Potoroo", "Firetail"), ("Saltpan", "Bilby")];
+
+    let mut pairs: Vec<Pair> = Vec::new();
     for i in 0..imgs.len() {
         for j in (i + 1)..imgs.len() {
-            let (na, a) = &imgs[i];
-            let (nb, b) = &imgs[j];
+            let (ta, a) = &imgs[i];
+            let (tb, b) = &imgs[j];
             let total = (a.width() * a.height()) as f64;
-            let mut differing = 0u32;
-            let mut sum = 0u64;
+            let (mut differing, mut sum, mut ink, mut ink_differing) = (0u32, 0u64, 0u32, 0u32);
             for (pa, pb) in a.pixels().zip(b.pixels()) {
                 let d: u32 = (0..4)
                     .map(|k| (pa.0[k] as i32 - pb.0[k] as i32).unsigned_abs())
                     .sum();
-                if d > 24 {
+                let visible = d > 24;
+                if visible {
                     differing += 1;
                 }
                 sum += d as u64;
+                // A pixel counts as INK when it is non-ground in EITHER world —
+                // each measured against its OWN base_100, since the whole point
+                // of this axis is that the two grounds may be different colours
+                // and still both be ground.
+                let ground_a = !opaque(&pa.0) || near(&pa.0, rgb(ta.base_100), 10);
+                let ground_b = !opaque(&pb.0) || near(&pb.0, rgb(tb.base_100), 10);
+                if !ground_a || !ground_b {
+                    ink += 1;
+                    if visible {
+                        ink_differing += 1;
+                    }
+                }
             }
-            let frac = differing as f64 / total;
-            assert!(
-                frac >= 0.10,
-                "{na} vs {nb} differ on only {:.1}% of their 32px pixels",
-                frac * 100.0
-            );
-            if near_pairs.contains(&(*na, *nb)) || near_pairs.contains(&(*nb, *na)) {
-                // A named near-pair: the palettes barely move, so the pixel
-                // difference has to come from the SHAPE. Require it to clear a
-                // visibly higher bar than the generic floor above.
-                assert!(
-                    frac >= 0.20,
-                    "{na}/{nb} are a same-face near-pair and differ on only {:.1}% at 32px — \
-                     the preset split is not separating them",
-                    frac * 100.0
-                );
-                assert!(
-                    sum as f64 / total >= 24.0,
-                    "{na}/{nb}: mean channel distance too low"
-                );
-            }
+            assert!(ink > 0, "{} vs {}: neither icon has any ink", ta.name, tb.name);
+            pairs.push(Pair {
+                a: ta.name,
+                b: tb.name,
+                differing: differing as f64 / total,
+                mean: sum as f64 / total,
+                ink: ink_differing as f64 / ink as f64,
+            });
         }
+    }
+    assert_eq!(
+        pairs.len(),
+        THEMES.len() * (THEMES.len() - 1) / 2,
+        "every combination of worlds is measured"
+    );
+
+    // (axis name, how to read it off a pair, absolute floor, measured baseline,
+    // how to print a value). The baselines are what THIS roster measures today;
+    // re-blessing one is a deliberate one-line edit that says "the icon set got
+    // closer together on purpose".
+    type Read = fn(&Pair) -> f64;
+    let axes: [(&str, Read, f64, f64, bool); 3] = [
+        ("differing pixels", |p| p.differing, 0.10, 0.12305, true),
+        ("mean channel distance", |p| p.mean, 10.0, 19.52, false),
+        ("differing INK pixels", |p| p.ink, 0.40, 0.5101, true),
+    ];
+
+    for (name, read, floor, baseline, pct) in axes {
+        let show = |v: f64| if pct { format!("{:.2}%", v * 100.0) } else { format!("{v:.2}") };
+        let mut sorted: Vec<&Pair> = pairs.iter().collect();
+        sorted.sort_by(|x, y| read(x).total_cmp(&read(y)));
+        let closest = sorted[0];
+        let worst = read(closest);
+        // The five nearest on this axis, so a failure hands over the
+        // neighbourhood and not just a verdict.
+        let roll = sorted
+            .iter()
+            .take(5)
+            .map(|p| format!("{} vs {} = {}", p.a, p.b, show(read(p))))
+            .collect::<Vec<_>>()
+            .join("; ");
+
+        assert!(
+            worst >= floor,
+            "{} vs {} are the closest pair on {name} at 32px ({}) and fall under the \
+             absolute floor of {} — at app-switcher size they read as one app. \
+             Five nearest: {roll}",
+            closest.a,
+            closest.b,
+            show(worst),
+            show(floor),
+        );
+        let ratchet = baseline * (1.0 - RATCHET_SLACK);
+        assert!(
+            worst >= ratchet,
+            "{} vs {} are now the closest pair on {name} at 32px ({}), below the \
+             measured baseline of {} (ratchet {}). Some change moved two worlds' icons \
+             closer together than any pair has ever been. Either back it out, or — if \
+             the crowding is intended — re-bless the baseline in this law and say why. \
+             Five nearest: {roll}",
+            closest.a,
+            closest.b,
+            show(worst),
+            show(baseline),
+            show(ratchet),
+        );
     }
 }
 
