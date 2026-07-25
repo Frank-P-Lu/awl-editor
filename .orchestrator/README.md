@@ -199,7 +199,14 @@ These are orchestration rules, not live queue state:
   or anything else that can hide its exit status. Run the wasm gate on every
   train as required by `AGENTS.md`.
 - **Treat suspicious incremental failures as suspect first.** Retry with
-  `CARGO_INCREMENTAL=0` before diagnosing product code.
+  `CARGO_INCREMENTAL=0` before diagnosing product code. A `signal: 9, SIGKILL`
+  with NO test failure line is not a product failure at all — it is the OS
+  reaping the test binary. Check memory before diagnosing: awl's suites are
+  GPU-heavy, and 3–4 concurrent worktree suites plus the main tree's gate can
+  exhaust swap on this machine (observed 2816 MB of 4096 MB used, gate killed,
+  identical tree green on retry). The ~3–4 workstream ceiling is about the
+  machine, not just about merge conflicts — when a gate is SIGKILLed, re-run it
+  alone rather than bisecting the innocent merge.
 - **Terminate only owned processes.** Never kill `awl` by a bare process name;
   stop only the exact PID created by the current run.
 - Background model/effort routing follows the Brew skill and any narrower
