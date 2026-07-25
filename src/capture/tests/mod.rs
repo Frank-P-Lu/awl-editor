@@ -20,6 +20,7 @@ mod i18n_fixtures;
 mod panels;
 mod pickers_faceted;
 mod schema_chrome;
+mod serialization_law;
 
 /// Re-derive the DRAWN streak length (px) for the caret's current spring state
 /// through the exact production path (`streak_length` → `motion_geometry`),

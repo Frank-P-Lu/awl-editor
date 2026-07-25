@@ -13,10 +13,41 @@ use anyhow::{Context, Result};
 use std::io::Write;
 use std::path::Path;
 
-use crate::render::{self, TextPipeline, ViewState};
+use crate::render::{self, ScriptFontReports, TextPipeline, ViewState};
 
 use super::opts::CaptureOpts;
 use super::{schema_held, schema_plain, schema_timeline, CANVAS_HEIGHT, CANVAS_WIDTH};
+
+/// THE CAPTURE-SERIALIZATION LAW (queue item 98). Every capture path funnels
+/// through [`write_sidecar`], and a capture READS a fistful of process-global
+/// state — the active theme above all — while rendering its frame and writing
+/// its JSON. In a `cargo test` build that state is shared with the hundreds of
+/// `theme::set_active` / `cycle` call sites the suite drives, so a capture
+/// running outside [`crate::testlock::serial`] can be torn by a concurrent flip
+/// and report a world it did not render.
+///
+/// The convention was already "every test takes the guard"; ONE capture test
+/// (`capture::tests::i18n_fixtures::sidecar_reports_doc_lang_and_per_script_font_resolution`)
+/// silently didn't, and flaked the merge train. This turns the convention into
+/// a LAW: an unguarded capture in a test build panics IMMEDIATELY and by name,
+/// instead of failing a random assertion once every few thousand runs. In a
+/// release/live build it compiles to nothing (the live app is single-threaded
+/// over these globals, and `--screenshot` is a whole process).
+///
+/// Law-tested in `capture::tests::serialization_law` — both that the check
+/// itself rejects an unguarded caller and that it is WIRED into the real
+/// capture path (a genuine `capture_with` off-guard panics).
+#[inline]
+pub(super) fn assert_capture_is_serialized() {
+    #[cfg(test)]
+    assert!(
+        crate::testlock::currently_held(),
+        "capture law: a capture in a test build must hold `crate::testlock::serial()` \
+         for its whole window — an unguarded capture races every theme-flipping test \
+         and reports state it did not render (queue item 98). Add \
+         `let _tg = crate::testlock::serial();` as the first line of the test."
+    );
+}
 
 /// One timeline frame's caret-spring snapshot, written into the sidecar `caret`
 /// block so a `--capture-timeline` step's trajectory is machine-readable: the
@@ -94,6 +125,7 @@ pub(super) fn write_sidecar(
     opts: &CaptureOpts,
     caret: Option<&CaretFrame>,
 ) -> Result<()> {
+    assert_capture_is_serialized();
     let json_path = out_png.with_extension("json");
 
     let text = &view.text;
@@ -116,6 +148,11 @@ pub(super) fn write_sidecar(
     // with that family (Family::Name), so the sidecar's reported family matches the
     // glyph shapes actually rendered.
     let active = crate::theme::active();
+    // Per-script font block: ONE resolution walk feeding BOTH `font.cjk` and
+    // `font.scripts` (see `TextPipeline::script_font_reports`). Snapshotted here
+    // beside `active` for the same reason — every theme-derived field of one
+    // sidecar must come from ONE read of the process-global active world.
+    let script_fonts = pipeline.script_font_reports();
     // The EFFECTIVE caret mode this capture rendered (explicit --caret-mode
     // override, else the font-derived default), so a reviewer can assert which
     // caret look the PNG shows straight from the sidecar.
@@ -163,8 +200,8 @@ pub(super) fn write_sidecar(
         "{{\n  \"schema\": {schema_json},\n  \"canvas\": {canvas},\n  \"font\": {{ \"family\": {ff}, \"size\": {fs}, \"line_height\": {lh}, \"ornament\": {ornament}, \"cjk\": {cjk}, \"scripts\": {scripts} }},\n  \"theme\": {{ \"name\": {tn}, \"font_family\": {tf}, \"mode\": {tm}, \"base100\": {tb100}, \"primary\": {tp}, \"heading_bold\": {thb} }},\n  \"caret_mode\": {cm},\n  \"dictionary\": {dict},\n  \"spellcheck\": {sp},\n  \"date_format\": {date_format},\n  \"text_origin\": {{ \"left\": {left}, \"top\": {top} }},\n  \"page\": {page},\n  \"wysiwyg\": {wysiwyg},\n  \"popover\": {popover},\n  \"tables\": {tables},\n  \"xray\": {xray},\n  \"images\": {images},\n  \"outline\": {outline},\n  \"menubar\": {menubar},\n  \"doc_lang\": {doc_lang},\n  \"md_spans\": {md_spans},\n  \"syn_lang\": {syn_lang},\n  \"syn_spans\": {syn_spans},\n  \"readout\": {readout},\n  \"gutter\": {gutter},\n  \"dim_overlay\": {dim_overlay},\n  \"debug\": {debug},\n  \"whichkey\": {whichkey},\n  \"hud\": {hud},\n  \"about\": {about},\n  \"lifetime\": {lifetime},\n  \"streaks\": {streaks},\n  \"peek\": {peek},\n  \"caret_preview\": {caret_preview},\n  \"line_count\": {lc},\n  \"scroll_lines\": {sl},\n  \"cursor\": {{ \"line\": {cl}, \"col\": {cc} }},\n  \"folds\": {folds},\n  \"selection\": {sel},\n  \"text\": {text_json},\n  \"first_lines\": [{fl}],\n  \"search\": {{ \"query\": {sq}, \"active\": {sa}, \"case_sensitive\": {scs}, \"hit_count\": {hc}, \"current\": {cur}, \"replace_active\": {ra}, \"replacement\": {rep}, \"editing_replacement\": {er} }},\n  \"project\": {project},\n  \"overlay\": {overlay},\n  \"buffers\": {buffers},\n  \"diff\": {diff}{caret_extra}\n}}\n",
         schema_json = json_string(&schema),
         caret_extra = caret_extra,
-        cjk = cjk_json(pipeline),
-        scripts = scripts_json(pipeline),
+        cjk = cjk_json(&script_fonts),
+        scripts = scripts_json(&script_fonts),
         doc_lang = doc_lang_json(pipeline),
         dict = json_string(dictionary),
         sp = spellcheck,
@@ -782,8 +819,10 @@ fn readout_json(pipeline: &TextPipeline) -> String {
 
 /// The Japanese-bundle round's `font.cjk` block: the active world's resolved
 /// CJK-fallback CAPABILITY — the family a Japanese run in THIS buffer would
-/// shape in, plus whether it's the BUNDLED Noto Serif/Sans JP face (see
-/// [`TextPipeline::cjk_report`]). Like `resolve_cjk` itself, this is a
+/// shape in, plus whether it's the BUNDLED Noto Serif/Sans JP face. It is
+/// literally the `font.scripts.ja` entry — the SAME
+/// [`ScriptFontReports`] snapshot, read through the same renderer, so the two
+/// can never disagree (queue item 98). Like `resolve_cjk` itself, this is a
 /// function of the active world + font DB, not of whether the buffer's text
 /// actually contains any CJK — so it is non-`null` in every normal capture
 /// (`null` only in the contrived case where NEITHER a bundled nor a system
@@ -793,19 +832,17 @@ fn readout_json(pipeline: &TextPipeline) -> String {
 /// `theme::CJK_MINCHO`/`CJK_GOTHIC`), so this is the first JP-rendering fact a
 /// headless assertion can rely on without caring which system CJK fonts
 /// happen to be installed.
-fn cjk_json(pipeline: &TextPipeline) -> String {
-    match pipeline.cjk_report() {
-        Some((family, bundled)) => {
-            format!("{{ \"family\": {}, \"bundled\": {bundled} }}", json_string(family))
-        }
-        None => "null".to_string(),
-    }
+pub(super) fn cjk_json(fonts: &ScriptFontReports) -> String {
+    script_font_json(fonts, crate::theme::FontId::Ja)
 }
 
-/// One `{family, bundled}|null` entry of the i18n round's `font.scripts` block
-/// (below) — [`cjk_json`]'s shape, generalized to any [`crate::theme::FontId`].
-fn script_font_json(pipeline: &TextPipeline, id: crate::theme::FontId) -> String {
-    match pipeline.script_font_report(id) {
+/// THE one `{family, bundled}|null` renderer for BOTH font blocks: `font.cjk`
+/// is literally this applied to [`crate::theme::FontId::Ja`], and each
+/// `font.scripts.*` entry is this applied to its own id. One formatter over one
+/// snapshot, so `font.cjk == font.scripts.ja` holds BY CONSTRUCTION rather than
+/// by two resolutions happening to agree (queue item 98 — they once didn't).
+fn script_font_json(fonts: &ScriptFontReports, id: crate::theme::FontId) -> String {
+    match fonts.get(id) {
         Some((family, bundled)) => {
             format!("{{ \"family\": {}, \"bundled\": {bundled} }}", json_string(family))
         }
@@ -821,14 +858,14 @@ fn script_font_json(pipeline: &TextPipeline, id: crate::theme::FontId) -> String
 /// degenerate case). A function of the active world + font DB, like
 /// `font.cjk` — non-`null` for `ja` in every normal build regardless of
 /// whether the buffer's text contains any CJK at all.
-fn scripts_json(pipeline: &TextPipeline) -> String {
+pub(super) fn scripts_json(fonts: &ScriptFontReports) -> String {
     use crate::theme::FontId;
     format!(
         "{{ \"ja\": {}, \"zh_hans\": {}, \"zh_hant\": {}, \"ko\": {} }}",
-        script_font_json(pipeline, FontId::Ja),
-        script_font_json(pipeline, FontId::ZhHans),
-        script_font_json(pipeline, FontId::ZhHant),
-        script_font_json(pipeline, FontId::Ko),
+        script_font_json(fonts, FontId::Ja),
+        script_font_json(fonts, FontId::ZhHans),
+        script_font_json(fonts, FontId::ZhHant),
+        script_font_json(fonts, FontId::Ko),
     )
 }
 

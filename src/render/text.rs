@@ -29,6 +29,39 @@ pub(super) struct ScriptFonts {
     pub ko: Option<(&'static str, glyphon::Weight)>,
 }
 
+/// The REPORTING view of [`ScriptFonts`]: per-script `(family, bundled)` for
+/// the capture sidecar's `font.cjk` + `font.scripts` blocks, produced in ONE
+/// walk by [`TextPipeline::script_font_reports`]. `None` mirrors `ScriptFonts`'
+/// `None` — that script's ladder resolved to nothing on this machine.
+///
+/// Existing as a VALUE is the whole mechanism: the sidecar takes one snapshot
+/// and reads every block out of it, so no two fields of a single sidecar can
+/// come from two different active themes (queue item 98).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ScriptFontReports {
+    pub ja: Option<(&'static str, bool)>,
+    pub zh_hans: Option<(&'static str, bool)>,
+    pub zh_hant: Option<(&'static str, bool)>,
+    pub ko: Option<(&'static str, bool)>,
+}
+
+impl ScriptFontReports {
+    /// The report for `id`, or `None` for [`theme::FontId::Latin`] (never a
+    /// fallback — the base doc attrs already shape in the world's own display
+    /// face, so the sidecar has no `font.scripts.latin` entry). The match is
+    /// deliberately WILDCARD-FREE: a new `FontId` variant fails to compile here
+    /// rather than silently reporting `None`. Mirrors [`ScriptFonts::get`].
+    pub fn get(&self, id: theme::FontId) -> Option<(&'static str, bool)> {
+        match id {
+            theme::FontId::Latin => None,
+            theme::FontId::Ja => self.ja,
+            theme::FontId::ZhHans => self.zh_hans,
+            theme::FontId::ZhHant => self.zh_hant,
+            theme::FontId::Ko => self.ko,
+        }
+    }
+}
+
 impl ScriptFonts {
     /// The resolved face for `id`, or `None` when `id` is [`theme::FontId::Latin`]
     /// (never overridden — the base doc attrs already shape in it) or when that
@@ -134,8 +167,23 @@ impl TextPipeline {
         &self,
         id: theme::FontId,
     ) -> Option<(&'static str, glyphon::Weight)> {
+        self.resolve_font_id_in(&theme::active(), id)
+    }
+
+    /// [`Self::resolve_font_id`] against an EXPLICIT world rather than a fresh
+    /// read of the process-global `theme::active()` — the seam that lets a
+    /// multi-script resolution take ONE snapshot and answer every script from
+    /// it. Private: the two doors are `resolve_font_id` (one id, one read, so
+    /// inherently atomic) and [`Self::resolve_script_fonts`] (all four, one
+    /// read); nothing else may walk the ladder, so no caller can reintroduce
+    /// the torn multi-read that flaked queue item 98.
+    fn resolve_font_id_in(
+        &self,
+        world: &theme::Theme,
+        id: theme::FontId,
+    ) -> Option<(&'static str, glyphon::Weight)> {
         let db = self.font_system.db();
-        for fam in theme::active().candidates(id) {
+        for fam in world.candidates(id) {
             let nearest = db
                 .faces()
                 .filter(|f| f.families.iter().any(|(n, _)| n.eq_ignore_ascii_case(fam)))
@@ -154,38 +202,58 @@ impl TextPipeline {
     /// the existing "resolve once, apply per line" shape. `latin` has no
     /// entry: a Latin-classified run never needs an override span (the base
     /// doc attrs already shape in the world's own display face).
+    ///
+    /// All four resolve against ONE `theme::active()` snapshot, so a reshape's
+    /// four override spans — and the sidecar block derived from them — always
+    /// describe a single world, never a mix of the world before a concurrent
+    /// flip and the world after (queue item 98).
     pub(super) fn resolve_script_fonts(&self) -> ScriptFonts {
+        let world = theme::active();
         ScriptFonts {
-            ja: self.resolve_font_id(theme::FontId::Ja),
-            zh_hans: self.resolve_font_id(theme::FontId::ZhHans),
-            zh_hant: self.resolve_font_id(theme::FontId::ZhHant),
-            ko: self.resolve_font_id(theme::FontId::Ko),
+            ja: self.resolve_font_id_in(&world, theme::FontId::Ja),
+            zh_hans: self.resolve_font_id_in(&world, theme::FontId::ZhHans),
+            zh_hant: self.resolve_font_id_in(&world, theme::FontId::ZhHant),
+            ko: self.resolve_font_id_in(&world, theme::FontId::Ko),
         }
     }
 
-    /// [`Self::resolve_cjk`]'s family name plus whether it's a BUNDLED Noto
-    /// Serif/Sans JP face (as opposed to a trailing system Hiragino/Noto-CJK
-    /// candidate) — the capture sidecar's `font.cjk` block. Deterministic on
-    /// every machine in a normal run: the bundled face is always registered
-    /// and listed first (see `theme::CJK_MINCHO`/`CJK_GOTHIC`), so an agent can
-    /// assert `bundled == true` for a JP fixture with NO dependency on which
-    /// system CJK fonts happen to be installed — the first genuinely
-    /// machine-independent JP-rendering assertion.
-    pub fn cjk_report(&self) -> Option<(&'static str, bool)> {
-        self.script_font_report(theme::FontId::Ja)
-    }
-
-    /// [`Self::cjk_report`]'s generalization: the resolved family + whether
-    /// it's a bundled/embedded face, for ANY [`theme::FontId`] — the i18n
-    /// round's sidecar `font.scripts` block (`capture/sidecar.rs`). `None`
-    /// when that script's ladder resolved to nothing on this machine (the
-    /// documented degenerate case; genuinely machine-dependent for zh/ko
-    /// since v1 ships no bundled asset for them).
-    pub fn script_font_report(&self, id: theme::FontId) -> Option<(&'static str, bool)> {
-        self.resolve_font_id(id).map(|(family, _)| {
-            let bundled = theme::EMBEDDED_CJK_FAMILIES.iter().any(|b| b.eq_ignore_ascii_case(family));
-            (family, bundled)
-        })
+    /// THE per-script font report for ONE sidecar: every script's resolved
+    /// family + whether it's a bundled/embedded face, taken in a SINGLE
+    /// [`Self::resolve_script_fonts`] walk — the capture sidecar's `font.cjk`
+    /// AND `font.scripts` blocks, which are two VIEWS of this one value rather
+    /// than two independent resolutions.
+    ///
+    /// The single walk is the point, not an optimization. `resolve_font_id`
+    /// reads the process-global `theme::active()`, so the old shape — a
+    /// `cjk_report()` call plus four `script_font_report()` calls, FIVE separate
+    /// reads spread across the sidecar write — could observe a theme FLIP
+    /// between them and emit a sidecar whose `font.cjk.family` disagreed with
+    /// its own `font.scripts.ja.family` (queue item 98's flake). One snapshot makes
+    /// that DISAGREEMENT UNREPRESENTABLE: the sidecar is now atomic with
+    /// respect to the active world.
+    ///
+    /// `bundled` is machine-independent for `ja` in a normal run (the bundled
+    /// Noto Serif/Sans JP face is always registered and listed FIRST — see
+    /// `theme::CJK_MINCHO`/`CJK_GOTHIC`), so an agent can assert
+    /// `bundled == true` for a JP fixture with NO dependency on which system
+    /// CJK fonts happen to be installed. `zh_hans`/`zh_hant`/`ko` stay
+    /// genuinely machine-dependent (v1 ships no bundled asset for them) and
+    /// may be `None` — the documented degenerate case.
+    pub fn script_font_reports(&self) -> ScriptFontReports {
+        let fonts = self.resolve_script_fonts();
+        let report = |f: Option<(&'static str, glyphon::Weight)>| {
+            f.map(|(family, _)| {
+                let bundled =
+                    theme::EMBEDDED_CJK_FAMILIES.iter().any(|b| b.eq_ignore_ascii_case(family));
+                (family, bundled)
+            })
+        };
+        ScriptFontReports {
+            ja: report(fonts.ja),
+            zh_hans: report(fonts.zh_hans),
+            zh_hant: report(fonts.zh_hant),
+            ko: report(fonts.ko),
+        }
     }
 
     /// i18n: the document's OWN frontmatter `lang:` tag (`None` for an

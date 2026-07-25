@@ -462,6 +462,9 @@ fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
         eprintln!("skipping sidecar_reports_doc_lang_and_per_script_font_resolution: no wgpu adapter");
         return;
     }
+    // THE guard every capture test takes (queue item 98: this one didn't, and
+    // raced the theme-flipping tests). Now also enforced by `write_sidecar`.
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_i18n_sidecar_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 

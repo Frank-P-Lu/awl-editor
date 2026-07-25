@@ -69,7 +69,7 @@ pub const CJK_JA_KLEE: &[&str] =
 /// than one that may or may not be installed on this machine. Extended by the
 /// "Chinese round" with the four new bundled faces (`render::FONT_ZH_KO_FACES`)
 /// alongside the JP-bundle round's original two, so `TextPipeline::
-/// script_font_report`'s `bundled` flag is accurate for zh-Hans/ko too.
+/// script_font_reports`' `bundled` flag is accurate for zh-Hans/ko too.
 pub(crate) const EMBEDDED_CJK_FAMILIES: &[&str] = &[
     "Noto Serif JP",
     "Noto Sans JP",

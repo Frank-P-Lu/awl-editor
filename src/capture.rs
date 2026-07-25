@@ -48,7 +48,7 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///
 /// `/86` (was `/83`) added `font.cjk` — the Japanese-bundle round's resolved CJK
 /// family + whether it's the bundled Noto Serif/Sans JP face (see
-/// `render::TextPipeline::cjk_report`), `null` when the buffer has no CJK run.
+/// `render::TextPipeline::script_font_reports`), `null` when the buffer has no CJK run.
 /// (Landed alongside the WYSIWYG round's `/83` `wysiwyg` block bump, so that
 /// merge carried both additions in one further bump.)
 ///
@@ -59,7 +59,8 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// document's own frontmatter `lang:` tag, `null` when untagged/non-markdown —
 /// see `crate::frontmatter::detect`), and `font.scripts` — `font.cjk`'s shape
 /// generalized to all four non-Latin scripts (`{ ja, zh_hans, zh_hant, ko }`,
-/// each `{family, bundled}|null` — see `render::TextPipeline::script_font_report`).
+/// each `{family, bundled}|null` — see `render::TextPipeline::script_font_reports`,
+/// the ONE walk `font.cjk` is also a view of).
 /// The HUD block also gains a `lang` field (see `hud::Stats`).
 ///
 /// `/95` (was `/92`) FIXES the `gutter` block to always agree with the pixels

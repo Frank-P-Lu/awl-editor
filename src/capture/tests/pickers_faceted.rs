@@ -100,6 +100,7 @@ fn overlay_empty_state_renders_and_reports() {
         eprintln!("skipping overlay_empty_state_renders_and_reports: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_emptystate_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let buf = Buffer::from_str("preview me\n");
@@ -184,6 +185,7 @@ fn file_pickers_faceted_lens_render_and_report() {
         eprintln!("skipping file_pickers_faceted_lens_render_and_report: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_filepick_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let buf = Buffer::from_str("preview me\n");
@@ -300,6 +302,7 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         eprintln!("skipping faceted_grouped_window_is_bounded_and_scrolls_to_selection: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     use crate::overlay::{OverlayKind, OverlayState};
     let dir = std::env::temp_dir().join(format!("awl_gwindow_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -427,6 +430,7 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         eprintln!("skipping command_and_history_pickers_faceted_lens_render_and_report: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_cmdhist_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let buf = Buffer::from_str("preview me\n");
@@ -686,6 +690,7 @@ fn preview_id_null_by_default() {
         eprintln!("skipping preview_id_null_by_default: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_previewid_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let buf = Buffer::from_str("now text\n");
@@ -716,6 +721,7 @@ fn history_preview_folds_text_and_reports_preview_id() {
         eprintln!("skipping history_preview_folds_text_and_reports_preview_id: no wgpu adapter");
         return;
     }
+    let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_histprev_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     // The buffer is the CURRENT text; the preview is a shorter OLDER version.
