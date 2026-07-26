@@ -164,6 +164,46 @@ impl TextPipeline {
             .sum()
     }
 
+    /// ITEM 112 TEST HOOK — the absolute canvas box occupied by the shaped
+    /// glyph CELLS on one primary overlay line. This is deliberately read from
+    /// `panel_buffer`, the buffer the draw pass uploads, rather than rebuilt
+    /// from row arithmetic: ordering and drawn↔hit-test laws can point at a
+    /// title, facet, candidate, or footer glyph that actually exists and ask
+    /// the production hit-test owners what that same point means.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_line_glyph_box(&self, line_i: usize) -> Option<[f32; 4]> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let mut x0 = f32::INFINITY;
+        let mut x1 = f32::NEG_INFINITY;
+        let mut y0 = f32::INFINITY;
+        let mut y1 = f32::NEG_INFINITY;
+        for run in self
+            .panel_buffer
+            .layout_runs()
+            .filter(|r| r.line_i == line_i)
+        {
+            if run.glyphs.is_empty() {
+                continue;
+            }
+            let run_x0 = run.glyphs.iter().map(|g| g.x).fold(f32::INFINITY, f32::min);
+            let run_x1 = run
+                .glyphs
+                .iter()
+                .map(|g| g.x + g.w)
+                .fold(f32::NEG_INFINITY, f32::max);
+            x0 = x0.min(geom.text_left + run_x0);
+            x1 = x1.max(geom.text_left + run_x1);
+            y0 = y0.min(geom.text_top + run.line_top);
+            y1 = y1.max(geom.text_top + run.line_top + run.line_height);
+        }
+        (x0.is_finite() && x1 > x0 && y0.is_finite() && y1 > y0).then_some([
+            x0,
+            y0,
+            x1 - x0,
+            y1 - y0,
+        ])
+    }
+
     /// TEST HOOK — the Y-AGREEMENT probe: for the currently-prepared overlay, the
     /// absolute canvas Y-TOP of every candidate row's PRIMARY glyphs
     /// (`panel_buffer`) and SECONDARY label (`panel_bind_buffer`), keyed by the

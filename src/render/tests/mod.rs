@@ -48,6 +48,7 @@ mod outline;
 mod overlay_align_law;
 mod overlay_hover_stability_law;
 mod overlay_personality;
+mod overlay_rhythm_item112;
 mod overlay_rail_thirds_law;
 mod range_rail;
 mod reanchor_crossing_law;
