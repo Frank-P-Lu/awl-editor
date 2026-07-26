@@ -229,6 +229,63 @@ and move on"; "just note that it's blocked and churn through everything else.")
 The failure this kills: asking a question and then idling the whole queue until
 it's answered.
 
+## Delegation: what the orchestrator does and does not touch (user rules)
+
+Ported from the retired `cook` skill 2026-07-26, which is deleted — this file is
+now the single owner of how cooking works, so the two cannot drift apart again.
+
+- **The orchestrator never writes code — it only delegates.** Hands off the
+  build: no `Edit`, no `Write`, no code the orchestrator authors, not in the
+  session and not as "glue" inside a workflow script. The script is control flow
+  (`await`, loops, fan-out) that ROUTES work to agents; every line that lands in
+  the codebase is written by a dispatched worker. Reading, brainstorming, writing
+  the spec, and keeping `queue.md` remain the orchestrator's. The urge to "just
+  fix this one line" is exactly the urge to resist — dispatch for it. This
+  applies to merges too: a conflict is reconciled by a delegated MERGE agent,
+  never by hand-editing conflict markers (already stated under Cooking).
+- **Never investigate inline either — delegate the diagnosis** (user rule,
+  2026-07-18: "please don't do investigations yourself! you can spin up a
+  workflow and delegate investigations there!"). Light reading to WRITE a spec
+  stays the orchestrator's; a real investigation — reproduce, capture/measure,
+  eliminate candidates, root-cause — is itself delegated. It burns the
+  orchestrator's context with probe noise and is exactly the bounded, verifiable
+  work a worker does well. Shape it `diagnose → fix → verify` in ONE workflow:
+  the first phase returns the root cause with its evidence, the next builds, the
+  last adversarially verifies. On catching yourself running a fifth
+  `--screenshot` or grep to chase a cause, hand the whole investigation over.
+- **A real build is a Workflow, not a background Agent.** "It can't be
+  parallelized" is a reason for SEQUENTIAL PHASES inside a Workflow — `await` one
+  agent, then the next, each building on the prior commit — not a reason to drop
+  to a lone Agent. The Workflow keeps deterministic phases, live progress, and
+  the verify stage; an Agent gives none of them. A genuinely minor one-off (a
+  rename, a lookup) needn't be a Workflow at all; a single subagent is fine.
+
+## Delegating to Codex (user rule, 2026-07-18: "you can now delegate code to codex")
+
+The local Codex CLI is wired in (`codex:rescue` skill / `codex:codex-rescue`
+agent). Hand Codex a burner exactly as you would a Claude worker — self-contained
+brief, its own worktree, a diagnose/build/verify shape — and pick its
+model+effort to match the ROLE the quota ladder above assigns to that stage, not
+the stage's size:
+
+- **`gpt-5.6-terra` at `high`/`xhigh`** — the PRODUCTION DEFAULT, Sonnet's role:
+  implementation, structured research, routine diagnosis, merge reconciliation,
+  spot-check audits.
+- **`gpt-5.6-sol` at `low`** — Opus's role: the qualifying plan for high-risk
+  ownership/state work, and targeted verification while a hidden-risk condition
+  remains.
+- **`gpt-5.6-sol` at `high`** — the hardest REASONING tier: subtle root cause
+  where candidates must be eliminated with evidence. Note this is NOT Fable's
+  role — Fable judges awl's real captures as images and Codex cannot, so taste
+  calls never go to a Codex burner.
+
+Use the FULL model ids; the account's CLI rejects a bare `gpt-5.6` with a 400
+"model is not supported" (`gpt-5.6-sol` is the default in `~/.codex/config.toml`).
+Pass via `codex:rescue` flags, e.g. `--model gpt-5.6-terra --effort high`.
+Spreading burners across both runtimes is encouraged when many things are
+cooking — it widens throughput and gives independent implementation and
+diagnosis perspectives. Record which runtime and tier each burner got.
+
 ## Quota-aware model routing (user rule)
 
 The shared subscription allowance is a weekly compute budget. Choose a model by
