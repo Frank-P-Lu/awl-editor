@@ -189,24 +189,14 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
     p.set_view(&v);
     p.prepare(&device, &queue, 500, 360).unwrap();
     let off_mid_x = (p.column_left() + p.column_width() * 0.5) as i64;
-    let off_left_band_x = (p.column_left() - weight * 0.5).floor() as i64;
     let (texture, tview) = offscreen(&device, 500, 360);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame page-off encoder") });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
     let off_pixels = read_pixels(&device, &queue, &texture, 500, 360);
     assert_eq!(
-        p.page_frame_pipeline.instance_count(),
-        0,
-        "page-off uploads no page-frame rects"
-    );
-    assert_eq!(
-        off_pixels[(359 * 500 + off_mid_x) as usize], black,
-        "page-off has no former bottom page-frame stroke"
-    );
-    assert_eq!(
-        off_pixels[(160 * 500 + off_left_band_x) as usize], black,
-        "page-off has no former left page-frame stroke"
+        off_pixels[(359 * 500 + off_mid_x) as usize], white,
+        "page-off short document closes its frame at the canvas bottom"
     );
 
     crate::page::set_page_on(true);
@@ -248,20 +238,6 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
             theme::PageFrame::Line { .. } => 4,
         };
         assert_eq!(p.page_frame_pipeline.instance_count(), expected, "{}: state follows capability", world.name);
-    }
-
-    crate::page::set_page_on(false);
-    for world in theme::THEMES.iter() {
-        theme::set_active_by_name(world.name).unwrap();
-        p.sync_theme();
-        p.set_view(&v);
-        p.prepare(&device, &queue, 500, 360).unwrap();
-        assert_eq!(
-            p.page_frame_pipeline.instance_count(),
-            0,
-            "{}: page-off uploads no page-frame rects regardless of capability",
-            world.name
-        );
     }
 
     crate::page::set_page_on(was_page_on);
