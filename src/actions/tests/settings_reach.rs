@@ -73,6 +73,15 @@ fn walk(overlay: &mut Option<OverlayState>, action: &Action, steps: usize) -> Ve
 /// from an even-start / odd-start row to the far end, one `NextLine`/
 /// `PreviousLine` at a time, must reach every row's name EXACTLY once — no
 /// facet, direction, or parity may skip or repeat a row.
+///
+/// The FORWARD half starts at row 0/1 and walks the FULL remaining distance
+/// to the last row; the BACKWARD half is the true mirror image — it starts
+/// at the LAST row / second-to-last row and walks the FULL remaining
+/// distance down to row 0 (not a 0-or-1-step stub from the top: a `start`
+/// near the top with a walk length of only `start` steps would make the
+/// backward sweep exercise multiple steps only in facets with 0/1 rows,
+/// leaving every longer facet's `PreviousLine` chain unswept beyond a
+/// single step).
 #[test]
 fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_parities() {
     let _g = crate::testlock::serial();
@@ -89,23 +98,32 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
             ov.selected = start;
             let all_names: Vec<String> = ov.item_strings();
             let visited = walk(&mut overlay, &Action::NextLine, n - 1 - start);
-            let mut expected: Vec<String> = all_names[start..].to_vec();
+            let expected: Vec<String> = all_names[start..].to_vec();
             assert_eq!(
                 visited, expected,
                 "facet {fid:?} start={start}: forward walk must visit rows \
                  {start}..{n} in order with no skip/repeat"
             );
-            // BACKWARD from the same start down to 0.
-            expected = all_names[..=start].iter().rev().cloned().collect();
+        }
+        // BACKWARD from the LAST row (n-1) and second-to-last (n-2, when
+        // present) down to row 0 — the full-length mirror of the forward
+        // sweep above, so a backward-only regression in any facet beyond a
+        // single step is caught here, not just in the (editor-only) Zoom
+        // adjacency test.
+        for end_offset in [0usize, 1usize] {
             let mut overlay = Some(settings_overlay());
             let ov = overlay.as_mut().unwrap();
             goto_facet(ov, fid);
+            let n = ov.items.len();
+            let start = (n - 1).saturating_sub(end_offset);
             ov.selected = start;
+            let all_names: Vec<String> = ov.item_strings();
             let visited = walk(&mut overlay, &Action::PreviousLine, start);
+            let expected: Vec<String> = all_names[..=start].iter().rev().cloned().collect();
             assert_eq!(
                 visited, expected,
-                "facet {fid:?} start={start}: backward walk must visit rows \
-                 {start}..=0 in order with no skip/repeat"
+                "facet {fid:?} backward start={start} (of {n} rows): backward \
+                 walk must visit rows {start}..=0 in order with no skip/repeat"
             );
         }
     }
