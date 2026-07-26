@@ -1463,6 +1463,7 @@ impl TextPipeline {
     /// (or hit-tested char's) on-screen top is the point the anchored zoom then holds
     /// still. `doc_top(scroll) = TEXT_TOP + menubar − row_top(scroll)`, and the row's
     /// screen top is `doc_top + row_top(row)`.
+    #[cfg(test)]
     pub fn char_screen_top(&self, line: usize, col: usize, scroll: usize) -> f32 {
         self.char_screen_top_scroll(line, col, ScrollPos::at_row(scroll))
     }
@@ -1491,6 +1492,7 @@ impl TextPipeline {
     /// against the freshly reshaped row geometry. Exact for the caret (its row top IS
     /// the anchor); the pointer keeps its char's row top under the cursor to sub-row
     /// tolerance (integer-row scroll quantisation dominates the residual).
+    #[cfg(test)]
     pub fn zoom_anchor_scroll(
         &self,
         line: usize,
