@@ -544,3 +544,53 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
     );
     assert!(app.active.buffer.folds().contains(&0), "clicking # B does not disturb the fold");
 }
+
+/// ITEM 106 FOLLOW-UP — `App::overlay_wheel` is a SECOND deliberate-crossing
+/// input path that drives `OverlayState::move_sel` exactly like the keyboard
+/// (item 106's original commit only wired the keyboard-baseline stamp into
+/// `App::apply` / `ReplaySession::apply_chord`, missing this one — the wheel
+/// is dispatched straight from `on_mouse_wheel`, never through `apply`). From
+/// a COLD START (the overlay opened by keyboard, the pointer never having
+/// hovered a row yet — `last_hover_px` still `None`), a wheel scroll used to
+/// leave the gate armed with nothing: `hover_at`'s own cold-start rule reads
+/// a `None` baseline as unconditional real motion, so the very next
+/// `hover_at` call — even an exact repeat of the SAME resting pixel, the kind
+/// of platform-synthesized duplicate a relayout/redraw can produce — would
+/// silently steal the wheel-driven selection. Reproduces the item-106 hazard
+/// ("a list window scrolling under a stationary cursor... yank the selection
+/// out from under the user") through the wheel rather than the keyboard.
+#[test]
+fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_check() {
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    let corpus: Vec<String> = (0..40).map(|i| format!("row{i}")).collect();
+    let mut ov = crate::overlay::OverlayState::new(
+        crate::overlay::OverlayKind::Goto,
+        corpus,
+        vec![],
+        vec![],
+    );
+    assert_eq!(ov.last_hover_px, None, "cold start: the pointer has never hovered a row");
+    app.overlay = Some(ov);
+    // The pointer is resting somewhere (its OS position is always something;
+    // it just hasn't generated a hover check on this overlay yet).
+    app.cursor_px = (123.0, 45.0);
+
+    // A wheel scroll deep enough to move the window (Goto's `window_rows` is
+    // 12; 22 notches lands `selected` at 22, well past the first page).
+    app.overlay_wheel(-22.0);
+    let ov = app.overlay.as_mut().expect("overlay stays open across a wheel scroll");
+    assert_eq!(ov.selected, 22, "the wheel drove the selection exactly like ↓ would");
+
+    // The exact same resting pixel — no travel at all — now hit-tests to a
+    // DIFFERENT row (15) because the window scrolled under it, mirroring a
+    // relayout/redraw's incidental re-check. Row 15 sits safely inside the
+    // post-scroll visible band ([11, 23) for Goto's window), so a steal here
+    // can only come from the missing cold-start stamp, never from
+    // `hover_select`'s own separate visible-band rejection.
+    let stolen = ov.hover_at(app.cursor_px.0, app.cursor_px.1, Some(15));
+    assert!(
+        !stolen,
+        "a stationary pointer re-check after a wheel scroll must not steal the selection"
+    );
+    assert_eq!(ov.selected, 22, "the wheel-driven selection survives the stray re-check");
+}

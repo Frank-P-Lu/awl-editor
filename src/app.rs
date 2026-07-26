@@ -275,7 +275,15 @@ const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// press's own hit-test result. Matches the multi-click "same spot" tolerance
 /// (`bump_click_count`'s own `4.0`) — both answer "did the pointer really move",
 /// just for two different gestures. See `App::exceeds_drag_slop` (`app/input/mouse.rs`).
-const DRAG_ARM_SLOP_PX: f32 = 4.0;
+///
+/// `pub(crate)` so `overlay::nav::HOVER_MOVE_SLOP_PX` (item 106) can read this
+/// SAME constant rather than declaring its own copy of the number — the two
+/// gates answer the identical "did the pointer really move, or did content
+/// relocate under a stationary one" question for two different gestures (a
+/// text-selection drag arming vs. a picker's hover re-selecting), and awl does
+/// not grow two independently-tuned pointer-jitter constants that could drift
+/// apart under a future retune of either.
+pub(crate) const DRAG_ARM_SLOP_PX: f32 = 4.0;
 
 /// What kind of unit the current drag is selecting by (set on press).
 #[derive(Clone, Copy, PartialEq)]

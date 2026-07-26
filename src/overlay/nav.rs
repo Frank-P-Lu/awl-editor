@@ -7,6 +7,29 @@
 use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
 use crate::fuzzy::{self, Tier};
 
+/// ITEM 106 — Physical-px SLOP a pointer must travel PAST its last known
+/// resting position before [`OverlayState::hover_at`] may re-hit-test/
+/// re-select. The ONE owner of the hover movement threshold: every
+/// hover-selection path — live `CursorMoved` (`App::overlay_hover`,
+/// `app/input/mouse.rs`) and the headless pointer-replay step
+/// (`ReplaySession::apply_move`, `main/run.rs`) — funnels through
+/// `hover_at`, which is the sole place `OverlayState::selected` is ever
+/// mutated by pointer input (see the scout roster at the top of this file's
+/// history: every `OverlayKind` shares this ONE gate, never a per-picker
+/// fudge). IS `app::DRAG_ARM_SLOP_PX` — the identical "content relocating
+/// under a stationary pointer must not read as motion" hazard (there, a
+/// text-selection drag arming under a WYSIWYG reveal reflow; here, a
+/// picker's candidate rows scrolling under a resting hand), so this is a
+/// RE-EXPORT of that ONE constant rather than a second declaration of the
+/// same 4.0px physical budget — awl does not grow two independently-tuned
+/// pointer-jitter constants that could drift apart under a future retune of
+/// either. `pub(super)` (not `pub(crate)`) so `overlay::tests` can pin its
+/// boundary law to the REAL value instead of a duplicated magic number,
+/// while the re-export itself stays invisible past `overlay`'s own module
+/// tree — `app::DRAG_ARM_SLOP_PX` remains the one name anything outside
+/// `overlay` would ever reach for.
+pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
+
 impl OverlayState {
     /// Re-rank `rows` against the current query into `items`, clamping the
     /// selection. Called after every query edit.
@@ -317,27 +340,75 @@ impl OverlayState {
     /// deferred font reshape settles into a different line height — and the very
     /// next `CursorMoved`, whether it is a real pixel of travel or a platform-
     /// synthesized duplicate at the IDENTICAL coordinates (a redraw-triggered
-    /// spurious event), must not read that RELAYOUT as a pointer gesture. Comparing
-    /// `(px, py)` against [`Self::last_hover_px`] is the one test that tells the two
-    /// apart: the pointer's own physical position is the only thing that may drive a
-    /// re-hit-test/re-select, never a hit-test RESULT changing on its own.
+    /// spurious event), must not read that RELAYOUT as a pointer gesture.
+    ///
+    /// ITEM 106 — THE MOVEMENT-SLOP WIDENING: exact-pixel equality closed the
+    /// zero-travel case (item 85's own hazard) but left a stationary hand's
+    /// ordinary hardware jitter — or the case that actually bites, a list WINDOW
+    /// SCROLLING under a genuinely resting pointer, so the ROW under an unmoved
+    /// pixel changes on its own — free to steal a keyboard-driven selection the
+    /// instant any real `CursorMoved`, even a single-physical-pixel one, arrived.
+    /// The gate now compares `(px, py)` against [`Self::last_hover_px`] by
+    /// SQUARED DISTANCE against [`HOVER_MOVE_SLOP_PX`] (the hover twin of
+    /// `app::DRAG_ARM_SLOP_PX` — the identical "content relocating under a
+    /// stationary pointer must not read as motion" hazard, the same physical-px
+    /// budget) rather than bare inequality — a pixel of jitter no longer clears
+    /// it, while any real travel PAST the slop still fires on that very event
+    /// (no added latency, no debounce, no dead zone: the check is pure distance,
+    /// never time — the headless replay path stays clock-free).
+    ///
+    /// The anchor [`Self::last_hover_px`] is deliberately STICKY below the slop:
+    /// it is stamped forward only when this call actually reports a move (a cold
+    /// start, or a real crossing) — never on a rejected sub-slop check. A run of
+    /// tiny below-threshold checks therefore keeps accumulating distance from the
+    /// SAME original anchor (so a genuinely slow drag still crosses the slop and
+    /// fires the moment its TOTAL travel does, never hiding indefinitely below
+    /// the noise floor by re-basing itself every micro-step — the same "fixed
+    /// until armed" shape `App::exceeds_drag_slop`'s own `press` anchor uses).
     ///
     /// `hit` is the row the CALLER already resolved under `(px, py)` (a plain
-    /// injected value, not a pipeline call — keeps this pure/unit-testable). Always
-    /// records `(px, py)` as the new `last_hover_px` (even off a row / on a no-op
-    /// motion), so leaving-then-returning to a row and a genuinely-off-row hover both
-    /// track correctly. Returns whether the highlight actually moved, mirroring
-    /// [`Self::hover_select`]'s own return.
+    /// injected value, not a pipeline call — keeps this pure/unit-testable).
+    /// Returns whether the highlight actually moved, mirroring
+    /// [`Self::hover_select`]'s own return. See [`Self::arm_hover_baseline`] for
+    /// the OTHER half of item 106 — re-anchoring this gate at KEYBOARD-action
+    /// time, not just at the last hover check.
     pub fn hover_at(&mut self, px: f32, py: f32, hit: Option<usize>) -> bool {
-        let moved = self.last_hover_px != Some((px, py));
-        self.last_hover_px = Some((px, py));
+        let moved = match self.last_hover_px {
+            None => true,
+            Some((lx, ly)) => {
+                let dx = px - lx;
+                let dy = py - ly;
+                dx * dx + dy * dy > HOVER_MOVE_SLOP_PX * HOVER_MOVE_SLOP_PX
+            }
+        };
         if !moved {
             return false;
         }
+        self.last_hover_px = Some((px, py));
         match hit {
             Some(idx) => self.hover_select(idx),
             None => false,
         }
+    }
+
+    /// ITEM 106 — THE KEYBOARD-BASELINE STAMP: re-anchors [`Self::hover_at`]'s
+    /// movement-slop reference point to the pointer's CURRENT physical position,
+    /// WITHOUT hit-testing or touching `selected` — the keyboard-driven twin of a
+    /// real hover's own bookkeeping. Called by the shared keyboard-dispatch seam
+    /// (`App::apply` live, `ReplaySession::apply_chord` headless) after EVERY
+    /// keyboard-driven action while this overlay is open, so a subsequent hover
+    /// check measures the pointer's travel since THAT keyboard action, never
+    /// since a possibly stale, much-earlier hover position a scrolled/relaid-out
+    /// list has since reassigned meaning to (a `None` baseline — nothing hovered
+    /// yet at all — would otherwise treat literally the pointer's very first,
+    /// resting-hand incidental `CursorMoved` as unconditional real motion, per
+    /// [`Self::hover_at`]'s cold-start rule, and hand the keyboard's selection
+    /// straight to whatever row a motionless pointer happens to sit over).
+    /// `OverlayState` does not own a live pointer position itself (`App` does),
+    /// so the caller supplies it — mirroring how `hit` is always caller-resolved
+    /// into `hover_at` rather than this state reaching out for it.
+    pub fn arm_hover_baseline(&mut self, px: f32, py: f32) {
+        self.last_hover_px = Some((px, py));
     }
 
     /// ITEM 52 — RE-STAMP the card's frozen [`Self::align`] to the CURRENTLY-active

@@ -309,6 +309,16 @@ pub(crate) struct ReplaySession<'a> {
     // (`()`): headless replay tracks nothing per-buffer beyond the `Buffer`
     // itself (no scroll/spell/autosave state to preserve here).
     registry: crate::buffers::BufferRegistry<()>,
+    // ITEM 106 — THE POINTER-REPLAY SEAM: the replay's own notion of the
+    // pointer's current PHYSICAL position, mirroring `App::cursor_px` exactly
+    // (same default `(0.0, 0.0)` — no pointer motion ever "assumed", just like
+    // a freshly-launched live window before its first `CursorMoved`). Moved
+    // only by [`Self::apply_move`]; read back by [`Self::apply_chord`]'s
+    // end-of-chord `arm_hover_baseline` stamp, the headless twin of
+    // `App::apply`'s own stamp — so a scripted `move X Y` step and a scripted
+    // keyboard nav step compose through the SAME movement-slop gate a live
+    // session does.
+    cursor_px: (f32, f32),
 }
 
 impl<'a> ReplaySession<'a> {
@@ -344,6 +354,46 @@ impl<'a> ReplaySession<'a> {
             overlay: None,
             accept: None,
             registry: crate::buffers::BufferRegistry::default(),
+            cursor_px: (0.0, 0.0),
+        }
+    }
+
+    /// ITEM 106 — THE POINTER-REPLAY STEP: move the replay's pointer to
+    /// PHYSICAL `(px, py)` and, if an overlay is open, run it through the SAME
+    /// hover resolution `App::overlay_hover` uses live (via `OraclePipeline::
+    /// resolve_overlay_hover`, which wraps the identical `render::TextPipeline`
+    /// hit-test — never a second, hand-rolled implementation for the headless
+    /// path). A no-op on `selected` when the movement-slop gate refuses (no
+    /// oracle — no wgpu adapter, matching every other oracle-less fallback —
+    /// or no overlay open) still records the new position, mirroring the live
+    /// `App::cursor_px` write that happens unconditionally on every
+    /// `CursorMoved`.
+    pub(crate) fn apply_move(&mut self, px: f32, py: f32) {
+        self.cursor_px = (px, py);
+        // The oracle's own view is otherwise buffer-only (its job is
+        // wrap-motion, not overlay hit-testing); sync the CURRENT overlay
+        // geometry onto it first, so the hit-test below reads the real,
+        // scrolled candidate window a keyboard nav step just produced,
+        // exactly like the live GPU pipeline's `sync_view` does every frame.
+        self.sync_oracle_overlay();
+        if let Some(pipeline) = self.oracle.as_deref() {
+            if let Some(ov) = self.overlay.as_mut() {
+                pipeline.resolve_overlay_hover(ov, px, py);
+            }
+        }
+    }
+
+    /// ITEM 106 — push the CURRENT overlay's row/window geometry onto the
+    /// oracle's pipeline (a no-op with no overlay open). Split out of
+    /// [`Self::apply_move`] so a law can also call it directly to locate a
+    /// real row's pixel bounds (`Self::oracle`'s test-only geometry
+    /// accessors) BEFORE driving a move at it — private, but visible to
+    /// `mod tests` like every other item in this file.
+    fn sync_oracle_overlay(&mut self) {
+        if let Some(ov) = self.overlay.as_ref() {
+            if let Some(op) = self.oracle.as_deref_mut() {
+                op.sync_overlay(self.buffer, self.zoom, ov);
+            }
         }
     }
 
@@ -876,6 +926,15 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::None => {}
         }
         }
+        // ITEM 106 — the headless twin of `App::apply`'s own stamp: re-anchor the
+        // hover movement-slop gate to the replay's CURRENT pointer position after
+        // this whole chord (including any chained palette re-dispatch) has
+        // applied, so a scripted keyboard nav step never leaves a stale (or
+        // `None`) hover baseline for a LATER `move` step to read as unconditional
+        // real motion. See `OverlayState::arm_hover_baseline`'s doc.
+        if let Some(ov) = self.overlay.as_mut() {
+            ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
+        }
         Ok(())
     }
 
@@ -930,6 +989,15 @@ impl<'a> ReplaySession<'a> {
     /// The open overlay, if any.
     pub(crate) fn overlay(&self) -> Option<&crate::overlay::OverlayState> {
         self.overlay.as_ref()
+    }
+
+    /// TEST-ONLY — the session's own motion oracle, so item 106's
+    /// `ReplaySession`-level law can locate a real row's on-screen pixel
+    /// bounds (via [`capture::OraclePipeline`]'s own test-only geometry
+    /// accessors) before driving [`Self::apply_move`] at it.
+    #[cfg(test)]
+    pub(crate) fn oracle(&self) -> Option<&capture::OraclePipeline> {
+        self.oracle.as_deref()
     }
 
     /// Open-buffer count (the active one + everything backgrounded).
@@ -4155,5 +4223,123 @@ mod tests {
 
         crate::theme::set_active(crate::theme::DEFAULT_THEME);
         crate::caret::clear_override();
+    }
+
+    /// ITEM 106 — THE POINTER-REPLAY SEAM, end to end through the REAL
+    /// headless `--keys` engine (`ReplaySession`, the exact type
+    /// `--screenshot --keys` constructs) — not a pure `OverlayState`
+    /// simulation. Opens a real 40-row Goto picker, hovers a real row via a
+    /// REAL hit-test against the oracle's own pipeline, drives a real
+    /// keyboard scroll past the candidate window, then re-checks the SAME
+    /// physical pixel: the row now under it (per the SAME real hit-test)
+    /// must not steal the keyboard's selection. Proves the seam the scout
+    /// named (`ReplaySession::cursor_px` + `apply_move`, sharing
+    /// `TextPipeline::resolve_overlay_hover` with the live
+    /// `App::overlay_hover`) actually reproduces the item's own named live
+    /// hazard deterministically and headlessly, through the sidecar-adjacent
+    /// `ReplaySession::overlay()` state oracle.
+    #[test]
+    fn item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check() {
+        let _g = crate::testlock::serial();
+        let mut buffer = Buffer::scratch();
+        let corpus: Vec<String> = (0..40).map(|i| format!("row{i}.md")).collect();
+        let root = PathBuf::from("/tmp");
+        let opts = CaptureOpts::default();
+        let Some(mut oracle) = capture::build_oracle(&buffer, &opts) else {
+            eprintln!(
+                "skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \
+                 no wgpu adapter"
+            );
+            return;
+        };
+        let config = Config::empty();
+        let mut km =
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+        let mut session = ReplaySession::new(
+            crate::replay::Mode::Permissive,
+            &mut buffer,
+            &corpus,
+            &root,
+            None,
+            &config,
+            Some(&mut oracle),
+            &mut km,
+        );
+
+        // Open Goto (Cmd-O): a real 40-row picker.
+        for chord in keyspec::parse_keys("s-o").unwrap() {
+            session.apply_chord(&chord).unwrap();
+        }
+        assert!(session.overlay().is_some(), "Goto must be open");
+
+        // Locate display row 3's real on-screen pixel bounds via the oracle's
+        // own geometry — a plain linear scan using the SAME `overlay_row_at`
+        // hit-test the production seam uses, just probed at a fine step to
+        // FIND a row instead of assuming its position.
+        session.sync_oracle_overlay();
+        let card = session.oracle().expect("oracle present").overlay_card_rect().expect("goto card rect");
+        let px = card[0] + card[2] * 0.5;
+        let (py_top, py_bot) = (card[1], card[1] + card[3]);
+        let find_row = |session: &ReplaySession, target: Option<usize>| -> Option<f32> {
+            let op = session.oracle().expect("oracle present");
+            let mut y = py_top;
+            while y < py_bot {
+                let hit = op.overlay_row_at(px, y);
+                if target.is_none() && hit.is_some() {
+                    return Some(y);
+                }
+                if hit == target && target.is_some() {
+                    return Some(y);
+                }
+                y += 1.0;
+            }
+            None
+        };
+        let py = find_row(&session, Some(3)).expect("row 3 must be found within the card");
+
+        // Hover row 3 for real, through the production pointer-replay seam.
+        session.apply_move(px, py);
+        assert_eq!(session.overlay().unwrap().selected, 3, "the real hover selected row 3");
+
+        // A REAL keyboard session scrolls the window deep past it (22x Down).
+        for chord in keyspec::parse_keys(&"Down ".repeat(22)).unwrap() {
+            session.apply_chord(&chord).unwrap();
+        }
+        assert_eq!(session.overlay().unwrap().selected, 25, "keyboard nav landed on row 25");
+        assert!(session.overlay().unwrap().scroll > 0, "the window scrolled");
+
+        // Re-locate whatever is NOW at the SAME physical pixel (px, py) — the
+        // hazard's premise: the window scrolled, so a DIFFERENT item sits
+        // there now, even though the pointer never moved a device pixel.
+        session.sync_oracle_overlay();
+        let hit_now = session.oracle().expect("oracle present").overlay_row_at(px, py);
+        assert!(hit_now.is_some(), "the scrolled card still draws SOME row at that pixel");
+        assert_ne!(hit_now, Some(25), "a different item now sits under the stationary pixel");
+
+        // THE LAW: a stray re-check with a REAL 1px jitter off the parked
+        // pixel — not the exact same coordinate (item 85's own
+        // exact-equality gate already refused a bare duplicate; this law's
+        // own regression needs genuine, if tiny, travel) — through the exact
+        // production seam a spurious `CursorMoved` would drive — must not
+        // steal the keyboard's selection.
+        session.apply_move(px + 1.0, py);
+        assert_eq!(
+            session.overlay().unwrap().selected,
+            25,
+            "the keyboard's selection survives a 1px-jittered stationary pointer re-check"
+        );
+
+        // AND a genuine pointer move — to display row 0's own y-center, a
+        // full row height (or more) away from (px, py) — still takes over
+        // immediately, on the very first such event.
+        session.sync_oracle_overlay();
+        let py0 = find_row(&session, None).expect("display row 0 must be found");
+        let hit0 = session.oracle().expect("oracle present").overlay_row_at(px, py0);
+        session.apply_move(px, py0);
+        assert_eq!(
+            session.overlay().unwrap().selected,
+            hit0.unwrap(),
+            "a genuine pointer move to a different row takes over on the first event"
+        );
     }
 }

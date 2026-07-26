@@ -318,15 +318,20 @@ pub struct OverlayState {
     /// `refilter`. Inert (always 0) for every other kind.
     pub diff_scroll: usize,
     /// ITEM 85 -- THE REAL-MOTION GATE's memory: the PHYSICAL pointer position
-    /// `(px, py)` at the last hover check, or `None` before the first one. Read
-    /// + stamped ONLY by [`Self::hover_at`] -- a previewed world jump can
-    /// relocate every row under an otherwise-stationary pointer (a reanchor to
-    /// a new rail, a Pane<->Bars row-pitch change, a font-reshape settling
-    /// into a different line height); comparing the CALLER's `(px, py)`
-    /// against this recorded value is what lets a hover tell "the pointer
-    /// itself moved" apart from "the content moved under it" -- only the
-    /// former may re-hit-test/re-select. `None` on a fresh summon (the very
-    /// first hover always re-hit-tests).
+    /// `(px, py)` at the last hover check (or the last KEYBOARD action, item
+    /// 106's [`Self::arm_hover_baseline`]), or `None` before either has ever
+    /// happened. Read + stamped by [`Self::hover_at`] / [`Self::arm_hover_baseline`]
+    /// -- a previewed world jump can relocate every row under an otherwise-
+    /// stationary pointer (a reanchor to a new rail, a Pane<->Bars row-pitch
+    /// change, a font-reshape settling into a different line height, or a
+    /// keyboard-driven SCROLL sliding a different row under the same pixel --
+    /// item 106); comparing the CALLER's `(px, py)` against this recorded
+    /// value BY DISTANCE (item 106's `HOVER_MOVE_SLOP_PX`, private to `nav`,
+    /// not bare inequality) is what lets a hover tell "the pointer itself
+    /// really travelled" apart from "the content moved under it, or a
+    /// resting hand jittered a physical pixel" -- only the former may
+    /// re-hit-test/re-select. `None` on a fresh summon (the very first hover
+    /// always re-hit-tests, cold-start, no keyboard action needed).
     pub last_hover_px: Option<(f32, f32)>,
 }
 
