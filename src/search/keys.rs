@@ -49,9 +49,7 @@ pub fn intercept(
 
     match logical {
         Key::Character(s) => {
-            let Some(c) = s.chars().next() else {
-                return None;
-            };
+            let c = s.chars().next()?;
             // Cmd-based Find/Replace chords WITHIN the panel: Cmd-F skips to the
             // next match, Cmd-Shift-F the previous (so you can pass a match without
             // replacing it), Cmd-Option-F reveals+toggles the replace field, Cmd-R

@@ -318,11 +318,10 @@ impl App {
     /// The one owner of the range settings' live-side wiring, keyed by config key —
     /// `range_persist` writes it, `range_apply_live` (the POINTER path) applies it.
     pub(in crate::app) fn setting_range_step(&mut self, key: &str) {
-        match key {
-            // ZOOM: the value is already in `self.zoom` (mirrored back from the core
-            // right after `apply_core`); queue the metric reflow the ⌘± path queues.
-            "zoom" => self.zoom_reflow.queue(),
-            _ => {}
+        // ZOOM: the value is already in `self.zoom` (mirrored back from the core
+        // right after `apply_core`); queue the metric reflow the ⌘± path queues.
+        if key == "zoom" {
+            self.zoom_reflow.queue();
         }
         self.range_persist(key);
         self.sync_view(true);
@@ -338,11 +337,10 @@ impl App {
     /// owner. NEVER persists: a drag writes config exactly once, on release
     /// ([`Self::range_persist`], from `end_range_drag`).
     pub(in crate::app) fn range_apply_live(&mut self, id: crate::settings::SettingId, value: f32) {
-        match id {
-            // The SAME `set_zoom` owner the ⌘± / ⌘-wheel doors use (it re-clamps
-            // through `clamp_zoom` -> the same spec, so this is idempotent).
-            crate::settings::SettingId::Zoom => self.set_zoom(value),
-            _ => {}
+        // The SAME `set_zoom` owner the ⌘± / ⌘-wheel doors use (it re-clamps
+        // through `clamp_zoom` -> the same spec, so this is idempotent).
+        if id == crate::settings::SettingId::Zoom {
+            self.set_zoom(value);
         }
     }
 

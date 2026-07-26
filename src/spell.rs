@@ -51,6 +51,8 @@ const DIC_AU: &str = include_str!("../assets/dict/en_AU.dic");
 /// `--config` with `dictionary = "en_AU"` produces a capture using that dictionary
 /// with no flags, exactly like `theme`/`caret_mode`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// The language prefix keeps persisted dictionary identifiers self-explanatory.
+#[allow(clippy::enum_variant_names)]
 pub enum DictVariant {
     EnUs,
     EnGb,

@@ -45,6 +45,8 @@ pub struct GlyphMask {
 
 impl GlyphMask {
     /// Build a mask texture from an R8 coverage bitmap (`width*height` bytes).
+    // Glyphon supplies these raw cache fields separately; grouping them would only obscure that mapping.
+    #[allow(clippy::too_many_arguments)]
     pub fn from_coverage(
         device: &wgpu::Device,
         queue: &wgpu::Queue,

@@ -208,6 +208,8 @@ fn park_active(buffer: &mut Buffer, registry: &mut crate::buffers::BufferRegistr
 /// supplies the switch-project children — so a replayed Cmd-O / Cmd-Shift-P /
 /// Browse summons a real overlay the rest of the key-spec can filter / move /
 /// descend / accept. Returns the post-replay App-level state.
+// Replay inputs mirror the capture CLI fields so the one-shot and storyboard paths share this seam.
+#[allow(clippy::too_many_arguments)]
 fn replay_keys(
     buffer: &mut Buffer,
     keys: &[crate::keyspec::Chord],
@@ -242,6 +244,8 @@ fn replay_keys(
 /// stderr + records); STRICT returns the exact offender the moment an
 /// Unsupported effect fires ([`crate::replay::strict_error`]) — the scenario
 /// runner's truthfulness contract (see [`crate::replay`]'s module doc).
+// Replay mode adds the explicit mode selector to the same capture CLI field set.
+#[allow(clippy::too_many_arguments)]
 fn replay_keys_mode(
     mode: crate::replay::Mode,
     buffer: &mut Buffer,
@@ -372,6 +376,8 @@ impl<'a> ReplaySession<'a> {
     /// or no overlay open) still records the new position, mirroring the live
     /// `App::cursor_px` write that happens unconditionally on every
     /// `CursorMoved`.
+    // Reserved for the oracle pointer-replay seam, which is compiled in every capture build.
+    #[allow(dead_code)]
     pub(crate) fn apply_move(&mut self, px: f32, py: f32) {
         self.cursor_px = (px, py);
         // The oracle's own view is otherwise buffer-only (its job is
@@ -393,6 +399,8 @@ impl<'a> ReplaySession<'a> {
     /// real row's pixel bounds (`Self::oracle`'s test-only geometry
     /// accessors) BEFORE driving a move at it — private, but visible to
     /// `mod tests` like every other item in this file.
+    // Kept alongside `apply_move` so the oracle seam owns its overlay synchronization.
+    #[allow(dead_code)]
     fn sync_oracle_overlay(&mut self) {
         if let Some(ov) = self.overlay.as_ref()
             && let Some(op) = self.oracle.as_deref_mut()
@@ -1050,6 +1058,8 @@ impl<'a> ReplaySession<'a> {
 /// replay's App-level state into the capture opts, then render one settled frame.
 /// This is the heaviest mode (the only one that threads the full verification-hook
 /// `CaptureOpts` + overlay/accept handling), so it lives in its own seam.
+// The capture CLI contract is intentionally explicit so every headless control is visible here.
+#[allow(clippy::too_many_arguments)]
 fn capture_screenshot(
     out: PathBuf,
     file: Option<PathBuf>,

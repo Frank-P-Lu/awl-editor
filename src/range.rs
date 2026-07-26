@@ -42,6 +42,8 @@
 /// equal-and-opposite) is [`Log`](RailMap::Log), which seats each doubling at an
 /// equal interval.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+// Logarithmic mapping is the settled scroll-sensitivity grammar, wired when that setting lands.
+#[allow(dead_code)]
 pub enum RailMap {
     /// Even spacing in the VALUE: `frac = (v - min) / (max - min)`.
     Linear,
@@ -113,6 +115,8 @@ pub struct RangeSpec {
     pub map: RailMap,
 }
 
+// These shared range helpers are the deliberate API for the remaining numeric settings migration.
+#[allow(dead_code)]
 impl RangeSpec {
     /// Author a spec. `const` so each setting's spec is a plain constant and the
     /// historical `ZOOM_MIN`/`ZOOM_MAX`/`ZOOM_STEP` consts can be derived from it

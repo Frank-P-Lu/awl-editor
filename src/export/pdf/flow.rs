@@ -241,6 +241,8 @@ impl Engine<'_> {
         }
     }
 
+    // These independent row-layout facts map directly to the PDF paint primitive.
+    #[allow(clippy::too_many_arguments)]
     fn paint_row_fragment(
         &mut self,
         shaped: &[Vec<ShapedLine>],

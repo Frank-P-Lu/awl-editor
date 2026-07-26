@@ -7,6 +7,10 @@ use super::super::*;
 use super::adapter_available;
 use crate::buffer::Buffer;
 
+fn fixture_opts() -> CaptureOpts {
+    CaptureOpts::default()
+}
+
 /// DEBUG PANEL: the panel is ABSENT from a default capture (empty readout,
 /// `enabled=false`, so the frame is byte-identical), and the `--debug` toggle flips
 /// its state — drawing the small STACKED dev readout with the FIXED, clockless
@@ -907,7 +911,8 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     // OPEN on the I-beam row: the live preview applied I-beam to the global (as the
     // replay would), so set it here too. The sidecar reflects the picker + the look.
     crate::caret::set_mode(crate::caret::CaretMode::Ibeam);
-    let mut opts = CaptureOpts::default();
+    let mut opts = fixture_opts();
+    // The capture literal layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
         // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
@@ -979,7 +984,8 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     let buf = Buffer::from_str("preview me\n");
 
     crate::caret::set_mode(crate::caret::CaretMode::Morph);
-    let mut opts = CaptureOpts::default();
+    let mut opts = fixture_opts();
+    // The capture literal layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
         // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
@@ -1079,7 +1085,8 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     let ov = crate::overlay::OverlayState::new_dictionary(crate::spell::DictVariant::EnUs);
     let mut ov = ov;
     ov.move_sel(2);
-    let mut opts = CaptureOpts::default();
+    let mut opts = fixture_opts();
+    // The capture literal layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
         // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
@@ -1209,7 +1216,8 @@ fn popover_card_hugs_the_button_row() {
     ];
     for (dpi, zoom, canvas) in scales {
         let label = format!("dpi {dpi:?} zoom {zoom:?}");
-        let mut opts = CaptureOpts::default();
+        let mut opts = fixture_opts();
+        // The capture loop layers scenario-specific options after shared defaults.
         opts.force_popover = true;
         opts.selection = Some(((2, 13), (2, 17))); // "bold"
         opts.dpi = dpi;
@@ -1378,7 +1386,8 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
         [(None, None), (Some(2.0), Some((2400, 1600)))];
     for (dpi, canvas) in scales {
         let label = format!("dpi {dpi:?}");
-        let mut opts = CaptureOpts::default();
+        let mut opts = fixture_opts();
+        // The capture loop layers scenario-specific options after shared defaults.
         opts.force_popover = true;
         opts.selection = Some(((2, 15), (2, 19))); // "bold" inside the ** markers
         opts.dpi = dpi;
@@ -1486,7 +1495,8 @@ fn popover_labels_demonstrate_their_own_effects() {
     // Plain selection => every button UNLIT (no lit wash competing with the
     // always-on demo pills). Same fixture as the card-hug law.
     let buf = Buffer::from_str("# Hello world\n\nThis is some bold text.\n");
-    let mut opts = CaptureOpts::default();
+    let mut opts = fixture_opts();
+    // The fixture layers optional selection state after shared defaults.
     opts.force_popover = true;
     opts.selection = Some(((2, 13), (2, 17))); // "bold"
 
@@ -1679,7 +1689,8 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
     for world in ["Tawny", "Mopoke", "Wagtail"] {
         crate::theme::set_active_by_name(world);
 
-        let mut opts = CaptureOpts::default();
+        let mut opts = fixture_opts();
+        // The capture fixture layers optional history state after shared defaults.
         opts.preview_text = Some(transcript.clone());
         opts.overlay = Some(history_overlay(false));
         let png = dir.join(format!("{world}_rest.png"));
@@ -1756,7 +1767,8 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
 
         // FOCUS CUE: Tab strengthens the rim (wider + one value step up). Capture
         // the focused frame; the rim column band must out-mass the resting one.
-        let mut opts_f = CaptureOpts::default();
+        let mut opts_f = fixture_opts();
+        // The focused capture fixture layers optional history state after defaults.
         opts_f.preview_text = Some(transcript.clone());
         opts_f.overlay = Some(history_overlay(true));
         let png_f = dir.join(format!("{world}_focus.png"));

@@ -357,7 +357,6 @@ pub const CARET_MORPH_DILATE_PX: f32 = 2.0;
 /// numbers exist: [`crate::range::ZOOM`] (`.min`/`.max`/`.step`/`.default`), the
 /// same spec the Settings rail, the ⌘± keys, the ⌘-wheel, `--zoom` and a typed
 /// `125%` all read. Every former reader was updated to read the spec.
-
 /// Clamp + round a zoom factor to a sane stepped value. Rounding to the nearest
 /// step keeps Cmd+= / Cmd+- / Ctrl+wheel landing on stable factors (so repeated
 /// presses don't drift into ugly fractions) and keeps captures reproducible.

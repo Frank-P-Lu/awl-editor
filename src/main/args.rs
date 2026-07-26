@@ -15,6 +15,8 @@ use crate::config::{self, Config};
 use crate::keymap::KeymapState;
 use crate::{caret, debug, hud, keyspec, lifetime, page, theme, whichkey};
 
+// A command mode is parsed once and immediately consumed, so boxing would add indirection without benefit.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum Mode {
     Windowed {
         file: Option<PathBuf>,

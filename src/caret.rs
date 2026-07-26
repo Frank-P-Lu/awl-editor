@@ -254,7 +254,6 @@ pub const CARET_RECOIL_IMPULSE: f32 = 200.0;
 /// so a DELIBERATE single keystroke lands the full thunk while a fast BURST (held
 /// backspace / mashed typing) smooths into a slide and never strobes — mirroring the
 /// held-streak suppression elsewhere in this module. Eye-tunable magnitudes.
-
 /// The squash floor a BACKSPACE / C-d compresses the caret mark to: a small INWARD
 /// squash, the caret collapsing TOWARD the deletion point as the char is swallowed
 /// into it ("it eats what it deletes"). A PURE scale collapse with NO velocity kick —

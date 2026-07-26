@@ -51,6 +51,8 @@ pub struct OraclePipeline {
     project: Option<ProjectInfo>,
 }
 
+// Replay-only overlay helpers stay available for the planned oracle input seam.
+#[allow(dead_code)]
 impl OraclePipeline {
     /// Borrow as the renderer-agnostic motion oracle for `ActionCtx::oracle`.
     pub fn as_oracle(&self) -> &dyn crate::actions::LayoutOracle {

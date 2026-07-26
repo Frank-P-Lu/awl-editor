@@ -276,6 +276,8 @@ impl TextPipeline {
     /// (index 0, the flat/unfiltered corpus) is NOT drawn as a label. The flat state
     /// (`facet_lens == 0`) is simply NO facet underlined; `←` from the first facet
     /// returns there.
+    // Theme picker shaping receives the shared overlay facts directly to avoid a duplicate carrier type.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_shape_theme(
         &mut self,
         geom: &OverlayGeom,

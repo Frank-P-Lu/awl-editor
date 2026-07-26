@@ -83,7 +83,9 @@ const PLACARD_SIZE_STEP: f32 = 1.03;
 /// → the bounded-ladder law is unit-testable without a GPU (see
 /// `render::tests::overlay_personality`).
 pub(in crate::render) fn snap_placard_size(target: f32, anchor: f32, round_down: bool) -> f32 {
-    if !(target > 0.0) || !(anchor > 0.0) {
+    if !matches!(target.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater))
+        || !matches!(anchor.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater))
+    {
         return target;
     }
     let steps = (target / anchor).ln() / PLACARD_SIZE_STEP.ln();
@@ -911,6 +913,8 @@ impl TextPipeline {
     /// the picker has one), the candidate `rows` (pre-budgeted by the caller through
     /// [`rowlayout`]), and the dim foot hint. Carved verbatim out of the old inline
     /// shaper so the no-overlap arbiter can re-shape the names after a yield.
+    // Overlay rows arrive as parallel shaped inputs; a parameter object would obscure their alignment.
+    #[allow(clippy::too_many_arguments)]
     fn shape_overlay_names(
         &mut self,
         geom: &OverlayGeom,
@@ -1024,7 +1028,7 @@ impl TextPipeline {
             }
         };
         for (row, content) in rows.iter().enumerate() {
-            if !(!has_query && row == 0) {
+            if has_query || row != 0 {
                 spans.push(("\n", mk(ink)));
             }
             // INK RIDES THE BAND: under the living-band probe (`covered` set) the

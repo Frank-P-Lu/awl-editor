@@ -2373,6 +2373,8 @@ fn key_without_modifiers(event: &winit::event::KeyEvent) -> Key {
 /// (and optional `workspace` parent for switch-project). `wait` is the raw
 /// `--wait` flag (native-only meaning — see `crate::daemon`'s module doc for
 /// the documented scope of what it does and doesn't block on); ignored on wasm.
+// CLI parsing passes these independently so native-only state stays cfg-gated at the boundary.
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     file: Option<PathBuf>,
     root: PathBuf,

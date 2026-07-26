@@ -26,6 +26,11 @@
 
 use super::super::*;
 use super::{headless_dqp, view};
+use crate::capture::CaptureOpts;
+
+fn fixture_opts() -> CaptureOpts {
+    CaptureOpts::default()
+}
 
 /// Build the ONE Date-picker overlay content this whole file drives: all five
 /// live example dates (the fixed capture placeholder date, so every run is
@@ -104,7 +109,7 @@ fn capture_date_picker(
     selected: usize,
     tag: &str,
 ) -> image::RgbaImage {
-    use crate::capture::{CaptureOpts, OverlayInfo, capture_with};
+    use crate::capture::{OverlayInfo, capture_with};
     // Same reason as `date_row_regions`: this helper swaps the world global, so it
     // holds the standing serialization guard across the swap and the render.
     let _g = crate::testlock::serial();
@@ -114,7 +119,8 @@ fn capture_date_picker(
     );
     let (items, labels) = date_examples();
     let buf = crate::buffer::Buffer::from_str("hello world\n");
-    let mut opts = CaptureOpts::default();
+    // The capture fixture layers its optional overlay state for readability.
+    let mut opts = fixture_opts();
     opts.overlay = Some(OverlayInfo {
         active: true,
         mode: crate::overlay::OverlayKind::Date.as_str(),

@@ -512,6 +512,8 @@ impl SelectionPipeline {
     /// [`Self::set_color`] stays the single source of truth, and the very next
     /// settled frame (`settle >= 1.0`) reverts automatically with no extra
     /// bookkeeping on either side.
+    // Selection upload mirrors wgpu's explicit device/queue and animation inputs.
+    #[allow(clippy::too_many_arguments)]
     pub fn prepare_pulsed(
         &mut self,
         device: &wgpu::Device,

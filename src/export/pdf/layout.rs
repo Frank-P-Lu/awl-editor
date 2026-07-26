@@ -248,6 +248,8 @@ impl Engine<'_> {
         }
     }
 
+    // Rich block layout keeps the markdown-derived properties explicit at its one call boundary.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn rich(
         &mut self,
         inlines: &[Inline],

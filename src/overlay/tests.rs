@@ -2104,7 +2104,7 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
     // unconditionally — DOES cascade the highlight onto the new row.
     let mut naive = ov.clone();
     assert!(
-        naive.hover_select(relayout_hit.unwrap()),
+        naive.hover_select(7),
         "an UNGATED re-hit-test really would flip the highlight — the bug is real"
     );
     assert_eq!(

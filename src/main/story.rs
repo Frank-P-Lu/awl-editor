@@ -219,10 +219,12 @@ fn state_view(session: &crate::run::ReplaySession) -> StateView {
 /// performs on a finished replay, evaluated mid-run so every step's frame +
 /// sidecar reflect the state at that step.
 fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo) -> CaptureOpts {
-    let mut opts = CaptureOpts::default();
-    opts.project = Some(project.clone());
-    opts.zoom = (session.zoom() != 1.0).then(|| session.zoom());
-    opts.selection = session.buffer().selection_line_col();
+    let mut opts = CaptureOpts {
+        project: Some(project.clone()),
+        zoom: (session.zoom() != 1.0).then(|| session.zoom()),
+        selection: session.buffer().selection_line_col(),
+        ..CaptureOpts::default()
+    };
     if let Some(s) = session.search() {
         opts.search = Some(s.query().to_string());
         opts.search_case_sensitive = s.is_case_sensitive();

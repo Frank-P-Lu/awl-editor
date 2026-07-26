@@ -150,35 +150,31 @@ impl App {
         if !self.active.buffer.is_unnamed_fresh() {
             return;
         }
-        match self.active.buffer.save() {
-            Ok(()) => {
-                // `Buffer::save` only returns `Ok` here having derived + bound a
-                // path (an empty document, the ONLY other `Ok`-less case, bails
-                // into the `Err` arm below instead) — so `path()` is always
-                // `Some` on this arm.
-                let p = self.active.buffer.path().map(|p| p.to_path_buf());
-                self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-                self.active.extra.caret_synced_version = self.active.buffer.version();
-                if let Some(p) = &p {
-                    self.active.extra.disk_mtime = Self::disk_mtime_of(p);
-                }
-                // SAVE-FEEDBACK round: no terminal echo — a background
-                // autosave naming a fresh document is silent chatter (the
-                // window title already renders the new name). `Buffer::save`
-                // already stamped the derived path onto the buffer itself
-                // (the sole authoritative path, item 56).
-                self.update_title();
-                // Re-scope the go-to index so the new document is jump-able.
-                self.rescan_file_index();
-                // AUTOMATIC LOCAL SNAPSHOT: a loose document just hit the disk, so
-                // capture a history point (git-managed files + history-off are
-                // skipped inside).
-                self.snapshot_after_save();
-                // NOTES VERBS round: the held HUD's SAVED stat.
-                self.last_saved_ok = Some(self.clock.now());
+        if let Ok(()) = self.active.buffer.save() {
+            // `Buffer::save` only returns `Ok` here having derived + bound a
+            // path (an empty document, the ONLY other `Ok`-less case, bails
+            // into the `Err` arm below instead) — so `path()` is always
+            // `Some` on this arm.
+            let p = self.active.buffer.path().map(|p| p.to_path_buf());
+            self.active.extra.doc_saved_version = Some(self.active.buffer.version());
+            self.active.extra.caret_synced_version = self.active.buffer.version();
+            if let Some(p) = &p {
+                self.active.extra.disk_mtime = Self::disk_mtime_of(p);
             }
-            // Empty document (no first line yet): nothing to write. Stay quiet.
-            Err(_) => {}
+            // SAVE-FEEDBACK round: no terminal echo — a background
+            // autosave naming a fresh document is silent chatter (the
+            // window title already renders the new name). `Buffer::save`
+            // already stamped the derived path onto the buffer itself
+            // (the sole authoritative path, item 56).
+            self.update_title();
+            // Re-scope the go-to index so the new document is jump-able.
+            self.rescan_file_index();
+            // AUTOMATIC LOCAL SNAPSHOT: a loose document just hit the disk, so
+            // capture a history point (git-managed files + history-off are
+            // skipped inside).
+            self.snapshot_after_save();
+            // NOTES VERBS round: the held HUD's SAVED stat.
+            self.last_saved_ok = Some(self.clock.now());
         }
     }
 

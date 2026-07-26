@@ -967,9 +967,7 @@ fn overlay_query_caret_places_at_begin_mid_end_char_index() {
     // The caret's mean X over a tall strip spanning the whole query line —
     // wide enough to catch the caret at any of the three tested char indices.
     let caret_mean_x = |caret_char: usize| -> Option<i64> {
-        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-            return None;
-        };
+        let (device, queue, mut p) = headless_dqp(w as f32, h as f32)?;
         let mut v = view("hello world\n", 0, 0);
         v.overlay_active = true;
         v.overlay_title = ""; // bare "› " sigil — no title prefix to account for

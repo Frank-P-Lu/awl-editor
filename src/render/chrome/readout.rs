@@ -19,6 +19,8 @@ use super::*;
 /// margin Outline, and the search/replace panel's card already fold in (merge, don't
 /// align: one owner, never a second offset convention). The bottom / pointer-anchored
 /// arms are unaffected (a bar at the TOP of the canvas never reaches them).
+// The readout is assembled from explicit theme and geometry facts at one render boundary.
+#[allow(clippy::too_many_arguments)]
 pub(in crate::render) fn corner_origin(
     anchor: CornerAnchor,
     text_w: f32,

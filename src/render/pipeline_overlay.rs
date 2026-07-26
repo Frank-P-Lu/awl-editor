@@ -268,6 +268,8 @@ impl TextPipeline {
     /// MORPH), and `cross` for `overlay_cross` (the brightest crossing — empty
     /// unless a two-shape overlap exists this frame). Pure over its inputs (no
     /// GPU, no clock); `&self` only.
+    // Living-band geometry keeps the physical card and phase inputs explicit at this pure seam.
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::render) fn living_band_rects(
         &self,
         force: livingband::MotionForce,

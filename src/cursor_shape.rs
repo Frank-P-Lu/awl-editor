@@ -225,15 +225,11 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         // ranked with the other hands (it never coexists with an overlay/menu, so
         // the relative order among the hands never matters, only that it earns one).
         CursorIcon::Pointer
-    } else if ctx.over_menu_hand {
-        CursorIcon::Pointer
-    } else if ctx.over_clickable_overlay_row || ctx.over_clickable_lens {
+    } else if ctx.over_menu_hand || ctx.over_clickable_overlay_row || ctx.over_clickable_lens {
         CursorIcon::Pointer
     } else if ctx.over_query_input {
         CursorIcon::Text
-    } else if ctx.overlay_open {
-        CursorIcon::Default
-    } else if ctx.over_menu_bar {
+    } else if ctx.overlay_open || ctx.over_menu_bar {
         CursorIcon::Default
     } else if ctx.over_case_toggle {
         CursorIcon::Pointer

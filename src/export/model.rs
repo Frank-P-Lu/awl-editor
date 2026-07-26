@@ -144,6 +144,8 @@ pub fn sniff_image(bytes: &[u8]) -> Option<(u32, u32, ImageMime)> {
 
 /// A block-level node.
 #[derive(Clone, Debug, PartialEq)]
+// Markdown terminology deliberately keeps block kind in the variant names at call sites.
+#[allow(clippy::enum_variant_names)]
 pub enum Block {
     Heading { level: u8, inlines: Vec<Inline> },
     Paragraph(Vec<Inline>),
@@ -583,7 +585,7 @@ fn push_inline(stack: &mut [Frame], inline: Inline) {
 /// A text run: routed to the open image's ALT (with the Obsidian `|WIDTH` hint
 /// split out), to an open code block's body, or split on `==highlight==` pairs
 /// into the nearest inline container.
-fn push_text(stack: &mut Vec<Frame>, text: &str) {
+fn push_text(stack: &mut [Frame], text: &str) {
     if let Some(Frame::Image {
         alt, width_hint, ..
     }) = stack.last_mut()

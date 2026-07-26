@@ -804,7 +804,7 @@ pub(super) fn image_line_has_other_content(
         .unwrap_or(0);
     let b = line_text.as_bytes();
     (content_start.min(b.len())..b.len())
-        .any(|i| !b[i].is_ascii_whitespace() && !(i >= image_local.start && i < image_local.end))
+        .any(|i| !(b[i].is_ascii_whitespace() || i >= image_local.start && i < image_local.end))
 }
 
 /// True when a `Code`/`CodeSyntax` span (a fenced-block BODY byte) overlaps the

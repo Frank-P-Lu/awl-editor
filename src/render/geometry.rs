@@ -301,6 +301,8 @@ pub fn column_left_for(window_w: f32, char_width: f32, page_on: bool, measure: u
 /// 0.5 LOGICAL px, exactly the raster grid the glyphs rasterize on. The
 /// even-width reference captures (1200px canvas, measures 40/70/80 → lefts
 /// 312/96/24, all integral) are byte-identical under the snap.
+// Column placement keeps each policy input explicit at the single authoritative seam.
+#[allow(clippy::too_many_arguments)]
 pub fn adaptive_column_left(
     window_w: f32,
     char_width: f32,
@@ -331,6 +333,8 @@ pub fn adaptive_column_left(
 /// (the same "make the bypass seam private" discipline as `rowlayout`'s
 /// elision door). See the public wrapper's doc for the three regimes + the
 /// snap's rationale; this body is the policy verbatim.
+// The raw policy mirrors the public owner before its required whole-pixel snap.
+#[allow(clippy::too_many_arguments)]
 fn adaptive_column_left_raw(
     window_w: f32,
     char_width: f32,

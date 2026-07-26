@@ -784,7 +784,6 @@ impl TextPipeline {
                 // are deliberately bare (label included), so their chords stay bare —
                 // consistent, not the plated-label-bare-chord defect this fixes.
                 let mut sel = sel;
-                let mut unsel = unsel;
                 if !chord_px.is_empty() {
                     let (fx, fw) = super::bar_full_span(geom.card_x, geom.card_w);
                     let full_right = fx + fw;

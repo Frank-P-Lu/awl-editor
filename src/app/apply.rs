@@ -221,9 +221,8 @@ impl App {
             return; // we already wrote exactly this; skip redundant write
         }
         let owned = killed.to_string(); // drop the &self.active.buffer borrow
-        match clip.set_text(owned.clone()) {
-            Ok(()) => self.clipboard_last_written = Some(owned),
-            Err(_) => {} // graceful degradation: ignore set errors quietly
+        if let Ok(()) = clip.set_text(owned.clone()) {
+            self.clipboard_last_written = Some(owned);
         }
     }
 

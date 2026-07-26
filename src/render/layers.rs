@@ -2595,7 +2595,7 @@ impl TextPipeline {
             // (`compute_image_layout`'s doc comment — the raw source wraps as
             // plain text instead), so there is no well-defined place to draw
             // the image; skip it for that one frame, like the `!wysiwyg` arm.
-            if (im.revealed && !wysiwyg) || (im.revealed && !self.image_row_reserved(im.line)) {
+            if im.revealed && (!wysiwyg || !self.image_row_reserved(im.line)) {
                 continue;
             }
             let dw = im.display_w.max(1.0);

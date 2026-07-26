@@ -564,7 +564,7 @@ pub fn dither_for_blur(authored: bool, backdrop_blur: bool) -> bool {
 /// never accumulate and replay the missing wall time as a visible catch-up jump.
 /// Pure, so the macOS event-loop-stall behavior is law-testable without a window.
 pub fn ambient_tick_dt(elapsed: f32) -> f32 {
-    elapsed.max(0.0).min(LAVA_TICK_SECONDS)
+    elapsed.clamp(0.0, LAVA_TICK_SECONDS)
 }
 
 /// Advance the phase by one bounded ambient step at [`LAVA_SPEED`], wrapping to
