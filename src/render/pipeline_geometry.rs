@@ -523,7 +523,14 @@ impl TextPipeline {
     /// renderer's mirror of the view snapshot.
     fn sync_view_fields(&mut self, view: &ViewState) {
         self.scroll_lines = view.scroll_lines;
-        self.scroll = view.scroll;
+        // Compatibility for capture/bench tests that still construct a
+        // row-only ViewState. Live App state always mirrors the two fields;
+        // a zero-offset disagreement is therefore unambiguously a legacy caller.
+        self.scroll = if view.scroll.px_q == 0 && view.scroll.row != view.scroll_lines {
+            ScrollPos::at_row(view.scroll_lines)
+        } else {
+            view.scroll
+        };
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
         // COLLAPSED-HEADING TAILS: mirror the fold-tail rows so the ornament pass can
