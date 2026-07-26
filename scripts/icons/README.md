@@ -63,9 +63,10 @@ present locally. The script never downloads a browser — point
   refuses a key that names a world, a key outside `allowed`, or a value outside
   `bounds`.
 - **Bounded tuning.** Per face: radius, padding (as percentages of the glyph's
-  own inline box) and weight (which bundled FILE, regular or bold). The
-  wordmark's size and the squircle corner are global — a face needing its own
-  size would mean the lockup is wrong.
+  own inline box), optical seat (a percentage of the shared font size, applied
+  to the complete inline run), and weight (which bundled FILE, regular or
+  bold). The wordmark's size and the squircle corner are global — a face
+  needing its own size would mean the lockup is wrong.
 - **No glyph coordinates.** Every number is relative to the `l`'s own advance
   and font-derived content area, which is why one rule fits a wide mono `l` and
   a tight serif `l`.
@@ -92,9 +93,11 @@ present locally. The script never downloads a browser — point
 - `gallery/world-<World>.png` — one world, three presets, both surfaces
 - `tiles/<World>-<preset>-<size>.png` — the raw candidates, 16…1024
 - `legibility.txt` — how far down each candidate keeps its knocked-out `l`
+- `geometry.txt` — shipped wordmark/cursor/`l` ink boxes at every dashboard size
 
-Committed: the galleries, the 1024 masters and the legibility ladder. The
-intermediate tile sizes are regenerable in about a minute and are not tracked.
+Committed: the galleries, the 1024 masters, the legibility ladder and the
+geometry table. The intermediate tile sizes are regenerable in about a minute
+and are not tracked.
 
 ## What ships
 

@@ -22,6 +22,9 @@
  *                       "l" without a per-face branch.
  *   --r                 corner radius in em (font-relative), or 999px for a
  *                       true capsule.
+ *   --sy                bounded per-display-face optical seat correction, as
+ *                       a percentage of the shared wordmark font size. It
+ *                       moves the complete inline run, never one glyph.
  *   --fw                font-weight, always the weight the FONT FILE declares
  *                       (IBM Plex Mono's regular slot is 300 — see docs/fonts.md).
  * so the entire tile scales exactly with --s, from 1024 down to 16.
@@ -57,6 +60,7 @@
    * face's own metrics say "awl" is, is what the icon shows. */
   font-kerning: normal;
   font-variant-ligatures: none;
+  transform: translateY(var(--sy));
   /* The wordmark owns its own stacking context so the cursor lands BETWEEN the
    * tile ground and the glyphs. Without it a negative-z-index child paints in
    * the root context's step 2 — BEFORE ancestor block backgrounds (step 3) —

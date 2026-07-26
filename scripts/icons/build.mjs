@@ -86,6 +86,7 @@ function geometry(tuning, preset, family) {
     ix: add("insetX"),
     it: add("insetTop"),
     ib: add("insetBottom"),
+    sy: clamp(face.seatY ?? 0, tuning.bounds.delta, `${family}.seatY`),
     radius: radius === "capsule" ? "999px" : `${radius}em`,
     weight,
   };
@@ -106,6 +107,7 @@ function tileStyle(world, face, geom, size) {
     `--ix:${geom.ix}%`,
     `--it:${geom.it}%`,
     `--ib:${geom.ib}%`,
+    `--sy:${geom.sy}%`,
     `--r:${geom.radius}`,
   ].join(";");
 }

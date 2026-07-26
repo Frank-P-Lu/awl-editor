@@ -7,7 +7,7 @@ Mopoke          Bitter                pill     64px
 Mopoke          Bitter                narrow   64px
 Currawong       Iosevka               block    64px
 Currawong       Iosevka               pill     64px
-Currawong       Iosevka               narrow   128px
+Currawong       Iosevka               narrow   64px
 Potoroo         Monaspace Xenon       block    32px
 Potoroo         Monaspace Xenon       pill     32px
 Potoroo         Monaspace Xenon       narrow   32px
@@ -30,7 +30,7 @@ Bowerbird       IBM Plex Sans         block    24px
 Bowerbird       IBM Plex Sans         pill     24px
 Bowerbird       IBM Plex Sans         narrow   24px
 Mulga           Zilla Slab            block    64px
-Mulga           Zilla Slab            pill     32px
+Mulga           Zilla Slab            pill     64px
 Mulga           Zilla Slab            narrow   64px
 Mangrove        JetBrains Mono        block    24px
 Mangrove        JetBrains Mono        pill     24px
@@ -52,4 +52,4 @@ Firetail        Monaspace Xenon       pill     32px
 Firetail        Monaspace Xenon       narrow   32px
 Cassowary       Iosevka               block    64px
 Cassowary       Iosevka               pill     64px
-Cassowary       Iosevka               narrow   128px
+Cassowary       Iosevka               narrow   64px

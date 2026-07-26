@@ -31,9 +31,13 @@ import struct
 import sys
 import zlib
 
-# The HARD gate runs at the Dock size; the ladder below it is reported.
+# The HARD presence gate runs at the Dock size; the ladder below it is
+# reported. Geometry is a separate roster law over the shipped assignment at
+# every native review size. It deliberately does NOT turn 32/24px legibility
+# into a decision: item 99a owns that taste call.
 ASSERT_SIZES = [128]
 LADDER = [128, 64, 32, 24]
+GEOMETRY_SIZES = [256, 128, 64, 44, 32, 24]
 
 
 def decode_png(path):
@@ -157,6 +161,151 @@ def cursor_region(mask, w, h):
     return size, (x0, y0, x1, y1)
 
 
+def geometry_cursor_region(mask, w, h):
+    """Rightmost cursor bbox, robust to same-colour ink and tiny split slabs."""
+    # Crop before component finding: at tiny sizes Cassowary's `w` can touch
+    # its same-colour block through antialiasing, making the whole word one
+    # component. The cursor itself always starts well right of 60% of the tile.
+    right_mask = bytearray(mask)
+    for y in range(h):
+        for x in range(round(0.60 * w)):
+            right_mask[y * w + x] = 0
+    parts = blobs(right_mask, w, h)
+    right = [
+        part
+        for part in parts
+        if (part[1][0] + part[1][2]) / 2 >= 0.65 * w
+    ]
+    if not right:
+        return 0, None
+    size = sum(part[0] for part in right)
+    x0 = min(part[1][0] for part in right)
+    y0 = min(part[1][1] for part in right)
+    x1 = max(part[1][2] for part in right)
+    y1 = max(part[1][3] for part in right)
+    return size, (x0, y0, x1, y1)
+
+
+def bbox(points):
+    if not points:
+        return None
+    return (
+        min(p[0] for p in points),
+        min(p[1] for p in points),
+        max(p[0] for p in points),
+        max(p[1] for p in points),
+    )
+
+
+def dist2(px, rgb):
+    return sum((px[i] - rgb[i]) ** 2 for i in range(3))
+
+
+def blend_coverage(px, back, front):
+    """Coverage of `front` over `back`, or None when px is off that colour line."""
+    axis = tuple(front[i] - back[i] for i in range(3))
+    denom = sum(v * v for v in axis)
+    if denom == 0:
+        return None
+    t = sum((px[i] - back[i]) * axis[i] for i in range(3)) / denom
+    if t < 0 or t > 1.08:
+        return None
+    expect = tuple(back[i] + t * axis[i] for i in range(3))
+    residual = sum((px[i] - expect[i]) ** 2 for i in range(3))
+    return t if residual <= 36 else None
+
+
+def geometry(path, world):
+    """Rendered ink/cursor boxes for the shipped lockup.
+
+    `aw` is found from its authored ink outside the already-located cursor.
+    The knocked-out `l` is found as the non-cursor ink between each cursor
+    scanline's solid edges. That scanline rule handles the two-value worlds:
+    there, `primary_content == base_100`, so colour naming alone cannot tell
+    the real glyph hole from the tile ground.
+    """
+    w, h, bpp, buf = decode_png(path)
+    ground = hexrgb(world["base_100"])
+    ink = hexrgb(world["base_content"])
+    cursor = hexrgb(world["primary"])
+    curink = hexrgb(world["primary_content"])
+
+    def at(x, y):
+        i = (y * w + x) * bpp
+        return (buf[i], buf[i + 1], buf[i + 2])
+
+    def opaque(x, y):
+        return bpp != 4 or buf[(y * w + x) * bpp + 3] >= 128
+
+    cursor_mask = bytearray(w * h)
+    for y in range(h):
+        for x in range(w):
+            coverage = blend_coverage(at(x, y), ground, cursor)
+            if opaque(x, y) and coverage is not None and coverage >= 0.08:
+                cursor_mask[y * w + x] = 1
+    _count, cursor_box = geometry_cursor_region(cursor_mask, w, h)
+    if cursor_box is None:
+        return {"cursor": None, "aw": None, "l": None, "wordmark": None, "l_outside": 0}
+
+    cx0, cy0, cx1, cy1 = cursor_box
+    aw_points = []
+    l_mask = bytearray(w * h)
+    outside_points = []
+    for y in range(h):
+        row_x = [x for x in range(cx0, cx1 + 1) if cursor_mask[y * w + x]]
+        row_span = (min(row_x), max(row_x)) if row_x else None
+        for x in range(w):
+            px = at(x, y)
+            if not opaque(x, y):
+                continue
+            in_cursor_box = cx0 <= x <= cx1 and cy0 <= y <= cy1
+            ink_coverage = blend_coverage(px, ground, ink)
+            if not in_cursor_box and ink_coverage is not None and ink_coverage >= 0.08:
+                aw_points.append((x, y))
+            if row_span is not None and row_span[0] <= x <= row_span[1]:
+                if dist2(px, curink) + 4 < dist2(px, cursor):
+                    l_mask[y * w + x] = 1
+            elif cx0 <= x <= cx1 and (y < cy0 or y > cy1):
+                # A visible ascender/descender outside the cursor is the
+                # containment defect. Require positive separation from ground
+                # so a two-value world's invisible ground cannot fabricate it.
+                if dist2(px, curink) + 4 < dist2(px, ground) and near(px, curink, 6):
+                    outside_points.append((x, y))
+
+    l_parts = blobs(l_mask, w, h)
+    if l_parts:
+        # The glyph hole is the tall central component; edge antialias flecks
+        # are smaller and farther from the cursor's horizontal centre.
+        center = (cx0 + cx1) / 2
+        _size, l_box = max(
+            l_parts,
+            key=lambda part: (
+                part[1][3] - part[1][1],
+                part[0],
+                -abs((part[1][0] + part[1][2]) / 2 - center),
+            ),
+        )
+        l_points = [
+            (x, y)
+            for y in range(l_box[1], l_box[3] + 1)
+            for x in range(l_box[0], l_box[2] + 1)
+            if l_mask[y * w + x]
+        ]
+    else:
+        l_points = []
+    l_points.extend(outside_points)
+    aw_box = bbox(aw_points)
+    l_box = bbox(l_points)
+    wordmark_box = bbox(aw_points + l_points)
+    return {
+        "cursor": cursor_box,
+        "aw": aw_box,
+        "l": l_box,
+        "wordmark": wordmark_box,
+        "l_outside": len(outside_points),
+    }
+
+
 def analyse(path, world):
     w, h, bpp, buf = decode_png(path)
     ground = hexrgb(world["base_100"])
@@ -219,6 +368,7 @@ def main():
     ap.add_argument("--tiles", required=True)
     ap.add_argument("--presets", default="block,pill,narrow")
     ap.add_argument("--report", help="write the legibility ladder here")
+    ap.add_argument("--geometry-report", help="write the shipped-roster geometry table here")
     args = ap.parse_args()
     manifest = json.loads(pathlib.Path(args.manifest).read_text())
     tiles = pathlib.Path(args.tiles)
@@ -262,6 +412,81 @@ def main():
         sys.exit(1)
     print("verify.py: every tile carries ground, cursor, cursor-ink and wordmark ink")
 
+    # THE VERTICAL-RHYTHM LAW. Sweep the complete shipped roster rather than a
+    # hand-picked Bilby/Gumtree pair: every display face must land on the same
+    # optical seat, the raised cursor must bracket the visible `l`, and no new
+    # face may silently reintroduce a vertical jump. The two Dock surfaces
+    # compose these exact transparent tiles, so one raster measurement applies
+    # identically to both.
+    geometry_rows = []
+    by_size = {size: [] for size in GEOMETRY_SIZES}
+    for world in manifest["worlds"]:
+        preset = world["cursor"]
+        for size in GEOMETRY_SIZES:
+            p = tiles / f"{world['name']}-{preset}-{size}.png"
+            if not p.exists():
+                failures.append(f"{p.name}: missing for shipped geometry law")
+                continue
+            g = geometry(p, world)
+            name = f"{world['name']}/{preset}@{size}"
+            if g["cursor"] is None or g["aw"] is None or g["wordmark"] is None:
+                failures.append(f"{name}: no measurable cursor/wordmark ink bbox")
+                continue
+            cursor_box, aw_box, l_box = g["cursor"], g["aw"], g["l"]
+            baseline = aw_box[3]
+            by_size[size].append((world["name"], baseline))
+            top_lead = aw_box[1] - cursor_box[1]
+            min_lead = max(1, round(size * 0.08))
+            if top_lead < min_lead:
+                failures.append(
+                    f"{name}: cursor still sits low (top lead {top_lead}px, need >= {min_lead}px)"
+                )
+            if l_box is not None and (
+                l_box[0] < cursor_box[0]
+                or l_box[1] < cursor_box[1]
+                or l_box[2] > cursor_box[2]
+                or l_box[3] > cursor_box[3]
+                or g["l_outside"] > 0
+            ):
+                failures.append(
+                    f"{name}: `l` ink {l_box} escapes cursor {cursor_box} "
+                    f"({g['l_outside']} outside pixels)"
+                )
+            geometry_rows.append(
+                (
+                    world["name"],
+                    world["font"],
+                    preset,
+                    size,
+                    g["wordmark"],
+                    cursor_box,
+                    l_box,
+                    baseline,
+                )
+            )
+    for size, seats in by_size.items():
+        if len(seats) != len(manifest["worlds"]):
+            continue
+        low = min(seats, key=lambda x: x[1])
+        high = max(seats, key=lambda x: x[1])
+        # Native raster quantisation contributes a one-pixel choice at each
+        # edge; a two-pixel full spread is the measured noise floor.
+        tolerance = 2
+        if high[1] - low[1] > tolerance:
+            failures.append(
+                f"shipped@{size}: optical-seat spread {high[1] - low[1]}px exceeds "
+                f"{tolerance}px ({low[0]}={low[1]}, {high[0]}={high[1]})"
+            )
+
+    if failures:
+        for f in failures:
+            print(f"  FAIL {f}")
+        sys.exit(1)
+    print(
+        f"verify.py: shipped vertical rhythm pinned for {len(manifest['worlds'])} worlds "
+        f"x {len(GEOMETRY_SIZES)} sizes x both Dock surfaces"
+    )
+
     # The LEGIBILITY LADDER is reported, never gated: how far down each candidate
     # keeps its knocked-out "l". Below the Dock sizes every 3-glyph wordmark
     # eventually becomes a smudge, so a floor of 32 or 24 is information for
@@ -275,6 +500,20 @@ def main():
     print(text, end="")
     if args.report:
         pathlib.Path(args.report).write_text(text)
+
+    geometry_lines = [
+        "world           face                  preset   px   wordmark ink bbox   cursor bbox         l ink bbox          aw baseline",
+    ]
+    for name, font, preset, size, wordmark, cursor, letter, baseline in geometry_rows:
+        geometry_lines.append(
+            f"{name:<15} {font:<21} {preset:<8} {size:>3}  "
+            f"{str(wordmark):<19} {str(cursor):<19} {str(letter):<19} {baseline}"
+        )
+    geometry_text = "\n".join(geometry_lines) + "\n"
+    print()
+    print(geometry_text, end="")
+    if args.geometry_report:
+        pathlib.Path(args.geometry_report).write_text(geometry_text)
 
 
 if __name__ == "__main__":

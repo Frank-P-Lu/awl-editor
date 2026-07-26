@@ -975,7 +975,10 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed { a: "Bilby", b: "Magpie", baseline: 0.208008 },
     Blessed { a: "Saltpan", b: "Quokka", baseline: 0.228516 },
     Blessed { a: "Galah", b: "Magpie", baseline: 0.232422 },
-    Blessed { a: "Bilby", b: "Saltpan", baseline: 0.237305 },
+    // Item 110 aligned every face's rendered baseline; the intentional seat
+    // change moved this cream-ground near-pair without changing palette or
+    // its deliberately split block/pill silhouettes.
+    Blessed { a: "Bilby", b: "Saltpan", baseline: 0.2294921875 },
     Blessed { a: "Tawny", b: "Mulga", baseline: 0.253906 },
     Blessed { a: "Tawny", b: "Mopoke", baseline: 0.268555 },
     Blessed { a: "Tawny", b: "Bowerbird", baseline: 0.272461 },
@@ -994,9 +997,11 @@ const MEAN_BLESSED: &[Blessed] = &[
     Blessed { a: "Galah", b: "Brolga", baseline: 54.86 },
     Blessed { a: "Mopoke", b: "Mulga", baseline: 55.84 },
     Blessed { a: "Tawny", b: "Mangrove", baseline: 56.46 },
-    Blessed { a: "Bilby", b: "Magpie", baseline: 63.43 },
     Blessed { a: "Saltpan", b: "Galah", baseline: 65.89 },
-    Blessed { a: "Bilby", b: "Galah", baseline: 66.27 },
+    // Item 110's vertical-seat correction moves Bilby's rendered ink while
+    // preserving every palette and cursor assignment.
+    Blessed { a: "Bilby", b: "Galah", baseline: 60.611328125 },
+    Blessed { a: "Bilby", b: "Saltpan", baseline: 63.974609375 },
     Blessed { a: "Bowerbird", b: "Mulga", baseline: 67.55 },
     Blessed { a: "Tawny", b: "Firetail", baseline: 68.89 },
 ];
@@ -1004,7 +1009,7 @@ const MEAN_BLESSED: &[Blessed] = &[
 /// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
 /// today — the roster's own cluster tops out at 88.39% (Bowerbird/Firetail)
 /// before a cliff to 94.22%; 92% sits between the two so the axis still
-/// catches a scenario shaped like `Ibis` (90.73%, see
+/// catches a scenario shaped like `Ibis` (85.57% after item 110, see
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
 const INK_BLESSED: &[Blessed] = &[
@@ -1409,7 +1414,7 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
 /// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or
 /// Potoroo/Firetail (ink) as the incumbent minimum. Under
 /// `check_pair_axes`'s danger-zone guard it must fail on all three axes —
-/// `Ibis`'s own values (differing 18.16%, mean 20.46, ink 90.73%) fall under
+/// `Ibis`'s own values (currently 16.80%, 18.77, 85.57%) fall under
 /// every axis's `danger` threshold without ever leading any of them, and the
 /// guard checks it by value, not by whether it happens to be the champion.
 #[test]
@@ -1454,26 +1459,27 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
         ));
     }
 
-    // Sanity: this reproduces item 102's own reported Ibis-vs-Galah numbers
-    // (differing 18.16%, mean 20.46, ink 90.73%) before asking whether the
-    // law catches them.
+    // Sanity: replay the same Ibis-vs-Galah construction before asking
+    // whether the law catches it. Item 110 moved Bilby's rendered seat, so
+    // today's 16.80% / 18.77 / 85.57% differ from item 102's historical
+    // 18.16% / 20.46 / 90.73% without weakening the probe.
     let ibis_vs_galah = pairs
         .iter()
         .find(|p| (p.a == "Ibis" && p.b == "Galah") || (p.a == "Galah" && p.b == "Ibis"))
         .expect("Ibis vs Galah is in the extended set");
     assert!(
-        (ibis_vs_galah.differing - 0.181641).abs() < 1e-3,
-        "differing = {} (item 102 reported 18.16%)",
+        (ibis_vs_galah.differing - 0.167969).abs() < 1e-3,
+        "differing = {} (item 110 geometry expects 16.80%)",
         ibis_vs_galah.differing
     );
     assert!(
-        (ibis_vs_galah.mean - 20.4609).abs() < 0.5,
-        "mean = {} (item 102 reported 20.46)",
+        (ibis_vs_galah.mean - 18.7686).abs() < 0.5,
+        "mean = {} (item 110 geometry expects 18.77)",
         ibis_vs_galah.mean
     );
     assert!(
-        (ibis_vs_galah.ink - 0.907317).abs() < 1e-3,
-        "ink = {} (item 102 reported 90.73%)",
+        (ibis_vs_galah.ink - 0.855721).abs() < 1e-3,
+        "ink = {} (item 110 geometry expects 85.57%)",
         ibis_vs_galah.ink
     );
 

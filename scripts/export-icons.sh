@@ -65,7 +65,11 @@ else
 fi
 
 echo "==> pixel checks"
-python3 scripts/icons/verify.py --manifest "$BUILD/manifest.json" --tiles "$OUT/tiles" --report "$OUT/legibility.txt"
+python3 scripts/icons/verify.py \
+  --manifest "$BUILD/manifest.json" \
+  --tiles "$OUT/tiles" \
+  --report "$OUT/legibility.txt" \
+  --geometry-report "$OUT/geometry.txt"
 
 # --- 4. PACK (Rust, no browser, no `iconutil`) ------------------------------
 # Cut each SHIPPED world's tiles — at the ONE preset its world literal assigns
