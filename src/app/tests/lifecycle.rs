@@ -1,5 +1,26 @@
 use super::*;
 
+/// DEBUG-OFF LAW: a completed theme transaction is a diagnostic session value, not
+/// sticky App state. Turning the panel off reaches the App-owned reset boundary even
+/// when no frame sample is present to incidentally trigger the old ring-based branch.
+#[test]
+fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
+    let _g = crate::testlock::serial();
+    crate::debug::set_debug_on(true);
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    let mut phases = crate::themeswitch::SwitchPhases::default();
+    phases.record(crate::themeswitch::SwitchPhase::Reshape, 7.0);
+    app.theme_switches
+        .insert(app.clock.now(), 9.0, phases);
+    assert!(app.frame_costs.last().is_none(), "precondition: no frame sample");
+    assert!(!app.theme_switches.is_empty(), "precondition: transaction recorded");
+
+    crate::debug::set_debug_on(false);
+    app.clear_debug_session_when_off();
+    assert!(app.theme_switches.is_empty(), "Debug off clears the transaction window");
+    crate::debug::set_debug_on(false);
+}
+
 #[test]
 fn gpu_fault_outcomes_skip_once_then_rebuild_without_conflating_validation() {
     assert_eq!(

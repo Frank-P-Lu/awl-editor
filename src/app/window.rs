@@ -9,6 +9,17 @@
 use super::*;
 
 impl App {
+    /// Forget the live Debug session when the panel has been turned off. This is the
+    /// one explicit reset boundary for frame, input, and theme-transaction diagnostics;
+    /// normal theme movement never calls it.
+    pub(super) fn clear_debug_session_when_off(&mut self) {
+        self.input_stamp = None;
+        self.last_latency_ms = None;
+        self.frame_costs.clear();
+        self.theme_switches.clear();
+        self.debug_still = crate::debug::DebugStill::Active;
+    }
+
     fn handle_gpu_fault(&mut self, event_loop: &ActiveEventLoop, fault: gpu::GpuFault) {
         eprintln!("gpu {:?}: {}", fault.kind, fault.message);
         match gpu_fault_action(self.gpu_lifecycle, fault.kind) {
@@ -526,15 +537,12 @@ impl App {
         } else if self.input_stamp.is_some()
             || self.last_latency_ms.is_some()
             || self.frame_costs.last().is_some()
+            || !self.theme_switches.is_empty()
         {
             // Panel just turned off: forget the measurements so the next
             // enable starts fresh (placeholders, then live numbers), and
             // re-feed the pipeline defaults (still-form placeholders).
-            self.input_stamp = None;
-            self.last_latency_ms = None;
-            self.frame_costs.clear();
-            self.theme_switches.clear();
-            self.debug_still = crate::debug::DebugStill::Active;
+            self.clear_debug_session_when_off();
             if let Some(gpu) = self.gpu.as_mut() {
                 gpu.pipeline.set_debug_perf(None, None, None, true, None);
                 gpu.pipeline.set_debug_autosave(None);

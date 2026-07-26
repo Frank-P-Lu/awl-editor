@@ -1,18 +1,17 @@
-//! src/themeswitch.rs — THE THEME-SWITCH SETTLE-LATENCY readout (DEBUG-mode,
-//! LIVE-ONLY): a once-per-switch measurement of how long a theme change takes to
-//! SETTLE on screen, plus a per-phase breakdown so the dominant cost NAMES ITSELF
-//! instead of being guessed.
+//! src/themeswitch.rs — THE THEME-SWITCH TRANSACTION-LATENCY readout (DEBUG-mode,
+//! LIVE-ONLY): completed theme changes retained in a five-second wall-clock window,
+//! with the slowest transaction's per-phase breakdown so the dominant cost NAMES
+//! ITSELF instead of being guessed.
 //!
-//! WHAT IT REPORTS (drawn as two extra lines in the debug panel, `debug.rs`, only
+//! WHAT IT REPORTS (drawn as three extra lines in the debug panel, `debug.rs`, only
 //! after a real switch has been measured):
-//!   * `theme settled N ms` — the FELT latency: from the input event that triggered
-//!     the switch (the preview arrow re-stamps it; a direct switch stamps it at the
-//!     retint) to the SETTLED present (the frame that carried the reshaped document
-//!     to the screen). For a debounced preview this includes the settle debounce the
-//!     user's own pause armed — that gap is the difference between this total and the
-//!     summed phases below, and is the honest "how long until it settled" number.
+//!   * `theme latest N ms` — the most recently completed input-to-settled-present
+//!     transaction.
+//!   * `theme worst N ms` — the slowest completed transaction still inside the
+//!     trailing five-second wall-clock window. A debounced preview includes the user's
+//!     pause before reshape: it is the honest "how long until it settled" number.
 //!   * `font X · reshape Y · rowgeom Z · atlas W · present P` — each WORK phase's own
-//!     duration (ms), in wall-clock order:
+//!     duration (ms), for that `theme worst` transaction, in wall-clock order:
 //!       - `font`    — adopt the new world's effective face + rewrap the document to it
 //!                     (`sync_theme_font`'s pre-shape reconfigure; cosmic-text loads the
 //!                     face lazily, so its file-load cost is amortized into `reshape`/`atlas`).
@@ -23,16 +22,15 @@
 //!       - `present` — that frame's encode + submit + present (the reshaped doc reaches screen).
 //!
 //! THE PURE / LIVE SPLIT (mirrors `debug.rs`'s readout functions). This module reads
-//! NO clock: it is a pure accumulator ([`SwitchPhases`]) fed synthetic-or-real millis
-//! by a caller that owns every `Instant`, plus the pure formatting below. So the whole
-//! module is unit-testable with fixed durations, and the readout is STRUCTURALLY ABSENT
-//! from the headless capture: [`settle_lines`] returns an EMPTY vec for the `None`
-//! (no-switch-measured) value — the ONLY value a capture ever holds, because the live
-//! App never feeds a switch on the deterministic path (the reshape timers live behind
-//! `debug_on()` + the live App, exactly like the frametime/autosave/gpu readouts). A
-//! `--debug` screenshot is therefore byte-identical to before this feature: no data →
-//! no lines. The real millisecond values are LIVE-ONLY (a real clock, a real present),
-//! flagged for human confirmation on a live run.
+//! NO clock: phase accumulation and window reporting are fed caller-owned timestamps
+//! plus synthetic-or-real millis, then formatted purely below. The module is therefore
+//! unit-testable with a fake clock, and the readout is STRUCTURALLY ABSENT from a
+//! headless capture: [`settle_lines`] returns an EMPTY vec for `None` — the ONLY value
+//! a capture ever holds, because the live App never feeds a switch on the deterministic
+//! path (the reshape timers live behind `debug_on()` + the live App, exactly like the
+//! frametime/autosave/gpu readouts). A `--debug` screenshot is therefore byte-identical
+//! to before this feature: no data → no lines. Real milliseconds remain LIVE-ONLY and
+//! need human confirmation on a live run.
 
 /// The named phases of a theme-switch settle, in wall-clock order. Each names a
 /// real segment of the switch work so the dominant cost identifies itself in the
@@ -183,6 +181,12 @@ impl SwitchHistory {
 
     pub fn clear(&mut self) {
         self.entries.clear();
+    }
+
+    /// Whether no completed transaction remains. The Debug-off closeout uses this so
+    /// a history-only diagnostic session cannot escape the ordinary clear path.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 
     fn evict(&mut self, now: Instant) {

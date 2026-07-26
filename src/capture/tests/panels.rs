@@ -84,10 +84,16 @@ fn debug_panel_absent_by_default_and_toggles() {
     // `--debug` capture. The reshape timers + panel feed live only on the live App
     // behind a real present, so a capture never measures a switch and
     // `themeswitch::settle_lines(None)` yields NO lines — the panel text carries
-    // neither the `theme settled` headline nor its phase breakdown, keeping the
-    // capture byte-identical to before the feature.
+    // neither the `theme latest`/`theme worst` headlines nor the worst transaction's
+    // phase breakdown, keeping the capture byte-identical to before the feature.
     assert!(
-        !on_json.contains("theme settled") && !on_json.contains("reshape"),
+        !on_json.contains("theme latest")
+            && !on_json.contains("theme worst")
+            && !on_json.contains("font ")
+            && !on_json.contains("reshape")
+            && !on_json.contains("rowgeom")
+            && !on_json.contains("atlas")
+            && !on_json.contains("present"),
         "theme-switch settle readout must be absent from a --debug capture: {on_json}"
     );
 
