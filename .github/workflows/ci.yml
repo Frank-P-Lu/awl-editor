@@ -39,6 +39,11 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # The health command owns its exact tool version and every check. CI only
+      # installs that requested checker before invoking the shared entry point.
+      - name: Install code-health tools
+        run: cargo install cargo-machete --version "$(bash scripts/code-health.sh --cargo-machete-version)" --locked
+
       - name: Rust code health
         run: bash scripts/code-health.sh
 
