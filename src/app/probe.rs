@@ -85,6 +85,7 @@ impl App {
     /// `println_audit`.)
     #[cfg(not(target_arch = "wasm32"))]
     fn probe_shot(&self, path: &std::path::Path) {
+        #[cfg(target_os = "macos")]
         let (sw, sh) = self
             .gpu
             .as_ref()

@@ -257,11 +257,10 @@ fn docs_links_resolve() {
         }
         match resolve(&root, token) {
             None => {} // absolute/URL — not a repo-relative citation
-            Some(path) => {
-                if !path.exists() {
-                    dangling.push(format!("{origin} cites `{token}` → {path:?} (MISSING)"));
-                }
+            Some(path) if !path.exists() => {
+                dangling.push(format!("{origin} cites `{token}` → {path:?} (MISSING)"));
             }
+            Some(_) => {}
         }
     }
     dangling.sort();

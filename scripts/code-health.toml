@@ -69,7 +69,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
 line = 520
-message = "this function has too many lines (136/100)"
+message = "this function has too many lines (133/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -941,4 +941,3 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 # line = 12
 # text = "..."
 # reason = "Why this exact source line cannot follow the ordinary rule."
-

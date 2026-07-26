@@ -94,9 +94,10 @@ mod lava;
 mod lifetime;
 mod mac_chrome;
 mod markdown;
-// The MAS (Mac App Store / App Sandbox) flavor — a whole no-op unless built
-// with `--features mas` (`#![cfg(feature = "mas")]` inside the file itself,
-// mirroring `daemon.rs`'s own single top-level `#![cfg(...)]` gate).
+// The MAS (Mac App Store / App Sandbox) flavor exists only in its supported
+// macOS configuration. `--all-features` on another target must not compile a
+// macOS-only feature into unreachable dead code.
+#[cfg(all(feature = "mas", target_os = "macos"))]
 mod mas;
 mod menu;
 mod menu_icons;

@@ -577,10 +577,7 @@ impl App {
                         .current_monitor()
                         .and_then(|m| m.refresh_rate_millihertz()),
                 );
-                let cost = self
-                    .frame_costs
-                    .last()
-                    .and_then(|l| self.frame_costs.worst().map(|w| (l, w)));
+                let cost = self.frame_costs.last().zip(self.frame_costs.worst());
                 gpu.pipeline.set_debug_perf(
                     cost,
                     self.last_latency_ms,

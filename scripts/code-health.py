@@ -166,6 +166,12 @@ def check_structural(allowed: set[tuple[str, int, str]]) -> list[str]:
 
 
 def self_test() -> int:
+    main = (ROOT / "src/main.rs").read_text()
+    mas_gate = '#[cfg(all(feature = "mas", target_os = "macos"))]\nmod mas;'
+    if mas_gate not in main:
+        raise AssertionError(
+            "MAS must be gated to macOS so Linux --all-features does not compile dead platform code"
+        )
     current = {
         ("clippy::too_many_lines", "src/new.rs", 7, "this function has too many lines (101/100)"),
         ("clippy::cognitive_complexity", "src/new.rs", 30, "the function has a cognitive complexity of (26/25)"),

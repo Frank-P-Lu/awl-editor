@@ -177,7 +177,7 @@ fn entries_aged(now: u64, ages: &[u64]) -> Vec<Entry> {
             name: None,
         })
         .collect();
-    v.sort_by(|a, b| b.ts.cmp(&a.ts)); // newest first
+    v.sort_by_key(|entry| std::cmp::Reverse(entry.ts)); // newest first
     v
 }
 
@@ -703,7 +703,7 @@ fn ladder_named_points_survive_every_band_and_the_cap_still_converges() {
             name: Some(format!("point {i}")),
         });
     }
-    e.sort_by(|a, b| b.ts.cmp(&a.ts));
+    e.sort_by_key(|entry| std::cmp::Reverse(entry.ts));
     prune_ladder(&mut e, now);
     for i in 0..named_ages.len() {
         let want = format!("point {i}");
