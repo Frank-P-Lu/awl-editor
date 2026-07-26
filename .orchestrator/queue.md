@@ -4,9 +4,9 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
-## CI RED — integration blocked
+## CI incidents
 
-CI-30219420913. 🟡 **SECOND REPAIR INTEGRATED LOCALLY @ `d2b0f00`; remote green pending.** Original run [30219420913](https://github.com/Frank-P-Lu/awl-next/actions/runs/30219420913) and first repaired run [30220059991](https://github.com/Frank-P-Lu/awl-next/actions/runs/30220059991) fail only in Linux `Rust code health`; web and mac live-probe are green on both, and the first run's mac suite is green. First repair `e36410b` excluded macOS-only MAS code from Linux and cleared newer-stable Clippy. The remaining failure was one cfg-sensitive metric: `app/apply.rs:356` is complexity 30 on macOS and 29 on Linux, while the manifest assumed one platform-neutral identity. Second repair `d2b0f00` ratchets those exact target-qualified identities separately, rejects wildcard targets, and preserves new/stale/duplicate detection for the shared other 132 entries. Native and Linux-target health, clean-checkout self-tests, and independent verification are green. Further integration remains blocked until the next repaired `main` run is fully green. **Routing:** diagnose/build=`gpt-5.6-terra` medium; verify=`gpt-5.6-terra` medium.
+CI-30219420913. ✅ **RESOLVED by repaired main run [30220416223](https://github.com/Frank-P-Lu/awl-next/actions/runs/30220416223).** Original run [30219420913](https://github.com/Frank-P-Lu/awl-next/actions/runs/30219420913) failed only in Linux `Rust code health`; the superseded first repaired run [30220059991](https://github.com/Frank-P-Lu/awl-next/actions/runs/30220059991) exposed the remaining target-sensitive metric before cancellation. Repair `e36410b` excluded macOS-only MAS code from Linux and cleared newer-stable Clippy. Repair `d2b0f00` ratchets the exact target-qualified `app/apply.rs:356` complexity identities separately (30 on macOS, 29 on Linux), rejects wildcard targets, and preserves new/stale/duplicate detection for the shared other 132 entries. The repaired remote train is green across Linux health/build/test, macOS build/test, web wasm smoke, and the mac live-probe. Integration is unblocked. **Routing:** diagnose/build=`gpt-5.6-terra` medium; verify=`gpt-5.6-terra` medium.
 
 ## Ready — harness correctness
 
