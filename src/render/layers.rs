@@ -15,27 +15,6 @@
 
 use super::*;
 
-/// The vertical page-frame bounds shared by preparation and its laws. A frame
-/// is a writing-surface boundary, not a bracket around the last glyph: its
-/// bottom therefore reaches the editor canvas even when the document is short.
-///
-/// `menubar_bottom` is zero without awl's rendered menu bar and otherwise the
-/// bar's lower edge. A scrolled document may begin above that edge, but its
-/// frame may not paint through the persistent chrome. `canvas_bottom` is the
-/// last addressable canvas row, so all four frame edges remain on-canvas.
-pub(super) fn page_frame_vertical_bounds(
-    doc_top: f32,
-    doc_height: f32,
-    menubar_bottom: f32,
-    canvas_bottom: f32,
-) -> (f32, f32) {
-    let canvas_bottom = canvas_bottom.max(menubar_bottom);
-    let top = doc_top.max(menubar_bottom).min(canvas_bottom);
-    let document_bottom = doc_top + doc_height.max(0.0);
-    let bottom = document_bottom.max(canvas_bottom).clamp(top, canvas_bottom);
-    (top, bottom)
-}
-
 /// The hanging BLOCKQUOTE pull-quote mark: a big DIM opening quotation mark (`“`)
 /// shaped in the WORLD'S OWN DISPLAY SERIF ([`theme::Theme::font`], NOT the ornament
 /// or symbol face) and hung in the LEFT MARGIN at each blockquote block's first line
@@ -486,10 +465,8 @@ impl TextPipeline {
     /// ZERO rects for every `PageFrame::None` world (all but Wagtail — a
     /// byte-identical no-op there). The column bounds come from the SAME
     /// `column_left()`/`column_width()` owners every other layer reads; the
-    /// vertical extent starts at the first visible document row and closes at
-    /// the usable canvas bottom. This makes a short document's frame a page
-    /// surface rather than a tight content bracket; a tall or scrolled document
-    /// still has one coherent, on-canvas frame. The
+    /// vertical extent is the top of the first visual row to the bottom of
+    /// the last, clamped so a tall doc's frame still closes on-canvas. The
     /// frame straddles the column boundary OUTWARD (into the margin), so it
     /// never sits under the text. Ink comes from `theme::page_frame_ink()`
     /// (re-tinted in `sync_theme_colors`); the pipeline draws hard-edged
@@ -513,12 +490,8 @@ impl TextPipeline {
         let t = weight_px.max(0.1);
         let left = self.column_left();
         let w = self.column_width();
-        let (top, bottom) = page_frame_vertical_bounds(
-            self.doc_top(),
-            self.total_doc_height(),
-            self.menubar_reserve(),
-            height as f32 - 1.0,
-        );
+        let top = self.doc_top().max(0.0);
+        let bottom = (self.doc_top() + self.total_doc_height()).min(height as f32 - 1.0);
         let h = (bottom - top).max(0.0);
         let right = left + w;
         let rects = [
