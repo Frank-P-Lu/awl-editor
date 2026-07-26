@@ -822,8 +822,220 @@ fn the_mark_survives_at_app_switcher_size() {
     }
 }
 
-/// EVERY PAIR OF WORLDS STAYS APART at app-switcher size — and WHICH pair stays
-/// apart least is COMPUTED from the rendered set on every run, never guessed.
+/// One pair's separation at 32px, on every axis the crowding law (below)
+/// knows. Module-level (not local to the law) so the non-vacuity probes
+/// (`ibis_near_duplicate_is_caught_without_becoming_champion`,
+/// `ordinary_new_world_passes_the_danger_zone_guard`,
+/// `ground_clone_crowding_is_caught_regardless_of_rank`,
+/// `roster_growth_does_not_dilute_a_known_erosion`) can build a `Pair` for a
+/// world that was never exported and run it through the SAME check the law
+/// runs, rather than a hand-reimplemented copy that could silently drift
+/// from what ships.
+struct Pair {
+    a: &'static str,
+    b: &'static str,
+    differing: f64,
+    mean: f64,
+    ink: f64,
+}
+
+/// Measures one pair of already-rendered 32px images against their OWN
+/// ground colours. `a_ground`/`b_ground` are each caller-supplied (rather
+/// than looked up on a `Theme`) so a synthetic image with no `Theme` of its
+/// own — `Ibis`, `Probeworld` — can still be measured by this exact
+/// arithmetic.
+fn measure_pair(
+    a_name: &'static str,
+    a_img: &image::RgbaImage,
+    a_ground: [u8; 3],
+    b_name: &'static str,
+    b_img: &image::RgbaImage,
+    b_ground: [u8; 3],
+) -> Pair {
+    let total = (a_img.width() * a_img.height()) as f64;
+    let (mut differing, mut sum, mut ink, mut ink_differing) = (0u32, 0u64, 0u32, 0u32);
+    for (pa, pb) in a_img.pixels().zip(b_img.pixels()) {
+        let d: u32 = (0..4)
+            .map(|k| (pa.0[k] as i32 - pb.0[k] as i32).unsigned_abs())
+            .sum();
+        let visible = d > 24;
+        if visible {
+            differing += 1;
+        }
+        sum += d as u64;
+        // A pixel counts as INK when it is non-ground in EITHER world — each
+        // measured against its OWN ground, since the whole point of this axis
+        // is that the two grounds may be different colours and still both be
+        // ground.
+        let ground_a = !opaque(&pa.0) || near(&pa.0, a_ground, 10);
+        let ground_b = !opaque(&pb.0) || near(&pb.0, b_ground, 10);
+        if !ground_a || !ground_b {
+            ink += 1;
+            if visible {
+                ink_differing += 1;
+            }
+        }
+    }
+    assert!(ink > 0, "{a_name} vs {b_name}: neither icon has any ink");
+    Pair {
+        a: a_name,
+        b: b_name,
+        differing: differing as f64 / total,
+        mean: sum as f64 / total,
+        ink: ink_differing as f64 / ink as f64,
+    }
+}
+
+/// Every real pair the shipped roster produces at 32px — the 153
+/// combinations `small_sizes_keep_every_pair_of_worlds_apart` sweeps. Reads
+/// `THEMES` (the one roster array every world sweep in this file reads, per
+/// this file's own module doc) and nothing else, so a world added to
+/// `THEMES` is automatically in this set with no second list to update.
+fn all_real_pairs() -> Vec<Pair> {
+    let imgs: Vec<(&'static Theme, image::RgbaImage)> = THEMES
+        .iter()
+        .map(|t| (t, rep_rgba(&icon_bytes(t.name), 32)))
+        .collect();
+    let mut pairs = Vec::new();
+    for i in 0..imgs.len() {
+        for j in (i + 1)..imgs.len() {
+            let (ta, a) = &imgs[i];
+            let (tb, b) = &imgs[j];
+            pairs.push(measure_pair(
+                ta.name,
+                a,
+                rgb(ta.base_100),
+                tb.name,
+                b,
+                rgb(tb.base_100),
+            ));
+        }
+    }
+    pairs
+}
+
+/// Relative give on a blessed pair's erosion ratchet: enough to absorb a
+/// handful of antialiased pixels shifting when the offline exporter is
+/// re-run, far too little to absorb a pair actually moving closer together.
+const RATCHET_SLACK: f64 = 0.02;
+
+/// Item 102 round 3: the per-pair ratchet above has no memory across pairs —
+/// every blessed pair on an axis can erode together, each individually
+/// staying just under its own [`RATCHET_SLACK`], and `check_pair_axes` would
+/// report zero failures (found by round 2's own independent verification,
+/// reproduced by `coordinated_erosion_across_the_blessed_list_is_caught`).
+/// Independent antialiasing jitter on unrelated pairs points in unrelated
+/// directions, so averaged across an axis's whole blessed list it cancels
+/// toward zero; a SHARED-CAUSE shift (a gamma/hinting/antialiasing change in
+/// the exporter, applied once and re-run over the whole roster) moves every
+/// pair the same direction, so it does not cancel. Half of `RATCHET_SLACK`
+/// is tight enough to catch a coordinated shift while staying well clear of
+/// real per-pair jitter's mean (measured near zero on the shipped roster,
+/// see `small_sizes_keep_every_pair_of_worlds_apart`, which exercises this
+/// on all 27 real blessed entries every run).
+const SYSTEMIC_DRIFT_SLACK: f64 = RATCHET_SLACK / 2.0;
+
+type Read = fn(&Pair) -> f64;
+
+/// One pair already accepted into an axis's DANGER ZONE (below that axis's
+/// `danger` threshold in [`axes`]): today it crowds meaningfully and a human
+/// decided that crowding is fine. Order-insensitive against a measured
+/// [`Pair`] — `a`/`b` here may come back either way from `all_real_pairs`,
+/// which iterates `THEMES` by index, not by name.
+///
+/// This is deliberately NOT a per-pair table for the whole 153-pair roster —
+/// item 99 already rejected that shape for breaking on every world addition.
+/// It is a per-pair table ONLY for the pairs the roster's OWN measured
+/// distribution already put in the danger zone: small today (12/10/5 entries
+/// across the three axes), and it grows only when a pair genuinely crosses
+/// into the zone, never merely because the roster gained a member. See
+/// `small_sizes_keep_every_pair_of_worlds_apart`'s doc for the full case.
+struct Blessed {
+    a: &'static str,
+    b: &'static str,
+    /// The value measured for this pair on this axis the day it was
+    /// blessed. [`RATCHET_SLACK`] of relative give below this before further
+    /// movement counts as new erosion.
+    baseline: f64,
+}
+
+impl Blessed {
+    fn matches(&self, p: &Pair) -> bool {
+        (self.a == p.a && self.b == p.b) || (self.a == p.b && self.b == p.a)
+    }
+}
+
+/// Measured 2026-07-26 (item 102): every pair whose `differing` sits under
+/// 28.33% today, i.e. the whole low cluster below the roster's own cliff to
+/// 80.47% (Potoroo/Firetail) — see `axes()`'s `danger` value.
+const DIFFERING_BLESSED: &[Blessed] = &[
+    Blessed { a: "Currawong", b: "Cassowary", baseline: 0.123047 },
+    Blessed { a: "Bilby", b: "Galah", baseline: 0.203125 },
+    Blessed { a: "Mopoke", b: "Mulga", baseline: 0.206055 },
+    Blessed { a: "Bilby", b: "Magpie", baseline: 0.208008 },
+    Blessed { a: "Saltpan", b: "Quokka", baseline: 0.228516 },
+    Blessed { a: "Galah", b: "Magpie", baseline: 0.232422 },
+    Blessed { a: "Bilby", b: "Saltpan", baseline: 0.237305 },
+    Blessed { a: "Tawny", b: "Mulga", baseline: 0.253906 },
+    Blessed { a: "Tawny", b: "Mopoke", baseline: 0.268555 },
+    Blessed { a: "Tawny", b: "Bowerbird", baseline: 0.272461 },
+    Blessed { a: "Currawong", b: "Wagtail", baseline: 0.279297 },
+    Blessed { a: "Wagtail", b: "Cassowary", baseline: 0.283203 },
+];
+
+/// Measured 2026-07-26 (item 102): every pair whose `mean` sits under 70.0
+/// today — the roster's smooth low continuum stops being worth watching
+/// individually well before its own distant cliff (173.79 -> 473.61,
+/// Bombora/Wagtail -> Gumtree/Mangrove), so this axis's `danger` is set with
+/// margin above the tightest 10, not at that far cliff (see `axes()`'s doc).
+const MEAN_BLESSED: &[Blessed] = &[
+    Blessed { a: "Currawong", b: "Cassowary", baseline: 19.52 },
+    Blessed { a: "Potoroo", b: "Firetail", baseline: 32.25 },
+    Blessed { a: "Galah", b: "Brolga", baseline: 54.86 },
+    Blessed { a: "Mopoke", b: "Mulga", baseline: 55.84 },
+    Blessed { a: "Tawny", b: "Mangrove", baseline: 56.46 },
+    Blessed { a: "Bilby", b: "Magpie", baseline: 63.43 },
+    Blessed { a: "Saltpan", b: "Galah", baseline: 65.89 },
+    Blessed { a: "Bilby", b: "Galah", baseline: 66.27 },
+    Blessed { a: "Bowerbird", b: "Mulga", baseline: 67.55 },
+    Blessed { a: "Tawny", b: "Firetail", baseline: 68.89 },
+];
+
+/// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
+/// today — the roster's own cluster tops out at 88.39% (Bowerbird/Firetail)
+/// before a cliff to 94.22%; 92% sits between the two so the axis still
+/// catches a scenario shaped like `Ibis` (90.73%, see
+/// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
+/// pulling the entire 94%+ plateau into the blessed list.
+const INK_BLESSED: &[Blessed] = &[
+    Blessed { a: "Potoroo", b: "Firetail", baseline: 0.510121 },
+    Blessed { a: "Bilby", b: "Wagtail", baseline: 0.688136 },
+    Blessed { a: "Magpie", b: "Wagtail", baseline: 0.807947 },
+    Blessed { a: "Currawong", b: "Cassowary", baseline: 0.857143 },
+    Blessed { a: "Bowerbird", b: "Firetail", baseline: 0.883895 },
+];
+
+/// (axis name, how to read it off a pair, absolute floor, danger-zone
+/// threshold, today's blessed pairs inside that zone, pct-format flag).
+///
+/// Re-blessing a NEW pair that crowds into the zone is a deliberate edit:
+/// add one `Blessed` entry to the axis's list above, with a comment naming
+/// the pair and why the crowding is accepted. A pair already blessed eroding
+/// FURTHER is the same edit — bump its `baseline`. Either way the diff is
+/// small and reads as what it is: item 99 already rejected a per-pair table
+/// sized to the whole roster; this one is sized to the roster's own measured
+/// danger zone instead, which is not the same shape.
+fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
+    [
+        ("differing pixels", |p| p.differing, 0.10, 0.35, DIFFERING_BLESSED, true),
+        ("mean channel distance", |p| p.mean, 10.0, 70.0, MEAN_BLESSED, false),
+        ("differing INK pixels", |p| p.ink, 0.40, 0.92, INK_BLESSED, true),
+    ]
+}
+
+/// EVERY PAIR OF WORLDS STAYS APART at app-switcher size — and WHICH pairs
+/// stay apart least are COMPUTED from the rendered set on every run, never
+/// guessed.
 ///
 /// The predecessor of this law hand-picked two "near pairs" by shared-FACE
 /// reasoning (Potoroo/Firetail, Saltpan/Bilby) and asserted those two harder. It
@@ -866,144 +1078,755 @@ fn the_mark_survives_at_app_switcher_size() {
 ///     near the edge of legibility when the ink axis says that pair differs on
 ///     86% of its ink. `differing`'s floor is the 10% this law already carried —
 ///     chosen before anyone had measured the minimum, and therefore not tuned to
-///     it.
-///   * a RATCHET against today's measured minimum, with [`RATCHET_SLACK`] of
-///     relative give for an exporter re-render's antialiasing. This is the bar
-///     that actually notices EROSION, and it needs no theory of which pair is at
-///     risk: a new world that crowds ANY existing one below the current worst
-///     fails here and is NAMED. It also survives roster growth, which a
-///     per-pair baseline table would not — adding a nineteenth world adds
-///     eighteen pairs and invalidates nothing.
+///     it. (The floor is checked only against `sorted[0]`: it is monotone in
+///     rank — if the single closest pair clears it, every less-close pair
+///     necessarily does too.)
+///   * a DANGER-ZONE MEMBERSHIP GUARD: every pair whose value falls under a
+///     fixed threshold — not a fixed COUNT of ranks — is checked by name
+///     against that axis's `Blessed` list, with [`RATCHET_SLACK`] of
+///     relative give on a blessed pair's own baseline for an exporter
+///     re-render's antialiasing. This is the bar that actually notices
+///     EROSION, at any position in the sorted order.
+///
+///     Item 99 shipped a ratchet watching ONLY `sorted[0]`, the single
+///     global champion. Item 102 (filed from item 99's own verification)
+///     found the gap: a pair can crowd substantially and pass in total
+///     silence as long as it never unseats the incumbent champion. The
+///     verifier's proof was `Ibis` — Galah's icon blended 30% toward
+///     Bilby's — landing at differing 18.16% / mean 20.46% / ink 90.73%,
+///     closer than all 17 of Galah's real comparisons on every axis, and
+///     the OLD law passed silently because Currawong/Cassowary (differing,
+///     mean) and Potoroo/Firetail (ink) never lost the title. See
+///     `ibis_near_duplicate_is_caught_without_becoming_champion` below.
+///
+///     THE FIRST FIX (item 102 round 1) watched a fixed TOP-6 order
+///     statistic instead of only `sorted[0]`. Item 102's OWN independent
+///     verification then broke that fix two ways, both the same underlying
+///     bug — a fixed RANK COUNT has a cliff, and anything past the cliff is
+///     invisible no matter how close it sits:
+///       * a pair can be constructed to land at rank 6, 7 or 8 — just past a
+///         `K = 6` window — while still sitting inside the roster's own
+///         measured low cluster (12.3%-28.3% on `differing`); five such
+///         probes (ground-preserving clones of Potoroo, Gumtree, Mangrove,
+///         Wagtail, Firetail with every non-ground pixel recoloured) landed
+///         at ranks 5-8 and passed with zero failures.
+///       * ORDINARY roster growth dilutes a real, unchanged erosion out of a
+///         fixed window with no attacker at all: adding 5-6 new worlds ahead
+///         of `Ibis` in sorted order (their pairs merely closer than Ibis's,
+///         not adversarial) pushed `Ibis vs Galah` from rank 5 to rank 6 on
+///         `ink`, past `K = 6`, and it vanished from the failure list even
+///         though its own measured value never moved.
+///     Both are the same defect from two directions — a fixed rank count is
+///     a window with edges, and either a crafted pair or ordinary growth can
+///     land or push something past the edge.
+///
+///     THE FIX: stop counting ranks. Every pair below a fixed VALUE
+///     threshold (`danger` in `axes()`) is checked, however many pairs that
+///     turns out to be today or after the roster grows. There is no window
+///     to dodge by rank and no count of intervening pairs that can push a
+///     known pair out of view, because membership depends only on the
+///     pair's OWN value, never its position relative to others. Rerunning
+///     both broken scenarios against this design: all five ground-clone
+///     probes are caught (each lands under `differing`'s 35% threshold, at
+///     23-27%), and `Ibis` stays caught on every axis regardless of how many
+///     ordinary worlds are added around it, because nothing here is counted
+///     by rank. See `ground_clone_crowding_is_caught_regardless_of_rank` and
+///     `roster_growth_does_not_dilute_a_known_erosion`.
+///
+///     WHY NOT A PERCENTILE OF THE POPULATION EITHER: a percentile guard
+///     (e.g. "the 5th percentile of all pair distances may not fall") has
+///     the same rank-indexing problem one layer up — `differing` and `ink`
+///     are both empirically bimodal (a tight low cluster, a cliff, then a
+///     tight high cluster), so a percentile's rank INDEX crosses that cliff
+///     as the roster grows and the threshold swings non-monotonically
+///     (measured: growing the roster by 7 ordinary worlds swung
+///     `differing`'s p05 between 27% and 88%). A fixed VALUE threshold has
+///     no index to cross a cliff with.
+///
+///     THE DANGER THRESHOLDS ARE DATA, chosen with margin from the roster's
+///     own measured shape, not tuned to look tight: `differing`'s 35% sits
+///     between the low cluster's own max (28.32%) and the next real value
+///     (80.47%, an 80-point cliff); `ink`'s 92% sits between the cluster's
+///     max (88.39%) and the next real value (94.22%), positioned low enough
+///     to still catch an `Ibis`-shaped 90.73% erosion. `mean` has no nearby
+///     cliff — it is a smooth continuum from ~20 up to a distant break at
+///     174 -> 474 spanning HALF the roster (77 of 153 pairs) — so its 70.0
+///     threshold is set with margin above the tightest 10 pairs rather than
+///     at that far cliff; watching the smooth half's full width would turn
+///     `mean` into exactly the size of table item 99 rejected.
+///
+///     THE BLESSED LIST IS BOUNDED, NOT A PER-PAIR TABLE FOR THE ROSTER:
+///     item 99 rejected a 153-row table because every world addition adds
+///     rows with no authored baseline, forcing either a block or a rubber
+///     stamp. `Blessed` never lists a pair outside the danger zone, so an
+///     ordinary new world that crowds nobody (see
+///     `ordinary_new_world_passes_the_danger_zone_guard`) never touches it —
+///     the list is sized to the roster's measured crowding (12/10/5 entries
+///     today), not to `THEMES.len()`. This is what item 102's own text
+///     offered as the alternative to a per-pair table: "a per-pair baseline
+///     with roster-growth tolerance."
+///
+///     THE HONEST COST, MEASURED, NOT ASSERTED: a maintainer picking a new
+///     world's palette WITHOUT cross-checking it against the shipped roster
+///     will sometimes land inside a danger zone by coincidence, because this
+///     roster's near-black and near-cream grounds already crowd a small
+///     corner of colour space. A deterministic sweep of 30 non-adversarial
+///     synthetic worlds (random grounds and inks, no screening against
+///     `THEMES`) against the real 18-world roster tripped the guard on 2/30
+///     (~7%) — real, named, single-pair collisions a maintainer would need
+///     to look at once and either fix the palette or bless.
+///
+///     THIS COST COMPOUNDS WITH BATCH SIZE, MEASURED SEPARATELY: worlds ship
+///     in waves, not one at a time (item 92 landed all 18 in one commit), and
+///     the ~7% figure above is a per-world rate, not a per-wave one. Sweeping
+///     batches of 1/3/7 uncurated synthetic worlds together (same
+///     construction, three independent seeds, 30 trials each) trips the
+///     guard on roughly 3-10% of batch=1 waves (consistent with the ~7%
+///     single-world figure), 10-13% of batch=3 waves, and 40-57% of batch=7
+///     waves — because a batch adds pairs against the shipped roster AND
+///     against every other new world in the same wave, so the trip
+///     probability compounds with wave size roughly like any one of N
+///     independent coin flips landing heads. A maintainer landing several
+///     worlds in one PR should expect to see one or more "add this Blessed
+///     entry" prompts close to half the time, not the rare event the
+///     per-world figure alone suggests. That is still the bounded, honest
+///     tradeoff of any real crowding guard on a roster whose ground palette
+///     already clusters this tightly: the fix is not to loosen the guard
+///     until it stops noticing (a rubber stamp is not a law), it is that a
+///     maintainer shipping a wave of new worlds should cross-check the wave
+///     against `THEMES` BEFORE committing, the same discipline
+///     `ordinary_new_world_passes_the_danger_zone_guard` already demonstrates
+///     for one world at a time — this guard cannot make that discipline
+///     optional, only tell a maintainer who skipped it.
+///
+///     A DIFFERENT SHAPE OF SILENT FAILURE, ALSO CLOSED (item 102 round 3):
+///     the per-pair ratchet above has no memory ACROSS pairs — every one of
+///     an axis's blessed pairs can erode together, each individually staying
+///     under its own [`RATCHET_SLACK`], and the per-pair loop alone reports
+///     nothing (found by round 2's own independent verification). A
+///     SYSTEMIC-DRIFT check catches this: the MEAN erosion across an axis's
+///     blessed list is checked against [`SYSTEMIC_DRIFT_SLACK`] (half of
+///     `RATCHET_SLACK`) — independent per-pair jitter cancels toward zero
+///     when averaged, a shared-cause shift (the whole exporter re-rendering
+///     slightly differently) does not. See
+///     `coordinated_erosion_across_the_blessed_list_is_caught`. A SEPARATE
+///     check catches the list's other failure direction — a `Blessed` row
+///     whose pair no longer exists (a world renamed) or has widened back out
+///     of the zone, which would otherwise sit inert forever with nothing
+///     prompting its removal; see `stale_blessed_entry_for_a_renamed_world_is_flagged`
+///     and `stale_blessed_entry_for_a_widened_pair_is_flagged`.
+///
+///     A LIMIT LEFT DELIBERATELY OPEN: neither check verifies that a
+///     `Blessed.baseline` was HONEST at the moment it was entered — a
+///     baseline typed in lower than the pair's true measured value at
+///     blessing time silently widens that one pair's erosion corridor
+///     forever, and nothing here (or practically anywhere in a
+///     source-committed threshold) can distinguish an honest baseline from a
+///     generous one after the fact, because the ratchet's whole point is to
+///     tolerate the measured value moving below the committed number by a
+///     bounded amount. This is a review/trust surface, not a code defect:
+///     item 99 already accepted that a re-blessing edit is read by a human
+///     before merge, the same trust any threshold committed to source code
+///     carries. Bounded, not fixed: a `git blame` on `axes()` names who
+///     entered which baseline and when, which is the actual audit trail this
+///     design relies on.
 ///
 /// The stricter 20% tier the two hand-picked pairs used to carry is GONE, not
 /// weakened: its premise (same face ⇒ at risk) is false by measurement above,
 /// applying it to the computed same-face set would fail today, and the one real
 /// thing it pinned — Potoroo/Firetail's silhouette doing the work its palette
 /// does not — is now pinned harder and roster-wide by the `ink` axis, on which
-/// that pair IS the global minimum and therefore holds the ratchet.
+/// that pair IS the global minimum and sits first in `INK_BLESSED`.
 ///
-/// Non-vacuity: adding a world that clones an existing palette and preset drives
-/// `differing` to ~1% and trips the floor and all three ratchets, naming the
-/// cloned pair.
+/// Non-vacuity: adding a world that clones an existing palette and preset
+/// drives `differing` to ~1% and trips the floor and the danger zone, naming
+/// the cloned pair. A world that crowds an EXISTING pair without becoming the
+/// global champion — the `Ibis` scenario — trips the danger-zone guard on its
+/// own merits instead, regardless of rank; see
+/// `ibis_near_duplicate_is_caught_without_becoming_champion`,
+/// `ground_clone_crowding_is_caught_regardless_of_rank` and
+/// `roster_growth_does_not_dilute_a_known_erosion`. An ordinary new world that
+/// crowds nobody trips nothing; see
+/// `ordinary_new_world_passes_the_danger_zone_guard`.
 #[test]
 fn small_sizes_keep_every_pair_of_worlds_apart() {
     let _g = crate::testlock::serial();
-
-    /// Relative give on each ratchet: enough to absorb a handful of
-    /// antialiased pixels shifting when the offline exporter is re-run, far
-    /// too little to absorb a pair actually moving closer together.
-    const RATCHET_SLACK: f64 = 0.02;
-
-    /// One pair's separation at 32px, on every axis this law knows.
-    struct Pair {
-        a: &'static str,
-        b: &'static str,
-        differing: f64,
-        mean: f64,
-        ink: f64,
-    }
-
-    let imgs: Vec<(&'static Theme, image::RgbaImage)> = THEMES
-        .iter()
-        .map(|t| (t, rep_rgba(&icon_bytes(t.name), 32)))
-        .collect();
-
-    let mut pairs: Vec<Pair> = Vec::new();
-    for i in 0..imgs.len() {
-        for j in (i + 1)..imgs.len() {
-            let (ta, a) = &imgs[i];
-            let (tb, b) = &imgs[j];
-            let total = (a.width() * a.height()) as f64;
-            let (mut differing, mut sum, mut ink, mut ink_differing) = (0u32, 0u64, 0u32, 0u32);
-            for (pa, pb) in a.pixels().zip(b.pixels()) {
-                let d: u32 = (0..4)
-                    .map(|k| (pa.0[k] as i32 - pb.0[k] as i32).unsigned_abs())
-                    .sum();
-                let visible = d > 24;
-                if visible {
-                    differing += 1;
-                }
-                sum += d as u64;
-                // A pixel counts as INK when it is non-ground in EITHER world —
-                // each measured against its OWN base_100, since the whole point
-                // of this axis is that the two grounds may be different colours
-                // and still both be ground.
-                let ground_a = !opaque(&pa.0) || near(&pa.0, rgb(ta.base_100), 10);
-                let ground_b = !opaque(&pb.0) || near(&pb.0, rgb(tb.base_100), 10);
-                if !ground_a || !ground_b {
-                    ink += 1;
-                    if visible {
-                        ink_differing += 1;
-                    }
-                }
-            }
-            assert!(ink > 0, "{} vs {}: neither icon has any ink", ta.name, tb.name);
-            pairs.push(Pair {
-                a: ta.name,
-                b: tb.name,
-                differing: differing as f64 / total,
-                mean: sum as f64 / total,
-                ink: ink_differing as f64 / ink as f64,
-            });
-        }
-    }
+    let pairs = all_real_pairs();
     assert_eq!(
         pairs.len(),
         THEMES.len() * (THEMES.len() - 1) / 2,
         "every combination of worlds is measured"
     );
+    let failures = check_pair_axes(&pairs);
+    assert!(failures.is_empty(), "\n\n{}", failures.join("\n\n"));
+}
 
-    // (axis name, how to read it off a pair, absolute floor, measured baseline,
-    // how to print a value). The baselines are what THIS roster measures today;
-    // re-blessing one is a deliberate one-line edit that says "the icon set got
-    // closer together on purpose".
-    type Read = fn(&Pair) -> f64;
-    let axes: [(&str, Read, f64, f64, bool); 3] = [
-        ("differing pixels", |p| p.differing, 0.10, 0.12305, true),
-        ("mean channel distance", |p| p.mean, 10.0, 19.52, false),
-        ("differing INK pixels", |p| p.ink, 0.40, 0.5101, true),
-    ];
-
-    for (name, read, floor, baseline, pct) in axes {
+/// Runs the floor + danger-zone membership guard (see `axes()`'s doc and
+/// `small_sizes_keep_every_pair_of_worlds_apart`'s) over an ARBITRARY pair
+/// set, returning one message per violation (empty == every axis passes).
+/// Factored out of the law itself so the non-vacuity probes below exercise
+/// the exact check the live law runs against a pair set that includes a
+/// synthetic world, rather than a hand-reimplemented approximation of it
+/// that could silently drift from what ships.
+fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
+    let mut failures = Vec::new();
+    for (name, read, floor, danger, blessed, pct) in axes() {
         let show = |v: f64| if pct { format!("{:.2}%", v * 100.0) } else { format!("{v:.2}") };
-        let mut sorted: Vec<&Pair> = pairs.iter().collect();
-        sorted.sort_by(|x, y| read(x).total_cmp(&read(y)));
-        let closest = sorted[0];
-        let worst = read(closest);
-        // The five nearest on this axis, so a failure hands over the
-        // neighbourhood and not just a verdict.
-        let roll = sorted
-            .iter()
-            .take(5)
-            .map(|p| format!("{} vs {} = {}", p.a, p.b, show(read(p))))
-            .collect::<Vec<_>>()
-            .join("; ");
 
+        let closest = pairs
+            .iter()
+            .min_by(|x, y| read(x).total_cmp(&read(y)))
+            .expect("all_real_pairs always returns at least one pair");
+        let worst = read(closest);
+        if worst < floor {
+            failures.push(format!(
+                "{} vs {} are the closest pair on {name} at 32px ({}) and fall under the \
+                 absolute floor of {} — at app-switcher size they read as one app.",
+                closest.a,
+                closest.b,
+                show(worst),
+                show(floor),
+            ));
+        }
+
+        // DANGER-ZONE MEMBERSHIP, not a fixed count of ranks: every pair
+        // under `danger`, however many that turns out to be, is checked by
+        // NAME against `blessed`. Nothing here is counted by rank, so no
+        // pair can dodge review by landing one place past a watched window,
+        // and no amount of unrelated roster growth can push an
+        // already-known pair out of view — see item 102's doc paragraph on
+        // this function's caller for the two ways a fixed-rank design broke.
+        let mut in_zone: Vec<&Pair> = pairs.iter().filter(|p| read(p) < danger).collect();
+        in_zone.sort_by(|x, y| read(x).total_cmp(&read(y)));
+        // Erosion fraction of every matched blessed pair still in the zone —
+        // fed into the systemic-drift check below, once the per-pair loop is
+        // done. Positive == crowding (closer than baseline).
+        let mut erosions: Vec<f64> = Vec::new();
+        for p in in_zone {
+            let v = read(p);
+            match blessed.iter().find(|b| b.matches(p)) {
+                None => failures.push(format!(
+                    "{} vs {} crowd on {name} at 32px ({}) — inside the danger zone \
+                     (< {}) but not on the blessed list. Some change moved this pair into \
+                     crowding territory that item 102's guard exists to catch. Either back \
+                     it out, or — if the crowding is intended — add `Blessed {{ a: {:?}, \
+                     b: {:?}, baseline: {v} }}` to {name}'s list in `axes()` and say why.",
+                    p.a,
+                    p.b,
+                    show(v),
+                    show(danger),
+                    p.a,
+                    p.b,
+                )),
+                Some(b) => {
+                    let ratchet = b.baseline * (1.0 - RATCHET_SLACK);
+                    if v < ratchet {
+                        failures.push(format!(
+                            "{} vs {} were blessed on {name} at {} but now measure {} — \
+                             eroded past {:.0}% slack (ratchet {}). Either back it out, or \
+                             re-bless with the new value in `axes()` and say why.",
+                            p.a,
+                            p.b,
+                            show(b.baseline),
+                            show(v),
+                            RATCHET_SLACK * 100.0,
+                            show(ratchet),
+                        ));
+                    }
+                    erosions.push((b.baseline - v) / b.baseline);
+                }
+            }
+        }
+
+        // SYSTEMIC DRIFT (item 102 round 3): no single pair breached its own
+        // ratchet, but if the whole blessed list moved the same direction at
+        // once, that is a shared-cause shift (see SYSTEMIC_DRIFT_SLACK's
+        // doc), not independent per-pair noise — and the per-pair loop above
+        // has no way to notice it, by construction.
+        if !erosions.is_empty() {
+            let mean_erosion = erosions.iter().sum::<f64>() / erosions.len() as f64;
+            if mean_erosion > SYSTEMIC_DRIFT_SLACK {
+                failures.push(format!(
+                    "{name}'s {} blessed pairs eroded together by a mean of {:.2}% — more \
+                     than half of {name}'s {:.0}% per-pair ratchet slack, even though no \
+                     single pair crossed its own ratchet. That shape is a coordinated shift \
+                     (every pair moving the same direction at once — a shared-cause \
+                     re-export, not independent antialiasing jitter on one pair), which the \
+                     per-pair ratchet alone cannot see. Either back out whatever changed the \
+                     exporter, or re-bless {name}'s whole list with today's measured values \
+                     and say why they moved together.",
+                    erosions.len(),
+                    mean_erosion * 100.0,
+                    RATCHET_SLACK * 100.0,
+                ));
+            }
+        }
+
+        // STALE ENTRIES (item 102 round 3): a `Blessed` row the per-pair loop
+        // above never visits — because its pair no longer exists (a world
+        // renamed) or has widened back out of the danger zone — sits inert
+        // forever with nothing prompting its removal. Checked against the
+        // FULL pair set, not `in_zone`, since a widened-out pair is by
+        // definition no longer in `in_zone`.
+        for b in blessed {
+            match pairs.iter().find(|p| b.matches(p)) {
+                None => failures.push(format!(
+                    "{name}'s blessed list names {} vs {} but no such pair exists in the \
+                     roster any more (a world renamed?) — remove the stale `Blessed` entry \
+                     from {name}'s list in `axes()`.",
+                    b.a, b.b
+                )),
+                Some(p) => {
+                    let v = read(p);
+                    if v >= danger {
+                        failures.push(format!(
+                            "{name}'s blessed list still carries {} vs {} (baseline {}) but \
+                             it now measures {} — outside the danger zone (>= {}) — remove \
+                             the stale `Blessed` entry from {name}'s list in `axes()`.",
+                            b.a,
+                            b.b,
+                            show(b.baseline),
+                            show(v),
+                            show(danger),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    failures
+}
+
+/// NON-VACUITY (item 102): a pair that crowds badly WITHOUT ever becoming the
+/// single global champion on any axis must still fail. This reproduces
+/// item 102's own verification scenario exactly — `Ibis`, Galah's 32px icon
+/// blended 30% toward Bilby's, channel-and-alpha lerp, `(g, b) -> round(0.7g
+/// + 0.3b)` — inserted as if it were a genuine 19th world: `Ibis` paired
+/// against all 18 real worlds, merged into the full 153-pair set (171
+/// pairs total).
+///
+/// Under item 99's OLD single-champion ratchet this passed in total
+/// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or
+/// Potoroo/Firetail (ink) as the incumbent minimum. Under
+/// `check_pair_axes`'s danger-zone guard it must fail on all three axes —
+/// `Ibis`'s own values (differing 18.16%, mean 20.46, ink 90.73%) fall under
+/// every axis's `danger` threshold without ever leading any of them, and the
+/// guard checks it by value, not by whether it happens to be the champion.
+#[test]
+fn ibis_near_duplicate_is_caught_without_becoming_champion() {
+    let _g = crate::testlock::serial();
+    let galah = world("Galah");
+    let bilby = world("Bilby");
+    let galah_img = rep_rgba(&icon_bytes(galah.name), 32);
+    let bilby_img = rep_rgba(&icon_bytes(bilby.name), 32);
+    assert_eq!(
+        galah_img.dimensions(),
+        bilby_img.dimensions(),
+        "every 32px rep shares one tile size"
+    );
+    let (w, h) = galah_img.dimensions();
+    let mut ibis_img = image::RgbaImage::new(w, h);
+    for (x, y, out) in ibis_img.enumerate_pixels_mut() {
+        let g = galah_img.get_pixel(x, y).0;
+        let b = bilby_img.get_pixel(x, y).0;
+        let mut px = [0u8; 4];
+        for k in 0..4 {
+            px[k] = (g[k] as f64 * 0.7 + b[k] as f64 * 0.3).round() as u8;
+        }
+        *out = image::Rgba(px);
+    }
+
+    let mut pairs = all_real_pairs();
+    // Ibis vs every real world, classifying Ibis's own ground against
+    // Galah's `base_100` — the blend is only 30% toward Bilby, so Galah's
+    // ground still dominates, and this mirrors exactly how item 102's
+    // verifier measured it (Ibis was never exported, so it has no `Theme`
+    // of its own to read a ground colour off).
+    for t in THEMES.iter() {
+        let img = rep_rgba(&icon_bytes(t.name), 32);
+        pairs.push(measure_pair(
+            "Ibis",
+            &ibis_img,
+            rgb(galah.base_100),
+            t.name,
+            &img,
+            rgb(t.base_100),
+        ));
+    }
+
+    // Sanity: this reproduces item 102's own reported Ibis-vs-Galah numbers
+    // (differing 18.16%, mean 20.46, ink 90.73%) before asking whether the
+    // law catches them.
+    let ibis_vs_galah = pairs
+        .iter()
+        .find(|p| (p.a == "Ibis" && p.b == "Galah") || (p.a == "Galah" && p.b == "Ibis"))
+        .expect("Ibis vs Galah is in the extended set");
+    assert!(
+        (ibis_vs_galah.differing - 0.181641).abs() < 1e-3,
+        "differing = {} (item 102 reported 18.16%)",
+        ibis_vs_galah.differing
+    );
+    assert!(
+        (ibis_vs_galah.mean - 20.4609).abs() < 0.5,
+        "mean = {} (item 102 reported 20.46)",
+        ibis_vs_galah.mean
+    );
+    assert!(
+        (ibis_vs_galah.ink - 0.907317).abs() < 1e-3,
+        "ink = {} (item 102 reported 90.73%)",
+        ibis_vs_galah.ink
+    );
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        !failures.is_empty(),
+        "Ibis crowds badly on every axis (see the sanity numbers above) but \
+         check_pair_axes reported no failures — the danger-zone guard is not catching the \
+         case item 102 was filed for"
+    );
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
         assert!(
-            worst >= floor,
-            "{} vs {} are the closest pair on {name} at 32px ({}) and fall under the \
-             absolute floor of {} — at app-switcher size they read as one app. \
-             Five nearest: {roll}",
-            closest.a,
-            closest.b,
-            show(worst),
-            show(floor),
-        );
-        let ratchet = baseline * (1.0 - RATCHET_SLACK);
-        assert!(
-            worst >= ratchet,
-            "{} vs {} are now the closest pair on {name} at 32px ({}), below the \
-             measured baseline of {} (ratchet {}). Some change moved two worlds' icons \
-             closer together than any pair has ever been. Either back it out, or — if \
-             the crowding is intended — re-bless the baseline in this law and say why. \
-             Five nearest: {roll}",
-            closest.a,
-            closest.b,
-            show(worst),
-            show(baseline),
-            show(ratchet),
+            failures.iter().any(|f| f.contains(axis)),
+            "expected a failure mentioning {axis:?} (Ibis should crowd every axis); got:\n\n{}",
+            failures.join("\n\n")
         );
     }
+}
+
+/// NON-VACUITY (item 102): an ORDINARY new world that shares no palette with
+/// anything already shipped must still pass the new danger-zone guard — not
+/// only the floor and the old single-champion check — otherwise growing the
+/// roster normally would go red on its own, which is precisely the failure
+/// mode item 99 already rejected a per-pair baseline table for.
+///
+/// `Probeworld` reuses Galah's silhouette (identical shape at every pixel)
+/// but recolours every ground pixel and every non-ground ("ink") pixel to a
+/// palette that shares nothing with any of the 18 shipped worlds — by
+/// construction it can crowd nobody on colour, and its shape is Galah's own,
+/// so it cannot crowd on silhouette either.
+#[test]
+fn ordinary_new_world_passes_the_danger_zone_guard() {
+    let _g = crate::testlock::serial();
+    let galah = world("Galah");
+    let galah_img = rep_rgba(&icon_bytes(galah.name), 32);
+    let ground_from = rgb(galah.base_100);
+    // A dark-teal ground (nowhere near any shipped world's `base_100`) and a
+    // saturated magenta ink. Magenta, not the first-tried near-white: this
+    // roster's `primary`/`primary_content`/`base_content` tokens are almost
+    // all warm creams, dark neutrals, or one mint-green — checked by hand
+    // against every shipped value, magenta's per-channel-sum distance from
+    // all of them clears several hundred, ten times the >24 "differs"
+    // threshold, where near-white collided (Wagtail's `#FFFFFF` cursor is
+    // only 19 away from a first-tried `#FAFAF6`, UNDER the threshold, so it
+    // silently registered as "not differing" and crowded the ink axis).
+    let new_ground = [0x0A, 0x2E, 0x33];
+    let new_ink = [0xFF, 0x00, 0xC8];
+
+    let mut probe_img = image::RgbaImage::new(galah_img.width(), galah_img.height());
+    for (x, y, out) in probe_img.enumerate_pixels_mut() {
+        let p = galah_img.get_pixel(x, y).0;
+        if !opaque(&p) {
+            *out = image::Rgba(p);
+            continue;
+        }
+        let new_rgb = if near(&p, ground_from, 10) { new_ground } else { new_ink };
+        *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
+    }
+
+    let mut pairs = all_real_pairs();
+    for t in THEMES.iter() {
+        let img = rep_rgba(&icon_bytes(t.name), 32);
+        pairs.push(measure_pair(
+            "Probeworld",
+            &probe_img,
+            new_ground,
+            t.name,
+            &img,
+            rgb(t.base_100),
+        ));
+    }
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        failures.is_empty(),
+        "an ordinary new world that crowds nobody should pass the danger-zone guard; \
+         got:\n\n{}",
+        failures.join("\n\n")
+    );
+}
+
+/// NON-VACUITY (item 102, ROUND 2 — closing the top-K rank cliff): a pair
+/// constructed to land just PAST a fixed rank window while still sitting
+/// inside the roster's own measured low cluster must still fail. This
+/// reproduces item 102's own independent verification exactly: a
+/// GROUND-PRESERVING clone of a real world — every ground pixel copied
+/// byte-for-byte, every non-ground ("ink") pixel recoloured to a colour that
+/// shares nothing with the original (pure green) — lands in `differing`'s
+/// low cluster (12.3%-28.3%) purely because the ground, which dominates a
+/// 32px tile, matches exactly. Under the item-102-round-1 top-6 order
+/// statistic, five of these landed at ranks 5-8 — past the watched window —
+/// and passed with zero failures. Under the danger-zone guard, rank is not
+/// consulted at all: every one of the five is caught.
+#[test]
+fn ground_clone_crowding_is_caught_regardless_of_rank() {
+    let _g = crate::testlock::serial();
+    // The exact five worlds the round-1 verification named as landing past
+    // the old top-6 window (ranks 5-8 on `differing`).
+    for name in ["Potoroo", "Gumtree", "Mangrove", "Wagtail", "Firetail"] {
+        let base = world(name);
+        let base_img = rep_rgba(&icon_bytes(base.name), 32);
+        let ground = rgb(base.base_100);
+        let mut clone_img = image::RgbaImage::new(base_img.width(), base_img.height());
+        for (x, y, out) in clone_img.enumerate_pixels_mut() {
+            let px = base_img.get_pixel(x, y).0;
+            *out = image::Rgba(if !opaque(&px) || near(&px, ground, 10) {
+                px
+            } else {
+                [0, 255, 0, px[3]]
+            });
+        }
+
+        let mut pairs = all_real_pairs();
+        for t in THEMES.iter() {
+            let img = rep_rgba(&icon_bytes(t.name), 32);
+            pairs.push(measure_pair("GroundClone", &clone_img, ground, t.name, &img, rgb(t.base_100)));
+        }
+
+        let failures = check_pair_axes(&pairs);
+        assert!(
+            failures.iter().any(|f| f.contains("differing pixels") && f.contains(name)),
+            "a ground-preserving clone of {name} (identical ground, fully recoloured ink) \
+             should crowd {name} on `differing pixels` regardless of what rank it lands at; \
+             got:\n\n{}",
+            failures.join("\n\n")
+        );
+    }
+}
+
+/// NON-VACUITY (item 102, ROUND 2 — closing the dilution defect): a KNOWN
+/// erosion (`Ibis`, unchanged) must stay caught even after several ORDINARY
+/// new worlds are added around it — reproducing item 102's own independent
+/// verification, where adding 5-6 ordinary worlds pushed `Ibis vs Galah`
+/// from rank 5 to rank 6 on `ink`, past the old top-6 window, even though
+/// `Ibis`'s own measured value never moved. The danger-zone guard has no
+/// window for growth to push anything past: membership depends only on a
+/// pair's own value.
+#[test]
+fn roster_growth_does_not_dilute_a_known_erosion() {
+    let _g = crate::testlock::serial();
+    let galah = world("Galah");
+    let bilby = world("Bilby");
+    let galah_img = rep_rgba(&icon_bytes(galah.name), 32);
+    let bilby_img = rep_rgba(&icon_bytes(bilby.name), 32);
+    let (w, h) = galah_img.dimensions();
+    let mut ibis_img = image::RgbaImage::new(w, h);
+    for (x, y, out) in ibis_img.enumerate_pixels_mut() {
+        let g = galah_img.get_pixel(x, y).0;
+        let b = bilby_img.get_pixel(x, y).0;
+        let mut px = [0u8; 4];
+        for k in 0..4 {
+            px[k] = (g[k] as f64 * 0.7 + b[k] as f64 * 0.3).round() as u8;
+        }
+        *out = image::Rgba(px);
+    }
+
+    let mut pairs = all_real_pairs();
+    for t in THEMES.iter() {
+        let img = rep_rgba(&icon_bytes(t.name), 32);
+        pairs.push(measure_pair("Ibis", &ibis_img, rgb(galah.base_100), t.name, &img, rgb(t.base_100)));
+    }
+
+    // Six ORDINARY growth worlds, each Galah's silhouette recoloured to a
+    // palette checked (by construction, large per-channel deltas) to crowd
+    // nobody on its own — the point is to grow the pair population around
+    // `Ibis`, not to also be a second attack.
+    let ground_from = rgb(galah.base_100);
+    let growth_palettes: [([u8; 3], [u8; 3]); 6] = [
+        ([0x0A, 0x2E, 0x33], [0xFF, 0x00, 0xC8]),
+        ([0x33, 0x0A, 0x2E], [0x00, 0xC8, 0xFF]),
+        ([0x2E, 0x33, 0x0A], [0xC8, 0x00, 0xFF]),
+        ([0x08, 0x1A, 0x08], [0xFF, 0xC8, 0x00]),
+        ([0x1A, 0x08, 0x1A], [0x00, 0xFF, 0x88]),
+        ([0x08, 0x08, 0x1A], [0xFF, 0x88, 0x00]),
+    ];
+    for (i, (new_ground, new_ink)) in growth_palettes.iter().enumerate() {
+        let name: &'static str = Box::leak(format!("Growth{i}").into_boxed_str());
+        let mut growth_img = image::RgbaImage::new(galah_img.width(), galah_img.height());
+        for (x, y, out) in growth_img.enumerate_pixels_mut() {
+            let p = galah_img.get_pixel(x, y).0;
+            if !opaque(&p) {
+                *out = image::Rgba(p);
+                continue;
+            }
+            let new_rgb = if near(&p, ground_from, 10) { *new_ground } else { *new_ink };
+            *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
+        }
+        for t in THEMES.iter() {
+            let img = rep_rgba(&icon_bytes(t.name), 32);
+            pairs.push(measure_pair(name, &growth_img, *new_ground, t.name, &img, rgb(t.base_100)));
+        }
+        // Growth worlds also pair with each other and with Ibis, exactly as
+        // a real roster growing by six worlds would.
+        for (j, (other_ground, other_ink)) in growth_palettes.iter().enumerate() {
+            if j <= i {
+                continue;
+            }
+            let other_name: &'static str = Box::leak(format!("Growth{j}").into_boxed_str());
+            let mut other_img = image::RgbaImage::new(galah_img.width(), galah_img.height());
+            for (x, y, out) in other_img.enumerate_pixels_mut() {
+                let p = galah_img.get_pixel(x, y).0;
+                if !opaque(&p) {
+                    *out = image::Rgba(p);
+                    continue;
+                }
+                let new_rgb = if near(&p, ground_from, 10) { *other_ground } else { *other_ink };
+                *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
+            }
+            pairs.push(measure_pair(name, &growth_img, *new_ground, other_name, &other_img, *other_ground));
+        }
+        pairs.push(measure_pair(
+            "Ibis",
+            &ibis_img,
+            rgb(galah.base_100),
+            name,
+            &growth_img,
+            *new_ground,
+        ));
+    }
+
+    let failures = check_pair_axes(&pairs);
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+        assert!(
+            failures.iter().any(|f| f.contains(axis) && f.contains("Ibis") && f.contains("Galah")),
+            "Ibis vs Galah's own crowding never changed, but it went uncaught on {axis:?} \
+             after growing the roster around it — the guard must not dilute with rank; \
+             got:\n\n{}",
+            failures.join("\n\n")
+        );
+    }
+}
+
+/// NON-VACUITY (item 102 round 3 — closing the coordinated-erosion gap):
+/// EVERY blessed pair on EVERY axis erodes together, each individually
+/// staying just under its own [`RATCHET_SLACK`], and the failure list must
+/// still be non-empty. This reproduces round 2's own independent
+/// verification exactly, against the real shipped `all_real_pairs`,
+/// `DIFFERING_BLESSED`/`MEAN_BLESSED`/`INK_BLESSED`, and `check_pair_axes` —
+/// no reimplementation. Under the per-pair-only ratchet this passed in
+/// total silence: all 27 blessed axis-entries individually stayed above
+/// their own ratchet, so `check_pair_axes` returned zero failures despite a
+/// real, coordinated 1.9% narrowing of the entire blessed population.
+#[test]
+fn coordinated_erosion_across_the_blessed_list_is_caught() {
+    let _g = crate::testlock::serial();
+    let mut pairs = all_real_pairs();
+
+    // Just inside RATCHET_SLACK (2%): no single pair's own ratchet trips.
+    const COORDINATED_EROSION: f64 = 0.019;
+    for b in DIFFERING_BLESSED {
+        let p = pairs
+            .iter_mut()
+            .find(|p| b.matches(p))
+            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
+        p.differing = b.baseline * (1.0 - COORDINATED_EROSION);
+    }
+    for b in MEAN_BLESSED {
+        let p = pairs
+            .iter_mut()
+            .find(|p| b.matches(p))
+            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
+        p.mean = b.baseline * (1.0 - COORDINATED_EROSION);
+    }
+    for b in INK_BLESSED {
+        let p = pairs
+            .iter_mut()
+            .find(|p| b.matches(p))
+            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
+        p.ink = b.baseline * (1.0 - COORDINATED_EROSION);
+    }
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        !failures.is_empty(),
+        "all 27 blessed axis-entries eroded together by 1.9% (just inside RATCHET_SLACK) and \
+         check_pair_axes reported no failures — the systemic-drift guard is not catching \
+         coordinated erosion across the blessed list"
+    );
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+        assert!(
+            failures.iter().any(|f| f.contains(axis) && f.contains("eroded together")),
+            "expected a systemic-drift failure mentioning {axis:?}; got:\n\n{}",
+            failures.join("\n\n")
+        );
+    }
+}
+
+/// NON-VACUITY (item 102 round 3 — closing the stale-entry gap): a
+/// `Blessed` entry whose pair no longer exists in the roster (the shape a
+/// world rename takes) must be flagged, not sit inert forever. Simulated by
+/// dropping Currawong/Cassowary — blessed on all three axes — from the real
+/// pair set, exactly as a rename would.
+#[test]
+fn stale_blessed_entry_for_a_renamed_world_is_flagged() {
+    let _g = crate::testlock::serial();
+    let probe = Blessed { a: "Currawong", b: "Cassowary", baseline: 0.0 };
+    let pairs: Vec<Pair> = all_real_pairs().into_iter().filter(|p| !probe.matches(p)).collect();
+
+    let failures = check_pair_axes(&pairs);
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+        assert!(
+            failures.iter().any(|f| {
+                f.contains(axis)
+                    && f.contains("Currawong")
+                    && f.contains("Cassowary")
+                    && f.contains("no such pair exists")
+            }),
+            "removing Currawong vs Cassowary (blessed on every axis) should flag a stale \
+             `Blessed` entry on {axis:?}; got:\n\n{}",
+            failures.join("\n\n")
+        );
+    }
+}
+
+/// NON-VACUITY (item 102 round 3 — closing the stale-entry gap, the other
+/// direction): a `Blessed` entry whose pair widened back OUT of the danger
+/// zone — crowding resolved by unrelated palette work, not by review — must
+/// also be flagged, not sit inert. Mutates Currawong/Cassowary's `differing`
+/// value alone, well past the 35% danger threshold, leaving its `mean`/`ink`
+/// entries (still genuinely in zone) undisturbed.
+#[test]
+fn stale_blessed_entry_for_a_widened_pair_is_flagged() {
+    let _g = crate::testlock::serial();
+    let mut pairs = all_real_pairs();
+    let p = pairs
+        .iter_mut()
+        .find(|p| (p.a == "Currawong" && p.b == "Cassowary") || (p.a == "Cassowary" && p.b == "Currawong"))
+        .expect("Currawong vs Cassowary is a real pair");
+    p.differing = 0.50; // well clear of `differing`'s 35% danger threshold
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        failures.iter().any(|f| {
+            f.contains("differing pixels")
+                && f.contains("Currawong")
+                && f.contains("Cassowary")
+                && f.contains("outside the danger zone")
+        }),
+        "Currawong vs Cassowary widening past `differing`'s danger threshold should flag its \
+         now-stale `Blessed` entry; got:\n\n{}",
+        failures.join("\n\n")
+    );
+    // Its `mean`/`ink` entries are untouched and still genuinely in zone —
+    // this must not, as a side effect, also complain about them.
+    assert!(
+        !failures.iter().any(|f| {
+            (f.contains("mean channel distance") || f.contains("differing INK pixels"))
+                && f.contains("Currawong")
+                && f.contains("Cassowary")
+        }),
+        "only the widened axis should flag; got:\n\n{}",
+        failures.join("\n\n")
+    );
 }
 
 // ------------------------------------------------------------ the packer ---
