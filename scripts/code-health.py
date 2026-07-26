@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,7 @@ FILE_LIMIT = 500
 BASELINE = "f12d04a"
 BASELINE_REASON = "item 134 initial inventory; remove debt instead of extending it"
 HIGH_SIGNAL_LINTS = {"clippy::too_many_lines", "clippy::cognitive_complexity"}
+TARGET_OS = {"Darwin": "macos", "Linux": "linux"}.get(platform.system(), platform.system().lower())
 
 
 def git(*args: str) -> str:
@@ -55,7 +57,9 @@ def diagnostic_key(entry: dict[str, Any]) -> tuple[str, str, int, str]:
     return (entry["lint"], entry["file"], entry["line"], entry["message"])
 
 
-def load_manifest(path: Path = MANIFEST) -> tuple[set[tuple[str, str, int, str]], list[str]]:
+def load_manifest(
+    path: Path = MANIFEST, target_os: str = TARGET_OS
+) -> tuple[set[tuple[str, str, int, str]], list[str]]:
     data = tomllib.loads(path.read_text())
     entries = data.get("clippy_exception", [])
     failures: list[str] = []
@@ -67,8 +71,15 @@ def load_manifest(path: Path = MANIFEST) -> tuple[set[tuple[str, str, int, str]]
             continue
         if entry["lint"] not in HIGH_SIGNAL_LINTS:
             failures.append(f"code-health: unsupported Clippy exception lint {entry['lint']}")
+        entry_target = entry.get("target_os")
+        if entry_target is not None and entry_target not in {"linux", "macos"}:
+            failures.append(
+                f"code-health: unsupported Clippy exception target_os {entry_target!r}"
+            )
         if not entry["reason"].strip():
             failures.append(f"code-health: empty reason for {entry['lint']}:{entry['file']}:{entry['line']}")
+        if entry_target is not None and entry_target != target_os:
+            continue
         key = diagnostic_key(entry)
         if key in expected:
             failures.append(f"code-health: duplicate Clippy exception {entry['lint']}:{entry['file']}:{entry['line']}")
@@ -181,6 +192,27 @@ def self_test() -> int:
     if len(check_clippy(set(), current)) != 2:
         raise AssertionError("missing metric diagnostics must make their exceptions stale")
     with tempfile.TemporaryDirectory() as directory:
+        manifest = Path(directory) / "platform-health.toml"
+        manifest.write_text(
+            '[[clippy_exception]]\n'
+            'lint = "clippy::cognitive_complexity"\n'
+            'file = "src/apply.rs"\n'
+            'line = 1\n'
+            'message = "linux metric"\n'
+            'target_os = "linux"\n'
+            'reason = "platform-gated branch"\n\n'
+            '[[clippy_exception]]\n'
+            'lint = "clippy::cognitive_complexity"\n'
+            'file = "src/apply.rs"\n'
+            'line = 1\n'
+            'message = "macOS metric"\n'
+            'target_os = "macos"\n'
+            'reason = "platform-gated branch"\n'
+        )
+        linux, failures = load_manifest(manifest, "linux")
+        macos, macos_failures = load_manifest(manifest, "macos")
+        if failures or macos_failures or len(linux) != 1 or len(macos) != 1 or linux == macos:
+            raise AssertionError("platform-specific metric exceptions must select only their target")
         root = ROOT
         try:
             globals()["ROOT"] = Path(directory)

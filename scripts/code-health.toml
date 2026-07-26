@@ -77,7 +77,16 @@ lint = "clippy::cognitive_complexity"
 file = "src/app/apply.rs"
 line = 356
 message = "the function has a cognitive complexity of (30/25)"
+target_os = "macos"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+
+[[clippy_exception]]
+lint = "clippy::cognitive_complexity"
+file = "src/app/apply.rs"
+line = 356
+message = "the function has a cognitive complexity of (29/25)"
+target_os = "linux"
+reason = "The target-gated application path has one fewer branch on Linux; ratchet it against that platform's real metric."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
