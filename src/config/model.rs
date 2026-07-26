@@ -84,7 +84,7 @@ pub struct Config {
     pub wysiwyg: Option<bool>,
     /// `popover` — the FORMAT POPOVER on/off: a mouse selection (drag-release /
     /// double-click word-select) in a markdown buffer floats a small format
-    /// toolbar (B · I · == · ` · ~~ · H · Link) over the selection; `None` = the
+    /// toolbar (B · I · A · code · S · H · link) over the selection; `None` = the
     /// built-in default (ON, like wysiwyg — no CLI flag). OFF is a TOTAL no-op: no
     /// gesture ever summons it (byte-identical to a build without the feature).
     /// Applied at launch to the `crate::popover::POPOVER_ON` process-global

@@ -1477,7 +1477,7 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
 /// `==highlight==` wash pill, `C` sits in the inline-code `base_200` pill.
 /// Asserted over the RENDERED PIXELS per the Wagtail tripwire (OUTCOMES, not
 /// mechanisms): the strike pixels CROSS the whole `S` glyph run at the band's
-/// middle (a bare letter always leaves gaps — the `Link` control proves it),
+/// middle (a bare letter always leaves gaps — the `link` control proves it),
 /// and each pill paints beside its letter's ink where an unpilled button shows
 /// bare card. Runs on Mulga (pinned explicitly, not whatever the ambient
 /// active world happens to be — this law's thresholds only clear on a
@@ -1521,7 +1521,7 @@ fn popover_labels_demonstrate_their_own_effects() {
     let labels: Vec<&str> = rows.iter().map(|b| b["label"].as_str().unwrap()).collect();
     assert_eq!(
         labels,
-        vec!["B", "I", "A", "code", "S", "H", "Link"],
+        vec!["B", "I", "A", "code", "S", "H", "link"],
         "self-demonstrating labels"
     );
     let span_of = |label: &str| -> (f32, f32) {
@@ -1577,12 +1577,12 @@ fn popover_labels_demonstrate_their_own_effects() {
     // CONTROL — a bare multi-glyph label always has a gap at the same rows
     // (letters do not touch), so the full crossing above proves a DRAWN line,
     // not glyph ink.
-    let (lx0, lx1) = span_of("Link");
+    let (lx0, lx1) = span_of("link");
     let link_gap = (lx0 as u32..=lx1 as u32)
         .any(|x| (y_mid - 1..=y_mid + 1).all(|y| diff_sum(img.get_pixel(x, y)) <= 40));
     assert!(
         link_gap,
-        "the un-struck Link label must show a gap at the strike rows"
+        "the un-struck link label must show a gap at the strike rows"
     );
 
     // (2) PILLS: 2px LEFT of a pilled letter's ink (inside the pill's 3px

@@ -4,7 +4,7 @@
 //! the summons). A mouse selection (drag-release or double-click word-select) in
 //! a markdown buffer floats a small row of format buttons over the selection:
 //!
-//!   B · I · A · code · S · H · Link
+//!   B · I · A · code · S · H · link
 //!
 //! Every label is SELF-DEMONSTRATING (no raw markdown syntax in chrome): B is
 //! bold, I italic, A sits in the real highlight wash, `code` is the word in the
@@ -111,7 +111,7 @@ impl PopoverButton {
     /// `render/chrome/popover.rs`. (`A` because `H` is the Heading cycler's.) The
     /// inline-code button spells the WORD `code` in the monospace face, sitting in
     /// the inline-code pill wash: the pill demonstrates, the word names (the user's
-    /// call — a bare `C` read as ambiguous). `Link` likewise stays a word:
+    /// call — a bare `C` read as ambiguous). `link` likewise stays a word:
     /// inserting a link has no inline look to preview.
     pub fn base_label(self) -> &'static str {
         match self {
@@ -121,7 +121,7 @@ impl PopoverButton {
             PopoverButton::Code => "code",
             PopoverButton::Strike => "S",
             PopoverButton::Heading => "H",
-            PopoverButton::Link => "Link",
+            PopoverButton::Link => "link",
         }
     }
 }
@@ -192,7 +192,7 @@ mod tests {
         // inline-code button spells the WORD `code` (the user's call), not a bare
         // `C` — still mono, still in the pill.
         let labels: Vec<&str> = ALL.iter().map(|b| b.base_label()).collect();
-        assert_eq!(labels, vec!["B", "I", "A", "code", "S", "H", "Link"]);
+        assert_eq!(labels, vec!["B", "I", "A", "code", "S", "H", "link"]);
     }
 
     #[test]

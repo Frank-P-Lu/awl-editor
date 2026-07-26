@@ -111,7 +111,7 @@ mod tests {
     fn plain_selection_lights_nothing_and_labels_h() {
         // "the quick fox", select "quick" (chars 4..9), unformatted.
         let m = plan("the quick fox", Some(4), 9, true).unwrap();
-        assert_eq!(labels(&m), vec!["B", "I", "A", "code", "S", "H", "Link"]);
+        assert_eq!(labels(&m), vec!["B", "I", "A", "code", "S", "H", "link"]);
         for b in &m.buttons {
             assert!(!b.active, "{:?} should be unlit on plain text", b.button);
         }
@@ -158,14 +158,24 @@ mod tests {
     }
 
     #[test]
-    fn link_button_lights_when_the_caret_sits_in_a_link() {
+    fn link_button_lights_without_changing_its_lowercase_label_inside_a_link() {
         // "see [awl](https://awl.dev) now" — caret inside the link text.
         let text = "see [awl](https://awl.dev) now";
         let caret = 6; // inside "awl"
         let m = plan(text, None, caret, true).unwrap();
-        assert!(active(&m, PopoverButton::Link), "Link lit inside a link");
+        assert!(active(&m, PopoverButton::Link), "link lit inside a link");
+        assert_eq!(
+            labels(&m),
+            vec!["B", "I", "A", "code", "S", "H", "link"],
+            "existing links change treatment, never the stable popover label"
+        );
         // Caret out on plain text → unlit.
         let m2 = plan(text, None, 1, true).unwrap();
         assert!(!active(&m2, PopoverButton::Link));
+        assert_eq!(
+            labels(&m2),
+            labels(&m),
+            "plain and existing-link contexts share the exact one label roster"
+        );
     }
 }
