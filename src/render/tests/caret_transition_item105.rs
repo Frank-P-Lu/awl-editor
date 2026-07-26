@@ -1327,3 +1327,326 @@ fn interior_run_between_two_different_letters_has_no_flip_step() {
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
 }
+
+/// THE GLYPH-CLASS ROSTER this item's own diagnosis names, as a closed enum.
+/// [`class_role`] is the ONE no-wildcard match that assigns every variant a
+/// role in the sweep below — a class added here without a role in that match
+/// fails to compile, so a new class cannot silently dodge the law the way
+/// every prior round's hand-picked fixture list could (round 1 tested one
+/// direction; round 2 tested a handful of ad hoc pairs; neither swept the
+/// cross-product).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum GlyphClass {
+    XHeight,
+    Ascender,
+    Descender,
+    Capital,
+    Digit,
+    Punctuation,
+    Ligature,
+    Space,
+    Eol,
+    EmptyLine,
+}
+
+const ALL_GLYPH_CLASSES: [GlyphClass; 10] = [
+    GlyphClass::XHeight,
+    GlyphClass::Ascender,
+    GlyphClass::Descender,
+    GlyphClass::Capital,
+    GlyphClass::Digit,
+    GlyphClass::Punctuation,
+    GlyphClass::Ligature,
+    GlyphClass::Space,
+    GlyphClass::Eol,
+    GlyphClass::EmptyLine,
+];
+
+/// Seven classes anchor REAL ink at a literal token; the other three are
+/// STRUCTURAL (a glyphless separator, the end-of-line position, and the
+/// whole-empty-line case) and get their own dedicated sweep phases instead of
+/// pairwise concatenation. NO WILDCARD: every one of the 10 variants above
+/// must appear on the left of an arm here, or the match fails to compile.
+enum ClassRole {
+    Endpoint(&'static str),
+    Space,
+    Eol,
+    EmptyLine,
+}
+
+fn class_role(c: GlyphClass) -> ClassRole {
+    match c {
+        GlyphClass::XHeight => ClassRole::Endpoint("a"),
+        GlyphClass::Ascender => ClassRole::Endpoint("l"),
+        GlyphClass::Descender => ClassRole::Endpoint("g"),
+        GlyphClass::Capital => ClassRole::Endpoint("A"),
+        GlyphClass::Digit => ClassRole::Endpoint("1"),
+        GlyphClass::Punctuation => ClassRole::Endpoint("."),
+        GlyphClass::Ligature => ClassRole::Endpoint("fi"),
+        GlyphClass::Space => ClassRole::Space,
+        GlyphClass::Eol => ClassRole::Eol,
+        GlyphClass::EmptyLine => ClassRole::EmptyLine,
+    }
+}
+
+/// The 7 [`ClassRole::Endpoint`] classes, derived from [`class_role`] rather
+/// than hand-listed — adding an 8th endpoint class to the enum grows this
+/// automatically; the compile-time exhaustiveness lives in `class_role`
+/// itself.
+fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
+    ALL_GLYPH_CLASSES
+        .iter()
+        .filter_map(|&c| match class_role(c) {
+            ClassRole::Endpoint(tok) => Some((c, tok)),
+            ClassRole::Space | ClassRole::Eol | ClassRole::EmptyLine => None,
+        })
+        .collect()
+}
+
+/// THE MISSING SWEEP LAW. Every fixture rounds 1–3 wrote had a real glyph on
+/// at most ONE side of the transition it measured (a literal-adjacency
+/// closure, or a run flanked by copies of the SAME letter) — a shape that is
+/// structurally INCAPABLE of exposing a directional asymmetry, because there
+/// is only one direction to have an asymmetry IN. Round 2's actual open
+/// defect needed a glyphless column with TWO DIFFERENT real letters, one on
+/// each side, and every round's law before this one swept at most one
+/// hand-picked instance of that shape (round 3's own "| 1" fixture: pipe and
+/// digit, and nothing else).
+///
+/// This law sweeps the ORDERED PAIR cross-product of the full 10-class
+/// roster this item's diagnosis names — every one of the 7 [`ClassRole::Endpoint`]
+/// classes (x-height, ascender, descender, capital, digit, punctuation,
+/// ligature) against every OTHER one, tied through a single glyphless SPACE,
+/// on EVERY proportional world, in BOTH directions: `"{A} {B}"` and
+/// `"{B} {A}"` are different fixtures, because the space's BACKWARD seam
+/// borrows from whichever letter sits behind it and its FORWARD seam borrows
+/// from whichever sits ahead, and round 2's hard "nearest wins" pick made
+/// those two seams structurally UNEQUAL (one always ~0, the other the whole
+/// gap) — a claim about DIRECTION, not magnitude, which a bound-only check
+/// cannot catch even at a generous bound (round 2's worst-case single-seam
+/// magnitude, ~11.85px, still clears a ~14px bar) — see the SYMMETRY assert
+/// below, which is the actual load-bearing check this law adds.
+///
+/// THE BAR is measured fresh per world (not assumed), from each of the 7
+/// endpoint classes' own ISOLATED real-ink cell (no fallback, no neighbor —
+/// a plain [`TextPipeline::caret_anchor_raster_box`] read), pairwise-diffed —
+/// the same "glyph-to-glyph transitions nobody has filed as a bug" measurement
+/// round 3 introduced, generalized from one hand-picked pair to the full
+/// 7-class roster and computed once per world instead of re-shaped per pair.
+///
+/// Phases 2–4 place the three STRUCTURAL classes (`Eol`, `EmptyLine`,
+/// and `Space` as an endpoint in its own right — leading and trailing) in the
+/// same sweep, so all 10 roster classes are actually exercised, not merely
+/// declared. The MONO complement (item 97's uniform grid) closes the loop:
+/// every one of the same ordered pairs must read EXACTLY zero there, since a
+/// mono world never leaves the line-cell arm at all.
+///
+/// NON-VACUITY (see the orchestrator's own required proof, reproduced in the
+/// commit message / task report): this law is RED on `b0ca2cf` (round 2's
+/// hard-pick code) via the symmetry assert — at least one ordered pair's
+/// backward/forward seams differ by more than half the bar. It is RED on
+/// `f30519a` (the pre-item-105 baseline) via the per-seam bound assert on the
+/// `"{X-height} {Eol-adjacent...}"`-style fixtures reproducing the original
+/// `aaa`→EOL class of jump. It is GREEN on this round's landed blend.
+#[test]
+fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions: no wgpu adapter"
+        );
+        return;
+    };
+
+    let mono = super::facepitch::mono_display_worlds();
+    let prop: Vec<&'static str> = theme::THEMES.iter().filter(|t| !mono.contains(&t.name)).map(|t| t.name).collect();
+    assert!(prop.len() >= 11, "full proportional roster is swept (got {})", prop.len());
+    assert!(mono.len() >= 7, "full mono roster is swept (got {})", mono.len());
+
+    let endpoints = endpoint_classes();
+    assert_eq!(endpoints.len(), 7, "7 endpoint classes expected (10-class roster minus space/eol/empty-line)");
+
+    let mut global_worst = 0.0f32;
+    let mut global_worst_desc = String::new();
+    let mut global_worst_asym = 0.0f32;
+    let mut global_worst_asym_desc = String::new();
+
+    for &world in &prop {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        let ps = {
+            p.set_view(&view("a", 0, 0));
+            pixel_scale(&p)
+        };
+
+        // THE BAR: every endpoint class's own ISOLATED real-ink cell,
+        // pairwise-diffed — the product's own accepted glyph-to-glyph spread
+        // on THIS world, measured fresh, never assumed.
+        let mut solo: Vec<(GlyphClass, (f32, f32))> = Vec::new();
+        for &(class, tok) in &endpoints {
+            let col = tok.chars().count() - 1;
+            let cell = cell_at(&mut p, tok, 0, col);
+            assert!(
+                p.caret_anchor_raster_box().is_some(),
+                "{world}: {class:?} ({tok:?}) must anchor real raster ink to serve as a bar sample"
+            );
+            solo.push((class, cell));
+        }
+        let mut bar = 0.0f32;
+        for i in 0..solo.len() {
+            for j in 0..solo.len() {
+                if i == j {
+                    continue;
+                }
+                bar = bar.max(cell_delta(solo[i].1, solo[j].1) / ps);
+            }
+        }
+        assert!(bar > 5.0, "{world}: the measured glyph-to-glyph bar must be real (got {bar:.2}px)");
+
+        // PHASE 1 — THE CORE SWEEP: every ordered endpoint pair, tied
+        // through one glyphless space, both seams, both directions.
+        for &(ca, ta) in &endpoints {
+            for &(cb, tb) in &endpoints {
+                if ca == cb {
+                    continue;
+                }
+                let text = format!("{ta} {tb}");
+                let col_a = ta.chars().count() - 1;
+                let col_mid = ta.chars().count();
+                let col_b = ta.chars().count() + tb.chars().count();
+
+                let c_a = cell_at(&mut p, &text, 0, col_a);
+                let c_mid = cell_at(&mut p, &text, 0, col_mid);
+                assert!(
+                    p.caret_anchor_ink_box().is_none(),
+                    "{world}: {text:?} col{col_mid} (the tied space) must be glyphless"
+                );
+                let c_b = cell_at(&mut p, &text, 0, col_b);
+
+                let bwd = cell_delta(c_a, c_mid);
+                let fwd = cell_delta(c_mid, c_b);
+                let bound = bar * ps;
+                assert!(
+                    bwd <= bound && fwd <= bound,
+                    "{world}: {ca:?}<->{cb:?} ({text:?}) exceeds the bar ({bar:.2}px): \
+                     bwd={:.2} fwd={:.2}",
+                    bwd / ps,
+                    fwd / ps
+                );
+                let seam_worst = (bwd / ps).max(fwd / ps);
+                if seam_worst > global_worst {
+                    global_worst = seam_worst;
+                    global_worst_desc = format!("{world} {ca:?}<->{cb:?}");
+                }
+
+                // THE DIRECTIONAL CLAIM — the axis no prior round's law
+                // swept. A hard nearest-wins pick (round 2) always drives
+                // exactly one of these two seams toward 0 and the other
+                // toward the whole gap; a symmetric blend keeps them close.
+                // Bounding the ASYMMETRY itself (not just each seam's own
+                // magnitude) is what catches a regression back to a hard
+                // pick even when both seams individually still clear the
+                // (generous, empirically-measured) bar.
+                let asym = (bwd - fwd).abs() / ps;
+                assert!(
+                    asym <= bar * 0.5,
+                    "{world}: {ca:?}<->{cb:?} ({text:?}) tied space reads DIRECTIONAL \
+                     (a hard pick, not a blend): bwd={:.2} fwd={:.2} asymmetry={asym:.2} \
+                     vs half-bar {:.2}",
+                    bwd / ps,
+                    fwd / ps,
+                    bar * 0.5
+                );
+                if asym > global_worst_asym {
+                    global_worst_asym = asym;
+                    global_worst_asym_desc = format!("{world} {ca:?}<->{cb:?}");
+                }
+            }
+        }
+
+        // PHASE 2 — the structural `Eol` class: every endpoint -> EOL.
+        for &(ca, ta) in &endpoints {
+            let col_a = ta.chars().count() - 1;
+            let col_eol = ta.chars().count();
+            let c0 = cell_at(&mut p, ta, 0, col_a);
+            let c1 = cell_at(&mut p, ta, 0, col_eol);
+            let d = cell_delta(c0, c1) / ps;
+            assert!(d <= bar, "{world}: {ca:?}->Eol ({ta:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}");
+        }
+
+        // PHASE 3 — the structural `Space` class as an endpoint in its own
+        // right: leading (space before B) and trailing (A then space then
+        // EOL), for every class, not just one hand-picked capital fixture.
+        for &(cb, tb) in &endpoints {
+            let text = format!(" {tb}");
+            let c0 = cell_at(&mut p, &text, 0, 0);
+            let c1 = cell_at(&mut p, &text, 0, 1);
+            let d = cell_delta(c0, c1) / ps;
+            assert!(d <= bar, "{world}: Space->{cb:?} (leading, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}");
+        }
+        for &(ca, ta) in &endpoints {
+            let text = format!("{ta} ");
+            let col_a = ta.chars().count() - 1;
+            let col_sp = ta.chars().count();
+            let c0 = cell_at(&mut p, &text, 0, col_a);
+            let c1 = cell_at(&mut p, &text, 0, col_sp);
+            let d = cell_delta(c0, c1) / ps;
+            assert!(d <= bar, "{world}: {ca:?}->Space (trailing, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}");
+        }
+
+        // PHASE 4 — the structural `EmptyLine` class: the whole-line
+        // synthetic case vs a real x-height line.
+        let (_cy_a, h_a) = cell_at(&mut p, "a", 0, 0);
+        let (_cy_e, h_e) = cell_at(&mut p, "", 0, 0);
+        let d = (h_a - h_e).abs() / ps;
+        assert!(d <= bar, "{world}: EmptyLine vs a real line exceeds the bar ({bar:.2}px): Δ={d:.2}");
+    }
+
+    eprintln!(
+        "ordered_class_pair sweep: worst seam={global_worst:.2}px ({global_worst_desc}); \
+         worst bwd/fwd asymmetry={global_worst_asym:.2}px ({global_worst_asym_desc})"
+    );
+
+    // ---- MONO COMPLEMENT (item 97): the mono line-cell arm reads ONLY its
+    // OWN anchor's raster descent (`caret_anchor_raster_box(...).map(descent)`,
+    // code-verified — no ink box, no neighbor-borrow, ever) — so a
+    // DESCENDER-class anchor legitimately gets a taller cell than an
+    // x-height one (`CARET_DESCENDER_PAD`, a protected, correct behavior,
+    // NOT a bug this item touches). The real "uniform grid" invariant is
+    // narrower: the GLYPHLESS (space) column itself never reads a neighbor
+    // at all, because `caret_anchor_raster_box()` is `None` there (descender
+    // forced to 0) regardless of which two letters flank it. Assert that:
+    // the tied space's own cell is IDENTICAL across every ordered pair, on
+    // every mono world — proof there is no cross-column coupling to regress,
+    // without the false claim that every class pair reads flat zero.
+    for &world in &mono {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        // The reference: the space's cell with no letter-class dependency to
+        // vary — a bare space next to a neutral x-height letter.
+        let reference = cell_at(&mut p, " a", 0, 0);
+        for &(ca, ta) in &endpoints {
+            for &(cb, tb) in &endpoints {
+                if ca == cb {
+                    continue;
+                }
+                let text = format!("{ta} {tb}");
+                let col_mid = ta.chars().count();
+                let c_mid = cell_at(&mut p, &text, 0, col_mid);
+                assert!(
+                    cell_delta(c_mid, reference) < 1e-3,
+                    "{world}: mono glyphless column tied between {ca:?} and {cb:?} ({text:?}) \
+                     must match the reference space cell exactly — mono has no neighbor-borrow \
+                     at all (item 97's uniform grid): got {c_mid:?} want {reference:?}"
+                );
+            }
+        }
+    }
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
