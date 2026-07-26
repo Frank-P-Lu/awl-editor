@@ -558,15 +558,7 @@ impl TextPipeline {
             // Block beneath its recoloured ink; ordinary letters remain the
             // exact existing silhouette.  This is geometry-gated, never a
             // punctuation-character or world identity branch.
-            let needs_visual_body = self
-                .caret_anchor_ink_box()
-                .map(|ink| {
-                    let px = self.metrics.caret_h / CARET_H;
-                    let (w, h) = super::caret::caret_visual_body_dims(ink, px);
-                    w > ink.width + f32::EPSILON
-                        || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
-                })
-                .unwrap_or(false);
+            let needs_visual_body = self.caret_needs_visual_body();
             if needs_visual_body {
                 self.prepare_caret_block(device, queue, width, height);
             }

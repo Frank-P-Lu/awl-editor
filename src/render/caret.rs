@@ -529,6 +529,20 @@ impl TextPipeline {
         (cy + extend * 0.5, h + extend)
     }
 
+    /// Whether a settled proportional Morph needs the shared supporting body.
+    /// Kept beside `caret_visual_body_dims` so draw layers never inspect ink or
+    /// duplicate vertical geometry policy.
+    pub(super) fn caret_needs_visual_body(&mut self) -> bool {
+        self.caret_anchor_ink_box()
+            .map(|ink| {
+                let px = self.metrics.caret_h / CARET_H;
+                let (w, h) = caret_visual_body_dims(ink, px);
+                w > ink.width + f32::EPSILON
+                    || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
+            })
+            .unwrap_or(false)
+    }
+
     /// The FALLBACK arm's SYNTHETIC ink box (item 105) for a truly GLYPHLESS
     /// PROPORTIONAL anchor (space / end-of-line / an empty line — nothing
     /// [`Self::caret_anchor_raster_box`] can measure): a typical lowercase
