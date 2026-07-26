@@ -1650,3 +1650,172 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
 }
+
+/// THE ALL-BLANK WRAPPED ROW (adjudicated 2026-07-26). Two independent audit
+/// passes each measured the ABSOLUTE caret position stepping across a run of
+/// spaces long enough to fill an entire wrapped visual row by itself —
+/// flanked above and below by real-ink rows of the SAME logical line — and
+/// reported a ~30px jump as a HIGH-severity defect. It is not one: this law
+/// is the standing, non-vacuous refutation, so this exact shape cannot be
+/// re-reported a fifth time without checking here first.
+///
+/// THE MECHANISM (real, and BY DESIGN, not a bug). `nearest_row_raster_box`
+/// is deliberately bounded to the caret's OWN visual row — an explicit
+/// O(row-width)-not-O(doc) perf tradeoff, see that function's own doc. On a
+/// row that is 100% blank, both the backward and forward search come up
+/// empty, so `caret_cell_vertical`'s fallback arm drops to the SYNTHETIC
+/// tier-3 box (`caret_synthetic_ink_box`), anchored to THAT row's own
+/// baseline — a genuinely different baseline than the row immediately before
+/// or after it.
+///
+/// THE WRAP-BOUNDARY TRAP — why this law is ROW-RELATIVE, never absolute.
+/// Crossing a soft-wrap boundary moves the caret down exactly one row's
+/// `line_height` and back toward the left margin: correct, INTENDED
+/// behaviour (the caret is supposed to drop a visual row), not a defect. An
+/// ABSOLUTE position delta cannot tell that apart from a genuine
+/// cell-geometry discontinuity, because it is measuring two different rows
+/// against a single shared origin that neither row is drawn relative to.
+/// Measured directly below, on the reported fixture, over the full
+/// proportional roster: the absolute Δcy at the worst row boundary is a flat
+/// 32.00px on EVERY world (exactly this fixture's `line_height` — the row
+/// pitch, not a defect magnitude), while the ROW-RELATIVE residual (`cy`
+/// minus THAT column's own [`TextPipeline::caret_baseline_y`]) — the only
+/// quantity two adjacently-drawn rows can actually be judged against, since
+/// they are never drawn at the same y — never exceeds 5.85px anywhere in the
+/// sweep (Bilby, worst; Gumtree measures 5.50px, matching the two audit
+/// reports' own literal fixture almost exactly). The absolute figure the two
+/// reports quoted (~30px) is ~84% pure row-pitch; the genuine tier-2/tier-3
+/// boundary residual is the 5.85px figure, comfortably inside
+/// [`TRANSITION_BOUND_WIDE_PX`] (7.5px) and well under the file's own
+/// empirically-measured 14px glyph-to-glyph worst case
+/// (`glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar`'s
+/// bar).
+///
+/// SWEEPS every adjacent column pair across the WHOLE fixture line (not one
+/// hand-picked seam), on every proportional world — a superset of the exact
+/// enter/exit seams (real-ink row → all-blank row, and back) the two reports
+/// named, found automatically rather than hand-indexed, so a future
+/// unrelated tier-boundary regression anywhere on this line's wrap also
+/// trips this law.
+///
+/// NON-VACUITY, both halves in one sweep, per world: the ABSOLUTE delta
+/// really is large (≥15px, well above `TRANSITION_BOUND_WIDE_PX` — proving
+/// the fixture genuinely reproduces the reported wrap-pitch jump, not some
+/// unrelated small motion) AND the ROW-RELATIVE residual clears comfortably
+/// under the bound at the SAME column — so a regression that made the
+/// row-relative geometry itself jump (not just the wrap pitch) would turn
+/// this law red without touching the floor.
+#[test]
+fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping glyphless_row_transition_is_bounded_row_relatively_across_a_wrap: no wgpu adapter");
+        return;
+    };
+    // 20 real 'a's, a run of 30 spaces long enough to fill an entire wrapped
+    // row by itself at this window width, 20 real 'b's — one logical line;
+    // the two audit reports' own literal fixture shape.
+    let a_run = 20usize;
+    let space_run = 30usize;
+    let b_run = 20usize;
+    let text = format!("{}{}{}", "a".repeat(a_run), " ".repeat(space_run), "b".repeat(b_run));
+    let blank_start = a_run;
+    let blank_end = a_run + space_run;
+    let n = text.chars().count();
+
+    // Narrow enough that the space run cannot share a row with the 'a's or
+    // the 'b's on any bundled proportional face — forces at least one row to
+    // be ENTIRELY blank (verified below per world, never assumed).
+    p.set_size(260.0, 800.0);
+
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+    let mut worst_rowrel = 0.0f32;
+
+    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        p.set_view(&view(&text, 0, 0));
+
+        // FIXTURE PRECONDITION: the fixture must actually reproduce the
+        // reported shape — a wrapped visual row entirely inside the space
+        // run, on THIS world's own real glyph metrics.
+        let rows = p.visual_rows(0);
+        assert!(
+            rows.iter().any(|r| r.start_col >= blank_start && r.end_col <= blank_end),
+            "{}: fixture must wrap a fully-blank row at this width ({} rows: {:?})",
+            t.name,
+            rows.len(),
+            rows.iter().map(|r| (r.start_col, r.end_col)).collect::<Vec<_>>()
+        );
+
+        // Sweep every adjacent column pair across the whole line: the
+        // absolute cell position, and the ROW-RELATIVE residual (this
+        // column's cy minus ITS OWN row's baseline — the quantity that
+        // strips out the wrap's row-pitch component and isolates the
+        // tier-2/tier-3 boundary's own claim).
+        let ps = pixel_scale(&p);
+        let mut cy = Vec::with_capacity(n + 1);
+        let mut h = Vec::with_capacity(n + 1);
+        let mut residual = Vec::with_capacity(n + 1);
+        for col in 0..=n {
+            p.set_view(&view(&text, 0, col));
+            p.settle_caret();
+            let (c, ht) = p.caret_cell_vertical();
+            let baseline = p.caret_baseline_y();
+            cy.push(c);
+            h.push(ht);
+            residual.push(c - baseline);
+        }
+
+        let mut max_abs = 0.0f32;
+        let mut max_rowrel = 0.0f32;
+        for i in 0..n {
+            let d_abs = (cy[i + 1] - cy[i]).abs() / ps;
+            let d_rowrel = (residual[i + 1] - residual[i]).abs().max((h[i + 1] - h[i]).abs()) / ps;
+            max_abs = max_abs.max(d_abs);
+            max_rowrel = max_rowrel.max(d_rowrel);
+        }
+
+        // NON-VACUITY: the fixture must genuinely reproduce a LARGE absolute
+        // jump somewhere (the wrap's row-pitch component the two audit
+        // reports measured) — or the row-relative claim below proves nothing
+        // about the trap this law names.
+        const ABS_JUMP_FLOOR_PX: f32 = 15.0;
+        assert!(
+            max_abs >= ABS_JUMP_FLOOR_PX,
+            "{}: fixture must reproduce a large absolute row-boundary jump \
+             (got {max_abs:.2}px, floor {ABS_JUMP_FLOOR_PX}px) or this law's \
+             non-vacuity claim is empty",
+            t.name
+        );
+
+        // THE LAW: the ROW-RELATIVE residual — the tier-2/tier-3 boundary's
+        // actual geometric claim, with the wrap's row-pitch subtracted out —
+        // stays inside the file's own wide sanity bound, even though the
+        // ABSOLUTE delta at the same seam is far larger.
+        assert!(
+            max_rowrel <= TRANSITION_BOUND_WIDE_PX,
+            "{}: row-relative cell discontinuity across the all-blank wrapped \
+             row exceeds the wide bound ({TRANSITION_BOUND_WIDE_PX}px): \
+             max_rowrel={max_rowrel:.2}px (absolute max at the same seam was \
+             {max_abs:.2}px — a wrap-pitch artifact, not part of this claim)",
+            t.name
+        );
+
+        worst_rowrel = worst_rowrel.max(max_rowrel);
+        checked += 1;
+    }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    eprintln!(
+        "glyphless_row_transition_is_bounded_row_relatively_across_a_wrap: \
+         worst row-relative residual={worst_rowrel:.2}px (bound {TRANSITION_BOUND_WIDE_PX}px)"
+    );
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
