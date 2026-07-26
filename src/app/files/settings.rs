@@ -37,6 +37,7 @@ impl App {
             "page_width_prose" => self.config.page_width_prose = value.parse().ok(),
             "page_width_code" => self.config.page_width_code = value.parse().ok(),
             "zoom" => self.config.zoom = value.parse().ok(),
+            "scroll_sensitivity" => self.config.scroll_sensitivity = value.parse().ok(),
             "writing_nits" => self.config.writing_nits = Some(value == "true"),
             "spellcheck" => self.config.spellcheck = Some(value == "true"),
             // Settings-menu TOGGLES that were previously write-only (no mirror): keep
@@ -299,6 +300,12 @@ impl App {
                     self.sync_view(true);
                 }
             }
+            "scroll_sensitivity" => {
+                if let Some(s) = crate::range::SCROLL_SENSITIVITY.parse(raw) {
+                    self.scroll_sensitivity = s;
+                    self.persist_pref("scroll_sensitivity", &crate::range::SCROLL_SENSITIVITY.persist_value(s));
+                }
+            }
             _ => {}
         }
         if let Some(gpu) = self.gpu.as_ref() {
@@ -322,6 +329,9 @@ impl App {
         // right after `apply_core`); queue the metric reflow the ⌘± path queues.
         if key == "zoom" {
             self.zoom_reflow.queue();
+        } else if key == "scroll_sensitivity" {
+            self.scroll_sensitivity = self.config.scroll_sensitivity
+                .unwrap_or(crate::range::SCROLL_SENSITIVITY.default);
         }
         self.range_persist(key);
         self.sync_view(true);
@@ -341,6 +351,8 @@ impl App {
         // through `clamp_zoom` -> the same spec, so this is idempotent).
         if id == crate::settings::SettingId::Zoom {
             self.set_zoom(value);
+        } else if id == crate::settings::SettingId::ScrollSensitivity {
+            self.scroll_sensitivity = crate::range::SCROLL_SENSITIVITY.quantize(value);
         }
     }
 
@@ -353,6 +365,8 @@ impl App {
     pub(in crate::app) fn range_persist(&mut self, key: &str) {
         if key == "zoom" {
             self.settle_zoom_persist()
+        } else if key == "scroll_sensitivity" {
+            self.persist_pref(key, &crate::range::SCROLL_SENSITIVITY.persist_value(self.scroll_sensitivity));
         }
     }
 

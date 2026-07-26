@@ -30,6 +30,8 @@ pub struct Config {
     pub theme: Option<String>,
     /// `zoom` — the last zoom factor; `None` = the first-run default (`0.8`).
     pub zoom: Option<f32>,
+    /// Smooth trackpad sensitivity as a physical-pixel multiplier; absent = 100%.
+    pub scroll_sensitivity: Option<f32>,
     /// `page_mode` — page mode on/off; `None` = the built-in default (on).
     pub page_mode: Option<bool>,
     /// `page_width_prose` — the centered writing column's MEASURE in characters
@@ -243,6 +245,7 @@ impl Config {
             workspace: None,
             theme: None,
             zoom: None,
+            scroll_sensitivity: None,
             page_mode: None,
             page_width_prose: None,
             page_width_code: None,
@@ -433,6 +436,7 @@ impl Config {
             workspace: None,
             theme: None,
             zoom: None,
+            scroll_sensitivity: None,
             page_mode: None,
             page_width_prose: None,
             page_width_code: None,
@@ -490,6 +494,9 @@ impl Config {
         }
         if let Some(z) = table.get("zoom").and_then(toml_as_f32) {
             cfg.zoom = Some(z);
+        }
+        if let Some(s) = table.get("scroll_sensitivity").and_then(toml_as_f32) {
+            cfg.scroll_sensitivity = Some(crate::range::SCROLL_SENSITIVITY.quantize(s));
         }
         if let Some(b) = table.get("page_mode").and_then(|v| v.as_bool()) {
             cfg.page_mode = Some(b);

@@ -94,6 +94,7 @@ pub enum SettingId {
     PageWidthProse,
     PageWidthCode,
     Zoom,
+    ScrollSensitivity,
     DateFormat,
     Theme,
     Wysiwyg,
@@ -178,6 +179,12 @@ pub static SETTINGS: &[SettingRow] = &[
     SettingRow {
         id: SettingId::Zoom,
         name: "Zoom",
+        category: "Editor",
+        kind: SettingKind::Range,
+    },
+    SettingRow {
+        id: SettingId::ScrollSensitivity,
+        name: "Scroll sensitivity",
         category: "Editor",
         kind: SettingKind::Range,
     },
@@ -425,6 +432,7 @@ pub struct SettingsValues {
     pub page_width_prose: usize,
     pub page_width_code: usize,
     pub zoom: f32,
+    pub scroll_sensitivity: f32,
     pub default_folder: String,
     pub workspace: String,
     pub project_root: String,
@@ -472,6 +480,9 @@ impl SettingsValues {
             page_width_prose: config.measure_for(crate::page::PageClass::Prose),
             page_width_code: config.measure_for(crate::page::PageClass::Code),
             zoom,
+            scroll_sensitivity: config
+                .scroll_sensitivity
+                .unwrap_or(crate::range::SCROLL_SENSITIVITY.default),
             default_folder: path_or_dash(&config.default_folder),
             workspace: path_or_dash(&config.workspace),
             project_root: project_root.display().to_string(),
@@ -510,6 +521,7 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         // SAME owner the rail, the sidecar and the exact-entry parse read, so the
         // cell and the thumb can never disagree about the value.
         SettingId::Zoom => crate::range::ZOOM.format(values.zoom),
+        SettingId::ScrollSensitivity => crate::range::SCROLL_SENSITIVITY.format(values.scroll_sensitivity),
         // DATE FORMAT: the active process-global format, rendered against the
         // caller-gathered TODAY (real live clock / the fixed headless
         // placeholder — see `SettingsValues::today_ymd`'s doc) — "what you see
@@ -615,6 +627,7 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
 pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
     Some(match id {
         SettingId::Zoom => &crate::range::ZOOM,
+        SettingId::ScrollSensitivity => &crate::range::SCROLL_SENSITIVITY,
         _ => return None,
     })
 }
@@ -626,6 +639,7 @@ pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
 pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
     Some(match id {
         SettingId::Zoom => values.zoom,
+        SettingId::ScrollSensitivity => values.scroll_sensitivity,
         _ => return None,
     })
 }
@@ -667,6 +681,7 @@ pub fn value_key(id: SettingId) -> Option<&'static str> {
         SettingId::PageWidthProse => "page_width_prose",
         SettingId::PageWidthCode => "page_width_code",
         SettingId::Zoom => "zoom",
+        SettingId::ScrollSensitivity => "scroll_sensitivity",
         _ => return None,
     })
 }
@@ -987,6 +1002,7 @@ mod tests {
             page_width_prose: 70,
             page_width_code: 100,
             zoom: 0.8,
+            scroll_sensitivity: 1.0,
             default_folder: "/n".into(),
             workspace: "/w".into(),
             project_root: "/p".into(),
@@ -1288,6 +1304,7 @@ mod tests {
             page_width_prose: 70,
             page_width_code: 100,
             zoom: 1.4,
+            scroll_sensitivity: 2.0,
             default_folder: "/n".into(),
             workspace: "/w".into(),
             project_root: "/p".into(),
@@ -1347,6 +1364,7 @@ mod tests {
             page_width_prose: 70,
             page_width_code: 100,
             zoom: 0.8,
+            scroll_sensitivity: 1.0,
             ..Default::default()
         };
         let find = |name: &str| *SETTINGS.iter().find(|r| r.name == name).unwrap();
@@ -1690,6 +1708,7 @@ mod tests {
                 | SettingId::PageWidthProse
                 | SettingId::PageWidthCode
                 | SettingId::Zoom
+                | SettingId::ScrollSensitivity
                 | SettingId::DateFormat
                 | SettingId::Theme
                 | SettingId::Wysiwyg
@@ -1814,6 +1833,7 @@ mod tests {
             page_width_prose: 70,
             page_width_code: 100,
             zoom: 0.8,
+            scroll_sensitivity: 1.0,
             default_folder: "/n".into(),
             workspace: "/w".into(),
             project_root: "/p".into(),

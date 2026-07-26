@@ -1319,7 +1319,7 @@ impl App {
             // quantize the document gesture: trackpad pixels are physical pixels
             // at the authored 100% default. A positive wheel delta moves content
             // down, hence the negative viewport offset.
-            self.wheel_scroll_px(-(p.y as f32));
+            self.wheel_scroll_px(-(p.y as f32) * self.scroll_sensitivity);
             self.sync_view(false);
         } else if lines.abs() >= 1.0 {
             // Free scroll: wheel up moves content down (scroll up), so a

@@ -3146,6 +3146,7 @@ fn settings_values(zoom: f32) -> crate::settings::SettingsValues {
         page_width_prose: 70,
         page_width_code: 100,
         zoom,
+        scroll_sensitivity: 1.0,
         default_folder: "/n".into(),
         workspace: "/w".into(),
         project_root: "/p".into(),

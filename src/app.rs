@@ -654,6 +654,8 @@ pub struct App {
     /// base) so text starts at a calm default; the headless capture is unaffected (it
     /// builds its own pipeline at the fixed `--zoom` default of 1.0).
     zoom: f32,
+    /// Smooth PixelDelta multiplier. Discrete wheel notches deliberately ignore it.
+    scroll_sensitivity: f32,
     /// The window's display DPI `scale_factor` (1.0 on a 1:1 screen, 2.0 on a 2x
     /// Retina panel). The window width and the cursor position arrive in PHYSICAL
     /// pixels, but the glyph metrics are tuned for a 1:1 canvas, so this factor is
@@ -1357,6 +1359,9 @@ impl App {
             peek_arm: crate::peek::PeekArm::default(),
             peek_armed_at: None,
             zoom,
+            scroll_sensitivity: config
+                .scroll_sensitivity
+                .unwrap_or(crate::range::SCROLL_SENSITIVITY.default),
             dpi: 1.0,
             cursor_px: (0.0, 0.0),
             dragging: false,

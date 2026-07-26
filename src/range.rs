@@ -276,11 +276,17 @@ impl RangeSpec {
 /// exact behaviour while gaining the rail.
 pub const ZOOM: RangeSpec = RangeSpec::new(0.5, 3.0, 0.1, 1.0, Unit::Percent, RailMap::Linear);
 
+/// Smooth document-scroll multiplier: physical pixels at 100%, logarithmic rail
+/// so every doubling occupies equal visual space, and whole five-point steps.
+pub const SCROLL_SENSITIVITY: RangeSpec =
+    RangeSpec::new(0.25, 4.0, 0.05, 1.0, Unit::Percent, RailMap::Log);
+
 /// Every spec the app registers, for the sweep laws. (A spec reachable only from
 /// [`crate::settings::range_spec`] would be law-tested there too; this is the
 /// module-local roster so the pure grid/rail laws need no settings import.)
 #[cfg(test)]
-pub(crate) const REGISTERED: &[(&str, RangeSpec)] = &[("zoom", ZOOM)];
+pub(crate) const REGISTERED: &[(&str, RangeSpec)] =
+    &[("zoom", ZOOM), ("scroll_sensitivity", SCROLL_SENSITIVITY)];
 
 #[cfg(test)]
 mod tests {
