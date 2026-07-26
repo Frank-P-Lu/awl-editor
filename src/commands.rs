@@ -1150,7 +1150,17 @@ pub fn action_available(action: &Action, platform: Platform) -> bool {
 /// display names (ellipsis included), so both the palette faceting (keyed off the
 /// display name) and the menu drift-guard read one source of truth.
 const FILE_COMMANDS: &[&str] =
-    &["New document", "Browse files…", "Switch project…", "Recent projects…", "Save", "Finish file"];
+    &[
+        "New document",
+        "Browse files…",
+        "Switch project…",
+        "Recent projects…",
+        "Save",
+        "Finish file",
+        "Export as PDF…",
+        "Export as Word…",
+        "Export as HTML…",
+    ];
 /// … under **Edit**.
 const EDIT_COMMANDS: &[&str] = &["Undo", "Redo", "Cut", "Copy", "Paste", "Select all"];
 /// … under **View**.
@@ -1469,6 +1479,9 @@ mod tests {
     fn menu_section_buckets_known_commands() {
         assert_eq!(menu_section("Save"), Some("File"));
         assert_eq!(menu_section("New document"), Some("File"));
+        assert_eq!(menu_section("Export as PDF…"), Some("File"));
+        assert_eq!(menu_section("Export as Word…"), Some("File"));
+        assert_eq!(menu_section("Export as HTML…"), Some("File"));
         assert_eq!(menu_section("Copy"), Some("Edit"));
         assert_eq!(menu_section("Select all"), Some("Edit"));
         assert_eq!(menu_section("Switch theme…"), Some("View"));

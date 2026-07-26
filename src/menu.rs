@@ -173,6 +173,9 @@ const FILE_ITEMS: &[Routed] = &[
     r("awl.recent_projects", "Recent projects…"),
     ri("awl.save", "Save"),
     ri("awl.finish_buffer", "Finish file"),
+    r("awl.export_pdf", "Export as PDF…"),
+    r("awl.export_word", "Export as Word…"),
+    r("awl.export_html", "Export as HTML…"),
 ];
 
 const EDIT_ITEMS: &[Routed] = &[
@@ -348,6 +351,10 @@ fn roster_all() -> Vec<RosterMenu> {
                 RosterItem::Separator,
                 routed(&FILE_ITEMS[4]), // Save
                 routed(&FILE_ITEMS[5]), // Finish file
+                RosterItem::Separator,
+                routed(&FILE_ITEMS[6]), // Export as PDF…
+                routed(&FILE_ITEMS[7]), // Export as Word…
+                routed(&FILE_ITEMS[8]), // Export as HTML…
             ],
         },
         RosterMenu {
@@ -727,13 +734,14 @@ mod tests {
     }
 
     /// The File menu's exact clustered sequence: New document · Open… · Switch
-    /// project… · Recent projects… · —sep— · Save · Finish file, with the iconed
+    /// project… · Recent projects… · —sep— · Save · Finish file · —sep— · Export
+    /// as PDF… · Export as Word… · Export as HTML…, with the iconed
     /// items flagged and "Recent projects…" (a plain, un-iconed picker door)
     /// placed just after Switch project… — pinned so the cluster can't silently
     /// reorder or lose/gain a flag.
     #[test]
-    fn roster_file_menu_is_the_iconed_open_switch_save_cluster() {
-        let menus = roster();
+    fn native_and_linux_file_menu_has_the_separated_export_block_in_order() {
+        let menus = roster_for(commands::Platform::Native);
         let file = menus.iter().find(|m| m.title == "File").unwrap();
         assert_eq!(
             file.items,
@@ -745,8 +753,13 @@ mod tests {
                 RosterItem::Separator,
                 RosterItem::Routed { id: "awl.save", label: "Save", icon: true },
                 RosterItem::Routed { id: "awl.finish_buffer", label: "Finish file", icon: true },
+                RosterItem::Separator,
+                RosterItem::Routed { id: "awl.export_pdf", label: "Export as PDF…", icon: false },
+                RosterItem::Routed { id: "awl.export_word", label: "Export as Word…", icon: false },
+                RosterItem::Routed { id: "awl.export_html", label: "Export as HTML…", icon: false },
             ]
         );
+
     }
 
     #[test]
@@ -862,11 +875,10 @@ mod tests {
         );
     }
 
-    /// The File menu on web drops "Recent projects…" and "Finish file" (both
-    /// `native_only`), keeping the rest — including the separator that still has real
-    /// items on both sides of it.
+    /// The File menu on web drops native-only Recent projects…, Finish file, and PDF,
+    /// retaining the Word/HTML download doors after the one separating rule.
     #[test]
-    fn web_roster_file_menu_drops_recent_projects_and_finish_file() {
+    fn web_file_menu_drops_pdf_and_keeps_word_html_without_dangling_separators() {
         let menus = roster_for(commands::Platform::Web);
         let file = menus.iter().find(|m| m.title == "File").unwrap();
         assert_eq!(
@@ -877,8 +889,20 @@ mod tests {
                 RosterItem::Routed { id: "awl.switch_project", label: "Switch project…", icon: true },
                 RosterItem::Separator,
                 RosterItem::Routed { id: "awl.save", label: "Save", icon: true },
+                RosterItem::Separator,
+                RosterItem::Routed { id: "awl.export_word", label: "Export as Word…", icon: false },
+                RosterItem::Routed { id: "awl.export_html", label: "Export as HTML…", icon: false },
             ]
         );
+    }
+
+    /// EXPORT ROUTING: the File-menu ids are only a third door to the existing
+    /// catalog actions; they must never acquire an exporter-only dispatch path.
+    #[test]
+    fn file_export_ids_resolve_to_the_existing_catalog_actions() {
+        assert_eq!(resolve("awl.export_pdf"), Some(Action::ExportPdf));
+        assert_eq!(resolve("awl.export_word"), Some(Action::ExportWord));
+        assert_eq!(resolve("awl.export_html"), Some(Action::ExportHtml));
     }
 
     /// Edit and View are untouched on web (none of their routed commands are
