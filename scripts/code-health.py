@@ -21,7 +21,9 @@ BASELINE_REASON = "item 134 initial inventory; remove debt instead of extending 
 
 
 def git(*args: str) -> str:
-    return subprocess.check_output(["git", *args], cwd=ROOT, text=True)
+    return subprocess.check_output(
+        ["git", *args], cwd=ROOT, text=True, stderr=subprocess.DEVNULL
+    )
 
 
 def tracked_rust() -> list[str]:
@@ -31,11 +33,10 @@ def tracked_rust() -> list[str]:
 def baseline(path: str) -> list[str]:
     try:
         return git("show", f"{BASELINE}:{path}").splitlines()
-    except subprocess.CalledProcessError as error:
-        raise SystemExit(
-            f"code-health: stale baseline {BASELINE}: missing tracked {path}; "
-            "refresh the one pinned baseline deliberately"
-        ) from error
+    except subprocess.CalledProcessError:
+        # A tracked path absent from the pinned tree is new and gets no debt
+        # allowance. The baseline object itself is checked before this loop.
+        return []
 
 
 def production(path: str) -> bool:
@@ -44,6 +45,12 @@ def production(path: str) -> bool:
 
 
 def main() -> int:
+    try:
+        git("cat-file", "-e", f"{BASELINE}^{{commit}}")
+    except subprocess.CalledProcessError as error:
+        raise SystemExit(
+            f"code-health: stale baseline {BASELINE}; refresh it deliberately"
+        ) from error
     failures: list[str] = []
     for path in tracked_rust():
         current = (ROOT / path).read_text().splitlines()
