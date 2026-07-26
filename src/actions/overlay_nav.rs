@@ -429,6 +429,14 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             return Effect::None;
         }
         Action::ForwardChar => {
+            // ITEM 94 — A SELECTED RANGE ROW CLAIMS RIGHT: one authored step UP,
+            // checked BEFORE the facet-lens cycle below. Gated on the highlighted
+            // row actually carrying a rail, so LEFT/RIGHT on every other Settings
+            // row (and every other faceted picker) still cycles the lens exactly
+            // as before — the one behaviour this claim can regress.
+            if let Some(eff) = range_step(ctx, 1) {
+                return eff;
+            }
             let ov = ctx.overlay.as_ref().unwrap();
             // FACETED PICKER (goto / browse / project / command / history / settings):
             // LEFT/RIGHT switch the faceting
@@ -468,6 +476,11 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             return Effect::None;
         }
         Action::BackwardChar => {
+            // ITEM 94 — A SELECTED RANGE ROW CLAIMS LEFT: one authored step DOWN
+            // (see the ForwardChar arm above for the gate).
+            if let Some(eff) = range_step(ctx, -1) {
+                return eff;
+            }
             let ov = ctx.overlay.as_ref().unwrap();
             // FACETED PICKER (goto / browse / project / command / history / settings):
             // LEFT cycles the faceting lens
@@ -955,6 +968,54 @@ pub(crate) fn stamp_return_to(
     }
 }
 
+/// ITEM 94 — THE CORE-SIDE RANGE PORT: the live scalar `apply_core` owns for a
+/// range setting. A tiny `SettingId` -> `ActionCtx` field map (zoom is the only
+/// member today) — the VALUE ARITHMETIC is not here, it is all in the range spec;
+/// this only says WHERE the number lives. `None` for an id the core owns no scalar
+/// for, which the sweep
+/// (`actions::tests::overlay_drive::every_range_row_steps_through_the_core_and_signals_its_own_key`)
+/// makes unreachable for a real `Range` row — an unwired port falls through to the
+/// lens-cycler and fails there.
+fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f32> {
+    Some(match id {
+        crate::settings::SettingId::Zoom => *ctx.zoom,
+        _ => return None,
+    })
+}
+
+/// The write half of [`range_ctx_value`]. The value written is ALWAYS one the spec
+/// produced (stepped/quantized), never a raw pointer/keyboard number.
+fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
+    match id {
+        crate::settings::SettingId::Zoom => *ctx.zoom = v,
+        _ => {}
+    }
+}
+
+/// ITEM 94 — MOVE THE HIGHLIGHTED RANGE ROW by exactly `steps` AUTHORED increments
+/// (Left/Right; ordinary key repeat supplies longer travel — there is deliberately
+/// no Shift/Option fine-or-coarse variant). `None` when the selection is NOT a
+/// range row, which is what leaves LEFT/RIGHT to the faceting lens-cycler for every
+/// other row and every other picker — the one behavioural gate this claim rests on.
+///
+/// Applies IN THE CORE (so `--keys` replay observes it exactly as live does):
+/// reads the live scalar through the port, steps it through the ONE spec, writes it
+/// back, and mirrors the new readout + thumb straight into the still-open menu's own
+/// row. The returned effect asks the caller for the live tail only (reflow +
+/// the discrete sticky persist).
+fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
+    let cell = ctx.overlay.as_ref()?.selected_range()?;
+    let spec = crate::settings::range_spec(cell.id)?;
+    let key = crate::settings::value_key(cell.id)?;
+    let cur = range_ctx_value(cell.id, ctx)?;
+    let next = spec.stepped(cur, steps);
+    range_ctx_set(cell.id, ctx, next);
+    ctx.overlay
+        .as_mut()?
+        .set_selected_range(spec.step_of(next), spec.format(next));
+    Some(Effect::SettingRangeStep { key: key.to_string() })
+}
+
 /// SETTINGS MENU accept (Enter on a row): dispatch by the highlighted row's
 /// [`crate::settings::SettingKind`] — a TOGGLE signals [`Effect::SettingToggle`]
 /// and keeps the menu OPEN (the caller flips + persists + refreshes the value
@@ -1039,9 +1100,13 @@ fn dispatch_settings_row(
         // from the row's current cell. The overlay stays open (the value edit is its
         // own modal intercept, checked above); the caller then owns the keys until
         // Enter commits / Esc cancels.
-        crate::settings::SettingKind::Value => {
+        // VALUE + RANGE share Enter: the EXACT numeric-entry path is retained for a
+        // range row (item 94's "Enter retains the existing exact numeric-entry
+        // path") — the rail is an ADDITIONAL affordance on the same setting, not a
+        // replacement, and both kinds persist under the same `value_key`.
+        crate::settings::SettingKind::Value | crate::settings::SettingKind::Range => {
             let key = crate::settings::value_key(row.id).expect(
-                "Value row always resolves its config key — settings law \
+                "Value/Range row always resolves its config key — settings law \
                  value_and_path_keys_track_their_kinds",
             );
             ctx.overlay

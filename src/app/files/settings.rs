@@ -268,6 +268,9 @@ impl App {
         if let Some(ov) = self.overlay.as_mut() {
             if ov.kind == crate::overlay::OverlayKind::Settings {
                 ov.set_secondaries(crate::settings::visible_value_cells(&values));
+                // ITEM 94: the rail thumbs are refreshed from the SAME gathered
+                // values as the number beside them, in the same call.
+                ov.set_range_cells(crate::settings::visible_range_cells(&values));
             }
         }
     }
@@ -282,7 +285,7 @@ impl App {
     /// the active buffer's — editing the code width while a `.md` is open is persisted
     /// but not visibly re-wrapped, correctly). An unparseable value is a calm no-op
     /// (the cell reverts on the next refresh). Zoom rides the SAME `set_zoom` +
-    /// `persist_zoom_now` path the wheel / ⌘± owner uses.
+    /// `settle_zoom_persist` path the wheel / ⌘± owner settles through.
     pub(in crate::app) fn setting_value_commit(&mut self, key: &str, raw: &str) {
         match key {
             "page_width_prose" | "page_width_code" => {
@@ -298,7 +301,10 @@ impl App {
             "zoom" => {
                 if let Some(z) = crate::settings::parse_zoom(raw) {
                     self.set_zoom(z); // clamps + re-metrics next sync (the ⌘± owner)
-                    self.persist_zoom_now(); // a discrete commit persists at once
+                    // A typed commit is a DISCRETE end: settle at once through the one
+                    // owner, which also disarms the debounce `set_zoom` just armed (it
+                    // would otherwise write the same value a second time 500ms later).
+                    self.settle_zoom_persist();
                     self.sync_view(true);
                 }
             }
@@ -308,6 +314,60 @@ impl App {
             gpu.window.request_redraw();
         }
         self.refresh_settings_overlay();
+    }
+
+
+    /// ITEM 94 — SETTINGS MENU RANGE step (Left/Right on a rail row): the CORE
+    /// already stepped the live scalar through the range spec and mirrored the new
+    /// readout + thumb into the still-open menu, so this owns only the LIVE TAIL:
+    /// re-metric/reflow for the new value, then the DISCRETE sticky persist — one
+    /// `persist_pref` write per authored step, the same "write on every discrete
+    /// commit" path a Toggle takes (deliberately NOT the debounced wheel/⌘± path;
+    /// key repeat already throttles this to human speed).
+    ///
+    /// The one owner of the range settings' live-side wiring, keyed by config key —
+    /// `range_persist` writes it, `range_apply_live` (the POINTER path) applies it.
+    pub(in crate::app) fn setting_range_step(&mut self, key: &str) {
+        match key {
+            // ZOOM: the value is already in `self.zoom` (mirrored back from the core
+            // right after `apply_core`); queue the metric reflow the ⌘± path queues.
+            "zoom" => self.zoom_reflow.queue(),
+            _ => {}
+        }
+        self.range_persist(key);
+        self.sync_view(true);
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
+        }
+        self.refresh_settings_overlay();
+    }
+
+
+    /// ITEM 94 — THE ONE LIVE-APPLY DOOR for a range setting's POINTER path (a rail
+    /// click, and every resolved step of a drag): apply `value` — already quantized
+    /// by the spec, never a raw pointer number — through the setting's own live
+    /// owner. NEVER persists: a drag writes config exactly once, on release
+    /// ([`Self::range_persist`], from `end_range_drag`).
+    pub(in crate::app) fn range_apply_live(&mut self, id: crate::settings::SettingId, value: f32) {
+        match id {
+            // The SAME `set_zoom` owner the ⌘± / ⌘-wheel doors use (it re-clamps
+            // through `clamp_zoom` -> the same spec, so this is idempotent).
+            crate::settings::SettingId::Zoom => self.set_zoom(value),
+            _ => {}
+        }
+    }
+
+    /// ITEM 94 — THE ONE PERSIST DOOR for a range setting (a keyboard step, or a
+    /// drag RELEASE). Settles the gesture through that setting's own settle owner —
+    /// for zoom, [`Self::settle_zoom_persist`], the EXACT call the quiet-window
+    /// debounce makes, so a rail release and a ⌘± run end identically (one write, the
+    /// debounce disarmed, the floating readout dropped). A whole drag therefore costs
+    /// exactly one config write, with nothing trailing behind it.
+    pub(in crate::app) fn range_persist(&mut self, key: &str) {
+        match key {
+            "zoom" => self.settle_zoom_persist(),
+            _ => {}
+        }
     }
 
 
@@ -432,13 +492,39 @@ impl App {
     }
 
 
-    /// Persist the SETTLED zoom (the DEBOUNCED write-on-change). Called from
-    /// `about_to_wait` once the zoom has been quiet for `ZOOM_PERSIST_DEBOUNCE`, so a
-    /// rapid Cmd-=/Cmd-- run writes the final value once, not one-per-step. Trims the
-    /// float to 3 places so the file stays tidy.
-    pub(in crate::app) fn persist_zoom_now(&mut self) {
+    /// Write the CURRENT zoom to config. The raw write alone — every caller reaches it
+    /// through [`Self::settle_zoom_persist`], which owns the surrounding bookkeeping.
+    /// Trims the float to 3 places so the file stays tidy.
+    fn persist_zoom_now(&mut self) {
         let z = self.zoom;
         self.persist_pref("zoom", &format!("{z:.3}"));
+    }
+
+    /// THE ONE OWNER of "the zoom gesture ended — write it": persist the settled value,
+    /// disarm the debounce stamp, and drop the floating zoom readout the gesture armed
+    /// (`mark_zoom_dirty` re-arms it on every step), parking its label off-screen again.
+    ///
+    /// Exactly two doors call it, one per shape of gesture ending:
+    /// - `about_to_wait`'s quiet window — the ⌘± / ⌘0 / ⌘-wheel path, which has no end
+    ///   EVENT, so ~500 ms of silence is inferred as the end (gated by
+    ///   [`App::zoom_persist_held`], which is what keeps that inference off while a
+    ///   gesture that DOES have an end is in flight);
+    /// - [`Self::range_persist`] — the Settings rail's button release and its discrete
+    ///   keyboard step, which end explicitly and pay their single write right there.
+    ///
+    /// Folding the bookkeeping in here is the point: when the rail's release cancelled
+    /// the debounce by hand it also inherited the duty to clear the readout, and didn't
+    /// — a released scrub left a stale percentage floating over the card. One owner, one
+    /// settle. The redraw request mirrors the sibling debounces: it lets the
+    /// `RedrawRequested` handler re-decide control flow (Wait, now that this is settled)
+    /// instead of leaving an elapsed `WaitUntil` to busy-spin the loop (DESIGN §6).
+    pub(in crate::app) fn settle_zoom_persist(&mut self) {
+        self.zoom_persist_at = None;
+        self.persist_zoom_now();
+        if let Some(gpu) = self.gpu.as_mut() {
+            gpu.pipeline.set_zoom_readout(None);
+            gpu.window.request_redraw();
+        }
     }
 
 

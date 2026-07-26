@@ -440,6 +440,18 @@ impl App {
             return;
         }
 
+        // ITEM 94 — THE RANGE ROW'S RAIL is a DIRECT pointer control, checked before
+        // the ordinary row accept: a press on it (within the generous band around the
+        // visually small thumb) selects the row, sets the nearest authored step
+        // immediately, and arms the scrub — the release persists once.
+        if self.begin_range_drag() {
+            self.sync_view(true);
+            if let Some(gpu) = self.gpu.as_ref() {
+                gpu.window.request_redraw();
+            }
+            return;
+        }
+
         if let Some(idx) = row_hit {
             // ON a row: ACCEPT through the shared apply path — byte-for-byte the same
             // as Enter on the highlighted row (open / run / commit / descend / replace).
@@ -447,6 +459,24 @@ impl App {
                 if idx < ov.items.len() {
                     ov.selected = idx;
                 }
+            }
+            // ITEM 94 — A RANGE ROW'S LABEL SELECTS WITHOUT CHANGING. Every other
+            // kind treats a row click as Enter; a range row must not, because its
+            // Enter opens the modal numeric edit — so clicking the row's NAME (to
+            // then use the arrows, or just to look) would hijack the keyboard. The
+            // rail above is where a pointer changes the value; everywhere else on
+            // the row is a plain selection.
+            let is_range = self
+                .overlay
+                .as_ref()
+                .map(|ov| ov.range_of_item(idx).is_some())
+                .unwrap_or(false);
+            if is_range {
+                self.sync_view(true);
+                if let Some(gpu) = self.gpu.as_ref() {
+                    gpu.window.request_redraw();
+                }
+                return;
             }
             // A row-click accept dispatches a plain `Newline` (not a catalog command),
             // so the ledger door is inert here; a direct gesture is the fast path.
@@ -828,7 +858,13 @@ impl App {
         // like an arrow move. A live PAGE-WIDTH resize drag owns the pointer next
         // (the grabbed column edge tracks it, re-wrapping live); otherwise a live
         // text selection extends.
-        if self.overlay.is_some() {
+        if self.range_drag.is_some() {
+            // ITEM 94 — a live SETTINGS RAIL SCRUB owns the pointer outright (it is
+            // a grabbed control): the value tracks the pointer through the range
+            // spec, and the hover below must NOT also re-select rows under the
+            // travelling pointer mid-gesture.
+            self.on_range_drag();
+        } else if self.overlay.is_some() {
             self.overlay_hover();
         } else if self.page_resizing {
             self.on_page_resize_drag();
@@ -1047,6 +1083,10 @@ impl App {
                     }
                 }
             }
+            ElementState::Released if self.range_drag.is_some() => {
+                // ITEM 94: the settled rail value persists here — ONCE per gesture.
+                self.end_range_drag();
+            }
             ElementState::Released if self.image_resizing.is_some() => {
                 // Commit the settled image width: write the `|NNN` hint back as ONE
                 // undoable edit (mutually exclusive with a page-resize / selection).
@@ -1182,7 +1222,9 @@ impl App {
             if lines.abs() >= 1.0 {
                 let dir = lines.signum();
                 let before = self.zoom;
-                self.set_zoom(self.zoom + dir * render::ZOOM_STEP);
+                // ITEM 94: one AUTHORED step per notch, through the range spec (the
+                // same owner ⌘± and the Settings rail step through).
+                self.set_zoom(crate::range::ZOOM.stepped(self.zoom, dir as i32));
                 // Anchor the wheel zoom on the POINTER (captured against the OLD
                 // geometry before the deferred reflow) — the doc point under the mouse
                 // holds its screen position. Only when the zoom actually moved, so a

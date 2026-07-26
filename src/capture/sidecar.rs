@@ -405,6 +405,19 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .map(|b| json_string(b))
                 .collect::<Vec<_>>()
                 .join(", ");
+            // ITEM 94 — the per-row RAIL FRACTION (parallel to `items`; `null` for a
+            // row with no rail, the whole array empty off the Settings menu), so a
+            // `--keys` rail step is assertable from the sidecar alongside the value
+            // TEXT in `bindings`. Three decimals: enough to pin a step, stable.
+            let ranges = o
+                .ranges
+                .iter()
+                .map(|r| match r {
+                    Some(f) => format!("{f:.3}"),
+                    None => "null".to_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
             // Project / Browse pickers: the per-row `"git"` repo tag (parallel to
             // `items`; empty for a git-free listing / other modes), so a git-repo row's
             // secondary tag is assertable headlessly.
@@ -486,7 +499,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .map(|m| json_string(m))
                 .unwrap_or_else(|| "null".into());
             format!(
-                "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, \"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, \"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, \"lens_strip\": [{}], \"sections\": [{}], \"preview_id\": {}, \"diff_focus\": {}, \"diff_scroll\": {}, \"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, \"items\": [{}], \"bindings\": [{}], \"git\": [{}] }}",
+                "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, \"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, \"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, \"lens_strip\": [{}], \"sections\": [{}], \"preview_id\": {}, \"diff_focus\": {}, \"diff_scroll\": {}, \"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, \"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], \"git\": [{}] }}",
                 o.active,
                 json_string(o.mode),
                 json_string(o.title),
@@ -509,10 +522,11 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 window,
                 items,
                 bindings,
+                ranges,
                 git
             )
         }
-        None => "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", \"selected_index\": null, \"browse_dir\": null, \"return_to\": null, \"spell_target\": null, \"hint\": null, \"notice\": \"\", \"lens\": null, \"lens_strip\": [], \"sections\": [], \"preview_id\": null, \"diff_focus\": false, \"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, \"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], \"git\": [] }".to_string(),
+        None => "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", \"selected_index\": null, \"browse_dir\": null, \"return_to\": null, \"spell_target\": null, \"hint\": null, \"notice\": \"\", \"lens\": null, \"lens_strip\": [], \"sections\": [], \"preview_id\": null, \"diff_focus\": false, \"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, \"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], \"ranges\": [], \"git\": [] }".to_string(),
     }
 }
 

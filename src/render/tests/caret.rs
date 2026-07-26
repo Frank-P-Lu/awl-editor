@@ -697,8 +697,8 @@ fn edit_moves_snap_while_navigation_keeps_the_zip_gate() {
 
 #[test]
 fn zoom_clamps_to_range() {
-    assert!((clamp_zoom(10.0) - ZOOM_MAX).abs() < 1e-3);
-    assert!((clamp_zoom(0.01) - ZOOM_MIN).abs() < 1e-3);
+    assert!((clamp_zoom(10.0) - crate::range::ZOOM.max).abs() < 1e-3);
+    assert!((clamp_zoom(0.01) - crate::range::ZOOM.min).abs() < 1e-3);
     // rounds to the nearest step
     assert!((clamp_zoom(1.63) - 1.6).abs() < 1e-3);
     assert!((clamp_zoom(1.0) - 1.0).abs() < 1e-3);

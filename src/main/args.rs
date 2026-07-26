@@ -1451,21 +1451,23 @@ mod tests {
         // (Tested here beside the zoom-flag seam; render/tests/geometry.rs owns
         // the geometry suite.) NaN — the propagating poison — falls back to the 1.0
         // default; ±inf saturates through the ordinary clamp.
-        use crate::render::{clamp_zoom, ZOOM_MAX, ZOOM_MIN};
+        use crate::range::ZOOM;
+        use crate::render::clamp_zoom;
+        let (zmin, zmax) = (ZOOM.min, ZOOM.max);
         for z in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 0.0, -7.0, 1e30] {
             let c = clamp_zoom(z);
             assert!(
-                c.is_finite() && (ZOOM_MIN..=ZOOM_MAX).contains(&c),
-                "clamp_zoom({z}) -> {c} must be finite in [{ZOOM_MIN}, {ZOOM_MAX}]"
+                c.is_finite() && (zmin..=zmax).contains(&c),
+                "clamp_zoom({z}) -> {c} must be finite in [{zmin}, {zmax}]"
             );
         }
         assert_eq!(clamp_zoom(f32::NAN), 1.0, "NaN falls back to the default");
-        assert_eq!(clamp_zoom(f32::INFINITY), ZOOM_MAX, "+inf saturates high");
-        assert_eq!(clamp_zoom(f32::NEG_INFINITY), ZOOM_MIN, "-inf saturates low");
+        assert_eq!(clamp_zoom(f32::INFINITY), zmax, "+inf saturates high");
+        assert_eq!(clamp_zoom(f32::NEG_INFINITY), zmin, "-inf saturates low");
         // A normal factor still step-rounds + clamps exactly as before.
         assert!((clamp_zoom(1.234) - 1.2).abs() < 1e-5, "step rounding unchanged");
-        assert_eq!(clamp_zoom(9.0), ZOOM_MAX);
-        assert_eq!(clamp_zoom(0.0), ZOOM_MIN);
+        assert_eq!(clamp_zoom(9.0), zmax);
+        assert_eq!(clamp_zoom(0.0), zmin);
     }
 
     #[test]

@@ -212,6 +212,10 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
                 Vec::new(),
             );
             ov.set_secondaries(crate::settings::visible_value_cells(&ctx.settings_values));
+            // ITEM 94: the RAIL column beside the value text — the same gathered
+            // values, read through the range-spec owner, so the thumb and the
+            // number are one instant's truth.
+            ov.set_range_cells(crate::settings::visible_range_cells(&ctx.settings_values));
             Some(ov)
         }
         // Asset cleaner: the caller-scanned orphan list. ALWAYS summons (like

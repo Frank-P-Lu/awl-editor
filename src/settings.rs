@@ -52,6 +52,22 @@ pub enum SettingKind {
     /// (clamped + persisted via the named config key), Esc cancels. See
     /// [`value_key`] / [`clamp_page_width`] / [`parse_zoom`].
     Value,
+    /// ITEM 94 — a NUMBER on a RAIL: a bounded, stepped value with a quiet drawn
+    /// track + thumb in its own value cell, driven by keyboard AND pointer through
+    /// ONE authored [`crate::range::RangeSpec`] ([`range_spec`]).
+    ///
+    /// * Left/Right (while the row is selected) move exactly ONE authored step,
+    ///   with ordinary key repeat for longer travel — applied in the shared core
+    ///   (`actions::overlay_nav`), so `--keys` drives it exactly like the live app.
+    /// * A click on the RAIL sets the nearest step; a drag on it scrubs live
+    ///   through the SAME setter and persists ONCE on release. A click on the
+    ///   LABEL selects without changing anything.
+    /// * Enter still opens the ordinary inline numeric edit ([`SettingKind::Value`]'s
+    ///   exact-entry path, parsed + clamped by the same spec).
+    ///
+    /// A `Range` row persists under [`value_key`] exactly like a `Value` row —
+    /// the two kinds differ in their AFFORDANCE, not their storage.
+    Range,
     /// A filesystem PATH (default_folder / workspace / project_root): Enter routes to the
     /// existing folder NAVIGATOR (the Project picker) with a `return_to = Settings`
     /// breadcrumb; the chosen folder writes the named key ([`path_key`]) and returns.
@@ -126,7 +142,10 @@ pub static SETTINGS: &[SettingRow] = &[
     SettingRow { id: SettingId::ReduceMotion,     name: "Reduce motion",     category: "Editor",      kind: SettingKind::Toggle },
     SettingRow { id: SettingId::PageWidthProse,   name: "Page width (prose)", category: "Editor",     kind: SettingKind::Value },
     SettingRow { id: SettingId::PageWidthCode,    name: "Page width (code)",  category: "Editor",     kind: SettingKind::Value },
-    SettingRow { id: SettingId::Zoom,             name: "Zoom",              category: "Editor",      kind: SettingKind::Value },
+    // ZOOM (item 94): the first RANGE row — 50 %–300 % in 10-point steps on a
+    // linear percentage rail ([`crate::range::ZOOM`]). Its clamp, step and
+    // exact-entry parsing are unchanged; the row gained the rail affordance.
+    SettingRow { id: SettingId::Zoom,             name: "Zoom",              category: "Editor",      kind: SettingKind::Range },
     // DATE FORMAT: a PICKER (promoted from the blind 5-way Enter-cycle) — Enter
     // opens the Date-format picker (`OverlayKind::Date`, via `sub_overlay`), which
     // lists all five formats EACH rendered with today's date (pick by sight, what
@@ -311,7 +330,10 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::ReduceMotion => on_off(crate::motion::reduced()).to_string(),
         SettingId::PageWidthProse => values.page_width_prose.to_string(),
         SettingId::PageWidthCode => values.page_width_code.to_string(),
-        SettingId::Zoom => format!("{:.0}%", values.zoom * 100.0),
+        // ZOOM (item 94): formatted by its own RANGE SPEC's display unit — the
+        // SAME owner the rail, the sidecar and the exact-entry parse read, so the
+        // cell and the thumb can never disagree about the value.
+        SettingId::Zoom => crate::range::ZOOM.format(values.zoom),
         // DATE FORMAT: the active process-global format, rendered against the
         // caller-gathered TODAY (real live clock / the fixed headless
         // placeholder — see `SettingsValues::today_ymd`'s doc) — "what you see
@@ -403,10 +425,60 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
     })
 }
 
-/// The config KEY a VALUE row edits + persists under — the single owner of the
-/// [`SettingId`] → config-key map for the inline numeric edit. `None` for a
-/// non-value id (it never enters value-edit). The RETURNED wire string is
-/// UNCHANGED from before item 55 — see [`toggle_key`]'s doc.
+/// ITEM 94 — THE RANGE IDENTITY MAP: the authored [`crate::range::RangeSpec`] a
+/// [`SettingKind::Range`] row is driven by, or `None` for every other id. THE ONE
+/// door between a settings row and its range rule: the keyboard step, the pointer
+/// click/drag, the drawn rail, the value readout, the exact-entry parse, the
+/// sidecar and the persisted RHS all resolve the spec through HERE and then do
+/// their arithmetic inside it — so no input path can compute a parallel value.
+///
+/// A `None` here for a `Range` row (or a `Some` for any other kind) fails
+/// [`tests::every_range_row_has_a_spec_and_nothing_else_does`].
+pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
+    Some(match id {
+        SettingId::Zoom => &crate::range::ZOOM,
+        _ => return None,
+    })
+}
+
+/// ITEM 94 — the CURRENT value of a range setting, read from the same gathered
+/// [`SettingsValues`] the readout reads (never a parallel copy). `None` for every
+/// non-range id. Feeds [`visible_range_cells`] (the row's rail position) and the
+/// laws that sweep the two maps against each other.
+pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
+    Some(match id {
+        SettingId::Zoom => values.zoom,
+        _ => return None,
+    })
+}
+
+/// ITEM 94 — the RANGE CELL for one row: its typed identity plus the DISCRETE
+/// step its current value sits on (the rail's drawn position, an integer so a row
+/// stays `Eq` and a thumb can never drift by a float epsilon). `None` for a
+/// non-range row.
+pub fn range_cell(row: &SettingRow, values: &SettingsValues) -> Option<crate::overlay::RangeCell> {
+    let spec = range_spec(row.id)?;
+    let v = range_value(row.id, values)?;
+    Some(crate::overlay::RangeCell { id: row.id, step: spec.step_of(v) })
+}
+
+/// The RANGE CELLS for [`visible_rows`], parallel to [`visible_names`] — the
+/// Settings overlay's rail column. EMPTY when no visible row is a range (so every
+/// other picker keeps no rail data at all). Read at build AND at every refresh, so
+/// the drawn thumb tracks the live value through one owner.
+pub fn visible_range_cells(values: &SettingsValues) -> Vec<Option<crate::overlay::RangeCell>> {
+    let cells: Vec<Option<crate::overlay::RangeCell>> =
+        visible_rows().iter().map(|r| range_cell(r, values)).collect();
+    if cells.iter().all(|c| c.is_none()) {
+        return Vec::new();
+    }
+    cells
+}
+
+/// The config KEY a VALUE or RANGE row edits + persists under — the single owner
+/// of the [`SettingId`] → config-key map for the inline numeric edit AND (item 94)
+/// the rail. `None` for every other kind. The RETURNED wire string is UNCHANGED
+/// from before item 55 — see [`toggle_key`]'s doc.
 pub fn value_key(id: SettingId) -> Option<&'static str> {
     Some(match id {
         SettingId::PageWidthProse => "page_width_prose",
@@ -446,21 +518,14 @@ pub fn clamp_page_width(n: usize) -> usize {
 /// number. Accepts both the readout's own PERCENT form (`"80%"` → 0.8) and a bare
 /// FACTOR (`"1.5"` → 1.5); an unsuffixed integer-ish value ≥ 10 is read as a
 /// percent (`"125"` → 1.25) so retyping over the shown `"80%"` cell does the
-/// obvious thing. Clamped + stepped through the ONE zoom owner
-/// ([`crate::render::clamp_zoom`], the 0.5..3.0 band the wheel/⌘± path also uses),
-/// so there is no parallel zoom range here.
+/// obvious thing.
+///
+/// ITEM 94 — a one-line delegate to the ZOOM range spec's own
+/// [`crate::range::RangeSpec::parse`] (which is where those accepted FORMS and the
+/// 0.5..3.0 stepped clamp now live, shared with the rail and the readout). Kept as
+/// a named door because the value-commit seam + its tests read it by name.
 pub fn parse_zoom(raw: &str) -> Option<f32> {
-    let s = raw.trim();
-    let (num, percent) = match s.strip_suffix('%') {
-        Some(n) => (n.trim(), true),
-        None => (s, false),
-    };
-    let v: f32 = num.parse().ok()?;
-    if !v.is_finite() {
-        return None;
-    }
-    let factor = if percent || v >= 10.0 { v / 100.0 } else { v };
-    Some(crate::render::clamp_zoom(factor))
+    crate::range::ZOOM.parse(raw)
 }
 
 /// The SUB-PICKER a PICKER / SUBMENU row opens (Enter swaps the Settings overlay for
@@ -792,8 +857,12 @@ mod tests {
     #[test]
     fn value_and_path_keys_track_their_kinds() {
         for r in SETTINGS {
+            // NO WILDCARD (item 94): a new `SettingKind` fails to compile here until
+            // it declares whether it edits a VALUE key or a PATH key.
             match r.kind {
-                SettingKind::Value => {
+                // ITEM 94: a RANGE row persists under the SAME `value_key` a `Value`
+                // row does — the rail is an affordance, not a second storage.
+                SettingKind::Value | SettingKind::Range => {
                     assert!(value_key(r.id).is_some(), "value {:?} has no key", r.name);
                     assert!(path_key(r.id).is_none(), "value {:?} resolved a path key", r.name);
                 }
@@ -801,11 +870,160 @@ mod tests {
                     assert!(path_key(r.id).is_some(), "path {:?} has no key", r.name);
                     assert!(value_key(r.id).is_none(), "path {:?} resolved a value key", r.name);
                 }
-                _ => {
+                SettingKind::Toggle
+                | SettingKind::Picker
+                | SettingKind::Submenu
+                | SettingKind::Action => {
                     assert!(value_key(r.id).is_none(), "{:?} resolved a value key", r.name);
                     assert!(path_key(r.id).is_none(), "{:?} resolved a path key", r.name);
                 }
             }
+        }
+    }
+
+    /// ITEM 94 — THE KIND CONTRACT SWEEP, no wildcard anywhere: for EVERY row,
+    /// exactly which of the five behaviour maps must resolve, declared per
+    /// [`SettingKind`]. A future kind fails to COMPILE here until it declares its
+    /// whole contract; a row wired into the wrong map fails at RUN time. This is the
+    /// one place all five maps are checked against each other, so `range_spec` can
+    /// never quietly grow (or lose) a member the way a `_ => None` fallthrough allows.
+    #[test]
+    fn every_setting_kind_declares_its_whole_behaviour_contract() {
+        let _g = crate::testlock::serial();
+        for r in SETTINGS {
+            let (toggle, value, path, sub, range) = match r.kind {
+                SettingKind::Toggle => (true, false, false, false, false),
+                SettingKind::Picker => (false, false, false, true, false),
+                SettingKind::Value => (false, true, false, false, false),
+                SettingKind::Range => (false, true, false, false, true),
+                SettingKind::Path => (false, false, true, false, false),
+                SettingKind::Submenu => (false, false, false, true, false),
+                SettingKind::Action => (false, false, false, false, false),
+            };
+            assert_eq!(toggle_key(r.id).is_some(), toggle, "{:?}: toggle_key", r.name);
+            assert_eq!(value_key(r.id).is_some(), value, "{:?}: value_key", r.name);
+            assert_eq!(path_key(r.id).is_some(), path, "{:?}: path_key", r.name);
+            assert_eq!(sub_overlay(r.id).is_some(), sub, "{:?}: sub_overlay", r.name);
+            assert_eq!(range_spec(r.id).is_some(), range, "{:?}: range_spec", r.name);
+        }
+    }
+
+    /// ITEM 94 — a RANGE row resolves EVERYTHING its interaction needs, and no other
+    /// row resolves ANY of it: the authored spec, a live value in the gathered
+    /// readout inputs, a config key to persist under, and a rail cell for the drawn
+    /// thumb. The four maps sweep together so a range row can never be half-wired
+    /// (a spec with no live value would step a number nothing reads).
+    #[test]
+    fn every_range_row_is_wired_end_to_end_and_nothing_else_is() {
+        let _g = crate::testlock::serial();
+        let values = probe_values();
+        for r in SETTINGS {
+            let is_range = r.kind == SettingKind::Range;
+            assert_eq!(range_spec(r.id).is_some(), is_range, "{:?}: spec", r.name);
+            assert_eq!(range_value(r.id, &values).is_some(), is_range, "{:?}: value", r.name);
+            assert_eq!(range_cell(r, &values).is_some(), is_range, "{:?}: cell", r.name);
+            if is_range {
+                let spec = range_spec(r.id).unwrap();
+                let v = range_value(r.id, &values).unwrap();
+                let cell = range_cell(r, &values).unwrap();
+                assert_eq!(cell.id, r.id, "{:?}: the cell carries its own identity", r.name);
+                assert_eq!(cell.step, spec.step_of(v), "{:?}: the cell is the spec's step", r.name);
+                // The READOUT and the RAIL are the same number, read the same instant:
+                // the drawn cell text is exactly what the spec formats for the step
+                // the thumb sits on.
+                assert_eq!(
+                    value_for(r, &values),
+                    spec.format(spec.value_of_step(cell.step)),
+                    "{:?}: the value cell and the thumb disagree",
+                    r.name
+                );
+                assert!(value_key(r.id).is_some(), "{:?}: nothing to persist under", r.name);
+            }
+        }
+    }
+
+    /// ITEM 94 — the Settings menu's rail column: exactly one row (Zoom) carries a
+    /// cell, parallel to the visible names, and a corpus with NO range row hands the
+    /// renderer an EMPTY vec (so every other picker draws byte-identically).
+    #[test]
+    fn visible_range_cells_are_parallel_to_the_visible_rows() {
+        let _g = crate::testlock::serial();
+        let values = probe_values();
+        let cells = visible_range_cells(&values);
+        let rows = visible_rows();
+        assert_eq!(cells.len(), rows.len(), "the rail column is parallel to the rows");
+        for (row, cell) in rows.iter().zip(&cells) {
+            assert_eq!(
+                cell.is_some(),
+                row.kind == SettingKind::Range,
+                "{:?} carries the wrong rail state",
+                row.name
+            );
+        }
+        assert_eq!(
+            cells.iter().filter(|c| c.is_some()).count(),
+            SETTINGS.iter().filter(|r| r.kind == SettingKind::Range).count()
+        );
+    }
+
+    /// ITEM 94 — ZOOM's authored spec IS the item's decided design: 50 %–300 %, a
+    /// 10-percentage-point step, a LINEAR percentage rail. Pinned so a future edit
+    /// to the band is a deliberate act, not a drift.
+    #[test]
+    fn the_zoom_range_is_the_authored_fifty_to_three_hundred_percent_linear_rail() {
+        let _g = crate::testlock::serial();
+        let spec = range_spec(SettingId::Zoom).expect("Zoom is a range row");
+        assert_eq!((spec.min, spec.max, spec.step, spec.default), (0.5, 3.0, 0.1, 1.0));
+        assert_eq!(spec.map, crate::range::RailMap::Linear);
+        assert_eq!(spec.unit, crate::range::Unit::Percent);
+        assert_eq!(spec.step_count(), 26, "50%..300% in 10-point steps");
+        // The readout's percentage form, and its exact-entry parse, are the spec's.
+        assert_eq!(spec.format(0.5), "50%");
+        assert_eq!(spec.format(3.0), "300%");
+        assert_eq!(parse_zoom("140%"), Some(spec.value_of_step(14)));
+        // The RAIL's ends are the band's ends, and 100% sits where a LINEAR map puts
+        // it (not mid-rail — that would be the logarithmic reading).
+        assert_eq!(spec.frac_of(0.5), 0.0);
+        assert!((spec.frac_of(3.0) - 1.0).abs() < 1e-5);
+        assert!((spec.frac_of(1.0) - 0.2).abs() < 1e-5);
+    }
+
+    /// ITEM 94 — every zoom DOOR lands on the same authored grid: the ⌘±/rail
+    /// `stepped` owner, the wheel's own call, `clamp_zoom` (which `--zoom`, a config
+    /// load and `set_zoom` all run through) and the typed exact entry. No input path
+    /// computes a parallel value — the DONE criterion, asserted.
+    #[test]
+    fn every_zoom_door_lands_on_the_same_authored_grid() {
+        let _g = crate::testlock::serial();
+        let spec = range_spec(SettingId::Zoom).unwrap();
+        for k in spec.min_step()..=spec.max_step() {
+            let v = spec.value_of_step(k);
+            assert_eq!(crate::render::clamp_zoom(v).to_bits(), v.to_bits(), "clamp_zoom({v})");
+            assert_eq!(parse_zoom(&spec.format(v)), Some(v), "typing {v}'s own readout");
+            if k < spec.max_step() {
+                assert_eq!(spec.stepped(v, 1), spec.value_of_step(k + 1));
+            }
+            // The rail can only ever resolve to a grid value.
+            let f = spec.frac_of_step(k);
+            assert_eq!(spec.value_at_frac(f).to_bits(), v.to_bits(), "the rail at {f}");
+        }
+    }
+
+    /// The probe values every range law reads: an off-default zoom, so a law that
+    /// accidentally hard-codes 100 % fails.
+    fn probe_values() -> SettingsValues {
+        SettingsValues {
+            page_width_prose: 70,
+            page_width_code: 100,
+            zoom: 1.4,
+            default_folder: "/n".into(),
+            workspace: "/w".into(),
+            project_root: "/p".into(),
+            autosave: true,
+            history: true,
+            session_restore: true,
+            keymap: "native".to_string(),
+            today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
         }
     }
 
@@ -822,8 +1040,8 @@ mod tests {
         assert_eq!(parse_zoom("1.5"), Some(1.5));
         assert_eq!(parse_zoom("125"), Some(crate::render::clamp_zoom(1.25)), "an integer-ish value reads as a percent");
         // Out of range clamps through render::clamp_zoom (0.5..3.0).
-        assert_eq!(parse_zoom("5000%"), Some(crate::render::ZOOM_MAX));
-        assert_eq!(parse_zoom("10%"), Some(crate::render::ZOOM_MIN), "10% -> 0.1 clamps up to the floor");
+        assert_eq!(parse_zoom("5000%"), Some(crate::range::ZOOM.max));
+        assert_eq!(parse_zoom("10%"), Some(crate::range::ZOOM.min), "10% -> 0.1 clamps up to the floor");
         // Non-numeric is rejected (a calm no-op commit).
         assert_eq!(parse_zoom("oops"), None);
         assert_eq!(parse_zoom(""), None);

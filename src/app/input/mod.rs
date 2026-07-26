@@ -14,7 +14,7 @@ mod drags;
 mod keys;
 mod mouse;
 
-pub(crate) use drags::ImageDrag;
+pub(crate) use drags::{ImageDrag, RangeDrag};
 
 #[cfg(test)]
 mod tests;

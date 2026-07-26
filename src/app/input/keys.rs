@@ -251,6 +251,28 @@ impl App {
         self.zoom_persist_at.is_some()
     }
 
+    /// Is the debounced sticky-zoom write HELD because a GESTURE owns its own end?
+    ///
+    /// The quiet-window debounce exists to INFER the end of a zoom gesture that has no
+    /// end event: ⌘±, ⌘0 and the ⌘-wheel just stop arriving, so ~500 ms of silence is
+    /// the only available "the user is done" signal. A Settings RANGE-RAIL scrub is the
+    /// other shape — it has a real end, the button release, and pays its single write
+    /// exactly there (`end_range_drag` -> `range_persist` -> [`App::settle_zoom_persist`]).
+    ///
+    /// Without this gate the two mechanisms race, and the inference is simply WRONG:
+    /// pausing mid-drag to look at the value IS half a second of quiet, so the debounce
+    /// fired and persisted a value the user had not released on (a paused scrub wrote
+    /// 130 % to config, then the real 280 % after release). One owner: while a range
+    /// drag is live the inference is off, and the release is the only writer.
+    ///
+    /// Deliberately keyed on "a range drag is live" rather than on the dragged
+    /// setting's identity — a drag on some OTHER range row never arms `zoom_persist_at`
+    /// in the first place (that branch is skipped anyway), and the next range setting to
+    /// grow a rail inherits the rule for free instead of having to remember it.
+    pub(in crate::app) fn zoom_persist_held(&self) -> bool {
+        self.range_drag.is_some()
+    }
+
     /// C-v / M-v: move the cursor by (roughly) one screenful of lines, Emacs
     /// style. `dir` is +1 (down) or -1 (up). The subsequent cursor-follow sync
     /// scrolls the viewport to keep the cursor visible. Returns whether the cursor

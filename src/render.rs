@@ -79,6 +79,10 @@ pub(crate) use chrome::POPOVER_VPAD;
 /// [`crate::overlay::OverlayKind`] with a no-wildcard match so a future picker
 /// cannot bypass the rules.
 mod rowlayout;
+/// ITEM 94 — the ONE px→rail-fraction resolver, re-exported so the live POINTER
+/// path (`app::input::drags`) resolves a scrub against the SAME arithmetic the
+/// rail is drawn and hit-tested with. Nothing else of `rowlayout` is public.
+pub use rowlayout::rail_frac_at;
 
 /// FROSTED-BACKDROP BLUR — the cached, cheap defocus that replaces the old neutral
 /// grey overlay scrim. A self-contained wgpu post-process (capture the doc once →
@@ -345,23 +349,28 @@ pub const CARET_MORPH_DILATE_PX: f32 = 2.0;
 /// `--zoom` (see `tests/bullet_blank_line_nit_pixels.rs`); believing this
 /// comment is how a personal `zoom = 1.5` turned a pixel test red with no
 /// product change behind it (queue item 93).
-pub const ZOOM_MIN: f32 = 0.5;
-pub const ZOOM_MAX: f32 = 3.0;
-pub const ZOOM_STEP: f32 = 0.1;
+///
+/// ITEM 94: the band/step/default no longer live here AT ALL. The former
+/// `ZOOM_MIN`/`ZOOM_MAX`/`ZOOM_STEP` consts were deleted rather than re-pointed —
+/// an alias is a drift risk, and there is now exactly ONE place zoom's authored
+/// numbers exist: [`crate::range::ZOOM`] (`.min`/`.max`/`.step`/`.default`), the
+/// same spec the Settings rail, the ⌘± keys, the ⌘-wheel, `--zoom` and a typed
+/// `125%` all read. Every former reader was updated to read the spec.
 
 /// Clamp + round a zoom factor to a sane stepped value. Rounding to the nearest
 /// step keeps Cmd+= / Cmd+- / Ctrl+wheel landing on stable factors (so repeated
 /// presses don't drift into ugly fractions) and keeps captures reproducible.
 /// FINITE GUARD: NaN would sail straight through the step arithmetic AND
 /// `f32::clamp` (clamp returns NaN for NaN) and poison every zoom-derived metric,
-/// so it falls back to the 1.0 default; ±inf saturates through the normal clamp
-/// below. The result is always finite in `[ZOOM_MIN, ZOOM_MAX]`.
+/// so it falls back to the 1.0 default; ±inf saturates through the normal clamp.
+/// The result is always finite in `[ZOOM.min, ZOOM.max]`.
+///
+/// ITEM 94 — a ONE-LINE DELEGATE to [`crate::range::RangeSpec::quantize`]: this is
+/// still the door every zoom caller knocks on, but the arithmetic behind it now
+/// lives with the rest of the range rule (bit-identical to the formula that used
+/// to sit here — `range::tests::quantize_reproduces_the_historical_zoom_clamp_formula`).
 pub fn clamp_zoom(z: f32) -> f32 {
-    if z.is_nan() {
-        return 1.0;
-    }
-    let stepped = (z / ZOOM_STEP).round() * ZOOM_STEP;
-    stepped.clamp(ZOOM_MIN, ZOOM_MAX)
+    crate::range::ZOOM.quantize(z)
 }
 
 /// Zoom-derived layout metrics. This is the SINGLE SOURCE OF TRUTH for every
@@ -3615,6 +3624,18 @@ pub struct TextPipeline {
     /// byte-identical) on every ordinary run and every non-two-shape probe, so a
     /// default capture never sees it. Drawn just ABOVE `overlay_rows`.
     pub overlay_cross: SelectionPipeline,
+    /// ITEM 94 — a SETTINGS RANGE row's quiet TRACK: one hairline quad per drawn
+    /// range row, in the faintest ink rung (`theme::faint()` — furniture, not
+    /// figure). Parked empty (zero instances → byte-identical) for every other
+    /// card and whenever no overlay is up. Drawn just above the selected-row band
+    /// so a selected rail reads ON its highlight.
+    pub overlay_range_track: SelectionPipeline,
+    /// ITEM 94 — the same row's FILLED portion + THUMB, one value step more
+    /// present than the track (`theme::muted()`, flipped through the ONE
+    /// `theme::selected_row_secondary_ink` owner when the selected row's band
+    /// would wash it out — the same mechanism the value TEXT beside it uses).
+    /// Never the amber accent: the caret is the only accent (DESIGN §3).
+    pub overlay_range_thumb: SelectionPipeline,
     /// THE STIPPLE PLACARD (`theme::PlacardInk::Stipple`): the corner wordmark
     /// rendered as a Bayer-matrix stipple of individual full-ink pixels
     /// instead of ordinary antialiased glyphs. The SHAPING half is shared
@@ -3998,6 +4019,12 @@ pub struct TextPipeline {
     /// when the overlay has no candidate rows, or `None` when it has rows.
     overlay_empty: Option<String>,
     overlay_bindings: Vec<String>,
+    /// ITEM 94 — mirror of [`ViewState::overlay_ranges`]: the per-row RAIL FRACTION
+    /// (parallel to `overlay_items`), `None` for a row with no rail and EMPTY for
+    /// every non-Settings card. Read by the ONE rail owner
+    /// (`chrome::TextPipeline::overlay_rails`), which both the draw path and the
+    /// pointer hit-test go through.
+    overlay_ranges: Vec<Option<f32>>,
     overlay_times: Vec<String>,
     /// Mirror of [`ViewState::overlay_git`]: the dim `"git"` secondary-column tag per
     /// row (Project / Browse pickers; empty for a git-free listing / other kinds).

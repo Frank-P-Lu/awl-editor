@@ -1496,3 +1496,328 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     );
     assert!(moved.starts_with("/proj/sub"), "moved under the active folder's dest: {moved:?}");
 }
+
+// ── ITEM 94 — RANGE ROWS at the LIVE APP seam (apply / persist accounting) ────
+
+/// Build a Settings overlay with its rail column, selected on the Zoom row, and
+/// return it plus that row's `items` index — exactly `overlay::build`'s shape.
+fn settings_overlay_with_rail(app: &App) -> (crate::overlay::OverlayState, usize) {
+    let vals = crate::settings::SettingsValues::gather(
+        &app.config,
+        &app.root,
+        app.zoom,
+        crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
+    );
+    let mut ov = crate::overlay::OverlayState::new(
+        crate::overlay::OverlayKind::Settings,
+        crate::settings::visible_names(),
+        vec![],
+        vec![],
+    );
+    ov.set_secondaries(crate::settings::visible_value_cells(&vals));
+    ov.set_range_cells(crate::settings::visible_range_cells(&vals));
+    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    ov.selected = zi;
+    (ov, zi)
+}
+
+/// ONE PERSIST PER DRAG — the item's own accounting rule, proved at the live App
+/// seam: a pointer scrub applies on EVERY resolved step (the value and the row's
+/// own cell move each move) but writes config ZERO times, and the RELEASE writes
+/// exactly once, with the settled value. The pending debounced write the live
+/// apply armed is cancelled by that same release, so the gesture cannot leave a
+/// second write trailing behind it.
+#[test]
+fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new();
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g = crate::testlock::serial();
+    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let mut app = app_on(None, "/proj", cfg);
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    app.zoom = spec.default;
+    let (ov, zi) = settings_overlay_with_rail(&app);
+    app.overlay = Some(ov);
+
+    // Arm the scrub exactly as a rail press does (the press-time track scale is
+    // snapshotted; here it is supplied directly, since the hit-test needs a GPU).
+    let (x0, x1) = (100.0f32, 300.0f32);
+    app.range_drag = Some(crate::app::input::RangeDrag {
+        id: crate::settings::SettingId::Zoom,
+        item: zi,
+        x0,
+        x1,
+    });
+
+    let config_text = |mem: &InMemoryFs| -> String {
+        mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default()
+    };
+    // EVERY resolved step of the scrub applies live…
+    let mut applied = Vec::new();
+    for i in 0..=40u32 {
+        let px = x0 + (x1 - x0) * (i as f32 / 40.0);
+        app.cursor_px = (px, 0.0);
+        app.on_range_drag();
+        let want = spec.value_at_frac(crate::render::rail_frac_at(px, x0, x1));
+        assert_eq!(app.zoom.to_bits(), want.to_bits(), "step {i} applied a parallel value");
+        applied.push(app.zoom);
+        // …and the row's own readout + thumb track it in the same move.
+        let ov = app.overlay.as_ref().unwrap();
+        assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
+        assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
+        // …while NOTHING is written to disk mid-gesture.
+        assert!(
+            !config_text(&mem).contains("zoom"),
+            "step {i}: a drag must not persist (config: {:?})",
+            config_text(&mem)
+        );
+    }
+    assert!(applied.iter().any(|v| *v != spec.default), "the scrub genuinely moved the value");
+    let settled = app.zoom;
+
+    // THE RELEASE: exactly one write, of the settled value, and the drag is over.
+    app.end_range_drag();
+    let written = config_text(&mem);
+    assert_eq!(
+        written.lines().filter(|l| l.trim_start().starts_with("zoom")).count(),
+        1,
+        "the whole gesture writes ONE zoom line, not one per step: {written:?}"
+    );
+    assert!(
+        written.contains(&format!("zoom = {}", spec.persist_value(settled))),
+        "the persisted value is the settled one: {written:?}"
+    );
+    assert!(app.range_drag.is_none(), "the release ends the gesture");
+    assert!(
+        app.zoom_persist_at.is_none(),
+        "the release supersedes (and cancels) the debounced write the live apply armed"
+    );
+    assert_eq!(app.config.zoom, Some(settled), "the in-memory config mirrors the write");
+}
+
+/// THE PAUSED SCRUB — the same accounting rule, but with REAL TIME PASSING inside
+/// the gesture. The test above never advances the clock, so it only ever proved the
+/// UNINTERRUPTED case; this one drives the actual `about_to_wait` scheduling body
+/// under a [`crate::clock::VirtualClock`] (the which-key frame-loop pattern) while
+/// the pointer is held STILL for several times the sticky-zoom debounce window —
+/// an entirely ordinary "pause to look at the number" gesture.
+///
+/// The class it closes: the live apply goes through `set_zoom` -> `mark_zoom_dirty`,
+/// which arms the SAME quiet-window debounce ⌘±/⌘-wheel use, and that debounce infers
+/// "the gesture ended" from silence. A held-still drag IS silence, so before
+/// `App::zoom_persist_held` gated it, half a second of pausing wrote the mid-gesture
+/// value to config — a value the user never released on. Nothing may be written until
+/// the button comes up, and then exactly once, with the released value.
+#[test]
+fn a_paused_mid_drag_persists_nothing_until_the_release() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new();
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g = crate::testlock::serial();
+    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let mut app = app_on(None, "/proj", cfg);
+    // VIRTUAL TIME: the App's own clock, so `about_to_wait_impl` sees the pause as a
+    // live idle loop would — deterministically, with no sleeping.
+    let clock = crate::clock::VirtualClock::new();
+    app.set_clock(Box::new(clock.clone()));
+
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    app.zoom = spec.default;
+    let (ov, zi) = settings_overlay_with_rail(&app);
+    app.overlay = Some(ov);
+    let (x0, x1) = (100.0f32, 300.0f32);
+    app.range_drag = Some(crate::app::input::RangeDrag {
+        id: crate::settings::SettingId::Zoom,
+        item: zi,
+        x0,
+        x1,
+    });
+    let config_text = |mem: &InMemoryFs| -> String {
+        mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default()
+    };
+    // The LIVE `zoom = …` lines actually in the file (the commented template lines the
+    // config writer emits are not settings) — the compact oracle every step below reads.
+    let zoom_lines = |mem: &InMemoryFs| -> Vec<String> {
+        config_text(mem)
+            .lines()
+            .filter(|l| l.trim_start().starts_with("zoom"))
+            .map(|l| l.trim().to_string())
+            .collect()
+    };
+
+    // PRESS + a first move to a low value the user will NOT release on.
+    app.cursor_px = (x0 + (x1 - x0) * 0.15, 0.0);
+    app.on_range_drag();
+    let paused = app.zoom;
+    assert_ne!(paused, spec.default, "the scrub genuinely moved off the default");
+    assert!(
+        app.zoom_persist_at.is_some(),
+        "the live apply still ARMS the in-flight stamp (the zoom gesture is live — the \
+         hold-⌘ peek suppression reads exactly this); it is the WRITE that is held"
+    );
+
+    // NOW THE USER PAUSES, pointer down, for 4x the debounce window — stepping the
+    // REAL scheduling body once per 100ms frame, exactly as an idle winit loop does.
+    let win_ms = ZOOM_PERSIST_DEBOUNCE.as_millis() as u64;
+    let sched = RecordingScheduler::new();
+    let mut wakes = Vec::new();
+    for frame in 1..=(win_ms * 4 / 100) {
+        clock.advance_ms(100);
+        sched.begin_step();
+        app.step_scheduling(&sched);
+        let t = frame * 100;
+        assert_eq!(
+            zoom_lines(&mem),
+            Vec::<String>::new(),
+            "t={t}ms into a held pause (debounce window {win_ms}ms): a mid-gesture value \
+             must NEVER reach the config — only the release writes"
+        );
+        assert_eq!(app.zoom.to_bits(), paused.to_bits(), "t={t}ms: the value itself is untouched");
+        assert!(app.range_drag.is_some(), "t={t}ms: the gesture is still in flight");
+        wakes.push((t, sched.scheduled_this_step()));
+    }
+    // HELD MEANS INERT: no write AND no wake armed — the loop still falls quiet
+    // (DESIGN §6), rather than spinning on a deadline it will never honour.
+    assert!(
+        wakes.iter().all(|(_, cf)| cf.is_none()),
+        "a held debounce must arm no WaitUntil: {wakes:?}"
+    );
+
+    // The pause ends: the user drags on to a genuinely different value and releases.
+    app.cursor_px = (x0 + (x1 - x0) * 0.95, 0.0);
+    app.on_range_drag();
+    let settled = app.zoom;
+    assert_ne!(settled.to_bits(), paused.to_bits(), "the release value differs from the paused one");
+    assert_eq!(
+        zoom_lines(&mem),
+        Vec::<String>::new(),
+        "still nothing written before the button comes up"
+    );
+    app.end_range_drag();
+
+    // EXACTLY ONE write, of the RELEASED value — never the paused one.
+    assert_eq!(
+        zoom_lines(&mem),
+        vec![format!("zoom = {}", spec.persist_value(settled))],
+        "the whole paused gesture writes ONE line, and it is the RELEASED value \
+         (the paused one would have been `zoom = {}`)",
+        spec.persist_value(paused)
+    );
+    let written = config_text(&mem);
+
+    // …and nothing trails behind it: quiet time after the release adds no second write.
+    for _ in 0..(win_ms * 2 / 100) {
+        clock.advance_ms(100);
+        sched.begin_step();
+        app.step_scheduling(&sched);
+    }
+    assert_eq!(
+        config_text(&mem),
+        written,
+        "the settled release leaves no debounced write trailing behind it"
+    );
+}
+
+/// THE KEYBOARD'S OWN PERSISTENCE PATH is the DISCRETE one: each authored step
+/// writes once, immediately (the same "write on every discrete commit" rule a
+/// Toggle follows) — no debounce left pending afterwards.
+#[test]
+fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new();
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g = crate::testlock::serial();
+    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let mut app = app_on(None, "/proj", cfg);
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    let (ov, zi) = settings_overlay_with_rail(&app);
+    app.overlay = Some(ov);
+
+    // The core already stepped the value (see the `actions` half of this pair);
+    // the App owns the live tail. Drive the EXACT door `Effect::SettingRangeStep`
+    // resolves to at the `app/apply.rs` seam.
+    app.zoom = spec.stepped(spec.default, 1);
+    app.setting_range_step("zoom");
+    let written = mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap();
+    assert!(
+        written.contains(&format!("zoom = {}", spec.persist_value(app.zoom))),
+        "a discrete step persists at once: {written:?}"
+    );
+    assert!(app.zoom_persist_at.is_none(), "nothing left pending after a discrete write");
+    // The still-open menu was refreshed from the LIVE values through the one
+    // owner, so its cell and its thumb both show the stepped value.
+    let ov = app.overlay.as_ref().unwrap();
+    assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
+    assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
+}
+
+/// THE LIVE-APPLY DOOR IS THE SETTING'S OWN OWNER: `range_apply_live` moves the
+/// live value through `set_zoom` (which re-clamps through the same spec), so a
+/// pointer can never install an off-grid or out-of-band value even if handed one.
+#[test]
+fn the_live_range_apply_door_clamps_through_the_settings_own_owner() {
+    use crate::fs::InMemoryFs;
+    let _g2 = crate::fs::FsGuard::install(Arc::new(InMemoryFs::new()));
+    let _g = crate::testlock::serial();
+    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let mut app = app_on(None, "/proj", cfg);
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    for raw in [-4.0f32, 0.0, 0.53, 1.0, 2.97, 99.0] {
+        app.range_apply_live(crate::settings::SettingId::Zoom, raw);
+        assert_eq!(app.zoom.to_bits(), spec.quantize(raw).to_bits(), "raw {raw}");
+        assert!((spec.min..=spec.max).contains(&app.zoom));
+    }
+}
+
+/// THE APP-SIDE PORT SWEEP: EVERY row the corpus marks `SettingKind::Range` —
+/// enumerated off `settings::visible_rows()`, never hand-copied — moves its own
+/// LIVE value through `App::range_apply_live` (the pointer path's door) and
+/// persists it through `App::range_persist` (the release/keyboard door). A future
+/// range setting wired into the spec map but not into these two doors would draw
+/// a rail that scrubs nothing, or scrub something that never sticks; it fails here.
+#[test]
+fn every_range_row_applies_and_persists_through_the_app_side_doors() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new();
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g = crate::testlock::serial();
+    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let mut app = app_on(None, "/proj", cfg);
+
+    let range_rows: Vec<crate::settings::SettingRow> = crate::settings::visible_rows()
+        .into_iter()
+        .filter(|r| r.kind == crate::settings::SettingKind::Range)
+        .copied()
+        .collect();
+    assert_eq!(range_rows.len(), 1, "the range roster changed size — update this sweep");
+    for row in range_rows {
+        let spec = crate::settings::range_spec(row.id).unwrap();
+        let key = crate::settings::value_key(row.id).unwrap();
+        // A value the setting is definitely NOT sitting on.
+        let target = spec.stepped(spec.default, 3);
+        assert_ne!(target, spec.default, "{}: pick a genuinely different value", row.name);
+
+        app.range_apply_live(row.id, target);
+        let values = crate::settings::SettingsValues::gather(
+            &app.config,
+            &app.root,
+            app.zoom,
+            crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
+        );
+        assert_eq!(
+            crate::settings::range_value(row.id, &values),
+            Some(target),
+            "{}: the live-apply door must move the value the readout reads",
+            row.name
+        );
+        app.range_persist(key);
+        let written =
+            mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default();
+        assert!(
+            written.contains(&format!("{key} = {}", spec.persist_value(target))),
+            "{}: the persist door must write {key}: {written:?}",
+            row.name
+        );
+    }
+}

@@ -66,6 +66,10 @@ fn date_picker_view(selected: usize) -> ViewState {
 /// right-aligned secondary (format-name) column the item explicitly allows to
 /// differ in ink.
 fn date_row_regions(world: &str, selected: usize) -> Vec<(f32, f32, f32, f32)> {
+    // The world global is process-wide and this helper swaps it: take the standing
+    // serialization guard so no other test can interleave a swap into the window
+    // (the acquire is reentrant, so the caller's own guard just nests).
+    let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         return Vec::new();
     };
@@ -93,6 +97,9 @@ fn date_row_regions(world: &str, selected: usize) -> Vec<(f32, f32, f32, f32)> {
 /// decode the written PNG back to an `RgbaImage`.
 fn capture_date_picker(dir: &std::path::Path, world: &str, selected: usize, tag: &str) -> image::RgbaImage {
     use crate::capture::{capture_with, CaptureOpts, OverlayInfo};
+    // Same reason as `date_row_regions`: this helper swaps the world global, so it
+    // holds the standing serialization guard across the swap and the render.
+    let _g = crate::testlock::serial();
     assert!(crate::theme::set_active_by_name(world).is_some(), "unknown world {world:?}");
     let (items, labels) = date_examples();
     let buf = crate::buffer::Buffer::from_str("hello world\n");
@@ -106,6 +113,7 @@ fn capture_date_picker(dir: &std::path::Path, world: &str, selected: usize, tag:
         items,
         empty: None,
         bindings: labels,
+        ranges: Vec::new(),
         git: Vec::new(),
         selected_index: selected,
         hint: crate::overlay::OverlayKind::Date.hint().to_string(),

@@ -266,6 +266,11 @@ impl TextPipeline {
         // leading band (`overlay_rows`) so the brightest value reads where the two
         // shapes overlap. Parked empty on every ordinary run → byte-identical.
         self.overlay_cross.draw(pass);
+        // ITEM 94 — the range rail: track first, then the fill + thumb on top. Both
+        // sit ABOVE the selected-row band (so a selected rail reads on its
+        // highlight) and UNDER the overlay text. Parked empty everywhere else.
+        self.overlay_range_track.draw(pass);
+        self.overlay_range_thumb.draw(pass);
         // THEME PICKER: the active-lens hairline under the strip (content ink), UNDER
         // the overlay text so the glyphs sit on top. Parked empty for every other card.
         // V6 P5: the Chips ghost pills draw first (inactive, muted stroke), then the

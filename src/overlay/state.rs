@@ -39,6 +39,29 @@ pub struct OverlayRow {
     /// one variant; which variants a given [`OverlayKind`] may produce is the
     /// CLOSED roster [`OverlayKind::row_meta_roster`] declares.
     pub meta: RowMeta,
+    /// ITEM 94 — the RANGE CELL: `Some` for a [`crate::settings::SettingKind::Range`]
+    /// row (Settings menu only today), carrying the setting's typed identity + the
+    /// discrete STEP its current value sits on. `None` for every other row —
+    /// including this row's own value STRING, which keeps riding `secondary`
+    /// (the rail is drawn BESIDE the readout, not instead of it).
+    ///
+    /// A row FIELD, not a [`RowMeta`] variant, for the same reason `secondary` is
+    /// one: it is a per-row DISPLAY payload that composes with whatever meta the
+    /// row already carries, rather than a mutually-exclusive kind payload.
+    pub range: Option<RangeCell>,
+}
+
+/// ITEM 94 — one row's RANGE state: which setting it is, and which authored STEP
+/// its value currently sits on. Deliberately DISCRETE (a step index, not a float):
+/// it keeps [`OverlayRow`] `Eq`, and it means the drawn thumb, the sidecar and the
+/// hit-test all read the same integer the spec quantized — a rail can never show a
+/// position the keyboard cannot reach. The value/fraction are derived on demand
+/// through the ONE spec owner ([`crate::settings::range_spec`] →
+/// [`crate::range::RangeSpec::frac_of_step`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RangeCell {
+    pub id: crate::settings::SettingId,
+    pub step: u16,
 }
 
 impl OverlayRow {
@@ -46,7 +69,14 @@ impl OverlayRow {
     /// off default (no secondary, no dir/git marker, [`RowMeta::Plain`]). The
     /// common shape most pickers' rows start from.
     fn plain(accept: String) -> Self {
-        Self { accept, secondary: String::new(), is_dir: false, git: false, meta: RowMeta::Plain }
+        Self {
+            accept,
+            secondary: String::new(),
+            is_dir: false,
+            git: false,
+            meta: RowMeta::Plain,
+            range: None,
+        }
     }
 }
 
@@ -416,6 +446,27 @@ impl OverlayState {
         }
     }
 
+    /// ITEM 94 — set every ROW's RANGE CELL, positionally (the sibling of
+    /// [`Self::set_secondaries`]: one fills the value TEXT, this one the value's
+    /// RAIL position). An EMPTY `cells` CLEARS every rail — the shape
+    /// [`crate::settings::visible_range_cells`] returns for a corpus with no range
+    /// row, so a non-Settings picker can never inherit a stale rail.
+    ///
+    /// Called from the SAME two doors `set_secondaries` is (the overlay BUILD and
+    /// `App::refresh_settings_overlay`), so the drawn thumb and the drawn number are
+    /// always the same value read at the same instant.
+    pub fn set_range_cells(&mut self, cells: Vec<Option<RangeCell>>) {
+        if cells.is_empty() {
+            for row in self.rows.iter_mut() {
+                row.range = None;
+            }
+            return;
+        }
+        for (row, c) in self.rows.iter_mut().zip(cells) {
+            row.range = c;
+        }
+    }
+
     /// Attach the relative "last edited" labels (parallel to the corpus rows)
     /// for the go-to picker — each row's [`RowMeta::GotoFile`] time. Set by the
     /// LIVE app only; the headless path leaves every row's time "" (already the
@@ -775,6 +826,15 @@ impl OverlayState {
                 super::HintAction { glyph: "tab", label: "back" },
             ]);
         }
+        // ITEM 94 — RANGE ROW: the highlighted row carries a RAIL, so ←/→ step its
+        // VALUE instead of cycling the lens. Gated on `selected_range()` — the exact
+        // predicate `actions::overlay_nav`'s ForwardChar/BackwardChar arms consult
+        // before claiming the keys, so what the foot line advertises and what the keys
+        // do are the same decision, made once. (The hint follows the SELECTION, so
+        // arrowing onto and off the Zoom row re-writes the line as the user moves.)
+        if self.selected_range().is_some() {
+            return self.kind.range_row_hint();
+        }
         self.kind.hint()
     }
 
@@ -804,6 +864,7 @@ impl OverlayState {
                 is_dir: false,
                 git: false,
                 meta: RowMeta::GotoHeading { line },
+                range: None,
             });
         }
         self.refilter();
@@ -840,6 +901,10 @@ impl OverlayState {
                 is_dir: false,
                 git: false,
                 meta: RowMeta::CommandSetting { id: row.id },
+                // The PALETTE never draws a rail (item 94): its settings rows are
+                // fuzzy-find shortcuts, not the Settings menu's own control surface.
+                // Enter there still opens the ordinary numeric edit.
+                range: None,
             });
         }
         self.refilter();

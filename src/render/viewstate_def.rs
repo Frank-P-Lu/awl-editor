@@ -155,6 +155,14 @@ pub struct ViewState {
     /// command's current chord, drawn dim and right-aligned beside its name).
     /// Empty for every other overlay kind.
     pub overlay_bindings: Vec<String>,
+    /// ITEM 94 — SETTINGS menu only: the RAIL FRACTION (0..1) parallel to
+    /// `overlay_items` — `Some(frac)` for a `SettingKind::Range` row, `None` for an
+    /// ordinary row. EMPTY for every other overlay kind (and whenever no visible row
+    /// carries a rail), so those cards draw byte-identically. Derived by the ONE
+    /// range-spec owner from the row's own quantized step
+    /// (`OverlayState::item_range_fracs`), never by the renderer — the drawn thumb
+    /// can only ever sit on a value the keyboard could also reach.
+    pub overlay_ranges: Vec<Option<f32>>,
     /// Go-to (notes) picker only: a relative "last edited" label parallel to
     /// `overlay_items` (e.g. "5m ago"), drawn dim and right-aligned beside each
     /// file. Empty for every other overlay kind AND in the headless capture path
@@ -367,6 +375,8 @@ impl ViewState {
             overlay_items: Vec::new(),
             overlay_empty: None,
             overlay_bindings: Vec::new(),
+            // ITEM 94: no rails by default (every non-Settings card).
+            overlay_ranges: Vec::new(),
             overlay_times: Vec::new(),
             overlay_git: Vec::new(),
             overlay_selected: 0,

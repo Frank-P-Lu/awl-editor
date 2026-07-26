@@ -28,7 +28,119 @@ pub(crate) struct ImageDrag {
     pub(crate) width: f32,
 }
 
+/// ITEM 94 — SETTINGS RANGE SCRUB (live app only): the in-flight state of a drag
+/// on a range row's rail. Snapshotted at press ([`App::begin_range_drag`]) and
+/// carried until release: WHICH setting is being scrubbed (its typed
+/// [`crate::settings::SettingId`] — the key into the ONE range spec) and the
+/// track's px ENDS `(x0, x1)` at press time.
+///
+/// The ends are snapshotted for the same reason the page drag snapshots its
+/// opposite edge: the rail is laid out relative to the value TEXT beside it, and
+/// that text changes width as the value changes (`"80%"` -> `"100%"`) — re-reading
+/// the live rail each move would shift the track under a stationary pointer and
+/// make the scrub creep. One press, one scale, the whole gesture.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RangeDrag {
+    /// Which range setting is being scrubbed (the range-spec key).
+    pub(crate) id: crate::settings::SettingId,
+    /// The `items` index of the row being scrubbed (the row whose cell mirrors).
+    pub(crate) item: usize,
+    /// The track's px ends at PRESS — the fixed scale every move resolves against.
+    pub(crate) x0: f32,
+    pub(crate) x1: f32,
+}
+
 impl App {
+    /// ITEM 94 — BEGIN a rail scrub: a left press that landed on a range row's rail
+    /// (the generous hit band around the visually small thumb). Selects the row,
+    /// applies the pressed step IMMEDIATELY (a click IS a set — pointing, not
+    /// buttons), and arms the drag. Returns whether the press was a rail press, so
+    /// `overlay_click` can skip its ordinary row-accept.
+    ///
+    /// NEVER persists: the whole gesture — the initial click and every resolved
+    /// step of the drag that may follow — writes config exactly ONCE, in
+    /// [`Self::end_range_drag`].
+    pub(in crate::app) fn begin_range_drag(&mut self) -> bool {
+        let (px, py) = self.cursor_px;
+        let Some((item, frac)) = self.gpu.as_ref().and_then(|g| g.pipeline.overlay_range_at(px, py))
+        else {
+            return false;
+        };
+        // Select the row the rail belongs to (a rail press is also a selection —
+        // the same row Enter would then act on).
+        if let Some(ov) = self.overlay.as_mut() {
+            if item < ov.items.len() {
+                ov.selected = item;
+            }
+        }
+        let Some(cell) = self.overlay.as_ref().and_then(|ov| ov.range_of_item(item)) else {
+            return false;
+        };
+        // The track's own px ends, snapshotted for the whole gesture (see the
+        // struct's doc). Falls back to nothing when the rail vanished between the
+        // hit-test and here (it cannot, but a missing scale must not scrub at 0).
+        let Some((x0, x1)) = self.gpu.as_ref().and_then(|g| g.pipeline.overlay_range_scale(item))
+        else {
+            return false;
+        };
+        self.range_drag = Some(RangeDrag { id: cell.id, item, x0, x1 });
+        self.apply_range_frac(frac);
+        true
+    }
+
+    /// ITEM 94 — LIVE rail scrub step: resolve the pointer's x against the
+    /// PRESS-TIME track scale and apply that step. No persist (see
+    /// [`Self::end_range_drag`]).
+    pub(in crate::app) fn on_range_drag(&mut self) {
+        let Some(drag) = self.range_drag else { return };
+        let frac = crate::render::rail_frac_at(self.cursor_px.0, drag.x0, drag.x1);
+        self.apply_range_frac(frac);
+    }
+
+    /// THE ONE POINTER→VALUE STEP, shared by the initial click and every drag move:
+    /// resolve `frac` to a value through the range SPEC (never a parallel
+    /// computation), apply it through the setting's own live owner, and mirror the
+    /// new readout + thumb into the still-open menu's row. Idempotent — re-applying
+    /// the same fraction changes nothing, which is what makes a fast drag and a slow
+    /// one settle identically.
+    fn apply_range_frac(&mut self, frac: f32) {
+        let Some(drag) = self.range_drag else { return };
+        let Some(spec) = crate::settings::range_spec(drag.id) else { return };
+        let value = spec.value_at_frac(frac);
+        self.range_apply_live(drag.id, value);
+        let (step, readout) = (spec.step_of(value), spec.format(value));
+        if let Some(ov) = self.overlay.as_mut() {
+            // The scrubbed row STAYS the selected row for the whole gesture (the
+            // drag owns the pointer, so no hover can steal the highlight
+            // mid-scrub) — re-pinned from the press-time snapshot, never
+            // re-derived from wherever the selection happens to be now.
+            if drag.item < ov.items.len() {
+                ov.selected = drag.item;
+            }
+            ov.set_selected_range(step, readout);
+        }
+        self.sync_view(true);
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
+        }
+    }
+
+    /// ITEM 94 — FINISH a rail scrub on button RELEASE: drop the drag state and
+    /// PERSIST the settled value EXACTLY ONCE (the sticky write the keyboard's
+    /// discrete step does per step; a drag defers it to here so a 120 Hz scrub
+    /// writes one line, not hundreds). Also refreshes the still-open menu from the
+    /// live values, so the cell the drag mirrored and the config now agree.
+    pub(in crate::app) fn end_range_drag(&mut self) {
+        let Some(drag) = self.range_drag.take() else { return };
+        if let Some(key) = crate::settings::value_key(drag.id) {
+            self.range_persist(key);
+        }
+        self.refresh_settings_overlay();
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
+        }
+    }
+
     /// If a left press landed ON a page-column edge, begin a DIRECT page-width resize
     /// drag (symmetric about center) instead of a text selection, and snap the edge to
     /// the press x — UNLESS it's the SECOND click of a DOUBLE-CLICK on the edge, in

@@ -281,6 +281,14 @@ impl App {
                 .as_ref()
                 .map(|o| o.item_bindings())
                 .unwrap_or_default(),
+            // ITEM 94: the per-row rail fraction (empty unless a visible row is a
+            // range row) — derived through the range spec from each row's own
+            // quantized step, so the thumb and the number beside it are one truth.
+            overlay_ranges: self
+                .overlay
+                .as_ref()
+                .map(|o| o.item_range_fracs())
+                .unwrap_or_default(),
             overlay_times: self
                 .overlay
                 .as_ref()
