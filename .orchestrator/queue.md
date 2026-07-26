@@ -4,6 +4,10 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
+## CI RED — integration blocked
+
+CI-30219420913. 🟡 **IN PROGRESS — Codex orchestrator (codex), branch codex/ci-red-30219420913.** Main CI run [30219420913](https://github.com/Frank-P-Lu/awl-next/actions/runs/30219420913) fails in Linux `Rust code health` with exit 101; mac live-probe is green and web is green, while mac tests are still completing. First known bad commit is train head `57fe9a1` (the exact failing item-134 commit is not isolated yet). **Repair:** read the completed failed log, reproduce on a clean Linux-equivalent checkout/container, identify why the local stable-toolchain gate passed but GitHub Linux did not, fix the one owner without weakening the formatter/Clippy/structural policies, and add a law that fails on the remote condition. **Verify:** the exact Linux health step passes from a clean checkout with only main-reachable objects, local code-health/self-test remain green, and the repaired `main` run is fully green before integration resumes. **Routing:** diagnose/build=`gpt-5.6-terra` medium; verify=`gpt-5.6-terra` medium.
+
 ## Ready — harness correctness
 
 119. ✅ **LANDED @ `19746bc` — the shared float trio now has one `FloatPanelModel` owner and one end-of-chrome flush, so Bars no longer parks a live caret preview.** Full authored-world × Pane/Bars × 1×/2× laws, close parking, guarded override isolation, spell/search/format neighbors, both native conventions (3,062 each), wasm smoke, pixel arithmetic, and Sol-high visual smoke are green. **Routing:** diagnose/build=`gpt-5.6-terra` medium; verify=`gpt-5.6-terra` medium; visual judge=`gpt-5.6-sol` high.
