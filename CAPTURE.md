@@ -507,7 +507,7 @@ The struck text renders in the world's `muted` ink with a drawn strike line
 popover's `S` button shares); the writer's-diff transcript serializes deletions
 as real `~~…~~` now (the combining-stroke `\u{0336}` mechanism is retired). The
 `popover.buttons` labels changed VALUE (not shape) to the self-demonstrating
-letters `B I A C S H Link`.
+roster `B I A code S H link`.
 
 Schema `/169` (`/170` timeline, `/171` held) is the state after the rounds
 between `/99` and here. Blocks/fields added or changed since the `/99` About
