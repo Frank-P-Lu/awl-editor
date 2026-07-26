@@ -85,7 +85,17 @@ fn walk(overlay: &mut Option<OverlayState>, action: &Action, steps: usize) -> Ve
 #[test]
 fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_parities() {
     let _g = crate::testlock::serial();
-    let facets = ["all", "editor", "appearance", "writing", "files", "keybindings", "advanced"];
+    // DERIVED, not hand-typed: reading the ids straight off `SETTINGS_FACETS.strip`
+    // (the single owner `settings::settings_bucket` also reads) means a facet added
+    // to production is automatically swept here too — mirroring this project's own
+    // precedent for sweeping a `FacetScheme::strip` axis (`commands.rs`'s
+    // `command_facets_land_on_all_home_then_group_by_menu_section`,
+    // `history::tests::history_facets_land_on_all_home_then_group_by_time`), both of
+    // which derive their id list from the strip rather than duplicating it. A
+    // hand-typed literal here would make a NEW facet — and any "every second row"
+    // bug scoped to it — invisible to the entire law, exactly the failure class this
+    // law exists to catch.
+    let facets: Vec<&str> = crate::settings::SETTINGS_FACETS.strip.iter().map(|f| f.id).collect();
     for fid in facets {
         // FORWARD from index 0 (even) and index 1 (odd, when present) to the end.
         for start in [0usize, 1usize] {
