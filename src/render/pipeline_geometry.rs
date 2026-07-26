@@ -736,4 +736,12 @@ impl TextPipeline {
     pub fn line_count(&self) -> usize {
         self.buffer.lines.len()
     }
+
+    /// The effective document font metrics for this frame, in the same physical
+    /// pixel coordinate space as [`Self::text_left`], [`Self::column_left`], and
+    /// the rendered PNG. The capture sidecar reads this seam instead of the base
+    /// constants so its geometry remains composable at every zoom/DPI scale.
+    pub fn effective_font_metrics(&self) -> (f32, f32, f32) {
+        (self.metrics.zoom, self.metrics.font_size, self.metrics.line_height)
+    }
 }

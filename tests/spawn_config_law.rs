@@ -8,10 +8,12 @@
 //! ladder walks on down into the DEVELOPER'S OWN dotfiles. A personal
 //! `zoom = 1.500` in `~/.config/awl/config.toml` therefore rescaled every pixel
 //! metric inside the spawned child, and `tests/bullet_blank_line_nit_pixels.rs`
-//! (whose row band is computed from the sidecar's `font.line_height`, which
-//! reports the UNSCALED base constant) started addressing row 0 instead of
-//! row 1 and reporting 118 phantom "stray mark" pixels — red on the developer's
-//! box, green in CI, with zero product change between them.
+//! (whose row band is computed from the sidecar's `font.line_height`, which AT
+//! THE TIME reported the unscaled base constant) started addressing row 0
+//! instead of row 1 and reporting 118 phantom "stray mark" pixels — red on the
+//! developer's box, green in CI, with zero product change between them. Item 96
+//! later corrected that sidecar field; the config-isolation law remains necessary
+//! for every other sticky preference.
 //!
 //! TWO LAWS, ONE RULE ("a spawned child's config source is DECLARED, never
 //! inherited"):

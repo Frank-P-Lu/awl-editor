@@ -345,10 +345,11 @@ pub const CARET_MORPH_DILATE_PX: f32 = 2.0;
 /// default — but NOT, despite what this comment used to claim, the only zoom the
 /// `--screenshot` path ever sees: `--zoom` sets it, and STICKY ZOOM folds
 /// `config.zoom` in behind that flag for captures too (`main/args.rs`). A
-/// capture-based test whose arithmetic assumes the base constants must PIN
-/// `--zoom` (see `tests/bullet_blank_line_nit_pixels.rs`); believing this
-/// comment is how a personal `zoom = 1.5` turned a pixel test red with no
-/// product change behind it (queue item 93).
+/// capture-based test whose arithmetic uses BASE constants must still pin
+/// `--zoom`; capture tests should instead read the sidecar's EFFECTIVE
+/// `font.size` / `font.line_height`, which item 96 corrected to this metric
+/// scale. Believing this comment once made a personal `zoom = 1.5` turn a pixel
+/// test red with no product change behind it (queue item 93).
 ///
 /// ITEM 94: the band/step/default no longer live here AT ALL. The former
 /// `ZOOM_MIN`/`ZOOM_MAX`/`ZOOM_STEP` consts were deleted rather than re-pointed —

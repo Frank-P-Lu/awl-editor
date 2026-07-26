@@ -415,8 +415,10 @@ file. The render is pinned so nothing varies frame to frame:
 - **Fixed canvas:** always 1200×800 (`capture::CANVAS_WIDTH/HEIGHT`).
 - **Fixed format:** `Rgba8UnormSrgb`, single sample (no MSAA), fixed clear color
   (`render::BG`).
-- **Fixed font geometry:** size 24.0, line height 32.0, text origin (16, 16) —
-  all constants in `render.rs`. No DPI/scale factor is applied in headless mode.
+- **Fixed default font geometry:** size 24.0, line height 32.0, text origin
+  (16, 16) — all constants in `render.rs`. Explicit `--zoom` and
+  `--capture-dpi` scale this geometry deterministically; the sidecar reports
+  those effective physical-pixel metrics.
   The display *family* is per-theme (see below): a mono world shapes in IBM Plex
   Mono, a serif/sans/slab world in its own embedded face. The proportional faces
   shape with real per-glyph advances and the caret/selection/hit-test ride those
@@ -482,7 +484,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/169` (`/170` timeline, `/171` held)
+## The sidecar JSON — schema `awl-capture/185` (`/186` timeline, `/187` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -530,8 +532,10 @@ and Gumtree both moved to a repeating chevron ground, `/183`); and
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the
 row's `bindings` cell already carried; empty for every mode but `settings`,
-`/184`). Every one of these bumps preserved byte-identical DEFAULT captures
-apart from the named field — see the table.
+`/184`); and the item 96 metric-scale correction (`/185`), where
+`font.size`/`font.line_height` became effective physical-pixel metrics and
+`font.zoom` was added. Every one of these bumps preserved byte-identical
+DEFAULT captures apart from the named field — see the table.
 
 Schema `/99` (was `/98`; timeline `/100`, held `/101`) is the **SUMMONED
 ABOUT CARD** (`about.rs` + `menu.rs`'s routed About item, which replaced
@@ -1145,7 +1149,7 @@ world.)
 |----------------|---------|
 | `schema`       | sidecar format version; bump if the shape changes |
 | `canvas`       | render target size in pixels |
-| `font`         | active theme's chosen font family + size + line height used for layout; `cjk` = `{ family, bundled }` — the world's resolved Japanese fallback face (bundled Noto Serif/Sans JP first, system Hiragino/Noto-CJK trailing — see the Japanese-bundle-round schema `/86` note above), or `null` if neither is present; `scripts` = `{ ja, zh_hans, zh_hant, ko }` (i18n round, schema `/92`) — `cjk`'s shape for all four non-Latin scripts; `ja` **is** `cjk` (one snapshot, same bytes), the other three may be `null` (no bundled asset yet, machine-dependent). **ZOOM CAVEAT (item 93):** `size` and `line_height` report the BASE constants `render::FONT_SIZE` / `render::LINE_HEIGHT`, *unscaled*, while `text_origin` and `page.column` report EFFECTIVE (zoom×dpi) pixels — and `zoom` itself is not in the sidecar at all. So `top + n * font.line_height` addresses the right row ONLY at zoom 1.0. A capture whose arithmetic mixes the two must pin `--zoom 1.0` (`tests/bullet_blank_line_nit_pixels.rs` does, and says why); otherwise the band silently lands on the wrong row instead of erroring |
+| `font`         | active theme's chosen font family plus `zoom`, effective `size`, and effective `line_height` used for layout. `size` and `line_height` are physical pixels after zoom × capture DPI, in the same coordinate space as `text_origin`, `page.column`, and the PNG; therefore `top + n * font.line_height` addresses the correct ordinary row at every zoom. `zoom` is the clamped user zoom factor (DPI remains separately reported by `canvas.dpi` when explicitly set). `cjk` = `{ family, bundled }` — the world's resolved Japanese fallback face (bundled Noto Serif/Sans JP first, system Hiragino/Noto-CJK trailing — see the Japanese-bundle-round schema `/86` note above), or `null` if neither is present; `scripts` = `{ ja, zh_hans, zh_hant, ko }` (i18n round, schema `/92`) — `cjk`'s shape for all four non-Latin scripts; `ja` **is** `cjk` (one snapshot, same bytes), the other three may be `null` (no bundled asset yet, machine-dependent) |
 | `theme`        | active color world: `name`, `font_family`, `mode` (light/dark), `base100`, `primary` (hex) |
 | `caret_mode`   | effective caret look (`"block"`/`"morph"`/`"ibeam"`) |
 | `dictionary`   | active spell-check dictionary variant (`"en_US"`/`"en_GB"`/`"en_AU"`); default `en_US`. Set via `--config` (`dictionary = "en_AU"`) or the Dictionary picker (Cmd-P → "Dictionary") |
@@ -1184,7 +1188,8 @@ For a sample `samples/NAME.md`:
 2. **Right content:** `line_count` equals the number of logical lines in the
    source, and `first_lines` matches the file's leading lines verbatim.
 3. **Cursor sane:** `cursor.line == 0 && cursor.col == 0` for a fresh load.
-4. **Right geometry:** `canvas` is 1200×800 and `font.size == 24.0`.
+4. **Right geometry:** with default zoom/DPI, `canvas` is 1200×800 and
+   `font.size == 24.0`; otherwise use the effective reported metric.
 5. **Stable:** run the capture twice and diff the PNGs — identical bytes on the
    same machine. (Diff the JSON too; it must match exactly.)
 

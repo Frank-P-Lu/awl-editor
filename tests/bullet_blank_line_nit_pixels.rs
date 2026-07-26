@@ -67,18 +67,12 @@ const CONTROL_DOC: &str = "a\n\nsomething\n";
 /// (item 75) while passing on a macOS dev box. Returns `false` iff no GPU
 /// adapter was available (mirrors the suite's `adapter_available()` tolerance).
 ///
-/// ZOOM IS PINNED TO 1.0 (item 93). The row-band arithmetic below reads
-/// `font.line_height` out of the sidecar, but the sidecar reports the BASE
-/// constant `render::LINE_HEIGHT` there, while `text_origin` / `page.column`
-/// are EFFECTIVE (zoom×dpi-scaled) pixels. At any zoom but 1.0 the two
-/// disagree and `top + n * line_height` silently addresses the WRONG ROW —
-/// which is how a personal `zoom = 1.5` in the developer's config (reached
-/// because `capture` used to `env_remove("AWL_CONFIG")`, see
-/// `tests/common/mod.rs`) aimed this test's band at row 0, where the two
-/// fixtures legitimately differ, and reported 118 phantom "stray mark" pixels.
-/// `common::awl` already shuts that door; `--zoom 1.0` additionally makes the
-/// band math's "row pitch == sidecar line_height" assumption true BY
-/// DECLARATION rather than by hope, and documents the dependency.
+/// ZOOM IS PINNED TO 1.0 for a byte-stable canonical specimen. Item 96 corrected
+/// the sidecar's `font.line_height` to the EFFECTIVE zoom×DPI pixel metric, so
+/// the row-band arithmetic below is now scale-safe even if this pin changes.
+/// Historically the field reported the base constant while `text_origin` /
+/// `page.column` were effective pixels; a personal `zoom = 1.5` then aimed this
+/// test's band at row 0 and reported 118 phantom pixels (item 93).
 fn capture(out: &Path, doc: &Path, theme: &str) -> bool {
     let sandbox = out.parent().expect("capture target has a parent dir");
     let output = common::awl(sandbox)

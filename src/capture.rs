@@ -402,7 +402,14 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // value TEXT the row's `bindings` cell already carried. EMPTY for every mode but
 // the Settings menu, so every other capture's `overlay` content is unchanged;
 // only the schema string bumps.
-pub const SCHEMA_VERSION: u32 = 184;
+// `/185` — item 96 (sidecar metric-scale correction): `font.size` and
+// `font.line_height` now report the EFFECTIVE document metrics in physical
+// pixels (zoom × capture DPI), the same coordinate space as `text_origin`,
+// `page.column`, and the PNG, instead of the unscaled base constants. The
+// `font` block also gains `zoom`, the clamped user zoom factor. This closes the
+// silent trap where `top + n * font.line_height` addressed the wrong row at
+// zoom != 1 while still producing plausible pixel arithmetic.
+pub const SCHEMA_VERSION: u32 = 185;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
 pub fn schema_plain() -> String {

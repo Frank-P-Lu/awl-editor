@@ -226,6 +226,21 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     // `null`, since every normal build has the bundled Noto JP faces registered.
     assert!(obj["font"].get("cjk").is_some(), "font.cjk key present");
     assert!(obj["font"]["cjk"].is_object(), "font.cjk resolves in a normal build");
+    assert_eq!(
+        obj["font"]["zoom"].as_f64(),
+        Some(1.0),
+        "default font.zoom"
+    );
+    assert_eq!(
+        obj["font"]["size"].as_f64(),
+        Some(24.0),
+        "effective default font.size"
+    );
+    assert_eq!(
+        obj["font"]["line_height"].as_f64(),
+        Some(32.0),
+        "effective default font.line_height"
+    );
     // The HELD STATS HUD block: an object describing the figures, with `percent` an
     // integer. `held` is only STRUCTURALLY checked (a bool) for the same reason as
     // `outline.on` above — the catalog sweep drives ShowStatsHud concurrently, so
