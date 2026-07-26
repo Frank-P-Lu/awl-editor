@@ -119,6 +119,7 @@ async fn capture_timeline_async(
     // (where the caret settles), mirroring capture_async's cursor-follow default.
     let scroll = follow_scroll(&pipeline, dest_line, dest_col, height as f32);
     vstate.scroll_lines = scroll;
+    vstate.scroll = crate::render::ScrollPos::at_row(scroll);
 
     // Pose the spring AT REST on the ORIGIN, then start the glide to the
     // DESTINATION. settle_caret() reads the pipeline's current cursor, so move the
@@ -254,6 +255,7 @@ async fn capture_held_async(
     // viewport stays put (a mid-run rescroll would break determinism / the trail).
     let scroll = follow_scroll(&pipeline, orig_line, orig_col, height as f32);
     vstate.scroll_lines = scroll;
+    vstate.scroll = crate::render::ScrollPos::at_row(scroll);
 
     // Pose the spring AT REST on the ORIGIN (the initial key PRESS, not yet a
     // repeat): settle_caret reads the pipeline's current cursor, which set_view just

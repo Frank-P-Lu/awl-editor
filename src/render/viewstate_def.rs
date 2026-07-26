@@ -33,6 +33,10 @@ pub struct ViewState {
     /// letting the last wrapped row reach the bottom. For a non-wrapped document
     /// visual rows == logical lines, so this is unchanged from the old meaning.
     pub scroll_lines: usize,
+    /// Shared document scroll fact.  `scroll_lines` is retained temporarily for
+    /// compatibility with row-based overlay/diff state; a document frame reads
+    /// this semantic position.
+    pub scroll: ScrollPos,
     /// Zoom factor (1.0 = default). Drives all zoomed metrics.
     pub zoom: f32,
     /// Active selection as ordered ((line0,col0),(line1,col1)) endpoints, or
@@ -344,6 +348,7 @@ impl ViewState {
             cursor_col: 0,
             caret_affinity: crate::caret::Affinity::Downstream,
             scroll_lines: 0,
+            scroll: ScrollPos::default(),
             zoom: 1.0,
             selection: None,
             preedit: String::new(),

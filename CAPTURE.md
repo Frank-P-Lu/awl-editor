@@ -1189,7 +1189,9 @@ world.)
 | `hud`          | HELD STATS HUD: `{ held, words, reading_min, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min` null for non-markdown; `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) mirrors the top-level `doc_lang` exactly. Every figure is a pure function of the doc + cursor — no clock, fully capture-safe |
 | `about`        | SUMMONED ABOUT CARD (schema `/99`): `{ open }`. `false` by default (byte-identical); `true` after the palette "About" command (or the macOS menu bar's App ▸ "About Awl") opens it. Shares the HUD's float-card pipeline (`about.rs` + `render/chrome.rs::prepare_hud`) rather than owning a parallel one |
 | `line_count`   | total logical lines in the buffer |
-| `scroll_lines` | how many lines are scrolled off the top (0 on load) |
+| `scroll_lines` | top visual-row anchor (0 on load; retained for row-oriented diagnostics) |
+| `scroll_px` | semantic offset within `scroll_lines`, reported in pixels |
+| `scroll_top_px` | rendered document offset in pixels; this is the geometry the PNG obeys |
 | `cursor`       | caret position, 0-based line and column (in chars) |
 | `selection`    | the active selection region, or `null` when there is none |
 | `text`         | the complete buffer contents (JSON-escaped) |

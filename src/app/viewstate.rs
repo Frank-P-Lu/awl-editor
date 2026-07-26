@@ -205,6 +205,11 @@ impl App {
             // visually belongs to at a shared soft-wrap boundary.
             caret_affinity: self.active.buffer.affinity(),
             scroll_lines: diff_scroll.unwrap_or(self.active.extra.scroll_lines),
+            scroll: if diff_scroll.is_some() {
+                crate::render::ScrollPos::at_row(diff_scroll.unwrap_or(0))
+            } else {
+                self.active.extra.scroll
+            },
             zoom: self.zoom,
             selection: self.active.buffer.selection_line_col(),
             preedit: self.preedit.clone(),
@@ -462,6 +467,8 @@ impl App {
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
             self.active.extra.scroll_lines =
                 pipeline.zoom_anchor_scroll(anchor.line, anchor.col, anchor.screen_y, height);
+            self.active.extra.scroll =
+                crate::render::ScrollPos::at_row(self.active.extra.scroll_lines);
         } else if follow {
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
             // Affinity-aware so cursor-follow tracks the row the caret VISUALLY sits
@@ -484,6 +491,8 @@ impl App {
                     // stationary pointer — see `follow_scroll_strategy`.
                     FollowScroll::Deferred => self.active.extra.scroll_lines,
                 };
+            self.active.extra.scroll =
+                crate::render::ScrollPos::at_row(self.active.extra.scroll_lines);
         }
         // Always keep scroll within document bounds (pixel-accurate "does it fit").
         let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);
@@ -499,15 +508,18 @@ impl App {
                 }
                 if view.scroll_lines != clamped {
                     view.scroll_lines = clamped;
+                    view.scroll = crate::render::ScrollPos::at_row(clamped);
                     self.gpu.as_mut().unwrap().pipeline.set_view(&view);
                 }
             }
             None => {
                 self.active.extra.scroll_lines = self.active.extra.scroll_lines.min(max);
+                self.active.extra.scroll.row = self.active.extra.scroll.row.min(max);
                 // Re-push only if the scroll actually changed (cheap; avoids a
                 // redundant reshape on the common no-scroll-change path).
                 if self.active.extra.scroll_lines != prev_scroll {
                     view.scroll_lines = self.active.extra.scroll_lines;
+                    view.scroll = self.active.extra.scroll;
                     self.gpu.as_mut().unwrap().pipeline.set_view(&view);
                 }
             }

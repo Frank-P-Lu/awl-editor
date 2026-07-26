@@ -40,6 +40,7 @@ pub struct BufferPos {
     pub line: usize,
     pub col: usize,
     pub scroll: usize,
+    pub scroll_px_q: i32,
 }
 
 /// The native window's last-known FRAME: OUTER position (top-left, physical
@@ -162,6 +163,7 @@ pub fn to_toml(state: &SessionState) -> String {
         out.push_str(&format!("line = {}\n", pos.line));
         out.push_str(&format!("col = {}\n", pos.col));
         out.push_str(&format!("scroll = {}\n", pos.scroll));
+        out.push_str(&format!("scroll_px_q = {}\n", pos.scroll_px_q));
     }
     out
 }
@@ -225,6 +227,10 @@ pub fn from_toml(src: &str) -> SessionState {
                 line: as_usize(t, "line"),
                 col: as_usize(t, "col"),
                 scroll: as_usize(t, "scroll"),
+                scroll_px_q: t
+                    .get("scroll_px_q")
+                    .and_then(|v| v.as_integer())
+                    .unwrap_or(0) as i32,
             };
             state.buffers.push((PathBuf::from(path), pos));
         }
@@ -296,6 +302,7 @@ mod tests {
                         line: 3,
                         col: 5,
                         scroll: 2,
+                        scroll_px_q: 0,
                     },
                 ),
                 (
@@ -304,6 +311,7 @@ mod tests {
                         line: 0,
                         col: 0,
                         scroll: 0,
+                        scroll_px_q: 0,
                     },
                 ),
             ],
@@ -378,6 +386,7 @@ mod tests {
                         line: 1,
                         col: 2,
                         scroll: 4,
+                        scroll_px_q: 0,
                     },
                 )],
                 window: None,

@@ -58,6 +58,7 @@ mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod range_rail;
 mod reanchor_crossing_law;
+mod scroll_pos;
 mod selection_clip_law;
 mod settings_row_reach_law;
 mod split_pane;

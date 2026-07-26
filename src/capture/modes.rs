@@ -578,6 +578,7 @@ pub(super) fn settled_viewstate(
         }
     };
     vstate.scroll_lines = scroll_lines;
+    vstate.scroll = crate::render::ScrollPos::at_row(scroll_lines);
     pipeline.set_view(&vstate);
     vstate
 }

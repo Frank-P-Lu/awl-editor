@@ -1286,7 +1286,46 @@ impl TextPipeline {
     /// reserve ([`Self::menubar_reserve`], `0.0` unless the awl bar is shown) insets
     /// the whole document below the bar.
     pub(super) fn doc_top(&self) -> f32 {
-        TEXT_TOP + self.menubar_reserve() - self.row_top_px(self.scroll_lines)
+        TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(self.scroll)
+    }
+
+    /// The sole `ScrollPos` -> document-pixel resolver. Rendering, hit testing
+    /// and input anchor through this point; a zero offset is old geometry.
+    pub fn scroll_top_px(&self, scroll: ScrollPos) -> f32 {
+        self.row_top_px(scroll.row) + scroll.px()
+    }
+
+    /// Incrementally carry a fixed-point offset across variable-height rows.
+    pub fn scroll_by_px(&self, mut pos: ScrollPos, delta_px: f32, height: f32) -> ScrollPos {
+        pos.px_q = pos
+            .px_q
+            .saturating_add((delta_px * ScrollPos::SUBPX as f32).round() as i32);
+        let last = self.total_visual_rows().saturating_sub(1);
+        while pos.px_q >= (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32
+            && pos.row < last
+        {
+            pos.px_q -= (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32;
+            pos.row += 1;
+        }
+        while pos.px_q < 0 && pos.row > 0 {
+            pos.row -= 1;
+            pos.px_q += (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32;
+        }
+        if pos.row == 0 && pos.px_q < 0 {
+            pos.px_q = 0;
+        }
+        let max_px =
+            (self.total_doc_height() - (height - TEXT_TOP - self.menubar_reserve())).max(0.0);
+        while self.scroll_top_px(pos) > max_px && (pos.row > 0 || pos.px_q > 0) {
+            if pos.px_q > 0 {
+                pos.px_q -= 1;
+            } else {
+                pos.row -= 1;
+                pos.px_q =
+                    (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32 - 1;
+            }
+        }
+        pos
     }
 
     /// Buffer-relative top y (px) of visual row `row` (clamped to the last row).
@@ -1891,7 +1930,8 @@ impl TextPipeline {
         // `run.line_top` (so wrapped rows compare correctly). Recompute doc_top for
         // the requested `scroll_lines` (which may differ from self.scroll_lines
         // mid-drag within a frame).
-        let doc_top = TEXT_TOP + self.menubar_reserve() - self.row_top_px(scroll_lines);
+        let doc_top =
+            TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(ScrollPos::at_row(scroll_lines));
         let want_top = (py - doc_top).max(0.0); // y relative to buffer top
         let target_x = (px - self.text_left()).max(0.0);
 

@@ -523,6 +523,7 @@ impl TextPipeline {
     /// renderer's mirror of the view snapshot.
     fn sync_view_fields(&mut self, view: &ViewState) {
         self.scroll_lines = view.scroll_lines;
+        self.scroll = view.scroll;
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
         // COLLAPSED-HEADING TAILS: mirror the fold-tail rows so the ornament pass can

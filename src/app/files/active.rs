@@ -36,6 +36,9 @@ pub(in crate::app) struct BufferExtra {
     /// this only matters for the one motion right after a switch).
     pub shift_selecting: bool,
     pub scroll_lines: usize,
+    /// Pixel-precise document viewport; `scroll_lines` mirrors its row for the
+    /// deliberately row-based overlay/history compatibility arms.
+    pub scroll: crate::render::ScrollPos,
     pub spell_cache: Vec<crate::spell::SpellVerdict>,
     pub spell_checked_version: Option<u64>,
     pub sync_text_cache: Option<(u64, String)>,

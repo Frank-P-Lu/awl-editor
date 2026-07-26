@@ -409,7 +409,10 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // `font` block also gains `zoom`, the clamped user zoom factor. This closes the
 // silent trap where `top + n * font.line_height` addressed the wrong row at
 // zoom != 1 while still producing plausible pixel arithmetic.
-pub const SCHEMA_VERSION: u32 = 185;
+// `/186` — continuous document scroll: `scroll_px` reports the semantic
+// intra-row offset and `scroll_top_px` the rendered document offset, alongside
+// the retained visual-row anchor `scroll_lines`.
+pub const SCHEMA_VERSION: u32 = 186;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
 pub fn schema_plain() -> String {

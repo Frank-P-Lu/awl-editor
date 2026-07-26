@@ -71,6 +71,28 @@ mod chrome;
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
 
+/// A document viewport position.  `row` deliberately preserves the old visual-row
+/// anchor semantics; `px_q` is the signed offset into that row in 1/64 physical
+/// pixels.  Keeping this integer makes capture/session state exactly comparable
+/// and prevents the tiny float drift that otherwise accumulates under trackpads.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct ScrollPos {
+    pub row: usize,
+    pub px_q: i32,
+}
+
+impl ScrollPos {
+    pub const SUBPX: i32 = 64;
+
+    pub const fn at_row(row: usize) -> Self {
+        Self { row, px_q: 0 }
+    }
+
+    pub fn px(self) -> f32 {
+        self.px_q as f32 / Self::SUBPX as f32
+    }
+}
+
 /// ROW LAYOUT — the ONE owner of picker-row column budgets: how a summoned
 /// overlay row splits its width between the PRIMARY cell (name/path — never
 /// dropped, elided only as a last resort) and the optional SECONDARY right
@@ -3446,6 +3468,10 @@ pub struct TextPipeline {
     /// any caret not parked at a visual-row end, so ordinary placement is unchanged.
     caret_affinity: crate::caret::Affinity,
     scroll_lines: usize,
+    /// The semantic document scroll. `scroll_lines` remains a temporary mirror
+    /// for old picker/diff call sites while their deliberately-row-based paths
+    /// are migrated; document draw/hit-test use this field exclusively.
+    scroll: ScrollPos,
     /// Current zoom-derived metrics (single source of truth for layout).
     metrics: Metrics,
     /// The display's DPI `scale_factor` folded into [`Self::metrics`] (1.0 for the

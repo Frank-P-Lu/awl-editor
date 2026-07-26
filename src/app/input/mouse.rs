@@ -876,6 +876,20 @@ impl App {
         let cur = self.active.extra.scroll_lines as isize;
         let next = (cur + delta).clamp(0, max as isize);
         self.active.extra.scroll_lines = next as usize;
+        self.active.extra.scroll = crate::render::ScrollPos::at_row(next as usize);
+    }
+
+    /// Pixel-native document scroll.  The caller has already applied the user's
+    /// smooth-scroll sensitivity; discrete notches intentionally use `wheel_scroll`.
+    fn wheel_scroll_px(&mut self, pixels: f32) {
+        if let Some(gpu) = self.gpu.as_ref() {
+            self.active.extra.scroll = gpu.pipeline.scroll_by_px(
+                self.active.extra.scroll,
+                pixels,
+                gpu.config.height as f32,
+            );
+            self.active.extra.scroll_lines = self.active.extra.scroll.row;
+        }
     }
 
     /// `WindowEvent::CursorMoved`: track the pointer, un-hide the auto-hidden OS
@@ -1209,7 +1223,9 @@ impl App {
         // isn't zooming; a mostly-vertical scroll falls straight through.
         if !zoom_mod && self.overlay.is_none() {
             let (dx, dy) = match delta {
-                MouseScrollDelta::LineDelta(x, y) => (x * WHEEL_PIXELS_PER_LINE, y),
+                MouseScrollDelta::LineDelta(x, y) => {
+                    (x * WHEEL_PIXELS_PER_LINE, y * WHEEL_PIXELS_PER_LINE)
+                }
                 MouseScrollDelta::PixelDelta(p) => (p.x as f32, p.y as f32),
             };
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
@@ -1298,6 +1314,13 @@ impl App {
                 // until the zoom settles.
                 self.feed_peek(crate::peek::PeekStimulus::Interrupt);
             }
+        } else if let MouseScrollDelta::PixelDelta(p) = delta {
+            // Keep the old accumulator above for picker navigation, but never
+            // quantize the document gesture: trackpad pixels are physical pixels
+            // at the authored 100% default. A positive wheel delta moves content
+            // down, hence the negative viewport offset.
+            self.wheel_scroll_px(-(p.y as f32));
+            self.sync_view(false);
         } else if lines.abs() >= 1.0 {
             // Free scroll: wheel up moves content down (scroll up), so a
             // positive wheel y DECREASES the top scroll line.

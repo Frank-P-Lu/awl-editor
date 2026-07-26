@@ -73,6 +73,7 @@ impl App {
                     line,
                     col,
                     scroll: self.active.extra.scroll_lines,
+                    scroll_px_q: self.active.extra.scroll.px_q,
                 },
             ));
         }
@@ -87,6 +88,7 @@ impl App {
                     line,
                     col,
                     scroll: entry.extra.scroll_lines,
+                    scroll_px_q: entry.extra.scroll.px_q,
                 },
             ));
         }
@@ -167,6 +169,10 @@ impl App {
             // (item 56: never a half-moved active slot).
             let extra = files::BufferExtra {
                 scroll_lines: pos.scroll,
+                scroll: crate::render::ScrollPos {
+                    row: pos.scroll,
+                    px_q: pos.scroll_px_q,
+                },
                 doc_saved_version: Some(buffer.version()),
                 disk_mtime: Self::disk_mtime_of(path),
                 caret_synced_version: buffer.version(),
@@ -185,6 +191,10 @@ impl App {
             Self::apply_restored_pos(&mut buffer, *pos);
             let extra = files::BufferExtra {
                 scroll_lines: pos.scroll,
+                scroll: crate::render::ScrollPos {
+                    row: pos.scroll,
+                    px_q: pos.scroll_px_q,
+                },
                 doc_saved_version: Some(buffer.version()),
                 disk_mtime: Self::disk_mtime_of(path),
                 caret_synced_version: buffer.version(),
@@ -234,6 +244,7 @@ mod tests {
                             line: *line,
                             col: *col,
                             scroll: *scroll,
+                            scroll_px_q: 0,
                         },
                     )
                 })
@@ -436,7 +447,8 @@ mod tests {
                 crate::session::BufferPos {
                     line: 2,
                     col: 1,
-                    scroll: 7
+                    scroll: 7,
+                    scroll_px_q: 0,
                 }
             );
         });
