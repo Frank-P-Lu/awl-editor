@@ -1,0 +1,81 @@
+# cargo-deny 0.20.2 policy for awl's one Cargo.lock. `scripts/audit.sh` owns
+# invoking this file; do not copy these facts into CI or a second audit command.
+#
+# The target set is the product set: desktop macOS and Linux plus browser wasm.
+# `all-features` includes the MAS bookmark flavor on macOS. This is build-time
+# supply-chain checking only; it does not alter awl's zero-network runtime law.
+[graph]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "wasm32-unknown-unknown",
+]
+all-features = true
+
+[advisories]
+# A yanked lockfile entry is never silently accepted. There are currently no
+# yanked exceptions. `ignore` below is only for reviewed RustSec advisories.
+yanked = "deny"
+# Keep the existing maintenance signal visible without treating every upstream
+# abandonment notice as a security finding. Vulnerability advisories still deny.
+unmaintained = "workspace"
+ignore = [
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml 0.39.4 arrives only through winit 0.30's wayland-scanner; it parses build-time Wayland protocol XML, not awl/user input. Remove when winit's next non-major release removes this locked version." },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml 0.39.4 arrives only through winit 0.30's wayland-scanner; it parses build-time Wayland protocol XML, not awl/user input. Remove when winit's next non-major release removes this locked version." },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser is the locked parser used by cosmic-text and native PDF export; no patch exists short of a font-parser swap. Remove when a non-major cosmic-text or ttf-parser update resolves the advisory." },
+]
+
+[licenses]
+# cargo-about remains the generated-notice owner. This stricter policy permits
+# the resolved GPL-compatible choices in the full target/feature graph; it
+# never invents permissions for bundled dictionaries or fonts, which remain
+# governed by assets/*/LICENSES.md and the documented open gaps.
+confidence-threshold = 0.8
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "GPL-3.0-only",
+    "ISC",
+    "MIT",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+
+[bans]
+# Any new duplicate fails until it is a deliberate, version-specific exception
+# below. `cargo deny` prints the dependency paths for the repair decision.
+multiple-versions = "deny"
+wildcards = "deny"
+highlight = "all"
+skip = [
+    { crate = "bitflags@1.3.2", reason = "winit's macOS Core Graphics branch still requires the 1.x line; remove after winit no longer resolves it." },
+    { crate = "block2@0.5.1", reason = "winit 0.30's objc2 0.5 macOS branch cannot unify with wgpu 29's objc2 0.6 branch; remove after winit upgrades." },
+    { crate = "foldhash@0.1.5", reason = "the exact-pinned wgpu 29 graph still uses hashbrown 0.15 while newer graph branches use foldhash 0.2; remove with the next compatible wgpu update." },
+    { crate = "hashbrown@0.15.5", reason = "required by the exact-pinned wgpu 29 graph; remove with the next compatible wgpu update." },
+    { crate = "hashbrown@0.16.1", reason = "required by the exact-pinned wgpu 29 graph beside the lockfile's newer hashbrown line; remove with the next compatible wgpu update." },
+    { crate = "linux-raw-sys@0.4.15", reason = "winit's Linux Wayland stack still uses rustix 0.38 beside the newer X11/clipboard path; remove after winit unifies rustix." },
+    { crate = "objc2@0.5.2", reason = "winit 0.30's AppKit branch remains on objc2 0.5 beside awl and wgpu's 0.6 macOS graph; remove after winit upgrades." },
+    { crate = "objc2-app-kit@0.2.2", reason = "winit 0.30's AppKit branch remains on objc2-app-kit 0.2; remove after winit upgrades." },
+    { crate = "objc2-foundation@0.2.2", reason = "winit 0.30's AppKit branch remains on objc2-foundation 0.2; remove after winit upgrades." },
+    { crate = "read-fonts@0.37.0", reason = "cosmic-text 0.18 legitimately combines harfrust/skrifa 0.40 with swash/skrifa 0.42; remove when cosmic-text unifies its font stack." },
+    { crate = "rustc-hash@1.1.0", reason = "the exact-pinned wgpu/naga 29 graph uses rustc-hash 1.x beside glyphon's 2.x text stack; remove with the next compatible wgpu update." },
+    { crate = "rustix@0.38.44", reason = "winit's Linux Wayland stack remains on rustix 0.38 beside newer platform dependencies; remove after winit upgrades." },
+    { crate = "skrifa@0.40.0", reason = "cosmic-text 0.18's harfbuzz shaping path uses skrifa 0.40 beside swash's 0.42; remove when cosmic-text unifies its font stack." },
+    { crate = "smol_str@0.2.2", reason = "winit 0.30 and cosmic-text 0.18 require incompatible smol_str major lines; remove after either upstream unifies." },
+    { crate = "thiserror@1.0.69", reason = "winit's Linux Wayland stack remains on thiserror 1.x beside wgpu 29's 2.x graph; remove after winit upgrades." },
+    { crate = "thiserror-impl@1.0.69", reason = "paired with the required winit-side thiserror 1.x exception; remove with it after winit upgrades." },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+# The resolved graph is crates.io-only. Any registry replacement or git source
+# needs an explicit review here before it enters Cargo.lock.
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

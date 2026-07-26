@@ -24,8 +24,8 @@ root crate `cargo about` walks from — that entry is awl, not a dependency.
 
 ## Licenses used
 
-- [Apache License 2.0](#Apache-2.0) — 223 crate(s)
-- [MIT License](#MIT) — 59 crate(s)
+- [Apache License 2.0](#Apache-2.0) — 226 crate(s)
+- [MIT License](#MIT) — 62 crate(s)
 - [zlib License](#Zlib) — 3 crate(s)
 - [BSD 3-Clause "New" or "Revised" License](#BSD-3-Clause) — 2 crate(s)
 - [Boost Software License 1.0](#BSL-1.0) — 2 crate(s)
@@ -3628,6 +3628,7 @@ limitations under the License.
 - equivalent 1.0.2
 - errno 0.3.14
 - euclid 0.22.14
+- fixedbitset 0.5.7
 - flate2 1.1.9
 - gethostname 1.1.0
 - hashbrown 0.15.5
@@ -3647,6 +3648,7 @@ limitations under the License.
 - parking_lot 0.12.5
 - parking_lot_core 0.9.12
 - percent-encoding 2.3.2
+- petgraph 0.8.3
 - plain 0.2.3
 - png 0.18.1
 - polling 3.11.0
@@ -3676,6 +3678,7 @@ limitations under the License.
 - wasm-bindgen 0.2.121
 - web-sys 0.3.98
 - wit-bindgen 0.57.1
+- wl-clipboard-rs 0.9.3
 
 <details>
 <summary>License text</summary>
@@ -7099,6 +7102,45 @@ THIS SOFTWARE.
 **SPDX identifier:** `MIT`
 
 **Used by:**
+- nom 8.0.0
+
+<details>
+<summary>License text</summary>
+
+```
+Copyright (c) 2014-2019 Geoffroy Couprie
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+&quot;Software&quot;), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+```
+
+</details>
+
+---
+
+## MIT License
+<a id="MIT"></a>
+
+**SPDX identifier:** `MIT`
+
+**Used by:**
 - wayland-backend 0.3.15
 - wayland-client 0.31.14
 - wayland-cursor 0.31.14
@@ -7680,6 +7722,46 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+</details>
+
+---
+
+## MIT License
+<a id="MIT"></a>
+
+**SPDX identifier:** `MIT`
+
+**Used by:**
+- tree_magic_mini 3.2.2
+
+<details>
+<summary>License text</summary>
+
+```
+MIT License
+
+Copyright (c) 2017 Aaron Hancock
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ```
 
 </details>
@@ -8410,6 +8492,44 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+```
+
+</details>
+
+---
+
+## MIT License
+<a id="MIT"></a>
+
+**SPDX identifier:** `MIT`
+
+**Used by:**
+- os_pipe 1.2.3
+
+<details>
+<summary>License text</summary>
+
+```
+The MIT License (MIT)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 
 ```
 

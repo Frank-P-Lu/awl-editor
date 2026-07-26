@@ -47,6 +47,14 @@ jobs:
       - name: Rust code health
         run: bash scripts/code-health.sh
 
+      # The shared wrapper owns the pinned cargo-deny version and every
+      # dependency-policy decision; CI must not restate policy in YAML.
+      - name: Install dependency-policy tool
+        run: cargo install cargo-deny --version "$(bash scripts/audit.sh --cargo-deny-version)" --locked
+
+      - name: Dependency policy
+        run: bash scripts/audit.sh
+
       # Dev-profile build + test, matching local practice (CLAUDE.md's build
       # section runs `cargo build` / `cargo test`, not --release). No
       # artifact upload for v1 — nothing built here is `--release`, and
