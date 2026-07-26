@@ -43,6 +43,16 @@ mas = ["objc2-foundation/NSArray", "objc2-foundation/NSData"]
 [profile.dev]
 debug = "line-tables-only"
 
+# The health gate owns this deliberately small extension to Clippy's defaults.
+# These lints catch real mistakes here without prescribing a style or forcing
+# architecture-scale rewrites of existing dispatch and capture seams.
+[lints.clippy]
+needless_borrow = "warn"
+needless_borrows_for_generic_args = "warn"
+unnecessary_to_owned = "warn"
+if_same_then_else = "warn"
+branches_sharing_code = "warn"
+
 [dependencies]
 anyhow = "1.0.102"
 glyphon = "0.11.0"

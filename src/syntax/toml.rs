@@ -254,7 +254,6 @@ fn scan_string(b: &[u8], i: usize) -> usize {
             }
             j += 1;
         }
-        n
     } else {
         let mut j = i + 1;
         while j < n {
@@ -268,8 +267,8 @@ fn scan_string(b: &[u8], i: usize) -> usize {
                 _ => j += 1,
             }
         }
-        n
     }
+    n
 }
 
 /// Scan a numeric / date-time constant beginning at `i` (optionally signed); return

@@ -100,11 +100,10 @@ impl Buffer {
         let (_, col) = self.char_to_line_col(start);
         let k = TAB_WIDTH - (col % TAB_WIDTH);
         let spaces = " ".repeat(k);
+        self.anchor = None;
         if let Some((s, e)) = sel {
-            self.anchor = None;
             self.apply_edit(s, e - s, &spaces, before, s + k);
         } else {
-            self.anchor = None;
             self.apply_edit(self.cursor, 0, &spaces, before, before + k);
         }
     }
@@ -505,14 +504,17 @@ impl Buffer {
         self.goal_col = None;
         let before = self.cursor;
         let s = self.kill.clone();
+        let selection = self.selection_range();
         // Replace an active selection with the yanked text as ONE atomic edit.
-        if let Some((start, end)) = self.selection_range() {
-            self.anchor = None;
+        self.anchor = None;
+        if selection.is_none() && s.is_empty() {
+            return;
+        }
+        self.seal_undo_group();
+        if let Some((start, end)) = selection {
             if s.is_empty() {
                 // Nothing to yank: still delete the selection (as its own edit).
-                self.seal_undo_group();
                 self.apply_edit(start, end - start, "", before, start);
-                self.seal_undo_group();
             } else if self.is_markdown() && is_url(&s) {
                 // PASTE-URL-OVER-SELECTION → MARKDOWN LINK (markdown buffers
                 // only — a `.rs`/`.txt` paste of a URL over a selection stays a
@@ -524,25 +526,16 @@ impl Buffer {
                 let sel = self.rope.slice(start..end).to_string();
                 let link = format!("[{sel}]({s})");
                 let after = start + link.chars().count();
-                self.seal_undo_group();
                 self.apply_edit(start, end - start, &link, before, after);
-                self.seal_undo_group();
             } else {
                 let after = start + s.chars().count();
-                self.seal_undo_group();
                 self.apply_edit(start, end - start, &s, before, after);
-                self.seal_undo_group();
             }
         } else {
-            self.anchor = None;
-            if s.is_empty() {
-                return;
-            }
             let after = before + s.chars().count();
             // A yank is an atomic group, not coalesced with adjacent typing.
-            self.seal_undo_group();
             self.apply_edit(before, 0, &s, before, after);
-            self.seal_undo_group();
         }
+        self.seal_undo_group();
     }
 }

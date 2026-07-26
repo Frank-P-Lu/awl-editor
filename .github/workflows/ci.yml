@@ -17,6 +17,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          # code-health's checked-in debt baseline is a real commit, not a
+          # regenerated ignore list, so this job needs that one object.
+          fetch-depth: 0
 
       # System deps mirror Dockerfile.linux's apt-get list, PLUS
       # mesa-vulkan-drivers so the wgpu-backed capture tests have a software
@@ -34,6 +38,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
+
+      - name: Rust code health
+        run: bash scripts/code-health.sh
 
       # Dev-profile build + test, matching local practice (CLAUDE.md's build
       # section runs `cargo build` / `cargo test`, not --release). No

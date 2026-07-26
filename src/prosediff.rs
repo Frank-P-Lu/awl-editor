@@ -797,11 +797,9 @@ fn strip_markdown(s: &str) -> String {
                 .filter(|&i| trimmed[..i].chars().all(|c| c.is_ascii_digit()) && i > 0)
                 .map(|i| &trimmed[i + 2..])
         };
+        out.push_str(indent);
         if let Some(a) = after {
-            out.push_str(indent);
             rest = a;
-        } else {
-            out.push_str(indent);
         }
         // strip inline emphasis/code markers, keeping the inner text
         let bytes: Vec<char> = rest.chars().collect();
