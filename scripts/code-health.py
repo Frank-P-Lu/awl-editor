@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "scripts/code-health.toml"
 LINE_LIMIT = 100
 FILE_LIMIT = 500
-BASELINE = "98e1f06"
+# The baseline must be reachable from pushed main: worktree branches never push.
+BASELINE = "f12d04a"
 BASELINE_REASON = "item 134 initial inventory; remove debt instead of extending it"
 HIGH_SIGNAL_LINTS = {"clippy::too_many_lines", "clippy::cognitive_complexity"}
 
