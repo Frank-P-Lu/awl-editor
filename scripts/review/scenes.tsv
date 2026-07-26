@@ -1,0 +1,19 @@
+# id	label	theme	canvas	measure	keys	fixture	capture_mode	expect	description
+settings-editor	Settings · Editor	Saltpan	1200x800	70	s-, Right	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=editor	Editor settings and the shared range rail.
+settings-appearance	Settings · Appearance	Saltpan	1200x800	70	s-, Right Right	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=appearance	Theme, caret, page, and appearance controls.
+settings-writing	Settings · Writing	Saltpan	1200x800	70	s-, Right Right Right	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=writing	Writing and markdown behavior.
+settings-files	Settings · Files	Saltpan	1200x800	70	s-, Right Right Right Right	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=files	Folder and file behavior.
+settings-keybindings	Settings · Keybindings	Saltpan	1200x800	70	s-, Right Right Right Right Right	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=keybindings	Keymap preferences.
+settings-advanced	Settings · Advanced	Saltpan	1200x800	70	s-, Right Right Right Right Right Right	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=advanced	Advanced preferences.
+theme-picker	Theme picker	Saltpan	1200x800	70	s-t	scripts/world-gallery-specimen.md	normal	overlay.mode=theme	Whole-world audition surface.
+caret-picker	Caret picker	Gumtree	1200x800	70	s-p c a r e t Enter	scripts/world-gallery-specimen.md	normal	overlay.mode=caret	Block and Morph choice in a proportional world.
+goto	Goto	Saltpan	1200x800	70	s-o	scripts/world-gallery-specimen.md	normal	overlay.mode=goto	Unified headings and files.
+find	Find	Saltpan	1200x800	70	s-f	scripts/world-gallery-specimen.md	normal	search.active=true,search.replace_active=false	Inline find panel.
+replace	Find and replace	Saltpan	1200x800	70	s-r	scripts/world-gallery-specimen.md	normal	search.active=true,search.replace_active=true	Keyboard-taught replace panel.
+spell	Spell suggestions	Bilby	1200x800	70	s-;	scripts/review/spell.md	normal	overlay.mode=spell	Suggestions and Add-to-dictionary row.
+format-selection	Formatting selection	Gumtree	1200x800	70	s-S-Right	scripts/review/format.md	popover	popover.shown=true	Selection-driven formatting surface and caret treatment.
+history-empty	Version history · empty	Mopoke	1200x800	70	s-S-h	scripts/review/format.md	normal	overlay.mode=history	The honest first-run timeline state.
+diff	Version comparison	Mopoke	1200x800	70	—	scripts/review/diff-new.md	diff	diff.active=true	Read-only marked-up manuscript comparison.
+settings-narrow	Settings · narrow	Saltpan	900x700	58	s-,	scripts/world-gallery-specimen.md	normal	overlay.mode=settings,overlay.lens=all	Responsive card and value-column pressure.
+room-narrow	Room · narrow	Gumtree	900x700	58	s-Down	scripts/world-gallery-specimen.md	normal	overlay.active=false	Page, outline, and margins under pressure.
+room-wide	Room · wide	Gumtree	1800x1000	74	s-Down	scripts/world-gallery-specimen.md	normal	overlay.active=false	Generous margins and background field.

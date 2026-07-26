@@ -359,6 +359,43 @@ binary that hard-codes an 18-name roster snapshot on purpose, so a
 updates it (mirroring `theme::tests::worlds_eleven_dark_seven_light`'s
 existing hard-coded `18`).
 
+## The visual review dashboard (`scripts/review.sh`) — item 20
+
+`scripts/review.sh` is the human-facing review build over the capture and icon
+oracles. It does not draw an HTML approximation of awl. It builds the real
+binary, runs `scripts/capture-worlds.sh`, drives a code-owned roster of
+important screens through `--screenshot --keys`, regenerates the current
+shipped icon sheets through the offline icon renderer (without packing or
+touching committed app assets), and writes one local entry point:
+
+```sh
+scripts/review.sh
+open gallery/review/index.html
+```
+
+Use `scripts/review.sh --debug` for a faster iteration build. Output is a
+replaceable gitignored directory: `gallery/review/index.html` plus relative
+full-resolution PNG and JSON assets. The index provides section navigation,
+world/surface/light-dark filtering, captions containing the exact
+theme/canvas/key replay, sidecar links, and a concise boundary note for the
+live-only review surfaces. It contains no network dependency. Missing captures,
+world/sidecar/state mismatches, duplicate scene or DOM ids, capture/icon roster
+drift, absent icon sheets, broken targets, and external URLs fail the build
+rather than leaving a plausible stale card behind. The scene manifest names
+each expected nested sidecar value, so a keystroke journey that rendered the
+wrong Settings facet or failed to summon its surface cannot produce a green
+dashboard merely because a PNG exists.
+
+The world half derives its roster from `awl --list-worlds`. The smaller
+important-screen roster lives in `scripts/review/scenes.tsv`: one typed row per
+fixture/theme/canvas/key sequence/capture mode/state expectation, so adding or
+retiring a review surface is a single manifest edit. History is represented by
+its honest first-run empty state; version comparison uses the capture harness's
+deterministic read-only diff seam rather than reading or writing the user's
+live history store. This dashboard replaces the old one-off pre-tag image
+judgement: it is useful throughout development and should be regenerated again
+at release preparation.
+
 ## Determinism guarantees
 
 A capture is **byte-stable across runs on the same machine** for the same input
