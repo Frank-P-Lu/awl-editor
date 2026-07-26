@@ -371,11 +371,12 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
 
 #[test]
 fn gutter_visible_only_in_page_mode_and_dim_overlay_tracks_takeover() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping gutter_visible_only_in_page_mode: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     // A named buffer + a NARROW measure so the left margin is wide enough to hold
     // the gutter (the gate also requires a min margin width).
     crate::page::set_measure(40);
@@ -412,8 +413,6 @@ fn gutter_visible_only_in_page_mode_and_dim_overlay_tracks_takeover() {
     p.set_view(&peek);
     assert!(!p.dims_doc(), "the search split panel keeps the document bright");
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// OVERLAY IS INSTANT (no summon/dismiss motion): a summoned card appears at its
@@ -466,13 +465,14 @@ fn overlay_appears_and_closes_instantly_no_motion() {
 /// the hard floor hides the whole gutter.
 #[test]
 fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping narrow_gutter_never_wraps_and_both_lines_elide_independently: no wgpu adapter"
         );
         return;
     };
-    let _g = crate::testlock::serial();
 
     // A window/measure combo landing the margin comfortably BETWEEN the small
     // collapse floor and the generous ceiling — a real but TIGHT margin, not a
@@ -563,8 +563,6 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     assert!(elided_project.chars().count() <= avail_chars);
     assert!(!elided_project.contains('\n'), "the project must render on ONE line too");
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// FIX: `blur_signature` must invalidate on a PAGE/WRAP geometry change — a page
@@ -578,6 +576,7 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
 #[test]
 fn blur_signature_invalidates_on_page_geometry_change_not_on_a_no_op_frame() {
     let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping blur_signature_invalidates_on_page_geometry_change: no wgpu adapter"
@@ -620,8 +619,6 @@ fn blur_signature_invalidates_on_page_geometry_change_not_on_a_no_op_frame() {
         "a measure-only change must also invalidate the blur signature"
     );
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 #[test]
 fn blur_signature_invalidates_when_the_live_world_phase_changes() {

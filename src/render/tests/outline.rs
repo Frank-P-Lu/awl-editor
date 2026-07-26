@@ -75,12 +75,13 @@ fn outline_current_is_none_above_the_first_heading() {
 /// drawn-lines report, the SAME `outline_layout` owner the pixels shape from.
 #[test]
 fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_draws_on_page_md: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -161,8 +162,6 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
     assert_eq!(p.outline_draw_report(900), None, "a heading-free doc hides the outline");
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// item 65 PERSISTENT OUTLINE — the collapsed-parent state marker: fold `##
@@ -178,12 +177,13 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
 /// not) still only ever jumps.
 #[test]
 fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_collapsed_parent...: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -252,8 +252,6 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
     );
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// item 74 — THE CLICK-TARGET FOLD-SPACE BUG, FIXED: `App::outline_click`
@@ -275,12 +273,13 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
 /// no-fold case is the identity, so today's unfolded click is byte-identical.
 #[test]
 fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_click_target_maps_fold_filtered: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -344,8 +343,6 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
     );
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// GRACEFUL HIDE (NARROWEST tier, post-ADAPTIVE-COLUMN): below the
@@ -362,12 +359,13 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
 /// a future constant tweak can't make it stale.
 #[test]
 fn outline_hides_below_the_narrow_margin_floor() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_hides_below_the_narrow_margin_floor: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     // A measure WIDER than the window itself fits: the column already consumes
     // nearly the whole width, leaving no margin for the adaptive shift to work
@@ -404,8 +402,6 @@ fn outline_hides_below_the_narrow_margin_floor() {
     );
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// ADAPTIVE-COLUMN PLACEMENT: the exact real-world regression this round fixes —
@@ -417,12 +413,13 @@ fn outline_hides_below_the_narrow_margin_floor() {
 /// (if not necessarily its full preferred) rail instead of hiding.
 #[test]
 fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_shifts_the_column_right_under_pressure_and_gets_its_rail: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     let measure = 70usize; // DEFAULT_MEASURE, the standard prose column.
     crate::page::set_measure(measure);
@@ -448,8 +445,6 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
     );
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// THE PAGE-RESET BUG (live-reported, confirmed + fixed this round): on a
@@ -470,12 +465,13 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
 /// pure free function.
 #[test]
 fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping page_reset_does_not_rail_shift_the_column_for_a_hidden_outline: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_page_on(true);
     let window_w = 1100.0; // a laptop-ish canvas, narrower than the 1200px reference.
@@ -519,8 +515,6 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
     );
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// THE RESIZE-JITTER REPRODUCTION (user-reported live bug, 2026-07-12): "there
@@ -539,11 +533,12 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
 /// across every width in that sub-range.
 #[test]
 fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping column_left_is_pixel_stable_across_a_one_px_resize_sweep: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_page_on(true);
     let measure = crate::page::DEFAULT_MEASURE; // 70, the standard prose column.
@@ -666,8 +661,6 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     }
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// LONG-DOC FOLLOW (the chosen default): when the headings outnumber the rows the
@@ -676,12 +669,13 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
 /// few rows fit, with the caret deep in the document.
 #[test]
 fn outline_follow_keeps_the_current_heading_visible_on_a_long_doc() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_follow_keeps_current_visible: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -712,8 +706,6 @@ fn outline_follow_keeps_the_current_heading_visible_on_a_long_doc() {
     assert_eq!(current[0].label, "H39", "the followed window keeps the caret's heading");
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// EDGE FADE: when the follow-window CLIPS (more headings than fit), the clipped
@@ -723,12 +715,13 @@ fn outline_follow_keeps_the_current_heading_visible_on_a_long_doc() {
 /// visible outline fades nothing.
 #[test]
 fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_edge_fade: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -774,8 +767,6 @@ fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
     assert!(!lines[0].faded, "a fully-visible outline fades no edge");
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// THE CLICK-TARGETING BUG, FIXED: a heading whose CHAR COUNT fits the estimated
@@ -807,6 +798,9 @@ fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
 /// incidental fact about whether shrinking specifically happened.
 #[test]
 fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
@@ -829,8 +823,6 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
         eprintln!("skipping outline_hit_test_stays_aligned_past_a_wide_glyph_heading: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -889,8 +881,6 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     }
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// THE ONE-LINE-PER-ROW LAW: after `outline_pixel_fit`, every DRAWN row's label
@@ -902,12 +892,13 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
 /// cramped-by-pixel `avail` so the estimate alone would routinely overflow.
 #[test]
 fn outline_pixel_fit_never_leaves_a_label_wider_than_avail() {
+    let _o = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_pixel_fit_never_leaves_a_label_wider_than_avail: no wgpu adapter");
         return;
     };
-    let _o = crate::testlock::serial();
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -933,8 +924,6 @@ fn outline_pixel_fit_never_leaves_a_label_wider_than_avail() {
     }
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// WEB/LINUX MENU BAR YIELD: the outline's vertical origin shifts DOWN by exactly
@@ -948,13 +937,14 @@ fn outline_pixel_fit_never_leaves_a_label_wider_than_avail() {
 /// mac default path must not move.
 #[test]
 fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
+    let _mg = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _og = crate::testlock::serial();
+    let _pg = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_top_yields_to_shown_menu_bar: no wgpu adapter");
         return;
     };
-    let _mg = crate::testlock::serial();
-    let _og = crate::testlock::serial();
-    let _pg = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -991,8 +981,6 @@ fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
 
     crate::menubar::set_menu_bar_on(false);
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// HIT-TEST AGREEMENT UNDER THE OFFSET: with the bar shown, a click at the first
@@ -1002,13 +990,14 @@ fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
 /// drawn and what a click resolves to.
 #[test]
 fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
+    let _mg = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _og = crate::testlock::serial();
+    let _pg = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping outline_hit_test_agrees_with_the_shifted_geometry: no wgpu adapter");
         return;
     };
-    let _mg = crate::testlock::serial();
-    let _og = crate::testlock::serial();
-    let _pg = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_measure(40);
     crate::page::set_page_on(true);
@@ -1032,8 +1021,6 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
 
     crate::menubar::set_menu_bar_on(false);
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// THE FROST PILL wiring, OUTLINE gate ([`TextPipeline::lava_frost_pill_rects`],
@@ -1053,11 +1040,12 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
 /// render-side decision those laws assume.
 #[test]
 fn lava_frost_pills_follow_outline_visibility() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping lava_frost_pills_follow_outline_visibility: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     assert!(crate::lava::frost_on(), "control: frost is the shipped default");
     let lava_idx = crate::theme::THEMES
         .iter()
@@ -1168,8 +1156,6 @@ fn lava_frost_pills_follow_outline_visibility() {
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// THE GUTTER ORGANIC FROST SEEDS wiring ([`TextPipeline::gutter_frost_seeds`] —
@@ -1196,11 +1182,12 @@ fn lava_frost_pills_follow_outline_visibility() {
 /// [`lava_frost_pills_follow_outline_visibility`] above.
 #[test]
 fn gutter_frost_seeds_follow_gutter_visibility() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping gutter_frost_seeds_follow_gutter_visibility: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     assert!(crate::lava::frost_on(), "control: frost is the shipped default");
     let lava_idx = crate::theme::THEMES
         .iter()
@@ -1294,8 +1281,6 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }
 
 /// ITEM 34 — SUMMONED OVERLAYS OWN THE MARGINS. While ANY overlay is open the
@@ -1310,11 +1295,12 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
 /// what turns them off — not a fixture that never drew them.
 #[test]
 fn summoned_overlays_suppress_the_outline_and_gutter() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping summoned_overlays_suppress_the_outline_and_gutter: no wgpu adapter");
         return;
     };
-    let _g = crate::testlock::serial();
     crate::outline::set_outline_on(true);
     crate::page::set_page_on(true);
     crate::page::set_measure(40);
@@ -1370,6 +1356,4 @@ fn summoned_overlays_suppress_the_outline_and_gutter() {
     assert!(p.gutter_visible(), "dismissal: the gutter returns");
 
     crate::outline::set_outline_on(false);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
 }

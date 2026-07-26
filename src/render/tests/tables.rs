@@ -21,6 +21,7 @@ use super::{headless_dqp, headless_pipeline, view, view_md};
 #[test]
 fn table_allocation_holds_token_columns_rigid_across_widths() {
     let _w = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     crate::page::set_page_on(true);
@@ -98,8 +99,6 @@ prose after\n";
     }
 
     crate::markdown::set_wysiwyg_on(true);
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 
 /// THE X-RAY pure caret redirect + pan-to-caret (`xray_col_x` /
@@ -294,6 +293,7 @@ fn wide_table_wraps_and_reserves_a_tall_row_while_a_short_row_does_not() {
 #[test]
 fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
     let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
@@ -344,8 +344,6 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
         "every OTHER row (header line 0, body line 3) still draws its grid cells: {drawn:?}"
     );
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 
 /// SELECTION REVEAL (user-decided 2026-07-22): a table the CARET never
@@ -360,6 +358,7 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
 #[test]
 fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
     let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
@@ -448,8 +447,6 @@ fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
          header row (1) is x-rayed: {xrayed:?}"
     );
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 
 /// Clearing the selection heals every selection-only x-ray row: with the
@@ -458,6 +455,7 @@ fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
 #[test]
 fn clearing_selection_heals_table_back_to_a_plain_grid() {
     let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
@@ -518,8 +516,6 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
         "both body rows draw their grid cells again: {drawn:?}"
     );
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 
 /// BUG FIX (one-owner law): the per-frame DRAW never reshapes its own copy of
@@ -545,6 +541,7 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
 #[test]
 fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
     let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
@@ -652,8 +649,6 @@ fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
          {cols_fresh_narrow:?}"
     );
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 
 /// BUG FIX (the real user-reported overflow): a genuine WINDOW RESIZE — i.e. a
@@ -674,6 +669,7 @@ fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
 #[test]
 fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
     let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
@@ -752,8 +748,6 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
         );
     }
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 }
 
 /// GUARD (theme-QA audit, reported cell "Potoroo TABLE text ink wrong"):
