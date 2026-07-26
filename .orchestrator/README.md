@@ -12,7 +12,11 @@ human collaborator all read and update the same files here.
 **Layout**
 - `queue.md` — the canonical execution queue. Siblings support it; never carry a second writable copy.
 
-**Compat symlinks** so every tool's path resolves to this one dir: `.claude/orchestrator` and `.codex/orchestrator` both → `../.orchestrator`. `CLAUDE.md` / `AGENTS.md` reference the shared board contract.
+**Compatibility symlinks, not duplicate boards:** `.claude/orchestrator` and
+`.codex/orchestrator` both point to `../.orchestrator`. They exist so
+tool-specific discovery paths resolve without maintaining separate queues.
+Always edit `.orchestrator`; edits reached through either symlink affect these
+same files. `CLAUDE.md` / `AGENTS.md` reference the shared board contract.
 
 ## Claiming protocol (multi-tool coordination)
 
@@ -129,12 +133,13 @@ Use the smallest shape that can establish the promised outcome:
   verifier.
 - **Unknown root cause:** parallel competing hypotheses from disjoint evidence,
   an evidence-based selector, the fix, then the standing neighborhood audit.
-- **State/ownership migration:** the qualifying Opus ownership map, focused
-  invariant/call-site probes, Sonnet implementation, then adversarial
-  verification against those invariants.
+- **State/ownership migration:** a qualifying deep-planner ownership map,
+  focused invariant/call-site probes, production implementation, then
+  adversarial verification against those invariants.
 - **Visual/taste round:** bounded candidate generation, real awl captures,
-  Fable selection against the decided rubric, implementer-applied verdict, then
-  Sonnet pixel/perf verification. Fable still never implements.
+  a visual judge's selection against the decided rubric, an
+  implementer-applied verdict, then independent pixel/perf verification. The
+  visual judge never implements.
 - **Broad audit or open-ended hunt:** enumerate the cells, fan out bounded
   probes, synthesize/dedupe, and repeat only until a stated stop condition
   (green, no new findings, or no progress) is met.
@@ -169,9 +174,10 @@ separate gates:
    cancel it.
 3. **Red CI is live queue state.** A failing `main` run creates or updates the
    top-priority `CI RED` queue item with the run URL, failing job/test, and first
-   known bad commit. Assign one Sonnet worker immediately. Other worktrees may
-   continue, but nothing else integrates into `main` until the fixing push is
-   remotely green. Cancelled superseded runs do not count.
+   known bad commit. Assign one production-tier worker immediately (Sonnet
+   medium on Claude or `gpt-5.6-terra` at `medium` on OpenAI). Other worktrees
+   may continue, but nothing else integrates into `main` until the fixing push
+   is remotely green. Cancelled superseded runs do not count.
 4. **Reconcile at durable boundaries.** Before dispatch, after compaction or a
    tool/task handoff, and before answering a queue/status question, compare the
    board with actual ahead/dirty worktrees and the latest non-cancelled `main`
@@ -209,6 +215,18 @@ These are orchestration rules, not live queue state:
   132 GB before the first sweep. `git worktree remove` deletes the checkout, not
   the branch — removing a merged worktree loses nothing, so the only ones worth
   keeping are those holding uncommitted or untracked work.
+- **Establish a bug report's INPUT MODALITY before dispatching a diagnosis
+  (2026-07-26, the expensive way).** Item 104 read "moving/selecting through it
+  reaches only alternating rows" as a keyboard bug and spent 17 agents proving
+  the keyboard/apply/render path exhaustively one-step correct — which it was.
+  The modality was the POINTER, and the fix arrived from item 106, filed out of
+  104's own diagnosis as an explicitly *separate* bug. The board even recorded
+  the reasoning for why 106 could not be 104's cause; that reasoning was wrong,
+  and one live check by the user settled what three adversarial rounds could not.
+  So: when a report says "selecting", ask which input did it, and if the answer
+  isn't in the report, make the brief's FIRST phase disambiguate modality
+  (keyboard vs pointer vs wheel) before it investigates any path. Exhaustive
+  proof of the wrong subsystem is still exhaustive, and still worthless.
 - **Preserve gate truth.** Never pipe a build/test gate through `head`, `tail`,
   or anything else that can hide its exit status. Run the wasm gate on every
   train as required by `AGENTS.md`.
@@ -274,28 +292,39 @@ now the single owner of how cooking works, so the two cannot drift apart again.
   the verify stage; an Agent gives none of them. A genuinely minor one-off (a
   rename, a lookup) needn't be a Workflow at all; a single subagent is fine.
 
-## Delegating to Codex (user rule, 2026-07-18: "you can now delegate code to codex")
+## OpenAI model routing
 
 The local Codex CLI is wired in (`codex:rescue` skill / `codex:codex-rescue`
 agent). Hand Codex a burner exactly as you would a Claude worker — self-contained
 brief, its own worktree, a diagnose/build/verify shape — and pick its
-model+effort to match the ROLE the quota ladder above assigns to that stage, not
-the stage's size:
+model+effort for the role and its failure cost, not the stage's size:
 
-- **`gpt-5.6-terra` at `high`/`xhigh`** — the PRODUCTION DEFAULT, Sonnet's role:
-  implementation, structured research, routine diagnosis, merge reconciliation,
-  spot-check audits.
-- **`gpt-5.6-sol` at `low`** — Opus's role: the qualifying plan for high-risk
-  ownership/state work, and targeted verification while a hidden-risk condition
-  remains.
-- **`gpt-5.6-sol` at `high`** — the hardest REASONING tier: subtle root cause
-  where candidates must be eliminated with evidence. Note this is NOT Fable's
-  role — Fable judges awl's real captures as images and Codex cannot, so taste
-  calls never go to a Codex burner.
+- **`gpt-5.6-terra` at `medium` is the production default:** implementation,
+  structured research, routine diagnosis, merge reconciliation, and standing
+  spot-check audits. Raise it to `high` for difficult multi-step work and to
+  `xhigh` only when the evidence exposes deeper ambiguity or tradeoffs.
+- **`gpt-5.6-luna` at `low`/`medium` is the repeatable-work tier:** bounded
+  extraction, classification, mechanical transformations, log triage, roster
+  enumeration, and deterministic probes with an explicit oracle. It does not
+  own risky implementation or open-ended judgment.
+- **`gpt-5.6-sol` at `high` is the deep-planner tier:** qualifying
+  ownership/state maps, ambiguous high-value work, subtle root-cause
+  elimination, and targeted adversarial verification while a hidden-risk
+  condition remains. Raise it to `xhigh` when several plausible candidates must
+  be eliminated; reserve `max` for the rare hardest indivisible problem.
+- **`gpt-5.6-sol` at `high`/`xhigh` is also the OpenAI visual-judge candidate:**
+  pass the real PNG captures as image inputs and ask the decided
+  affordance-locating or taste questions. Benchmark it against awl's gallery
+  rubric before treating it as interchangeable with Fable. It judges only; the
+  implementer applies the verdict and owns the gates.
+- **Do not use `ultra` inside an orchestrated workflow:** Ultra performs its own
+  subagent delegation, duplicating the workflow's existing fan-out and
+  ownership. Use `max` when a single agent needs more depth.
 
 Use the FULL model ids; the account's CLI rejects a bare `gpt-5.6` with a 400
 "model is not supported" (`gpt-5.6-sol` is the default in `~/.codex/config.toml`).
-Pass via `codex:rescue` flags, e.g. `--model gpt-5.6-terra --effort high`.
+Pass via `codex:rescue` flags, e.g.
+`--model gpt-5.6-terra --effort medium`.
 Spreading burners across both runtimes is encouraged when many things are
 cooking — it widens throughput and gives independent implementation and
 diagnosis perspectives. Record which runtime and tier each burner got.
@@ -305,39 +334,47 @@ diagnosis perspectives. Record which runtime and tier each burner got.
 The shared subscription allowance is a weekly compute budget. Choose a model by
 failure cost and task phase, not by a blanket "coding = strongest model" rule:
 
-1. **Sonnet is the production default.** Use the current Sonnet at medium effort
-   for implementation, structured research, routine diagnosis, merge
+1. **The production tier is the default.** Use the current Sonnet at medium
+   effort on Claude, or `gpt-5.6-terra` at `medium` on OpenAI, for
+   implementation, structured research, routine diagnosis, merge
    reconciliation, and every standing spot-check audit. Raise effort only when
    the task's evidence demands it. A crisp brief + one known owner +
-   deterministic tests/captures is a Sonnet job even when it touches several
+   deterministic tests/captures stays at this tier even when it touches several
    files.
-2. **Opus plans high-risk ownership work; Sonnet executes the plan.** Spend the
-   current Opus on the reasoning phase when a task migrates state/identity,
+2. **The deep planner plans high-risk ownership work; the production tier
+   executes it.** Use the current Opus on Claude, or `gpt-5.6-sol` at `high` on
+   OpenAI, for the reasoning phase when a task migrates state/identity,
    discovers ownership across subsystems, or could produce a locally green but
-   subtly corrupt result. The Opus output is a concrete file/owner/invariant
-   plan handed to Sonnet for implementation (`opusplan` where available).
-   Targeted Opus verification is allowed when the same hidden-risk condition
-   remains. Do not use Opus merely because a task is large, and do not use fast
-   mode for unattended work where latency has no value.
-3. **Fable judges taste only.** The implementer generates real awl captures;
-   Fable inspects those images and returns the visual call. Fable never writes
-   implementation or edits files. The implementer applies the verdict and owns
-   the gates.
-4. **Escalate from evidence, never prestige.** Promote a Sonnet task only after
-   its investigation exposes an ownership/invariant ambiguity or repeated
-   attempts fail for reasons requiring deeper reasoning. Record the reason in
-   the worker brief; model escalation is not a substitute for a sharper spec.
-5. **Budget context as well as agents.** Give each worker one self-contained
+   subtly corrupt result. Its output is a concrete file/owner/invariant plan
+   handed to the production implementer. Targeted deep-tier verification is
+   allowed while the same hidden-risk condition remains. Do not promote merely
+   because a task is large.
+3. **Use a cheap tier only for explicit, repeatable work.** On OpenAI this is
+   `gpt-5.6-luna` at `low`/`medium`. The brief names the bounded transformation
+   or enumeration and its oracle; uncertainty, product judgment, and risky
+   implementation route upward.
+4. **The visual judge judges only.** Use Fable on Claude, or provisionally
+   `gpt-5.6-sol` at `high`/`xhigh` with the real captures on OpenAI. It returns
+   the visual call and never writes implementation or edits files. The
+   implementer applies the verdict and owns the gates. Keep the OpenAI route
+   provisional until a representative awl gallery comparison establishes it.
+5. **Escalate from evidence, never prestige.** Promote a production-tier task
+   only after its investigation exposes an ownership/invariant ambiguity or
+   repeated attempts fail for reasons requiring deeper reasoning. Record the
+   reason in the worker brief; model escalation is not a substitute for a
+   sharper spec.
+6. **Budget context as well as agents.** Give each worker one self-contained
    queue brief and a fresh bounded context. Do not keep feeding unrelated work
    through a conversation carrying old repository reads and diffs. Avoid
    duplicate scouts and speculative agents; parallelize independent build work
    in the existing ~3–4 slots, then drain and clean them before the next batch.
-6. **Pace against the reset.** At dispatch, compare weekly percentage used with
+7. **Pace against the reset.** At dispatch, compare weekly percentage used with
    percentage of the reset cycle elapsed. If usage is more than about ten
    percentage points ahead, enter conservation mode by reducing compute per
    completed task, not throughput: keep the normal 3–4 independent workers
-   cooking, use Sonnet at medium effort by default, reserve Opus for qualifying
-   data/state-risk planning, and avoid duplicate scouts, repeated speculative
+   cooking, stay at the provider's production default, reserve the deep tier for
+   qualifying data/state-risk planning, and route clear repeatable work to the
+   cheap tier where available. Avoid duplicate scouts, repeated speculative
    attempts, and unbounded inherited context. Defer work only when intentionally
    moving an optional task beyond the reset. A separate, underused taste
-   allowance does not justify using Fable outside its role.
+   allowance does not justify using a visual judge outside its role.
