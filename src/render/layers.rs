@@ -493,10 +493,9 @@ impl TextPipeline {
     /// frame straddles the column boundary OUTWARD (into the margin), so it
     /// never sits under the text. Ink comes from `theme::page_frame_ink()`
     /// (re-tinted in `sync_theme_colors`); the pipeline draws hard-edged
-    /// (dither 1.0 — see the field's own doc). Deliberately NOT gated on
-    /// page mode, mirroring the probe the taste pick was made on: page-off,
-    /// the column is the full writing area and the frame hugs the window's
-    /// own inset — the "page as a deliberate object" read either way.
+    /// (dither 1.0 — see the field's own doc). Page mode owns the margin and
+    /// its writing-surface boundary: edge-to-edge mode uploads zero frame
+    /// rects across the entire capability roster.
     pub(super) fn prepare_page_frame(
         &mut self,
         device: &wgpu::Device,
@@ -504,6 +503,11 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
+        if !crate::page::page_on() {
+            self.page_frame_pipeline
+                .prepare(device, queue, width, height, &[]);
+            return;
+        }
         let theme::PageFrame::Line { weight_px } = crate::render::effective_page_frame()
         else {
             self.page_frame_pipeline
