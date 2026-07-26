@@ -822,8 +822,148 @@ fn the_mark_survives_at_app_switcher_size() {
     }
 }
 
-/// EVERY PAIR OF WORLDS STAYS APART at app-switcher size — and WHICH pair stays
-/// apart least is COMPUTED from the rendered set on every run, never guessed.
+/// One pair's separation at 32px, on every axis the crowding law (below)
+/// knows. Module-level (not local to the law) so the two non-vacuity probes
+/// (`ibis_near_duplicate_is_caught_without_becoming_champion`,
+/// `ordinary_new_world_passes_the_topk_ratchet`) can build a `Pair` for a
+/// world that was never exported and run it through the SAME check the law
+/// runs, rather than a hand-reimplemented copy that could silently drift
+/// from what ships.
+struct Pair {
+    a: &'static str,
+    b: &'static str,
+    differing: f64,
+    mean: f64,
+    ink: f64,
+}
+
+/// Measures one pair of already-rendered 32px images against their OWN
+/// ground colours. `a_ground`/`b_ground` are each caller-supplied (rather
+/// than looked up on a `Theme`) so a synthetic image with no `Theme` of its
+/// own — `Ibis`, `Probeworld` — can still be measured by this exact
+/// arithmetic.
+fn measure_pair(
+    a_name: &'static str,
+    a_img: &image::RgbaImage,
+    a_ground: [u8; 3],
+    b_name: &'static str,
+    b_img: &image::RgbaImage,
+    b_ground: [u8; 3],
+) -> Pair {
+    let total = (a_img.width() * a_img.height()) as f64;
+    let (mut differing, mut sum, mut ink, mut ink_differing) = (0u32, 0u64, 0u32, 0u32);
+    for (pa, pb) in a_img.pixels().zip(b_img.pixels()) {
+        let d: u32 = (0..4)
+            .map(|k| (pa.0[k] as i32 - pb.0[k] as i32).unsigned_abs())
+            .sum();
+        let visible = d > 24;
+        if visible {
+            differing += 1;
+        }
+        sum += d as u64;
+        // A pixel counts as INK when it is non-ground in EITHER world — each
+        // measured against its OWN ground, since the whole point of this axis
+        // is that the two grounds may be different colours and still both be
+        // ground.
+        let ground_a = !opaque(&pa.0) || near(&pa.0, a_ground, 10);
+        let ground_b = !opaque(&pb.0) || near(&pb.0, b_ground, 10);
+        if !ground_a || !ground_b {
+            ink += 1;
+            if visible {
+                ink_differing += 1;
+            }
+        }
+    }
+    assert!(ink > 0, "{a_name} vs {b_name}: neither icon has any ink");
+    Pair {
+        a: a_name,
+        b: b_name,
+        differing: differing as f64 / total,
+        mean: sum as f64 / total,
+        ink: ink_differing as f64 / ink as f64,
+    }
+}
+
+/// Every real pair the shipped roster produces at 32px — the 153
+/// combinations `small_sizes_keep_every_pair_of_worlds_apart` sweeps. Reads
+/// `THEMES` (the one roster array every world sweep in this file reads, per
+/// this file's own module doc) and nothing else, so a world added to
+/// `THEMES` is automatically in this set with no second list to update.
+fn all_real_pairs() -> Vec<Pair> {
+    let imgs: Vec<(&'static Theme, image::RgbaImage)> = THEMES
+        .iter()
+        .map(|t| (t, rep_rgba(&icon_bytes(t.name), 32)))
+        .collect();
+    let mut pairs = Vec::new();
+    for i in 0..imgs.len() {
+        for j in (i + 1)..imgs.len() {
+            let (ta, a) = &imgs[i];
+            let (tb, b) = &imgs[j];
+            pairs.push(measure_pair(
+                ta.name,
+                a,
+                rgb(ta.base_100),
+                tb.name,
+                b,
+                rgb(tb.base_100),
+            ));
+        }
+    }
+    pairs
+}
+
+/// Relative give on each ratchet: enough to absorb a handful of antialiased
+/// pixels shifting when the offline exporter is re-run, far too little to
+/// absorb a pair actually moving closer together.
+const RATCHET_SLACK: f64 = 0.02;
+
+/// How many of the closest pairs on each axis are independently ratcheted —
+/// not only `sorted[0]`, the single global champion. See item 102's doc
+/// paragraph on `check_pair_axes` for why this is a fixed ORDER STATISTIC
+/// (rank 0..RATCHET_K) rather than a percentile of the population.
+const RATCHET_K: usize = 6;
+
+type Read = fn(&Pair) -> f64;
+
+/// (axis name, how to read it off a pair, absolute floor, TOP-`RATCHET_K`
+/// baselines measured on THIS roster today — index 0 is `sorted[0]`, index 1
+/// is `sorted[1]`, etc. — pct-format flag).
+///
+/// The baselines are what THIS roster measures today; re-blessing one rank
+/// is a deliberate ONE-LINE edit to the array below, with a comment on that
+/// line naming the pair now occupying the rank and why the crowding is
+/// accepted. That is the whole re-blessing story: six numbers per axis
+/// (eighteen total), small enough to read on every diff — the property item
+/// 99 already said a 153-row per-pair table would not have.
+fn axes() -> [(&'static str, Read, f64, [f64; RATCHET_K], bool); 3] {
+    [
+        (
+            "differing pixels",
+            |p| p.differing,
+            0.10,
+            [0.12305, 0.20313, 0.20605, 0.20801, 0.22852, 0.23242],
+            true,
+        ),
+        (
+            "mean channel distance",
+            |p| p.mean,
+            10.0,
+            [19.52, 32.25, 54.86, 55.84, 56.46, 63.43],
+            false,
+        ),
+        (
+            "differing INK pixels",
+            |p| p.ink,
+            0.40,
+            [0.5101, 0.6881, 0.8079, 0.8571, 0.8839, 0.9422],
+            true,
+        ),
+    ]
+}
+
+/// EVERY PAIR OF WORLDS STAYS APART at app-switcher size — and WHICH pairs
+/// stay apart least are COMPUTED from the rendered set on every run, never
+/// guessed.
 ///
 /// The predecessor of this law hand-picked two "near pairs" by shared-FACE
 /// reasoning (Potoroo/Firetail, Saltpan/Bilby) and asserted those two harder. It
@@ -866,144 +1006,315 @@ fn the_mark_survives_at_app_switcher_size() {
 ///     near the edge of legibility when the ink axis says that pair differs on
 ///     86% of its ink. `differing`'s floor is the 10% this law already carried —
 ///     chosen before anyone had measured the minimum, and therefore not tuned to
-///     it.
-///   * a RATCHET against today's measured minimum, with [`RATCHET_SLACK`] of
-///     relative give for an exporter re-render's antialiasing. This is the bar
-///     that actually notices EROSION, and it needs no theory of which pair is at
-///     risk: a new world that crowds ANY existing one below the current worst
-///     fails here and is NAMED. It also survives roster growth, which a
-///     per-pair baseline table would not — adding a nineteenth world adds
-///     eighteen pairs and invalidates nothing.
+///     it. (The floor is checked only against `sorted[0]`: it is monotone in
+///     rank — if the single closest pair clears it, every less-close pair
+///     necessarily does too.)
+///   * a TOP-`RATCHET_K` RATCHET against today's measured minimum AT EACH OF
+///     THE `RATCHET_K` CLOSEST RANKS, with [`RATCHET_SLACK`] of relative give
+///     for an exporter re-render's antialiasing. This is the bar that
+///     actually notices EROSION.
+///
+///     Item 99 shipped this ratchet watching ONLY `sorted[0]`, the single
+///     global champion. Item 102 (filed from item 99's own verification)
+///     found the gap: a pair can crowd substantially and pass in total
+///     silence as long as it never unseats the incumbent champion. The
+///     verifier's proof was `Ibis` — Galah's icon blended 30% toward
+///     Bilby's — landing at differing 18.16% / mean 20.46% / ink 90.73%,
+///     closer than all 17 of Galah's real comparisons on every axis, and
+///     the OLD law passed silently because Currawong/Cassowary (differing,
+///     mean) and Potoroo/Firetail (ink) never lost the title. See
+///     `ibis_near_duplicate_is_caught_without_becoming_champion` below,
+///     which reproduces this exact scenario as a permanent regression test.
+///
+///     So the ratchet now watches the `RATCHET_K` closest pairs on each
+///     axis independently — a new world that crowds ANY existing one into
+///     any of those ranks fails here and is NAMED, whether or not it
+///     becomes the outright champion. `RATCHET_K = 6` is the minimum that
+///     catches the `Ibis` scenario on all three axes at once (differing and
+///     mean only need `K >= 2`; `ink` needs `K >= 6`, because a silhouette
+///     blend erodes the ground-independent axis less than the ground-heavy
+///     ones).
+///
+///     WHY A FIXED RANK AND NOT A PERCENTILE OF THE POPULATION: a
+///     percentile-of-population guard (e.g. "the 5th percentile of all pair
+///     distances may not fall") looks roster-size-independent the same way
+///     a fixed rank does, but is not, on THIS roster: `differing` and `ink`
+///     are both empirically bimodal (a tight low cluster of ground-sharing
+///     or silhouette-sharing pairs, a cliff, then a tight high cluster), so
+///     a percentile's rank INDEX crosses that cliff as the roster grows and
+///     the threshold swings non-monotonically — measured directly: growing
+///     the roster by 7 ordinary, non-crowding worlds swung `differing`'s p05
+///     between 27% and 88%, an unusable ratchet target. A percentile guard
+///     also has a proven miss: re-running the `Ibis`-grown set through a
+///     p05-of-population check left `ink`'s p05 UNCHANGED (94.89% before and
+///     after), because growing the population from 153 to 171 pairs shifted
+///     the percentile's index onto a different pair that happened to carry
+///     the same value — the crowded pair diluted into a larger population
+///     and the guard never saw it. A FIXED ORDER STATISTIC has neither
+///     failure: rank 5 always means "the pair at the 6th-closest position",
+///     never "whatever sits at 5% of however many pairs exist today", and a
+///     roster-growth simulation (18 -> 25 worlds, 7 ordinary additions)
+///     held it flat except for one clearly-legitimate re-bless.
+///
+///     Re-blessing stays exactly as loud as item 99 made it: bump the one
+///     rank's number in `axes()` above, with a comment naming the pair and
+///     the reason. It is not a per-pair table (which item 99 already
+///     rejected for breaking on every roster addition) — it is six numbers
+///     per axis, independent of how many worlds exist.
 ///
 /// The stricter 20% tier the two hand-picked pairs used to carry is GONE, not
 /// weakened: its premise (same face ⇒ at risk) is false by measurement above,
 /// applying it to the computed same-face set would fail today, and the one real
 /// thing it pinned — Potoroo/Firetail's silhouette doing the work its palette
 /// does not — is now pinned harder and roster-wide by the `ink` axis, on which
-/// that pair IS the global minimum and therefore holds the ratchet.
+/// that pair IS the global minimum and therefore holds rank 0 of the ratchet.
 ///
-/// Non-vacuity: adding a world that clones an existing palette and preset drives
-/// `differing` to ~1% and trips the floor and all three ratchets, naming the
-/// cloned pair.
+/// Non-vacuity: adding a world that clones an existing palette and preset
+/// drives `differing` to ~1% and trips the floor and every rank of every
+/// ratchet, naming the cloned pair. A world that crowds an EXISTING pair
+/// without becoming the global champion — the `Ibis` scenario — trips the
+/// non-champion ranks of the ratchet instead; see
+/// `ibis_near_duplicate_is_caught_without_becoming_champion`. An ordinary new
+/// world that crowds nobody trips nothing; see
+/// `ordinary_new_world_passes_the_topk_ratchet`.
 #[test]
 fn small_sizes_keep_every_pair_of_worlds_apart() {
     let _g = crate::testlock::serial();
-
-    /// Relative give on each ratchet: enough to absorb a handful of
-    /// antialiased pixels shifting when the offline exporter is re-run, far
-    /// too little to absorb a pair actually moving closer together.
-    const RATCHET_SLACK: f64 = 0.02;
-
-    /// One pair's separation at 32px, on every axis this law knows.
-    struct Pair {
-        a: &'static str,
-        b: &'static str,
-        differing: f64,
-        mean: f64,
-        ink: f64,
-    }
-
-    let imgs: Vec<(&'static Theme, image::RgbaImage)> = THEMES
-        .iter()
-        .map(|t| (t, rep_rgba(&icon_bytes(t.name), 32)))
-        .collect();
-
-    let mut pairs: Vec<Pair> = Vec::new();
-    for i in 0..imgs.len() {
-        for j in (i + 1)..imgs.len() {
-            let (ta, a) = &imgs[i];
-            let (tb, b) = &imgs[j];
-            let total = (a.width() * a.height()) as f64;
-            let (mut differing, mut sum, mut ink, mut ink_differing) = (0u32, 0u64, 0u32, 0u32);
-            for (pa, pb) in a.pixels().zip(b.pixels()) {
-                let d: u32 = (0..4)
-                    .map(|k| (pa.0[k] as i32 - pb.0[k] as i32).unsigned_abs())
-                    .sum();
-                let visible = d > 24;
-                if visible {
-                    differing += 1;
-                }
-                sum += d as u64;
-                // A pixel counts as INK when it is non-ground in EITHER world —
-                // each measured against its OWN base_100, since the whole point
-                // of this axis is that the two grounds may be different colours
-                // and still both be ground.
-                let ground_a = !opaque(&pa.0) || near(&pa.0, rgb(ta.base_100), 10);
-                let ground_b = !opaque(&pb.0) || near(&pb.0, rgb(tb.base_100), 10);
-                if !ground_a || !ground_b {
-                    ink += 1;
-                    if visible {
-                        ink_differing += 1;
-                    }
-                }
-            }
-            assert!(ink > 0, "{} vs {}: neither icon has any ink", ta.name, tb.name);
-            pairs.push(Pair {
-                a: ta.name,
-                b: tb.name,
-                differing: differing as f64 / total,
-                mean: sum as f64 / total,
-                ink: ink_differing as f64 / ink as f64,
-            });
-        }
-    }
+    let pairs = all_real_pairs();
     assert_eq!(
         pairs.len(),
         THEMES.len() * (THEMES.len() - 1) / 2,
         "every combination of worlds is measured"
     );
+    let failures = check_pair_axes(&pairs);
+    assert!(failures.is_empty(), "\n\n{}", failures.join("\n\n"));
+}
 
-    // (axis name, how to read it off a pair, absolute floor, measured baseline,
-    // how to print a value). The baselines are what THIS roster measures today;
-    // re-blessing one is a deliberate one-line edit that says "the icon set got
-    // closer together on purpose".
-    type Read = fn(&Pair) -> f64;
-    let axes: [(&str, Read, f64, f64, bool); 3] = [
-        ("differing pixels", |p| p.differing, 0.10, 0.12305, true),
-        ("mean channel distance", |p| p.mean, 10.0, 19.52, false),
-        ("differing INK pixels", |p| p.ink, 0.40, 0.5101, true),
-    ];
-
-    for (name, read, floor, baseline, pct) in axes {
+/// Runs the floor + top-`RATCHET_K` ratchet (see `axes()`'s doc and
+/// `small_sizes_keep_every_pair_of_worlds_apart`'s) over an ARBITRARY pair
+/// set, returning one message per violation (empty == every axis passes).
+/// Factored out of the law itself so the non-vacuity probes below exercise
+/// the exact check the live law runs against a pair set that includes a
+/// synthetic world, rather than a hand-reimplemented approximation of it
+/// that could silently drift from what ships.
+fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
+    let mut failures = Vec::new();
+    for (name, read, floor, baselines, pct) in axes() {
         let show = |v: f64| if pct { format!("{:.2}%", v * 100.0) } else { format!("{v:.2}") };
         let mut sorted: Vec<&Pair> = pairs.iter().collect();
         sorted.sort_by(|x, y| read(x).total_cmp(&read(y)));
+        assert!(
+            sorted.len() >= RATCHET_K,
+            "{name}: only {} pairs exist, fewer than RATCHET_K={RATCHET_K} — lower \
+             RATCHET_K or grow the roster before this check means anything",
+            sorted.len()
+        );
         let closest = sorted[0];
         let worst = read(closest);
-        // The five nearest on this axis, so a failure hands over the
-        // neighbourhood and not just a verdict.
+        // The RATCHET_K + 2 nearest on this axis, so a failure hands over the
+        // whole watched neighbourhood and not just a verdict.
         let roll = sorted
             .iter()
-            .take(5)
+            .take(RATCHET_K + 2)
             .map(|p| format!("{} vs {} = {}", p.a, p.b, show(read(p))))
             .collect::<Vec<_>>()
             .join("; ");
 
+        if worst < floor {
+            failures.push(format!(
+                "{} vs {} are the closest pair on {name} at 32px ({}) and fall under the \
+                 absolute floor of {} — at app-switcher size they read as one app. \
+                 Nearest {}: {roll}",
+                closest.a,
+                closest.b,
+                show(worst),
+                show(floor),
+                RATCHET_K + 2,
+            ));
+        }
+
+        for (rank, &baseline) in baselines.iter().enumerate() {
+            let pair = sorted[rank];
+            let value = read(pair);
+            let ratchet = baseline * (1.0 - RATCHET_SLACK);
+            if value < ratchet {
+                failures.push(format!(
+                    "{} vs {} now sit at closest-rank {rank} (0 = the single global \
+                     minimum) on {name} at 32px ({}), below the measured baseline of {} \
+                     for rank {rank} (ratchet {}). Some change moved a pair this close on \
+                     {name} without ever needing to become the global champion — that is \
+                     exactly the crowding item 102 exists to catch. Either back it out, \
+                     or — if the crowding is intended — re-bless rank {rank}'s baseline in \
+                     `axes()` and say why. Nearest {}: {roll}",
+                    pair.a,
+                    pair.b,
+                    show(value),
+                    show(baseline),
+                    show(ratchet),
+                    RATCHET_K + 2,
+                ));
+            }
+        }
+    }
+    failures
+}
+
+/// NON-VACUITY (item 102): a pair that crowds badly WITHOUT ever becoming the
+/// single global champion on any axis must still fail. This reproduces
+/// item 102's own verification scenario exactly — `Ibis`, Galah's 32px icon
+/// blended 30% toward Bilby's, channel-and-alpha lerp, `(g, b) -> round(0.7g
+/// + 0.3b)` — inserted as if it were a genuine 19th world: `Ibis` paired
+/// against all 18 real worlds, merged into the full 153-pair set (171
+/// pairs total).
+///
+/// Under item 99's OLD single-champion ratchet this passed in total
+/// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or
+/// Potoroo/Firetail (ink) as the incumbent minimum. Under
+/// `check_pair_axes`'s top-`RATCHET_K` ratchet it must fail on all three
+/// axes — `Ibis` lands at rank 1 (differing, mean) or rank 5 (ink) without
+/// ever leading any of them.
+#[test]
+fn ibis_near_duplicate_is_caught_without_becoming_champion() {
+    let _g = crate::testlock::serial();
+    let galah = world("Galah");
+    let bilby = world("Bilby");
+    let galah_img = rep_rgba(&icon_bytes(galah.name), 32);
+    let bilby_img = rep_rgba(&icon_bytes(bilby.name), 32);
+    assert_eq!(
+        galah_img.dimensions(),
+        bilby_img.dimensions(),
+        "every 32px rep shares one tile size"
+    );
+    let (w, h) = galah_img.dimensions();
+    let mut ibis_img = image::RgbaImage::new(w, h);
+    for (x, y, out) in ibis_img.enumerate_pixels_mut() {
+        let g = galah_img.get_pixel(x, y).0;
+        let b = bilby_img.get_pixel(x, y).0;
+        let mut px = [0u8; 4];
+        for k in 0..4 {
+            px[k] = (g[k] as f64 * 0.7 + b[k] as f64 * 0.3).round() as u8;
+        }
+        *out = image::Rgba(px);
+    }
+
+    let mut pairs = all_real_pairs();
+    // Ibis vs every real world, classifying Ibis's own ground against
+    // Galah's `base_100` — the blend is only 30% toward Bilby, so Galah's
+    // ground still dominates, and this mirrors exactly how item 102's
+    // verifier measured it (Ibis was never exported, so it has no `Theme`
+    // of its own to read a ground colour off).
+    for t in THEMES.iter() {
+        let img = rep_rgba(&icon_bytes(t.name), 32);
+        pairs.push(measure_pair(
+            "Ibis",
+            &ibis_img,
+            rgb(galah.base_100),
+            t.name,
+            &img,
+            rgb(t.base_100),
+        ));
+    }
+
+    // Sanity: this reproduces item 102's own reported Ibis-vs-Galah numbers
+    // (differing 18.16%, mean 20.46, ink 90.73%) before asking whether the
+    // law catches them.
+    let ibis_vs_galah = pairs
+        .iter()
+        .find(|p| (p.a == "Ibis" && p.b == "Galah") || (p.a == "Galah" && p.b == "Ibis"))
+        .expect("Ibis vs Galah is in the extended set");
+    assert!(
+        (ibis_vs_galah.differing - 0.181641).abs() < 1e-3,
+        "differing = {} (item 102 reported 18.16%)",
+        ibis_vs_galah.differing
+    );
+    assert!(
+        (ibis_vs_galah.mean - 20.4609).abs() < 0.5,
+        "mean = {} (item 102 reported 20.46)",
+        ibis_vs_galah.mean
+    );
+    assert!(
+        (ibis_vs_galah.ink - 0.907317).abs() < 1e-3,
+        "ink = {} (item 102 reported 90.73%)",
+        ibis_vs_galah.ink
+    );
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        !failures.is_empty(),
+        "Ibis crowds badly on every axis (see the sanity numbers above) but \
+         check_pair_axes reported no failures — the top-K ratchet is not catching the \
+         case item 102 was filed for"
+    );
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
         assert!(
-            worst >= floor,
-            "{} vs {} are the closest pair on {name} at 32px ({}) and fall under the \
-             absolute floor of {} — at app-switcher size they read as one app. \
-             Five nearest: {roll}",
-            closest.a,
-            closest.b,
-            show(worst),
-            show(floor),
-        );
-        let ratchet = baseline * (1.0 - RATCHET_SLACK);
-        assert!(
-            worst >= ratchet,
-            "{} vs {} are now the closest pair on {name} at 32px ({}), below the \
-             measured baseline of {} (ratchet {}). Some change moved two worlds' icons \
-             closer together than any pair has ever been. Either back it out, or — if \
-             the crowding is intended — re-bless the baseline in this law and say why. \
-             Five nearest: {roll}",
-            closest.a,
-            closest.b,
-            show(worst),
-            show(baseline),
-            show(ratchet),
+            failures.iter().any(|f| f.contains(axis)),
+            "expected a failure mentioning {axis:?} (Ibis should crowd every axis); got:\n\n{}",
+            failures.join("\n\n")
         );
     }
+}
+
+/// NON-VACUITY (item 102): an ORDINARY new world that shares no palette with
+/// anything already shipped must still pass every rank of the new
+/// top-`RATCHET_K` ratchet — not only the floor and the old single-champion
+/// check — otherwise growing the roster normally would go red on its own,
+/// which is precisely the failure mode item 99 already rejected a per-pair
+/// baseline table for.
+///
+/// `Probeworld` reuses Galah's silhouette (identical shape at every pixel)
+/// but recolours every ground pixel and every non-ground ("ink") pixel to a
+/// palette that shares nothing with any of the 18 shipped worlds — by
+/// construction it can crowd nobody on colour, and its shape is Galah's own,
+/// so it cannot crowd on silhouette either.
+#[test]
+fn ordinary_new_world_passes_the_topk_ratchet() {
+    let _g = crate::testlock::serial();
+    let galah = world("Galah");
+    let galah_img = rep_rgba(&icon_bytes(galah.name), 32);
+    let ground_from = rgb(galah.base_100);
+    // A dark-teal ground (nowhere near any shipped world's `base_100`) and a
+    // saturated magenta ink. Magenta, not the first-tried near-white: this
+    // roster's `primary`/`primary_content`/`base_content` tokens are almost
+    // all warm creams, dark neutrals, or one mint-green — checked by hand
+    // against every shipped value, magenta's per-channel-sum distance from
+    // all of them clears several hundred, ten times the >24 "differs"
+    // threshold, where near-white collided (Wagtail's `#FFFFFF` cursor is
+    // only 19 away from a first-tried `#FAFAF6`, UNDER the threshold, so it
+    // silently registered as "not differing" and crowded the ink axis).
+    let new_ground = [0x0A, 0x2E, 0x33];
+    let new_ink = [0xFF, 0x00, 0xC8];
+
+    let mut probe_img = image::RgbaImage::new(galah_img.width(), galah_img.height());
+    for (x, y, out) in probe_img.enumerate_pixels_mut() {
+        let p = galah_img.get_pixel(x, y).0;
+        if !opaque(&p) {
+            *out = image::Rgba(p);
+            continue;
+        }
+        let new_rgb = if near(&p, ground_from, 10) { new_ground } else { new_ink };
+        *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
+    }
+
+    let mut pairs = all_real_pairs();
+    for t in THEMES.iter() {
+        let img = rep_rgba(&icon_bytes(t.name), 32);
+        pairs.push(measure_pair(
+            "Probeworld",
+            &probe_img,
+            new_ground,
+            t.name,
+            &img,
+            rgb(t.base_100),
+        ));
+    }
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        failures.is_empty(),
+        "an ordinary new world that crowds nobody should pass every rank of the \
+         top-K ratchet; got:\n\n{}",
+        failures.join("\n\n")
+    );
 }
 
 // ------------------------------------------------------------ the packer ---
