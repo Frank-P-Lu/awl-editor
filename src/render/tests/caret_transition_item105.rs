@@ -34,12 +34,47 @@
 //!
 //! SWEPT AXES (the ones item 91's laws did not): the full proportional-world
 //! roster (not just the two the user found), representative glyph classes
-//! (x-height / ascender / descender / punctuation / space / EOL / empty line /
-//! ligature), Block AND Morph (rest — travel is proven UNAFFECTED, not simply
-//! re-measured, since a moving caret is a streak with no cell to jump), a
-//! wrapped-line boundary, two zooms including a non-1.0 value, and 1x/2x DPI —
-//! plus the mono complement (must stay at ZERO discontinuity: item 97's grid
-//! never leaves the line-cell arm, so there is no seam to jump across there).
+//! (x-height / ascender / descender / punctuation / digit / capital / space /
+//! EOL / empty line / ligature), Block AND Morph (rest — travel is proven
+//! UNAFFECTED, not simply re-measured, since a moving caret is a streak with
+//! no cell to jump), a wrapped-line boundary, two zooms including a non-1.0
+//! value, and 1x/2x DPI — plus the mono complement (must stay at ZERO
+//! discontinuity: item 97's grid never leaves the line-cell arm, so there is
+//! no seam to jump across there).
+//!
+//! THE REPAIR ROUND (found auditing this item's own first landing, `12c2fb4`).
+//! The first fix's fallback synthesized a "typical letter" box from a per-font
+//! MEAN of x-height/cap-height ratios — a single fixed reference that closed
+//! the reported x-height class but, unswept, silently REGRESSED every other
+//! class it never tested: a CAPITAL letter (absent from the class roster
+//! entirely) landed WORSE than the pre-105 code on 11/11 proportional worlds
+//! (new Δ 2.3–4.4px vs old Δ 0.4–2.9px), and the WIDE-bound "no worse than
+//! before" law meant to catch exactly that kind of regression could not,
+//! because its ceiling FLOORED at the wide bound regardless of how small
+//! `old_d` was — permitting up to a 7.5px regression on a class that started
+//! at 0.6px and calling it "no worse than before".
+//!
+//! THE FIX: [`TextPipeline::caret_cell_vertical`]'s fallback arm now BORROWS
+//! the immediately PRECEDING column's own real ink (when one exists) instead
+//! of synthesizing an approximation — a glyphless cell beside a real letter
+//! now draws with THAT letter's exact ink, closing the literal adjacent seam
+//! to (near-)zero for EVERY class, not merely x-height, because it no longer
+//! guesses. The synthetic per-font ratio survives only for the case NO real
+//! neighbor exists (an empty line, or a glyphless anchor at column 0) — see
+//! `caret::TextPipeline::caret_synthetic_ink_box`'s doc. The "no worse than
+//! before" (`old_d`-relative) framing was RETIRED entirely, not just
+//! tightened: once neighbor-borrow makes an adjacent transition read genuine
+//! glyph ink instead of a guess, comparing that real ink to the OLD crude
+//! approximation is no longer a meaningful regression signal (real ink can
+//! legitimately differ from a guess by any amount without either being
+//! wrong) — see [`TRANSITION_BOUND_WIDE_PX`]'s doc for the concrete case
+//! (the ligature fixture) where the tightened `old_d`-relative version
+//! produced a false positive. The remaining real-ink-to-real-ink fixtures
+//! (ligature, wrap-boundary) use a plain ABSOLUTE sanity bound instead; the
+//! class that genuinely needs a regression guard (a SYNTHETIC approximation
+//! with nothing real to fall back on) is now tested at literal adjacency,
+//! where neighbor-borrow closes it exactly — see
+//! `every_glyph_class_closes_exactly_at_the_literal_eol_seam`.
 
 use super::super::*;
 use super::{headless_pipeline, view};
@@ -62,21 +97,23 @@ fn pixel_scale(p: &TextPipeline) -> f32 {
 /// (2.4–6.4px, 6.4/22.4 ≈ 29% of the old fixed cell on Bombora).
 const TRANSITION_BOUND_PX: f32 = 3.0;
 
-/// THE WIDE AUTHORED BOUND: a broad sanity ceiling for classes a SINGLE fixed
-/// synthetic reference structurally cannot fully close — an ASCENDER or
-/// DESCENDER neighbour, a LIGATURE cluster, a wrapped-line boundary, a tiny
-/// PUNCTUATION mark. These glyphs are legitimately taller/shorter than an
-/// "ordinary" letter (the ink-box arm ITSELF already shows a comparable
-/// column-to-column spread with NO bug involved — e.g. `lamp`'s real
-/// ink-arm height goes 25px on `l` to 19px on `a`, a 6px swing between two
-/// adjacent REAL glyphs; see `every_glyph_class_stays_bounded_into_eol`'s own
-/// fixture-sanity assert), so a synthetic "typical letter" reference cannot
-/// hug an extreme every time. See [`assert_no_worse_than_before`] for how this
-/// combines with a per-transition non-regression check into one honest claim.
-/// (Measured worst residual on this sweep's own extreme-class fixtures: 7.0px,
-/// Bilby's real "fi" ligature against a plain glyph — the bound sits with a
-/// small margin above that and well under the old code's own worst extreme
-/// case, ~13px on a bare punctuation mark.)
+/// THE WIDE AUTHORED BOUND: an ABSOLUTE sanity ceiling for a REAL-ink-to-REAL-
+/// ink transition the repair round's neighbor-borrow does not collapse to
+/// literal adjacency on its own — a LIGATURE cluster next to a plain glyph
+/// (both read straight off [`TextPipeline::caret_anchor_raster_box`], never
+/// the synthetic path at all) or the wrap-boundary sibling. Deliberately
+/// ABSOLUTE, not "no worse than the pre-105 formula": the repair round found
+/// that framing was the WRONG invariant here — pre-105's number was a crude
+/// row-centred guess, post-105's is the glyph's OWN real ink (a genuine
+/// improvement item 105 made on purpose), so the two can legitimately differ
+/// by any natural amount without either being a regression; a "no worse than
+/// old" check on a fixture where "new" is now simply CORRECT produced a false
+/// positive (Mopoke's real `fi`→`n` ligature step is 6.0px, comfortably sane,
+/// but exceeded a tightened `old_d`-relative margin). See
+/// `every_glyph_class_closes_exactly_at_the_literal_eol_seam` for the class
+/// that DOES deserve a `old_d`-relative regression guard (a SYNTHETIC
+/// approximation with no real ink to fall back on) — that class is now tested
+/// at literal adjacency instead, where neighbor-borrow closes it exactly.
 const TRANSITION_BOUND_WIDE_PX: f32 = 7.5;
 
 /// The MINIMUM pre-105 discontinuity a fixture must reproduce to prove the law
@@ -85,6 +122,14 @@ const TRANSITION_BOUND_WIDE_PX: f32 = 7.5;
 /// Magpie), so the non-vacuity check itself never spuriously fires on the
 /// world with the smallest (but still real) old bug.
 const NONVACUITY_OLD_DELTA_MIN_PX: f32 = 2.0;
+
+/// A LOOSER non-vacuity floor for classes whose pre-105 delta was already
+/// small by coincidence (a digit or a capital sitting close to the OLD
+/// fixed-cell height on some worlds — Bombora's digit old Δ is 0.51px) — still
+/// enough to prove the pre-105 code was not ALREADY perfectly continuous
+/// there, without demanding every class reproduce the x-height class's own
+/// (larger) bug magnitude.
+const NONVACUITY_ANY_DELTA_MIN_PX: f32 = 0.1;
 
 /// `(center_y, height)` at `col` on `line`, via the ONE owner, at REST (settled
 /// spring — `settle_caret` pins `settle_factor` to 1 so this is a genuine
@@ -127,28 +172,9 @@ fn assert_bounded(p: &TextPipeline, what: &str, cy0: f32, h0: f32, cy1: f32, h1:
     assert_bounded_by(p, TRANSITION_BOUND_PX, what, cy0, h0, cy1, h1);
 }
 
-/// THE EXTREME-CLASS LAW: for a glyph class no single fixed synthetic
-/// reference can fully hug (ascender / descender / digit / punctuation /
-/// ligature — see [`TRANSITION_BOUND_WIDE_PX`]'s doc), item 105 must leave the
-/// transition NO WORSE than it already was: `new_d <= max(old_d,
-/// TRANSITION_BOUND_WIDE_PX)`. This is one honest claim doing two jobs at
-/// once — wherever the OLD code was already small (an ascender, where the
-/// fixed old cell happened to sit close to a real ascender's height), the
-/// wide bound alone caps the new residual; wherever the OLD code was
-/// GENUINELY large (punctuation, up to ~13px old), the new residual is
-/// required to be strictly SMALLER than that old number, i.e. a real,
-/// measured improvement — never merely "not worse than an arbitrary
-/// constant". Either way this rules out a REGRESSION beyond the wide bound
-/// on every extreme class, the thing item 105 must not introduce even where
-/// it cannot achieve the tight bound's full closure.
-fn assert_no_worse_than_before(p: &TextPipeline, what: &str, old_d: f32, new_d: f32) {
-    let ceiling = old_d.max(TRANSITION_BOUND_WIDE_PX * pixel_scale(p));
-    assert!(
-        new_d <= ceiling + 1e-3,
-        "{what}: item 105 must leave this transition no worse than before \
-         (old Δ={old_d:.2}, wide bound={:.2}, so ceiling={ceiling:.2}): got new Δ={new_d:.2}",
-        TRANSITION_BOUND_WIDE_PX * pixel_scale(p)
-    );
+/// [`assert_bounded_by`] at the WIDE (absolute-sanity) bound.
+fn assert_bounded_wide(p: &TextPipeline, what: &str, cy0: f32, h0: f32, cy1: f32, h1: f32) {
+    assert_bounded_by(p, TRANSITION_BOUND_WIDE_PX, what, cy0, h0, cy1, h1);
 }
 
 /// THE HEADLINE FIXTURE, swept over the FULL proportional-world roster: the
@@ -249,45 +275,52 @@ fn aaa_to_eol_transition_is_exactly_zero_on_every_mono_world() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// REPRESENTATIVE GLYPH CLASSES, swept on Gumtree + Mopoke (the two the user
-/// named): ascender, x-height, descender, punctuation, digit — each
-/// immediately followed by end-of-line, so the bound holds regardless of WHICH
-/// letter the caret was hugging before the jump, not just the lowercase `a`
-/// the headline fixture uses.
+/// EVERY REPRESENTATIVE GLYPH CLASS, swept over the FULL proportional-world
+/// roster, at the LITERAL adjacent seam: ascender, x-height, descender,
+/// punctuation, digit, and CAPITAL — each as the very last character before
+/// end-of-line, immediately followed by it, the exact shape the headline
+/// `aaa` fixture uses for `a`. This is the axis the FIRST item-105 landing did
+/// not sweep: CAPITAL was entirely absent from its class roster, and on that
+/// exact absence the first landing regressed 11/11 proportional worlds
+/// against pre-105 (new Δ 2.3–4.4px vs old Δ 0.4–2.9px) without any test
+/// noticing — see this file's module doc.
 ///
-/// X-HEIGHT keeps the TIGHT bound (the reported class). The others get the
-/// WIDE bound: the synthetic reference is deliberately a "typical letter"
-/// (the mean of x-height and cap-height — see `facepitch::typical_letter_ratio`),
-/// so an extreme class (a tall ascender, a tiny punctuation mark) cannot fully
-/// close against it with ANY single fixed reference — the ink-box arm's own
-/// letter-to-letter spread already shows a comparable gap with no bug
-/// involved (fixture-sanity asserted below). Every class ALSO stays under the
-/// GLOBAL pre-fix worst case, so even the classes item 105 cannot fully
-/// close are proven never worse than the original bug's own ceiling.
+/// EVERY class now gets the TIGHT bound, not just x-height: the repair
+/// round's neighbor-borrow (`caret_cell_vertical`'s fallback arm) makes a
+/// literal adjacent transition BORROW the real letter's own ink rather than
+/// approximate it, so the residual is not merely bounded, it is (up to float
+/// rounding) exactly zero for every class this sweeps — a strictly stronger
+/// claim than the first landing's per-class "close enough" bound, proven
+/// per-fixture non-vacuous against the pre-105 code below.
 #[test]
-fn every_glyph_class_stays_bounded_into_eol() {
+fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping every_glyph_class_stays_bounded_into_eol: no wgpu adapter");
+        eprintln!("skipping every_glyph_class_closes_exactly_at_the_literal_eol_seam: no wgpu adapter");
         return;
     };
-    // (fixture, glyph col, class label, tight-bound?)
-    let fixtures: &[(&str, usize, &str, bool)] = &[
-        ("lamp", 0, "ascender (l)", false), // 'l' at col0, EOL at col4
-        ("lamp", 1, "x-height (a)", true),
-        ("gap", 0, "descender (g)", false),
-        ("a1.", 2, "punctuation (.)", false),
-        ("a1.", 1, "digit (1)", false),
+    // (fixture, class label) — the class char is always the LAST char, col
+    // `eol - 1`, immediately followed by EOL at `eol`. A leading filler char
+    // keeps every fixture a genuine two-column transition, never a bare
+    // single-char line (already covered by the headline/empty-line fixtures).
+    let fixtures: &[(&str, &str)] = &[
+        ("xl", "ascender (l)"),
+        ("xa", "x-height (a)"),
+        ("xg", "descender (g)"),
+        ("x.", "punctuation (.)"),
+        ("x1", "digit (1)"),
+        ("xA", "capital (A)"),
     ];
 
     // FIXTURE SANITY: the ink-box arm's OWN letter-to-letter height spread on
     // "lamp" (an ascender next to an x-height letter, both real glyphs, no
     // fallback involved) is itself several px — proof that SOME height
-    // variation between adjacent columns is normal product behaviour, not a
-    // defect, and that the wide bound below is not simply "anything goes".
+    // variation between adjacent columns is normal product behaviour, and
+    // that the exact-closure claim below comes from borrowing the real
+    // neighbor's ink, not from every class secretly measuring the same.
     {
         theme::set_active_by_name("Gumtree").unwrap();
         p.sync_theme();
@@ -300,30 +333,40 @@ fn every_glyph_class_stays_bounded_into_eol() {
         );
     }
 
-    for world in ["Gumtree", "Mopoke"] {
-        theme::set_active_by_name(world).unwrap();
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+        theme::set_active_by_name(t.name).unwrap();
         p.sync_theme();
-        for &(text, col, label, tight) in fixtures {
+        for &(text, label) in fixtures {
             let eol = text.chars().count();
-            let (cy0, h0) = cell_at(&mut p, text, 0, col);
+            let anchor = eol - 1;
+            let (cy0, h0) = cell_at(&mut p, text, 0, anchor);
             assert!(
                 p.caret_anchor_ink_box().is_some(),
-                "{world} {label}: fixture must anchor a real ink box"
+                "{} {label}: fixture must anchor a real ink box",
+                t.name
             );
-            if tight {
-                let (cy1, h1) = cell_at(&mut p, text, 0, eol);
-                assert_bounded(&p, &format!("{world} {label} -> EOL"), cy0, h0, cy1, h1);
-            } else {
-                p.set_view(&view(text, 0, eol));
-                p.settle_caret();
-                let old = old_fallback_cell(&p);
-                let old_d = cell_delta((cy0, h0), old);
-                let (cy1, h1) = p.caret_cell_vertical();
-                let new_d = cell_delta((cy0, h0), (cy1, h1));
-                assert_no_worse_than_before(&p, &format!("{world} {label} -> EOL"), old_d, new_d);
-            }
+
+            // NON-VACUITY: the OLD (pre-105) fallback must genuinely have
+            // differed here, or this fixture proves nothing.
+            p.set_view(&view(text, 0, eol));
+            p.settle_caret();
+            let old_d = cell_delta((cy0, h0), old_fallback_cell(&p));
+            let floor = NONVACUITY_ANY_DELTA_MIN_PX * pixel_scale(&p);
+            assert!(
+                old_d > floor,
+                "{} {label}: fixture must reproduce SOME pre-105 discontinuity \
+                 (old Δ={old_d:.2} vs floor {floor:.2}) or this law is vacuous",
+                t.name
+            );
+
+            let (cy1, h1) = p.caret_cell_vertical();
+            assert_bounded(&p, &format!("{} {label} -> EOL", t.name), cy0, h0, cy1, h1);
         }
+        checked += 1;
     }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -370,24 +413,21 @@ fn ligature_to_plain_glyph_transition_is_bounded() {
         }
         saw_real_ligature = true;
         let (cy0, h0) = p.caret_cell_vertical();
-        let old0 = old_fallback_cell(&p); // the pre-105 line-cell this ligature used to draw
 
         let (cy1, h1) = cell_at(&mut p, text, 0, 2); // the plain 'n' — the ink-box
-        // arm's own value, UNCHANGED by item 105, so it is both the OLD and NEW
-        // reading at this column: the correct oracle for both deltas below.
+        // arm's own value, UNCHANGED by item 105.
         assert!(
             p.caret_anchor_ink_box().is_some(),
             "{}: 'n' must be a plain single-glyph anchor",
             t.name
         );
-        // "fi" (an ascender-height ligature) next to a plain x-height 'n' is
-        // the same cross-class shape as the ascender case in
-        // `every_glyph_class_stays_bounded_into_eol` — see
-        // `assert_no_worse_than_before`'s doc for why a single fixed synthetic
-        // reference cannot always fully close it.
-        let old_d = cell_delta(old0, (cy1, h1));
-        let new_d = cell_delta((cy0, h0), (cy1, h1));
-        assert_no_worse_than_before(&p, &format!("{} ligature->plain", t.name), old_d, new_d);
+        // "fi" (an ascender-height ligature, REAL ink) next to a plain
+        // x-height 'n' (also REAL ink) — an absolute sanity bound, not a
+        // "no worse than the pre-105 formula" comparison: both sides are now
+        // genuine glyph ink, so they may legitimately differ by a natural
+        // amount (see `TRANSITION_BOUND_WIDE_PX`'s doc for why comparing this
+        // to the old crude fallback was the wrong invariant).
+        assert_bounded_wide(&p, &format!("{} ligature->plain", t.name), cy0, h0, cy1, h1);
         checked += 1;
     }
     assert!(
@@ -433,15 +473,12 @@ fn wrap_boundary_transition_is_bounded_on_a_proportional_world() {
     );
     p.set_view(&view(&long, 0, space_col));
     p.settle_caret();
-    let old1 = old_fallback_cell(&p);
-    let old_d = cell_delta((cy0, h0), old1);
     let (cy1, h1) = p.caret_cell_vertical();
-    // The char right before the wrap collapse is `d`, a descender (the
-    // fixture's own "word "-repeated content), so this is the same
-    // cross-class shape as `every_glyph_class_stays_bounded_into_eol`'s
-    // descender case — see `assert_no_worse_than_before`'s doc.
-    let new_d = cell_delta((cy0, h0), (cy1, h1));
-    assert_no_worse_than_before(&p, "Gumtree wrap boundary", old_d, new_d);
+    // The collapsed space's anchor column is `last_glyph_col + 1`, so the
+    // repair round's neighbor-borrow reads `last_glyph_col`'s own real ink
+    // directly — the SAME box (cy0, h0) already came from — closing this to
+    // (near-)exact rather than merely bounded.
+    assert_bounded(&p, "Gumtree wrap boundary", cy0, h0, cy1, h1);
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -485,11 +522,27 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
         );
         // Bounded BOTH ways: not collapsed to nothing, and not the old fixed
         // ~0.8*row-height cap regardless of the letter (item 91's original bug,
-        // reproduced at the seam if this synthetic box regresses to it).
+        // reproduced at the seam if this synthetic box regresses to it). TIGHT
+        // (repair round): the previous `h_glyph*2.0+4px` bound was wide enough
+        // (36–44px, measured) that the OLD FIXED CAP it names (~22.4px, every
+        // world) sat comfortably INSIDE it — the law never went red under a
+        // full revert to the exact bug it claims to guard. `h_glyph*1.05`
+        // margins 1.4–5.6px under the old cap on every world (verified below)
+        // while `h_empty` (7.00px, every world) sits far inside it.
+        let bound = h_glyph * 1.05 + 0.1 * pixel_scale(&p);
         assert!(
-            h_empty < h_glyph * 2.0 + 4.0 * pixel_scale(&p),
+            h_empty < bound,
             "{}: empty-line cell must not balloon back to a large fixed cap: \
-             h_empty={h_empty} h_glyph={h_glyph}",
+             h_empty={h_empty} h_glyph={h_glyph} bound={bound}",
+            t.name
+        );
+        // NON-VACUITY: the OLD fixed cap itself must fail this same bound, or
+        // the assert above proves nothing about the bug it names.
+        let old_cap = old_fallback_cell(&p).1;
+        assert!(
+            old_cap >= bound,
+            "{}: fixture must reproduce the old fixed cap exceeding the new \
+             bound (old_cap={old_cap} bound={bound}) or this law is vacuous",
             t.name
         );
         checked += 1;
@@ -756,6 +809,113 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
         "the color-only preview's caret fallback must already match the cold \
          destination's geometry, not the lagging shaped_font's: preview={preview:?} \
          cold={cold:?}"
+    );
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// THE THEME-PREVIEW SEAM ON REAL TEXT (found auditing the repair round's own
+/// first fix to [`TextPipeline::caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font`]).
+/// That law's ONLY fixture is an EMPTY buffer, where `caret_row_metrics`'s
+/// ascent approximation is `self.metrics.font_size * 0.8` — theme-INDEPENDENT
+/// by construction (`Metrics::with_dpi` never reads the active theme) — so
+/// keying the ratio on the LIVE `doc_family()` there costs nothing and the law
+/// holds exactly. On any document with REAL text, `caret_row_metrics` instead
+/// reads a genuinely shaped [`cosmic_text::LayoutLine`]'s `max_ascent`, a
+/// property of `shaped_font` (the face still ACTUALLY on screen mid-preview,
+/// stale until the deferred reshape). Multiplying THAT ascent by a DIFFERENT
+/// font's ratio (`doc_family()`, live) produces a mixed-font number neither
+/// factor alone would — confirmed empirically (throwaway probe, reverted):
+/// worst case 5.19px at (Tawny → Bilby), the SAME magnitude as the original
+/// item-91/105 bug this whole file exists to close.
+///
+/// THE FIX: `caret_synthetic_ink_box`'s ratio now reads `caret_row_metrics`'s
+/// own THIRD element — whichever font actually produced the ascent it is
+/// paired with — never an independently-chosen font. This does NOT (and
+/// cannot, without paying for the very reshape the debounce exists to defer)
+/// make the preview match the COLD destination exactly on real text — the
+/// row's actual on-screen geometry genuinely IS still the source font's until
+/// the reshape catches up, so some residual is inherent to the design, not a
+/// bug. What the fix buys is INTERNAL consistency (one font's ascent times
+/// THAT SAME font's ratio, never a cross-font product) and a real, measured
+/// drop in the worst-case residual: swept over every mono-source ×
+/// proportional-destination pair on a genuinely shaped row (`"a  "`, caret on
+/// the second space — no adjacent real neighbor, so this isolates the
+/// synthetic-box path from the repair round's neighbor-borrow), the worst
+/// case drops from 5.19px (the mixed-font formula) to 2.76px (Mangrove →
+/// Bombora) — roughly half, and comfortably under this test's bound.
+#[test]
+fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent: no wgpu adapter");
+        return;
+    };
+    // Bound: comfortably above the fixed formula's measured worst (2.76px),
+    // comfortably below the mixed-font formula's measured worst (5.19px) —
+    // proven non-vacuous by the assert below over the SAME sweep.
+    const WORST_CASE_BOUND_PX: f32 = 3.5;
+
+    let text = "a  "; // caret lands on the SECOND space: no adjacent real ink.
+    let mono = super::facepitch::mono_display_worlds();
+    let prop: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| !mono.contains(&t.name))
+        .map(|t| t.name)
+        .collect();
+    assert!(mono.len() >= 7 && prop.len() >= 11, "full roster on both sides");
+
+    let mut worst = 0.0f32;
+    let mut worst_pair = ("", "");
+    for &src in &mono {
+        for &dst in &prop {
+            // COLD: settle directly on the destination — ground truth.
+            theme::set_active_by_name(src).unwrap();
+            p.sync_theme();
+            p.set_view(&view(text, 0, 2));
+            p.settle_caret();
+            theme::set_active_by_name(dst).unwrap();
+            p.sync_theme();
+            p.settle_caret();
+            let cold = p.caret_cell_vertical();
+
+            // PREVIEW: back to the mono source, settle, then a COLOR-ONLY
+            // retint to the destination — `shaped_font` stays the source's.
+            theme::set_active_by_name(src).unwrap();
+            p.sync_theme();
+            p.set_view(&view(text, 0, 2));
+            p.settle_caret();
+            assert!(p.caret_anchor_ink_box().is_none(), "fixture must be glyphless at the anchor");
+            let src_family = p.shaped_font; // the FONT family, not the world name
+            theme::set_active_by_name(dst).unwrap();
+            p.sync_theme_colors();
+            assert_eq!(p.shaped_font, src_family, "fixture must reproduce the lag");
+            let preview = p.caret_cell_vertical();
+
+            let d = cell_delta(cold, preview);
+            let bound = WORST_CASE_BOUND_PX * pixel_scale(&p);
+            assert!(
+                d <= bound,
+                "{src} -> {dst}: preview/cold delta {d:.2} exceeds the bound {bound:.2} \
+                 (cold={cold:?} preview={preview:?})"
+            );
+            if d > worst {
+                worst = d;
+                worst_pair = (src, dst);
+            }
+        }
+    }
+    // NON-VACUITY: the sweep must exercise a genuinely nonzero worst case —
+    // otherwise every pair happening to read the same ratio trivially passes.
+    assert!(
+        worst > 0.5,
+        "fixture must reproduce a real nonzero lag residual somewhere in the \
+         roster (worst={worst:.2} at {worst_pair:?}) or this law is vacuous"
     );
 
     theme::set_active(theme::DEFAULT_THEME);
