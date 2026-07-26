@@ -80,7 +80,7 @@ pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> Pa
             }
         }
     }
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+    crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 /// THE ONE launch-precedence law (item 76), for the WINDOWED launch door
@@ -1892,9 +1892,11 @@ mod tests {
         let input = dir.join("doc.md");
         std::fs::write(&input, "alpha\n").unwrap();
         {
-            // FsGuard(current) restores whatever the install swaps in, even on
-            // a failed assert, so no sibling test ever sees the sandbox.
-            let _restore = crate::fs::FsGuard::install(crate::fs::active());
+            // FsGuard::capture() restores whatever the install swaps in, even
+            // on a failed assert, so no sibling test ever sees the sandbox.
+            // `capture()` rather than `install(fs::active())`: the argument
+            // form read the global BEFORE taking the guard (queue item 101).
+            let _restore = crate::fs::FsGuard::capture();
             crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir));
             let mut buffer = load_buffer(&Some(input.clone()));
             assert_eq!(buffer.text(), "alpha\n", "the sandbox seeded the real input's bytes");
@@ -1941,7 +1943,7 @@ mod tests {
         let body = "[a](https://awl.example/doc) tail\n";
         std::fs::write(&input, body).unwrap();
         {
-            let _restore = crate::fs::FsGuard::install(crate::fs::active());
+            let _restore = crate::fs::FsGuard::capture();
             crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir));
             let mut buffer = load_buffer(&Some(input.clone()));
             // Right lands the caret inside the link, C-c C-o follows it.
@@ -2526,6 +2528,9 @@ mod tests {
         // A NAVIGATING accept closes the whole stack: ⌘O → Enter on a file lands you
         // IN the file with NO overlay left open (like a palette value-pick keep, and
         // unlike the Esc breadcrumb pop).
+        //
+        // The accepted open reads through the swappable fs global (item 101).
+        let _tg = crate::testlock::serial();
         let mut buffer = Buffer::scratch();
         let corpus = vec!["doc-fixture.md".to_string()];
         let root = PathBuf::from("/tmp");
@@ -3374,6 +3379,8 @@ mod tests {
 
     #[test]
     fn resolve_root_file_argument_resolves_from_its_own_directory() {
+        // `resolve_root` probes `fs::active().is_dir(f)` (queue item 101).
+        let _tg = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!("awl-resolve-root-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("note.txt");
@@ -3387,7 +3394,13 @@ mod tests {
         // `resolve_root` alone (the explicit-only half) never consults a
         // remembered folder or a default — that's `resolve_launch_context`'s
         // job. Its own bare fallback stays cwd, unchanged.
-        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        //
+        // TWO reads of the process-CWD global (ours + `resolve_root`'s own), so
+        // the guard is what makes them the SAME cwd — a `CwdGuard` landing
+        // between them would otherwise compare two different directories
+        // (queue item 101).
+        let _tg = crate::testlock::serial();
+        let cwd = crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         assert_eq!(resolve_root(&None, &None), cwd);
     }
 
@@ -3410,6 +3423,8 @@ mod tests {
         // Law point 1 (file half): `awl file.md` resolves from the file's own
         // directory, ignoring the remembered document/folder entirely — the
         // crisp "explicit beats resumed" rule.
+        // `resolve_root` probes `fs::active().is_dir(f)` (queue item 101).
+        let _tg = crate::testlock::serial();
         let remembered = PathBuf::from("/remembered/root");
         let default_folder = PathBuf::from("/home/me/notes");
         let dir = std::env::temp_dir().join(format!("awl-launch-ctx-file-{}", std::process::id()));
@@ -3428,6 +3443,14 @@ mod tests {
         // `awl .` — a DIR argument — is door 1 (explicit), the crisp
         // bare-vs-dot distinction: it must win over whatever is remembered,
         // exactly like a file argument does.
+        //
+        // THE VICTIM OF QUEUE ITEM 101: `resolve_root` decides "is this
+        // argument a directory?" through `fs::active().is_dir(f)`. Without
+        // this guard the probe could land on a sibling test's `InMemoryFs`,
+        // which knows nothing of this real temp dir — `is_dir` came back
+        // false, the dir argument decayed to its PARENT (`/tmp`), and the
+        // assertion below failed under parallel load.
+        let _tg = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!("awl-launch-ctx-dot-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let remembered = PathBuf::from("/remembered/root");
@@ -3462,8 +3485,10 @@ mod tests {
             default_folder
         );
         // Distinct from cwd in this test's own working directory, so the
-        // assertion above isn't accidentally true by coincidence.
-        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        // assertion above isn't accidentally true by coincidence. Reading the
+        // process-CWD global -> take the guard (queue item 101).
+        let _tg = crate::testlock::serial();
+        let cwd = crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         assert_ne!(default_folder, cwd);
     }
 
@@ -3480,13 +3505,14 @@ mod tests {
         let _fs = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!("awl-capture-bare-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let prev_cwd = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&dir).unwrap();
+        // `CwdGuard` owns the chdir + the restore (queue item 101): the manual
+        // save/chdir/restore this replaced stranded every sibling test in the
+        // temp dir whenever an assertion below failed before the restore line.
+        let _cwd_guard = crate::fs::CwdGuard::enter(&dir);
         // macOS's temp dir sits behind a `/var` -> `/private/var` symlink, so
         // read the CANONICAL cwd back rather than trusting `dir` verbatim —
-        // `std::env::current_dir()` (what `resolve_root` itself calls)
-        // resolves it.
-        let cwd = std::env::current_dir().unwrap();
+        // `fs::current_dir()` (what `resolve_root` itself calls) resolves it.
+        let cwd = crate::fs::current_dir().unwrap();
         let config = Config { default_folder: Some(PathBuf::from("/should/never/be/read")), ..Config::empty() };
         let out = dir.join("cap.png");
         let default_folder = dir.join("notes");
@@ -3502,7 +3528,6 @@ mod tests {
             config,
             false, // permissive (the legacy default)
         );
-        std::env::set_current_dir(&prev_cwd).unwrap();
         result.expect("capture succeeds");
         let json = std::fs::read_to_string(out.with_extension("json")).unwrap();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();

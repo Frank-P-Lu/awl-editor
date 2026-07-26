@@ -188,9 +188,11 @@ mod tests {
         let dir = tmp_dir("install");
         let doc = dir.join("doc.md");
         std::fs::write(&doc, "real bytes\n").unwrap();
-        // FsGuard(current) restores whatever `install_hermetic_fs` swaps in —
-        // even on a failed assert — so no sibling test ever sees the sandbox.
-        let _restore = crate::fs::FsGuard::install(crate::fs::active());
+        // FsGuard::capture() restores whatever `install_hermetic_fs` swaps in
+        // — even on a failed assert — so no sibling test ever sees the sandbox.
+        // `capture()` rather than `install(fs::active())`: the argument form
+        // read the global BEFORE taking the guard (queue item 101).
+        let _restore = crate::fs::FsGuard::capture();
         install_hermetic_fs(Some(&doc), None, Some(&dir));
         // The active backend now serves the seeded copy…
         assert_eq!(crate::fs::active().read_to_string(&doc).unwrap(), "real bytes\n");

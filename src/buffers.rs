@@ -116,7 +116,7 @@ pub(crate) fn normalize_path(p: &Path) -> PathBuf {
     let abs = if p.is_absolute() {
         p.to_path_buf()
     } else {
-        std::env::current_dir()
+        crate::fs::current_dir()
             .map(|cwd| cwd.join(p))
             .unwrap_or_else(|_| p.to_path_buf())
     };
@@ -334,7 +334,12 @@ mod tests {
         // file argument) must key IDENTICALLY to its cwd-joined absolute form —
         // the same file reached two different ways must be the same registry
         // entry.
-        let cwd = std::env::current_dir().unwrap();
+        // TWO reads of the process-CWD global: this one and the one
+        // `normalize_path` takes inside `BufferKey::path`. A `CwdGuard` landing
+        // between them made `rel` and `abs` describe two different directories
+        // — so the guard is load-bearing, not ceremony (queue item 101).
+        let _tg = crate::testlock::serial();
+        let cwd = crate::fs::current_dir().unwrap();
         let rel = BufferKey::path(Path::new("some_never_created_test_file.rs"));
         let abs = BufferKey::path(&cwd.join("some_never_created_test_file.rs"));
         assert_eq!(rel, abs, "relative and cwd-joined-absolute must key the same");
@@ -401,6 +406,10 @@ mod tests {
 
     #[test]
     fn buffer_key_of_scratch_and_path_and_unnamed_note() {
+        // `Buffer::from_file` reads through the swappable fs global (queue
+        // item 101) — off-guard it can be answered by a sibling test's
+        // `InMemoryFs`.
+        let _tg = crate::testlock::serial();
         let scratch = Buffer::scratch();
         assert_eq!(BufferKey::of(&scratch), Some(BufferKey::Scratch));
 

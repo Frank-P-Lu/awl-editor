@@ -235,8 +235,18 @@ mod tests {
 
     // --- marker round-trip (native-only, real temp dir, injected clock) ----
 
+    /// A fresh real temp dir PLUS the process-wide test guard, returned
+    /// together (queue item 101). Every test in this block writes and reads its
+    /// marker through `crate::fs::active()` — the swappable process-global
+    /// backend — so running off-guard means a sibling test's `InMemoryFs` can
+    /// be installed for part of the round trip: the write lands in the fake and
+    /// the read finds nothing, or vice versa. Handing the guard back WITH the
+    /// dir makes "arranged a temp dir but forgot to serialize" unrepresentable
+    /// here; the caller binds it for the test's whole life.
     #[cfg(not(target_arch = "wasm32"))]
-    fn tmp_dir(tag: &str) -> PathBuf {
+    #[must_use]
+    fn tmp_dir(tag: &str) -> (PathBuf, crate::testlock::SerialGuard) {
+        let guard = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!(
             "awl_updates_test_{tag}_{}_{}",
             std::process::id(),
@@ -246,13 +256,13 @@ mod tests {
                 .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        dir
+        (dir, guard)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn last_checked_is_none_before_the_first_record() {
-        let dir = tmp_dir("empty");
+        let (dir, _tg) = tmp_dir("empty");
         assert_eq!(last_checked(&dir), None);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -260,7 +270,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn record_checked_round_trips_the_timestamp() {
-        let dir = tmp_dir("roundtrip");
+        let (dir, _tg) = tmp_dir("roundtrip");
         record_checked(&dir, 1_700_000_000);
         assert_eq!(last_checked(&dir), Some(1_700_000_000));
         // A later record overwrites, never appends.
@@ -272,7 +282,8 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn record_checked_creates_a_missing_data_dir() {
-        let dir = tmp_dir("missing").join("nested");
+        let (parent, _tg) = tmp_dir("missing");
+        let dir = parent.join("nested");
         assert!(!dir.exists());
         record_checked(&dir, 42);
         assert_eq!(last_checked(&dir), Some(42));
@@ -282,7 +293,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn last_checked_ignores_a_corrupt_marker() {
-        let dir = tmp_dir("corrupt");
+        let (dir, _tg) = tmp_dir("corrupt");
         let _ = crate::fs::write_atomic(&marker_path(&dir), b"not-a-number");
         assert_eq!(last_checked(&dir), None);
         let _ = std::fs::remove_dir_all(&dir);
@@ -291,7 +302,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn update_checked_state_is_never_before_any_record_then_checked_ago_after() {
-        let dir = tmp_dir("state");
+        let (dir, _tg) = tmp_dir("state");
         assert_eq!(update_checked_state(&dir, 1000), UpdateChecked::Never);
         record_checked(&dir, 1000);
         assert_eq!(
