@@ -184,6 +184,9 @@ fn set_size_rewrap_invalidates_row_geometry() {
     // parallel mutator can't change the wrap width under the comparison.
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    crate::page::set_page_on(true);
+    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping set_size_rewrap_invalidates_row_geometry: no wgpu adapter");
         return;

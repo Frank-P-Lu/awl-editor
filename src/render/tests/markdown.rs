@@ -401,6 +401,7 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     // is about, independent of whichever world happens to be the launch DEFAULT)
     // and hold the theme lock, since this reads the process-global active theme.
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     theme::set_active_by_name("Tawny").unwrap();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping nested_bullets_cycle_by_depth_and_reveal_on_cursor: no wgpu adapter");

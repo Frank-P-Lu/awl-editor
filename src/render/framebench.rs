@@ -1145,6 +1145,7 @@ mod tests {
     #[test]
     fn wash_layer_and_table_grid_stages_stay_in_lockstep() {
         let _g = crate::testlock::serial();
+        let _world = crate::theme::WorldPin::snapshot();
         let Some((device, queue, mut p)) = headless_dqp() else {
             eprintln!("skipping wash_layer_and_table_grid_stages_stay_in_lockstep: no wgpu adapter");
             return;

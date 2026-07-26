@@ -814,6 +814,11 @@ fn theme_preview_retint_regrounds_the_page_surface_on_every_world() {
         return;
     };
     let _g = crate::testlock::serial();
+    // This test used to leave measure=40 behind. At that measure both the
+    // geometry law's 1200px "wide" stage and its 600px stage are page-capped,
+    // producing the repeatedly observed 43 -> 43 sibling-test failure.
+    let _page = crate::page::PagePin::snapshot();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::caret::set_mode(CaretMode::Block);
     crate::page::set_page_on(true);
     crate::page::set_measure(40);

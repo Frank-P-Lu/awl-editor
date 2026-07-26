@@ -2970,6 +2970,28 @@ fn streaks_heatmap_levels_are_distinguishable_every_world() {
     set_active(DEFAULT_THEME);
 }
 
+/// Item 103's paired-load gate: the heatmap law was the compliant victim that
+/// the retired guard machinery corrupted by restoring outside the lock. Exercise
+/// the explicit pin and runtime choke point together forty times; any restore
+/// that escapes the serialized window now fails at the writer seam itself.
+#[test]
+fn streaks_heatmap_law_is_stable_across_forty_world_pin_windows() {
+    let _g = crate::testlock::serial();
+    let _suite_world = WorldPin::snapshot();
+    for pair in 0..40 {
+        set_active(pair % THEMES.len());
+        {
+            let _world = WorldPin::snapshot();
+            streaks_heatmap_levels_are_distinguishable_every_world();
+        }
+        assert_eq!(
+            active_index(),
+            pair % THEMES.len(),
+            "pair {pair}: the explicit pin restores inside the held window"
+        );
+    }
+}
+
 /// WCAG relative-contrast ratio between two opaque colors, gamma-correct Rec.709
 /// — a small, deliberate duplication of `render::tests::distinguishability`'s own
 /// copy (the accepted shape this codebase already carries for a tiny pure-math
@@ -3218,4 +3240,81 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
     std::panic::set_hook(quiet);
     assert!(out.is_err(), "the panic really happened (non-vacuous)");
     assert_eq!(active_index(), before, "the pin restores while unwinding, not just on a clean exit");
+}
+
+/// The process-global writer itself is the enforcement seam. A helper cannot
+/// hide an unguarded write behind a caller that merely happens to contain a
+/// lock acquisition in its source: the write is rejected on the thread that
+/// actually performs it, before ACTIVE changes.
+#[test]
+fn an_unguarded_world_leak_fails_at_the_runtime_choke_point_before_it_writes() {
+    assert!(!crate::testlock::currently_held());
+    let before = active_index();
+    let leaked = std::panic::catch_unwind(|| set_active(before + 1));
+    assert!(leaked.is_err(), "a deliberately unguarded writer must fail");
+    assert_eq!(
+        active_index(),
+        before,
+        "the choke point rejects the leak before mutating the world"
+    );
+}
+
+/// Production's own guarded action window is not a restore boundary. The theme
+/// picker preview is a real product write and must remain active after
+/// `apply_core` returns even when the caller did not already hold the test lock.
+#[test]
+fn a_world_a_production_action_sets_survives_that_action() {
+    use crate::actions::ActionCtx;
+    use crate::keymap::Action;
+    use crate::overlay::{OverlayKind, OverlayState};
+
+    // Keep the ONE mutex held across arrange / action / observation / cleanup,
+    // while `apply_core` requests its own product guard reentrantly. This avoids
+    // the retired law's defect: it dropped the lock around its observation and
+    // briefly exposed its deliberately changed world to compliant sibling tests.
+    let _probe = crate::testlock::product();
+    let original = active_index();
+    set_active(0);
+    let product_requests_before = crate::testlock::product_requests();
+
+    let names: Vec<String> = world_names().iter().map(|n| n.to_string()).collect();
+    let mut overlay = Some(OverlayState::new_theme(names, 0));
+    let mut buffer = crate::buffer::Buffer::scratch();
+    let mut shift = false;
+    let mut zoom = 1.0f32;
+    let mut search = None;
+    let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
+    let mut browse_to =
+        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        overlay: &mut overlay,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+
+    crate::actions::apply_core(&mut ctx, &Action::LineEnd, false);
+    assert_eq!(
+        crate::testlock::product_requests(),
+        product_requests_before + 1,
+        "apply_core must request the product door, not the checked test door"
+    );
+    let previewed = overlay
+        .as_ref()
+        .and_then(|ov| ov.selected_value())
+        .expect("the theme picker has a selected world")
+        .to_string();
+    assert_ne!(previewed, THEMES[0].name, "the action genuinely previews another world");
+
+    let observed = active().name.to_string();
+    set_active(original);
+    assert_eq!(
+        observed, previewed,
+        "the world the product action set must survive that action"
+    );
 }

@@ -495,10 +495,12 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // totally unrelated test's action, changing its returned `Effect`. It is the
     // ONE reentrant guard, so a test that already holds it around its own drive
     // nests here for free, and there is no lock ORDER left to ABBA (the page
-    // writers acquire the SAME guard, reentrantly). Held for the whole function;
-    // zero cost outside `cfg(test)`.
+    // writers acquire the SAME guard, reentrantly). This is the `product` door:
+    // an action may intentionally leave a theme preview active. If a TEST already
+    // owns `serial`, this nests and the outer test still verifies/cleans its own
+    // world on exit. Held for the whole function; zero cost outside `cfg(test)`.
     #[cfg(test)]
-    let _test_guard = crate::testlock::serial();
+    let _test_guard = crate::testlock::product();
 
     // PLATFORM-SCOPED COMMANDS: the DISPATCH gate. Hiding a command from the palette
     // / rebind menu / menu bar (`commands::visible`) is not enough on its own — a

@@ -246,6 +246,7 @@ fn caret_ink_box_off_for_mono_and_ligature_cluster() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping caret_ink_box_off_for_mono_and_ligature_cluster: no wgpu adapter");

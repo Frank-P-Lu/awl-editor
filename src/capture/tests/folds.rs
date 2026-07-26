@@ -153,6 +153,7 @@ fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
         return;
     }
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
 
     const FLOOR: f32 = 2.7; // just under the ~2.9-3.2:1 every calibrated mark actually hits, leaving AA-rounding slack.
     let dir = std::env::temp_dir().join(format!("awl_fold_afford_lava_test_{}", std::process::id()));
@@ -311,6 +312,7 @@ fn fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading() {
         return;
     }
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::page::set_page_on(true);
 
     struct Case {

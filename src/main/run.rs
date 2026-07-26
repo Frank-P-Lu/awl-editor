@@ -2493,6 +2493,7 @@ mod tests {
         // (the palette re-dispatch breadcrumb seam). Serialize on the theme lock: the
         // picker reads/reverts the process-global active theme.
         let _g = crate::testlock::serial();
+        let _world = crate::theme::WorldPin::snapshot();
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p t h e m e RET").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2513,6 +2514,7 @@ mod tests {
         // the PALETTE (not the buffer). The re-summoned palette carries no breadcrumb
         // of its own (single-level).
         let _g = crate::testlock::serial();
+        let _world = crate::theme::WorldPin::snapshot();
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p t h e m e RET Esc").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2531,6 +2533,7 @@ mod tests {
         // The theme is still committed by the keep (`res.accept`). Contrast the Esc test
         // above, which DOES pop back — only ACCEPT closes to the buffer.
         let _g = crate::testlock::serial();
+        let _world = crate::theme::WorldPin::snapshot();
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p t h e m e RET RET").unwrap();
         let root = PathBuf::from("/tmp");

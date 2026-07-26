@@ -418,6 +418,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
     // the char-pitch fallback — the bug is invisible on a mono grid where the two
     // coincide. set_active_by_name mutates the theme global → hold the theme lock.
     let _t = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active_by_name("Gumtree").unwrap();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping replace_caret_rides_the_reserved_cell_after_the_replacement_text: no wgpu adapter");
@@ -528,6 +529,7 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
 #[test]
 fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
     let _t = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active_by_name("Gumtree").unwrap();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping panel_caret_places_at_begin_mid_end_char_index_both_fields: no wgpu adapter");

@@ -67,6 +67,7 @@ fn bombora_settled_captures_are_byte_identical() {
         return;
     };
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     let was_page_on = crate::page::page_on();
     let was_measure = crate::page::measure();
     crate::page::set_page_on(true);
@@ -116,6 +117,7 @@ fn bombora_waves_visibly_drift_after_the_ambient_clock_advances_and_stay_bounded
         return;
     };
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     let was_page_on = crate::page::page_on();
     let was_measure = crate::page::measure();
     crate::page::set_page_on(true);

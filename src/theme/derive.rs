@@ -28,6 +28,15 @@ pub fn active_index() -> usize {
 
 /// Set the active theme by index (wrapping). Returns the now-active [`Theme`].
 pub fn set_active(index: usize) -> Theme {
+    // ACTIVE is process-global. Under test, every writer must sit inside the
+    // one serialization window; checking here (the runtime choke point) catches
+    // transitive/helper writes that a source scan cannot see.
+    #[cfg(test)]
+    assert!(
+        crate::testlock::currently_held(),
+        "theme::set_active wrote the process-global world without holding \
+         crate::testlock::serial()"
+    );
     let i = index % THEMES.len();
     ACTIVE.store(i, Ordering::Relaxed);
     THEMES[i]
@@ -85,6 +94,11 @@ pub struct WorldPin {
 impl WorldPin {
     /// Pin the CURRENT world: the active index is restored when this drops.
     pub fn snapshot() -> Self {
+        #[cfg(test)]
+        assert!(
+            crate::testlock::currently_held(),
+            "WorldPin must be created inside crate::testlock::serial()"
+        );
         WorldPin { prev: ACTIVE.load(Ordering::Relaxed) }
     }
 
@@ -105,6 +119,12 @@ impl WorldPin {
 
 impl Drop for WorldPin {
     fn drop(&mut self) {
+        #[cfg(test)]
+        assert!(
+            crate::testlock::currently_held(),
+            "WorldPin restored the process-global world without holding \
+             crate::testlock::serial()"
+        );
         ACTIVE.store(self.prev, Ordering::Relaxed);
     }
 }

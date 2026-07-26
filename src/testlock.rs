@@ -32,6 +32,15 @@
 //! tests still run fully parallel). This is the single owner that replaced the
 //! old `theme::TEST_LOCK` / `fs::TEST_LOCK` / `page::test_lock` /
 //! `about`+`lifetime` composite / caret / debug / hud / … family.
+//!
+//! THEME CLEANLINESS is checked, not silently imposed. An outermost [`serial`]
+//! guard snapshots the active world and fails (after restoring it) if its test
+//! window exits dirty. This is deliberately not the retired ambient
+//! `WorldPin-on-serial`: a clean window performs no write, and production code
+//! that owns a persistent global write takes [`product`] instead. A nested
+//! product acquire under a test guard remains inside the test's checked window,
+//! so it cannot punch a hole through the law. `theme::set_active` independently
+//! asserts this lock at the runtime writer choke point.
 
 use std::cell::Cell;
 use std::sync::{Mutex, MutexGuard};
@@ -43,6 +52,9 @@ thread_local! {
     /// True while THIS thread holds [`TEST_MUTEX`] via the OUTERMOST live
     /// [`SerialGuard`] — the reentrancy key.
     static HELD: Cell<bool> = const { Cell::new(false) };
+    /// Runtime witness for laws that must prove production requested the
+    /// product door, rather than accidentally nesting the checked test door.
+    static PRODUCT_REQUESTS: Cell<usize> = const { Cell::new(0) };
 }
 
 /// The guard [`serial`] returns. `inner: None` is the reentrant (already-held)
@@ -50,12 +62,34 @@ thread_local! {
 /// thread flag and unlocks the mutex.
 pub(crate) struct SerialGuard {
     inner: Option<MutexGuard<'static, ()>>,
+    world_at_entry: Option<usize>,
 }
 
 impl Drop for SerialGuard {
     fn drop(&mut self) {
         if self.inner.is_some() {
+            let mut world_leak = None;
+            if let Some(before) = self.world_at_entry {
+                let after = crate::theme::active_index();
+                if after != before {
+                    // Clean before reporting, so one failed test cannot poison
+                    // whatever the harness schedules next.
+                    crate::theme::set_active(before);
+                    if !std::thread::panicking() {
+                        world_leak = Some((before, after));
+                    }
+                }
+            }
             HELD.with(|h| h.set(false));
+            if let Some((before, after)) = world_leak {
+                panic!(
+                    "test left the active world dirty: entered at {} ({}) and exited at {} ({})",
+                    before,
+                    crate::theme::THEMES[before].name,
+                    after,
+                    crate::theme::THEMES[after].name
+                );
+            }
         }
     }
 }
@@ -65,12 +99,33 @@ impl Drop for SerialGuard {
 /// already holds it returns a no-op guard instead of self-deadlocking). The
 /// ONLY door to the mutex.
 pub(crate) fn serial() -> SerialGuard {
+    acquire(true)
+}
+
+/// The same mutex and reentrancy, for a production function whose active-world
+/// write is its result (the theme preview in `actions::apply_core`). Only an
+/// OUTERMOST product window skips the test-exit cleanliness check; nested under
+/// [`serial`], the enclosing test window still owns and checks the outcome.
+pub(crate) fn product() -> SerialGuard {
+    PRODUCT_REQUESTS.with(|n| n.set(n.get() + 1));
+    acquire(false)
+}
+
+#[cfg(test)]
+pub(crate) fn product_requests() -> usize {
+    PRODUCT_REQUESTS.with(Cell::get)
+}
+
+fn acquire(check_world: bool) -> SerialGuard {
     if HELD.with(|h| h.get()) {
-        return SerialGuard { inner: None };
+        return SerialGuard { inner: None, world_at_entry: None };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     HELD.with(|h| h.set(true));
-    SerialGuard { inner: Some(guard) }
+    SerialGuard {
+        inner: Some(guard),
+        world_at_entry: check_world.then(crate::theme::active_index),
+    }
 }
 
 /// True iff THIS thread currently holds the guard (via a live [`serial`]
@@ -150,6 +205,44 @@ mod tests {
         crate::page::set_measure(33);
         assert_eq!(crate::page::measure(), 33, "the nested writer's write lands");
         crate::page::set_measure(crate::page::DEFAULT_MEASURE); // leave as found
+    }
+
+    #[test]
+    fn a_deliberately_leaking_test_window_fails_and_cleans_before_unlocking() {
+        let before = {
+            let _g = serial();
+            crate::theme::active_index()
+        };
+        let leaked = std::panic::catch_unwind(|| {
+            let _g = serial();
+            crate::theme::set_active(before + 1);
+        });
+        assert!(leaked.is_err(), "a checked test window must reject a dirty exit");
+        let _g = serial();
+        assert_eq!(
+            crate::theme::active_index(),
+            before,
+            "the failing window cleans the global before another test can acquire it"
+        );
+    }
+
+    #[test]
+    fn a_product_request_cannot_bypass_an_outer_test_window() {
+        let before = {
+            let _g = serial();
+            crate::theme::active_index()
+        };
+        let nested_leak = std::panic::catch_unwind(|| {
+            let _test = serial();
+            let _product = product();
+            crate::theme::set_active(before + 1);
+        });
+        assert!(
+            nested_leak.is_err(),
+            "a nested production acquire cannot punch through the outer test check"
+        );
+        let _g = serial();
+        assert_eq!(crate::theme::active_index(), before);
     }
 
     #[test]

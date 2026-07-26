@@ -941,6 +941,7 @@ fn move_dest_type_to_create_folder() {
 #[test]
 fn theme_move_previews_live() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0); // Tawny
     let mut overlay = theme_overlay();
     let mut accept = None;
@@ -970,6 +971,7 @@ fn theme_move_previews_live() {
 #[test]
 fn theme_keyboard_crossing_reanchors_to_destination_world() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::render::set_card_anchor_test_override(None); // world data drives the anchor
     crate::theme::set_active(0); // Tawny (TopCenter)
     let mut overlay = theme_overlay();
@@ -1015,6 +1017,7 @@ fn theme_keyboard_crossing_reanchors_to_destination_world() {
 #[test]
 fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::render::set_card_anchor_test_override(None);
     crate::theme::set_active(0); // Tawny (TopCenter)
     let mut overlay = theme_overlay();
@@ -1107,6 +1110,7 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
 #[test]
 fn theme_picker_jump_previews_the_end_worlds_live() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0); // open on Tawny (index 0)
     let mut overlay = theme_overlay();
     let mut accept = None;
@@ -1127,6 +1131,7 @@ fn theme_picker_jump_previews_the_end_worlds_live() {
 #[test]
 fn theme_enter_commits_previewed_world() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
     let mut overlay = theme_overlay();
     let mut accept = None;
@@ -1142,6 +1147,7 @@ fn theme_enter_commits_previewed_world() {
 #[test]
 fn theme_cancel_reverts_to_starting_world() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0); // start on Tawny
     let mut overlay = theme_overlay();
     let mut accept = None;
@@ -1218,6 +1224,7 @@ fn theme_picker_preview_commit_cancel_never_touch_spellcheck_global() {
 #[test]
 fn theme_from_palette_pops_back_to_palette_on_esc() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
     let mut overlay = theme_overlay();
     overlay.as_mut().unwrap().return_to = Some(OverlayKind::Command);
@@ -1242,6 +1249,7 @@ fn theme_from_palette_pops_back_to_palette_on_esc() {
 #[test]
 fn theme_from_palette_closes_to_buffer_on_keep_not_a_recent_menu() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
     let mut overlay = theme_overlay();
     overlay.as_mut().unwrap().return_to = Some(OverlayKind::Command);
@@ -1261,6 +1269,7 @@ fn theme_from_palette_closes_to_buffer_on_keep_not_a_recent_menu() {
 #[test]
 fn theme_from_settings_pops_back_to_settings_on_keep() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
     let mut overlay = theme_overlay();
     overlay.as_mut().unwrap().return_to = Some(OverlayKind::Settings);
@@ -1321,6 +1330,7 @@ fn stamp_return_to_fills_only_an_empty_breadcrumb() {
 #[test]
 fn theme_arrows_move_the_selection_and_preview() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     // The theme picker is FLAT now (lens strip retired 2026-07-15): ←/→ MOVE the
     // selection row like every other flat picker, with live preview on each move —
     // NOT a lens switch. Open with Tawny (THEMES index 0) active + selected.
@@ -1348,6 +1358,7 @@ fn theme_arrows_move_the_selection_and_preview() {
 #[test]
 fn theme_typing_filters_and_previews() {
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
     let mut overlay = theme_overlay();
     let mut accept = None;

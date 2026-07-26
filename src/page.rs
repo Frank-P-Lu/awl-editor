@@ -111,6 +111,43 @@ static PAGE_ON: AtomicBool = AtomicBool::new(true);
 /// reachable as a setting; the render pipeline reads it each frame.
 static MEASURE: AtomicUsize = AtomicUsize::new(DEFAULT_MEASURE);
 
+/// Explicit test-scoped restore for the two process-global page inputs.
+///
+/// Page geometry is read while pipelines are constructed, so a test that
+/// leaves a narrow measure behind can make an unrelated later test shape its
+/// "wide" stage at the narrow width. Keep this opt-in and test-only: page mode
+/// is a real sticky product preference, so production writes must survive the
+/// call that applies them.
+#[cfg(test)]
+#[must_use = "PagePin restores page mode and measure when it drops"]
+pub(crate) struct PagePin {
+    on: bool,
+    measure: usize,
+}
+
+#[cfg(test)]
+impl PagePin {
+    pub(crate) fn snapshot() -> Self {
+        assert!(
+            crate::testlock::currently_held(),
+            "PagePin must be created inside crate::testlock::serial()"
+        );
+        Self { on: page_on(), measure: measure() }
+    }
+}
+
+#[cfg(test)]
+impl Drop for PagePin {
+    fn drop(&mut self) {
+        assert!(
+            crate::testlock::currently_held(),
+            "PagePin must restore inside crate::testlock::serial()"
+        );
+        PAGE_ON.store(self.on, Ordering::Relaxed);
+        MEASURE.store(self.measure, Ordering::Relaxed);
+    }
+}
+
 /// True when the centered column is active.
 pub fn page_on() -> bool {
     PAGE_ON.load(Ordering::Relaxed)
@@ -235,6 +272,27 @@ mod tests {
         set_measure(5);
         assert_eq!(narrow(), MIN_MEASURE);
         set_measure(DEFAULT_MEASURE);
+    }
+
+    #[test]
+    fn page_pin_restores_both_geometry_globals_even_after_a_narrow_leak_shape() {
+        let _g = crate::testlock::serial();
+        let before = (page_on(), measure());
+        {
+            let _page = PagePin::snapshot();
+            set_page_on(true);
+            set_measure(40);
+            assert_eq!(
+                (page_on(), measure()),
+                (true, 40),
+                "the fixture really reaches the narrow page state behind the 43 -> 43 flake"
+            );
+        }
+        assert_eq!(
+            (page_on(), measure()),
+            before,
+            "the scoped page window restores both inputs before releasing the serial guard"
+        );
     }
 
     // ── PageClass (prose/code page-width split) ─────────────────────────────

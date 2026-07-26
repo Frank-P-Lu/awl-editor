@@ -84,6 +84,7 @@ fn currawong_stars_twinkle_in_the_margins_only_at_real_pixels() {
         return;
     };
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     let was_page_on = crate::page::page_on();
     let was_measure = crate::page::measure();
     crate::page::set_page_on(true);
@@ -321,6 +322,7 @@ fn currawong_stars_are_pixel_identical_across_two_captures_of_the_same_phase() {
         return;
     };
     let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
     let was_page_on = crate::page::page_on();
     let was_measure = crate::page::measure();
     crate::page::set_page_on(true);
