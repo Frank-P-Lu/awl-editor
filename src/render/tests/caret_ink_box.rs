@@ -9,12 +9,13 @@
 //! ink of `a`/`m`/`g`/`y` and ~3px above `i`. Only the BOTTOM had a glyph-aware
 //! rule (the descender extension), which is exactly why the two edges disagreed.
 //!
-//! The fix is one owner — `TextPipeline::caret_cell_vertical` — with two arms
+//! The fix is one owner — `TextPipeline::caret_cell_vertical` — with arms
 //! behind the SAME ink funnel (`caret_anchor_ink_box`) the horizontal ink
-//! alignment already rode: the padded ink box on a proportional world, the
-//! row-scaled line cell (descender extension folded in) on a mono / ligature /
-//! glyphless anchor. These laws pin, with glyph-mask arithmetic against the real
-//! raster placement:
+//! alignment already rode: the padded ink box on a proportional world, else
+//! (item 105 below) a REAL ligature raster box or a SYNTHETIC typical-letter
+//! box on a proportional glyphless anchor, else (mono only) the row-scaled
+//! line cell (descender extension folded in). These laws pin, with glyph-mask
+//! arithmetic against the real raster placement:
 //!
 //!   * settled: the caret's top/bottom ARE the ink box ± one letter-INDEPENDENT
 //!     pad, across an ascender, an x-height letter and two descenders;
@@ -23,9 +24,32 @@
 //!     only for a real dipper);
 //!   * every caret FORM is swept by a no-wildcard match, so a new `CaretMode`
 //!     cannot dodge the vertical policy;
-//!   * the glyphless space / end-of-line / bar fallbacks still read the line box;
-//!   * `layers.rs` holds NO vertical caret geometry of its own (the grep-law that
-//!     bans the second rule from growing back).
+//!   * the glyphless space / end-of-line / bar fallbacks read the SAME
+//!     baseline-relative formula as the ink-box arm on a proportional world
+//!     (`layers.rs` holds NO vertical caret geometry of its own — the grep-law
+//!     that bans a second rule from growing back).
+//!
+//! **ITEM 105 — THE ADJACENT-COLUMN TRANSITION.** Item 91's laws above prove
+//! each arm correct IN ISOLATION; none of them construct the SEAM between an
+//! on-glyph column and an adjacent glyphless one on the SAME row. That seam is
+//! exactly what a user's paired release screenshots caught: on `aaa`, the
+//! Block caret on the final `a` versus one column later at end-of-line has a
+//! visibly discontinuous outer cell, on every proportional world in the
+//! roster (the pre-105 fallback centred on `caret.pos.y` — a row-box-geometric
+//! centre — while the ink-box arm centres on the font BASELINE; the two
+//! conventions had no reason to agree, and measurably did not: 2–13px at zoom
+//! 1 depending on world/glyph class). The fix gives the fallback the SAME
+//! baseline-relative formula the ink-box arm uses, fed a real ligature raster
+//! box when one exists or else a SYNTHETIC typical-letter box
+//! (`facepitch::typical_letter_ratio` — the shipped face's own measured mean
+//! of x-height and cap-height, scaled by the row's own real `max_ascent`) —
+//! see `TextPipeline::caret_synthetic_ink_box` and `caret_row_metrics`'s doc.
+//! The TRANSITION law itself — swept over the full proportional roster, every
+//! representative glyph class, Block/Morph rest, a wrapped-line boundary, two
+//! zooms and 1x/2x DPI, with an explicit non-vacuity proof against the pre-105
+//! formula — lives in `render/tests/caret_transition_item105.rs`, a sibling
+//! file rather than an addition here, because it is a different KIND of law
+//! (adjacent-column diffs, not single-column measurements).
 
 use super::super::*;
 use super::{headless_pipeline, view};
@@ -429,28 +453,35 @@ fn moving_caret_streak_is_unaffected_by_the_ink_box() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE GLYPHLESS FALLBACKS SURVIVE. There is no ink to hug at a SPACE, at
-/// END-OF-LINE, or on an EMPTY line, so the ONE ink funnel returns `None` and the
-/// cell owner falls back to the line box — which is exactly the historical
-/// geometry, unchanged. Asserted on a PROPORTIONAL world (where the ink box IS
-/// live on real letters, so this is a genuine test of the fallback and not of a
-/// disabled feature): the space bar and the end-of-line cell keep the row-scaled
-/// `caret_block_h` centred on the spring anchor, and Morph's line-start degrade
-/// keeps the I-beam's own bar.
+/// THE GLYPHLESS FALLBACKS SURVIVE — UPDATED BY ITEM 105. There is no ink to
+/// hug at a SPACE, at END-OF-LINE, or on an EMPTY line, so the ONE ink funnel
+/// returns `None`. On a MONO world the cell owner still falls back to the
+/// historical row-scaled `caret_block_h` centred on the spring anchor
+/// (item 97's uniform grid, byte-identical). On a PROPORTIONAL world it no
+/// longer does: item 105 found that THIS exact invariant — the fallback
+/// pinned to `caret.pos.y` (a row-box-geometric-centre convention) — was the
+/// root cause of a visible cell jump the instant a proportional caret left a
+/// real glyph for an adjacent glyphless column (the user's `aaa`->EOL report;
+/// see `render/tests/caret_transition_item105.rs`). The fallback now reads a
+/// SYNTHETIC typical-letter box through the SAME baseline-relative formula the
+/// ink-box arm above uses, so this test pins the NEW formula directly rather
+/// than re-asserting the convention that caused the bug. The space bar and
+/// Morph's line-start bar-form mechanics (not their SIZE — see below) are
+/// otherwise unchanged.
 #[test]
-fn glyphless_fallbacks_keep_the_line_box_cell() {
+fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping glyphless_fallbacks_keep_the_line_box_cell: no wgpu adapter");
+        eprintln!("skipping glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Gumtree").unwrap();
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
     let text = "am am"; // col 2 = the space; col 5 = end of line
-    let cell = |p: &TextPipeline| p.metrics.caret_block_h * p.cursor_scale();
+    let pad = CARET_INK_PAD * pad_px(&p);
 
     for (col, what) in [(2usize, "a space"), (5usize, "end of line")] {
         p.set_view(&view(text, 0, col));
@@ -460,31 +491,44 @@ fn glyphless_fallbacks_keep_the_line_box_cell() {
             "{what}: a glyphless anchor must yield no ink box"
         );
         let (cy, h) = p.caret_cell_vertical();
+        // NEW INVARIANT: the fallback is no longer the row-box-centred line
+        // cell — it must have MOVED OFF `caret.pos.y`/`caret_block_h`, proving
+        // item 105 actually changed this seam rather than leaving it inert.
+        let old_cy = p.caret.pos.y;
+        let old_h = p.metrics.caret_block_h * p.cursor_scale();
         assert!(
-            (h - cell(&p)).abs() < 1e-3 && (cy - p.caret.pos.y).abs() < 1e-3,
-            "{what}: must keep the line-box cell on the spring anchor: cy={cy} h={h} \
-             want cy={} h={}",
-            p.caret.pos.y,
-            cell(&p)
+            (cy - old_cy).abs() > 0.5 || (h - old_h).abs() > 0.5,
+            "{what}: the proportional fallback must no longer equal the old \
+             row-box-centred cell (cy={cy} h={h} old_cy={old_cy} old_h={old_h})"
+        );
+        // The height must still be a small, positive, letter-plausible cell —
+        // never collapsed, never the item-91-original oversized fixed cap.
+        assert!(
+            h > pad && h < old_h * 1.5,
+            "{what}: the synthetic cell must stay a plausible letter-sized box: h={h}"
         );
     }
 
-    // The SPACE BAR routes through the same owner, so the thin bar keeps its
-    // historical line-box height (and is NOT ink-sized) by construction.
+    // The SPACE BAR routes through the same owner, so it inherits whatever
+    // `caret_cell_vertical` returns at this glyphless anchor — no longer
+    // pinned to the old fixed line-box height on a proportional world.
     p.set_view(&view(text, 0, 2));
     p.settle_caret();
+    let (owner_cy, owner_h) = p.caret_cell_vertical();
     let (_bx, by, bw, bh, _bc) = p.caret_space_bar_geometry();
     assert!(
-        (bh - cell(&p)).abs() < 1e-3 && (by - p.caret.pos.y).abs() < 1e-3,
-        "the glyphless space bar must keep the line-box cell: by={by} bh={bh}"
+        (bh - owner_h).abs() < 1e-3 && (by - owner_cy).abs() < 1e-3,
+        "the glyphless space bar must read the SAME owner value: by={by} bh={bh} \
+         want cy={owner_cy} h={owner_h}"
     );
     assert!(
         (bw - CARET_SPACE_BAR_W * p.metrics.zoom).abs() < 1e-3,
         "the space bar stays the slim bar: bw={bw}"
     );
 
-    // MORPH's LINE-START degrade: the I-beam's own bar, line-box tall — untouched
-    // by item 91 (a bar has no glyph of its own to hug).
+    // MORPH's LINE-START degrade: the I-beam's own bar, line-box tall — still
+    // untouched by the ink-box mechanism (a bar has no glyph of its own to
+    // hug), unchanged by item 105 exactly as it was by item 91.
     crate::caret::set_mode(CaretMode::Morph);
     p.set_view(&view(text, 0, 0));
     p.settle_caret();
@@ -494,6 +538,26 @@ fn glyphless_fallbacks_keep_the_line_box_cell() {
         (lh - p.metrics.caret_h * p.cursor_scale()).abs() < 1e-3,
         "the line-start bar must span the LINE BOX: lh={lh}"
     );
+
+    // THE MONO COMPLEMENT: on a mono world the fallback is BYTE-IDENTICAL to
+    // the pre-105 line-cell — item 97's uniform grid never reads any ink box,
+    // real or synthetic (see `caret_cell_vertical`'s mono arm).
+    theme::set_active_by_name("Tawny").unwrap();
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+    let cell = |p: &TextPipeline| p.metrics.caret_block_h * p.cursor_scale();
+    for (col, what) in [(2usize, "a space"), (5usize, "end of line")] {
+        p.set_view(&view(text, 0, col));
+        p.settle_caret();
+        let (cy, h) = p.caret_cell_vertical();
+        assert!(
+            (h - cell(&p)).abs() < 1e-3 && (cy - p.caret.pos.y).abs() < 1e-3,
+            "{what} (Tawny, mono): must keep the OLD line-box cell on the spring \
+             anchor: cy={cy} h={h} want cy={} h={}",
+            p.caret.pos.y,
+            cell(&p)
+        );
+    }
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
