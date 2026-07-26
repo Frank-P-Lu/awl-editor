@@ -3259,6 +3259,42 @@ fn an_unguarded_world_leak_fails_at_the_runtime_choke_point_before_it_writes() {
     );
 }
 
+/// The choke-point probe above is itself an unguarded ACTIVE reader. Prove the
+/// resulting false-corruption report deterministically: a compliant writer owns
+/// the serial window and changes the world after the probe's first read but
+/// before its post-rejection read. The rejected write changes nothing, yet the
+/// probe observes the compliant writer's in-flight world and blames its own
+/// rejected call. Keep the writer's restore before this law asserts, so the
+/// evidence test cannot dirty the process global even when it fails.
+#[test]
+fn unguarded_choke_point_probe_races_a_compliant_writer_window() {
+    let _writer_window = crate::testlock::serial();
+    let before = active_index();
+    let (read_tx, read_rx) = std::sync::mpsc::channel();
+    let (changed_tx, changed_rx) = std::sync::mpsc::channel();
+
+    let probe = std::thread::spawn(move || {
+        assert!(!crate::testlock::currently_held());
+        let probe_before = active_index();
+        read_tx.send(probe_before).unwrap();
+        changed_rx.recv().unwrap();
+        let rejected = std::panic::catch_unwind(|| set_active(probe_before + 2));
+        (rejected.is_err(), active_index())
+    });
+
+    assert_eq!(read_rx.recv().unwrap(), before);
+    set_active(before + 1);
+    changed_tx.send(()).unwrap();
+    let (rejected, observed) = probe.join().unwrap();
+    set_active(before);
+
+    assert!(rejected, "the deliberately unguarded write is rejected");
+    assert_eq!(
+        observed, before,
+        "the current unguarded probe can mistake a compliant writer's in-flight world for corruption"
+    );
+}
+
 /// Production's own guarded action window is not a restore boundary. The theme
 /// picker preview is a real product write and must remain active after
 /// `apply_core` returns even when the caller did not already hold the test lock.
