@@ -239,6 +239,7 @@ fn run_one_frame(
     p.prepare_table_grid(device, queue, WIDTH, HEIGHT)?;
     marks.mark();
     // prepare_chrome_layer, split into its five sub-preparations:
+    p.begin_float_panel_frame();
     p.prepare_caret_preview_panel(device, queue, WIDTH, HEIGHT)?;
     marks.mark();
     // no overlay + no search -> the park branch (nothing lingers)
@@ -252,6 +253,7 @@ fn run_one_frame(
     p.prepare_debug(device, queue, WIDTH, HEIGHT)?;
     marks.mark();
     p.prepare_hud(device, queue, WIDTH, HEIGHT)?;
+    p.flush_float_panel(device, queue, WIDTH, HEIGHT);
     marks.mark();
     p.prepare_whichkey(device, queue, WIDTH, HEIGHT)?;
     marks.mark();

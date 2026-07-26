@@ -644,6 +644,9 @@ fn blur_signature_invalidates_when_the_live_world_phase_changes() {
 /// primitive's elevation quads and the demo caret all go empty (DESIGN §6 idle).
 #[test]
 fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
+    // The pipeline construction reads theme globals and the law mutates them below;
+    // acquire BEFORE device/pipeline work, not after it.
+    let _g = crate::testlock::serial();
     // Build a headless pipeline but KEEP the device/queue so we can drive `prepare`
     // (the elevation-quad instance counts are only set during prepare).
     let got = pollster::block_on(async {
@@ -719,6 +722,102 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
     assert_eq!(p.float_shadow.instance_count(), 0, "shadow parked on close");
     assert_eq!(p.float_border.instance_count(), 0, "border parked on close");
     assert!(!p.caret_preview_pipeline.is_drawn(), "preview caret parked on close");
+}
+
+/// ITEM 119 — every authored world must keep the caret-preview float alive below
+/// a picker, even when the list skin is forced to the card-less Bars treatment.
+/// This sweeps the real roster and independently forces both list layouts at both
+/// monitor scales; the report proves state while the float/border/demo counts prove
+/// the frame actually retained the shared GPU trio.
+#[test]
+fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping caret_preview_float_owner_sweeps_world_style_and_dpi: no wgpu adapter");
+        return;
+    };
+    let styles = [
+        ("Pane", Some(theme::ListStyle::Pane)),
+        (
+            "Bars",
+            Some(theme::ListStyle::Bars {
+                radius: 6.0,
+                gap: 8.0,
+                grow_px: 24.0,
+                extent: theme::BarExtent::FullWidth,
+                coverage: theme::BarCoverage::All,
+            }),
+        ),
+    ];
+    for dpi in [1.0, 2.0] {
+        p.set_dpi(dpi);
+        for world in crate::theme::world_names() {
+            crate::theme::set_active_by_name(world).unwrap();
+            p.sync_theme();
+            for (style_name, style) in styles {
+                crate::render::set_list_style_test_override(style);
+                let mut v = view("hello world\n", 0, 0);
+                v.overlay_active = true;
+                v.overlay_crisp = true;
+                v.overlay_items = vec!["Block".into(), "Morph".into(), "I-beam".into()];
+                v.overlay_selected = 0;
+                v.caret_preview = Some(crate::caret::CaretMode::Block);
+                p.set_view(&v);
+                p.settle_caret_preview();
+                p.prepare(&device, &queue, 1200, 800).unwrap();
+                let ctx = format!("world={world} style={style_name} dpi={dpi}");
+                assert!(p.caret_preview_panel_report().is_some(), "{ctx}: preview report");
+                assert_eq!(p.float_card.instance_count(), 1, "{ctx}: float card");
+                assert_eq!(p.float_border.instance_count(), 1, "{ctx}: float border");
+                assert!(p.caret_preview_pipeline.is_drawn(), "{ctx}: demo caret");
+
+                p.set_view(&view("hello world\n", 0, 0));
+                p.prepare(&device, &queue, 1200, 800).unwrap();
+                assert_eq!(p.float_card.instance_count(), 0, "{ctx}: close parks card");
+                assert_eq!(p.float_border.instance_count(), 0, "{ctx}: close parks border");
+                assert_eq!(p.float_shadow.instance_count(), 0, "{ctx}: close parks shadow");
+            }
+        }
+    }
+    crate::render::set_list_style_test_override(None);
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+}
+
+/// LIST_STYLE_TEST_OVERRIDE is a process global: its reader and writer must both
+/// remain behind the one serial guard, so an override cannot leak across a parallel
+/// render test's frame window.
+#[test]
+fn list_style_override_reader_writer_are_serialized() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Barrier};
+    let outer = crate::testlock::serial();
+    crate::render::set_list_style_test_override(Some(theme::ListStyle::Pane));
+    let barrier = Arc::new(Barrier::new(2));
+    let entered = Arc::new(AtomicBool::new(false));
+    let worker = {
+        let barrier = barrier.clone();
+        let entered = entered.clone();
+        std::thread::spawn(move || {
+            barrier.wait();
+            let _g = crate::testlock::serial();
+            crate::render::set_list_style_test_override(Some(theme::ListStyle::Bars {
+                radius: 6.0,
+                gap: 8.0,
+                grow_px: 24.0,
+                extent: theme::BarExtent::FullWidth,
+                coverage: theme::BarCoverage::All,
+            }));
+            assert!(matches!(crate::render::effective_list_style(), theme::ListStyle::Bars { .. }));
+            entered.store(true, Ordering::SeqCst);
+        })
+    };
+    barrier.wait();
+    std::thread::sleep(std::time::Duration::from_millis(25));
+    assert!(!entered.load(Ordering::SeqCst), "writer/reader must wait behind the outer guard");
+    drop(outer);
+    worker.join().unwrap();
+    let _g = crate::testlock::serial();
+    crate::render::set_list_style_test_override(None);
 }
 
 /// PARK-ON-CLOSE: a CLOSED summoned overlay must leave ZERO stale overlay
@@ -892,6 +991,9 @@ fn overlay_empty_state_draws_a_dim_message_row() {
 /// point is the recolored letter, not a bar. Closing the picker parks it too.
 #[test]
 fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
+    // This preview test reaches the list-style reader through overlay preparation;
+    // take the same guard before creating its device/pipeline.
+    let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
         let instance =
             wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());

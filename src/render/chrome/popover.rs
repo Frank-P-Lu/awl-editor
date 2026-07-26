@@ -137,12 +137,8 @@ impl TextPipeline {
                 // itself requires), so this call is never actually skipped here —
                 // the guard's real job is the `None` arm below.
                 if touch_float {
-                    self.prepare_float_panel(
-                        device,
-                        queue,
-                        width,
-                        height,
-                        Some(geom.card),
+                    self.claim_float_panel(
+                        geom.card,
                         FloatElevation::Rimmed,
                         0.0,
                         None,
@@ -219,16 +215,6 @@ impl TextPipeline {
                 // caret preview / search card) — never clear it out from
                 // under them just because POPOVER has nothing to show.
                 if touch_float {
-                    self.prepare_float_panel(
-                        device,
-                        queue,
-                        width,
-                        height,
-                        None,
-                        FloatElevation::Rimmed,
-                        0.0,
-                        None,
-                    );
                 }
                 self.popover_wash.prepare(device, queue, width, height, &[]);
                 self.popover_hl_wash.prepare(device, queue, width, height, &[]);

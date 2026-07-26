@@ -2672,6 +2672,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
+        self.begin_float_panel_frame();
         // CARET-STYLE PICKER: the floating preview PANEL below the picker card (the
         // sample line with the choreographed demo caret). Parked (nothing drawn) unless
         // that picker is open, so every other frame stays byte-identical. Built on the
@@ -2748,6 +2749,9 @@ impl TextPipeline {
         // anywhere in this sequence; it stays here (last, before the menu bar)
         // to minimize churn from its pre-existing position.
         self.prepare_popover(device, queue, width, height)?;
+        // All claimants have now described the one shared float surface. Upload it
+        // once so a Bars overlay's lack of a card cannot park a caret preview.
+        self.flush_float_panel(device, queue, width, height);
         // The WEB/LINUX MENU BAR (top strip + open dropdown). Parks everything
         // off-screen/empty when the bar is hidden (default off on macOS), so a default
         // capture stays byte-identical; `--menu-bar` / a web/Linux launch shows it.

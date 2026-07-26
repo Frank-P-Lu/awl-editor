@@ -822,6 +822,7 @@ fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
 /// swallowed, stays modal). This is the kind-agnostic geometry every overlay shares.
 #[test]
 fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping overlay_click_regions_select_inside_row_and_dismiss_outside: no wgpu adapter");
         return;
@@ -893,6 +894,7 @@ fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
 /// (`overlay_row_top`) so the law can never drift from what the pixels draw.
 #[test]
 fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
+    let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted: no wgpu adapter");
         return;

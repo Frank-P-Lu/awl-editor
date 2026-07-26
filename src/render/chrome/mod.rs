@@ -127,6 +127,19 @@ pub(in crate::render) enum FloatElevation {
     Flat,
 }
 
+/// The one per-frame decision for the shared floating-panel GPU trio. Claimants
+/// describe their panel while preparing their own text/geometry; the chrome layer
+/// uploads this model once, after every claimant has had a chance to contribute.
+/// `None` is the parked state. This prevents an inactive surface's old "park"
+/// write from erasing an active surface later in the same frame.
+#[derive(Clone, Copy)]
+pub(in crate::render) struct FloatPanelModel {
+    rect: [f32; 4],
+    elevation: FloatElevation,
+    chamfer_px: f32,
+    texture: Option<CardHalftone>,
+}
+
 /// Upload the FLOAT-PANEL elevation quads (raised `border` -> opaque `card`) for
 /// `rect`, or PARK both empty when `rect` is `None`. Shared by the reusable
 /// [`TextPipeline::prepare_float_panel`] (the caret-preview / spell panels), the
@@ -479,7 +492,9 @@ pub(crate) use popover::VPAD as POPOVER_VPAD;
 impl TextPipeline {
     // ===== FLOATING PANEL PRIMITIVE + CARET-STYLE PREVIEW PANEL ============
 
-    /// THE PANEL PRIMITIVE — a small, summoned, transient FLOATING PANEL: a discrete
+    /// Claim a small, summoned, transient FLOATING PANEL. The shared trio is
+    /// uploaded by [`Self::flush_float_panel`] once at the end of chrome
+    /// preparation; callers never park it directly.
     /// bordered box with CARD ELEVATION (a crisp raised BORDER edge + the opaque
     /// CARD — no drop shadow, see [`FloatElevation`]'s doc), and crucially NO
     /// scrim — so it floats over the live document without dimming it, distinct
@@ -527,17 +542,40 @@ impl TextPipeline {
     /// is the one caller that ever passes a real chamfer/texture (Quokka's
     /// "small card popup").
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn prepare_float_panel(
+    pub(super) fn claim_float_panel(
+        &mut self,
+        rect: [f32; 4],
+        elevation: FloatElevation,
+        chamfer_px: f32,
+        texture: Option<CardHalftone>,
+    ) {
+        debug_assert!(
+            self.float_panel_model.is_none(),
+            "two float-panel claimants must be structurally exclusive"
+        );
+        self.float_panel_model = Some(FloatPanelModel {
+            rect,
+            elevation,
+            chamfer_px,
+            texture,
+        });
+    }
+
+    /// Begin the one shared float-panel decision for a frame.
+    pub(super) fn begin_float_panel_frame(&mut self) {
+        self.float_panel_model = None;
+    }
+
+    /// Materialize the shared float-panel decision exactly once. With no claimant,
+    /// the entire trio parks together.
+    pub(super) fn flush_float_panel(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        rect: Option<[f32; 4]>,
-        elevation: FloatElevation,
-        chamfer_px: f32,
-        texture: Option<CardHalftone>,
     ) {
+        let model = self.float_panel_model;
         set_float_quads(
             &mut self.float_shadow,
             &mut self.float_border,
@@ -546,10 +584,10 @@ impl TextPipeline {
             queue,
             width,
             height,
-            rect,
-            elevation,
-            chamfer_px,
-            texture,
+            model.map(|m| m.rect),
+            model.map(|m| m.elevation).unwrap_or(FloatElevation::Rimmed),
+            model.map(|m| m.chamfer_px).unwrap_or(0.0),
+            model.and_then(|m| m.texture),
         );
     }
 

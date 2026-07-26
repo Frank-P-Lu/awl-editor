@@ -2469,6 +2469,10 @@ static LIST_STYLE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::ListStyle>> =
 
 #[cfg(test)]
 pub(crate) fn set_list_style_test_override(s: Option<theme::ListStyle>) {
+    assert!(
+        crate::testlock::currently_held(),
+        "LIST_STYLE_TEST_OVERRIDE writer requires crate::testlock::serial()"
+    );
     *LIST_STYLE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = s;
 }
 
@@ -2481,6 +2485,10 @@ pub(crate) fn set_list_style_test_override(s: Option<theme::ListStyle>) {
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     #[cfg(test)]
     {
+        assert!(
+            crate::testlock::currently_held(),
+            "LIST_STYLE_TEST_OVERRIDE reader requires crate::testlock::serial()"
+        );
         if let Some(s) = *LIST_STYLE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
             return s;
         }
@@ -3262,6 +3270,8 @@ pub struct TextPipeline {
     pub float_shadow: SelectionPipeline,
     pub float_border: SelectionPipeline,
     pub float_card: SelectionPipeline,
+    /// The single resolved owner for this frame's shared float trio.
+    pub(in crate::render) float_panel_model: Option<chrome::FloatPanelModel>,
     /// DIFF-AS-PREVIEW panel dressing — its OWN elevation trio (the established
     /// per-surface pattern: popover/hud/which-key each own theirs), because the
     /// `float_*` trio belongs to the spell/caret panels and `panel_*` to the very

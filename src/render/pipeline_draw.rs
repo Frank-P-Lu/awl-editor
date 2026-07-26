@@ -404,6 +404,7 @@ impl TextPipeline {
             float_shadow,
             float_border,
             float_card,
+            float_panel_model: None,
             diffpanel_shadow,
             diffpanel_border,
             diffpanel_card,
