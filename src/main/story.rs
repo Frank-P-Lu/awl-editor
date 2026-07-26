@@ -27,13 +27,11 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::capture::{self, CaptureOpts};
 use crate::config::Config;
-use crate::storyboard::{
-    self, StateView, StepKind, Storyboard, Trace, TraceAbort, TraceStep,
-};
+use crate::storyboard::{self, StateView, StepKind, Storyboard, Trace, TraceAbort, TraceStep};
 
 /// Run one storyboard. `file` is the board's document resolved against the
 /// board's own directory (already seeded into the hermetic sandbox);
@@ -55,7 +53,10 @@ pub(crate) fn run_storyboard(
     if let Some(t) = &board.theme {
         crate::theme::set_active_by_name(t).ok_or_else(|| {
             let names: Vec<&str> = crate::theme::THEMES.iter().map(|t| t.name).collect();
-            anyhow::anyhow!("storyboard: unknown theme {t:?}; choose one of {}", names.join(", "))
+            anyhow::anyhow!(
+                "storyboard: unknown theme {t:?}; choose one of {}",
+                names.join(", ")
+            )
         })?;
     }
     // Project context — the same resolution capture_screenshot performs, inside
@@ -86,8 +87,7 @@ pub(crate) fn run_storyboard(
         return Err(crate::replay::missing_oracle_error());
     }
 
-    std::fs::create_dir_all(&out_dir)
-        .with_context(|| format!("creating {}", out_dir.display()))?;
+    std::fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
     let mut renderer = capture::FilmRenderer::new(&out_dir)?;
     let mut session = crate::run::ReplaySession::new(
         crate::replay::Mode::Strict,
@@ -127,7 +127,10 @@ pub(crate) fn run_storyboard(
         if let Some(e) = apply_err {
             // STRICT ABORT: write the partial trace naming the offender, then
             // surface the exact same error (trace and stderr can't disagree).
-            trace.abort = Some(TraceAbort { step: i, reason: e.to_string() });
+            trace.abort = Some(TraceAbort {
+                step: i,
+                reason: e.to_string(),
+            });
             trace.steps.push(entry);
             write_trace(&out_dir, &trace)?;
             return Err(e.context(format!(
@@ -150,10 +153,15 @@ pub(crate) fn run_storyboard(
                 trace.steps.push(entry);
                 if failed {
                     let msg = failures.join("; ");
-                    trace.abort =
-                        Some(TraceAbort { step: i, reason: format!("expectation failed — {msg}") });
+                    trace.abort = Some(TraceAbort {
+                        step: i,
+                        reason: format!("expectation failed — {msg}"),
+                    });
                     write_trace(&out_dir, &trace)?;
-                    bail!("storyboard {:?}: step {i} expectation failed — {msg}", board.name);
+                    bail!(
+                        "storyboard {:?}: step {i} expectation failed — {msg}",
+                        board.name
+                    );
                 }
             }
             StepKind::Press { .. }
@@ -197,7 +205,10 @@ fn state_view(session: &crate::run::ReplaySession) -> StateView {
             .map(|o| o.kind.as_str().to_string())
             .unwrap_or_else(|| "none".to_string()),
         search_active: session.search().is_some(),
-        search_query: session.search().map(|s| s.query().to_string()).unwrap_or_default(),
+        search_query: session
+            .search()
+            .map(|s| s.query().to_string())
+            .unwrap_or_default(),
         selection: session.buffer().selection_line_col().is_some(),
         text: session.buffer().text(),
     }
@@ -267,21 +278,53 @@ fn encode_films(out_dir: &Path) {
     };
     let fps = (1000 / capture::FRAME_MS).to_string();
     let targets: [(&str, &[&str]); 2] = [
-        ("film.webm", &["-c:v", "libvpx-vp9", "-pix_fmt", "yuv420p", "-b:v", "0", "-crf", "32"]),
-        ("film.mp4", &["-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium"]),
+        (
+            "film.webm",
+            &[
+                "-c:v",
+                "libvpx-vp9",
+                "-pix_fmt",
+                "yuv420p",
+                "-b:v",
+                "0",
+                "-crf",
+                "32",
+            ],
+        ),
+        (
+            "film.mp4",
+            &[
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "medium",
+            ],
+        ),
     ];
     for (name, codec) in targets {
         let out = out_dir.join(name);
         let mut cmd = std::process::Command::new("ffmpeg");
-        cmd.args(["-y", "-loglevel", "error", "-framerate", &fps, "-i", &pattern])
-            .args(codec)
-            .args(["-threads", "1", "-fflags", "+bitexact", "-flags", "+bitexact"])
-            .arg(&out);
+        cmd.args([
+            "-y",
+            "-loglevel",
+            "error",
+            "-framerate",
+            &fps,
+            "-i",
+            &pattern,
+        ])
+        .args(codec)
+        .args([
+            "-threads",
+            "1",
+            "-fflags",
+            "+bitexact",
+            "-flags",
+            "+bitexact",
+        ])
+        .arg(&out);
         match cmd.status() {
             Ok(s) if s.success() => println!("wrote {}", out.display()),
-            Ok(s) => eprintln!(
-                "ffmpeg exited with {s} encoding {name} — raw frames retained in frames/"
-            ),
+            Ok(s) => {
+                eprintln!("ffmpeg exited with {s} encoding {name} — raw frames retained in frames/")
+            }
             Err(_) => {
                 eprintln!("film not encoded (no ffmpeg on PATH) — raw frames retained in frames/");
                 return; // no point trying the second target

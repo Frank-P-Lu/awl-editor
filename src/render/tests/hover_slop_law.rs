@@ -70,24 +70,30 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
             p.set_view(&v0);
             p.prepare(&device, &queue, 1200, 800).unwrap();
             let pr0 = p.overlay_row_y_probe();
-            let card0 =
-                p.overlay_card_rect().unwrap_or_else(|| panic!("{ctx}: an open Goto card must expose a rect"));
+            let card0 = p
+                .overlay_card_rect()
+                .unwrap_or_else(|| panic!("{ctx}: an open Goto card must expose a rect"));
             let px = card0[0] + card0[2] * 0.5;
-            let top3 = *pr0
-                .primary
-                .get(&3)
-                .unwrap_or_else(|| panic!("{ctx}: display row 3 must be drawn in a fresh 40-row list"));
+            let top3 = *pr0.primary.get(&3).unwrap_or_else(|| {
+                panic!("{ctx}: display row 3 must be drawn in a fresh 40-row list")
+            });
             let py = top3 + pr0.lh * 0.5;
             let hit0 = p.overlay_row_at(px, py);
             assert_eq!(hit0, Some(3), "{ctx}: the probe pixel must start on row 3");
-            assert!(ov.hover_at(px, py, hit0), "{ctx}: the initial real hover selects row 3");
+            assert!(
+                ov.hover_at(px, py, hit0),
+                "{ctx}: the initial real hover selects row 3"
+            );
             assert_eq!(ov.selected, 3, "{ctx}");
 
             // A REAL keyboard session: Down deep enough that the window must
             // scroll (selected 3 -> 25, well past the 12-row window).
             ov.move_sel(22);
             assert_eq!(ov.selected, 25, "{ctx}");
-            assert!(ov.scroll > 0, "{ctx}: the keyboard session must have actually scrolled the window");
+            assert!(
+                ov.scroll > 0,
+                "{ctx}: the keyboard session must have actually scrolled the window"
+            );
             // `App::apply`'s stamp: the pointer never moved, so this re-anchors
             // to the SAME (px, py) the last hover left.
             ov.arm_hover_baseline(px, py);
@@ -99,7 +105,10 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
             p.prepare(&device, &queue, 1200, 800).unwrap();
             let pr1 = p.overlay_row_y_probe();
             let hit1 = p.overlay_row_at(px, py);
-            assert!(hit1.is_some(), "{ctx}: the scrolled window still draws SOME row at that pixel");
+            assert!(
+                hit1.is_some(),
+                "{ctx}: the scrolled window still draws SOME row at that pixel"
+            );
             assert_ne!(
                 hit1,
                 Some(25),
@@ -119,7 +128,10 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
                 "{ctx}: a 1px jitter off a stationary pointer, over a window that scrolled under it, \
                  must not steal the keyboard's selection"
             );
-            assert_eq!(ov.selected, 25, "{ctx}: the keyboard selection survives the scroll");
+            assert_eq!(
+                ov.selected, 25,
+                "{ctx}: the keyboard selection survives the scroll"
+            );
 
             // AND real motion still works normally: a pointer move to a
             // DIFFERENT display row (well past any reasonable slop — a full
@@ -131,7 +143,10 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
                 .unwrap_or_else(|| panic!("{ctx}: display row 0 must be drawn"));
             let py2 = top1_0 + pr1.lh * 0.5;
             let hit2 = p.overlay_row_at(px, py2);
-            assert!(hit2.is_some(), "{ctx}: display row 0 must hit-test to a real item");
+            assert!(
+                hit2.is_some(),
+                "{ctx}: display row 0 must hit-test to a real item"
+            );
             assert!(
                 ov.hover_at(px, py2, hit2),
                 "{ctx}: a genuine pointer move to a different row must still take over immediately"

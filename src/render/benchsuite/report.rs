@@ -16,7 +16,7 @@
 
 use std::path::Path;
 
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result, bail};
 
 /// The bench.json shape version. Bump on any field change; a baseline written
 /// under another version refuses to diff (regenerate deliberately).
@@ -72,7 +72,12 @@ impl BenchDoc {
             cpu: cpu_brand(),
             rustc: rustc_version(),
             awl: env!("CARGO_PKG_VERSION").to_string(),
-            profile: if cfg!(debug_assertions) { "debug" } else { "release" }.to_string(),
+            profile: if cfg!(debug_assertions) {
+                "debug"
+            } else {
+                "release"
+            }
+            .to_string(),
             wall_s,
             cells,
             skips,
@@ -163,9 +168,13 @@ fn q(s: &str) -> String {
 /// Extract the string value of `"key": "..."` from `hay` (first occurrence).
 fn str_field(hay: &str, key: &str) -> Result<String> {
     let pat = format!("\"{key}\":");
-    let at = hay.find(&pat).with_context(|| format!("missing field {key:?}"))?;
+    let at = hay
+        .find(&pat)
+        .with_context(|| format!("missing field {key:?}"))?;
     let rest = &hay[at + pat.len()..];
-    let open = rest.find('"').with_context(|| format!("field {key:?} is not a string"))?;
+    let open = rest
+        .find('"')
+        .with_context(|| format!("field {key:?} is not a string"))?;
     let mut out = String::new();
     let mut chars = rest[open + 1..].chars();
     while let Some(c) = chars.next() {
@@ -187,10 +196,14 @@ fn str_field(hay: &str, key: &str) -> Result<String> {
 /// Extract the numeric value of `"key": 12.3` from `hay` (first occurrence).
 fn num_field(hay: &str, key: &str) -> Result<f64> {
     let pat = format!("\"{key}\":");
-    let at = hay.find(&pat).with_context(|| format!("missing field {key:?}"))?;
+    let at = hay
+        .find(&pat)
+        .with_context(|| format!("missing field {key:?}"))?;
     let rest = hay[at + pat.len()..].trim_start();
     let end = rest
-        .find(|c: char| !(c.is_ascii_digit() || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E'))
+        .find(|c: char| {
+            !(c.is_ascii_digit() || c == '.' || c == '-' || c == '+' || c == 'e' || c == 'E')
+        })
         .unwrap_or(rest.len());
     rest[..end]
         .parse::<f64>()
@@ -228,9 +241,13 @@ pub(super) fn parse(text: &str) -> Result<BenchDoc> {
                 reason: str_field(t, "reason")?,
             });
         } else {
-            let wopen = t.find("\"witness\":").context("cell line missing witness")?;
-            let wbody_start = t[wopen..].find('{').context("witness must be an object")? + wopen + 1;
-            let wbody_end = t[wbody_start..].find('}').context("unterminated witness")? + wbody_start;
+            let wopen = t
+                .find("\"witness\":")
+                .context("cell line missing witness")?;
+            let wbody_start =
+                t[wopen..].find('{').context("witness must be an object")? + wopen + 1;
+            let wbody_end =
+                t[wbody_start..].find('}').context("unterminated witness")? + wbody_start;
             let mut witness = Vec::new();
             let body = t[wbody_start..wbody_end].trim();
             if !body.is_empty() {
@@ -253,7 +270,19 @@ pub(super) fn parse(text: &str) -> Result<BenchDoc> {
             });
         }
     }
-    Ok(BenchDoc { schema, host, arch, os, cpu, rustc, awl, profile, wall_s, cells, skips })
+    Ok(BenchDoc {
+        schema,
+        host,
+        arch,
+        os,
+        cpu,
+        rustc,
+        awl,
+        profile,
+        wall_s,
+        cells,
+        skips,
+    })
 }
 
 /// What a baseline comparison concluded — pure data, printable + testable.
@@ -362,19 +391,29 @@ pub(super) fn diff_against(path: &Path, cur: &BenchDoc) -> Result<()> {
     }
     let d = compare(&base, cur);
     for (t, s, b, c) in &d.improved {
-        println!("  improved  {t:>6} {s:<10} min {b:>9.3}ms -> {c:>9.3}ms ({:+.0}%)", (c / b - 1.0) * 100.0);
+        println!(
+            "  improved  {t:>6} {s:<10} min {b:>9.3}ms -> {c:>9.3}ms ({:+.0}%)",
+            (c / b - 1.0) * 100.0
+        );
     }
     for (t, s) in &d.new_cells {
-        println!("  new cell  {t:>6} {s:<10} (no baseline entry — next --update-baseline records it)");
+        println!(
+            "  new cell  {t:>6} {s:<10} (no baseline entry — next --update-baseline records it)"
+        );
     }
     for (t, s, b, c) in &d.regressions {
-        println!("  REGRESSED {t:>6} {s:<10} min {b:>9.3}ms -> {c:>9.3}ms ({:+.0}%)", (c / b - 1.0) * 100.0);
+        println!(
+            "  REGRESSED {t:>6} {s:<10} min {b:>9.3}ms -> {c:>9.3}ms ({:+.0}%)",
+            (c / b - 1.0) * 100.0
+        );
     }
     for (t, s) in &d.missing {
         println!("  MISSING   {t:>6} {s:<10} (baseline has this cell; the current run does not)");
     }
     for (t, s) in &d.witness_drift {
-        println!("  WITNESS   {t:>6} {s:<10} (witness counters changed — the workload itself moved)");
+        println!(
+            "  WITNESS   {t:>6} {s:<10} (witness counters changed — the workload itself moved)"
+        );
     }
     if !d.regressions.is_empty() || !d.missing.is_empty() || !d.witness_drift.is_empty() {
         bail!(
@@ -543,7 +582,10 @@ mod tests {
         cur.cells[0].witness[0].1 += 1;
         cur.cells[0].min_ms *= 2.0;
         let d = compare(&base, &cur);
-        assert_eq!(d.witness_drift, vec![("S".to_string(), "cold_open".to_string())]);
+        assert_eq!(
+            d.witness_drift,
+            vec![("S".to_string(), "cold_open".to_string())]
+        );
         assert!(d.regressions.is_empty());
 
         // A 25% improvement — informational.

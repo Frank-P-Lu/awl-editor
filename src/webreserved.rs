@@ -39,13 +39,34 @@ pub struct Reserved {
 
 /// Reserved on a Mac-flavored browser (Safari/Chrome/Firefox on macOS).
 pub const MAC_WEB_RESERVED: &[Reserved] = &[
-    Reserved { spec: "Cmd-N", reason: "new window" },
-    Reserved { spec: "Cmd-S-N", reason: "new private window" },
-    Reserved { spec: "Cmd-T", reason: "new tab" },
-    Reserved { spec: "Cmd-S-T", reason: "reopen closed tab" },
-    Reserved { spec: "Cmd-W", reason: "close tab" },
-    Reserved { spec: "Cmd-S-W", reason: "close window" },
-    Reserved { spec: "Cmd-Q", reason: "quit browser" },
+    Reserved {
+        spec: "Cmd-N",
+        reason: "new window",
+    },
+    Reserved {
+        spec: "Cmd-S-N",
+        reason: "new private window",
+    },
+    Reserved {
+        spec: "Cmd-T",
+        reason: "new tab",
+    },
+    Reserved {
+        spec: "Cmd-S-T",
+        reason: "reopen closed tab",
+    },
+    Reserved {
+        spec: "Cmd-W",
+        reason: "close tab",
+    },
+    Reserved {
+        spec: "Cmd-S-W",
+        reason: "close window",
+    },
+    Reserved {
+        spec: "Cmd-Q",
+        reason: "quit browser",
+    },
 ];
 
 /// Reserved on a Linux/Windows-flavored browser (the [`Convention::Linux`]
@@ -54,12 +75,30 @@ pub const MAC_WEB_RESERVED: &[Reserved] = &[
 /// (Chrome/Firefox on Linux/Windows do not reserve it), so it is left off this
 /// table deliberately, not by oversight.
 pub const LINUX_WEB_RESERVED: &[Reserved] = &[
-    Reserved { spec: "C-n", reason: "new window" },
-    Reserved { spec: "C-S-n", reason: "new private window" },
-    Reserved { spec: "C-t", reason: "new tab" },
-    Reserved { spec: "C-S-t", reason: "reopen closed tab" },
-    Reserved { spec: "C-w", reason: "close tab" },
-    Reserved { spec: "C-S-w", reason: "close window" },
+    Reserved {
+        spec: "C-n",
+        reason: "new window",
+    },
+    Reserved {
+        spec: "C-S-n",
+        reason: "new private window",
+    },
+    Reserved {
+        spec: "C-t",
+        reason: "new tab",
+    },
+    Reserved {
+        spec: "C-S-t",
+        reason: "reopen closed tab",
+    },
+    Reserved {
+        spec: "C-w",
+        reason: "close tab",
+    },
+    Reserved {
+        spec: "C-S-w",
+        reason: "close window",
+    },
 ];
 
 /// The reserved table for `convention` — the ONE data owner every check below

@@ -16,8 +16,7 @@ use super::{headless_dqp, headless_pipeline, pixeldiff, view};
 #[test]
 fn spell_panel_floats_at_the_word_not_center_screen() {
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -30,8 +29,7 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
@@ -56,24 +54,58 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
 
     // It recedes NOTHING (no frosted blur, no scrim) — it's a small popup, not a
     // takeover.
-    assert!(!p.dims_doc(), "the contextual spell panel keeps the document crisp");
+    assert!(
+        !p.dims_doc(),
+        "the contextual spell panel keeps the document crisp"
+    );
     // The card floats AT the word: its left edge sits at the word start (text_left,
     // since "teh" begins at col 0) and it is SMALL — nowhere near a centered ~half-
     // canvas card. And it hangs BELOW the word's row (top past the first line).
     let word_left = p.text_left();
     let [x, y, w, _h] = p.overlay_card_rect().expect("the spell overlay has a card");
-    assert!((x - word_left).abs() < 2.0, "card left edge anchors to the word start: {x} vs {word_left}");
-    assert!(w <= 360.0, "the panel is a small popup, not a wide takeover: w={w}");
-    assert!(x + w < 500.0, "the panel stays over the word, not centered: x={x} w={w}");
-    assert!(y > p.metrics.line_height, "the panel hangs below the word's row: y={y}");
+    assert!(
+        (x - word_left).abs() < 2.0,
+        "card left edge anchors to the word start: {x} vs {word_left}"
+    );
+    assert!(
+        w <= 360.0,
+        "the panel is a small popup, not a wide takeover: w={w}"
+    );
+    assert!(
+        x + w < 500.0,
+        "the panel stays over the word, not centered: x={x} w={w}"
+    );
+    assert!(
+        y > p.metrics.line_height,
+        "the panel hangs below the word's row: y={y}"
+    );
     // It rides the FLOAT primitive (border + card, no drop shadow — dark-depth
     // Option C, 2026-07-22: the shadow quad is retired outright, on every
     // world), and the flat centered card + the amber query caret are BOTH parked.
-    assert_eq!(p.float_card.instance_count(), 1, "the spell panel is a floating card");
-    assert_eq!(p.float_shadow.instance_count(), 0, "no drop shadow — retired (dark-depth Option C)");
-    assert_eq!(p.float_border.instance_count(), 1, "and a raised border edge");
-    assert_eq!(p.panel_card.instance_count(), 0, "no flat centered card for the spell panel");
-    assert!(!p.panel_caret.is_drawn(), "no amber query caret on the spell panel");
+    assert_eq!(
+        p.float_card.instance_count(),
+        1,
+        "the spell panel is a floating card"
+    );
+    assert_eq!(
+        p.float_shadow.instance_count(),
+        0,
+        "no drop shadow — retired (dark-depth Option C)"
+    );
+    assert_eq!(
+        p.float_border.instance_count(),
+        1,
+        "and a raised border edge"
+    );
+    assert_eq!(
+        p.panel_card.instance_count(),
+        0,
+        "no flat centered card for the spell panel"
+    );
+    assert!(
+        !p.panel_caret.is_drawn(),
+        "no amber query caret on the spell panel"
+    );
 
     // CONTRAST: a takeover overlay (no spell target) is a WIDE card on the flat
     // panel card — NOT the float primitive, and NOT the small word-anchored popup.
@@ -87,7 +119,9 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
     c.overlay_items = vec!["the".into(), "tea".into(), "ten".into()];
     p.set_view(&c);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    let [cx, _cy, cw, _ch] = p.overlay_card_rect().expect("the takeover overlay has a card");
+    let [cx, _cy, cw, _ch] = p
+        .overlay_card_rect()
+        .expect("the takeover overlay has a card");
     assert!(cw >= 360.0, "a takeover overlay is a wide card: w={cw}");
     let centered = (1200.0 - cw) * 0.5;
     assert!(
@@ -95,7 +129,11 @@ fn spell_panel_floats_at_the_word_not_center_screen() {
         "the takeover card centres under the top third: x={cx} want {centered}"
     );
     set_card_anchor_test_override(None);
-    assert_eq!(p.float_card.instance_count(), 0, "a takeover overlay parks the float card");
+    assert_eq!(
+        p.float_card.instance_count(),
+        0,
+        "a takeover overlay parks the float card"
+    );
     // A takeover overlay uses the flat `panel_card` pipeline (NOT the float
     // primitive). A default (Pane) world SPLITS its card into two surfaces
     // (SPLIT-PANE round), so this is >= 1 fill quad, never the float card.
@@ -118,7 +156,9 @@ fn spell_panel_width_fits_longest_suggestion_not_the_word() {
     // a parallel chrome-face override cannot leak into either width reading.
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping spell_panel_width_fits_longest_suggestion_not_the_word: no wgpu adapter");
+        eprintln!(
+            "skipping spell_panel_width_fits_longest_suggestion_not_the_word: no wgpu adapter"
+        );
         return;
     };
     let pad = 10.0_f32; // the spell panel's inner padding (spell_overlay_geometry)
@@ -140,25 +180,37 @@ fn spell_panel_width_fits_longest_suggestion_not_the_word() {
     // char-grid width — item 49's floor so the char-budget elision never fires
     // below the cap) + padding, floored at the calm MIN (140), capped small (520),
     // kept on-canvas — NOT the word's width.
-    let widest_chars =
-        long.overlay_items.iter().map(|s| s.chars().count()).max().unwrap();
+    let widest_chars = long
+        .overlay_items
+        .iter()
+        .map(|s| s.chars().count())
+        .max()
+        .unwrap();
     let grid_slack = 1 + crate::render::rowlayout::GAP_CHARS + 1;
     let char_grid = (widest_chars + grid_slack) as f32 * p.metrics.char_width;
     let content_w = content.max(char_grid);
-    let expect = (content_w + 2.0 * pad).clamp(140.0, 520.0).min(canvas - 2.0 * margin);
+    let expect = (content_w + 2.0 * pad)
+        .clamp(140.0, 520.0)
+        .min(canvas - 2.0 * margin);
     assert!(
         (w_long - expect).abs() < 0.5,
         "card width is content-driven (max(shaped, char-grid) + pad, min 140, cap 520): got {w_long}, expected {expect} (content {content}, grid {char_grid})"
     );
     // The long suggestion pushed the card PAST the min floor (so this case is
     // meaningful) and its inner text column FITS the suggestion — no overflow.
-    assert!(w_long > 140.0, "the long suggestion widens the card past the min: {w_long}");
+    assert!(
+        w_long > 140.0,
+        "the long suggestion widens the card past the min: {w_long}"
+    );
     assert!(
         w_long - 2.0 * pad >= content - 0.5,
         "the card's text column ({}) fits the longest suggestion ({content})",
         w_long - 2.0 * pad
     );
-    assert!(w_long <= 520.0, "still a small popup, not a takeover: {w_long}");
+    assert!(
+        w_long <= 520.0,
+        "still a small popup, not a takeover: {w_long}"
+    );
 
     // The SAME word with only SHORT suggestions → a NARROWER card, clamped to the
     // calm MIN. Width tracks the content, not the (identical) word.
@@ -169,7 +221,10 @@ fn spell_panel_width_fits_longest_suggestion_not_the_word() {
     short.overlay_spell = Some((0, 0, 3));
     p.set_view(&short);
     let [_sx, _sy, w_short, _sh] = p.overlay_card_rect().expect("the spell overlay has a card");
-    assert!(w_short >= 140.0, "a short suggestion set still respects the min width: {w_short}");
+    assert!(
+        w_short >= 140.0,
+        "a short suggestion set still respects the min width: {w_short}"
+    );
     assert!(
         w_short < w_long,
         "the longer suggestions make a WIDER card ({w_long}) than the short set ({w_short}) at the SAME word — content-driven, not word-driven"
@@ -196,7 +251,9 @@ fn spell_panel_width_fits_longest_suggestion_not_the_word() {
 fn spell_add_to_dictionary_row_renders_whole_at_wide_width() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping spell_add_to_dictionary_row_renders_whole_at_wide_width: no wgpu adapter");
+        eprintln!(
+            "skipping spell_add_to_dictionary_row_renders_whole_at_wide_width: no wgpu adapter"
+        );
         return;
     };
     // FIRETAIL — the wide-mono world (Monaspace Xenon) where the char-grid budget
@@ -309,8 +366,14 @@ fn spell_add_row_ink_visually_separates_from_a_correction_real_pixels() {
     let lh = p.overlay_lh();
     let text_left = cx + pad;
     let text_top = cy + pad;
-    let row_region =
-        |row: usize| Region::new(text_left, text_top + row as f32 * lh, (cw - 2.0 * pad).max(1.0), lh);
+    let row_region = |row: usize| {
+        Region::new(
+            text_left,
+            text_top + row as f32 * lh,
+            (cw - 2.0 * pad).max(1.0),
+            lh,
+        )
+    };
 
     let bg = theme::base_300().rgba_bytes(); // the popup's own opaque card fill
     let correction_ink =
@@ -325,7 +388,8 @@ fn spell_add_row_ink_visually_separates_from_a_correction_real_pixels() {
          ({correction_ink:?}) — indistinguishable ink is exactly the shape item 64's \
          'visually separated' requirement bans"
     );
-    let dist_to_bg = |c: [u8; 4]| -> i64 { (0..3).map(|k| (c[k] as i64 - bg[k] as i64).abs()).sum() };
+    let dist_to_bg =
+        |c: [u8; 4]| -> i64 { (0..3).map(|k| (c[k] as i64 - bg[k] as i64).abs()).sum() };
     let corr_d = dist_to_bg(correction_ink);
     let add_d = dist_to_bg(add_ink);
     assert!(
@@ -384,7 +448,10 @@ fn spell_add_row_elides_only_at_a_genuinely_narrow_width() {
         wide_rows.contains(&add_label),
         "ordinary desktop width: the add row must render WHOLE; got {wide_rows:?}"
     );
-    assert!(!wide_rows.contains('…'), "ordinary desktop width: no row may elide; got {wide_rows:?}");
+    assert!(
+        !wide_rows.contains('…'),
+        "ordinary desktop width: no row may elide; got {wide_rows:?}"
+    );
 
     // THE REAL NARROW CAP: the SAME view, only the canvas shrinks — the popup's
     // own on-canvas clamp now genuinely can't seat the label whole.
@@ -421,7 +488,9 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active_by_name("Gumtree").unwrap();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping replace_caret_rides_the_reserved_cell_after_the_replacement_text: no wgpu adapter");
+        eprintln!(
+            "skipping replace_caret_rides_the_reserved_cell_after_the_replacement_text: no wgpu adapter"
+        );
         return;
     };
     let width = 1200u32;
@@ -464,8 +533,12 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
             REPLACE_LABEL.len() + replacement.len(),
             "reserved-cell byte is line-relative for {replacement:?}"
         );
-        let (_card, text_left, _top, caret_x) =
-            p.panel_layout(width, shape.caret_byte, shape.caret_fallback_chars, shape.caret_row);
+        let (_card, text_left, _top, caret_x) = p.panel_layout(
+            width,
+            shape.caret_byte,
+            shape.caret_fallback_chars,
+            shape.caret_row,
+        );
 
         let expected = reserved_x(&p, text_left, replacement);
         assert!(
@@ -496,8 +569,12 @@ fn replace_caret_rides_the_reserved_cell_after_the_replacement_text() {
     p.set_view(&v);
     let shape = p.panel_shape_text(width);
     assert_eq!(shape.caret_row, 0.0, "find focus targets row 0");
-    let (_card, text_left, _top, caret_x) =
-        p.panel_layout(width, shape.caret_byte, shape.caret_fallback_chars, shape.caret_row);
+    let (_card, text_left, _top, caret_x) = p.panel_layout(
+        width,
+        shape.caret_byte,
+        shape.caret_fallback_chars,
+        shape.caret_row,
+    );
     // Ground truth: the reserved gap glyph on line 0 sits at byte "find "+query.
     let cell = "find    ".len() + "hello".len();
     let mut find_expected = None;
@@ -532,7 +609,9 @@ fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active_by_name("Gumtree").unwrap();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping panel_caret_places_at_begin_mid_end_char_index_both_fields: no wgpu adapter");
+        eprintln!(
+            "skipping panel_caret_places_at_begin_mid_end_char_index_both_fields: no wgpu adapter"
+        );
         return;
     };
     let width = 1200u32;
@@ -540,7 +619,13 @@ fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
     let caret_x_at = |p: &mut TextPipeline, v: &ViewState| -> f32 {
         p.set_view(v);
         let shape = p.panel_shape_text(width);
-        p.panel_layout(width, shape.caret_byte, shape.caret_fallback_chars, shape.caret_row).3
+        p.panel_layout(
+            width,
+            shape.caret_byte,
+            shape.caret_fallback_chars,
+            shape.caret_row,
+        )
+        .3
     };
 
     // The FIND query field.
@@ -554,7 +639,10 @@ fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
     let fx_mid = caret_x_at(&mut p, &v);
     v.search_query_caret = 6;
     let fx_end = caret_x_at(&mut p, &v);
-    assert!(fx_begin < fx_mid, "find: begin ({fx_begin}) < mid ({fx_mid})");
+    assert!(
+        fx_begin < fx_mid,
+        "find: begin ({fx_begin}) < mid ({fx_mid})"
+    );
     assert!(fx_mid < fx_end, "find: mid ({fx_mid}) < end ({fx_end})");
 
     // The REPLACEMENT field.
@@ -570,7 +658,10 @@ fn panel_caret_places_at_begin_mid_end_char_index_both_fields() {
     let rx_mid = caret_x_at(&mut p, &v);
     v.search_replacement_caret = 6;
     let rx_end = caret_x_at(&mut p, &v);
-    assert!(rx_begin < rx_mid, "replace: begin ({rx_begin}) < mid ({rx_mid})");
+    assert!(
+        rx_begin < rx_mid,
+        "replace: begin ({rx_begin}) < mid ({rx_mid})"
+    );
     assert!(rx_mid < rx_end, "replace: mid ({rx_mid}) < end ({rx_end})");
 
     theme::set_active(theme::DEFAULT_THEME);
@@ -587,7 +678,9 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     // The top-right panel card is anchored to the window's right edge, not the
     // page-mode writing column, so no page-global geometry is folded (no lock).
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping panel_hit_maps_the_pointer_to_the_find_or_replace_field: no wgpu adapter");
+        eprintln!(
+            "skipping panel_hit_maps_the_pointer_to_the_find_or_replace_field: no wgpu adapter"
+        );
         return;
     };
     let width = p.window_w as u32;
@@ -604,21 +697,34 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     p.set_view(&v);
     // Shape the panel so panel_layout has real rows to measure.
     let shape = p.panel_shape_text(width);
-    let ([card_x, card_y, card_w, card_h], text_left, text_top, _cx) =
-        p.panel_layout(width, shape.caret_byte, shape.caret_fallback_chars, shape.caret_row);
+    let ([card_x, card_y, card_w, card_h], text_left, text_top, _cx) = p.panel_layout(
+        width,
+        shape.caret_byte,
+        shape.caret_fallback_chars,
+        shape.caret_row,
+    );
     let lh = p.metrics.line_height;
     let mid = card_x + card_w * 0.5; // safely inside the card horizontally
 
     assert_eq!(p.panel_hit(mid, text_top + 0.5 * lh), Some(PanelHit::Find));
-    assert_eq!(p.panel_hit(mid, text_top + 1.5 * lh), Some(PanelHit::Replace));
+    assert_eq!(
+        p.panel_hit(mid, text_top + 1.5 * lh),
+        Some(PanelHit::Replace)
+    );
     // The key-hint line (row 2) is inside the card but not editable -> Elsewhere.
-    assert_eq!(p.panel_hit(mid, text_top + 2.5 * lh), Some(PanelHit::Elsewhere));
+    assert_eq!(
+        p.panel_hit(mid, text_top + 2.5 * lh),
+        Some(PanelHit::Elsewhere)
+    );
     // The `Aa` cell at the right edge of the find row -> CaseToggle (NOT Find):
     // the click driver for the case toggle whose only keyboard door is ⌘⌥C. (The
     // card is widened by the key-hint row, so `mid` sits past the find text on row
     // 0 and stays Find; only the shaped Aa cell resolves to CaseToggle.)
     let aa_mid = aa_cell_center(&p, text_left);
-    assert_eq!(p.panel_hit(aa_mid, text_top + 0.5 * lh), Some(PanelHit::CaseToggle));
+    assert_eq!(
+        p.panel_hit(aa_mid, text_top + 0.5 * lh),
+        Some(PanelHit::CaseToggle)
+    );
     // Off the card (far left / above / below) -> None: the press falls through.
     assert_eq!(p.panel_hit(card_x - 20.0, text_top + 0.5 * lh), None);
     assert_eq!(p.panel_hit(mid, card_y - 5.0), None);
@@ -643,12 +749,18 @@ fn panel_hit_maps_the_pointer_to_the_find_or_replace_field() {
     let mid1 = cx1 + cw1 * 0.5;
     assert_eq!(p.panel_hit(mid1, top1 + 0.5 * lh), Some(PanelHit::Find));
     // The would-be replace band sits below the one-row card -> off card -> None.
-    assert!(top1 + 1.5 * lh > _cy1 + ch1, "replace band is below the 1-row card");
+    assert!(
+        top1 + 1.5 * lh > _cy1 + ch1,
+        "replace band is below the 1-row card"
+    );
     assert_eq!(p.panel_hit(mid1, top1 + 1.5 * lh), None);
 
     // On the ONE-row plain find panel the `Aa` cell is still a click target.
     let aa_mid1 = aa_cell_center(&p, _t1);
-    assert_eq!(p.panel_hit(aa_mid1, top1 + 0.5 * lh), Some(PanelHit::CaseToggle));
+    assert_eq!(
+        p.panel_hit(aa_mid1, top1 + 0.5 * lh),
+        Some(PanelHit::CaseToggle)
+    );
 
     // Panel DOWN -> always None (the press falls through to the document).
     let v2 = view("hello\nhello\n", 0, 0); // search_active defaults false
@@ -695,8 +807,12 @@ fn every_panel_hit_variant_is_reachable_by_a_click() {
     v.search_replacement = "world".into();
     p.set_view(&v);
     let shape = p.panel_shape_text(width);
-    let ([card_x, _cy, card_w, _ch], text_left, text_top, _cx) =
-        p.panel_layout(width, shape.caret_byte, shape.caret_fallback_chars, shape.caret_row);
+    let ([card_x, _cy, card_w, _ch], text_left, text_top, _cx) = p.panel_layout(
+        width,
+        shape.caret_byte,
+        shape.caret_fallback_chars,
+        shape.caret_row,
+    );
     let lh = p.metrics.line_height;
     let mid = card_x + card_w * 0.5;
     let aa_mid = aa_cell_center(&p, text_left);
@@ -744,17 +860,32 @@ fn panel_card_yields_to_shown_menu_bar() {
 
     crate::menubar::set_menu_bar_on(false);
     let shape_off = p.panel_shape_text(width);
-    let ([_x, cy_off, ..], ..) =
-        p.panel_layout(width, shape_off.caret_byte, shape_off.caret_fallback_chars, shape_off.caret_row);
-    assert_eq!(cy_off, 12.0, "bar off: the card keeps its plain 12px margin top");
+    let ([_x, cy_off, ..], ..) = p.panel_layout(
+        width,
+        shape_off.caret_byte,
+        shape_off.caret_fallback_chars,
+        shape_off.caret_row,
+    );
+    assert_eq!(
+        cy_off, 12.0,
+        "bar off: the card keeps its plain 12px margin top"
+    );
 
     crate::menubar::set_menu_bar_on(true);
     let reserve = p.menubar_reserve();
     assert!(reserve > 0.0, "a shown bar reserves a nonzero strip");
     let shape_on = p.panel_shape_text(width);
-    let ([_x2, cy_on, ..], ..) =
-        p.panel_layout(width, shape_on.caret_byte, shape_on.caret_fallback_chars, shape_on.caret_row);
-    assert_eq!(cy_on, cy_off + reserve, "the card yields by exactly the bar's own reserve");
+    let ([_x2, cy_on, ..], ..) = p.panel_layout(
+        width,
+        shape_on.caret_byte,
+        shape_on.caret_fallback_chars,
+        shape_on.caret_row,
+    );
+    assert_eq!(
+        cy_on,
+        cy_off + reserve,
+        "the card yields by exactly the bar's own reserve"
+    );
 
     crate::menubar::set_menu_bar_on(false);
 }
@@ -770,7 +901,9 @@ fn panel_card_yields_to_shown_menu_bar() {
 #[test]
 fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping overlay_and_theme_picker_cards_yield_to_shown_menu_bar: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_and_theme_picker_cards_yield_to_shown_menu_bar: no wgpu adapter"
+        );
         return;
     };
     let _mg = crate::testlock::serial();
@@ -784,19 +917,31 @@ fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
     crate::menubar::set_menu_bar_on(false);
     p.set_view(&v);
     let [_, cy_off, ..] = p.overlay_card_rect().expect("the flat overlay has a card");
-    assert_eq!(cy_off, 12.0 + 40.0, "bar off: the palette keeps its plain top anchor");
+    assert_eq!(
+        cy_off,
+        12.0 + 40.0,
+        "bar off: the palette keeps its plain top anchor"
+    );
 
     crate::menubar::set_menu_bar_on(true);
     let reserve = p.menubar_reserve();
     assert!(reserve > 0.0, "a shown bar reserves a nonzero strip");
     p.set_view(&v);
     let [_, cy_on, ..] = p.overlay_card_rect().expect("the flat overlay has a card");
-    assert_eq!(cy_on, cy_off + reserve, "the palette yields by exactly the bar's own reserve");
+    assert_eq!(
+        cy_on,
+        cy_off + reserve,
+        "the palette yields by exactly the bar's own reserve"
+    );
 
     // The FACETED theme/caret picker card (a non-empty `overlay_lens` routes
     // `overlay_geometry` into `theme_overlay_geometry` instead).
     let strip = |active: usize| -> Vec<(String, bool)> {
-        ["All", "Time"].iter().enumerate().map(|(i, l)| (l.to_string(), i == active)).collect()
+        ["All", "Time"]
+            .iter()
+            .enumerate()
+            .map(|(i, l)| (l.to_string(), i == active))
+            .collect()
     };
     let mut vt = view("hello\n", 0, 0);
     vt.overlay_active = true;
@@ -806,13 +951,24 @@ fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
 
     crate::menubar::set_menu_bar_on(false);
     p.set_view(&vt);
-    let [_, tcy_off, ..] = p.overlay_card_rect().expect("the faceted overlay has a card");
-    assert_eq!(tcy_off, cy_off, "bar off: the theme picker's top matches the flat picker's (same formula)");
+    let [_, tcy_off, ..] = p
+        .overlay_card_rect()
+        .expect("the faceted overlay has a card");
+    assert_eq!(
+        tcy_off, cy_off,
+        "bar off: the theme picker's top matches the flat picker's (same formula)"
+    );
 
     crate::menubar::set_menu_bar_on(true);
     p.set_view(&vt);
-    let [_, tcy_on, ..] = p.overlay_card_rect().expect("the faceted overlay has a card");
-    assert_eq!(tcy_on, tcy_off + reserve, "the theme picker yields by exactly the bar's own reserve");
+    let [_, tcy_on, ..] = p
+        .overlay_card_rect()
+        .expect("the faceted overlay has a card");
+    assert_eq!(
+        tcy_on,
+        tcy_off + reserve,
+        "the theme picker yields by exactly the bar's own reserve"
+    );
 
     crate::menubar::set_menu_bar_on(false);
 }
@@ -826,7 +982,9 @@ fn overlay_and_theme_picker_cards_yield_to_shown_menu_bar() {
 fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping overlay_click_regions_select_inside_row_and_dismiss_outside: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_click_regions_select_inside_row_and_dismiss_outside: no wgpu adapter"
+        );
         return;
     };
     // A centered picker: a query line on top, three candidate rows, a foot hint.
@@ -854,32 +1012,66 @@ fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
     // (header_rows == 1 for a flat picker); click its vertical middle.
     let row_x = cx + cw * 0.5;
     let row0_y = text_top + lh + hg + lh * 0.5;
-    assert_eq!(p.overlay_row_at(row_x, row0_y), Some(0), "a click on the first candidate row selects it");
+    assert_eq!(
+        p.overlay_row_at(row_x, row0_y),
+        Some(0),
+        "a click on the first candidate row selects it"
+    );
     assert!(inside(row_x, row0_y), "the row is inside the card");
 
     // OUTSIDE the card entirely: no row hit AND outside the rect → input.rs routes
     // this to Action::Cancel (dismiss), the same close Esc uses.
     let out_x = cx - 40.0;
     let out_y = cy - 40.0;
-    assert_eq!(p.overlay_row_at(out_x, out_y), None, "a click off the card hits no row");
-    assert!(!inside(out_x, out_y), "the point is outside the card → dismiss");
+    assert_eq!(
+        p.overlay_row_at(out_x, out_y),
+        None,
+        "a click off the card hits no row"
+    );
+    assert!(
+        !inside(out_x, out_y),
+        "the point is outside the card → dismiss"
+    );
 
     // INSIDE the card but on the QUERY line (not a candidate row): no row hit, yet
     // inside the rect → swallowed, the picker stays modal (no dismiss).
     let query_y = text_top + 0.5 * lh;
-    assert_eq!(p.overlay_row_at(row_x, query_y), None, "the query line is not a candidate row");
-    assert!(inside(row_x, query_y), "but it is inside the card → swallowed, not dismissed");
+    assert_eq!(
+        p.overlay_row_at(row_x, query_y),
+        None,
+        "the query line is not a candidate row"
+    );
+    assert!(
+        inside(row_x, query_y),
+        "but it is inside the card → swallowed, not dismissed"
+    );
 
     // CURSOR-SHAPE flag sources on this NON-spell picker (the pointing-hand
     // generalization + the query-input I-beam): a candidate row lights the
     // clickable-row flag (→ Pointer) but NOT the query flag; the query line
     // lights the query flag (→ I-beam) but NOT the row flag; off the card
     // lights neither.
-    assert!(p.overlay_row_at(row_x, row0_y).is_some(), "row → clickable-overlay-row flag (hand)");
-    assert!(!p.over_overlay_query(row_x, row0_y), "a candidate row is not the query field");
-    assert!(p.over_overlay_query(row_x, query_y), "the query line → query-input flag (I-beam)");
-    assert_eq!(p.overlay_row_at(row_x, query_y), None, "the query line lights no row flag");
-    assert!(!p.over_overlay_query(out_x, out_y), "off the card → no query field");
+    assert!(
+        p.overlay_row_at(row_x, row0_y).is_some(),
+        "row → clickable-overlay-row flag (hand)"
+    );
+    assert!(
+        !p.over_overlay_query(row_x, row0_y),
+        "a candidate row is not the query field"
+    );
+    assert!(
+        p.over_overlay_query(row_x, query_y),
+        "the query line → query-input flag (I-beam)"
+    );
+    assert_eq!(
+        p.overlay_row_at(row_x, query_y),
+        None,
+        "the query line lights no row flag"
+    );
+    assert!(
+        !p.over_overlay_query(out_x, out_y),
+        "off the card → no query field"
+    );
 }
 
 /// THE INPUT-GAP LAW (overlay/chrome polish round, pasted-8): the calm divider
@@ -898,7 +1090,9 @@ fn overlay_click_regions_select_inside_row_and_dismiss_outside() {
 fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted: no wgpu adapter");
+        eprintln!(
+            "skipping query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted: no wgpu adapter"
+        );
         return;
     };
 
@@ -939,7 +1133,10 @@ fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
         gap_f > lh_f,
         "the faceted picker shares the SAME widened beat (gap {gap_f} vs row {lh_f})"
     );
-    assert_eq!(gap, gap_f, "one owner: flat and faceted read the identical gap");
+    assert_eq!(
+        gap, gap_f,
+        "one owner: flat and faceted read the identical gap"
+    );
 }
 
 /// CLICKABLE LENS STRIP: `overlay_lens_at` is the pure x/y → facet-STRIP-INDEX
@@ -953,8 +1150,7 @@ fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -967,13 +1163,14 @@ fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping overlay_lens_at_resolves_facet_labels_by_their_own_strip_index: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_lens_at_resolves_facet_labels_by_their_own_strip_index: no wgpu adapter"
+        );
         return;
     };
 
@@ -1000,7 +1197,9 @@ fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
     // BEAT; the labels center in it, so the strip band runs the full inflated height
     // and the first candidate row sits below it (`text_top + 2*lh + hg`).
     let strip_lh = lh + hg;
-    let [cx, cy, _cw, _ch] = p.overlay_card_rect().expect("the faceted overlay has a card");
+    let [cx, cy, _cw, _ch] = p
+        .overlay_card_rect()
+        .expect("the faceted overlay has a card");
     let pad = 12.0_f32; // centered-overlay inner padding (overlay_geometry)
     let text_top = cy + pad;
     let strip_y = text_top + lh + strip_lh * 0.5; // strip glyph center (display line 1)
@@ -1009,7 +1208,9 @@ fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
 
     // The ACTIVE facet's own recorded underline rect pinpoints its shaped x-span —
     // a click in its middle resolves to ITS OWN strip index (1, Time).
-    let [ux, uy, uw, _uh] = p.overlay_theme_underline.expect("Time is active, so it is underlined");
+    let [ux, uy, uw, _uh] = p
+        .overlay_theme_underline
+        .expect("Time is active, so it is underlined");
     // C2: the underline y is the strip run's shaped BASELINE + a small drop, so
     // it sits within the (header-gap-inflated) strip row box, below the labels.
     let gap = p.overlay_header_gap();
@@ -1018,15 +1219,31 @@ fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
         "underline sits within the strip row (line 1): uy={uy}"
     );
     let time_mid_x = ux + uw * 0.5;
-    assert_eq!(p.overlay_lens_at(time_mid_x, strip_y), Some(1), "a click on Time resolves to strip index 1");
+    assert_eq!(
+        p.overlay_lens_at(time_mid_x, strip_y),
+        Some(1),
+        "a click on Time resolves to strip index 1"
+    );
 
     // Off the strip row entirely (query line, a candidate row) never hits a lens,
     // even at the exact same x as a real facet label.
-    assert_eq!(p.overlay_lens_at(time_mid_x, query_y), None, "the query line is not the strip");
-    assert_eq!(p.overlay_lens_at(time_mid_x, row_y), None, "a candidate row is not the strip");
+    assert_eq!(
+        p.overlay_lens_at(time_mid_x, query_y),
+        None,
+        "the query line is not the strip"
+    );
+    assert_eq!(
+        p.overlay_lens_at(time_mid_x, row_y),
+        None,
+        "a candidate row is not the strip"
+    );
 
     // Off the card entirely (far outside its rect) never hits a lens.
-    assert_eq!(p.overlay_lens_at(cx - 200.0, cy - 200.0), None, "off the card hits no lens");
+    assert_eq!(
+        p.overlay_lens_at(cx - 200.0, cy - 200.0),
+        None,
+        "off the card hits no lens"
+    );
 
     // Re-shape with Register (index 2) active instead — the SAME x position that
     // hit "Time" above still resolves to strip index 1 (Time's label metrics never
@@ -1063,8 +1280,7 @@ fn overlay_right_column_yields_before_names_elide() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -1077,8 +1293,7 @@ fn overlay_right_column_yields_before_names_elide() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(464.0, 600.0);
         Some((device, queue, p))
     });
@@ -1117,7 +1332,11 @@ fn overlay_right_column_yields_before_names_elide() {
         p.overlay_right_shown,
         "narrow + short right column: both cells fit, the column shows"
     );
-    assert_eq!(line(&p, 1), "Block", "names stay whole beside a granted column");
+    assert_eq!(
+        line(&p, 1),
+        "Block",
+        "names stay whole beside a granted column"
+    );
 
     // And the oversized description yields even at the DEFAULT canvas — the rule
     // is one budget, not a narrow-window special case.
@@ -1129,7 +1348,11 @@ fn overlay_right_column_yields_before_names_elide() {
         !p.overlay_right_shown,
         "an oversized right column yields at any width"
     );
-    assert_eq!(line(&p, 1), "Block", "…and the names still never pay for it");
+    assert_eq!(
+        line(&p, 1),
+        "Block",
+        "…and the names still never pay for it"
+    );
 }
 
 /// REGRESSION (the faceted-palette invisible-chord bug): once the Cmd-P command
@@ -1153,7 +1376,9 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
     //    case the user sees by default). ──
     {
         let Some(mut p) = headless_pipeline() else {
-            eprintln!("skipping faceted_palette_shapes_the_chord_column_aligned_to_its_rows: no wgpu adapter");
+            eprintln!(
+                "skipping faceted_palette_shapes_the_chord_column_aligned_to_its_rows: no wgpu adapter"
+            );
             return;
         };
         let mut v = view("hello\n", 0, 0);
@@ -1170,13 +1395,25 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         let geom = p.overlay_geometry(1200);
         let has_right = p.overlay_shape_text(&geom, ink, muted, None, None, true);
 
-        assert!(has_right, "a faceted palette WITH chords must build a right column");
-        assert!(p.overlay_right_shown, "…and mark it shown, so `overlay_upload_text` draws it");
+        assert!(
+            has_right,
+            "a faceted palette WITH chords must build a right column"
+        );
+        assert!(
+            p.overlay_right_shown,
+            "…and mark it shown, so `overlay_upload_text` draws it"
+        );
 
         // Real GLYPHS were shaped (not merely logical text) — the pixels exist.
-        let bind_glyphs: usize =
-            p.panel_bind_buffer.layout_runs().map(|r| r.glyphs.len()).sum();
-        assert!(bind_glyphs > 0, "the chord column must shape real glyphs, got 0");
+        let bind_glyphs: usize = p
+            .panel_bind_buffer
+            .layout_runs()
+            .map(|r| r.glyphs.len())
+            .sum();
+        assert!(
+            bind_glyphs > 0,
+            "the chord column must shape real glyphs, got 0"
+        );
 
         // ALIGNMENT (the crux): faceted header_rows == 2 (query line 0 + lens
         // strip line 1), then the item rows. Item 0's NAME is on display line 2;
@@ -1184,12 +1421,24 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         // buffer — not shifted up onto the strip/query or down a row.
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
         let bind = |p: &TextPipeline, i: usize| p.panel_bind_buffer.lines[i].text().to_string();
-        assert_eq!(name(&p, 2), "Save", "item 0 name on the first candidate row (line 2)");
-        assert_eq!(bind(&p, 2), "⌘S", "item 0's chord sits on item 0's row, not shifted");
+        assert_eq!(
+            name(&p, 2),
+            "Save",
+            "item 0 name on the first candidate row (line 2)"
+        );
+        assert_eq!(
+            bind(&p, 2),
+            "⌘S",
+            "item 0's chord sits on item 0's row, not shifted"
+        );
         assert_eq!(bind(&p, 3), "⌘Z", "item 1's chord on item 1's row");
         assert_eq!(bind(&p, 4), "⌘⇧Z", "item 2's chord on item 2's row");
         assert_eq!(bind(&p, 0), "", "the query row (line 0) carries no chord");
-        assert_eq!(bind(&p, 1), "", "the lens-strip row (line 1) carries no chord");
+        assert_eq!(
+            bind(&p, 1),
+            "",
+            "the lens-strip row (line 1) carries no chord"
+        );
     }
 
     // ── A faceted palette UNDER A REAL LENS: section HEADERS interleave the item
@@ -1197,7 +1446,9 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
     //    gets an EMPTY bind line and the chords stay aligned to their own item
     //    rows — the plan-walking half of the alignment. ──
     {
-        let Some(mut p) = headless_pipeline() else { return };
+        let Some(mut p) = headless_pipeline() else {
+            return;
+        };
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
         v.overlay_title = "commands";
@@ -1207,7 +1458,10 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         v.overlay_bindings = vec!["⌘S".into(), "⌘O".into(), "⌘C".into()];
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
-        assert!(p.overlay_shape_text(&geom, ink, muted, None, None, true), "still builds a right column with headers");
+        assert!(
+            p.overlay_shape_text(&geom, ink, muted, None, None, true),
+            "still builds a right column with headers"
+        );
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
         let bind = |p: &TextPipeline, i: usize| p.panel_bind_buffer.lines[i].text().to_string();
         // Plan under header_rows 2: [Header FILE, Save, Open, Header EDIT, Copy] →
@@ -1229,7 +1483,9 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
     //    keeps the bind buffer genuinely empty (never shaped), so a zero glyph
     //    count is a real proof rather than stale state from a prior case. ──
     {
-        let Some(mut p) = headless_pipeline() else { return };
+        let Some(mut p) = headless_pipeline() else {
+            return;
+        };
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
         v.overlay_title = "themes";
@@ -1239,11 +1495,20 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
         let has_right = p.overlay_shape_text(&geom, ink, muted, None, None, true);
-        assert!(!has_right, "the literal Theme picker builds no right column");
+        assert!(
+            !has_right,
+            "the literal Theme picker builds no right column"
+        );
         assert!(!p.overlay_right_shown, "…and never marks one shown");
-        let bind_glyphs: usize =
-            p.panel_bind_buffer.layout_runs().map(|r| r.glyphs.len()).sum();
-        assert_eq!(bind_glyphs, 0, "the Theme picker's right column stays empty (byte-identical)");
+        let bind_glyphs: usize = p
+            .panel_bind_buffer
+            .layout_runs()
+            .map(|r| r.glyphs.len())
+            .sum();
+        assert_eq!(
+            bind_glyphs, 0,
+            "the Theme picker's right column stays empty (byte-identical)"
+        );
     }
 }
 
@@ -1272,14 +1537,23 @@ fn overlay_card_spans_nearly_the_full_narrow_window() {
     // Narrow window: the fill regime — the card spans window − 2·floor, centered.
     p.set_size(464.0, 600.0);
     let [x, _y, w, _h] = p.overlay_card_rect().expect("overlay card");
-    assert!((w - (464.0 - 2.0 * floor)).abs() < 0.5, "narrow card fills the window: w={w}");
-    assert!((x - floor).abs() < 0.5, "re-centered to the floor pad: x={x}");
+    assert!(
+        (w - (464.0 - 2.0 * floor)).abs() < 0.5,
+        "narrow card fills the window: w={w}"
+    );
+    assert!(
+        (x - floor).abs() < 0.5,
+        "re-centered to the floor pad: x={x}"
+    );
 
     // Default canvas: the tightened flat width cap (item 3), one interior-rail
     // inset in (item 67 — the card centers near the viewport's one-third mark).
     p.set_size(1200.0, 800.0);
     let [x, _y, w, _h] = p.overlay_card_rect().expect("overlay card");
-    assert!((w - chrome::CARD_MAX_W).abs() < 0.5, "wide card holds the tightened cap: w={w}");
+    assert!(
+        (w - chrome::CARD_MAX_W).abs() < 0.5,
+        "wide card holds the tightened cap: w={w}"
+    );
     assert!(
         (x - chrome::overlay_rail_inset(1200.0)).abs() < 0.5,
         "one full rail inset in: x={x}"
@@ -1295,7 +1569,10 @@ fn keycap_glyphs_are_symbols_and_bundled() {
     // Classification: both keycaps are symbols; a plain letter is not.
     assert!(is_symbol('\u{21B5}'), "↵ Return is a symbol keycap");
     assert!(is_symbol('\u{21E5}'), "⇥ Tab is a symbol keycap");
-    assert!(!is_symbol('r') && !is_symbol('t'), "plain letters are not symbols");
+    assert!(
+        !is_symbol('r') && !is_symbol('t'),
+        "plain letters are not symbols"
+    );
     // A hint fragment isolates the leading glyph run from the plain text remainder.
     let s = "\u{21B5} restore";
     let runs = symbol_runs(s);
@@ -1304,7 +1581,9 @@ fn keycap_glyphs_are_symbols_and_bundled() {
 
     // Font coverage: the bundled AwlSymbols face resolves both keycaps.
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping keycap_glyphs_are_symbols_and_bundled font-coverage half: no wgpu adapter");
+        eprintln!(
+            "skipping keycap_glyphs_are_symbols_and_bundled font-coverage half: no wgpu adapter"
+        );
         return;
     };
     let id = p
@@ -1321,11 +1600,20 @@ fn keycap_glyphs_are_symbols_and_bundled() {
     // A nonzero glyph id in the face's charmap means the codepoint resolves to a
     // real glyph (not .notdef / tofu).
     let charmap = font.as_swash().charmap();
-    assert!(charmap.map('\u{21B5}') != 0, "AwlSymbols must cover ↵ (U+21B5) — else it renders as tofu");
-    assert!(charmap.map('\u{21E5}') != 0, "AwlSymbols must cover ⇥ (U+21E5) — else it renders as tofu");
+    assert!(
+        charmap.map('\u{21B5}') != 0,
+        "AwlSymbols must cover ↵ (U+21B5) — else it renders as tofu"
+    );
+    assert!(
+        charmap.map('\u{21E5}') != 0,
+        "AwlSymbols must cover ⇥ (U+21E5) — else it renders as tofu"
+    );
     // Sanity: the pre-existing ⌘ still resolves, and an uncovered codepoint does not.
     assert!(charmap.map('\u{2318}') != 0, "the ⌘ glyph still resolves");
-    assert!(charmap.map('Z') == 0, "a plain letter is NOT in the symbol face");
+    assert!(
+        charmap.map('Z') == 0,
+        "a plain letter is NOT in the symbol face"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1345,9 +1633,11 @@ const MENUBAR_TEST_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrg
 
 fn menubar_test_headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: Some("awl menubar-sliver-test device"),
@@ -1358,10 +1648,18 @@ fn menubar_test_headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
     })
 }
 
-fn menubar_test_offscreen(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
+fn menubar_test_offscreen(
+    device: &wgpu::Device,
+    width: u32,
+    height: u32,
+) -> (wgpu::Texture, wgpu::TextureView) {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("awl menubar-sliver-test offscreen"),
-        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -1405,9 +1703,17 @@ fn menubar_test_read_pixels(
         },
         wgpu::TexelCopyBufferInfo {
             buffer: &readback,
-            layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(padded_bpr), rows_per_image: Some(height) },
+            layout: wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(padded_bpr),
+                rows_per_image: Some(height),
+            },
         },
-        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
     queue.submit(Some(encoder.finish()));
 
@@ -1415,8 +1721,12 @@ fn menubar_test_read_pixels(
     readback.slice(..).map_async(wgpu::MapMode::Read, move |r| {
         let _ = tx.send(r);
     });
-    device.poll(wgpu::PollType::wait_indefinitely()).expect("device poll failed");
-    rx.recv().expect("map_async channel closed").expect("buffer map failed");
+    device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .expect("device poll failed");
+    rx.recv()
+        .expect("map_async channel closed")
+        .expect("buffer map failed");
 
     let mut out = Vec::with_capacity((width * height) as usize);
     {
@@ -1442,7 +1752,9 @@ fn menubar_test_read_pixels(
 #[test]
 fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
     let Some((device, queue)) = menubar_test_headless_dq() else {
-        eprintln!("skipping menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath: no wgpu adapter");
+        eprintln!(
+            "skipping menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1488,7 +1800,9 @@ fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
 #[test]
 fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
     let Some((device, queue)) = menubar_test_headless_dq() else {
-        eprintln!("skipping menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height: no wgpu adapter");
+        eprintln!(
+            "skipping menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1518,8 +1832,14 @@ fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
     for y in 0..(bar_h as u32) {
         let left = pixels[(y * w) as usize];
         let right = pixels[(y * w + (w - 1)) as usize];
-        assert_eq!(left, expect, "x=0, row {y} must be pure ground, got {left:?}");
-        assert_eq!(right, expect, "x=w-1, row {y} must be pure ground, got {right:?}");
+        assert_eq!(
+            left, expect,
+            "x=0, row {y} must be pure ground, got {left:?}"
+        );
+        assert_eq!(
+            right, expect,
+            "x=w-1, row {y} must be pure ground, got {right:?}"
+        );
     }
 
     crate::menubar::set_menu_bar_on(false);
@@ -1532,7 +1852,9 @@ fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
 #[test]
 fn menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world() {
     let Some((device, queue)) = menubar_test_headless_dq() else {
-        eprintln!("skipping menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world: no wgpu adapter");
+        eprintln!(
+            "skipping menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1590,7 +1912,10 @@ fn card_fit_probe(
 ) -> (f32, f32, f32, f32, f32) {
     let [card_x, card_y, _cw, card_h] = p.overlay_card_rect().expect("an open card");
     let (_top, lines, _sel, rep_h, _canvas) = p.overlay_window_report().expect("a window report");
-    assert!((rep_h - card_h).abs() < 0.01, "the two card_h sources agree");
+    assert!(
+        (rep_h - card_h).abs() < 0.01,
+        "the two card_h sources agree"
+    );
     let lh = p.overlay_lh();
     let gap = p.overlay_header_gap();
     let pad = 12.0_f32;
@@ -1624,7 +1949,10 @@ fn overlay_card_fits_its_content_no_fat_bottom_lip() {
         v.overlay_selected = 0;
         p.set_view(&v);
         let (_x, _tt, last_bottom, card_bottom, gap) = card_fit_probe(&p, 1, 0);
-        assert!(gap > 0.0, "{world} flat: a positive header divider gap is present");
+        assert!(
+            gap > 0.0,
+            "{world} flat: a positive header divider gap is present"
+        );
         let below = card_bottom - last_bottom;
         assert!(
             (below - pad).abs() < 0.6,
@@ -1644,7 +1972,10 @@ fn overlay_card_fits_its_content_no_fat_bottom_lip() {
             .collect();
         p.set_view(&vt);
         let (_x2, _tt2, last_bottom2, card_bottom2, gap2) = card_fit_probe(&p, 2, 0);
-        assert!(gap2 > 0.0, "{world} faceted: a positive header divider gap is present");
+        assert!(
+            gap2 > 0.0,
+            "{world} faceted: a positive header divider gap is present"
+        );
         let below2 = card_bottom2 - last_bottom2;
         assert!(
             (below2 - pad).abs() < 0.6,
@@ -1707,7 +2038,9 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
 #[test]
 fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping overlay_hint_footer_is_compact_and_identical_across_kinds: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_hint_footer_is_compact_and_identical_across_kinds: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1717,15 +2050,31 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
     // takeover cards. A new kind must classify itself above or this won't compile.
     use crate::overlay::OverlayKind as K;
     const ALL_KINDS: &[K] = &[
-        K::Goto, K::Project, K::Browse, K::Theme, K::Caret, K::MoveDest,
-        K::Dictionary, K::CjkLang, K::Command, K::Spell, K::Keybindings,
-        K::History, K::Settings, K::Assets, K::Rename, K::InsertLink,
+        K::Goto,
+        K::Project,
+        K::Browse,
+        K::Theme,
+        K::Caret,
+        K::MoveDest,
+        K::Dictionary,
+        K::CjkLang,
+        K::Command,
+        K::Spell,
+        K::Keybindings,
+        K::History,
+        K::Settings,
+        K::Assets,
+        K::Rename,
+        K::InsertLink,
     ];
     let popups = ALL_KINDS
         .iter()
         .filter(|k| footer_contract(**k) == FooterContract::ContextualPopup)
         .count();
-    assert_eq!(popups, 1, "exactly the Spell popup is a non-takeover footer");
+    assert_eq!(
+        popups, 1,
+        "exactly the Spell popup is a non-takeover footer"
+    );
 
     for world in ["Bowerbird", "Saltpan", "Wagtail"] {
         theme::set_active_by_name(world).unwrap();
@@ -1737,7 +2086,10 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
         // footer-pad owner (formula-independent): (lh - hint_h) is the full
         // reclaim; the owner keeps back exactly the breath.
         let breath = (lh - hint_h) - p.overlay_footer_reclaim(1);
-        assert!(breath > 0.5, "{world}: the footer keeps a positive breathing pad");
+        assert!(
+            breath > 0.5,
+            "{world}: the footer keeps a positive breathing pad"
+        );
 
         // The hint row is SHORTER than a full result row — the lip is gone.
         assert!(
@@ -1812,7 +2164,10 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
     // (`←/→ adjust`), which is a genuinely wider string and therefore its own clip risk.
     for k in OverlayKind::ALL {
         for h in [k.hint(), k.range_row_hint()] {
-            assert!(h.contains("type to filter"), "{k:?} hint must teach type-to-filter: {h:?}");
+            assert!(
+                h.contains("type to filter"),
+                "{k:?} hint must teach type-to-filter: {h:?}"
+            );
         }
     }
     // (2) IN-BOUNDS — the shaped footer fits the flat card at the default zoom.
@@ -1858,7 +2213,9 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
 #[test]
 fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping overlay_card_anchor_is_data_top_left_default_center_reachable: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_card_anchor_is_data_top_left_default_center_reachable: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1877,7 +2234,10 @@ fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
     p.set_view(&v);
     let [x_tl, _y, _w, _h] = p.overlay_card_rect().expect("an open card");
-    assert!((x_tl - edge_inset).abs() < 0.01, "top-left anchor hugs the rail inset: x={x_tl}");
+    assert!(
+        (x_tl - edge_inset).abs() < 0.01,
+        "top-left anchor hugs the rail inset: x={x_tl}"
+    );
 
     // COMPOSITION-C2 DEFAULT: TOP-CENTER — the calm/symmetric temperament most
     // worlds carry now re-centers the card under the top third.
@@ -1960,7 +2320,9 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
 #[test]
 fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping overlay_card_h_owner_reproduces_every_kinds_card_height: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_card_h_owner_reproduces_every_kinds_card_height: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1969,12 +2331,31 @@ fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
     // NO-WILDCARD sweep: exactly one kind (Spell) is the small popup pad; the rest
     // are takeover cards. A new kind must classify itself in `card_pad_for` above.
     const ALL_KINDS: &[K] = &[
-        K::Goto, K::Project, K::Browse, K::Theme, K::Caret, K::MoveDest,
-        K::Dictionary, K::CjkLang, K::Command, K::Spell, K::Keybindings,
-        K::History, K::Settings, K::Assets, K::Rename, K::InsertLink,
+        K::Goto,
+        K::Project,
+        K::Browse,
+        K::Theme,
+        K::Caret,
+        K::MoveDest,
+        K::Dictionary,
+        K::CjkLang,
+        K::Command,
+        K::Spell,
+        K::Keybindings,
+        K::History,
+        K::Settings,
+        K::Assets,
+        K::Rename,
+        K::InsertLink,
     ];
-    let popups = ALL_KINDS.iter().filter(|k| card_pad_for(**k) == 10.0).count();
-    assert_eq!(popups, 1, "exactly the Spell popup breathes at the small pad");
+    let popups = ALL_KINDS
+        .iter()
+        .filter(|k| card_pad_for(**k) == 10.0)
+        .count();
+    assert_eq!(
+        popups, 1,
+        "exactly the Spell popup breathes at the small pad"
+    );
 
     for world in ["Bowerbird", "Saltpan", "Wagtail"] {
         theme::set_active_by_name(world).unwrap();
@@ -2032,7 +2413,10 @@ fn push_symbol_split_tiles_text_at_symbol_run_boundaries() {
     let s1 = "plain ascii row";
     push_symbol_split(&mut a, s1, || plain.clone(), || sym.clone());
     assert_eq!(a.len(), 1, "symbol-free text pushes a single span");
-    assert_eq!(a[0].0, s1, "…covering the whole string (byte-identical to a bare push)");
+    assert_eq!(
+        a[0].0, s1,
+        "…covering the whole string (byte-identical to a bare push)"
+    );
 
     // A mixed string: the pushed slices concatenate back to the original, in order,
     // and each symbol run matches `symbol_runs` (the ⌘ modifier glyph isolated).
@@ -2040,11 +2424,21 @@ fn push_symbol_split_tiles_text_at_symbol_run_boundaries() {
     let s2 = "\u{2318}O  Go to file";
     push_symbol_split(&mut b, s2, || plain.clone(), || sym.clone());
     let rebuilt: String = b.iter().map(|(t, _)| *t).collect();
-    assert_eq!(rebuilt, s2, "the pushed slices tile the whole string with no gap/overlap");
+    assert_eq!(
+        rebuilt, s2,
+        "the pushed slices tile the whole string with no gap/overlap"
+    );
     let runs = symbol_runs(s2);
     let sym_slices: Vec<&str> = runs.iter().map(|r| &s2[r.clone()]).collect();
-    assert_eq!(sym_slices, vec!["\u{2318}"], "the ⌘ modifier is the one isolated symbol run");
-    assert!(b.len() >= 2, "a mixed row splits into at least a symbol + a plain span");
+    assert_eq!(
+        sym_slices,
+        vec!["\u{2318}"],
+        "the ⌘ modifier is the one isolated symbol run"
+    );
+    assert!(
+        b.len() >= 2,
+        "a mixed row splits into at least a symbol + a plain span"
+    );
 }
 
 /// STRUCTURAL ONE-OWNER GREP-LAW — each merged chrome-geometry formula/precedence
@@ -2054,8 +2448,7 @@ fn push_symbol_split_tiles_text_at_symbol_run_boundaries() {
 /// of quietly re-growing the duplication (mirrors `theme_caps_law`'s grep shape).
 #[test]
 fn chrome_geometry_owner_formulas_are_single_site() {
-    let chrome =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/chrome");
+    let chrome = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/chrome");
     // (signature substring, human name) — each is CODE that lives only in its owner.
     let owners: &[(&str, &str)] = &[
         (
@@ -2079,7 +2472,9 @@ fn chrome_geometry_owner_formulas_are_single_site() {
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         for (i, (sig, _)) in owners.iter().enumerate() {
             counts[i] += text.matches(sig).count();
         }

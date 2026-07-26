@@ -42,7 +42,12 @@ fn byte_to_char(text: &str, byte: usize) -> usize {
 ///      should show what's there, not overwrite the prefill with something
 ///      unrelated), rewriting the same range on commit.
 ///   3. Neither: insert empty `[](url)` markup at the caret.
-pub(super) fn plan(text: &str, anchor: Option<usize>, cursor: usize, kill_head: &str) -> (LinkEditMode, String) {
+pub(super) fn plan(
+    text: &str,
+    anchor: Option<usize>,
+    cursor: usize,
+    kill_head: &str,
+) -> (LinkEditMode, String) {
     let (s, e, has_sel) = crate::actions::format::sel_range(anchor, cursor);
     let url_prefill = || {
         if crate::buffer::is_url(kill_head) {
@@ -53,13 +58,31 @@ pub(super) fn plan(text: &str, anchor: Option<usize>, cursor: usize, kill_head: 
     };
     if has_sel {
         let wrapped: String = text.chars().skip(s).take(e - s).collect();
-        return (LinkEditMode::WithText { start: s, end: e, text: wrapped }, url_prefill());
+        return (
+            LinkEditMode::WithText {
+                start: s,
+                end: e,
+                text: wrapped,
+            },
+            url_prefill(),
+        );
     }
-    let byte = text.char_indices().nth(cursor).map(|(b, _)| b).unwrap_or(text.len());
+    let byte = text
+        .char_indices()
+        .nth(cursor)
+        .map(|(b, _)| b)
+        .unwrap_or(text.len());
     if let Some(link) = crate::markdown::link_at_full(text, byte) {
         let start = byte_to_char(text, link.start);
         let end = byte_to_char(text, link.end);
-        return (LinkEditMode::WithText { start, end, text: link.link_text }, link.url);
+        return (
+            LinkEditMode::WithText {
+                start,
+                end,
+                text: link.link_text,
+            },
+            link.url,
+        );
     }
     (LinkEditMode::Empty { at: cursor }, url_prefill())
 }
@@ -73,7 +96,11 @@ pub(super) fn plan(text: &str, anchor: Option<usize>, cursor: usize, kill_head: 
 pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::FormatResult {
     let chars: Vec<char> = text.chars().collect();
     match mode {
-        LinkEditMode::WithText { start, end, text: inner } => {
+        LinkEditMode::WithText {
+            start,
+            end,
+            text: inner,
+        } => {
             let start = (*start).min(chars.len());
             let end = (*end).min(chars.len()).max(start);
             let mut out = String::new();
@@ -85,7 +112,11 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             out.push(')');
             out.extend(&chars[end..]);
             let cursor = start + 1 + inner.chars().count() + 2 + url.chars().count() + 1;
-            format::FormatResult { text: out, anchor: None, cursor }
+            format::FormatResult {
+                text: out,
+                anchor: None,
+                cursor,
+            }
         }
         LinkEditMode::Empty { at } => {
             let at = (*at).min(chars.len());
@@ -98,7 +129,11 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             out.push(')');
             out.extend(&chars[at..]);
             // Caret lands BETWEEN the brackets, ready to type the link text.
-            format::FormatResult { text: out, anchor: None, cursor: at + 1 }
+            format::FormatResult {
+                text: out,
+                anchor: None,
+                cursor: at + 1,
+            }
         }
     }
 }
@@ -132,7 +167,11 @@ mod tests {
         let (mode, prefill) = plan("hello world", Some(0), 5, "");
         assert_eq!(
             mode,
-            LinkEditMode::WithText { start: 0, end: 5, text: "hello".to_string() }
+            LinkEditMode::WithText {
+                start: 0,
+                end: 5,
+                text: "hello".to_string()
+            }
         );
         assert_eq!(prefill, "");
     }
@@ -173,7 +212,11 @@ mod tests {
         let end = text.find(')').unwrap() + 1;
         assert_eq!(
             mode,
-            LinkEditMode::WithText { start, end, text: "the text".to_string() }
+            LinkEditMode::WithText {
+                start,
+                end,
+                text: "the text".to_string()
+            }
         );
         // Prefill is the EXISTING link's URL, never the kill head.
         assert_eq!(prefill, "https://old.example/path");
@@ -192,7 +235,11 @@ mod tests {
     #[test]
     fn commit_with_text_wraps_as_markdown_link() {
         let text = "hello world";
-        let mode = LinkEditMode::WithText { start: 0, end: 5, text: "hello".to_string() };
+        let mode = LinkEditMode::WithText {
+            start: 0,
+            end: 5,
+            text: "hello".to_string(),
+        };
         let r = commit(text, &mode, "https://example.com");
         assert_eq!(r.text, "[hello](https://example.com) world");
         assert_eq!(r.anchor, None);
@@ -216,14 +263,22 @@ mod tests {
         let text = "see [the text](https://old.example/path) here";
         let start = text.find('[').unwrap();
         let end = text.find(')').unwrap() + 1;
-        let mode = LinkEditMode::WithText { start, end, text: "the text".to_string() };
+        let mode = LinkEditMode::WithText {
+            start,
+            end,
+            text: "the text".to_string(),
+        };
         let r = commit(text, &mode, "https://new.example/path");
         assert_eq!(r.text, "see [the text](https://new.example/path) here");
     }
 
     // --- open_insert_link(): the full apply_core dispatch ---------------------
 
-    fn drive_open(text: &str, anchor: Option<usize>, cursor: usize) -> Option<crate::overlay::OverlayState> {
+    fn drive_open(
+        text: &str,
+        anchor: Option<usize>,
+        cursor: usize,
+    ) -> Option<crate::overlay::OverlayState> {
         let mut buffer = Buffer::from_str(text);
         buffer.set_cursor(cursor);
         if let Some(a) = anchor {
@@ -283,7 +338,10 @@ mod tests {
             oracle: None,
         };
         apply_core(&mut ctx, &Action::InsertLink, false);
-        assert!(overlay.is_none(), "a non-markdown buffer must not open the link minibuffer");
+        assert!(
+            overlay.is_none(),
+            "a non-markdown buffer must not open the link minibuffer"
+        );
     }
 
     /// Full flow: Cmd-K on a selection → type a URL → Enter commits as ONE
@@ -299,9 +357,11 @@ mod tests {
         let mut search = None;
         let mut overlay = None;
         {
-            let mut make_overlay = |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
-            let mut browse_to =
-                |_k: OverlayKind, _r: Option<String>| -> Option<crate::overlay::OverlayState> { None };
+            let mut make_overlay =
+                |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
+            let mut browse_to = |_k: OverlayKind,
+                                 _r: Option<String>|
+             -> Option<crate::overlay::OverlayState> { None };
             let mut ctx = ActionCtx {
                 buffer: &mut buffer,
                 shift_selecting: &mut shift_selecting,
@@ -321,9 +381,11 @@ mod tests {
         }
 
         {
-            let mut make_overlay = |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
-            let mut browse_to =
-                |_k: OverlayKind, _r: Option<String>| -> Option<crate::overlay::OverlayState> { None };
+            let mut make_overlay =
+                |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
+            let mut browse_to = |_k: OverlayKind,
+                                 _r: Option<String>|
+             -> Option<crate::overlay::OverlayState> { None };
             let mut ctx = ActionCtx {
                 buffer: &mut buffer,
                 shift_selecting: &mut shift_selecting,
@@ -339,16 +401,27 @@ mod tests {
         }
         assert!(overlay.is_none(), "commit closes the overlay");
         assert_eq!(buffer.text(), "[hello](https://example.com) world");
-        assert!(buffer.version() > before_version, "the commit is a real edit");
+        assert!(
+            buffer.version() > before_version,
+            "the commit is a real edit"
+        );
 
         buffer.undo();
-        assert_eq!(buffer.text(), "hello world", "undo restores the exact pre-edit text");
+        assert_eq!(
+            buffer.text(),
+            "hello world",
+            "undo restores the exact pre-edit text"
+        );
         // `apply_format` (the same atomic-replace primitive every markdown format
         // toggle uses) restores the CURSOR position undo recorded, not the prior
         // SELECTION (a whole-buffer replace's undo group carries no anchor) —
         // matching every other formatting-command toggle's own undo shape, not a
         // Links-v2-specific gap.
-        assert_eq!(buffer.cursor_char(), 5, "undo restores the cursor to its pre-commit position");
+        assert_eq!(
+            buffer.cursor_char(),
+            5,
+            "undo restores the cursor to its pre-commit position"
+        );
     }
 
     /// Esc cancels the minibuffer cleanly — no buffer edit at all.
@@ -379,7 +452,11 @@ mod tests {
         apply_core(&mut ctx, &Action::Cancel, false);
         assert!(ctx.overlay.is_none(), "Esc/Cancel closes the minibuffer");
         drop(ctx);
-        assert_eq!(buffer.text(), "hello world", "cancel never edits the buffer");
+        assert_eq!(
+            buffer.text(),
+            "hello world",
+            "cancel never edits the buffer"
+        );
     }
 
     // --- byte_to_char ----------------------------------------------------------

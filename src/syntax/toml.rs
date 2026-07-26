@@ -332,11 +332,15 @@ fn looks_like_date(b: &[u8], i: usize) -> bool {
         return false;
     }
     let d = |k: usize| b[i + k].is_ascii_digit();
-    d(0) && d(1) && d(2) && d(3)
+    d(0) && d(1)
+        && d(2)
+        && d(3)
         && b[i + 4] == b'-'
-        && d(5) && d(6)
+        && d(5)
+        && d(6)
         && b[i + 7] == b'-'
-        && d(8) && d(9)
+        && d(8)
+        && d(9)
 }
 
 #[cfg(test)]
@@ -348,14 +352,22 @@ mod tests {
     fn line_comment() {
         let t = "# a heading comment\nkey = 1\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# a heading comment"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# a heading comment"],
+            "{s:?}"
+        );
     }
 
     #[test]
     fn trailing_comment_after_value() {
         let t = "port = 8080 # the http port\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# the http port"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# the http port"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Constant).contains(&"8080"), "{s:?}");
     }
 
@@ -382,10 +394,19 @@ mod tests {
 
     #[test]
     fn numbers_and_booleans() {
-        let t = "i = 42\nh = 0xDEAD_beef\nf = 6.626e-34\nn = -3.14\nok = true\nno = false\nz = inf\n";
+        let t =
+            "i = 42\nh = 0xDEAD_beef\nf = 6.626e-34\nn = -3.14\nok = true\nno = false\nz = inf\n";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
-        for want in ["42", "0xDEAD_beef", "6.626e-34", "-3.14", "true", "false", "inf"] {
+        for want in [
+            "42",
+            "0xDEAD_beef",
+            "6.626e-34",
+            "-3.14",
+            "true",
+            "false",
+            "inf",
+        ] {
             assert!(cs.contains(&want), "missing {want}: {cs:?}");
         }
     }
@@ -406,7 +427,10 @@ mod tests {
         let s = spans(t);
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"name"), "{ds:?}");
-        assert!(ds.contains(&"server") && ds.contains(&"host"), "dotted: {ds:?}");
+        assert!(
+            ds.contains(&"server") && ds.contains(&"host"),
+            "dotted: {ds:?}"
+        );
         assert!(ds.contains(&"\"quoted key\""), "{ds:?}");
         // The string VALUE is a Str, not a Definition.
         assert!(at(t, &s, SynKind::Str).contains(&"\"awl\""), "{s:?}");
@@ -421,7 +445,10 @@ mod tests {
             assert!(ds.contains(&want), "missing header name {want}: {ds:?}");
         }
         // The bracket punctuation rides the default ink.
-        assert!(!has(&s, 0, 1, SynKind::Definition), "the `[` must stay plain: {s:?}");
+        assert!(
+            !has(&s, 0, 1, SynKind::Definition),
+            "the `[` must stay plain: {s:?}"
+        );
     }
 
     #[test]
@@ -430,7 +457,10 @@ mod tests {
         let s = spans(t);
         let ds = at(t, &s, SynKind::Definition);
         // `pt`, `list`, and the inline-table members `x` / `y`, are definitions.
-        assert!(ds.contains(&"pt") && ds.contains(&"x") && ds.contains(&"y"), "{ds:?}");
+        assert!(
+            ds.contains(&"pt") && ds.contains(&"x") && ds.contains(&"y"),
+            "{ds:?}"
+        );
         assert!(ds.contains(&"list"), "list is a key: {ds:?}");
         // Array elements are plain constants, not keys.
         let cs = at(t, &s, SynKind::Constant);
@@ -459,18 +489,31 @@ mod tests {
         assert_eq!(at(t, &s, SynKind::Definition), vec!["enabled"], "{s:?}");
         assert_eq!(at(t, &s, SynKind::Constant), vec!["true"], "{s:?}");
         // Nothing covers the `=` at byte 8.
-        assert!(!s.iter().any(|(r, _)| r.contains(&8)), "`=` must stay plain: {s:?}");
+        assert!(
+            !s.iter().any(|(r, _)| r.contains(&8)),
+            "`=` must stay plain: {s:?}"
+        );
     }
 
     #[test]
     fn reference_snippet() {
         let t = "# config\ntitle = \"awl\"\n[server]\nport = 8080 # default\nhosts = [ \"a\", \"b\" ]\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# config", "# default"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# config", "# default"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
-        assert!(ds.contains(&"title") && ds.contains(&"server") && ds.contains(&"port"), "{ds:?}");
+        assert!(
+            ds.contains(&"title") && ds.contains(&"server") && ds.contains(&"port"),
+            "{ds:?}"
+        );
         assert!(at(t, &s, SynKind::Constant).contains(&"8080"), "{s:?}");
         let ss = at(t, &s, SynKind::Str);
-        assert!(ss.contains(&"\"awl\"") && ss.contains(&"\"a\"") && ss.contains(&"\"b\""), "{ss:?}");
+        assert!(
+            ss.contains(&"\"awl\"") && ss.contains(&"\"a\"") && ss.contains(&"\"b\""),
+            "{ss:?}"
+        );
     }
 }

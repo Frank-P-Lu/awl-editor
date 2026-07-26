@@ -262,7 +262,11 @@ impl Config {
     /// is replaced in place; a new entry is inserted under the `[keys]` header (added
     /// if absent). A missing file is seeded from [`DEFAULT_TEMPLATE`] first so the
     /// user keeps the documented comments. Used by the rebind menu's commit + reset.
-    pub fn write_binding(path: &Path, slug: &str, chords: Option<&[String]>) -> std::io::Result<()> {
+    pub fn write_binding(
+        path: &Path,
+        slug: &str,
+        chords: Option<&[String]>,
+    ) -> std::io::Result<()> {
         if let Some(parent) = path.parent() {
             crate::fs::active().create_dir_all(parent)?;
         }
@@ -279,8 +283,7 @@ impl Config {
         let existing = lines.iter().position(|l| {
             let t = l.trim_start();
             !t.starts_with('#')
-                && t
-                    .strip_prefix(slug)
+                && t.strip_prefix(slug)
                     .map(|r| r.trim_start().starts_with('='))
                     .unwrap_or(false)
         });
@@ -292,18 +295,16 @@ impl Config {
                 lines.remove(i);
             }
             // Insert a new entry under [keys] (append the header if it is missing).
-            (None, Some(line)) => {
-                match lines.iter().position(|l| l.trim() == "[keys]") {
-                    Some(h) => lines.insert(h + 1, line),
-                    None => {
-                        if lines.last().map(|l| !l.trim().is_empty()).unwrap_or(false) {
-                            lines.push(String::new());
-                        }
-                        lines.push("[keys]".to_string());
-                        lines.push(line);
+            (None, Some(line)) => match lines.iter().position(|l| l.trim() == "[keys]") {
+                Some(h) => lines.insert(h + 1, line),
+                None => {
+                    if lines.last().map(|l| !l.trim().is_empty()).unwrap_or(false) {
+                        lines.push(String::new());
                     }
+                    lines.push("[keys]".to_string());
+                    lines.push(line);
                 }
-            }
+            },
             // Nothing to remove: leave the file untouched.
             (None, None) => return Ok(()),
         }
@@ -337,9 +338,7 @@ impl Config {
         let new_line = format!("{key} = {value}");
         let mut lines: Vec<String> = src.lines().map(str::to_string).collect();
         // The first `[table]` header — top-level keys must stay strictly above it.
-        let first_header = lines
-            .iter()
-            .position(|l| l.trim_start().starts_with('['));
+        let first_header = lines.iter().position(|l| l.trim_start().starts_with('['));
         let existing = find_top_level_key(&lines, key);
         match existing {
             Some(i) => lines[i] = new_line,

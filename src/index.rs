@@ -77,10 +77,26 @@ pub fn is_hidden_entry(rel: &str) -> bool {
 /// surgery.) The former **By type** lens was CUT (decision: redundant once the
 /// unified All list exists — a fuzzy query already reaches a file by its extension).
 const GOTO_FACET_STRIP: [Facet; 4] = [
-    Facet { label: "All", id: "all", sections: &[] },
-    Facet { label: "Recent", id: "recent", sections: &["Recent"] },
-    Facet { label: "This folder", id: "folder", sections: &["This folder"] },
-    Facet { label: "Headings", id: "headings", sections: &["Headings"] },
+    Facet {
+        label: "All",
+        id: "all",
+        sections: &[],
+    },
+    Facet {
+        label: "Recent",
+        id: "recent",
+        sections: &["Recent"],
+    },
+    Facet {
+        label: "This folder",
+        id: "folder",
+        sections: &["This folder"],
+    },
+    Facet {
+        label: "Headings",
+        id: "headings",
+        sections: &["Headings"],
+    },
 ];
 
 /// Go-to's [`FacetScheme::bucket`], keyed by the strip index (see [`GOTO_FACET_STRIP`]).
@@ -106,16 +122,35 @@ fn goto_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
 
 /// Go-to's registered [`FacetScheme`], handed back by [`crate::facets::scheme`] for
 /// [`crate::overlay::OverlayKind::Goto`].
-pub static GOTO_FACETS: FacetScheme = FacetScheme { strip: &GOTO_FACET_STRIP, bucket: goto_bucket };
+pub static GOTO_FACETS: FacetScheme = FacetScheme {
+    strip: &GOTO_FACET_STRIP,
+    bucket: goto_bucket,
+};
 
 /// Browse's lens strip: **All** (flat home) · **Folders** · **Files** · **Git
 /// repos**. All FIRST (the landing lens); the rest are ←/→ refinements over the
 /// current directory level.
 const BROWSE_FACET_STRIP: [Facet; 4] = [
-    Facet { label: "All", id: "all", sections: &[] },
-    Facet { label: "Folders", id: "folders", sections: &["Folders"] },
-    Facet { label: "Files", id: "files", sections: &["Files"] },
-    Facet { label: "Git repos", id: "git", sections: &["Git repos"] },
+    Facet {
+        label: "All",
+        id: "all",
+        sections: &[],
+    },
+    Facet {
+        label: "Folders",
+        id: "folders",
+        sections: &["Folders"],
+    },
+    Facet {
+        label: "Files",
+        id: "files",
+        sections: &["Files"],
+    },
+    Facet {
+        label: "Git repos",
+        id: "git",
+        sections: &["Git repos"],
+    },
 ];
 
 /// Browse's [`FacetScheme::bucket`], keyed by strip index (see [`BROWSE_FACET_STRIP`]).
@@ -133,8 +168,10 @@ fn browse_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
 
 /// Browse's registered [`FacetScheme`], handed back by [`crate::facets::scheme`] for
 /// [`crate::overlay::OverlayKind::Browse`].
-pub static BROWSE_FACETS: FacetScheme =
-    FacetScheme { strip: &BROWSE_FACET_STRIP, bucket: browse_bucket };
+pub static BROWSE_FACETS: FacetScheme = FacetScheme {
+    strip: &BROWSE_FACET_STRIP,
+    bucket: browse_bucket,
+};
 
 /// The switch-project navigator's lens strip: **All** (the flat workspace-folder
 /// listing — the landing, unchanged behavior) · **Recent** (the folders that are
@@ -142,8 +179,16 @@ pub static BROWSE_FACETS: FacetScheme =
 /// you've switched projects). All FIRST (the landing lens); `Recent` is the one
 /// ←/→ refinement, mirroring Go-to's own Recent lens.
 const PROJECT_FACET_STRIP: [Facet; 2] = [
-    Facet { label: "All", id: "all", sections: &[] },
-    Facet { label: "Recent", id: "recent", sections: &["Recent"] },
+    Facet {
+        label: "All",
+        id: "all",
+        sections: &[],
+    },
+    Facet {
+        label: "Recent",
+        id: "recent",
+        sections: &["Recent"],
+    },
 ];
 
 /// The switch-project navigator's [`FacetScheme::bucket`], keyed by strip index
@@ -164,8 +209,10 @@ fn project_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
 
 /// The switch-project navigator's registered [`FacetScheme`], handed back by
 /// [`crate::facets::scheme`] for [`crate::overlay::OverlayKind::Project`].
-pub static PROJECT_FACETS: FacetScheme =
-    FacetScheme { strip: &PROJECT_FACET_STRIP, bucket: project_bucket };
+pub static PROJECT_FACETS: FacetScheme = FacetScheme {
+    strip: &PROJECT_FACET_STRIP,
+    bucket: project_bucket,
+};
 
 /// Build the candidate file list for `root`, root-relative. Picks the git or
 /// walk strategy based on whether `<root>/.git` exists. The result is sorted and
@@ -189,7 +236,10 @@ pub fn build_index(root: &Path) -> Vec<String> {
 fn git_index(root: &Path) -> Vec<String> {
     let mut files: Vec<String> = Vec::new();
     files.extend(git_ls(root, &["ls-files"]));
-    files.extend(git_ls(root, &["ls-files", "--others", "--exclude-standard"]));
+    files.extend(git_ls(
+        root,
+        &["ls-files", "--others", "--exclude-standard"],
+    ));
     // UNION present .env* files (often gitignored, but prime go-to targets).
     let mut env_files = Vec::new();
     walk_collect(root, root, &mut env_files, &mut |name| is_env_file(name));
@@ -202,7 +252,12 @@ fn git_index(root: &Path) -> Vec<String> {
 /// repo, non-zero exit) — the caller then just has fewer candidates, never a crash.
 fn git_ls(root: &Path, args: &[&str]) -> Vec<String> {
     let mut files = Vec::new();
-    if let Ok(o) = std::process::Command::new("git").arg("-C").arg(root).args(args).output() {
+    if let Ok(o) = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+    {
         if o.status.success() {
             for line in String::from_utf8_lossy(&o.stdout).lines() {
                 let rel = line.trim();
@@ -424,9 +479,16 @@ mod tests {
         let start = std::time::Instant::now();
         let idx = build_index(&root);
         let elapsed = start.elapsed();
-        eprintln!("build_index({}): {} files in {elapsed:?}", root.display(), idx.len());
+        eprintln!(
+            "build_index({}): {} files in {elapsed:?}",
+            root.display(),
+            idx.len()
+        );
         assert!(!idx.is_empty(), "this repo has tracked files");
-        assert!(idx.iter().any(|p| p == "src/index.rs"), "this very file is tracked");
+        assert!(
+            idx.iter().any(|p| p == "src/index.rs"),
+            "this very file is tracked"
+        );
     }
 
     #[test]
@@ -445,7 +507,12 @@ mod tests {
         ));
         std::fs::create_dir_all(&base).unwrap();
         let git = |args: &[&str]| {
-            std::process::Command::new("git").arg("-C").arg(&base).args(args).output().unwrap()
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(&base)
+                .args(args)
+                .output()
+                .unwrap()
         };
         git(&["init", "-q"]);
         git(&["config", "user.email", "t@t"]);
@@ -458,7 +525,10 @@ mod tests {
         std::fs::write(base.join("ignored.md"), "x").unwrap(); // untracked, gitignored
 
         let idx = build_index(&base);
-        assert!(idx.contains(&"tracked.md".to_string()), "tracked file present: {idx:?}");
+        assert!(
+            idx.contains(&"tracked.md".to_string()),
+            "tracked file present: {idx:?}"
+        );
         assert!(
             idx.contains(&"brand-new.md".to_string()),
             "untracked-but-not-ignored file must appear (the C-x f freshness fix): {idx:?}"
@@ -479,7 +549,10 @@ mod tests {
             PathBuf::from("/root").join("a/b.rs")
         );
         // A bare filename joins directly under root.
-        assert_eq!(resolve(Path::new("/root"), "notes.md"), PathBuf::from("/root/notes.md"));
+        assert_eq!(
+            resolve(Path::new("/root"), "notes.md"),
+            PathBuf::from("/root/notes.md")
+        );
     }
 
     #[test]
@@ -530,7 +603,11 @@ mod tests {
             // Root level: dirs (docs, src) before files (doc-fixture.md), junk skipped.
             let lvl = list_dir_level(&root, None);
             let names: Vec<&str> = lvl.iter().map(|e| e.name.as_str()).collect();
-            assert_eq!(names, vec!["docs", "src", "doc-fixture.md"], "got {names:?}");
+            assert_eq!(
+                names,
+                vec!["docs", "src", "doc-fixture.md"],
+                "got {names:?}"
+            );
             assert!(lvl[0].is_dir && lvl[1].is_dir && !lvl[2].is_dir);
             // Descend into docs/: shows guide.md.
             let docs = list_dir_level(&root, Some("docs"));
@@ -554,7 +631,10 @@ mod tests {
         assert_eq!(ago(24 * 60 * 60), "1d ago");
         assert_eq!(ago(3 * 24 * 60 * 60), "3d ago");
         // A future mtime (clock skew) reads as "just now", never panics.
-        assert_eq!(relative_time(now, now + Duration::from_secs(99)), "just now");
+        assert_eq!(
+            relative_time(now, now + Duration::from_secs(99)),
+            "just now"
+        );
     }
 
     #[test]
@@ -607,7 +687,10 @@ mod tests {
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
         // HOME LAW: "All" is FIRST on the strip and the picker LANDS on it (flat list,
         // no sections).
-        assert_eq!(ov.lens_strip().first().map(|(l, _)| l.clone()), Some("All".to_string()));
+        assert_eq!(
+            ov.lens_strip().first().map(|(l, _)| l.clone()),
+            Some("All".to_string())
+        );
         assert_eq!(ov.active_facet_id(), Some("all"));
         assert_eq!(ov.items.len(), 4);
         assert!(ov.item_sections().iter().all(|s| s.is_empty()));
@@ -617,7 +700,10 @@ mod tests {
         let shown = ov.item_strings();
         assert!(shown.iter().any(|s| s == "doc-fixture.md"));
         assert!(shown.iter().any(|s| s == "notes.txt"));
-        assert!(!shown.iter().any(|s| s.contains('/')), "nested files opt out: {shown:?}");
+        assert!(
+            !shown.iter().any(|s| s.contains('/')),
+            "nested files opt out: {shown:?}"
+        );
     }
 
     /// THE UNIFIED-LIST LAW (item 11): the DEFAULT Go-to list (`All`, strip index 0)
@@ -705,17 +791,20 @@ mod tests {
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
         ov.attach_headings(Vec::new()); // non-markdown buffer / no headings
         assert_eq!(ov.active_facet_id(), Some("all"));
-        assert_eq!(ov.item_strings(), vec!["a.rs".to_string(), "b.rs".to_string()]);
+        assert_eq!(
+            ov.item_strings(),
+            vec!["a.rs".to_string(), "b.rs".to_string()]
+        );
     }
 
     #[test]
     fn goto_recent_lens_shows_only_opened_files_in_mru_order() {
         use crate::overlay::{OverlayKind, OverlayState};
         let corpus = vec![
-            "doc-fixture.md".to_string(),   // 0 — never opened
-            "src/main.rs".to_string(), // 1 — opened (2nd most recent)
-            "src/lib.rs".to_string(),  // 2 — never opened
-            "notes.txt".to_string(),   // 3 — opened (most recent)
+            "doc-fixture.md".to_string(), // 0 — never opened
+            "src/main.rs".to_string(),    // 1 — opened (2nd most recent)
+            "src/lib.rs".to_string(),     // 2 — never opened
+            "notes.txt".to_string(),      // 3 — opened (most recent)
         ];
         // The recently-opened MRU (most-recent FIRST) as corpus indices: notes.txt
         // then src/main.rs. doc-fixture + lib were never opened.
@@ -762,10 +851,19 @@ mod tests {
         let git = vec![true, false, false, false];
         let is_dir = vec![true, true, false, false];
         let mut ov = OverlayState::new_marked(
-            OverlayKind::Browse, corpus, git, is_dir, vec![], vec![], None,
+            OverlayKind::Browse,
+            corpus,
+            git,
+            is_dir,
+            vec![],
+            vec![],
+            None,
         );
         // Lands on All (flat), All parked first on the strip.
-        assert_eq!(ov.lens_strip().first().map(|(l, _)| l.clone()), Some("All".to_string()));
+        assert_eq!(
+            ov.lens_strip().first().map(|(l, _)| l.clone()),
+            Some("All".to_string())
+        );
         assert_eq!(ov.active_facet_id(), Some("all"));
         assert_eq!(ov.items.len(), 4);
         // Folders (index 1): only the two directories.
@@ -773,21 +871,34 @@ mod tests {
         assert_eq!(ov.active_facet_id(), Some("folders"));
         let f = ov.item_strings();
         assert!(f.iter().any(|s| s.contains("repo")) && f.iter().any(|s| s.contains("plain")));
-        assert!(!f.iter().any(|s| s.contains("a.md")), "files hidden under Folders: {f:?}");
+        assert!(
+            !f.iter().any(|s| s.contains("a.md")),
+            "files hidden under Folders: {f:?}"
+        );
         // Files (index 2): only the two files.
         ov.set_facet_lens(2);
         assert_eq!(ov.active_facet_id(), Some("files"));
         let f = ov.item_strings();
         assert!(f.iter().any(|s| s.contains("a.md")) && f.iter().any(|s| s.contains("b.rs")));
-        assert!(!f.iter().any(|s| s.contains("repo")), "folders hidden under Files: {f:?}");
+        assert!(
+            !f.iter().any(|s| s.contains("repo")),
+            "folders hidden under Files: {f:?}"
+        );
         // Git repos (index 3): ONLY the git-marked entry (the task's pinned example).
         ov.set_facet_lens(3);
         assert_eq!(ov.active_facet_id(), Some("git"));
         let g = ov.item_strings();
         assert_eq!(g.len(), 1, "only the git repo appears: {g:?}");
         // The name column is clean (no bullet); the git marker rides the SECONDARY tag.
-        assert!(g[0].contains("repo") && !g[0].contains('•'), "git repo name, no bullet: {g:?}");
-        assert_eq!(ov.item_git_tags(), vec!["git".to_string()], "the git tag marks it");
+        assert!(
+            g[0].contains("repo") && !g[0].contains('•'),
+            "git repo name, no bullet: {g:?}"
+        );
+        assert_eq!(
+            ov.item_git_tags(),
+            vec!["git".to_string()],
+            "the git tag marks it"
+        );
     }
 
     #[test]
@@ -807,4 +918,3 @@ mod tests {
         });
     }
 }
-

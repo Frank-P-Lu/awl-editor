@@ -47,10 +47,10 @@ pub mod icns;
 #[cfg(target_os = "macos")]
 mod embedded;
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::RwLock;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::theme::{Theme, DEFAULT_THEME, THEMES};
+use crate::theme::{DEFAULT_THEME, THEMES, Theme};
 
 /// Where the committed per-world icons live, relative to the repo root.
 pub const WORLD_ICON_DIR: &str = "assets/macos/world";
@@ -180,7 +180,10 @@ pub fn adopt(theme: &Theme) -> bool {
 ///
 /// Returns the (world, byte length) pairs written, for the caller to print.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn pack_all(tiles_dir: &std::path::Path, root: &std::path::Path) -> anyhow::Result<Vec<(&'static str, usize)>> {
+pub fn pack_all(
+    tiles_dir: &std::path::Path,
+    root: &std::path::Path,
+) -> anyhow::Result<Vec<(&'static str, usize)>> {
     let out_dir = root.join(WORLD_ICON_DIR);
     std::fs::create_dir_all(&out_dir)?;
     let mut written = Vec::new();

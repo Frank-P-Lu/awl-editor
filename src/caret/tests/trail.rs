@@ -4,7 +4,7 @@
 //! pass).
 
 use super::super::*;
-use super::{primed_caret, trail_head_y, gate_streak_len};
+use super::{gate_streak_len, primed_caret, trail_head_y};
 
 #[test]
 fn small_horizontal_move_shows_no_trail_and_pins_pos() {
@@ -12,10 +12,16 @@ fn small_horizontal_move_shows_no_trail_and_pins_pos() {
     // One glyph-advance right: under CARET_TRAIL_MIN_CHARS -> NO streak, and the
     // small move SNAPS so the position is pinned to target.
     a.nav_to(200.0 + crate::render::CHAR_WIDTH, 200.0);
-    assert!(!a.trail_active(), "a 1-char hop must show no cosmetic trail");
+    assert!(
+        !a.trail_active(),
+        "a 1-char hop must show no cosmetic trail"
+    );
     assert!((a.trail_alpha()).abs() < 1e-6, "no trail -> zero alpha");
     assert_eq!(a.pos, a.target, "small move must pin pos to target");
-    assert!(!a.is_animating(), "small move snaps: spring must not animate");
+    assert!(
+        !a.is_animating(),
+        "small move snaps: spring must not animate"
+    );
 }
 
 #[test]
@@ -28,7 +34,10 @@ fn vertical_move_shows_trail_and_pins_pos() {
     assert!(a.is_trail_vertical(), "a row change is a VERTICAL streak");
     assert!(a.trail_alpha() > 0.0, "an active trail has positive alpha");
     assert_eq!(a.pos, a.target, "vertical move must pin pos to target");
-    assert!(!a.is_animating(), "single-line move snaps: spring must not animate");
+    assert!(
+        !a.is_animating(),
+        "single-line move snaps: spring must not animate"
+    );
 }
 
 #[test]
@@ -37,10 +46,22 @@ fn big_horizontal_move_shows_trail_with_pos_pinned() {
     // Three chars right: past CARET_TRAIL_MIN_CHARS (2) so the streak shows, but
     // under the zip gate (CARET_ZIP_CHARS = 4) so the move still SNAPS -> pinned.
     a.nav_to(200.0 + 3.0 * crate::render::CHAR_WIDTH, 200.0);
-    assert!(a.trail_active(), "a >2-char horizontal move must show the streak");
-    assert!(!a.is_trail_vertical(), "a same-row jump is a HORIZONTAL streak");
-    assert_eq!(a.pos, a.target, "a sub-zip horizontal move must pin pos to target");
-    assert!(!a.is_animating(), "a 3-char move snaps: spring must not animate");
+    assert!(
+        a.trail_active(),
+        "a >2-char horizontal move must show the streak"
+    );
+    assert!(
+        !a.is_trail_vertical(),
+        "a same-row jump is a HORIZONTAL streak"
+    );
+    assert_eq!(
+        a.pos, a.target,
+        "a sub-zip horizontal move must pin pos to target"
+    );
+    assert!(
+        !a.is_animating(),
+        "a 3-char move snaps: spring must not animate"
+    );
 }
 
 #[test]
@@ -54,16 +75,25 @@ fn trail_fades_out_with_pos_pinned_the_whole_time() {
     let mut frames = 0;
     while fading && frames < 1000 {
         fading = a.step_trail(1.0 / 120.0);
-        assert_eq!(a.pos, target, "the cosmetic trail must never move the caret");
+        assert_eq!(
+            a.pos, target,
+            "the cosmetic trail must never move the caret"
+        );
         let al = a.trail_alpha();
-        assert!(al <= prev + 1e-6, "trail alpha must ease DOWN monotonically: {prev} -> {al}");
+        assert!(
+            al <= prev + 1e-6,
+            "trail alpha must ease DOWN monotonically: {prev} -> {al}"
+        );
         prev = al;
         frames += 1;
     }
     assert!(!a.trail_active(), "the trail must fully fade out");
     assert!((a.trail_alpha()).abs() < 1e-6);
     // ~200ms at 120fps is ~24 frames; bound it so a never-fading trail fails.
-    assert!(frames > 5 && frames < 120, "trail fade frames out of range: {frames}");
+    assert!(
+        frames > 5 && frames < 120,
+        "trail fade frames out of range: {frames}"
+    );
 }
 
 #[test]
@@ -78,7 +108,10 @@ fn held_repeat_keeps_trail_topped_up_steady() {
         a.set_held(true);
         a.nav_to(200.0, y);
         a.step_trail(30.0 / 1000.0);
-        assert!(a.trail_active(), "held DOWN must keep the | present each step");
+        assert!(
+            a.trail_active(),
+            "held DOWN must keep the | present each step"
+        );
         assert!(a.is_trail_held(), "a held re-kick must be flagged held");
         assert_eq!(a.pos, a.target, "held trail must keep the caret pinned");
         alphas.push(a.trail_alpha());
@@ -106,7 +139,10 @@ fn held_right_one_char_shows_no_trail() {
         a.set_held(true);
         a.nav_to(x, 200.0);
         a.step_trail(30.0 / 1000.0);
-        assert!(!a.trail_active(), "held RIGHT 1-char hops must show no trail");
+        assert!(
+            !a.trail_active(),
+            "held RIGHT 1-char hops must show no trail"
+        );
         assert_eq!(a.pos, a.target, "held right keeps the caret pinned");
     }
 }
@@ -140,14 +176,23 @@ fn vertical_trail_sweeps_head_old_to_new_then_fades_pos_pinned() {
         assert_eq!(a.pos, target, "the sweep must never move the caret");
         let head = trail_head_y(&a);
         let sweep = a.trail_sweep_p();
-        assert!(head >= prev_head - 1e-3, "head must sweep DOWN old→new: {prev_head}->{head}");
-        assert!(sweep >= prev_sweep - 1e-6, "sweep progress must advance: {prev_sweep}->{sweep}");
+        assert!(
+            head >= prev_head - 1e-3,
+            "head must sweep DOWN old→new: {prev_head}->{head}"
+        );
+        assert!(
+            sweep >= prev_sweep - 1e-6,
+            "sweep progress must advance: {prev_sweep}->{sweep}"
+        );
         prev_head = head;
         prev_sweep = sweep;
     }
     // Sweep complete: the head has arrived on the NEW caret y (full old→new span),
     // and the alpha is still at peak (the fade only begins after the sweep).
-    assert!(a.trail_sweep_p() > 0.999, "sweep completes within its window");
+    assert!(
+        a.trail_sweep_p() > 0.999,
+        "sweep completes within its window"
+    );
     assert!(
         (trail_head_y(&a) - to_y).abs() < 0.5,
         "the streak head arrives at the NEW caret y"
@@ -161,7 +206,10 @@ fn vertical_trail_sweeps_head_old_to_new_then_fades_pos_pinned() {
     // After the sweep it FADES (alpha drops) while the head stays put on the caret.
     let head_settled = trail_head_y(&a);
     a.step_trail(40.0 / 1000.0);
-    assert!(a.trail_alpha() < full_alpha, "after the sweep the trail fades");
+    assert!(
+        a.trail_alpha() < full_alpha,
+        "after the sweep the trail fades"
+    );
     assert_eq!(a.pos, target, "the fade must never move the caret");
     assert!(
         (trail_head_y(&a) - head_settled).abs() < 1e-2,
@@ -197,7 +245,10 @@ fn settle_factor_is_one_at_rest() {
     let mut a = CaretAnim::new();
     a.set_target(100.0, 200.0); // snaps; pos == target, vel == 0
     assert!(!a.is_animating());
-    assert!((a.settle_factor() - 1.0).abs() < 1e-6, "rest must be full underline");
+    assert!(
+        (a.settle_factor() - 1.0).abs() < 1e-6,
+        "rest must be full underline"
+    );
 }
 
 #[test]
@@ -232,12 +283,18 @@ fn settle_factor_monotone_reforms_as_it_arrives() {
         last = s;
     }
     // Mid-glide it dipped low (was a dot)...
-    assert!(min_seen < 0.2, "should have collapsed mid-glide, min={min_seen}");
+    assert!(
+        min_seen < 0.2,
+        "should have collapsed mid-glide, min={min_seen}"
+    );
     // ...and by the time it settled it is the full underline.
     if (last - 1.0).abs() < 1e-3 {
         climbed_to_full = true;
     }
-    assert!(climbed_to_full, "must re-form to full underline at rest, last={last}");
+    assert!(
+        climbed_to_full,
+        "must re-form to full underline at rest, last={last}"
+    );
 }
 
 #[test]
@@ -289,7 +346,11 @@ fn one_glyph_hop_never_overshoots() {
             overshot = true;
         }
     }
-    assert!(!overshot, "a one-glyph hop must not overshoot, x={}", a.pos.x);
+    assert!(
+        !overshot,
+        "a one-glyph hop must not overshoot, x={}",
+        a.pos.x
+    );
 }
 
 #[test]
@@ -383,7 +444,10 @@ fn trail_follows_true_vector_and_is_always_centre_anchored() {
     d.inject_motion(
         Sample { x: 400.0, y: 400.0 }, // target (down-right)
         Sample { x: 100.0, y: 100.0 }, // pos (source, mid-glide)
-        Sample { x: 3000.0, y: 3000.0 }, // fast: settle_factor ~ 0
+        Sample {
+            x: 3000.0,
+            y: 3000.0,
+        }, // fast: settle_factor ~ 0
     );
     let (tail, head) = d.trail_endpoints(block_w, block_h, thin, streak, gap, drop);
     let (tx, ty) = (head.x - tail.x, head.y - tail.y);
@@ -454,8 +518,7 @@ fn trail_follows_true_vector_and_is_always_centre_anchored() {
 #[test]
 fn streak_tail_inset_from_origin_head_stays_on_caret() {
     // Representative zoomed scalars; the geometry is scale-free in what we assert.
-    let (block_w, block_h, thin, streak) =
-        (14.0_f32, 22.0_f32, 2.8_f32, 60.0_f32);
+    let (block_w, block_h, thin, streak) = (14.0_f32, 22.0_f32, 2.8_f32, 60.0_f32);
     let gap = 20.0_f32;
     // A representative text-centre drop; it only translates the trail, so the
     // gap/head-glue differences below are invariant to it (passed consistently).
@@ -466,9 +529,9 @@ fn streak_tail_inset_from_origin_head_stays_on_caret() {
     let mut h = CaretAnim::new();
     h.set_line_height(crate::render::LINE_HEIGHT);
     h.inject_motion(
-        Sample { x: 0.0, y: 100.0 },    // target (left)
-        Sample { x: 300.0, y: 100.0 },  // pos (caret, mid-glide)
-        Sample { x: -3000.0, y: 0.0 },  // fast left: settle_factor ~ 0
+        Sample { x: 0.0, y: 100.0 },   // target (left)
+        Sample { x: 300.0, y: 100.0 }, // pos (caret, mid-glide)
+        Sample { x: -3000.0, y: 0.0 }, // fast left: settle_factor ~ 0
     );
     // The HEAD (leading edge, AT the caret) is unchanged by the gap, and sits at
     // the caret's cell-centre x = pos.x + block_w/2 (the caret's leading edge).
@@ -564,7 +627,10 @@ fn is_zip_move_gates_on_distance_not_action() {
     a.set_line_height(lh);
     a.set_target(100.0, 100.0); // prime / rest
     // Single char (C-f / held right): SMALL.
-    assert!(!a.is_zip_move(100.0 + adv, 100.0), "one-char hop is not a zip");
+    assert!(
+        !a.is_zip_move(100.0 + adv, 100.0),
+        "one-char hop is not a zip"
+    );
     // A few chars (C-e near the end): still SMALL (< CARET_ZIP_CHARS).
     assert!(
         !a.is_zip_move(100.0 + (CARET_ZIP_CHARS - 1.0) * adv, 100.0),
@@ -576,7 +642,10 @@ fn is_zip_move_gates_on_distance_not_action() {
         "a long C-e zips"
     );
     // Single line (C-n / held down): SMALL.
-    assert!(!a.is_zip_move(100.0, 100.0 + lh), "one-line hop is not a zip");
+    assert!(
+        !a.is_zip_move(100.0, 100.0 + lh),
+        "one-line hop is not a zip"
+    );
     // Single line with a big goal-column x clamp: still SMALL (one row).
     assert!(
         !a.is_zip_move(40.0, 100.0 + lh),
@@ -620,7 +689,10 @@ fn small_nav_move_snaps_instantly_with_no_trail() {
     h.nav_to(100.0 + adv, 100.0); // one char right, held
     assert!(!h.is_animating(), "a held one-char hop must snap");
     assert_eq!(h.pos, h.target);
-    assert!(!h.is_holding(), "a snapped held hop drops the holding latch");
+    assert!(
+        !h.is_holding(),
+        "a snapped held hop drops the holding latch"
+    );
     assert!(
         gate_streak_len(&h, &m) < gap,
         "held one-char hop draws NO trail (small move snaps)"
@@ -667,7 +739,10 @@ fn big_nav_move_glides_and_trails() {
         min_s = min_s.min(a.settle_factor());
         frames += 1;
     }
-    assert!(min_s < 0.2, "a big nav move must collapse to the streak, min={min_s}");
+    assert!(
+        min_s < 0.2,
+        "a big nav move must collapse to the streak, min={min_s}"
+    );
     assert!(
         max_streak > gap,
         "a big nav move must draw a trail past the gap ({gap}), max={max_streak}"

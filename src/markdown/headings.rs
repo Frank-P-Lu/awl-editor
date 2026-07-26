@@ -5,8 +5,8 @@
 //! (`markdown::heading_scale`, `markdown::Heading`, …) -- only the file it
 //! lives in moved.
 
-use super::spans::spans;
 use super::MdKind;
+use super::spans::spans;
 use std::ops::Range;
 
 /// The TYPE SCALE — awl's SIZE LADDER, one of the two ladders in the text system
@@ -143,11 +143,13 @@ fn heading_weight_bold_with(force: Option<bool>, theme_bit: bool, level: u8) -> 
 /// the active world's data).
 fn heading_bold_force() -> Option<bool> {
     static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
-    *V.get_or_init(|| match std::env::var("AWL_HEADING_BOLD_FORCE").ok().as_deref() {
-        Some("on") => Some(true),
-        Some("off") => Some(false),
-        _ => None,
-    })
+    *V.get_or_init(
+        || match std::env::var("AWL_HEADING_BOLD_FORCE").ok().as_deref() {
+            Some("on") => Some(true),
+            Some("off") => Some(false),
+            _ => None,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -203,10 +205,7 @@ pub fn headings(text: &str) -> Vec<Heading> {
 /// `text` (the summoned outline picker + tests). `spans` MUST be the whole
 /// document's span list in document byte coords (as [`spans`] returns) or the
 /// per-span newline count is wrong.
-pub fn headings_from_spans(
-    text: &str,
-    spans: &[(Range<usize>, MdKind)],
-) -> Vec<Heading> {
+pub fn headings_from_spans(text: &str, spans: &[(Range<usize>, MdKind)]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
     for (range, kind) in spans {
         let range = range.clone();
@@ -236,7 +235,11 @@ pub fn headings_from_spans(
         if title.is_empty() {
             continue;
         }
-        out.push(Heading { level, text: title, line });
+        out.push(Heading {
+            level,
+            text: title,
+            line,
+        });
     }
     out
 }

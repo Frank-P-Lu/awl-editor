@@ -86,8 +86,17 @@ impl Srgb {
     /// is always a mix of two tokens already on the world's own ink ladder.
     pub fn lerp(self, other: Srgb, t: f32) -> Srgb {
         let t = t.clamp(0.0, 1.0);
-        let ch = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t).round().clamp(0.0, 255.0) as u8;
-        Srgb::rgba(ch(self.r, other.r), ch(self.g, other.g), ch(self.b, other.b), ch(self.a, other.a))
+        let ch = |a: u8, b: u8| {
+            (a as f32 + (b as f32 - a as f32) * t)
+                .round()
+                .clamp(0.0, 255.0) as u8
+        };
+        Srgb::rgba(
+            ch(self.r, other.r),
+            ch(self.g, other.g),
+            ch(self.b, other.b),
+            ch(self.a, other.a),
+        )
     }
 
     /// An OPAQUE [`Srgb`] from `(hue°, saturation, lightness)` — the inverse of

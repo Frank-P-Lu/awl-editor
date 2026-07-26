@@ -142,8 +142,7 @@ impl Buffer {
                 let del_end = edit.start + edit.removed.chars().count();
                 let backspace_contig = del_end == prev.start;
                 let forward_contig = edit.start == prev.start;
-                (backspace_contig || forward_contig)
-                    && edit.cursor_before == prev.cursor_after
+                (backspace_contig || forward_contig) && edit.cursor_before == prev.cursor_after
             }
         }
     }
@@ -189,7 +188,10 @@ impl Buffer {
             }
         }
         // Restore the cursor to the start of the group's first edit's "before".
-        self.cursor = group.first().map(|e| e.cursor_before).unwrap_or(self.cursor);
+        self.cursor = group
+            .first()
+            .map(|e| e.cursor_before)
+            .unwrap_or(self.cursor);
         self.anchor = None;
         self.goal_col = None;
         self.dirty = true;

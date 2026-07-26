@@ -4,7 +4,7 @@
 //! monolithic `capture::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{adapter_available};
+use super::adapter_available;
 use crate::buffer::Buffer;
 
 /// THEME PICKER (FLAT): its runtime lens strip was RETIRED (2026-07-15) — driving the
@@ -30,7 +30,10 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     // found), which handed its world to whatever ran next and made
     // `render::tests::range_rail`'s thumb law pass or fail on test ORDER.
     let _pin = crate::theme::WorldPin::world("Potoroo").expect("Potoroo is a world");
-    let names: Vec<String> = crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect();
+    let names: Vec<String> = crate::theme::THEMES
+        .iter()
+        .map(|t| t.name.to_string())
+        .collect();
     let ov = crate::overlay::OverlayState::new_theme(names.clone(), crate::theme::active_index());
     assert!(!ov.is_faceting(), "the theme picker is flat");
     assert_eq!(ov.active_facet_id(), None);
@@ -74,7 +77,11 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     // FLAT: null lens, empty strip, no section labels — the non-faceting sidecar shape
     // (a flat picker's per-row section labels are all the empty string, like every
     // other non-faceting picker).
-    assert_eq!(o["lens"], serde_json::json!(null), "theme picker reports no lens");
+    assert_eq!(
+        o["lens"],
+        serde_json::json!(null),
+        "theme picker reports no lens"
+    );
     assert_eq!(o["lens_strip"], serde_json::json!([]), "no lens strip");
     assert!(
         o["sections"].as_array().unwrap().iter().all(|s| s == ""),
@@ -89,7 +96,10 @@ fn theme_picker_is_flat_and_reports_no_lens() {
         .map(|v| v.as_str().unwrap().to_string())
         .collect();
     assert_eq!(items, names, "every world in declaration order, ungrouped");
-    assert_eq!(items[o["selected_index"].as_u64().unwrap() as usize], serde_json::json!("Potoroo"));
+    assert_eq!(
+        items[o["selected_index"].as_u64().unwrap() as usize],
+        serde_json::json!("Potoroo")
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -148,7 +158,10 @@ fn overlay_empty_state_renders_and_reports() {
     for c in "zzz".chars() {
         ov.push(c);
     }
-    assert!(ov.item_strings().is_empty(), "query filtered everything out");
+    assert!(
+        ov.item_strings().is_empty(),
+        "query filtered everything out"
+    );
     let mut opts = CaptureOpts::default();
     opts.overlay = Some(fold(&ov));
     let miss_png = dir.join("miss.png");
@@ -156,7 +169,10 @@ fn overlay_empty_state_renders_and_reports() {
     let miss: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(miss_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(miss["schema"], serde_json::json!(crate::capture::schema_plain()));
+    assert_eq!(
+        miss["schema"],
+        serde_json::json!(crate::capture::schema_plain())
+    );
     assert_eq!(miss["overlay"]["items"], serde_json::json!([]), "no rows");
     assert_eq!(miss["overlay"]["empty"], serde_json::json!("no matches"));
 
@@ -174,7 +190,11 @@ fn overlay_empty_state_renders_and_reports() {
     let hit: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(hit_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(hit["overlay"]["empty"], serde_json::json!(null), "rows → no empty-state");
+    assert_eq!(
+        hit["overlay"]["empty"],
+        serde_json::json!(null),
+        "rows → no empty-state"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -274,11 +294,22 @@ fn file_pickers_faceted_lens_render_and_report() {
     assert!(gsections.iter().all(|s| s == "Headings"), "{gsections:?}");
 
     // BROWSE, cycled RIGHT×3 to the Git-repos lens: only the git-marked folder shows.
-    let corpus = vec!["repo".to_string(), "plain".to_string(), "note.md".to_string()];
+    let corpus = vec![
+        "repo".to_string(),
+        "plain".to_string(),
+        "note.md".to_string(),
+    ];
     let git = vec![true, false, false];
     let is_dir = vec![true, true, false];
-    let mut browse =
-        OverlayState::new_marked(OverlayKind::Browse, corpus, git, is_dir, vec![], vec![], None);
+    let mut browse = OverlayState::new_marked(
+        OverlayKind::Browse,
+        corpus,
+        git,
+        is_dir,
+        vec![],
+        vec![],
+        None,
+    );
     browse.cycle_lens(1);
     browse.cycle_lens(1);
     browse.cycle_lens(1);
@@ -289,7 +320,11 @@ fn file_pickers_faceted_lens_render_and_report() {
     assert_eq!(bj["overlay"]["mode"], serde_json::json!("browse"));
     assert_eq!(bj["overlay"]["lens"], serde_json::json!("git"));
     let bitems = bj["overlay"]["items"].as_array().unwrap();
-    assert_eq!(bitems.len(), 1, "only the git repo under Git repos: {bitems:?}");
+    assert_eq!(
+        bitems.len(),
+        1,
+        "only the git repo under Git repos: {bitems:?}"
+    );
     assert!(bitems[0].as_str().unwrap().contains("repo"));
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -305,7 +340,9 @@ fn file_pickers_faceted_lens_render_and_report() {
 #[test]
 fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     if !adapter_available() {
-        eprintln!("skipping faceted_grouped_window_is_bounded_and_scrolls_to_selection: no wgpu adapter");
+        eprintln!(
+            "skipping faceted_grouped_window_is_bounded_and_scrolls_to_selection: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -359,7 +396,11 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     goto.cycle_lens(1);
     goto.cycle_lens(1);
     assert_eq!(goto.active_facet_id(), Some("folder"));
-    assert_eq!(goto.item_strings().len(), n, "every row shows under This folder");
+    assert_eq!(
+        goto.item_strings().len(),
+        n,
+        "every row shows under This folder"
+    );
 
     // TOP of the list: the window is bounded and the selection (row 0) is on screen.
     let top_png = dir.join("goto_top.png");
@@ -378,9 +419,15 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         lines <= 12 + 1,
         "drawn lines ≤ item cap (12) + section header (1), got {lines}"
     );
-    assert!(card_h <= canvas_h, "card_h {card_h} must fit canvas_h {canvas_h}");
+    assert!(
+        card_h <= canvas_h,
+        "card_h {card_h} must fit canvas_h {canvas_h}"
+    );
     // SELECTED VISIBLE: the highlighted row sits within the drawn window.
-    assert!(sel_row < lines, "selected row {sel_row} within drawn window {lines}");
+    assert!(
+        sel_row < lines,
+        "selected row {sel_row} within drawn window {lines}"
+    );
     let top = w["top"].as_u64().unwrap();
     assert_eq!(top, 0, "list starts at the top before any scroll");
 
@@ -397,8 +444,14 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     let btop = wb["top"].as_u64().unwrap();
     let bsel = wb["sel_row"].as_u64().unwrap();
     let bcard_h = wb["card_h"].as_f64().unwrap();
-    assert!(btop > 0, "the window scrolled past the fold (top {btop} > 0)");
-    assert!(bsel < blines, "the last row is visible in the scrolled window");
+    assert!(
+        btop > 0,
+        "the window scrolled past the fold (top {btop} > 0)"
+    );
+    assert!(
+        bsel < blines,
+        "the last row is visible in the scrolled window"
+    );
     assert!(
         bcard_h <= canvas_h,
         "the scrolled card is still bounded ({bcard_h} ≤ {canvas_h})"
@@ -413,10 +466,21 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     capture_with(&fpng, &buf, &fold(&flat)).expect("flat picker capture renders");
     let fj = read(&fpng);
     // A non-faceting picker draws the FLAT path (no lens strip → no sections).
-    assert_eq!(fj["overlay"]["lens"], serde_json::json!(null), "flat: no lens");
+    assert_eq!(
+        fj["overlay"]["lens"],
+        serde_json::json!(null),
+        "flat: no lens"
+    );
     let fw = &fj["overlay"]["window"];
-    assert_eq!(fw["lines"].as_u64().unwrap(), 12, "flat list caps at 12 rows");
-    assert!(fw["sel_row"].as_u64().unwrap() < 12, "flat selection is on screen");
+    assert_eq!(
+        fw["lines"].as_u64().unwrap(),
+        12,
+        "flat list caps at 12 rows"
+    );
+    assert!(
+        fw["sel_row"].as_u64().unwrap() < 12,
+        "flat selection is on screen"
+    );
     assert!(
         fw["card_h"].as_f64().unwrap() <= fw["canvas_h"].as_f64().unwrap(),
         "flat card fits the canvas"
@@ -434,7 +498,9 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
 #[test]
 fn command_and_history_pickers_faceted_lens_render_and_report() {
     if !adapter_available() {
-        eprintln!("skipping command_and_history_pickers_faceted_lens_render_and_report: no wgpu adapter");
+        eprintln!(
+            "skipping command_and_history_pickers_faceted_lens_render_and_report: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -507,9 +573,16 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         .iter()
         .map(|v| v.as_str().unwrap().to_string())
         .collect();
-    assert!(citems.iter().any(|s| s == "Save"), "Save under File: {citems:?}");
     assert!(
-        cj["overlay"]["sections"].as_array().unwrap().iter().all(|s| s == "File"),
+        citems.iter().any(|s| s == "Save"),
+        "Save under File: {citems:?}"
+    );
+    assert!(
+        cj["overlay"]["sections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s == "File"),
         "every File-lens row is headed File"
     );
 
@@ -545,7 +618,10 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
     assert_eq!(hj["overlay"]["mode"], serde_json::json!("history"));
     let hbinds = hj["overlay"]["bindings"].as_array().unwrap();
     assert!(
-        hbinds[0].as_str().unwrap().contains(crate::overlay::PIN_TAG),
+        hbinds[0]
+            .as_str()
+            .unwrap()
+            .contains(crate::overlay::PIN_TAG),
         "the pinned version's binding carries the mark: {:?}",
         hbinds[0]
     );
@@ -563,7 +639,10 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         hbinds[1]
     );
     assert!(
-        !hbinds[2].as_str().unwrap().contains(crate::overlay::PIN_TAG),
+        !hbinds[2]
+            .as_str()
+            .unwrap()
+            .contains(crate::overlay::PIN_TAG),
         "an un-pinned version stays bare: {:?}",
         hbinds[2]
     );
@@ -572,7 +651,11 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         hj["overlay"]["lens_strip"],
         serde_json::json!([["All", true], ["Session", false], ["Today", false]])
     );
-    assert_eq!(hj["overlay"]["items"].as_array().unwrap().len(), 3, "All lists every version");
+    assert_eq!(
+        hj["overlay"]["items"].as_array().unwrap().len(),
+        3,
+        "All lists every version"
+    );
     hist.cycle_lens(1); // Session
     assert_eq!(hist.active_facet_id(), Some("session"));
     let hpng2 = dir.join("hist_session.png");
@@ -707,7 +790,10 @@ fn preview_id_null_by_default() {
     let j: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(j["schema"], serde_json::json!(crate::capture::schema_plain()));
+    assert_eq!(
+        j["schema"],
+        serde_json::json!(crate::capture::schema_plain())
+    );
     assert_eq!(j["overlay"]["active"], serde_json::json!(false));
     assert_eq!(
         j["overlay"]["preview_id"],
@@ -771,7 +857,10 @@ fn history_preview_folds_text_and_reports_preview_id() {
             .unwrap();
     // The document IS the previewed version; the buffer's own text is absent.
     assert_eq!(j["text"], serde_json::json!("old\n"));
-    assert_eq!(j["overlay"]["preview_id"], serde_json::json!("1700000000000"));
+    assert_eq!(
+        j["overlay"]["preview_id"],
+        serde_json::json!("1700000000000")
+    );
     assert_eq!(j["overlay"]["mode"], serde_json::json!("history"));
     // The cursor was clamped into the (shorter) previewed text.
     let line = j["cursor"]["line"].as_u64().unwrap();
@@ -815,7 +904,11 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     );
     ov.set_secondaries(crate::settings::visible_value_cells(&values));
     ov.set_range_cells(crate::settings::visible_range_cells(&values));
-    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    let zi = ov
+        .items
+        .iter()
+        .position(|&i| ov.rows[i].accept == "Zoom")
+        .unwrap();
     ov.selected = zi;
 
     // RIGHT, through the shared core — the exact seam `--keys` drives. The value
@@ -841,9 +934,17 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         };
         crate::actions::apply_core(&mut ctx, &crate::keymap::Action::ForwardChar, false)
     };
-    assert_eq!(eff, crate::actions::Effect::SettingRangeStep { key: "zoom".to_string() });
+    assert_eq!(
+        eff,
+        crate::actions::Effect::SettingRangeStep {
+            key: "zoom".to_string()
+        }
+    );
     let stepped = spec.stepped(spec.default, 1);
-    assert_eq!(zoom, stepped, "the replay session's own zoom scalar moved one step");
+    assert_eq!(
+        zoom, stepped,
+        "the replay session's own zoom scalar moved one step"
+    );
 
     // Fold + render through the SAME owner the one-shot `--keys` capture uses.
     let ov = overlay.as_ref().unwrap();
@@ -868,17 +969,31 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         "a selected rail row must advertise its own ←/→ meaning: {:?}",
         o["hint"]
     );
-    assert_eq!(o["lens_strip"][0][1], serde_json::json!(true), "the lens did NOT move");
+    assert_eq!(
+        o["lens_strip"][0][1],
+        serde_json::json!(true),
+        "the lens did NOT move"
+    );
 
-    let items: Vec<String> =
-        o["items"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+    let items: Vec<String> = o["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     let ranges = o["ranges"].as_array().unwrap();
     let bindings = o["bindings"].as_array().unwrap();
-    assert_eq!(ranges.len(), items.len(), "the rail column is parallel to the rows");
+    assert_eq!(
+        ranges.len(),
+        items.len(),
+        "the rail column is parallel to the rows"
+    );
     let row = items.iter().position(|n| n == "Zoom").unwrap();
     // The VALUE TEXT and the RAIL FRACTION are the same stepped value.
     assert_eq!(bindings[row], serde_json::json!(spec.format(stepped)));
-    let frac = ranges[row].as_f64().expect("the Zoom row reports a rail fraction");
+    let frac = ranges[row]
+        .as_f64()
+        .expect("the Zoom row reports a rail fraction");
     assert!(
         (frac - spec.frac_of(stepped) as f64).abs() < 1e-3,
         "the reported thumb ({frac}) must be the spec's fraction for {stepped}"
@@ -886,7 +1001,11 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // Every other row is railless.
     for (i, name) in items.iter().enumerate() {
         if i != row {
-            assert_eq!(ranges[i], serde_json::json!(null), "{name} must report no rail");
+            assert_eq!(
+                ranges[i],
+                serde_json::json!(null),
+                "{name} must report no rail"
+            );
         }
     }
     let _ = std::fs::remove_dir_all(&dir);

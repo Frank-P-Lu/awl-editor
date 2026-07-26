@@ -41,7 +41,9 @@ impl App {
         // `ViewState.misspelled`) as a second, independent guarantee: even within
         // this one call, a verdict this rescan is ABOUT to replace can never be
         // read as still describing the new text.
-        if self.spell.is_some() && self.active.extra.spell_checked_version != Some(self.active.buffer.version()) {
+        if self.spell.is_some()
+            && self.active.extra.spell_checked_version != Some(self.active.buffer.version())
+        {
             self.recompute_spell_cache();
         }
         // SAVE-FEEDBACK round: the window-title EDITED marker + the native
@@ -59,7 +61,9 @@ impl App {
         // gpu-present check above), so the headless capture/replay never auto-writes
         // — the determinism + no-fixture-mutation guarantee. The write fires in
         // `about_to_wait` after a quiet period.
-        if self.active.buffer.is_unnamed_fresh() && self.autosave_saved_version != Some(self.active.buffer.version()) {
+        if self.active.buffer.is_unnamed_fresh()
+            && self.autosave_saved_version != Some(self.active.buffer.version())
+        {
             self.autosave_dirty_at = Some(self.clock.now());
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
@@ -250,11 +254,7 @@ impl App {
             // ITEM 10 — TEXTBOX MODEL: the picker query's CHAR-index caret, so the
             // render path can place a mid-string caret (glyph-scan) instead of always
             // pinning it to the query's end.
-            overlay_query_caret: self
-                .overlay
-                .as_ref()
-                .map(|o| o.query.caret())
-                .unwrap_or(0),
+            overlay_query_caret: self.overlay.as_ref().map(|o| o.query.caret()).unwrap_or(0),
             overlay_title: self
                 .overlay
                 .as_ref()
@@ -377,11 +377,7 @@ impl App {
             // the panel border strengthens one value step when Tab moved the
             // focus into it.
             diff_panel: preview.is_some(),
-            diff_panel_focus: self
-                .overlay
-                .as_ref()
-                .map(|o| o.diff_focus)
-                .unwrap_or(false),
+            diff_panel_focus: self.overlay.as_ref().map(|o| o.diff_focus).unwrap_or(false),
             // FOLDS: filled just below (with the buffer's fold set), after which the
             // hidden lines are dropped from `text` + coordinates remapped. Kept as
             // the conscious render decision this exhaustive site forces.
@@ -472,22 +468,22 @@ impl App {
             // on at a shared boundary (Upstream → the upper row).
             let cursor_row =
                 pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
-            self.active.extra.scroll_lines = match follow_scroll_strategy(
-                crate::typewriter::typewriter_on(),
-                self.dragging,
-            ) {
-                // Variable-row-height aware: scroll minimally so the cursor's row
-                // (taller on a heading) is fully visible, summing real row heights.
-                FollowScroll::ShowRow => {
-                    pipeline.scroll_to_show_row(cursor_row, self.active.extra.scroll_lines, height)
-                }
-                // TYPEWRITER: center the cursor's row (variable-height aware too).
-                FollowScroll::CenterRow => pipeline.scroll_to_center_row(cursor_row, height),
-                // A primary-button press is live: defer the recenter (leave the
-                // scroll exactly where it is) rather than move the view under a
-                // stationary pointer — see `follow_scroll_strategy`.
-                FollowScroll::Deferred => self.active.extra.scroll_lines,
-            };
+            self.active.extra.scroll_lines =
+                match follow_scroll_strategy(crate::typewriter::typewriter_on(), self.dragging) {
+                    // Variable-row-height aware: scroll minimally so the cursor's row
+                    // (taller on a heading) is fully visible, summing real row heights.
+                    FollowScroll::ShowRow => pipeline.scroll_to_show_row(
+                        cursor_row,
+                        self.active.extra.scroll_lines,
+                        height,
+                    ),
+                    // TYPEWRITER: center the cursor's row (variable-height aware too).
+                    FollowScroll::CenterRow => pipeline.scroll_to_center_row(cursor_row, height),
+                    // A primary-button press is live: defer the recenter (leave the
+                    // scroll exactly where it is) rather than move the view under a
+                    // stationary pointer — see `follow_scroll_strategy`.
+                    FollowScroll::Deferred => self.active.extra.scroll_lines,
+                };
         }
         // Always keep scroll within document bounds (pixel-accurate "does it fit").
         let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);

@@ -60,8 +60,15 @@ impl Capture {
         match self.stage {
             CaptureStage::ChooseMode => {
                 let key = if self.mode_sel == 0 { "[Key]" } else { "Key" };
-                let chord = if self.mode_sel == 1 { "[Chord]" } else { "Chord" };
-                format!("Rebind {} — {key} / {chord}   Enter choose   Esc cancel", self.cmd_name)
+                let chord = if self.mode_sel == 1 {
+                    "[Chord]"
+                } else {
+                    "Chord"
+                };
+                format!(
+                    "Rebind {} — {key} / {chord}   Enter choose   Esc cancel",
+                    self.cmd_name
+                )
             }
             CaptureStage::Recording => {
                 let so_far = self.binding();
@@ -73,7 +80,10 @@ impl Capture {
             }
             CaptureStage::Confirm => {
                 let who = self.conflict.as_deref().unwrap_or("another command");
-                format!("{} already bound to {who} — Enter rebind   Esc cancel", self.binding())
+                format!(
+                    "{} already bound to {who} — Enter rebind   Esc cancel",
+                    self.binding()
+                )
             }
         }
     }
@@ -132,7 +142,10 @@ impl RenameEdit {
     /// Keybindings capture's own `Capture::prompt` rides, so the minibuffer's typing
     /// state is `--keys`-verifiable with ZERO new sidecar plumbing.
     pub fn prompt(&self) -> String {
-        format!("rename to: {}   Enter commit   Esc cancel", self.input.text())
+        format!(
+            "rename to: {}   Enter commit   Esc cancel",
+            self.input.text()
+        )
     }
 }
 
@@ -147,7 +160,11 @@ pub enum LinkEditMode {
     /// or the EXISTING link's own visible text being carried over into a rewrite
     /// (Cmd-K with the caret already inside a link). The two cases are the exact
     /// same edit shape, so one variant covers both.
-    WithText { start: usize, end: usize, text: String },
+    WithText {
+        start: usize,
+        end: usize,
+        text: String,
+    },
     /// INSERT empty markup `[](url)` at char position `at` — no selection, no
     /// existing link under the caret. The caret lands BETWEEN the brackets after
     /// commit, ready to type the link text.
@@ -202,7 +219,10 @@ impl KeepEdit {
     /// `--keys`-verifiable with ZERO new sidecar plumbing. "Enter keep" holds for
     /// an empty input too (a blank Enter IS the plain keep).
     pub fn prompt(&self) -> String {
-        format!("name this version: {}   Enter keep   Esc cancel", self.input.text())
+        format!(
+            "name this version: {}   Enter keep   Esc cancel",
+            self.input.text()
+        )
     }
 }
 
@@ -277,7 +297,10 @@ impl OverlayState {
         if cap.captured.is_empty() {
             return None;
         }
-        Some((crate::commands::visible_slug_of(cap.cmd_index), cap.binding()))
+        Some((
+            crate::commands::visible_slug_of(cap.cmd_index),
+            cap.binding(),
+        ))
     }
 
     /// REBIND MENU: move the capture into the `Confirm` phase (a clash was found),
@@ -303,8 +326,18 @@ impl OverlayState {
         let Some(row) = self.selected_corpus_index() else {
             return;
         };
-        let orig = self.rows.get(row).map(|r| r.secondary.clone()).unwrap_or_default();
-        self.value_edit = Some(ValueEdit { row, name, key, input: TextBox::seeded(&orig), orig });
+        let orig = self
+            .rows
+            .get(row)
+            .map(|r| r.secondary.clone())
+            .unwrap_or_default();
+        self.value_edit = Some(ValueEdit {
+            row,
+            name,
+            key,
+            input: TextBox::seeded(&orig),
+            orig,
+        });
     }
 
     /// SETTINGS VALUE EDIT: mirror the row's field text into its own display cell —
@@ -395,7 +428,9 @@ impl OverlayState {
     /// SETTINGS VALUE EDIT commit target: the `(config key, typed value)` to persist,
     /// consumed when Enter commits. `None` when no value edit is active.
     pub fn value_edit_target(&self) -> Option<(String, String)> {
-        self.value_edit.as_ref().map(|v| (v.key.clone(), v.input.text().to_string()))
+        self.value_edit
+            .as_ref()
+            .map(|v| (v.key.clone(), v.input.text().to_string()))
     }
 
     /// SETTINGS VALUE EDIT cancel: drop the edit and RESTORE the row's cell to the
@@ -423,7 +458,10 @@ impl OverlayState {
             Vec::new(),
             None,
         );
-        s.rename_edit = Some(RenameEdit { input: TextBox::seeded(&current_name), orig: current_name });
+        s.rename_edit = Some(RenameEdit {
+            input: TextBox::seeded(&current_name),
+            orig: current_name,
+        });
         s
     }
 
@@ -511,7 +549,9 @@ impl OverlayState {
     /// RENAME MINIBUFFER commit target: the typed filename, consumed when Enter
     /// commits. `None` when no rename edit is active.
     pub fn rename_edit_target(&self) -> Option<String> {
-        self.rename_edit.as_ref().map(|re| re.input.text().to_string())
+        self.rename_edit
+            .as_ref()
+            .map(|re| re.input.text().to_string())
     }
 
     /// LINKS V2: summon the Cmd-K minibuffer — build the fresh overlay, pre-filled
@@ -529,7 +569,10 @@ impl OverlayState {
             Vec::new(),
             None,
         );
-        s.link_edit = Some(LinkEdit { input: TextBox::seeded(&prefill), mode });
+        s.link_edit = Some(LinkEdit {
+            input: TextBox::seeded(&prefill),
+            mode,
+        });
         s
     }
 
@@ -629,7 +672,9 @@ impl OverlayState {
             Vec::new(),
             None,
         );
-        s.keep_edit = Some(KeepEdit { input: TextBox::new() });
+        s.keep_edit = Some(KeepEdit {
+            input: TextBox::new(),
+        });
         s
     }
 

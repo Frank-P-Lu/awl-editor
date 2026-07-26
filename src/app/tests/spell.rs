@@ -112,10 +112,16 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
     let v2 = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
     assert_eq!(v2.len(), 1, "only wrld remains flagged: {v2:?}");
     let w2 = crate::spell::word_at(&app.active.buffer.text(), &v2[0]);
-    assert_eq!(w2, "wrld", "the surviving flag is the real, still-unfixed typo");
+    assert_eq!(
+        w2, "wrld",
+        "the surviving flag is the real, still-unfixed typo"
+    );
 
     // A second eager pass over UNCHANGED text is idempotent.
     app.recompute_spell_cache();
     let v3 = crate::spell::visible(&app.active.extra.spell_cache, &app.active.buffer.text());
-    assert_eq!(v3, v2, "a repeat rescan of unchanged text must not move anything");
+    assert_eq!(
+        v3, v2,
+        "a repeat rescan of unchanged text must not move anything"
+    );
 }

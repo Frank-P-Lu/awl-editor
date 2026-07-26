@@ -20,8 +20,7 @@ use super::{headless_pipeline, view};
 /// rather than re-inlined per test, mirroring `dither.rs`'s own `headless_dq`.
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -34,8 +33,7 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(w, h);
         Some((device, queue, p))
     })
@@ -52,7 +50,9 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
 fn wagtail_disables_the_frosted_blur_backdrop_every_other_world_still_gets_it() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wagtail_disables_the_frosted_blur_backdrop_every_other_world_still_gets_it: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_disables_the_frosted_blur_backdrop_every_other_world_still_gets_it: no wgpu adapter"
+        );
         return;
     };
 
@@ -87,7 +87,9 @@ fn wagtail_disables_the_frosted_blur_backdrop_every_other_world_still_gets_it() 
 fn wagtail_disables_the_frosted_blur_backdrop_for_the_held_hud_too() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wagtail_disables_the_frosted_blur_backdrop_for_the_held_hud_too: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_disables_the_frosted_blur_backdrop_for_the_held_hud_too: no wgpu adapter"
+        );
         return;
     };
     crate::hud::set_held(true);
@@ -123,8 +125,7 @@ fn wagtail_disables_the_frosted_blur_backdrop_for_the_held_hud_too() {
 #[test]
 fn wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill() {
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -137,13 +138,14 @@ fn wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -156,7 +158,10 @@ fn wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let sel_rects = p.selection_rects();
-    assert!(!sel_rects.is_empty(), "the fixture selection must actually produce rects");
+    assert!(
+        !sel_rects.is_empty(),
+        "the fixture selection must actually produce rects"
+    );
     assert_eq!(
         p.selection_invert.instance_count() as usize,
         sel_rects.len(),
@@ -203,7 +208,9 @@ fn wagtail_selection_uses_the_invert_pipeline_other_worlds_use_the_ordinary_fill
 #[test]
 fn wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -251,7 +258,9 @@ fn wagtail_multiline_selection_with_empty_line_reaches_invert_pipeline_entirely(
 #[test]
 fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -305,7 +314,9 @@ fn wagtail_caret_uses_the_invert_pipeline_other_worlds_use_the_ordinary_block() 
 #[test]
 fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhouette: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -364,7 +375,9 @@ fn wagtail_morph_caret_falls_back_to_the_inverted_block_not_the_invisible_silhou
 #[test]
 fn wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_turns_on_highlight_and_match_dither_mode_other_worlds_leave_it_off: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -441,7 +454,9 @@ fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
 
-    let rect = p.overlay_card_rect().expect("the centered overlay card must be open");
+    let rect = p
+        .overlay_card_rect()
+        .expect("the centered overlay card must be open");
     let [card_x, card_y, card_w, card_h] = rect;
 
     let (texture, tview) = super::dither::offscreen(&device, 1200, 800);
@@ -453,9 +468,8 @@ fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
     let pixels = super::dither::read_pixels(&device, &queue, &texture, 1200, 800);
     let at = |x: i64, y: i64| pixels[(y as u32 * 1200 + x as u32) as usize];
 
-    let is_white_ish = |px: [u8; 4]| {
-        px[3] == 255 && px[0] >= 180 && px[0] == px[1] && px[1] == px[2]
-    };
+    let is_white_ish =
+        |px: [u8; 4]| px[3] == 255 && px[0] >= 180 && px[0] == px[1] && px[1] == px[2];
     let pure_black = [0u8, 0, 0, 255];
 
     // LEFT edge: the border's true edge sits at `card_x - 1` (the reusable
@@ -530,7 +544,9 @@ fn wagtail_palette_card_real_pixels_show_a_white_border_ring_black_interior() {
 #[test]
 fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping wagtail_living_band_ink_rides_the_band_on_the_faceted_palette: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_living_band_ink_rides_the_band_on_the_faceted_palette: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -571,21 +587,29 @@ fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
     p.set_view(&v);
 
     let geom = p.overlay_geometry(1200);
-    assert!(p.overlay_geom_is_faceted(&geom), "the lens strip must route the FACETED layout");
+    assert!(
+        p.overlay_geom_is_faceted(&geom),
+        "the lens strip must route the FACETED layout"
+    );
     let (covered, target, first_top, lh, band) = p.living_probe_geom(&geom);
     let [_bx, band_top, _bw, band_h] = band;
     let band_bot = band_top + band_h;
 
     // Preconditions the pixel law rests on: the band covers rows the fill
     // animates over, and the TOP target is NOT among them (mid-flight).
-    assert!(!covered.is_empty(), "mid-flight band must cover at least one row (got {covered:?})");
+    assert!(
+        !covered.is_empty(),
+        "mid-flight band must cover at least one row (got {covered:?})"
+    );
     assert!(
         !covered.contains(&target),
         "the not-yet-reached target row {target} must NOT be covered mid-flight (covered {covered:?})"
     );
 
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    let [card_x, _cy, card_w, _ch] = p.overlay_card_rect().expect("the faceted palette card must be open");
+    let [card_x, _cy, card_w, _ch] = p
+        .overlay_card_rect()
+        .expect("the faceted palette card must be open");
     let (texture, tview) = super::dither::offscreen(&device, 1200, 800);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl living-band ink-rides encoder"),
@@ -610,7 +634,10 @@ fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
         // ink, never the black card ground): the row∩band intersection.
         let y_lo = row_top.max(band_top).ceil() as i64;
         let y_hi = row_bot.min(band_bot).floor() as i64;
-        assert!(y_hi > y_lo, "covered row {k} must have a real band overlap slab");
+        assert!(
+            y_hi > y_lo,
+            "covered row {k} must have a real band overlap slab"
+        );
         let mut white = 0usize;
         let mut black = 0usize;
         for y in y_lo..y_hi {
@@ -623,7 +650,10 @@ fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
                 }
             }
         }
-        assert!(white > 200, "covered row {k}: the white band fill must be present (white px {white})");
+        assert!(
+            white > 200,
+            "covered row {k}: the white band fill must be present (white px {white})"
+        );
         assert!(
             black > 40,
             "covered row {k}: BLACK glyph pixels must ride the white band (got {black}); \
@@ -716,7 +746,10 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
             CardFamily::CenteredPanel => centered_count += 1,
         }
     }
-    assert_eq!(spell_count, 1, "exactly one kind (Spell) floats at its own anchor");
+    assert_eq!(
+        spell_count, 1,
+        "exactly one kind (Spell) floats at its own anchor"
+    );
     assert_eq!(
         centered_count,
         OverlayKind::ALL.len() - 1,
@@ -764,7 +797,10 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
                  byte-identical to the pre-round flat card"
             );
         }
-        assert!(p.panel_card.instance_count() > 0, "{world}: the card fill itself always draws");
+        assert!(
+            p.panel_card.instance_count() > 0,
+            "{world}: the card fill itself always draws"
+        );
 
         p.set_view(&spell);
         p.prepare(&device, &queue, 1200, 800).unwrap();
@@ -827,9 +863,15 @@ fn light_worlds_carry_the_summoned_card_border() {
         p.prepare(&device, &queue, 1200, 800).unwrap();
         let n = p.panel_border.instance_count();
         if want_border {
-            assert!(n > 0, "{world}: the light-world card border must draw (got {n} instances)");
+            assert!(
+                n > 0,
+                "{world}: the light-world card border must draw (got {n} instances)"
+            );
         } else {
-            assert_eq!(n, 0, "{world}: a Flat dark world keeps `panel_border` parked");
+            assert_eq!(
+                n, 0,
+                "{world}: a Flat dark world keeps `panel_border` parked"
+            );
         }
     }
     theme::set_active(theme::DEFAULT_THEME);
@@ -934,7 +976,9 @@ fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
     // Per row inside the card: the count of pure-white pixels (the solid band
     // ground) and the DARKEST luminance seen (the recolored black text).
     let white_run = |pixels: &[[u8; 4]], y: i64| -> usize {
-        (x0..x1).filter(|&x| pixels[(y as u32 * 1200 + x as u32) as usize] == [255, 255, 255, 255]).count()
+        (x0..x1)
+            .filter(|&x| pixels[(y as u32 * 1200 + x as u32) as usize] == [255, 255, 255, 255])
+            .count()
     };
     let darkest_on = |pixels: &[[u8; 4]], y: i64| -> u8 {
         (x0..x1)
@@ -944,7 +988,10 @@ fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
     };
     // The band row = the card row with the widest pure-white run.
     let band_row = |pixels: &[[u8; 4]]| -> (i64, usize) {
-        (y0..y1).map(|y| (y, white_run(pixels, y))).max_by_key(|&(_, w)| w).unwrap()
+        (y0..y1)
+            .map(|y| (y, white_run(pixels, y)))
+            .max_by_key(|&(_, w)| w)
+            .unwrap()
     };
 
     let pixels0 = read(&p, &device, &queue);
@@ -958,7 +1005,10 @@ fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
     // The text is on the band rows. Sweep the few rows around the widest-white
     // row for the darkest stroke — solid black recolor reaches far below the
     // old invert's ~83 gamma-grey floor.
-    let darkest0 = (by0 - 8..=by0 + 8).map(|y| darkest_on(&pixels0, y)).min().unwrap();
+    let darkest0 = (by0 - 8..=by0 + 8)
+        .map(|y| darkest_on(&pixels0, y))
+        .min()
+        .unwrap();
     assert!(
         darkest0 < 60,
         "Wagtail selected row text must be CRISP near-black on the white band — darkest \
@@ -1018,14 +1068,20 @@ fn hud_about_and_menu_dropdown_already_carry_unconditional_elevation() {
     let v = view("hello world\n", 0, 0);
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    assert!(p.hud_border.instance_count() > 0, "Wagtail: the held HUD's border must draw");
+    assert!(
+        p.hud_border.instance_count() > 0,
+        "Wagtail: the held HUD's border must draw"
+    );
     crate::hud::set_held(false);
 
     // About (shares the SAME hud_* pipelines, gated on `about::about_open()`).
     crate::about::set_open(true);
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    assert!(p.hud_border.instance_count() > 0, "Wagtail: the About card's border must draw");
+    assert!(
+        p.hud_border.instance_count() > 0,
+        "Wagtail: the About card's border must draw"
+    );
     crate::about::set_open(false);
 
     // Menu-bar dropdown (the user's own confirmed-working reference case).

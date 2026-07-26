@@ -5,7 +5,7 @@
 //! print sites live HERE, so the println-audit's `soak_gpu/*` accounting has one
 //! home.
 
-use super::{Counts, SkipKind, PRESENTS_FLOOR};
+use super::{Counts, PRESENTS_FLOOR, SkipKind};
 use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, PartialEq)]

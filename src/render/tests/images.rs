@@ -3,9 +3,9 @@
 //! quad/placeholder tests (real device+queue) -- split out of the former
 //! monolithic `render::tests` (2026-07 code-organization pass).
 
+use super::super::LINE_HEIGHT;
 #[cfg(not(target_arch = "wasm32"))]
 use super::super::*;
-use super::super::LINE_HEIGHT;
 use super::{headless_pipeline, view};
 
 /// The pure fit-to-column display-size math: never wider than the column,
@@ -20,12 +20,18 @@ fn image_display_size_fits_to_column_and_preserves_aspect() {
     assert!((w - 120.0).abs() < 0.1 && (h - 48.0).abs() < 0.1, "{w}x{h}");
     // Narrow column clamps width AND scales height with it.
     let (w2, h2) = super::spans::image_display_size(120, 48, None, 60.0, 0.0);
-    assert!((w2 - 60.0).abs() < 0.1 && (h2 - 24.0).abs() < 0.1, "{w2}x{h2}");
+    assert!(
+        (w2 - 60.0).abs() < 0.1 && (h2 - 24.0).abs() < 0.1,
+        "{w2}x{h2}"
+    );
     // A `|300` hint upsizes toward 300 but stays clamped to the column.
     let (w3, _) = super::spans::image_display_size(120, 48, Some(300), 1000.0, 0.0);
     assert!((w3 - 300.0).abs() < 0.1, "hint sets width: {w3}");
     let (w4, _) = super::spans::image_display_size(120, 48, Some(300), 200.0, 0.0);
-    assert!((w4 - 200.0).abs() < 0.1, "hint still clamped to column: {w4}");
+    assert!(
+        (w4 - 200.0).abs() < 0.1,
+        "hint still clamped to column: {w4}"
+    );
 }
 
 /// The viewport-height cap: a huge-native-size (retina-paste-shaped) image's
@@ -40,14 +46,23 @@ fn image_display_size_caps_at_the_viewport_height() {
     assert!((h - 500.0).abs() < 0.1, "height pinned to the cap: {h}");
     // Width follows the SAME scale factor the height was cut by (500/4000).
     let expected_w = 2241.0 * (500.0 / 4000.0);
-    assert!((w - expected_w).abs() < 0.5, "width scales proportionally: {w} vs {expected_w}");
+    assert!(
+        (w - expected_w).abs() < 0.5,
+        "width scales proportionally: {w} vs {expected_w}"
+    );
     // A short-and-wide image well under the cap is untouched by it.
     let (w2, h2) = super::spans::image_display_size(1200, 480, None, 2000.0, 500.0);
-    assert!((w2 - 1200.0).abs() < 0.1 && (h2 - 480.0).abs() < 0.1, "under the cap, unchanged: {w2}x{h2}");
+    assert!(
+        (w2 - 1200.0).abs() < 0.1 && (h2 - 480.0).abs() < 0.1,
+        "under the cap, unchanged: {w2}x{h2}"
+    );
     // A non-positive max_h disables the cap outright (the "window height not
     // known yet" escape hatch).
     let (w3, h3) = super::spans::image_display_size(2241, 4000, None, 2000.0, 0.0);
-    assert!((w3 - 2000.0).abs() < 0.1 && (h3 - 3570.7).abs() < 1.0, "cap disabled: {w3}x{h3}");
+    assert!(
+        (w3 - 2000.0).abs() < 0.1 && (h3 - 3570.7).abs() < 1.0,
+        "cap disabled: {w3}x{h3}"
+    );
 }
 
 /// END-TO-END: an `![alt](img.png)` line reserves a TALL row equal to the
@@ -79,10 +94,16 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
     p.set_view(&v);
     let rows0 = p.visual_rows(0);
     let h = rows0[0].line_height;
-    assert!((h - 48.0).abs() < 2.0, "image row reserves the 48px display height: {h}");
+    assert!(
+        (h - 48.0).abs() < 2.0,
+        "image row reserves the 48px display height: {h}"
+    );
     let xs = &rows0[0].xs;
     let total = xs.last().copied().unwrap_or(0.0) - xs.first().copied().unwrap_or(0.0);
-    assert!(total < 2.0, "off-cursor image source collapses to ~0 width: {total} ({xs:?})");
+    assert!(
+        total < 2.0,
+        "off-cursor image source collapses to ~0 width: {total} ({xs:?})"
+    );
     let report = p.images_report();
     assert_eq!(report.len(), 1, "one image reported: {report:?}");
     assert!(!report[0].missing, "the bundled fixture reads: {report:?}");
@@ -106,8 +127,14 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
     );
     let xs2 = &rows0b[0].xs;
     let total2 = xs2.last().copied().unwrap_or(0.0) - xs2.first().copied().unwrap_or(0.0);
-    assert!(total2 > 20.0, "on-cursor the image source reveals at full width: {total2}");
-    assert!(p.images_report()[0].revealed, "caret on the image line reveals it");
+    assert!(
+        total2 > 20.0,
+        "on-cursor the image source reveals at full width: {total2}"
+    );
+    assert!(
+        p.images_report()[0].revealed,
+        "caret on the image line reveals it"
+    );
     // CARET SIZE: the caret sizes to the body-size SOURCE (scale 1.0), NOT the
     // tall reserved row — a row-scaled caret balloons to the whole image row.
     // `caret_cell_top` centres the body-height caret in the h-tall row, exactly
@@ -147,7 +174,10 @@ fn inline_image_reveals_under_selection_caret_elsewhere() {
     let mut off = view(text, 1, 0);
     off.is_markdown = true;
     p.set_view(&off);
-    assert!(p.concealed_at(0, 0), "no selection: the image source stays concealed");
+    assert!(
+        p.concealed_at(0, 0),
+        "no selection: the image source stays concealed"
+    );
     assert!(!p.images_report()[0].revealed, "no selection: not revealed");
 
     // Caret STILL on line 1 (prose) — it never lands on the image line at all —
@@ -191,7 +221,9 @@ fn selection_on_image_line_is_body_height_not_the_image_pillar() {
     crate::markdown::set_inline_images_on(true);
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping selection_on_image_line_is_body_height_not_the_image_pillar: no wgpu adapter");
+        eprintln!(
+            "skipping selection_on_image_line_is_body_height_not_the_image_pillar: no wgpu adapter"
+        );
         crate::markdown::set_inline_images_on(prev);
         return;
     };
@@ -202,9 +234,15 @@ fn selection_on_image_line_is_body_height_not_the_image_pillar() {
     v.selection = Some(((0, 0), (0, 4)));
     p.set_view(&v);
     let img_h = p.visual_rows(0)[0].line_height;
-    assert!(img_h > 30.0, "image row reserves the tall display height: {img_h}");
+    assert!(
+        img_h > 30.0,
+        "image row reserves the tall display height: {img_h}"
+    );
     let sel = p.selection_rects();
-    assert!(!sel.is_empty(), "selection on the revealed image line produces a rect: {sel:?}");
+    assert!(
+        !sel.is_empty(),
+        "selection on the revealed image line produces a rect: {sel:?}"
+    );
     let band_h = sel[0][3];
     let caret_h = p.metrics.caret_h;
     // BODY height (the caret's own band), never the tall image row => no pillar.
@@ -222,7 +260,10 @@ fn selection_on_image_line_is_body_height_not_the_image_pillar() {
     vp.selection = Some(((1, 0), (1, 4)));
     p.set_view(&vp);
     let prose = p.selection_rects();
-    assert!(!prose.is_empty(), "prose-line selection produces a rect: {prose:?}");
+    assert!(
+        !prose.is_empty(),
+        "prose-line selection produces a rect: {prose:?}"
+    );
     assert!(
         (prose[0][3] - band_h).abs() < 0.5,
         "image-line band == prose-line band (both body caret height): {} vs {band_h}",
@@ -256,7 +297,11 @@ fn revealed_images_still_arm_resize_handles() {
     v_off.is_markdown = true;
     p.set_view(&v_off);
     let rects_off = p.image_hit_rects();
-    assert_eq!(rects_off.len(), 1, "off-cursor: the drawn image arms a handle target: {rects_off:?}");
+    assert_eq!(
+        rects_off.len(),
+        1,
+        "off-cursor: the drawn image arms a handle target: {rects_off:?}"
+    );
 
     // Caret ON the image line (the image REVEALS its source as a caption): the
     // handle target is STILL present — same byte range, same on-screen rect —
@@ -264,14 +309,20 @@ fn revealed_images_still_arm_resize_handles() {
     let mut v_on = view(text, 0, 0);
     v_on.is_markdown = true;
     p.set_view(&v_on);
-    assert!(p.images_report()[0].revealed, "caret on the image line reveals it");
+    assert!(
+        p.images_report()[0].revealed,
+        "caret on the image line reveals it"
+    );
     let rects_on = p.image_hit_rects();
     assert_eq!(
         rects_on.len(),
         1,
         "REVEALED: the handle target survives caret-on-line (the caption model draws the image regardless): {rects_on:?}"
     );
-    assert_eq!(rects_off[0].0, rects_on[0].0, "same image byte range either way");
+    assert_eq!(
+        rects_off[0].0, rects_on[0].0,
+        "same image byte range either way"
+    );
     crate::markdown::set_inline_images_on(prev);
 }
 
@@ -319,9 +370,16 @@ fn image_hit_rects_use_fresh_reveal_on_pure_caret_move_onto_mixed_line() {
     let mut v_off = view(text, 1, 0);
     v_off.is_markdown = true;
     p.set_view(&v_off);
-    assert!(!p.images_report()[0].revealed, "sanity: off-cursor, not revealed");
+    assert!(
+        !p.images_report()[0].revealed,
+        "sanity: off-cursor, not revealed"
+    );
     let rects_off = p.image_hit_rects();
-    assert_eq!(rects_off.len(), 1, "off-cursor mixed line arms one handle: {rects_off:?}");
+    assert_eq!(
+        rects_off.len(),
+        1,
+        "off-cursor mixed line arms one handle: {rects_off:?}"
+    );
 
     // Frame 2: caret MOVES onto line 0 (the mixed image line), ZERO selection. A
     // pure caret move — no reshape — so the STORED report still holds frame-1's
@@ -376,7 +434,10 @@ fn inline_images_off_keeps_normal_row_and_no_report() {
     assert!(p.images_report().is_empty(), "images OFF: nothing reported");
     let xs = &rows0[0].xs;
     let total = xs.last().copied().unwrap_or(0.0) - xs.first().copied().unwrap_or(0.0);
-    assert!(total > 20.0, "images OFF: source renders as plain full-width text: {total}");
+    assert!(
+        total > 20.0,
+        "images OFF: source renders as plain full-width text: {total}"
+    );
     crate::markdown::set_inline_images_on(prev);
 }
 
@@ -474,7 +535,10 @@ fn revealed_image_row_hit_test_stays_in_bounds() {
     for i in 0..=steps {
         let px = left + wrap * (i as f32 / steps as f32);
         let (line, col) = p.hit_test(px, py, 0);
-        assert_eq!(line, 0, "every click on the revealed image row lands on line 0");
+        assert_eq!(
+            line, 0,
+            "every click on the revealed image row lands on line 0"
+        );
         assert!(
             col <= char_count,
             "hit column {col} stays within the source's {char_count} chars"
@@ -495,8 +559,7 @@ fn revealed_image_row_hit_test_stays_in_bounds() {
 #[cfg(not(target_arch = "wasm32"))]
 fn headless_pipeline_dq() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -509,8 +572,7 @@ fn headless_pipeline_dq() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     })
@@ -550,7 +612,11 @@ fn inline_image_off_cursor_draws_one_quad_and_stays_drawn_when_revealed() {
     v.is_markdown = true;
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    assert_eq!(p.image_pipeline.instance_count(), 1, "one image quad drawn off-cursor");
+    assert_eq!(
+        p.image_pipeline.instance_count(),
+        1,
+        "one image quad drawn off-cursor"
+    );
     assert_eq!(
         p.image_placeholder_pipeline.instance_count(),
         0,
@@ -671,7 +737,9 @@ fn mixed_list_image_draws_off_cursor_and_parks_when_revealed() {
         crate::markdown::set_wysiwyg_on(prevw);
     };
     let Some((device, queue, mut p)) = headless_pipeline_dq() else {
-        eprintln!("skipping mixed_list_image_draws_off_cursor_and_parks_when_revealed: no wgpu adapter");
+        eprintln!(
+            "skipping mixed_list_image_draws_off_cursor_and_parks_when_revealed: no wgpu adapter"
+        );
         restore();
         return;
     };
@@ -699,7 +767,10 @@ fn mixed_list_image_draws_off_cursor_and_parks_when_revealed() {
         rows0[0].line_height
     );
     let dh = p.images_report()[0].display_h;
-    assert!(dh > base_lh * 3.0, "sanity: this fixture's dh is genuinely large: {dh}");
+    assert!(
+        dh > base_lh * 3.0,
+        "sanity: this fixture's dh is genuinely large: {dh}"
+    );
     let rects = p.image_hit_rects();
     assert_eq!(rects.len(), 1, "one image hit rect off-cursor: {rects:?}");
     let row0_bottom = p.line_ornament_top(0) + rows0[0].line_height;
@@ -779,7 +850,11 @@ fn mixed_list_image_parks_under_a_pure_selection_change_no_reshape() {
     v0.is_markdown = true;
     p.set_view(&v0);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    assert_eq!(p.image_pipeline.instance_count(), 1, "off-cursor: one quad drawn");
+    assert_eq!(
+        p.image_pipeline.instance_count(),
+        1,
+        "off-cursor: one quad drawn"
+    );
     let reshape_before = p.reshape_count;
 
     // Second frame: SAME TEXT, caret STILL on line 1 — only a SELECTION is
@@ -891,7 +966,10 @@ fn inline_image_missing_file_draws_placeholder_not_quad() {
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let report = p.images_report();
     assert_eq!(report.len(), 1, "one image reported: {report:?}");
-    assert!(report[0].missing, "the absent file is reported missing: {report:?}");
+    assert!(
+        report[0].missing,
+        "the absent file is reported missing: {report:?}"
+    );
     assert_eq!(
         p.image_placeholder_pipeline.instance_count(),
         1,
@@ -937,12 +1015,29 @@ fn nested_list_image_reports_alt_caption_and_line() {
     v.is_markdown = true;
     p.set_view(&v);
     let report = p.images_report();
-    assert_eq!(report.len(), 1, "one nested-list image reported: {report:?}");
+    assert_eq!(
+        report.len(),
+        1,
+        "one nested-list image reported: {report:?}"
+    );
     let im = &report[0];
-    assert_eq!(im.alt, "a test caption", "the caption text (alt, hint stripped) survives nesting: {im:?}");
-    assert_eq!(im.path, "assets/does-not-exist.png", "the path is unaffected by nesting: {im:?}");
-    assert_eq!(im.line, 1, "the image resolves to its OWN (nested) line: {im:?}");
-    assert_eq!(im.width_hint, Some(400), "the |NNN width hint still parses: {im:?}");
+    assert_eq!(
+        im.alt, "a test caption",
+        "the caption text (alt, hint stripped) survives nesting: {im:?}"
+    );
+    assert_eq!(
+        im.path, "assets/does-not-exist.png",
+        "the path is unaffected by nesting: {im:?}"
+    );
+    assert_eq!(
+        im.line, 1,
+        "the image resolves to its OWN (nested) line: {im:?}"
+    );
+    assert_eq!(
+        im.width_hint,
+        Some(400),
+        "the |NNN width hint still parses: {im:?}"
+    );
     crate::markdown::set_inline_images_on(prev);
 }
 
@@ -1581,8 +1676,14 @@ fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_
 
     // A zero-height row (an ordinary text ornament) is byte-identical to the
     // old top-only test — `row_box_visible` is a strict generalization.
-    assert!(p.row_box_visible(-margin + 1.0, 0.0), "just inside the top margin: visible");
-    assert!(!p.row_box_visible(-margin - 1.0, 0.0), "just outside the top margin: culled");
+    assert!(
+        p.row_box_visible(-margin + 1.0, 0.0),
+        "just inside the top margin: visible"
+    );
+    assert!(
+        !p.row_box_visible(-margin - 1.0, 0.0),
+        "just outside the top margin: culled"
+    );
 }
 
 /// ITEM 82, END-TO-END — a TALL inline image (viewport-fraction capped, well
@@ -1655,8 +1756,16 @@ fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scro
         dh > margin,
         "sanity: this image is genuinely taller than the flat cull margin: dh={dh} margin={margin}"
     );
-    assert_eq!(p.image_pipeline.instance_count(), 1, "state 1 (flush top): the image draws");
-    assert_eq!(p.image_placeholder_pipeline.instance_count(), 0, "a readable fixture: never a placeholder");
+    assert_eq!(
+        p.image_pipeline.instance_count(),
+        1,
+        "state 1 (flush top): the image draws"
+    );
+    assert_eq!(
+        p.image_placeholder_pipeline.instance_count(),
+        0,
+        "a readable fixture: never a placeholder"
+    );
     let base_rects = p.image_hit_rects();
     assert_eq!(base_rects.len(), 1, "state 1: one resize-handle target");
     let base_rect = base_rects[0].1;
@@ -1705,14 +1814,22 @@ fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scro
     v.scroll_lines = 0;
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    assert_eq!(p.image_pipeline.instance_count(), 1, "scrolled back up: the image redraws");
+    assert_eq!(
+        p.image_pipeline.instance_count(),
+        1,
+        "scrolled back up: the image redraws"
+    );
     assert_eq!(
         p.image_placeholder_pipeline.instance_count(),
         0,
         "scrolled back up: still never a placeholder"
     );
     let restored_rects = p.image_hit_rects();
-    assert_eq!(restored_rects.len(), 1, "scrolled back up: one resize-handle target, same as the baseline");
+    assert_eq!(
+        restored_rects.len(),
+        1,
+        "scrolled back up: one resize-handle target, same as the baseline"
+    );
     assert_eq!(
         restored_rects[0].1, base_rect,
         "scrolling back up restores BYTE-IDENTICAL geometry: {:?} vs baseline {base_rect:?}",

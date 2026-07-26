@@ -54,7 +54,9 @@ fn line_violates(line: &str) -> Option<&'static str> {
 /// is legitimately driven through `set_card_anchor_test_override`), collecting
 /// `(basename, line_no, pattern)` violations.
 fn scan_dir(dir: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     let mut entries: Vec<_> = entries.flatten().collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
@@ -74,8 +76,14 @@ fn scan_dir(dir: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
 }
 
 fn scan_file(path: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
-    let Ok(text) = std::fs::read_to_string(path) else { return };
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return;
+    };
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
     for (i, line) in text.lines().enumerate() {
         if let Some(p) = line_violates(line) {
             out.push((name.clone(), i + 1, p.to_string()));
@@ -119,9 +127,14 @@ fn alignment_is_data_no_live_read_in_render_consumers() {
 
 #[test]
 fn line_violates_catches_reads_and_skips_comments() {
-    assert!(line_violates("    overlay_card_box_policy(crate::render::effective_card_anchor(), w, d)").is_some());
+    assert!(
+        line_violates("    overlay_card_box_policy(crate::render::effective_card_anchor(), w, d)")
+            .is_some()
+    );
     assert!(line_violates("        None => theme::active().render_caps.card_anchor,").is_some());
-    assert!(line_violates("/// falls through to the world's own `render_caps.card_anchor`").is_none());
+    assert!(
+        line_violates("/// falls through to the world's own `render_caps.card_anchor`").is_none()
+    );
     assert!(line_violates("// mentions effective_card_anchor( in prose").is_none());
     // The frozen path is NOT a live read.
     assert!(line_violates("resolve_overlay_anchor(self.overlay_align)").is_none());
@@ -170,10 +183,16 @@ fn right_anchor_hugs_the_right_edge_left_hugs_the_left() {
     let (rx, rw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
 
     // Same width in every regime — alignment moves the card, never resizes it.
-    assert!((lw - rw).abs() < 0.5 && (cw - rw).abs() < 0.5, "alignment must not resize the card");
+    assert!(
+        (lw - rw).abs() < 0.5 && (cw - rw).abs() < 0.5,
+        "alignment must not resize the card"
+    );
 
     // LEFT: the card's LEFT extent hugs the left window margin (one inset in).
-    assert!((lx - inset).abs() < 0.5, "left-anchored card hugs the left edge: x={lx}");
+    assert!(
+        (lx - inset).abs() < 0.5,
+        "left-anchored card hugs the left edge: x={lx}"
+    );
 
     // RIGHT: the card's RIGHT extent hugs the right window margin (one inset in).
     let right_extent = rx + rw;
@@ -184,7 +203,10 @@ fn right_anchor_hugs_the_right_edge_left_hugs_the_left() {
     );
 
     // Genuinely three distinct rails, monotonic left→center→right.
-    assert!(lx < cx && cx < rx, "left({lx}) < center({cx}) < right({rx})");
+    assert!(
+        lx < cx && cx < rx,
+        "left({lx}) < center({cx}) < right({rx})"
+    );
     // And the right card's CENTER sits well past the viewport midpoint — item 67's
     // generous interior rail means the wide card's BODY may now straddle the
     // midline (breathing room, not a corner hug), but the card unmistakably
@@ -217,7 +239,9 @@ fn card_x_after(p: &mut TextPipeline, v: &ViewState) -> [f32; 4] {
 fn open_overlay_never_relocates_when_preview_crosses_worlds() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping open_overlay_never_relocates_when_preview_crosses_worlds: no wgpu adapter");
+        eprintln!(
+            "skipping open_overlay_never_relocates_when_preview_crosses_worlds: no wgpu adapter"
+        );
         return;
     };
 
@@ -271,7 +295,9 @@ fn open_overlay_never_relocates_when_preview_crosses_worlds() {
 fn frozen_right_alignment_renders_against_the_right_edge() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping frozen_right_alignment_renders_against_the_right_edge: no wgpu adapter");
+        eprintln!(
+            "skipping frozen_right_alignment_renders_against_the_right_edge: no wgpu adapter"
+        );
         return;
     };
     let ww = 1200.0_f32;
@@ -290,8 +316,14 @@ fn frozen_right_alignment_renders_against_the_right_edge() {
 
     v.overlay_align = Some(theme::CardAnchor::TopLeft);
     let [lx, _, _, _] = card_x_after(&mut p, &v);
-    assert!((lx - inset).abs() < 0.5, "the frozen-left card hugs the left edge: x={lx}");
-    assert!(rx > lx + 1.0, "right-frozen card ({rx}) sits well right of the left-frozen one ({lx})");
+    assert!(
+        (lx - inset).abs() < 0.5,
+        "the frozen-left card hugs the left edge: x={lx}"
+    );
+    assert!(
+        rx > lx + 1.0,
+        "right-frozen card ({rx}) sits well right of the left-frozen one ({lx})"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -326,7 +358,9 @@ fn fable_right_picks_ship_right_anchor_and_render_against_the_right_edge() {
     // geometry: its own frozen RIGHT anchor hugs the right window edge.
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping fable_right_picks_ship_right_anchor_and_render_against_the_right_edge: no wgpu adapter");
+        eprintln!(
+            "skipping fable_right_picks_ship_right_anchor_and_render_against_the_right_edge: no wgpu adapter"
+        );
         return;
     };
     let ww = 1200.0_f32;

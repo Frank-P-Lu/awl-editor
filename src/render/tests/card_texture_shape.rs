@@ -43,8 +43,16 @@ fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
                 assert!(!is_rect, "Quokka must assign a non-default CardShape");
             }
             _ => {
-                assert!(is_flat, "{} must keep CardTexture::Flat (item 70 is Quokka-only)", t.name);
-                assert!(is_rect, "{} must keep CardShape::Rectangular (item 70 is Quokka-only)", t.name);
+                assert!(
+                    is_flat,
+                    "{} must keep CardTexture::Flat (item 70 is Quokka-only)",
+                    t.name
+                );
+                assert!(
+                    is_rect,
+                    "{} must keep CardShape::Rectangular (item 70 is Quokka-only)",
+                    t.name
+                );
             }
         }
     }
@@ -56,16 +64,29 @@ fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
 fn quokka_card_caps_are_within_the_rounds_authored_spec() {
     let caps = theme::QUOKKA.render_caps;
     match caps.card_texture {
-        theme::CardTexture::HalftoneDots { angle_deg, cell_px, density } => {
-            assert!((15.0..=20.0).contains(&angle_deg), "angle {angle_deg} outside 15-20°");
+        theme::CardTexture::HalftoneDots {
+            angle_deg,
+            cell_px,
+            density,
+        } => {
+            assert!(
+                (15.0..=20.0).contains(&angle_deg),
+                "angle {angle_deg} outside 15-20°"
+            );
             assert!(cell_px > 0.0, "cell_px must be positive");
-            assert!(density > 0.0 && density <= 1.0, "density {density} outside (0,1]");
+            assert!(
+                density > 0.0 && density <= 1.0,
+                "density {density} outside (0,1]"
+            );
         }
         other => panic!("Quokka must ship HalftoneDots, got {other:?}"),
     }
     match caps.card_shape {
         theme::CardShape::Chamfered { cut_px } => {
-            assert!((10.0..=12.0).contains(&cut_px), "cut_px {cut_px} outside 10-12px");
+            assert!(
+                (10.0..=12.0).contains(&cut_px),
+                "cut_px {cut_px} outside 10-12px"
+            );
         }
         theme::CardShape::Rectangular => panic!("Quokka must ship Chamfered"),
     }
@@ -82,15 +103,24 @@ fn narrowed_chamfer_never_exceeds_the_authored_cut_and_shrinks_on_a_small_card()
     // A tiny card (well under a genuine popup's usual size): reduced, never
     // negative, never larger than the authored cut.
     let small = narrowed_chamfer_px(11.0, 20.0, 15.0);
-    assert!(small < 11.0 && small >= 0.0, "small-card chamfer {small} out of [0,11)");
+    assert!(
+        small < 11.0 && small >= 0.0,
+        "small-card chamfer {small} out of [0,11)"
+    );
     // A short-but-ordinary query bar (Split Pane's upper surface, ~500x50)
     // must NOT be reduced — 40% of its own 50px height (20px) still clears
     // the 11px authored cut. Only a genuinely tiny surface shrinks.
     let query_bar = narrowed_chamfer_px(11.0, 500.0, 50.0);
-    assert_eq!(query_bar, 11.0, "an ordinary short query bar must keep its full chamfer");
+    assert_eq!(
+        query_bar, 11.0,
+        "an ordinary short query bar must keep its full chamfer"
+    );
     // Monotone: a smaller card never yields a LARGER chamfer than a bigger one.
     let mid = narrowed_chamfer_px(11.0, 120.0, 90.0);
-    assert!(small <= mid, "chamfer should shrink monotonically with card size");
+    assert!(
+        small <= mid,
+        "chamfer should shrink monotonically with card size"
+    );
 }
 
 // --- real-pixel proofs ----------------------------------------------------
@@ -108,7 +138,9 @@ fn render_theme_picker(world: &str) -> Option<(Vec<[u8; 4]>, i64, i64, [f32; 4])
     v.overlay_items = theme::world_names().iter().map(|s| s.to_string()).collect();
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    let card = p.overlay_card_rect().expect("theme picker card must be open");
+    let card = p
+        .overlay_card_rect()
+        .expect("theme picker card must be open");
     let pixels = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -138,9 +170,7 @@ fn quokka_card_top_left_corner_is_genuinely_chamfered() {
     // 5px inward from the corner on BOTH axes: inside a 2.5px round, outside
     // an 11px chamfer (5+5=10 < 11).
     let corner_5 = px_at(&pixels, w, (cx + 5.0) as i64, (cy + 5.0) as i64);
-    let near = |a: [u8; 4], b: [u8; 4]| {
-        (0..3).all(|k| (a[k] as i16 - b[k] as i16).abs() <= 4)
-    };
+    let near = |a: [u8; 4], b: [u8; 4]| (0..3).all(|k| (a[k] as i16 - b[k] as i16).abs() <= 4);
     assert!(
         !near(corner_5, card_fill),
         "5px inward from Quokka's card corner still reads as card fill {card_fill:?} \
@@ -149,7 +179,10 @@ fn quokka_card_top_left_corner_is_genuinely_chamfered() {
     // Well past the chamfer (25,25 inward, sum 50 >> 11): must be filled —
     // the cut is a CORNER treatment, not a shrunk card.
     let deep = px_at(&pixels, w, (cx + 25.0) as i64, (cy + 25.0) as i64);
-    assert!(near(deep, card_fill), "25px inward from the corner must be the card fill (got {deep:?})");
+    assert!(
+        near(deep, card_fill),
+        "25px inward from the corner must be the card fill (got {deep:?})"
+    );
 }
 
 /// The SAME corner probe on a plain `Rectangular` world (Bombora, a Pane/
@@ -182,7 +215,9 @@ fn non_quokka_card_corner_is_not_chamfered() {
 #[test]
 fn quokka_halftone_rolls_off_toward_the_left_content_side() {
     let Some((pixels, w, _h, card)) = render_theme_picker("Quokka") else {
-        eprintln!("skipping quokka_halftone_rolls_off_toward_the_left_content_side: no wgpu adapter");
+        eprintln!(
+            "skipping quokka_halftone_rolls_off_toward_the_left_content_side: no wgpu adapter"
+        );
         return;
     };
     let [cx, cy, cw, ch] = card;
@@ -207,7 +242,10 @@ fn quokka_halftone_rolls_off_toward_the_left_content_side() {
             right_hits += 1;
         }
     }
-    assert!(right_hits > 0, "the right decorative edge should show SOME dot texture (0/{total})");
+    assert!(
+        right_hits > 0,
+        "the right decorative edge should show SOME dot texture (0/{total})"
+    );
     assert!(
         right_hits > left_hits,
         "dot texture should be stronger at the right edge ({right_hits}/{total}) than the \
@@ -222,7 +260,9 @@ fn quokka_halftone_rolls_off_toward_the_left_content_side() {
 #[test]
 fn quokka_selected_row_text_stays_legible_over_the_dot_texture() {
     let Some((pixels, w, h, card)) = render_theme_picker("Quokka") else {
-        eprintln!("skipping quokka_selected_row_text_stays_legible_over_the_dot_texture: no wgpu adapter");
+        eprintln!(
+            "skipping quokka_selected_row_text_stays_legible_over_the_dot_texture: no wgpu adapter"
+        );
         return;
     };
     let [cx, cy, cw, ch] = card;

@@ -46,8 +46,8 @@ const DEF_SKIP_WORDS: &[&str] = &["if", "not", "exists", "concurrently"];
 /// Identifiers that are CONSTANT literals (booleans + the `NULL` nil-style value).
 const CONST_WORDS: &[&str] = &["null", "true", "false"];
 
-use super::{is_ident_continue, is_ident_start};
 use super::matches_word_ci as contains_ci;
+use super::{is_ident_continue, is_ident_start};
 
 pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
     let b = text.as_bytes();
@@ -242,7 +242,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
                     && b[j + 2].is_ascii_digit()))
         {
             // Exponent: consume `e`, the optional sign, and the digits below.
-            j += if b[j + 1] == b'+' || b[j + 1] == b'-' { 2 } else { 1 };
+            j += if b[j + 1] == b'+' || b[j + 1] == b'-' {
+                2
+            } else {
+                1
+            };
         } else {
             break;
         }
@@ -281,7 +285,11 @@ mod tests {
     fn dollar_quoted_string() {
         let t = "SELECT $tag$he said 'hi'$tag$;";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Str), vec!["$tag$he said 'hi'$tag$"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["$tag$he said 'hi'$tag$"],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -349,7 +357,11 @@ mod tests {
     fn reference_snippet() {
         let t = "-- seed\nCREATE TABLE users (\n  id INT,\n  name TEXT DEFAULT 'anon'\n);\nINSERT INTO users VALUES (1, NULL); /* done */\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["-- seed", "/* done */"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["-- seed", "/* done */"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"users"), "{s:?}");
         assert!(at(t, &s, SynKind::Str).contains(&"'anon'"), "{s:?}");
         let cs = at(t, &s, SynKind::Constant);

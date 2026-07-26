@@ -160,7 +160,10 @@ impl VirtualClock {
     /// Virtual time elapsed since construction — a pure delta (base-independent),
     /// so it is the deterministic quantity to STAMP a frame-loop sidecar with.
     pub fn elapsed(&self) -> std::time::Duration {
-        std::time::Duration::from_nanos(self.elapsed_nanos.load(std::sync::atomic::Ordering::Relaxed))
+        std::time::Duration::from_nanos(
+            self.elapsed_nanos
+                .load(std::sync::atomic::Ordering::Relaxed),
+        )
     }
 }
 

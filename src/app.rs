@@ -99,7 +99,6 @@ mod web_clipboard {
     }
 }
 
-
 /// Quiet period after the last edit before a quick note is auto-saved (debounce),
 /// so a note is written calmly as you pause typing rather than on every keystroke.
 const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(400);
@@ -114,8 +113,7 @@ const AUTOSAVE_IDLE: Duration = Duration::from_secs(1);
 /// Toasts are armed only by the live App (once a GPU/window exists), and expire
 /// through one `WaitUntil`; captures never own this clock.
 const TOAST_LIFETIME: Duration = Duration::from_millis(2500);
-const CLOBBER_NOTICE: &str =
-    "changed on disk outside awl — ⌘S keeps yours · reopen for theirs";
+const CLOBBER_NOTICE: &str = "changed on disk outside awl — ⌘S keeps yours · reopen for theirs";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 enum NoticeKind {
@@ -350,9 +348,18 @@ struct ZoomAnchor {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum GpuLifecycle { AwaitingWindow, Active { oom_skips: u8 }, Suspended, Rebuilding }
+enum GpuLifecycle {
+    AwaitingWindow,
+    Active { oom_skips: u8 },
+    Suspended,
+    Rebuilding,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum GpuFaultAction { RetryOneFrame, Rebuild, NoticeOnly }
+enum GpuFaultAction {
+    RetryOneFrame,
+    Rebuild,
+    NoticeOnly,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GpuSkipAction {
     WaitForWake,
@@ -363,7 +370,11 @@ enum GpuSkipAction {
 const GPU_SURFACE_RETRY: Duration = Duration::from_millis(16);
 fn gpu_fault_action(lifecycle: GpuLifecycle, kind: gpu::GpuFaultKind) -> GpuFaultAction {
     match kind {
-        gpu::GpuFaultKind::OutOfMemory if matches!(lifecycle, GpuLifecycle::Active { oom_skips: 0 }) => GpuFaultAction::RetryOneFrame,
+        gpu::GpuFaultKind::OutOfMemory
+            if matches!(lifecycle, GpuLifecycle::Active { oom_skips: 0 }) =>
+        {
+            GpuFaultAction::RetryOneFrame
+        }
         gpu::GpuFaultKind::Validation => GpuFaultAction::NoticeOnly,
         _ => GpuFaultAction::Rebuild,
     }
@@ -371,9 +382,9 @@ fn gpu_fault_action(lifecycle: GpuLifecycle, kind: gpu::GpuFaultKind) -> GpuFaul
 fn gpu_skip_action(skip: gpu::GpuFrameSkip, timeout_streak: u8) -> GpuSkipAction {
     match skip {
         gpu::GpuFrameSkip::Occluded => GpuSkipAction::WaitForWake,
-        gpu::GpuFrameSkip::Timeout => GpuSkipAction::RetryAfter(Duration::from_millis(
-            16_u64 << timeout_streak.min(5),
-        )),
+        gpu::GpuFrameSkip::Timeout => {
+            GpuSkipAction::RetryAfter(Duration::from_millis(16_u64 << timeout_streak.min(5)))
+        }
         gpu::GpuFrameSkip::SurfaceReconfigured => GpuSkipAction::RetryAfter(GPU_SURFACE_RETRY),
         gpu::GpuFrameSkip::SurfaceRecreated => {
             GpuSkipAction::RetryWithNoticeAfter(GPU_SURFACE_RETRY, "graphics surface recovered")
@@ -458,22 +469,22 @@ struct ThemeSettleInFlight {
     phases: crate::themeswitch::SwitchPhases,
 }
 
-/// GPU surface + frame loop (device/queue/surface, prepare/render).
-mod gpu;
 /// Buffer/config management: file open, notes, sticky prefs, rebind writes.
 mod files;
-/// View snapshot: build the `ViewState` and push it into the pipeline.
-mod viewstate;
+/// GPU surface + frame loop (device/queue/surface, prepare/render).
+mod gpu;
 /// Input handling: search keys, mouse/drag, wheel/zoom, IME, HUD release.
 mod input;
-/// Window-lifecycle + redraw arms lifted out of `window_event`: focus-lost
-/// flush, resize / DPI refold, and the redraw-request frame loop.
-mod window;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the
 /// ambient (lava/stars) tick, event-toast expiry, GPU acquire retries + soak
 /// drive — one `WaitUntil` each, lifted out of the trait method (a thin
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
+/// View snapshot: build the `ViewState` and push it into the pipeline.
+mod viewstate;
+/// Window-lifecycle + redraw arms lifted out of `window_event`: focus-lost
+/// flush, resize / DPI refold, and the redraw-request frame loop.
+mod window;
 /// The virtual-clock frame loop's headless control-flow sink, re-exported so the
 /// capture harness (`crate::capture::frames`) + the scheduling law can step the
 /// real `about_to_wait_impl` body off-window. `Scheduler` stays crate-internal too
@@ -485,15 +496,15 @@ mod apply;
 /// The single-instance DAEMON's App-side wiring (native only): react to a
 /// posted `DaemonEvent`, finish a buffer for C-x #, tear down on quit.
 mod daemon;
-/// The LIVE PROBE HARNESS's App-side wiring (native only): scripted chords
-/// through the real dispatch tail + compositor-side window shots. See
-/// `crate::probe`'s module doc.
-mod probe;
 /// The native macOS MENU BAR's App-side wiring (`cfg(target_os = "macos")`
 /// only): resolve a fired menu item's id and re-dispatch it through the SAME
 /// `App::apply` seam a keypress uses. `crate::menu` owns the pure roster +
 /// muda construction; see its module doc for the full design.
 mod menu;
+/// The LIVE PROBE HARNESS's App-side wiring (native only): scripted chords
+/// through the real dispatch tail + compositor-side window shots. See
+/// `crate::probe`'s module doc.
+mod probe;
 /// SESSION RESTORE's App-side wiring (native only): capture + apply the
 /// persisted open-file set / active buffer / cursor+scroll / window frame.
 mod session;
@@ -1124,8 +1135,13 @@ pub struct App {
 
 impl App {
     fn rebuild_gpu(&mut self, event_loop: &ActiveEventLoop, reason: &str) {
-        if self.gpu_lifecycle == GpuLifecycle::Rebuilding { return; }
-        let Some(window) = self.recovery_window.clone() else { event_loop.exit(); return };
+        if self.gpu_lifecycle == GpuLifecycle::Rebuilding {
+            return;
+        }
+        let Some(window) = self.recovery_window.clone() else {
+            event_loop.exit();
+            return;
+        };
         self.gpu = None;
         self.gpu_lifecycle = GpuLifecycle::Rebuilding;
         self.last_frame = None;
@@ -1142,14 +1158,22 @@ impl App {
                 self.set_toast_notice("graphics recovered");
                 self.on_gpu_ready();
             }
-            Err(e) => { eprintln!("failed to rebuild render state: {e}"); self.set_sticky_notice("graphics could not recover — closing safely"); event_loop.exit(); }
+            Err(e) => {
+                eprintln!("failed to rebuild render state: {e}");
+                self.set_sticky_notice("graphics could not recover — closing safely");
+                event_loop.exit();
+            }
         }
         #[cfg(target_arch = "wasm32")]
         {
             let slot = self.gpu_pending.clone();
             let wake = window.clone();
             wasm_bindgen_futures::spawn_local(async move {
-                *slot.borrow_mut() = Some(Gpu::new(window, display_handle).await.map_err(|e| e.to_string()));
+                *slot.borrow_mut() = Some(
+                    Gpu::new(window, display_handle)
+                        .await
+                        .map_err(|e| e.to_string()),
+                );
                 wake.request_redraw();
             });
         }
@@ -1176,7 +1200,9 @@ impl App {
         // through to the ordinary no-argument path below (scratch/stash
         // restore) exactly as if no file had been named at all; the refusal
         // message surfaces as a sticky notice once `app` exists, below.
-        let file_refusal = file.as_ref().and_then(|p| crate::openable::classify(p).refusal_message());
+        let file_refusal = file
+            .as_ref()
+            .and_then(|p| crate::openable::classify(p).refusal_message());
         let file = if file_refusal.is_some() { None } else { file };
         // SESSION RESTORE (native only) reads this BEFORE `file` moves into the
         // struct literal below — see `Self::apply_session_restore`'s doc for why
@@ -1229,7 +1255,9 @@ impl App {
         // the built-in default (`~/notes`; the root's PARENT for the workspace), so
         // C-x n / C-x p work out of the box with the configured folders, no flags.
         let default_folder = crate::resolve_default_folder(
-            &cli_default_folder.clone().or_else(|| config.default_folder.clone()),
+            &cli_default_folder
+                .clone()
+                .or_else(|| config.default_folder.clone()),
         );
         let workspace_opt = cli_workspace.clone().or_else(|| config.workspace.clone());
         let workspace = Some(crate::resolve_workspace(&workspace_opt, &root));
@@ -1254,8 +1282,15 @@ impl App {
         // user has already rebound. A no-op `vec![]` on `Platform::Native`, so a
         // native build's keymap is unaffected byte-for-byte.
         let mut keys_with_web_alt = config.keys.clone();
-        keys_with_web_alt.extend(crate::commands::web_alternate_keys(&config.keys, crate::convention::Convention::current(), crate::commands::Platform::current()));
-        let keymap = KeymapState::with_overrides_and_keep(&keys_with_web_alt, &config.effective_linux_keep());
+        keys_with_web_alt.extend(crate::commands::web_alternate_keys(
+            &config.keys,
+            crate::convention::Convention::current(),
+            crate::commands::Platform::current(),
+        ));
+        let keymap = KeymapState::with_overrides_and_keep(
+            &keys_with_web_alt,
+            &config.effective_linux_keep(),
+        );
         // STICKY ZOOM: relaunch at the remembered zoom, else the first-run default
         // (`INITIAL_ZOOM`). Clamped to the valid range so a hand-edited extreme can't
         // wedge the view. (Theme / page / caret are process-globals already restored
@@ -1571,7 +1606,11 @@ impl App {
         // `motion::apply_at_startup`, and a test runner whose machine actually
         // has the OS "Reduce Motion" preference on must not silently flip every
         // spring/flinch test's animation behavior to instant-settle.
-        let config = Config { session_restore: Some(false), reduce_motion: Some(false), ..config };
+        let config = Config {
+            session_restore: Some(false),
+            reduce_motion: Some(false),
+            ..config
+        };
         let fake: Arc<dyn crate::fs::FileSystem> = Arc::new(crate::fs::InMemoryFs::new());
         crate::fs::with_fs(fake, || Self::new(file, root, None, None, config))
     }
@@ -1599,7 +1638,11 @@ impl App {
     /// through `Self::new`, not the raw constructor's open-paren needle, so the
     /// real-FS-constructor accounting guard is unaffected.
     pub(crate) fn new_headless_scheduler(root: PathBuf, config: Config) -> Self {
-        let config = Config { session_restore: Some(false), reduce_motion: Some(false), ..config };
+        let config = Config {
+            session_restore: Some(false),
+            reduce_motion: Some(false),
+            ..config
+        };
         let prev = crate::fs::active();
         crate::fs::set_active(Arc::new(crate::fs::InMemoryFs::new()));
         let app = Self::new(None, root, None, None, config);
@@ -1677,33 +1720,49 @@ impl App {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn drive_gpu_soak(&mut self, event_loop: &ActiveEventLoop) {
-        if self.soak.is_none() { return; }
+        if self.soak.is_none() {
+            return;
+        }
         // Report EXACTLY ONCE. `event_loop.exit()` is a request, not an instant
         // teardown: winit still drains the redraw requests this driver queues
         // each tick and calls `about_to_wait` again before it stops. Without
         // this guard those extra ticks re-hit the `finished` branch and reprint
         // the identical report (item 53 added the every-tick redraw that made
         // the backlog visible). `soak_passed` is set the moment we report.
-        if self.soak_passed.is_some() { return; }
+        if self.soak_passed.is_some() {
+            return;
+        }
         let now = self.clock.now();
         let metal = self.gpu.as_ref().and_then(Gpu::current_gpu_bytes);
         let (finished, stimuli) = {
-            let Some(soak) = self.soak.as_mut() else { return };
+            let Some(soak) = self.soak.as_mut() else {
+                return;
+            };
             soak.sample_if_due(now, metal);
             let finished = soak.finished(now);
             let mut stimuli = Vec::new();
             if !finished {
                 for _ in 0..32 {
-                    let Some(stimulus) = soak.next_stimulus(now) else { break };
-                    let stop = matches!(stimulus, crate::soak_gpu::Stimulus::Inject(_) | crate::soak_gpu::Stimulus::Resize { .. });
+                    let Some(stimulus) = soak.next_stimulus(now) else {
+                        break;
+                    };
+                    let stop = matches!(
+                        stimulus,
+                        crate::soak_gpu::Stimulus::Inject(_)
+                            | crate::soak_gpu::Stimulus::Resize { .. }
+                    );
                     stimuli.push(stimulus);
-                    if stop { break; }
+                    if stop {
+                        break;
+                    }
                 }
             }
             (finished, stimuli)
         };
         if finished {
-            let Some(soak) = self.soak.as_ref() else { return };
+            let Some(soak) = self.soak.as_ref() else {
+                return;
+            };
             let report = soak.report(now);
             self.soak_passed = Some(report.passed());
             report.print();
@@ -1712,13 +1771,36 @@ impl App {
         }
         for stimulus in stimuli.iter().copied() {
             match stimulus {
-                crate::soak_gpu::Stimulus::SetLavaTheme => { let _ = crate::theme::set_active_by_name("Mangrove"); self.retint_theme_now(); self.sync_view(true); }
-                crate::soak_gpu::Stimulus::Resize { width, height } => if let Some(w) = self.recovery_window.as_ref() { let _ = w.request_inner_size(winit::dpi::PhysicalSize::new(width, height)); },
-                crate::soak_gpu::Stimulus::ThemeNext => { crate::theme::cycle(1); self.retint_theme_now(); self.sync_view(true); if let Some(s) = self.soak.as_mut() { s.observe_theme_switch(); } }
+                crate::soak_gpu::Stimulus::SetLavaTheme => {
+                    let _ = crate::theme::set_active_by_name("Mangrove");
+                    self.retint_theme_now();
+                    self.sync_view(true);
+                }
+                crate::soak_gpu::Stimulus::Resize { width, height } => {
+                    if let Some(w) = self.recovery_window.as_ref() {
+                        let _ = w.request_inner_size(winit::dpi::PhysicalSize::new(width, height));
+                    }
+                }
+                crate::soak_gpu::Stimulus::ThemeNext => {
+                    crate::theme::cycle(1);
+                    self.retint_theme_now();
+                    self.sync_view(true);
+                    if let Some(s) = self.soak.as_mut() {
+                        s.observe_theme_switch();
+                    }
+                }
                 crate::soak_gpu::Stimulus::Overlay { open } => {
-                    let action = if open { Action::OpenCommandPalette } else { Action::Cancel };
+                    let action = if open {
+                        Action::OpenCommandPalette
+                    } else {
+                        Action::Cancel
+                    };
                     let _ = self.apply(action, false, event_loop, crate::stats::Door::Chord);
-                    if !open && self.overlay.is_none() { if let Some(s) = self.soak.as_mut() { s.observe_overlay_cycle(); } }
+                    if !open && self.overlay.is_none() {
+                        if let Some(s) = self.soak.as_mut() {
+                            s.observe_overlay_cycle();
+                        }
+                    }
                 }
                 crate::soak_gpu::Stimulus::Inject(kind) => {
                     // LIMITATION (acceptable): `soak_recovery_pending` is a
@@ -1731,11 +1813,17 @@ impl App {
                     // and the next present clears the slot before the following
                     // kind can fire. A queue would be dead generality here.
                     self.soak_recovery_pending = Some(kind);
-                    if let Some(gpu) = self.gpu.as_mut() { match kind {
-                        crate::soak_gpu::FaultKind::OutOfMemory => gpu.inject_fault(gpu::GpuFaultInjection::OutOfMemory),
-                        crate::soak_gpu::FaultKind::SurfaceLost => gpu.inject_surface_loss(),
-                        crate::soak_gpu::FaultKind::DeviceLost => gpu.inject_fault(gpu::GpuFaultInjection::DeviceLost),
-                    }}
+                    if let Some(gpu) = self.gpu.as_mut() {
+                        match kind {
+                            crate::soak_gpu::FaultKind::OutOfMemory => {
+                                gpu.inject_fault(gpu::GpuFaultInjection::OutOfMemory)
+                            }
+                            crate::soak_gpu::FaultKind::SurfaceLost => gpu.inject_surface_loss(),
+                            crate::soak_gpu::FaultKind::DeviceLost => {
+                                gpu.inject_fault(gpu::GpuFaultInjection::DeviceLost)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1746,8 +1834,19 @@ impl App {
         // loop must keep waking so those `observe_*` calls land and
         // `soak.finished` can flip on schedule completion. `finished` is false
         // here (the finished branch returned above).
-        if let Some(gpu) = self.gpu.as_ref() { gpu.window.request_redraw(); }
-        if self.last_frame.is_none() { event_loop.set_control_flow(control_flow_with_deadline(event_loop.control_flow(), now + if stimuli.len() == 32 { Duration::from_millis(1) } else { Duration::from_millis(100) })); }
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
+        }
+        if self.last_frame.is_none() {
+            event_loop.set_control_flow(control_flow_with_deadline(
+                event_loop.control_flow(),
+                now + if stimuli.len() == 32 {
+                    Duration::from_millis(1)
+                } else {
+                    Duration::from_millis(100)
+                },
+            ));
+        }
     }
 
     /// DEBUG key→px: stamp the receipt of an input that will request a redraw —
@@ -1867,7 +1966,11 @@ impl ApplicationHandler<AwlEvent> for App {
         let attrs = {
             let attrs = Window::default_attributes()
                 .with_min_inner_size(LogicalSize::new(min_w, min_h))
-                .with_title(if self.soak.is_some() { "Awl GPU probe — keep visible".to_string() } else { title })
+                .with_title(if self.soak.is_some() {
+                    "Awl GPU probe — keep visible".to_string()
+                } else {
+                    title
+                })
                 .with_visible(true);
             // LIVE PROBE: a small, corner-anchored, DETERMINISTIC window
             // (`crate::probe::PROBE_LOGICAL_*`). Overrides any restored session
@@ -1898,31 +2001,31 @@ impl ApplicationHandler<AwlEvent> for App {
                     // normal launch keeps the default active window.
                     .with_active(false)
             } else {
-            match self.restored_window {
-                Some(frame) => {
-                    let screens: Vec<crate::session::ScreenRect> = event_loop
-                        .available_monitors()
-                        .map(|m| {
-                            let pos = m.position();
-                            let size = m.size();
-                            crate::session::ScreenRect {
-                                x: pos.x,
-                                y: pos.y,
-                                width: size.width,
-                                height: size.height,
-                            }
-                        })
-                        .collect();
-                    let clamped = crate::session::clamp_frame_to_screens(frame, &screens);
-                    attrs
-                        .with_inner_size(winit::dpi::PhysicalSize::new(
-                            clamped.width,
-                            clamped.height,
-                        ))
-                        .with_position(winit::dpi::PhysicalPosition::new(clamped.x, clamped.y))
+                match self.restored_window {
+                    Some(frame) => {
+                        let screens: Vec<crate::session::ScreenRect> = event_loop
+                            .available_monitors()
+                            .map(|m| {
+                                let pos = m.position();
+                                let size = m.size();
+                                crate::session::ScreenRect {
+                                    x: pos.x,
+                                    y: pos.y,
+                                    width: size.width,
+                                    height: size.height,
+                                }
+                            })
+                            .collect();
+                        let clamped = crate::session::clamp_frame_to_screens(frame, &screens);
+                        attrs
+                            .with_inner_size(winit::dpi::PhysicalSize::new(
+                                clamped.width,
+                                clamped.height,
+                            ))
+                            .with_position(winit::dpi::PhysicalPosition::new(clamped.x, clamped.y))
+                    }
+                    None => attrs.with_inner_size(LogicalSize::new(1200.0, 800.0)),
                 }
-                None => attrs.with_inner_size(LogicalSize::new(1200.0, 800.0)),
-            }
             }
         };
         #[cfg(target_arch = "wasm32")]
@@ -2013,7 +2116,10 @@ impl ApplicationHandler<AwlEvent> for App {
                         *slot.borrow_mut() = Some(Ok(gpu));
                         win.request_redraw();
                     }
-                    Err(e) => { *slot.borrow_mut() = Some(Err(e.to_string())); win.request_redraw(); }
+                    Err(e) => {
+                        *slot.borrow_mut() = Some(Err(e.to_string()));
+                        win.request_redraw();
+                    }
                 }
             });
         }
@@ -2048,8 +2154,16 @@ impl ApplicationHandler<AwlEvent> for App {
             let pending = self.gpu_pending.borrow_mut().take();
             if let Some(result) = pending {
                 match result {
-                    Ok(gpu) => { self.gpu = Some(gpu); self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 }; self.on_gpu_ready(); }
-                    Err(e) => { log::error!("failed to rebuild render state: {e}"); self.set_sticky_notice("graphics could not recover — closing safely"); event_loop.exit(); }
+                    Ok(gpu) => {
+                        self.gpu = Some(gpu);
+                        self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
+                        self.on_gpu_ready();
+                    }
+                    Err(e) => {
+                        log::error!("failed to rebuild render state: {e}");
+                        self.set_sticky_notice("graphics could not recover — closing safely");
+                        event_loop.exit();
+                    }
                 }
             }
         }
@@ -2192,10 +2306,16 @@ fn zoom_reflow_gate_collapses_a_burst_to_one_present_opportunity() {
         gate.queue();
     }
     assert!(gate.take(), "a queued burst owes exactly one reflow");
-    assert!(!gate.take(), "the same present opportunity cannot reflow twice");
+    assert!(
+        !gate.take(),
+        "the same present opportunity cannot reflow twice"
+    );
     gate.queue();
     gate.clear();
-    assert!(!gate.take(), "an intervening ordinary sync consumes the debt");
+    assert!(
+        !gate.take(),
+        "an intervening ordinary sync consumes the debt"
+    );
 }
 
 /// Has the held stats HUD's summon chord been BROKEN by a modifier release? The HUD is a
@@ -2271,7 +2391,9 @@ pub fn run(
     // installs it (tripwire: `main::run::tests::
     // headless_screenshot_never_installs_the_crash_hook`).
     #[cfg(not(target_arch = "wasm32"))]
-    if soak.is_none() { crate::crashlog::install_hook(); }
+    if soak.is_none() {
+        crate::crashlog::install_hook();
+    }
 
     // FLIGHT RECORDER (native live-App only, capture-gated exactly like the crash
     // hook / daemon above — headless `--screenshot`/`--keys`/`--bench-*` never
@@ -2294,17 +2416,21 @@ pub fn run(
     // hand its file off to — or bind over the socket of — the user's real
     // running instance. See `crate::probe`'s module doc.
     #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-    let instance_listener = if soak.is_some() || live.is_some() { None } else { match crate::daemon::startup(file.as_deref(), wait) {
-        Ok(crate::daemon::StartupOutcome::HandedOff) => return Ok(()),
-        Ok(crate::daemon::StartupOutcome::Instance(l)) => Some(l),
-        Err(e) => {
-            // Never let a socket hiccup (permissions, a full /tmp, a bad XDG
-            // path, …) block opening the editor — degrade to a normal,
-            // non-singleton launch.
-            eprintln!("awl: single-instance socket unavailable ({e}); continuing without it");
-            None
+    let instance_listener = if soak.is_some() || live.is_some() {
+        None
+    } else {
+        match crate::daemon::startup(file.as_deref(), wait) {
+            Ok(crate::daemon::StartupOutcome::HandedOff) => return Ok(()),
+            Ok(crate::daemon::StartupOutcome::Instance(l)) => Some(l),
+            Err(e) => {
+                // Never let a socket hiccup (permissions, a full /tmp, a bad XDG
+                // path, …) block opening the editor — degrade to a normal,
+                // non-singleton launch.
+                eprintln!("awl: single-instance socket unavailable ({e}); continuing without it");
+                None
+            }
         }
-    }};
+    };
 
     // Mark this LIVE session's start, so the History picker's Session lens has a
     // floor to bucket versions against. Live-launch-only (never the headless capture,
@@ -2318,7 +2444,9 @@ pub fn run(
     // live-App startup path (never `--screenshot`/`--keys`), matching every
     // other native-only startup door's capture gate above.
     #[cfg(all(feature = "mas", target_os = "macos"))]
-    if soak.is_none() { crate::mas::restore_all_grants(); }
+    if soak.is_none() {
+        crate::mas::restore_all_grants();
+    }
 
     // LIVE PROBE (`--live-script`): launch WITHOUT STEALING FOCUS. Three winit
     // defaults each steal it and must all be turned off (the Accessory policy
@@ -2371,18 +2499,30 @@ pub fn run(
     #[cfg(not(target_arch = "wasm32"))]
     let config = if soak.is_some() {
         crate::fs::set_active(Arc::new(crate::fs::InMemoryFs::new()));
-        Config { session_restore: Some(false), autosave: Some(false), stats: Some(false), reduce_motion: Some(false), ..config }
-    } else { config };
+        Config {
+            session_restore: Some(false),
+            autosave: Some(false),
+            stats: Some(false),
+            reduce_motion: Some(false),
+            ..config
+        }
+    } else {
+        config
+    };
     #[allow(unused_mut)]
     let mut app = App::new(file, root, cli_workspace, cli_default_folder, config);
     #[cfg(not(target_arch = "wasm32"))]
-    { app.soak = soak.map(crate::soak_gpu::Controller::new); }
+    {
+        app.soak = soak.map(crate::soak_gpu::Controller::new);
+    }
     // NATIVE MACOS MENU BAR: stash a proxy clone now (before the daemon's own
     // clone below is potentially moved away) so `resumed()` can install the
     // menu bar once the window/NSApp exists — see `App::menu_proxy`'s doc.
     #[cfg(target_os = "macos")]
     {
-        if app.soak.is_none() { app.menu_proxy = Some(proxy.clone()); }
+        if app.soak.is_none() {
+            app.menu_proxy = Some(proxy.clone());
+        }
     }
     // LIVE PROBE (`--live-script`): arm the ready signal and spawn the driver
     // thread (the daemon's own EventLoopProxy precedent — scripted steps are
@@ -2395,7 +2535,10 @@ pub fn run(
         // strictly later) reads it to add COPY_SRC + the frame mirror.
         crate::probe::set_live_active();
         if let Err(e) = std::fs::create_dir_all(&script.shots_dir) {
-            eprintln!("LIVE-PROBE error: cannot create shots dir {}: {e}", script.shots_dir.display());
+            eprintln!(
+                "LIVE-PROBE error: cannot create shots dir {}: {e}",
+                script.shots_dir.display()
+            );
         }
         let (tx, rx) = std::sync::mpsc::channel();
         app.probe_ready = Some(tx);
@@ -2437,6 +2580,6 @@ pub fn run(
 }
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod clock_law;
+#[cfg(test)]
+mod tests;

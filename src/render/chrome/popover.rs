@@ -137,12 +137,7 @@ impl TextPipeline {
                 // itself requires), so this call is never actually skipped here —
                 // the guard's real job is the `None` arm below.
                 if touch_float {
-                    self.claim_float_panel(
-                        geom.card,
-                        FloatElevation::Rimmed,
-                        0.0,
-                        None,
-                    );
+                    self.claim_float_panel(geom.card, FloatElevation::Rimmed, 0.0, None);
                 }
                 // A value-step wash behind each LIT button (never amber) — a pill
                 // hugging the glyph ink band with a small halo (the card hugs the same
@@ -178,7 +173,12 @@ impl TextPipeline {
                 // the card-hug measurement never widens.
                 let band_pill = |b: &PopoverButtonGeom| {
                     let hpad = CODE_PILL_INSET_X;
-                    [b.x0 - hpad, geom.band_top, (b.x1 - b.x0) + 2.0 * hpad, geom.band_h]
+                    [
+                        b.x0 - hpad,
+                        geom.band_top,
+                        (b.x1 - b.x0) + 2.0 * hpad,
+                        geom.band_h,
+                    ]
                 };
                 let mut hl_pills: Vec<[f32; 4]> = Vec::new();
                 let mut strikes: Vec<Squiggle> = Vec::new();
@@ -202,9 +202,12 @@ impl TextPipeline {
                         _ => {}
                     }
                 }
-                self.popover_wash.prepare(device, queue, width, height, &washes);
-                self.popover_hl_wash.prepare(device, queue, width, height, &hl_pills);
-                self.popover_strike.prepare(device, queue, width, height, &strikes);
+                self.popover_wash
+                    .prepare(device, queue, width, height, &washes);
+                self.popover_hl_wash
+                    .prepare(device, queue, width, height, &hl_pills);
+                self.popover_strike
+                    .prepare(device, queue, width, height, &strikes);
                 self.popover_upload_text(device, queue, width, height, &geom)?;
                 self.popover_geom = Some(geom);
                 Ok(())
@@ -214,11 +217,12 @@ impl TextPipeline {
                 // genuinely own `float_*` this frame (a real spell popup /
                 // caret preview / search card) — never clear it out from
                 // under them just because POPOVER has nothing to show.
-                if touch_float {
-                }
+                if touch_float {}
                 self.popover_wash.prepare(device, queue, width, height, &[]);
-                self.popover_hl_wash.prepare(device, queue, width, height, &[]);
-                self.popover_strike.prepare(device, queue, width, height, &[]);
+                self.popover_hl_wash
+                    .prepare(device, queue, width, height, &[]);
+                self.popover_strike
+                    .prepare(device, queue, width, height, &[]);
                 self.park_popover_text(device, queue, width, height)?;
                 self.popover_geom = None;
                 Ok(())
@@ -268,9 +272,13 @@ impl TextPipeline {
 
         self.popover_buffer
             .set_metrics(&mut self.font_system, m.glyph_metrics());
+        self.popover_buffer.set_size(
+            &mut self.font_system,
+            Some(width as f32 * 2.0),
+            Some(m.line_height),
+        );
         self.popover_buffer
-            .set_size(&mut self.font_system, Some(width as f32 * 2.0), Some(m.line_height));
-        self.popover_buffer.set_wrap(&mut self.font_system, Wrap::None);
+            .set_wrap(&mut self.font_system, Wrap::None);
         let default_attrs = base.clone().color(ink);
         let rich: Vec<(&str, glyphon::Attrs)> =
             spans.iter().map(|(s, a)| (s.as_str(), a.clone())).collect();
@@ -354,7 +362,9 @@ impl TextPipeline {
             card_y = sel_top + sel_row_h + ANCHOR_GAP;
         }
         // Clamp within the canvas (never off the bottom either).
-        card_y = card_y.min(height as f32 - card_h - ANCHOR_GAP).max(ANCHOR_GAP);
+        card_y = card_y
+            .min(height as f32 - card_h - ANCHOR_GAP)
+            .max(ANCHOR_GAP);
 
         // Center horizontally over the selection start, clamped to the canvas.
         let pad = 6.0;
@@ -376,7 +386,11 @@ impl TextPipeline {
                 let (rx0, rx1) = spans_px[bi];
                 // A degenerate (unmeasured) span never happens for a non-empty label,
                 // but stay safe: fall back to a thin cell at the card center.
-                let (rx0, rx1) = if rx0 <= rx1 { (rx0, rx1) } else { (0.0, total_w) };
+                let (rx0, rx1) = if rx0 <= rx1 {
+                    (rx0, rx1)
+                } else {
+                    (0.0, total_w)
+                };
                 PopoverButtonGeom {
                     button: b.button,
                     x0: text_left + rx0,
@@ -445,8 +459,11 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         let content = theme::base_content().to_glyphon();
-        self.popover_buffer
-            .set_size(&mut self.font_system, Some(1.0), Some(self.metrics.line_height));
+        self.popover_buffer.set_size(
+            &mut self.font_system,
+            Some(1.0),
+            Some(self.metrics.line_height),
+        );
         self.popover_buffer.set_text(
             &mut self.font_system,
             "",
@@ -456,7 +473,12 @@ impl TextPipeline {
         );
         self.popover_buffer
             .shape_until_scroll(&mut self.font_system, false);
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let area = TextArea {
             buffer: &self.popover_buffer,
             left: 0.0,
@@ -592,7 +614,10 @@ mod tests {
         for zoom in [1.0_f32, 2.0] {
             let (y, h, stroke) = strike_line_band(band_top, band_h, zoom);
             assert!(y > band_top, "strike band starts below the ink top");
-            assert!(y + h < band_top + band_h, "strike band ends above the ink bottom");
+            assert!(
+                y + h < band_top + band_h,
+                "strike band ends above the ink bottom"
+            );
             assert!(stroke > 0.0 && stroke <= h, "stroke fits its band");
             // Centered at the owner's fraction of the band.
             let center = y + h * 0.5;

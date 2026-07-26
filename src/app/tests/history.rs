@@ -9,7 +9,8 @@ use super::*;
 /// Seed two history versions for `p` and open the History overlay on `app`,
 /// exactly as the OpenHistory gather builds it (timeline_rows → new_history).
 fn open_history_overlay(app: &mut App, p: &std::path::Path) {
-    let rows = crate::history::timeline_rows(p, &app.active.buffer.text(), crate::history::now_millis());
+    let rows =
+        crate::history::timeline_rows(p, &app.active.buffer.text(), crate::history::now_millis());
     app.overlay = Some(crate::overlay::OverlayState::new_history(rows, None, None));
 }
 
@@ -44,7 +45,11 @@ fn history_preview_resolves_without_touching_buffer() {
     );
     // The BUFFER was never touched: content, version, and undo all intact.
     assert_eq!(app.active.buffer.text(), "the second draft entirely\n");
-    assert_eq!(app.active.buffer.version(), version_before, "no version bump");
+    assert_eq!(
+        app.active.buffer.version(),
+        version_before,
+        "no version bump"
+    );
     // The per-id CACHE serves a repeat without re-reading the store: blow the
     // store away and the highlighted row still previews from the cache.
     let hist_dir = crate::fs::data_root().join("history");
@@ -69,7 +74,12 @@ fn preview_cache_invalidates_on_selection_move() {
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     open_history_overlay(&mut app, &p);
     assert!(app.history_preview_text().is_some());
-    let cached_id = app.active.extra.history_preview.as_ref().map(|(id, _)| id.clone());
+    let cached_id = app
+        .active
+        .extra
+        .history_preview
+        .as_ref()
+        .map(|(id, _)| id.clone());
     // Moving the selection to another row (a different id) re-renders: the
     // cache is keyed by id, never by "an overlay is open". (The selection
     // move also resets the diff panel scroll — the transcript changed.)
@@ -82,7 +92,11 @@ fn preview_cache_invalidates_on_selection_move() {
     );
     assert!(app.history_preview_text().is_some());
     assert_ne!(
-        app.active.extra.history_preview.as_ref().map(|(id, _)| id.clone()),
+        app.active
+            .extra
+            .history_preview
+            .as_ref()
+            .map(|(id, _)| id.clone()),
         cached_id,
         "the cache now holds the newly highlighted id"
     );
@@ -100,16 +114,25 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     app.active.extra.scroll_lines = 3;
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(false);
-    assert_eq!(app.active.extra.scroll_lines, 42, "Esc restores the pre-open scroll");
+    assert_eq!(
+        app.active.extra.scroll_lines, 42,
+        "Esc restores the pre-open scroll"
+    );
     assert!(app.active.extra.history_scroll_before.is_none());
-    assert!(app.active.extra.history_preview.is_none(), "the preview is dropped");
+    assert!(
+        app.active.extra.history_preview.is_none(),
+        "the preview is dropped"
+    );
     // A real ACCEPT keeps the current viewport (the restored version owns
     // it) — the saved scroll is discarded, the preview still dropped.
     app.active.extra.history_scroll_before = Some(42);
     app.active.extra.scroll_lines = 3;
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(true);
-    assert_eq!(app.active.extra.scroll_lines, 3, "an accept never yanks the viewport");
+    assert_eq!(
+        app.active.extra.scroll_lines, 3,
+        "an accept never yanks the viewport"
+    );
     assert!(app.active.extra.history_scroll_before.is_none());
     assert!(app.active.extra.history_preview.is_none());
 }
@@ -157,7 +180,11 @@ fn diff_preview_renders_marked_up_transcript_without_touching_buffer() {
         text_before,
         "preview never mutates the buffer"
     );
-    assert_eq!(app.active.buffer.version(), version_before, "no version bump");
+    assert_eq!(
+        app.active.buffer.version(),
+        version_before,
+        "no version bump"
+    );
     app.active.buffer.undo();
     assert_eq!(
         app.active.buffer.text(),
@@ -198,7 +225,11 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
         "current words\n",
         "the rope never changed"
     );
-    assert_eq!(app.active.buffer.version(), version_before, "no version bump");
+    assert_eq!(
+        app.active.buffer.version(),
+        version_before,
+        "no version bump"
+    );
     // Esc from panel focus returns to the LIST; a second Esc closes — two
     // Escs total from panel to home, and the buffer text is back untouched.
     app.apply_core_for_test(&Action::InsertTab); // focus the panel
@@ -211,7 +242,11 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
     assert!(!app.overlay.as_ref().unwrap().diff_focus);
     app.apply_core_for_test(&Action::Cancel);
     assert!(app.overlay.is_none(), "second Esc closes the picker");
-    assert_eq!(app.active.buffer.version(), version_before, "back to now exactly");
+    assert_eq!(
+        app.active.buffer.version(),
+        version_before,
+        "back to now exactly"
+    );
 }
 
 #[test]
@@ -224,11 +259,17 @@ fn scratch_buffer_lists_its_stash_history() {
     let mut app = app_on(None, "/proj", Config::empty());
     app.active.buffer.set_text("scratch thoughts\n");
     app.autosave_flush();
-    let key = crate::history::source_path(app.active.buffer.path(), app.active.buffer.is_unnamed_fresh())
-        .expect("the true scratch keys under its stash");
+    let key = crate::history::source_path(
+        app.active.buffer.path(),
+        app.active.buffer.is_unnamed_fresh(),
+    )
+    .expect("the true scratch keys under its stash");
     assert_eq!(key, crate::fs::scratch_stash_path());
-    let rows =
-        crate::history::timeline_rows(&key, &app.active.buffer.text(), crate::history::now_millis());
+    let rows = crate::history::timeline_rows(
+        &key,
+        &app.active.buffer.text(),
+        crate::history::now_millis(),
+    );
     assert!(!rows.is_empty(), "the scratch stash has a timeline");
     // And the preview resolver rides the same key: the newest row previews
     // the stashed content.

@@ -59,9 +59,7 @@ impl Buffer {
     /// `None` when there is no non-empty selection.
     pub fn selection_range(&self) -> Option<(usize, usize)> {
         match self.anchor {
-            Some(a) if a != self.cursor => {
-                Some((a.min(self.cursor), a.max(self.cursor)))
-            }
+            Some(a) if a != self.cursor => Some((a.min(self.cursor), a.max(self.cursor))),
             _ => None,
         }
     }

@@ -235,10 +235,7 @@ fn scan_number(b: &[u8], i: usize) -> usize {
         while j < n && (b[j].is_ascii_alphanumeric() || b[j] == b'_' || b[j] == b'\'') {
             // A hex float still wants its `p`-exponent sign; handled below by the
             // generic loop, but radix bodies rarely carry one, so keep it simple.
-            if matches!(b[j], b'p' | b'P')
-                && j + 1 < n
-                && matches!(b[j + 1], b'+' | b'-')
-            {
+            if matches!(b[j], b'p' | b'P') && j + 1 < n && matches!(b[j + 1], b'+' | b'-') {
                 j += 2;
                 continue;
             }
@@ -302,7 +299,11 @@ mod tests {
     fn raw_string_with_delimiter() {
         let t = r####"auto s = R"qq(he said "hi")qq";"####;
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Str), vec![r##"R"qq(he said "hi")qq""##], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec![r##"R"qq(he said "hi")qq""##],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -344,7 +345,10 @@ mod tests {
         let s = spans(t);
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"Color"), "{ds:?}");
-        assert!(!ds.contains(&"class"), "the `class` keyword must stay plain: {ds:?}");
+        assert!(
+            !ds.contains(&"class"),
+            "the `class` keyword must stay plain: {ds:?}"
+        );
     }
 
     #[test]
@@ -352,8 +356,14 @@ mod tests {
         // `struct` keyword stays default ink; only the NAME is a Definition.
         let t = "struct Foo {};";
         let s = spans(t);
-        assert!(!has(&s, 0, 6, SynKind::Definition), "the `struct` keyword must stay plain: {s:?}");
-        assert!(has(&s, 7, 10, SynKind::Definition), "`Foo` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 6, SynKind::Definition),
+            "the `struct` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 7, 10, SynKind::Definition),
+            "`Foo` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -368,7 +378,11 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nint add(int a, int b) {\n    return a + b; // ok\n}\nclass Box { int n = 100; };\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"Box"), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }

@@ -5,7 +5,6 @@
 use crate::app::*;
 
 impl App {
-
     /// THE KEYMAP FLAVOR TOGGLE (Enter on the "Keymap" settings row): flip
     /// `Config::keymap_flavor` (native <-> emacs), PERSIST it (a quoted string,
     /// not a bool — [`Self::persist_pref`] handles both shapes identically,
@@ -37,9 +36,14 @@ impl App {
         self.config.keymap = Some(next.config_name().to_string());
         self.persist_pref("keymap", &format!("\"{}\"", next.config_name()));
         let mut keys_with_web_alt = self.config.keys.clone();
-        keys_with_web_alt.extend(crate::commands::web_alternate_keys(&self.config.keys, crate::convention::Convention::current(), crate::commands::Platform::current()));
+        keys_with_web_alt.extend(crate::commands::web_alternate_keys(
+            &self.config.keys,
+            crate::convention::Convention::current(),
+            crate::commands::Platform::current(),
+        ));
         self.keymap.apply_overrides(&keys_with_web_alt);
-        self.keymap.apply_linux_keep(&self.config.effective_linux_keep());
+        self.keymap
+            .apply_linux_keep(&self.config.effective_linux_keep());
         self.refresh_settings_overlay();
         // Every sibling settings-mutation door (`setting_toggle`'s generic
         // path, `setting_value_commit`, `setting_path_pick`) ends in a
@@ -53,7 +57,6 @@ impl App {
         }
     }
 
-
     /// REBIND MENU commit: persist a captured `binding` to the command `slug`'s
     /// `[keys]` slot, then live-reload + refresh the open menu. A CONFLICT (the binding
     /// already belongs to another command) is GATED unless the user already accepted
@@ -63,7 +66,9 @@ impl App {
     /// written to `config.toml`, and the keymap re-applied immediately.
     pub(in crate::app) fn rebind_commit(&mut self, slug: String, binding: String, confirmed: bool) {
         if !confirmed {
-            if let Some(other) = crate::commands::binding_conflict(&binding, &slug, &self.config.keys) {
+            if let Some(other) =
+                crate::commands::binding_conflict(&binding, &slug, &self.config.keys)
+            {
                 if let Some(ov) = self.overlay.as_mut() {
                     ov.capture_into_confirm(other.to_string());
                     ov.notice = format!("'{binding}' already bound to {other}");
@@ -91,7 +96,6 @@ impl App {
         self.refresh_rebind_overlay(format!("bound {slug} -> {binding}"));
     }
 
-
     /// REBIND MENU reset-to-default (Delete on a command): REMOVE the command's
     /// `[keys]` entry, persist, and live-reload so its built-in default applies again.
     pub(in crate::app) fn rebind_reset(&mut self, slug: String) {
@@ -104,7 +108,6 @@ impl App {
         self.reload_config();
         self.refresh_rebind_overlay(format!("reset {slug} to default"));
     }
-
 
     /// After a rebind commit/reset + live-reload, refresh the still-open Keybindings
     /// menu: close any capture, re-pull the EFFECTIVE binding column from the new
@@ -120,7 +123,6 @@ impl App {
             }
         }
     }
-
 
     /// True while the rebind menu is RECORDING a capture, so the live key handler
     /// routes the next press into the capture (a chord-level interception) rather than

@@ -2,10 +2,10 @@
 //! split out of the former monolithic `capture::tests` (2026-07
 //! code-organization pass).
 
-use super::super::*;
 use super::super::animated::step_held;
 use super::super::sidecar::json_string;
-use super::{held_run_keeps_steady_streak};
+use super::super::*;
+use super::held_run_keeps_steady_streak;
 
 #[test]
 fn json_string_escapes_quote_backslash_newline_and_control() {
@@ -20,8 +20,8 @@ fn json_string_escapes_quote_backslash_newline_and_control() {
     // Round-trip a tricky string back through a real JSON parser: the escaped
     // literal must parse to exactly the original bytes.
     let tricky = "path \"with\" \\slashes\\ and\n\tcontrol\u{01}\u{1f}";
-    let parsed: String = serde_json::from_str(&json_string(tricky))
-        .expect("json_string output must be valid JSON");
+    let parsed: String =
+        serde_json::from_str(&json_string(tricky)).expect("json_string output must be valid JSON");
     assert_eq!(parsed, tricky);
 }
 

@@ -30,11 +30,15 @@ fn markdown_styling_gated_and_composed() {
     p.set_view(&md);
     let spans = p.md_report();
     assert!(
-        spans.iter().any(|(s, e, t)| *s == 0 && *e == 2 && *t == "markup"),
+        spans
+            .iter()
+            .any(|(s, e, t)| *s == 0 && *e == 2 && *t == "markup"),
         "leading '# ' should be a markup span: {spans:?}"
     );
     assert!(
-        spans.iter().any(|(s, e, t)| *s == 2 && *e == 7 && *t == "h1"),
+        spans
+            .iter()
+            .any(|(s, e, t)| *s == 2 && *e == 7 && *t == "h1"),
         "title 'Title' should be an h1 span: {spans:?}"
     );
     // "some " starts at byte 9; "**bold**" → ** at 14..16, bold 16..20, ** 20..22.
@@ -61,8 +65,16 @@ fn symbol_runs_isolate_modifier_and_ornament_glyphs() {
     assert!(!is_symbol('O') && !is_symbol('-') && !is_symbol('A'));
     let s = "\u{2318}\u{21E7}O"; // ⌘⇧O
     let runs = symbol_runs(s);
-    assert_eq!(runs.len(), 1, "the two modifier glyphs form one run: {runs:?}");
-    assert_eq!(&s[runs[0].clone()], "\u{2318}\u{21E7}", "run covers ⌘⇧ only");
+    assert_eq!(
+        runs.len(),
+        1,
+        "the two modifier glyphs form one run: {runs:?}"
+    );
+    assert_eq!(
+        &s[runs[0].clone()],
+        "\u{2318}\u{21E7}",
+        "run covers ⌘⇧ only"
+    );
     // Mid-text section sign: an isolated symbol run between plain text.
     let t = "a \u{00A7}3 b"; // "a §3 b"
     let r2 = symbol_runs(t);
@@ -86,7 +98,10 @@ fn symbol_face_registered_under_private_family() {
         .db()
         .faces()
         .any(|f| f.families.iter().any(|(n, _)| n == SYMBOL_FAMILY));
-    assert!(registered, "the bundled symbol face must register under {SYMBOL_FAMILY:?}");
+    assert!(
+        registered,
+        "the bundled symbol face must register under {SYMBOL_FAMILY:?}"
+    );
 }
 
 #[test]
@@ -125,7 +140,9 @@ fn horizontal_rule_ornament_gated_and_centered() {
 #[test]
 fn horizontal_rule_conceals_dashes_until_the_caret_lands() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping horizontal_rule_conceals_dashes_until_the_caret_lands: no wgpu adapter");
+        eprintln!(
+            "skipping horizontal_rule_conceals_dashes_until_the_caret_lands: no wgpu adapter"
+        );
         return;
     };
     // A `---` thematic break alone on logical line 2 (blank lines around it).
@@ -170,7 +187,11 @@ fn horizontal_rule_conceals_dashes_until_the_caret_lands() {
     // Moving the caret back OFF re-conceals (the toggle is live, both directions).
     p.set_view(&off);
     assert!(p.rule_line_concealed(2), "caret leaves => --- re-conceal");
-    assert_eq!(p.rule_tops().len(), 1, "caret leaves => the fleuron returns");
+    assert_eq!(
+        p.rule_tops().len(),
+        1,
+        "caret leaves => the fleuron returns"
+    );
 }
 
 #[test]
@@ -309,7 +330,10 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
         vec!['\u{2051}', '\u{2766}'],
         "caret on *** suppresses only ⁂; --- (⁑) and ___ (❦) remain: {revealed:?}"
     );
-    assert!(!p.rule_line_concealed(4), "caret on the *** line => its raw stars reveal");
+    assert!(
+        !p.rule_line_concealed(4),
+        "caret on the *** line => its raw stars reveal"
+    );
     assert!(
         p.rule_line_concealed(2) && p.rule_line_concealed(6),
         "the other two breaks stay concealed while the caret is on the *** line"
@@ -327,7 +351,10 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
         vec!['\u{2042}', '\u{2766}'],
         "caret on --- suppresses only ⁑; *** (⁂) and ___ (❦) remain: {revealed_dash:?}"
     );
-    assert!(!p.rule_line_concealed(2), "caret on the --- line => its raw dashes reveal");
+    assert!(
+        !p.rule_line_concealed(2),
+        "caret on the --- line => its raw dashes reveal"
+    );
 
     // NEVER-TOFU: all three of Mulga's glyphs resolve to a REAL glyph in its
     // assigned ornament face (`Theme::ornament_face` == Junicode, which ships
@@ -336,7 +363,11 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
         .font_system
         .db()
         .faces()
-        .find(|f| f.families.iter().any(|(n, _)| n == theme::active().ornament_face))
+        .find(|f| {
+            f.families
+                .iter()
+                .any(|(n, _)| n == theme::active().ornament_face)
+        })
         .map(|f| f.id)
         .expect("Mulga's ornament face (Junicode) is registered");
     let font = p
@@ -344,7 +375,11 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
         .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
         .expect("Mulga's ornament face (Junicode) loads");
     let charmap = font.as_swash().charmap();
-    for (label, ch) in [("dash ⁑", orn.dash), ("star ⁂", orn.star), ("underscore ❦", orn.underscore)] {
+    for (label, ch) in [
+        ("dash ⁑", orn.dash),
+        ("star ⁂", orn.star),
+        ("underscore ❦", orn.underscore),
+    ] {
         assert!(
             charmap.map(ch) != 0,
             "Mulga: {label} (U+{:04X}) is NOT in Junicode — renders as tofu",
@@ -444,9 +479,14 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
         "caret on the depth-1 bullet suppresses only its ◦ (lines 0/2/3 keep •/▪/•): {:?}",
         p.bullet_glyphs()
     );
-    assert!(!p.bullet_marker_concealed(1), "caret on => the mid `*` reveals");
     assert!(
-        p.bullet_marker_concealed(0) && p.bullet_marker_concealed(2) && p.bullet_marker_concealed(3),
+        !p.bullet_marker_concealed(1),
+        "caret on => the mid `*` reveals"
+    );
+    assert!(
+        p.bullet_marker_concealed(0)
+            && p.bullet_marker_concealed(2)
+            && p.bullet_marker_concealed(3),
         "the other bullets stay concealed"
     );
 
@@ -454,14 +494,20 @@ fn nested_bullets_cycle_by_depth_and_reveal_on_cursor() {
     let mut ord = view("1. one\n2. two\n", 2, 0);
     ord.is_markdown = true;
     p.set_view(&ord);
-    assert!(p.bullet_glyphs().is_empty(), "ordered lists get no bullet glyph");
+    assert!(
+        p.bullet_glyphs().is_empty(),
+        "ordered lists get no bullet glyph"
+    );
 
     // NON-markdown buffer: no bullets at all (a `.rs` file with `- x` is
     // byte-identical — the glyph is gated on `md_enabled`).
     let mut plain = view(text, 4, 0);
     plain.is_markdown = false;
     p.set_view(&plain);
-    assert!(p.bullet_glyphs().is_empty(), "non-markdown => no bullet glyphs");
+    assert!(
+        p.bullet_glyphs().is_empty(),
+        "non-markdown => no bullet glyphs"
+    );
 }
 
 /// PER-WORLD BULLETS: the depth-derived glyph swaps to the ACTIVE world's own
@@ -487,10 +533,10 @@ fn bullet_glyphs_swap_per_world() {
     // (line 3).
     let text = "- top\n  - sub\n    - deep\n";
     let cases = [
-        ("Tawny", ('•', '◦', '▪')),        // geometric world: plain, byte-identical
-        ("Bombora", ('☞', '❧', '❦')),     // the manicule showpiece (level 1 only) + hedera + fleuron
-        ("Gumtree", ('❧', '☙', '❦')),      // Junicode botanical hederas
-        ("Bilby", ('❧', '❦', '☙')),        // Garamond Renaissance fleurons
+        ("Tawny", ('•', '◦', '▪')),   // geometric world: plain, byte-identical
+        ("Bombora", ('☞', '❧', '❦')), // the manicule showpiece (level 1 only) + hedera + fleuron
+        ("Gumtree", ('❧', '☙', '❦')), // Junicode botanical hederas
+        ("Bilby", ('❧', '❦', '☙')),   // Garamond Renaissance fleurons
         ("Mopoke", ('\u{E670}', '\u{EF92}', '\u{E67D}')), // damask rosette → open sibling → foliate sprig (queue item 30)
     ];
     for (world, (g0, g1, g2)) in cases {
@@ -540,13 +586,22 @@ fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
             .faces()
             .find(|f| f.families.iter().any(|(n, _)| n == t.ornament_face))
             .map(|f| f.id)
-            .unwrap_or_else(|| panic!("{}: ornament face {:?} is registered", t.name, t.ornament_face));
+            .unwrap_or_else(|| {
+                panic!(
+                    "{}: ornament face {:?} is registered",
+                    t.name, t.ornament_face
+                )
+            });
         let font = p
             .font_system
             .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
             .unwrap_or_else(|| panic!("{}: ornament face {:?} loads", t.name, t.ornament_face));
         let charmap = font.as_swash().charmap();
-        for (level, ch) in [("level-1", t.bullets.0), ("level-2", t.bullets.1), ("level-3", t.bullets.2)] {
+        for (level, ch) in [
+            ("level-1", t.bullets.0),
+            ("level-2", t.bullets.1),
+            ("level-3", t.bullets.2),
+        ] {
             assert!(
                 charmap.map(ch) != 0,
                 "{}: {} bullet {:?} (U+{:04X}) is NOT in its ornament face {:?} — tofu",
@@ -577,7 +632,9 @@ fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
 fn bullet_glyph_never_touches_the_following_text_in_any_world() {
     let _t = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping bullet_glyph_never_touches_the_following_text_in_any_world: no wgpu adapter");
+        eprintln!(
+            "skipping bullet_glyph_never_touches_the_following_text_in_any_world: no wgpu adapter"
+        );
         return;
     };
     let w = 1200u32;
@@ -657,7 +714,12 @@ fn bullet_glyph_never_touches_the_following_text_at_depth_two_in_any_world() {
         let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
 
         let marks = p.bullet_marks();
-        assert_eq!(marks.len(), 3, "{}: three nested bullets place: {marks:?}", t.name);
+        assert_eq!(
+            marks.len(),
+            3,
+            "{}: three nested bullets place: {marks:?}",
+            t.name
+        );
         let (row_top, bullet_x, _ch) = marks[2]; // the depth-2 (third) line
         let row_top = row_top as i64;
         let bullet_x = bullet_x as i64;
@@ -738,13 +800,20 @@ fn list_indent_widens_only_on_wide_tier_worlds_and_grows_linearly_with_depth() {
         lv.is_markdown = true;
         p.set_view(&lv);
         let marks = p.bullet_marks();
-        assert_eq!(marks.len(), 3, "{world}: three nested bullets place: {marks:?}");
+        assert_eq!(
+            marks.len(),
+            3,
+            "{world}: three nested bullets place: {marks:?}"
+        );
         let text_left = p.text_left();
         let depth0_x = marks[0].1 - text_left;
         let depth1_x = marks[1].1 - text_left;
         let depth2_x = marks[2].1 - text_left;
 
-        assert_eq!(depth0_x, 0.0, "{world}: depth 0 sits at the marker column (nothing to widen)");
+        assert_eq!(
+            depth0_x, 0.0,
+            "{world}: depth 0 sits at the marker column (nothing to widen)"
+        );
         assert!(
             (depth1_x - scale * natural_2sp).abs() < 1.0,
             "{world}: depth-1 bullet ({depth1_x}) must land at scale({scale}) × its natural \
@@ -787,7 +856,9 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
     // a parallel page write can't move the column mid-test.
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping bullet_marks_placement_unchanged_and_geometry_is_o_visible: no wgpu adapter");
+        eprintln!(
+            "skipping bullet_marks_placement_unchanged_and_geometry_is_o_visible: no wgpu adapter"
+        );
         return;
     };
 
@@ -918,7 +989,11 @@ fn readout_excludes_frontmatter_block() {
     let mut md2 = view(fm_only, 0, 0);
     md2.is_markdown = true;
     p.set_view(&md2);
-    assert_eq!(p.readout_report(), None, "a frontmatter-only doc has nothing to read");
+    assert_eq!(
+        p.readout_report(),
+        None,
+        "a frontmatter-only doc has nothing to read"
+    );
 }
 
 #[test]
@@ -944,7 +1019,10 @@ fn notice_parked_offscreen_when_empty() {
         "a live notice mirrors into the pipeline"
     );
     p.set_view(&v);
-    assert!(p.notice.is_empty(), "the notice clears when the view drops it");
+    assert!(
+        p.notice.is_empty(),
+        "the notice clears when the view drops it"
+    );
 }
 
 /// THE FENCE-LANGUAGE-LABEL geometry contract: a recognized-language fence gets
@@ -957,16 +1035,27 @@ fn notice_parked_offscreen_when_empty() {
 fn fence_lang_marks_labels_only_recognized_fences_at_their_own_row() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping fence_lang_marks_labels_only_recognized_fences_at_their_own_row: no wgpu adapter");
+        eprintln!(
+            "skipping fence_lang_marks_labels_only_recognized_fences_at_their_own_row: no wgpu adapter"
+        );
         return;
     };
-    let text = "prose\n\n```rust\nfn f() {}\n```\n\n```\nno lang here\n```\n\n```made-up\nbody\n```\n";
+    let text =
+        "prose\n\n```rust\nfn f() {}\n```\n\n```\nno lang here\n```\n\n```made-up\nbody\n```\n";
     let mut v = view(text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
     let marks = p.fence_lang_marks();
-    assert_eq!(marks.len(), 1, "only the rust fence gets a label: {marks:?}");
-    assert_eq!(marks[0].1, crate::syntax::Lang::Rust, "the label names the fence's OWN language: {marks:?}");
+    assert_eq!(
+        marks.len(),
+        1,
+        "only the rust fence gets a label: {marks:?}"
+    );
+    assert_eq!(
+        marks[0].1,
+        crate::syntax::Lang::Rust,
+        "the label names the fence's OWN language: {marks:?}"
+    );
     // The mark's top matches the opening fence LINE's own row (line 2, the
     // "```rust" line: "prose\n" + "\n" precede it).
     let want_top = p.line_ornament_top(2);
@@ -1087,10 +1176,12 @@ fn checked_task_body_recedes_from_open_task_body_real_pixels_item_29() {
     let open_top = p.line_ornament_top(0) as f32;
     let done_top = p.line_ornament_top(1) as f32;
     let region = |top: f32| Region::new(text_left as f32, top, 360.0, row_h as f32);
-    let open_ink = pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, region(open_top), bg, 18)
-        .expect("the OPEN task row must paint SOME body ink");
-    let done_ink = pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, region(done_top), bg, 18)
-        .expect("the CHECKED task row must paint SOME body ink");
+    let open_ink =
+        pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, region(open_top), bg, 18)
+            .expect("the OPEN task row must paint SOME body ink");
+    let done_ink =
+        pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, region(done_top), bg, 18)
+            .expect("the CHECKED task row must paint SOME body ink");
 
     // (a) The checked body ink is a DIFFERENT color than the open body ink.
     assert_ne!(
@@ -1101,9 +1192,8 @@ fn checked_task_body_recedes_from_open_task_body_real_pixels_item_29() {
     // (b) …and specifically RECEDES: its ink sits closer to the page ground than
     // the open body's, in RGB channel distance — the dim is a recede, not just
     // some other color (amber is the caret's alone, DESIGN §3).
-    let dist_to_bg = |c: [u8; 4]| -> i64 {
-        (0..3).map(|k| (c[k] as i64 - bg[k] as i64).abs()).sum()
-    };
+    let dist_to_bg =
+        |c: [u8; 4]| -> i64 { (0..3).map(|k| (c[k] as i64 - bg[k] as i64).abs()).sum() };
     let open_d = dist_to_bg(open_ink);
     let done_d = dist_to_bg(done_ink);
     assert!(

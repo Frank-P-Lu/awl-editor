@@ -272,18 +272,18 @@ fn block_toggle(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usiz
         let new_col = remap_col(col, delta, at);
         (None, line_start_char(&new_lines, first) + new_col)
     };
-    FormatResult { text: new_text, anchor, cursor }
+    FormatResult {
+        text: new_text,
+        anchor,
+        cursor,
+    }
 }
 
 /// Map a column through a single-line prefix add/strip: `delta > 0` inserted `delta`
 /// chars at `at`; `delta < 0` removed `-delta` chars starting at `at`.
 fn remap_col(col: usize, delta: i64, at: usize) -> usize {
     if delta > 0 {
-        if col >= at {
-            col + delta as usize
-        } else {
-            col
-        }
+        if col >= at { col + delta as usize } else { col }
     } else if delta < 0 {
         let plen = (-delta) as usize;
         if col <= at {
@@ -318,7 +318,11 @@ fn code_block_toggle(lines: &[String], first: usize, last: usize, _has_sel: bool
         } else {
             (None, line_start_char(&new_lines, first))
         };
-        FormatResult { text: new_text, anchor, cursor }
+        FormatResult {
+            text: new_text,
+            anchor,
+            cursor,
+        }
     } else {
         // WRAP: ``` above the range and ``` below it; select the whole fenced block.
         let mut new_lines: Vec<String> = Vec::with_capacity(lines.len() + 2);
@@ -331,7 +335,11 @@ fn code_block_toggle(lines: &[String], first: usize, last: usize, _has_sel: bool
         let close = last + 2; // index of the closing fence in new_lines
         let a = line_start_char(&new_lines, first);
         let c = line_start_char(&new_lines, close) + new_lines[close].chars().count();
-        FormatResult { text: new_text, anchor: Some(a), cursor: c }
+        FormatResult {
+            text: new_text,
+            anchor: Some(a),
+            cursor: c,
+        }
     }
 }
 
@@ -358,11 +366,7 @@ fn line_heading_level(line: &[char], ind: usize) -> usize {
 /// `level + 1` (the `#`s plus the one space), or `0` when the line is not a heading.
 fn heading_prefix_char_len(line: &[char], ind: usize) -> usize {
     let lvl = line_heading_level(line, ind);
-    if lvl > 0 {
-        lvl + 1
-    } else {
-        0
-    }
+    if lvl > 0 { lvl + 1 } else { 0 }
 }
 
 /// The next level in the popover `H` button's cycle: off → H1 → H2 → H3 → off. An
@@ -470,7 +474,11 @@ fn heading_cycle(text: &str, anchor: Option<usize>, cursor: usize) -> FormatResu
         let new_col = remap_col(stripped, new_len as i64, at);
         (None, line_start_char(&new_lines, first) + new_col)
     };
-    FormatResult { text: new_text, anchor, cursor }
+    FormatResult {
+        text: new_text,
+        anchor,
+        cursor,
+    }
 }
 
 // --- INLINE toggle ----------------------------------------------------------
@@ -527,7 +535,13 @@ enum InlineWrap {
 /// bold, and STRIPPED the inner pair (degrading bold to italic) on toggle. An
 /// EMPTY delimited span (`**||**`) has no content to parse and stays purely
 /// syntactic (the empty-delimiter toggle-off round-trip).
-fn inline_wrap(kind: InlineKind, chars: &[char], text: &str, ws: usize, we: usize) -> Option<InlineWrap> {
+fn inline_wrap(
+    kind: InlineKind,
+    chars: &[char],
+    text: &str,
+    ws: usize,
+    we: usize,
+) -> Option<InlineWrap> {
     let d: Vec<char> = kind.delim().chars().collect();
     let dl = d.len();
     let eq = |from: usize| from + dl <= chars.len() && chars[from..from + dl] == d[..];
@@ -576,21 +590,34 @@ fn kind_matches_span(kind: InlineKind, k: crate::markdown::MdKind) -> bool {
 
 /// Byte offset of char index `char_idx` into `text` (its length when past the end).
 fn char_to_byte(text: &str, char_idx: usize) -> usize {
-    text.char_indices().nth(char_idx).map(|(b, _)| b).unwrap_or(text.len())
+    text.char_indices()
+        .nth(char_idx)
+        .map(|(b, _)| b)
+        .unwrap_or(text.len())
 }
 
 /// Whether the format popover's inline button for `kind` should draw LIT — i.e.
 /// toggling it would STRIP (the selection / caret-word is already wrapped). PURE;
 /// the popover's active-state oracle, routed through the SAME [`inline_span`] +
 /// [`inline_wrap`] the toggle uses.
-pub(crate) fn inline_active(kind: InlineKind, text: &str, anchor: Option<usize>, cursor: usize) -> bool {
+pub(crate) fn inline_active(
+    kind: InlineKind,
+    text: &str,
+    anchor: Option<usize>,
+    cursor: usize,
+) -> bool {
     let chars: Vec<char> = text.chars().collect();
     let (ws, we, _) = inline_span(&chars, anchor, cursor);
     inline_wrap(kind, &chars, text, ws, we).is_some()
 }
 
 /// Toggle an INLINE format over the selection / word under the caret. See module doc.
-fn inline_toggle(kind: InlineKind, text: &str, anchor: Option<usize>, cursor: usize) -> FormatResult {
+fn inline_toggle(
+    kind: InlineKind,
+    text: &str,
+    anchor: Option<usize>,
+    cursor: usize,
+) -> FormatResult {
     let chars: Vec<char> = text.chars().collect();
     let d: Vec<char> = kind.delim().chars().collect();
     let dl = d.len();
@@ -637,7 +664,11 @@ fn inline_toggle(kind: InlineKind, text: &str, anchor: Option<usize>, cursor: us
     if want_caret {
         // Empty delimiters: bare caret between the two delimiters.
         let c = ws + dl;
-        FormatResult { text: out.into_iter().collect(), anchor: None, cursor: c }
+        FormatResult {
+            text: out.into_iter().collect(),
+            anchor: None,
+            cursor: c,
+        }
     } else {
         // Keep the selection over the same visible text (now inside the delimiters).
         let (a, c) = (ws + dl, we + dl);
@@ -650,9 +681,17 @@ fn inline_toggle(kind: InlineKind, text: &str, anchor: Option<usize>, cursor: us
 fn finish_inline(out: Vec<char>, empty: bool, a: usize, c: usize) -> FormatResult {
     let text: String = out.into_iter().collect();
     if empty || a == c {
-        FormatResult { text, anchor: None, cursor: c }
+        FormatResult {
+            text,
+            anchor: None,
+            cursor: c,
+        }
     } else {
-        FormatResult { text, anchor: Some(a), cursor: c }
+        FormatResult {
+            text,
+            anchor: Some(a),
+            cursor: c,
+        }
     }
 }
 
@@ -758,9 +797,19 @@ mod tests {
     #[test]
     fn inline_active_matches_the_toggle_strip_condition() {
         // Unformatted selection → not active.
-        assert!(!inline_active(InlineKind::Bold, "the quick fox", Some(4), 9));
+        assert!(!inline_active(
+            InlineKind::Bold,
+            "the quick fox",
+            Some(4),
+            9
+        ));
         // Inner selection of an existing wrap → active (surrounding delimiters).
-        assert!(inline_active(InlineKind::Bold, "the **quick** fox", Some(6), 11));
+        assert!(inline_active(
+            InlineKind::Bold,
+            "the **quick** fox",
+            Some(6),
+            11
+        ));
         // Fully-selected wrapped span → active (span begins+ends with delimiters).
         assert!(inline_active(InlineKind::Bold, "a **beta** c", Some(2), 10));
         // Caret-word (no selection) inside a wrap → active.
@@ -773,23 +822,56 @@ mod tests {
     #[test]
     fn inline_active_disambiguates_bold_from_italic() {
         // `*i*` — a genuine lone-`*` italic: I active, B not.
-        assert!(inline_active(InlineKind::Italic, "*i*", None, 1), "*i* is italic");
-        assert!(!inline_active(InlineKind::Bold, "*i*", None, 1), "*i* is not bold");
+        assert!(
+            inline_active(InlineKind::Italic, "*i*", None, 1),
+            "*i* is italic"
+        );
+        assert!(
+            !inline_active(InlineKind::Bold, "*i*", None, 1),
+            "*i* is not bold"
+        );
         // `**b**` — plain bold: B active, I DARK (the fix; pre-fix I lit here).
-        assert!(inline_active(InlineKind::Bold, "**b**", None, 2), "**b** is bold");
-        assert!(!inline_active(InlineKind::Italic, "**b**", None, 2), "**b** is NOT italic");
+        assert!(
+            inline_active(InlineKind::Bold, "**b**", None, 2),
+            "**b** is bold"
+        );
+        assert!(
+            !inline_active(InlineKind::Italic, "**b**", None, 2),
+            "**b** is NOT italic"
+        );
         // `***bi***` — both: I and B both active (I strips to `**bi**`).
-        assert!(inline_active(InlineKind::Italic, "***bi***", None, 4), "***bi*** is italic too");
-        assert!(inline_active(InlineKind::Bold, "***bi***", None, 4), "***bi*** is bold too");
+        assert!(
+            inline_active(InlineKind::Italic, "***bi***", None, 4),
+            "***bi*** is italic too"
+        );
+        assert!(
+            inline_active(InlineKind::Bold, "***bi***", None, 4),
+            "***bi*** is bold too"
+        );
         // `**a *i* b**` — a nested `*i*` inside bold: I active on "i", and DARK on
         // the plain-bold "a" (I inside plain bold text = not active).
-        assert!(inline_active(InlineKind::Italic, "**a *i* b**", None, 5), "italic on the nested i");
-        assert!(!inline_active(InlineKind::Italic, "**a *i* b**", None, 2), "I dark on plain-bold a");
+        assert!(
+            inline_active(InlineKind::Italic, "**a *i* b**", None, 5),
+            "italic on the nested i"
+        );
+        assert!(
+            !inline_active(InlineKind::Italic, "**a *i* b**", None, 2),
+            "I dark on plain-bold a"
+        );
         // EDGE — fully SELECTING `**b**` (delimiters included): B active, I dark.
-        assert!(inline_active(InlineKind::Bold, "**b**", Some(0), 5), "select-all **b** is bold");
-        assert!(!inline_active(InlineKind::Italic, "**b**", Some(0), 5), "select-all **b** not italic");
+        assert!(
+            inline_active(InlineKind::Bold, "**b**", Some(0), 5),
+            "select-all **b** is bold"
+        );
+        assert!(
+            !inline_active(InlineKind::Italic, "**b**", Some(0), 5),
+            "select-all **b** not italic"
+        );
         // EDGE — caret ON the opening marker (no word) lights nothing.
-        assert!(!inline_active(InlineKind::Italic, "*i*", None, 0), "caret on the * marker: dark");
+        assert!(
+            !inline_active(InlineKind::Italic, "*i*", None, 0),
+            "caret on the * marker: dark"
+        );
     }
 
     /// Pressing I inside plain bold WRAPS italic inside it (`***bold***`), never
@@ -798,14 +880,22 @@ mod tests {
     #[test]
     fn toggling_italic_inside_bold_wraps_then_strips_back() {
         let a = inl(InlineKind::Italic, "**bold**", None, 4);
-        assert_eq!(a.text, "***bold***", "I wraps italic inside bold, no bold→italic degrade");
+        assert_eq!(
+            a.text, "***bold***",
+            "I wraps italic inside bold, no bold→italic degrade"
+        );
         let rendered = crate::markdown::spans(&a.text);
         assert!(
-            rendered.iter().any(|(_, k)| *k == crate::markdown::MdKind::BoldItalic),
+            rendered
+                .iter()
+                .any(|(_, k)| *k == crate::markdown::MdKind::BoldItalic),
             "***bold*** renders bold+italic: {rendered:?}"
         );
         let b = inl(InlineKind::Italic, &a.text, a.anchor, a.cursor);
-        assert_eq!(b.text, "**bold**", "second I strips the italic, bold survives");
+        assert_eq!(
+            b.text, "**bold**",
+            "second I strips the italic, bold survives"
+        );
     }
 
     #[test]
@@ -937,7 +1027,11 @@ mod tests {
         // Re-toggle with the wrapped selection strips the surrounding delimiters.
         let b = inl(InlineKind::Bold, &a.text, a.anchor, a.cursor);
         assert_eq!(b.text, src, "apply then strip restores the original text");
-        assert_eq!((b.anchor, b.cursor), (Some(4), 9), "selection back over the same text");
+        assert_eq!(
+            (b.anchor, b.cursor),
+            (Some(4), 9),
+            "selection back over the same text"
+        );
     }
 
     #[test]
@@ -971,7 +1065,11 @@ mod tests {
         // Caret inside "quick" (col 6) with no selection wraps the whole word.
         let r = inl(InlineKind::Bold, "the quick fox", None, 6);
         assert_eq!(r.text, "the **quick** fox");
-        assert_eq!((r.anchor, r.cursor), (Some(6), 11), "selection over the wrapped word");
+        assert_eq!(
+            (r.anchor, r.cursor),
+            (Some(6), 11),
+            "selection over the wrapped word"
+        );
     }
 
     #[test]
@@ -991,7 +1089,10 @@ mod tests {
         assert_eq!(a.text, "one\n**\ntwo\n");
         assert_eq!(a.cursor, 5, "caret sits between the two delimiters");
         let b = inl(InlineKind::Italic, &a.text, a.anchor, a.cursor);
-        assert_eq!(b.text, "one\n\ntwo\n", "toggling empty delimiters off restores the text");
+        assert_eq!(
+            b.text, "one\n\ntwo\n",
+            "toggling empty delimiters off restores the text"
+        );
         assert_eq!(b.cursor, 4, "caret lands where the delimiters were");
     }
 }

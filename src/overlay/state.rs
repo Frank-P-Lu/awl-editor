@@ -4,7 +4,7 @@
 //! item's path is unchanged (`overlay::OverlayState`) -- only the file it
 //! lives in moved.
 
-use super::{Capture, KeepEdit, LinkEdit, OverlayKind, RenameEdit, ValueEdit, PIN_TAG};
+use super::{Capture, KeepEdit, LinkEdit, OverlayKind, PIN_TAG, RenameEdit, ValueEdit};
 use crate::textbox::TextBox;
 
 /// The row LABEL for the spell picker's "Add to dictionary" affordance — the ONE
@@ -340,9 +340,22 @@ impl OverlayState {
     /// hints for the ranking tiers. The query starts empty (everything matches).
     /// Git/dir markers default to all-false (the Goto case); use [`new_marked`]
     /// for Project/Browse entries that carry markers.
-    pub fn new(kind: OverlayKind, corpus: Vec<String>, open: Vec<usize>, recent: Vec<usize>) -> Self {
+    pub fn new(
+        kind: OverlayKind,
+        corpus: Vec<String>,
+        open: Vec<usize>,
+        recent: Vec<usize>,
+    ) -> Self {
         let n = corpus.len();
-        Self::new_marked(kind, corpus, vec![false; n], vec![false; n], open, recent, None)
+        Self::new_marked(
+            kind,
+            corpus,
+            vec![false; n],
+            vec![false; n],
+            open,
+            recent,
+            None,
+        )
     }
 
     /// Like [`new`], but with explicit `git`/`is_dir` markers (parallel to
@@ -373,7 +386,9 @@ impl OverlayState {
                 row.git = git;
                 row.is_dir = is_dir;
                 if kind == OverlayKind::Goto {
-                    row.meta = RowMeta::GotoFile { time: String::new() };
+                    row.meta = RowMeta::GotoFile {
+                        time: String::new(),
+                    };
                 }
                 row
             })
@@ -478,7 +493,9 @@ impl OverlayState {
     /// default from [`new_marked`]), keeping the capture byte-stable.
     pub fn set_times(&mut self, times: Vec<String>) {
         for (i, row) in self.rows.iter_mut().enumerate() {
-            row.meta = RowMeta::GotoFile { time: times.get(i).cloned().unwrap_or_default() };
+            row.meta = RowMeta::GotoFile {
+                time: times.get(i).cloned().unwrap_or_default(),
+            };
         }
     }
 
@@ -552,7 +569,10 @@ impl OverlayState {
         s.original_caret_was_auto = crate::caret::is_auto();
         // Empty query => corpus order, so the active look sits at its ALL index;
         // select it so the picker opens previewing the current look.
-        if let Some(active_index) = crate::caret::CaretMode::ALL.iter().position(|&m| m == active) {
+        if let Some(active_index) = crate::caret::CaretMode::ALL
+            .iter()
+            .position(|&m| m == active)
+        {
             if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
                 s.selected = pos;
                 s.scroll_to_selected();
@@ -588,7 +608,10 @@ impl OverlayState {
             None,
         );
         s.set_secondaries(descriptions);
-        if let Some(active_index) = crate::spell::DictVariant::ALL.iter().position(|&v| v == active) {
+        if let Some(active_index) = crate::spell::DictVariant::ALL
+            .iter()
+            .position(|&v| v == active)
+        {
             if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
                 s.selected = pos;
                 s.scroll_to_selected();
@@ -625,8 +648,9 @@ impl OverlayState {
             None,
         );
         s.set_secondaries(descriptions);
-        if let Some(active_index) =
-            crate::frontmatter::DEFAULT_CJK_PRIORITY.iter().position(|&l| l == active)
+        if let Some(active_index) = crate::frontmatter::DEFAULT_CJK_PRIORITY
+            .iter()
+            .position(|&l| l == active)
         {
             if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
                 s.selected = pos;
@@ -670,8 +694,9 @@ impl OverlayState {
             None,
         );
         s.set_secondaries(descriptions);
-        if let Some(active_index) =
-            crate::dateformat::DateFormat::ALL.iter().position(|&f| f == active)
+        if let Some(active_index) = crate::dateformat::DateFormat::ALL
+            .iter()
+            .position(|&f| f == active)
         {
             if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
                 s.selected = pos;
@@ -736,7 +761,11 @@ impl OverlayState {
         );
         // Default to the first real folder so Enter DESCENDS into it right away; the
         // synthetic "." (select-this-folder) sits above it, Up.
-        s.selected = s.items.iter().position(|&i| s.rows[i].accept != ".").unwrap_or(0);
+        s.selected = s
+            .items
+            .iter()
+            .position(|&i| s.rows[i].accept != ".")
+            .unwrap_or(0);
         s.scroll_to_selected();
         s
     }
@@ -796,7 +825,8 @@ impl OverlayState {
     /// REBIND MENU: the slug of the highlighted command (for Delete → reset-to-default),
     /// or `None` when no row matches.
     pub fn selected_command_slug(&self) -> Option<String> {
-        self.selected_corpus_index().map(crate::commands::visible_slug_of)
+        self.selected_corpus_index()
+            .map(crate::commands::visible_slug_of)
     }
 
     /// The line drawn DIM at the FOOT of the card. Normally the per-kind control
@@ -826,9 +856,18 @@ impl OverlayState {
         // per the plain-close precedent; ↵ still restores, so it keeps its cell.
         if self.diff_focus {
             return super::format_hint(&[
-                super::HintAction { glyph: "\u{2191}/\u{2193}", label: "scroll" },
-                super::HintAction { glyph: "\u{21B5}", label: "restore" },
-                super::HintAction { glyph: "tab", label: "back" },
+                super::HintAction {
+                    glyph: "\u{2191}/\u{2193}",
+                    label: "scroll",
+                },
+                super::HintAction {
+                    glyph: "\u{21B5}",
+                    label: "restore",
+                },
+                super::HintAction {
+                    glyph: "tab",
+                    label: "back",
+                },
             ]);
         }
         // ITEM 94 — RANGE ROW: the highlighted row carries a RAIL, so ←/→ step its
@@ -942,7 +981,11 @@ impl OverlayState {
     /// emit [`crate::actions::Effect::AddToDictionary`]; it is present even when
     /// the suggestion list is EMPTY (so a word with no correction can still be
     /// added) — the picker always shows at least the one add row.
-    pub fn new_spell(mut suggestions: Vec<String>, target: (usize, usize, usize), word: String) -> Self {
+    pub fn new_spell(
+        mut suggestions: Vec<String>,
+        target: (usize, usize, usize),
+        word: String,
+    ) -> Self {
         suggestions.truncate(OverlayKind::MAX_SUGGESTIONS);
         suggestions.push(add_to_dictionary_label(&word));
         let len = suggestions.len();

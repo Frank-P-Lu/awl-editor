@@ -44,15 +44,23 @@ pub fn trigger_download(filename: &str, text: &str) {
     use wasm_bindgen::{JsCast, JsValue};
     use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-    let Some(window) = web_sys::window() else { return };
-    let Some(document) = window.document() else { return };
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
 
     let parts = js_sys::Array::new();
     parts.push(&JsValue::from_str(text));
     let opts = BlobPropertyBag::new();
     opts.set_type("text/plain");
-    let Ok(blob) = Blob::new_with_str_sequence_and_options(&parts, &opts) else { return };
-    let Ok(url) = Url::create_object_url_with_blob(&blob) else { return };
+    let Ok(blob) = Blob::new_with_str_sequence_and_options(&parts, &opts) else {
+        return;
+    };
+    let Ok(url) = Url::create_object_url_with_blob(&blob) else {
+        return;
+    };
 
     if let Ok(el) = document.create_element("a") {
         if let Ok(anchor) = el.dyn_into::<HtmlAnchorElement>() {
@@ -99,8 +107,12 @@ pub fn trigger_download_bytes(filename: &str, mime: &str, bytes: &[u8]) {
     use wasm_bindgen::{JsCast, JsValue};
     use web_sys::{Blob, BlobPropertyBag, HtmlAnchorElement, Url};
 
-    let Some(window) = web_sys::window() else { return };
-    let Some(document) = window.document() else { return };
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
 
     // A single Uint8Array view over the bytes, wrapped in the parts array.
     let array = js_sys::Uint8Array::from(bytes);
@@ -108,8 +120,12 @@ pub fn trigger_download_bytes(filename: &str, mime: &str, bytes: &[u8]) {
     parts.push(&JsValue::from(array));
     let opts = BlobPropertyBag::new();
     opts.set_type(mime);
-    let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &opts) else { return };
-    let Ok(url) = Url::create_object_url_with_blob(&blob) else { return };
+    let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &opts) else {
+        return;
+    };
+    let Ok(url) = Url::create_object_url_with_blob(&blob) else {
+        return;
+    };
 
     if let Ok(el) = document.create_element("a") {
         if let Ok(anchor) = el.dyn_into::<HtmlAnchorElement>() {

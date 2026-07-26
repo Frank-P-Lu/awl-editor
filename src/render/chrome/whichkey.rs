@@ -37,7 +37,12 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let faint = theme::faint().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let m = self.metrics;
@@ -66,7 +71,8 @@ impl TextPipeline {
                 Shaping::Advanced,
                 None,
             );
-            self.wk_buffer.shape_until_scroll(&mut self.font_system, false);
+            self.wk_buffer
+                .shape_until_scroll(&mut self.font_system, false);
             let area = TextArea {
                 buffer: &self.wk_buffer,
                 left: 0.0,
@@ -93,7 +99,11 @@ impl TextPipeline {
         // A quiet HEADER (the prefix) over the continuation rows. The key column is
         // space-padded to one width so the names line up (proportional-font alignment is
         // approximate but calm — the same space-padding the find panel / gutter use).
-        let key_w = rows.iter().map(|(k, _)| k.chars().count()).max().unwrap_or(0);
+        let key_w = rows
+            .iter()
+            .map(|(k, _)| k.chars().count())
+            .max()
+            .unwrap_or(0);
         // Owned line strings + a role tag: 0 = header (faint), 1 = key (faint),
         // 2 = name (muted). Each row is TWO spans (padded key, then name + newline).
         let mut owned: Vec<(String, u8)> = Vec::with_capacity(rows.len() * 2 + 1);
@@ -117,8 +127,11 @@ impl TextPipeline {
             })
             .collect();
 
-        self.wk_buffer
-            .set_size(&mut self.font_system, Some(width as f32), Some(height as f32));
+        self.wk_buffer.set_size(
+            &mut self.font_system,
+            Some(width as f32),
+            Some(height as f32),
+        );
         let default_attrs = base.clone().color(muted).metrics(body);
         self.wk_buffer.set_rich_text(
             &mut self.font_system,
@@ -127,7 +140,8 @@ impl TextPipeline {
             Shaping::Advanced,
             None,
         );
-        self.wk_buffer.shape_until_scroll(&mut self.font_system, false);
+        self.wk_buffer
+            .shape_until_scroll(&mut self.font_system, false);
 
         // Measure the shaped block, then plant a padded card in the BOTTOM-LEFT corner
         // (clear of the centered writing column, so it never covers where you type).

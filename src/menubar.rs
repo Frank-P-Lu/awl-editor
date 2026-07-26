@@ -108,7 +108,11 @@ pub fn set_open(i: Option<usize>) {
 /// close it if it is already the open one — the click-the-title-again behaviour of a
 /// real menu bar. Returns the now-open index (or `None`).
 pub fn toggle_open(i: usize) -> Option<usize> {
-    let next = if open_menu() == Some(i) { None } else { Some(i) };
+    let next = if open_menu() == Some(i) {
+        None
+    } else {
+        Some(i)
+    };
     set_open(next);
     next
 }
@@ -223,8 +227,17 @@ pub fn boxes_from_extents(extents: &[(f32, f32)]) -> Vec<TitleBox> {
         } else {
             (extents[k - 1].1 + l) * 0.5
         };
-        let band_right = if k + 1 < n { (r + extents[k + 1].0) * 0.5 } else { r + TITLE_PAD_X };
-        out.push(TitleBox { band_left, text_left: l, text_right: r, band_right });
+        let band_right = if k + 1 < n {
+            (r + extents[k + 1].0) * 0.5
+        } else {
+            r + TITLE_PAD_X
+        };
+        out.push(TitleBox {
+            band_left,
+            text_left: l,
+            text_right: r,
+            band_right,
+        });
     }
     out
 }
@@ -237,7 +250,9 @@ pub fn title_at(boxes: &[TitleBox], bar_h: f32, px: f32, py: f32) -> Option<usiz
     if py < 0.0 || py >= bar_h {
         return None;
     }
-    boxes.iter().position(|b| px >= b.band_left && px < b.band_right)
+    boxes
+        .iter()
+        .position(|b| px >= b.band_left && px < b.band_right)
 }
 
 /// True when `(px, py)` is anywhere in the bar's own strip `[0, bar_h)` (whether or
@@ -265,7 +280,11 @@ pub fn drop_rows(separators: &[bool], row_h: f32) -> (Vec<DropRow>, f32) {
     let mut rows = Vec::with_capacity(separators.len());
     let mut top = 0.0;
     for &sep in separators {
-        rows.push(DropRow { top, height: row_h, separator: sep });
+        rows.push(DropRow {
+            top,
+            height: row_h,
+            separator: sep,
+        });
         top += row_h;
     }
     (rows, top)
@@ -295,9 +314,9 @@ pub fn drop_item_at(rect: [f32; 4], rows: &[DropRow], px: f32, py: f32) -> Optio
     if local_y < 0.0 {
         return None;
     }
-    rows.iter().position(|r| !r.separator && local_y >= r.top && local_y < r.top + r.height)
+    rows.iter()
+        .position(|r| !r.separator && local_y >= r.top && local_y < r.top + r.height)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -314,11 +333,23 @@ mod tests {
         assert_eq!(bled[1], -EDGE_BLEED_PX, "top bleeds past y=0");
         // Width grew by the left AND right bleed (both edges were flush); height
         // grew by the top bleed only (bottom untouched).
-        assert_eq!(bled[2], 1200.0 + 2.0 * EDGE_BLEED_PX, "width bleeds on both flush sides");
-        assert_eq!(bled[3], 32.0 + EDGE_BLEED_PX, "height bleeds on the top side only");
+        assert_eq!(
+            bled[2],
+            1200.0 + 2.0 * EDGE_BLEED_PX,
+            "width bleeds on both flush sides"
+        );
+        assert_eq!(
+            bled[3],
+            32.0 + EDGE_BLEED_PX,
+            "height bleeds on the top side only"
+        );
         // The bottom edge (y + h) moves by exactly the top bleed, i.e. the BOTTOM
         // itself (a non-flush edge) never moved: bled_y + bled_h == rect_y + rect_h.
-        assert_eq!(bled[1] + bled[3], rect[1] + rect[3], "the bottom edge itself is unmoved");
+        assert_eq!(
+            bled[1] + bled[3],
+            rect[1] + rect[3],
+            "the bottom edge itself is unmoved"
+        );
     }
 
     /// A rect that touches NEITHER the left nor the right canvas edge (an open
@@ -330,7 +361,10 @@ mod tests {
         let bled = bleed_to_canvas_edges(rect, 1200.0);
         assert_eq!(bled[0], 400.0, "left edge is interior, untouched");
         assert_eq!(bled[2], 80.0, "width is untouched (no side bled)");
-        assert_eq!(bled[1], -EDGE_BLEED_PX, "top still bleeds — it's always flush for the bar");
+        assert_eq!(
+            bled[1], -EDGE_BLEED_PX,
+            "top still bleeds — it's always flush for the bar"
+        );
         assert_eq!(bled[3], 32.0 + EDGE_BLEED_PX);
     }
 
@@ -341,7 +375,11 @@ mod tests {
         let rect = [1100.0, 0.0, 100.0, 32.0]; // right edge exactly at canvas_w=1200
         let bled = bleed_to_canvas_edges(rect, 1200.0);
         assert_eq!(bled[0], 1100.0, "left edge is interior, untouched");
-        assert_eq!(bled[2], 100.0 + EDGE_BLEED_PX, "right bleeds (flush to canvas_w)");
+        assert_eq!(
+            bled[2],
+            100.0 + EDGE_BLEED_PX,
+            "right bleeds (flush to canvas_w)"
+        );
         assert_eq!(bled[1], -EDGE_BLEED_PX);
     }
 
@@ -405,13 +443,28 @@ mod tests {
         let boxes = boxes_from_extents(&[(20.0, 50.0), (70.0, 96.0), (110.0, 146.0)]);
         let bar_h = bar_height(20.0);
         // A click in each band resolves to that title.
-        assert_eq!(title_at(&boxes, bar_h, boxes[0].text_left + 1.0, 4.0), Some(0));
-        assert_eq!(title_at(&boxes, bar_h, boxes[1].text_left + 1.0, 4.0), Some(1));
-        assert_eq!(title_at(&boxes, bar_h, boxes[2].band_right - 1.0, 4.0), Some(2));
+        assert_eq!(
+            title_at(&boxes, bar_h, boxes[0].text_left + 1.0, 4.0),
+            Some(0)
+        );
+        assert_eq!(
+            title_at(&boxes, bar_h, boxes[1].text_left + 1.0, 4.0),
+            Some(1)
+        );
+        assert_eq!(
+            title_at(&boxes, bar_h, boxes[2].band_right - 1.0, 4.0),
+            Some(2)
+        );
         // A click below the bar, or left of the first band, or past the last, misses.
-        assert_eq!(title_at(&boxes, bar_h, boxes[0].text_left, bar_h + 1.0), None);
+        assert_eq!(
+            title_at(&boxes, bar_h, boxes[0].text_left, bar_h + 1.0),
+            None
+        );
         assert_eq!(title_at(&boxes, bar_h, 0.0, 4.0), None);
-        assert_eq!(title_at(&boxes, bar_h, boxes[2].band_right + 5.0, 4.0), None);
+        assert_eq!(
+            title_at(&boxes, bar_h, boxes[2].band_right + 5.0, 4.0),
+            None
+        );
     }
 
     #[test]
@@ -429,7 +482,12 @@ mod tests {
 
     #[test]
     fn drop_item_at_hits_clickable_rows_only() {
-        let anchor = TitleBox { band_left: 40.0, text_left: 52.0, text_right: 84.0, band_right: 90.0 };
+        let anchor = TitleBox {
+            band_left: 40.0,
+            text_left: 52.0,
+            text_right: 84.0,
+            band_right: 90.0,
+        };
         let bar_h = bar_height(20.0);
         let (rows, total) = drop_rows(&[false, true, false], 22.0);
         let rect = drop_rect(&anchor, bar_h, 120.0, total);

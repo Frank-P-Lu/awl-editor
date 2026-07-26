@@ -115,8 +115,7 @@ pub(super) fn held_run_keeps_steady_streak(dir: HeldDir, lens: &[usize], origin:
 /// skip gracefully on a headless/CI box (mirrors `render::tests::headless_pipeline`).
 pub(super) fn adapter_available() -> bool {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -138,5 +137,7 @@ pub(super) fn num_after(json: &str, anchor: &str, key: &str) -> f64 {
         .skip_while(|c| !(c.is_ascii_digit() || *c == '-' || *c == '+'))
         .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-' || *c == '+')
         .collect();
-    token.parse().unwrap_or_else(|_| panic!("bad number for {key:?}: {token:?}"))
+    token
+        .parse()
+        .unwrap_or_else(|_| panic!("bad number for {key:?}: {token:?}"))
 }

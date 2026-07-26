@@ -82,7 +82,9 @@ fn socket_dir_override() -> &'static Mutex<Option<PathBuf>> {
 /// tests never touch (or race on) the real machine's socket file.
 #[cfg(test)]
 pub(crate) fn set_socket_dir_for_test(dir: Option<PathBuf>) {
-    *socket_dir_override().lock().unwrap_or_else(|e| e.into_inner()) = dir;
+    *socket_dir_override()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = dir;
 }
 
 /// Where the single-instance socket lives.
@@ -130,7 +132,10 @@ pub fn parse_open(line: &str) -> Option<OpenRequest> {
     if path_str.is_empty() {
         return None;
     }
-    Some(OpenRequest { path: PathBuf::from(path_str), wait })
+    Some(OpenRequest {
+        path: PathBuf::from(path_str),
+        wait,
+    })
 }
 
 /// The server's immediate ack, sent the instant a request parses (before the
@@ -211,7 +216,10 @@ impl Waiter {
 pub enum DaemonEvent {
     /// A peer asked to open `path`. `waiter` is `Some` for a `wait` client
     /// (kept open for the eventual `done`); `None` for fire-and-forget.
-    OpenPath { path: PathBuf, waiter: Option<Waiter> },
+    OpenPath {
+        path: PathBuf,
+        waiter: Option<Waiter>,
+    },
 }
 
 /// Spawn the accept-loop THREAD: blocks on `listener.accept()` — genuinely 0%
@@ -252,11 +260,22 @@ pub fn spawn_accept_thread<E: Send + 'static>(
             if reader.read_line(&mut line).unwrap_or(0) == 0 {
                 continue; // client hung up before sending anything
             }
-            let Some(req) = parse_open(&line) else { continue };
+            let Some(req) = parse_open(&line) else {
+                continue;
+            };
             let _ = stream.write_all(REPLY_OK.as_bytes());
-            let waiter =
-                if req.wait { Some(Waiter { path: req.path.clone(), stream }) } else { None };
-            let _ = proxy.send_event(wrap(DaemonEvent::OpenPath { path: req.path, waiter }));
+            let waiter = if req.wait {
+                Some(Waiter {
+                    path: req.path.clone(),
+                    stream,
+                })
+            } else {
+                None
+            };
+            let _ = proxy.send_event(wrap(DaemonEvent::OpenPath {
+                path: req.path,
+                waiter,
+            }));
         }
     });
 }
@@ -326,7 +345,13 @@ mod tests {
         let line = format_open(&p, false);
         assert_eq!(line, "open /tmp/a.txt\n");
         let req = parse_open(&line).expect("parses");
-        assert_eq!(req, OpenRequest { path: p, wait: false });
+        assert_eq!(
+            req,
+            OpenRequest {
+                path: p,
+                wait: false
+            }
+        );
     }
 
     #[test]
@@ -335,7 +360,13 @@ mod tests {
         let line = format_open(&p, true);
         assert_eq!(line, "open /tmp/notes/draft.md wait\n");
         let req = parse_open(&line).expect("parses");
-        assert_eq!(req, OpenRequest { path: p, wait: true });
+        assert_eq!(
+            req,
+            OpenRequest {
+                path: p,
+                wait: true
+            }
+        );
     }
 
     #[test]
@@ -349,7 +380,10 @@ mod tests {
     fn parse_open_rejects_garbage() {
         assert!(parse_open("").is_none());
         assert!(parse_open("close /a.txt\n").is_none());
-        assert!(parse_open("open \n").is_none(), "an empty path is not a request");
+        assert!(
+            parse_open("open \n").is_none(),
+            "an empty path is not a request"
+        );
         assert!(parse_open("open\n").is_none(), "no space, no path");
     }
 
@@ -403,7 +437,10 @@ mod tests {
         {
             let _dead = UnixListener::bind(&path).expect("bind the 'crashed instance'");
         }
-        assert!(path.exists(), "the stale socket special file must still be on disk");
+        assert!(
+            path.exists(),
+            "the stale socket special file must still be on disk"
+        );
         match bind_or_connect(&path).expect("must reclaim the stale address") {
             BindOutcome::Instance(_l) => {}
             BindOutcome::Handoff(_) => panic!("nothing is listening; must never hand off"),
@@ -418,8 +455,8 @@ mod tests {
         // A relative launch argument must be sent to the server as its
         // cwd-joined, normalized (mirrors `BufferKey::path`) absolute form —
         // the server cannot ever recover the client's cwd on its own.
-        let dir = std::env::temp_dir()
-            .join(format!("awl-daemon-handoff-canon-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("awl-daemon-handoff-canon-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
         let sock = dir.join("awl.sock");
@@ -447,7 +484,9 @@ mod tests {
         let outcome = match bind_or_connect(&sock).unwrap() {
             BindOutcome::Handoff(mut stream) => {
                 let canon = crate::buffers::normalize_path(Path::new("a.txt"));
-                stream.write_all(format_open(&canon, false).as_bytes()).unwrap();
+                stream
+                    .write_all(format_open(&canon, false).as_bytes())
+                    .unwrap();
                 let mut reader = BufReader::new(stream.try_clone().unwrap());
                 let mut ok = String::new();
                 reader.read_line(&mut ok).unwrap();
@@ -478,8 +517,8 @@ mod tests {
         // `EventLoopProxy::send_event` (no winit event loop in a unit test) —
         // the honestly-testable slice of `spawn_accept_thread`. The real
         // winit hop (`App::handle_daemon_event`) is live-only; see the module doc.
-        let dir = std::env::temp_dir()
-            .join(format!("awl-daemon-accept-thread-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("awl-daemon-accept-thread-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
@@ -495,18 +534,31 @@ mod tests {
                 if reader.read_line(&mut line).unwrap_or(0) == 0 {
                     continue;
                 }
-                let Some(req) = parse_open(&line) else { continue };
+                let Some(req) = parse_open(&line) else {
+                    continue;
+                };
                 let _ = stream.write_all(REPLY_OK.as_bytes());
-                let waiter =
-                    if req.wait { Some(Waiter { path: req.path.clone(), stream }) } else { None };
-                let _ = tx.send(DaemonEvent::OpenPath { path: req.path, waiter });
+                let waiter = if req.wait {
+                    Some(Waiter {
+                        path: req.path.clone(),
+                        stream,
+                    })
+                } else {
+                    None
+                };
+                let _ = tx.send(DaemonEvent::OpenPath {
+                    path: req.path,
+                    waiter,
+                });
             }
         });
 
         // Client: connect, send a WAIT request, read "ok", then read "done".
         let mut client = UnixStream::connect(&sock).unwrap();
         let target = PathBuf::from("/some/file.md");
-        client.write_all(format_open(&target, true).as_bytes()).unwrap();
+        client
+            .write_all(format_open(&target, true).as_bytes())
+            .unwrap();
         let mut reader = BufReader::new(client.try_clone().unwrap());
         let mut ok_line = String::new();
         reader.read_line(&mut ok_line).unwrap();
@@ -532,8 +584,8 @@ mod tests {
         // DROPPED (never explicitly `notify_done`d — e.g. the app quit, or the
         // buffer was evicted) still unblocks the client's blocking read with a
         // clean EOF rather than hanging forever.
-        let dir = std::env::temp_dir()
-            .join(format!("awl-daemon-drop-waiter-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("awl-daemon-drop-waiter-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
@@ -546,19 +598,27 @@ mod tests {
             let req = parse_open(&line).unwrap();
             let mut s = stream;
             s.write_all(REPLY_OK.as_bytes()).unwrap();
-            let waiter = Waiter { path: req.path, stream: s };
+            let waiter = Waiter {
+                path: req.path,
+                stream: s,
+            };
             // Simulate a quit/eviction: drop the waiter WITHOUT notifying.
             drop(waiter);
         });
 
         let mut client = UnixStream::connect(&sock).unwrap();
-        client.write_all(format_open(Path::new("/x.txt"), true).as_bytes()).unwrap();
+        client
+            .write_all(format_open(Path::new("/x.txt"), true).as_bytes())
+            .unwrap();
         let mut reader = BufReader::new(client.try_clone().unwrap());
         let mut ok_line = String::new();
         reader.read_line(&mut ok_line).unwrap();
         let mut done_line = String::new();
         let n = reader.read_line(&mut done_line).unwrap();
-        assert_eq!(n, 0, "EOF (0 bytes), not a hang — the closed socket IS the done signal");
+        assert_eq!(
+            n, 0,
+            "EOF (0 bytes), not a hang — the closed socket IS the done signal"
+        );
 
         server.join().unwrap();
         let _ = std::fs::remove_file(&sock);
@@ -578,8 +638,8 @@ mod tests {
         // or otherwise: `main::run`'s capture modes never call `app::run`),
         // then assert nothing ever appeared at the overridden socket path.
         let _lock = crate::testlock::serial();
-        let dir = std::env::temp_dir()
-            .join(format!("awl-daemon-capture-gate-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("awl-daemon-capture-gate-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         set_socket_dir_for_test(Some(dir.clone()));
 
@@ -608,7 +668,8 @@ mod tests {
                 false,
             );
             let _ = crate::actions::apply_core(&mut ctx, &crate::keymap::Action::Save, false);
-            let _ = crate::actions::apply_core(&mut ctx, &crate::keymap::Action::FinishBuffer, false);
+            let _ =
+                crate::actions::apply_core(&mut ctx, &crate::keymap::Action::FinishBuffer, false);
         }
 
         set_socket_dir_for_test(None);

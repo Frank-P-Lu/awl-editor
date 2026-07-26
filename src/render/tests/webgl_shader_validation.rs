@@ -32,7 +32,10 @@ fn validate_and_glsl(source: &str, stage: naga::ShaderStage, entry_point: &str) 
     .unwrap_or_else(|e| panic!("naga validation failed for entry point {entry_point}: {e}"));
 
     let options = naga::back::glsl::Options {
-        version: naga::back::glsl::Version::Embedded { version: 300, is_webgl: true },
+        version: naga::back::glsl::Version::Embedded {
+            version: 300,
+            is_webgl: true,
+        },
         writer_flags: naga::back::glsl::WriterFlags::empty(),
         binding_map: Default::default(),
         zero_initialize_workgroup_memory: true,
@@ -51,10 +54,12 @@ fn validate_and_glsl(source: &str, stage: naga::ShaderStage, entry_point: &str) 
         &pipeline_options,
         naga::proc::BoundsCheckPolicies::default(),
     )
-    .unwrap_or_else(|e| panic!("GLSL ES 300 (WebGL2) writer construction failed for {entry_point}: {e}"));
-    writer
-        .write()
-        .unwrap_or_else(|e| panic!("GLSL ES 300 (WebGL2) translation failed for {entry_point}: {e}"));
+    .unwrap_or_else(|e| {
+        panic!("GLSL ES 300 (WebGL2) writer construction failed for {entry_point}: {e}")
+    });
+    writer.write().unwrap_or_else(|e| {
+        panic!("GLSL ES 300 (WebGL2) translation failed for {entry_point}: {e}")
+    });
     assert!(
         out.contains("void main"),
         "GLSL output for {entry_point} looks empty/malformed: {out:?}"

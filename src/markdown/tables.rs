@@ -20,7 +20,11 @@ use std::ops::Range;
 /// inline Text pass (header cells additionally get a [`MdKind::TableHeader`] tag
 /// from the `TableCell` event); a pipe never overlaps a cell's content, so the
 /// spans compose cleanly.
-pub(super) fn push_table_markup(out: &mut Vec<(Range<usize>, MdKind)>, text: &str, range: &Range<usize>) {
+pub(super) fn push_table_markup(
+    out: &mut Vec<(Range<usize>, MdKind)>,
+    text: &str,
+    range: &Range<usize>,
+) {
     // The whole-table BLOCK conceal span (WYSIWYG): the renderer always hides
     // every source row and draws a pixel GRID in its place; the caret entering
     // the block reveals the raw source ONE ROW AT A TIME — only the row the
@@ -62,9 +66,7 @@ pub(super) fn push_table_markup(out: &mut Vec<(Range<usize>, MdKind)>, text: &st
 /// [`push_table_markup`] recognizes it by shape to dim it whole.
 fn is_separator_row(s: &str) -> bool {
     let t = s.trim();
-    !t.is_empty()
-        && t.contains('-')
-        && t.chars().all(|c| matches!(c, '|' | '-' | ':' | ' ' | '\t'))
+    !t.is_empty() && t.contains('-') && t.chars().all(|c| matches!(c, '|' | '-' | ':' | ' ' | '\t'))
 }
 
 /// A GFM column's alignment, parsed from its header-separator cell (`:---` left,

@@ -6,9 +6,9 @@
 //! (`markdown::MdKind`, `markdown::spans`, …) -- only the file it lives in
 //! moved.
 
+use super::ConcealKind;
 use super::inline_images_on;
 use super::tables::push_table_markup;
-use super::ConcealKind;
 use std::ops::Range;
 
 /// One styled span kind. Maps (in `render.rs`) to a concrete `Attrs` transform
@@ -68,7 +68,10 @@ pub enum MdKind {
     /// string stay dim [`MdKind::Markup`]. Carries the `role` (which color) and the
     /// `lang` (for the sidecar). Emitted ONLY inside a recognized fence, so an
     /// unknown-lang / no-lang fence and every non-fence buffer stay byte-identical.
-    CodeSyntax { role: crate::syntax::SynKind, lang: crate::syntax::Lang },
+    CodeSyntax {
+        role: crate::syntax::SynKind,
+        lang: crate::syntax::Lang,
+    },
     /// Blockquote TEXT → dim (the `>` marker is `Markup`).
     Quote,
     /// A list item's leading marker (`-`/`*`/`+`/`1.`) → dim.
@@ -320,7 +323,12 @@ pub fn list_item(line: &str) -> Option<ListItem> {
     i += 1;
     let content = i;
     let empty = line[content..].chars().all(|c| c.is_whitespace());
-    Some(ListItem { indent, ordered, content, empty })
+    Some(ListItem {
+        indent,
+        ordered,
+        content,
+        empty,
+    })
 }
 
 impl MdKind {
@@ -372,7 +380,10 @@ impl MdKind {
     /// them (column alignment like `| Name  | Value |` is intentional, not a slip).
     /// See `render::rects::ensure_nit_protos`.
     pub fn is_table_markup(self) -> bool {
-        matches!(self, MdKind::TablePipe | MdKind::TableSep | MdKind::TableHeader)
+        matches!(
+            self,
+            MdKind::TablePipe | MdKind::TableSep | MdKind::TableHeader
+        )
     }
 }
 
@@ -451,7 +462,10 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     let mut out: Vec<(Range<usize>, MdKind)> = Vec::new();
     let (text, body_offset) = match crate::frontmatter::detect(text) {
         Some(fm) => {
-            out.push((0..fm.range.end, MdKind::ConcealMarkup(ConcealKind::Frontmatter)));
+            out.push((
+                0..fm.range.end,
+                MdKind::ConcealMarkup(ConcealKind::Frontmatter),
+            ));
             (&text[fm.range.end..], fm.range.end)
         }
         None => (text, 0),
@@ -517,8 +531,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     // (matching the export model's own option set — `export/model.rs` already
     // parsed it; the RENDER now catches up). Every other construct parses
     // exactly as before (the options are additive).
-    let opts =
-        Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;
+    let opts = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;
     for (ev, range) in Parser::new_ext(text, opts).into_offset_iter() {
         match ev {
             Event::Start(tag) => match tag {
@@ -645,7 +658,10 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     if let Some((lang, Some(bs), be)) = fence.take() {
                         if bs < be {
                             for (r, role) in crate::syntax::spans(lang, &text[bs..be]) {
-                                body.push((bs + r.start..bs + r.end, MdKind::CodeSyntax { role, lang }));
+                                body.push((
+                                    bs + r.start..bs + r.end,
+                                    MdKind::CodeSyntax { role, lang },
+                                ));
                             }
                         }
                     }
@@ -711,7 +727,10 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
     // Shift every body-relative span back into DOCUMENT byte coordinates (a
     // no-op add of 0 when there was no frontmatter block) and append after the
     // frontmatter span pushed above.
-    out.extend(body.into_iter().map(|(r, k)| (r.start + body_offset..r.end + body_offset, k)));
+    out.extend(
+        body.into_iter()
+            .map(|(r, k)| (r.start + body_offset..r.end + body_offset, k)),
+    );
     out
 }
 
@@ -755,7 +774,12 @@ fn inline_kind(
 /// concealable as `ck` ([`ConcealKind::Emphasis`] for bold/italic,
 /// [`ConcealKind::Strikethrough`] for `~~`): the delimiters hide off the caret's
 /// line, leaving the styled content alone.
-fn push_delim(out: &mut Vec<(Range<usize>, MdKind)>, range: &Range<usize>, n: usize, ck: ConcealKind) {
+fn push_delim(
+    out: &mut Vec<(Range<usize>, MdKind)>,
+    range: &Range<usize>,
+    n: usize,
+    ck: ConcealKind,
+) {
     if range.end.saturating_sub(range.start) >= 2 * n {
         let k = MdKind::ConcealMarkup(ck);
         out.push((range.start..range.start + n, k));
@@ -953,7 +977,8 @@ pub fn equals_runs(s: &str) -> Vec<Range<usize>> {
     let mut out = Vec::new();
     let mut i = 0usize;
     while i + 1 < b.len() {
-        if b[i] == b'=' && b[i + 1] == b'='
+        if b[i] == b'='
+            && b[i + 1] == b'='
             && (i == 0 || b[i - 1] != b'=')
             && (i + 2 >= b.len() || b[i + 2] != b'=')
         {
@@ -986,7 +1011,11 @@ pub fn equals_runs(s: &str) -> Vec<Range<usize>> {
 /// [`push_highlight_spans`] unit test that constructs one by hand.
 /// WYSIWYG-concealable ([`ConcealKind::Highlight`]): the `==` delimiters hide off
 /// the caret's line — the wash stroke IS the affordance once they do.
-pub(super) fn push_highlight_spans(out: &mut Vec<(Range<usize>, MdKind)>, text: &str, range: &Range<usize>) {
+pub(super) fn push_highlight_spans(
+    out: &mut Vec<(Range<usize>, MdKind)>,
+    text: &str,
+    range: &Range<usize>,
+) {
     let s = &text[range.clone()];
     let markers = equals_runs(s);
     let k_markup = MdKind::ConcealMarkup(ConcealKind::Highlight);
@@ -999,7 +1028,10 @@ pub(super) fn push_highlight_spans(out: &mut Vec<(Range<usize>, MdKind)>, text: 
             continue;
         }
         out.push((range.start + open.start..range.start + open.end, k_markup));
-        out.push((range.start + open.end..range.start + close.start, MdKind::Highlight));
+        out.push((
+            range.start + open.end..range.start + close.start,
+            MdKind::Highlight,
+        ));
         out.push((range.start + close.start..range.start + close.end, k_markup));
         k += 2;
     }
@@ -1023,6 +1055,9 @@ fn push_inline_code(out: &mut Vec<(Range<usize>, MdKind)>, text: &str, range: &R
     out.push((range.start..range.start + open, k_markup));
     out.push((range.end - close..range.end, k_markup));
     if range.start + open < range.end - close {
-        out.push((range.start + open..range.end - close, MdKind::Code { inline: true }));
+        out.push((
+            range.start + open..range.end - close,
+            MdKind::Code { inline: true },
+        ));
     }
 }

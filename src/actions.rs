@@ -151,7 +151,8 @@ pub struct ActionCtx<'a> {
     /// the filter (MoveDest is rooted at the notes root and lists folders only).
     /// The core can't read the filesystem, so open/descend/ascend delegate here.
     /// Returns `None` if the directory can't be listed (the overlay stays put).
-    pub browse_to: &'a mut dyn FnMut(crate::overlay::OverlayKind, Option<String>) -> Option<OverlayState>,
+    pub browse_to:
+        &'a mut dyn FnMut(crate::overlay::OverlayKind, Option<String>) -> Option<OverlayState>,
     /// The visual-line motion LAYOUT ORACLE (the SHAPED text's wrap geometry),
     /// supplied by the live GPU pipeline (`app.rs`) and the headless offscreen
     /// pipeline (`capture.rs`) so the two flows can't drift. `None` in the pure
@@ -685,10 +686,14 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
                 effect = Effect::ConvertScratchAndSave;
             } else {
                 effect = match ctx.buffer.save() {
-                    Ok(()) => Effect::SaveDone { ok: true, message: "saved".to_string() },
-                    Err(e) => {
-                        Effect::SaveDone { ok: false, message: format!("save failed: {e}") }
-                    }
+                    Ok(()) => Effect::SaveDone {
+                        ok: true,
+                        message: "saved".to_string(),
+                    },
+                    Err(e) => Effect::SaveDone {
+                        ok: false,
+                        message: format!("save failed: {e}"),
+                    },
                 };
             }
         }
@@ -925,7 +930,8 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
                 effect = Effect::Export(crate::export::Format::Html);
             }
         }
-        Action::ExportPdf => {
+        Action::ExportPdf =>
+        {
             #[cfg(not(target_arch = "wasm32"))]
             if ctx.buffer.is_markdown() {
                 effect = Effect::Export(crate::export::Format::Pdf);
@@ -1165,7 +1171,8 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         // (`Effect::None`). The core never opens anything itself (no window/process
         // reach) — the live App performs the OS handoff, the headless replay no-ops.
         Action::FollowLink => {
-            if let Some(url) = crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
+            if let Some(url) =
+                crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
             {
                 effect = Effect::FollowLink(url);
             }
@@ -1199,7 +1206,14 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // Mutually exclusive with the real effects (a blocked action never sets one), so
     // we only test when `effect` is still `None`.
     if effect == Effect::None {
-        if let Some(dir) = recoil_for(action, ctx, cursor_before, version_before, could_undo, could_redo) {
+        if let Some(dir) = recoil_for(
+            action,
+            ctx,
+            cursor_before,
+            version_before,
+            could_undo,
+            could_redo,
+        ) {
             effect = Effect::Recoil(dir);
         }
     }

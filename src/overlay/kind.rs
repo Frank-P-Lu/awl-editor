@@ -455,7 +455,10 @@ impl OverlayKind {
         // cancel actions (↵ / lens / esc) follow, from `kind_actions`. (Rename/
         // InsertLink never show this line — their `foot_hint` returns their own modal
         // prompt — so the cluster never misleads a text edit.)
-        let mut actions = vec![HintAction { glyph: "type", label: "to filter" }];
+        let mut actions = vec![HintAction {
+            glyph: "type",
+            label: "to filter",
+        }];
         actions.extend(self.kind_actions());
         actions
     }
@@ -465,7 +468,10 @@ impl OverlayKind {
     /// navigates the same way), so an arm here only names what is SPECIFIC to the kind.
     fn kind_actions(self) -> Vec<HintAction> {
         // The primary ↵ action every picker leads with (after the shared ↑/↓ move).
-        let enter = |label| HintAction { glyph: "\u{21B5}", label };
+        let enter = |label| HintAction {
+            glyph: "\u{21B5}",
+            label,
+        };
         let key = |glyph, label| HintAction { glyph, label };
         match self {
             // Project is a FACETED navigator (All / Recent lens): ↵ SELECTS the
@@ -484,11 +490,9 @@ impl OverlayKind {
             ],
             // Browse is a FACETED explorer: ↵ on a folder descends / on a file opens,
             // ←/→ switch the lens, ⌫ ascends a level.
-            OverlayKind::Browse => vec![
-                enter("open"),
-                key(ARROWS_LR, "lens"),
-                key("\u{232B}", "up"),
-            ],
+            OverlayKind::Browse => {
+                vec![enter("open"), key(ARROWS_LR, "lens"), key("\u{232B}", "up")]
+            }
             // Go-to is a FACETED flat picker: ↵ opens, ←/→ switch the lens.
             OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens")],
             // The flat theme picker: ↵ keeps, esc reverts to the opening theme. (↑/↓
@@ -513,11 +517,9 @@ impl OverlayKind {
             OverlayKind::Spell => vec![enter("replace")],
             // The rebind menu: ↵ starts a capture, del resets the highlighted command,
             // esc closes. (In a capture the prompt teaches Key/Chord/Enter/Esc.)
-            OverlayKind::Keybindings => vec![
-                enter("rebind"),
-                key("del", "reset"),
-                key("esc", "close"),
-            ],
+            OverlayKind::Keybindings => {
+                vec![enter("rebind"), key("del", "reset"), key("esc", "close")]
+            }
             // The faceted history timeline (DIFF-AS-PREVIEW): ↵ RESTORES the
             // highlighted version (an undoable edit), ⇥ shifts FOCUS into the diff
             // panel below the card (↑/↓ then scroll it — the panel-focus foot hint
@@ -528,19 +530,15 @@ impl OverlayKind {
             // every bundled face; same trim the universal paging took). Width is
             // why the line stays three cells: the old "tab compare" cell already
             // grazed the no-clip law (498.7px vs 496px); "tab diff" is narrower.
-            OverlayKind::History => vec![
-                enter("restore"),
-                key("tab", "diff"),
-                key(ARROWS_LR, "lens"),
-            ],
+            OverlayKind::History => {
+                vec![enter("restore"), key("tab", "diff"), key(ARROWS_LR, "lens")]
+            }
             // The faceted settings menu: ↵ edits the highlighted setting (toggle /
             // open a sub-picker — wired next phase), ←/→ switch the category lens,
             // esc closes.
-            OverlayKind::Settings => vec![
-                enter("edit"),
-                key(ARROWS_LR, "lens"),
-                key("esc", "close"),
-            ],
+            OverlayKind::Settings => {
+                vec![enter("edit"), key(ARROWS_LR, "lens"), key("esc", "close")]
+            }
             // The asset cleaner: ↵ TRASHES the highlighted orphan (recoverable; the
             // row leaves + the picker stays open), esc closes. A flat list — no lens.
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
@@ -593,7 +591,10 @@ impl OverlayKind {
         let mut actions = self.hint_actions();
         match actions.iter_mut().find(|a| a.glyph == ARROWS_LR) {
             Some(cell) => cell.label = RANGE_LR_LABEL,
-            None => actions.push(HintAction { glyph: ARROWS_LR, label: RANGE_LR_LABEL }),
+            None => actions.push(HintAction {
+                glyph: ARROWS_LR,
+                label: RANGE_LR_LABEL,
+            }),
         }
         format_hint(&actions)
     }

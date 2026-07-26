@@ -7,12 +7,10 @@
 //! `files/document.rs` for the fresh-document buffer swap built on top of
 //! these.
 
-use crate::app::*;
 use super::active::BufferExtra;
+use crate::app::*;
 
 impl App {
-
-
     /// Settings command: open the config file into the buffer for editing AS TEXT,
     /// creating the commented default first if it does not exist. The palette runs
     /// this; you then edit + Cmd-S to save, which live-reloads (see `reload_config`).
@@ -29,7 +27,6 @@ impl App {
         }
         self.load_path(path);
     }
-
 
     /// Credits command: open the embedded `CREDITS.md` into the buffer, exactly
     /// like Settings opens the config file. UNLIKE Settings, the source of truth
@@ -54,7 +51,6 @@ impl App {
         self.load_path(path);
     }
 
-
     /// Guide command: open the embedded `GUIDE.md` into the buffer, exactly like
     /// Credits opens `CREDITS.md` (same on-disk-refresh-then-load pattern, same
     /// reasoning for why it is NOT left path-less — see `open_credits`'s doc
@@ -68,14 +64,16 @@ impl App {
         if let Some(parent) = path.parent() {
             let _ = fs.create_dir_all(parent);
         }
-        let rendered = crate::guide::render(crate::convention::Convention::current(), crate::commands::Platform::current());
+        let rendered = crate::guide::render(
+            crate::convention::Convention::current(),
+            crate::commands::Platform::current(),
+        );
         if let Err(e) = crate::fs::write_atomic(&path, rendered.as_bytes()) {
             eprintln!("could not write guide view {}: {e}", path.display());
             return;
         }
         self.load_path(path);
     }
-
 
     /// SWITCH the active folder to `new_root` — the ONE owner of a genuine
     /// switch-project (both the `Project` picker's accepted folder AND the
@@ -98,7 +96,6 @@ impl App {
         self.push_recent_project(new_root);
     }
 
-
     /// Push `root` to the FRONT of the persisted RECENT PROJECT ROOTS (deduped +
     /// capped, [`crate::recents::push`]) and save the list ATOMICALLY. A save
     /// error is reported and swallowed (a lost MRU entry is never worth crashing
@@ -107,11 +104,11 @@ impl App {
     pub(in crate::app) fn push_recent_project(&mut self, root: PathBuf) {
         let list = std::mem::take(&mut self.recent_projects);
         self.recent_projects = crate::recents::push(list, root, crate::recents::CAP);
-        if let Err(e) = crate::recents::save(&crate::recents::recents_path(), &self.recent_projects) {
+        if let Err(e) = crate::recents::save(&crate::recents::recents_path(), &self.recent_projects)
+        {
             eprintln!("recent-projects save failed: {e}");
         }
     }
-
 
     /// Push `file` to the FRONT of the persisted RECENTLY-OPENED FILES MRU (deduped
     /// + capped, [`crate::recent_files::push`]) and save it ATOMICALLY. A save error
@@ -127,7 +124,6 @@ impl App {
         }
     }
 
-
     /// Open a project-relative path: swap in a fresh Buffer, reset cursor/undo,
     /// keep `App.file` + window title in sync. The product model is open/switch
     /// only — no file ops — so we just re-read from disk. `rel` is a root-relative
@@ -139,7 +135,6 @@ impl App {
         self.load_path(path);
     }
 
-
     /// C-x b last-buffer toggle: flip between the current and previously-opened
     /// file (a tiny 2-deep history). No-op until a second file has been opened.
     /// The two paths simply swap, so repeated C-x b ping-pongs between them.
@@ -149,7 +144,6 @@ impl App {
         };
         self.load_path(prev);
     }
-
 
     /// Swap in the buffer for `path`: remember the file we are LEAVING as
     /// `prev_file` (the 2-deep last-buffer history), then either SWITCH to its
@@ -208,7 +202,11 @@ impl App {
         // root-joined spelling (see `BufferKey::path`'s doc) must both be
         // recognized as "already here", or this falls through into an
         // unnecessary (if harmless, post-fix) park/take round trip.
-        if self.active.buffer.path().map(crate::buffers::BufferKey::path)
+        if self
+            .active
+            .buffer
+            .path()
+            .map(crate::buffers::BufferKey::path)
             == Some(crate::buffers::BufferKey::path(&path))
         {
             return;
@@ -307,7 +305,6 @@ impl App {
         }
     }
 
-
     /// i18n WRITE-BACK-ONCE: on a fresh (first-time-this-session) open of an
     /// UNTAGGED markdown document that contains CJK, stamp a `lang:`
     /// frontmatter tag in as ONE normal undoable buffer edit — never a silent
@@ -348,7 +345,6 @@ impl App {
         self.active.buffer.replace_char_range(0, 0, &block);
     }
 
-
     /// Jump the cursor to the START of the 0-based `line`. Clears any selection,
     /// then re-syncs the view so the target scrolls into view. Callers pass the
     /// line directly: Go-to's HEADINGS lens (`Effect::JumpToLine`) and a click on
@@ -369,7 +365,6 @@ impl App {
         }
     }
 
-
     /// Re-scan `self.root`'s file index through the `FileSystem` trait (git
     /// `ls-files` union `.env*`, or a recursive walk — see `index::build_index`)
     /// and replace the cached `file_index` with the fresh result. The ONE owner
@@ -384,7 +379,6 @@ impl App {
     pub(in crate::app) fn rescan_file_index(&mut self) {
         self.file_index = crate::index::build_index(&self.root);
     }
-
 
     /// Make `new_root` the ACTIVE project: re-resolve the project, rebuild the
     /// file index, reset the MRU, and re-sync the view. Shared by switch-project
@@ -419,7 +413,6 @@ impl App {
         }
         true
     }
-
 
     /// Cmd-N: a fresh, unnamed DOCUMENT in the CURRENT active folder (item 76 —
     /// no root jump: New document used to jump to a separate "notes root"; now

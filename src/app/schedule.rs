@@ -209,7 +209,8 @@ impl App {
                 // exact call the rail's release makes, so the two doors cannot drift.
                 true => self.settle_zoom_persist(),
                 false if self.last_frame.is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
+                    event_loop
+                        .set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
                 }
                 false => {}
             }
@@ -248,7 +249,8 @@ impl App {
             match debounce_due(dirty, CROSSING_SYNC_SETTLE, self.clock.now()) {
                 true => self.finish_crossing_settle(),
                 false if self.last_frame.is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + CROSSING_SYNC_SETTLE));
+                    event_loop
+                        .set_control_flow(ControlFlow::WaitUntil(dirty + CROSSING_SYNC_SETTLE));
                 }
                 false => {}
             }

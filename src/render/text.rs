@@ -243,8 +243,9 @@ impl TextPipeline {
         let fonts = self.resolve_script_fonts();
         let report = |f: Option<(&'static str, glyphon::Weight)>| {
             f.map(|(family, _)| {
-                let bundled =
-                    theme::EMBEDDED_CJK_FAMILIES.iter().any(|b| b.eq_ignore_ascii_case(family));
+                let bundled = theme::EMBEDDED_CJK_FAMILIES
+                    .iter()
+                    .any(|b| b.eq_ignore_ascii_case(family));
                 (family, bundled)
             })
         };
@@ -288,7 +289,9 @@ impl TextPipeline {
     /// BEFORE the following `shape_until_scroll`, since `set_attrs_list` resets a
     /// line's cached shaping.
     pub(super) fn apply_cjk_spans_all(&mut self) {
-        let Some(cjk) = self.resolve_cjk() else { return };
+        let Some(cjk) = self.resolve_cjk() else {
+            return;
+        };
         let attrs = self.doc_attrs();
         for line in self.buffer.lines.iter_mut() {
             let runs = cjk_runs(line.text());
@@ -297,10 +300,7 @@ impl TextPipeline {
             }
             let mut al = glyphon::cosmic_text::AttrsList::new(&attrs);
             for run in runs {
-                let a = attrs
-                    .clone()
-                    .family(Family::Name(cjk.0))
-                    .weight(cjk.1);
+                let a = attrs.clone().family(Family::Name(cjk.0)).weight(cjk.1);
                 al.add_span(run, &a);
             }
             line.set_attrs_list(al);
@@ -354,13 +354,8 @@ impl TextPipeline {
     pub fn set_text_full(&mut self, text: &str) {
         self.reshape_count += 1;
         let attrs = self.doc_attrs();
-        self.buffer.set_text(
-            &mut self.font_system,
-            text,
-            &attrs,
-            Shaping::Advanced,
-            None,
-        );
+        self.buffer
+            .set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
         // `Buffer::set_text` shaped every line in the single Latin doc family;
         // overlay the per-theme CJK family spans so Japanese resolves to the
         // world's mincho/gothic face (before the shape below re-lays the lines).
@@ -573,7 +568,10 @@ impl TextPipeline {
                 // prior round's `base_lh + 2*dh` whole-row inflation (which centred
                 // the caption away from its own marker — the reported bug).
                 let line_start = text[..r.start].rfind('\n').map(|i| i + 1).unwrap_or(0);
-                let line_end = text[r.end..].find('\n').map(|i| r.end + i).unwrap_or(text.len());
+                let line_end = text[r.end..]
+                    .find('\n')
+                    .map(|i| r.end + i)
+                    .unwrap_or(text.len());
                 let local = (r.start - line_start)..(r.end - line_start);
                 let mixed =
                     super::spans::image_line_has_other_content(&text[line_start..line_end], local);
@@ -829,9 +827,12 @@ impl TextPipeline {
     ) -> Option<((usize, usize), super::geometry::ImageHandle, [f32; 4])> {
         let tol = super::geometry::IMAGE_RESIZE_GRAB_PX;
         let pointer = (pointer_x, pointer_y);
-        self.image_hit_rects().into_iter().find_map(|(range, rect)| {
-            super::geometry::image_handle_hit(pointer, rect, tol).map(|handle| (range, handle, rect))
-        })
+        self.image_hit_rects()
+            .into_iter()
+            .find_map(|(range, rect)| {
+                super::geometry::image_handle_hit(pointer, rect, tol)
+                    .map(|handle| (range, handle, rect))
+            })
     }
 
     pub(super) fn set_text_incremental(&mut self, text: &str) {
@@ -893,7 +894,8 @@ impl TextPipeline {
         // report), read from the just-parsed `ConcealMarkup(Image)` spans and each
         // image's header dimensions. All-`None` (no tall rows) when the feature is
         // off / non-markdown / wasm, so the render below stays byte-identical.
-        let mut image_heights = self.compute_image_layout(text, &md_spans, selection_touch.as_ref());
+        let mut image_heights =
+            self.compute_image_layout(text, &md_spans, selection_touch.as_ref());
         // ITEM 5 REWORK: the forced-trailing-row table `compute_image_layout` just
         // populated on `self` (see `Self::image_force`'s field doc) — pulled out to
         // a local so the `line_attrs` closure below can capture it without also
@@ -932,8 +934,19 @@ impl TextPipeline {
         let line_attrs = |lt: &str, start: usize, li: usize| {
             let conceal_off_cursor = li != cursor_line;
             build_line_attrs(
-                &attrs, base_fs, base_lh, md, lt, start, &md_spans, &syn_spans, doc_lang,
-                cjk_priority, &fonts, conceal_off_cursor, cursor_byte,
+                &attrs,
+                base_fs,
+                base_lh,
+                md,
+                lt,
+                start,
+                &md_spans,
+                &syn_spans,
+                doc_lang,
+                cjk_priority,
+                &fonts,
+                conceal_off_cursor,
+                cursor_byte,
                 image_heights.get(li).copied().flatten(),
                 image_force.get(li).copied().flatten(),
                 selection_touch.as_ref(),
@@ -1062,12 +1075,14 @@ impl TextPipeline {
         }
         // Defensive: never leave the buffer with zero lines (cosmic-text invariant).
         if self.buffer.lines.is_empty() {
-            self.buffer.lines.push(glyphon::cosmic_text::BufferLine::new(
-                "",
-                glyphon::cosmic_text::LineEnding::None,
-                glyphon::cosmic_text::AttrsList::new(attrs),
-                Shaping::Advanced,
-            ));
+            self.buffer
+                .lines
+                .push(glyphon::cosmic_text::BufferLine::new(
+                    "",
+                    glyphon::cosmic_text::LineEnding::None,
+                    glyphon::cosmic_text::AttrsList::new(attrs),
+                    Shaping::Advanced,
+                ));
         }
         self.buffer.set_redraw(true);
     }
@@ -1109,15 +1124,32 @@ impl TextPipeline {
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
-            |i| self.buffer.lines.get(i).map(|l| l.text().len()).unwrap_or(0),
+            |i| {
+                self.buffer
+                    .lines
+                    .get(i)
+                    .map(|l| l.text().len())
+                    .unwrap_or(0)
+            },
         );
         let mut start = 0usize;
         for li in 0..self.buffer.lines.len() {
             let tlen = self.buffer.lines[li].text().len();
             if let Some(line) = self.buffer.lines.get_mut(li) {
                 let al = build_line_attrs(
-                    &attrs, base_fs, base_lh, md, line.text(), start, &md_spans, &syn_spans,
-                    doc_lang, &cjk_priority, &fonts, li != cursor_line, cursor_byte,
+                    &attrs,
+                    base_fs,
+                    base_lh,
+                    md,
+                    line.text(),
+                    start,
+                    &md_spans,
+                    &syn_spans,
+                    doc_lang,
+                    &cjk_priority,
+                    &fonts,
+                    li != cursor_line,
+                    cursor_byte,
                     image_heights.get(li).copied().flatten(),
                     image_force.get(li).copied().flatten(),
                     selection_touch.as_ref(),
@@ -1183,7 +1215,13 @@ impl TextPipeline {
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
-            |i| self.buffer.lines.get(i).map(|l| l.text().len()).unwrap_or(0),
+            |i| {
+                self.buffer
+                    .lines
+                    .get(i)
+                    .map(|l| l.text().len())
+                    .unwrap_or(0)
+            },
         );
         let attrs = self.doc_attrs();
         let fonts = self.resolve_script_fonts();
@@ -1250,9 +1288,14 @@ impl TextPipeline {
                     let line_text = self.buffer.lines[li].text().to_string();
                     // This line's own image span (its doc range minus `start`).
                     if let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
-                        matches!(k, crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Image))
-                            .then(|| (r.start.max(start), r.end.min(start + tlen)))
-                            .filter(|(s, e)| s < e)
+                        matches!(
+                            k,
+                            crate::markdown::MdKind::ConcealMarkup(
+                                crate::markdown::ConcealKind::Image
+                            )
+                        )
+                        .then(|| (r.start.max(start), r.end.min(start + tlen)))
+                        .filter(|(s, e)| s < e)
                     }) {
                         let local_range = (img_start - start)..(img_end - start);
                         let mixed = super::spans::image_line_has_other_content(
@@ -1276,7 +1319,10 @@ impl TextPipeline {
                             // immediately re-force the row on the very next tick
                             // and undo a selection-driven park.
                             let revealed_now = li == cursor_line
-                                || selection_touches(selection_touch.as_ref(), &(img_start..img_end));
+                                || selection_touches(
+                                    selection_touch.as_ref(),
+                                    &(img_start..img_end),
+                                );
                             let want = if revealed_now {
                                 None
                             } else {
@@ -1308,8 +1354,19 @@ impl TextPipeline {
             if is_rule || is_bullet || is_concealable {
                 if let Some(line) = self.buffer.lines.get_mut(li) {
                     let al = build_line_attrs(
-                        &attrs, base_fs, base_lh, md, line.text(), start, &md_spans, &syn_spans,
-                        doc_lang, &cjk_priority, &fonts, li != cursor_line, cursor_byte,
+                        &attrs,
+                        base_fs,
+                        base_lh,
+                        md,
+                        line.text(),
+                        start,
+                        &md_spans,
+                        &syn_spans,
+                        doc_lang,
+                        &cjk_priority,
+                        &fonts,
+                        li != cursor_line,
+                        cursor_byte,
                         image_heights.get(li).copied().flatten(),
                         image_force.get(li).copied().flatten(),
                         selection_touch.as_ref(),
@@ -1444,7 +1501,9 @@ impl TextPipeline {
         if !self.md_enabled {
             return;
         }
-        let Some(text) = self.shaped_key.clone() else { return };
+        let Some(text) = self.shaped_key.clone() else {
+            return;
+        };
         let md_spans = self.md_spans.clone();
         let table_heights = self.compute_table_layout(&text, &md_spans);
         if table_heights.iter().all(Option::is_none) {
@@ -1459,7 +1518,9 @@ impl TextPipeline {
         }
         let mut start = 0usize;
         for (li, l) in text.split('\n').enumerate() {
-            let in_table = blocks.iter().any(|(_, r)| r.start <= start && start < r.end);
+            let in_table = blocks
+                .iter()
+                .any(|(_, r)| r.start <= start && start < r.end);
             if in_table {
                 if let Some(slot) = self.image_heights.get_mut(li) {
                     *slot = table_heights.get(li).copied().flatten();

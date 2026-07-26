@@ -5,7 +5,7 @@
 //! for the row-geometry INVALIDATION/reshape half of this same area.
 
 use super::super::*;
-use super::{H};
+use super::H;
 
 #[test]
 fn page_off_is_edge_to_edge() {
@@ -13,7 +13,9 @@ fn page_off_is_edge_to_edge() {
     // window minus both plain side insets.
     let cw = CHAR_WIDTH;
     assert_eq!(column_left_for(1200.0, cw, false, 80), NONPAGE_INSET);
-    assert!((column_width_for(1200.0, cw, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3);
+    assert!(
+        (column_width_for(1200.0, cw, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3
+    );
 }
 
 #[test]
@@ -22,12 +24,21 @@ fn page_on_centers_capped_column() {
     // is centered, so left == (window - width)/2 and margins are symmetric.
     let cw = CHAR_WIDTH; // 14.4
     let w = column_width_for(1200.0, cw, true, 40);
-    assert!((w - 40.0 * cw).abs() < 1e-3, "width should be measure*advance, got {w}");
+    assert!(
+        (w - 40.0 * cw).abs() < 1e-3,
+        "width should be measure*advance, got {w}"
+    );
     let left = column_left_for(1200.0, cw, true, 40);
-    assert!((left - (1200.0 - w) * 0.5).abs() < 1e-3, "column must be centered, left={left}");
+    assert!(
+        (left - (1200.0 - w) * 0.5).abs() < 1e-3,
+        "column must be centered, left={left}"
+    );
     // Symmetric margins: right margin == left margin.
     let right_margin = 1200.0 - (left + w);
-    assert!((right_margin - left).abs() < 1e-3, "margins must match: l={left} r={right_margin}");
+    assert!(
+        (right_margin - left).abs() < 1e-3,
+        "margins must match: l={left} r={right_margin}"
+    );
 }
 
 #[test]
@@ -42,10 +53,22 @@ fn page_on_narrow_window_fills_minus_small_pad() {
     let left = column_left_for(narrow, cw, true, 80);
     let right = narrow - (left + w);
     // Fills the width minus the small pad on each side (margins collapse to ~0).
-    assert!((w - (narrow - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3, "narrow column must fill minus pad: w={w}");
-    assert!(w <= narrow - 2.0 * PAGE_MIN_PAD + 1e-3, "must not overflow: w={w}");
-    assert!((left - PAGE_MIN_PAD).abs() < 1e-3, "left collapses to the small pad, got {left}");
-    assert!((left - right).abs() < 1e-3, "margins must stay symmetric: l={left} r={right}");
+    assert!(
+        (w - (narrow - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3,
+        "narrow column must fill minus pad: w={w}"
+    );
+    assert!(
+        w <= narrow - 2.0 * PAGE_MIN_PAD + 1e-3,
+        "must not overflow: w={w}"
+    );
+    assert!(
+        (left - PAGE_MIN_PAD).abs() < 1e-3,
+        "left collapses to the small pad, got {left}"
+    );
+    assert!(
+        (left - right).abs() < 1e-3,
+        "margins must stay symmetric: l={left} r={right}"
+    );
 }
 
 #[test]
@@ -60,11 +83,23 @@ fn page_on_near_full_measure_binds_at_measure() {
     let w = column_width_for(win, cw, true, 80);
     let left = column_left_for(win, cw, true, 80);
     let right = win - (left + w);
-    assert!((w - measure_px).abs() < 1e-3, "column must sit at the measure, got {w}");
-    assert!((left - right).abs() < 1e-3, "margins must be symmetric: l={left} r={right}");
-    assert!((left - (win - measure_px) * 0.5).abs() < 1e-3, "leftover splits as the margin, left={left}");
+    assert!(
+        (w - measure_px).abs() < 1e-3,
+        "column must sit at the measure, got {w}"
+    );
+    assert!(
+        (left - right).abs() < 1e-3,
+        "margins must be symmetric: l={left} r={right}"
+    );
+    assert!(
+        (left - (win - measure_px) * 0.5).abs() < 1e-3,
+        "leftover splits as the margin, left={left}"
+    );
     // The leftover margin is the small ~24px, well under the old generous 120px.
-    assert!(left >= PAGE_MIN_PAD - 1e-3 && left < page_min_margin(win), "margin collapsed to the leftover: {left}");
+    assert!(
+        left >= PAGE_MIN_PAD - 1e-3 && left < page_min_margin(win),
+        "margin collapsed to the leftover: {left}"
+    );
 }
 
 #[test]
@@ -87,7 +122,10 @@ fn page_column_proportion_is_dpi_invariant() {
                 let w = column_width_for(phys_w, cw, true, 40);
                 let left = column_left_for(phys_w, cw, true, 40);
                 let right = phys_w - (left + w);
-                assert!((left - right).abs() < 1e-2, "asymmetric margins l={left} r={right}");
+                assert!(
+                    (left - right).abs() < 1e-2,
+                    "asymmetric margins l={left} r={right}"
+                );
                 assert!(
                     (left - (phys_w - w) * 0.5).abs() < 1e-2,
                     "column must be centered, left={left}"
@@ -107,7 +145,10 @@ fn page_column_proportion_is_dpi_invariant() {
 fn hit_test_top_left_is_origin() {
     let m = Metrics::new(1.0);
     // A click in the first cell maps to (line 0, col 0).
-    assert_eq!(hit_test(TEXT_LEFT + 1.0, TEXT_TOP + 1.0, 0, &m, TEXT_LEFT), (0, 0));
+    assert_eq!(
+        hit_test(TEXT_LEFT + 1.0, TEXT_TOP + 1.0, 0, &m, TEXT_LEFT),
+        (0, 0)
+    );
 }
 
 #[test]
@@ -161,7 +202,10 @@ fn assemble_xs_latin_uses_real_advances() {
     assert_eq!(xs.len(), 3);
     assert!((xs[0] - 0.0).abs() < 1e-3);
     assert!((xs[1] - 14.4).abs() < 1e-3);
-    assert!((xs[2] - 28.8).abs() < 1e-3, "end-of-line = right of last glyph");
+    assert!(
+        (xs[2] - 28.8).abs() < 1e-3,
+        "end-of-line = right of last glyph"
+    );
 }
 
 #[test]
@@ -173,7 +217,10 @@ fn assemble_xs_cjk_full_width_and_byte_mapping() {
     let xs = assemble_glyph_xs("日本", &clusters, CHAR_WIDTH);
     assert_eq!(xs.len(), 3, "2 chars -> 3 boundaries");
     assert!((xs[0] - 0.0).abs() < 1e-3);
-    assert!((xs[1] - 24.0).abs() < 1e-3, "second char starts at full-width offset");
+    assert!(
+        (xs[1] - 24.0).abs() < 1e-3,
+        "second char starts at full-width offset"
+    );
     assert!((xs[2] - 48.0).abs() < 1e-3);
     // The advance of char 0 is the full-width cell, not CHAR_WIDTH.
     assert!((xs[1] - xs[0] - 24.0).abs() < 1e-3);
@@ -185,7 +232,10 @@ fn assemble_xs_mixed_latin_then_cjk() {
     let clusters = [(0usize, 1usize, 0.0f32, 14.4f32), (1, 4, 14.4, 38.4)];
     let xs = assemble_glyph_xs("a日", &clusters, CHAR_WIDTH);
     assert_eq!(xs.len(), 3);
-    assert!((xs[1] - 14.4).abs() < 1e-3, "CJK starts after the Latin glyph");
+    assert!(
+        (xs[1] - 14.4).abs() < 1e-3,
+        "CJK starts after the Latin glyph"
+    );
     assert!((xs[2] - 38.4).abs() < 1e-3, "end after full-width CJK");
 }
 
@@ -209,8 +259,14 @@ fn assemble_xs_texture_healed_ligature_splits_at_the_interior() {
     let xs = assemble_glyph_xs("=>", &clusters, CHAR_WIDTH);
     assert_eq!(xs.len(), 3, "2 chars -> 3 boundaries");
     assert!((xs[0] - 0.0).abs() < 1e-3, "first char at 0");
-    assert!((xs[1] - w).abs() < 1e-3, "interior split at the FULL first cell, not half");
-    assert!((xs[2] - 2.0 * w).abs() < 1e-3, "end at the combined advance");
+    assert!(
+        (xs[1] - w).abs() < 1e-3,
+        "interior split at the FULL first cell, not half"
+    );
+    assert!(
+        (xs[2] - 2.0 * w).abs() < 1e-3,
+        "end at the combined advance"
+    );
     // The line is UNIFORM PITCH: both per-char deltas equal W (maxdev ~0).
     assert!((xs[1] - xs[0] - w).abs() < 1e-3 && (xs[2] - xs[1] - w).abs() < 1e-3);
 }
@@ -249,7 +305,10 @@ fn assemble_xs_true_ligature_one_glyph_splits_advance_fairly() {
     let xs = assemble_glyph_xs("fi", &clusters, CHAR_WIDTH);
     assert_eq!(xs.len(), 3);
     assert!((xs[0] - 0.0).abs() < 1e-3);
-    assert!((xs[1] - w * 0.5).abs() < 1e-3, "single glyph splits fairly at half");
+    assert!(
+        (xs[1] - w * 0.5).abs() < 1e-3,
+        "single glyph splits fairly at half"
+    );
     assert!((xs[2] - w).abs() < 1e-3);
 }
 
@@ -273,8 +332,14 @@ fn assemble_xs_non_ligature_1to1_is_unchanged() {
     assert_eq!(xs2.len(), 4);
     // The plain 'x' boundary is its true right (3W), and the shared span's
     // OWN end boundary is the combined 2W (not overwritten by the old bug).
-    assert!((xs2[2] - 2.0 * w).abs() < 1e-3, "shared span end at combined 2W");
-    assert!((xs2[3] - 3.0 * w).abs() < 1e-3, "plain char end at its true advance");
+    assert!(
+        (xs2[2] - 2.0 * w).abs() < 1e-3,
+        "shared span end at combined 2W"
+    );
+    assert!(
+        (xs2[3] - 3.0 * w).abs() < 1e-3,
+        "plain char end at its true advance"
+    );
     assert!(
         xs2.windows(2).all(|d| (d[1] - d[0] - w).abs() < 1e-3),
         "the whole line stays uniform pitch W"
@@ -342,13 +407,19 @@ fn max_scroll_reaches_last_visual_row_of_wrapped_doc() {
     // With "scroll past end" the max lets the last row reach the TOP, so the
     // ceiling is `total - OVERSCROLL_KEEP_ROWS`, ~one screenful past the old
     // bottom-pinned `total - visible`.
-    assert!(m > total_visual - visible, "overscroll must exceed the bottom pin");
+    assert!(
+        m > total_visual - visible,
+        "overscroll must exceed the bottom pin"
+    );
     assert_eq!(m, total_visual - OVERSCROLL_KEEP_ROWS);
     // The bug this fixes: a logical-line max would stop far too early. Prove
     // the visual-row max is strictly larger than the old logical-line max
     // would have been, so the previously-unreachable last rows are reachable.
     let old_logical_max = max_scroll(logical, H, LINE_HEIGHT);
-    assert!(m > old_logical_max, "visual-row max must exceed logical-line max");
+    assert!(
+        m > old_logical_max,
+        "visual-row max must exceed logical-line max"
+    );
     // At max scroll the window is [m, m+visible); the last visual row index
     // (total_visual-1) now sits at the TOP of that window: m == total_visual-1.
     assert_eq!(m, total_visual - 1);
@@ -366,7 +437,10 @@ fn max_scroll_overscrolls_past_end_but_stays_bounded() {
     // The OLD max pinned the last row to the bottom: total - visible.
     let old_max = total - visible;
     // The new max is strictly GREATER (it allows overscroll past the end)...
-    assert!(m > old_max, "new max ({m}) must exceed old bottom-pinned max ({old_max})");
+    assert!(
+        m > old_max,
+        "new max ({m}) must exceed old bottom-pinned max ({old_max})"
+    );
     // ...and lets the last row reach ~the top: total - 1 (a small margin away
     // from the absolute top is allowed via OVERSCROLL_KEEP_ROWS).
     assert_eq!(m, total - OVERSCROLL_KEEP_ROWS);
@@ -475,7 +549,11 @@ fn pick_row_wrapped_picks_the_owning_row() {
     assert_eq!(pick_row(&rows, 0).line_top, 0.0);
     assert_eq!(pick_row(&rows, 5).line_top, 0.0);
     // Boundary: col 6 is the start of row B -> caret lands on the lower row.
-    assert_eq!(pick_row(&rows, 6).line_top, lh, "wrap boundary -> lower row");
+    assert_eq!(
+        pick_row(&rows, 6).line_top,
+        lh,
+        "wrap boundary -> lower row"
+    );
     assert_eq!(pick_row(&rows, 9).line_top, lh);
     // End of line (col 12) stays on the last row.
     assert_eq!(pick_row(&rows, 12).line_top, lh);

@@ -96,7 +96,11 @@ fn shift_click_extends_from_the_cursors_prior_position() {
         Some(0),
         "mark drops at the prior cursor spot"
     );
-    assert_eq!(app.active.buffer.cursor_char(), 6, "cursor moves to the click");
+    assert_eq!(
+        app.active.buffer.cursor_char(),
+        6,
+        "cursor moves to the click"
+    );
     assert_eq!(app.active.buffer.selection_range(), Some((0, 6)));
 }
 
@@ -391,7 +395,10 @@ fn folded_app() -> App {
     app.active.buffer.set_text(FOLD_DOC);
     app.active.buffer.set_cursor(0); // on # A
     app.active.buffer.toggle_fold_at_cursor(); // fold # A -> hides a1,a2 (filtered: 0 # A / 1 # B / 2 b1)
-    assert!(app.active.buffer.folds().contains(&0), "precondition: # A is folded");
+    assert!(
+        app.active.buffer.folds().contains(&0),
+        "precondition: # A is folded"
+    );
     app
 }
 
@@ -406,8 +413,15 @@ fn clicking_the_collapsed_heading_tail_expands_the_fold() {
         app.active.buffer.folds().is_empty(),
         "a click on the tail affordance expanded the fold"
     );
-    assert_eq!(app.active.buffer.cursor_line_col().0, 0, "caret parked on the heading");
-    assert!(!app.dragging, "an expand click never starts a text-selection drag");
+    assert_eq!(
+        app.active.buffer.cursor_line_col().0,
+        0,
+        "caret parked on the heading"
+    );
+    assert!(
+        !app.dragging,
+        "an expand click never starts a text-selection drag"
+    );
     assert!(!app.active.buffer.has_selection());
 }
 
@@ -421,7 +435,11 @@ fn clicking_the_heading_text_places_the_caret_without_expanding() {
         app.active.buffer.folds().contains(&0),
         "clicking the heading text does not expand the fold"
     );
-    assert_eq!(app.active.buffer.cursor_line_col().0, 0, "caret is on the heading line");
+    assert_eq!(
+        app.active.buffer.cursor_line_col().0,
+        0,
+        "caret is on the heading line"
+    );
 }
 
 #[test]
@@ -447,7 +465,11 @@ fn a_heading_jump_onto_a_hidden_line_reveals_its_fold() {
         app.active.buffer.folds().is_empty(),
         "a jump onto a hidden line revealed the fold"
     );
-    assert_eq!(app.active.buffer.cursor_line_col().0, 1, "caret parked on the now-visible line");
+    assert_eq!(
+        app.active.buffer.cursor_line_col().0,
+        1,
+        "caret parked on the now-visible line"
+    );
 }
 
 #[test]
@@ -469,7 +491,11 @@ fn outline_click_target_maps_a_fold_filtered_row_back_to_the_raw_heading_line() 
     );
     // The folded heading's OWN row (filtered 0) is unaffected — nothing hides above
     // a heading's own line.
-    assert_eq!(app.outline_row_target_line(0), 0, "# A's own row needs no remap");
+    assert_eq!(
+        app.outline_row_target_line(0),
+        0,
+        "# A's own row needs no remap"
+    );
 
     // NO-FOLD CASE UNCHANGED: the identical document with nothing folded maps the
     // identity — today's no-fold outline click resolves to the same target as
@@ -491,17 +517,28 @@ fn a_shift_click_across_a_collapsed_section_reveals_the_fold_it_spans() {
     // spans the hidden a1/a2. It must never span a fold invisibly: the placement
     // owner reveals # A before the selection is shown.
     let mut app = folded_app();
-    assert_eq!(app.active.buffer.cursor_char(), 0, "precondition: caret on # A");
+    assert_eq!(
+        app.active.buffer.cursor_char(),
+        0,
+        "precondition: caret on # A"
+    );
     press_at_row_col(&mut app, 2, 0, true);
     assert!(
         app.active.buffer.folds().is_empty(),
         "a shift-click whose selection spans the fold reveals it"
     );
-    assert!(app.active.buffer.has_selection(), "the shift-click built a selection");
+    assert!(
+        app.active.buffer.has_selection(),
+        "the shift-click built a selection"
+    );
     let (start, end) = app.active.buffer.selection_range().unwrap();
     assert_eq!(start, 0, "mark stayed at the prior caret");
     // The far endpoint is the START of b1 — full line 4, now that the fold is open.
-    assert_eq!(end, app.active.buffer.line_col_to_char(4, 0), "selection reaches b1");
+    assert_eq!(
+        end,
+        app.active.buffer.line_col_to_char(4, 0),
+        "selection reaches b1"
+    );
 }
 
 #[test]
@@ -513,7 +550,10 @@ fn a_drag_across_a_collapsed_section_reveals_every_fold_it_crosses() {
     let mut app = folded_app();
     press_at_row_col(&mut app, 0, 0, false); // caret on # A, drag armed on next travel
     assert!(app.dragging, "a press on the heading text arms a text drag");
-    assert!(app.active.buffer.folds().contains(&0), "the press alone does not reveal");
+    assert!(
+        app.active.buffer.folds().contains(&0),
+        "the press alone does not reveal"
+    );
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     // Travel two visible rows down (well past the slop) onto the b1 row.
     move_by(&mut app, 0.0, 2.0 * m.line_height);
@@ -521,7 +561,10 @@ fn a_drag_across_a_collapsed_section_reveals_every_fold_it_crosses() {
         app.active.buffer.folds().is_empty(),
         "the drag crossing the fold revealed it"
     );
-    assert!(app.active.buffer.has_selection(), "the drag extended a real selection");
+    assert!(
+        app.active.buffer.has_selection(),
+        "the drag extended a real selection"
+    );
     assert_eq!(
         app.active.buffer.selection_range().unwrap(),
         (0, app.active.buffer.line_col_to_char(4, 0)),
@@ -542,7 +585,10 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
         3,
         "click on filtered row 1 lands on full line 3 (# B), not the hidden a1"
     );
-    assert!(app.active.buffer.folds().contains(&0), "clicking # B does not disturb the fold");
+    assert!(
+        app.active.buffer.folds().contains(&0),
+        "clicking # B does not disturb the fold"
+    );
 }
 
 /// ITEM 106 FOLLOW-UP — `App::overlay_wheel` is a SECOND deliberate-crossing
@@ -569,7 +615,10 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
         vec![],
         vec![],
     );
-    assert_eq!(ov.last_hover_px, None, "cold start: the pointer has never hovered a row");
+    assert_eq!(
+        ov.last_hover_px, None,
+        "cold start: the pointer has never hovered a row"
+    );
     app.overlay = Some(ov);
     // The pointer is resting somewhere (its OS position is always something;
     // it just hasn't generated a hover check on this overlay yet).
@@ -578,8 +627,14 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     // A wheel scroll deep enough to move the window (Goto's `window_rows` is
     // 12; 22 notches lands `selected` at 22, well past the first page).
     app.overlay_wheel(-22.0);
-    let ov = app.overlay.as_mut().expect("overlay stays open across a wheel scroll");
-    assert_eq!(ov.selected, 22, "the wheel drove the selection exactly like ↓ would");
+    let ov = app
+        .overlay
+        .as_mut()
+        .expect("overlay stays open across a wheel scroll");
+    assert_eq!(
+        ov.selected, 22,
+        "the wheel drove the selection exactly like ↓ would"
+    );
 
     // The exact same resting pixel — no travel at all — now hit-tests to a
     // DIFFERENT row (15) because the window scrolled under it, mirroring a
@@ -592,5 +647,8 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
         !stolen,
         "a stationary pointer re-check after a wheel scroll must not steal the selection"
     );
-    assert_eq!(ov.selected, 22, "the wheel-driven selection survives the stray re-check");
+    assert_eq!(
+        ov.selected, 22,
+        "the wheel-driven selection survives the stray re-check"
+    );
 }

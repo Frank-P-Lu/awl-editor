@@ -53,7 +53,10 @@ pub struct Params {
 
 impl Default for Params {
     fn default() -> Self {
-        Params { gran: Gran::Word, coalesce: 0.5 }
+        Params {
+            gran: Gran::Word,
+            coalesce: 0.5,
+        }
     }
 }
 
@@ -66,7 +69,10 @@ impl Params {
     /// capture harness read, so they can never diverge on what a shipped diff looks
     /// like.
     pub const fn shipping() -> Self {
-        Params { gran: Gran::Sentence, coalesce: 0.5 }
+        Params {
+            gran: Gran::Sentence,
+            coalesce: 0.5,
+        }
     }
 }
 
@@ -374,7 +380,11 @@ fn backbone(old: &[Vec<&str>], new: &[Vec<&str>]) -> Vec<Pair> {
     for &(ao, an) in &anchors {
         // The gap window before this anchor takes the (small) similarity DP.
         pairs.extend(sim_backbone(old, new, oi..ao, ni..an));
-        pairs.push(Pair { oi: ao, ni: an, role: Role::Same });
+        pairs.push(Pair {
+            oi: ao,
+            ni: an,
+            role: Role::Same,
+        });
         oi = ao + 1;
         ni = an + 1;
     }
@@ -489,7 +499,11 @@ fn sim_backbone(
         };
         if diag >= score[i + 1][j] && diag >= score[i][j] && r >= BACKBONE_SIM_MIN {
             let role = if r >= 0.999 { Role::Same } else { Role::Edit };
-            pairs.push(Pair { oi: ob + i, ni: nb + j, role });
+            pairs.push(Pair {
+                oi: ob + i,
+                ni: nb + j,
+                role,
+            });
             i += 1;
             j += 1;
         } else if score[i + 1][j] >= score[i][j + 1] {
@@ -537,7 +551,11 @@ fn detect_moves(
         }
         used_old[oi] = true;
         used_new[ni] = true;
-        moves.push(Pair { oi, ni, role: Role::Move });
+        moves.push(Pair {
+            oi,
+            ni,
+            role: Role::Move,
+        });
     }
     moves
 }
@@ -606,8 +624,15 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
                     continue;
                 }
                 Some(pr) if pr.role == Role::Move => {
-                    let dir = if pr.ni <= pr.oi { MoveDir::Up } else { MoveDir::Down };
-                    blocks.push(Block::Moved { text: new_ps[pr.ni].clone(), dir });
+                    let dir = if pr.ni <= pr.oi {
+                        MoveDir::Up
+                    } else {
+                        MoveDir::Down
+                    };
+                    blocks.push(Block::Moved {
+                        text: new_ps[pr.ni].clone(),
+                        dir,
+                    });
                     j += 1;
                     continue;
                 }
@@ -755,7 +780,11 @@ fn strip_markdown(s: &str) -> String {
         let trimmed = rest.trim_start();
         let indent_len = rest.len() - trimmed.len();
         let indent = &rest[..indent_len];
-        let after: Option<&str> = if let Some(a) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")).or_else(|| trimmed.strip_prefix("+ ")) {
+        let after: Option<&str> = if let Some(a) = trimmed
+            .strip_prefix("- ")
+            .or_else(|| trimmed.strip_prefix("* "))
+            .or_else(|| trimmed.strip_prefix("+ "))
+        {
             Some(a)
         } else if trimmed.starts_with('#') {
             Some(trimmed.trim_start_matches('#').trim_start())
@@ -804,7 +833,10 @@ fn strip_markdown(s: &str) -> String {
 
 /// Prefix every physical line with `> ` (blockquote → dim, `>` auto-conceals).
 fn blockquote(s: &str) -> String {
-    s.lines().map(|l| format!("> {l}")).collect::<Vec<_>>().join("\n")
+    s.lines()
+        .map(|l| format!("> {l}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Serialize a block list into a marked-up-markdown transcript. The leading heading
@@ -958,9 +990,13 @@ pub fn env_capture() -> Option<&'static Option<EnvCapture>> {
         {
             params.coalesce = c.clamp(0.0, 1.0);
         }
-        let title =
-            std::env::var("AWL_DIFF_TITLE").unwrap_or_else(|_| "Comparing versions".into());
-        Some(EnvCapture { old, new, params, title })
+        let title = std::env::var("AWL_DIFF_TITLE").unwrap_or_else(|_| "Comparing versions".into());
+        Some(EnvCapture {
+            old,
+            new,
+            params,
+            title,
+        })
     }))
 }
 
@@ -1096,8 +1132,14 @@ mod tests {
             .collect();
         assert_eq!(old, "the quick brown fox");
         assert_eq!(new, "the slow brown fox");
-        assert!(segs.iter().any(|s| matches!(s, Seg::Del(x) if x.contains("quick"))));
-        assert!(segs.iter().any(|s| matches!(s, Seg::Ins(x) if x.contains("slow"))));
+        assert!(
+            segs.iter()
+                .any(|s| matches!(s, Seg::Del(x) if x.contains("quick")))
+        );
+        assert!(
+            segs.iter()
+                .any(|s| matches!(s, Seg::Ins(x) if x.contains("slow")))
+        );
     }
 
     #[test]
@@ -1106,7 +1148,10 @@ mod tests {
         let new = "First stays. A totally rewritten second one.";
         let segs = seg_diff(old, new, Gran::Sentence);
         // "First stays. " is a Same sentence; the second is Del+Ins whole
-        assert!(segs.iter().any(|s| matches!(s, Seg::Same(x) if x.contains("First stays"))));
+        assert!(
+            segs.iter()
+                .any(|s| matches!(s, Seg::Same(x) if x.contains("First stays")))
+        );
         assert!(segs.iter().any(|s| matches!(s, Seg::Del(_))));
         assert!(segs.iter().any(|s| matches!(s, Seg::Ins(_))));
     }
@@ -1115,8 +1160,16 @@ mod tests {
 
     #[test]
     fn density_low_for_small_edit_high_for_rewrite() {
-        let small = seg_diff("the quick brown fox jumps", "the quick brown fox leaps", Gran::Word);
-        let big = seg_diff("the quick brown fox jumps", "an entirely new clause appears", Gran::Word);
+        let small = seg_diff(
+            "the quick brown fox jumps",
+            "the quick brown fox leaps",
+            Gran::Word,
+        );
+        let big = seg_diff(
+            "the quick brown fox jumps",
+            "an entirely new clause appears",
+            Gran::Word,
+        );
         assert!(seg_density(&small, Gran::Word) < 0.25);
         assert!(seg_density(&big, Gran::Word) > 0.6);
     }
@@ -1129,13 +1182,27 @@ mod tests {
         let old = "The cat sat quietly on the warm mat by the old door.";
         let new = "The cat sat nervously on the cold floor near the new window.";
         // low threshold → coalesced whole rewrite
-        let lo = diff(old, new, Params { gran: Gran::Word, coalesce: 0.3 });
+        let lo = diff(
+            old,
+            new,
+            Params {
+                gran: Gran::Word,
+                coalesce: 0.3,
+            },
+        );
         assert!(
             lo.iter().any(|b| matches!(b, Block::Rewritten { .. })),
             "low threshold should coalesce: {lo:?}"
         );
         // high threshold → stays inline word-level modified
-        let hi = diff(old, new, Params { gran: Gran::Word, coalesce: 0.95 });
+        let hi = diff(
+            old,
+            new,
+            Params {
+                gran: Gran::Word,
+                coalesce: 0.95,
+            },
+        );
         assert!(!hi.iter().any(|b| matches!(b, Block::Rewritten { .. })));
         assert!(hi.iter().any(|b| matches!(b, Block::Modified(_))));
     }
@@ -1157,18 +1224,40 @@ The quiet river wound its lazy course past the drowsy hamlet under each grey daw
 
 She, by long habit, tallied the takings and inked the sum into the ledger before departing.";
         let count_rw = |c: f32| {
-            diff(old, new, Params { gran: Gran::Word, coalesce: c })
-                .iter()
-                .filter(|b| matches!(b, Block::Rewritten { .. }))
-                .count()
+            diff(
+                old,
+                new,
+                Params {
+                    gran: Gran::Word,
+                    coalesce: c,
+                },
+            )
+            .iter()
+            .filter(|b| matches!(b, Block::Rewritten { .. }))
+            .count()
         };
         // both paragraphs aligned as edits (no stray delete/insert of a whole para)
-        let blocks = diff(old, new, Params { gran: Gran::Word, coalesce: 0.5 });
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Deleted(_) | Block::Inserted(_))));
+        let blocks = diff(
+            old,
+            new,
+            Params {
+                gran: Gran::Word,
+                coalesce: 0.5,
+            },
+        );
+        assert!(
+            !blocks
+                .iter()
+                .any(|b| matches!(b, Block::Deleted(_) | Block::Inserted(_)))
+        );
         // low threshold coalesces BOTH; a middle one coalesces only the heavy
         // paragraph; a high one leaves both inline — three distinct cells.
         let (lo, mid, hi) = (count_rw(0.30), count_rw(0.55), count_rw(0.80));
-        assert_eq!((lo, mid, hi), (2, 1, 0), "expected 2/1/0 rewrites, got {lo}/{mid}/{hi}");
+        assert_eq!(
+            (lo, mid, hi),
+            (2, 1, 0),
+            "expected 2/1/0 rewrites, got {lo}/{mid}/{hi}"
+        );
     }
 
     // --- paragraph alignment ---
@@ -1178,7 +1267,11 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
         let old = "Alpha paragraph one.\n\nBeta paragraph two.";
         let new = "Alpha paragraph one.\n\nA brand new middle paragraph.\n\nBeta paragraph two.";
         let blocks = diff(old, new, Params::default());
-        assert!(blocks.iter().any(|b| matches!(b, Block::Inserted(x) if x.contains("brand new"))));
+        assert!(
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::Inserted(x) if x.contains("brand new")))
+        );
         // two untouched paragraphs survive as folds
         assert!(blocks.iter().any(|b| matches!(b, Block::Fold(_))));
         assert!(!blocks.iter().any(|b| matches!(b, Block::Deleted(_))));
@@ -1189,7 +1282,11 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
         let old = "Keep this one.\n\nDrop this whole paragraph entirely.";
         let new = "Keep this one.";
         let blocks = diff(old, new, Params::default());
-        assert!(blocks.iter().any(|b| matches!(b, Block::Deleted(x) if x.contains("Drop this"))));
+        assert!(
+            blocks
+                .iter()
+                .any(|b| matches!(b, Block::Deleted(x) if x.contains("Drop this")))
+        );
     }
 
     // --- move detection (the prose-native requirement) ---
@@ -1211,12 +1308,22 @@ Anchor one stays put here.
 Anchor two also stays.";
         let blocks = diff(old, new, Params::default());
         assert!(
-            blocks.iter().any(|b| matches!(b, Block::Moved { text, .. } if text.contains("migrating birds"))),
+            blocks.iter().any(
+                |b| matches!(b, Block::Moved { text, .. } if text.contains("migrating birds"))
+            ),
             "expected a Moved block, got {blocks:?}"
         );
         // and NOT a delete+insert pair for the same content
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Deleted(x) if x.contains("migrating birds"))));
-        assert!(!blocks.iter().any(|b| matches!(b, Block::Inserted(x) if x.contains("migrating birds"))));
+        assert!(
+            !blocks
+                .iter()
+                .any(|b| matches!(b, Block::Deleted(x) if x.contains("migrating birds")))
+        );
+        assert!(
+            !blocks
+                .iter()
+                .any(|b| matches!(b, Block::Inserted(x) if x.contains("migrating birds")))
+        );
     }
 
     #[test]
@@ -1228,9 +1335,18 @@ Anchor two also stays.";
         // identical paragraphs → the aligner matches one as backbone, the other moves;
         // this is a LEGITIMATE move (same text relocated), so assert we didn't split it
         // into a delete+insert of identical content.
-        let moved = blocks.iter().filter(|b| matches!(b, Block::Moved { .. })).count();
-        let del = blocks.iter().filter(|b| matches!(b, Block::Deleted(_))).count();
-        let ins = blocks.iter().filter(|b| matches!(b, Block::Inserted(_))).count();
+        let moved = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Moved { .. }))
+            .count();
+        let del = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Deleted(_)))
+            .count();
+        let ins = blocks
+            .iter()
+            .filter(|b| matches!(b, Block::Inserted(_)))
+            .count();
         assert!(moved >= 1);
         assert_eq!(del, 0);
         assert_eq!(ins, 0);
@@ -1272,7 +1388,10 @@ Anchor two also stays.";
     fn strip_markdown_removes_tildes_so_the_strike_wrap_never_nests() {
         // A literal `~~` in source prose would close the serializer's own wrap
         // early; the strip neutralizes tildes exactly like `*`/`_`/backticks.
-        assert_eq!(strip_markdown("approx ~40 chars, ~~old style~~"), "approx 40 chars, old style");
+        assert_eq!(
+            strip_markdown("approx ~40 chars, ~~old style~~"),
+            "approx 40 chars, old style"
+        );
     }
 
     #[test]
@@ -1314,7 +1433,14 @@ Anchor two also stays.";
         // view of "this paragraph shows a full crossed-out block AND a full wash").
         let old = "The cat sat quietly on the warm mat by the old door.";
         let new = "The cat sat nervously on the cold floor near the new window.";
-        let blocks = diff(old, new, Params { gran: Gran::Word, coalesce: 0.3 });
+        let blocks = diff(
+            old,
+            new,
+            Params {
+                gran: Gran::Word,
+                coalesce: 0.3,
+            },
+        );
         assert!(blocks.iter().any(|b| matches!(b, Block::Rewritten { .. })));
         let c = count_blocks(&blocks);
         assert_eq!((c.struck, c.washed), (1, 1), "{blocks:?}");

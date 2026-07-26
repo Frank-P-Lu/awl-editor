@@ -191,30 +191,25 @@ fn waves_boundaries(x: f32, viewport_h: f32, drift: f32) -> (f32, f32) {
 }
 
 impl BackgroundPipeline {
-    pub fn new(
-        device: &wgpu::Device,
-        format: wgpu::TextureFormat,
-        desc: BgDesc,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, desc: BgDesc) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("background shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/background.wgsl").into()),
         });
 
-        let bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("background globals layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("background globals layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("background globals"),
@@ -433,8 +428,14 @@ mod waves_drift_tests {
         for x in [0.0, 137.0, 512.0, 1801.0_f32] {
             let start = waves_boundaries(x, h, waves_drift_radians(0.0));
             let end = waves_boundaries(x, h, waves_drift_radians(crate::lava::LAVA_LOOP_CYCLES));
-            assert!((start.0 - end.0).abs() < 1e-2, "b1 seamless at the wrap: {start:?} vs {end:?}");
-            assert!((start.1 - end.1).abs() < 1e-2, "b2 seamless at the wrap: {start:?} vs {end:?}");
+            assert!(
+                (start.0 - end.0).abs() < 1e-2,
+                "b1 seamless at the wrap: {start:?} vs {end:?}"
+            );
+            assert!(
+                (start.1 - end.1).abs() < 1e-2,
+                "b2 seamless at the wrap: {start:?} vs {end:?}"
+            );
         }
     }
 
@@ -449,7 +450,10 @@ mod waves_drift_tests {
             let drift = waves_drift_radians(phase);
             for x in (0..2000).step_by(97) {
                 let (b1, b2) = waves_boundaries(x as f32, h, drift);
-                assert!(b1 < b2, "tiers never cross at drift={drift}, x={x}: b1={b1} b2={b2}");
+                assert!(
+                    b1 < b2,
+                    "tiers never cross at drift={drift}, x={x}: b1={b1} b2={b2}"
+                );
             }
         }
     }

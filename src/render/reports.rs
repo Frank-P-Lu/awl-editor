@@ -70,7 +70,13 @@ impl TextPipeline {
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
-            |i| self.buffer.lines.get(i).map(|l| l.text().len()).unwrap_or(0),
+            |i| {
+                self.buffer
+                    .lines
+                    .get(i)
+                    .map(|l| l.text().len())
+                    .unwrap_or(0)
+            },
         );
         // Line byte-offset table, built lazily only if a Fence span is present
         // (the common non-fence case never pays for it).
@@ -84,7 +90,13 @@ impl TextPipeline {
             // exactly "this span's start doesn't fall in the caret line's byte
             // bounds" (irrelevant for `Fence`, which ignores this flag).
             let conceal_off_cursor = !(r.start >= cursor_start && r.start < cursor_end);
-            if wysiwyg_reveals(ck, conceal_off_cursor, cursor_start, r, selection_touch.as_ref()) {
+            if wysiwyg_reveals(
+                ck,
+                conceal_off_cursor,
+                cursor_start,
+                r,
+                selection_touch.as_ref(),
+            ) {
                 continue;
             }
             if ck != ConcealKind::Fence {
@@ -173,9 +185,7 @@ impl TextPipeline {
     /// of `on` (they are pure text/caret/fold facts the render will consume) — only
     /// the on-screen drawing is gated on `on`, which stays OFF by default so a
     /// plain `--screenshot` reports `on: false` and is byte-identical.
-    pub fn outline_report(
-        &self,
-    ) -> (bool, Vec<(&str, u8, usize)>, Option<usize>, Vec<usize>) {
+    pub fn outline_report(&self) -> (bool, Vec<(&str, u8, usize)>, Option<usize>, Vec<usize>) {
         let on = crate::outline::outline_on();
         let headings = self
             .outline_headings

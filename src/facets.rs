@@ -190,7 +190,10 @@ mod tests {
             let Some(sc) = scheme(kind) else { continue };
             assert!(!sc.strip.is_empty(), "{kind:?} scheme has an empty strip");
             let home = sc.strip[0];
-            assert_eq!(home.id, "all", "{kind:?} strip index 0 must be the All home");
+            assert_eq!(
+                home.id, "all",
+                "{kind:?} strip index 0 must be the All home"
+            );
             assert!(
                 home.sections.is_empty(),
                 "{kind:?} All home must not group (empty sections)"

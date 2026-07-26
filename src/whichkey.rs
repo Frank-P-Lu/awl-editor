@@ -66,7 +66,10 @@ pub fn continuations(prefix: &str, keys: &[(String, Vec<String>)]) -> Vec<Contin
     for (name, chords) in names.iter().zip(chord_lists.iter()) {
         for chord in chords {
             if let Some(key) = prefix_follow_up(&want, chord) {
-                rows.push(Continuation { key, name: name.clone() });
+                rows.push(Continuation {
+                    key,
+                    name: name.clone(),
+                });
             }
         }
     }
@@ -158,7 +161,10 @@ mod tests {
     /// EMPTY — the panel only teaches C-x chords a user has RECLAIMED via `[keys]`.
     #[test]
     fn cx_continuations_are_empty_by_default_and_reflect_reclaimed_chords() {
-        assert!(continuations_cx(&[]).is_empty(), "no C-x defaults remain to teach");
+        assert!(
+            continuations_cx(&[]).is_empty(),
+            "no C-x defaults remain to teach"
+        );
         // A user reclaims a few C-x sequences; the panel teaches exactly those.
         let keys = vec![
             ("save".to_string(), vec!["C-x C-s".to_string()]),
@@ -212,9 +218,16 @@ mod tests {
         // Rebind "Switch theme…" from `C-x t` to `C-x g`; the panel should show `g`.
         let keys = vec![("switch_theme".to_string(), vec!["C-x g".to_string()])];
         let rows = continuations(PREFIX_CX, &keys);
-        assert!(rows.iter().any(|r| r.key == "g" && r.name == "Switch theme…"));
+        assert!(
+            rows.iter()
+                .any(|r| r.key == "g" && r.name == "Switch theme…")
+        );
         // The old default `t` for Switch theme… is gone (the override replaced it).
-        assert!(!rows.iter().any(|r| r.key == "t" && r.name == "Switch theme…"));
+        assert!(
+            !rows
+                .iter()
+                .any(|r| r.key == "t" && r.name == "Switch theme…")
+        );
     }
 
     /// An unknown / unparseable prefix yields no rows (never a panic).
@@ -266,9 +279,21 @@ mod tests {
     /// arms only while pending and fires once).
     #[test]
     fn summon_gate() {
-        assert!(should_summon(true, false, true), "pending + not shown + elapsed → summon");
-        assert!(!should_summon(true, false, false), "pause not yet elapsed → wait");
-        assert!(!should_summon(true, true, true), "already shown → no re-summon");
-        assert!(!should_summon(false, false, true), "no prefix pending → nothing");
+        assert!(
+            should_summon(true, false, true),
+            "pending + not shown + elapsed → summon"
+        );
+        assert!(
+            !should_summon(true, false, false),
+            "pause not yet elapsed → wait"
+        );
+        assert!(
+            !should_summon(true, true, true),
+            "already shown → no re-summon"
+        );
+        assert!(
+            !should_summon(false, false, true),
+            "no prefix pending → nothing"
+        );
     }
 }

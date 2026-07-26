@@ -39,7 +39,13 @@ pub(super) fn browse_level(kind: OverlayKind, rel: Option<String>) -> Option<Ove
         _ => (vec![], vec![], vec![]),
     };
     Some(OverlayState::new_marked(
-        kind, corpus, git, is_dir, vec![], vec![], rel,
+        kind,
+        corpus,
+        git,
+        is_dir,
+        vec![],
+        vec![],
+        rel,
     ))
 }
 
@@ -58,7 +64,11 @@ pub(super) fn drive(
         OverlayKind::Command => {
             let names = crate::commands::names();
             let hidden = vec![false; names.len()];
-            Some(OverlayState::new_command(names, crate::commands::bindings(), hidden))
+            Some(OverlayState::new_command(
+                names,
+                crate::commands::bindings(),
+                hidden,
+            ))
         }
         // The SETTINGS breadcrumb target: re-summoned when a value-pick launched
         // FROM Settings pops back on commit (the one parent that retains its child).
@@ -99,7 +109,11 @@ pub(super) fn drive_run(
         OverlayKind::Command => {
             let names = crate::commands::names();
             let hidden = vec![false; names.len()];
-            Some(OverlayState::new_command(names, crate::commands::bindings(), hidden))
+            Some(OverlayState::new_command(
+                names,
+                crate::commands::bindings(),
+                hidden,
+            ))
         }
         _ => None,
     };
@@ -219,7 +233,10 @@ pub(super) fn settings_drive(overlay: &mut Option<OverlayState>, action: &Action
         OverlayKind::Settings => Some(settings_overlay()),
         OverlayKind::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
-            crate::frontmatter::cjk_priority().first().copied().unwrap_or(crate::frontmatter::Lang::Ja),
+            crate::frontmatter::cjk_priority()
+                .first()
+                .copied()
+                .unwrap_or(crate::frontmatter::Lang::Ja),
         )),
         _ => None,
     };
@@ -250,7 +267,12 @@ pub(super) fn settings_drive(overlay: &mut Option<OverlayState>, action: &Action
 /// buffer (a no-path scratch buffer is markdown), seeding the cursor + optional
 /// mark first, and return the buffer for assertions. Mirrors `align_table`'s
 /// harness — the same seam a key / palette / `--keys` invocation rides.
-pub(super) fn drive_format(src: &str, anchor: Option<usize>, cursor: usize, action: &Action) -> Buffer {
+pub(super) fn drive_format(
+    src: &str,
+    anchor: Option<usize>,
+    cursor: usize,
+    action: &Action,
+) -> Buffer {
     let mut buffer = Buffer::from_str(src);
     if let Some(a) = anchor {
         buffer.set_cursor(a);
@@ -262,8 +284,7 @@ pub(super) fn drive_format(src: &str, anchor: Option<usize>, cursor: usize, acti
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     {
         let mut ctx = ActionCtx {
             buffer: &mut buffer,
@@ -358,8 +379,7 @@ pub(super) fn drive_newline(buffer: &mut Buffer) {
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer,
         shift_selecting: &mut shift,
@@ -390,8 +410,7 @@ pub(super) fn drive_act(buffer: &mut Buffer, action: &Action) {
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer,
         shift_selecting: &mut shift,
@@ -413,8 +432,7 @@ pub(super) fn drive_search(buffer: &mut Buffer, search: &mut Option<SearchState>
     let mut zoom = 1.0;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer,
         shift_selecting: &mut shift,
@@ -435,7 +453,11 @@ pub(super) fn drive_search(buffer: &mut Buffer, search: &mut Option<SearchState>
 /// fires only when the motion did NOT move the cursor" rule alongside the
 /// effect. No oracle (logical-line fallback), so vertical motion uses the
 /// buffer lines.
-pub(super) fn drive_effect_and_cursor(text: &str, cursor: usize, action: &Action) -> (Effect, usize) {
+pub(super) fn drive_effect_and_cursor(
+    text: &str,
+    cursor: usize,
+    action: &Action,
+) -> (Effect, usize) {
     let mut buffer = Buffer::from_str(text);
     buffer.set_cursor(cursor);
     let mut shift = false;
@@ -443,8 +465,7 @@ pub(super) fn drive_effect_and_cursor(text: &str, cursor: usize, action: &Action
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer: &mut buffer,
         shift_selecting: &mut shift,
@@ -602,8 +623,7 @@ pub(super) fn drive_act_effect(buffer: &mut Buffer, action: &Action) -> Effect {
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer,
         shift_selecting: &mut shift,
@@ -625,7 +645,9 @@ pub(super) fn drive_act_effect(buffer: &mut Buffer, action: &Action) -> Effect {
 /// `blocked_motions_arm_recoil_away_from_the_wall`. A NEW motion classified
 /// `is_motion` without a decision here panics `boundary_motions_bump_only_when_blocked`
 /// LOUDLY instead of silently shipping a silent no-op boundary.
-pub(super) fn motion_boundary_fixture(action: &Action) -> (&'static str, usize, crate::caret::RecoilDir) {
+pub(super) fn motion_boundary_fixture(
+    action: &Action,
+) -> (&'static str, usize, crate::caret::RecoilDir) {
     use crate::caret::RecoilDir::{Down, Left, Right, Up};
     const TXT: &str = "ab\ncd"; // chars: a b \n c d (end == char 5); "ab" / "cd"
     match action {
@@ -660,8 +682,7 @@ pub(super) fn drive_shift(
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer,
         shift_selecting,
@@ -738,8 +759,8 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::ToggleOutline
             | Action::ToggleTypewriter
             | Action::ToggleMenuBar
-        | Action::ToggleFold
-        | Action::CollapseOtherSections
+            | Action::ToggleFold
+            | Action::CollapseOtherSections
             | Action::ToggleWritingNits
             | Action::ShowStatsHud
             | Action::OpenGoto
@@ -747,7 +768,7 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::OpenRecentProjects
             | Action::OpenBrowse
             | Action::LastBuffer
-                | Action::NewDocument
+            | Action::NewDocument
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
@@ -757,7 +778,7 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::OpenCredits
             | Action::OpenGuide
             | Action::OpenHistory
-        | Action::CompareVersion
+            | Action::CompareVersion
             | Action::OpenAssetClean
             | Action::KeepVersion
             | Action::FinishBuffer
@@ -1103,11 +1124,17 @@ println!("{n}");
 ```
 "#,
     );
-    assert!(buffer.is_markdown(), "the smoke fixture must be a markdown buffer");
+    assert!(
+        buffer.is_markdown(),
+        "the smoke fixture must be a markdown buffer"
+    );
     // Caret + small selection inside `[link]` (ASCII text ⇒ byte == char index).
     let text = buffer.text();
     let pos = text.find("link").expect("the fixture contains a link");
     buffer.select_range(pos, pos + 3);
-    assert!(buffer.has_selection(), "the smoke fixture must seed a small selection");
+    assert!(
+        buffer.has_selection(),
+        "the smoke fixture must seed a small selection"
+    );
     buffer
 }

@@ -10,7 +10,7 @@
 //! world is the byte-identity control.
 
 use super::super::*;
-use super::dither::{offscreen, read_pixels, FMT};
+use super::dither::{FMT, offscreen, read_pixels};
 use super::view;
 
 // --- the AWL_PAGE_FRAME_FORCE grammar (pure) — the probe that survives the
@@ -19,7 +19,11 @@ use super::view;
 #[test]
 fn parse_page_frame_force_accepts_none_and_positive_weights() {
     assert_eq!(parse_page_frame_force("none"), Some(theme::PageFrame::None));
-    assert_eq!(parse_page_frame_force("None"), Some(theme::PageFrame::None), "case-insensitive");
+    assert_eq!(
+        parse_page_frame_force("None"),
+        Some(theme::PageFrame::None),
+        "case-insensitive"
+    );
     assert_eq!(
         parse_page_frame_force("2"),
         Some(theme::PageFrame::Line { weight_px: 2.0 })
@@ -34,7 +38,11 @@ fn parse_page_frame_force_accepts_none_and_positive_weights() {
 #[test]
 fn parse_page_frame_force_rejects_garbage() {
     for bad in ["", "wat", "0", "-2", "inf", "NaN", "2px"] {
-        assert_eq!(parse_page_frame_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_page_frame_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
@@ -48,7 +56,15 @@ fn page_frame_vertical_bounds_cover_short_tall_scrolled_and_menu_bar_cases() {
         ("short", 16.0, 64.0, 0.0, 359.0, 16.0, 359.0),
         ("tall", 16.0, 3200.0, 0.0, 359.0, 16.0, 359.0),
         ("scrolled", -624.0, 3200.0, 0.0, 359.0, 0.0, 359.0),
-        ("scrolled below menu", -600.0, 3200.0, 24.0, 359.0, 24.0, 359.0),
+        (
+            "scrolled below menu",
+            -600.0,
+            3200.0,
+            24.0,
+            359.0,
+            24.0,
+            359.0,
+        ),
     ];
     for (name, doc_top, doc_height, menu_bottom, canvas_bottom, want_top, want_bottom) in cases {
         assert_eq!(
@@ -65,8 +81,7 @@ fn page_frame_vertical_bounds_cover_short_tall_scrolled_and_menu_bar_cases() {
 /// carries (see `distinguishability.rs`'s own doc note).
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -158,11 +173,20 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
         "the frame's TOP edge band must be the pure ladder white at ({mid_x}, {top_band_y})"
     );
     let bottom_band_y = 359;
-    assert_eq!(at(mid_x, bottom_band_y), white, "short document frame reaches canvas bottom");
+    assert_eq!(
+        at(mid_x, bottom_band_y),
+        white,
+        "short document frame reaches canvas bottom"
+    );
     // IN-BOUNDS: every sampled band coordinate is strictly on-canvas (the
     // samples above would have panicked on an out-of-range index otherwise —
     // assert it explicitly so the law reads).
-    for (x, y) in [(left_band_x, mid_y), (right_band_x, mid_y), (mid_x, top_band_y), (mid_x, bottom_band_y)] {
+    for (x, y) in [
+        (left_band_x, mid_y),
+        (right_band_x, mid_y),
+        (mid_x, top_band_y),
+        (mid_x, bottom_band_y),
+    ] {
         assert!(
             (0..500).contains(&x) && (0..360).contains(&y),
             "frame sample ({x}, {y}) fell off the canvas — the frame must draw in-bounds"
@@ -191,7 +215,9 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
     let off_mid_x = (p.column_left() + p.column_width() * 0.5) as i64;
     let off_left_band_x = (p.column_left() - weight * 0.5).floor() as i64;
     let (texture, tview) = offscreen(&device, 500, 360);
-    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame page-off encoder") });
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("awl page-frame page-off encoder"),
+    });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
     let off_pixels = read_pixels(&device, &queue, &texture, 500, 360);
@@ -201,11 +227,13 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
         "page-off uploads no page-frame rects"
     );
     assert_eq!(
-        off_pixels[(359 * 500 + off_mid_x) as usize], black,
+        off_pixels[(359 * 500 + off_mid_x) as usize],
+        black,
         "page-off has no former bottom page-frame stroke"
     );
     assert_eq!(
-        off_pixels[(160 * 500 + off_left_band_x) as usize], black,
+        off_pixels[(160 * 500 + off_left_band_x) as usize],
+        black,
         "page-off has no former left page-frame stroke"
     );
 
@@ -217,12 +245,20 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
     p.prepare(&device, &queue, 500, 360).unwrap();
     let scroll_left_band = (p.column_left() - weight * 0.5).floor() as i64;
     let (texture, tview) = offscreen(&device, 500, 360);
-    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame scrolled encoder") });
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("awl page-frame scrolled encoder"),
+    });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
     let scrolled_pixels = read_pixels(&device, &queue, &texture, 500, 360);
-    assert_eq!(scrolled_pixels[(4 * 500 + scroll_left_band) as usize], white);
-    assert_eq!(scrolled_pixels[(359 * 500 + scroll_left_band) as usize], white);
+    assert_eq!(
+        scrolled_pixels[(4 * 500 + scroll_left_band) as usize],
+        white
+    );
+    assert_eq!(
+        scrolled_pixels[(359 * 500 + scroll_left_band) as usize],
+        white
+    );
 
     crate::menubar::set_menu_bar_on(true);
     p.set_view(&scrolled);
@@ -230,12 +266,20 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
     let reserve = p.menubar_reserve() as i64;
     let menu_left_band = (p.column_left() - weight * 0.5).floor() as i64;
     let (texture, tview) = offscreen(&device, 500, 360);
-    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame menu-bar encoder") });
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("awl page-frame menu-bar encoder"),
+    });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
     let menu_pixels = read_pixels(&device, &queue, &texture, 500, 360);
-    assert_eq!(menu_pixels[((reserve + 4) * 500 + menu_left_band) as usize], white);
-    assert_ne!(menu_pixels[((reserve - 1) * 500 + menu_left_band) as usize], white);
+    assert_eq!(
+        menu_pixels[((reserve + 4) * 500 + menu_left_band) as usize],
+        white
+    );
+    assert_ne!(
+        menu_pixels[((reserve - 1) * 500 + menu_left_band) as usize],
+        white
+    );
     crate::menubar::set_menu_bar_on(false);
 
     for world in theme::THEMES.iter() {
@@ -247,7 +291,12 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
             theme::PageFrame::None => 0,
             theme::PageFrame::Line { .. } => 4,
         };
-        assert_eq!(p.page_frame_pipeline.instance_count(), expected, "{}: state follows capability", world.name);
+        assert_eq!(
+            p.page_frame_pipeline.instance_count(),
+            expected,
+            "{}: state follows capability",
+            world.name
+        );
     }
 
     crate::page::set_page_on(false);

@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::capture::json_string;
-use crate::theme::{Theme, THEMES};
+use crate::theme::{THEMES, Theme};
 
 /// Bumped when the JSON SHAPE changes (fields added/renamed/removed), so a
 /// stale exporter fails loudly instead of silently reading a missing key.
@@ -213,7 +213,11 @@ fn face_json(f: &Face) -> String {
 /// The whole manifest as JSON text (trailing newline included).
 pub fn manifest_json(fonts_dir: &Path) -> anyhow::Result<String> {
     let faces = faces_for(&THEMES, fonts_dir)?;
-    let worlds = THEMES.iter().map(world_json).collect::<Vec<_>>().join(",\n");
+    let worlds = THEMES
+        .iter()
+        .map(world_json)
+        .collect::<Vec<_>>()
+        .join(",\n");
     let faces_json = faces.iter().map(face_json).collect::<Vec<_>>().join(",\n");
     Ok(format!(
         "{{\n  \"schema\": {MANIFEST_SCHEMA},\n  \"generated_by\": \"awl --icon-manifest\",\n  \"source\": \"src/theme/worlds.rs (palette + face) and assets/fonts/*.ttf (files + weights) — GENERATED, do not hand-edit\",\n  \"worlds\": [\n{worlds}\n  ],\n  \"faces\": [\n{faces_json}\n  ]\n}}\n"
@@ -333,6 +337,9 @@ mod tests {
         fake.font = "No Such Family";
         let err = faces_for(&[fake], &fonts_dir()).expect_err("must fail");
         let msg = err.to_string();
-        assert!(msg.contains("Nonesuch") && msg.contains("No Such Family"), "{msg}");
+        assert!(
+            msg.contains("Nonesuch") && msg.contains("No Such Family"),
+            "{msg}"
+        );
     }
 }

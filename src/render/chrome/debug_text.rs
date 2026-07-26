@@ -71,10 +71,7 @@ impl TextPipeline {
     /// constructor default AND the only value a capture ever holds) draws NO settle
     /// lines — the readout is absent, keeping a `--debug` capture byte-identical. The
     /// live loop refreshes this on naturally occurring redraws, so expiry needs no tick.
-    pub fn set_debug_theme_settle(
-        &mut self,
-        settle: Option<crate::themeswitch::SwitchReport>,
-    ) {
+    pub fn set_debug_theme_settle(&mut self, settle: Option<crate::themeswitch::SwitchReport>) {
         self.debug_theme_settle = settle;
     }
 
@@ -142,7 +139,11 @@ impl TextPipeline {
         let viewport = format!("{width}×{height} @{:.1}x", self.dpi);
         let cursor = format!("ln {}:{}", self.cursor_line, self.cursor_col);
         // theme · caret · page-mode — the active render-globals in one line.
-        let page = if crate::page::page_on() { "page" } else { "edge" };
+        let page = if crate::page::page_on() {
+            "page"
+        } else {
+            "edge"
+        };
         let modes = format!(
             "{} · {} · {}",
             theme::active().name,
@@ -163,8 +164,9 @@ impl TextPipeline {
         // App has ever fed this — the only value a capture ever sees) renders the
         // fixed `autosave —` placeholder, exactly like the perf triad + gpu line.
         let autosave = crate::debug::autosave_readout(self.debug_autosave);
-        let mut lines =
-            vec![frame, latency, redraws, zoom, viewport, cursor, modes, mdsyn, gpu, autosave];
+        let mut lines = vec![
+            frame, latency, redraws, zoom, viewport, cursor, modes, mdsyn, gpu, autosave,
+        ];
         // THEME-SWITCH SETTLE readout (live-only): two extra lines — the felt
         // input→settled-present latency + the per-phase breakdown — but ONLY once a
         // real switch has settled. A capture never feeds one (`None`), so

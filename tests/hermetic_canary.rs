@@ -56,7 +56,9 @@ fn tmp_dir(tag: &str) -> PathBuf {
 /// deletion all change the map — "zero unexpected writes" is map equality.
 fn tree_snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
     fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let p = entry.path();
             let rel = p.strip_prefix(root).unwrap().to_path_buf();
@@ -172,10 +174,17 @@ fn strict_scenario_under_a_canary_home_makes_zero_unexpected_writes() {
     );
 
     // The deliverable landed (the ONE expected real write, in its own out dir)…
-    assert!(cap.exists(), "the capture PNG is still written for a hermetic run");
+    assert!(
+        cap.exists(),
+        "the capture PNG is still written for a hermetic run"
+    );
     let v = sidecar(&cap);
     // …the scenario really ran (the edit is in the captured text)…
-    assert_eq!(v["text"].as_str().unwrap(), "Xalpha\n", "the replayed edit applied");
+    assert_eq!(
+        v["text"].as_str().unwrap(),
+        "Xalpha\n",
+        "the replayed edit applied"
+    );
     // …the bait config was never read (built-in default theme, not Wagtail)…
     assert_ne!(
         v["theme"]["name"].as_str().unwrap(),
@@ -200,7 +209,14 @@ fn strict_scenario_under_a_canary_home_makes_zero_unexpected_writes() {
     // A plain capture (no --keys, so nothing is saved) DOES read the user's
     // config off the real disk — the sticky Wagtail theme shows in the sidecar.
     let legacy = outdir.join("legacy.png");
-    run_awl(&home, &["--screenshot", legacy.to_str().unwrap(), doc.to_str().unwrap()]);
+    run_awl(
+        &home,
+        &[
+            "--screenshot",
+            legacy.to_str().unwrap(),
+            doc.to_str().unwrap(),
+        ],
+    );
     let v = sidecar(&legacy);
     assert_eq!(
         v["theme"]["name"].as_str().unwrap(),
@@ -208,10 +224,18 @@ fn strict_scenario_under_a_canary_home_makes_zero_unexpected_writes() {
         "the legacy path still reads the user's real config (hermeticity is the \
          scenario default, not a regression of the one-off harness)"
     );
-    assert_eq!(v["text"].as_str().unwrap(), "alpha\n", "legacy read the real file's bytes");
+    assert_eq!(
+        v["text"].as_str().unwrap(),
+        "alpha\n",
+        "legacy read the real file's bytes"
+    );
     // A plain read-only capture writes nothing user-owned either (config is
     // read, never written, from this path).
-    assert_eq!(tree_snapshot(&home), home_before, "legacy plain capture writes nothing");
+    assert_eq!(
+        tree_snapshot(&home),
+        home_before,
+        "legacy plain capture writes nothing"
+    );
     assert_eq!(tree_snapshot(&inputs), inputs_before);
 
     let _ = std::fs::remove_dir_all(&root);

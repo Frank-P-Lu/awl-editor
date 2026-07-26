@@ -154,10 +154,7 @@ pub struct Star {
 /// idiom — is fine ON the GPU where one device renders one capture, but a
 /// CPU-side layout must not inherit libm's per-platform `sin` variance).
 fn hash2(ix: u32, iy: u32) -> u32 {
-    let mut h = ix
-        .wrapping_mul(0x9E37_79B1)
-        ^ iy.wrapping_mul(0x85EB_CA6B)
-        ^ 0x27D4_EB2F;
+    let mut h = ix.wrapping_mul(0x9E37_79B1) ^ iy.wrapping_mul(0x85EB_CA6B) ^ 0x27D4_EB2F;
     h ^= h >> 16;
     h = h.wrapping_mul(0x7FEB_352D);
     h ^= h >> 15;
@@ -371,7 +368,7 @@ pub fn env_phase() -> Option<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lava::{lava_phase_for, lava_should_tick, LAVA_FROZEN_PHASE, LAVA_LOOP_CYCLES};
+    use crate::lava::{LAVA_FROZEN_PHASE, LAVA_LOOP_CYCLES, lava_phase_for, lava_should_tick};
     use crate::theme::THEMES;
 
     /// Currawong's shipped params, read off the world DATA itself (never a
@@ -389,7 +386,10 @@ mod tests {
         let (cell, density, _, _) = currawong_stars();
         let a = layout(1200.0, 800.0, cell, density);
         let b = layout(1200.0, 800.0, cell, density);
-        assert_eq!(a, b, "the star layout must be a pure position hash — bit-identical runs");
+        assert_eq!(
+            a, b,
+            "the star layout must be a pure position hash — bit-identical runs"
+        );
         assert!(
             a.len() > 20,
             "a 1200x800 field at the shipped density must scatter a real population (got {})",
@@ -448,12 +448,16 @@ mod tests {
                 (sc.x - b.x * s).abs() < 1e-2 && (sc.y - b.y * s).abs() < 1e-2,
                 "each star must land at exactly s× its logical position \
                  (({}, {}) × {s} vs ({}, {}))",
-                b.x, b.y, sc.x, sc.y,
+                b.x,
+                b.y,
+                sc.x,
+                sc.y,
             );
             assert!(
                 (sc.seed - b.seed).abs() < 1e-6,
                 "the same grid cell must keep its seed across scales ({} vs {})",
-                b.seed, sc.seed,
+                b.seed,
+                sc.seed,
             );
         }
     }
@@ -518,7 +522,11 @@ mod tests {
         let a = lit_at(0.0);
         let b = lit_at(3.1);
         // Deterministic: recomputing the same phase yields the identical set.
-        assert_eq!(a, lit_at(0.0), "the lit population must be a pure function of the phase");
+        assert_eq!(
+            a,
+            lit_at(0.0),
+            "the lit population must be a pure function of the phase"
+        );
         let count_a = a.iter().filter(|&&l| l).count();
         let count_b = b.iter().filter(|&&l| l).count();
         assert!(
@@ -595,7 +603,11 @@ mod tests {
             seen[idx] += 1;
         }
         for (i, &c) in seen.iter().enumerate() {
-            assert!(c > 0, "palette color {i} ({:?}) never got picked", palette[i]);
+            assert!(
+                c > 0,
+                "palette color {i} ({:?}) never got picked",
+                palette[i]
+            );
         }
         // The world's own blue-white base dominates (a cool night sky), the
         // whites are the rarer glints.
@@ -627,7 +639,10 @@ mod tests {
                 accepted_right += 1;
             }
         }
-        assert!(accepted_left > 0 && accepted_right > 0, "both margins must admit stars");
+        assert!(
+            accepted_left > 0 && accepted_right > 0,
+            "both margins must admit stars"
+        );
         // Page-off collapse: the column spans the whole canvas -> nothing passes.
         for i in 0..=1200 {
             assert!(
@@ -695,14 +710,23 @@ mod tests {
         // Compose EXACTLY as `App::about_to_wait` does: active-world ambient bit ->
         // `lava_should_tick`'s `active` term, with normal live conditions (ambient
         // on, motion not reduced, focused, not paused).
-        let arms = |t: &crate::theme::Theme| lava_should_tick(t.has_ambient_motion(), true, false, true, false);
+        let arms = |t: &crate::theme::Theme| {
+            lava_should_tick(t.has_ambient_motion(), true, false, true, false)
+        };
         assert!(arms(firetail), "a lava world arms the tick");
         assert!(
             arms(currawong),
             "a stars-only world MUST arm the tick just like a lava world (the frozen-stars regression guard)"
         );
-        assert_eq!(arms(currawong), arms(firetail), "stars and lava arm identically");
-        assert!(!arms(magpie), "a static world schedules zero ambient frames");
+        assert_eq!(
+            arms(currawong),
+            arms(firetail),
+            "stars and lava arm identically"
+        );
+        assert!(
+            !arms(magpie),
+            "a static world schedules zero ambient frames"
+        );
     }
 
     #[test]
@@ -726,7 +750,11 @@ mod tests {
     fn star_palette_carries_more_chroma_than_before_at_no_greater_luminance() {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.04045 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         fn rel_lum(c: Srgb) -> f32 {
             0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
@@ -822,7 +850,11 @@ mod tests {
         let phase = 1.7;
         for (a, b) in stars_a.iter().zip(stars_b.iter()) {
             // Position: the layout hash itself.
-            assert_eq!((a.x, a.y, a.seed), (b.x, b.y, b.seed), "position/seed must match");
+            assert_eq!(
+                (a.x, a.y, a.seed),
+                (b.x, b.y, b.seed),
+                "position/seed must match"
+            );
             // Phase (brightness): a pure function of (seed, phase, band).
             assert_eq!(
                 brightness(a.seed, phase, floor, peak),
@@ -830,7 +862,11 @@ mod tests {
                 "brightness at a fixed phase must match"
             );
             // Tint: a pure function of seed.
-            assert_eq!(star_tint(base, a.seed), star_tint(base, b.seed), "tint must match");
+            assert_eq!(
+                star_tint(base, a.seed),
+                star_tint(base, b.seed),
+                "tint must match"
+            );
             // Size: a pure function of seed.
             assert_eq!(
                 star_size_scale(a.seed),

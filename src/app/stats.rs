@@ -39,7 +39,11 @@ impl App {
         // Session clock through the ONE time owner (origin was stamped by the
         // same `self.clock`), so a deterministic clock would govern the active-
         // writing odometer too. `RealClock` makes this `stats_origin.elapsed()`.
-        let now_ms = self.clock.now().duration_since(self.stats_origin).as_millis() as u64;
+        let now_ms = self
+            .clock
+            .now()
+            .duration_since(self.stats_origin)
+            .as_millis() as u64;
         let world = crate::theme::active().name;
         self.stats
             .record_keystroke(printable, world, self.stats_last_input_ms, now_ms);
@@ -128,7 +132,10 @@ impl App {
                 active_writing_ms: self.stats.active_writing_ms,
                 files_touched: self.stats.files_touched_count(),
                 caret_distance_px: self.stats.caret_distance_px,
-                world: self.stats.most_used_world().map(|(name, _)| name.to_string()),
+                world: self
+                    .stats
+                    .most_used_world()
+                    .map(|(name, _)| name.to_string()),
             })
         } else {
             None
@@ -262,7 +269,10 @@ mod tests {
             app.stats_note_keystroke(true);
             app.stats_note_keystroke(false);
             assert_eq!(app.stats.keystrokes, 3);
-            assert_eq!(app.stats.chars_typed, 2, "only the printable presses count as chars");
+            assert_eq!(
+                app.stats.chars_typed, 2,
+                "only the printable presses count as chars"
+            );
             assert!(app.stats_dirty, "increments mark the store dirty");
 
             app.stats_flush();
@@ -280,7 +290,11 @@ mod tests {
             app.stats_touch_file(PathBuf::from("/n/a.md"));
             app.stats_touch_file(PathBuf::from("/n/b.md"));
             app.stats_touch_file(PathBuf::from("/n/a.md")); // a re-open
-            assert_eq!(app.stats.files_touched_count(), 2, "distinct count, not open count");
+            assert_eq!(
+                app.stats.files_touched_count(),
+                2,
+                "distinct count, not open count"
+            );
         });
     }
 
@@ -291,7 +305,9 @@ mod tests {
             // No increments yet: a flush must not even create the file.
             app.stats_flush();
             assert!(
-                crate::fs::active().read(&crate::stats::stats_path()).is_err(),
+                crate::fs::active()
+                    .read(&crate::stats::stats_path())
+                    .is_err(),
                 "a clean flush writes nothing"
             );
         });
@@ -300,7 +316,10 @@ mod tests {
     #[test]
     fn kill_switch_off_tracks_nothing_and_never_writes() {
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
-            let cfg = Config { stats: Some(false), ..Config::empty() };
+            let cfg = Config {
+                stats: Some(false),
+                ..Config::empty()
+            };
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
             app.stats_note_keystroke(true);
             app.stats_touch_file(PathBuf::from("/n/a.md"));
@@ -308,7 +327,9 @@ mod tests {
             assert!(!app.stats_dirty);
             app.stats_flush();
             assert!(
-                crate::fs::active().read(&crate::stats::stats_path()).is_err(),
+                crate::fs::active()
+                    .read(&crate::stats::stats_path())
+                    .is_err(),
                 "off: never writes stats.toml"
             );
         });
@@ -337,7 +358,11 @@ mod tests {
             assert_eq!((goto.chord, goto.palette, goto.menu), (2, 1, 0));
             let theme = app.stats.command_counts("switch_theme");
             assert_eq!((theme.chord, theme.palette, theme.menu), (0, 0, 1));
-            assert_eq!(app.stats.command_usage.len(), 2, "only catalog commands keyed rows");
+            assert_eq!(
+                app.stats.command_usage.len(),
+                2,
+                "only catalog commands keyed rows"
+            );
             assert!(app.stats_dirty, "a recorded dispatch marks the store dirty");
 
             // Persists into (and reloads from) the SAME stats.toml as the odometer.
@@ -362,16 +387,24 @@ mod tests {
                 app.ledger_note_dispatch(&Action::KeepVersion, crate::stats::Door::Palette);
             }
             // The candidate query wired through the catalog's own `has_native_chord`.
-            let cands = app.stats.graduation_candidates(crate::commands::has_native_chord, 5);
+            let cands = app
+                .stats
+                .graduation_candidates(crate::commands::has_native_chord, 5);
             let slugs: Vec<&str> = cands.iter().map(|(s, _)| s.as_str()).collect();
             assert_eq!(slugs, vec!["go_to_file"], "chordless Keep version excluded");
-            assert!(!app.stats.is_graduated("go_to_file"), "not yet graduated on slow-door use");
+            assert!(
+                !app.stats.is_graduated("go_to_file"),
+                "not yet graduated on slow-door use"
+            );
 
             // Now learn the Cmd-O chord GRADUATION_N times: it drops off the candidates.
             for _ in 0..crate::stats::GRADUATION_N {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Chord);
             }
-            assert!(app.stats.is_graduated("go_to_file"), "chord in the fingers now");
+            assert!(
+                app.stats.is_graduated("go_to_file"),
+                "chord in the fingers now"
+            );
             assert!(
                 app.stats
                     .graduation_candidates(crate::commands::has_native_chord, 5)
@@ -410,7 +443,10 @@ mod tests {
             // hardcoded mac-only literal — keeps this law true on EITHER convention,
             // never just whichever one happens to be ambient.
             let label_for = |action: &Action| -> String {
-                let c = crate::commands::COMMANDS.iter().find(|c| c.action == *action).unwrap();
+                let c = crate::commands::COMMANDS
+                    .iter()
+                    .find(|c| c.action == *action)
+                    .unwrap();
                 crate::commands::resolved_native_label(c, crate::convention::Convention::current())
             };
             let goto_chord = label_for(&Action::OpenGoto);
@@ -443,8 +479,14 @@ mod tests {
             let app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             // Nothing tracked yet → no personalized rows / tips. The pipeline then falls
             // back to the curated starter six for the peek, and the footer hides.
-            assert!(app.peek_rows_from_ledger().is_empty(), "fresh ledger: no peek rows");
-            assert!(app.keybinding_tips_from_ledger().is_empty(), "fresh ledger: no footer tips");
+            assert!(
+                app.peek_rows_from_ledger().is_empty(),
+                "fresh ledger: no peek rows"
+            );
+            assert!(
+                app.keybinding_tips_from_ledger().is_empty(),
+                "fresh ledger: no footer tips"
+            );
         });
     }
 
@@ -452,10 +494,16 @@ mod tests {
     fn ledger_off_records_no_command_usage() {
         use crate::keymap::Action;
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
-            let cfg = Config { stats: Some(false), ..Config::empty() };
+            let cfg = Config {
+                stats: Some(false),
+                ..Config::empty()
+            };
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
             app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Chord);
-            assert!(app.stats.command_usage.is_empty(), "off: the ledger stays empty");
+            assert!(
+                app.stats.command_usage.is_empty(),
+                "off: the ledger stays empty"
+            );
             assert!(!app.stats_dirty);
         });
     }

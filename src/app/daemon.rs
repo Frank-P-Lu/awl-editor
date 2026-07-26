@@ -156,19 +156,26 @@ mod tests {
         // never reads the developer's real `~/.local/share/awl/session.toml`
         // and parks his real open files into this test's registry.
         let _fs = crate::testlock::serial();
-        let dir = std::env::temp_dir()
-            .join(format!("awl-finish-buffer-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("awl-finish-buffer-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let a = dir.join("a.txt");
         let b = dir.join("b.txt");
         std::fs::write(&a, "alpha\n").unwrap();
         std::fs::write(&b, "beta\n").unwrap();
 
-        let cfg = Config { session_restore: Some(false), ..Config::empty() };
+        let cfg = Config {
+            session_restore: Some(false),
+            ..Config::empty()
+        };
         let mut app = App::new(Some(a.clone()), dir.clone(), None, None, cfg);
         app.load_path(b.clone());
         assert_eq!(app.active.buffer.path(), Some(b.as_path()), "B is active");
-        assert_eq!(app.prev_file, Some(a.clone()), "A is the last-buffer target");
+        assert_eq!(
+            app.prev_file,
+            Some(a.clone()),
+            "A is the last-buffer target"
+        );
 
         // Mock the waiter: a real connected pair, no listener/socket file.
         let (mine, theirs) = UnixStream::pair().expect("unix socketpair");
@@ -180,7 +187,11 @@ mod tests {
 
         app.active.buffer.set_text("beta\nedited\n");
         let effect = drive_finish_buffer(&mut app);
-        assert_eq!(effect, actions::Effect::FinishBuffer, "the core signals FinishBuffer");
+        assert_eq!(
+            effect,
+            actions::Effect::FinishBuffer,
+            "the core signals FinishBuffer"
+        );
         app.finish_buffer();
 
         // SAVED: the edit landed on disk.
@@ -201,9 +212,14 @@ mod tests {
         assert_eq!(n, 0, "the waiter closes its end right after notifying");
 
         // SWITCHED: the active buffer is A again (the previously-open other buffer).
-        assert_eq!(app.active.buffer.path(), Some(a.as_path()), "FinishBuffer switches to the previous buffer");
+        assert_eq!(
+            app.active.buffer.path(),
+            Some(a.as_path()),
+            "FinishBuffer switches to the previous buffer"
+        );
         assert!(
-            !app.wait_conns.contains_key(&crate::buffers::BufferKey::path(&b)),
+            !app.wait_conns
+                .contains_key(&crate::buffers::BufferKey::path(&b)),
             "the notified waiter entry is drained"
         );
 
@@ -223,8 +239,8 @@ mod tests {
         // scratch-stash doors (it takes `fs::TEST_LOCK` internally for the
         // scope of construction, so don't ALSO hold it here — a plain
         // `Mutex` isn't reentrant).
-        let dir = std::env::temp_dir()
-            .join(format!("awl-daemon-shutdown-test-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("awl-daemon-shutdown-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let sock = dir.join("awl.sock");
         std::fs::write(&sock, b"").unwrap(); // stand-in for a bound socket file
@@ -240,7 +256,10 @@ mod tests {
         app.daemon_shutdown();
 
         assert!(app.wait_conns.is_empty(), "every waiter is dropped");
-        assert!(!sock.exists(), "the socket file is unlinked on clean shutdown");
+        assert!(
+            !sock.exists(),
+            "the socket file is unlinked on clean shutdown"
+        );
         assert!(app.daemon_socket_path.is_none());
 
         let _ = std::fs::remove_dir_all(&dir);

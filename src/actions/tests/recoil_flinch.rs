@@ -3,33 +3,63 @@
 //! (2026-07 code-organization pass).
 
 use super::super::*;
+use super::{
+    all_actions, delete_flinch_fixture, drive_act_effect, drive_effect, drive_effect_and_cursor,
+    motion_boundary_fixture,
+};
 use crate::overlay::OverlayKind;
-use super::{drive_effect_and_cursor, drive_effect, delete_flinch_fixture, drive_act_effect, motion_boundary_fixture, all_actions};
 
 #[test]
 fn blocked_motions_arm_recoil_away_from_the_wall() {
     use crate::caret::RecoilDir::{Down, Left, Right, Up};
     let txt = "ab\ncd"; // chars: a b \n c d  (end == char 5)
     // Horizontal walls.
-    assert_eq!(drive_effect(txt, 5, &Action::ForwardChar), Effect::Recoil(Left));
-    assert_eq!(drive_effect(txt, 0, &Action::BackwardChar), Effect::Recoil(Right));
-    assert_eq!(drive_effect(txt, 5, &Action::ForwardWord), Effect::Recoil(Left));
-    assert_eq!(drive_effect(txt, 0, &Action::BackwardWord), Effect::Recoil(Right));
+    assert_eq!(
+        drive_effect(txt, 5, &Action::ForwardChar),
+        Effect::Recoil(Left)
+    );
+    assert_eq!(
+        drive_effect(txt, 0, &Action::BackwardChar),
+        Effect::Recoil(Right)
+    );
+    assert_eq!(
+        drive_effect(txt, 5, &Action::ForwardWord),
+        Effect::Recoil(Left)
+    );
+    assert_eq!(
+        drive_effect(txt, 0, &Action::BackwardWord),
+        Effect::Recoil(Right)
+    );
     // BOUNDARY BUMP — line-edge motions already at the edge (C-a/C-e,
     // Cmd-Left/Right): cursor 0 is already line 0's start; cursor 2 is already
     // line 0's end (right before the '\n').
-    assert_eq!(drive_effect(txt, 0, &Action::LineStart), Effect::Recoil(Right));
+    assert_eq!(
+        drive_effect(txt, 0, &Action::LineStart),
+        Effect::Recoil(Right)
+    );
     assert_eq!(drive_effect(txt, 2, &Action::LineEnd), Effect::Recoil(Left));
     // Vertical walls (cursor parked at the end of the last / start of the first
     // line so the logical motion truly can't move).
     assert_eq!(drive_effect(txt, 5, &Action::NextLine), Effect::Recoil(Up));
-    assert_eq!(drive_effect(txt, 0, &Action::PreviousLine), Effect::Recoil(Down));
+    assert_eq!(
+        drive_effect(txt, 0, &Action::PreviousLine),
+        Effect::Recoil(Down)
+    );
     // Buffer ends already at the end / start.
     assert_eq!(drive_effect(txt, 5, &Action::BufferEnd), Effect::Recoil(Up));
-    assert_eq!(drive_effect(txt, 0, &Action::BufferStart), Effect::Recoil(Down));
+    assert_eq!(
+        drive_effect(txt, 0, &Action::BufferStart),
+        Effect::Recoil(Down)
+    );
     // Page scroll that can't page (1 line per page; already at top/bottom).
-    assert_eq!(drive_effect(txt, 5, &Action::PageScrollDown), Effect::Recoil(Up));
-    assert_eq!(drive_effect(txt, 0, &Action::PageScrollUp), Effect::Recoil(Down));
+    assert_eq!(
+        drive_effect(txt, 5, &Action::PageScrollDown),
+        Effect::Recoil(Up)
+    );
+    assert_eq!(
+        drive_effect(txt, 0, &Action::PageScrollUp),
+        Effect::Recoil(Down)
+    );
 }
 
 #[test]
@@ -63,8 +93,7 @@ fn blocked_recoil_leaves_buffer_and_cursor_untouched() {
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer: &mut buffer,
         shift_selecting: &mut shift,
@@ -86,21 +115,42 @@ fn blocked_recoil_leaves_buffer_and_cursor_untouched() {
 fn exhausted_undo_redo_recoil() {
     use crate::caret::RecoilDir::{Left, Right};
     // A fresh buffer has no history: undo/redo are no-ops -> recoil.
-    assert_eq!(drive_effect("hello", 0, &Action::Undo), Effect::Recoil(Left));
-    assert_eq!(drive_effect("hello", 0, &Action::Redo), Effect::Recoil(Right));
+    assert_eq!(
+        drive_effect("hello", 0, &Action::Undo),
+        Effect::Recoil(Left)
+    );
+    assert_eq!(
+        drive_effect("hello", 0, &Action::Redo),
+        Effect::Recoil(Right)
+    );
 }
 
 #[test]
 fn blocked_delete_recoils_no_op_delete() {
     use crate::caret::RecoilDir::{Left, Right};
     // Backspace at buffer start / C-d / M-d at buffer end remove nothing -> recoil.
-    assert_eq!(drive_effect("hi", 0, &Action::DeleteBackward), Effect::Recoil(Right));
-    assert_eq!(drive_effect("hi", 2, &Action::DeleteForward), Effect::Recoil(Left));
-    assert_eq!(drive_effect("hi", 2, &Action::DeleteWordForward), Effect::Recoil(Left));
+    assert_eq!(
+        drive_effect("hi", 0, &Action::DeleteBackward),
+        Effect::Recoil(Right)
+    );
+    assert_eq!(
+        drive_effect("hi", 2, &Action::DeleteForward),
+        Effect::Recoil(Left)
+    );
+    assert_eq!(
+        drive_effect("hi", 2, &Action::DeleteWordForward),
+        Effect::Recoil(Left)
+    );
     // A delete that DOES remove a char SUCCEEDS -> the caret swallows what it ate
     // (the PHASE 2 inward squash), mutually exclusive with the blocked recoil.
-    assert_eq!(drive_effect("hi", 1, &Action::DeleteBackward), Effect::DeleteSquash);
-    assert_eq!(drive_effect("hi", 0, &Action::DeleteForward), Effect::DeleteSquash);
+    assert_eq!(
+        drive_effect("hi", 1, &Action::DeleteBackward),
+        Effect::DeleteSquash
+    );
+    assert_eq!(
+        drive_effect("hi", 0, &Action::DeleteForward),
+        Effect::DeleteSquash
+    );
 }
 
 #[test]
@@ -109,18 +159,36 @@ fn successful_edits_arm_the_caret_flinch() {
     // typing impact, a backspace / C-d / word-delete → an inward squash, a
     // kill-line → a gulp. The trigger reads the SAME content-version signal the
     // recoil uses (here it CHANGED), so it's drivable + unit-testable with no GPU.
-    assert_eq!(drive_effect("hi", 1, &Action::InsertChar('x')), Effect::TypeImpact);
-    assert_eq!(drive_effect("hi", 1, &Action::DeleteBackward), Effect::DeleteSquash);
-    assert_eq!(drive_effect("hi", 0, &Action::DeleteForward), Effect::DeleteSquash);
-    assert_eq!(drive_effect("foo bar", 7, &Action::DeleteWordBackward), Effect::DeleteSquash);
-    assert_eq!(drive_effect("foo bar", 0, &Action::DeleteWordForward), Effect::DeleteSquash);
+    assert_eq!(
+        drive_effect("hi", 1, &Action::InsertChar('x')),
+        Effect::TypeImpact
+    );
+    assert_eq!(
+        drive_effect("hi", 1, &Action::DeleteBackward),
+        Effect::DeleteSquash
+    );
+    assert_eq!(
+        drive_effect("hi", 0, &Action::DeleteForward),
+        Effect::DeleteSquash
+    );
+    assert_eq!(
+        drive_effect("foo bar", 7, &Action::DeleteWordBackward),
+        Effect::DeleteSquash
+    );
+    assert_eq!(
+        drive_effect("foo bar", 0, &Action::DeleteWordForward),
+        Effect::DeleteSquash
+    );
     // A kill-line that removes text gulps.
     assert_eq!(drive_effect("hello", 0, &Action::KillLine), Effect::Gulp);
     // PHASE 3 — ENTER JUICE: a plain Enter lands a caret-level touchdown squash,
     // and so does the markdown smart-Enter's list-continuation edit (same Action,
     // same arm — the flinch is keyed off `Action::Newline`, not which branch fired).
     assert_eq!(drive_effect("hi", 1, &Action::Newline), Effect::LineLand);
-    assert_eq!(drive_effect("- item", 6, &Action::Newline), Effect::LineLand);
+    assert_eq!(
+        drive_effect("- item", 6, &Action::Newline),
+        Effect::LineLand
+    );
 }
 
 #[test]
@@ -169,9 +237,15 @@ fn copy_with_selection_arms_the_copy_pulse() {
     let mut b = Buffer::from_str("copy me");
     b.set_mark();
     b.set_cursor(4); // "copy" selected
-    assert_eq!(drive_act_effect(&mut b, &Action::CopyRegion), Effect::CopyPulse);
+    assert_eq!(
+        drive_act_effect(&mut b, &Action::CopyRegion),
+        Effect::CopyPulse
+    );
     assert_eq!(b.text(), "copy me", "copy leaves the document unchanged");
-    assert!(!b.has_selection(), "copy_region still clears the mark as before");
+    assert!(
+        !b.has_selection(),
+        "copy_region still clears the mark as before"
+    );
 }
 
 #[test]
@@ -197,7 +271,11 @@ fn cut_does_not_arm_the_copy_pulse() {
     b.set_mark();
     b.set_cursor(3);
     assert_eq!(drive_act_effect(&mut b, &Action::KillRegion), Effect::None);
-    assert_eq!(b.text(), " me", "the cut actually removed the selected text");
+    assert_eq!(
+        b.text(),
+        " me",
+        "the cut actually removed the selected text"
+    );
 }
 
 #[test]
@@ -208,8 +286,14 @@ fn line_edge_motions_recoil_at_the_edge_and_move_off_it() {
     // wall (a superseded decision; see `recoil_for`'s doc). Off the edge they
     // still just move (no recoil).
     use crate::caret::RecoilDir::{Left, Right};
-    assert_eq!(drive_effect("abc", 0, &Action::LineStart), Effect::Recoil(Right));
-    assert_eq!(drive_effect("abc", 3, &Action::LineEnd), Effect::Recoil(Left));
+    assert_eq!(
+        drive_effect("abc", 0, &Action::LineStart),
+        Effect::Recoil(Right)
+    );
+    assert_eq!(
+        drive_effect("abc", 3, &Action::LineEnd),
+        Effect::Recoil(Left)
+    );
     assert_eq!(drive_effect("abc", 1, &Action::LineStart), Effect::None);
     assert_eq!(drive_effect("abc", 0, &Action::LineEnd), Effect::None);
 }
@@ -244,8 +328,7 @@ fn boundary_motions_bump_only_when_blocked() {
             "{action:?}: a recoil must not move the cursor"
         );
 
-        let (unblocked_effect, unblocked_cursor) =
-            drive_effect_and_cursor(no_wall, 14, &action);
+        let (unblocked_effect, unblocked_cursor) = drive_effect_and_cursor(no_wall, 14, &action);
         assert_ne!(
             unblocked_effect,
             Effect::Recoil(dir),

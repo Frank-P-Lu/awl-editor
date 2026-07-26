@@ -28,7 +28,9 @@ const DEF_KEYWORDS: &[&str] = &["function", "class", "const", "let", "var"];
 /// keyword values JS exposes as globals).
 const CONST_WORDS: &[&str] = &["true", "false", "null", "undefined", "NaN", "Infinity"];
 
-use super::{is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start};
+use super::{
+    is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start,
+};
 
 pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
     let b = text.as_bytes();
@@ -93,7 +95,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -141,7 +144,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXoObB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -185,12 +192,17 @@ mod tests {
         let t = "let s = `hi ${name} and\nmore`;";
         let s = spans(t);
         // The whole template (interpolation + newline) is ONE Str span.
-        assert_eq!(at(t, &s, SynKind::Str), vec!["`hi ${name} and\nmore`"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["`hi ${name} and\nmore`"],
+            "{s:?}"
+        );
     }
 
     #[test]
     fn numbers_and_constants() {
-        let t = "let a = 42; let b = 0xFF; let c = 3.14; let d = 1_000n; let ok = true; let z = null;";
+        let t =
+            "let a = 42; let b = 0xFF; let c = 3.14; let d = 1_000n; let ok = true; let z = null;";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
         for want in ["42", "0xFF", "3.14", "1_000n", "true", "null"] {
@@ -232,8 +244,14 @@ mod tests {
         // `function` keyword stays default ink; only the NAME is a Definition.
         let t = "function main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 8, SynKind::Definition), "the `function` keyword must stay plain: {s:?}");
-        assert!(has(&s, 9, 13, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 8, SynKind::Definition),
+            "the `function` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 9, 13, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -254,9 +272,16 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nfunction add(a, b) {\n    const total = a + b; // ok\n    return total;\n}\nconst MAX = 100;\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
-        assert!(ds.contains(&"add") && ds.contains(&"MAX") && ds.contains(&"total"), "{ds:?}");
+        assert!(
+            ds.contains(&"add") && ds.contains(&"MAX") && ds.contains(&"total"),
+            "{ds:?}"
+        );
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }
 }

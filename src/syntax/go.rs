@@ -111,7 +111,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
             }
             let word = &text[start..i];
             let was_expecting = expect_def;
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             } else if !was_expecting && expect_def {
                 // The introducer that just armed the expectation — record whether it
@@ -190,7 +191,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXoObB", radix_extra: b".", dot_dot_stops: false },
+        super::NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b".",
+            dot_dot_stops: false,
+        },
         is_ident_start,
     )
 }
@@ -226,7 +231,11 @@ mod tests {
     fn raw_string_multiline() {
         let t = "s := `line one\nline two`\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Str), vec!["`line one\nline two`"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["`line one\nline two`"],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -283,8 +292,14 @@ mod tests {
         // `func` keyword stays default ink; only the NAME is a Definition.
         let t = "func main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 4, SynKind::Definition), "`func` must stay plain: {s:?}");
-        assert!(has(&s, 5, 9, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 4, SynKind::Definition),
+            "`func` must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 5, 9, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -299,7 +314,11 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nfunc add(a int, b int) int {\n\ttotal := a + b // ok\n\treturn total\n}\nconst Max = 100\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"add") && ds.contains(&"Max"), "{ds:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");

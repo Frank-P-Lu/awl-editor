@@ -26,8 +26,7 @@ use super::{headless_pipeline, view};
 /// (mirrors `overlay_personality.rs`'s own `headless_dqp`).
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -40,8 +39,7 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(w, h);
         Some((device, queue, p))
     })
@@ -87,11 +85,21 @@ fn parse_overlay_anchor_force_inset_grammar() {
         Some(theme::CardAnchor::Inset { x_frac: 1.0 })
     );
     for bad in ["inset:", "inset:1.5", "inset:-0.2", "inset:wat"] {
-        assert_eq!(parse_overlay_anchor_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_anchor_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
     // The two existing anchors still parse (the extension is additive).
-    assert_eq!(parse_overlay_anchor_force("tl"), Some(theme::CardAnchor::TopLeft));
-    assert_eq!(parse_overlay_anchor_force("tc"), Some(theme::CardAnchor::TopCenter));
+    assert_eq!(
+        parse_overlay_anchor_force("tl"),
+        Some(theme::CardAnchor::TopLeft)
+    );
+    assert_eq!(
+        parse_overlay_anchor_force("tc"),
+        Some(theme::CardAnchor::TopCenter)
+    );
 }
 
 /// `Inset` spans the whole horizontal composition space through the ONE
@@ -143,9 +151,15 @@ fn inset_anchor_sweeps_from_topleft_through_center_to_right_pinned() {
         "Inset 1.0 pins the card's right edge one rail-inset in (right {right}, want {want_right})"
     );
     // Monotone: the dial genuinely sweeps rightward.
-    assert!(i0[0] < i5[0] && i5[0] < i1[0], "x_frac sweeps monotonically right");
+    assert!(
+        i0[0] < i5[0] && i5[0] < i1[0],
+        "x_frac sweeps monotonically right"
+    );
     // In bounds at both extremes.
-    assert!(i1[0] >= 0.0 && right <= 1200.0, "right-pinned card stays on-canvas");
+    assert!(
+        i1[0] >= 0.0 && right <= 1200.0,
+        "right-pinned card stays on-canvas"
+    );
 }
 
 // --- dial 3: the chrome face seam --------------------------------------------
@@ -205,7 +219,10 @@ fn every_chrome_voice_registers_and_no_world_names_an_unregistered_one() {
     };
     // The two bundled voices register under their authentic family names.
     for fam in ["Archivo Black", "Abril Fatface"] {
-        assert!(registered(fam), "chrome voice {fam:?} must be registered in the font DB");
+        assert!(
+            registered(fam),
+            "chrome voice {fam:?} must be registered in the font DB"
+        );
     }
     // Every world's DATA-assigned chrome face resolves. NO-WILDCARD match: a new
     // ChromeFace variant must be handled here before it compiles.
@@ -230,16 +247,25 @@ fn parse_motion_force_grammar() {
     assert_eq!(parse_motion_force("calm"), Some(MotionJuice::CALM));
     assert_eq!(
         parse_motion_force("spring"),
-        Some(MotionJuice { entrance: OverlayEntrance::SpringIn, band: BandResponse::Snap })
+        Some(MotionJuice {
+            entrance: OverlayEntrance::SpringIn,
+            band: BandResponse::Snap
+        })
     );
     assert_eq!(
         parse_motion_force("slide"),
-        Some(MotionJuice { entrance: OverlayEntrance::Instant, band: BandResponse::Slide })
+        Some(MotionJuice {
+            entrance: OverlayEntrance::Instant,
+            band: BandResponse::Slide
+        })
     );
     for s in ["spring:slide", "full", "on"] {
         assert_eq!(
             parse_motion_force(s),
-            Some(MotionJuice { entrance: OverlayEntrance::SpringIn, band: BandResponse::Slide }),
+            Some(MotionJuice {
+                entrance: OverlayEntrance::SpringIn,
+                band: BandResponse::Slide
+            }),
             "{s:?}"
         );
     }
@@ -287,7 +313,9 @@ fn unarmed_pipeline_never_kicks_the_entrance() {
 #[test]
 fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping armed_entrance_kicks_then_reduce_motion_folds_instantly: no wgpu adapter");
+        eprintln!(
+            "skipping armed_entrance_kicks_then_reduce_motion_folds_instantly: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -337,7 +365,10 @@ fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
         0.0,
         "the entrance settles to exactly 0.0 after its duration"
     );
-    assert!(!p.advance(0.016), "a settled entrance no longer holds the loop hot");
+    assert!(
+        !p.advance(0.016),
+        "a settled entrance no longer holds the loop hot"
+    );
 
     crate::motion::set_reduced(saved_reduced);
     set_motion_test_override(None);
@@ -359,7 +390,11 @@ fn band_slide_snaps_by_default_slides_when_asked_and_folds_under_reduce_motion()
     // DEFAULT (Snap, unarmed): verbatim passthrough — the shipped behavior.
     set_motion_test_override(None);
     assert_eq!(p.overlay_band_drawn(100.0), 100.0);
-    assert_eq!(p.overlay_band_drawn(200.0), 200.0, "Snap repositions instantly");
+    assert_eq!(
+        p.overlay_band_drawn(200.0),
+        200.0,
+        "Snap repositions instantly"
+    );
 
     // Armed + Slide: the first frame after a move draws AT the previous row
     // (ease t=0), then settles exactly on the target after the duration.
@@ -372,7 +407,11 @@ fn band_slide_snaps_by_default_slides_when_asked_and_folds_under_reduce_motion()
     // so this itself starts a slide — let it land).
     let _ = p.overlay_band_drawn(100.0);
     p.advance(1.0); // >> 110ms
-    assert_eq!(p.overlay_band_drawn(100.0), 100.0, "the slide settles on its target");
+    assert_eq!(
+        p.overlay_band_drawn(100.0),
+        100.0,
+        "the slide settles on its target"
+    );
     // A fresh move: the FIRST frame draws AT the previous row (ease t=0)...
     let first = p.overlay_band_drawn(300.0);
     assert!(
@@ -382,7 +421,10 @@ fn band_slide_snaps_by_default_slides_when_asked_and_folds_under_reduce_motion()
     // ...and settles exactly ON the new target after the duration.
     p.advance(1.0);
     let settled = p.overlay_band_drawn(300.0);
-    assert_eq!(settled, 300.0, "the slide settles exactly on the target row");
+    assert_eq!(
+        settled, 300.0,
+        "the slide settles exactly on the target row"
+    );
 
     // REDUCE MOTION: the same move draws the target verbatim (fold law).
     crate::motion::set_reduced(true);
@@ -439,7 +481,10 @@ fn living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide() {
     let dt = 0.022; // ~20% of the 110ms slide
     p.advance(dt);
     let expected_t = (dt * 1000.0 / crate::render::OVERLAY_BAND_SLIDE_MS).min(1.0);
-    assert!(expected_t > 0.0 && expected_t < 1.0, "the probe must land mid-flight");
+    assert!(
+        expected_t > 0.0 && expected_t < 1.0,
+        "the probe must land mid-flight"
+    );
 
     // A SECOND re-target arrives before the first settled (input outran the
     // glide). THE HYBRID: SNAP straight onto the freshest selection — the drawn
@@ -448,9 +493,20 @@ fn living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide() {
     // sustained repeat stays in the snap regime), and the band sits nowhere near
     // the stale previous target.
     let (from2, to2, t2) = p.living_band_phase(force, 2.0 * lh, lh);
-    assert_eq!(to2, 2.0 * lh, "the travel always targets the freshest selection");
-    assert_eq!(from2, 2.0 * lh, "the band SNAPS onto the fresh target (from == to)");
-    assert_eq!(t2, 0.0, "the snap re-zeros the in-flight clock (sustained repeat keeps snapping)");
+    assert_eq!(
+        to2,
+        2.0 * lh,
+        "the travel always targets the freshest selection"
+    );
+    assert_eq!(
+        from2,
+        2.0 * lh,
+        "the band SNAPS onto the fresh target (from == to)"
+    );
+    assert_eq!(
+        t2, 0.0,
+        "the snap re-zeros the in-flight clock (sustained repeat keeps snapping)"
+    );
     // The drawn morph rect is exactly the target row — no trail.
     let drawn = crate::render::livingband::morph_band(from2, to2, lh, t2, &force.choreo.params());
     assert!(
@@ -473,29 +529,53 @@ fn living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide() {
 fn parse_overlay_slant_force_grammar() {
     assert_eq!(
         parse_overlay_slant_force("10"),
-        Some(SlantProbe { px_per_row: 10.0, italic: false })
+        Some(SlantProbe {
+            px_per_row: 10.0,
+            italic: false
+        })
     );
     assert_eq!(
         parse_overlay_slant_force("7.5:italic"),
-        Some(SlantProbe { px_per_row: 7.5, italic: true })
+        Some(SlantProbe {
+            px_per_row: 7.5,
+            italic: true
+        })
     );
     assert_eq!(
         parse_overlay_slant_force(" 4 : ITALIC "),
-        Some(SlantProbe { px_per_row: 4.0, italic: true })
+        Some(SlantProbe {
+            px_per_row: 4.0,
+            italic: true
+        })
     );
     for bad in ["", "0", "-3", "nan", "10:bold", "italic"] {
-        assert_eq!(parse_overlay_slant_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_slant_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
 #[test]
 fn slant_offset_math_is_a_stair_with_row_zero_unshifted() {
-    let s = SlantProbe { px_per_row: 8.0, italic: false };
+    let s = SlantProbe {
+        px_per_row: 8.0,
+        italic: false,
+    };
     assert_eq!(slant_offset(&s, 0), 0.0, "the top row never shifts");
     assert_eq!(slant_offset(&s, 3), 24.0);
-    assert_eq!(slant_max_offset(&s, 12), 88.0, "deepest of 12 rows = 11 steps");
+    assert_eq!(
+        slant_max_offset(&s, 12),
+        88.0,
+        "deepest of 12 rows = 11 steps"
+    );
     assert_eq!(slant_max_offset(&s, 0), 0.0);
-    assert_eq!(slant_max_offset(&s, 1), 0.0, "a single row pays no width tax");
+    assert_eq!(
+        slant_max_offset(&s, 1),
+        0.0,
+        "a single row pays no width tax"
+    );
 }
 
 /// THE ELISION LAW under slant: the probe's width tax flows through the SAME
@@ -545,7 +625,10 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
     assert!(plain_w > 0.0);
 
     // A hefty stair: 40px/row over 3 rows = an 80px tax.
-    set_slant_test_override(Some(SlantProbe { px_per_row: 40.0, italic: false }));
+    set_slant_test_override(Some(SlantProbe {
+        px_per_row: 40.0,
+        italic: false,
+    }));
     p.overlay_shape_text(&geom, ink, muted, None, None, true);
     let slanted_w = widest(&p);
     set_slant_test_override(None);
@@ -601,7 +684,10 @@ fn slanted_overlay_renders_and_differs_from_the_straight_one() {
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let straight = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
 
-    set_slant_test_override(Some(SlantProbe { px_per_row: 12.0, italic: false }));
+    set_slant_test_override(Some(SlantProbe {
+        px_per_row: 12.0,
+        italic: false,
+    }));
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let slanted = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
@@ -635,18 +721,31 @@ fn slanted_overlay_renders_and_differs_from_the_straight_one() {
 fn parse_overlay_density_force_grammar() {
     assert_eq!(
         parse_overlay_density_force("0.78"),
-        Some(TypeDensity { scale: 0.78, leading: 0.0 })
+        Some(TypeDensity {
+            scale: 0.78,
+            leading: 0.0
+        })
     );
     assert_eq!(
         parse_overlay_density_force("1.0:6"),
-        Some(TypeDensity { scale: 1.0, leading: 6.0 })
+        Some(TypeDensity {
+            scale: 1.0,
+            leading: 6.0
+        })
     );
     assert_eq!(
         parse_overlay_density_force(" 1.2 : 4.5 "),
-        Some(TypeDensity { scale: 1.2, leading: 4.5 })
+        Some(TypeDensity {
+            scale: 1.2,
+            leading: 4.5
+        })
     );
     for bad in ["", "0", "-0.5", "nan", "1.0:-2", "1.0:nan", "abc"] {
-        assert_eq!(parse_overlay_density_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_density_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
@@ -686,10 +785,16 @@ fn overlay_density_scales_the_row_pitch_owner() {
     let base_lh = p.overlay_lh();
 
     // A denser, larger menu: scale 1.2 must grow the row pitch.
-    set_overlay_density_test_override(Some(TypeDensity { scale: 1.2, leading: 0.0 }));
+    set_overlay_density_test_override(Some(TypeDensity {
+        scale: 1.2,
+        leading: 0.0,
+    }));
     p.set_view(&v);
     let big_lh = p.overlay_lh();
-    assert!(big_lh > base_lh + 1.0, "scale 1.2 must grow the row pitch ({big_lh} vs {base_lh})");
+    assert!(
+        big_lh > base_lh + 1.0,
+        "scale 1.2 must grow the row pitch ({big_lh} vs {base_lh})"
+    );
 
     // Leading alone adds device px on top of the base scale.
     set_overlay_density_test_override(Some(TypeDensity {
@@ -705,7 +810,10 @@ fn overlay_density_scales_the_row_pitch_owner() {
 
     set_overlay_density_test_override(None);
     p.set_view(&v);
-    assert!((p.overlay_lh() - base_lh).abs() < 0.001, "clearing the override restores the pitch");
+    assert!(
+        (p.overlay_lh() - base_lh).abs() < 0.001,
+        "clearing the override restores the pitch"
+    );
 }
 
 // --- dial 2: slant-on-bars ---------------------------------------------------
@@ -717,11 +825,20 @@ fn overlay_density_scales_the_row_pitch_owner() {
 #[test]
 fn slant_bar_span_cascades_without_overrunning_the_card() {
     // No slant → the input span verbatim.
-    assert_eq!(chrome::slant_bar_span(30.0, 200.0, false, 0.0), (30.0, 200.0));
-    assert_eq!(chrome::slant_bar_span(30.0, 200.0, true, 0.0), (30.0, 200.0));
+    assert_eq!(
+        chrome::slant_bar_span(30.0, 200.0, false, 0.0),
+        (30.0, 200.0)
+    );
+    assert_eq!(
+        chrome::slant_bar_span(30.0, 200.0, true, 0.0),
+        (30.0, 200.0)
+    );
 
     // HUG: translate right, width untouched.
-    assert_eq!(chrome::slant_bar_span(30.0, 120.0, true, 15.0), (45.0, 120.0));
+    assert_eq!(
+        chrome::slant_bar_span(30.0, 120.0, true, 15.0),
+        (45.0, 120.0)
+    );
 
     // FULL: left edge steps right by dx, RIGHT edge stays flush.
     let (x, w) = chrome::slant_bar_span(30.0, 200.0, false, 40.0);
@@ -762,7 +879,10 @@ fn slanted_bars_render_and_differ_from_straight_bars() {
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let straight = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
 
-    set_slant_test_override(Some(SlantProbe { px_per_row: 14.0, italic: false }));
+    set_slant_test_override(Some(SlantProbe {
+        px_per_row: 14.0,
+        italic: false,
+    }));
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let slanted = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
@@ -770,8 +890,15 @@ fn slanted_bars_render_and_differ_from_straight_bars() {
     set_slant_test_override(None);
     set_list_style_test_override(None);
 
-    let changed = straight.iter().zip(slanted.iter()).filter(|(a, b)| a != b).count();
-    assert!(changed > 500, "a 14px/row bar slant must move the plates ({changed} px changed)");
+    let changed = straight
+        .iter()
+        .zip(slanted.iter())
+        .filter(|(a, b)| a != b)
+        .count();
+    assert!(
+        changed > 500,
+        "a 14px/row bar slant must move the plates ({changed} px changed)"
+    );
 }
 
 // --- dials 3+4: the two motion choreographies --------------------------------
@@ -790,27 +917,48 @@ fn motion_progresses_are_settled_by_default_and_probe_is_none() {
     set_overlay_motion_test_override(None);
     assert_eq!(overlay_motion_probe(), None, "no motion probe by default");
     // Unarmed (a headless pipeline never arms) → settled.
-    assert_eq!(p.overlay_slant_progress(), 1.0, "fan-in settled when unarmed");
-    assert_eq!(p.overlay_grow_progress(), 1.0, "grow-pop settled when unarmed");
+    assert_eq!(
+        p.overlay_slant_progress(),
+        1.0,
+        "fan-in settled when unarmed"
+    );
+    assert_eq!(
+        p.overlay_grow_progress(),
+        1.0,
+        "grow-pop settled when unarmed"
+    );
 }
 
 #[test]
 fn parse_overlay_motion_force_grammar() {
     assert_eq!(
         parse_overlay_motion_force("0.4"),
-        Some(OverlayMotionProbe { enter: 0.4, band: 0.4 })
+        Some(OverlayMotionProbe {
+            enter: 0.4,
+            band: 0.4
+        })
     );
     assert_eq!(
         parse_overlay_motion_force("0.2:0.9"),
-        Some(OverlayMotionProbe { enter: 0.2, band: 0.9 })
+        Some(OverlayMotionProbe {
+            enter: 0.2,
+            band: 0.9
+        })
     );
     // Out-of-range clamps into [0,1] (not rejected — a pinned still frame).
     assert_eq!(
         parse_overlay_motion_force("2.0:-1"),
-        Some(OverlayMotionProbe { enter: 1.0, band: 0.0 })
+        Some(OverlayMotionProbe {
+            enter: 1.0,
+            band: 0.0
+        })
     );
     for bad in ["", "abc", "0.5:xyz", "nan"] {
-        assert_eq!(parse_overlay_motion_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_motion_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
@@ -828,28 +976,51 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
     let _g = crate::testlock::serial();
     let saved_reduced = crate::motion::reduced();
     crate::motion::set_reduced(false);
-    set_slant_test_override(Some(SlantProbe { px_per_row: 10.0, italic: false }));
+    set_slant_test_override(Some(SlantProbe {
+        px_per_row: 10.0,
+        italic: false,
+    }));
 
     // Pinned mid-frame: enter=0 → the stair is flush (dx == 0 on every row);
     // enter=1 → full stair (row 3 = 3 steps = 30px). The probe wins even on an
     // unarmed pipeline (it IS the capture-time evidence path).
-    set_overlay_motion_test_override(Some(OverlayMotionProbe { enter: 0.0, band: 0.0 }));
+    set_overlay_motion_test_override(Some(OverlayMotionProbe {
+        enter: 0.0,
+        band: 0.0,
+    }));
     assert_eq!(p.overlay_slant_dx(3), 0.0, "enter=0 draws the stair flush");
-    assert_eq!(p.overlay_grow_progress(), 0.0, "band=0 collapses the grow ledge");
+    assert_eq!(
+        p.overlay_grow_progress(),
+        0.0,
+        "band=0 collapses the grow ledge"
+    );
 
-    set_overlay_motion_test_override(Some(OverlayMotionProbe { enter: 1.0, band: 1.0 }));
+    set_overlay_motion_test_override(Some(OverlayMotionProbe {
+        enter: 1.0,
+        band: 1.0,
+    }));
     assert!(
         (p.overlay_slant_dx(3) - 30.0).abs() < 0.01,
         "enter=1 draws the full 3-step stair ({})",
         p.overlay_slant_dx(3)
     );
-    assert_eq!(p.overlay_grow_progress(), 1.0, "band=1 extends the full ledge");
+    assert_eq!(
+        p.overlay_grow_progress(),
+        1.0,
+        "band=1 extends the full ledge"
+    );
 
     // A low phase sits strictly between flush and the full stair (enter=0.2 is
     // pre-overshoot on the out_back spring, so it lands cleanly inside (0, 30)).
-    set_overlay_motion_test_override(Some(OverlayMotionProbe { enter: 0.2, band: 0.2 }));
+    set_overlay_motion_test_override(Some(OverlayMotionProbe {
+        enter: 0.2,
+        band: 0.2,
+    }));
     let mid = p.overlay_slant_dx(3);
-    assert!(mid > 0.0 && mid < 30.0, "a partway phase is between flush and full ({mid})");
+    assert!(
+        mid > 0.0 && mid < 30.0,
+        "a partway phase is between flush and full ({mid})"
+    );
     set_overlay_motion_test_override(None);
 
     // With the probe cleared, the LIVE timers drive it: an armed SpringIn
@@ -867,15 +1038,26 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
     open.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into(), "Find".into()];
     p.set_view(&open);
     let kicked = p.overlay_slant_progress();
-    assert!(kicked < 1.0, "the fan-in starts unfurling (progress {kicked})");
+    assert!(
+        kicked < 1.0,
+        "the fan-in starts unfurling (progress {kicked})"
+    );
     p.advance(1.0); // >> 200ms entrance
-    assert_eq!(p.overlay_slant_progress(), 1.0, "the fan-in settles to the full stair");
+    assert_eq!(
+        p.overlay_slant_progress(),
+        1.0,
+        "the fan-in settles to the full stair"
+    );
 
     // REDUCE MOTION folds the fan-in to settled instantly.
     crate::motion::set_reduced(true);
     p.set_view(&closed);
     p.set_view(&open);
-    assert_eq!(p.overlay_slant_progress(), 1.0, "Reduce Motion draws the settled stair");
+    assert_eq!(
+        p.overlay_slant_progress(),
+        1.0,
+        "Reduce Motion draws the settled stair"
+    );
 
     crate::motion::set_reduced(saved_reduced);
     set_motion_test_override(None);
@@ -910,14 +1092,25 @@ fn grow_pop_rides_the_band_timer_and_folds() {
     p.advance(1.0);
     assert_eq!(p.overlay_grow_progress(), 1.0, "settled ledge is full");
     let _ = p.overlay_band_drawn(300.0); // a fresh move kicks the band timer
-    assert!(p.overlay_grow_progress() < 1.0, "a selection move collapses the ledge");
+    assert!(
+        p.overlay_grow_progress() < 1.0,
+        "a selection move collapses the ledge"
+    );
     p.advance(1.0);
     let _ = p.overlay_band_drawn(300.0);
-    assert_eq!(p.overlay_grow_progress(), 1.0, "the ledge grows back after the spring");
+    assert_eq!(
+        p.overlay_grow_progress(),
+        1.0,
+        "the ledge grows back after the spring"
+    );
 
     // REDUCE MOTION folds it to full.
     crate::motion::set_reduced(true);
-    assert_eq!(p.overlay_grow_progress(), 1.0, "Reduce Motion keeps the ledge full");
+    assert_eq!(
+        p.overlay_grow_progress(),
+        1.0,
+        "Reduce Motion keeps the ledge full"
+    );
 
     crate::motion::set_reduced(saved_reduced);
     set_motion_test_override(None);

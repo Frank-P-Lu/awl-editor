@@ -19,7 +19,10 @@ fn outline_headings_stashed_and_current_is_nearest_at_or_above_caret() {
     plain.is_markdown = false;
     p.set_view(&plain);
     let (_on, headings, current, _collapsed) = p.outline_report();
-    assert!(headings.is_empty(), "non-markdown buffer has no outline: {headings:?}");
+    assert!(
+        headings.is_empty(),
+        "non-markdown buffer has no outline: {headings:?}"
+    );
     assert_eq!(current, None);
 
     // A MARKDOWN buffer distills the three headings (riding the md parse).
@@ -96,8 +99,8 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
     // `line` is the source heading's 0-based document line (the click-to-jump
     // target): "# Title" is line 0, "## Section A" line 4, "### Deep" line 8.
     // These cases are fully visible (nothing clips), so every row is un-`faded`.
-    let row = |label: &str, rung: OutlineRung, current: bool, gap_before: bool, line: usize| {
-        OutlineRow {
+    let row =
+        |label: &str, rung: OutlineRung, current: bool, gap_before: bool, line: usize| OutlineRow {
             label: label.to_string(),
             rung,
             faded: false,
@@ -105,8 +108,7 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
             gap_before,
             line,
             collapsed: false,
-        }
-    };
+        };
 
     let lines = p
         .outline_draw_report(900)
@@ -148,18 +150,30 @@ fn outline_draws_on_page_md_and_the_current_row_is_flagged() {
     // EDGE-TO-EDGE (page off): no margin, so the outline hides.
     crate::page::set_page_on(false);
     p.set_view(&view_md(text, 0, 0));
-    assert_eq!(p.outline_draw_report(900), None, "edge-to-edge hides the outline");
+    assert_eq!(
+        p.outline_draw_report(900),
+        None,
+        "edge-to-edge hides the outline"
+    );
     crate::page::set_page_on(true);
 
     // NON-MARKDOWN: no headings distilled, so the outline hides.
     let mut plain = view(text, 0, 0);
     plain.is_markdown = false;
     p.set_view(&plain);
-    assert_eq!(p.outline_draw_report(900), None, "a non-markdown buffer has no outline");
+    assert_eq!(
+        p.outline_draw_report(900),
+        None,
+        "a non-markdown buffer has no outline"
+    );
 
     // A markdown buffer with NO headings hides too.
     p.set_view(&view_md("just prose, no headings here\n", 0, 0));
-    assert_eq!(p.outline_draw_report(900), None, "a heading-free doc hides the outline");
+    assert_eq!(
+        p.outline_draw_report(900),
+        None,
+        "a heading-free doc hides the outline"
+    );
 
     crate::outline::set_outline_on(false);
 }
@@ -189,7 +203,8 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
     crate::page::set_page_on(true);
     p.set_size(1900.0, 900.0);
     // 0 "# Title" / 4 "## Section A" / 8 "### Deep" / 10 "## Section B".
-    let text = "# Title\n\nprose\n\n## Section A\n\nbody\n\n### Deep\n\n## Section B\n\nmore body\n";
+    let text =
+        "# Title\n\nprose\n\n## Section A\n\nbody\n\n### Deep\n\n## Section B\n\nmore body\n";
 
     // Fold "## Section A" (raw line 4): its section runs to the next <=H2
     // (`## Section B`, raw line 10), hiding raw lines 5..10 — "### Deep" among
@@ -198,7 +213,11 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
     let folds: std::collections::BTreeSet<usize> = [4].into_iter().collect();
     let hidden = crate::fold::hidden_lines(&levels, &folds);
     let tails = crate::fold::fold_tails(&levels, &folds);
-    assert_eq!(tails, vec![(4, 5)], "fixture self-check: 5 lines hidden under Section A");
+    assert_eq!(
+        tails,
+        vec![(4, 5)],
+        "fixture self-check: 5 lines hidden under Section A"
+    );
 
     let mut view = view_md(text, 0, 0);
     crate::fold::apply_to_view(&mut view, &hidden, &tails);
@@ -218,14 +237,20 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
         "exactly Title + the collapsed Section A + the unaffected Section B: {labels:?}"
     );
 
-    let title = lines.iter().find(|r| r.label.contains("Title")).expect("Title row present");
+    let title = lines
+        .iter()
+        .find(|r| r.label.contains("Title"))
+        .expect("Title row present");
     assert!(!title.collapsed, "Title was never folded");
 
     let section_a = lines
         .iter()
         .find(|r| r.label.contains("Section A"))
         .expect("PARENT RETENTION: the collapsed heading's own row stays in the outline");
-    assert!(section_a.collapsed, "Section A is the currently-folded root");
+    assert!(
+        section_a.collapsed,
+        "Section A is the currently-folded root"
+    );
     assert!(
         section_a.label.ends_with(" (5)"),
         "the state marker carries the SAME hidden count as the doc-body tail: {:?}",
@@ -245,7 +270,10 @@ fn outline_collapsed_parent_retained_descendant_suppressed_with_a_state_marker()
 
     // CLICK-TO-JUMP ONLY: the marker changes no click semantics — every row's
     // `line` (jump target) is exactly its own, marked or not.
-    assert_eq!(section_a.line, 4, "Section A's own (filtered) row is still the jump target");
+    assert_eq!(
+        section_a.line, 4,
+        "Section A's own (filtered) row is still the jump target"
+    );
     assert_eq!(
         section_b.line, 5,
         "Section B's FILTERED line (its raw line 10, minus the 5 hidden lines above it)"
@@ -286,7 +314,8 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
     p.set_size(1900.0, 900.0);
     // 0 "# Title" / 4 "## Section A" / 8 "### Deep" / 10 "## Section B" — the same
     // fixture the collapsed-parent test above uses.
-    let text = "# Title\n\nprose\n\n## Section A\n\nbody\n\n### Deep\n\n## Section B\n\nmore body\n";
+    let text =
+        "# Title\n\nprose\n\n## Section A\n\nbody\n\n### Deep\n\n## Section B\n\nmore body\n";
 
     // Ground truth: Section B's RAW document line, off the UNFOLDED heading parse —
     // never a hand-counted magic number.
@@ -295,7 +324,10 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
         .find(|h| h.text == "Section B")
         .expect("fixture has a Section B heading")
         .line;
-    assert_eq!(raw_section_b, 10, "fixture self-check: Section B sits at raw line 10");
+    assert_eq!(
+        raw_section_b, 10,
+        "fixture self-check: Section B sits at raw line 10"
+    );
 
     // Fold "## Section A" (raw line 4): hides raw lines 5..10 (5 lines, "### Deep"
     // among them). Section B is UNAFFECTED content-wise, but its FILTERED index
@@ -316,7 +348,10 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
         .iter()
         .find(|r| r.label.contains("Section B"))
         .expect("Section B row present (unaffected by the fold)");
-    assert_eq!(section_b_row.line, 5, "fixture self-check: filtered row line, matching the test above");
+    assert_eq!(
+        section_b_row.line, 5,
+        "fixture self-check: filtered row line, matching the test above"
+    );
     assert_ne!(
         section_b_row.line, raw_section_b,
         "PRE-FIX EVIDENCE: the row's reported line is fold-filtered, not raw — must differ for the bug to be real"
@@ -387,8 +422,9 @@ fn outline_hides_below_the_narrow_margin_floor() {
     let label_char_w = CHAR_WIDTH * crate::markdown::type_scale::LABEL;
     let pref_px = rowlayout::OUTLINE_PREFERRED_CHARS as f32 * label_char_w;
     let min_px = rowlayout::OUTLINE_MIN_CHARS as f32 * label_char_w;
-    let col_left =
-        adaptive_column_left(window_w, CHAR_WIDTH, true, measure, true, pref_px, min_px, gap, TEXT_LEFT);
+    let col_left = adaptive_column_left(
+        window_w, CHAR_WIDTH, true, measure, true, pref_px, min_px, gap, TEXT_LEFT,
+    );
     let avail = col_left - gap - TEXT_LEFT;
     let avail_chars = (avail / label_char_w).floor().max(0.0) as usize;
     assert!(
@@ -417,7 +453,9 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping outline_shifts_the_column_right_under_pressure_and_gets_its_rail: no wgpu adapter");
+        eprintln!(
+            "skipping outline_shifts_the_column_right_under_pressure_and_gets_its_rail: no wgpu adapter"
+        );
         return;
     };
     crate::outline::set_outline_on(true);
@@ -437,7 +475,10 @@ fn outline_shifts_the_column_right_under_pressure_and_gets_its_rail() {
     );
     // The right margin still breathes — the column never rides the window's edge.
     let right_margin = window_w - (shifted_left + p.column_width());
-    assert!(right_margin >= RIGHT_MARGIN_BREATH - 1e-3, "right margin keeps its breathing floor, got {right_margin}");
+    assert!(
+        right_margin >= RIGHT_MARGIN_BREATH - 1e-3,
+        "right margin keeps its breathing floor, got {right_margin}"
+    );
     // The outline is no longer hidden — it now draws real rows.
     assert!(
         p.outline_draw_report(800).is_some(),
@@ -469,7 +510,9 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping page_reset_does_not_rail_shift_the_column_for_a_hidden_outline: no wgpu adapter");
+        eprintln!(
+            "skipping page_reset_does_not_rail_shift_the_column_for_a_hidden_outline: no wgpu adapter"
+        );
         return;
     };
     crate::outline::set_outline_on(true);
@@ -484,8 +527,14 @@ fn page_reset_does_not_rail_shift_the_column_for_a_hidden_outline() {
     crate::page::set_measure(80);
     let before_left = p.column_left();
     let before_symmetric = column_left_for(window_w, CHAR_WIDTH, true, 80);
-    assert_eq!(before_left, before_symmetric, "measure 80: no shift, reads as centered");
-    assert!(p.outline_draw_report(700).is_none(), "measure 80: outline stays hidden (too little room)");
+    assert_eq!(
+        before_left, before_symmetric,
+        "measure 80: no shift, reads as centered"
+    );
+    assert!(
+        p.outline_draw_report(700).is_none(),
+        "measure 80: outline stays hidden (too little room)"
+    );
 
     // AFTER "Reset page width" (prose default, 70): a WIDER total margin than
     // before, yet still not enough to clear the outline's own minimum rail.
@@ -536,7 +585,9 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     let _g = crate::testlock::serial();
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping column_left_is_pixel_stable_across_a_one_px_resize_sweep: no wgpu adapter");
+        eprintln!(
+            "skipping column_left_is_pixel_stable_across_a_one_px_resize_sweep: no wgpu adapter"
+        );
         return;
     };
     crate::outline::set_outline_on(true);
@@ -636,9 +687,8 @@ fn column_left_is_pixel_stable_across_a_one_px_resize_sweep() {
     // The expected pinned value is the desired left's FLOOR: the whole-pixel
     // snap (the subpixel-shimmer fix — `adaptive_column_left`'s own doc) floors
     // the final left, and the raw desired_left here (244.96) is fractional.
-    let pref = rowlayout::OUTLINE_PREFERRED_CHARS as f32
-        * CHAR_WIDTH
-        * crate::markdown::type_scale::LABEL;
+    let pref =
+        rowlayout::OUTLINE_PREFERRED_CHARS as f32 * CHAR_WIDTH * crate::markdown::type_scale::LABEL;
     let gap = CHAR_WIDTH * crate::render::chrome::MARGIN_COLUMN_GAP_CHARS;
     let full_rail_left = (pref + gap + TEXT_LEFT).floor();
     let pinned: Vec<(u32, f32)> = widths
@@ -702,8 +752,15 @@ fn outline_follow_keeps_the_current_heading_visible_on_a_long_doc() {
     // EXACTLY one row is the current one, and it is the LAST heading — the caret's
     // section, kept visible by the follow rather than scrolled off the top.
     let current: Vec<&chrome::OutlineRow> = lines.iter().filter(|r| r.current).collect();
-    assert_eq!(current.len(), 1, "the current section is always in the followed window");
-    assert_eq!(current[0].label, "H39", "the followed window keeps the caret's heading");
+    assert_eq!(
+        current.len(),
+        1,
+        "the current section is always in the followed window"
+    );
+    assert_eq!(
+        current[0].label, "H39",
+        "the followed window keeps the caret's heading"
+    );
 
     crate::outline::set_outline_on(false);
 }
@@ -737,21 +794,47 @@ fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
     }
     p.set_view(&view_md(&text, 4 * 20, 0));
     let lines = p.outline_draw_report(height).expect("outline draws");
-    assert!(lines.len() < 40 && lines.len() >= 3, "the window clips, got {}", lines.len());
+    assert!(
+        lines.len() < 40 && lines.len() >= 3,
+        "the window clips, got {}",
+        lines.len()
+    );
     // The clipped FIRST row is a non-current heading (Faint) marked `faded` — the
     // "more above" whisper rides ALPHA now (no rung below Faint to step down to).
-    assert!(!lines[0].current, "the first clipped row is not the current heading");
-    assert_eq!(lines[0].rung, OutlineRung::Faint, "every non-current row is Faint");
-    assert!(lines[0].faded, "the clipped top row fades toward the ground (alpha)");
+    assert!(
+        !lines[0].current,
+        "the first clipped row is not the current heading"
+    );
+    assert_eq!(
+        lines[0].rung,
+        OutlineRung::Faint,
+        "every non-current row is Faint"
+    );
+    assert!(
+        lines[0].faded,
+        "the clipped top row fades toward the ground (alpha)"
+    );
     // The LAST row is the current heading, pinned to the bottom edge — Content and
     // NEVER faded despite the below-clip (the you-are-here row wins over the hint).
     let last = lines.last().unwrap();
-    assert!(last.current, "the follow pins the current heading to the bottom edge");
-    assert_eq!(last.rung, OutlineRung::Content, "the current row is Content");
-    assert!(!last.faded, "the current row is never faded by the edge hint");
+    assert!(
+        last.current,
+        "the follow pins the current heading to the bottom edge"
+    );
+    assert_eq!(
+        last.rung,
+        OutlineRung::Content,
+        "the current row is Content"
+    );
+    assert!(
+        !last.faded,
+        "the current row is never faded by the edge hint"
+    );
     // Interior non-current rows are Faint and NOT faded (only the clipped edges are).
     assert!(
-        lines[1..lines.len() - 1].iter().any(|r| !r.current && !r.faded && r.rung == OutlineRung::Faint),
+        lines[1..lines.len() - 1]
+            .iter()
+            .any(|r| !r.current && !r.faded && r.rung == OutlineRung::Faint),
         "interior rows are un-faded Faint"
     );
 
@@ -763,7 +846,11 @@ fn outline_edge_fade_dims_the_clipped_rows_but_not_the_current() {
     let lines = p.outline_draw_report(900).expect("outline draws");
     assert_eq!(lines.len(), 3, "all headings visible");
     assert!(!lines[0].current);
-    assert_eq!(lines[0].rung, OutlineRung::Faint, "a non-current row is Faint");
+    assert_eq!(
+        lines[0].rung,
+        OutlineRung::Faint,
+        "a non-current row is Faint"
+    );
     assert!(!lines[0].faded, "a fully-visible outline fades no edge");
 
     crate::outline::set_outline_on(false);
@@ -820,7 +907,9 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping outline_hit_test_stays_aligned_past_a_wide_glyph_heading: no wgpu adapter");
+        eprintln!(
+            "skipping outline_hit_test_stays_aligned_past_a_wide_glyph_heading: no wgpu adapter"
+        );
         return;
     };
     crate::outline::set_outline_on(true);
@@ -835,9 +924,14 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     // derived from reality rather than assumed.
     p.set_view(&view_md("### x\n", 0, 0));
     p.prepare(&device, &queue, 1900, 900).unwrap();
-    let avail = p.outline_avail_px(900).expect("outline shows for a placeholder heading");
+    let avail = p
+        .outline_avail_px(900)
+        .expect("outline shows for a placeholder heading");
     let glyph_w = p.measure_outline_label_px("⌘");
-    assert!(glyph_w > 0.0, "the wide glyph must shape to a nonzero measured width");
+    assert!(
+        glyph_w > 0.0,
+        "the wide glyph must shape to a nonzero measured width"
+    );
     // Comfortably more repeats than could ever fit in `avail` at this measured
     // width — the raw (untruncated) label overflows `avail` by a wide margin no
     // matter which fallback face actually rendered the glyph.
@@ -857,11 +951,18 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     let runs: Vec<f32> = p.outline_buffer.layout_runs().map(|r| r.line_top).collect();
     // THE LAW (drawn glyph runs == logical row count): one visual row per
     // heading — nothing wrapped onto a second visual line.
-    assert_eq!(runs.len(), 4, "one visual row per heading — nothing wrapped: {runs:?}");
+    assert_eq!(
+        runs.len(),
+        4,
+        "one visual row per heading — nothing wrapped: {runs:?}"
+    );
 
     let lines = p.outline_draw_report(900).expect("outline draws");
     assert_eq!(lines.len(), 4);
-    assert!(lines.iter().all(|r| !r.gap_before), "an H3-only fixture opens no group gaps");
+    assert!(
+        lines.iter().all(|r| !r.gap_before),
+        "an H3-only fixture opens no group gaps"
+    );
 
     // THE LAW (every drawn row's y-band hit-tests to its own heading): walk each
     // row's REAL drawn y (top + its own run's line_top) and confirm a click
@@ -896,7 +997,9 @@ fn outline_pixel_fit_never_leaves_a_label_wider_than_avail() {
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping outline_pixel_fit_never_leaves_a_label_wider_than_avail: no wgpu adapter");
+        eprintln!(
+            "skipping outline_pixel_fit_never_leaves_a_label_wider_than_avail: no wgpu adapter"
+        );
         return;
     };
     crate::outline::set_outline_on(true);
@@ -963,7 +1066,11 @@ fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
     // this fix.
     crate::menubar::set_menu_bar_on(false);
     let top_off = p.outline_top_px(height).expect("outline drawn, bar off");
-    assert_eq!(top_off, crate::render::TEXT_TOP, "bar off: outline top is the plain TEXT_TOP");
+    assert_eq!(
+        top_off,
+        crate::render::TEXT_TOP,
+        "bar off: outline top is the plain TEXT_TOP"
+    );
     let count_off = p.outline_draw_report(height).unwrap().len();
 
     // BAR ON: the top yields by EXACTLY the bar's own reserve, and the row budget
@@ -972,7 +1079,11 @@ fn outline_top_yields_to_shown_menu_bar_and_shrinks_row_budget() {
     let reserve = p.menubar_reserve();
     assert!(reserve > 0.0, "a shown bar reserves a nonzero strip");
     let top_on = p.outline_top_px(height).expect("outline drawn, bar on");
-    assert_eq!(top_on, top_off + reserve, "the outline top yields by exactly the bar's own reserve");
+    assert_eq!(
+        top_on,
+        top_off + reserve,
+        "the outline top yields by exactly the bar's own reserve"
+    );
     let count_on = p.outline_draw_report(height).unwrap().len();
     assert!(
         count_on < count_off,
@@ -1009,15 +1120,30 @@ fn outline_hit_test_agrees_with_the_shifted_geometry_when_bar_shown() {
 
     crate::menubar::set_menu_bar_on(true);
     let top = p.outline_top_px(height).expect("outline drawn, bar on");
-    assert!(top > crate::render::TEXT_TOP, "sanity: the bar really did push the top down");
+    assert!(
+        top > crate::render::TEXT_TOP,
+        "sanity: the bar really did push the top down"
+    );
     // Just inside the first row's shifted y-band, well inside the x-band.
     let hit = p.outline_hit_line(crate::render::TEXT_LEFT + 1.0, top + 1.0, height);
-    assert_eq!(hit, Some(0), "a click at the first row's shifted y-band resolves to the first heading");
+    assert_eq!(
+        hit,
+        Some(0),
+        "a click at the first row's shifted y-band resolves to the first heading"
+    );
     // Just above the shifted band (still within the OLD, pre-bar band) misses the
     // first row — proof the hit-test genuinely reads the shifted geometry, not the
     // stale unshifted one.
-    let miss = p.outline_hit_line(crate::render::TEXT_LEFT + 1.0, crate::render::TEXT_TOP + 1.0, height);
-    assert_ne!(miss, Some(0), "a click at the OLD (pre-bar) top no longer hits the first row's shifted band");
+    let miss = p.outline_hit_line(
+        crate::render::TEXT_LEFT + 1.0,
+        crate::render::TEXT_TOP + 1.0,
+        height,
+    );
+    assert_ne!(
+        miss,
+        Some(0),
+        "a click at the OLD (pre-bar) top no longer hits the first row's shifted band"
+    );
 
     crate::menubar::set_menu_bar_on(false);
     crate::outline::set_outline_on(false);
@@ -1046,7 +1172,10 @@ fn lava_frost_pills_follow_outline_visibility() {
         eprintln!("skipping lava_frost_pills_follow_outline_visibility: no wgpu adapter");
         return;
     };
-    assert!(crate::lava::frost_on(), "control: frost is the shipped default");
+    assert!(
+        crate::lava::frost_on(),
+        "control: frost is the shipped default"
+    );
     let lava_idx = crate::theme::THEMES
         .iter()
         .position(|t| t.background.is_lava())
@@ -1088,7 +1217,10 @@ fn lava_frost_pills_follow_outline_visibility() {
     // The ORGANIC FROST SEEDS follow the same visibility: a visible outline seeds a
     // nonzero halo field, every seed inside the outline's own vertical band.
     let seeds = p.outline_frost_seeds(height);
-    assert!(!seeds.is_empty(), "a visible outline seeds a nonzero frost field");
+    assert!(
+        !seeds.is_empty(),
+        "a visible outline seeds a nonzero frost field"
+    );
     let band_bottom = pills.last().unwrap()[3] + p.metrics.line_height;
     for (i, s) in seeds.iter().enumerate() {
         assert!(s[1] >= s[0], "seed {i} has a non-negative x-span: {s:?}");
@@ -1105,8 +1237,15 @@ fn lava_frost_pills_follow_outline_visibility() {
         assert!(pill[3] > pill[1], "pill {i} has positive height: {pill:?}");
         // Pills are STACKED top-to-bottom (each below the previous, riding the
         // same row geometry) and inside the outline's own band.
-        assert!(pill[1] >= outline_top - 1.0, "pill {i} top {} is at/below the outline top {outline_top}", pill[1]);
-        assert!(pill[1] >= prev_bottom, "pill {i} does not overlap the one above it: {pill:?}");
+        assert!(
+            pill[1] >= outline_top - 1.0,
+            "pill {i} top {} is at/below the outline top {outline_top}",
+            pill[1]
+        );
+        assert!(
+            pill[1] >= prev_bottom,
+            "pill {i} does not overlap the one above it: {pill:?}"
+        );
         prev_bottom = pill[3];
     }
     // The first pill hugs the first drawn row's own band (top inset a fraction of
@@ -1121,14 +1260,26 @@ fn lava_frost_pills_follow_outline_visibility() {
     // A heading-free markdown doc hides the outline => no frost pills OR seeds.
     p.set_view(&view_md("no headings here\n", 0, 0));
     assert!(!p.outline_visible(height));
-    assert!(p.lava_frost_pill_rects(height).is_empty(), "no outline, no frost");
-    assert!(p.outline_frost_seeds(height).is_empty(), "no outline, no frost seeds");
+    assert!(
+        p.lava_frost_pill_rects(height).is_empty(),
+        "no outline, no frost"
+    );
+    assert!(
+        p.outline_frost_seeds(height).is_empty(),
+        "no outline, no frost seeds"
+    );
     p.set_view(&view_md(text, 0, 0));
 
     // Outline toggled off => no frost pills OR seeds.
     crate::outline::set_outline_on(false);
-    assert!(p.lava_frost_pill_rects(height).is_empty(), "outline off, no frost");
-    assert!(p.outline_frost_seeds(height).is_empty(), "outline off, no frost seeds");
+    assert!(
+        p.lava_frost_pill_rects(height).is_empty(),
+        "outline off, no frost"
+    );
+    assert!(
+        p.outline_frost_seeds(height).is_empty(),
+        "outline off, no frost seeds"
+    );
     crate::outline::set_outline_on(true);
 
     // The NARROWEST regime: no horizontal room for even the stub rail => the
@@ -1147,8 +1298,14 @@ fn lava_frost_pills_follow_outline_visibility() {
     // but the gate in `prepare_lava_layer` (`lava_params().is_some()`) suppresses
     // it — asserted here via that same capability read.
     crate::theme::set_active(static_idx);
-    assert!(p.outline_visible(height), "control: the outline still draws");
-    assert!(!p.lava_rail_carved(height), "a non-lava world has nothing to carve");
+    assert!(
+        p.outline_visible(height),
+        "control: the outline still draws"
+    );
+    assert!(
+        !p.lava_rail_carved(height),
+        "a non-lava world has nothing to carve"
+    );
     assert!(
         crate::theme::active().background.lava_params().is_none(),
         "a non-lava world has no lava params => `prepare_lava_layer` uploads no frost"
@@ -1188,7 +1345,10 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
         eprintln!("skipping gutter_frost_seeds_follow_gutter_visibility: no wgpu adapter");
         return;
     };
-    assert!(crate::lava::frost_on(), "control: frost is the shipped default");
+    assert!(
+        crate::lava::frost_on(),
+        "control: frost is the shipped default"
+    );
     let lava_idx = crate::theme::THEMES
         .iter()
         .position(|t| t.background.is_lava())
@@ -1238,8 +1398,14 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
     for (i, s) in seeds.iter().enumerate() {
         assert!(s[1] >= s[0], "seed {i} has a non-negative x-span: {s:?}");
         assert!(s[3] > 0.0, "seed {i} has a positive halo radius: {s:?}");
-        assert!(s[2] > height as f32 * 0.5, "seed {i} is a BOTTOM-band seed: {s:?}");
-        assert!(s[1] <= col_left + 1.0, "seed {i} hugs the column from the margin: {s:?}");
+        assert!(
+            s[2] > height as f32 * 0.5,
+            "seed {i} is a BOTTOM-band seed: {s:?}"
+        );
+        assert!(
+            s[1] <= col_left + 1.0,
+            "seed {i} hugs the column from the margin: {s:?}"
+        );
     }
 
     // An UNNAMED (scratch) buffer hides the gutter => no frost seeds.
@@ -1250,8 +1416,14 @@ fn gutter_frost_seeds_follow_gutter_visibility() {
         p.gutter_frost_seeds(height).is_empty(),
         "no gutter ink => no frost seeds, the lamp is un-frosted"
     );
-    assert!(p.lava_gutter_carve_rect(height).is_none(), "no gutter => no hard carve either");
-    assert!(!p.lava_rail_carved(height), "no outline either => no full carve");
+    assert!(
+        p.lava_gutter_carve_rect(height).is_none(),
+        "no gutter => no hard carve either"
+    );
+    assert!(
+        !p.lava_rail_carved(height),
+        "no outline either => no full carve"
+    );
 
     // EDGE-TO-EDGE (page off): the gutter hides with the margins themselves.
     crate::page::set_page_on(false);
@@ -1313,10 +1485,22 @@ fn summoned_overlays_suppress_the_outline_and_gutter() {
     base.gutter_name = "notes.md".to_string();
     base.gutter_project = "awl".to_string();
     p.set_view(&base);
-    assert!(p.outline_visible(height), "control: the outline draws with no overlay");
-    assert!(p.gutter_visible(), "control: the gutter draws with no overlay");
-    assert!(p.outline_draw_report(height).is_some(), "control: outline has drawn rows");
-    assert!(p.gutter_report().is_some(), "control: gutter reports its stack");
+    assert!(
+        p.outline_visible(height),
+        "control: the outline draws with no overlay"
+    );
+    assert!(
+        p.gutter_visible(),
+        "control: the gutter draws with no overlay"
+    );
+    assert!(
+        p.outline_draw_report(height).is_some(),
+        "control: outline has drawn rows"
+    );
+    assert!(
+        p.gutter_report().is_some(),
+        "control: gutter reports its stack"
+    );
 
     // ANY overlay open ⇒ BOTH margins yield (zero outline + gutter ink). Cover a
     // BLURRED-backdrop overlay (overlay_crisp = false) and a CRISP picker

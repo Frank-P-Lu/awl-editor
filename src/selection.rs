@@ -187,7 +187,14 @@ fn invert_blend() -> wgpu::BlendState {
 
 impl SelectionPipeline {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, srgba: [u8; 4]) -> Self {
-        Self::build(device, format, srgba, "fs_main", CORNER_RADIUS, ordinary_blend())
+        Self::build(
+            device,
+            format,
+            srgba,
+            "fs_main",
+            CORNER_RADIUS,
+            ordinary_blend(),
+        )
     }
 
     /// TRUE INVERSE-VIDEO SELECTION (one-bit worlds only — see
@@ -206,7 +213,14 @@ impl SelectionPipeline {
     /// each frame to draw a rounded (if aliased) silhouette instead — see
     /// `shaders/selection.wgsl`'s `fs_invert` doc for the mechanism.
     pub fn new_invert(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
-        Self::build(device, format, [255, 255, 255, 255], "fs_invert", 0.0, invert_blend())
+        Self::build(
+            device,
+            format,
+            [255, 255, 255, 255],
+            "fs_invert",
+            0.0,
+            invert_blend(),
+        )
     }
 
     /// The shared pipeline-construction body: every field the two public
@@ -227,20 +241,19 @@ impl SelectionPipeline {
             source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/selection.wgsl").into()),
         });
 
-        let bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("selection globals layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("selection globals layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("selection globals"),
@@ -692,9 +705,7 @@ mod bytemuck_lite {
     }
 
     pub fn cast_slice<T: Pod>(s: &[T]) -> &[u8] {
-        unsafe {
-            core::slice::from_raw_parts(s.as_ptr() as *const u8, core::mem::size_of_val(s))
-        }
+        unsafe { core::slice::from_raw_parts(s.as_ptr() as *const u8, core::mem::size_of_val(s)) }
     }
 }
 
@@ -768,9 +779,8 @@ mod tests {
             wgpu::TextureFormat::Rgba8UnormSrgb,
             [255, 255, 255, 255],
         );
-        let rects = |n: usize| -> Vec<[f32; 4]> {
-            (0..n).map(|i| [i as f32, 0.0, 10.0, 10.0]).collect()
-        };
+        let rects =
+            |n: usize| -> Vec<[f32; 4]> { (0..n).map(|i| [i as f32, 0.0, 10.0, 10.0]).collect() };
         // Grow past the initial cap (64) at 65 → cap becomes 128. With the old bug
         // the buffer was sized to 65; the next frame at 100 (≤ 128 ⇒ NO regrow)
         // wrote 100 instances into a 65-slot buffer and panicked.

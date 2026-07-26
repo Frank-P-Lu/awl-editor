@@ -12,13 +12,13 @@ use super::model::{
     AmbientStyle, Backdrop, Background, CardAnchor, CardShape, CardTexture, CaretBlockStyle,
     ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost,
     HighlightTexture, IconCursor, ImageReveal, LavaEdge, ListStyle, MotionJuice, PageFrame,
-    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SelectionStyle,
-    SPELL_UNDERLINE_GAP_DEFAULT, Theme, ThemeTags, TitleStyle, WashOverride,
+    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SPELL_UNDERLINE_GAP_DEFAULT,
+    SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
 };
 use super::ornament::{
-    Ornaments, BULLETS_PLAIN, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, LIST_INDENT_SCALE_PLAIN,
+    BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, LIST_INDENT_SCALE_PLAIN,
     LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE, ORNAMENT_MARKS,
-    ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
+    ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, Ornaments,
 };
 
 /// FLIP ROUND (user FINAL PICKS 2026-07-17) — the SHIPPING poster list surface,
@@ -96,7 +96,11 @@ pub const GUMTREE: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
     // Warm literary serif → Junicode's Caslon botanical sprays (an upward sprig + two sibling sprays).
-    ornaments: Ornaments { dash: '\u{E67D}', star: '\u{E270}', underscore: '\u{E68A}' },
+    ornaments: Ornaments {
+        dash: '\u{E67D}',
+        star: '\u{E270}',
+        underscore: '\u{E68A}',
+    },
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     // Eucalyptus reading room → a small botanical hedera leaf + its mirror + the
@@ -106,12 +110,20 @@ pub const GUMTREE: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     // Pale cool-green ground → Day; Literata reading serif → Refined / Literary; green hue → Cool.
     // Curated: shows under Day / Literary / Cool; opts OUT of Register (crowded → Bilby/Saltpan/Bombora keep Refined).
-    tags: ThemeTags { time: Some("Day"), register: None, voice: Some("Literary"), temperature: Some("Cool") },
+    tags: ThemeTags {
+        time: Some("Day"),
+        register: None,
+        voice: Some("Literary"),
+        temperature: Some("Cool"),
+    },
     role_overrides: RoleOverrides::NONE,
     // LIGHT-WORLD BORDER (composition round item 6, veto 3 adopted: "border on
     // light worlds totally works") — the summoned card's soft fill barely reads
     // off a pale ground, so a crisp rim carries its edge. DATA, no code path.
-    render_caps: RenderCaps { elevation: Elevation::Bordered, ..RenderCaps::DEFAULT },
+    render_caps: RenderCaps {
+        elevation: Elevation::Bordered,
+        ..RenderCaps::DEFAULT
+    },
 };
 
 /// Potoroo — dark den-warm nocturne (raw-sienna caret in a burnt-orange room).
@@ -154,7 +166,11 @@ pub const POTOROO: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Technical mono world → the merged marks' star/diamond trio (✶ 6-star + ✦ + ◆).
-    ornaments: Ornaments { dash: '✶', star: '✦', underscore: '◆' },
+    ornaments: Ornaments {
+        dash: '✶',
+        star: '✦',
+        underscore: '◆',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // All-mono burrow → plain geometric bullets (restraint is its character).
@@ -163,7 +179,12 @@ pub const POTOROO: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Dark burnt-orange room → Dusk (warm dark); Monaspace mono → Humble / Technical; rust hue → Warm.
     // Curated: a headliner on ALL four — Dusk / Humble / Technical / Warm are each its clearest exemplar.
-    tags: ThemeTags { time: Some("Dusk"), register: Some("Humble"), voice: Some("Technical"), temperature: Some("Warm") },
+    tags: ThemeTags {
+        time: Some("Dusk"),
+        register: Some("Humble"),
+        voice: Some("Technical"),
+        temperature: Some("Warm"),
+    },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps::DEFAULT,
 };
@@ -242,7 +263,11 @@ pub const BILBY: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
     // Literary serif world → EB Garamond fleurons; `***` uses ☙ (EBG has no ⁂).
-    ornaments: Ornaments { dash: '❧', star: '☙', underscore: '❦' },
+    ornaments: Ornaments {
+        dash: '❧',
+        star: '☙',
+        underscore: '❦',
+    },
     ornament_face: ORNAMENT_GARAMOND,
     ornament_scale: ORNAMENT_SCALE_FLEURON,
     // Refined editorial serif → refined Renaissance fleuron bullets + the
@@ -254,7 +279,12 @@ pub const BILBY: Theme = Theme {
     // display serif → Refined / Literary; warm horizon → Warm.
     // Curated: shows under Dawn / Refined; opts OUT of Voice (Literary crowded) +
     // Temperature (Warm crowded — Quokka/Galah/Potoroo/Firetail hold the cap).
-    tags: ThemeTags { time: Some("Dawn"), register: Some("Refined"), voice: None, temperature: None },
+    tags: ThemeTags {
+        time: Some("Dawn"),
+        register: Some("Refined"),
+        voice: None,
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps {
         // LIGHT-WORLD BORDER (composition round item 6) — a crisp rim carries the
@@ -321,7 +351,11 @@ pub const SALTPAN: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
     // Pale serif world → Junicode's horizontal running-vine Caslon scrolls (a vine + two sibling scrolls).
-    ornaments: Ornaments { dash: '\u{F01B}', star: '\u{F01D}', underscore: '\u{F01E}' },
+    ornaments: Ornaments {
+        dash: '\u{F01B}',
+        star: '\u{F01D}',
+        underscore: '\u{F01E}',
+    },
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     // Old-style salt-flat at first light → an airy floral-heart + leaf pair +
@@ -331,11 +365,19 @@ pub const SALTPAN: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     // Warm ecru salt flat → Dawn (warm-soft light); Fraunces old-style serif → Refined / Literary; sand hue → Warm.
     // Curated: shows under Dawn / Refined; opts OUT of Voice (Literary crowded) + Temperature (Warm crowded).
-    tags: ThemeTags { time: Some("Dawn"), register: Some("Refined"), voice: None, temperature: None },
+    tags: ThemeTags {
+        time: Some("Dawn"),
+        register: Some("Refined"),
+        voice: None,
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     // LIGHT-WORLD BORDER (composition round item 6) — a crisp rim carries the
     // card edge off the pale ground. DATA, no code path.
-    render_caps: RenderCaps { elevation: Elevation::Bordered, ..RenderCaps::DEFAULT },
+    render_caps: RenderCaps {
+        elevation: Elevation::Bordered,
+        ..RenderCaps::DEFAULT
+    },
 };
 
 /// Quokka — light cheerful reef (teal caret cooling a warm peach page).
@@ -397,7 +439,11 @@ pub const QUOKKA: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Friendly humanist sans → the merged marks' floral trio (✿ florette + ❀ + ✽).
-    ornaments: Ornaments { dash: '✿', star: '❀', underscore: '✽' },
+    ornaments: Ornaments {
+        dash: '✿',
+        star: '❀',
+        underscore: '✽',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Friendly modern reef → plain geometric bullets (unfussy, restrained).
@@ -406,7 +452,12 @@ pub const QUOKKA: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Warm peach reef → Dawn (warm-soft light); Fira Sans friendly humanist → Everyday / Modern; peach hue → Warm.
     // Curated: a headliner on ALL four — Dawn / Everyday / Modern / Warm each read clearly on the friendly peach sans.
-    tags: ThemeTags { time: Some("Dawn"), register: Some("Everyday"), voice: Some("Modern"), temperature: Some("Warm") },
+    tags: ThemeTags {
+        time: Some("Dawn"),
+        register: Some("Everyday"),
+        voice: Some("Modern"),
+        temperature: Some("Warm"),
+    },
     role_overrides: RoleOverrides::NONE,
     // LIGHT-WORLD BORDER (composition round item 6) — a crisp rim carries the
     // card edge off the pale ground. DATA, no code path.
@@ -421,7 +472,11 @@ pub const QUOKKA: Theme = Theme {
     // captures) — not yet a graduated user sign-off.
     render_caps: RenderCaps {
         elevation: Elevation::Bordered,
-        card_texture: CardTexture::HalftoneDots { angle_deg: 18.0, cell_px: 8.0, density: 0.30 },
+        card_texture: CardTexture::HalftoneDots {
+            angle_deg: 18.0,
+            cell_px: 8.0,
+            density: 0.30,
+        },
         card_shape: CardShape::Chamfered { cut_px: 11.0 },
         ..RenderCaps::DEFAULT
     },
@@ -479,7 +534,11 @@ pub const BOMBORA: Theme = Theme {
     // IN-FACE: Bombora's display IS EB Garamond, so its fleuron shapes in its own
     // face. The old {☙,⁂,❥} relied on the merged marks face (EBG has no ⁂/❥); the
     // set is now all-EBG fleurons (☙ dash keeps its distinct reversed look).
-    ornaments: Ornaments { dash: '☙', star: '❧', underscore: '❦' },
+    ornaments: Ornaments {
+        dash: '☙',
+        star: '❧',
+        underscore: '❦',
+    },
     ornament_face: ORNAMENT_GARAMOND,
     ornament_scale: ORNAMENT_SCALE_FLEURON,
     // Classical literary midnight → the antique MANICULE ☞ (the medieval margin-
@@ -502,7 +561,12 @@ pub const BOMBORA: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     // Dark violet current → Night; EB Garamond classic serif → Refined / Literary; violet-blue hue → Cool.
     // Curated: shows under Night / Refined / Literary (the classical serif's home); opts OUT of Temperature (Cool crowded).
-    tags: ThemeTags { time: Some("Night"), register: Some("Refined"), voice: Some("Literary"), temperature: None },
+    tags: ThemeTags {
+        time: Some("Night"),
+        register: Some("Refined"),
+        voice: Some("Literary"),
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps::DEFAULT,
 };
@@ -554,7 +618,11 @@ pub const MULGA: Theme = Theme {
     // its companion two-star asterism ⁑ for `---`, + ❦ floral heart for `___`
     // (item 88 — swapped from the pre-item-88 {dash: ⁂, star: ⁑} so `***` finally
     // conceals to the glyph that IS three stars).
-    ornaments: Ornaments { dash: '⁑', star: '⁂', underscore: '❦' },
+    ornaments: Ornaments {
+        dash: '⁑',
+        star: '⁂',
+        underscore: '❦',
+    },
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     // Slab-sturdy literary night → reversed leaf + floral heart (distinct from its
@@ -565,7 +633,12 @@ pub const MULGA: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     // Blackish-olive night → Night; Zilla Slab workhorse slab → Everyday; slab-serif face → Literary; olive-green hue → Cool.
     // Curated: headlines Everyday alone (Night/Literary/Cool are each crowded); still reachable via All.
-    tags: ThemeTags { time: None, register: Some("Everyday"), voice: None, temperature: None },
+    tags: ThemeTags {
+        time: None,
+        register: Some("Everyday"),
+        voice: None,
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps::DEFAULT,
 };
@@ -607,7 +680,11 @@ pub const TAWNY: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // The default mono world → the merged marks' star/diamond trio (✦ 4-star + ✷ + ◈).
-    ornaments: Ornaments { dash: '✦', star: '✷', underscore: '◈' },
+    ornaments: Ornaments {
+        dash: '✦',
+        star: '✷',
+        underscore: '◈',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // The plain default home world → plain geometric bullets.
@@ -616,7 +693,12 @@ pub const TAWNY: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Warm-grey neutral nocturne → Night; IBM Plex Mono → Humble / Technical; near-neutral grey → Neutral.
     // Curated: shows under Humble / Neutral (its plainest traits); opts OUT of Time (Night crowded) + Voice (Technical crowded).
-    tags: ThemeTags { time: None, register: Some("Humble"), voice: None, temperature: Some("Neutral") },
+    tags: ThemeTags {
+        time: None,
+        register: Some("Humble"),
+        voice: None,
+        temperature: Some("Neutral"),
+    },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps::DEFAULT,
 };
@@ -681,7 +763,11 @@ pub const MOPOKE: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Cosy expressive world → Junicode's ornate Caslon damask flourishes (a damask + candelabra + damask tile).
-    ornaments: Ornaments { dash: '\u{E670}', star: '\u{F011}', underscore: '\u{F014}' },
+    ornaments: Ornaments {
+        dash: '\u{E670}',
+        star: '\u{F011}',
+        underscore: '\u{F014}',
+    },
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     // BULLET TRIPLE (queue item 30, user + fable): one ornament register whose
@@ -702,7 +788,12 @@ pub const MOPOKE: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     // Warm charcoal cosy dark → Dusk (warm dark); warm slab-serif reading face → Humble (cosy, unpretentious); warm hue → Warm.
     // Curated: shows under Dusk / Humble (its cosy core); opts OUT of Voice (Bitter's Literary slot is Magpie's) + Temperature (Warm crowded).
-    tags: ThemeTags { time: Some("Dusk"), register: Some("Humble"), voice: None, temperature: None },
+    tags: ThemeTags {
+        time: Some("Dusk"),
+        register: Some("Humble"),
+        voice: None,
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     render_caps: RenderCaps::DEFAULT,
 };
@@ -745,7 +836,11 @@ pub const BOWERBIRD: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Clean sans nocturne → the merged marks' rosette/geometric trio (❂ rosette + ✴ + ◈).
-    ornaments: Ornaments { dash: '❂', star: '✴', underscore: '◈' },
+    ornaments: Ornaments {
+        dash: '❂',
+        star: '✴',
+        underscore: '◈',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Crisp technical navy → plain geometric bullets.
@@ -754,7 +849,12 @@ pub const BOWERBIRD: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Midnight-navy nocturne → Night; IBM Plex Sans workhorse → Everyday / Modern; blue-black hue → Cool.
     // Curated: a headliner on ALL four — the crisp midnight dive reads clearly Night / Everyday / Modern / Cool.
-    tags: ThemeTags { time: Some("Night"), register: Some("Everyday"), voice: Some("Modern"), temperature: Some("Cool") },
+    tags: ThemeTags {
+        time: Some("Night"),
+        register: Some("Everyday"),
+        voice: Some("Modern"),
+        temperature: Some("Cool"),
+    },
     role_overrides: RoleOverrides::NONE,
     // ITEM 86 (light-worlds taste round) — Bowerbird's summoned cards RETURN
     // to the plain flat treatment: item 71's woven `CardTexture::JaggedWave`
@@ -802,7 +902,11 @@ pub const CURRAWONG: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Technical mono → the merged marks' star/diamond trio (✷ 8-star + ✴ + ⬥).
-    ornaments: Ornaments { dash: '✷', star: '✴', underscore: '⬥' },
+    ornaments: Ornaments {
+        dash: '✷',
+        star: '✴',
+        underscore: '⬥',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Stark OLED coder's den → plain geometric bullets (stark restraint).
@@ -811,7 +915,12 @@ pub const CURRAWONG: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Near-pure-black OLED → Night; Iosevka → Humble / Technical; true-black neutral → Neutral.
     // Curated: shows under Night (the darkest, most iconic) / Technical / Neutral; opts OUT of Register (Humble crowded).
-    tags: ThemeTags { time: Some("Night"), register: None, voice: Some("Technical"), temperature: Some("Neutral") },
+    tags: ThemeTags {
+        time: Some("Night"),
+        register: None,
+        voice: Some("Technical"),
+        temperature: Some("Neutral"),
+    },
     role_overrides: RoleOverrides::NONE,
     // PERSONALITY ASSIGNMENT (2026-07-15): BORDERED elevation — OLED true-black
     // swallows a drop shadow entirely (black on black), so the raised border RIM
@@ -935,7 +1044,11 @@ pub const MANGROVE: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // OLED geometric mono → the merged marks' diamond-cluster trio (❖ cluster + ◈ + ⬥).
-    ornaments: Ornaments { dash: '❖', star: '◈', underscore: '⬥' },
+    ornaments: Ornaments {
+        dash: '❖',
+        star: '◈',
+        underscore: '⬥',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Cool rooted tidal-teal → plain geometric bullets.
@@ -944,7 +1057,12 @@ pub const MANGROVE: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Dark tidal-teal den → Night; JetBrains Mono → Humble / Technical; teal hue → Cool.
     // Curated: shows under Technical / Cool (its rooted teal-mono character); opts OUT of Time (Night crowded) + Register (Humble crowded).
-    tags: ThemeTags { time: None, register: None, voice: Some("Technical"), temperature: Some("Cool") },
+    tags: ThemeTags {
+        time: None,
+        register: None,
+        voice: Some("Technical"),
+        temperature: Some("Cool"),
+    },
     role_overrides: RoleOverrides::NONE,
     // PERSONALITY ASSIGNMENT (2026-07-15): the STIPPLE placard — the Bayer
     // dither IS Mangrove's own language (its lava ground is the one dithered
@@ -984,7 +1102,10 @@ pub const MANGROVE: Theme = Theme {
         // invisible trough before climbing back out the other side; 0.75
         // clears it) — calibrated against the real rendered ground, not
         // theoretical `base_100`. See [`theme::model::FoldAfford`]'s own doc.
-        fold_afford: FoldAfford { chevron_lift: 0.60, tail_lift: 0.75 },
+        fold_afford: FoldAfford {
+            chevron_lift: 0.60,
+            tail_lift: 0.75,
+        },
         ..RenderCaps::DEFAULT
     },
 };
@@ -1025,7 +1146,11 @@ pub const GALAH: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Humanist sans reading room → the merged marks' floral/rosette trio (❁ daisy + ❂ + ✿).
-    ornaments: Ornaments { dash: '❁', star: '❂', underscore: '✿' },
+    ornaments: Ornaments {
+        dash: '❁',
+        star: '❂',
+        underscore: '✿',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Warm friendly dawn → plain geometric bullets (modern, unfussy).
@@ -1034,7 +1159,12 @@ pub const GALAH: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
     // Dusty-pink reading room → Dawn (warm-soft light); Figtree humanist sans → Everyday / Modern; rose hue → Warm.
     // Curated: shows under Dawn / Modern / Warm (its soft rosy dawn feel); opts OUT of Register (Everyday crowded).
-    tags: ThemeTags { time: Some("Dawn"), register: None, voice: Some("Modern"), temperature: Some("Warm") },
+    tags: ThemeTags {
+        time: Some("Dawn"),
+        register: None,
+        voice: Some("Modern"),
+        temperature: Some("Warm"),
+    },
     role_overrides: RoleOverrides::NONE,
     // PERSONALITY ASSIGNMENT (2026-07-15): the gallery REFERENCE placard —
     // bottom-left Ghost at scale 3.0 was the shot the whole treatment was
@@ -1098,7 +1228,11 @@ pub const MAGPIE: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
     // Stark high-contrast slab → Junicode's geometric Caslon tile flowers (a quatrefoil + two lattice/damask tiles).
-    ornaments: Ornaments { dash: '\u{EF90}', star: '\u{EF98}', underscore: '\u{EF9A}' },
+    ornaments: Ornaments {
+        dash: '\u{EF90}',
+        star: '\u{EF98}',
+        underscore: '\u{EF9A}',
+    },
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     // Paper-white high-contrast manuscript → floral-heart + leaf, marginalia on
@@ -1110,7 +1244,12 @@ pub const MAGPIE: Theme = Theme {
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     // Paper-white high-contrast page → Day; Bitter high-contrast slab → Everyday; slab-serif face → Literary; near-neutral hue → Neutral.
     // Curated: shows under Day / Literary / Neutral (sharp black-on-white slab); opts OUT of Register (Everyday crowded).
-    tags: ThemeTags { time: Some("Day"), register: None, voice: Some("Literary"), temperature: Some("Neutral") },
+    tags: ThemeTags {
+        time: Some("Day"),
+        register: None,
+        voice: Some("Literary"),
+        temperature: Some("Neutral"),
+    },
     role_overrides: RoleOverrides::NONE,
     // PERSONALITY ASSIGNMENT (2026-07-15): bottom-left Ghost placard — the
     // newsprint-headline slab EARNS a masthead wordmark. TASTE-FLAGGED: starts
@@ -1211,7 +1350,11 @@ pub const BROLGA: Theme = Theme {
     ko: CJK_KO,
     // Cool clean sky → the merged marks' airy star/diamond trio (✧ open star +
     // ✴ sparkle + ⬥ diamond) — a clear-sky sparkle over still water.
-    ornaments: Ornaments { dash: '✧', star: '✴', underscore: '⬥' },
+    ornaments: Ornaments {
+        dash: '✧',
+        star: '✴',
+        underscore: '⬥',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Clean cool sky → plain geometric bullets (unfussy restraint).
@@ -1222,14 +1365,22 @@ pub const BROLGA: Theme = Theme {
     // (its defining trait — joins Gumtree/Bowerbird/Mangrove as the 4th, at the
     // curated cap). Opts OUT of Register + Voice (both already at their 3-world
     // bands) — reachable via All + fuzzy search regardless.
-    tags: ThemeTags { time: Some("Day"), register: None, voice: None, temperature: Some("Cool") },
+    tags: ThemeTags {
+        time: Some("Day"),
+        register: None,
+        voice: None,
+        temperature: Some("Cool"),
+    },
     role_overrides: RoleOverrides::NONE,
     // LIGHT-WORLD BORDER (composition round item 6) — a crisp rim carries the
     // summoned card's edge off the pale ground. DATA, no code path. The DAWN
     // round's reserved dark-line-on-light PAGE FRAME is deliberately NOT taken:
     // the user's live verdict on Bilby's 1px frame was "the frame is so weird"
     // on a light world, so Brolga stays frameless too.
-    render_caps: RenderCaps { elevation: Elevation::Bordered, ..RenderCaps::DEFAULT },
+    render_caps: RenderCaps {
+        elevation: Elevation::Bordered,
+        ..RenderCaps::DEFAULT
+    },
 };
 
 /// Wagtail — the FIFTEENTH world, and awl's first true MONOCHROME one — REWORKED
@@ -1450,7 +1601,11 @@ pub const WAGTAIL: Theme = Theme {
     ko: CJK_KO,
     // Crisp mono-display world → the merged marks' unused star/paragraph trio
     // (✧ open star + ⭑ solid star + ❡ paragraph ornament).
-    ornaments: Ornaments { dash: '✧', star: '⭑', underscore: '❡' },
+    ornaments: Ornaments {
+        dash: '✧',
+        star: '⭑',
+        underscore: '❡',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Restraint IS monochrome's whole character → plain geometric bullets.
@@ -1462,7 +1617,12 @@ pub const WAGTAIL: Theme = Theme {
     // Voice / Temperature are ALL already at their curated 3-world cap, so
     // Wagtail opts out of them rather than crowd a section — reachable via
     // All + fuzzy search regardless, and it still headlines Time.
-    tags: ThemeTags { time: Some("Dusk"), register: None, voice: None, temperature: None },
+    tags: ThemeTags {
+        time: Some("Dusk"),
+        register: None,
+        voice: None,
+        temperature: None,
+    },
     // Wagtail's own escape hatch, now pushed to FLAT rather than "a plain
     // grey": a hue-anchored derivation cannot serve a zero-saturation world at
     // all, and a 1-bit world additionally has no room for a SECOND ink value —
@@ -1627,7 +1787,11 @@ pub const FIRETAIL: Theme = Theme {
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
     // Warm technical den → the merged marks' spark trio (✷ 8-star + ✶ 6-star + ✦ 4-star).
-    ornaments: Ornaments { dash: '✷', star: '✶', underscore: '✦' },
+    ornaments: Ornaments {
+        dash: '✷',
+        star: '✶',
+        underscore: '✦',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // The living ground IS the statement → plain geometric bullets, restrained chrome.
@@ -1638,7 +1802,12 @@ pub const FIRETAIL: Theme = Theme {
     // Voice section already sits at its curated cap, so Firetail — like Wagtail —
     // opts OUT of them rather than crowd a section, headlining Warm alone (which the
     // roster-growth curation widening now seats as a 4-world band).
-    tags: ThemeTags { time: None, register: None, voice: None, temperature: Some("Warm") },
+    tags: ThemeTags {
+        time: None,
+        register: None,
+        voice: None,
+        temperature: Some("Warm"),
+    },
     role_overrides: RoleOverrides::NONE,
     // CHROME-VOICES FLIP (2026-07-16, from the maximalist-showcase gallery — the
     // user's picks): Firetail is awl's LOUD-END statement world, so its summoned
@@ -1684,7 +1853,10 @@ pub const FIRETAIL: Theme = Theme {
         // screenshot pixel probe: `(0x55,0x35,0x3D)`, far brighter than
         // `base_100` `(0x17,0x09,0x0C)`) — lifted 0.40 toward `base_content`
         // (→ ~3.2:1). See [`theme::model::FoldAfford`]'s own doc.
-        fold_afford: FoldAfford { chevron_lift: 0.0, tail_lift: 0.40 },
+        fold_afford: FoldAfford {
+            chevron_lift: 0.0,
+            tail_lift: 0.40,
+        },
         ..RenderCaps::DEFAULT
     },
 };
@@ -1816,7 +1988,11 @@ pub const CASSOWARY: Theme = Theme {
     ko: CJK_KO,
     // Technical terminal → the merged marks' hazard/alert trio (◆ hazard diamond +
     // ✴ eight-spoke alert star + ◈ diamond-with-centre), three distinct geometrics.
-    ornaments: Ornaments { dash: '◆', star: '✴', underscore: '◈' },
+    ornaments: Ornaments {
+        dash: '◆',
+        star: '✴',
+        underscore: '◈',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     // Stark terminal → plain geometric bullets (restraint is its character).
@@ -1826,7 +2002,12 @@ pub const CASSOWARY: Theme = Theme {
     // NERV bunker terminal → Night; Iosevka mechanical mono → Technical. Opts OUT
     // of Register + Temperature (both crowded near their cap, and to leave room for
     // the concurrent roster growth) — headlines Night + Technical, its clearest reads.
-    tags: ThemeTags { time: Some("Night"), register: None, voice: Some("Technical"), temperature: None },
+    tags: ThemeTags {
+        time: Some("Night"),
+        register: None,
+        voice: Some("Technical"),
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     // THE NERV CONSOLE (a statement/poster world — the summoned overlay goes loud
     // while the writing page stays a calm green terminal): a bold Archivo-Black
@@ -1915,13 +2096,22 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments { dash: '◆', star: '✴', underscore: '◈' },
+    ornaments: Ornaments {
+        dash: '◆',
+        star: '✴',
+        underscore: '◈',
+    },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
-    tags: ThemeTags { time: Some("Day"), register: None, voice: Some("Technical"), temperature: None },
+    tags: ThemeTags {
+        time: Some("Day"),
+        register: None,
+        voice: Some("Technical"),
+        temperature: None,
+    },
     role_overrides: RoleOverrides::NONE,
     // The same NERV console overlay as the dark anchor, so the user compares the
     // two on equal footing.
@@ -1959,12 +2149,11 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
 /// GROUND itself), and Cassowary (the NERV terminal) sits after Firetail as the
 /// dark-technical statement.
 pub const THEMES: [Theme; 18] = [
-    TAWNY, MOPOKE, CURRAWONG,
-    POTOROO, GUMTREE, BILBY, SALTPAN, QUOKKA, BOMBORA, BOWERBIRD, MULGA, MANGROVE, GALAH, MAGPIE,
+    TAWNY, MOPOKE, CURRAWONG, POTOROO, GUMTREE, BILBY, SALTPAN, QUOKKA, BOMBORA, BOWERBIRD, MULGA,
+    MANGROVE, GALAH, MAGPIE,
     // Brolga — the COOL LIGHT POLE — sits with the light cluster, just before the
     // statement worlds that close the cycle.
-    BROLGA,
-    WAGTAIL, FIRETAIL, CASSOWARY,
+    BROLGA, WAGTAIL, FIRETAIL, CASSOWARY,
 ];
 
 /// Const `str` equality (`==` is not available in a `const fn` on stable).

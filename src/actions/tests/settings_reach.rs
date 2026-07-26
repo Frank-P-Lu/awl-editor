@@ -42,9 +42,8 @@ fn goto_facet(ov: &mut OverlayState, fid: &str) {
 /// recording every visited row's NAME. Returns the visited names in walk
 /// order (length == rows walked, including the start).
 fn walk(overlay: &mut Option<OverlayState>, action: &Action, steps: usize) -> Vec<String> {
-    let mut names = vec![overlay.as_ref().unwrap().item_strings()
-        [overlay.as_ref().unwrap().selected]
-        .clone()];
+    let mut names =
+        vec![overlay.as_ref().unwrap().item_strings()[overlay.as_ref().unwrap().selected].clone()];
     for step in 0..steps {
         let before = overlay.as_ref().unwrap().selected;
         let eff = settings_drive(overlay, action);
@@ -55,7 +54,11 @@ fn walk(overlay: &mut Option<OverlayState>, action: &Action, steps: usize) -> Ve
         );
         let after = overlay.as_ref().unwrap().selected;
         let delta = after as isize - before as isize;
-        let expected = if matches!(action, Action::NextLine) { 1 } else { -1 };
+        let expected = if matches!(action, Action::NextLine) {
+            1
+        } else {
+            -1
+        };
         assert_eq!(
             delta, expected,
             "step {step}: {action:?} must move `selected` by exactly one row \
@@ -95,7 +98,11 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
     // hand-typed literal here would make a NEW facet — and any "every second row"
     // bug scoped to it — invisible to the entire law, exactly the failure class this
     // law exists to catch.
-    let facets: Vec<&str> = crate::settings::SETTINGS_FACETS.strip.iter().map(|f| f.id).collect();
+    let facets: Vec<&str> = crate::settings::SETTINGS_FACETS
+        .strip
+        .iter()
+        .map(|f| f.id)
+        .collect();
     for fid in facets {
         // FORWARD from index 0 (even) and index 1 (odd, when present) to the end.
         for start in [0usize, 1usize] {
@@ -152,7 +159,10 @@ fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     let n = overlay.as_ref().unwrap().items.len();
-    assert!(n >= 2, "the \"page\" filter should match more than one row (got {n})");
+    assert!(
+        n >= 2,
+        "the \"page\" filter should match more than one row (got {n})"
+    );
     overlay.as_mut().unwrap().selected = 0;
     let names = walk(&mut overlay, &Action::NextLine, n - 1);
     assert_eq!(
@@ -161,7 +171,11 @@ fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
         "a filtered list of {n} rows must be walked in exactly {n} steps with no skip"
     );
     let uniq: std::collections::HashSet<_> = names.iter().collect();
-    assert_eq!(uniq.len(), n, "every filtered row must be reached exactly once: {names:?}");
+    assert_eq!(
+        uniq.len(),
+        n,
+        "every filtered row must be reached exactly once: {names:?}"
+    );
 }
 
 /// A WINDOW-SCROLLED list: the `All` home (30 rows) exceeds `window_rows()`,
@@ -174,8 +188,11 @@ fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
     let ov = overlay.as_mut().unwrap();
     let n = ov.items.len();
     let window = ov.window_rows();
-    assert!(n > window, "the All home ({n} rows) must exceed window_rows ({window}) \
-             for this law to actually force a scroll — else it is vacuous");
+    assert!(
+        n > window,
+        "the All home ({n} rows) must exceed window_rows ({window}) \
+             for this law to actually force a scroll — else it is vacuous"
+    );
     ov.selected = 0;
     let names = walk(&mut overlay, &Action::NextLine, n - 1);
     let uniq: std::collections::HashSet<_> = names.iter().collect();
@@ -204,7 +221,10 @@ fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
         .iter()
         .position(|&i| ov.rows[i].accept == "Zoom")
         .expect("Editor facet has a Zoom row");
-    assert!(zoom_row > 0 && zoom_row + 1 < ov.items.len(), "Zoom needs a neighbour on both sides");
+    assert!(
+        zoom_row > 0 && zoom_row + 1 < ov.items.len(),
+        "Zoom needs a neighbour on both sides"
+    );
 
     // Approach from ABOVE: land on Zoom via NextLine, then step off DOWN.
     ov.selected = zoom_row - 1;
@@ -239,8 +259,15 @@ fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
     ov.selected = zoom_row;
     let before = overlay.as_ref().unwrap().selected;
     let eff = settings_drive(&mut overlay, &Action::ForwardChar);
-    assert!(matches!(eff, Effect::SettingRangeStep { .. }), "Right on Zoom must step its value: {eff:?}");
-    assert_eq!(overlay.as_ref().unwrap().selected, before, "Right on Zoom must not move the selection");
+    assert!(
+        matches!(eff, Effect::SettingRangeStep { .. }),
+        "Right on Zoom must step its value: {eff:?}"
+    );
+    assert_eq!(
+        overlay.as_ref().unwrap().selected,
+        before,
+        "Right on Zoom must not move the selection"
+    );
     let names = walk(&mut overlay, &Action::NextLine, 1);
     assert_eq!(
         names[1],

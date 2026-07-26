@@ -267,7 +267,9 @@ fn scan_dir(
     dir: &std::path::Path,
     counts: &mut std::collections::BTreeMap<String, usize>,
 ) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -298,12 +300,18 @@ fn scan_dir(
         if path.file_name().and_then(|n| n.to_str()) == Some("println_audit.rs") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let n = scan_file(&text);
         if n == 0 {
             continue;
         }
-        let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        let rel = path
+            .strip_prefix(base)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
         counts.insert(rel, n);
     }
 }

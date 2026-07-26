@@ -49,7 +49,11 @@ pub fn parse_image_source(src: &str) -> Option<ImageRef> {
         return None;
     }
     let (alt, width_hint) = split_alt_hint(raw_alt);
-    Some(ImageRef { alt, path, width_hint })
+    Some(ImageRef {
+        alt,
+        path,
+        width_hint,
+    })
 }
 
 /// Extract EVERY inline image reference `![alt](path)` from `text`, UNGATED by the

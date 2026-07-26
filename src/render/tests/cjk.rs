@@ -4,7 +4,7 @@
 //! code-organization pass). See `theme` for the theme-switch reshape tests.
 
 use super::super::*;
-use super::{headless_pipeline};
+use super::headless_pipeline;
 
 /// THE NEVER-TOFU LAW (font-DB half — complements `theme::tests::
 /// every_font_id_has_a_nonempty_candidate_ladder_on_every_world`'s
@@ -73,7 +73,12 @@ fn ornament_glyphs_resolve_in_each_worlds_assigned_face() {
             .faces()
             .find(|f| f.families.iter().any(|(n, _)| n == t.ornament_face))
             .map(|f| f.id)
-            .unwrap_or_else(|| panic!("{}: ornament face {:?} is registered", t.name, t.ornament_face));
+            .unwrap_or_else(|| {
+                panic!(
+                    "{}: ornament face {:?} is registered",
+                    t.name, t.ornament_face
+                )
+            });
         let font = p
             .font_system
             .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
@@ -138,10 +143,17 @@ fn zh_hans_and_ko_always_resolve_to_an_embedded_face() {
 #[test]
 fn zh_ko_faces_register_under_their_expected_family_names() {
     let Some(p) = headless_pipeline() else {
-        eprintln!("skipping zh_ko_faces_register_under_their_expected_family_names: no wgpu adapter");
+        eprintln!(
+            "skipping zh_ko_faces_register_under_their_expected_family_names: no wgpu adapter"
+        );
         return;
     };
-    for expected in ["Noto Serif SC", "Noto Sans SC", "Noto Sans KR", "LXGW WenKai"] {
+    for expected in [
+        "Noto Serif SC",
+        "Noto Sans SC",
+        "Noto Sans KR",
+        "LXGW WenKai",
+    ] {
         let registered = p
             .font_system
             .db()
@@ -159,7 +171,9 @@ fn zh_ko_faces_register_under_their_expected_family_names() {
 #[test]
 fn ja_variety_faces_register_under_their_expected_family_names() {
     let Some(p) = headless_pipeline() else {
-        eprintln!("skipping ja_variety_faces_register_under_their_expected_family_names: no wgpu adapter");
+        eprintln!(
+            "skipping ja_variety_faces_register_under_their_expected_family_names: no wgpu adapter"
+        );
         return;
     };
     for expected in ["Shippori Mincho", "Zen Maru Gothic", "Klee One"] {
@@ -226,7 +240,10 @@ fn ko_companion_face_registers_under_its_family_name() {
         .db()
         .faces()
         .any(|f| f.families.iter().any(|(n, _)| n == "Gowun Batang"));
-    assert!(registered, "\"Gowun Batang\" must be registered in the font DB");
+    assert!(
+        registered,
+        "\"Gowun Batang\" must be registered in the font DB"
+    );
 }
 
 /// "CJK companions" round: each SERIF world's `FontId::Ko` resolves to the
@@ -290,8 +307,12 @@ fn add_script_spans_ja_tagged_doc_with_hangul_run_uses_ko_not_ja() {
     let text = "한글"; // pure hangul
     let mut al = glyphon::cosmic_text::AttrsList::new(&base);
     add_script_spans(
-        &mut al, text, &base, Some(crate::frontmatter::Lang::Ja),
-        &crate::frontmatter::DEFAULT_CJK_PRIORITY, &fonts,
+        &mut al,
+        text,
+        &base,
+        Some(crate::frontmatter::Lang::Ja),
+        &crate::frontmatter::DEFAULT_CJK_PRIORITY,
+        &fonts,
     );
     assert_eq!(family_name(&al, 0), Some("KoFace".to_string()));
 }
@@ -309,8 +330,12 @@ fn add_script_spans_ja_tagged_doc_with_han_run_uses_ja() {
     let text = "日本語"; // pure han (kanji)
     let mut al = glyphon::cosmic_text::AttrsList::new(&base);
     add_script_spans(
-        &mut al, text, &base, Some(crate::frontmatter::Lang::Ja),
-        &crate::frontmatter::DEFAULT_CJK_PRIORITY, &fonts,
+        &mut al,
+        text,
+        &base,
+        Some(crate::frontmatter::Lang::Ja),
+        &crate::frontmatter::DEFAULT_CJK_PRIORITY,
+        &fonts,
     );
     assert_eq!(family_name(&al, 0), Some("JaFace".to_string()));
 }
@@ -352,11 +377,19 @@ fn add_script_spans_mixed_run_each_script_resolves_independently() {
     let text = "hi漢字ですは";
     let mut al = glyphon::cosmic_text::AttrsList::new(&base);
     add_script_spans(
-        &mut al, text, &base, Some(crate::frontmatter::Lang::Ja),
-        &crate::frontmatter::DEFAULT_CJK_PRIORITY, &fonts,
+        &mut al,
+        text,
+        &base,
+        Some(crate::frontmatter::Lang::Ja),
+        &crate::frontmatter::DEFAULT_CJK_PRIORITY,
+        &fonts,
     );
     // "hi" (bytes 0..2): no override -> base family (no Name span).
-    assert_eq!(family_name(&al, 0), None, "the latin run must not be overridden");
+    assert_eq!(
+        family_name(&al, 0),
+        None,
+        "the latin run must not be overridden"
+    );
     // "漢" starts at byte 2 (han).
     assert_eq!(family_name(&al, 2), Some("JaFace".to_string()));
     // "で" starts after "漢字" (2 kanji, 3 bytes each = byte 8) (kana).
@@ -367,12 +400,28 @@ fn add_script_spans_mixed_run_each_script_resolves_independently() {
 fn add_script_spans_unresolved_script_leaves_base_face() {
     // zh-Hans has NO candidate resolved on this machine (`None`) — the
     // documented degenerate case: no override span, base face wins.
-    let fonts = super::text::ScriptFonts { ja: None, zh_hans: None, zh_hant: None, ko: None };
+    let fonts = super::text::ScriptFonts {
+        ja: None,
+        zh_hans: None,
+        zh_hant: None,
+        ko: None,
+    };
     let base = Attrs::new();
     let text = "汉字";
     let mut al = glyphon::cosmic_text::AttrsList::new(&base);
-    add_script_spans(&mut al, text, &base, None, &crate::frontmatter::DEFAULT_CJK_PRIORITY, &fonts);
-    assert_eq!(family_name(&al, 0), None, "no candidate resolved -> no override span");
+    add_script_spans(
+        &mut al,
+        text,
+        &base,
+        None,
+        &crate::frontmatter::DEFAULT_CJK_PRIORITY,
+        &fonts,
+    );
+    assert_eq!(
+        family_name(&al, 0),
+        None,
+        "no candidate resolved -> no override span"
+    );
 }
 
 #[test]
@@ -406,7 +455,19 @@ fn add_script_spans_pins_weight_and_style_over_bold_italic_base() {
         &fonts,
     );
     let a = al.get_span(0);
-    assert_eq!(family_name(&al, 0), Some("JaFace".to_string()), "CJK run keeps its resolved face");
-    assert_eq!(a.weight, glyphon::Weight(400), "weight pinned to the resolved face's 400, not the bold 700");
-    assert_eq!(a.style, glyphon::Style::Normal, "style pinned to Normal, not the italic base");
+    assert_eq!(
+        family_name(&al, 0),
+        Some("JaFace".to_string()),
+        "CJK run keeps its resolved face"
+    );
+    assert_eq!(
+        a.weight,
+        glyphon::Weight(400),
+        "weight pinned to the resolved face's 400, not the bold 700"
+    );
+    assert_eq!(
+        a.style,
+        glyphon::Style::Normal,
+        "style pinned to Normal, not the italic base"
+    );
 }

@@ -10,17 +10,25 @@ fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     let mut phases = crate::themeswitch::SwitchPhases::default();
     phases.record(crate::themeswitch::SwitchPhase::Reshape, 7.0);
-    app.theme_switches
-        .insert(app.clock.now(), 9.0, phases);
-    assert!(app.frame_costs.last().is_none(), "precondition: no frame sample");
-    assert!(!app.theme_switches.is_empty(), "precondition: transaction recorded");
+    app.theme_switches.insert(app.clock.now(), 9.0, phases);
+    assert!(
+        app.frame_costs.last().is_none(),
+        "precondition: no frame sample"
+    );
+    assert!(
+        !app.theme_switches.is_empty(),
+        "precondition: transaction recorded"
+    );
 
     crate::debug::set_debug_on(false);
     assert!(
         app.clear_debug_session_if_populated(),
         "the production Debug-off predicate recognizes history-only state"
     );
-    assert!(app.theme_switches.is_empty(), "Debug off clears the transaction window");
+    assert!(
+        app.theme_switches.is_empty(),
+        "Debug off clears the transaction window"
+    );
     crate::debug::set_debug_on(false);
 }
 

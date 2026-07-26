@@ -63,7 +63,12 @@ impl OraclePipeline {
     /// IDENTICAL hover resolution the live `App::overlay_hover` uses against its
     /// own `gpu.pipeline` — never a second, hand-rolled hit-test-then-hover_at
     /// pair for the offscreen replay path.
-    pub fn resolve_overlay_hover(&self, overlay: &mut crate::overlay::OverlayState, px: f32, py: f32) -> bool {
+    pub fn resolve_overlay_hover(
+        &self,
+        overlay: &mut crate::overlay::OverlayState,
+        px: f32,
+        py: f32,
+    ) -> bool {
         self.pipeline.resolve_overlay_hover(overlay, px, py)
     }
 
@@ -85,7 +90,12 @@ impl OraclePipeline {
     /// anchor are intentionally NOT threaded here — every flat/list picker
     /// (the item 106 roster) is covered; a faceted pointer-replay law is
     /// future work, not a silent gap in what this claims to verify.
-    pub fn sync_overlay(&mut self, buffer: &Buffer, zoom: f32, overlay: &crate::overlay::OverlayState) {
+    pub fn sync_overlay(
+        &mut self,
+        buffer: &Buffer,
+        zoom: f32,
+        overlay: &crate::overlay::OverlayState,
+    ) {
         let (cl, cc) = buffer.cursor_line_col();
         let z = render::clamp_zoom(self.cli_zoom.unwrap_or(zoom));
         let mut v = base_viewstate(buffer, &self.project, (cl, cc), z, Vec::new(), false);
@@ -204,12 +214,19 @@ mod tests {
             eprintln!("skipping refresh_picks_up_a_page_measure_change: no wgpu adapter");
             return;
         };
-        let wide = op.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
+        let wide = op
+            .as_oracle()
+            .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
         crate::page::set_measure(15);
         op.refresh(&buffer, 1.0);
-        let narrow = op.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
+        let narrow = op
+            .as_oracle()
+            .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-        assert_eq!(wide.0, 0, "the long line wraps at measure 30, down stays on line 0");
+        assert_eq!(
+            wide.0, 0,
+            "the long line wraps at measure 30, down stays on line 0"
+        );
         assert_eq!(narrow.0, 0, "still wrapped at measure 15");
         assert!(
             narrow.1 < wide.1,
@@ -235,16 +252,26 @@ mod tests {
             return;
         };
         assert_eq!(
-            op.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream).0,
+            op.as_oracle()
+                .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream)
+                .0,
             1,
             "the short line 0 does not wrap: down crosses into line 1"
         );
         let long = Buffer::from_str(&format!("{}\ntail\n", "word ".repeat(10)));
         op.refresh(&long, 1.0);
-        let (line, col) = op.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
+        let (line, col) =
+            op.as_oracle()
+                .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-        assert_eq!(line, 0, "after refresh, down follows the arriving buffer's wrapped line 0");
-        assert!(col > 0, "landing on line 0's second visual row, got col {col}");
+        assert_eq!(
+            line, 0,
+            "after refresh, down follows the arriving buffer's wrapped line 0"
+        );
+        assert!(
+            col > 0,
+            "landing on line 0's second visual row, got col {col}"
+        );
     }
 
     #[test]
@@ -263,10 +290,18 @@ mod tests {
             eprintln!("skipping refresh_follows_the_replay_zoom: no wgpu adapter");
             return;
         };
-        let at_one = op.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
+        let at_one = op
+            .as_oracle()
+            .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
         op.refresh(&buffer, 1.5);
-        let zoomed = op.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
-        assert_eq!((at_one.0, zoomed.0), (0, 0), "the long line wraps at both zooms");
+        let zoomed = op
+            .as_oracle()
+            .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
+        assert_eq!(
+            (at_one.0, zoomed.0),
+            (0, 0),
+            "the long line wraps at both zooms"
+        );
         assert!(
             zoomed.1 < at_one.1,
             "zoomed glyphs fit fewer chars per row: {} < {}",
@@ -276,15 +311,24 @@ mod tests {
 
         // The explicit-flag pin: a `--zoom 1.0` oracle refreshed at replay zoom
         // 1.5 keeps the flag's geometry (byte-identical wrap boundary).
-        let pinned_opts = CaptureOpts { zoom: Some(1.0), ..CaptureOpts::default() };
+        let pinned_opts = CaptureOpts {
+            zoom: Some(1.0),
+            ..CaptureOpts::default()
+        };
         let Some(mut pinned) = build_oracle(&buffer, &pinned_opts) else {
             crate::page::set_measure(crate::page::DEFAULT_MEASURE);
             eprintln!("skipping refresh zoom-pin half: no wgpu adapter");
             return;
         };
         pinned.refresh(&buffer, 1.5);
-        let still = pinned.as_oracle().visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
+        let still =
+            pinned
+                .as_oracle()
+                .visual_line_down(0, 0, 0.0, crate::caret::Affinity::Downstream);
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-        assert_eq!(still, at_one, "an explicit --zoom pins the oracle's geometry too");
+        assert_eq!(
+            still, at_one,
+            "an explicit --zoom pins the oracle's geometry too"
+        );
     }
 }

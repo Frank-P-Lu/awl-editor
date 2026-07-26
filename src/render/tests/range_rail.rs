@@ -80,7 +80,10 @@ fn the_rail_geometry_round_trips_and_its_hit_target_is_generous() {
         let rail = rowlayout::rail_geom(text_right, value_w, 600.0, row_top, lh, frac)
             .expect("a wide row seats a rail");
         // The track ends a gap short of the value text, and never touches it.
-        assert!(rail.x1 < text_right - value_w, "the track must clear the value text");
+        assert!(
+            rail.x1 < text_right - value_w,
+            "the track must clear the value text"
+        );
         assert!(rail.x0 < rail.x1);
         // The thumb rides the fraction along the track, inside it at both ends.
         let cx = rail.thumb[0] + rail.thumb[2] * 0.5;
@@ -101,17 +104,35 @@ fn the_rail_geometry_round_trips_and_its_hit_target_is_generous() {
             rail.hit[2],
             rail.thumb[2]
         );
-        assert!(rail.hit[3] >= rail.thumb[3], "the hit band spans the row, not the thumb");
-        assert!((rail.hit[3] - lh).abs() < 0.01, "the hit band is the whole row band");
+        assert!(
+            rail.hit[3] >= rail.thumb[3],
+            "the hit band spans the row, not the thumb"
+        );
+        assert!(
+            (rail.hit[3] - lh).abs() < 0.01,
+            "the hit band is the whole row band"
+        );
         assert!(rail.hit[0] < rail.x0 && rail.hit[0] + rail.hit[2] > rail.x1);
         // A press anywhere in the band resolves ON the track (never off the ends).
-        for px in [rail.hit[0], rail.hit[0] + rail.hit[2], rail.x0 - 3.0, rail.x1 + 3.0] {
+        for px in [
+            rail.hit[0],
+            rail.hit[0] + rail.hit[2],
+            rail.x0 - 3.0,
+            rail.x1 + 3.0,
+        ] {
             let f = rowlayout::rail_frac_at(px, rail.x0, rail.x1);
-            assert!((0.0..=1.0).contains(&f), "px {px} resolved off the rail: {f}");
+            assert!(
+                (0.0..=1.0).contains(&f),
+                "px {px} resolved off the rail: {f}"
+            );
         }
         // Containment agrees with the band on every corner + just outside it.
         assert!(rowlayout::rail_hit(&rail, cx, row_top + lh * 0.5));
-        assert!(!rowlayout::rail_hit(&rail, rail.hit[0] - 1.0, row_top + lh * 0.5));
+        assert!(!rowlayout::rail_hit(
+            &rail,
+            rail.hit[0] - 1.0,
+            row_top + lh * 0.5
+        ));
         assert!(!rowlayout::rail_hit(&rail, cx, row_top - 1.0));
         assert!(!rowlayout::rail_hit(&rail, cx, row_top + lh + 1.0));
     }
@@ -121,7 +142,10 @@ fn the_rail_geometry_round_trips_and_its_hit_target_is_generous() {
     // The rail scales with the row (zoom): a taller row gets a longer track.
     let small = rowlayout::rail_geom(text_right, value_w, 600.0, row_top, 12.0, 0.5).unwrap();
     let big = rowlayout::rail_geom(text_right, value_w, 600.0, row_top, 36.0, 0.5).unwrap();
-    assert!(big.track[2] > small.track[2] * 2.0, "the rail scales with the row height");
+    assert!(
+        big.track[2] > small.track[2] * 2.0,
+        "the rail scales with the row height"
+    );
 }
 
 /// THE DRAWN RAIL AND THE CLICKABLE RAIL ARE ONE RECTANGLE — driven through the
@@ -165,14 +189,25 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
     // The resolved item is the Zoom row, and the fraction tracks the pointer.
     for (px, want) in [(x0, 0.0f32), (mid_x, 0.5), (x1, 1.0)] {
         let (item, frac) = p.overlay_range_at(px, row_y).expect("on the rail");
-        assert_eq!(item, zoom_item, "the rail belongs to the row it is drawn on");
-        assert!((frac - want).abs() < 0.02, "px {px} -> frac {frac}, wanted {want}");
+        assert_eq!(
+            item, zoom_item,
+            "the rail belongs to the row it is drawn on"
+        );
+        assert!(
+            (frac - want).abs() < 0.02,
+            "px {px} -> frac {frac}, wanted {want}"
+        );
     }
     // GENEROUS: a press well past each visible end still lands on the rail (and
     // clamps to that end) — the thumb is small, the target is not.
     for (px, want) in [(x0 - 6.0, 0.0f32), (x1 + 6.0, 1.0)] {
-        let (_, frac) = p.overlay_range_at(px, row_y).expect("the padded band still hits");
-        assert!((frac - want).abs() < 1e-3, "a press past the end clamps to it");
+        let (_, frac) = p
+            .overlay_range_at(px, row_y)
+            .expect("the padded band still hits");
+        assert!(
+            (frac - want).abs() < 1e-3,
+            "a press past the end clamps to it"
+        );
     }
 
     // THE LABEL SIDE IS NOT THE RAIL: every pixel from the card's left edge up to
@@ -283,7 +318,10 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
                 (band_top..=band_bot)
                     .filter(|&y| {
                         let c = at(x, y);
-                        (0..3).map(|k| (c[k] as i64 - ground[k] as i64).abs()).sum::<i64>() > 16
+                        (0..3)
+                            .map(|k| (c[k] as i64 - ground[k] as i64).abs())
+                            .sum::<i64>()
+                            > 16
                     })
                     .count() as i32
             })
@@ -298,8 +336,11 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
              {}px band) is too short to be the thumb",
             band_bot - band_top
         );
-        let hits: Vec<i64> =
-            (lo..=hi).zip(&extents).filter(|&(_, &e)| e == peak).map(|(x, _)| x).collect();
+        let hits: Vec<i64> = (lo..=hi)
+            .zip(&extents)
+            .filter(|&(_, &e)| e == peak)
+            .map(|(x, _)| x)
+            .collect();
         let cx = (hits[0] + hits[hits.len() - 1]) as f32 * 0.5;
         // Judged against THIS frame's own track — the scale drifts with the
         // readout's width, so the low frame's ends must never judge the high one.
@@ -322,7 +363,10 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
             high > 0.75,
             "{world}: at the band CEILING the thumb sits at the rail's tail (frac {high})"
         );
-        assert!(high > low + 0.5, "{world}: the thumb genuinely travelled ({low} -> {high})");
+        assert!(
+            high > low + 0.5,
+            "{world}: the thumb genuinely travelled ({low} -> {high})"
+        );
     }
     p.sync_theme();
 }
@@ -346,7 +390,9 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
     // held by an explicit [`theme::WorldPin`] rather than a hand-rolled
     // save/restore pair, so it goes home even if an assert below fails.
     for world in ["Bilby", "Bombora"] {
-        let Some(_pin) = theme::WorldPin::world(world) else { continue };
+        let Some(_pin) = theme::WorldPin::world(world) else {
+            continue;
+        };
         p.sync_theme();
         for &selected in &[true, false] {
             let mut ov = settings_state(1.4);
@@ -367,7 +413,8 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             assert!(!ys.is_empty(), "{world}: the rail must be present");
             let row_y = ((ys[0] + ys[ys.len() - 1]) * 0.5) as i64;
             let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-            let at = |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
+            let at =
+                |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
             // GROUND: a pixel on the same row, on the rail's own y, just OUTSIDE
             // the track (past its padded end) — the card or the selected band,
             // whichever this row sits on. Sampled, never assumed.
@@ -412,10 +459,19 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             // THE ONE-ACCENT LAW: nothing on the rail may paint the caret's amber.
             let accent = theme::primary().rgba_bytes();
             let near_accent = |c: [u8; 4]| -> bool {
-                (0..3).map(|k| (c[k] as i64 - accent[k] as i64).abs()).sum::<i64>() < 24
+                (0..3)
+                    .map(|k| (c[k] as i64 - accent[k] as i64).abs())
+                    .sum::<i64>()
+                    < 24
             };
-            assert!(!near_accent(thumb.1), "{ctx}: the thumb must not be the accent");
-            assert!(!near_accent(track.1), "{ctx}: the track must not be the accent");
+            assert!(
+                !near_accent(thumb.1),
+                "{ctx}: the thumb must not be the accent"
+            );
+            assert!(
+                !near_accent(track.1),
+                "{ctx}: the track must not be the accent"
+            );
         }
     }
     p.sync_theme();
@@ -441,10 +497,12 @@ fn a_card_with_no_range_rows_carries_no_rail_at_all() {
     while y < 800.0 {
         let mut x = 0.0f32;
         while x < 1200.0 {
-            assert!(p.overlay_range_at(x, y).is_none(), "a plain picker has no rail at ({x},{y})");
+            assert!(
+                p.overlay_range_at(x, y).is_none(),
+                "a plain picker has no rail at ({x},{y})"
+            );
             x += 17.0;
         }
         y += 11.0;
     }
 }
-

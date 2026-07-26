@@ -238,11 +238,17 @@ fn source_audit_the_active_slot_has_one_owner() {
     let snapshot_needle = ["snap", "shot", "_ex", "tra"].concat();
     let mut snapshot_hits = 0usize;
     count_substr_in_dir(&root, &snapshot_needle, &mut snapshot_hits);
-    assert_eq!(snapshot_hits, 0, "the retired per-buffer extra-state copy-OUT helper must never come back");
+    assert_eq!(
+        snapshot_hits, 0,
+        "the retired per-buffer extra-state copy-OUT helper must never come back"
+    );
     let restore_needle = ["res", "tore", "_ex", "tra"].concat();
     let mut restore_hits = 0usize;
     count_substr_in_dir(&root, &restore_needle, &mut restore_hits);
-    assert_eq!(restore_hits, 0, "the retired per-buffer extra-state copy-BACK helper must never come back");
+    assert_eq!(
+        restore_hits, 0,
+        "the retired per-buffer extra-state copy-BACK helper must never come back"
+    );
 
     // The WHOLE-SLOT mem::replace that parks the outgoing active buffer
     // exists exactly once, in `files/active.rs` — the sole place permitted
@@ -268,7 +274,12 @@ fn source_audit_the_active_slot_has_one_owner() {
     // `activate_from_registry`; every other switch site goes through THAT
     // method (never touches `buffer_registry` directly for a take).
     let mut take_hits: std::collections::BTreeMap<String, usize> = Default::default();
-    scan_dir_collapsed(&root, &root, &[".buffer_registry", ".take("].concat(), &mut take_hits);
+    scan_dir_collapsed(
+        &root,
+        &root,
+        &[".buffer_registry", ".take("].concat(),
+        &mut take_hits,
+    );
     assert_eq!(
         take_hits.keys().collect::<Vec<_>>(),
         vec!["app/files/active.rs"],
@@ -285,7 +296,12 @@ fn source_audit_the_active_slot_has_one_owner() {
     // slot's ownership law). Any THIRD site is the bypass this law exists to
     // catch.
     let mut park_hits: std::collections::BTreeMap<String, usize> = Default::default();
-    scan_dir_collapsed(&root, &root, &[".buffer_registry", ".park("].concat(), &mut park_hits);
+    scan_dir_collapsed(
+        &root,
+        &root,
+        &[".buffer_registry", ".park("].concat(),
+        &mut park_hits,
+    );
     assert_eq!(
         park_hits.keys().collect::<Vec<_>>(),
         vec!["app/files/active.rs", "app/session.rs"],
@@ -329,7 +345,11 @@ fn scan_dir_collapsed(
         if n == 0 {
             continue;
         }
-        let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        let rel = path
+            .strip_prefix(base)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
         *counts.entry(rel).or_insert(0) += n;
     }
 }
@@ -394,11 +414,11 @@ fn retired_item_76_identifiers_leave_no_trace_in_source() {
 #[cfg(test)]
 fn retired_item_76_needles() -> Vec<String> {
     vec![
-        ["Notes", "Flip"].concat(),                   // the retired project-flip Action/Effect
-        ["notes", "_", "flip"].concat(),               // its fn names / [keys] slug
-        ["Desk", "Return"].concat(),                    // the retired two-desk return-memory type
-        ["notes", "_", "return"].concat(),              // the App field that held it
-        ["notes", "_", "last", "_", "file"].concat(),   // its file-side companion field
-        ["notes", "_", "root"].concat(),                // the retired quick-notes-home config key
+        ["Notes", "Flip"].concat(),      // the retired project-flip Action/Effect
+        ["notes", "_", "flip"].concat(), // its fn names / [keys] slug
+        ["Desk", "Return"].concat(),     // the retired two-desk return-memory type
+        ["notes", "_", "return"].concat(), // the App field that held it
+        ["notes", "_", "last", "_", "file"].concat(), // its file-side companion field
+        ["notes", "_", "root"].concat(), // the retired quick-notes-home config key
     ]
 }

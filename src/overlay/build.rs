@@ -110,8 +110,10 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // Theme picker: every world name + the active index (for revert). Built
         // from THEMES so it auto-extends as worlds are added.
         OverlayKind::Theme => {
-            let names: Vec<String> =
-                crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect();
+            let names: Vec<String> = crate::theme::THEMES
+                .iter()
+                .map(|t| t.name.to_string())
+                .collect();
             Some(OverlayState::new_theme(names, crate::theme::active_index()))
         }
         // Caret-style picker: the three looks + the active one (for revert). Built
@@ -119,7 +121,9 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         OverlayKind::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
         // Dictionary picker: the three variants + the active one (pre-selected;
         // there is nothing to revert since nothing previews on move).
-        OverlayKind::Dictionary => Some(OverlayState::new_dictionary(crate::spell::active_variant())),
+        OverlayKind::Dictionary => {
+            Some(OverlayState::new_dictionary(crate::spell::active_variant()))
+        }
         // CJK-priority language picker: the four languages + whichever currently
         // sits at the FRONT of the live ladder (pre-selected; nothing previews
         // on move, mirroring Dictionary).
@@ -289,7 +293,8 @@ pub fn browse_level(
     // for why this is scoped here rather than the whole project's Goto index),
     // so `refilter`'s Text-mode filter can hide it and an "All" listing can
     // label it, with no second disk read on open.
-    let dir_path = (kind == OverlayKind::Browse).then(|| crate::index::resolve_dir_level(active_root, rel.as_deref()));
+    let dir_path = (kind == OverlayKind::Browse)
+        .then(|| crate::index::resolve_dir_level(active_root, rel.as_deref()));
     let mut corpus = Vec::new();
     let mut git = Vec::new();
     let mut is_dir = Vec::new();
@@ -310,9 +315,7 @@ pub fn browse_level(
         };
         secondary.push(label);
     }
-    let mut ov = OverlayState::new_marked(
-        kind, corpus, git, is_dir, Vec::new(), Vec::new(), rel,
-    );
+    let mut ov = OverlayState::new_marked(kind, corpus, git, is_dir, Vec::new(), Vec::new(), rel);
     if kind == OverlayKind::Browse {
         // `new_marked` already ran ONE `refilter()` before any row had its
         // secondary/type-label stamped (construction order), so a fresh Text-

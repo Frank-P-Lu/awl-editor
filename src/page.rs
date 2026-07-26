@@ -132,7 +132,10 @@ impl PagePin {
             crate::testlock::currently_held(),
             "PagePin must be created inside crate::testlock::serial()"
         );
-        Self { on: page_on(), measure: measure() }
+        Self {
+            on: page_on(),
+            measure: measure(),
+        }
     }
 }
 
@@ -215,11 +218,9 @@ pub fn narrow() -> usize {
     next
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn defaults_on_at_seventy() {
@@ -299,17 +300,29 @@ mod tests {
 
     #[test]
     fn of_syntax_classifies_code_vs_prose() {
-        assert_eq!(PageClass::of_syntax(Some(crate::syntax::Lang::Rust)), PageClass::Code);
+        assert_eq!(
+            PageClass::of_syntax(Some(crate::syntax::Lang::Rust)),
+            PageClass::Code
+        );
         assert_eq!(PageClass::of_syntax(None), PageClass::Prose);
     }
 
     #[test]
     fn of_path_classifies_by_recognized_extension() {
         use std::path::Path;
-        assert_eq!(PageClass::of_path(Some(Path::new("/a/main.rs"))), PageClass::Code);
+        assert_eq!(
+            PageClass::of_path(Some(Path::new("/a/main.rs"))),
+            PageClass::Code
+        );
         // Markdown, an unrecognized extension, and no path at all are all Prose.
-        assert_eq!(PageClass::of_path(Some(Path::new("/a/notes.md"))), PageClass::Prose);
-        assert_eq!(PageClass::of_path(Some(Path::new("/a/notes.txt"))), PageClass::Prose);
+        assert_eq!(
+            PageClass::of_path(Some(Path::new("/a/notes.md"))),
+            PageClass::Prose
+        );
+        assert_eq!(
+            PageClass::of_path(Some(Path::new("/a/notes.txt"))),
+            PageClass::Prose
+        );
         assert_eq!(PageClass::of_path(None), PageClass::Prose);
     }
 

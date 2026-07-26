@@ -133,14 +133,25 @@ mod tests {
 
     #[test]
     fn push_dedupes_moving_an_existing_root_to_the_front() {
-        let list = vec![PathBuf::from("/a"), PathBuf::from("/b"), PathBuf::from("/c")];
+        let list = vec![
+            PathBuf::from("/a"),
+            PathBuf::from("/b"),
+            PathBuf::from("/c"),
+        ];
         // Re-switching to /c moves it to the front, never duplicates it.
         let list = push(list, PathBuf::from("/c"), CAP);
         assert_eq!(
             list,
-            vec![PathBuf::from("/c"), PathBuf::from("/a"), PathBuf::from("/b")]
+            vec![
+                PathBuf::from("/c"),
+                PathBuf::from("/a"),
+                PathBuf::from("/b")
+            ]
         );
-        assert_eq!(list.iter().filter(|p| *p == &PathBuf::from("/c")).count(), 1);
+        assert_eq!(
+            list.iter().filter(|p| *p == &PathBuf::from("/c")).count(),
+            1
+        );
     }
 
     #[test]
@@ -150,14 +161,21 @@ mod tests {
             list = push(list, PathBuf::from(format!("/p{i}")), CAP);
         }
         assert_eq!(list.len(), CAP, "capped at CAP");
-        assert_eq!(list[0], PathBuf::from(format!("/p{}", CAP + 4)), "newest at front");
+        assert_eq!(
+            list[0],
+            PathBuf::from(format!("/p{}", CAP + 4)),
+            "newest at front"
+        );
         // The oldest (/p0.. /p4) fell off the end.
         assert!(!list.contains(&PathBuf::from("/p0")));
     }
 
     #[test]
     fn round_trips_through_toml() {
-        let list = vec![PathBuf::from("/home/me/proj-a"), PathBuf::from("/home/me/proj b")];
+        let list = vec![
+            PathBuf::from("/home/me/proj-a"),
+            PathBuf::from("/home/me/proj b"),
+        ];
         assert_eq!(from_toml(&to_toml(&list)), list);
     }
 

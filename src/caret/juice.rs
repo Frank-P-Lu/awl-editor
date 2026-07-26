@@ -13,7 +13,6 @@
 
 use super::*;
 
-
 impl CaretAnim {
     /// KICK the cosmetic squash-pop: reset its progress to 0 (fully squashed),
     /// restarting the scale animation. Called by [`nav_to`] on each navigation move

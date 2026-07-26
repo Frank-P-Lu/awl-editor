@@ -260,8 +260,16 @@ impl Controller {
         // the kind furthest behind its own quota (deficit ÷ its target) keeps
         // all three progressing together; ties resolve resize→theme→overlay.
         let periodic = [
-            (self.scheduled_resizes, due(RESIZE_TARGET, fraction), RESIZE_TARGET),
-            (self.scheduled_themes, due(THEME_TARGET, fraction), THEME_TARGET),
+            (
+                self.scheduled_resizes,
+                due(RESIZE_TARGET, fraction),
+                RESIZE_TARGET,
+            ),
+            (
+                self.scheduled_themes,
+                due(THEME_TARGET, fraction),
+                THEME_TARGET,
+            ),
             (
                 self.scheduled_overlay_toggles,
                 due(OVERLAY_TARGET * 2, fraction),
@@ -500,8 +508,8 @@ mod tests {
         assert_eq!(c.next_stimulus(start), Some(Stimulus::SetLavaTheme));
         let steps = 2000u32;
         for step in 1..=steps {
-            let now = start + dur.mul_f64(f64::from(step) / f64::from(steps))
-                - Duration::from_millis(1);
+            let now =
+                start + dur.mul_f64(f64::from(step) / f64::from(steps)) - Duration::from_millis(1);
             for _ in 0..32 {
                 let Some(s) = c.next_stimulus(now) else { break };
                 if matches!(s, Stimulus::Resize { .. } | Stimulus::Inject(_)) {
@@ -566,8 +574,14 @@ mod tests {
         slow.counts.overlays = OVERLAY_TARGET - 7;
         slow.counts.faults = 3;
         slow.recovery_ms = [Some(1.0); 3];
-        assert!(!slow.finished(start + dur), "must not cut at the nominal window");
-        assert!(!slow.cycles_met(), "counts are still below the absolute target");
+        assert!(
+            !slow.finished(start + dur),
+            "must not cut at the nominal window"
+        );
+        assert!(
+            !slow.cycles_met(),
+            "counts are still below the absolute target"
+        );
 
         // The same VM walks the REST of the schedule a little late (past the
         // nominal window, well inside the 2x grace). `finished` now fires —
@@ -576,7 +590,10 @@ mod tests {
         let mut c = Controller::new_at(SoakConfig { duration: dur }, start);
         complete_schedule(&mut c, late);
         assert!(c.cycles_met());
-        assert!(c.finished(late), "a completed schedule ends the run, late or not");
+        assert!(
+            c.finished(late),
+            "a completed schedule ends the run, late or not"
+        );
 
         // A broken VM that NEVER completes the schedule is bounded by the grace
         // cap (2x duration) rather than hanging.
@@ -587,7 +604,10 @@ mod tests {
             broken.finished(start + dur * 2),
             "the grace cap stops a schedule that never completes"
         );
-        assert!(!broken.report(start + dur * 2).passed(), "and it reports FAIL");
+        assert!(
+            !broken.report(start + dur * 2).passed(),
+            "and it reports FAIL"
+        );
     }
 
     /// A skip is tallied both in the headline total and in its own per-kind

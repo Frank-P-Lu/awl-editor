@@ -331,7 +331,11 @@ pub enum PlacardInk {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TitleStyle {
     InlinePrefix,
-    Placard { corner: PlacardCorner, scale: f32, ink: PlacardInk },
+    Placard {
+        corner: PlacardCorner,
+        scale: f32,
+        ink: PlacardInk,
+    },
 }
 
 /// WHERE the summoned overlay card ANCHORS horizontally — a per-world DATA
@@ -367,7 +371,9 @@ pub enum TitleStyle {
 pub enum CardAnchor {
     TopLeft,
     TopCenter,
-    Inset { x_frac: f32 },
+    Inset {
+        x_frac: f32,
+    },
     /// RIGHT-ANCHOR MIRROR (PER-ITEM LIST SURFACES round) — a FIRST-CLASS
     /// value on the anchor axis, promoted from the `Inset { x_frac: 1.0 }`
     /// probe to its own name because it carries MORE than placement. For
@@ -816,9 +822,14 @@ impl AmbientStyle {
     /// byte-identical). Mirrors [`Background::lava_params`]'s shape.
     pub fn stars_params(&self) -> Option<(Srgb, f32, f32, f32, f32, f32)> {
         match self {
-            AmbientStyle::Stars { tint, cell_px, density, size_px, peak, floor } => {
-                Some((*tint, *cell_px, *density, *size_px, *peak, *floor))
-            }
+            AmbientStyle::Stars {
+                tint,
+                cell_px,
+                density,
+                size_px,
+                peak,
+                floor,
+            } => Some((*tint, *cell_px, *density, *size_px, *peak, *floor)),
             AmbientStyle::None => None,
         }
     }
@@ -1013,7 +1024,10 @@ pub struct FoldAfford {
 
 impl FoldAfford {
     /// Inert everywhere until a `Background::Lava` world dials its own lift.
-    pub const DEFAULT: FoldAfford = FoldAfford { chevron_lift: 0.0, tail_lift: 0.0 };
+    pub const DEFAULT: FoldAfford = FoldAfford {
+        chevron_lift: 0.0,
+        tail_lift: 0.0,
+    };
 }
 
 /// ITEM 70's PRINTED-CARD capability: what material a [`ListBacking::Card`]
@@ -1152,7 +1166,6 @@ impl RenderCaps {
         card_texture: CardTexture::DEFAULT,
         card_shape: CardShape::DEFAULT,
     };
-
 }
 
 /// The row/title HIGHLIGHT decision every "selected region" surface reduces
@@ -1232,20 +1245,45 @@ pub const ZIGZAG_MAX_ROW_PITCH_PX: f32 = 160.0;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Background {
     /// Plain directional gradient, no marks (the calmest ground).
-    Gradient { from: Srgb, to: Srgb, dir: (f32, f32) },
+    Gradient {
+        from: Srgb,
+        to: Srgb,
+        dir: (f32, f32),
+    },
     /// A grid of round dots over the gradient. `edge=false` is today's UNIFORM
     /// field; `edge=true` PROXIMITY-SCALES the dots — biggest/brightest hugging
     /// the page-column boundary, shrinking + fading with distance outward.
-    Dots { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb, edge: bool },
+    Dots {
+        from: Srgb,
+        to: Srgb,
+        dir: (f32, f32),
+        tint: Srgb,
+        edge: bool,
+    },
     /// Scattered dots + the occasional 4-point sparkle — a quiet cosmos.
-    Starfield { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb },
+    Starfield {
+        from: Srgb,
+        to: Srgb,
+        dir: (f32, f32),
+        tint: Srgb,
+    },
     /// Fine parallel lines (ledger / print rules).
-    Pinstripe { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb },
+    Pinstripe {
+        from: Srgb,
+        to: Srgb,
+        dir: (f32, f32),
+        tint: Srgb,
+    },
     /// The N++ look: a DIAGONAL directional gradient (`from`->`to` along `angle`)
     /// with a BRIGHT BAND of diagonal stripes hugging the page-column boundary
     /// that DISSOLVES outward into the gradient. The band uses the theme-supplied
     /// MUTED `band` tint (NOT the accent — amber stays the caret's, DESIGN §3).
-    Stripes { from: Srgb, to: Srgb, band: Srgb, angle: f32 },
+    Stripes {
+        from: Srgb,
+        to: Srgb,
+        band: Srgb,
+        angle: f32,
+    },
     /// THE LAVA-LAMP GROUND — awl's first TIME-VARYING background (the mirror of
     /// Wagtail: the one world whose one warm thing is the GROUND itself). A slow
     /// ONE viewport-space 2D metaball field ("lava lamp" register) behind the
@@ -1595,9 +1633,13 @@ impl Background {
     /// byte-identical).
     pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
         match self {
-            Background::Lava { ground, blob_lo, blob_hi, edge, dithered } => {
-                Some((*ground, *blob_lo, *blob_hi, *edge, *dithered))
-            }
+            Background::Lava {
+                ground,
+                blob_lo,
+                blob_hi,
+                edge,
+                dithered,
+            } => Some((*ground, *blob_lo, *blob_hi, *edge, *dithered)),
             _ => None,
         }
     }
@@ -2060,7 +2102,13 @@ impl Lens {
     /// The axis order used by the coverage ruler, with `All` parked FIRST. (Once the
     /// LEFT/RIGHT strip order for the runtime picker; kept for the ruler's shape
     /// assertions after the strip's retirement.)
-    pub const STRIP: [Lens; 5] = [Lens::All, Lens::Time, Lens::Register, Lens::Voice, Lens::Temperature];
+    pub const STRIP: [Lens; 5] = [
+        Lens::All,
+        Lens::Time,
+        Lens::Register,
+        Lens::Voice,
+        Lens::Temperature,
+    ];
 
     /// The SECTIONS this axis groups worlds into, in display order. `All` has none
     /// (the degenerate axis).

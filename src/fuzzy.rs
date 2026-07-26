@@ -75,9 +75,7 @@ pub fn score(query: &str, candidate: &str) -> Option<i64> {
             // boundary in the ORIGINAL candidate (so capital-camel and path
             // segments score higher, fzf-style).
             let at_boundary = ci == 0
-                || (same_len
-                    && ci > 0
-                    && matches!(cand[ci - 1], '/' | '_' | '-' | '.' | ' '))
+                || (same_len && ci > 0 && matches!(cand[ci - 1], '/' | '_' | '-' | '.' | ' '))
                 || (same_len && ci > 0 && cand[ci - 1].is_lowercase() && cand[ci].is_uppercase());
             if at_boundary {
                 score += 20;
@@ -177,7 +175,10 @@ mod tests {
         // mid-word run in "src/undocked.rs" (no boundary bonus, later start).
         let cands = vec!["src/undocked.rs".to_string(), "doc-fixture.md".to_string()];
         let r = rank("doc", &cands, corpus);
-        assert_eq!(cands[r[0].index], "doc-fixture.md", "prefix should win: {r:?}");
+        assert_eq!(
+            cands[r[0].index], "doc-fixture.md",
+            "prefix should win: {r:?}"
+        );
     }
 
     #[test]
@@ -198,11 +199,7 @@ mod tests {
         let cands = vec!["src/main.rs".to_string(), "src/zzz_main.rs".to_string()];
         // Even though zzz_main also matches, mark main.rs as Open so it wins.
         let r = rank("main", &cands, |i| {
-            if i == 0 {
-                Tier::Open
-            } else {
-                Tier::Corpus
-            }
+            if i == 0 { Tier::Open } else { Tier::Corpus }
         });
         assert_eq!(cands[r[0].index], "src/main.rs");
     }

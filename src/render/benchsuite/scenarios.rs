@@ -12,13 +12,13 @@
 //! GPU cost into the number. Pixel witnesses read the offscreen target back
 //! through the SAME `capture::gpu::read_frame` the capture harness uses.
 
-use anyhow::{ensure, Context as _, Result};
+use anyhow::{Context as _, Result, ensure};
 
 use crate::clock::Instant;
 use crate::search::{Direction, SearchState};
 
 use super::corpus::{self, Tier};
-use super::cx::{differing_pixels, ms, Cx};
+use super::cx::{Cx, differing_pixels, ms};
 use super::{HEIGHT, WIDTH};
 
 /// The scenario axis. `ALL` is the per-tier run order; `name` is a no-wildcard
@@ -77,9 +77,9 @@ pub(super) fn skip_reason(tier: Tier, sc: Scenario) -> Option<&'static str> {
         // re-wrap witness structurally cannot see its work (66 -> 66). Skipped
         // rather than run witness-blind; see benches/README.md ("Known
         // pathologies the suite exposed") for the banked follow-up.
-        (Tier::XPara, Scenario::Resize) => {
-            Some("full_shape_height's 8-rows/line budget blinds the row-count witness on one enormous line")
-        }
+        (Tier::XPara, Scenario::Resize) => Some(
+            "full_shape_height's 8-rows/line budget blinds the row-count witness on one enormous line",
+        ),
         _ => None,
     }
 }
@@ -193,7 +193,10 @@ fn typing(cx: &mut Cx) -> Result<CellOut> {
     );
     let last = cx.snapshot()?;
     let changed = differing_pixels(&first, &last);
-    ensure!(changed > 0, "typed characters must change the rendered frame");
+    ensure!(
+        changed > 0,
+        "typed characters must change the rendered frame"
+    );
 
     // Restore the pristine document (untimed).
     cx.view.text.clone_from(&cx.text);
@@ -281,7 +284,10 @@ fn scroll(cx: &mut Cx) -> Result<CellOut> {
 
     let end = cx.snapshot()?;
     let changed = differing_pixels(&top, &end);
-    ensure!(changed > 0, "scrolling to the end must change the rendered frame");
+    ensure!(
+        changed > 0,
+        "scrolling to the end must change the rendered frame"
+    );
 
     // Restore (untimed).
     cx.view.cursor_line = 0;
@@ -337,7 +343,10 @@ fn search(cx: &mut Cx) -> Result<CellOut> {
         matches == independent,
         "search must find every occurrence: engine {matches} vs independent {independent}"
     );
-    ensure!(s.current_index().is_some(), "search must land on a current match");
+    ensure!(
+        s.current_index().is_some(),
+        "search must land on a current match"
+    );
 
     // Close the panel (untimed).
     cx.view.search_active = false;
@@ -350,7 +359,10 @@ fn search(cx: &mut Cx) -> Result<CellOut> {
     cx.sync_frame()?;
     Ok(CellOut {
         samples_ms: samples,
-        witness: vec![("matches", matches), ("steps", (QUERY.len() + NEXTS) as u64)],
+        witness: vec![
+            ("matches", matches),
+            ("steps", (QUERY.len() + NEXTS) as u64),
+        ],
     })
 }
 
@@ -449,7 +461,10 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
     ensure!(items_len > 0, "the command palette must carry rows");
     ensure!(instances > 0, "the palette rows must upload row instances");
     let changed = differing_pixels(&baseline_frame, &open_frame.expect("snapshotted above"));
-    ensure!(changed > 0, "the open palette must visibly change the frame");
+    ensure!(
+        changed > 0,
+        "the open palette must visibly change the frame"
+    );
     Ok(CellOut {
         samples_ms: samples,
         witness: vec![

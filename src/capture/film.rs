@@ -72,7 +72,17 @@ impl FilmRenderer {
         let frames_dir = out_dir.join("frames");
         std::fs::create_dir_all(&frames_dir)
             .with_context(|| format!("creating {}", frames_dir.display()))?;
-        Ok(Self { device, queue, texture, view, pipeline, width, height, frames_dir, next_frame: 0 })
+        Ok(Self {
+            device,
+            queue,
+            texture,
+            view,
+            pipeline,
+            width,
+            height,
+            frames_dir,
+            next_frame: 0,
+        })
     }
 
     /// Render ONE storyboard step: fold `buffer` + `opts` into the settled view
@@ -99,15 +109,25 @@ impl FilmRenderer {
             // The injected virtual-clock tick — the same single seam the
             // timeline/held captures and the live loop drive.
             self.pipeline.advance(FRAME_MS as f32 / 1000.0);
-            self.pipeline.prepare(&self.device, &self.queue, self.width, self.height)?;
-            let mut encoder =
-                self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            self.pipeline
+                .prepare(&self.device, &self.queue, self.width, self.height)?;
+            let mut encoder = self
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("awl film encoder"),
                 });
             self.pipeline.render(&mut encoder, &self.view)?;
             self.queue.submit(Some(encoder.finish()));
-            let img = read_frame(&self.device, &self.queue, &self.texture, self.width, self.height)?;
-            let path = self.frames_dir.join(format!("frame-{:05}.png", self.next_frame));
+            let img = read_frame(
+                &self.device,
+                &self.queue,
+                &self.texture,
+                self.width,
+                self.height,
+            )?;
+            let path = self
+                .frames_dir
+                .join(format!("frame-{:05}.png", self.next_frame));
             img.save(&path)
                 .with_context(|| format!("failed to write PNG {}", path.display()))?;
             self.next_frame += 1;

@@ -496,7 +496,11 @@ mod tests {
     fn block_comment() {
         let t = "code\n=begin\na doc block\nmore\n=end\nafter\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["=begin\na doc block\nmore\n=end"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["=begin\na doc block\nmore\n=end"],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -511,7 +515,11 @@ mod tests {
         let t = "s = \"a\\\"b #{x + 1} c\"";
         let s = spans(t);
         // The whole interpolated string is ONE Str span.
-        assert_eq!(at(t, &s, SynKind::Str), vec!["\"a\\\"b #{x + 1} c\""], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["\"a\\\"b #{x + 1} c\""],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -559,10 +567,13 @@ mod tests {
 
     #[test]
     fn numbers_and_constants() {
-        let t = "a = 42\nb = 0xFF\nc = 3.14\nd = 1_000\ne = 1.5e-3\nok = true\nz = nil\nf = false\n";
+        let t =
+            "a = 42\nb = 0xFF\nc = 3.14\nd = 1_000\ne = 1.5e-3\nok = true\nz = nil\nf = false\n";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
-        for want in ["42", "0xFF", "3.14", "1_000", "1.5e-3", "true", "nil", "false"] {
+        for want in [
+            "42", "0xFF", "3.14", "1_000", "1.5e-3", "true", "nil", "false",
+        ] {
             assert!(cs.contains(&want), "missing {want}: {cs:?}");
         }
     }
@@ -588,7 +599,10 @@ mod tests {
         assert!(ds.contains(&"create"), "{ds:?}");
         assert!(ds.contains(&"valid?"), "{ds:?}");
         assert!(ds.contains(&"name="), "{ds:?}");
-        assert!(!ds.contains(&"self"), "receiver must not be a definition: {ds:?}");
+        assert!(
+            !ds.contains(&"self"),
+            "receiver must not be a definition: {ds:?}"
+        );
     }
 
     #[test]
@@ -596,8 +610,14 @@ mod tests {
         // Only the NAME is a Definition; `def` stays default ink.
         let t = "def main\nend\n";
         let s = spans(t);
-        assert!(!has(&s, 0, 3, SynKind::Definition), "the `def` keyword must stay plain: {s:?}");
-        assert!(has(&s, 4, 8, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 3, SynKind::Definition),
+            "the `def` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 4, 8, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -610,7 +630,11 @@ mod tests {
     fn reference_snippet() {
         let t = "# add two\ndef add(a, b)\n  total = a + b  # sum\n  total\nend\nMAX = 100\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# add two", "# sum"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# add two", "# sum"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"add"), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }

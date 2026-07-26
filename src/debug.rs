@@ -79,7 +79,10 @@ pub const FALLBACK_REFRESH_MILLIHERTZ: u32 = 60_000;
 /// readability more than it helped triage. The raw budget stays reachable in
 /// the sidecar for anyone who wants the comparison.
 pub fn budget_ms(refresh_millihertz: Option<u32>) -> f32 {
-    1_000_000.0 / refresh_millihertz.unwrap_or(FALLBACK_REFRESH_MILLIHERTZ).max(1) as f32
+    1_000_000.0
+        / refresh_millihertz
+            .unwrap_or(FALLBACK_REFRESH_MILLIHERTZ)
+            .max(1) as f32
 }
 
 /// The FRAME-COST line for the debug panel: the PREVIOUS completed frame's cost
@@ -155,7 +158,11 @@ pub struct CostRing {
 
 impl Default for CostRing {
     fn default() -> Self {
-        Self { buf: [0.0; COST_WINDOW], len: 0, at: 0 }
+        Self {
+            buf: [0.0; COST_WINDOW],
+            len: 0,
+            at: 0,
+        }
     }
 }
 
@@ -178,7 +185,10 @@ impl CostRing {
 
     /// The max over the window, or `None` when empty.
     pub fn worst(&self) -> Option<f32> {
-        self.buf[..self.len].iter().copied().fold(None, |w, c| Some(w.map_or(c, |w: f32| w.max(c))))
+        self.buf[..self.len]
+            .iter()
+            .copied()
+            .fold(None, |w, c| Some(w.map_or(c, |w: f32| w.max(c))))
     }
 
     /// Forget everything (debug toggled off; the next enable starts fresh).
@@ -312,7 +322,6 @@ pub fn autosave_readout(state: Option<AutosaveState>) -> String {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -349,8 +358,14 @@ mod tests {
         // No budget suffix, no `over` flag — just the previous frame's cost and
         // the rolling worst (the readability round dropped the budget line;
         // the raw number still rides the sidecar's `budget_ms` field).
-        assert_eq!(frame_readout(Some((1.4, 3.2)), false), "frame 1.4 ms · worst 3.2");
-        assert_eq!(frame_readout(Some((21.3, 21.3)), false), "frame 21.3 ms · worst 21.3");
+        assert_eq!(
+            frame_readout(Some((1.4, 3.2)), false),
+            "frame 1.4 ms · worst 3.2"
+        );
+        assert_eq!(
+            frame_readout(Some((21.3, 21.3)), false),
+            "frame 21.3 ms · worst 21.3"
+        );
     }
 
     #[test]
@@ -400,7 +415,11 @@ mod tests {
         for _ in 0..(COST_WINDOW - 2) {
             r.push(1.0);
         }
-        assert_eq!(r.worst(), Some(3.2), "at 121 total pushes the spike is still the worst");
+        assert_eq!(
+            r.worst(),
+            Some(3.2),
+            "at 121 total pushes the spike is still the worst"
+        );
         // …and the 122nd push slides the window past it (2.0, push #3, remains).
         r.push(1.0);
         assert_eq!(r.worst(), Some(2.0), "the spike ages out of the window");
@@ -436,7 +455,10 @@ mod tests {
             .expect("transaction remains within its five-second window");
         assert_eq!(report.worst.total_ms(), 42.0);
         assert_eq!(
-            report.worst.phases().get(crate::themeswitch::SwitchPhase::Reshape),
+            report
+                .worst
+                .phases()
+                .get(crate::themeswitch::SwitchPhase::Reshape),
             Some(39.0),
             "worst breakdown belongs to the worst transaction, not the latest frame"
         );
@@ -455,21 +477,33 @@ mod tests {
         assert_eq!(s, DebugStill::Still);
         assert!(!stamp, "the stamp frame schedules no further frames");
         // Still + no events => nothing ever runs; a defensive settle stays put.
-        assert_eq!(still_settle(DebugStill::Still, false), (DebugStill::Still, false));
+        assert_eq!(
+            still_settle(DebugStill::Still, false),
+            (DebugStill::Still, false)
+        );
     }
 
     #[test]
     fn stillness_input_wins_and_activity_reenters() {
         // Input landing while a stamp is queued wins: the frame is activity and
         // the settle re-queues a FRESH stamp afterwards.
-        assert_eq!(still_wake(DebugStill::StampQueued, true), DebugStill::Active);
+        assert_eq!(
+            still_wake(DebugStill::StampQueued, true),
+            DebugStill::Active
+        );
         // Any redraw arriving out of stillness (resize, debounce repaint) is
         // activity too — it re-enters Active and re-settles to a fresh stamp.
         assert_eq!(still_wake(DebugStill::Still, false), DebugStill::Active);
         assert_eq!(still_wake(DebugStill::Still, true), DebugStill::Active);
         // While the spring animates the loop stays hot: no stamp is queued.
-        assert_eq!(still_settle(DebugStill::Active, true), (DebugStill::Active, false));
-        assert_eq!(still_settle(DebugStill::StampQueued, true), (DebugStill::Active, false));
+        assert_eq!(
+            still_settle(DebugStill::Active, true),
+            (DebugStill::Active, false)
+        );
+        assert_eq!(
+            still_settle(DebugStill::StampQueued, true),
+            (DebugStill::Active, false)
+        );
     }
 
     #[test]
@@ -496,8 +530,14 @@ mod tests {
         assert_eq!(autosave_state(true, true, Some(9)), AutosaveState::Held);
         assert_eq!(autosave_state(true, true, None), AutosaveState::Held);
         // Enabled + not held: reports the last-write age (or None = never yet).
-        assert_eq!(autosave_state(true, false, None), AutosaveState::Saved(None));
-        assert_eq!(autosave_state(true, false, Some(7)), AutosaveState::Saved(Some(7)));
+        assert_eq!(
+            autosave_state(true, false, None),
+            AutosaveState::Saved(None)
+        );
+        assert_eq!(
+            autosave_state(true, false, Some(7)),
+            AutosaveState::Saved(Some(7))
+        );
     }
 
     #[test]

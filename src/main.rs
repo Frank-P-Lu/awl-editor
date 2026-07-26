@@ -40,8 +40,6 @@ mod run;
 // session step-by-step through the film renderer. A `main/` sibling of `run`
 // (same `#[path]` reason); the storyboard MODEL/parser lives in
 // `crate::storyboard`, the GPU frame loop in `crate::capture::film`.
-#[path = "main/story.rs"]
-mod story;
 mod assets;
 mod background;
 mod bench;
@@ -76,6 +74,8 @@ mod fuzzy;
 mod guide;
 mod history;
 mod hud;
+#[path = "main/story.rs"]
+mod story;
 // THE ICON EXPORT MANIFEST (`--icon-manifest`): serializes the per-world icon
 // palette + display-face facts straight out of `theme::THEMES` for the offline
 // icon compositor in `scripts/icons/`. Native-only — it reads the bundled font
@@ -107,17 +107,17 @@ mod openable;
 mod outline;
 mod overlay;
 mod page;
-mod peek;
 #[cfg(not(target_arch = "wasm32"))]
 mod paste_image;
+mod peek;
 mod pointer_hide;
 mod popover;
 // THE LIVE PROBE HARNESS (`--live-script`): scripted keystrokes + compositor-
 // side window shots against the REAL windowed app — the "extend the harness
 // toward reality" tier for live-only bug classes. See `src/probe.rs`.
-mod probe;
 #[cfg(test)]
 mod println_audit;
+mod probe;
 mod project;
 mod prosediff;
 // ITEM 94 — the RANGE SPEC owner (min/max/step/default/unit/rail mapping) every
@@ -136,13 +136,13 @@ mod script;
 mod search;
 mod selection;
 #[cfg(not(target_arch = "wasm32"))]
-mod soak_gpu;
-#[cfg(not(target_arch = "wasm32"))]
 mod session;
 mod settings;
+#[cfg(not(target_arch = "wasm32"))]
+mod soak_gpu;
 mod spell;
-mod storyboard;
 mod spellunderline;
+mod storyboard;
 // TWINKLING STARS — the ambient star-field ground (margins-only, individually
 // phased twinkle riding the lava's own ~10 fps ambient clock). Currawong's
 // differentiator; every other world's `AmbientStyle::None` is a total no-op.
@@ -155,9 +155,9 @@ mod theme;
 // THE THEME-SWITCH SETTLE-LATENCY readout (debug-mode, live-only): a once-per-switch
 // felt-latency + per-phase breakdown, pure-formatted here, fed real millis by the
 // live App. Absent from every headless capture (see the module doc).
-mod themeswitch;
 #[cfg(test)]
 mod testlock;
+mod themeswitch;
 mod typewriter;
 mod updates;
 mod web_export;
@@ -176,9 +176,9 @@ use anyhow::Result;
 pub(crate) use args::resolve_default_folder;
 pub(crate) use run::resolve_workspace;
 
-use std::path::PathBuf;
 #[cfg(target_arch = "wasm32")]
 use crate::config::Config;
+use std::path::PathBuf;
 
 // --- WASM (browser) entry ---------------------------------------------------
 //
@@ -217,7 +217,9 @@ pub fn wasm_start() {
     // re-seed and correct it short of clearing the sentinel by hand.
     if let Some(window) = web_sys::window() {
         let nav = window.navigator();
-        let ua = nav.user_agent().unwrap_or_else(|_| nav.platform().unwrap_or_default());
+        let ua = nav
+            .user_agent()
+            .unwrap_or_else(|_| nav.platform().unwrap_or_default());
         let c = convention::set_web_convention_from_ua(&ua);
         log::info!("awl: keyboard convention detected as {c:?} (from {ua:?})");
     }
@@ -287,10 +289,14 @@ fn main() -> Result<()> {
     if let Some(pos) = std::env::args().position(|a| a == "--dump-menu-icon") {
         use anyhow::Context;
         let mut rest = std::env::args().skip(pos + 1);
-        let id = rest.next().context("--dump-menu-icon needs <id> <out.png>")?;
-        let out = rest.next().context("--dump-menu-icon needs <id> <out.png>")?;
-        let symbol =
-            menu_icons::symbol_for(&id).with_context(|| format!("no SF Symbol for menu id {id}"))?;
+        let id = rest
+            .next()
+            .context("--dump-menu-icon needs <id> <out.png>")?;
+        let out = rest
+            .next()
+            .context("--dump-menu-icon needs <id> <out.png>")?;
+        let symbol = menu_icons::symbol_for(&id)
+            .with_context(|| format!("no SF Symbol for menu id {id}"))?;
         let (rgba, w, h) = mac_chrome::render_symbol_rgba(symbol)
             .context("render_symbol_rgba returned None (off main thread / AppKit step failed)")?;
         let covered = rgba.chunks_exact(4).filter(|px| px[3] != 0).count();
@@ -314,7 +320,9 @@ fn main() -> Result<()> {
     // window for the harness to land a kill inside.
     if let Some(pos) = std::env::args().position(|a| a == "--fault-write-loop") {
         let mut rest = std::env::args().skip(pos + 1);
-        let path = rest.next().ok_or_else(|| anyhow::anyhow!("--fault-write-loop needs <path> <count>"))?;
+        let path = rest
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("--fault-write-loop needs <path> <count>"))?;
         let count: u32 = rest
             .next()
             .ok_or_else(|| anyhow::anyhow!("--fault-write-loop needs <path> <count>"))?

@@ -27,8 +27,12 @@
 /// three float-panel families this round deliberately left alone (each keeps
 /// its own dedicated elevation trio, never shared — a bigger unification than
 /// this round's scope).
-const ALLOWED_DIRECT_CALLERS: &[&str] =
-    &["chrome/mod.rs", "chrome/hud.rs", "chrome/menubar.rs", "chrome/whichkey.rs"];
+const ALLOWED_DIRECT_CALLERS: &[&str] = &[
+    "chrome/mod.rs",
+    "chrome/hud.rs",
+    "chrome/menubar.rs",
+    "chrome/whichkey.rs",
+];
 
 /// True iff `line` (real code, not a comment) calls `set_float_quads(`.
 fn line_violates(line: &str) -> bool {
@@ -42,7 +46,9 @@ fn line_violates(line: &str) -> bool {
 /// Walk `dir`, collecting `(rel_path, line)` violations — every `.rs` file
 /// under `src/render/` whose relative path is NOT in [`ALLOWED_DIRECT_CALLERS`].
 fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     let mut entries: Vec<_> = entries.flatten().collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
@@ -54,7 +60,11 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
-        let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        let rel = path
+            .strip_prefix(base)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
         if ALLOWED_DIRECT_CALLERS.contains(&rel.as_str()) {
             continue;
         }
@@ -66,7 +76,9 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
         if path.file_name().and_then(|n| n.to_str()) == Some("float_surface_law.rs") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         for (i, line) in text.lines().enumerate() {
             if line_violates(line) {
                 out.push((rel.clone(), i + 1));
@@ -77,8 +89,9 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
 
 #[test]
 fn float_surface_primitive_has_no_bypass_among_the_unified_family() {
-    let render_root =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("render");
+    let render_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("render");
     let mut hits = Vec::new();
     scan_dir(&render_root, &render_root, &mut hits);
     assert!(
@@ -86,7 +99,10 @@ fn float_surface_primitive_has_no_bypass_among_the_unified_family() {
         "the caret-preview panel / search panel / spell popup / format popover must \
          route through `TextPipeline::prepare_float_panel`, never call \
          `set_float_quads` directly — offending lines:\n{}",
-        hits.iter().map(|(f, l)| format!("  {f}:{l}")).collect::<Vec<_>>().join("\n")
+        hits.iter()
+            .map(|(f, l)| format!("  {f}:{l}"))
+            .collect::<Vec<_>>()
+            .join("\n")
     );
 
     // NON-VACUOUS: the owner file itself still carries the expected hits — the
@@ -114,7 +130,10 @@ fn float_surface_primitive_has_no_bypass_among_the_unified_family() {
     let popover = render_root.join("chrome/popover.rs");
     let popover_text = std::fs::read_to_string(&popover).expect("chrome/popover.rs must exist");
     let popover_hits = popover_text.lines().filter(|l| line_violates(l)).count();
-    assert_eq!(popover_hits, 0, "chrome/popover.rs must never call set_float_quads directly");
+    assert_eq!(
+        popover_hits, 0,
+        "chrome/popover.rs must never call set_float_quads directly"
+    );
 }
 
 #[test]
@@ -132,12 +151,15 @@ fn scan_dir_exempts_this_scanners_own_file_by_name() {
     // (this test's assertions above included) — `scan_dir` must skip it by
     // filename, never by trying to out-clever the substring match, so this
     // test module itself never becomes a false positive.
-    let render_root =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("render");
+    let render_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("render");
     let mut hits = Vec::new();
     scan_dir(&render_root, &render_root, &mut hits);
     assert!(
-        !hits.iter().any(|(f, _)| f.ends_with("float_surface_law.rs")),
+        !hits
+            .iter()
+            .any(|(f, _)| f.ends_with("float_surface_law.rs")),
         "the scanner must never flag its own source: {hits:?}"
     );
 }

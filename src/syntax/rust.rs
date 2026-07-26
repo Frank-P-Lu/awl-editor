@@ -106,7 +106,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -233,7 +234,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXoObB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -269,7 +274,11 @@ mod tests {
     fn raw_string_with_hashes() {
         let t = r####"let s = r#"he said "hi""#;"####;
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Str), vec![r##"r#"he said "hi""#"##], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec![r##"r#"he said "hi""#"##],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -303,7 +312,10 @@ mod tests {
         let t = "for i in 0..5 {}";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
-        assert!(cs.contains(&"0") && cs.contains(&"5"), "ranges split: {cs:?}");
+        assert!(
+            cs.contains(&"0") && cs.contains(&"5"),
+            "ranges split: {cs:?}"
+        );
     }
 
     #[test]
@@ -326,8 +338,14 @@ mod tests {
         let t = "fn café() {}\nstruct Δelta;";
         let s = spans(t);
         let ds = at(t, &s, SynKind::Definition);
-        assert!(ds.contains(&"café"), "the accented fn name is one definition: {ds:?}");
-        assert!(ds.contains(&"Δelta"), "a Greek-initial type name is one definition: {ds:?}");
+        assert!(
+            ds.contains(&"café"),
+            "the accented fn name is one definition: {ds:?}"
+        );
+        assert!(
+            ds.contains(&"Δelta"),
+            "a Greek-initial type name is one definition: {ds:?}"
+        );
     }
 
     #[test]
@@ -335,8 +353,14 @@ mod tests {
         // `fn` keyword stays default ink; only the NAME is a Definition.
         let t = "fn main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 2, SynKind::Definition), "the `fn` keyword must stay plain: {s:?}");
-        assert!(has(&s, 3, 7, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 2, SynKind::Definition),
+            "the `fn` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 3, 7, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -351,7 +375,11 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nfn add(a: i32, b: i32) -> i32 {\n    let total = a + b; // ok\n    return total;\n}\nconst MAX: u32 = 100;\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"add") && ds.contains(&"MAX"), "{ds:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");

@@ -31,8 +31,7 @@ mod common;
 /// A fresh, uniquely-named tempdir under the OS temp root (no `tempfile` dep —
 /// mirrors `tests/hermetic_canary.rs`).
 fn tmp_dir(tag: &str) -> PathBuf {
-    let dir =
-        std::env::temp_dir().join(format!("awl-storyboard-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("awl-storyboard-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -63,7 +62,8 @@ fn run_awl(args: &[&str], extra_path: Option<&Path>) -> Output {
         parts.extend(std::env::split_paths(&path));
         cmd.env("PATH", std::env::join_paths(parts).unwrap());
     }
-    cmd.output().expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl")
+    cmd.output()
+        .expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl")
 }
 
 /// GPU-less host? The storyboard runner refuses up front (the strict missing-
@@ -76,7 +76,9 @@ fn is_gpu_less(out: &Output) -> bool {
 /// Recursive snapshot of a tree: relative path → bytes (`None` for a dir).
 fn tree_snapshot(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
     fn walk(root: &Path, dir: &Path, out: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let p = entry.path();
             let rel = p.strip_prefix(root).unwrap().to_path_buf();
@@ -98,7 +100,12 @@ fn demo_storyboard_emits_every_artifact_and_two_runs_are_byte_identical() {
     let run1 = tmp_dir("run1");
     let run2 = tmp_dir("run2");
     let out1 = run_awl(
-        &["--storyboard", "scenarios/demo.toml", "--storyboard-out", run1.to_str().unwrap()],
+        &[
+            "--storyboard",
+            "scenarios/demo.toml",
+            "--storyboard-out",
+            run1.to_str().unwrap(),
+        ],
         None,
     );
     if !out1.status.success() && is_gpu_less(&out1) {
@@ -113,18 +120,40 @@ fn demo_storyboard_emits_every_artifact_and_two_runs_are_byte_identical() {
 
     // 1) Every artifact of a clean run exists.
     let trace = std::fs::read_to_string(run1.join("trace.json")).expect("trace.json written");
-    assert!(trace.contains("\"schema\": \"awl-trace/1\""), "trace schema: {trace}");
-    assert!(trace.contains("\"abort\": null"), "clean run records no abort");
+    assert!(
+        trace.contains("\"schema\": \"awl-trace/1\""),
+        "trace schema: {trace}"
+    );
+    assert!(
+        trace.contains("\"abort\": null"),
+        "clean run records no abort"
+    );
     // Every action step's PNG + sidecar (step 2 is the first expect step — it
     // renders nothing by design); the film frames; the film-frame identity of
     // a step artifact (step-000.png IS its last film frame, byte-for-byte).
     for stem in ["step-000", "step-001", "step-003"] {
-        assert!(run1.join(format!("{stem}.png")).exists(), "{stem}.png exists");
-        assert!(run1.join(format!("{stem}.json")).exists(), "{stem}.json exists");
+        assert!(
+            run1.join(format!("{stem}.png")).exists(),
+            "{stem}.png exists"
+        );
+        assert!(
+            run1.join(format!("{stem}.json")).exists(),
+            "{stem}.json exists"
+        );
     }
-    assert!(!run1.join("step-002.png").exists(), "an expect step renders nothing");
-    let frames: Vec<_> = std::fs::read_dir(run1.join("frames")).unwrap().flatten().collect();
-    assert!(frames.len() >= 40, "the demo films dozens of frames, got {}", frames.len());
+    assert!(
+        !run1.join("step-002.png").exists(),
+        "an expect step renders nothing"
+    );
+    let frames: Vec<_> = std::fs::read_dir(run1.join("frames"))
+        .unwrap()
+        .flatten()
+        .collect();
+    assert!(
+        frames.len() >= 40,
+        "the demo films dozens of frames, got {}",
+        frames.len()
+    );
     assert_eq!(
         std::fs::read(run1.join("step-000.png")).unwrap(),
         std::fs::read(run1.join("frames/frame-00000.png")).unwrap(),
@@ -132,12 +161,23 @@ fn demo_storyboard_emits_every_artifact_and_two_runs_are_byte_identical() {
     );
     // The step sidecar is the ordinary plain-schema capture sidecar.
     let step_json = std::fs::read_to_string(run1.join("step-005.json")).unwrap();
-    assert!(step_json.contains("\"schema\": \"awl-capture/"), "plain sidecar: {step_json}");
-    assert!(step_json.contains("\"query\": \"fox\""), "step 5 shows the typed search query");
+    assert!(
+        step_json.contains("\"schema\": \"awl-capture/"),
+        "plain sidecar: {step_json}"
+    );
+    assert!(
+        step_json.contains("\"query\": \"fox\""),
+        "step 5 shows the typed search query"
+    );
 
     // 2) Byte-identity: the second run's whole tree equals the first's.
     let out2 = run_awl(
-        &["--storyboard", "scenarios/demo.toml", "--storyboard-out", run2.to_str().unwrap()],
+        &[
+            "--storyboard",
+            "scenarios/demo.toml",
+            "--storyboard-out",
+            run2.to_str().unwrap(),
+        ],
         None,
     );
     assert!(out2.status.success(), "second run failed");
@@ -167,15 +207,33 @@ fn abort_fixture_aborts_naming_the_unsupported_effect() {
         eprintln!("skipping abort_fixture test: no wgpu adapter on this host");
         return;
     }
-    assert!(!out.status.success(), "the abort fixture must exit non-zero");
+    assert!(
+        !out.status.success(),
+        "the abort fixture must exit non-zero"
+    );
     let err = String::from_utf8_lossy(&out.stderr);
-    assert!(err.contains("unsupported effect `finish_buffer`"), "stderr names the effect: {err}");
-    assert!(err.contains("FinishBuffer"), "stderr names the action: {err}");
+    assert!(
+        err.contains("unsupported effect `finish_buffer`"),
+        "stderr names the effect: {err}"
+    );
+    assert!(
+        err.contains("FinishBuffer"),
+        "stderr names the action: {err}"
+    );
     // The partial trace records the same abort, byte-for-byte reason.
     let trace = std::fs::read_to_string(out_dir.join("trace.json")).expect("partial trace written");
-    assert!(trace.contains("\"abort\": { \"step\": 2"), "abort step recorded: {trace}");
-    assert!(trace.contains("unsupported effect `finish_buffer`"), "abort reason: {trace}");
-    assert!(trace.contains("\"class\": \"unsupported\""), "the offending chord's record: {trace}");
+    assert!(
+        trace.contains("\"abort\": { \"step\": 2"),
+        "abort step recorded: {trace}"
+    );
+    assert!(
+        trace.contains("unsupported effect `finish_buffer`"),
+        "abort reason: {trace}"
+    );
+    assert!(
+        trace.contains("\"class\": \"unsupported\""),
+        "the offending chord's record: {trace}"
+    );
     // The pre-abort steps still produced their artifacts.
     assert!(out_dir.join("step-000.png").exists());
     let _ = std::fs::remove_dir_all(&out_dir);
@@ -190,14 +248,22 @@ fn film_encode_rides_a_local_ffmpeg_when_present() {
     // demo run's success either way.
     let bin_dir = tmp_dir("stub-bin");
     let stub = bin_dir.join("ffmpeg");
-    std::fs::write(&stub, "#!/bin/sh\nfor a in \"$@\"; do out=\"$a\"; done\nprintf stub > \"$out\"\n")
-        .unwrap();
+    std::fs::write(
+        &stub,
+        "#!/bin/sh\nfor a in \"$@\"; do out=\"$a\"; done\nprintf stub > \"$out\"\n",
+    )
+    .unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
 
     let out_dir = tmp_dir("films");
     let out = run_awl(
-        &["--storyboard", "scenarios/demo.toml", "--storyboard-out", out_dir.to_str().unwrap()],
+        &[
+            "--storyboard",
+            "scenarios/demo.toml",
+            "--storyboard-out",
+            out_dir.to_str().unwrap(),
+        ],
         Some(&bin_dir),
     );
     if !out.status.success() && is_gpu_less(&out) {
@@ -206,9 +272,18 @@ fn film_encode_rides_a_local_ffmpeg_when_present() {
     }
     assert!(out.status.success());
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(out_dir.join("film.webm").exists(), "film.webm written via ffmpeg: {stdout}");
-    assert!(out_dir.join("film.mp4").exists(), "film.mp4 written via ffmpeg: {stdout}");
-    assert!(stdout.contains("film.webm") && stdout.contains("film.mp4"), "{stdout}");
+    assert!(
+        out_dir.join("film.webm").exists(),
+        "film.webm written via ffmpeg: {stdout}"
+    );
+    assert!(
+        out_dir.join("film.mp4").exists(),
+        "film.mp4 written via ffmpeg: {stdout}"
+    );
+    assert!(
+        stdout.contains("film.webm") && stdout.contains("film.mp4"),
+        "{stdout}"
+    );
     // Raw frames are retained even when encoding succeeded.
     assert!(out_dir.join("frames").join("frame-00000.png").exists());
     let _ = std::fs::remove_dir_all(&bin_dir);

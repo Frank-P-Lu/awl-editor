@@ -14,9 +14,7 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
     let dr = a.r as f32 - b.r as f32;
     let dg = a.g as f32 - b.g as f32;
     let db = a.b as f32 - b.b as f32;
-    ((2.0 + rbar / 256.0) * dr * dr
-        + 4.0 * dg * dg
-        + (2.0 + (255.0 - rbar) / 256.0) * db * db)
+    ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
         .sqrt()
 }
 
@@ -47,39 +45,66 @@ fn selection_rects_multiline_geometry_and_eol_pad() {
 
     // The middle + last lines start at the writing-column left; the first line is
     // inset by its start column.
-    assert!((rects[1][0] - left).abs() < 1e-3, "middle line starts at left");
-    assert!((rects[2][0] - left).abs() < 1e-3, "last line starts at left");
-    assert!(rects[0][0] > left + 1e-3, "first line is inset by its start col");
+    assert!(
+        (rects[1][0] - left).abs() < 1e-3,
+        "middle line starts at left"
+    );
+    assert!(
+        (rects[2][0] - left).abs() < 1e-3,
+        "last line starts at left"
+    );
+    assert!(
+        rects[0][0] > left + 1e-3,
+        "first line is inset by its start col"
+    );
 
     // Rows descend in order by one line_height each (uniform, non-heading).
-    assert!(rects[0][1] < rects[1][1] && rects[1][1] < rects[2][1], "rows descend");
+    assert!(
+        rects[0][1] < rects[1][1] && rects[1][1] < rects[2][1],
+        "rows descend"
+    );
     assert!(
         (rects[1][1] - rects[0][1] - m.line_height).abs() < 1e-3,
         "row spacing == line_height"
     );
     // Row 0 sits at doc_top centered within its line height.
     let want_y0 = doc_top + (m.line_height - m.caret_h) * 0.5;
-    assert!((rects[0][1] - want_y0).abs() < 1e-3, "row0 y centered: {} vs {}", rects[0][1], want_y0);
+    assert!(
+        (rects[0][1] - want_y0).abs() < 1e-3,
+        "row0 y centered: {} vs {}",
+        rects[0][1],
+        want_y0
+    );
     // Each rect is one (unscaled) caret-height band.
     for r in &rects {
-        assert!((r[3] - m.caret_h).abs() < 1e-3, "rect height == caret_h: {r:?}");
+        assert!(
+            (r[3] - m.caret_h).abs() < 1e-3,
+            "rect height == caret_h: {r:?}"
+        );
     }
 
     // The EOL pad: the full middle line equals a no-EOL full selection of the
     // same line PLUS the trailing-newline sliver.
     let mid_no_eol = p.range_rects((1, 0), (1, 4));
-    assert_eq!(mid_no_eol.len(), 1, "single-line full selection: {mid_no_eol:?}");
+    assert_eq!(
+        mid_no_eol.len(),
+        1,
+        "single-line full selection: {mid_no_eol:?}"
+    );
     assert!(
         (rects[1][2] - (mid_no_eol[0][2] + eol_pad)).abs() < 1e-3,
         "middle width == full line + eol_pad: {} vs {}+{}",
-        rects[1][2], mid_no_eol[0][2], eol_pad
+        rects[1][2],
+        mid_no_eol[0][2],
+        eol_pad
     );
     // The last line has NO eol pad (it stops at the cursor column).
     let last_only = p.range_rects((2, 0), (2, 3));
     assert!(
         (rects[2][2] - last_only[0][2]).abs() < 1e-3,
         "last line width has no eol pad: {} vs {}",
-        rects[2][2], last_only[0][2]
+        rects[2][2],
+        last_only[0][2]
     );
 }
 
@@ -96,7 +121,9 @@ fn range_rects_selection_is_visible_bounded_and_memo_safe() {
     // parallel page write can't move the writing column mid-test.
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping range_rects_selection_is_visible_bounded_and_memo_safe: no wgpu adapter");
+        eprintln!(
+            "skipping range_rects_selection_is_visible_bounded_and_memo_safe: no wgpu adapter"
+        );
         return;
     };
     // 2000 short single-row lines: every line is a Select-All member, but only
@@ -123,7 +150,10 @@ fn range_rects_selection_is_visible_bounded_and_memo_safe() {
 
     // O(visible): the emitted rects are bounded by the visible band + margin, NOT
     // one per document line (2000).
-    assert!(!rects.is_empty(), "the visible selection must produce rects");
+    assert!(
+        !rects.is_empty(),
+        "the visible selection must produce rects"
+    );
     assert!(
         rects.len() < 200,
         "Select-All must emit only the visible band's rects, got {} of {N}",
@@ -168,12 +198,20 @@ fn wash_cache_and_geometry_contract() {
     v.syn_lang = Some(crate::syntax::Lang::Rust);
     p.set_view(&v);
     let (comments, strings, highlights) = p.wash_rects();
-    assert!(highlights.is_empty(), "a code buffer never has highlight washes");
+    assert!(
+        highlights.is_empty(),
+        "a code buffer never has highlight washes"
+    );
     assert_eq!(
-        comments.len(), 1,
+        comments.len(),
+        1,
         "one prose comment => one wash band (the commented-out statement gets none): {comments:?}"
     );
-    assert_eq!(strings.len(), 1, "one string literal => one string wash band");
+    assert_eq!(
+        strings.len(),
+        1,
+        "one string literal => one string wash band"
+    );
     let key = p.wash_cache_version().expect("protos built");
     let reshapes = p.reshape_count;
 
@@ -183,7 +221,11 @@ fn wash_cache_and_geometry_contract() {
     p.set_view(&v2);
     let _ = p.wash_rects();
     assert_eq!(p.reshape_count, reshapes, "a cursor move must not reshape");
-    assert_eq!(p.wash_cache_version(), Some(key), "a cursor move keeps the wash protos warm");
+    assert_eq!(
+        p.wash_cache_version(),
+        Some(key),
+        "a cursor move keeps the wash protos warm"
+    );
 
     // A SCROLL keeps it warm too (scroll only shifts the per-frame offset).
     let mut v3 = view(text, 2, 3);
@@ -191,7 +233,11 @@ fn wash_cache_and_geometry_contract() {
     v3.scroll_lines = 1;
     p.set_view(&v3);
     let _ = p.wash_rects();
-    assert_eq!(p.wash_cache_version(), Some(key), "a scroll keeps the wash protos warm");
+    assert_eq!(
+        p.wash_cache_version(),
+        Some(key),
+        "a scroll keeps the wash protos warm"
+    );
 
     // An EDIT reshapes once and rebuilds the protos (new version key).
     let edited = "// a calm prose note!!\n// let x = foo(bar);\nlet s = \"hi\";\n";
@@ -200,13 +246,20 @@ fn wash_cache_and_geometry_contract() {
     p.set_view(&v4);
     let (c2, s2, _h2) = p.wash_rects();
     assert_eq!(p.reshape_count, reshapes + 1, "the edit reshapes once");
-    assert_ne!(p.wash_cache_version(), Some(key), "an edit rebuilds the wash protos");
+    assert_ne!(
+        p.wash_cache_version(),
+        Some(key),
+        "an edit rebuilds the wash protos"
+    );
     assert_eq!((c2.len(), s2.len()), (1, 1));
 
     // PROSE (no syn_lang, not markdown): zero rects — byte-identical render.
     p.set_view(&view("plain prose here\n", 0, 0));
     let (c3, s3, _h3) = p.wash_rects();
-    assert!(c3.is_empty() && s3.is_empty(), "prose buffers carry no washes");
+    assert!(
+        c3.is_empty() && s3.is_empty(),
+        "prose buffers carry no washes"
+    );
 }
 
 /// WASH O(visible): on a TALL code doc the per-frame wash pass emits only the
@@ -221,7 +274,9 @@ fn wash_rects_cull_to_visible_band() {
     };
     // 600 prose-comment lines: every line carries a wash PROTO, but the frame
     // must emit only the visible band (canvas rows + the generous margin).
-    let text: String = (0..600).map(|i| format!("// prose note number {i}\n")).collect();
+    let text: String = (0..600)
+        .map(|i| format!("// prose note number {i}\n"))
+        .collect();
     let mut v = view(&text, 0, 0);
     v.syn_lang = Some(crate::syntax::Lang::Rust);
     p.set_view(&v);
@@ -250,16 +305,26 @@ fn markdown_fence_inherits_washes() {
     v.is_markdown = true;
     p.set_view(&v);
     let (comments, strings, highlights) = p.wash_rects();
-    assert_eq!(comments.len(), 1, "the fence's prose comment washes: {comments:?}");
+    assert_eq!(
+        comments.len(),
+        1,
+        "the fence's prose comment washes: {comments:?}"
+    );
     assert_eq!(strings.len(), 1, "the fence's string washes: {strings:?}");
-    assert!(highlights.is_empty(), "a fenced code block carries no highlight washes");
+    assert!(
+        highlights.is_empty(),
+        "a fenced code block carries no highlight washes"
+    );
 
     // Markdown with NO fence: no washes at all (prose byte-identity).
     let mut v2 = view("# title\nplain prose paragraph\n", 0, 0);
     v2.is_markdown = true;
     p.set_view(&v2);
     let (c, s, h) = p.wash_rects();
-    assert!(c.is_empty() && s.is_empty() && h.is_empty(), "fence-less markdown carries no washes");
+    assert!(
+        c.is_empty() && s.is_empty() && h.is_empty(),
+        "fence-less markdown carries no washes"
+    );
 }
 
 /// MARKDOWN `==highlight==`: the marked text carries an `MdKind::Highlight`
@@ -289,27 +354,37 @@ fn markdown_highlight_inherits_wash_and_code_buffers_never_match() {
     p.set_view(&v);
     let spans = p.md_report();
     assert!(
-        spans.iter().any(|(s, e, t)| *s == 15 && *e == 26 && *t == "highlight"),
+        spans
+            .iter()
+            .any(|(s, e, t)| *s == 15 && *e == 26 && *t == "highlight"),
         "'marked text' (15..26) should be a highlight span: {spans:?}"
     );
     assert!(
-        spans.iter().any(|(s, e, t)| *s == 13 && *e == 15 && *t == "markup"),
+        spans
+            .iter()
+            .any(|(s, e, t)| *s == 13 && *e == 15 && *t == "markup"),
         "the opening '==' dims to markup: {spans:?}"
     );
     assert!(
-        spans.iter().any(|(s, e, t)| *s == 26 && *e == 28 && *t == "markup"),
+        spans
+            .iter()
+            .any(|(s, e, t)| *s == 26 && *e == 28 && *t == "markup"),
         "the closing '==' dims to markup: {spans:?}"
     );
     let (comments, strings, highlights) = p.wash_rects();
     assert_eq!(
-        highlights.len(), 1,
+        highlights.len(),
+        1,
         "the highlight rides its OWN dedicated highlight-wash bucket: {highlights:?}"
     );
     assert!(
         comments.is_empty(),
         "a highlight is DECOUPLED from the comment wash, never in its bucket: {comments:?}"
     );
-    assert!(strings.is_empty(), "a highlight never touches the string bucket");
+    assert!(
+        strings.is_empty(),
+        "a highlight never touches the string bucket"
+    );
 
     // The IDENTICAL `==` bytes in a CODE buffer (a comparison operator, not a
     // highlight): no md spans at all, and consequently no extra wash quad.
@@ -341,7 +416,9 @@ fn prose_diff_transcript_draws_highlight_wash_and_struck_deletion() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping prose_diff_transcript_draws_highlight_wash_and_struck_deletion: no wgpu adapter");
+        eprintln!(
+            "skipping prose_diff_transcript_draws_highlight_wash_and_struck_deletion: no wgpu adapter"
+        );
         return;
     };
     // A deletion, an insertion, and an untouched-fold — the real serializer output.
@@ -354,8 +431,14 @@ fn prose_diff_transcript_draws_highlight_wash_and_struck_deletion() {
         "Comparing with earlier",
     );
     // The transcript IS awl's diff vocabulary: a struck deletion + a washed insertion.
-    assert!(transcript.contains("~~"), "struck deletion speaks real `~~` markdown");
-    assert!(transcript.contains("=="), "highlight-washed insertion in the drawn text");
+    assert!(
+        transcript.contains("~~"),
+        "struck deletion speaks real `~~` markdown"
+    );
+    assert!(
+        transcript.contains("=="),
+        "highlight-washed insertion in the drawn text"
+    );
 
     // Park the caret on the blank line 1 (as the diff view does) so nothing reveals.
     let mut v = view(&transcript, 1, 0);
@@ -375,15 +458,24 @@ fn prose_diff_transcript_draws_highlight_wash_and_struck_deletion() {
         !highlights.is_empty(),
         "the inserted paragraph draws a highlight-wash quad: {highlights:?}"
     );
-    assert!(comments.is_empty() && strings.is_empty(), "no code washes in a prose diff");
+    assert!(
+        comments.is_empty() && strings.is_empty(),
+        "no code washes in a prose diff"
+    );
     // APPEARANCE ORACLE, strike half: the deleted paragraph really draws its
     // strike-line quads (the diff's struck rendering routes through the SAME
     // `MdKind::Strikethrough` → `strike_lines` path body prose uses — one owner,
     // no diff-only strike mechanism).
     let strikes = p.strike_lines();
-    assert!(!strikes.is_empty(), "the struck deletion draws strike-line quads");
+    assert!(
+        !strikes.is_empty(),
+        "the struck deletion draws strike-line quads"
+    );
     for s in &strikes {
-        assert!(s.amp == 0.0 && s.thickness > 0.0, "a strike is a flat positive stroke: {s:?}");
+        assert!(
+            s.amp == 0.0 && s.thickness > 0.0,
+            "a strike is a flat positive stroke: {s:?}"
+        );
     }
 }
 
@@ -396,32 +488,64 @@ fn prose_diff_transcript_draws_highlight_wash_and_struck_deletion() {
 fn merge_row_bands_contract() {
     use super::rects::merge_row_bands;
     // Three contiguous same-width rows (a uniform "panel") -> one quad.
-    let uniform = vec![[10.0, 0.0, 100.0, 32.0], [10.0, 32.0, 100.0, 32.0], [10.0, 64.0, 100.0, 32.0]];
+    let uniform = vec![
+        [10.0, 0.0, 100.0, 32.0],
+        [10.0, 32.0, 100.0, 32.0],
+        [10.0, 64.0, 100.0, 32.0],
+    ];
     let merged = merge_row_bands(uniform);
-    assert_eq!(merged.len(), 1, "three contiguous rows merge to one: {merged:?}");
-    assert!((merged[0][1] - 0.0).abs() < 1e-3, "merged top == first row's top");
-    assert!((merged[0][3] - 96.0).abs() < 1e-3, "merged height == sum of all three: {merged:?}");
+    assert_eq!(
+        merged.len(),
+        1,
+        "three contiguous rows merge to one: {merged:?}"
+    );
+    assert!(
+        (merged[0][1] - 0.0).abs() < 1e-3,
+        "merged top == first row's top"
+    );
+    assert!(
+        (merged[0][3] - 96.0).abs() < 1e-3,
+        "merged height == sum of all three: {merged:?}"
+    );
     assert!((merged[0][0] - 10.0).abs() < 1e-3 && (merged[0][2] - 100.0).abs() < 1e-3);
 
     // Variable-width contiguous rows (a wrapped prose wash) -> ONE quad at
     // the UNION x-range.
     let variable = vec![[20.0, 0.0, 30.0, 32.0], [5.0, 32.0, 80.0, 32.0]];
     let merged_v = merge_row_bands(variable);
-    assert_eq!(merged_v.len(), 1, "variable-width contiguous rows still merge: {merged_v:?}");
-    assert!((merged_v[0][0] - 5.0).abs() < 1e-3, "union left == the wider row's left");
-    assert!((merged_v[0][2] - 80.0).abs() < 1e-3, "union width == max(20+30, 5+80) - 5 = 80: {merged_v:?}");
+    assert_eq!(
+        merged_v.len(),
+        1,
+        "variable-width contiguous rows still merge: {merged_v:?}"
+    );
+    assert!(
+        (merged_v[0][0] - 5.0).abs() < 1e-3,
+        "union left == the wider row's left"
+    );
+    assert!(
+        (merged_v[0][2] - 80.0).abs() < 1e-3,
+        "union width == max(20+30, 5+80) - 5 = 80: {merged_v:?}"
+    );
     assert!((merged_v[0][3] - 64.0).abs() < 1e-3);
 
     // Two bands on the SAME row (equal y, disjoint x) never merge into
     // each other.
     let same_row = vec![[0.0, 0.0, 10.0, 32.0], [50.0, 0.0, 10.0, 32.0]];
     let merged_s = merge_row_bands(same_row);
-    assert_eq!(merged_s.len(), 2, "same-row bands stay separate: {merged_s:?}");
+    assert_eq!(
+        merged_s.len(),
+        2,
+        "same-row bands stay separate: {merged_s:?}"
+    );
 
     // A real vertical GAP (row 2 skipped entirely) keeps the two runs apart.
     let gapped = vec![[0.0, 0.0, 10.0, 32.0], [0.0, 64.0, 10.0, 32.0]];
     let merged_g = merge_row_bands(gapped);
-    assert_eq!(merged_g.len(), 2, "a real gap keeps bands separate: {merged_g:?}");
+    assert_eq!(
+        merged_g.len(),
+        2,
+        "a real gap keeps bands separate: {merged_g:?}"
+    );
 
     // Empty / single input pass through untouched.
     assert!(merge_row_bands(Vec::new()).is_empty());
@@ -439,7 +563,9 @@ fn multiline_comment_wash_merges_into_one_continuous_band() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping multiline_comment_wash_merges_into_one_continuous_band: no wgpu adapter");
+        eprintln!(
+            "skipping multiline_comment_wash_merges_into_one_continuous_band: no wgpu adapter"
+        );
         return;
     };
     let text = "/* line one\n   line two\n   line three */\nlet x = 1;\n";
@@ -448,7 +574,8 @@ fn multiline_comment_wash_merges_into_one_continuous_band() {
     p.set_view(&v);
     let (comments, _strings, _highlights) = p.wash_rects();
     assert_eq!(
-        comments.len(), 1,
+        comments.len(),
+        1,
         "a 3-row block comment merges into one continuous wash band: {comments:?}"
     );
     let expected_h = 3.0 * p.metrics.line_height;
@@ -492,15 +619,24 @@ fn fence_panel_overhang_survives_content_clip_with_page_mode_off() {
     // column_left() exactly (text_pad() == 0.0), so a clip clamped to
     // column_left() would leave NO room to still show the inset; a pass here
     // cannot be an accident of leftover page padding.
-    assert_eq!(p.text_pad(), 0.0, "precondition: page mode off => text_pad is hard-zeroed");
+    assert_eq!(
+        p.text_pad(),
+        0.0,
+        "precondition: page mode off => text_pad is hard-zeroed"
+    );
     assert!(
         (p.text_left() - p.column_left()).abs() < 1e-4,
         "precondition: text_left == column_left with zero slack between them: {} vs {}",
-        p.text_left(), p.column_left()
+        p.text_left(),
+        p.column_left()
     );
 
     let rects = p.fence_panel_rects();
-    assert_eq!(rects.len(), 1, "one fenced block => one merged panel quad: {rects:?}");
+    assert_eq!(
+        rects.len(),
+        1,
+        "one fenced block => one merged panel quad: {rects:?}"
+    );
     let [rx, _ry, rw, _rh] = rects[0];
 
     let inset = FENCE_PANEL_INSET_X * p.metrics.zoom;
@@ -510,7 +646,8 @@ fn fence_panel_overhang_survives_content_clip_with_page_mode_off() {
         (rx - want_left).abs() < 1e-2,
         "panel left keeps its FENCE_PANEL_INSET_X overhang past text_left ({}), \
          not clamped to column_left ({}): got {rx}",
-        want_left, p.column_left()
+        want_left,
+        p.column_left()
     );
     assert!(
         rx < p.column_left() - 1e-2,
@@ -557,15 +694,24 @@ fn code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off()
     p.set_view(&v);
 
     // PRECONDITION: zero slack, same as the fence-panel test.
-    assert_eq!(p.text_pad(), 0.0, "precondition: page mode off => text_pad is hard-zeroed");
+    assert_eq!(
+        p.text_pad(),
+        0.0,
+        "precondition: page mode off => text_pad is hard-zeroed"
+    );
     assert!(
         (p.text_left() - p.column_left()).abs() < 1e-4,
         "precondition: text_left == column_left with zero slack between them: {} vs {}",
-        p.text_left(), p.column_left()
+        p.text_left(),
+        p.column_left()
     );
 
     let rects = p.code_pill_rects();
-    assert_eq!(rects.len(), 1, "one inline-code span => one pill quad: {rects:?}");
+    assert_eq!(
+        rects.len(),
+        1,
+        "one inline-code span => one pill quad: {rects:?}"
+    );
     let [rx, ..] = rects[0];
 
     let inset = CODE_PILL_INSET_X * p.metrics.zoom;
@@ -574,7 +720,8 @@ fn code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off()
         (rx - want_left).abs() < 1e-2,
         "pill left keeps its CODE_PILL_INSET_X cap past text_left ({}), not clamped to \
          column_left ({}): got {rx}",
-        want_left, p.column_left()
+        want_left,
+        p.column_left()
     );
     assert!(
         rx < p.column_left() - 1e-2,
@@ -594,7 +741,9 @@ fn fence_panel_cache_stays_warm_across_cursor_and_scroll_rebuilds_on_edit() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping fence_panel_cache_stays_warm_across_cursor_and_scroll_rebuilds_on_edit: no wgpu adapter");
+        eprintln!(
+            "skipping fence_panel_cache_stays_warm_across_cursor_and_scroll_rebuilds_on_edit: no wgpu adapter"
+        );
         return;
     };
     let text = "```rust\nlet x = 1;\n```\n";
@@ -612,7 +761,8 @@ fn fence_panel_cache_stays_warm_across_cursor_and_scroll_rebuilds_on_edit() {
     let _ = p.fence_panel_rects();
     assert_eq!(p.reshape_count, reshapes, "a cursor move must not reshape");
     assert_eq!(
-        p.fence_panel_cache_version(), Some(key),
+        p.fence_panel_cache_version(),
+        Some(key),
         "a cursor move keeps the fence-panel protos warm"
     );
 
@@ -624,7 +774,8 @@ fn fence_panel_cache_stays_warm_across_cursor_and_scroll_rebuilds_on_edit() {
     let _ = p.fence_panel_rects();
     assert_eq!(p.reshape_count, reshapes + 1, "the edit reshapes once");
     assert_ne!(
-        p.fence_panel_cache_version(), Some(key),
+        p.fence_panel_cache_version(),
+        Some(key),
         "an edit rebuilds the fence-panel protos"
     );
 
@@ -656,8 +807,14 @@ fn wysiwyg_flip_rekeys_wash_and_fence_panel_caches() {
     // WYSIWYG ON: the pill + panel are present; capture each cache's key.
     crate::markdown::set_wysiwyg_on(true);
     p.set_view(&v);
-    assert!(!p.code_pill_rects().is_empty(), "wysiwyg on: the inline-code pill draws");
-    assert!(!p.fence_panel_rects().is_empty(), "wysiwyg on: the fence panel draws");
+    assert!(
+        !p.code_pill_rects().is_empty(),
+        "wysiwyg on: the inline-code pill draws"
+    );
+    assert!(
+        !p.fence_panel_rects().is_empty(),
+        "wysiwyg on: the fence panel draws"
+    );
     let wash_key_on = p.wash_cache_version().expect("wash protos built");
     let panel_key_on = p.fence_panel_cache_version().expect("panel protos built");
 
@@ -676,11 +833,13 @@ fn wysiwyg_flip_rekeys_wash_and_fence_panel_caches() {
         "wysiwyg off: no panel (a stale fence-panel bucket would still draw one)"
     );
     assert_ne!(
-        p.wash_cache_version(), Some(wash_key_on),
+        p.wash_cache_version(),
+        Some(wash_key_on),
         "flipping wysiwyg rekeys the wash cache"
     );
     assert_ne!(
-        p.fence_panel_cache_version(), Some(panel_key_on),
+        p.fence_panel_cache_version(),
+        Some(panel_key_on),
         "flipping wysiwyg rekeys the fence-panel cache"
     );
 
@@ -700,7 +859,9 @@ fn wysiwyg_flip_rekeys_wash_and_fence_panel_caches() {
 fn strike_lines_hug_the_struck_run_and_survive_the_caret() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping strike_lines_hug_the_struck_run_and_survive_the_caret: no wgpu adapter");
+        eprintln!(
+            "skipping strike_lines_hug_the_struck_run_and_survive_the_caret: no wgpu adapter"
+        );
         return;
     };
     let text = "keep ~~cut~~ end\nplain second line\n";
@@ -710,7 +871,11 @@ fn strike_lines_hug_the_struck_run_and_survive_the_caret() {
     p.set_view(&v);
 
     let strikes = p.strike_lines();
-    assert_eq!(strikes.len(), 1, "one struck run, one strike line: {strikes:?}");
+    assert_eq!(
+        strikes.len(),
+        1,
+        "one struck run, one strike line: {strikes:?}"
+    );
     let s = strikes[0];
     assert_eq!(s.amp, 0.0, "a strike is FLAT");
     assert!(s.thickness > 0.0, "positive stroke");
@@ -718,10 +883,22 @@ fn strike_lines_hug_the_struck_run_and_survive_the_caret() {
     // The struck content "cut" is chars 7..10 on line 0; its selection rect
     // reads the SAME row xs boundaries the strike proto captured.
     let sel = p.range_rects((0, 7), (0, 10));
-    assert_eq!(sel.len(), 1, "one selection rect for the struck run: {sel:?}");
+    assert_eq!(
+        sel.len(),
+        1,
+        "one selection rect for the struck run: {sel:?}"
+    );
     let [rx, ry, rw, rh] = sel[0];
-    assert!((s.x - rx).abs() < 0.6, "strike x hugs the run: {} vs {rx}", s.x);
-    assert!((s.w - rw).abs() < 2.5, "strike width hugs the run: {} vs {rw}", s.w);
+    assert!(
+        (s.x - rx).abs() < 0.6,
+        "strike x hugs the run: {} vs {rx}",
+        s.x
+    );
+    assert!(
+        (s.w - rw).abs() < 2.5,
+        "strike width hugs the run: {} vs {rw}",
+        s.w
+    );
     // Vertically INSIDE the run's glyph cell, centered by the owner's fraction.
     let center = s.y + s.h * 0.5;
     assert!(
@@ -737,14 +914,21 @@ fn strike_lines_hug_the_struck_run_and_survive_the_caret() {
     on.is_markdown = true;
     p.set_view(&on);
     let on_strikes = p.strike_lines();
-    assert_eq!(on_strikes.len(), 1, "the strike line survives the caret landing");
+    assert_eq!(
+        on_strikes.len(),
+        1,
+        "the strike line survives the caret landing"
+    );
 
     // A strike-less buffer: zero strike geometry (the byte-identity half — the
     // pipeline uploads zero instances, so nothing can draw).
     let mut plain = view("no struck text here\n", 0, 0);
     plain.is_markdown = true;
     p.set_view(&plain);
-    assert!(p.strike_lines().is_empty(), "no struck span, no strike geometry");
+    assert!(
+        p.strike_lines().is_empty(),
+        "no struck span, no strike geometry"
+    );
 }
 
 /// THE ONE-OWNER LAW, ink half: the struck TEXT's ink (`md_attrs`'
@@ -773,7 +957,9 @@ fn strike_text_and_line_share_one_ink_in_every_world() {
 fn strike_line_paints_real_pixels_through_the_struck_row() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping strike_line_paints_real_pixels_through_the_struck_row: no wgpu adapter");
+        eprintln!(
+            "skipping strike_line_paints_real_pixels_through_the_struck_row: no wgpu adapter"
+        );
         return;
     };
     let w = 1200u32;
@@ -818,7 +1004,9 @@ fn strike_line_paints_real_pixels_through_the_struck_row() {
 fn link_underline_hugs_the_link_text_and_survives_the_caret() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping link_underline_hugs_the_link_text_and_survives_the_caret: no wgpu adapter");
+        eprintln!(
+            "skipping link_underline_hugs_the_link_text_and_survives_the_caret: no wgpu adapter"
+        );
         return;
     };
     let text = "keep [linked text](https://example.com) end\nplain second line\n";
@@ -836,10 +1024,22 @@ fn link_underline_hugs_the_link_text_and_survives_the_caret() {
     // The link TEXT "linked text" is chars 6..17 on line 0; its selection rect
     // reads the SAME row xs boundaries the underline proto captured.
     let sel = p.range_rects((0, 6), (0, 17));
-    assert_eq!(sel.len(), 1, "one selection rect for the link text: {sel:?}");
+    assert_eq!(
+        sel.len(),
+        1,
+        "one selection rect for the link text: {sel:?}"
+    );
     let [rx, ry, rw, rh] = sel[0];
-    assert!((s.x - rx).abs() < 0.6, "underline x hugs the link text: {} vs {rx}", s.x);
-    assert!((s.w - rw).abs() < 2.5, "underline width hugs the link text: {} vs {rw}", s.w);
+    assert!(
+        (s.x - rx).abs() < 0.6,
+        "underline x hugs the link text: {} vs {rx}",
+        s.x
+    );
+    assert!(
+        (s.w - rw).abs() < 2.5,
+        "underline width hugs the link text: {} vs {rw}",
+        s.w
+    );
     // Near the BASELINE — inside the glyph cell, but in its LOWER portion
     // (unlike the strike, which centers) — proving the two share the primitive
     // but differ in vertical placement.
@@ -863,13 +1063,20 @@ fn link_underline_hugs_the_link_text_and_survives_the_caret() {
     on.is_markdown = true;
     p.set_view(&on);
     let on_lines = p.link_underlines();
-    assert_eq!(on_lines.len(), 1, "the underline survives the caret landing");
+    assert_eq!(
+        on_lines.len(),
+        1,
+        "the underline survives the caret landing"
+    );
 
     // A link-less buffer: zero underline geometry (the byte-identity half).
     let mut plain = view("no link text here\n", 0, 0);
     plain.is_markdown = true;
     p.set_view(&plain);
-    assert!(p.link_underlines().is_empty(), "no link span, no underline geometry");
+    assert!(
+        p.link_underlines().is_empty(),
+        "no link span, no underline geometry"
+    );
 }
 
 /// APPEARANCE ORACLE (real GPU pixels): a linked row ACTUALLY PAINTS DIFFERENT

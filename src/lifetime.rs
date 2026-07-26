@@ -59,7 +59,10 @@ mod tests {
     fn defaults_closed() {
         let _g = crate::testlock::serial();
         set_open(false);
-        assert!(!lifetime_open(), "the Lifetime stats card is closed by default");
+        assert!(
+            !lifetime_open(),
+            "the Lifetime stats card is closed by default"
+        );
     }
 
     #[test]

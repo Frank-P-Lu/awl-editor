@@ -53,7 +53,10 @@ fn syntax_spans_emit_the_four_roles() {
     assert!(kinds.contains(&SynKind::Definition), "def `foo`: {s:?}");
     assert!(kinds.contains(&SynKind::Str), "string `\"hi\"`: {s:?}");
     assert!(kinds.contains(&SynKind::Constant), "constant `42`: {s:?}");
-    assert!(kinds.contains(&SynKind::Comment), "comment `// note`: {s:?}");
+    assert!(
+        kinds.contains(&SynKind::Comment),
+        "comment `// note`: {s:?}"
+    );
 }
 
 /// The real keymap resolves a chord parsed by `keyspec::parse_chord` to the
@@ -75,7 +78,11 @@ fn syntax_spans_emit_the_four_roles() {
 fn keymap_resolves_a_chord() {
     let mut km = KeymapState::new_with_convention(crate::convention::Convention::Mac);
     let (key, mods) = crate::keyspec::parse_chord("C-f").expect("C-f parses");
-    assert_eq!(km.resolve(&key, &mods), Action::ForwardChar, "C-f is ForwardChar under Mac convention");
+    assert_eq!(
+        km.resolve(&key, &mods),
+        Action::ForwardChar,
+        "C-f is ForwardChar under Mac convention"
+    );
 }
 
 /// THE LINUX-NATIVE KEYMAP: `convention::classify_ua` — the pure UA/platform-string
@@ -85,11 +92,24 @@ fn keymap_resolves_a_chord() {
 /// prove the classifier compiles/behaves under wasm32 too).
 #[wasm_bindgen_test]
 fn classify_ua_reads_mac_and_defaults_others_to_linux_on_real_wasm() {
-    use crate::convention::{classify_ua, Convention};
-    assert_eq!(classify_ua("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"), Convention::Mac);
-    assert_eq!(classify_ua("Mozilla/5.0 (X11; Linux x86_64)"), Convention::Linux);
-    assert_eq!(classify_ua("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"), Convention::Linux);
-    assert_eq!(classify_ua(""), Convention::Linux, "an unrecognized/empty UA defaults to Ctrl");
+    use crate::convention::{Convention, classify_ua};
+    assert_eq!(
+        classify_ua("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"),
+        Convention::Mac
+    );
+    assert_eq!(
+        classify_ua("Mozilla/5.0 (X11; Linux x86_64)"),
+        Convention::Linux
+    );
+    assert_eq!(
+        classify_ua("Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
+        Convention::Linux
+    );
+    assert_eq!(
+        classify_ua(""),
+        Convention::Linux,
+        "an unrecognized/empty UA defaults to Ctrl"
+    );
 }
 
 /// `convention::set_web_convention_from_ua` — the ONLY writer of the web-detected
@@ -98,10 +118,13 @@ fn classify_ua_reads_mac_and_defaults_others_to_linux_on_real_wasm() {
 /// actually reaches the resolver every dispatch/label surface calls).
 #[wasm_bindgen_test]
 fn set_web_convention_from_ua_drives_convention_current_on_real_wasm() {
-    use crate::convention::{set_web_convention_from_ua, Convention};
+    use crate::convention::{Convention, set_web_convention_from_ua};
     assert_eq!(set_web_convention_from_ua("Macintosh"), Convention::Mac);
     assert_eq!(Convention::current(), Convention::Mac);
-    assert_eq!(set_web_convention_from_ua("X11; Linux x86_64"), Convention::Linux);
+    assert_eq!(
+        set_web_convention_from_ua("X11; Linux x86_64"),
+        Convention::Linux
+    );
     assert_eq!(Convention::current(), Convention::Linux);
 }
 
@@ -117,7 +140,10 @@ fn set_web_convention_from_ua_drives_convention_current_on_real_wasm() {
 /// excludes every hide-listed command in the ACTUAL compiled wasm binary.
 #[wasm_bindgen_test]
 fn visible_commands_exclude_the_hide_list_on_real_wasm() {
-    assert_eq!(crate::commands::Platform::current(), crate::commands::Platform::Web);
+    assert_eq!(
+        crate::commands::Platform::current(),
+        crate::commands::Platform::Web
+    );
     let names: Vec<&str> = crate::commands::visible().iter().map(|c| c.name).collect();
     for hidden in [
         "Quit",
@@ -128,13 +154,22 @@ fn visible_commands_exclude_the_hide_list_on_real_wasm() {
         "Clean unused assets…",
         "Recent projects…",
     ] {
-        assert!(!names.contains(&hidden), "{hidden} must not appear in the wasm-visible catalog: {names:?}");
+        assert!(
+            !names.contains(&hidden),
+            "{hidden} must not appear in the wasm-visible catalog: {names:?}"
+        );
     }
     // A representative always-available command survives.
-    assert!(names.contains(&"Save"), "Save must stay visible on web: {names:?}");
+    assert!(
+        names.contains(&"Save"),
+        "Save must stay visible on web: {names:?}"
+    );
     // Keybindings… stopped hiding once the web-config round gave it a real
     // `config.toml` to persist rebinds into (`fs::web_config_path`).
-    assert!(names.contains(&"Keybindings…"), "Keybindings… must be visible on web: {names:?}");
+    assert!(
+        names.contains(&"Keybindings…"),
+        "Keybindings… must be visible on web: {names:?}"
+    );
 }
 
 /// The DISPATCH gate actually no-ops a hidden command's `Action` through the real
@@ -166,9 +201,21 @@ fn quit_action_is_a_no_op_through_apply_core_on_real_wasm() {
         oracle: None,
     };
     let effect = crate::actions::apply_core(&mut ctx, &Action::Quit, false);
-    assert_eq!(effect, crate::actions::Effect::None, "Quit must be a no-op effect on web");
-    assert_eq!(buffer.text(), "hello", "the buffer must be completely untouched");
-    assert_eq!(buffer.version(), version_before, "no edit must have been recorded");
+    assert_eq!(
+        effect,
+        crate::actions::Effect::None,
+        "Quit must be a no-op effect on web"
+    );
+    assert_eq!(
+        buffer.text(),
+        "hello",
+        "the buffer must be completely untouched"
+    );
+    assert_eq!(
+        buffer.version(),
+        version_before,
+        "no edit must have been recorded"
+    );
 }
 
 // ── WEB CHORD SANITY: label truth on the REAL compiled wasm binary ──────────────
@@ -189,12 +236,18 @@ fn quit_action_is_a_no_op_through_apply_core_on_real_wasm() {
 #[wasm_bindgen_test]
 fn web_reserved_native_chord_shows_its_web_alternate_on_the_real_palette_label() {
     use crate::convention::set_web_convention_from_ua;
-    assert_eq!(crate::commands::Platform::current(), crate::commands::Platform::Web);
+    assert_eq!(
+        crate::commands::Platform::current(),
+        crate::commands::Platform::Web
+    );
     set_web_convention_from_ua("Macintosh");
     let binds = crate::commands::visible_effective_bindings(&[], &[]);
     let names = crate::commands::visible_names();
     let new_document = names.iter().position(|n| n == "New document").unwrap();
-    assert_eq!(binds[new_document], "\u{2303}J", "New document's web alternate (Ctrl-J) should show, not Cmd-N");
+    assert_eq!(
+        binds[new_document], "\u{2303}J",
+        "New document's web alternate (Ctrl-J) should show, not Cmd-N"
+    );
     let save = names.iter().position(|n| n == "Save").unwrap();
     assert_eq!(binds[save], "⌘S", "an ordinary chord is untouched");
     set_web_convention_from_ua(""); // leave the global in its default state
@@ -206,10 +259,17 @@ fn web_reserved_native_chord_shows_its_web_alternate_on_the_real_palette_label()
 /// `websmoke` cannot construct a live `App`.
 #[wasm_bindgen_test]
 fn web_alternate_chord_dispatches_through_the_real_keymap_on_wasm() {
-    use crate::convention::{set_web_convention_from_ua, Convention};
-    assert_eq!(crate::commands::Platform::current(), crate::commands::Platform::Web);
+    use crate::convention::{Convention, set_web_convention_from_ua};
+    assert_eq!(
+        crate::commands::Platform::current(),
+        crate::commands::Platform::Web
+    );
     set_web_convention_from_ua("Macintosh");
-    let keys = crate::commands::web_alternate_keys(&[], Convention::current(), crate::commands::Platform::current());
+    let keys = crate::commands::web_alternate_keys(
+        &[],
+        Convention::current(),
+        crate::commands::Platform::current(),
+    );
     let mut km = crate::keymap::KeymapState::with_overrides(&keys);
     let (key, mods) = crate::keyspec::parse_chord("C-j").expect("C-j parses");
     assert_eq!(km.resolve(&key, &mods), Action::NewDocument);
@@ -228,7 +288,10 @@ fn linux_displaced_emacs_default_is_hidden_from_the_real_palette_label() {
     let binds = crate::commands::visible_effective_bindings(&[], &[]);
     let names = crate::commands::visible_names();
     let search = names.iter().position(|n| n == "Search forward").unwrap();
-    assert_eq!(binds[search], "Ctrl+F", "the displaced C-s default must not appear");
+    assert_eq!(
+        binds[search], "Ctrl+F",
+        "the displaced C-s default must not appear"
+    );
     set_web_convention_from_ua(""); // leave the global in its default state
 }
 
@@ -316,9 +379,15 @@ fn download_filename_derivation_on_real_wasm() {
 /// list_on_real_wasm`'s shape, in the other direction).
 #[wasm_bindgen_test]
 fn download_file_command_is_visible_on_real_wasm() {
-    assert_eq!(crate::commands::Platform::current(), crate::commands::Platform::Web);
+    assert_eq!(
+        crate::commands::Platform::current(),
+        crate::commands::Platform::Web
+    );
     let names: Vec<&str> = crate::commands::visible().iter().map(|c| c.name).collect();
-    assert!(names.contains(&"Download file"), "Download file must be visible on web: {names:?}");
+    assert!(
+        names.contains(&"Download file"),
+        "Download file must be visible on web: {names:?}"
+    );
 }
 
 /// `Action::DownloadFile` signals the real `Effect::DownloadFile` through
@@ -348,7 +417,19 @@ fn download_file_action_signals_the_effect_through_apply_core_on_real_wasm() {
         oracle: None,
     };
     let effect = crate::actions::apply_core(&mut ctx, &Action::DownloadFile, false);
-    assert_eq!(effect, crate::actions::Effect::DownloadFile, "DownloadFile must signal its effect on web");
-    assert_eq!(buffer.text(), "hello", "the buffer must be completely untouched");
-    assert_eq!(buffer.version(), version_before, "no edit must have been recorded");
+    assert_eq!(
+        effect,
+        crate::actions::Effect::DownloadFile,
+        "DownloadFile must signal its effect on web"
+    );
+    assert_eq!(
+        buffer.text(),
+        "hello",
+        "the buffer must be completely untouched"
+    );
+    assert_eq!(
+        buffer.version(),
+        version_before,
+        "no edit must have been recorded"
+    );
 }

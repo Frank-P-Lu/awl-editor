@@ -100,7 +100,12 @@ struct Marks {
 
 impl Marks {
     fn new(n: usize) -> Self {
-        Self { t0: Instant::now(), samples: vec![Vec::new(); n], i: 0, timed: false }
+        Self {
+            t0: Instant::now(),
+            samples: vec![Vec::new(); n],
+            i: 0,
+            timed: false,
+        }
     }
     fn begin(&mut self, timed: bool) {
         self.i = 0;
@@ -173,7 +178,9 @@ async fn run_async() -> anyhow::Result<()> {
     println!(
         "frame profiler — {WIDTH}x{HEIGHT} @{DPI}x · debug panel ON · {WARMUP} warmup + {FRAMES} timed frames"
     );
-    println!("(headless: submit+poll SERIALIZES the GPU cost; the window overlaps it and adds present/acquire)");
+    println!(
+        "(headless: submit+poll SERIALIZES the GPU cost; the window overlaps it and adds present/acquire)"
+    );
     for name in ["CAPTURE.md", "CLAUDE.md"] {
         profile_doc(&device, &queue, &cache, &spell, name)?;
     }
@@ -215,7 +222,13 @@ fn run_one_frame(
     // ---- TextPipeline::prepare, sub-call by sub-call (same order) -----
     p.sync_wrap_width();
     marks.mark();
-    p.viewport.update(queue, Resolution { width: WIDTH, height: HEIGHT });
+    p.viewport.update(
+        queue,
+        Resolution {
+            width: WIDTH,
+            height: HEIGHT,
+        },
+    );
     marks.mark();
     p.prepare_background_layer(queue, WIDTH, HEIGHT);
     marks.mark();
@@ -260,7 +273,8 @@ fn run_one_frame(
     // prepare_spell_layer, split: rect building vs GPU upload
     let squiggles = p.spell_squiggles();
     marks.mark();
-    p.spell_pipeline.prepare(device, queue, WIDTH, HEIGHT, &squiggles);
+    p.spell_pipeline
+        .prepare(device, queue, WIDTH, HEIGHT, &squiggles);
     marks.mark();
     // prepare_nit_layer, split the same way
     let nits = p.nit_underlines();
@@ -318,7 +332,11 @@ fn profile_doc(
     // Offscreen color target standing in for the swapchain frame.
     let target = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("awl frame bench target"),
-        size: wgpu::Extent3d { width: WIDTH, height: HEIGHT, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: WIDTH,
+            height: HEIGHT,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -353,7 +371,10 @@ fn profile_doc(
     if let Some((words, mins)) = p.readout_report() {
         println!("     ({words} words · {mins} min read)");
     }
-    println!("{:>29} | {:>10} | {:>10}", "stage", "median ms", "% of total");
+    println!(
+        "{:>29} | {:>10} | {:>10}",
+        "stage", "median ms", "% of total"
+    );
     println!("{:->29}-+-{:->10}-+-{:->10}", "", "", "");
     let mut sum_med: u128 = 0;
     for (i, stage) in STAGE_NAMES.iter().enumerate() {
@@ -442,16 +463,16 @@ const ZOOM_BURST_SAMPLES: usize = 7;
 /// faceted picker does. Starts from Mangrove (JetBrains Mono, the user's world)
 /// and returns to it, so lap 2 replays the identical face sequence.
 const BURST_WORLDS: [&str; 10] = [
-    "Gumtree",   // Literata
-    "Bilby",     // Newsreader 16pt 16pt
-    "Saltpan",   // Fraunces 9pt
-    "Quokka",    // IBM Plex Sans
+    "Gumtree",  // Literata
+    "Bilby",    // Newsreader 16pt 16pt
+    "Saltpan",  // Fraunces 9pt
+    "Quokka",   // IBM Plex Sans
     "Bombora",  // EB Garamond
-    "Mulga",   // Zilla Slab
-    "Tawny",     // IBM Plex Mono
-    "Mopoke",    // Bitter
-    "Galah",     // Figtree
-    "Mangrove",  // JetBrains Mono (back to the start face)
+    "Mulga",    // Zilla Slab
+    "Tawny",    // IBM Plex Mono
+    "Mopoke",   // Bitter
+    "Galah",    // Figtree
+    "Mangrove", // JetBrains Mono (back to the start face)
 ];
 
 /// Run the THEME-BURST profiler: N successive font-changing theme switches over
@@ -565,7 +586,15 @@ fn burst_doc(
         println!("---- lap {lap}: {label} ----");
         println!(
             "{:>10} | {:>21} | {:>9} | {:>9} | {:>9} | {:>9} | {:>9} | {:>9} | {:>9}",
-            "world", "face", "sync_thm", "text prep", "spell/nit", "rest prep", "gpu", "frame1", "frame2"
+            "world",
+            "face",
+            "sync_thm",
+            "text prep",
+            "spell/nit",
+            "rest prep",
+            "gpu",
+            "frame1",
+            "frame2"
         );
         for name in BURST_WORLDS {
             crate::theme::set_active_by_name(name);
@@ -763,7 +792,9 @@ fn zoom_burst_doc(
     }
 
     anyhow::ensure!(
-        eager_reshapes.iter().all(|&n| n == ZOOM_BURST_LEVELS.len() as u64),
+        eager_reshapes
+            .iter()
+            .all(|&n| n == ZOOM_BURST_LEVELS.len() as u64),
         "zoom eager replay did not reshape once per requested level: {eager_reshapes:?}"
     );
     anyhow::ensure!(
@@ -776,10 +807,26 @@ fn zoom_burst_doc(
     let coalesced_total_ms = median(coalesced_total) as f64 / 1.0e6;
     println!();
     println!("==== {doc}: {lines} lines ====");
-    println!("{:>11} | {:>8} | {:>12} | {:>18}", "route", "reflows", "layout", "layout+first frame");
-    println!("{:>11} | {:>8} | {:>10.1} ms | {:>16.1} ms", "eager", ZOOM_BURST_LEVELS.len(), eager_layout_ms, eager_total_ms);
-    println!("{:>11} | {:>8} | {:>10.1} ms | {:>16.1} ms", "coalesced", 1, coalesced_layout_ms, coalesced_total_ms);
-    println!("  saved: {:.1} ms median ({:.1}x end-to-end)", eager_total_ms - coalesced_total_ms, eager_total_ms / coalesced_total_ms.max(0.001));
+    println!(
+        "{:>11} | {:>8} | {:>12} | {:>18}",
+        "route", "reflows", "layout", "layout+first frame"
+    );
+    println!(
+        "{:>11} | {:>8} | {:>10.1} ms | {:>16.1} ms",
+        "eager",
+        ZOOM_BURST_LEVELS.len(),
+        eager_layout_ms,
+        eager_total_ms
+    );
+    println!(
+        "{:>11} | {:>8} | {:>10.1} ms | {:>16.1} ms",
+        "coalesced", 1, coalesced_layout_ms, coalesced_total_ms
+    );
+    println!(
+        "  saved: {:.1} ms median ({:.1}x end-to-end)",
+        eager_total_ms - coalesced_total_ms,
+        eager_total_ms / coalesced_total_ms.max(0.001)
+    );
     Ok(())
 }
 
@@ -851,9 +898,15 @@ async fn frost_async() -> anyhow::Result<()> {
     println!(
         "frost profiler — {WIDTH}x{HEIGHT} @{DPI}x · page ON · outline ON · debug ON · \
          seed mode: {} · {WARMUP} warmup + {FRAMES} timed frames",
-        if per_glyph { "PER-GLYPH" } else { "WORD-RUN (degradation arm)" }
+        if per_glyph {
+            "PER-GLYPH"
+        } else {
+            "WORD-RUN (degradation arm)"
+        }
     );
-    println!("(headless: submit+poll SERIALIZES the GPU cost; the window overlaps it and adds present/acquire)");
+    println!(
+        "(headless: submit+poll SERIALIZES the GPU cost; the window overlaps it and adds present/acquire)"
+    );
     for world in ["Mangrove", "Firetail"] {
         frost_world(&device, &queue, &cache, &spell, world)?;
     }
@@ -885,7 +938,11 @@ fn frost_world(
     p.set_view(&view);
     let target = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("awl frost bench target"),
-        size: wgpu::Extent3d { width: WIDTH, height: HEIGHT, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width: WIDTH,
+            height: HEIGHT,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -915,7 +972,13 @@ fn frost_world(
     let rebuilds_before = p.frost_seed_rebuilds;
     let mut totals = Vec::with_capacity(FRAMES);
     for f in 0..FRAMES {
-        totals.push(frost_frame(&mut p, device, queue, &target_view, WARMUP + f)?);
+        totals.push(frost_frame(
+            &mut p,
+            device,
+            queue,
+            &target_view,
+            WARMUP + f,
+        )?);
     }
     let steady_rebuilds = p.frost_seed_rebuilds - rebuilds_before;
     anyhow::ensure!(
@@ -1013,7 +1076,13 @@ fn burst_frame(
     p.advance(DT);
     p.set_debug_perf(None, None, Some(1), false, Some(1000.0 / 60.0));
     p.sync_wrap_width();
-    p.viewport.update(queue, Resolution { width: w, height: h });
+    p.viewport.update(
+        queue,
+        Resolution {
+            width: w,
+            height: h,
+        },
+    );
     p.prepare_background_layer(queue, w, h);
 
     let t_text = Instant::now();
@@ -1147,7 +1216,9 @@ mod tests {
         let _g = crate::testlock::serial();
         let _world = crate::theme::WorldPin::snapshot();
         let Some((device, queue, mut p)) = headless_dqp() else {
-            eprintln!("skipping wash_layer_and_table_grid_stages_stay_in_lockstep: no wgpu adapter");
+            eprintln!(
+                "skipping wash_layer_and_table_grid_stages_stay_in_lockstep: no wgpu adapter"
+            );
             return;
         };
         // Pin a DARK world explicitly — the STRING wash bucket only uploads on
@@ -1160,18 +1231,32 @@ mod tests {
         // `testlock::serial()` discipline exists to rule out.
         crate::theme::set_active_by_name("Tawny").unwrap();
         let text = "prose before\n```sh\n# a comment\nexport PATH=\"/usr/bin\"\n```\nprose after\n";
-        let view = ViewState { text: text.to_string(), is_markdown: true, ..ViewState::base() };
+        let view = ViewState {
+            text: text.to_string(),
+            is_markdown: true,
+            ..ViewState::base()
+        };
         p.set_view(&view);
 
         // Pure geometry sanity: `prepare_wash_layer` reads through
         // `wash_rects()`, so it must have real quads to cull + upload.
         let (comments, strings, _highlights) = p.wash_rects();
-        assert!(!comments.is_empty(), "the fenced comment must produce wash geometry: {comments:?}");
-        assert!(!strings.is_empty(), "the fenced string literal must produce wash geometry: {strings:?}");
+        assert!(
+            !comments.is_empty(),
+            "the fenced comment must produce wash geometry: {comments:?}"
+        );
+        assert!(
+            !strings.is_empty(),
+            "the fenced string literal must produce wash geometry: {strings:?}"
+        );
 
         let target = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("awl framebench test target"),
-            size: wgpu::Extent3d { width: WIDTH, height: HEIGHT, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: WIDTH,
+                height: HEIGHT,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,

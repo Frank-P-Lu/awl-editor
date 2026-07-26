@@ -87,7 +87,11 @@ pub(in crate::render) fn snap_placard_size(target: f32, anchor: f32, round_down:
         return target;
     }
     let steps = (target / anchor).ln() / PLACARD_SIZE_STEP.ln();
-    let k = if round_down { steps.floor() } else { steps.round() };
+    let k = if round_down {
+        steps.floor()
+    } else {
+        steps.round()
+    };
     anchor * (k * PLACARD_SIZE_STEP.ln()).exp()
 }
 
@@ -226,7 +230,10 @@ impl TextPipeline {
     /// changes), so excluding it once the mechanism composes for free would
     /// just be an inconsistent special case — the exact smell
     /// `CLAUDE.md`'s "merge, don't align" principle warns against.
-    pub(in crate::render) fn overlay_shape_placard(&mut self, geom: &OverlayGeom) -> Option<(f32, f32, f32, f32)> {
+    pub(in crate::render) fn overlay_shape_placard(
+        &mut self,
+        geom: &OverlayGeom,
+    ) -> Option<(f32, f32, f32, f32)> {
         if geom.header_rows == 0 || self.overlay_title.is_empty() {
             return None;
         }
@@ -272,15 +279,22 @@ impl TextPipeline {
         // ATLAS-SAFETY: snap the continuous window-tracked size to the ladder BEFORE the
         // clamp, so a live resize sweep produces a BOUNDED set of distinct giant sizes
         // (never a fresh atlas entry per drag pixel — the AtlasFull fix).
-        let font_size = snap_placard_size(scale * PLACARD_HEIGHT_PER_SCALE * short_side, reference_size, false)
-            .clamp(PLACARD_MIN_HEIGHT, PLACARD_MAX_HEIGHT);
+        let font_size = snap_placard_size(
+            scale * PLACARD_HEIGHT_PER_SCALE * short_side,
+            reference_size,
+            false,
+        )
+        .clamp(PLACARD_MIN_HEIGHT, PLACARD_MAX_HEIGHT);
         // A generous plain leading — no body text ever sits inside a
         // single-line wordmark box to match against.
         let mut line_height = font_size * 1.1;
         let metrics = GlyphMetrics::new(font_size, line_height);
-        self.placard_buffer.set_metrics(&mut self.font_system, metrics);
-        self.placard_buffer.set_size(&mut self.font_system, None, None);
-        self.placard_buffer.set_wrap(&mut self.font_system, Wrap::None);
+        self.placard_buffer
+            .set_metrics(&mut self.font_system, metrics);
+        self.placard_buffer
+            .set_size(&mut self.font_system, None, None);
+        self.placard_buffer
+            .set_wrap(&mut self.font_system, Wrap::None);
         let text = self.overlay_title.to_uppercase();
         let color = theme::placard_ink(ink).to_glyphon();
         // The wordmark is CHROME (the frame around the list, never the list),
@@ -332,8 +346,7 @@ impl TextPipeline {
             // `reference_size` keeps every width-only-resize shrink size on the ONE
             // bounded ladder — so a horizontal drag of a long title can't fill the atlas
             // either (the width-sweep the main clamp alone never covered).
-            let shrunk =
-                snap_placard_size(font_size * (avail / w), reference_size, true);
+            let shrunk = snap_placard_size(font_size * (avail / w), reference_size, true);
             line_height = shrunk * 1.1;
             self.placard_buffer.set_metrics(
                 &mut self.font_system,
@@ -494,7 +507,10 @@ impl TextPipeline {
         let bind_strs = right_bind_lines(
             geom.header_rows,
             (0..visible).map(|row| {
-                right_labels.get(top_idx + row).map(|s| s.as_str()).unwrap_or("")
+                right_labels
+                    .get(top_idx + row)
+                    .map(|s| s.as_str())
+                    .unwrap_or("")
             }),
         );
 
@@ -536,7 +552,11 @@ impl TextPipeline {
             let rows: Vec<String> = (0..visible)
                 .map(|row| {
                     let item = &self.overlay_items[top_idx + row];
-                    if elide { rowlayout::fit_primary(item, full) } else { item.clone() }
+                    if elide {
+                        rowlayout::fit_primary(item, full)
+                    } else {
+                        item.clone()
+                    }
                 })
                 .collect();
             let trailing: Vec<String> = (0..visible)
@@ -549,7 +569,13 @@ impl TextPipeline {
             return false;
         }
         let widest_right = if has_right {
-            Some(right_labels.iter().map(|s| s.chars().count()).max().unwrap_or(0))
+            Some(
+                right_labels
+                    .iter()
+                    .map(|s| s.chars().count())
+                    .max()
+                    .unwrap_or(0),
+            )
         } else {
             None
         };
@@ -562,7 +588,9 @@ impl TextPipeline {
             None
         } else {
             match rowlayout::plan(total_chars, widest_right) {
-                rowlayout::Plan::Full { primary } | rowlayout::Plan::Split { primary } => Some(primary),
+                rowlayout::Plan::Full { primary } | rowlayout::Plan::Split { primary } => {
+                    Some(primary)
+                }
                 rowlayout::Plan::Measure => None,
             }
         };
@@ -676,7 +704,11 @@ impl TextPipeline {
         // one-char-short gap for a content-hugging card sized off its own
         // widest row.
         let primary = self.widest_candidate_px(&geom) + self.overlay_char_width();
-        let secondary = if has_right { self.widest_right_px() } else { 0.0 };
+        let secondary = if has_right {
+            self.widest_right_px()
+        } else {
+            0.0
+        };
         let gap = if secondary > 0.0 {
             rowlayout::GAP_CHARS as f32 * self.overlay_char_width()
         } else {
@@ -766,9 +798,7 @@ impl TextPipeline {
             right_bind_lines(
                 geom.header_rows,
                 geom.plan.iter().map(|line| match line {
-                    ThemeLine::Item(i) => {
-                        right_labels.get(*i).map(|s| s.as_str()).unwrap_or("")
-                    }
+                    ThemeLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
                     ThemeLine::Header(_) => "",
                 }),
             )
@@ -859,7 +889,11 @@ impl TextPipeline {
         let hint_fs = name_fs * crate::markdown::type_scale::LABEL;
         let hint_h = self.overlay_hint_h();
         let base = panel_attrs();
-        let hk_hint = |c| base.clone().color(c).metrics(GlyphMetrics::new(hint_fs, hint_h));
+        let hk_hint = |c| {
+            base.clone()
+                .color(c)
+                .metrics(GlyphMetrics::new(hint_fs, hint_h))
+        };
         let sym_hint = |c| {
             Attrs::new()
                 .family(Family::Name(SYMBOL_FAMILY))
@@ -979,8 +1013,9 @@ impl TextPipeline {
         // query/hint/chrome never slant. The face may not carry a true italic;
         // cosmic-text then matches the nearest style — acceptable for a
         // gallery probe (which faces carry real italics is a probe FINDING).
-        let slant_italic =
-            crate::render::overlay_slant().map(|s| s.italic).unwrap_or(false);
+        let slant_italic = crate::render::overlay_slant()
+            .map(|s| s.italic)
+            .unwrap_or(false);
         let rk = |c| {
             if slant_italic {
                 mk(c).style(glyphon::cosmic_text::Style::Italic)
@@ -1158,8 +1193,11 @@ impl TextPipeline {
             push_symbol_split(&mut bind_spans, s, || mono(c), || sym(c));
         }
         let default_attrs = base.clone().color(ink);
-        self.panel_bind_buffer
-            .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));
+        self.panel_bind_buffer.set_size(
+            &mut self.font_system,
+            Some(geom.text_w),
+            Some(geom.card_h),
+        );
         self.panel_bind_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
         self.panel_bind_buffer.set_rich_text(
@@ -1278,7 +1316,9 @@ impl TextPipeline {
     #[cfg(test)]
     pub(in crate::render) fn overlay_footer_fit_probe(&self, width: u32) -> (f32, f32) {
         let geom = self.overlay_geometry(width);
-        (self.overlay_footer_content_px(&geom, geom.visible), geom.text_w)
+        (
+            self.overlay_footer_content_px(&geom, geom.visible),
+            geom.text_w,
+        )
     }
-
 }

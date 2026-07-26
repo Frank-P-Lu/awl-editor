@@ -117,7 +117,9 @@ pub(super) fn add_script_spans(
 ) {
     for (run, script) in crate::script::script_runs(text) {
         let id = crate::script::resolve_font_id(doc_lang, Some(script), cjk_priority);
-        let Some((fam, wt)) = fonts.get(id) else { continue };
+        let Some((fam, wt)) = fonts.get(id) else {
+            continue;
+        };
         let a = base
             .clone()
             .family(Family::Name(fam))
@@ -135,7 +137,8 @@ pub(super) fn add_script_spans(
 /// [`SYMBOL_FAMILY`] face on their runs (see [`add_symbol_spans`]). Exactly the
 /// glyph set bundled in `AwlSymbols.ttf`; keep the two in sync.
 pub(super) fn is_symbol(c: char) -> bool {
-    matches!(c as u32,
+    matches!(
+        c as u32,
         0x2318   // ⌘ Command
         | 0x21E7 // ⇧ Shift
         | 0x2325 // ⌥ Option
@@ -215,11 +218,7 @@ pub(super) fn push_symbol_split<'a>(
 /// world's display face. The bundled face is Regular/400, so no weight trap (unlike
 /// the CJK face); a default-weight name matches. No-op when `text` has no symbols,
 /// keeping symbol-free lines byte-identical.
-pub(super) fn add_symbol_spans(
-    al: &mut glyphon::cosmic_text::AttrsList,
-    text: &str,
-    base: &Attrs,
-) {
+pub(super) fn add_symbol_spans(al: &mut glyphon::cosmic_text::AttrsList, text: &str, base: &Attrs) {
     let runs = symbol_runs(text);
     if runs.is_empty() {
         return;
@@ -264,10 +263,7 @@ fn quote_text_dim() -> bool {
 /// - `Code` → the registered monospace family + a subtle tint toward MUTED ink.
 /// - `LinkText` → the buffer's full CONTENT ink (it lifts off the dim `Markup`
 ///   span; DESIGN §3 keeps `primary`/amber for the caret alone).
-pub(super) fn md_attrs(
-    base: &Attrs<'static>,
-    kind: crate::markdown::MdKind,
-) -> Attrs<'static> {
+pub(super) fn md_attrs(base: &Attrs<'static>, kind: crate::markdown::MdKind) -> Attrs<'static> {
     use crate::markdown::MdKind;
     let th = theme::active();
     let dim = th.muted.to_glyphon();
@@ -645,9 +641,10 @@ pub(super) fn add_list_indent_span(
     if (list_indent_scale - 1.0).abs() < 1e-3 {
         return; // the PLAIN tier: byte-identical to the pre-item-15 renderer
     }
-    let wide = base
-        .clone()
-        .metrics(GlyphMetrics::new(base_font_size * list_indent_scale, row_lh));
+    let wide = base.clone().metrics(GlyphMetrics::new(
+        base_font_size * list_indent_scale,
+        row_lh,
+    ));
     al.add_span(0..it.indent, &wide);
 }
 
@@ -975,10 +972,16 @@ pub(super) fn add_wysiwyg_conceal_spans(
                     let forcing = dh_hidden
                         .clone()
                         .letter_spacing(target_advance / CONCEAL_ZERO_WIDTH_FONT_SIZE);
-                    al.add_span((bang_end - line_doc_start)..(force_end - line_doc_start), &forcing);
+                    al.add_span(
+                        (bang_end - line_doc_start)..(force_end - line_doc_start),
+                        &forcing,
+                    );
                 }
                 if force_end < hi {
-                    al.add_span((force_end - line_doc_start)..(hi - line_doc_start), &dh_hidden);
+                    al.add_span(
+                        (force_end - line_doc_start)..(hi - line_doc_start),
+                        &dh_hidden,
+                    );
                 }
                 continue;
             }
@@ -1016,7 +1019,18 @@ pub(super) fn cell_inline_attrs(
     let md_spans = crate::markdown::spans(cell);
     let mut al = glyphon::cosmic_text::AttrsList::new(base);
     add_md_line_spans(&mut al, cell, 0, base, &md_spans);
-    add_wysiwyg_conceal_spans(&mut al, cell, 0, base, &md_spans, true, 0, line_height, None, None);
+    add_wysiwyg_conceal_spans(
+        &mut al,
+        cell,
+        0,
+        base,
+        &md_spans,
+        true,
+        0,
+        line_height,
+        None,
+        None,
+    );
     al
 }
 
@@ -1026,10 +1040,7 @@ pub(super) fn cell_inline_attrs(
 /// desaturated per-world tints, never a loud hue and NEVER amber (DESIGN.md §3:
 /// `primary` is the caret alone). The role's optional background WASH is drawn by
 /// the wash pipelines (see `rects.rs::wash_rects`), not through attrs.
-pub(super) fn syn_attrs(
-    base: &Attrs<'static>,
-    kind: crate::syntax::SynKind,
-) -> Attrs<'static> {
+pub(super) fn syn_attrs(base: &Attrs<'static>, kind: crate::syntax::SynKind) -> Attrs<'static> {
     base.clone()
         .color(role_style_for(&theme::active(), kind).fg.to_glyphon())
 }
@@ -1252,7 +1263,10 @@ pub(super) fn role_style_for(th: &theme::Theme, kind: crate::syntax::SynKind) ->
             wash: with_override(Some(derived_wash(HUE_COMMENT_WASH)), ov.comment_wash),
         },
         // Commented-OUT code recedes to the muted grey it always had — no wash.
-        SynKind::CommentCode => RoleStyle { fg: th.muted, wash: None },
+        SynKind::CommentCode => RoleStyle {
+            fg: th.muted,
+            wash: None,
+        },
         SynKind::Definition => RoleStyle {
             fg: ov.def_fg.unwrap_or_else(|| fg_at(HUE_DEF, t[0])),
             wash: None,
@@ -1266,7 +1280,11 @@ pub(super) fn role_style_for(th: &theme::Theme, kind: crate::syntax::SynKind) ->
         SynKind::Str => RoleStyle {
             fg: ov.str_fg.unwrap_or_else(|| fg_at(HUE_STR, t[2])),
             wash: with_override(
-                if th.dark { Some(derived_wash(HUE_STR)) } else { None },
+                if th.dark {
+                    Some(derived_wash(HUE_STR))
+                } else {
+                    None
+                },
                 ov.str_wash,
             ),
         },
@@ -1502,7 +1520,13 @@ pub(in crate::render) const LINK_UNDERLINE_V_FRAC: f32 = 0.92;
 /// [`strike_line_band`] rides, just a different vertical band: "a line under a
 /// run" and "a line through a run" are one mechanism, not two.
 pub(in crate::render) fn link_underline_band(top: f32, height: f32, zoom: f32) -> (f32, f32, f32) {
-    line_band(top, height, zoom, LINK_UNDERLINE_V_FRAC, LINK_UNDERLINE_THICKNESS)
+    line_band(
+        top,
+        height,
+        zoom,
+        LINK_UNDERLINE_V_FRAC,
+        LINK_UNDERLINE_THICKNESS,
+    )
 }
 
 /// THE strike ink — the world's `muted` rung EXACTLY: the receding markup ink
@@ -1753,8 +1777,8 @@ pub(super) fn build_line_attrs(
     // bulleted list reveals its raw `-`/`*`/`+` exactly like a selected
     // heading reveals its raw `#`, never a mixed state on the same line.
     let line_end = line_doc_start + line_text.len();
-    let line_selected = selection_touch
-        .is_some_and(|st| st.start < line_end && line_doc_start < st.end);
+    let line_selected =
+        selection_touch.is_some_and(|st| st.start < line_end && line_doc_start < st.end);
     // REVEAL-ON-CURSOR: when the caret is off this line AND the selection
     // doesn't touch it, conceal a thematic break's raw `---` (leaving the
     // fleuron) AND a bullet's raw `-` (leaving the depth glyph). Both are
@@ -1773,8 +1797,16 @@ pub(super) fn build_line_attrs(
     // the row — see `add_wysiwyg_conceal_spans`'s doc comment. `selection_touch`
     // extends the caret-only reveal to every selected line (see this fn's doc).
     add_wysiwyg_conceal_spans(
-        &mut al, line_text, line_doc_start, &lb, md_spans, conceal_off_cursor, cursor_byte,
-        row_lh, image_force, selection_touch,
+        &mut al,
+        line_text,
+        line_doc_start,
+        &lb,
+        md_spans,
+        conceal_off_cursor,
+        cursor_byte,
+        row_lh,
+        image_force,
+        selection_touch,
     );
     // PER-LEVEL LIST INDENT (item 15): UNCONDITIONAL (not gated on
     // `conceal_off_cursor` — a permanent layout choice, not a reveal toggle),

@@ -53,7 +53,12 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         if !crate::menubar::menu_bar_on() {
             // PARKED: no bar. Clear every quad + park both text layers off-screen +
             // reset the stored geometry, so a bar-off frame is byte-identical.
@@ -99,7 +104,8 @@ impl TextPipeline {
         // at the leftmost/rightmost column).
         let bg_rect =
             crate::menubar::bleed_to_canvas_edges([0.0, 0.0, width as f32, bar_h], width as f32);
-        self.menubar_bg.prepare(device, queue, width, height, &[bg_rect]);
+        self.menubar_bg
+            .prepare(device, queue, width, height, &[bg_rect]);
 
         // TITLES: shaped as ONE line, faint (the open one muted), tracking each
         // title's byte range so its shaped x-extent reads straight back off the glyphs.
@@ -124,7 +130,8 @@ impl TextPipeline {
             &mut self.font_system,
             GlyphMetrics::new(m.font_size * label, label_lh),
         );
-        self.menubar_buffer.set_size(&mut self.font_system, Some(width as f32), Some(bar_h + 1.0));
+        self.menubar_buffer
+            .set_size(&mut self.font_system, Some(width as f32), Some(bar_h + 1.0));
         let default_attrs = base.clone().color(faint);
         self.menubar_buffer.set_rich_text(
             &mut self.font_system,
@@ -133,7 +140,8 @@ impl TextPipeline {
             Shaping::Advanced,
             None,
         );
-        self.menubar_buffer.shape_until_scroll(&mut self.font_system, false);
+        self.menubar_buffer
+            .shape_until_scroll(&mut self.font_system, false);
 
         // Read back each title's absolute x-extent (draw origin + shaped glyph x).
         let draw_left = crate::menubar::BAR_INSET_X;
@@ -203,7 +211,9 @@ impl TextPipeline {
         // DROPDOWN: the open menu's anchored card + item rows, or parked.
         match open {
             Some(i) => {
-                self.prepare_menu_dropdown(device, queue, width, height, bounds, i, bar_h, label, muted, content)?;
+                self.prepare_menu_dropdown(
+                    device, queue, width, height, bounds, i, bar_h, label, muted, content,
+                )?;
             }
             None => {
                 self.menu_drop_rect = None;
@@ -279,15 +289,19 @@ impl TextPipeline {
         // Align-left + chords Align-right then sit exactly within it.
         let label_char_w = m.char_width * label;
         let gap_chars = rowlayout::GAP_CHARS;
-        let content_w = ((widest_label + gap_chars + widest_chord) as f32 * label_char_w
-            * DROP_WIDTH_SLACK)
-            .max(DROP_MIN_WIDTH);
-        let anchor = self.menubar_boxes.get(menu_i).copied().unwrap_or(crate::menubar::TitleBox {
-            band_left: 0.0,
-            text_left: 0.0,
-            text_right: 0.0,
-            band_right: 0.0,
-        });
+        let content_w =
+            ((widest_label + gap_chars + widest_chord) as f32 * label_char_w * DROP_WIDTH_SLACK)
+                .max(DROP_MIN_WIDTH);
+        let anchor = self
+            .menubar_boxes
+            .get(menu_i)
+            .copied()
+            .unwrap_or(crate::menubar::TitleBox {
+                band_left: 0.0,
+                text_left: 0.0,
+                text_right: 0.0,
+                band_right: 0.0,
+            });
         let rect = crate::menubar::drop_rect(&anchor, bar_h, content_w, rows_total);
         self.menu_drop_rect = Some(rect);
         self.menu_drop_rows = rows.clone();
@@ -315,20 +329,51 @@ impl TextPipeline {
         let seps: Vec<[f32; 4]> = rows
             .iter()
             .filter(|r| r.separator)
-            .map(|r| [inner_left, inner_top + r.top + r.height * 0.5 - 0.5, content_w, 1.0])
+            .map(|r| {
+                [
+                    inner_left,
+                    inner_top + r.top + r.height * 0.5 - 0.5,
+                    content_w,
+                    1.0,
+                ]
+            })
             .collect();
-        self.menu_drop_sep.prepare(device, queue, width, height, &seps);
+        self.menu_drop_sep
+            .prepare(device, queue, width, height, &seps);
 
         // Item LABELS (left) + native CHORDS (right), one line per row on the uniform
         // `row_h` grid, drawn from the card's inner top-left.
         let base = panel_attrs();
         for (buf, text, ink, align) in [
-            (&mut self.menu_drop_buffer, labels, content, glyphon::cosmic_text::Align::Left),
-            (&mut self.menu_chord_buffer, chords, muted, glyphon::cosmic_text::Align::Right),
+            (
+                &mut self.menu_drop_buffer,
+                labels,
+                content,
+                glyphon::cosmic_text::Align::Left,
+            ),
+            (
+                &mut self.menu_chord_buffer,
+                chords,
+                muted,
+                glyphon::cosmic_text::Align::Right,
+            ),
         ] {
-            buf.set_metrics(&mut self.font_system, GlyphMetrics::new(m.font_size * label, row_h));
-            buf.set_size(&mut self.font_system, Some(content_w), Some(rows_total + 1.0));
-            buf.set_text(&mut self.font_system, &text, &base.clone().color(ink), Shaping::Advanced, Some(align));
+            buf.set_metrics(
+                &mut self.font_system,
+                GlyphMetrics::new(m.font_size * label, row_h),
+            );
+            buf.set_size(
+                &mut self.font_system,
+                Some(content_w),
+                Some(rows_total + 1.0),
+            );
+            buf.set_text(
+                &mut self.font_system,
+                &text,
+                &base.clone().color(ink),
+                Shaping::Advanced,
+                Some(align),
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
         }
         let label_area = TextArea {
@@ -341,7 +386,15 @@ impl TextPipeline {
             custom_glyphs: &[],
         };
         self.menu_drop_renderer
-            .prepare(device, queue, &mut self.font_system, &mut self.atlas, &self.viewport, [label_area], &mut self.swash_cache)
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [label_area],
+                &mut self.swash_cache,
+            )
             .map_err(|e| anyhow::anyhow!("glyphon menu-drop label prepare failed: {e:?}"))?;
         let chord_area = TextArea {
             buffer: &self.menu_chord_buffer,
@@ -353,7 +406,15 @@ impl TextPipeline {
             custom_glyphs: &[],
         };
         self.menu_chord_renderer
-            .prepare(device, queue, &mut self.font_system, &mut self.atlas, &self.viewport, [chord_area], &mut self.swash_cache)
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [chord_area],
+                &mut self.swash_cache,
+            )
             .map_err(|e| anyhow::anyhow!("glyphon menu-drop chord prepare failed: {e:?}"))?;
         Ok(())
     }
@@ -368,9 +429,20 @@ impl TextPipeline {
         _height: u32,
         bounds: TextBounds,
     ) -> anyhow::Result<()> {
-        self.menubar_buffer.set_size(&mut self.font_system, Some(1.0), Some(self.metrics.line_height));
-        self.menubar_buffer.set_text(&mut self.font_system, "", &panel_attrs(), Shaping::Advanced, None);
-        self.menubar_buffer.shape_until_scroll(&mut self.font_system, false);
+        self.menubar_buffer.set_size(
+            &mut self.font_system,
+            Some(1.0),
+            Some(self.metrics.line_height),
+        );
+        self.menubar_buffer.set_text(
+            &mut self.font_system,
+            "",
+            &panel_attrs(),
+            Shaping::Advanced,
+            None,
+        );
+        self.menubar_buffer
+            .shape_until_scroll(&mut self.font_system, false);
         let area = TextArea {
             buffer: &self.menubar_buffer,
             left: 0.0,
@@ -381,7 +453,15 @@ impl TextPipeline {
             custom_glyphs: &[],
         };
         self.menubar_renderer
-            .prepare(device, queue, &mut self.font_system, &mut self.atlas, &self.viewport, [area], &mut self.swash_cache)
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [area],
+                &mut self.swash_cache,
+            )
             .map_err(|e| anyhow::anyhow!("glyphon menubar park failed: {e:?}"))?;
         Ok(())
     }
@@ -409,10 +489,21 @@ impl TextPipeline {
             0.0,
             None,
         );
-        self.menu_drop_sep.prepare(device, queue, width, height, &[]);
+        self.menu_drop_sep
+            .prepare(device, queue, width, height, &[]);
         for buf in [&mut self.menu_drop_buffer, &mut self.menu_chord_buffer] {
-            buf.set_size(&mut self.font_system, Some(1.0), Some(self.metrics.line_height));
-            buf.set_text(&mut self.font_system, "", &panel_attrs(), Shaping::Advanced, None);
+            buf.set_size(
+                &mut self.font_system,
+                Some(1.0),
+                Some(self.metrics.line_height),
+            );
+            buf.set_text(
+                &mut self.font_system,
+                "",
+                &panel_attrs(),
+                Shaping::Advanced,
+                None,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
         }
         let muted = theme::muted().to_glyphon();
@@ -426,7 +517,15 @@ impl TextPipeline {
             custom_glyphs: &[],
         };
         self.menu_drop_renderer
-            .prepare(device, queue, &mut self.font_system, &mut self.atlas, &self.viewport, [label_area], &mut self.swash_cache)
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [label_area],
+                &mut self.swash_cache,
+            )
             .map_err(|e| anyhow::anyhow!("glyphon menu-drop label park failed: {e:?}"))?;
         let chord_area = TextArea {
             buffer: &self.menu_chord_buffer,
@@ -438,7 +537,15 @@ impl TextPipeline {
             custom_glyphs: &[],
         };
         self.menu_chord_renderer
-            .prepare(device, queue, &mut self.font_system, &mut self.atlas, &self.viewport, [chord_area], &mut self.swash_cache)
+            .prepare(
+                device,
+                queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [chord_area],
+                &mut self.swash_cache,
+            )
             .map_err(|e| anyhow::anyhow!("glyphon menu-drop chord park failed: {e:?}"))?;
         Ok(())
     }
@@ -497,7 +604,9 @@ impl TextPipeline {
         let shown = crate::menubar::menu_bar_on();
         let menus = crate::menu::roster();
         let titles: Vec<String> = menus.iter().map(|m| m.title.to_string()).collect();
-        let open = crate::menubar::open_menu().and_then(|i| menus.get(i)).map(|m| m.title.to_string());
+        let open = crate::menubar::open_menu()
+            .and_then(|i| menus.get(i))
+            .map(|m| m.title.to_string());
         (shown, open, titles)
     }
 }

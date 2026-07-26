@@ -95,7 +95,9 @@ impl Lang {
     /// case-insensitive, `None` for an unknown label. The inverse used by the
     /// CJK-priority picker's commit path (mirrors `DictVariant::from_label`).
     pub fn from_label(s: &str) -> Option<Lang> {
-        ALL_LANGS.into_iter().find(|l| l.label().eq_ignore_ascii_case(s))
+        ALL_LANGS
+            .into_iter()
+            .find(|l| l.label().eq_ignore_ascii_case(s))
     }
 
     /// One quiet line describing the language, drawn dim beside the name in the
@@ -201,7 +203,6 @@ fn normalize_priority(langs: &[Lang]) -> [Lang; 4] {
 static CJK_PRIORITY: std::sync::atomic::AtomicU32 =
     std::sync::atomic::AtomicU32::new(pack_priority(DEFAULT_CJK_PRIORITY));
 
-
 /// The live CJK ambiguity-tiebreak ladder (always a well-formed 4-member
 /// permutation of the CJK [`Lang`]s — see [`normalize_priority`]).
 pub fn cjk_priority() -> Vec<Lang> {
@@ -262,7 +263,10 @@ pub fn detect(text: &str) -> Option<Frontmatter> {
         let line = raw.trim_end_matches(['\n', '\r']);
         if line == "---" {
             offset += raw.len();
-            return Some(Frontmatter { range: 0..offset, lang });
+            return Some(Frontmatter {
+                range: 0..offset,
+                lang,
+            });
         }
         if line.trim().is_empty() {
             offset += raw.len();
@@ -293,7 +297,10 @@ mod tests {
     fn detects_lang_tag() {
         let fm = detect("---\nlang: ja\n---\n# Title\n").expect("valid frontmatter");
         assert_eq!(fm.lang, Some(Lang::Ja));
-        assert_eq!(&"---\nlang: ja\n---\n# Title\n"[fm.range.clone()], "---\nlang: ja\n---\n");
+        assert_eq!(
+            &"---\nlang: ja\n---\n# Title\n"[fm.range.clone()],
+            "---\nlang: ja\n---\n"
+        );
     }
 
     #[test]
@@ -327,7 +334,11 @@ mod tests {
     #[test]
     fn unknown_keys_are_inert() {
         let fm = detect("---\ntitle: My Doc\ndate: 2026-01-01\nlang: ko\n---\n").expect("valid");
-        assert_eq!(fm.lang, Some(Lang::Ko), "lang still extracted alongside unknown keys");
+        assert_eq!(
+            fm.lang,
+            Some(Lang::Ko),
+            "lang still extracted alongside unknown keys"
+        );
     }
 
     #[test]
@@ -341,15 +352,27 @@ mod tests {
         // A `---` block anywhere but the very start of the text is never a
         // frontmatter block (mid-doc it is only ever a thematic break / setext
         // underline, handled entirely by `markdown::spans`).
-        assert!(detect("\n---\nlang: ja\n---\n").is_none(), "leading blank line disqualifies it");
+        assert!(
+            detect("\n---\nlang: ja\n---\n").is_none(),
+            "leading blank line disqualifies it"
+        );
         assert!(detect("prelude\n---\nlang: ja\n---\n").is_none());
     }
 
     #[test]
     fn no_closing_delimiter_is_not_frontmatter() {
-        assert!(detect("---\nlang: ja\n").is_none(), "unterminated opener is not a block");
-        assert!(detect("---\n").is_none(), "a bare opener with nothing after it");
-        assert!(detect("---").is_none(), "a single dash-rule line, no newline at all");
+        assert!(
+            detect("---\nlang: ja\n").is_none(),
+            "unterminated opener is not a block"
+        );
+        assert!(
+            detect("---\n").is_none(),
+            "a bare opener with nothing after it"
+        );
+        assert!(
+            detect("---").is_none(),
+            "a single dash-rule line, no newline at all"
+        );
     }
 
     #[test]
@@ -359,7 +382,10 @@ mod tests {
         // second break. None of that prose is "key: value" shaped, so `detect`
         // must bail entirely rather than swallowing the prose as metadata.
         let doc = "---\n\nSome opening prose about nothing in particular.\n\n---\n\nMore prose.\n";
-        assert!(detect(doc).is_none(), "a non-kv line between the dashes bails: {doc:?}");
+        assert!(
+            detect(doc).is_none(),
+            "a non-kv line between the dashes bails: {doc:?}"
+        );
     }
 
     #[test]
@@ -390,13 +416,24 @@ mod tests {
         for l in ALL_LANGS {
             assert_eq!(Lang::parse(l.code()), Some(l), "{l:?} must round-trip");
         }
-        assert_eq!(DEFAULT_CJK_PRIORITY, [Lang::Ja, Lang::ZhHans, Lang::ZhHant, Lang::Ko]);
+        assert_eq!(
+            DEFAULT_CJK_PRIORITY,
+            [Lang::Ja, Lang::ZhHans, Lang::ZhHant, Lang::Ko]
+        );
     }
 
     #[test]
     fn never_panics_on_garbage() {
         // A grab-bag of malformed/edge inputs must never panic.
-        for doc in ["", "-", "--", "----", "---x", "---\n:::\n---\n", "---\n:\n---\n"] {
+        for doc in [
+            "",
+            "-",
+            "--",
+            "----",
+            "---x",
+            "---\n:::\n---\n",
+            "---\n:\n---\n",
+        ] {
             let _ = detect(doc);
         }
     }
@@ -404,7 +441,11 @@ mod tests {
     #[test]
     fn every_lang_label_round_trips_through_from_label() {
         for l in ALL_LANGS {
-            assert_eq!(Lang::from_label(l.label()), Some(l), "{l:?} must round-trip");
+            assert_eq!(
+                Lang::from_label(l.label()),
+                Some(l),
+                "{l:?} must round-trip"
+            );
         }
         // Case-insensitive, like DictVariant::from_label.
         assert_eq!(Lang::from_label("japanese"), Some(Lang::Ja));
@@ -444,18 +485,27 @@ mod tests {
         assert_eq!(cjk_priority(), DEFAULT_CJK_PRIORITY.to_vec());
 
         // Promoting the already-front language is a no-op (still the same order).
-        assert_eq!(promote_cjk_priority(Lang::Ja), DEFAULT_CJK_PRIORITY.to_vec());
+        assert_eq!(
+            promote_cjk_priority(Lang::Ja),
+            DEFAULT_CJK_PRIORITY.to_vec()
+        );
 
         // Promoting Korean moves it to the front; the REST keep their relative
         // order (Ja, ZhHans, ZhHant) — the picker's whole point.
         let promoted = promote_cjk_priority(Lang::Ko);
-        assert_eq!(promoted, vec![Lang::Ko, Lang::Ja, Lang::ZhHans, Lang::ZhHant]);
+        assert_eq!(
+            promoted,
+            vec![Lang::Ko, Lang::Ja, Lang::ZhHans, Lang::ZhHant]
+        );
         set_cjk_priority(&promoted);
         assert_eq!(cjk_priority(), promoted);
 
         // Promoting zh-Hant (currently 3rd) keeps Ko/Ja's relative order.
         let promoted2 = promote_cjk_priority(Lang::ZhHant);
-        assert_eq!(promoted2, vec![Lang::ZhHant, Lang::Ko, Lang::Ja, Lang::ZhHans]);
+        assert_eq!(
+            promoted2,
+            vec![Lang::ZhHant, Lang::Ko, Lang::Ja, Lang::ZhHans]
+        );
 
         // Cleanup: leave the global at the built-in default for other tests.
         set_cjk_priority(&DEFAULT_CJK_PRIORITY);
@@ -465,7 +515,10 @@ mod tests {
     fn set_cjk_priority_normalizes_a_malformed_input() {
         let _g = crate::testlock::serial();
         set_cjk_priority(&[Lang::En, Lang::Ko]);
-        assert_eq!(cjk_priority(), vec![Lang::Ko, Lang::Ja, Lang::ZhHans, Lang::ZhHant]);
+        assert_eq!(
+            cjk_priority(),
+            vec![Lang::Ko, Lang::Ja, Lang::ZhHans, Lang::ZhHant]
+        );
         set_cjk_priority(&DEFAULT_CJK_PRIORITY);
     }
 }

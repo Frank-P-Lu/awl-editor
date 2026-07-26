@@ -38,11 +38,11 @@
 //! VERBATIM and re-exported here, so behaviour — and the capture output — is
 //! byte-identical.
 
-mod spring;
-mod morph;
 mod juice;
-mod preview;
+mod morph;
 mod pipeline;
+mod preview;
+mod spring;
 
 // Re-export the submodules' public surface so the historical `caret::CaretPipeline`
 // / `caret::CaretDemo` / `caret::srgb_u8_to_linear` / `caret::bytes_of_pod` (and the
@@ -429,7 +429,9 @@ impl CaretMode {
     /// [`label`], used by the caret-style picker's accept path to map the highlighted
     /// row name to the mode it applies. Case-insensitive; `None` for an unknown name.
     pub fn from_label(s: &str) -> Option<CaretMode> {
-        Self::ALL.into_iter().find(|m| m.label().eq_ignore_ascii_case(s))
+        Self::ALL
+            .into_iter()
+            .find(|m| m.label().eq_ignore_ascii_case(s))
     }
 }
 
@@ -439,7 +441,6 @@ impl CaretMode {
 /// `--caret-mode` flag both write the same place, and the default rule applies
 /// only when no override is set.
 static MODE_OVERRIDE: AtomicU8 = AtomicU8::new(0);
-
 
 /// True when `family` is a bundled MONOSPACE display face. Block is the better
 /// default on mono (a fixed cell never obscures a glyph), Morph on proportional

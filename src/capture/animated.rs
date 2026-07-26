@@ -16,7 +16,7 @@ use crate::render::{self, TextPipeline};
 use super::gpu::{headless_device, offscreen_target, read_frame};
 use super::modes::{base_viewstate, follow_scroll};
 use super::opts::CaptureOpts;
-use super::sidecar::{write_sidecar, CaretFrame, CosmeticReport, TrailReport};
+use super::sidecar::{CaretFrame, CosmeticReport, TrailReport, write_sidecar};
 use super::{CANVAS_HEIGHT, CANVAS_WIDTH, FORMAT};
 
 /// DETERMINISTIC TIMELINE capture. After a `--keys` replay sets up a NAVIGATION
@@ -57,7 +57,9 @@ pub fn capture_held(
     steps: &[u32],
     opts: &CaptureOpts,
 ) -> Result<()> {
-    pollster::block_on(capture_held_async(out_png, buffer, origin, dir, steps, opts))
+    pollster::block_on(capture_held_async(
+        out_png, buffer, origin, dir, steps, opts,
+    ))
 }
 
 async fn capture_timeline_async(
@@ -101,7 +103,14 @@ async fn capture_timeline_async(
     // are not driven here, so they stay at their inert defaults (the shared base).
     // `held` stays false: a NAVIGATION glide (not an edit reflow), so the spring
     // glides A->B instead of snapping — the flag that keeps the trajectory visible.
-    let mut vstate = base_viewstate(buffer, &opts.project, (dest_line, dest_col), zoom, misspelled, false);
+    let mut vstate = base_viewstate(
+        buffer,
+        &opts.project,
+        (dest_line, dest_col),
+        zoom,
+        misspelled,
+        false,
+    );
     // Shape at the destination first so visual-row counts are available; this also
     // PRIMES the spring (first set_caret_target snaps).
     pipeline.set_view(&vstate);
@@ -229,7 +238,14 @@ async fn capture_held_async(
     // stays springy and the lag accumulates into a continuous multi-char streak —
     // the field `--capture-timeline` hardcodes false; DRIVING it true on the virtual
     // clock is the whole point of this mode.
-    let mut vstate = base_viewstate(buffer, &opts.project, (orig_line, orig_col), zoom, misspelled, true);
+    let mut vstate = base_viewstate(
+        buffer,
+        &opts.project,
+        (orig_line, orig_col),
+        zoom,
+        misspelled,
+        true,
+    );
     // Shape at the origin first so visual-row counts are available.
     pipeline.set_view(&vstate);
 

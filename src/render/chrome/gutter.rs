@@ -65,7 +65,11 @@ impl TextPipeline {
         } else {
             String::new()
         };
-        Some(GutterLayout { avail, name, project })
+        Some(GutterLayout {
+            avail,
+            name,
+            project,
+        })
     }
 
     /// Shape + upload the page-mode ORIENTATION GUTTER: a quiet stacked label in the
@@ -260,8 +264,10 @@ impl TextPipeline {
             return Vec::new();
         }
         let r_row = crate::render::frost_seed_radius(row_h, self.metrics.zoom, self.dpi);
-        let skirt = crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
-        let pad_x = crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
+        let skirt =
+            crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
+        let pad_x =
+            crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
         // The two stacked LABEL rows, bottom-anchored 8px up (mirrors `prepare_gutter`
         // / `gutter_carve_rect`): name over project. Each line is RIGHT-aligned within
         // `[0, avail]`, so its ink hugs the column at the right edge.

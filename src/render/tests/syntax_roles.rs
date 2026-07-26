@@ -13,9 +13,7 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
     let dr = a.r as f32 - b.r as f32;
     let dg = a.g as f32 - b.g as f32;
     let db = a.b as f32 - b.b as f32;
-    ((2.0 + rbar / 256.0) * dr * dr
-        + 4.0 * dg * dg
-        + (2.0 + (255.0 - rbar) / 256.0) * db * db)
+    ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
         .sqrt()
 }
 
@@ -24,7 +22,11 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
 fn composite(wash: theme::Srgb, ground: theme::Srgb) -> theme::Srgb {
     let a = wash.a as f32 / 255.0;
     let ch = |w: u8, g: u8| (g as f32 + (w as f32 - g as f32) * a).round() as u8;
-    theme::Srgb::rgb(ch(wash.r, ground.r), ch(wash.g, ground.g), ch(wash.b, ground.b))
+    theme::Srgb::rgb(
+        ch(wash.r, ground.r),
+        ch(wash.g, ground.g),
+        ch(wash.b, ground.b),
+    )
 }
 
 /// Circular hue distance in degrees.
@@ -174,26 +176,42 @@ fn role_style_laws_hold_for_every_world() {
         }
 
         // (b) The two comment tiers ARE the existing inks, exactly.
-        assert_eq!(style(SynKind::Comment).fg, th.base_content,
-            "{}: prose comments render at FULL content ink", th.name);
-        assert_eq!(style(SynKind::CommentCode).fg, th.muted,
-            "{}: commented-out code stays the muted grey", th.name);
+        assert_eq!(
+            style(SynKind::Comment).fg,
+            th.base_content,
+            "{}: prose comments render at FULL content ink",
+            th.name
+        );
+        assert_eq!(
+            style(SynKind::CommentCode).fg,
+            th.muted,
+            "{}: commented-out code stays the muted grey",
+            th.name
+        );
 
         // (a) Pairwise distinguishability of the four ink-distinct roles.
-        let four = [SynKind::Definition, SynKind::Constant, SynKind::Str, SynKind::CommentCode];
+        let four = [
+            SynKind::Definition,
+            SynKind::Constant,
+            SynKind::Str,
+            SynKind::CommentCode,
+        ];
         for i in 0..four.len() {
             for j in i + 1..four.len() {
                 let d = redmean(style(four[i]).fg, style(four[j]).fg);
                 assert!(
                     d >= 40.0,
                     "{}: {:?} vs {:?} fg redmean {d:.1} < 40 (memory test fails)",
-                    th.name, four[i], four[j]
+                    th.name,
+                    four[i],
+                    four[j]
                 );
             }
         }
 
         // (c) The comment wash: present on every world, a value whisper.
-        let cw = style(SynKind::Comment).wash
+        let cw = style(SynKind::Comment)
+            .wash
             .unwrap_or_else(|| panic!("{}: every world carries the comment wash", th.name));
         let ceff = composite(cw, th.base_100);
         let dl = (ceff.to_hsl().2 - th.base_100.to_hsl().2).abs();
@@ -205,33 +223,43 @@ fn role_style_laws_hold_for_every_world() {
         assert!(
             redmean(ceff, th.base_100) >= 35.0,
             "{}: comment wash too faint (redmean {:.1} < 35)",
-            th.name, redmean(ceff, th.base_100)
+            th.name,
+            redmean(ceff, th.base_100)
         );
 
         // (d) Strings: washed on dark worlds (distinct from the comment wash),
         // fg-tint-only on light; Definition/Constant/CommentCode never washed.
         if th.dark {
-            let sw = style(SynKind::Str).wash
+            let sw = style(SynKind::Str)
+                .wash
                 .unwrap_or_else(|| panic!("{}: dark worlds wash strings", th.name));
             let seff = composite(sw, th.base_100);
             let sdl = (seff.to_hsl().2 - th.base_100.to_hsl().2).abs();
             assert!(
                 (0.03..=0.12).contains(&sdl),
-                "{}: string-wash ΔL {sdl:.3} outside [0.03, 0.12]", th.name
+                "{}: string-wash ΔL {sdl:.3} outside [0.03, 0.12]",
+                th.name
             );
             assert!(
                 redmean(ceff, seff) >= 20.0,
                 "{}: comment vs string wash effective redmean {:.1} < 20",
-                th.name, redmean(ceff, seff)
+                th.name,
+                redmean(ceff, seff)
             );
         } else {
-            assert!(style(SynKind::Str).wash.is_none(),
-                "{}: light worlds carry NO string wash", th.name);
+            assert!(
+                style(SynKind::Str).wash.is_none(),
+                "{}: light worlds carry NO string wash",
+                th.name
+            );
         }
-        assert!(style(SynKind::Definition).wash.is_none()
-            && style(SynKind::Constant).wash.is_none()
-            && style(SynKind::CommentCode).wash.is_none(),
-            "{}: only prose comments (+ dark strings) are washed", th.name);
+        assert!(
+            style(SynKind::Definition).wash.is_none()
+                && style(SynKind::Constant).wash.is_none()
+                && style(SynKind::CommentCode).wash.is_none(),
+            "{}: only prose comments (+ dark strings) are washed",
+            th.name
+        );
 
         // (e) AMBER GUARD over every enrolled role's effective fg.
         //
@@ -270,9 +298,17 @@ fn role_style_laws_hold_for_every_world() {
             // A TINTED role must never coincidentally BE the accent. (On an
             // ink-caret world `primary == base_content`, but a tinted role is held
             // ≥70 redmean off `base_content` by law (g), so it can never equal it.)
-            assert_ne!(fg, th.primary, "{}: {k:?} must never BE the accent", th.name);
+            assert_ne!(
+                fg, th.primary,
+                "{}: {k:?} must never BE the accent",
+                th.name
+            );
             let (h, s, _) = fg.to_hsl();
-            assert!(s <= 0.5, "{}: {k:?} fg sat {s:.2} > 0.50 (too loud)", th.name);
+            assert!(
+                s <= 0.5,
+                "{}: {k:?} fg sat {s:.2} > 0.50 (too loud)",
+                th.name
+            );
             if s > 0.15 && !ink_caret {
                 let d = hue_dist(h, ph);
                 assert!(
@@ -289,11 +325,13 @@ fn role_style_laws_hold_for_every_world() {
         let dist_l = |k: SynKind| (style(k).fg.to_hsl().2 - lf).abs();
         assert!(
             dist_l(SynKind::Definition) < dist_l(SynKind::Constant),
-            "{}: Definition must be more present than Constant", th.name
+            "{}: Definition must be more present than Constant",
+            th.name
         );
         assert!(
             dist_l(SynKind::Constant) < dist_l(SynKind::Str),
-            "{}: Constant must be more present than Str", th.name
+            "{}: Constant must be more present than Str",
+            th.name
         );
 
         // (g) PERCEPTIBILITY FLOOR — every tinted role's fg must read as
@@ -425,14 +463,19 @@ fn highlight_wash_laws_hold_for_every_world() {
             );
             continue;
         }
-        assert!(hw.a > 0, "{}: the highlight wash is always present", th.name);
+        assert!(
+            hw.a > 0,
+            "{}: the highlight wash is always present",
+            th.name
+        );
 
         // (a) distinct from the comment wash — the decouple.
         let cw = role_style_for(th, crate::syntax::SynKind::Comment)
             .wash
             .unwrap_or_else(|| panic!("{}: every world carries the comment wash", th.name));
         assert_ne!(
-            hw.rgba_bytes(), cw.rgba_bytes(),
+            hw.rgba_bytes(),
+            cw.rgba_bytes(),
             "{}: the highlight wash must be DECOUPLED from (never equal to) the comment wash",
             th.name
         );
@@ -444,12 +487,17 @@ fn highlight_wash_laws_hold_for_every_world() {
             assert_eq!(
                 hs, 0.0,
                 "{}: a monochrome world's highlight wash must carry ZERO saturation \
-                 (the no-warm-thing law) — not a faked/derived hue", th.name
+                 (the no-warm-thing law) — not a faked/derived hue",
+                th.name
             );
         } else {
             // (b) amber guard: the per-world hue sits ≥ 30° off primary.
             let (ph, _, _) = th.primary.to_hsl();
-            assert!(hs > 0.15, "{}: highlight wash should carry real chroma", th.name);
+            assert!(
+                hs > 0.15,
+                "{}: highlight wash should carry real chroma",
+                th.name
+            );
             let d = hue_dist(hh, ph);
             assert!(
                 d >= 30.0,
@@ -500,7 +548,9 @@ fn highlight_wash_laws_hold_for_every_world() {
     assert!(
         distinct_hues.len() >= HIGHLIGHT_MIN_DISTINCT_HUES,
         "highlight hue must VARY per world: only {} distinct hues across {} worlds (< {})",
-        distinct_hues.len(), theme::THEMES.len(), HIGHLIGHT_MIN_DISTINCT_HUES
+        distinct_hues.len(),
+        theme::THEMES.len(),
+        HIGHLIGHT_MIN_DISTINCT_HUES
     );
 }
 
@@ -515,7 +565,12 @@ fn measure_role_luminance() {
     for th in theme::THEMES.iter() {
         let y0 = rel_luminance(th.base_content);
         let ym = rel_luminance(th.muted);
-        eprintln!("{:10} dark={:5} MUTED dY={:.4}", th.name, th.dark, (ym - y0).abs());
+        eprintln!(
+            "{:10} dark={:5} MUTED dY={:.4}",
+            th.name,
+            th.dark,
+            (ym - y0).abs()
+        );
         for k in [SynKind::Definition, SynKind::Constant, SynKind::Str] {
             let style = role_style_for(th, k);
             let d = redmean(style.fg, th.base_content);
@@ -533,7 +588,11 @@ fn measure_role_luminance() {
 fn rel_luminance(c: theme::Srgb) -> f32 {
     let lin = |v: u8| {
         let x = v as f32 / 255.0;
-        if x <= 0.04045 { x / 12.92 } else { ((x + 0.055) / 1.055).powf(2.4) }
+        if x <= 0.04045 {
+            x / 12.92
+        } else {
+            ((x + 0.055) / 1.055).powf(2.4)
+        }
     };
     0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
 }
@@ -559,7 +618,10 @@ fn measure_ground_contrast() {
         for k in [SynKind::Definition, SynKind::Constant, SynKind::Str] {
             let style = role_style_for(th, k);
             let cr = contrast_ratio(style.fg, th.base_100);
-            eprintln!("{:10} dark={:5} {:10?} contrast-vs-ground={:5.2}:1", th.name, th.dark, k, cr);
+            eprintln!(
+                "{:10} dark={:5} {:10?} contrast-vs-ground={:5.2}:1",
+                th.name, th.dark, k, cr
+            );
         }
     }
 }
@@ -606,19 +668,32 @@ fn sweep_light_ladder() {
                         let muted = th.muted;
                         let base = th.base_content;
                         let pairs = [
-                            redmean(def, cst), redmean(def, st), redmean(def, muted),
-                            redmean(cst, st), redmean(cst, muted), redmean(st, muted),
+                            redmean(def, cst),
+                            redmean(def, st),
+                            redmean(def, muted),
+                            redmean(cst, st),
+                            redmean(cst, muted),
+                            redmean(st, muted),
                         ];
-                        if pairs.iter().any(|d| *d < 40.0) { ok = false; break; }
+                        if pairs.iter().any(|d| *d < 40.0) {
+                            ok = false;
+                            break;
+                        }
                         let floors = [redmean(def, base), redmean(cst, base), redmean(st, base)];
-                        if floors.iter().any(|d| *d < 70.0) { ok = false; break; }
+                        if floors.iter().any(|d| *d < 70.0) {
+                            ok = false;
+                            break;
+                        }
                         let y0 = rel_luminance(base);
                         let dys = [
                             (rel_luminance(def) - y0).abs(),
                             (rel_luminance(cst) - y0).abs(),
                             (rel_luminance(st) - y0).abs(),
                         ];
-                        if dys.iter().any(|d| *d < LUM_FLOOR) { ok = false; break; }
+                        if dys.iter().any(|d| *d < LUM_FLOOR) {
+                            ok = false;
+                            break;
+                        }
                         let grounds = [
                             contrast_ratio(def, th.base_100),
                             contrast_ratio(cst, th.base_100),
@@ -641,9 +716,14 @@ fn sweep_light_ladder() {
         }
         t_def += 0.01;
     }
-    eprintln!("BEST (worst-case ground contrast, subject to every law): {:?}", best);
-    eprintln!("SHIPPED (rounded, chosen for margin on BOTH the luminance and ground floors): \
-        T_LIGHT=[0.76,0.78,0.80] S_FG_LIGHT=0.18 — worst ground 4.84:1 (Quokka Str), worst ink dY 0.056 (Gumtree Def/Const)");
+    eprintln!(
+        "BEST (worst-case ground contrast, subject to every law): {:?}",
+        best
+    );
+    eprintln!(
+        "SHIPPED (rounded, chosen for margin on BOTH the luminance and ground floors): \
+        T_LIGHT=[0.76,0.78,0.80] S_FG_LIGHT=0.18 — worst ground 4.84:1 (Quokka Str), worst ink dY 0.056 (Gumtree Def/Const)"
+    );
 }
 
 /// THE INK-LADDER + SELECTION LAW TEST — sweeps every world in `theme::THEMES`
@@ -693,15 +773,29 @@ fn ink_ladder_and_selection_laws_hold_for_every_world() {
         // Replaced by the flat + selection laws this world's design actually
         // demands.
         if th.is_one_bit() {
-            assert_eq!(th.base_content, th.muted, "{}: one-bit ink ladder collapses to one value", th.name);
-            assert_eq!(th.muted, th.faint, "{}: one-bit ink ladder collapses to one value", th.name);
+            assert_eq!(
+                th.base_content, th.muted,
+                "{}: one-bit ink ladder collapses to one value",
+                th.name
+            );
+            assert_eq!(
+                th.muted, th.faint,
+                "{}: one-bit ink ladder collapses to one value",
+                th.name
+            );
             assert_eq!(
                 (th.base_content.r, th.base_content.g, th.base_content.b),
                 (0xFF, 0xFF, 0xFF),
-                "{}: one-bit ink is pure white", th.name
+                "{}: one-bit ink is pure white",
+                th.name
             );
             assert_eq!(
-                (th.selection.r, th.selection.g, th.selection.b, th.selection.a),
+                (
+                    th.selection.r,
+                    th.selection.g,
+                    th.selection.b,
+                    th.selection.a
+                ),
                 (0xFF, 0xFF, 0xFF, 0xFF),
                 "{}: one-bit selection is pure OPAQUE white (legibility is the punch quad's job, not this token's alpha)",
                 th.name
@@ -710,9 +804,17 @@ fn ink_ladder_and_selection_laws_hold_for_every_world() {
         }
         // (a) Distinct steps.
         let step1 = redmean(th.base_content, th.muted);
-        assert!(step1 >= 100.0, "{}: content->muted redmean {step1:.1} < 100", th.name);
+        assert!(
+            step1 >= 100.0,
+            "{}: content->muted redmean {step1:.1} < 100",
+            th.name
+        );
         let step2 = redmean(th.muted, th.faint);
-        assert!(step2 >= 80.0, "{}: muted->faint redmean {step2:.1} < 80", th.name);
+        assert!(
+            step2 >= 80.0,
+            "{}: muted->faint redmean {step2:.1} < 80",
+            th.name
+        );
 
         // (b) Monotone lightness: faint strictly between muted and base_100.
         let l_muted = th.muted.to_hsl().2;
@@ -737,7 +839,11 @@ fn ink_ladder_and_selection_laws_hold_for_every_world() {
 
         // (c) Faint stays legible against its own background.
         let fvb = redmean(th.faint, th.base_100);
-        assert!(fvb >= 100.0, "{}: faint vs base_100 redmean {fvb:.1} < 100 (too faint to read)", th.name);
+        assert!(
+            fvb >= 100.0,
+            "{}: faint vs base_100 redmean {fvb:.1} < 100 (too faint to read)",
+            th.name
+        );
 
         // (d) Selection COMPOSITED over the ground is a quiet, GLANCEABLE
         // highlight — measured on what the eye sees, not the opaque tint.
@@ -773,11 +879,18 @@ fn measure_ink_ladder() {
         let y = |c: theme::Srgb| rel_luminance(c);
         eprintln!(
             "{:10} dark={:5} content->muted redmean={:6.1} dY={:.3} | muted->faint redmean={:6.1} dY={:.3} | faint-vs-bg redmean={:6.1} dY={:.3} | selection-vs-bg redmean={:6.1}",
-            th.name, th.dark,
-            redmean(th.base_content, th.muted), (y(th.base_content) - y(th.muted)).abs(),
-            redmean(th.muted, th.faint), (y(th.muted) - y(th.faint)).abs(),
-            redmean(th.faint, th.base_100), (y(th.faint) - y(th.base_100)).abs(),
-            redmean(theme::Srgb::rgb(th.selection.r, th.selection.g, th.selection.b), th.base_100),
+            th.name,
+            th.dark,
+            redmean(th.base_content, th.muted),
+            (y(th.base_content) - y(th.muted)).abs(),
+            redmean(th.muted, th.faint),
+            (y(th.muted) - y(th.faint)).abs(),
+            redmean(th.faint, th.base_100),
+            (y(th.faint) - y(th.base_100)).abs(),
+            redmean(
+                theme::Srgb::rgb(th.selection.r, th.selection.g, th.selection.b),
+                th.base_100
+            ),
         );
         let sel_eff = composite(th.selection, th.base_100);
         let dl = (sel_eff.to_hsl().2 - th.base_100.to_hsl().2).abs();
@@ -846,10 +959,13 @@ fn every_monochrome_world_renders_zero_saturation_everywhere() {
     fn assert_grey(c: theme::Srgb, world: &str, label: &str) {
         let (_, s, _) = c.to_hsl();
         assert_eq!(
-            s, 0.0,
+            s,
+            0.0,
             "{world}: {label} carries saturation {s:.3} (expected exactly 0.0 — \
              {label} = #{r:02x}{g:02x}{b:02x})",
-            r = c.r, g = c.g, b = c.b
+            r = c.r,
+            g = c.g,
+            b = c.b
         );
     }
 
@@ -931,7 +1047,9 @@ fn every_one_bit_world_renders_only_pure_black_or_white() {
         assert!(
             matches!((c.r, c.g, c.b), (0, 0, 0) | (255, 255, 255)),
             "{world}: {label} = #{r:02x}{g:02x}{b:02x} is neither pure black nor pure white",
-            r = c.r, g = c.g, b = c.b
+            r = c.r,
+            g = c.g,
+            b = c.b
         );
     }
 
@@ -960,9 +1078,11 @@ fn every_one_bit_world_renders_only_pure_black_or_white() {
         assert_pure_bw(th.background.from(), th.name, "background.from");
         assert_pure_bw(th.background.to(), th.name, "background.to");
         assert_eq!(
-            th.background.from(), th.background.to(),
+            th.background.from(),
+            th.background.to(),
             "{}: a one-bit world's background gradient must have from == to \
-             (any real gradient interpolates through forbidden greys)", th.name
+             (any real gradient interpolates through forbidden greys)",
+            th.name
         );
 
         // The EFFECTIVE syntax role styles: fg pure b/w AND (1-bit-specific)

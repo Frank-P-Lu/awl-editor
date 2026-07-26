@@ -49,7 +49,9 @@ pub fn intercept(
 
     match logical {
         Key::Character(s) => {
-            let Some(c) = s.chars().next() else { return None };
+            let Some(c) = s.chars().next() else {
+                return None;
+            };
             // Cmd-based Find/Replace chords WITHIN the panel: Cmd-F skips to the
             // next match, Cmd-Shift-F the previous (so you can pass a match without
             // replacing it), Cmd-Option-F reveals+toggles the replace field, Cmd-R
@@ -375,7 +377,11 @@ mod tests {
     /// Feed a bare printable string char-by-char through the seam.
     fn type_str(search: &mut Option<SearchState>, buffer: &mut Buffer, s: &str) {
         for c in s.chars() {
-            let key = if c == ' ' { named(NamedKey::Space) } else { ch(&c.to_string()) };
+            let key = if c == ' ' {
+                named(NamedKey::Space)
+            } else {
+                ch(&c.to_string())
+            };
             intercept(search, buffer, &key, NONE);
         }
     }
@@ -388,7 +394,11 @@ mod tests {
         let (mut search, mut buffer) = open("alpha beta alpha");
         type_str(&mut search, &mut buffer, "beta");
         assert_eq!(search.as_ref().unwrap().query(), "beta");
-        assert_eq!(buffer.text(), "alpha beta alpha", "the document is untouched");
+        assert_eq!(
+            buffer.text(),
+            "alpha beta alpha",
+            "the document is untouched"
+        );
         assert_eq!(buffer.cursor_char(), 6, "the caret sits on the match");
         // Space through the Named-key arm joins the query too.
         type_str(&mut search, &mut buffer, " a");
@@ -406,14 +416,21 @@ mod tests {
         let mut buffer = Buffer::from_str("# A\nneedle\n# B\nb");
         buffer.set_cursor(0);
         buffer.toggle_fold_at_cursor(); // fold # A -> hides line 1 ("needle")
-        assert!(buffer.folds().contains(&0), "precondition: # A folded, needle hidden");
+        assert!(
+            buffer.folds().contains(&0),
+            "precondition: # A folded, needle hidden"
+        );
         let mut search = Some(SearchState::start(0, Direction::Forward));
         type_str(&mut search, &mut buffer, "needle");
         assert!(
             buffer.folds().is_empty(),
             "landing a search hit on a hidden line revealed the fold"
         );
-        assert_eq!(buffer.cursor_line_col().0, 1, "caret sits on the found (now visible) line");
+        assert_eq!(
+            buffer.cursor_line_col().0,
+            1,
+            "caret sits on the found (now visible) line"
+        );
     }
 
     #[test]
@@ -431,7 +448,11 @@ mod tests {
         intercept(&mut search, &mut buffer, &named(NamedKey::Backspace), NONE);
         let st = search.as_ref().unwrap();
         assert_eq!(st.replacement(), "x");
-        assert_eq!(st.query(), "ab", "the query is untouched by replace-field edits");
+        assert_eq!(
+            st.query(),
+            "ab",
+            "the query is untouched by replace-field edits"
+        );
     }
 
     #[test]
@@ -440,9 +461,15 @@ mod tests {
         type_str(&mut search, &mut buffer, "x");
         assert_eq!(buffer.cursor_char(), 0);
         // Every step door advances: C-s, ArrowDown, Cmd-F, Cmd-G.
-        assert_eq!(intercept(&mut search, &mut buffer, &ch("s"), ModifiersState::CONTROL), None);
+        assert_eq!(
+            intercept(&mut search, &mut buffer, &ch("s"), ModifiersState::CONTROL),
+            None
+        );
         assert_eq!(buffer.cursor_char(), 2);
-        assert_eq!(intercept(&mut search, &mut buffer, &named(NamedKey::ArrowDown), NONE), None);
+        assert_eq!(
+            intercept(&mut search, &mut buffer, &named(NamedKey::ArrowDown), NONE),
+            None
+        );
         assert_eq!(buffer.cursor_char(), 4);
         // First forward press at the last match: recoil UP, cursor stays put.
         assert_eq!(
@@ -451,7 +478,10 @@ mod tests {
         );
         assert_eq!(buffer.cursor_char(), 4);
         // Second press wraps to the first match.
-        assert_eq!(intercept(&mut search, &mut buffer, &ch("g"), ModifiersState::SUPER), None);
+        assert_eq!(
+            intercept(&mut search, &mut buffer, &ch("g"), ModifiersState::SUPER),
+            None
+        );
         assert_eq!(buffer.cursor_char(), 0);
         // Backward from the first match: recoil DOWN, then C-r/ArrowUp step back.
         assert_eq!(
@@ -461,10 +491,19 @@ mod tests {
         assert_eq!(buffer.cursor_char(), 0);
         // Cmd-Shift-F / Cmd-Shift-G mirror the backward step (post-recoil wrap).
         assert_eq!(
-            intercept(&mut search, &mut buffer, &ch("F"), ModifiersState::SUPER | ModifiersState::SHIFT),
+            intercept(
+                &mut search,
+                &mut buffer,
+                &ch("F"),
+                ModifiersState::SUPER | ModifiersState::SHIFT
+            ),
             None
         );
-        assert_eq!(buffer.cursor_char(), 4, "armed backward step wrapped to the last match");
+        assert_eq!(
+            buffer.cursor_char(),
+            4,
+            "armed backward step wrapped to the last match"
+        );
     }
 
     #[test]
@@ -496,11 +535,24 @@ mod tests {
         let st = search.as_ref().unwrap();
         assert!(st.is_case_sensitive());
         assert_eq!(st.hit_count(), 1);
-        assert_eq!(buffer.cursor_char(), 12, "the caret re-anchored on the surviving match");
+        assert_eq!(
+            buffer.cursor_char(),
+            12,
+            "the caret re-anchored on the surviving match"
+        );
         // Uppercase variant (⌘⌥⇧C emits 'C') toggles back off.
-        intercept(&mut search, &mut buffer, &ch("C"), cmd_opt | ModifiersState::SHIFT);
+        intercept(
+            &mut search,
+            &mut buffer,
+            &ch("C"),
+            cmd_opt | ModifiersState::SHIFT,
+        );
         assert!(!search.as_ref().unwrap().is_case_sensitive());
-        assert_eq!(buffer.text(), "Hello HELLO hello", "the document is never touched");
+        assert_eq!(
+            buffer.text(),
+            "Hello HELLO hello",
+            "the document is never touched"
+        );
     }
 
     /// Tab reveals the replace row then flips focus; Cmd-R forces focus into the
@@ -520,7 +572,12 @@ mod tests {
         intercept(&mut search, &mut buffer, &ch("r"), ModifiersState::SUPER);
         assert!(search.as_ref().unwrap().is_editing_replacement());
         // Cmd-Option-F toggles back to the find field.
-        intercept(&mut search, &mut buffer, &ch("f"), ModifiersState::SUPER | ModifiersState::ALT);
+        intercept(
+            &mut search,
+            &mut buffer,
+            &ch("f"),
+            ModifiersState::SUPER | ModifiersState::ALT,
+        );
         assert!(!search.as_ref().unwrap().is_editing_replacement());
         // None of the field motion leaked a char anywhere.
         assert_eq!(buffer.text(), "alpha beta alpha");
@@ -534,7 +591,11 @@ mod tests {
         type_str(&mut search, &mut buffer, "beta");
         intercept(&mut search, &mut buffer, &named(NamedKey::Enter), NONE);
         assert!(search.is_none(), "plain-find Enter closes the panel");
-        assert_eq!(buffer.cursor_char(), 6, "the cursor stays on the accepted match");
+        assert_eq!(
+            buffer.cursor_char(),
+            6,
+            "the cursor stays on the accepted match"
+        );
         assert_eq!(crate::search::last_query(), "beta");
         crate::search::clear_last_query();
     }
@@ -551,7 +612,12 @@ mod tests {
         assert!(search.is_some(), "replace-current keeps the panel open");
         assert_eq!(buffer.cursor_char(), 2, "cursor advanced to the next match");
         // Cmd-Enter: swap EVERY remaining match in one edit.
-        intercept(&mut search, &mut buffer, &named(NamedKey::Enter), ModifiersState::SUPER);
+        intercept(
+            &mut search,
+            &mut buffer,
+            &named(NamedKey::Enter),
+            ModifiersState::SUPER,
+        );
         assert_eq!(buffer.text(), "Y.Y.Y");
         assert!(search.is_some());
         assert_eq!(search.as_ref().unwrap().hit_count(), 0, "no needle remains");
@@ -569,7 +635,11 @@ mod tests {
         intercept(&mut search, &mut buffer, &named(NamedKey::Escape), NONE);
         assert!(search.is_none());
         assert_eq!(buffer.cursor_char(), 3, "abort restores the origin");
-        assert_eq!(crate::search::last_query(), "beta", "an abandoned query is still remembered");
+        assert_eq!(
+            crate::search::last_query(),
+            "beta",
+            "an abandoned query is still remembered"
+        );
         crate::search::clear_last_query();
     }
 
@@ -582,9 +652,9 @@ mod tests {
         let (mut search, mut buffer) = open("alpha beta alpha");
         type_str(&mut search, &mut buffer, "beta");
         for (key, mods) in [
-            (ch("x"), ModifiersState::CONTROL),          // the live C-x prefix chord
-            (ch("p"), ModifiersState::SUPER),            // Cmd-P: palette stays shut
-            (named(NamedKey::Home), NONE),               // stray named key
+            (ch("x"), ModifiersState::CONTROL), // the live C-x prefix chord
+            (ch("p"), ModifiersState::SUPER),   // Cmd-P: palette stays shut
+            (named(NamedKey::Home), NONE),      // stray named key
             (named(NamedKey::Space), ModifiersState::CONTROL), // modified Space
         ] {
             assert_eq!(intercept(&mut search, &mut buffer, &key, mods), None);
@@ -638,13 +708,21 @@ mod tests {
                 TypeQuery => {
                     let (mut s, mut b) = open("x.x.x");
                     type_str(&mut s, &mut b, "x");
-                    assert_eq!(s.as_ref().unwrap().query(), "x", "TypeQuery extends the query");
+                    assert_eq!(
+                        s.as_ref().unwrap().query(),
+                        "x",
+                        "TypeQuery extends the query"
+                    );
                 }
                 Backspace => {
                     let (mut s, mut b) = open("x.x.x");
                     type_str(&mut s, &mut b, "xy");
                     intercept(&mut s, &mut b, &named(NamedKey::Backspace), NONE);
-                    assert_eq!(s.as_ref().unwrap().query(), "x", "Backspace shortens the query");
+                    assert_eq!(
+                        s.as_ref().unwrap().query(),
+                        "x",
+                        "Backspace shortens the query"
+                    );
                 }
                 NextMatch => {
                     let (mut s, mut b) = open("x.x.x");

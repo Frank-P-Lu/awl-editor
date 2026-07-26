@@ -28,8 +28,7 @@ use super::{headless_pipeline, view};
 /// already carries for GPU test setup).
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -42,8 +41,7 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(w, h);
         Some((device, queue, p))
     })
@@ -53,23 +51,65 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
 
 #[test]
 fn parse_overlay_style_force_inline() {
-    assert_eq!(parse_overlay_style_force("inline"), Some(theme::TitleStyle::InlinePrefix));
-    assert_eq!(parse_overlay_style_force("Inline"), Some(theme::TitleStyle::InlinePrefix), "case-insensitive");
+    assert_eq!(
+        parse_overlay_style_force("inline"),
+        Some(theme::TitleStyle::InlinePrefix)
+    );
+    assert_eq!(
+        parse_overlay_style_force("Inline"),
+        Some(theme::TitleStyle::InlinePrefix),
+        "case-insensitive"
+    );
 }
 
 #[test]
 fn parse_overlay_style_force_placard_every_corner_and_ink() {
     let cases = [
-        ("placard:TL:2.0:faint", theme::PlacardCorner::TL, 2.0, theme::PlacardInk::Faint),
-        ("placard:TR:1.5:ghost", theme::PlacardCorner::TR, 1.5, theme::PlacardInk::Ghost),
-        ("placard:BL:3.0:ghost", theme::PlacardCorner::BL, 3.0, theme::PlacardInk::Ghost),
-        ("placard:BR:0.5:faint", theme::PlacardCorner::BR, 0.5, theme::PlacardInk::Faint),
+        (
+            "placard:TL:2.0:faint",
+            theme::PlacardCorner::TL,
+            2.0,
+            theme::PlacardInk::Faint,
+        ),
+        (
+            "placard:TR:1.5:ghost",
+            theme::PlacardCorner::TR,
+            1.5,
+            theme::PlacardInk::Ghost,
+        ),
+        (
+            "placard:BL:3.0:ghost",
+            theme::PlacardCorner::BL,
+            3.0,
+            theme::PlacardInk::Ghost,
+        ),
+        (
+            "placard:BR:0.5:faint",
+            theme::PlacardCorner::BR,
+            0.5,
+            theme::PlacardInk::Faint,
+        ),
         // The personality-assignment round's stipple variant joins the grammar
         // (the Magpie STIPPLE PROBE the taste gallery shoots is exactly this).
-        ("placard:BL:3.0:stipple", theme::PlacardCorner::BL, 3.0, theme::PlacardInk::Stipple),
+        (
+            "placard:BL:3.0:stipple",
+            theme::PlacardCorner::BL,
+            3.0,
+            theme::PlacardInk::Stipple,
+        ),
         // case-insensitive corner/ink, mixed case command word
-        ("Placard:bl:2.25:Ghost", theme::PlacardCorner::BL, 2.25, theme::PlacardInk::Ghost),
-        ("placard:bl:3.0:Stipple", theme::PlacardCorner::BL, 3.0, theme::PlacardInk::Stipple),
+        (
+            "Placard:bl:2.25:Ghost",
+            theme::PlacardCorner::BL,
+            2.25,
+            theme::PlacardInk::Ghost,
+        ),
+        (
+            "placard:bl:3.0:Stipple",
+            theme::PlacardCorner::BL,
+            3.0,
+            theme::PlacardInk::Stipple,
+        ),
     ];
     for (input, corner, scale, ink) in cases {
         let parsed = parse_overlay_style_force(input);
@@ -88,13 +128,17 @@ fn parse_overlay_style_force_rejects_garbage() {
         "placard",
         "placard:TL",
         "placard:TL:2.0",
-        "placard:ZZ:2.0:faint",  // unknown corner
+        "placard:ZZ:2.0:faint", // unknown corner
         "placard:TL:notanumber:faint",
-        "placard:TL:2.0:loud",   // unknown ink
+        "placard:TL:2.0:loud",        // unknown ink
         "placard:TL:2.0:faint:extra", // trailing garbage
         "wat",
     ] {
-        assert_eq!(parse_overlay_style_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_style_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
@@ -103,31 +147,59 @@ fn parse_overlay_style_force_rejects_garbage() {
 #[test]
 fn parse_overlay_anchor_force_grammar() {
     for s in ["tl", "TL", "topleft", "left", " Left "] {
-        assert_eq!(parse_overlay_anchor_force(s), Some(theme::CardAnchor::TopLeft), "{s:?}");
+        assert_eq!(
+            parse_overlay_anchor_force(s),
+            Some(theme::CardAnchor::TopLeft),
+            "{s:?}"
+        );
     }
     for s in ["tc", "center", "centre", "TopCenter"] {
-        assert_eq!(parse_overlay_anchor_force(s), Some(theme::CardAnchor::TopCenter), "{s:?}");
+        assert_eq!(
+            parse_overlay_anchor_force(s),
+            Some(theme::CardAnchor::TopCenter),
+            "{s:?}"
+        );
     }
     // PER-ITEM LIST SURFACES round: `tr`/`right`/`mirror` now name the
     // first-class RIGHT-ANCHOR MIRROR value (was previously unrecognized).
     for s in ["tr", "topright", "right", "mirror"] {
-        assert_eq!(parse_overlay_anchor_force(s), Some(theme::CardAnchor::TopRight), "{s:?}");
+        assert_eq!(
+            parse_overlay_anchor_force(s),
+            Some(theme::CardAnchor::TopRight),
+            "{s:?}"
+        );
     }
     for bad in ["", "middle", "bottom"] {
-        assert_eq!(parse_overlay_anchor_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_anchor_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
 #[test]
 fn parse_overlay_elevation_force_grammar() {
     for s in ["bordered", "Border", "on"] {
-        assert_eq!(parse_overlay_elevation_force(s), Some(theme::Elevation::Bordered), "{s:?}");
+        assert_eq!(
+            parse_overlay_elevation_force(s),
+            Some(theme::Elevation::Bordered),
+            "{s:?}"
+        );
     }
     for s in ["flat", "OFF"] {
-        assert_eq!(parse_overlay_elevation_force(s), Some(theme::Elevation::Flat), "{s:?}");
+        assert_eq!(
+            parse_overlay_elevation_force(s),
+            Some(theme::Elevation::Flat),
+            "{s:?}"
+        );
     }
     for bad in ["", "raised", "shadow"] {
-        assert_eq!(parse_overlay_elevation_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_elevation_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
@@ -140,7 +212,11 @@ fn parse_overlay_selrow_force_grammar() {
         assert_eq!(parse_overlay_selrow_force(s), Some(false), "{s:?}");
     }
     for bad in ["", "stronger", "2"] {
-        assert_eq!(parse_overlay_selrow_force(bad), None, "expected None for {bad:?}");
+        assert_eq!(
+            parse_overlay_selrow_force(bad),
+            None,
+            "expected None for {bad:?}"
+        );
     }
 }
 
@@ -157,7 +233,9 @@ fn parse_overlay_selrow_force_grammar() {
 #[test]
 fn placard_corners_place_the_wordmark_in_four_screen_quadrants() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping placard_corners_place_the_wordmark_in_four_screen_quadrants: no wgpu adapter");
+        eprintln!(
+            "skipping placard_corners_place_the_wordmark_in_four_screen_quadrants: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -178,7 +256,8 @@ fn placard_corners_place_the_wordmark_in_four_screen_quadrants() {
         }));
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
-        p.overlay_shape_placard(&geom).expect("a forced Placard style must shape a wordmark")
+        p.overlay_shape_placard(&geom)
+            .expect("a forced Placard style must shape a wordmark")
     };
 
     let tl = at(theme::PlacardCorner::TL);
@@ -198,10 +277,22 @@ fn placard_corners_place_the_wordmark_in_four_screen_quadrants() {
         let y_ok = if bottom { edge_y >= cy } else { edge_y <= cy };
         x_ok && y_ok
     };
-    assert!(in_quadrant(tl, false, false), "TL sits in the top-left screen quadrant");
-    assert!(in_quadrant(tr, true, false), "TR sits in the top-right screen quadrant");
-    assert!(in_quadrant(bl, false, true), "BL sits in the bottom-left screen quadrant");
-    assert!(in_quadrant(br, true, true), "BR sits in the bottom-right screen quadrant");
+    assert!(
+        in_quadrant(tl, false, false),
+        "TL sits in the top-left screen quadrant"
+    );
+    assert!(
+        in_quadrant(tr, true, false),
+        "TR sits in the top-right screen quadrant"
+    );
+    assert!(
+        in_quadrant(bl, false, true),
+        "BL sits in the bottom-left screen quadrant"
+    );
+    assert!(
+        in_quadrant(br, true, true),
+        "BR sits in the bottom-right screen quadrant"
+    );
 
     // Cross-corner ordering: TL left of TR, above BL; the pair sharing a
     // vertical edge shares its horizontal anchor and vice-versa.
@@ -247,7 +338,11 @@ fn derived_placard_corner_is_complementary_to_the_card_anchor() {
         PlacardCorner::BR
     );
     // An EXPLICIT corner (Firetail's BL) is never overridden by the derivation.
-    for anchor in [CardAnchor::TopLeft, CardAnchor::TopCenter, CardAnchor::Inset { x_frac: 1.0 }] {
+    for anchor in [
+        CardAnchor::TopLeft,
+        CardAnchor::TopCenter,
+        CardAnchor::Inset { x_frac: 1.0 },
+    ] {
         assert_eq!(
             crate::render::derived_placard_corner(PlacardCorner::BL, anchor),
             PlacardCorner::BL
@@ -355,13 +450,19 @@ fn snap_placard_size_anchors_the_reference_and_floors_fit_targets() {
     // FLOOR ≤ target — the snapped mark still fits `avail`.
     for target in [50.0_f32, 88.3, 126.4, 130.0, 193.0, 260.0, 511.0] {
         let snapped = snap_placard_size(target, anchor, true);
-        assert!(snapped <= target + 1e-3, "floor {snapped} must not exceed target {target}");
+        assert!(
+            snapped <= target + 1e-3,
+            "floor {snapped} must not exceed target {target}"
+        );
         assert!(snapped > 0.0, "floor stays positive for {target}");
     }
     // NEAREST within one ~3% step (ratio inside [step^-0.5, step^0.5]).
     for target in [50.0_f32, 88.3, 126.4, 260.0, 511.0] {
         let ratio = snap_placard_size(target, anchor, false) / target;
-        assert!(ratio > 0.985 && ratio < 1.015, "nearest within a step of {target} (ratio {ratio})");
+        assert!(
+            ratio > 0.985 && ratio < 1.015,
+            "nearest within a step of {target} (ratio {ratio})"
+        );
     }
     // Degenerate inputs pass through, never NaN/panic.
     assert_eq!(snap_placard_size(0.0, anchor, false), 0.0);
@@ -379,7 +480,9 @@ fn snap_placard_size_anchors_the_reference_and_floors_fit_targets() {
 #[test]
 fn placard_resize_sweep_stays_atlas_bounded_and_error_free() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping placard_resize_sweep_stays_atlas_bounded_and_error_free: no wgpu adapter");
+        eprintln!(
+            "skipping placard_resize_sweep_stays_atlas_bounded_and_error_free: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -410,7 +513,10 @@ fn placard_resize_sweep_stays_atlas_bounded_and_error_free() {
         p.atlas.trim(); // the off-frame reclaim the live loop does after present.
         w += 9;
     }
-    assert!(sizes.len() >= 3, "the sweep must actually vary the size, not clamp flat");
+    assert!(
+        sizes.len() >= 3,
+        "the sweep must actually vary the size, not clamp flat"
+    );
     assert!(
         sizes.len() <= 90,
         "quantization must bound distinct placard sizes across the sweep (got {}), \
@@ -454,7 +560,9 @@ fn no_placard_when_title_style_is_inline_prefix_the_default_on_every_world() {
 #[test]
 fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping forced_placard_shapes_a_wordmark_inside_the_canvas_corner: no wgpu adapter");
+        eprintln!(
+            "skipping forced_placard_shapes_a_wordmark_inside_the_canvas_corner: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -476,7 +584,10 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
     p.set_view(&v);
     let geom = p.overlay_geometry(1200);
     let placard = p.overlay_shape_placard(&geom);
-    assert!(placard.is_some(), "a forced Placard style must shape a wordmark");
+    assert!(
+        placard.is_some(),
+        "a forced Placard style must shape a wordmark"
+    );
     let (x, y, w, h) = placard.unwrap();
     assert!(w > 0.0 && h > 0.0, "the wordmark must have real extent");
     // Anchored to the 1200x800 CANVAS corners now, NOT the card. BL hugs the
@@ -484,10 +595,22 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
     // hardcodes for the card pad, since PLACARD_INSET is private) and sits toward
     // the canvas BOTTOM half. The whole box stays on-canvas.
     let (canvas_w, canvas_h) = (1200.0_f32, 800.0_f32);
-    assert!(x >= 0.0 && x + w <= canvas_w, "wordmark sits within the canvas horizontally");
-    assert!(y >= 0.0 && y + h <= canvas_h, "wordmark sits within the canvas vertically");
-    assert!((x - 12.0).abs() < 0.01, "BL anchors the wordmark's left edge at the inset");
-    assert!(y > canvas_h * 0.5, "BL sits in the bottom half of the canvas");
+    assert!(
+        x >= 0.0 && x + w <= canvas_w,
+        "wordmark sits within the canvas horizontally"
+    );
+    assert!(
+        y >= 0.0 && y + h <= canvas_h,
+        "wordmark sits within the canvas vertically"
+    );
+    assert!(
+        (x - 12.0).abs() < 0.01,
+        "BL anchors the wordmark's left edge at the inset"
+    );
+    assert!(
+        y > canvas_h * 0.5,
+        "BL sits in the bottom half of the canvas"
+    );
 
     // BLEED IS THE CONTRACT (the personality-assignment round's pinned
     // semantics — the stale "clipped to the card" doc claim is the thing
@@ -496,8 +619,9 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
     // at the canvas inset, well LEFT of the card's own left edge, and hangs
     // BELOW the card's bottom edge (the card is vertically centered; the
     // wordmark hugs the canvas foot).
-    let [card_x, card_y, _card_w, card_h] =
-        p.overlay_card_rect().expect("the overlay card must be open");
+    let [card_x, card_y, _card_w, card_h] = p
+        .overlay_card_rect()
+        .expect("the overlay card must be open");
     assert!(
         x < card_x,
         "bleed contract: the BL wordmark (x {x:.1}) starts left of the centered card \
@@ -525,7 +649,9 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
 #[test]
 fn forced_placard_is_inert_on_the_spell_popup_no_title_line() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping forced_placard_is_inert_on_the_spell_popup_no_title_line: no wgpu adapter");
+        eprintln!(
+            "skipping forced_placard_is_inert_on_the_spell_popup_no_title_line: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -576,7 +702,9 @@ fn forced_placard_is_inert_on_the_spell_popup_no_title_line() {
 #[test]
 fn forced_placard_composes_with_a_faceted_picker_lens_strip_set() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping forced_placard_composes_with_a_faceted_picker_lens_strip_set: no wgpu adapter");
+        eprintln!(
+            "skipping forced_placard_composes_with_a_faceted_picker_lens_strip_set: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -613,10 +741,22 @@ fn forced_placard_composes_with_a_faceted_picker_lens_strip_set() {
     // sits in the canvas bottom half. The faceted branch composes with the
     // screen-corner watermark exactly like the flat one.
     let (canvas_w, canvas_h) = (1200.0_f32, 800.0_f32);
-    assert!(x >= 0.0 && x + w <= canvas_w, "wordmark sits within the canvas horizontally");
-    assert!(y >= 0.0 && y + h <= canvas_h, "wordmark sits within the canvas vertically");
-    assert!((x - 12.0).abs() < 0.01, "BL anchors the wordmark's left edge at the inset");
-    assert!(y > canvas_h * 0.5, "BL sits in the bottom half of the canvas");
+    assert!(
+        x >= 0.0 && x + w <= canvas_w,
+        "wordmark sits within the canvas horizontally"
+    );
+    assert!(
+        y >= 0.0 && y + h <= canvas_h,
+        "wordmark sits within the canvas vertically"
+    );
+    assert!(
+        (x - 12.0).abs() < 0.01,
+        "BL anchors the wordmark's left edge at the inset"
+    );
+    assert!(
+        y > canvas_h * 0.5,
+        "BL sits in the bottom half of the canvas"
+    );
 
     set_title_style_test_override(None);
 }
@@ -633,7 +773,9 @@ fn forced_placard_composes_with_a_faceted_picker_lens_strip_set() {
 #[test]
 fn forced_placard_composes_with_the_literal_theme_picker_too() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping forced_placard_composes_with_the_literal_theme_picker_too: no wgpu adapter");
+        eprintln!(
+            "skipping forced_placard_composes_with_the_literal_theme_picker_too: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -669,8 +811,9 @@ fn forced_placard_composes_with_the_literal_theme_picker_too() {
 /// `2` for a faceted picker's query + lens-strip lines (`theme_overlay_geometry`'s
 /// own documented shape).
 fn overlay_row_region(p: &TextPipeline, header_rows: usize, row: usize) -> Region {
-    let [card_x, card_y, card_w, _] =
-        p.overlay_card_rect().expect("the overlay card must be open");
+    let [card_x, card_y, card_w, _] = p
+        .overlay_card_rect()
+        .expect("the overlay card must be open");
     let lh = p.overlay_lh();
     let text_top = card_y + 12.0; // pad
     // Fold in the PALETTE-COMPOSITION round's header gap (the divider after the
@@ -817,7 +960,9 @@ fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it_on_a_facet
 #[test]
 fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping forced_placard_suppresses_the_inline_title_prefix_on_both_shapers: no wgpu adapter");
+        eprintln!(
+            "skipping forced_placard_suppresses_the_inline_title_prefix_on_both_shapers: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -912,7 +1057,14 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
     // at the floor inset each side; the sweep straddles that boundary.
     let boundary = chrome::CARD_MAX_W + 2.0 * chrome::CARD_EDGE_INSET_FLOOR;
     let (mut saw_wide, mut saw_folded) = (false, false);
-    for &wpx in &[360.0f32, 440.0, boundary - 20.0, boundary + 40.0, 800.0, 1200.0] {
+    for &wpx in &[
+        360.0f32,
+        440.0,
+        boundary - 20.0,
+        boundary + 40.0,
+        800.0,
+        1200.0,
+    ] {
         let Some((_d, _q, mut p)) = headless_dqp(wpx, 800.0) else {
             eprintln!("skipping placard_width_sweep: no wgpu adapter");
             return;
@@ -997,7 +1149,9 @@ fn placard_size_is_window_scaled_not_zoom_scaled() {
         v.zoom = zoom;
         p.set_view(&v);
         let geom = p.overlay_geometry(wpx as u32);
-        let (_, _, w, h) = p.overlay_shape_placard(&geom).expect("forced poster shapes");
+        let (_, _, w, h) = p
+            .overlay_shape_placard(&geom)
+            .expect("forced poster shapes");
         Some((w, h))
     };
 

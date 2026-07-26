@@ -675,7 +675,10 @@ impl KeymapState {
     /// Test-only, mirroring `commands::names()`'s `#[cfg(test)]` precedent.
     #[cfg(test)]
     pub fn new_with_convention(convention: Convention) -> Self {
-        let mut km = Self { convention, ..Self::default() };
+        let mut km = Self {
+            convention,
+            ..Self::default()
+        };
         km.seed_defaults();
         km
     }
@@ -691,7 +694,10 @@ impl KeymapState {
     /// [`Self::with_overrides`], but pinning [`Convention`] explicitly (mirrors
     /// [`Self::new_with_convention`]). Test-only, same reasoning.
     #[cfg(test)]
-    pub fn with_overrides_and_convention(keys: &[(String, Vec<String>)], convention: Convention) -> Self {
+    pub fn with_overrides_and_convention(
+        keys: &[(String, Vec<String>)],
+        convention: Convention,
+    ) -> Self {
         let mut km = Self::new_with_convention(convention);
         km.apply_overrides(keys);
         km
@@ -777,11 +783,7 @@ impl KeymapState {
             // Native dispatch requires exactly one convention modifier, so a
             // simultaneously-held Super always bypassed Linux displacement and
             // reached the bare-Control emacs arm.
-            self.insert_control_super_variants(
-                command.emacs,
-                command.action.clone(),
-                command.name,
-            );
+            self.insert_control_super_variants(command.emacs, command.action.clone(), command.name);
             if command.native.starts_with("C-") {
                 self.insert_control_super_variants(
                     command.native,
@@ -826,7 +828,8 @@ impl KeymapState {
             panic!("assets/keymap-defaults.toml: {name:?} has invalid chord {spec:?}: {e}")
         });
         let add_super = |mods: ModifiersState| {
-            mods.contains(ModifiersState::CONTROL).then_some(mods | ModifiersState::SUPER)
+            mods.contains(ModifiersState::CONTROL)
+                .then_some(mods | ModifiersState::SUPER)
         };
         match chord {
             Chord::Single(k, m) => {
@@ -923,7 +926,11 @@ impl KeymapState {
     /// own) that never threads it through `Config` at all.
     pub fn apply_linux_keep(&mut self, keep: &[String]) {
         self.linux_keep.clear();
-        for chord in linux_builtin_keep().iter().copied().chain(keep.iter().map(String::as_str)) {
+        for chord in linux_builtin_keep()
+            .iter()
+            .copied()
+            .chain(keep.iter().map(String::as_str))
+        {
             match parse_binding(chord) {
                 Ok(Chord::Single(k, m)) => {
                     self.linux_keep.insert((k, m));
@@ -1134,7 +1141,11 @@ impl KeymapState {
         if native && !alt {
             if let Key::Character(s) = logical {
                 if matches!(s.chars().next(), Some('g') | Some('G')) {
-                    return if shift { Action::SearchBackward } else { Action::SearchForward };
+                    return if shift {
+                        Action::SearchBackward
+                    } else {
+                        Action::SearchForward
+                    };
                 }
             }
         }
@@ -1431,8 +1442,9 @@ fn linux_displaces_emacs_default_raw(
 /// the label truth can never silently drift apart. `k` is deliberately NOT
 /// here — see `linux_builtin_keep()`'s doc for why Insert link's Ctrl-K is a
 /// third, unconditionally-kept case rather than an ordinary displaced letter.
-pub(crate) const LINUX_DISPLACED_LETTERS: &[char] =
-    &['s', 'p', 'n', 'w', 'f', 'e', 'a', 'g', 'r', 'b', 'c', 'x', 'v'];
+pub(crate) const LINUX_DISPLACED_LETTERS: &[char] = &[
+    's', 'p', 'n', 'w', 'f', 'e', 'a', 'g', 'r', 'b', 'c', 'x', 'v',
+];
 
 /// THE INSERT-LINK-YIELDS-TO-KILL-LINE ROUND (settled — the user's own call:
 /// "kill-line is too load-bearing for emacs hands to lose by default") — chords
@@ -1498,8 +1510,10 @@ pub(crate) fn linux_displaces_emacs_default(emacs: &str, keep: &[String]) -> boo
     let Key::Character(s) = &key else {
         return false;
     };
-    let letter_displaced =
-        s.chars().next().is_some_and(|c| LINUX_DISPLACED_LETTERS.contains(&c.to_ascii_lowercase()));
+    let letter_displaced = s
+        .chars()
+        .next()
+        .is_some_and(|c| LINUX_DISPLACED_LETTERS.contains(&c.to_ascii_lowercase()));
     letter_displaced && !linux_keeps_chord(keep, first)
 }
 
@@ -1516,7 +1530,8 @@ pub(crate) fn linux_keeps_chord(keep: &[String], chord_spec: &str) -> bool {
     let Some(want) = crate::keyspec::canonical_binding(chord_spec) else {
         return false;
     };
-    keep.iter().any(|k| crate::keyspec::canonical_binding(k).as_deref() == Some(want.as_str()))
+    keep.iter()
+        .any(|k| crate::keyspec::canonical_binding(k).as_deref() == Some(want.as_str()))
 }
 
 /// THE KEYMAP FLAVOR ROUND — a config `keymap = "native" | "emacs"` PRESET,
@@ -1570,7 +1585,10 @@ impl KeymapFlavor {
 /// has no business in a flavor-gated preset; `Config::effective_linux_keep`
 /// unions both in regardless of which flavor is active.
 pub fn linux_emacs_preset_keep() -> Vec<String> {
-    LINUX_DISPLACED_LETTERS.iter().map(|c| format!("C-{c}")).collect()
+    LINUX_DISPLACED_LETTERS
+        .iter()
+        .map(|c| format!("C-{c}"))
+        .collect()
 }
 
 /// Canonicalise a key for the override maps: a single-character key is folded to
@@ -1763,13 +1781,21 @@ keybindings|||
             Self(super::KeymapState::new_with_convention(Convention::Mac))
         }
         fn with_overrides(keys: &[(String, Vec<String>)]) -> Self {
-            Self(super::KeymapState::with_overrides_and_convention(keys, Convention::Mac))
+            Self(super::KeymapState::with_overrides_and_convention(
+                keys,
+                Convention::Mac,
+            ))
         }
         fn new_with_convention(convention: Convention) -> Self {
             Self(super::KeymapState::new_with_convention(convention))
         }
-        fn with_overrides_and_convention(keys: &[(String, Vec<String>)], convention: Convention) -> Self {
-            Self(super::KeymapState::with_overrides_and_convention(keys, convention))
+        fn with_overrides_and_convention(
+            keys: &[(String, Vec<String>)],
+            convention: Convention,
+        ) -> Self {
+            Self(super::KeymapState::with_overrides_and_convention(
+                keys, convention,
+            ))
         }
     }
     impl std::ops::Deref for KeymapState {
@@ -1875,18 +1901,54 @@ keybindings|||
         // keys for typographer dead keys), so an Option+letter now SELF-INSERTS its
         // base char (live, the composed glyph) instead of firing a Meta chord.
         let mut km = KeymapState::new();
-        assert_eq!(km.resolve(&ch("f"), &alt()), Action::InsertChar('f'), "M-f retired");
-        assert_eq!(km.resolve(&ch("b"), &alt()), Action::InsertChar('b'), "M-b retired");
-        assert_eq!(km.resolve(&ch("w"), &alt()), Action::InsertChar('w'), "M-w retired");
-        assert_eq!(km.resolve(&ch("v"), &alt()), Action::InsertChar('v'), "M-v retired");
-        assert_eq!(km.resolve(&ch("<"), &alt()), Action::InsertChar('<'), "M-< retired");
-        assert_eq!(km.resolve(&ch(">"), &alt()), Action::InsertChar('>'), "M-> retired");
+        assert_eq!(
+            km.resolve(&ch("f"), &alt()),
+            Action::InsertChar('f'),
+            "M-f retired"
+        );
+        assert_eq!(
+            km.resolve(&ch("b"), &alt()),
+            Action::InsertChar('b'),
+            "M-b retired"
+        );
+        assert_eq!(
+            km.resolve(&ch("w"), &alt()),
+            Action::InsertChar('w'),
+            "M-w retired"
+        );
+        assert_eq!(
+            km.resolve(&ch("v"), &alt()),
+            Action::InsertChar('v'),
+            "M-v retired"
+        );
+        assert_eq!(
+            km.resolve(&ch("<"), &alt()),
+            Action::InsertChar('<'),
+            "M-< retired"
+        );
+        assert_eq!(
+            km.resolve(&ch(">"), &alt()),
+            Action::InsertChar('>'),
+            "M-> retired"
+        );
         // Their actions survive on NATIVE chords: word motion → ⌥←/→ (the ARROWS),
         // buffer ends → Cmd-Up/Down.
-        assert_eq!(km.resolve(&Key::Named(NamedKey::ArrowRight), &alt()), Action::ForwardWord);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::ArrowLeft), &alt()), Action::BackwardWord);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::ArrowUp), &sup()), Action::BufferStart);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::ArrowDown), &sup()), Action::BufferEnd);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::ArrowRight), &alt()),
+            Action::ForwardWord
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::ArrowLeft), &alt()),
+            Action::BackwardWord
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::ArrowUp), &sup()),
+            Action::BufferStart
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::ArrowDown), &sup()),
+            Action::BufferEnd
+        );
     }
 
     #[test]
@@ -1895,9 +1957,18 @@ keybindings|||
         // ⌥+forward-Delete (the macOS-native mirror of ⌥⌫), with C-Delete a quiet
         // second door. A bare Option+letter 'd' just self-inserts now.
         let mut km = KeymapState::new();
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Delete), &alt()), Action::DeleteWordForward);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Delete), &ctrl()), Action::DeleteWordForward);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Delete), &none()), Action::DeleteForward);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Delete), &alt()),
+            Action::DeleteWordForward
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Delete), &ctrl()),
+            Action::DeleteWordForward
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Delete), &none()),
+            Action::DeleteForward
+        );
         assert_eq!(km.resolve(&ch("d"), &alt()), Action::InsertChar('d'));
     }
 
@@ -1917,7 +1988,11 @@ keybindings|||
         let mut km = KeymapState::new();
         assert_eq!(km.resolve(&ch("x"), &ctrl()), Action::BeginPrefix);
         assert!(km.in_prefix(), "C-x still arms the prefix");
-        assert_eq!(km.resolve(&ch("s"), &ctrl()), Action::Cancel, "C-x C-s retired");
+        assert_eq!(
+            km.resolve(&ch("s"), &ctrl()),
+            Action::Cancel,
+            "C-x C-s retired"
+        );
         assert!(!km.in_prefix(), "the second key clears the prefix");
         // Every former C-x default now cancels: C-c (quit), t (theme), w (page),
         // c (caret), r (debug), }/{ (page width), #, b, j, C-f.
@@ -1956,13 +2031,22 @@ keybindings|||
         assert_eq!(km.resolve(&ch("q"), &sup()), Action::Quit);
         assert_eq!(km.resolve(&ch("P"), &sup_shift()), Action::OpenProject);
         assert_eq!(km.resolve(&ch("p"), &sup_shift()), Action::OpenProject);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Tab), &ctrl()), Action::LastBuffer);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Tab), &ctrl()),
+            Action::LastBuffer
+        );
         // None of these plain letters is shadowed — they still self-insert bare.
         for c in ["o", "n", "t", "q"] {
-            assert_eq!(km.resolve(&ch(c), &none()), Action::InsertChar(c.chars().next().unwrap()));
+            assert_eq!(
+                km.resolve(&ch(c), &none()),
+                Action::InsertChar(c.chars().next().unwrap())
+            );
         }
         // A plain Tab is still the soft-tab / list indent (only Ctrl-Tab is last-buffer).
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Tab), &none()), Action::InsertTab);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Tab), &none()),
+            Action::InsertTab
+        );
         // None is a motion or an edit (palette-eligible, undo-neutral).
         for a in [
             Action::OpenGoto,
@@ -2003,8 +2087,16 @@ keybindings|||
         // there), so `!shift` alone distinguishes the two.
         let mut km = KeymapState::new();
         assert_eq!(km.resolve(&ch("."), &sup()), Action::Cancel);
-        assert_eq!(km.resolve(&ch("."), &sup_shift()), Action::Ignore, "Cmd-Shift-. is unbound");
-        assert_eq!(km.resolve(&ch(">"), &sup_shift()), Action::Ignore, "Cmd-Shift-. is unbound");
+        assert_eq!(
+            km.resolve(&ch("."), &sup_shift()),
+            Action::Ignore,
+            "Cmd-Shift-. is unbound"
+        );
+        assert_eq!(
+            km.resolve(&ch(">"), &sup_shift()),
+            Action::Ignore,
+            "Cmd-Shift-. is unbound"
+        );
         // Plain '.' (no Super) still self-inserts.
         assert_eq!(km.resolve(&ch("."), &none()), Action::InsertChar('.'));
     }
@@ -2016,7 +2108,11 @@ keybindings|||
         let mut km = KeymapState::new();
         assert_eq!(km.resolve(&ch("L"), &sup_shift()), Action::ToggleTaskList);
         assert_eq!(km.resolve(&ch("l"), &sup_shift()), Action::ToggleTaskList);
-        assert_eq!(km.resolve(&ch("l"), &sup()), Action::Ignore, "plain Cmd-L stays unbound");
+        assert_eq!(
+            km.resolve(&ch("l"), &sup()),
+            Action::Ignore,
+            "plain Cmd-L stays unbound"
+        );
         assert_eq!(km.resolve(&ch("l"), &none()), Action::InsertChar('l'));
         assert!(!Action::ToggleTaskList.is_motion());
         assert!(Action::ToggleTaskList.is_edit());
@@ -2033,17 +2129,29 @@ keybindings|||
         // meaning, so nothing collides).
         let mut km_mac = KeymapState::new_with_convention(Convention::Mac);
         assert_eq!(km_mac.resolve(&ch("d"), &sup_shift()), Action::InsertDate);
-        assert_eq!(km_mac.resolve(&ch("D"), &sup_shift()), Action::InsertDate, "case-folded");
+        assert_eq!(
+            km_mac.resolve(&ch("D"), &sup_shift()),
+            Action::InsertDate,
+            "case-folded"
+        );
         // Plain 'd' (no Super) still self-inserts — the chord doesn't shadow
         // ordinary typing — and Cmd-D alone (no Shift) stays unbound (no command
         // has ever claimed it; the unbound-super guard swallows it, never types).
         assert_eq!(km_mac.resolve(&ch("d"), &none()), Action::InsertChar('d'));
-        assert_eq!(km_mac.resolve(&ch("d"), &sup()), Action::Ignore, "plain Cmd-D stays unbound");
+        assert_eq!(
+            km_mac.resolve(&ch("d"), &sup()),
+            Action::Ignore,
+            "plain Cmd-D stays unbound"
+        );
 
         let mut km_linux = KeymapState::new_with_convention(Convention::Linux);
         let ctrl_shift = mods(ModifiersState::CONTROL | ModifiersState::SHIFT);
         assert_eq!(km_linux.resolve(&ch("d"), &ctrl_shift), Action::InsertDate);
-        assert_eq!(km_linux.resolve(&ch("d"), &ctrl()), Action::DeleteForward, "bare Ctrl-D keeps its own meaning");
+        assert_eq!(
+            km_linux.resolve(&ch("d"), &ctrl()),
+            Action::DeleteForward,
+            "bare Ctrl-D keeps its own meaning"
+        );
 
         // EMACS quiet slot: `C-c .` resolves through the SAME `C-c` prefix
         // machinery Follow link's `C-c C-o` uses — the second key is a bare,
@@ -2062,10 +2170,16 @@ keybindings|||
         // link, because its native Ctrl-Shift-D slot above still fires.
         let mut km_linux2 = KeymapState::new_with_convention(Convention::Linux);
         assert_eq!(km_linux2.resolve(&ch("c"), &ctrl()), Action::CopyRegion);
-        assert!(!km_linux2.in_prefix(), "native Copy wins outright, the prefix never arms");
+        assert!(
+            !km_linux2.in_prefix(),
+            "native Copy wins outright, the prefix never arms"
+        );
 
         assert!(!Action::InsertDate.is_motion());
-        assert!(!Action::InsertDate.is_edit(), "InsertDate only signals an Effect; the live insert isn't dispatched here");
+        assert!(
+            !Action::InsertDate.is_edit(),
+            "InsertDate only signals an Effect; the live insert isn't dispatched here"
+        );
     }
 
     #[test]
@@ -2552,8 +2666,14 @@ keybindings|||
         assert_eq!(km.resolve(&ch("x"), &ctrl()), Action::BeginPrefix);
         assert_eq!(km.resolve(&ch("s"), &ctrl()), Action::Cancel);
         // Plain arrows are unchanged (no Super = char / line motion).
-        assert_eq!(km.resolve(&Key::Named(NamedKey::ArrowLeft), &none()), Action::BackwardChar);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::ArrowUp), &none()), Action::PreviousLine);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::ArrowLeft), &none()),
+            Action::BackwardChar
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::ArrowUp), &none()),
+            Action::PreviousLine
+        );
         // Plain 's' still self-inserts (Cmd-S didn't shadow it).
         assert_eq!(km.resolve(&ch("s"), &none()), Action::InsertChar('s'));
     }
@@ -2567,7 +2687,10 @@ keybindings|||
         let mut km = KeymapState::new();
         assert!(!km.in_prefix(), "idle: not mid-prefix");
         assert_eq!(km.resolve(&ch("x"), &ctrl()), Action::BeginPrefix);
-        assert!(km.in_prefix(), "after C-x: mid-prefix (pending the second key)");
+        assert!(
+            km.in_prefix(),
+            "after C-x: mid-prefix (pending the second key)"
+        );
         // The second key resolves (a retired default now cancels) AND clears the prefix.
         assert_eq!(km.resolve(&ch("s"), &ctrl()), Action::Cancel);
         assert!(!km.in_prefix(), "after the second key: prefix cleared");
@@ -2582,7 +2705,10 @@ keybindings|||
     fn two_binding_list_resolves_both_slots() {
         // A `[keys]` value is a LIST of up to 2 chords; BOTH resolve to the action
         // (slot 1 native, slot 2 emacs). The native Cmd-T default fires too.
-        let keys = vec![("switch_theme".to_string(), vec!["s-t".to_string(), "C-t".to_string()])];
+        let keys = vec![(
+            "switch_theme".to_string(),
+            vec!["s-t".to_string(), "C-t".to_string()],
+        )];
         let mut km = KeymapState::with_overrides(&keys);
         assert_eq!(km.resolve(&ch("t"), &sup()), Action::OpenThemeMenu); // slot 1
         assert_eq!(km.resolve(&ch("t"), &ctrl()), Action::OpenThemeMenu); // slot 2
@@ -2604,11 +2730,15 @@ keybindings|||
         // default — an unbound Option-letter keeps its composed glyph and self-inserts.
         let km = KeymapState::new();
         for c in ["f", "b", "w", "v", "d", "e", "<", ">"] {
-            assert!(!km.is_meta_chord(&ch(c)), "{c:?} is no longer a built-in Meta chord");
+            assert!(
+                !km.is_meta_chord(&ch(c)),
+                "{c:?} is no longer a built-in Meta chord"
+            );
         }
         assert!(!km.is_meta_chord(&Key::Named(NamedKey::ArrowLeft)));
         // A config Meta rebind qualifies, so an Option-composed rebind un-composes.
-        let km = KeymapState::with_overrides(&[("toggle_debug".to_string(), vec!["M-q".to_string()])]);
+        let km =
+            KeymapState::with_overrides(&[("toggle_debug".to_string(), vec!["M-q".to_string()])]);
         assert!(km.is_meta_chord(&ch("q")));
         // The same key without a Meta rebind does not.
         assert!(!KeymapState::new().is_meta_chord(&ch("q")));
@@ -2700,7 +2830,11 @@ keybindings|||
             ('v', Action::PageScrollDown),
         ] {
             let mut km2 = KeymapState::new_with_convention(Convention::Mac);
-            assert_eq!(km2.resolve(&ch(&letter.to_string()), &ctrl()), want, "Ctrl-{letter} on Mac");
+            assert_eq!(
+                km2.resolve(&ch(&letter.to_string()), &ctrl()),
+                want,
+                "Ctrl-{letter} on Mac"
+            );
         }
         // C-x / C-c still enter the prefix on Mac.
         let mut km3 = KeymapState::new_with_convention(Convention::Mac);
@@ -2794,8 +2928,14 @@ keybindings|||
         // swept: every letter OUTSIDE the displaced list above resolves IDENTICALLY
         // between Mac and Linux conventions — "exactly the computed collisions, no
         // more, no less".
-        let displaced_letters: Vec<char> = displaced.iter().map(|(l, _)| *l).chain(['c', 'x']).collect();
-        let all_bare_ctrl_letters = ['f', 'b', 'n', 'p', 'a', 'e', 'd', 'k', 'y', 's', 'r', 'w', 'v', 'g', 'x', 'c'];
+        let displaced_letters: Vec<char> = displaced
+            .iter()
+            .map(|(l, _)| *l)
+            .chain(['c', 'x'])
+            .collect();
+        let all_bare_ctrl_letters = [
+            'f', 'b', 'n', 'p', 'a', 'e', 'd', 'k', 'y', 's', 'r', 'w', 'v', 'g', 'x', 'c',
+        ];
         for letter in all_bare_ctrl_letters {
             if displaced_letters.contains(&letter) {
                 continue;
@@ -2818,7 +2958,10 @@ keybindings|||
         let mut from_test = displaced_letters.clone();
         from_test.sort_unstable();
         from_test.dedup();
-        assert_eq!(from_const, from_test, "LINUX_DISPLACED_LETTERS drifted from this test's own displaced list");
+        assert_eq!(
+            from_const, from_test,
+            "LINUX_DISPLACED_LETTERS drifted from this test's own displaced list"
+        );
     }
 
     /// THE WEB CHORD SANITY ROUND, Tier 3 — [`linux_displaces_emacs_default`]'s own
@@ -2829,7 +2972,10 @@ keybindings|||
     fn linux_displaces_emacs_default_flags_exactly_the_collision_table() {
         // Single-chord defaults that collide.
         for emacs in ["C-s", "C-r", "C-w", "C-a", "C-e"] {
-            assert!(linux_displaces_emacs_default(emacs, &[]), "{emacs:?} should be displaced");
+            assert!(
+                linux_displaces_emacs_default(emacs, &[]),
+                "{emacs:?} should be displaced"
+            );
         }
         // A prefix sequence whose FIRST key collides (Follow link's "C-c C-o":
         // Ctrl-C now resolves straight to Copy, so the sequence never arms).
@@ -2854,11 +3000,20 @@ keybindings|||
     fn linux_displaces_emacs_default_respects_the_keep_list() {
         let keep = vec!["C-f".to_string(), "Ctrl-b".to_string()];
         assert!(!linux_displaces_emacs_default("C-f", &keep), "C-f is kept");
-        assert!(!linux_displaces_emacs_default("C-b", &keep), "C-b is kept via an equivalent spelling");
+        assert!(
+            !linux_displaces_emacs_default("C-b", &keep),
+            "C-b is kept via an equivalent spelling"
+        );
         // An UNLISTED displaced letter is still displaced — the keep-list is a
         // per-chord door, not a policy flip.
-        assert!(linux_displaces_emacs_default("C-s", &keep), "C-s is not in the keep list");
-        assert!(linux_displaces_emacs_default("C-n", &keep), "C-n is not in the keep list");
+        assert!(
+            linux_displaces_emacs_default("C-s", &keep),
+            "C-s is not in the keep list"
+        );
+        assert!(
+            linux_displaces_emacs_default("C-n", &keep),
+            "C-n is not in the keep list"
+        );
     }
 
     /// THE EMACS-HANDS-ON-LINUX ROUND — the actual DISPATCH half: a `keep`-listed
@@ -2876,15 +3031,31 @@ keybindings|||
         ];
         let mut km = KeymapState::new_with_convention(Convention::Linux);
         km.apply_linux_keep(&keep);
-        assert_eq!(km.resolve(&ch("f"), &ctrl()), Action::ForwardChar, "C-f kept");
-        assert_eq!(km.resolve(&ch("b"), &ctrl()), Action::BackwardChar, "C-b kept");
+        assert_eq!(
+            km.resolve(&ch("f"), &ctrl()),
+            Action::ForwardChar,
+            "C-f kept"
+        );
+        assert_eq!(
+            km.resolve(&ch("b"), &ctrl()),
+            Action::BackwardChar,
+            "C-b kept"
+        );
         assert_eq!(km.resolve(&ch("n"), &ctrl()), Action::NextLine, "C-n kept");
-        assert_eq!(km.resolve(&ch("p"), &ctrl()), Action::PreviousLine, "C-p kept");
+        assert_eq!(
+            km.resolve(&ch("p"), &ctrl()),
+            Action::PreviousLine,
+            "C-p kept"
+        );
         assert_eq!(km.resolve(&ch("a"), &ctrl()), Action::LineStart, "C-a kept");
         assert_eq!(km.resolve(&ch("e"), &ctrl()), Action::LineEnd, "C-e kept");
         // An UNLISTED chord still displaces normally — C-c stays Copy (native
         // wins), not the bare C-c prefix.
-        assert_eq!(km.resolve(&ch("c"), &ctrl()), Action::CopyRegion, "C-c not kept: native still wins");
+        assert_eq!(
+            km.resolve(&ch("c"), &ctrl()),
+            Action::CopyRegion,
+            "C-c not kept: native still wins"
+        );
 
         // Without ANY keep-list, the same chords resolve to their NATIVE meaning
         // (the pre-round behavior — the round is a per-chord opt-in, not a flip).
@@ -2915,12 +3086,20 @@ keybindings|||
     #[test]
     fn linux_keep_emacs_bad_entry_is_skipped_not_a_crash() {
         let mut km = KeymapState::new_with_convention(Convention::Linux);
-        km.apply_linux_keep(&["C-x g".to_string(), "C-frobnicate".to_string(), "C-f".to_string()]);
+        km.apply_linux_keep(&[
+            "C-x g".to_string(),
+            "C-frobnicate".to_string(),
+            "C-f".to_string(),
+        ]);
         // The one VALID entry still took effect...
         assert_eq!(km.resolve(&ch("f"), &ctrl()), Action::ForwardChar);
         // ...and a fresh C-x still arms the ordinary bare prefix (the bad
         // "C-x g" entry never reached the keep-set).
-        assert_eq!(km.resolve(&ch("x"), &ctrl()), Action::KillRegion, "C-x is not itself kept");
+        assert_eq!(
+            km.resolve(&ch("x"), &ctrl()),
+            Action::KillRegion,
+            "C-x is not itself kept"
+        );
     }
 
     /// A live config RELOAD re-applies the keep-list exactly like
@@ -2931,11 +3110,23 @@ keybindings|||
         let mut km = KeymapState::new_with_convention(Convention::Linux);
         km.apply_linux_keep(&["C-f".to_string()]);
         assert_eq!(km.resolve(&ch("f"), &ctrl()), Action::ForwardChar);
-        assert_eq!(km.resolve(&ch("n"), &ctrl()), Action::NewDocument, "C-n not yet kept");
+        assert_eq!(
+            km.resolve(&ch("n"), &ctrl()),
+            Action::NewDocument,
+            "C-n not yet kept"
+        );
         // Reload with a DIFFERENT list: C-f goes back to native, C-n is now kept.
         km.apply_linux_keep(&["C-n".to_string()]);
-        assert_eq!(km.resolve(&ch("f"), &ctrl()), Action::SearchForward, "C-f reverted on reload");
-        assert_eq!(km.resolve(&ch("n"), &ctrl()), Action::NextLine, "C-n now kept");
+        assert_eq!(
+            km.resolve(&ch("f"), &ctrl()),
+            Action::SearchForward,
+            "C-f reverted on reload"
+        );
+        assert_eq!(
+            km.resolve(&ch("n"), &ctrl()),
+            Action::NextLine,
+            "C-n now kept"
+        );
     }
 
     // ── THE KEYMAP FLAVOR ROUND ──────────────────────────────────────────────
@@ -2951,13 +3142,18 @@ keybindings|||
         assert_eq!(preset.len(), LINUX_DISPLACED_LETTERS.len());
         for letter in LINUX_DISPLACED_LETTERS {
             let want = format!("C-{letter}");
-            assert!(preset.contains(&want), "preset missing {want:?} for displaced letter {letter:?}");
+            assert!(
+                preset.contains(&want),
+                "preset missing {want:?} for displaced letter {letter:?}"
+            );
         }
         // And nothing EXTRA: every preset entry canonically matches some displaced
         // letter's chord.
         for chord in &preset {
             assert!(
-                LINUX_DISPLACED_LETTERS.iter().any(|l| *chord == format!("C-{l}")),
+                LINUX_DISPLACED_LETTERS
+                    .iter()
+                    .any(|l| *chord == format!("C-{l}")),
                 "preset chord {chord:?} has no matching displaced letter"
             );
         }
@@ -2994,13 +3190,25 @@ keybindings|||
         // Spelled out explicitly per the task's own worked example.
         let mut nav = KeymapState::new_with_convention(Convention::Linux);
         nav.apply_linux_keep(&preset);
-        assert_eq!(nav.resolve(&ch("f"), &ctrl()), Action::ForwardChar, "C-f nav");
+        assert_eq!(
+            nav.resolve(&ch("f"), &ctrl()),
+            Action::ForwardChar,
+            "C-f nav"
+        );
         let mut isearch = KeymapState::new_with_convention(Convention::Linux);
         isearch.apply_linux_keep(&preset);
-        assert_eq!(isearch.resolve(&ch("s"), &ctrl()), Action::SearchForward, "C-s isearch");
+        assert_eq!(
+            isearch.resolve(&ch("s"), &ctrl()),
+            Action::SearchForward,
+            "C-s isearch"
+        );
         let mut cancel = KeymapState::new_with_convention(Convention::Linux);
         cancel.apply_linux_keep(&preset);
-        assert_eq!(cancel.resolve(&ch("g"), &ctrl()), Action::Cancel, "C-g cancel");
+        assert_eq!(
+            cancel.resolve(&ch("g"), &ctrl()),
+            Action::Cancel,
+            "C-g cancel"
+        );
         let _ = km; // exercised above; keep the earlier binding for readability
     }
 
@@ -3043,7 +3251,11 @@ keybindings|||
         km.apply_linux_keep(&preset);
         // Copy is EXPLICITLY rebound to C-c via `[keys]` — that wins outright,
         // even though the emacs preset ALSO keeps C-c (its bare-prefix meaning).
-        assert_eq!(km.resolve(&ch("c"), &ctrl()), Action::CopyRegion, "[keys] override wins over the preset");
+        assert_eq!(
+            km.resolve(&ch("c"), &ctrl()),
+            Action::CopyRegion,
+            "[keys] override wins over the preset"
+        );
     }
 
     // ── THE INSERT-LINK-YIELDS-TO-KILL-LINE ROUND ───────────────────────────
@@ -3086,11 +3298,19 @@ keybindings|||
             Convention::Linux,
         );
         km.apply_linux_keep(&keep);
-        assert_eq!(km.resolve(&ch("k"), &ctrl()), Action::InsertLink, "[keys] override wins over the built-in keep");
+        assert_eq!(
+            km.resolve(&ch("k"), &ctrl()),
+            Action::InsertLink,
+            "[keys] override wins over the built-in keep"
+        );
 
         let mut plain = KeymapState::new_with_convention(Convention::Linux);
         plain.apply_linux_keep(&keep);
-        assert_eq!(plain.resolve(&ch("k"), &ctrl()), Action::KillLine, "control: without the override, kill-line wins");
+        assert_eq!(
+            plain.resolve(&ch("k"), &ctrl()),
+            Action::KillLine,
+            "control: without the override, kill-line wins"
+        );
     }
 
     /// Every OTHER native chord (no letter collision) still fires under Linux, on
@@ -3130,16 +3350,34 @@ keybindings|||
     #[test]
     fn linux_convention_buffer_start_end_use_ctrl_home_end_not_ctrl_up_down() {
         let mut km = KeymapState::new_with_convention(Convention::Linux);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Home), &ctrl()), Action::BufferStart);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::End), &ctrl()), Action::BufferEnd);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Home), &ctrl()),
+            Action::BufferStart
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::End), &ctrl()),
+            Action::BufferEnd
+        );
         // Plain Home/End still mean line start/end on Linux (unconditional arm).
-        assert_eq!(km.resolve(&Key::Named(NamedKey::Home), &none()), Action::LineStart);
-        assert_eq!(km.resolve(&Key::Named(NamedKey::End), &none()), Action::LineEnd);
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::Home), &none()),
+            Action::LineStart
+        );
+        assert_eq!(
+            km.resolve(&Key::Named(NamedKey::End), &none()),
+            Action::LineEnd
+        );
         // On Mac, Ctrl-Home/End is NOT buffer start/end (that's Cmd-Up/Down there;
         // the convention gate never fires for Mac).
         let mut mac = KeymapState::new_with_convention(Convention::Mac);
-        assert_eq!(mac.resolve(&Key::Named(NamedKey::Home), &ctrl()), Action::LineStart);
-        assert_eq!(mac.resolve(&Key::Named(NamedKey::End), &ctrl()), Action::LineEnd);
+        assert_eq!(
+            mac.resolve(&Key::Named(NamedKey::Home), &ctrl()),
+            Action::LineStart
+        );
+        assert_eq!(
+            mac.resolve(&Key::Named(NamedKey::End), &ctrl()),
+            Action::LineEnd
+        );
     }
 
     /// `[keys]` overrides are CONVENTION-AGNOSTIC — a configured chord is taken
@@ -3182,7 +3420,8 @@ keybindings|||
     /// `mac_convention_is_byte_identical_to_the_pre_round_table` +
     /// `catalog_chord_snapshot_is_frozen`.
     #[test]
-    fn every_catalog_default_slot_dispatches_through_real_keymap_under_both_conventions_and_flavors() {
+    fn every_catalog_default_slot_dispatches_through_real_keymap_under_both_conventions_and_flavors()
+     {
         for command in crate::commands::COMMANDS.iter() {
             for spec in [command.native, command.emacs] {
                 if spec.is_empty() {
@@ -3190,14 +3429,27 @@ keybindings|||
                 }
                 let mut mac = KeymapState::new_with_convention(Convention::Mac);
                 let trace = resolve_spec(&mut mac, spec);
-                assert_eq!(trace.last(), Some(&command.action), "Mac: {} {spec:?}", command.name);
+                assert_eq!(
+                    trace.last(),
+                    Some(&command.action),
+                    "Mac: {} {spec:?}",
+                    command.name
+                );
                 if spec.split_whitespace().count() == 2 {
-                    assert_eq!(trace.first(), Some(&Action::BeginPrefix), "Mac prefix trace: {}", command.name);
+                    assert_eq!(
+                        trace.first(),
+                        Some(&Action::BeginPrefix),
+                        "Mac prefix trace: {}",
+                        command.name
+                    );
                 }
             }
         }
 
-        let native_keep: Vec<String> = linux_builtin_keep().iter().map(|s| (*s).to_string()).collect();
+        let native_keep: Vec<String> = linux_builtin_keep()
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
         let mut emacs_keep = linux_emacs_preset_keep();
         emacs_keep.extend(linux_builtin_keep().iter().map(|s| (*s).to_string()));
         for command in crate::commands::COMMANDS.iter() {
@@ -3207,16 +3459,31 @@ keybindings|||
                 km.apply_linux_keep(&native_keep);
                 let actual = resolve_spec(&mut km, &native);
                 if linux_keeps_chord(&native_keep, &native) {
-                    assert_ne!(actual.last(), Some(&command.action), "Linux native keep must suppress {} {native:?}", command.name);
+                    assert_ne!(
+                        actual.last(),
+                        Some(&command.action),
+                        "Linux native keep must suppress {} {native:?}",
+                        command.name
+                    );
                 } else {
-                    assert_eq!(actual.last(), Some(&command.action), "Linux native: {} {native:?}", command.name);
+                    assert_eq!(
+                        actual.last(),
+                        Some(&command.action),
+                        "Linux native: {} {native:?}",
+                        command.name
+                    );
                 }
 
                 let mut emacs_flavor = KeymapState::new_with_convention(Convention::Linux);
                 emacs_flavor.apply_linux_keep(&emacs_keep);
                 let actual = resolve_spec(&mut emacs_flavor, &native);
                 if !linux_keeps_chord(&emacs_keep, &native) {
-                    assert_eq!(actual.last(), Some(&command.action), "Linux emacs flavor non-collision: {} {native:?}", command.name);
+                    assert_eq!(
+                        actual.last(),
+                        Some(&command.action),
+                        "Linux emacs flavor non-collision: {} {native:?}",
+                        command.name
+                    );
                 }
             }
 
@@ -3225,17 +3492,40 @@ keybindings|||
                 native_flavor.apply_linux_keep(&native_keep);
                 let actual = resolve_spec(&mut native_flavor, command.emacs);
                 if linux_displaces_emacs_default(command.emacs, &native_keep) {
-                    assert_ne!(actual.last(), Some(&command.action), "Linux native flavor must displace {} {:?}", command.name, command.emacs);
+                    assert_ne!(
+                        actual.last(),
+                        Some(&command.action),
+                        "Linux native flavor must displace {} {:?}",
+                        command.name,
+                        command.emacs
+                    );
                 } else {
-                    assert_eq!(actual.last(), Some(&command.action), "Linux native flavor: {} {:?}", command.name, command.emacs);
+                    assert_eq!(
+                        actual.last(),
+                        Some(&command.action),
+                        "Linux native flavor: {} {:?}",
+                        command.name,
+                        command.emacs
+                    );
                 }
 
                 let mut emacs_flavor = KeymapState::new_with_convention(Convention::Linux);
                 emacs_flavor.apply_linux_keep(&emacs_keep);
                 let trace = resolve_spec(&mut emacs_flavor, command.emacs);
-                assert_eq!(trace.last(), Some(&command.action), "Linux emacs flavor: {} {:?}", command.name, command.emacs);
+                assert_eq!(
+                    trace.last(),
+                    Some(&command.action),
+                    "Linux emacs flavor: {} {:?}",
+                    command.name,
+                    command.emacs
+                );
                 if command.emacs.split_whitespace().count() == 2 {
-                    assert_eq!(trace.first(), Some(&Action::BeginPrefix), "Linux emacs prefix trace: {}", command.name);
+                    assert_eq!(
+                        trace.first(),
+                        Some(&Action::BeginPrefix),
+                        "Linux emacs prefix trace: {}",
+                        command.name
+                    );
                 }
             }
         }
@@ -3274,7 +3564,10 @@ keybindings|||
             native_only: false,
             web_only: false,
         };
-        assert_eq!(crate::commands::join_slots(mutated.native, mutated.emacs), "⌘J");
+        assert_eq!(
+            crate::commands::join_slots(mutated.native, mutated.emacs),
+            "⌘J"
+        );
 
         let mut km = KeymapState::new_with_convention(Convention::Mac);
         km.default_single.clear();

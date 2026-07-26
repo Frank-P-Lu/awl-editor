@@ -91,7 +91,10 @@ pub fn classify_ua(ua_or_platform: &str) -> Convention {
 #[cfg(any(target_arch = "wasm32", test))]
 pub fn set_web_convention_from_ua(ua_or_platform: &str) -> Convention {
     let c = classify_ua(ua_or_platform);
-    WEB_CONVENTION.store(if c == Convention::Mac { MAC } else { LINUX }, Ordering::Relaxed);
+    WEB_CONVENTION.store(
+        if c == Convention::Mac { MAC } else { LINUX },
+        Ordering::Relaxed,
+    );
     c
 }
 
@@ -155,7 +158,11 @@ mod tests {
             "iPad",
             "MACINTOSH", // case-insensitive
         ] {
-            assert_eq!(classify_ua(ua), Convention::Mac, "{ua:?} should read as Mac");
+            assert_eq!(
+                classify_ua(ua),
+                Convention::Mac,
+                "{ua:?} should read as Mac"
+            );
         }
     }
 
@@ -168,7 +175,11 @@ mod tests {
             "", // unrecognized/empty: default to Ctrl per the CodeMirror precedent
             "some nonsense string",
         ] {
-            assert_eq!(classify_ua(ua), Convention::Linux, "{ua:?} should default to Linux");
+            assert_eq!(
+                classify_ua(ua),
+                Convention::Linux,
+                "{ua:?} should default to Linux"
+            );
         }
     }
 

@@ -277,7 +277,12 @@ pub fn cursor_icon_change(prev: CursorIcon, next: CursorIcon, hidden: bool) -> O
 mod tests {
     use super::*;
 
-    fn ctx(dragging_edge: bool, overlay_open: bool, over_edge: bool, over_text: bool) -> CursorContext {
+    fn ctx(
+        dragging_edge: bool,
+        overlay_open: bool,
+        over_edge: bool,
+        over_text: bool,
+    ) -> CursorContext {
         CursorContext {
             dragging_edge,
             dragging_text: false,
@@ -300,7 +305,12 @@ mod tests {
 
     /// A context with an active image-resize drag on `handle`, the analogue of
     /// `dragging_edge`.
-    fn ctx_image_drag(handle: ImageHandle, dragging_edge: bool, overlay_open: bool, over_text: bool) -> CursorContext {
+    fn ctx_image_drag(
+        handle: ImageHandle,
+        dragging_edge: bool,
+        overlay_open: bool,
+        over_text: bool,
+    ) -> CursorContext {
         CursorContext {
             dragging_edge,
             dragging_text: false,
@@ -323,7 +333,12 @@ mod tests {
 
     /// A context hovering (not dragging) an image's resize `handle` — the analogue
     /// of `over_edge`.
-    fn ctx_image_handle(handle: ImageHandle, overlay_open: bool, over_edge: bool, over_text: bool) -> CursorContext {
+    fn ctx_image_handle(
+        handle: ImageHandle,
+        overlay_open: bool,
+        over_edge: bool,
+        over_text: bool,
+    ) -> CursorContext {
         CursorContext {
             dragging_edge: false,
             dragging_text: false,
@@ -440,27 +455,42 @@ mod tests {
 
     #[test]
     fn nothing_hovered_is_the_plain_arrow() {
-        assert_eq!(cursor_icon_for(ctx(false, false, false, false)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx(false, false, false, false)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn plain_document_text_is_the_i_beam() {
-        assert_eq!(cursor_icon_for(ctx(false, false, false, true)), CursorIcon::Text);
+        assert_eq!(
+            cursor_icon_for(ctx(false, false, false, true)),
+            CursorIcon::Text
+        );
     }
 
     #[test]
     fn hovering_the_page_edge_is_col_resize() {
-        assert_eq!(cursor_icon_for(ctx(false, false, true, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(false, false, true, false)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn overlay_open_alone_is_the_plain_arrow() {
-        assert_eq!(cursor_icon_for(ctx(false, true, false, false)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx(false, true, false, false)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn dragging_the_edge_alone_is_col_resize() {
-        assert_eq!(cursor_icon_for(ctx(true, false, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(true, false, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     // --- a TEXT-SELECTION drag pins the I-beam for the whole gesture --------
@@ -516,48 +546,72 @@ mod tests {
 
     #[test]
     fn edge_hover_beats_text() {
-        assert_eq!(cursor_icon_for(ctx(false, false, true, true)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(false, false, true, true)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn overlay_open_beats_text() {
         // The scrim covers the document -- a spot that would otherwise be
         // plain document text still reads as the plain arrow, never the I-beam.
-        assert_eq!(cursor_icon_for(ctx(false, true, false, true)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx(false, true, false, true)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn dragging_edge_beats_text() {
-        assert_eq!(cursor_icon_for(ctx(true, false, false, true)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(true, false, false, true)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn overlay_open_beats_edge_hover() {
         // The scrim covers the page edge too -- a would-be edge hover behind
         // an open overlay never shows the resize glyph.
-        assert_eq!(cursor_icon_for(ctx(false, true, true, false)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx(false, true, true, false)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn dragging_edge_beats_overlay_open() {
         // An ACTIVE drag (button down, mid-gesture) always wins -- it is never
         // masked by a summoned overlay appearing mid-drag.
-        assert_eq!(cursor_icon_for(ctx(true, true, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(true, true, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn overlay_open_beats_edge_hover_and_text_together() {
-        assert_eq!(cursor_icon_for(ctx(false, true, true, true)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx(false, true, true, true)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn dragging_edge_beats_overlay_open_and_text_together() {
-        assert_eq!(cursor_icon_for(ctx(true, true, false, true)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(true, true, false, true)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn dragging_edge_beats_every_other_flag_at_once() {
-        assert_eq!(cursor_icon_for(ctx(true, true, true, true)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx(true, true, true, true)),
+            CursorIcon::ColResize
+        );
     }
 
     // --- the clickable-overlay-row pointing HAND (generalized to EVERY picker) --
@@ -567,40 +621,58 @@ mod tests {
         // Generalized from spell-only: a hovered row of ANY summoned picker
         // (Command-P / go-to / browse / theme / history / spell / …) reads as
         // clickable -- the flag is computed uniformly from `overlay_row_at`.
-        assert_eq!(cursor_icon_for(ctx_row(false, false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_row(false, false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn a_non_row_overlay_region_is_the_arrow_never_the_hand() {
         // overlay_open with NEITHER the row nor query flag set (the scrim, a foot
         // hint, an empty gap): the plain arrow -- the hand is scoped to a real row.
-        assert_eq!(cursor_icon_for(ctx(false, true, false, false)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx(false, true, false, false)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn clickable_row_beats_the_generic_overlay_arrow() {
         // overlay_open AND the row flag set: the hand wins over the generic
         // overlay->arrow rule it sits above.
-        assert_eq!(cursor_icon_for(ctx_row(false, false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_row(false, false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn clickable_row_beats_a_would_be_edge_or_text_beneath_it() {
         // The scrim covers the document, so edge/text beneath a row never
         // surface -- the hand still wins with those flags also set.
-        assert_eq!(cursor_icon_for(ctx_row(false, true, true)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_row(false, true, true)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn an_active_edge_drag_still_beats_the_clickable_row_hand() {
         // A page-resize drag in progress is the one higher-priority case: it
         // tracks the literal gesture even over a clickable row.
-        assert_eq!(cursor_icon_for(ctx_row(true, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_row(true, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn dragging_edge_beats_the_row_hand_with_every_flag_at_once() {
-        assert_eq!(cursor_icon_for(ctx_row(true, true, true)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_row(true, true, true)),
+            CursorIcon::ColResize
+        );
     }
 
     // --- the clickable LENS-STRIP facet also earns the pointing HAND ------------
@@ -609,29 +681,44 @@ mod tests {
 
     #[test]
     fn a_clickable_lens_facet_is_the_pointing_hand() {
-        assert_eq!(cursor_icon_for(ctx_lens(false, false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_lens(false, false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn clickable_lens_beats_the_generic_overlay_arrow() {
-        assert_eq!(cursor_icon_for(ctx_lens(false, false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_lens(false, false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn clickable_lens_beats_a_would_be_edge_or_text_beneath_it() {
         // The scrim covers the document, so edge/text beneath the strip never
         // surface -- the hand still wins with those flags also set.
-        assert_eq!(cursor_icon_for(ctx_lens(false, true, true)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_lens(false, true, true)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn an_active_edge_drag_still_beats_the_lens_hand() {
-        assert_eq!(cursor_icon_for(ctx_lens(true, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_lens(true, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn dragging_edge_beats_the_lens_hand_with_every_flag_at_once() {
-        assert_eq!(cursor_icon_for(ctx_lens(true, true, true)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_lens(true, true, true)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
@@ -666,14 +753,20 @@ mod tests {
     fn the_overlay_query_input_line_is_the_i_beam() {
         // The editable filter field at the top of a picker: a text field, so the
         // I-beam, not the arrow -- even though an overlay is open.
-        assert_eq!(cursor_icon_for(ctx_query(false, false, false)), CursorIcon::Text);
+        assert_eq!(
+            cursor_icon_for(ctx_query(false, false, false)),
+            CursorIcon::Text
+        );
     }
 
     #[test]
     fn query_input_beats_the_generic_overlay_arrow() {
         // Ranked above the generic overlay->arrow rule (it is a real editable
         // region), below a clickable row.
-        assert_eq!(cursor_icon_for(ctx_query(false, false, false)), CursorIcon::Text);
+        assert_eq!(
+            cursor_icon_for(ctx_query(false, false, false)),
+            CursorIcon::Text
+        );
     }
 
     #[test]
@@ -707,14 +800,20 @@ mod tests {
     fn a_margin_outline_row_is_the_pointing_hand() {
         // A hovered clickable outline row reads as click-to-jump — the pointing hand,
         // exactly like a picker row, though the outline is margin chrome not an overlay.
-        assert_eq!(cursor_icon_for(ctx_outline(false, false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_outline(false, false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn a_margin_outline_row_beats_the_plain_text_beneath_it() {
         // The outline sits in the left margin, but its band can overlap where the
         // column starts; a row still wins the hand over plain text.
-        assert_eq!(cursor_icon_for(ctx_outline(false, false, true)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_outline(false, false, true)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
@@ -776,26 +875,38 @@ mod tests {
 
     #[test]
     fn a_clickable_menu_title_or_item_is_the_pointing_hand() {
-        assert_eq!(cursor_icon_for(ctx_menu_hand(false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_menu_hand(false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn a_menu_title_hand_beats_the_text_and_edge_beneath_the_bar() {
         // The bar reserves space over the document; a clickable title still wins the
         // hand over the would-be edge/text under it.
-        assert_eq!(cursor_icon_for(ctx_menu_hand(true, true)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_menu_hand(true, true)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn dead_menu_bar_space_is_the_plain_arrow_never_the_i_beam() {
         // Over the bar strip / dropdown card but off any clickable title/item: the
         // plain arrow, NOT the document I-beam that `over_text` would otherwise give.
-        assert_eq!(cursor_icon_for(ctx_menu_bar(false, true)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx_menu_bar(false, true)),
+            CursorIcon::Default
+        );
     }
 
     #[test]
     fn dead_menu_bar_space_beats_a_would_be_page_edge_beneath_it() {
-        assert_eq!(cursor_icon_for(ctx_menu_bar(true, false)), CursorIcon::Default);
+        assert_eq!(
+            cursor_icon_for(ctx_menu_bar(true, false)),
+            CursorIcon::Default
+        );
     }
 
     // --- the find/replace panel's Aa CASE-TOGGLE cell earns the pointing HAND -------
@@ -825,14 +936,20 @@ mod tests {
 
     #[test]
     fn the_case_toggle_cell_is_the_pointing_hand() {
-        assert_eq!(cursor_icon_for(ctx_case_toggle(false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_case_toggle(false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn the_case_toggle_cell_beats_the_plain_text_beneath_the_floating_panel() {
         // The panel floats over the writing column; a hover on its Aa cell reads as
         // the clickable hand, never the document I-beam under the card.
-        assert_eq!(cursor_icon_for(ctx_case_toggle(false, true)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_case_toggle(false, true)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
@@ -847,13 +964,22 @@ mod tests {
     fn the_page_edge_still_beats_a_margin_outline_row() {
         // The outline hugs just inside the column edge; where the two meet, the
         // page-resize edge (hover or drag) wins — the outline is below it in priority.
-        assert_eq!(cursor_icon_for(ctx_outline(false, true, false)), CursorIcon::ColResize);
-        assert_eq!(cursor_icon_for(ctx_outline(true, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_outline(false, true, false)),
+            CursorIcon::ColResize
+        );
+        assert_eq!(
+            cursor_icon_for(ctx_outline(true, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn an_active_edge_drag_still_beats_the_query_input_i_beam() {
-        assert_eq!(cursor_icon_for(ctx_query(true, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_query(true, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     // --- item 81: a REVEALED fold chevron earns the pointing HAND, either direction
@@ -885,24 +1011,36 @@ mod tests {
     fn a_revealed_fold_chevron_is_the_pointing_hand() {
         // Whichever direction the heading currently faces (expanded or collapsed),
         // the SAME hit-test feeds this flag, so there is only one hand decision.
-        assert_eq!(cursor_icon_for(ctx_fold_chevron(false, false, false)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_fold_chevron(false, false, false)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn the_fold_chevron_hand_beats_the_plain_text_beneath_it() {
         // The chevron sits inside the writing column's own leading pad, which also
         // reads `over_text` true — the hand still wins over the I-beam.
-        assert_eq!(cursor_icon_for(ctx_fold_chevron(false, false, true)), CursorIcon::Pointer);
+        assert_eq!(
+            cursor_icon_for(ctx_fold_chevron(false, false, true)),
+            CursorIcon::Pointer
+        );
     }
 
     #[test]
     fn an_active_page_edge_drag_still_beats_the_fold_chevron_hand() {
-        assert_eq!(cursor_icon_for(ctx_fold_chevron(true, false, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_fold_chevron(true, false, false)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
     fn the_page_edge_still_beats_a_fold_chevron_where_they_meet() {
-        assert_eq!(cursor_icon_for(ctx_fold_chevron(false, true, false)), CursorIcon::ColResize);
+        assert_eq!(
+            cursor_icon_for(ctx_fold_chevron(false, true, false)),
+            CursorIcon::ColResize
+        );
     }
 
     // --- the inline-image resize handles (hover + drag): one glyph per edge/corner
@@ -914,11 +1052,26 @@ mod tests {
         assert_eq!(image_handle_icon(ImageHandle::Left), CursorIcon::ColResize);
         assert_eq!(image_handle_icon(ImageHandle::Right), CursorIcon::ColResize);
         assert_eq!(image_handle_icon(ImageHandle::Top), CursorIcon::RowResize);
-        assert_eq!(image_handle_icon(ImageHandle::Bottom), CursorIcon::RowResize);
-        assert_eq!(image_handle_icon(ImageHandle::TopLeft), CursorIcon::NwseResize);
-        assert_eq!(image_handle_icon(ImageHandle::BottomRight), CursorIcon::NwseResize);
-        assert_eq!(image_handle_icon(ImageHandle::TopRight), CursorIcon::NeswResize);
-        assert_eq!(image_handle_icon(ImageHandle::BottomLeft), CursorIcon::NeswResize);
+        assert_eq!(
+            image_handle_icon(ImageHandle::Bottom),
+            CursorIcon::RowResize
+        );
+        assert_eq!(
+            image_handle_icon(ImageHandle::TopLeft),
+            CursorIcon::NwseResize
+        );
+        assert_eq!(
+            image_handle_icon(ImageHandle::BottomRight),
+            CursorIcon::NwseResize
+        );
+        assert_eq!(
+            image_handle_icon(ImageHandle::TopRight),
+            CursorIcon::NeswResize
+        );
+        assert_eq!(
+            image_handle_icon(ImageHandle::BottomLeft),
+            CursorIcon::NeswResize
+        );
     }
 
     #[test]
@@ -934,7 +1087,10 @@ mod tests {
             (ImageHandle::TopRight, CursorIcon::NeswResize),
             (ImageHandle::BottomLeft, CursorIcon::NeswResize),
         ] {
-            assert_eq!(cursor_icon_for(ctx_image_handle(h, false, false, false)), want);
+            assert_eq!(
+                cursor_icon_for(ctx_image_handle(h, false, false, false)),
+                want
+            );
         }
     }
 
@@ -946,7 +1102,10 @@ mod tests {
             (ImageHandle::BottomRight, CursorIcon::NwseResize),
             (ImageHandle::TopRight, CursorIcon::NeswResize),
         ] {
-            assert_eq!(cursor_icon_for(ctx_image_drag(h, false, false, false)), want);
+            assert_eq!(
+                cursor_icon_for(ctx_image_drag(h, false, false, false)),
+                want
+            );
         }
     }
 
@@ -955,7 +1114,12 @@ mod tests {
         // The handle sits on the image's border, inside the writing column; the
         // resize affordance still wins over the plain-text I-beam under it.
         assert_eq!(
-            cursor_icon_for(ctx_image_handle(ImageHandle::BottomRight, false, false, true)),
+            cursor_icon_for(ctx_image_handle(
+                ImageHandle::BottomRight,
+                false,
+                false,
+                true
+            )),
             CursorIcon::NwseResize
         );
     }
@@ -1004,7 +1168,10 @@ mod tests {
 
     #[test]
     fn icon_change_is_none_when_unchanged() {
-        assert_eq!(cursor_icon_change(CursorIcon::Text, CursorIcon::Text, false), None);
+        assert_eq!(
+            cursor_icon_change(CursorIcon::Text, CursorIcon::Text, false),
+            None
+        );
     }
 
     #[test]
@@ -1020,7 +1187,10 @@ mod tests {
         // Typing hid the pointer; the context changed underneath it (e.g. a
         // click landed and moved the caret under a different hover region) --
         // no OS call fires, since nothing is visible to update.
-        assert_eq!(cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true), None);
+        assert_eq!(
+            cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true),
+            None
+        );
     }
 
     #[test]
@@ -1030,7 +1200,10 @@ mod tests {
         // -drawn icon); the next un-hide call (hidden = false) then sees the
         // real prev-vs-next gap and fires exactly once, landing on the
         // context-correct shape rather than a stale intermediate one.
-        assert_eq!(cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true), None);
+        assert_eq!(
+            cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true),
+            None
+        );
         assert_eq!(
             cursor_icon_change(CursorIcon::Default, CursorIcon::Text, false),
             Some(CursorIcon::Text)

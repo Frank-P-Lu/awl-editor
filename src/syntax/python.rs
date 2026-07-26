@@ -76,7 +76,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -145,7 +146,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXoObB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -225,9 +230,14 @@ mod tests {
 
     #[test]
     fn reference_snippet() {
-        let t = "# add two\ndef add(a, b):\n    total = a + b  # sum\n    return total\nMAX = 100\n";
+        let t =
+            "# add two\ndef add(a, b):\n    total = a + b  # sum\n    return total\nMAX = 100\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# add two", "# sum"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# add two", "# sum"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"add"), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }

@@ -54,7 +54,6 @@ pub fn toggle() -> bool {
     next
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -101,7 +101,10 @@ pub fn corrupt_siblings_to_prune(names: &[String], stem: &str, keep: usize) -> V
     if matching.len() <= keep {
         return Vec::new();
     }
-    matching[..matching.len() - keep].iter().map(|s| (*s).clone()).collect()
+    matching[..matching.len() - keep]
+        .iter()
+        .map(|s| (*s).clone())
+        .collect()
 }
 
 /// PRESERVE a corrupt store's raw bytes: write them to a timestamped sibling
@@ -127,8 +130,11 @@ pub fn preserve_corrupt(path: &Path, raw: &[u8]) {
     let backup_path = parent.join(corrupt_backup_name(&name, now_ms, next_seq()));
     let _ = fs.write(&backup_path, raw);
     if let Ok(entries) = fs.read_dir(parent) {
-        let existing: Vec<String> =
-            entries.into_iter().filter(|e| e.is_file).map(|e| e.name).collect();
+        let existing: Vec<String> = entries
+            .into_iter()
+            .filter(|e| e.is_file)
+            .map(|e| e.name)
+            .collect();
         for stale in corrupt_siblings_to_prune(&existing, &name, CORRUPT_BACKUP_KEEP) {
             let _ = fs.remove_file(&parent.join(&stale));
         }
@@ -210,7 +216,10 @@ mod tests {
             "stats.toml.corrupt-00000000000000000099".to_string(), // a DIFFERENT store's sibling
         ];
         let pruned = corrupt_siblings_to_prune(&names, "session.toml", 2);
-        assert_eq!(pruned, vec!["session.toml.corrupt-00000000000000000001".to_string()]);
+        assert_eq!(
+            pruned,
+            vec!["session.toml.corrupt-00000000000000000001".to_string()]
+        );
         // Never touches the live file or another store's sibling.
         assert!(!pruned.iter().any(|n| n == "session.toml"));
         assert!(!pruned.iter().any(|n| n.starts_with("stats.toml")));
@@ -218,7 +227,10 @@ mod tests {
 
     #[test]
     fn corrupt_siblings_to_prune_is_a_no_op_under_the_keep_count() {
-        let names: Vec<String> = vec!["a.toml.corrupt-1".to_string(), "a.toml.corrupt-2".to_string()];
+        let names: Vec<String> = vec![
+            "a.toml.corrupt-1".to_string(),
+            "a.toml.corrupt-2".to_string(),
+        ];
         assert!(corrupt_siblings_to_prune(&names, "a.toml", 5).is_empty());
         assert!(corrupt_siblings_to_prune(&[], "a.toml", 5).is_empty());
     }
@@ -237,8 +249,10 @@ mod tests {
                 .into_iter()
                 .map(|e| e.name)
                 .collect();
-            let siblings: Vec<&String> =
-                names.iter().filter(|n| n.starts_with("session.toml.corrupt-")).collect();
+            let siblings: Vec<&String> = names
+                .iter()
+                .filter(|n| n.starts_with("session.toml.corrupt-"))
+                .collect();
             assert_eq!(
                 siblings.len(),
                 CORRUPT_BACKUP_KEEP,
@@ -249,11 +263,13 @@ mod tests {
 
     #[test]
     fn preserve_corrupt_never_touches_the_live_store_file() {
-        let fake = Arc::new(crate::fs::InMemoryFs::new().with_file("/data/session.toml", "active = 1\n"));
+        let fake =
+            Arc::new(crate::fs::InMemoryFs::new().with_file("/data/session.toml", "active = 1\n"));
         crate::fs::with_fs(fake.clone(), || {
             preserve_corrupt(&PathBuf::from("/data/session.toml"), b"garbage");
             assert_eq!(
-                fake.read_to_string(Path::new("/data/session.toml")).unwrap(),
+                fake.read_to_string(Path::new("/data/session.toml"))
+                    .unwrap(),
                 "active = 1\n",
                 "the live file is untouched — only a NEW sibling is written"
             );
@@ -267,7 +283,11 @@ mod tests {
         n: i64,
     }
     fn parse_toy(src: &str) -> Toy {
-        let n = src.parse::<toml::Table>().ok().and_then(|t| t.get("n").and_then(|v| v.as_integer())).unwrap_or(0);
+        let n = src
+            .parse::<toml::Table>()
+            .ok()
+            .and_then(|t| t.get("n").and_then(|v| v.as_integer()))
+            .unwrap_or(0);
         Toy { n }
     }
 
@@ -285,12 +305,17 @@ mod tests {
     #[test]
     fn load_toml_store_valid_toml_missing_field_is_lenient_default_no_backup() {
         // Legitimate "old store, new field" case — NOT corruption.
-        let fake = Arc::new(crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "other = 3\n"));
+        let fake =
+            Arc::new(crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "other = 3\n"));
         crate::fs::with_fs(fake.clone(), || {
             let path = PathBuf::from("/data/toy.toml");
             assert_eq!(load_toml_store(&path, parse_toy), Toy { n: 0 });
-            let names: Vec<String> =
-                fake.read_dir(Path::new("/data")).unwrap().into_iter().map(|e| e.name).collect();
+            let names: Vec<String> = fake
+                .read_dir(Path::new("/data"))
+                .unwrap()
+                .into_iter()
+                .map(|e| e.name)
+                .collect();
             assert!(
                 !names.iter().any(|n| n.contains(".corrupt-")),
                 "a valid-but-incomplete TOML table must never back up: {names:?}"
@@ -300,18 +325,34 @@ mod tests {
 
     #[test]
     fn load_toml_store_garbled_toml_syntax_preserves_a_sibling_then_defaults() {
-        let fake =
-            Arc::new(crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "not valid toml {{{"));
+        let fake = Arc::new(
+            crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "not valid toml {{{"),
+        );
         crate::fs::with_fs(fake.clone(), || {
             let path = PathBuf::from("/data/toy.toml");
             assert_eq!(load_toml_store(&path, parse_toy), Toy::default());
-            let names: Vec<String> =
-                fake.read_dir(Path::new("/data")).unwrap().into_iter().map(|e| e.name).collect();
-            let siblings: Vec<&String> =
-                names.iter().filter(|n| n.starts_with("toy.toml.corrupt-")).collect();
-            assert_eq!(siblings.len(), 1, "the garbled original is preserved: {names:?}");
-            let backup = fake.read_to_string(Path::new("/data").join(siblings[0]).as_path()).unwrap();
-            assert_eq!(backup, "not valid toml {{{", "the sibling holds the ORIGINAL bytes verbatim");
+            let names: Vec<String> = fake
+                .read_dir(Path::new("/data"))
+                .unwrap()
+                .into_iter()
+                .map(|e| e.name)
+                .collect();
+            let siblings: Vec<&String> = names
+                .iter()
+                .filter(|n| n.starts_with("toy.toml.corrupt-"))
+                .collect();
+            assert_eq!(
+                siblings.len(),
+                1,
+                "the garbled original is preserved: {names:?}"
+            );
+            let backup = fake
+                .read_to_string(Path::new("/data").join(siblings[0]).as_path())
+                .unwrap();
+            assert_eq!(
+                backup, "not valid toml {{{",
+                "the sibling holds the ORIGINAL bytes verbatim"
+            );
         });
     }
 
@@ -319,8 +360,9 @@ mod tests {
     fn load_toml_store_next_flush_does_not_destroy_the_preserved_sibling() {
         // The exact bug this round exists to close: a corrupt load followed by
         // a normal save must not wipe out the backup it just made.
-        let fake =
-            Arc::new(crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "not valid toml {{{"));
+        let fake = Arc::new(
+            crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "not valid toml {{{"),
+        );
         crate::fs::with_fs(fake.clone(), || {
             let path = PathBuf::from("/data/toy.toml");
             let toy = load_toml_store(&path, parse_toy);
@@ -329,8 +371,12 @@ mod tests {
             // store's own `save()`, which always goes through `write_atomic`
             // on the STORE's own path, never touching a `.corrupt-*` sibling.
             crate::fs::write_atomic(&path, b"n = 0\n").unwrap();
-            let names: Vec<String> =
-                fake.read_dir(Path::new("/data")).unwrap().into_iter().map(|e| e.name).collect();
+            let names: Vec<String> = fake
+                .read_dir(Path::new("/data"))
+                .unwrap()
+                .into_iter()
+                .map(|e| e.name)
+                .collect();
             assert!(
                 names.iter().any(|n| n.starts_with("toy.toml.corrupt-")),
                 "the sibling backup survives the next flush: {names:?}"
@@ -389,7 +435,8 @@ mod tests {
     #[test]
     fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites() {
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+        let mut counts: std::collections::BTreeMap<String, usize> =
+            std::collections::BTreeMap::new();
         scan_dir_for_bare_writes(&root, &root, &mut counts);
 
         let expected: &[(&str, usize)] = &[
@@ -475,7 +522,9 @@ mod tests {
         dir: &std::path::Path,
         counts: &mut std::collections::BTreeMap<String, usize>,
     ) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         let needles = bare_write_needles();
         for entry in entries.flatten() {
             let path = entry.path();
@@ -486,8 +535,13 @@ mod tests {
             if path.extension().and_then(|e| e.to_str()) != Some("rs") {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(&path) else { continue };
-            let n: usize = needles.iter().map(|needle| text.matches(needle.as_str()).count()).sum();
+            let Ok(text) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let n: usize = needles
+                .iter()
+                .map(|needle| text.matches(needle.as_str()).count())
+                .sum();
             if n == 0 {
                 continue;
             }

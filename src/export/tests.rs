@@ -849,8 +849,14 @@ fn export_html_strikethrough_gate() {
     );
 
     let inert = to_html("~x~", &NoImages);
-    assert!(!inert.contains("<del>"), "inert ~x~ must NOT render <del>: {inert}");
-    assert!(inert.contains("<p>x</p>"), "inert ~x~ content still exported: {inert}");
+    assert!(
+        !inert.contains("<del>"),
+        "inert ~x~ must NOT render <del>: {inert}"
+    );
+    assert!(
+        inert.contains("<p>x</p>"),
+        "inert ~x~ content still exported: {inert}"
+    );
 
     // The nested pathological case: ONE `<del>` wrapping the whole content, and
     // the inert inner `~` delimiters dropped (never emitted as literal tildes).
@@ -860,7 +866,10 @@ fn export_html_strikethrough_gate() {
         1,
         "nested case is one strike wrapper: {nested}"
     );
-    assert!(!nested.contains('~'), "inert inner ~ delimiters dropped: {nested}");
+    assert!(
+        !nested.contains('~'),
+        "inert inner ~ delimiters dropped: {nested}"
+    );
 }
 
 #[test]
@@ -966,13 +975,13 @@ fn render_export_highlight_agree() {
     // cross-line span in either path), a prose false-positive (`2=3 and 4=5`), and
     // a plain mid-sentence pair.
     let cases: &[(&str, &[&str])] = &[
-        ("=x=", &[]),                             // single `=`: inert, nothing marked
-        ("==x==", &["x"]),                        // two `=`: highlighted
-        ("===", &[]),                             // three `=`: no candidate anywhere
-        ("a ==== b", &[]),                        // four `=`: inert run, no candidate
-        ("==a =b= c==", &["a", "=b=", "c"]),      // engaged outer; inert `=b=` literal inside
-        ("==cut\nline==", &[]),                   // soft break splits: neither run pairs
-        ("2=3 and 4=5", &[]),                     // bare single `=` in prose: never marked
+        ("=x=", &[]),                        // single `=`: inert, nothing marked
+        ("==x==", &["x"]),                   // two `=`: highlighted
+        ("===", &[]),                        // three `=`: no candidate anywhere
+        ("a ==== b", &[]),                   // four `=`: inert run, no candidate
+        ("==a =b= c==", &["a", "=b=", "c"]), // engaged outer; inert `=b=` literal inside
+        ("==cut\nline==", &[]),              // soft break splits: neither run pairs
+        ("2=3 and 4=5", &[]),                // bare single `=` in prose: never marked
         ("keep ==mark this== keep", &["mark", "this"]),
     ];
     for (md, expected) in cases {
@@ -1002,8 +1011,14 @@ fn export_html_highlight_gate() {
     );
 
     let inert = to_html("=x=", &NoImages);
-    assert!(!inert.contains("<mark>"), "inert =x= must NOT render <mark>: {inert}");
-    assert!(inert.contains("=x="), "inert =x= content still exported literally: {inert}");
+    assert!(
+        !inert.contains("<mark>"),
+        "inert =x= must NOT render <mark>: {inert}"
+    );
+    assert!(
+        inert.contains("=x="),
+        "inert =x= content still exported literally: {inert}"
+    );
 
     // The pathological case: ONE `<mark>` wrapping the whole content, the inner
     // single-`=` run kept as literal `=` text (never a second highlight).
@@ -1013,7 +1028,10 @@ fn export_html_highlight_gate() {
         1,
         "one highlight wrapper for the outer pair: {nested}"
     );
-    assert!(nested.contains("=b="), "inert inner =b= kept literal: {nested}");
+    assert!(
+        nested.contains("=b="),
+        "inert inner =b= kept literal: {nested}"
+    );
 }
 
 #[test]
@@ -1113,7 +1131,10 @@ fn render_export_alt_hint_agree() {
             r, e,
             "render vs export width-hint diverge on alt {raw:?}: render={r:?} export={e:?}"
         );
-        assert_eq!(r, *expected, "width-hint unexpected for alt {raw:?}: got {r:?} want {expected:?}");
+        assert_eq!(
+            r, *expected,
+            "width-hint unexpected for alt {raw:?}: got {r:?} want {expected:?}"
+        );
     }
 }
 

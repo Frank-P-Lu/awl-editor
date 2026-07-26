@@ -122,7 +122,10 @@ mod tests {
         // Empty dir → the first name.
         assert_eq!(next_pasted_name(&[]), "pasted-1.png");
         // One taken → the next.
-        assert_eq!(next_pasted_name(&["pasted-1.png".to_string()]), "pasted-2.png");
+        assert_eq!(
+            next_pasted_name(&["pasted-1.png".to_string()]),
+            "pasted-2.png"
+        );
         // A run taken → the first free above it.
         assert_eq!(
             next_pasted_name(&[
@@ -150,7 +153,10 @@ mod tests {
         let rgba = [255u8, 0, 0, 255, 0, 255, 0, 255];
         let png = encode_rgba_png(2, 1, &rgba).expect("valid RGBA encodes");
         // The 8-byte PNG signature.
-        assert_eq!(&png[..8], &[0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1a, b'\n']);
+        assert_eq!(
+            &png[..8],
+            &[0x89, b'P', b'N', b'G', b'\r', b'\n', 0x1a, b'\n']
+        );
         // Round-trips back to the same dimensions through the decoder.
         let decoded = image::load_from_memory(&png).expect("re-decodes");
         assert_eq!((decoded.width(), decoded.height()), (2, 1));
@@ -230,7 +236,10 @@ mod tests {
         let reference = "assets/pasted-3.png";
         let text = insert_text(true, reference);
         assert_eq!(text, "![](assets/pasted-3.png)\n");
-        assert!(!text.contains('|'), "no width hint delimiter anywhere in the inserted ref: {text:?}");
+        assert!(
+            !text.contains('|'),
+            "no width hint delimiter anywhere in the inserted ref: {text:?}"
+        );
         let src = text.trim_end_matches('\n');
         let parsed = crate::markdown::parse_image_source(src).expect("a well-formed image ref");
         assert_eq!(parsed.width_hint, None, "paste never stamps a width hint");

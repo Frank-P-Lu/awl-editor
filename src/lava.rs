@@ -435,9 +435,17 @@ pub fn frost_field(
 /// over these values directly). MUST match `shaders/lava.wgsl`'s frost color path.
 #[allow(dead_code)]
 pub fn frost_pixel(field: f32, ground: Srgb, blob_lo: Srgb, blob_hi: Srgb, dim: f32) -> Srgb {
-    let edge_t = smoothstep(FROST_THRESHOLD - FROST_EDGE_WIDTH, FROST_THRESHOLD + FROST_EDGE_WIDTH, field);
+    let edge_t = smoothstep(
+        FROST_THRESHOLD - FROST_EDGE_WIDTH,
+        FROST_THRESHOLD + FROST_EDGE_WIDTH,
+        field,
+    );
     let core_t = smoothstep(FROST_THRESHOLD, FROST_THRESHOLD + FROST_CORE_WIDTH, field);
-    let lerp = |a: u8, b: u8, t: f32| -> u8 { (a as f32 + (b as f32 - a as f32) * t).round().clamp(0.0, 255.0) as u8 };
+    let lerp = |a: u8, b: u8, t: f32| -> u8 {
+        (a as f32 + (b as f32 - a as f32) * t)
+            .round()
+            .clamp(0.0, 255.0) as u8
+    };
     let ch = |gc: u8, lo: u8, hi: u8| -> u8 {
         let blob = lerp(lo, hi, core_t); // blob_lo → blob_hi by core_t
         let smooth = lerp(gc, blob, edge_t); // ground → blob by edge_t
@@ -479,7 +487,11 @@ pub fn frost_coverage(x: f32, y: f32, seeds: &[[f32; 4]]) -> f32 {
     for s in seeds {
         field += frost_seed_bump(x, y, *s);
     }
-    smoothstep(FROST_ISO - FROST_ISO_SOFT, FROST_ISO + FROST_ISO_SOFT, field)
+    smoothstep(
+        FROST_ISO - FROST_ISO_SOFT,
+        FROST_ISO + FROST_ISO_SOFT,
+        field,
+    )
 }
 
 // --- CADENCE / PHASE resolution (pure, unit-tested) ---------------------------
@@ -881,10 +893,7 @@ impl LavaPipeline {
         }
         let globals = Globals {
             viewport: [width as f32, height as f32],
-            field_viewport: field_viewport(
-                [width as f32, height as f32],
-                settled_field_viewport,
-            ),
+            field_viewport: field_viewport([width as f32, height as f32], settled_field_viewport),
             blob_count: BACKDROP_BLOBS.len() as u32,
             dither: dithered as u32,
             rail: rail_carved as u32,
@@ -1097,7 +1106,9 @@ mod tests {
     fn rail_carve_flattens_the_left_margin_and_keeps_the_right_byte_identical() {
         let (col_left, col_right, gap) = (300.0, 900.0, MARGIN_GAP_PX);
         // OFF is the identity with the plain column mask, everywhere.
-        for x in [0.0, 20.0, 150.0, 272.0, 285.0, 300.0, 600.0, 900.0, 914.0, 928.0, 1100.0] {
+        for x in [
+            0.0, 20.0, 150.0, 272.0, 285.0, 300.0, 600.0, 900.0, 914.0, 928.0, 1100.0,
+        ] {
             assert_eq!(
                 lava_mask(x, col_left, col_right, gap, false),
                 column_mask(x, col_left, col_right, gap),
@@ -1172,7 +1183,12 @@ mod tests {
         // band a shade shy of the column, the gutter's own box).
         let rect = [0.0, 820.0, 260.0, 1000.0];
         // `None` is the exact 1-D identity everywhere (no gutter → nothing new).
-        for &(x, y) in &[(20.0, 900.0), (150.0, 400.0), (600.0, 500.0), (1000.0, 900.0)] {
+        for &(x, y) in &[
+            (20.0, 900.0),
+            (150.0, 400.0),
+            (600.0, 500.0),
+            (1000.0, 900.0),
+        ] {
             assert_eq!(
                 lava_mask_2d(x, y, col_left, col_right, gap, false, None),
                 column_mask(x, col_left, col_right, gap),
@@ -1292,8 +1308,14 @@ mod tests {
             !lava_paused(false, false, false),
             "truly idle: the lamp may drift"
         );
-        assert!(lava_paused(true, false, false), "a live RESIZE stream holds it");
-        assert!(lava_paused(false, true, false), "a live MOVE stream holds it");
+        assert!(
+            lava_paused(true, false, false),
+            "a live RESIZE stream holds it"
+        );
+        assert!(
+            lava_paused(false, true, false),
+            "a live MOVE stream holds it"
+        );
         assert!(
             lava_paused(false, false, true),
             "a blur-eligible overlay (frost) holds it"
@@ -1377,14 +1399,7 @@ mod tests {
         for (i, b) in BACKDROP_BLOBS.iter().enumerate() {
             for start in [0.0, 0.17, 0.63, 1.21] {
                 let a = animated_center(i, b[0], b[1], b[2], vp, start);
-                let z = animated_center(
-                    i,
-                    b[0],
-                    b[1],
-                    b[2],
-                    vp,
-                    start + LAVA_LOOP_CYCLES,
-                );
+                let z = animated_center(i, b[0], b[1], b[2], vp, start + LAVA_LOOP_CYCLES);
                 assert!(
                     (a.0 - z.0).abs() < 1e-6 && (a.1 - z.1).abs() < 1e-6,
                     "blob {i} does not meet its two-cycle endpoint from {start}: {a:?} vs {z:?}"
@@ -1400,7 +1415,12 @@ mod tests {
 
         // Centers are the field's only phase-varying input, but prove the
         // composed metaball result too so the law names the visible outcome.
-        for px in [(24.0, 40.0), (160.0, 400.0), (600.0, 300.0), (1140.0, 720.0)] {
+        for px in [
+            (24.0, 40.0),
+            (160.0, 400.0),
+            (600.0, 300.0),
+            (1140.0, 720.0),
+        ] {
             let a = metaball_field(px, vp, &BACKDROP_BLOBS, 0.0);
             let z = metaball_field(px, vp, &BACKDROP_BLOBS, LAVA_LOOP_CYCLES);
             assert!(
@@ -1501,7 +1521,10 @@ mod tests {
         let cpx = (center.0 * vp.0, center.1 * vp.1);
         let raw = metaball_field(cpx, vp, &blobs, 0.0);
         let soft = frost_field(cpx, vp, &blobs, 0.0, FROST_BLUR_PX);
-        assert!(soft > 0.0 && soft < raw, "blurred peak sits below the raw peak: {soft} < {raw}");
+        assert!(
+            soft > 0.0 && soft < raw,
+            "blurred peak sits below the raw peak: {soft} < {raw}"
+        );
         // Far from any blob: the blurred field is still negligible (no invented light).
         let far = frost_field((cpx.0 + 400.0, cpx.1), vp, &blobs, 0.0, FROST_BLUR_PX);
         assert!(far < 0.01, "bare ground stays dark under the blur: {far}");
@@ -1515,22 +1538,42 @@ mod tests {
         // A run [100, 300] at yc=230, radius 40.
         let seed = [100.0f32, 300.0, 230.0, 40.0];
         // On the run, at the row centre → full core bump.
-        assert!((frost_seed_bump(200.0, 230.0, seed) - 1.0).abs() < 1e-6, "1 on the ink");
-        assert!((frost_seed_bump(100.0, 230.0, seed) - 1.0).abs() < 1e-6, "1 at the run's left end");
+        assert!(
+            (frost_seed_bump(200.0, 230.0, seed) - 1.0).abs() < 1e-6,
+            "1 on the ink"
+        );
+        assert!(
+            (frost_seed_bump(100.0, 230.0, seed) - 1.0).abs() < 1e-6,
+            "1 at the run's left end"
+        );
         // Past a radius beyond the end / above the row → 0 (compact support).
-        assert_eq!(frost_seed_bump(300.0 + 41.0, 230.0, seed), 0.0, "0 past a radius right");
-        assert_eq!(frost_seed_bump(200.0, 230.0 + 41.0, seed), 0.0, "0 past a radius up");
+        assert_eq!(
+            frost_seed_bump(300.0 + 41.0, 230.0, seed),
+            0.0,
+            "0 past a radius right"
+        );
+        assert_eq!(
+            frost_seed_bump(200.0, 230.0 + 41.0, seed),
+            0.0,
+            "0 past a radius up"
+        );
         // Monotone decay stepping out past the right end.
         let mut prev = 1.0;
         for k in 0..=42 {
             let x = 300.0 + k as f32;
             let b = frost_seed_bump(x, 230.0, seed);
-            assert!(b <= prev + 1e-6, "bump decays monotonically at x={x}: {b} <= {prev}");
+            assert!(
+                b <= prev + 1e-6,
+                "bump decays monotonically at x={x}: {b} <= {prev}"
+            );
             prev = b;
         }
         // Vertically symmetric about the row centre.
         assert!(
-            (frost_seed_bump(200.0, 230.0 - 20.0, seed) - frost_seed_bump(200.0, 230.0 + 20.0, seed)).abs() < 1e-6,
+            (frost_seed_bump(200.0, 230.0 - 20.0, seed)
+                - frost_seed_bump(200.0, 230.0 + 20.0, seed))
+            .abs()
+                < 1e-6,
             "the halo is symmetric above/below the ink"
         );
     }
@@ -1545,16 +1588,28 @@ mod tests {
         // Two point-seeds (x0==x1) on the same row, 50px apart (< 2r) → the
         // midpoint's summed field clears iso: ONE island.
         let near = [[100.0f32, 100.0, 200.0, r], [150.0, 150.0, 200.0, r]];
-        assert!(frost_coverage(125.0, 200.0, &near) > 0.5, "nearby seeds bridge into one island");
+        assert!(
+            frost_coverage(125.0, 200.0, &near) > 0.5,
+            "nearby seeds bridge into one island"
+        );
         // The same seeds 140px apart (> 2r + skirt) → the midpoint falls below iso:
         // TWO islands, yet each seed's own core still frosts.
         let far = [[100.0f32, 100.0, 200.0, r], [240.0, 240.0, 200.0, r]];
-        assert!(frost_coverage(170.0, 200.0, &far) < 0.5, "far seeds leave a live gap between islands");
-        assert!(frost_coverage(100.0, 200.0, &far) > 0.5, "each far seed still frosts its own core");
+        assert!(
+            frost_coverage(170.0, 200.0, &far) < 0.5,
+            "far seeds leave a live gap between islands"
+        );
+        assert!(
+            frost_coverage(100.0, 200.0, &far) > 0.5,
+            "each far seed still frosts its own core"
+        );
         // MERGE IN ANY DIRECTION: two seeds stacked vertically within reach also
         // bridge (no per-row separation).
         let stacked = [[100.0f32, 200.0, 200.0, r], [100.0, 200.0, 250.0, r]];
-        assert!(frost_coverage(150.0, 225.0, &stacked) > 0.5, "vertically-close rows merge organically");
+        assert!(
+            frost_coverage(150.0, 225.0, &stacked) > 0.5,
+            "vertically-close rows merge organically"
+        );
     }
 
     /// FROST GATING: [`frost_coverage`] frosts a pixel over a seed's ink, stays
@@ -1564,11 +1619,25 @@ mod tests {
     fn frost_coverage_frosts_the_ink_and_empty_is_inert() {
         let a = [10.0f32, 40.0, 20.0, 40.0];
         let b = [200.0f32, 240.0, 220.0, 40.0];
-        assert!(frost_coverage(25.0, 20.0, &[a, b]) > 0.999, "over seed A's ink → frosted");
-        assert!(frost_coverage(220.0, 220.0, &[a, b]) > 0.999, "over seed B's ink → frosted");
-        assert_eq!(frost_coverage(1000.0, 1000.0, &[a, b]), 0.0, "far from every seed the lamp is live");
+        assert!(
+            frost_coverage(25.0, 20.0, &[a, b]) > 0.999,
+            "over seed A's ink → frosted"
+        );
+        assert!(
+            frost_coverage(220.0, 220.0, &[a, b]) > 0.999,
+            "over seed B's ink → frosted"
+        );
+        assert_eq!(
+            frost_coverage(1000.0, 1000.0, &[a, b]),
+            0.0,
+            "far from every seed the lamp is live"
+        );
         // No seeds → inert everywhere (the non-frost frame).
-        assert_eq!(frost_coverage(25.0, 20.0, &[]), 0.0, "an empty seed list frosts nothing");
+        assert_eq!(
+            frost_coverage(25.0, 20.0, &[]),
+            0.0,
+            "an empty seed list frosts nothing"
+        );
     }
 
     /// THE FROST PIXEL: below the field threshold it is EXACTLY the flat ground
@@ -1577,12 +1646,31 @@ mod tests {
     /// `mix(blob_hi, ground, dim)` — the value the contrast law leans on.
     #[test]
     fn frost_pixel_dims_toward_ground_and_stays_bounded() {
-        let ground = Srgb { r: 0x17, g: 0x09, b: 0x0c, a: 0xff };
-        let lo = Srgb { r: 0x24, g: 0x0c, b: 0x14, a: 0xff };
-        let hi = Srgb { r: 0x52, g: 0x18, b: 0x2c, a: 0xff };
+        let ground = Srgb {
+            r: 0x17,
+            g: 0x09,
+            b: 0x0c,
+            a: 0xff,
+        };
+        let lo = Srgb {
+            r: 0x24,
+            g: 0x0c,
+            b: 0x14,
+            a: 0xff,
+        };
+        let hi = Srgb {
+            r: 0x52,
+            g: 0x18,
+            b: 0x2c,
+            a: 0xff,
+        };
         // Field below the edge band → pure ground.
         let dark = frost_pixel(0.0, ground, lo, hi, FROST_DIM);
-        assert_eq!((dark.r, dark.g, dark.b), (ground.r, ground.g, ground.b), "no blob → flat ground");
+        assert_eq!(
+            (dark.r, dark.g, dark.b),
+            (ground.r, ground.g, ground.b),
+            "no blob → flat ground"
+        );
         // A saturated field → the brightest the pill reaches, dimmed toward ground.
         let bright = frost_pixel(1.0, ground, lo, hi, FROST_DIM);
         let lerp = |a: u8, b: u8, t: f32| (a as f32 + (b as f32 - a as f32) * t).round() as i32;
@@ -1592,9 +1680,16 @@ mod tests {
             lerp(hi.g, ground.g, FROST_DIM),
             lerp(hi.b, ground.b, FROST_DIM),
         );
-        assert_eq!((bright.r as i32, bright.g as i32, bright.b as i32), bound, "saturated frost == the worst bound");
+        assert_eq!(
+            (bright.r as i32, bright.g as i32, bright.b as i32),
+            bound,
+            "saturated frost == the worst bound"
+        );
         // And the worst bound is genuinely dimmer than the raw blob_hi (the dim works).
-        assert!((bright.r as i32) < hi.r as i32, "the value dim pulls the pill back toward ground");
+        assert!(
+            (bright.r as i32) < hi.r as i32,
+            "the value dim pulls the pill back toward ground"
+        );
     }
 
     // The theme-preview CROSSING classification (and its no-wildcard roster law)

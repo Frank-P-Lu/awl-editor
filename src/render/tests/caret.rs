@@ -56,9 +56,7 @@ fn metrics_scale_with_zoom() {
     assert!((m2.caret_streak_min_len - CARET_STREAK_MIN_LEN * 2.0).abs() < 1e-3);
     assert!((m2.caret_streak_max_len - CARET_STREAK_MAX_LEN * 2.0).abs() < 1e-3);
     assert!((m2.caret_streak_vel_full - CARET_STREAK_VEL_FULL * 2.0).abs() < 1e-3);
-    assert!(
-        (m2.caret_streak_gap - crate::caret::CARET_STREAK_GAP * 2.0).abs() < 1e-3
-    );
+    assert!((m2.caret_streak_gap - crate::caret::CARET_STREAK_GAP * 2.0).abs() < 1e-3);
 }
 
 /// The motion morph: the trailing-streak length grows monotonically with the
@@ -73,7 +71,9 @@ fn streak_length_grows_with_speed_and_clamps() {
     // ...at the full-length velocity it reaches the maximum...
     assert!((m.streak_len_for_speed(CARET_STREAK_VEL_FULL) - CARET_STREAK_MAX_LEN).abs() < 1e-3);
     // ...and faster than that it stays clamped at the maximum (no runaway).
-    assert!((m.streak_len_for_speed(CARET_STREAK_VEL_FULL * 4.0) - CARET_STREAK_MAX_LEN).abs() < 1e-3);
+    assert!(
+        (m.streak_len_for_speed(CARET_STREAK_VEL_FULL * 4.0) - CARET_STREAK_MAX_LEN).abs() < 1e-3
+    );
     // Monotonic non-decreasing across the band, and always within [min, max].
     let mut prev = m.streak_len_for_speed(0.0);
     for i in 0..=20 {
@@ -114,7 +114,10 @@ fn caret_geometry_orients_trail_along_travel_axis() {
     // above the text). Fully in motion here (settle ~0 ⇒ the full drop applies).
     p.inject_motion_demo();
     let (_cx, cy_h, w_h, h_h, _c, ax_h, ay_h) = p.caret_geometry();
-    assert!(w_h > h_h, "motion streak must be long-and-thin: w={w_h} h={h_h}");
+    assert!(
+        w_h > h_h,
+        "motion streak must be long-and-thin: w={w_h} h={h_h}"
+    );
     assert!(
         ax_h.abs() > 0.9 && ay_h.abs() < 0.1,
         "horizontal trail axis must be ~+x: ({ax_h}, {ay_h})"
@@ -136,7 +139,10 @@ fn caret_geometry_orients_trail_along_travel_axis() {
     // long-and-thin in its own frame.
     p.inject_motion_demo_vertical();
     let (_cx, _cy, w_v, h_v, _c, ax_v, ay_v) = p.caret_geometry();
-    assert!(w_v > h_v, "motion streak must be long-and-thin: w={w_v} h={h_v}");
+    assert!(
+        w_v > h_v,
+        "motion streak must be long-and-thin: w={w_v} h={h_v}"
+    );
     assert!(
         ay_v.abs() > 0.9 && ax_v.abs() < 0.1,
         "vertical trail axis must be ~+y: ({ax_v}, {ay_v})"
@@ -165,14 +171,22 @@ fn block_descender_extends_only_for_dippers() {
     };
     let text = "ag"; // col 0 = 'a' (sits on the baseline), col 1 = 'g' (descender)
     let descent = |p: &mut TextPipeline| {
-        p.caret_anchor_raster_box().map(|b| b.descent()).unwrap_or(0.0)
+        p.caret_anchor_raster_box()
+            .map(|b| b.descent())
+            .unwrap_or(0.0)
     };
     p.set_view(&view(text, 0, 0));
     let a = descent(&mut p);
     p.set_view(&view(text, 0, 1));
     let g = descent(&mut p);
-    assert!(a < 1.5, "non-dipping 'a' must have ~zero descender, got {a}");
-    assert!(g > 2.0, "dipping 'g' must extend below the baseline, got {g}");
+    assert!(
+        a < 1.5,
+        "non-dipping 'a' must have ~zero descender, got {a}"
+    );
+    assert!(
+        g > 2.0,
+        "dipping 'g' must extend below the baseline, got {g}"
+    );
     assert!(g > a + 2.0, "'g' must dip further than 'a': g={g} a={a}");
 }
 
@@ -199,7 +213,10 @@ fn cosmetic_trail_anchor_is_mode_aware() {
     p.set_view(&view(text, 1, 2));
     let (tx, ty) = p.caret_target_xy();
     // A VERTICAL kick (same column, two rows up→down) so the | always shows.
-    let from = Sample { x: tx, y: ty - 2.0 * p.metrics.line_height };
+    let from = Sample {
+        x: tx,
+        y: ty - 2.0 * p.metrics.line_height,
+    };
     let to = Sample { x: tx, y: ty };
 
     // The streak draws on over the sweep window, so nudge it past zero length.
@@ -222,8 +239,14 @@ fn cosmetic_trail_anchor_is_mode_aware() {
     // Block | sits at the cell centre; I-beam | sits on the bar near pos.x.
     let want_block = tx + p.caret_block_w() * 0.5;
     let want_ibeam = tx + IBEAM_W * p.metrics.zoom * 0.5;
-    assert!((block_x - want_block).abs() < 1e-3, "block | centred: {block_x} vs {want_block}");
-    assert!((ibeam_x - want_ibeam).abs() < 1e-3, "ibeam | on the bar: {ibeam_x} vs {want_ibeam}");
+    assert!(
+        (block_x - want_block).abs() < 1e-3,
+        "block | centred: {block_x} vs {want_block}"
+    );
+    assert!(
+        (ibeam_x - want_ibeam).abs() < 1e-3,
+        "ibeam | on the bar: {ibeam_x} vs {want_ibeam}"
+    );
     assert!(
         block_x > ibeam_x + 1.0,
         "block | must sit right of the i-beam |: block={block_x} ibeam={ibeam_x}"
@@ -250,8 +273,14 @@ fn ibeam_geometry_rest_and_motion() {
     let tall = p.metrics.caret_h * p.cursor_scale();
     // AT REST (settle_factor 1, motion 0): the steady thin/tall insertion bar.
     let (cx, _cy, w, h, _c) = p.caret_ibeam_geometry();
-    assert!((w - thin).abs() < 1e-3, "rest width == IBEAM_W*zoom: w={w} thin={thin}");
-    assert!((h - tall).abs() < 1e-3, "rest height == caret_h*scale: h={h} tall={tall}");
+    assert!(
+        (w - thin).abs() < 1e-3,
+        "rest width == IBEAM_W*zoom: w={w} thin={thin}"
+    );
+    assert!(
+        (h - tall).abs() < 1e-3,
+        "rest height == caret_h*scale: h={h} tall={tall}"
+    );
     assert!(
         (cx - (p.caret.pos.x + thin * 0.5)).abs() < 1e-3,
         "rest cx pins the | on the insertion bar: cx={cx} want={}",
@@ -262,8 +291,14 @@ fn ibeam_geometry_rest_and_motion() {
     // height COLLAPSES from tall toward thin.
     p.inject_motion_demo();
     let (.., w_h, h_h, _) = p.caret_ibeam_geometry();
-    assert!(w_h > thin, "horizontal comet width grows: w={w_h} thin={thin}");
-    assert!(h_h < tall, "horizontal comet height collapses: h={h_h} tall={tall}");
+    assert!(
+        w_h > thin,
+        "horizontal comet width grows: w={w_h} thin={thin}"
+    );
+    assert!(
+        h_h < tall,
+        "horizontal comet height collapses: h={h_h} tall={tall}"
+    );
 
     // VERTICAL motion: the comet HEIGHT grows past the tall bar; width stays
     // thin. Inject a fast downward glide directly (the height floors at the cell
@@ -273,12 +308,21 @@ fn ibeam_geometry_rest_and_motion() {
     p.set_caret_target(false, false);
     let (tx, ty) = p.caret_target_xy();
     let target = Sample { x: tx, y: ty };
-    let pos = Sample { x: tx, y: ty - 3.0 * p.metrics.line_height };
+    let pos = Sample {
+        x: tx,
+        y: ty - 3.0 * p.metrics.line_height,
+    };
     let vel = Sample { x: 0.0, y: 6000.0 };
     p.caret.inject_motion(target, pos, vel);
     let (.., w_v, h_v, _) = p.caret_ibeam_geometry();
-    assert!(h_v > tall, "vertical comet height grows: h={h_v} tall={tall}");
-    assert!((w_v - thin).abs() < 1e-3, "vertical comet stays thin: w={w_v} thin={thin}");
+    assert!(
+        h_v > tall,
+        "vertical comet height grows: h={h_v} tall={tall}"
+    );
+    assert!(
+        (w_v - thin).abs() < 1e-3,
+        "vertical comet stays thin: w={w_v} thin={thin}"
+    );
 }
 
 /// The morph caret's SPACE-BAR geometry on a glyphless ANCHOR cell centres the
@@ -302,7 +346,11 @@ fn space_bar_caret_centers_on_cell_advance() {
     let text = "a b"; // cursor past the space: the ANCHOR (col 1) is the glyphless space cell
     p.set_view(&view(text, 0, 2));
     p.settle_caret();
-    assert_eq!(p.caret_anchor_col(), 1, "morph anchors the just-passed space");
+    assert_eq!(
+        p.caret_anchor_col(),
+        1,
+        "morph anchors the just-passed space"
+    );
     let (cx, _cy, w, _h, _corner) = p.caret_space_bar_geometry();
     let want_cx = p.caret.pos.x + p.caret_target_w() * 0.5;
     assert!(
@@ -357,7 +405,10 @@ fn morph_caret_anchors_one_char_back_with_line_start_fallback() {
     crate::caret::set_mode(CaretMode::Ibeam);
     p.set_view(&view(text, 0, 3));
     assert_eq!(p.caret_anchor_col(), 3, "ibeam anchors the insertion cell");
-    assert!((p.caret_target_xy().0 - bx).abs() < 1e-3, "ibeam x == block x");
+    assert!(
+        (p.caret_target_xy().0 - bx).abs() < 1e-3,
+        "ibeam x == block x"
+    );
 
     // MORPH at end-of-line: ONE back — the caret inhabits the just-typed 'c',
     // whose glyph is the silhouette mask key.
@@ -386,7 +437,11 @@ fn morph_caret_anchors_one_char_back_with_line_start_fallback() {
     // AHEAD of the cursor must not light, so the silhouette key empties and
     // the caret degrades to the thin insertion bar.
     p.set_view(&view(text, 2, 0));
-    assert_eq!(p.caret_anchor_col(), 0, "line start falls back to the cursor cell");
+    assert_eq!(
+        p.caret_anchor_col(),
+        0,
+        "line start falls back to the cursor cell"
+    );
     assert!(
         p.cursor_glyph_key_at(2, 0).is_some(),
         "sanity: the col-0 cell DOES hold a rasterizable 'x' — it is the degrade"
@@ -411,7 +466,11 @@ fn morph_caret_anchors_one_char_back_with_line_start_fallback() {
     // FALLBACK empty line: anchor col 0, glyphless — the insertion-bar path.
     crate::caret::set_mode(CaretMode::Morph);
     p.set_view(&view(text, 1, 0));
-    assert_eq!(p.caret_anchor_col(), 0, "empty line falls back to the cursor cell");
+    assert_eq!(
+        p.caret_anchor_col(),
+        0,
+        "empty line falls back to the cursor cell"
+    );
     assert!(
         p.cursor_glyph_key_at(1, p.caret_anchor_col()).is_none(),
         "an empty line stays glyphless"
@@ -499,7 +558,11 @@ fn morph_anchor_at_wrap_boundary_rides_the_previous_row() {
     crate::caret::set_mode(CaretMode::Block);
     p.set_view(&view(&long, 0, 0));
     let rows = p.visual_rows(0);
-    assert!(rows.len() >= 2, "long line should wrap ({} rows)", rows.len());
+    assert!(
+        rows.len() >= 2,
+        "long line should wrap ({} rows)",
+        rows.len()
+    );
     let wrap_col = rows[1].start_col; // the first char of visual row 2
     assert_eq!(
         long.chars().nth(wrap_col - 1),
@@ -667,13 +730,19 @@ fn edit_moves_snap_while_navigation_keeps_the_zip_gate() {
         (pos.0 - target.0).abs() < 1e-3 && (pos.1 - target.1).abs() < 1e-3,
         "typing leaves pos == target: pos={pos:?} target={target:?}"
     );
-    assert!((sf - 1.0).abs() < 1e-6, "typed caret is fully settled (resting shape)");
+    assert!(
+        (sf - 1.0).abs() < 1e-6,
+        "typed caret is fully settled (resting shape)"
+    );
 
     // The typing-impact JUICE still rides on top of the snap: the back-kick
     // re-animates the spring (the flinch plays out) around the SAME target.
     p.caret_type_impact();
     let (_pos, target2, _sf, animating) = p.caret_snapshot();
-    assert!(animating, "the impact kick re-animates the spring (flinch juice)");
+    assert!(
+        animating,
+        "the impact kick re-animates the spring (flinch juice)"
+    );
     assert!(
         (target2.0 - target.0).abs() < 1e-6 && (target2.1 - target.1).abs() < 1e-6,
         "the flinch never moves the target — it settles back to the same rest"
@@ -716,7 +785,10 @@ fn copy_pulse_ease_is_a_clamped_smoothstep() {
     let mut t = 0.0;
     while t <= 1.0 {
         let v = copy_pulse_ease(t);
-        assert!(v >= prev - 1e-6, "copy_pulse_ease must not decrease ({t} -> {v} < {prev})");
+        assert!(
+            v >= prev - 1e-6,
+            "copy_pulse_ease must not decrease ({t} -> {v} < {prev})"
+        );
         prev = v;
         t += 0.05;
     }
@@ -736,8 +808,7 @@ fn copy_pulse_settles_at_construction_then_kicks_and_decays_back() {
     // rendering) — the LIVE-ONLY animation's "decays to exactly the pre-copy
     // rendering" contract, exercised without a GPU present/draw.
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -754,23 +825,41 @@ fn copy_pulse_settles_at_construction_then_kicks_and_decays_back() {
         Some(p)
     });
     let Some(mut p) = got else {
-        eprintln!("skipping copy_pulse_settles_at_construction_then_kicks_and_decays_back: no wgpu adapter");
+        eprintln!(
+            "skipping copy_pulse_settles_at_construction_then_kicks_and_decays_back: no wgpu adapter"
+        );
         return;
     };
 
-    assert_eq!(p.copy_pulse_settle(), 1.0, "a fresh pipeline starts settled");
+    assert_eq!(
+        p.copy_pulse_settle(),
+        1.0,
+        "a fresh pipeline starts settled"
+    );
     // advance() with no pulse ever kicked must never move it off 1.0.
     p.advance(1.0 / 60.0);
-    assert_eq!(p.copy_pulse_settle(), 1.0, "advancing with no kick stays settled");
+    assert_eq!(
+        p.copy_pulse_settle(),
+        1.0,
+        "advancing with no kick stays settled"
+    );
 
     p.copy_pulse();
-    assert_eq!(p.copy_pulse_settle(), 0.0, "the kick starts fully brightened");
+    assert_eq!(
+        p.copy_pulse_settle(),
+        0.0,
+        "the kick starts fully brightened"
+    );
     let mut frames = 0;
     while p.advance(1.0 / 120.0) && frames < 10_000 {
         frames += 1;
     }
     assert!(frames > 0, "the pulse must animate for at least one frame");
-    assert_eq!(p.copy_pulse_settle(), 1.0, "the pulse decays back to fully settled");
+    assert_eq!(
+        p.copy_pulse_settle(),
+        1.0,
+        "the pulse decays back to fully settled"
+    );
 }
 
 // --- ACCESSIBILITY TIER 1: reduce-motion settles every `advance()` seam -----
@@ -801,14 +890,23 @@ fn reduced_motion_settles_the_caret_spring_in_one_step() {
     // ONE `advance()` call must fully settle it — no glide frames in between.
     let still_animating = p.advance(1.0 / 60.0);
     let (pos, target, sf, animating) = p.caret_snapshot();
-    assert!(!still_animating, "advance() reports settled after one reduced-motion step");
+    assert!(
+        !still_animating,
+        "advance() reports settled after one reduced-motion step"
+    );
     assert!(!animating, "the spring itself is no longer animating");
-    assert_eq!(target, target_before, "reduce-motion never changes WHERE the caret lands");
+    assert_eq!(
+        target, target_before,
+        "reduce-motion never changes WHERE the caret lands"
+    );
     assert!(
         (pos.0 - target.0).abs() < 1e-3 && (pos.1 - target.1).abs() < 1e-3,
         "pos == target instantly: pos={pos:?} target={target:?}"
     );
-    assert!((sf - 1.0).abs() < 1e-6, "fully settled (resting shape), same as a headless capture");
+    assert!(
+        (sf - 1.0).abs() < 1e-6,
+        "fully settled (resting shape), same as a headless capture"
+    );
     crate::motion::set_reduced(saved);
 }
 
@@ -822,9 +920,16 @@ fn reduced_motion_settles_the_copy_pulse_in_one_step() {
     };
     crate::motion::set_reduced(true);
     p.copy_pulse();
-    assert_eq!(p.copy_pulse_settle(), 0.0, "the kick still starts fully brightened");
+    assert_eq!(
+        p.copy_pulse_settle(),
+        0.0,
+        "the kick still starts fully brightened"
+    );
     let still_animating = p.advance(1.0 / 60.0);
-    assert!(!still_animating, "advance() reports settled after one reduced-motion step");
+    assert!(
+        !still_animating,
+        "advance() reports settled after one reduced-motion step"
+    );
     assert_eq!(
         p.copy_pulse_settle(),
         1.0,
@@ -885,7 +990,10 @@ fn caret_lookup_position_independent() {
     // before the cursor line grows 1:1 with the line index.
     const N: usize = 200;
     let line = "abcdefghij";
-    let text = std::iter::repeat(line).take(N).collect::<Vec<_>>().join("\n");
+    let text = std::iter::repeat(line)
+        .take(N)
+        .collect::<Vec<_>>()
+        .join("\n");
     let col = 3;
 
     let sample = |p: &mut TextPipeline, li: usize| {
@@ -954,8 +1062,7 @@ fn caret_lookup_position_independent() {
 /// `caretbench.rs`, a bench driver, exempt like the other `--bench-*` harnesses.)
 #[test]
 fn caret_no_whole_doc_walk_law() {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("src/render/caret.rs");
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render/caret.rs");
     let text = std::fs::read_to_string(&path).expect("read caret.rs");
     let mut hits = Vec::new();
     for (i, line) in text.lines().enumerate() {

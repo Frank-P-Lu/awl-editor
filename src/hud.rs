@@ -199,7 +199,6 @@ pub fn set_held(held: bool) {
     HUD_HELD.store(held, Ordering::Relaxed);
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,7 +233,10 @@ mod tests {
         assert_eq!(writing_time_readout(45_000), "45s");
         assert_eq!(writing_time_readout(12 * 60_000), "12m");
         // 47h 12m — a lifetime total, no upper bound on hours.
-        assert_eq!(writing_time_readout((47 * 3600 + 12 * 60) * 1000), "47h 12m");
+        assert_eq!(
+            writing_time_readout((47 * 3600 + 12 * 60) * 1000),
+            "47h 12m"
+        );
         // The minutes are zero-padded in the hour form.
         assert_eq!(writing_time_readout((1 * 3600 + 4 * 60) * 1000), "1h 04m");
     }
@@ -254,7 +256,10 @@ mod tests {
         let rows = odometer_rows(None);
         assert_eq!(rows.len(), 5);
         for (_, v) in &rows {
-            assert_eq!(v, PLACEHOLDER, "no live store => every odometer row is the placeholder");
+            assert_eq!(
+                v, PLACEHOLDER,
+                "no live store => every odometer row is the placeholder"
+            );
         }
         assert_eq!(rows[0].0, "CHARACTERS");
         assert_eq!(rows[4].0, "YOUR WORLD");
@@ -303,7 +308,10 @@ mod tests {
 
     #[test]
     fn odometer_rows_some_without_a_world_placeholders_only_that_row() {
-        let s = HudStats { world: None, ..HudStats::default() };
+        let s = HudStats {
+            world: None,
+            ..HudStats::default()
+        };
         let rows = odometer_rows(Some(&s));
         assert_eq!(rows[4], ("YOUR WORLD", PLACEHOLDER.to_string()));
         // The other rows still show their (zeroed) real values, not the placeholder.

@@ -48,11 +48,7 @@ pub fn toggle() -> bool {
 
 /// The setting row's calm VALUE-cell word: `"Text"` / `"All"`.
 pub fn label() -> &'static str {
-    if all_on() {
-        "All"
-    } else {
-        "Text"
-    }
+    if all_on() { "All" } else { "Text" }
 }
 
 #[cfg(test)]

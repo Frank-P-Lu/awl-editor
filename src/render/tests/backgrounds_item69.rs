@@ -33,8 +33,7 @@ use crate::theme;
 
 pub(super) fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -161,18 +160,22 @@ fn bands_test_bg() -> theme::Background {
 
 fn bands_tones() -> [[u8; 4]; 3] {
     match bands_test_bg() {
-        theme::Background::Bands { tones, .. } => {
-            [tones[0].rgba_bytes(), tones[1].rgba_bytes(), tones[2].rgba_bytes()]
-        }
+        theme::Background::Bands { tones, .. } => [
+            tones[0].rgba_bytes(),
+            tones[1].rgba_bytes(),
+            tones[2].rgba_bytes(),
+        ],
         _ => unreachable!(),
     }
 }
 
 fn bombora_tones() -> [[u8; 4]; 3] {
     match theme::BOMBORA.background {
-        theme::Background::Waves { tones } => {
-            [tones[0].rgba_bytes(), tones[1].rgba_bytes(), tones[2].rgba_bytes()]
-        }
+        theme::Background::Waves { tones } => [
+            tones[0].rgba_bytes(),
+            tones[1].rgba_bytes(),
+            tones[2].rgba_bytes(),
+        ],
         _ => panic!("Bombora must ship Background::Waves"),
     }
 }
@@ -180,14 +183,18 @@ fn bombora_tones() -> [[u8; 4]; 3] {
 /// A horizontal scanline at `y` across the WHOLE canvas (no page hole),
 /// classified into the three-tone label sequence, then run-length-collapsed.
 fn scan_row(pixels: &[[u8; 4]], w: u32, y: u32, tones: [[u8; 4]; 3]) -> Vec<usize> {
-    let labels: Vec<usize> = (0..w).map(|x| classify(pixels[(y * w + x) as usize], tones)).collect();
+    let labels: Vec<usize> = (0..w)
+        .map(|x| classify(pixels[(y * w + x) as usize], tones))
+        .collect();
     runs(&labels)
 }
 
 /// A vertical scanline at `x` down the WHOLE canvas height, same shape as
 /// [`scan_row`].
 fn scan_col(pixels: &[[u8; 4]], w: u32, h: u32, x: u32, tones: [[u8; 4]; 3]) -> Vec<usize> {
-    let labels: Vec<usize> = (0..h).map(|y| classify(pixels[(y * w + x) as usize], tones)).collect();
+    let labels: Vec<usize> = (0..h)
+        .map(|y| classify(pixels[(y * w + x) as usize], tones))
+        .collect();
     runs(&labels)
 }
 
@@ -215,7 +222,9 @@ fn region_widths(pixels: &[[u8; 4]], w: u32, y: u32, tones: [[u8; 4]; 3]) -> [u3
 #[test]
 fn bands_canonical_mid_field_crosses_exactly_three_bands() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bands_canonical_mid_field_crosses_exactly_three_bands: no wgpu adapter");
+        eprintln!(
+            "skipping bands_canonical_mid_field_crosses_exactly_three_bands: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -226,7 +235,11 @@ fn bands_canonical_mid_field_crosses_exactly_three_bands() {
     let tones = bands_tones();
 
     let seq = scan_row(&pixels, w, h / 2, tones);
-    assert_eq!(seq.len(), 3, "expected exactly 3 bands crossed, got run sequence {seq:?}");
+    assert_eq!(
+        seq.len(),
+        3,
+        "expected exactly 3 bands crossed, got run sequence {seq:?}"
+    );
     assert_eq!(
         seq.iter().collect::<std::collections::HashSet<_>>().len(),
         3,
@@ -256,7 +269,9 @@ fn bands_canonical_mid_field_crosses_exactly_three_bands() {
 #[test]
 fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile: no wgpu adapter");
+        eprintln!(
+            "skipping bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_tile: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -268,9 +283,15 @@ fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_til
     for side in [700u32, 1200, 1800] {
         let (w, h) = (side, side);
         let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
-        let labels: Vec<usize> = (0..w).map(|x| classify(pixels[(h / 2 * w + x) as usize], tones)).collect();
+        let labels: Vec<usize> = (0..w)
+            .map(|x| classify(pixels[(h / 2 * w + x) as usize], tones))
+            .collect();
         let seq = runs(&labels);
-        assert_eq!(seq.len(), 3, "side={side}: expected exactly 3 bands, got {seq:?}");
+        assert_eq!(
+            seq.len(),
+            3,
+            "side={side}: expected exactly 3 bands, got {seq:?}"
+        );
         // The first x where the label changes away from labels[0].
         let boundary = labels.iter().position(|&l| l != labels[0]).unwrap() as f32;
         first_boundary_x.push((side, boundary));
@@ -279,13 +300,17 @@ fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_til
     // homogeneous of degree 1 in (x, side), so boundary/side is EXACTLY the
     // same fraction at every size — a periodic tile would instead put the
     // boundary at a near-fixed PIXEL offset, which fails this ratio check hard.
-    let fractions: Vec<f32> = first_boundary_x.iter().map(|&(side, b)| b / side as f32).collect();
+    let fractions: Vec<f32> = first_boundary_x
+        .iter()
+        .map(|&(side, b)| b / side as f32)
+        .collect();
     let lo = fractions.iter().cloned().fold(f32::INFINITY, f32::min);
     let hi = fractions.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     assert!(
         hi - lo < 0.01,
         "boundary fraction drifted across sizes {first_boundary_x:?} -> fractions {fractions:?} \
-         (spread {:.4}) — looks like a fixed-period TILE, not a scaled field", hi - lo
+         (spread {:.4}) — looks like a fixed-period TILE, not a scaled field",
+        hi - lo
     );
 }
 
@@ -301,7 +326,9 @@ fn bands_narrow_canonical_wide_still_show_exactly_three_bands_that_scale_not_til
 #[test]
 fn bands_canonical_margin_slivers_each_catch_a_band_edge() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bands_canonical_margin_slivers_each_catch_a_band_edge: no wgpu adapter");
+        eprintln!(
+            "skipping bands_canonical_margin_slivers_each_catch_a_band_edge: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -336,7 +363,9 @@ fn bands_canonical_margin_slivers_each_catch_a_band_edge() {
 #[test]
 fn bombora_canonical_mid_field_exposes_exactly_three_wave_tiers() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bombora_canonical_mid_field_exposes_exactly_three_wave_tiers: no wgpu adapter");
+        eprintln!(
+            "skipping bombora_canonical_mid_field_exposes_exactly_three_wave_tiers: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -347,7 +376,11 @@ fn bombora_canonical_mid_field_exposes_exactly_three_wave_tiers() {
     let tones = bombora_tones();
 
     let seq = scan_col(&pixels, w, h, w / 2, tones);
-    assert_eq!(seq, vec![0, 1, 2], "expected exactly the three tiers top to bottom in order, got {seq:?}");
+    assert_eq!(
+        seq,
+        vec![0, 1, 2],
+        "expected exactly the three tiers top to bottom in order, got {seq:?}"
+    );
 }
 
 /// FIXED PHASE/GEOMETRY, horizontally phase-offset: sampling the tier
@@ -362,7 +395,9 @@ fn bombora_canonical_mid_field_exposes_exactly_three_wave_tiers() {
 #[test]
 fn bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid: no wgpu adapter");
+        eprintln!(
+            "skipping bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -374,9 +409,15 @@ fn bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid() {
 
     let mut middle_thickness = Vec::new();
     for x in [80u32, 400, 700, 1050] {
-        let labels: Vec<usize> = (0..h).map(|y| classify(pixels[(y * w + x) as usize], tones)).collect();
+        let labels: Vec<usize> = (0..h)
+            .map(|y| classify(pixels[(y * w + x) as usize], tones))
+            .collect();
         let seq = runs(&labels);
-        assert_eq!(seq, vec![0, 1, 2], "x={x}: expected exactly the three tiers top to bottom, got {seq:?}");
+        assert_eq!(
+            seq,
+            vec![0, 1, 2],
+            "x={x}: expected exactly the three tiers top to bottom, got {seq:?}"
+        );
         let thickness = labels.iter().filter(|&&l| l == 1).count();
         middle_thickness.push((x, thickness));
     }
@@ -399,7 +440,11 @@ fn bombora_wave_boundaries_are_phase_offset_scallops_not_a_grid() {
 /// reference field) and once with a page column punched in the middle — and
 /// prove every visible margin pixel (left AND right of the hole) matches the
 /// reference field byte-for-byte at that same absolute coordinate.
-fn assert_left_right_continuity_through_the_page(bg: theme::Background, device: &wgpu::Device, queue: &wgpu::Queue) {
+fn assert_left_right_continuity_through_the_page(
+    bg: theme::Background,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) {
     let (w, h) = (1200u32, 800u32);
     let desc = bg_desc_for(bg);
     let reference = render_bg(device, queue, desc, w, h, 0.0, 0.0, 0.0);
@@ -410,7 +455,10 @@ fn assert_left_right_continuity_through_the_page(bg: theme::Background, device: 
     // somewhere (the hole is actually punched, not a no-op render) — checked
     // once at the column's own center, well clear of any boundary pixel.
     let mid_idx = ((h / 2) * w + (col_left + col_w / 2.0) as u32) as usize;
-    assert_ne!(occluded[mid_idx], reference[mid_idx], "the page column must actually occlude the field");
+    assert_ne!(
+        occluded[mid_idx], reference[mid_idx],
+        "the page column must actually occlude the field"
+    );
 
     let mut checked = 0usize;
     for y in (0..h).step_by(37) {
@@ -428,13 +476,18 @@ fn assert_left_right_continuity_through_the_page(bg: theme::Background, device: 
             checked += 1;
         }
     }
-    assert!(checked > 500, "sanity: too few margin pixels checked ({checked})");
+    assert!(
+        checked > 500,
+        "sanity: too few margin pixels checked ({checked})"
+    );
 }
 
 #[test]
 fn bands_are_continuous_left_and_right_of_the_hidden_page() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bands_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter");
+        eprintln!(
+            "skipping bands_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -444,7 +497,9 @@ fn bands_are_continuous_left_and_right_of_the_hidden_page() {
 #[test]
 fn bombora_waves_are_continuous_left_and_right_of_the_hidden_page() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bombora_waves_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter");
+        eprintln!(
+            "skipping bombora_waves_are_continuous_left_and_right_of_the_hidden_page: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -461,17 +516,27 @@ fn bombora_waves_are_continuous_left_and_right_of_the_hidden_page() {
 /// must show the identical field SCALED exactly 2x, not a shifted or
 /// differently-shaped one: the first band/tier boundary at 2x canvas size
 /// lands within a couple of AA pixels of exactly double its 1x position.
-fn assert_boundary_scales_with_resolution(bg: theme::Background, tones: [[u8; 4]; 3], device: &wgpu::Device, queue: &wgpu::Queue, vertical: bool) {
+fn assert_boundary_scales_with_resolution(
+    bg: theme::Background,
+    tones: [[u8; 4]; 3],
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    vertical: bool,
+) {
     let (w1, h1) = (600u32, 400u32);
     let (w2, h2) = (w1 * 2, h1 * 2);
     let desc = bg_desc_for(bg);
 
     let find_boundary = |pixels: &[[u8; 4]], w: u32, h: u32| -> f32 {
         if vertical {
-            let labels: Vec<usize> = (0..h).map(|y| classify(pixels[(y * w + w / 2) as usize], tones)).collect();
+            let labels: Vec<usize> = (0..h)
+                .map(|y| classify(pixels[(y * w + w / 2) as usize], tones))
+                .collect();
             labels.iter().position(|&l| l != labels[0]).unwrap() as f32
         } else {
-            let labels: Vec<usize> = (0..w).map(|x| classify(pixels[(h / 2 * w + x) as usize], tones)).collect();
+            let labels: Vec<usize> = (0..w)
+                .map(|x| classify(pixels[(h / 2 * w + x) as usize], tones))
+                .collect();
             labels.iter().position(|&l| l != labels[0]).unwrap() as f32
         }
     };
@@ -484,14 +549,17 @@ fn assert_boundary_scales_with_resolution(bg: theme::Background, tones: [[u8; 4]
     assert!(
         (b2 - 2.0 * b1).abs() <= 4.0,
         "boundary at 2x resolution ({b2}) is not ~2x the 1x boundary ({b1}, expected ~{}) \
-         — the field is not scaling proportionally with physical resolution", 2.0 * b1
+         — the field is not scaling proportionally with physical resolution",
+        2.0 * b1
     );
 }
 
 #[test]
 fn bands_boundary_scales_proportionally_with_physical_resolution() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bands_boundary_scales_proportionally_with_physical_resolution: no wgpu adapter");
+        eprintln!(
+            "skipping bands_boundary_scales_proportionally_with_physical_resolution: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -513,7 +581,9 @@ fn bands_boundary_scales_proportionally_with_physical_resolution() {
 #[test]
 fn bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled: no wgpu adapter");
+        eprintln!(
+            "skipping bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -524,7 +594,9 @@ fn bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled
         let pixels = render_bg(&device, &queue, desc, w, h, 0.0, 0.0, 0.0);
         let mut rows = Vec::new();
         for x in (0..w).step_by(20) {
-            let labels: Vec<usize> = (0..h).map(|y| classify(pixels[(y * w + x) as usize], tones)).collect();
+            let labels: Vec<usize> = (0..h)
+                .map(|y| classify(pixels[(y * w + x) as usize], tones))
+                .collect();
             // The tier-0/tier-1 boundary row at this column.
             rows.push(labels.iter().position(|&l| l != labels[0]).unwrap() as u32);
         }
@@ -562,7 +634,9 @@ fn bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled
 #[test]
 fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping bands_and_waves_render_byte_identically_across_two_independent_draws: no wgpu adapter");
+        eprintln!(
+            "skipping bands_and_waves_render_byte_identically_across_two_independent_draws: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -571,7 +645,12 @@ fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
         let desc = bg_desc_for(bg);
         let a = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
         let b = render_bg(&device, &queue, desc, 900, 600, 200.0, 400.0, 0.0);
-        assert_eq!(a, b, "{}: two draws of the identical desc diverged", bg.as_str());
+        assert_eq!(
+            a,
+            b,
+            "{}: two draws of the identical desc diverged",
+            bg.as_str()
+        );
     }
 }
 
@@ -615,13 +694,28 @@ fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
         ("Cassowary", 3),
     ];
     for &(name, want) in expected {
-        let t = theme::THEMES.iter().find(|t| t.name == name).unwrap_or_else(|| panic!("world {name} not found"));
+        let t = theme::THEMES
+            .iter()
+            .find(|t| t.name == name)
+            .unwrap_or_else(|| panic!("world {name} not found"));
         assert_eq!(t.background.shader_id(), want, "{name}: shader id drifted");
     }
     // The item-69 Waves world carries its NEW id, never the old Starfield one.
-    assert_eq!(theme::BOMBORA.background.shader_id(), 6, "Bombora must be Waves (6), not the old Starfield (2)");
+    assert_eq!(
+        theme::BOMBORA.background.shader_id(),
+        6,
+        "Bombora must be Waves (6), not the old Starfield (2)"
+    );
     // The item-86 Zigzag worlds carry their NEW id, never their old ones
     // (Quokka was Dots/1, Gumtree was Bands/5 — see `backgrounds_item86.rs`).
-    assert_eq!(theme::QUOKKA.background.shader_id(), 7, "Quokka must be Zigzag (7), not the old Dots (1)");
-    assert_eq!(theme::GUMTREE.background.shader_id(), 7, "Gumtree must be Zigzag (7), not Bands (5)");
+    assert_eq!(
+        theme::QUOKKA.background.shader_id(),
+        7,
+        "Quokka must be Zigzag (7), not the old Dots (1)"
+    );
+    assert_eq!(
+        theme::GUMTREE.background.shader_id(),
+        7,
+        "Gumtree must be Zigzag (7), not Bands (5)"
+    );
 }

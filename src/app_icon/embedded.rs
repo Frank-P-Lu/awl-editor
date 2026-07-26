@@ -7,22 +7,76 @@
 
 /// Every shipped world's pre-rendered app icon: `(world name, .icns bytes)`.
 pub const WORLD_ICNS: &[(&str, &[u8])] = &[
-    ("Tawny", include_bytes!("../../assets/macos/world/Tawny.icns")),
-    ("Mopoke", include_bytes!("../../assets/macos/world/Mopoke.icns")),
-    ("Currawong", include_bytes!("../../assets/macos/world/Currawong.icns")),
-    ("Potoroo", include_bytes!("../../assets/macos/world/Potoroo.icns")),
-    ("Gumtree", include_bytes!("../../assets/macos/world/Gumtree.icns")),
-    ("Bilby", include_bytes!("../../assets/macos/world/Bilby.icns")),
-    ("Saltpan", include_bytes!("../../assets/macos/world/Saltpan.icns")),
-    ("Quokka", include_bytes!("../../assets/macos/world/Quokka.icns")),
-    ("Bombora", include_bytes!("../../assets/macos/world/Bombora.icns")),
-    ("Bowerbird", include_bytes!("../../assets/macos/world/Bowerbird.icns")),
-    ("Mulga", include_bytes!("../../assets/macos/world/Mulga.icns")),
-    ("Mangrove", include_bytes!("../../assets/macos/world/Mangrove.icns")),
-    ("Galah", include_bytes!("../../assets/macos/world/Galah.icns")),
-    ("Magpie", include_bytes!("../../assets/macos/world/Magpie.icns")),
-    ("Brolga", include_bytes!("../../assets/macos/world/Brolga.icns")),
-    ("Wagtail", include_bytes!("../../assets/macos/world/Wagtail.icns")),
-    ("Firetail", include_bytes!("../../assets/macos/world/Firetail.icns")),
-    ("Cassowary", include_bytes!("../../assets/macos/world/Cassowary.icns")),
+    (
+        "Tawny",
+        include_bytes!("../../assets/macos/world/Tawny.icns"),
+    ),
+    (
+        "Mopoke",
+        include_bytes!("../../assets/macos/world/Mopoke.icns"),
+    ),
+    (
+        "Currawong",
+        include_bytes!("../../assets/macos/world/Currawong.icns"),
+    ),
+    (
+        "Potoroo",
+        include_bytes!("../../assets/macos/world/Potoroo.icns"),
+    ),
+    (
+        "Gumtree",
+        include_bytes!("../../assets/macos/world/Gumtree.icns"),
+    ),
+    (
+        "Bilby",
+        include_bytes!("../../assets/macos/world/Bilby.icns"),
+    ),
+    (
+        "Saltpan",
+        include_bytes!("../../assets/macos/world/Saltpan.icns"),
+    ),
+    (
+        "Quokka",
+        include_bytes!("../../assets/macos/world/Quokka.icns"),
+    ),
+    (
+        "Bombora",
+        include_bytes!("../../assets/macos/world/Bombora.icns"),
+    ),
+    (
+        "Bowerbird",
+        include_bytes!("../../assets/macos/world/Bowerbird.icns"),
+    ),
+    (
+        "Mulga",
+        include_bytes!("../../assets/macos/world/Mulga.icns"),
+    ),
+    (
+        "Mangrove",
+        include_bytes!("../../assets/macos/world/Mangrove.icns"),
+    ),
+    (
+        "Galah",
+        include_bytes!("../../assets/macos/world/Galah.icns"),
+    ),
+    (
+        "Magpie",
+        include_bytes!("../../assets/macos/world/Magpie.icns"),
+    ),
+    (
+        "Brolga",
+        include_bytes!("../../assets/macos/world/Brolga.icns"),
+    ),
+    (
+        "Wagtail",
+        include_bytes!("../../assets/macos/world/Wagtail.icns"),
+    ),
+    (
+        "Firetail",
+        include_bytes!("../../assets/macos/world/Firetail.icns"),
+    ),
+    (
+        "Cassowary",
+        include_bytes!("../../assets/macos/world/Cassowary.icns"),
+    ),
 ];

@@ -18,7 +18,9 @@ fn blockquote_marker_conceals_off_caret_and_reveals_on_caret() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping blockquote_marker_conceals_off_caret_and_reveals_on_caret: no wgpu adapter");
+        eprintln!(
+            "skipping blockquote_marker_conceals_off_caret_and_reveals_on_caret: no wgpu adapter"
+        );
         return;
     };
     // "> quoted": the "> " marker is chars 0..2; "quoted" starts at char col 2.
@@ -57,7 +59,9 @@ fn blockquote_hanging_mark_is_one_per_block_nested_coalesces() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping blockquote_hanging_mark_is_one_per_block_nested_coalesces: no wgpu adapter");
+        eprintln!(
+            "skipping blockquote_hanging_mark_is_one_per_block_nested_coalesces: no wgpu adapter"
+        );
         return;
     };
     // Block A: lines 0-1. A blank + a paragraph break the run. Block B: lines
@@ -129,8 +133,14 @@ fn non_blockquote_doc_has_no_quote_marks() {
     v.is_markdown = true;
     p.set_view(&v);
     crate::page::set_page_on(true);
-    assert!(p.quote_block_lines().is_empty(), "no blockquote blocks in a plain doc");
-    assert!(p.quote_marks().is_empty(), "no pull-quote marks in a plain doc");
+    assert!(
+        p.quote_block_lines().is_empty(),
+        "no blockquote blocks in a plain doc"
+    );
+    assert!(
+        p.quote_marks().is_empty(),
+        "no pull-quote marks in a plain doc"
+    );
     crate::page::set_page_on(was_page);
 }
 
@@ -212,7 +222,10 @@ fn md_line_scale_grows_thematic_break_rows_to_the_active_worlds_ornament_scale()
     crate::theme::set_active_by_name("Mopoke").unwrap();
     let ornate = crate::theme::active().ornament_scale;
     assert_eq!(ornate, crate::theme::ORNAMENT_SCALE_ORNATE);
-    assert!(ornate > geo, "the ornate world grows the break row more than a geometric one");
+    assert!(
+        ornate > geo,
+        "the ornate world grows the break row more than a geometric one"
+    );
     assert_eq!(md_line_scale("---", true), ornate);
     assert_eq!(md_line_scale("***", true), ornate);
 
@@ -243,7 +256,11 @@ fn heading_rows_are_taller_and_gated_to_markdown() {
     let mut md = view(text, 0, 0);
     md.is_markdown = true;
     p.set_view(&md);
-    assert_eq!(p.total_visual_rows(), 5, "no wrap => one row per logical line");
+    assert_eq!(
+        p.total_visual_rows(),
+        5,
+        "no wrap => one row per logical line"
+    );
     let h1 = p.row_height_px(0);
     let body = p.row_height_px(2);
     assert!(body > 0.0);
@@ -293,7 +310,9 @@ fn heading_levels_stay_measurably_distinct_from_body_in_every_world() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping heading_levels_stay_measurably_distinct_from_body_in_every_world: no wgpu adapter");
+        eprintln!(
+            "skipping heading_levels_stay_measurably_distinct_from_body_in_every_world: no wgpu adapter"
+        );
         return;
     };
     // h1 / h2 / h3 / body, one per line; caret parked on the body line so the
@@ -396,7 +415,10 @@ fn heading_size_survives_theme_switch() {
     md.is_markdown = true;
     p.set_view(&md);
     let ratio_before = p.row_height_px(0) / p.row_height_px(2);
-    assert!(ratio_before > 1.4, "sanity: heading taller before switch ({ratio_before})");
+    assert!(
+        ratio_before > 1.4,
+        "sanity: heading taller before switch ({ratio_before})"
+    );
 
     // Switch to a DIFFERENT-font world: the heading must STAY bigger. The bug was
     // `sync_theme` rebuilding CJK-only attrs, which dropped the markdown styling
@@ -483,7 +505,7 @@ fn zoom_on_heading_line_keeps_caret_target_aligned() {
     let (correct_x, correct_y) = p.caret_target_xy();
     assert!(
         (target_after_zoom.0 - correct_x).abs() < 0.5,
-            "caret target x must match the settled heading-row geometry \
+        "caret target x must match the settled heading-row geometry \
          (latched={:?}, correct=({correct_x}, {correct_y}))",
         target_after_zoom
     );
@@ -566,8 +588,12 @@ fn no_bold_worlds_get_more_gap_before_a_heading_than_between_paragraphs_at_real_
         let bands = pixeldiff::ink_row_bands(
             &pixels, w as i64, h as i64, x0, x1, scan_top, scan_bot, bg, 18,
         );
-        let ink_idx: Vec<usize> =
-            bands.iter().enumerate().filter(|(_, b)| b.ink).map(|(i, _)| i).collect();
+        let ink_idx: Vec<usize> = bands
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| b.ink)
+            .map(|(i, _)| i)
+            .collect();
         assert_eq!(
             ink_idx.len(),
             4,
@@ -602,7 +628,10 @@ fn no_bold_worlds_get_more_gap_before_a_heading_than_between_paragraphs_at_real_
         );
         checked += 1;
     }
-    assert!(checked >= 1, "no no-bold world ran — the sweep's filter matched nothing");
+    assert!(
+        checked >= 1,
+        "no no-bold world ran — the sweep's filter matched nothing"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();

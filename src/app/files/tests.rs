@@ -13,7 +13,12 @@ use std::sync::Arc;
 
 #[test]
 fn window_title_names_a_pathed_file_and_the_active_world() {
-    let t = window_title(Some(Path::new("/tmp/notes/draft.md")), false, "Quokka", false);
+    let t = window_title(
+        Some(Path::new("/tmp/notes/draft.md")),
+        false,
+        "Quokka",
+        false,
+    );
     assert_eq!(t, "awl - /tmp/notes/draft.md [Quokka]");
 }
 
@@ -41,14 +46,27 @@ fn window_title_untitled_note_and_bare_scratch_are_distinct() {
 
 #[test]
 fn window_title_dirty_pathed_file_gets_the_leading_marker() {
-    let t = window_title(Some(Path::new("/tmp/notes/draft.md")), false, "Quokka", true);
+    let t = window_title(
+        Some(Path::new("/tmp/notes/draft.md")),
+        false,
+        "Quokka",
+        true,
+    );
     assert_eq!(t, "awl - \u{2022} /tmp/notes/draft.md [Quokka]");
 }
 
 #[test]
 fn window_title_clean_pathed_file_has_no_marker() {
-    let t = window_title(Some(Path::new("/tmp/notes/draft.md")), false, "Quokka", false);
-    assert!(!t.contains('\u{2022}'), "a clean buffer's title carries no edited marker");
+    let t = window_title(
+        Some(Path::new("/tmp/notes/draft.md")),
+        false,
+        "Quokka",
+        false,
+    );
+    assert!(
+        !t.contains('\u{2022}'),
+        "a clean buffer's title carries no edited marker"
+    );
 }
 
 #[test]
@@ -92,7 +110,10 @@ fn image_width_hint_write_back_is_one_undoable_edit_that_keeps_the_cursor() {
     // caret rather than moving it to the edit end.
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.active.buffer.set_text("![a cat](cat.png)\ntail\n");
-    assert!(app.active.buffer.is_markdown(), "a no-path scratch buffer is markdown");
+    assert!(
+        app.active.buffer.is_markdown(),
+        "a no-path scratch buffer is markdown"
+    );
     // Caret parked on the SECOND line (past the image span) — a mouse drag must
     // never move it.
     let cursor = app.active.buffer.text().chars().count() - 1;
@@ -103,11 +124,19 @@ fn image_width_hint_write_back_is_one_undoable_edit_that_keeps_the_cursor() {
     assert_eq!(app.active.buffer.text(), "![a cat|300](cat.png)\ntail\n");
     // The caret shifted by the +4-char insertion (stayed on its glyph), never
     // jumped to the edit end.
-    assert_eq!(app.active.buffer.cursor_char(), cursor + 4, "caret past the edit shifts by the delta");
+    assert_eq!(
+        app.active.buffer.cursor_char(),
+        cursor + 4,
+        "caret past the edit shifts by the delta"
+    );
 
     // ONE undoable edit: a single Cmd-Z restores the pre-drag text exactly.
     app.active.buffer.undo();
-    assert_eq!(app.active.buffer.text(), "![a cat](cat.png)\ntail\n", "one Cmd-Z restores the size");
+    assert_eq!(
+        app.active.buffer.text(),
+        "![a cat](cat.png)\ntail\n",
+        "one Cmd-Z restores the size"
+    );
 
     // REPLACE: an existing `|NNN` is swapped in place (still one edit); a caret
     // BEFORE the edit never moves.
@@ -115,17 +144,33 @@ fn image_width_hint_write_back_is_one_undoable_edit_that_keeps_the_cursor() {
     app.active.buffer.set_cursor(0);
     app.write_back_image_width((0, 21), 128.0);
     assert_eq!(app.active.buffer.text(), "![a cat|128](cat.png)\n");
-    assert_eq!(app.active.buffer.cursor_char(), 0, "a caret before the edit stays put");
+    assert_eq!(
+        app.active.buffer.cursor_char(),
+        0,
+        "a caret before the edit stays put"
+    );
     app.active.buffer.undo();
-    assert_eq!(app.active.buffer.text(), "![a cat|300](cat.png)\n", "one Cmd-Z restores the prior hint");
+    assert_eq!(
+        app.active.buffer.text(),
+        "![a cat|300](cat.png)\n",
+        "one Cmd-Z restores the prior hint"
+    );
 
     // No-op guard: re-committing the SAME width records nothing (keeps the timeline
     // meaningful) — the text is unchanged and a following undo reaches PAST it.
     app.active.buffer.set_text("![a cat|200](cat.png)\n");
     app.active.buffer.set_cursor(3);
     app.write_back_image_width((0, 21), 200.0);
-    assert_eq!(app.active.buffer.text(), "![a cat|200](cat.png)\n", "same width is a no-op");
-    assert_eq!(app.active.buffer.cursor_char(), 3, "a no-op never disturbs the caret");
+    assert_eq!(
+        app.active.buffer.text(),
+        "![a cat|200](cat.png)\n",
+        "same width is a no-op"
+    );
+    assert_eq!(
+        app.active.buffer.cursor_char(),
+        3,
+        "a no-op never disturbs the caret"
+    );
 }
 
 #[test]
@@ -136,7 +181,10 @@ fn trash_asset_moves_the_file_and_removes_the_row_via_the_fake_seam() {
     let mk = |rel: &str| crate::assets::Orphan {
         rel: rel.to_string(),
         name: rel.rsplit('/').next().unwrap().to_string(),
-        parent: rel.rsplit_once('/').map(|(d, _)| d.to_string()).unwrap_or_default(),
+        parent: rel
+            .rsplit_once('/')
+            .map(|(d, _)| d.to_string())
+            .unwrap_or_default(),
         size: Some(42),
     };
     app.overlay = Some(crate::overlay::OverlayState::new_assets(vec![
@@ -156,9 +204,15 @@ fn trash_asset_moves_the_file_and_removes_the_row_via_the_fake_seam() {
         &[app.root.join("assets/drop.png")],
     );
     // The picker STAYS OPEN and the trashed row LEAVES the list.
-    let ov = app.overlay.as_ref().expect("picker stays open after a trash");
+    let ov = app
+        .overlay
+        .as_ref()
+        .expect("picker stays open after a trash");
     assert_eq!(ov.item_strings(), vec!["keep.png"]);
-    assert!(ov.notice.is_empty(), "a successful trash shows no error notice");
+    assert!(
+        ov.notice.is_empty(),
+        "a successful trash shows no error notice"
+    );
 }
 
 /// A trash FAILURE (a backend that errors) LEAVES the row + shows a calm notice —
@@ -185,8 +239,15 @@ fn trash_asset_failure_keeps_the_row_and_notes_the_error() {
         app.trash_asset("assets/x.png".to_string());
     });
     let ov = app.overlay.as_ref().unwrap();
-    assert_eq!(ov.item_strings(), vec!["x.png"], "a failed trash keeps the row");
-    assert!(ov.notice.contains("Trash"), "a calm notice explains the failure");
+    assert_eq!(
+        ov.item_strings(),
+        vec!["x.png"],
+        "a failed trash keeps the row"
+    );
+    assert!(
+        ov.notice.contains("Trash"),
+        "a calm notice explains the failure"
+    );
 }
 
 // ── NO-PATH PASTE SAVES FIRST (the paste-image seam, `app/apply.rs::
@@ -210,17 +271,30 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
             Some(PathBuf::from("/notes")), // default_folder: irrelevant once running
             Config::empty(),
         );
-        assert!(!app.active.buffer.is_unnamed_fresh(), "a bare launch buffer starts as plain scratch");
+        assert!(
+            !app.active.buffer.is_unnamed_fresh(),
+            "a bare launch buffer starts as plain scratch"
+        );
         assert!(app.active.buffer.path().is_none());
-        app.active.buffer.set_text("My Pasted Screenshot\n\nsome body text\n");
+        app.active
+            .buffer
+            .set_text("My Pasted Screenshot\n\nsome body text\n");
 
         app.ensure_note_named_before_paste();
 
         // ONE-SHOT NAMING (item 76): the promotion AND the derive-a-name save
         // happen in this one call, so by the time it returns the buffer is
         // already an ORDINARY pathed document, not a lasting note identity.
-        assert!(!app.active.buffer.is_unnamed_fresh(), "named once — an ordinary file now");
-        let path = app.active.buffer.path().expect("gained a path").to_path_buf();
+        assert!(
+            !app.active.buffer.is_unnamed_fresh(),
+            "named once — an ordinary file now"
+        );
+        let path = app
+            .active
+            .buffer
+            .path()
+            .expect("gained a path")
+            .to_path_buf();
         assert!(
             path.starts_with("/proj"),
             "the derived path lives under the ACTIVE folder, not default_folder: {}",
@@ -230,7 +304,10 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
         // The slug came from the first non-empty line, matching the
         // fresh-document system's own derivation (`buffer::note_stem`).
         assert!(
-            path.file_stem().unwrap().to_string_lossy().contains("pasted-screenshot"),
+            path.file_stem()
+                .unwrap()
+                .to_string_lossy()
+                .contains("pasted-screenshot"),
             "filename derives from the first line: {}",
             path.display()
         );
@@ -252,8 +329,16 @@ fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
     use crate::fs::InMemoryFs;
     let fake = Arc::new(InMemoryFs::new());
     crate::fs::with_fs(fake.clone(), || {
-        let mut app = App::new(None, PathBuf::from("/proj"), None, Some(PathBuf::from("/notes")), Config::empty());
-        app.active.buffer.start_fresh_doc(PathBuf::from("/elsewhere"));
+        let mut app = App::new(
+            None,
+            PathBuf::from("/proj"),
+            None,
+            Some(PathBuf::from("/notes")),
+            Config::empty(),
+        );
+        app.active
+            .buffer
+            .start_fresh_doc(PathBuf::from("/elsewhere"));
         app.active.buffer.set_text("Elsewhere Note\n");
 
         app.ensure_note_named_before_paste();
@@ -278,13 +363,29 @@ fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
     use crate::fs::InMemoryFs;
     let fake = Arc::new(InMemoryFs::new());
     crate::fs::with_fs(fake, || {
-        let mut app = App::new(None, PathBuf::from("/proj"), None, Some(PathBuf::from("/notes")), Config::empty());
-        assert_eq!(app.active.buffer.text(), "", "a fresh scratch buffer starts empty");
+        let mut app = App::new(
+            None,
+            PathBuf::from("/proj"),
+            None,
+            Some(PathBuf::from("/notes")),
+            Config::empty(),
+        );
+        assert_eq!(
+            app.active.buffer.text(),
+            "",
+            "a fresh scratch buffer starts empty"
+        );
 
         app.ensure_note_named_before_paste();
 
-        assert!(app.active.buffer.path().is_none(), "no first line to derive a name from");
-        assert!(app.active.buffer.is_unnamed_fresh(), "promoted regardless — matches typing-then-pausing");
+        assert!(
+            app.active.buffer.path().is_none(),
+            "no first line to derive a name from"
+        );
+        assert!(
+            app.active.buffer.is_unnamed_fresh(),
+            "promoted regardless — matches typing-then-pausing"
+        );
     });
 }
 
@@ -313,7 +414,11 @@ fn persist_cjk_priority_writes_the_whole_ordered_ladder_to_config() {
             crate::frontmatter::Lang::ZhHans,
             crate::frontmatter::Lang::ZhHant,
         ];
-        assert_eq!(app.config.cjk_priority, Some(want.clone()), "mirrored in-memory");
+        assert_eq!(
+            app.config.cjk_priority,
+            Some(want.clone()),
+            "mirrored in-memory"
+        );
         let reloaded = Config::load(PathBuf::from("/cfg/config.toml"));
         assert_eq!(reloaded.cjk_priority, Some(want), "persisted to disk");
 
@@ -355,7 +460,11 @@ fn reload_config_absent_spellcheck_key_leaves_global_untouched() {
         // The runtime global sits OFF (e.g. a toggle whose persist never
         // landed), but the disk file still has no `spellcheck` key.
         crate::spell::set_spellcheck_on(false);
-        assert_eq!(Config::load(cfg_path.clone()).spellcheck, None, "disk still absent");
+        assert_eq!(
+            Config::load(cfg_path.clone()).spellcheck,
+            None,
+            "disk still absent"
+        );
 
         app.reload_config();
 
@@ -367,7 +476,10 @@ fn reload_config_absent_spellcheck_key_leaves_global_untouched() {
         // The other direction too: ON stays ON across the same reload.
         crate::spell::set_spellcheck_on(true);
         app.reload_config();
-        assert!(crate::spell::spellcheck_on(), "and leaves an ON global alone too");
+        assert!(
+            crate::spell::spellcheck_on(),
+            "and leaves an ON global alone too"
+        );
     });
     crate::spell::set_spellcheck_on(saved);
 }
@@ -395,11 +507,18 @@ fn reload_config_reapplies_a_persisted_spellcheck_value_immediately() {
         // Settings buffer right after a hand-edit.
         crate::spell::toggle();
         app.persist_spellcheck();
-        assert_eq!(app.config.spellcheck, Some(false), "persist mirrors self.config");
+        assert_eq!(
+            app.config.spellcheck,
+            Some(false),
+            "persist mirrors self.config"
+        );
 
         crate::spell::set_spellcheck_on(true); // simulate reload starting from a stale global
         app.reload_config();
-        assert!(!crate::spell::spellcheck_on(), "the persisted OFF value re-applies on reload");
+        assert!(
+            !crate::spell::spellcheck_on(),
+            "the persisted OFF value re-applies on reload"
+        );
     });
     crate::spell::set_spellcheck_on(saved);
 }
@@ -415,7 +534,11 @@ fn reload_config_reapplies_a_persisted_spellcheck_value_immediately() {
 #[test]
 fn add_to_dictionary_persists_the_word_and_silences_it_live() {
     let _sp = crate::testlock::serial();
-    let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/w/proj").with_dir("/cfg"));
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/w/proj")
+            .with_dir("/cfg"),
+    );
     crate::fs::with_fs(fake, || {
         let mut config = Config::empty();
         config.path = PathBuf::from("/cfg/config.toml");
@@ -425,16 +548,25 @@ fn add_to_dictionary_persists_the_word_and_silences_it_live() {
 
         app.add_to_dictionary("wrold");
         // Live: the checker now accepts it.
-        assert!(app.spell.as_ref().unwrap().check("wrold"), "silenced in the live checker");
+        assert!(
+            app.spell.as_ref().unwrap().check("wrold"),
+            "silenced in the live checker"
+        );
         // Persisted: the file beside config.toml holds exactly one line.
         let dict = PathBuf::from("/cfg/dictionary.txt");
-        let text = crate::fs::active().read_to_string(&dict).expect("the file was written");
+        let text = crate::fs::active()
+            .read_to_string(&dict)
+            .expect("the file was written");
         assert_eq!(crate::spell::parse_dictionary(&text), vec!["wrold"]);
 
         // Re-adding it is a no-op on disk (no duplicate line) and still silent.
         app.add_to_dictionary("wrold");
         let text2 = crate::fs::active().read_to_string(&dict).unwrap();
-        assert_eq!(crate::spell::parse_dictionary(&text2), vec!["wrold"], "no duplicate line");
+        assert_eq!(
+            crate::spell::parse_dictionary(&text2),
+            vec!["wrold"],
+            "no duplicate line"
+        );
     });
 }
 
@@ -446,15 +578,15 @@ fn add_to_dictionary_persists_the_word_and_silences_it_live() {
 #[test]
 fn startup_loads_the_personal_dictionary_so_an_added_word_never_squiggles_across_a_restart() {
     let _sp = crate::testlock::serial();
-    let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/w/proj").with_dir("/cfg"));
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/w/proj")
+            .with_dir("/cfg"),
+    );
     crate::fs::with_fs(fake, || {
         // A prior session already wrote the word list (hand-edited shape: a
         // header comment + one word per line).
-        crate::fs::write_atomic(
-            Path::new("/cfg/dictionary.txt"),
-            b"# my words\nwrold\n",
-        )
-        .unwrap();
+        crate::fs::write_atomic(Path::new("/cfg/dictionary.txt"), b"# my words\nwrold\n").unwrap();
         let mut config = Config::empty();
         config.path = PathBuf::from("/cfg/config.toml");
         // Fresh App (the "restart"): its startup load reads the file.
@@ -476,7 +608,13 @@ fn switch_project_pushes_and_persists_the_recent_root() {
             .with_dir("/w/proj-b"),
     );
     crate::fs::with_fs(fake, || {
-        let mut app = App::new(None, PathBuf::from("/w/proj-a"), None, None, Config::empty());
+        let mut app = App::new(
+            None,
+            PathBuf::from("/w/proj-a"),
+            None,
+            None,
+            Config::empty(),
+        );
         // Fresh launch: no recents yet (missing store).
         assert!(app.recent_projects.is_empty());
 
@@ -487,7 +625,11 @@ fn switch_project_pushes_and_persists_the_recent_root() {
             app.recent_projects,
             vec![PathBuf::from("/w/proj-b"), PathBuf::from("/w/proj-a")],
         );
-        assert_eq!(app.root, PathBuf::from("/w/proj-b"), "root followed the switch");
+        assert_eq!(
+            app.root,
+            PathBuf::from("/w/proj-b"),
+            "root followed the switch"
+        );
 
         // Re-switching to proj-a moves it to the front (dedup, never a dupe).
         app.switch_project(PathBuf::from("/w/proj-a"));
@@ -546,7 +688,11 @@ fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
         // Re-selecting the ALREADY-ACTIVE file is a no-op (load_path's early
         // return), so the MRU is untouched — no re-order, no dupe.
         app.load_path(PathBuf::from("/w/proj/a.md"));
-        assert_eq!(app.recent_files.len(), 3, "no-op reopen never re-orders / dupes");
+        assert_eq!(
+            app.recent_files.len(),
+            3,
+            "no-op reopen never re-orders / dupes"
+        );
         assert_eq!(app.recent_files[0], PathBuf::from("/w/proj/a.md"));
 
         // PERSISTED: a second launch reads the MRU back through the store.
@@ -564,7 +710,13 @@ fn app_new_loads_the_persisted_recent_projects() {
             &[PathBuf::from("/w/proj-a"), PathBuf::from("/w/proj-b")],
         )
         .unwrap();
-        let app = App::new(None, PathBuf::from("/w/proj-a"), None, None, Config::empty());
+        let app = App::new(
+            None,
+            PathBuf::from("/w/proj-a"),
+            None,
+            None,
+            Config::empty(),
+        );
         assert_eq!(
             app.recent_projects,
             vec![PathBuf::from("/w/proj-a"), PathBuf::from("/w/proj-b")],

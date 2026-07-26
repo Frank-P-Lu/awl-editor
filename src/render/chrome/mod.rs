@@ -445,8 +445,8 @@ impl OverlayGeom {
 // across the module tree). This file keeps the SHARED items every submodule needs —
 // the panel/overlay geometry structs, the float-quad primitive, the overlay row<->Y
 // owner, the sidecar report structs — plus the hit-test unit sweep.
-mod panel;
 mod overlay;
+mod panel;
 // The shipped overlay UI scale, re-exported so the OVERLAY-EXPLORATION density
 // probe's default ([`crate::render::TypeDensity::shipped`]) can name it without
 // hand-copying the magic number (it stays the ONE owner in `overlay`).
@@ -455,8 +455,8 @@ pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 // can reach them without naming the private `overlay` submodule (test-only).
 #[cfg(test)]
 pub(in crate::render) use overlay::{
-    overlay_card_box_policy, overlay_card_fill_regime, overlay_rail_inset, CARD_EDGE_INSET_FLOOR,
-    CARD_MAX_W, CARD_MAX_W_FACETED,
+    CARD_EDGE_INSET_FLOOR, CARD_MAX_W, CARD_MAX_W_FACETED, overlay_card_box_policy,
+    overlay_card_fill_regime, overlay_rail_inset,
 };
 // The card-DRAW half of the summoned overlay (shape + upload + composite): the
 // geometry/hit-test owner is `overlay`, this turns that settled geometry into GPU
@@ -468,26 +468,26 @@ mod overlay_shape;
 // without traversing the private `overlay_shape` submodule (the AtlasFull ladder law).
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;
-mod theme_picker;
 mod gutter;
-mod outline;
 mod menubar;
+mod outline;
+mod theme_picker;
 #[cfg(test)]
 pub(in crate::render) use outline::OutlineRow;
 #[cfg(test)]
 pub(in crate::render) use outline::OutlineRung;
-mod readout;
 mod debug_text;
 mod hud;
-mod whichkey;
-mod preview;
 mod popover;
-#[allow(unused_imports)] // PopoverButtonGeom named only inside the popover module
-pub(in crate::render) use popover::{PopoverButtonGeom, PopoverGeom};
+mod preview;
+mod readout;
+mod whichkey;
 /// The popover's inner vertical pad token — re-exported to the crate so the
 /// card-fits law asserts `card_bottom − glyph_bottom == POPOVER_VPAD`.
 #[cfg(test)]
 pub(crate) use popover::VPAD as POPOVER_VPAD;
+#[allow(unused_imports)] // PopoverButtonGeom named only inside the popover module
+pub(in crate::render) use popover::{PopoverButtonGeom, PopoverGeom};
 
 impl TextPipeline {
     // ===== FLOATING PANEL PRIMITIVE + CARET-STYLE PREVIEW PANEL ============
@@ -632,7 +632,7 @@ impl TextPipeline {
             height,
             rect,
             FloatElevation::Rimmed, // shadow parked; rim + card carry the depth
-            0.0,  // item 70: the diff panel is a document preview, never a Quokka card
+            0.0, // item 70: the diff panel is a document preview, never a Quokka card
             None,
         );
         // FOCUS CUE — refine the rim `set_float_quads` just drew: the panel's own
@@ -790,7 +790,11 @@ impl TextPipeline {
         };
         let texture = match caps.card_texture {
             theme::CardTexture::Flat => None,
-            theme::CardTexture::HalftoneDots { angle_deg, cell_px, density } => Some(CardHalftone {
+            theme::CardTexture::HalftoneDots {
+                angle_deg,
+                cell_px,
+                density,
+            } => Some(CardHalftone {
                 density,
                 angle_rad: angle_deg.to_radians(),
                 cell_px: cell_px * self.dpi.max(1.0),
@@ -1023,7 +1027,12 @@ pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {
 /// shortcut), so `primary_px` already spans that content and the bar hugs the
 /// whole thing; there is no full-width special case. The right edge is clamped to
 /// the full-width edge so a very long primary can never jut past the card.
-pub(super) fn bar_hug_span(card_x: f32, card_w: f32, text_left: f32, primary_px: f32) -> (f32, f32) {
+pub(super) fn bar_hug_span(
+    card_x: f32,
+    card_w: f32,
+    text_left: f32,
+    primary_px: f32,
+) -> (f32, f32) {
     let (x, full_w) = bar_full_span(card_x, card_w);
     let full_right = x + full_w;
     let right = (text_left + primary_px + BAR_TEXT_PAD).min(full_right);
@@ -1200,7 +1209,10 @@ pub(super) fn field_caret_byte(text: &str, caret_char: usize) -> usize {
     if caret_char == 0 {
         return 0;
     }
-    text.char_indices().nth(caret_char).map(|(b, _)| b).unwrap_or(text.len())
+    text.char_indices()
+        .nth(caret_char)
+        .map(|(b, _)| b)
+        .unwrap_or(text.len())
 }
 
 /// ITEM 80 — THE ONE FIXED-WIDTH FIELD RULE: given a panel VALUE field's FULL
@@ -1266,7 +1278,12 @@ pub(super) fn field_view_window(text: &str, caret_char: usize, cap: usize) -> (S
 /// already keeps `sel` visible via [`crate::overlay::OverlayState::scroll_to_selected`]),
 /// so those stay byte-identical; it is what keeps the SELECTED row on screen for the
 /// grouped path, where headers push `sel`'s line past a naive `scroll_hint` window.
-pub(super) fn scroll_window(len: usize, sel: usize, scroll_hint: usize, max: usize) -> (usize, usize) {
+pub(super) fn scroll_window(
+    len: usize,
+    sel: usize,
+    scroll_hint: usize,
+    max: usize,
+) -> (usize, usize) {
     let count = len.min(max);
     if count == 0 {
         return (0, 0);
@@ -1507,7 +1524,11 @@ mod window_tests {
                     // A hint that already satisfies the precondition (min-scroll form).
                     let hint = sel.saturating_sub(max - 1).min(n.saturating_sub(visible));
                     let expected = (hint.min(n.saturating_sub(visible)), visible);
-                    assert_eq!(scroll_window(n, sel, hint, max), expected, "n {n} max {max} sel {sel}");
+                    assert_eq!(
+                        scroll_window(n, sel, hint, max),
+                        expected,
+                        "n {n} max {max} sel {sel}"
+                    );
                 }
             }
         }
@@ -1590,7 +1611,10 @@ mod field_view_window_tests {
         let (view, caret) = field_view_window(text, 13, 6);
         assert_eq!(view.chars().count(), 6);
         assert_eq!(caret, 6);
-        assert_eq!(view, "ト検索ですよ", "the trailing 6 chars, caret at the end");
+        assert_eq!(
+            view, "ト検索ですよ",
+            "the trailing 6 chars, caret at the end"
+        );
     }
 
     #[test]
@@ -1675,7 +1699,10 @@ mod field_view_window_tests {
                 for (text, caret) in [
                     ("", 0usize),
                     ("hi", 2),
-                    ("a very long value that overflows any realistic field width by a lot", 71),
+                    (
+                        "a very long value that overflows any realistic field width by a lot",
+                        71,
+                    ),
                     ("mid caret text", 4),
                 ] {
                     let (view, view_caret) = field_view_window(text, caret, cap);
@@ -1709,12 +1736,16 @@ mod hit_tests {
 
     fn hit(px: f32, py: f32, visible: usize, top_idx: usize, n: usize) -> Option<usize> {
         // The flat/nav pickers: one header row (the query line), no header gap.
-        overlay_row_index(CARD_X, CARD_W, TEXT_TOP, LH, 1, 0.0, visible, top_idx, n, px, py)
+        overlay_row_index(
+            CARD_X, CARD_W, TEXT_TOP, LH, 1, 0.0, visible, top_idx, n, px, py,
+        )
     }
 
     fn hit_spell(px: f32, py: f32, visible: usize, top_idx: usize, n: usize) -> Option<usize> {
         // The contextual spell panel: NO query line, so rows start at `text_top`.
-        overlay_row_index(CARD_X, CARD_W, TEXT_TOP, LH, 0, 0.0, visible, top_idx, n, px, py)
+        overlay_row_index(
+            CARD_X, CARD_W, TEXT_TOP, LH, 0, 0.0, visible, top_idx, n, px, py,
+        )
     }
 
     #[test]

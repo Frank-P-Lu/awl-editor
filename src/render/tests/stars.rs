@@ -14,7 +14,7 @@
 //! one sweep, against the LIVE column geometry the renderer itself used.
 
 use super::super::*;
-use super::dither::{offscreen, read_pixels, FMT};
+use super::dither::{FMT, offscreen, read_pixels};
 use super::view;
 
 /// A `(Device, Queue, TextPipeline)` triple, or `None` on a GPU-less machine —
@@ -22,8 +22,7 @@ use super::view;
 /// (see `distinguishability.rs`'s own doc note).
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -63,7 +62,11 @@ fn render_frame(
 fn rel_lum(px: [u8; 4]) -> f32 {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
-        if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     }
     0.2126 * lin(px[0]) + 0.7152 * lin(px[1]) + 0.0722 * lin(px[2])
 }
@@ -343,8 +346,14 @@ fn currawong_stars_are_pixel_identical_across_two_captures_of_the_same_phase() {
     crate::page::set_page_on(was_page_on);
     crate::page::set_measure(was_measure);
 
-    assert!(count_a > 10, "a real star population must be present ({count_a} instances)");
-    assert_eq!(count_a, count_b, "the drawn star count must not drift across captures");
+    assert!(
+        count_a > 10,
+        "a real star population must be present ({count_a} instances)"
+    );
+    assert_eq!(
+        count_a, count_b,
+        "the drawn star count must not drift across captures"
+    );
     assert_eq!(
         frame_a, frame_b,
         "two captures of the SAME Currawong scene at the SAME fixed phase must be \

@@ -128,11 +128,14 @@ pub fn starter_rows_for(convention: crate::convention::Convention) -> Vec<PeekRo
         .map(|(spec, name)| {
             let chord = match convention {
                 crate::convention::Convention::Mac => crate::keyspec::mac_glyph_chord(spec),
-                crate::convention::Convention::Linux => {
-                    crate::keyspec::linux_glyph_chord(&crate::keyspec::translate_native_for_linux(spec))
-                }
+                crate::convention::Convention::Linux => crate::keyspec::linux_glyph_chord(
+                    &crate::keyspec::translate_native_for_linux(spec),
+                ),
             };
-            PeekRow { chord, name: name.to_string() }
+            PeekRow {
+                chord,
+                name: name.to_string(),
+            }
         })
         .collect()
 }
@@ -164,7 +167,9 @@ pub fn rows_or_starter(rows: &[PeekRow]) -> Vec<PeekRow> {
 /// [`starter_rows`] / `commands::resolved_native`), so holding it to "peek" is the
 /// exact same gesture as Mac's ⌘, just on the modifier that convention's chords
 /// actually use.
-pub fn arming_modifier(convention: crate::convention::Convention) -> winit::keyboard::ModifiersState {
+pub fn arming_modifier(
+    convention: crate::convention::Convention,
+) -> winit::keyboard::ModifiersState {
     match convention {
         crate::convention::Convention::Mac => winit::keyboard::ModifiersState::SUPER,
         crate::convention::Convention::Linux => winit::keyboard::ModifiersState::CONTROL,
@@ -286,7 +291,6 @@ impl PeekArm {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,7 +335,11 @@ mod tests {
         // layer) — must feel like a plain chord, never a flickered card.
         let armed = Idle.next(ArmAlone);
         assert_eq!(armed, Pending);
-        assert_eq!(armed.next(KeyJoined), Idle, "a joined key kills the pending peek");
+        assert_eq!(
+            armed.next(KeyJoined),
+            Idle,
+            "a joined key kills the pending peek"
+        );
     }
 
     #[test]
@@ -339,7 +347,11 @@ mod tests {
         // Press the arming modifier then release it before the hold elapses:
         // Pending → Idle, the card never opened.
         let armed = Idle.next(ArmAlone);
-        assert_eq!(armed.next(ArmBroken), Idle, "release before threshold = nothing");
+        assert_eq!(
+            armed.next(ArmBroken),
+            Idle,
+            "release before threshold = nothing"
+        );
     }
 
     #[test]
@@ -368,7 +380,10 @@ mod tests {
 
     #[test]
     fn peek_allowed_only_when_no_zoom_in_flight() {
-        assert!(peek_allowed(false), "no zoom in flight → the peek may arm/stay open");
+        assert!(
+            peek_allowed(false),
+            "no zoom in flight → the peek may arm/stay open"
+        );
         assert!(!peek_allowed(true), "a zoom in flight suppresses the peek");
     }
 
@@ -384,14 +399,25 @@ mod tests {
         } else {
             ArmBroken
         };
-        assert_eq!(stim, ArmBroken, "a zoom in flight downgrades the arm to a cancel");
+        assert_eq!(
+            stim, ArmBroken,
+            "a zoom in flight downgrades the arm to a cancel"
+        );
         assert_eq!(Idle.next(stim), Idle, "so a fresh hold never arms mid-zoom");
         assert_eq!(Pending.next(stim), Idle, "and a pending hold is cancelled");
         assert_eq!(Open.next(stim), Idle, "and an open card is closed");
         // Once the zoom settles the gate re-opens and the same edge arms normally.
-        let settled = if peek_allowed(false) { ArmAlone } else { ArmBroken };
+        let settled = if peek_allowed(false) {
+            ArmAlone
+        } else {
+            ArmBroken
+        };
         assert_eq!(settled, ArmAlone);
-        assert_eq!(Idle.next(settled), Pending, "after settle a bare hold arms again");
+        assert_eq!(
+            Idle.next(settled),
+            Pending,
+            "after settle a bare hold arms again"
+        );
     }
 
     #[test]
@@ -406,8 +432,16 @@ mod tests {
                 ArmBroken
             }
         };
-        assert_eq!(Pending.next(elapsed_stim(false)), Open, "no zoom: the pause opens the card");
-        assert_eq!(Pending.next(elapsed_stim(true)), Idle, "zoom in flight: the pause is suppressed");
+        assert_eq!(
+            Pending.next(elapsed_stim(false)),
+            Open,
+            "no zoom: the pause opens the card"
+        );
+        assert_eq!(
+            Pending.next(elapsed_stim(true)),
+            Idle,
+            "zoom in flight: the pause is suppressed"
+        );
     }
 
     #[test]
@@ -454,12 +488,24 @@ mod tests {
         use crate::convention::Convention;
         use winit::keyboard::ModifiersState;
         let c = Convention::Mac;
-        assert!(is_bare_arming_modifier(ModifiersState::SUPER, c), "bare ⌘ alone arms on Mac");
-        assert!(!is_bare_arming_modifier(ModifiersState::SUPER | ModifiersState::SHIFT, c));
-        assert!(!is_bare_arming_modifier(ModifiersState::SUPER | ModifiersState::CONTROL, c));
+        assert!(
+            is_bare_arming_modifier(ModifiersState::SUPER, c),
+            "bare ⌘ alone arms on Mac"
+        );
+        assert!(!is_bare_arming_modifier(
+            ModifiersState::SUPER | ModifiersState::SHIFT,
+            c
+        ));
+        assert!(!is_bare_arming_modifier(
+            ModifiersState::SUPER | ModifiersState::CONTROL,
+            c
+        ));
         assert!(!is_bare_arming_modifier(ModifiersState::empty(), c));
         assert!(!is_bare_arming_modifier(ModifiersState::SHIFT, c));
-        assert!(!is_bare_arming_modifier(ModifiersState::CONTROL, c), "bare Ctrl is inert on Mac, unchanged");
+        assert!(
+            !is_bare_arming_modifier(ModifiersState::CONTROL, c),
+            "bare Ctrl is inert on Mac, unchanged"
+        );
     }
 
     #[test]
@@ -472,12 +518,27 @@ mod tests {
         use crate::convention::Convention;
         use winit::keyboard::ModifiersState;
         let c = Convention::Linux;
-        assert!(is_bare_arming_modifier(ModifiersState::CONTROL, c), "bare Ctrl alone arms on Linux");
-        assert!(!is_bare_arming_modifier(ModifiersState::CONTROL | ModifiersState::SHIFT, c));
-        assert!(!is_bare_arming_modifier(ModifiersState::CONTROL | ModifiersState::ALT, c));
+        assert!(
+            is_bare_arming_modifier(ModifiersState::CONTROL, c),
+            "bare Ctrl alone arms on Linux"
+        );
+        assert!(!is_bare_arming_modifier(
+            ModifiersState::CONTROL | ModifiersState::SHIFT,
+            c
+        ));
+        assert!(!is_bare_arming_modifier(
+            ModifiersState::CONTROL | ModifiersState::ALT,
+            c
+        ));
         assert!(!is_bare_arming_modifier(ModifiersState::empty(), c));
-        assert!(!is_bare_arming_modifier(ModifiersState::SUPER, c), "Super is inert on Linux — the compositor owns it");
-        assert!(!is_bare_arming_modifier(ModifiersState::SUPER | ModifiersState::SHIFT, c));
+        assert!(
+            !is_bare_arming_modifier(ModifiersState::SUPER, c),
+            "Super is inert on Linux — the compositor owns it"
+        );
+        assert!(!is_bare_arming_modifier(
+            ModifiersState::SUPER | ModifiersState::SHIFT,
+            c
+        ));
     }
 
     #[test]
@@ -496,7 +557,10 @@ mod tests {
         let c = Convention::Linux;
         assert!(is_bare_arming_modifier(ModifiersState::CONTROL, c));
         let armed = Idle.next(ArmAlone);
-        assert_eq!(armed, Pending, "bare Ctrl alone arms a pending peek on Linux");
+        assert_eq!(
+            armed, Pending,
+            "bare Ctrl alone arms a pending peek on Linux"
+        );
         assert_eq!(
             armed.next(KeyJoined),
             Idle,
@@ -512,7 +576,14 @@ mod tests {
         let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
         assert_eq!(
             names,
-            vec!["Go to file", "Switch project", "Command palette", "Find", "Save", "Switch theme"],
+            vec![
+                "Go to file",
+                "Switch project",
+                "Command palette",
+                "Find",
+                "Save",
+                "Switch theme"
+            ],
         );
         // CONVENTION-PARAMETRIC chord check: independently glyphify each STARTER
         // mac-form spec through the SAME two pure `keyspec` resolvers `starter_rows`
@@ -530,7 +601,10 @@ mod tests {
                     &crate::keyspec::translate_native_for_linux(spec),
                 ),
             };
-            assert_eq!(row.chord, expected, "{spec}: chord must glyphify per the active convention");
+            assert_eq!(
+                row.chord, expected,
+                "{spec}: chord must glyphify per the active convention"
+            );
         }
     }
 
@@ -553,7 +627,10 @@ mod tests {
 
         let linux = starter_rows_for(Convention::Linux);
         assert_eq!(linux[0].chord, "Ctrl+O", "Go to file, Linux word form");
-        assert_eq!(linux[1].chord, "Ctrl+Shift+P", "Switch project, Linux word form");
+        assert_eq!(
+            linux[1].chord, "Ctrl+Shift+P",
+            "Switch project, Linux word form"
+        );
         assert_eq!(linux[4].chord, "Ctrl+S", "Save, Linux word form");
     }
 
@@ -562,7 +639,10 @@ mod tests {
         // A capture (never pushed) / fresh-install ledger (no candidates) → starter six.
         assert_eq!(rows_or_starter(&[]), starter_rows());
         // A non-empty push wins verbatim.
-        let learned = vec![PeekRow { chord: "⌘;".into(), name: "Spell suggestions".into() }];
+        let learned = vec![PeekRow {
+            chord: "⌘;".into(),
+            name: "Spell suggestions".into(),
+        }];
         assert_eq!(rows_or_starter(&learned), learned);
     }
 }

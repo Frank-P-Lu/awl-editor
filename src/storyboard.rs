@@ -26,7 +26,7 @@
 //! offender. Repeated runs of the same storyboard produce a byte-identical
 //! `trace.json` — the trace carries no clock, no path, no machine fact.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::keyspec::{self, Chord};
 
@@ -162,7 +162,11 @@ pub fn eval_expect(exp: &Expect, state: &StateView) -> Vec<AssertTrace> {
         out.push(AssertTrace {
             check: "text_contains",
             expected: frag.clone(),
-            actual: if present { "present".into() } else { "absent".into() },
+            actual: if present {
+                "present".into()
+            } else {
+                "absent".into()
+            },
             pass: present,
         });
     }
@@ -175,8 +179,9 @@ pub fn eval_expect(exp: &Expect, state: &StateView) -> Vec<AssertTrace> {
 /// `fallback_name` names the board when the TOML has no `name` (the caller
 /// passes the file stem).
 pub fn parse(src: &str, fallback_name: &str) -> Result<Storyboard> {
-    let table: toml::Table =
-        src.parse().map_err(|e| anyhow::anyhow!("storyboard TOML parse error: {e}"))?;
+    let table: toml::Table = src
+        .parse()
+        .map_err(|e| anyhow::anyhow!("storyboard TOML parse error: {e}"))?;
     for key in table.keys() {
         if !matches!(key.as_str(), "name" | "file" | "theme" | "step") {
             bail!("storyboard: unknown top-level key {key:?} (expected name/file/theme/step)");
@@ -204,15 +209,23 @@ pub fn parse(src: &str, fallback_name: &str) -> Result<Storyboard> {
             .ok_or_else(|| anyhow::anyhow!("storyboard: step {i} is not a table"))?;
         steps.push(parse_step(t).with_context(|| format!("storyboard: step {i}"))?);
     }
-    Ok(Storyboard { name, file, theme, steps })
+    Ok(Storyboard {
+        name,
+        file,
+        theme,
+        steps,
+    })
 }
 
 /// One `[[step]]` table → its [`StepKind`]: exactly ONE of the five step keys,
 /// nothing else beside it.
 fn parse_step(t: &toml::Table) -> Result<StepKind> {
     const KEYS: [&str; 5] = ["press", "type", "pause", "run_for", "expect"];
-    let present: Vec<&str> =
-        KEYS.iter().copied().filter(|k| t.contains_key(*k)).collect();
+    let present: Vec<&str> = KEYS
+        .iter()
+        .copied()
+        .filter(|k| t.contains_key(*k))
+        .collect();
     if present.len() != 1 {
         bail!("expected exactly one of press/type/pause/run_for/expect, found {present:?}");
     }
@@ -226,14 +239,20 @@ fn parse_step(t: &toml::Table) -> Result<StepKind> {
             if chords.is_empty() {
                 bail!("`press` spec is empty");
             }
-            Ok(StepKind::Press { spec: spec.clone(), chords })
+            Ok(StepKind::Press {
+                spec: spec.clone(),
+                chords,
+            })
         }
         ("type", toml::Value::String(text)) => {
             let chords = keyspec::text_chords(text)?;
             if chords.is_empty() {
                 bail!("`type` text is empty");
             }
-            Ok(StepKind::Type { text: text.clone(), chords })
+            Ok(StepKind::Type {
+                text: text.clone(),
+                chords,
+            })
         }
         ("pause", v) | ("run_for", v) => {
             let ms = v
@@ -241,7 +260,11 @@ fn parse_step(t: &toml::Table) -> Result<StepKind> {
                 .filter(|&n| n > 0 && n <= 60_000)
                 .ok_or_else(|| anyhow::anyhow!("`{key}` must be 1..=60000 (ms), got {v:?}"))?
                 as u32;
-            Ok(if key == "pause" { StepKind::Pause { ms } } else { StepKind::RunFor { ms } })
+            Ok(if key == "pause" {
+                StepKind::Pause { ms }
+            } else {
+                StepKind::RunFor { ms }
+            })
         }
         ("expect", toml::Value::Table(e)) => Ok(StepKind::Expect(parse_expect(e)?)),
         ("expect", v) => bail!("`expect` must be a table, got {v:?}"),
@@ -526,7 +549,16 @@ text_contains = "hi"
         };
         let out = eval_expect(&exp, &state);
         let checks: Vec<&str> = out.iter().map(|a| a.check).collect();
-        assert_eq!(checks, vec!["cursor", "overlay", "search_active", "selection", "text_contains"]);
+        assert_eq!(
+            checks,
+            vec![
+                "cursor",
+                "overlay",
+                "search_active",
+                "selection",
+                "text_contains"
+            ]
+        );
         assert!(out[0].pass && out[1].pass && out[3].pass && out[4].pass);
         assert!(!out[2].pass, "the deliberate mismatch fails");
         assert_eq!(out[2].expected, "true");
@@ -568,7 +600,10 @@ text_contains = "hi"
                     }],
                 },
             ],
-            abort: Some(TraceAbort { step: 0, reason: "strict replay: unsupported effect `quit`".into() }),
+            abort: Some(TraceAbort {
+                step: 0,
+                reason: "strict replay: unsupported effect `quit`".into(),
+            }),
         };
         let a = render_trace(&trace);
         let b = render_trace(&trace);

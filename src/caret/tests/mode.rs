@@ -39,8 +39,11 @@ fn default_mode_follows_the_measured_pitch_in_every_world() {
     for (i, t) in crate::theme::THEMES.iter().enumerate() {
         crate::theme::set_active(i);
         crate::caret::clear_override();
-        let expected =
-            if font_is_mono(t.font) { CaretMode::Block } else { CaretMode::Morph };
+        let expected = if font_is_mono(t.font) {
+            CaretMode::Block
+        } else {
+            CaretMode::Morph
+        };
         assert_eq!(
             default_mode(),
             expected,
@@ -58,7 +61,11 @@ fn morph_anchor_col_is_one_back_with_col_zero_fallback() {
     // The MORPH caret inhabits the char BEFORE the insertion point: typing
     // `abc|` (cursor col 3) anchors the `c` at col 2 — one back, always.
     assert_eq!(morph_anchor_col(3), 2);
-    assert_eq!(morph_anchor_col(1), 0, "cursor after the first char anchors it");
+    assert_eq!(
+        morph_anchor_col(1),
+        0,
+        "cursor after the first char anchors it"
+    );
     assert_eq!(morph_anchor_col(42), 41);
     // FALLBACK: col 0 (a line start / empty line / the fresh line after
     // Enter) has no previous glyph ON THIS LINE — the GEOMETRY anchor stays
@@ -76,7 +83,10 @@ fn morph_anchor_col_is_one_back_with_col_zero_fallback() {
 /// cell and keeps the silhouette machinery.
 #[test]
 fn morph_line_start_degrades_exactly_at_col_zero() {
-    assert!(morph_line_start(0), "col 0 (incl. empty lines) melts to the bar");
+    assert!(
+        morph_line_start(0),
+        "col 0 (incl. empty lines) melts to the bar"
+    );
     assert!(!morph_line_start(1), "aI bc: the just-passed 'a' stays lit");
     assert!(!morph_line_start(2));
     assert!(!morph_line_start(42));
@@ -95,7 +105,10 @@ fn morph_line_start_degrades_exactly_at_col_zero() {
 #[test]
 fn caret_mode_label_description_and_from_label_round_trip() {
     // ALL lists the three looks in picker order; each has a label + description.
-    assert_eq!(CaretMode::ALL, [CaretMode::Block, CaretMode::Morph, CaretMode::Ibeam]);
+    assert_eq!(
+        CaretMode::ALL,
+        [CaretMode::Block, CaretMode::Morph, CaretMode::Ibeam]
+    );
     for m in CaretMode::ALL {
         assert!(!m.label().is_empty());
         assert!(!m.description().is_empty());
@@ -117,7 +130,10 @@ fn caret_demo_choreography_types_edits_then_loops_and_settles() {
     // Seed metrics: the FIRST seed returns true and primes beat 0 (the first
     // character), so typing begins at once.
     assert!(d.set_metrics(9.0, 20.0));
-    assert!(!d.set_metrics(9.0, 20.0), "only the first seed reports 'jump'");
+    assert!(
+        !d.set_metrics(9.0, 20.0),
+        "only the first seed reports 'jump'"
+    );
     assert_eq!(d.text(), "w", "beat 0 typed the first character");
     assert_eq!(d.cursor_char(), 1);
     assert_eq!(d.beat_index(), 0, "the timeline starts on beat 0");
@@ -164,7 +180,10 @@ fn caret_demo_choreography_types_edits_then_loops_and_settles() {
     d.anim.set_target(500.0, 50.0); // start a glide
     d.settle();
     assert_eq!(d.text(), SAMPLE, "settle shows the full sample line");
-    assert!(!d.anim.is_animating(), "settle pins the preview caret at rest");
+    assert!(
+        !d.anim.is_animating(),
+        "settle pins the preview caret at rest"
+    );
 }
 
 #[test]
@@ -251,16 +270,27 @@ fn is_auto_and_clear_override_round_trip() {
     // what auto would have resolved to — clears auto.
     crate::theme::set_active_by_name("Gumtree").unwrap(); // proportional -> auto = Morph
     set_mode(CaretMode::Morph);
-    assert!(!is_auto(), "an explicit pick, even one auto would've chosen, is no longer auto");
+    assert!(
+        !is_auto(),
+        "an explicit pick, even one auto would've chosen, is no longer auto"
+    );
     assert_eq!(mode(), CaretMode::Morph);
 
     // `clear_override` restores auto — and thus the LIVE font-derived
     // resolution, tracking the theme again (unlike re-pinning the same value).
     clear_override();
     assert!(is_auto());
-    assert_eq!(mode(), CaretMode::Morph, "Gumtree is proportional: auto still resolves Morph here");
+    assert_eq!(
+        mode(),
+        CaretMode::Morph,
+        "Gumtree is proportional: auto still resolves Morph here"
+    );
     crate::theme::set_active_by_name("Tawny").unwrap(); // mono -> auto now tracks Block
-    assert_eq!(mode(), CaretMode::Block, "clear_override left it genuinely auto, not merely coincidentally Morph");
+    assert_eq!(
+        mode(),
+        CaretMode::Block,
+        "clear_override left it genuinely auto, not merely coincidentally Morph"
+    );
 
     // Restore.
     crate::theme::set_active(crate::theme::DEFAULT_THEME);

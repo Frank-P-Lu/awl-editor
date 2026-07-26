@@ -125,7 +125,10 @@ impl ImageCache {
             std::collections::hash_map::Entry::Occupied(e) => e.get().mtime_ns != now,
             std::collections::hash_map::Entry::Vacant(_) => true,
         };
-        let slot = entry.or_insert_with(|| Entry { mtime_ns: now, state: ImageState::Missing });
+        let slot = entry.or_insert_with(|| Entry {
+            mtime_ns: now,
+            state: ImageState::Missing,
+        });
         if needs_decode {
             slot.state = decode_upload(device, queue, resolved, display_w, max_dim);
             slot.mtime_ns = now;
@@ -195,7 +198,12 @@ fn decode_upload(
     // image drawn at its own size uploads verbatim). Triangle filter = a calm,
     // slightly-soft downscale, appropriate for a quiet inline preview.
     let rgba = if uw < intrinsic.0 || uh < intrinsic.1 {
-        image::imageops::resize(&img.to_rgba8(), uw, uh, image::imageops::FilterType::Triangle)
+        image::imageops::resize(
+            &img.to_rgba8(),
+            uw,
+            uh,
+            image::imageops::FilterType::Triangle,
+        )
     } else {
         img.to_rgba8()
     };
@@ -318,14 +326,22 @@ mod tests {
             }
             ImageState::Missing => panic!("bundled fixture must decode Ready"),
         }
-        assert_eq!(cache.decode_count(), 1, "the first ensure decodes exactly once");
+        assert_eq!(
+            cache.decode_count(),
+            1,
+            "the first ensure decodes exactly once"
+        );
         // A second ensure at the same mtime is a FRESH HIT: served from the same slot
         // the Entry API resolved, with NO re-decode.
         assert!(matches!(
             cache.ensure(&device, &queue, path, 300.0, 16384),
             ImageState::Ready { .. }
         ));
-        assert_eq!(cache.decode_count(), 1, "a same-mtime hit skips decode_upload entirely");
+        assert_eq!(
+            cache.decode_count(),
+            1,
+            "a same-mtime hit skips decode_upload entirely"
+        );
     }
 
     /// STALE-MISS: an entry whose stored mtime no longer matches the file's is
@@ -354,6 +370,10 @@ mod tests {
         assert_eq!(cache.decode_count(), 2, "a stale mtime re-decodes");
         // And now fresh again: no further decode.
         cache.ensure(&device, &queue, path, 300.0, 16384);
-        assert_eq!(cache.decode_count(), 2, "back to a fresh hit — no extra decode");
+        assert_eq!(
+            cache.decode_count(),
+            2,
+            "back to a fresh hit — no extra decode"
+        );
     }
 }

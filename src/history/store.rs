@@ -139,7 +139,11 @@ pub(crate) fn record_at(
     // in place (so "Keep version" right after a save still pins something). A NAMED
     // keep of the newest also lands (or RENAMES) its name in place; a plain
     // (nameless) re-pin never erases an existing name.
-    if entries.first().map(|e| e.content == content).unwrap_or(false) {
+    if entries
+        .first()
+        .map(|e| e.content == content)
+        .unwrap_or(false)
+    {
         if pinned {
             if let Some(first) = entries.first_mut() {
                 let rename = name.is_some() && first.name != name;
@@ -163,7 +167,15 @@ pub(crate) fn record_at(
             ts = first.ts + 1;
         }
     }
-    entries.insert(0, Entry { ts, content: content.to_string(), pinned, name });
+    entries.insert(
+        0,
+        Entry {
+            ts,
+            content: content.to_string(),
+            pinned,
+            name,
+        },
+    );
     prune_ladder(&mut entries, now_ms);
     write_log(path, &entries);
 }
@@ -477,7 +489,12 @@ pub(super) fn parse_log_checked(bytes: &[u8]) -> (Vec<Entry>, bool) {
             return (out, false); // truncated content: stop cleanly, untrusted
         }
         let content = String::from_utf8_lossy(&body[i..i + len]).into_owned();
-        out.push(Entry { ts, content, pinned, name });
+        out.push(Entry {
+            ts,
+            content,
+            pinned,
+            name,
+        });
         i += len;
         // Skip the single '\n' separator after the content, if present.
         if i < body.len() && body[i] == b'\n' {

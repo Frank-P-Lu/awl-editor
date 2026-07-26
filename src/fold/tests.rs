@@ -179,7 +179,10 @@ fn toggle_at_is_a_thin_wrapper_over_toggle_heading() {
     // And the reverse (unfold) transition too.
     assert_eq!(toggle_at(&levels, &mut via_caret, 3), Some(2));
     toggle_heading(&levels, &mut via_line, 2);
-    assert_eq!(via_caret, via_line, "identical transition, unfold direction");
+    assert_eq!(
+        via_caret, via_line,
+        "identical transition, unfold direction"
+    );
     assert!(via_caret.is_empty());
 }
 
@@ -195,7 +198,10 @@ fn toggle_folds_then_unfolds_the_enclosing_heading() {
     assert!(f.is_empty());
     // No enclosing heading -> None, no change.
     let mut g = BTreeSet::new();
-    assert_eq!(toggle_at(&levels, &mut g, 100), enclosing_heading(&levels, 100));
+    assert_eq!(
+        toggle_at(&levels, &mut g, 100),
+        enclosing_heading(&levels, 100)
+    );
 }
 
 #[test]
@@ -207,7 +213,10 @@ fn collapse_others_keeps_the_caret_chain_and_subtree_open() {
     // Nothing in the kept chain is hidden.
     let hidden = hidden_lines(&levels, &f);
     assert!(!hidden[0] && !hidden[2], "the caret's chain stays visible");
-    assert!(hidden[5] && hidden[7], "sibling + unrelated sections collapse");
+    assert!(
+        hidden[5] && hidden[7],
+        "sibling + unrelated sections collapse"
+    );
 }
 
 #[test]
@@ -237,7 +246,9 @@ const NEST: &str = "# Alpha\na\n# Beta\nb\n## Beta one\nc\n### Beta one a\nd\n# 
 /// heading's section — equivalently, none of the folded headings is itself hidden.
 fn is_antichain(levels: &[u8], folds: &BTreeSet<usize>) -> bool {
     let hidden = hidden_lines(levels, folds);
-    folds.iter().all(|&h| !hidden.get(h).copied().unwrap_or(false))
+    folds
+        .iter()
+        .all(|&h| !hidden.get(h).copied().unwrap_or(false))
 }
 
 #[test]
@@ -254,7 +265,10 @@ fn collapse_others_emits_a_minimal_antichain_over_a_nested_sibling() {
         !f.contains(&4) && !f.contains(&6),
         "no fold is stored for a heading already hidden inside # Beta's section"
     );
-    assert!(is_antichain(&levels, &f), "no folded heading has a folded ancestor");
+    assert!(
+        is_antichain(&levels, &f),
+        "no folded heading has a folded ancestor"
+    );
     // Every folded heading is itself visible, so each shows exactly one tail — the
     // render never hangs a tail on a buried heading.
     assert_eq!(fold_tails(&levels, &f).len(), f.len());
@@ -267,10 +281,16 @@ fn collapse_others_root_unfold_reveals_the_whole_sibling_subtree_in_one_step() {
     // no buried ## Beta one / ### Beta one a fold remains to peel back click by click.
     let levels = heading_levels(NEST, true);
     let mut f = collapse_others(&levels, 1);
-    assert!(f.remove(&2), "# Beta is the single stored root over its subtree");
+    assert!(
+        f.remove(&2),
+        "# Beta is the single stored root over its subtree"
+    );
     let hidden = hidden_lines(&levels, &f);
     for line in 3..=7 {
-        assert!(!hidden[line], "line {line} of # Beta's subtree is now visible");
+        assert!(
+            !hidden[line],
+            "line {line} of # Beta's subtree is now visible"
+        );
     }
     // Only # Gamma's section stays collapsed.
     assert_eq!(f, folds(&[8]));

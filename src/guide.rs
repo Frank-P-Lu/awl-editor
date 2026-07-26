@@ -41,7 +41,10 @@ pub use crate::embedded_docs::GUIDE_MD;
 /// DESIGN). Called by `App::open_guide` (live) and `main::run`'s headless
 /// `Effect::OpenGuide` arm, both passing `Convention::current()`/
 /// `Platform::current()`.
-pub fn render(convention: crate::convention::Convention, platform: crate::commands::Platform) -> String {
+pub fn render(
+    convention: crate::convention::Convention,
+    platform: crate::commands::Platform,
+) -> String {
     crate::keytoken::render_key_tokens(GUIDE_MD, convention, platform)
 }
 

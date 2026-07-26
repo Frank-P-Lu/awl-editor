@@ -526,14 +526,25 @@ impl TextPipeline {
         // mirroring `overlay_shape_text`'s own span choice exactly, so the target
         // byte this scans for lands on the SAME line-relative offset the shaper used.
         let title_prefix = self.overlay_title_prefix(geom);
-        let prefix_len = if title_prefix.is_empty() { sigil.len() } else { title_prefix.len() };
-        let caret_char = self.overlay_query_caret.min(self.overlay_query.chars().count());
+        let prefix_len = if title_prefix.is_empty() {
+            sigil.len()
+        } else {
+            title_prefix.len()
+        };
+        let caret_char = self
+            .overlay_query_caret
+            .min(self.overlay_query.chars().count());
         let target_byte = prefix_len + field_caret_byte(&self.overlay_query, caret_char);
         let first_run = self.panel_buffer.layout_runs().next();
         let caret_x = geom.text_left
             + first_run
                 .as_ref()
-                .and_then(|r| r.glyphs.iter().find(|g| g.start == target_byte).map(|g| g.x))
+                .and_then(|r| {
+                    r.glyphs
+                        .iter()
+                        .find(|g| g.start == target_byte)
+                        .map(|g| g.x)
+                })
                 .or_else(|| first_run.as_ref().map(|r| r.line_w))
                 .unwrap_or_else(|| {
                     m.char_width

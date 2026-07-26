@@ -29,7 +29,11 @@ fn hud_report_figures_and_held_tracks_the_global() {
     let l = p.lifetime_report();
     assert!(!l.open, "the Lifetime card global is off by default");
     for f in [&l.chars, &l.writing, &l.files, &l.caret_travel, &l.world] {
-        assert_eq!(f, crate::hud::PLACEHOLDER, "odometer field defaults to placeholder");
+        assert_eq!(
+            f,
+            crate::hud::PLACEHOLDER,
+            "odometer field defaults to placeholder"
+        );
     }
     // After a snapshot is pushed, the Lifetime card's fields format the real figures.
     p.set_hud_stats(Some(crate::hud::HudStats {
@@ -55,7 +59,11 @@ fn hud_report_figures_and_held_tracks_the_global() {
     crlf.is_markdown = true;
     crlf.eol = crate::buffer::Eol::Crlf;
     p.set_view(&crlf);
-    assert_eq!(p.hud_report().eol, crate::buffer::Eol::Crlf, "CRLF view reports CRLF");
+    assert_eq!(
+        p.hud_report().eol,
+        crate::buffer::Eol::Crlf,
+        "CRLF view reports CRLF"
+    );
     assert_eq!(p.hud_report().eol.label(), "CRLF");
     p.set_view(&v);
 
@@ -70,7 +78,11 @@ fn hud_report_figures_and_held_tracks_the_global() {
     let mut code = view("fn main() {}\n", 0, 0);
     code.is_markdown = false;
     p.set_view(&code);
-    assert_eq!(p.hud_report().words, None, "non-markdown omits the word count");
+    assert_eq!(
+        p.hud_report().words,
+        None,
+        "non-markdown omits the word count"
+    );
 
     // %-through-doc advances with the cursor: near the document end it is a high
     // fraction (and never exceeds 100). Cursor on the last content line's end.
@@ -78,7 +90,10 @@ fn hud_report_figures_and_held_tracks_the_global() {
     endv.is_markdown = true;
     p.set_view(&endv);
     let pct = p.hud_report().percent;
-    assert!((80..=100).contains(&pct), "cursor near the end => high percent, got {pct}");
+    assert!(
+        (80..=100).contains(&pct),
+        "cursor near the end => high percent, got {pct}"
+    );
 }
 
 /// The held stats HUD and a full summoned overlay are MUTUALLY EXCLUSIVE (the
@@ -110,7 +125,10 @@ fn hud_showing_yields_to_an_open_overlay() {
     over.overlay_active = true;
     over.overlay_crisp = true;
     p.set_view(&over);
-    assert!(!p.hud_showing(), "held + overlay open => the HUD is suppressed");
+    assert!(
+        !p.hud_showing(),
+        "held + overlay open => the HUD is suppressed"
+    );
     assert!(
         !p.backdrop_blur(),
         "a crisp overlay + a suppressed HUD leaves the frame unblurred (crisp preview intact)"
@@ -118,7 +136,10 @@ fn hud_showing_yields_to_an_open_overlay() {
 
     // Close the overlay while the key is STILL held => the HUD reappears.
     p.set_view(&plain);
-    assert!(p.hud_showing(), "overlay closed while held => the HUD returns");
+    assert!(
+        p.hud_showing(),
+        "overlay closed while held => the HUD returns"
+    );
 
     // Releasing the key stops it regardless of overlay state.
     crate::hud::set_held(false);
@@ -135,7 +156,9 @@ fn hud_showing_yields_to_an_open_overlay() {
 #[test]
 fn peek_report_folds_empty_to_starter_and_yields_to_an_open_overlay() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping peek_report_folds_empty_to_starter_and_yields_to_an_open_overlay: no wgpu adapter");
+        eprintln!(
+            "skipping peek_report_folds_empty_to_starter_and_yields_to_an_open_overlay: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -165,7 +188,10 @@ fn peek_report_folds_empty_to_starter_and_yields_to_an_open_overlay() {
     let mut over = view("hello\n", 0, 0);
     over.overlay_active = true;
     p.set_view(&over);
-    assert!(!p.peek_showing(), "open + overlay => the peek is suppressed");
+    assert!(
+        !p.peek_showing(),
+        "open + overlay => the peek is suppressed"
+    );
     crate::peek::set_open(false);
     assert!(!p.peek_showing(), "closed => never showing");
     crate::peek::set_open(false);

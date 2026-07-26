@@ -72,7 +72,11 @@ fn list_worlds_matches_the_expected_roster_exactly() {
     let mut sorted = names.clone();
     sorted.sort_unstable();
     sorted.dedup();
-    assert_eq!(sorted.len(), names.len(), "--list-worlds printed a duplicate world name");
+    assert_eq!(
+        sorted.len(),
+        names.len(),
+        "--list-worlds printed a duplicate world name"
+    );
 }
 
 #[test]
@@ -89,9 +93,15 @@ fn help_text_names_every_world_and_advertises_list_worlds() {
     // name in the roster must appear in the help text now that both routes
     // read the same `theme::world_names()`.
     for name in EXPECTED_WORLDS {
-        assert!(stdout.contains(name), "--help is missing world {name:?} (roster drift)");
+        assert!(
+            stdout.contains(name),
+            "--help is missing world {name:?} (roster drift)"
+        );
     }
-    assert!(stdout.contains("--list-worlds"), "--help should advertise --list-worlds");
+    assert!(
+        stdout.contains("--list-worlds"),
+        "--help should advertise --list-worlds"
+    );
 }
 
 #[test]
@@ -104,6 +114,9 @@ fn unknown_theme_error_names_every_world() {
     assert!(!out.status.success(), "an unknown --theme should fail");
     let stderr = String::from_utf8(out.stderr).expect("stderr is UTF-8");
     for name in EXPECTED_WORLDS {
-        assert!(stderr.contains(name), "unknown-theme error is missing world {name:?} (roster drift)");
+        assert!(
+            stderr.contains(name),
+            "unknown-theme error is missing world {name:?} (roster drift)"
+        );
     }
 }

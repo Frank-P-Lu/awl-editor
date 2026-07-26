@@ -321,7 +321,11 @@ mod tests {
     fn line_and_inline_comments() {
         let t = "# header\nname: awl  # trailing\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# header", "# trailing"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# header", "# trailing"],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -432,9 +436,14 @@ mod tests {
     #[test]
     fn reference_snippet() {
         // A compact end-to-end snippet asserting all four roles at once.
-        let t = "# app config\nname: \"awl\"\nversion: 1.4\nenabled: true\npath: /usr/local  # note\n";
+        let t =
+            "# app config\nname: \"awl\"\nversion: 1.4\nenabled: true\npath: /usr/local  # note\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["# app config", "# note"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["# app config", "# note"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"name") && ds.contains(&"version"), "{ds:?}");
         assert!(at(t, &s, SynKind::Str).contains(&"\"awl\""), "{s:?}");

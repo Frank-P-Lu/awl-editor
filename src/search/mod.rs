@@ -108,7 +108,12 @@ impl SearchState {
     /// "search for selection", W2) and the REMEMBERED last query (a bare
     /// Cmd-G/Cmd-Shift-G re-find, P2) — see `actions/motion.rs::start_search`,
     /// the one caller. An empty `query` behaves exactly like [`Self::start`].
-    pub fn start_with_query(origin: usize, direction: Direction, query: &str, haystack: &str) -> Self {
+    pub fn start_with_query(
+        origin: usize,
+        direction: Direction,
+        query: &str,
+        haystack: &str,
+    ) -> Self {
         let mut s = Self::start(origin, direction);
         if !query.is_empty() {
             s.query = TextBox::seeded(query);
@@ -566,7 +571,10 @@ mod tests {
     #[test]
     fn find_all_basic() {
         assert_eq!(find_all("hello world", "world", false), vec![m(6, 11)]);
-        assert_eq!(find_all("hello world", "o", false), vec![m(4, 4 + 1), m(7, 8)]);
+        assert_eq!(
+            find_all("hello world", "o", false),
+            vec![m(4, 4 + 1), m(7, 8)]
+        );
     }
 
     #[test]
@@ -587,7 +595,10 @@ mod tests {
     #[test]
     fn find_all_case_insensitive_default_vs_sensitive() {
         assert_eq!(find_all("Hello HELLO hello", "hello", false).len(), 3);
-        assert_eq!(find_all("Hello HELLO hello", "hello", true), vec![m(12, 17)]);
+        assert_eq!(
+            find_all("Hello HELLO hello", "hello", true),
+            vec![m(12, 17)]
+        );
     }
 
     #[test]
@@ -828,7 +839,10 @@ mod tests {
         s.toggle_replace(); // Tab -> switch to replace
         assert!(s.is_editing_replacement());
         s.reveal_replace();
-        assert!(s.is_editing_replacement(), "reveal_replace never yanks focus");
+        assert!(
+            s.is_editing_replacement(),
+            "reveal_replace never yanks focus"
+        );
         // Cmd-R AGAIN (focus_replacement) forces focus into the replacement.
         let mut s2 = SearchState::start(0, Direction::Forward);
         s2.reveal_replace();
@@ -946,7 +960,11 @@ mod tests {
             buf.set_cursor(mm.start);
         }
         assert_eq!(buf.text(), "row one\nrow two\nrow three");
-        assert_eq!(st.current_match(), None, "no needle remains after replace-all");
+        assert_eq!(
+            st.current_match(),
+            None,
+            "no needle remains after replace-all"
+        );
 
         // REPLACE-CURRENT: swap one match, write back, and land the cursor on the
         // NEXT match so a repeated Enter walks forward.
@@ -1004,7 +1022,10 @@ mod tests {
         let s = SearchState::start_with_query(0, Direction::Forward, "alpha", hay);
         assert_eq!(s.query(), "alpha");
         assert_eq!(s.hit_count(), 3);
-        assert!(s.current_match().is_some(), "the prefilled query is matched, not blank");
+        assert!(
+            s.current_match().is_some(),
+            "the prefilled query is matched, not blank"
+        );
         // An empty prefill behaves exactly like `start` (no matches, empty query).
         let blank = SearchState::start_with_query(0, Direction::Forward, "", hay);
         assert_eq!(blank.query(), "");
@@ -1015,7 +1036,11 @@ mod tests {
     fn last_query_remembers_and_is_reset_by_clear() {
         let _g = crate::testlock::serial();
         clear_last_query();
-        assert_eq!(last_query(), "", "a fresh/cleared process remembers nothing");
+        assert_eq!(
+            last_query(),
+            "",
+            "a fresh/cleared process remembers nothing"
+        );
         set_last_query("needle");
         assert_eq!(last_query(), "needle");
         // A LATER empty close never overwrites a still-useful remembered query

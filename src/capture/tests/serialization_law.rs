@@ -30,7 +30,7 @@
 
 use super::super::sidecar::{assert_capture_is_serialized, cjk_json, scripts_json};
 use crate::render::ScriptFontReports;
-use crate::theme::{FontId, ALL_FONT_IDS};
+use crate::theme::{ALL_FONT_IDS, FontId};
 
 /// LAW 1 (pure seam): the capture-serialization check PASSES on a thread
 /// holding `testlock::serial()` and PANICS on one that isn't. `currently_held`
@@ -48,7 +48,10 @@ fn an_unguarded_capture_is_a_hard_error() {
     // the check must panic rather than let the capture proceed. It cannot
     // acquire the guard behind our back either — we hold it for this window.
     let unguarded = std::thread::spawn(|| {
-        assert!(!crate::testlock::currently_held(), "a fresh thread holds nothing");
+        assert!(
+            !crate::testlock::currently_held(),
+            "a fresh thread holds nothing"
+        );
         assert_capture_is_serialized();
     });
     let outcome = unguarded.join();
@@ -81,7 +84,8 @@ fn the_real_capture_path_enforces_the_law() {
         move || {
             let mut buf = crate::buffer::Buffer::from_str("hello\n");
             buf.set_path(png.with_extension("md"));
-            let _ = crate::capture::capture_with(&png, &buf, &crate::capture::CaptureOpts::default());
+            let _ =
+                crate::capture::capture_with(&png, &buf, &crate::capture::CaptureOpts::default());
         }
     });
     assert!(
@@ -109,7 +113,10 @@ fn font_cjk_is_literally_the_scripts_ja_entry() {
         ko: Some(("Fixture KR", false)),
     };
     let cjk = cjk_json(&fonts);
-    assert_eq!(cjk, "{ \"family\": \"Fixture Mincho JP\", \"bundled\": true }");
+    assert_eq!(
+        cjk,
+        "{ \"family\": \"Fixture Mincho JP\", \"bundled\": true }"
+    );
     assert_eq!(
         scripts_json(&fonts),
         format!(

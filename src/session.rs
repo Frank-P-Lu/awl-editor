@@ -215,7 +215,9 @@ pub fn from_toml(src: &str) -> SessionState {
     if let Some(arr) = table.get("buffer").and_then(|v| v.as_array()) {
         for entry in arr {
             let Some(t) = entry.as_table() else { continue };
-            let Some(path) = t.get("path").and_then(|v| v.as_str()) else { continue };
+            let Some(path) = t.get("path").and_then(|v| v.as_str()) else {
+                continue;
+            };
             let as_usize = |t: &toml::Table, key: &str| {
                 t.get(key).and_then(|v| v.as_integer()).unwrap_or(0).max(0) as usize
             };
@@ -270,7 +272,12 @@ pub fn clamp_frame_to_screens(frame: WindowFrame, screens: &[ScreenRect]) -> Win
     let max_y = target.y + target.height as i32 - height as i32;
     let x = frame.x.clamp(target.x, max_x.max(target.x));
     let y = frame.y.clamp(target.y, max_y.max(target.y));
-    WindowFrame { x, y, width, height }
+    WindowFrame {
+        x,
+        y,
+        width,
+        height,
+    }
 }
 
 #[cfg(test)]
@@ -283,10 +290,29 @@ mod tests {
             root: Some(PathBuf::from("/proj")),
             active: Some(PathBuf::from("/proj/a.md")),
             buffers: vec![
-                (PathBuf::from("/proj/a.md"), BufferPos { line: 3, col: 5, scroll: 2 }),
-                (PathBuf::from("/proj/b.rs"), BufferPos { line: 0, col: 0, scroll: 0 }),
+                (
+                    PathBuf::from("/proj/a.md"),
+                    BufferPos {
+                        line: 3,
+                        col: 5,
+                        scroll: 2,
+                    },
+                ),
+                (
+                    PathBuf::from("/proj/b.rs"),
+                    BufferPos {
+                        line: 0,
+                        col: 0,
+                        scroll: 0,
+                    },
+                ),
             ],
-            window: Some(WindowFrame { x: 10, y: 20, width: 1200, height: 800 }),
+            window: Some(WindowFrame {
+                x: 10,
+                y: 20,
+                width: 1200,
+                height: 800,
+            }),
         };
         let text = to_toml(&state);
         assert_eq!(from_toml(&text), state);
@@ -322,7 +348,12 @@ mod tests {
             root: None,
             active: None,
             buffers: Vec::new(),
-            window: Some(WindowFrame { x: -1200, y: -40, width: 800, height: 600 }),
+            window: Some(WindowFrame {
+                x: -1200,
+                y: -40,
+                width: 800,
+                height: 600,
+            }),
         };
         assert_eq!(from_toml(&to_toml(&state)), state);
     }
@@ -333,13 +364,21 @@ mod tests {
         let fake = Arc::new(crate::fs::InMemoryFs::new());
         crate::fs::with_fs(fake, || {
             let path = PathBuf::from("/data/session.toml");
-            assert_eq!(load(&path), SessionState::default(), "missing file: empty session");
+            assert_eq!(
+                load(&path),
+                SessionState::default(),
+                "missing file: empty session"
+            );
             let state = SessionState {
                 root: Some(PathBuf::from("/n")),
                 active: Some(PathBuf::from("/n/a.md")),
                 buffers: vec![(
                     PathBuf::from("/n/a.md"),
-                    BufferPos { line: 1, col: 2, scroll: 4 },
+                    BufferPos {
+                        line: 1,
+                        col: 2,
+                        scroll: 4,
+                    },
                 )],
                 window: None,
             };
@@ -353,8 +392,15 @@ mod tests {
         use std::sync::Arc;
         let fake = Arc::new(crate::fs::InMemoryFs::new());
         crate::fs::with_fs(fake, || {
-            assert_eq!(remembered_root(), None, "nothing saved yet: nothing remembered");
-            let state = SessionState { root: Some(PathBuf::from("/w/proj")), ..Default::default() };
+            assert_eq!(
+                remembered_root(),
+                None,
+                "nothing saved yet: nothing remembered"
+            );
+            let state = SessionState {
+                root: Some(PathBuf::from("/w/proj")),
+                ..Default::default()
+            };
             save(&session_path(), &state).unwrap();
             assert_eq!(remembered_root(), Some(PathBuf::from("/w/proj")));
         });
@@ -391,8 +437,18 @@ mod tests {
 
     #[test]
     fn clamp_keeps_a_frame_already_on_a_known_screen_untouched() {
-        let screens = [ScreenRect { x: 0, y: 0, width: 1920, height: 1080 }];
-        let frame = WindowFrame { x: 100, y: 100, width: 1200, height: 800 };
+        let screens = [ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        }];
+        let frame = WindowFrame {
+            x: 100,
+            y: 100,
+            width: 1200,
+            height: 800,
+        };
         assert_eq!(clamp_frame_to_screens(frame, &screens), frame);
     }
 
@@ -400,8 +456,18 @@ mod tests {
     fn clamp_pulls_a_frame_back_onto_the_primary_when_its_monitor_is_gone() {
         // The frame lived on a SECOND monitor to the right (x starts at 2400)
         // that is no longer connected; only the primary (0,0 1920x1080) remains.
-        let screens = [ScreenRect { x: 0, y: 0, width: 1920, height: 1080 }];
-        let frame = WindowFrame { x: 2400, y: 300, width: 1200, height: 800 };
+        let screens = [ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        }];
+        let frame = WindowFrame {
+            x: 2400,
+            y: 300,
+            width: 1200,
+            height: 800,
+        };
         let clamped = clamp_frame_to_screens(frame, &screens);
         assert!(clamped.x >= 0 && clamped.x + clamped.width as i32 <= 1920);
         assert!(clamped.y >= 0 && clamped.y + clamped.height as i32 <= 1080);
@@ -409,8 +475,18 @@ mod tests {
 
     #[test]
     fn clamp_shrinks_a_frame_bigger_than_the_target_screen() {
-        let screens = [ScreenRect { x: 0, y: 0, width: 1024, height: 768 }];
-        let frame = WindowFrame { x: 0, y: 0, width: 1920, height: 1080 };
+        let screens = [ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1024,
+            height: 768,
+        }];
+        let frame = WindowFrame {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let clamped = clamp_frame_to_screens(frame, &screens);
         assert_eq!(clamped.width, 1024);
         assert_eq!(clamped.height, 768);
@@ -419,19 +495,42 @@ mod tests {
     #[test]
     fn clamp_picks_the_screen_containing_the_frames_origin_among_several() {
         let screens = [
-            ScreenRect { x: 0, y: 0, width: 1920, height: 1080 },
-            ScreenRect { x: 1920, y: 0, width: 2560, height: 1440 },
+            ScreenRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            ScreenRect {
+                x: 1920,
+                y: 0,
+                width: 2560,
+                height: 1440,
+            },
         ];
         // The frame's origin sits on the SECOND screen; it must not be
         // clamped down to the first screen's (smaller) bounds.
-        let frame = WindowFrame { x: 2000, y: 100, width: 1200, height: 800 };
+        let frame = WindowFrame {
+            x: 2000,
+            y: 100,
+            width: 1200,
+            height: 800,
+        };
         let clamped = clamp_frame_to_screens(frame, &screens);
-        assert_eq!(clamped, frame, "already fits within its own screen: untouched");
+        assert_eq!(
+            clamped, frame,
+            "already fits within its own screen: untouched"
+        );
     }
 
     #[test]
     fn clamp_with_no_screens_is_a_no_op() {
-        let frame = WindowFrame { x: 5000, y: 5000, width: 1200, height: 800 };
+        let frame = WindowFrame {
+            x: 5000,
+            y: 5000,
+            width: 1200,
+            height: 800,
+        };
         assert_eq!(clamp_frame_to_screens(frame, &[]), frame);
     }
 }

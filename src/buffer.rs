@@ -39,11 +39,7 @@ impl Eol {
         // Every '\n' immediately preceded by a '\r' is a CRLF pair.
         let crlf = s.match_indices("\r\n").count();
         let lone_lf = total_lf - crlf;
-        if crlf > lone_lf {
-            Eol::Crlf
-        } else {
-            Eol::Lf
-        }
+        if crlf > lone_lf { Eol::Crlf } else { Eol::Lf }
     }
 
     /// Encode a PURELY `\n`-based buffer string into this ending's on-disk form:
@@ -125,7 +121,10 @@ fn is_word_char(c: char) -> bool {
 /// Abstract over the storage so the rope-backed [`Buffer::delete_word_backward`]
 /// and the overlay minibuffer (a `String`) share this rule instead of duplicating
 /// it.
-pub(crate) fn word_delete_backward_boundary(cursor: usize, char_at: impl Fn(usize) -> char) -> usize {
+pub(crate) fn word_delete_backward_boundary(
+    cursor: usize,
+    char_at: impl Fn(usize) -> char,
+) -> usize {
     let mut i = cursor;
     // 1. Fold any trailing whitespace into the deletion (a word/punct token to the
     //    left "owns" the space that introduced it, mirroring macOS word motion).
@@ -207,7 +206,11 @@ pub(crate) fn word_delete_forward_boundary(
 /// Abstracted over the storage so [`Buffer::forward_word`] (rope-backed) and
 /// [`crate::textbox::TextBox::word_right`] (a plain `String`) share the SAME
 /// rule instead of the textbox silently drifting from the document's own M-f.
-pub(crate) fn word_forward_boundary(cursor: usize, len: usize, char_at: impl Fn(usize) -> char) -> usize {
+pub(crate) fn word_forward_boundary(
+    cursor: usize,
+    len: usize,
+    char_at: impl Fn(usize) -> char,
+) -> usize {
     let mut i = cursor;
     while i < len && !is_word_char(char_at(i)) {
         i += 1;
@@ -536,7 +539,9 @@ impl Buffer {
     /// buffer, so those render byte-identically. Markdown and code are mutually
     /// exclusive: a `.md` buffer is [`Self::is_markdown`] with no `syntax_lang`.
     pub fn syntax_lang(&self) -> Option<crate::syntax::Lang> {
-        self.path.as_deref().and_then(crate::syntax::Lang::from_path)
+        self.path
+            .as_deref()
+            .and_then(crate::syntax::Lang::from_path)
     }
 
     /// Which STICKY page-width CLASS this buffer draws its measure from — see

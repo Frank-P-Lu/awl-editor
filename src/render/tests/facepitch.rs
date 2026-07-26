@@ -139,12 +139,17 @@ fn bundled_face_roster_is_exactly_this_declared_set() {
     let mut shipped: Vec<(String, Pitch)> = facepitch::roster()
         .iter()
         .map(|(fam, facts)| {
-            (fam.clone(), facts.measured.expect("every bundled face measures a pitch"))
+            (
+                fam.clone(),
+                facts.measured.expect("every bundled face measures a pitch"),
+            )
         })
         .collect();
     shipped.sort();
-    let mut declared: Vec<(String, Pitch)> =
-        DECLARED_ROSTER.iter().map(|(f, p)| ((*f).to_string(), *p)).collect();
+    let mut declared: Vec<(String, Pitch)> = DECLARED_ROSTER
+        .iter()
+        .map(|(f, p)| ((*f).to_string(), *p))
+        .collect();
     declared.sort();
     assert_eq!(
         shipped, declared,
@@ -208,7 +213,10 @@ fn font_is_mono_answers_the_measurement_for_every_roster_member() {
     // THE REGRESSION THIS ROUND EXISTS FOR: the retired predicate was
     // `matches!(family, "IBM Plex Mono" | "JetBrains Mono" | "Monaspace Xenon")`,
     // so Iosevka answered false and Currawong/Cassowary lost the grid.
-    assert!(crate::caret::font_is_mono("Iosevka"), "Iosevka is a fixed-pitch face");
+    assert!(
+        crate::caret::font_is_mono("Iosevka"),
+        "Iosevka is a fixed-pitch face"
+    );
     // A family that is not a bundled display face (a system fallback, an
     // `AWL_FONT` override) is not claimed either way — false, as before.
     assert!(!crate::caret::font_is_mono("Helvetica"));
@@ -225,7 +233,9 @@ fn bold_companions_of_mono_families_hold_the_same_grid() {
     let _t = crate::testlock::serial();
     let mut checked = 0usize;
     for &bold in crate::render::FONT_THEME_BOLD_FACES {
-        let Some(family) = facepitch::registered_family(bold) else { continue };
+        let Some(family) = facepitch::registered_family(bold) else {
+            continue;
+        };
         let Some(regular) = facepitch::roster().get(&family).and_then(|f| f.measured) else {
             panic!("bold face {family:?} registers a family with no bundled Regular")
         };
@@ -238,7 +248,10 @@ fn bold_companions_of_mono_families_hold_the_same_grid() {
         );
         checked += 1;
     }
-    assert!(checked >= DECLARED_ROSTER.len(), "every bundled family ships a bold (got {checked})");
+    assert!(
+        checked >= DECLARED_ROSTER.len(),
+        "every bundled family ships a bold (got {checked})"
+    );
 }
 
 /// The set of MONO-DISPLAY worlds, pinned. Not a second source of truth — it is
@@ -252,13 +265,13 @@ fn the_mono_display_worlds_are_these_seven() {
     assert_eq!(
         mono_display_worlds(),
         vec![
-            "Tawny",      // IBM Plex Mono
-            "Currawong",  // Iosevka  — regained the grid this round
-            "Potoroo",    // Monaspace Xenon
-            "Mangrove",   // JetBrains Mono
-            "Wagtail",    // JetBrains Mono
-            "Firetail",   // Monaspace Xenon
-            "Cassowary",  // Iosevka  — regained the grid this round
+            "Tawny",     // IBM Plex Mono
+            "Currawong", // Iosevka  — regained the grid this round
+            "Potoroo",   // Monaspace Xenon
+            "Mangrove",  // JetBrains Mono
+            "Wagtail",   // JetBrains Mono
+            "Firetail",  // Monaspace Xenon
+            "Cassowary", // Iosevka  — regained the grid this round
         ]
     );
     // And the complement really is proportional — no world sits in neither camp.
@@ -301,7 +314,10 @@ fn every_proportional_face_measures_a_sane_typical_letter_ratio() {
         ratios.push(ratio);
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     let (min, max) = (
         ratios.iter().cloned().fold(f32::MAX, f32::min),

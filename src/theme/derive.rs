@@ -15,7 +15,6 @@ use super::worlds::{DEFAULT_THEME, THEMES};
 /// windowed app cycles it (`C-x t`); `--theme NAME` pins it for a capture.
 static ACTIVE: AtomicUsize = AtomicUsize::new(DEFAULT_THEME);
 
-
 /// The currently active [`Theme`].
 pub fn active() -> Theme {
     THEMES[ACTIVE.load(Ordering::Relaxed) % THEMES.len()]
@@ -99,7 +98,9 @@ impl WorldPin {
             crate::testlock::currently_held(),
             "WorldPin must be created inside crate::testlock::serial()"
         );
-        WorldPin { prev: ACTIVE.load(Ordering::Relaxed) }
+        WorldPin {
+            prev: ACTIVE.load(Ordering::Relaxed),
+        }
     }
 
     /// Pin the current world and switch to `name` (case-insensitive) in one
@@ -187,7 +188,10 @@ pub fn selection() -> Srgb {
 /// here, only the dial does.
 pub fn fold_afford_chevron_ink() -> Srgb {
     let t = active();
-    t.muted.lerp(t.base_content, t.render_caps.fold_afford.chevron_lift.clamp(0.0, 1.0))
+    t.muted.lerp(
+        t.base_content,
+        t.render_caps.fold_afford.chevron_lift.clamp(0.0, 1.0),
+    )
 }
 
 /// ITEM 65 taste correction — the fold-section "… N lines" TAIL's own ink:
@@ -195,7 +199,10 @@ pub fn fold_afford_chevron_ink() -> Srgb {
 /// tail_lift`] — the [`fold_afford_chevron_ink`] sibling; see its doc.
 pub fn fold_afford_tail_ink() -> Srgb {
     let t = active();
-    t.faint.lerp(t.base_content, t.render_caps.fold_afford.tail_lift.clamp(0.0, 1.0))
+    t.faint.lerp(
+        t.base_content,
+        t.render_caps.fold_afford.tail_lift.clamp(0.0, 1.0),
+    )
 }
 
 /// ITEM 70's PRINTED-CARD texture ink — the ONE owner of
@@ -268,12 +275,8 @@ const PLACARD_DARK_LIFT_GHOST: f32 = 0.45;
 pub fn placard_ink(ink: super::model::PlacardInk) -> Srgb {
     let t = active();
     match ink {
-        super::model::PlacardInk::Faint if t.dark => {
-            faint().lerp(muted(), PLACARD_DARK_LIFT_FAINT)
-        }
-        super::model::PlacardInk::Ghost if t.dark => {
-            faint().lerp(muted(), PLACARD_DARK_LIFT_GHOST)
-        }
+        super::model::PlacardInk::Faint if t.dark => faint().lerp(muted(), PLACARD_DARK_LIFT_FAINT),
+        super::model::PlacardInk::Ghost if t.dark => faint().lerp(muted(), PLACARD_DARK_LIFT_GHOST),
         super::model::PlacardInk::Faint => faint(),
         super::model::PlacardInk::Ghost => faint().lerp(base_300(), 0.5),
         super::model::PlacardInk::Stipple => base_content(),
@@ -296,7 +299,11 @@ const PLACARD_BOLD_LIFT: f32 = 0.5;
 fn rel_lum(c: Srgb) -> f32 {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
-        if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.03928 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     }
     0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
 }
@@ -365,8 +372,15 @@ pub fn placard_stipple_density() -> f32 {
     let ink = rel_lum(base_content());
     let target = rel_lum(placard_ink(super::model::PlacardInk::Faint));
     let span = ink - ground;
-    let density = if span.abs() < 1e-6 { 0.0 } else { (target - ground) / span };
-    density.clamp(PLACARD_STIPPLE_DENSITY_FLOOR, PLACARD_STIPPLE_DENSITY_CEILING)
+    let density = if span.abs() < 1e-6 {
+        0.0
+    } else {
+        (target - ground) / span
+    };
+    density.clamp(
+        PLACARD_STIPPLE_DENSITY_FLOOR,
+        PLACARD_STIPPLE_DENSITY_CEILING,
+    )
 }
 
 /// THE ONE owner of the PAGE-FRAME ink ([`super::model::PageFrame`], the

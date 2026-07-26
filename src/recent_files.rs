@@ -73,7 +73,12 @@ mod tests {
             list,
             vec![PathBuf::from("/w/a.md"), PathBuf::from("/w/b.md")]
         );
-        assert_eq!(list.iter().filter(|p| *p == &PathBuf::from("/w/a.md")).count(), 1);
+        assert_eq!(
+            list.iter()
+                .filter(|p| *p == &PathBuf::from("/w/a.md"))
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -83,8 +88,15 @@ mod tests {
             list = push(list, PathBuf::from(format!("/w/f{i}.md")));
         }
         assert_eq!(list.len(), CAP, "capped at CAP=20");
-        assert_eq!(list[0], PathBuf::from(format!("/w/f{}.md", CAP + 7)), "newest at front");
-        assert!(!list.contains(&PathBuf::from("/w/f0.md")), "oldest fell off");
+        assert_eq!(
+            list[0],
+            PathBuf::from(format!("/w/f{}.md", CAP + 7)),
+            "newest at front"
+        );
+        assert!(
+            !list.contains(&PathBuf::from("/w/f0.md")),
+            "oldest fell off"
+        );
     }
 
     #[test]

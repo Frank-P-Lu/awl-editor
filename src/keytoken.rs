@@ -69,14 +69,26 @@ const SYNTHETIC: &[(&str, &str, &str)] = &[
 /// chord that doesn't actually fire, web-reserved/Linux-displaced/web-alternate
 /// included), then [`SYNTHETIC`] for the two dedicated chords with no catalog
 /// row. `None` for an unknown slug.
-pub fn key_token_label(slug_want: &str, convention: Convention, platform: Platform) -> Option<String> {
-    if let Some(c) = commands::COMMANDS.iter().find(|c| commands::slug(c.name) == slug_want) {
-        return Some(commands::resolved_native_label_truthful(c, convention, platform));
+pub fn key_token_label(
+    slug_want: &str,
+    convention: Convention,
+    platform: Platform,
+) -> Option<String> {
+    if let Some(c) = commands::COMMANDS
+        .iter()
+        .find(|c| commands::slug(c.name) == slug_want)
+    {
+        return Some(commands::resolved_native_label_truthful(
+            c, convention, platform,
+        ));
     }
-    SYNTHETIC.iter().find(|(s, _, _)| *s == slug_want).map(|(_, mac, linux)| match convention {
-        Convention::Mac => crate::keyspec::mac_glyph_chord(mac),
-        Convention::Linux => crate::keyspec::linux_glyph_chord(linux),
-    })
+    SYNTHETIC
+        .iter()
+        .find(|(s, _, _)| *s == slug_want)
+        .map(|(_, mac, linux)| match convention {
+            Convention::Mac => crate::keyspec::mac_glyph_chord(mac),
+            Convention::Linux => crate::keyspec::linux_glyph_chord(linux),
+        })
 }
 
 /// Every [`SYNTHETIC`] chord's Mac-glyph LABEL (`"⌘P"`, `"⌘⌥I"`) — the
@@ -86,7 +98,10 @@ pub fn key_token_label(slug_want: &str, convention: Convention, platform: Platfo
 /// hardcoded specs. Test-only: its one consumer is itself `cfg(test)`.
 #[cfg(test)]
 pub(crate) fn synthetic_mac_glyphs() -> Vec<String> {
-    SYNTHETIC.iter().map(|(_, mac, _)| crate::keyspec::mac_glyph_chord(mac)).collect()
+    SYNTHETIC
+        .iter()
+        .map(|(_, mac, _)| crate::keyspec::mac_glyph_chord(mac))
+        .collect()
 }
 
 /// Resolve `slug_want`'s command DISPLAY NAME straight from the live catalog
@@ -96,7 +111,10 @@ pub(crate) fn synthetic_mac_glyphs() -> Vec<String> {
 /// [`key_token_label`] this carries no convention/platform parameter — a
 /// command's NAME doesn't vary by platform, only its chord does.
 pub fn cmd_token_label(slug_want: &str) -> Option<String> {
-    commands::COMMANDS.iter().find(|c| commands::slug(c.name) == slug_want).map(|c| c.name.to_string())
+    commands::COMMANDS
+        .iter()
+        .find(|c| commands::slug(c.name) == slug_want)
+        .map(|c| c.name.to_string())
 }
 
 /// Replace every `{{key:slug}}` / `{{cmd:slug}}` token in `text` with
@@ -199,7 +217,11 @@ mod tests {
 
     #[test]
     fn render_key_tokens_substitutes_a_known_slug() {
-        let out = render_key_tokens("press {{key:save}} to save", Convention::Mac, Platform::Native);
+        let out = render_key_tokens(
+            "press {{key:save}} to save",
+            Convention::Mac,
+            Platform::Native,
+        );
         assert_eq!(out, "press \u{2318}S to save");
     }
 
@@ -217,7 +239,11 @@ mod tests {
 
     #[test]
     fn render_key_tokens_substitutes_a_known_cmd_slug() {
-        let out = render_key_tokens("open {{cmd:widen_page}} from the palette", Convention::Mac, Platform::Native);
+        let out = render_key_tokens(
+            "open {{cmd:widen_page}} from the palette",
+            Convention::Mac,
+            Platform::Native,
+        );
         assert_eq!(out, "open Widen page from the palette");
         // Convention/platform-independent, unlike a chord token.
         let out_linux = render_key_tokens("{{cmd:widen_page}}", Convention::Linux, Platform::Web);
@@ -238,8 +264,14 @@ mod tests {
 
     #[test]
     fn synthetic_tokens_resolve_on_both_conventions() {
-        assert_eq!(key_token_label("command_palette", Convention::Mac, Platform::Native).as_deref(), Some("\u{2318}P"));
-        assert_eq!(key_token_label("command_palette", Convention::Linux, Platform::Native).as_deref(), Some("Ctrl+P"));
+        assert_eq!(
+            key_token_label("command_palette", Convention::Mac, Platform::Native).as_deref(),
+            Some("\u{2318}P")
+        );
+        assert_eq!(
+            key_token_label("command_palette", Convention::Linux, Platform::Native).as_deref(),
+            Some("Ctrl+P")
+        );
         assert!(key_token_label("stats_hud", Convention::Mac, Platform::Native).is_some());
         assert!(key_token_label("stats_hud", Convention::Linux, Platform::Native).is_some());
     }
@@ -253,9 +285,16 @@ mod tests {
     /// reader.
     #[test]
     fn every_key_token_in_the_starting_docs_resolves() {
-        for (name, doc) in [("welcome.md", WELCOME), ("tour.md", TOUR), ("GUIDE.md", GUIDE)] {
+        for (name, doc) in [
+            ("welcome.md", WELCOME),
+            ("tour.md", TOUR),
+            ("GUIDE.md", GUIDE),
+        ] {
             let slugs = extract_token_slugs(doc);
-            assert!(!slugs.is_empty(), "{name}: expected at least one {{{{key:..}}}} token");
+            assert!(
+                !slugs.is_empty(),
+                "{name}: expected at least one {{{{key:..}}}} token"
+            );
             for slug_want in slugs {
                 for convention in [Convention::Mac, Convention::Linux] {
                     for platform in [Platform::Native, Platform::Web] {
@@ -279,7 +318,11 @@ mod tests {
     #[test]
     fn every_cmd_token_in_the_starting_docs_resolves() {
         let mut total = 0usize;
-        for (name, doc) in [("welcome.md", WELCOME), ("tour.md", TOUR), ("GUIDE.md", GUIDE)] {
+        for (name, doc) in [
+            ("welcome.md", WELCOME),
+            ("tour.md", TOUR),
+            ("GUIDE.md", GUIDE),
+        ] {
             for slug_want in extract_cmd_slugs(doc) {
                 total += 1;
                 assert!(
@@ -288,7 +331,10 @@ mod tests {
                 );
             }
         }
-        assert!(total > 0, "expected at least one {{{{cmd:..}}}} token across the starting docs");
+        assert!(
+            total > 0,
+            "expected at least one {{{{cmd:..}}}} token across the starting docs"
+        );
     }
 
     /// THE GREP-LAW: no literal chord glyph survives in the STARTING docs'
@@ -314,14 +360,28 @@ mod tests {
         // not an awl chord label) — explicitly out of scope, per the round's
         // own "curate honestly" instruction.
         const ALLOWED_CTRL_WORD_SUBSTRINGS: &[&str] = &["as Ctrl+C/X/V for the system clipboard"];
-        for (name, doc) in [("welcome.md", WELCOME), ("tour.md", TOUR), ("GUIDE.md", GUIDE)] {
+        for (name, doc) in [
+            ("welcome.md", WELCOME),
+            ("tour.md", TOUR),
+            ("GUIDE.md", GUIDE),
+        ] {
             let body = strip_generated_table(doc);
             for line in body.lines() {
-                if line.contains('\u{2318}') && !ALLOWED_MAC_GLYPH_SUBSTRINGS.iter().any(|a| line.contains(a)) {
+                if line.contains('\u{2318}')
+                    && !ALLOWED_MAC_GLYPH_SUBSTRINGS
+                        .iter()
+                        .any(|a| line.contains(a))
+                {
                     panic!("{name}: literal \u{2318} glyph outside a token/allowlist: {line:?}");
                 }
-                if line.contains("Ctrl+") && !ALLOWED_CTRL_WORD_SUBSTRINGS.iter().any(|a| line.contains(a)) {
-                    panic!("{name}: literal Ctrl+ word-form outside the generated table/allowlist: {line:?}");
+                if line.contains("Ctrl+")
+                    && !ALLOWED_CTRL_WORD_SUBSTRINGS
+                        .iter()
+                        .any(|a| line.contains(a))
+                {
+                    panic!(
+                        "{name}: literal Ctrl+ word-form outside the generated table/allowlist: {line:?}"
+                    );
                 }
             }
         }

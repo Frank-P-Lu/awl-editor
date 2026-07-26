@@ -28,14 +28,16 @@ mod kind;
 mod nav;
 mod state;
 
-pub use build::{browse_level, build, elide_path, row_split, BuildCtx};
+pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
-#[allow(unused_imports)] // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
+#[allow(unused_imports)]
+// used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
 pub use kind::{
-    format_hint, AcceptDisposition, HintAction, OverlayKind, ARROWS_LR, HINT_SEP, PIN_TAG,
-    RANGE_LR_LABEL,
+    ARROWS_LR, AcceptDisposition, HINT_SEP, HintAction, OverlayKind, PIN_TAG, RANGE_LR_LABEL,
+    format_hint,
 };
-#[allow(unused_imports)] // OverlayRow/RowMeta/RowMetaTag: used by overlay::tests + item 55's follow-up
+#[allow(unused_imports)]
+// OverlayRow/RowMeta/RowMetaTag: used by overlay::tests + item 55's follow-up
 pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
 
 #[cfg(test)]

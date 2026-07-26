@@ -50,9 +50,9 @@ struct Parsed {
 static PARSED: LazyLock<Parsed> = LazyLock::new(|| parse(RAW));
 
 fn parse(raw: &str) -> Parsed {
-    let table: toml::Table = raw
-        .parse()
-        .unwrap_or_else(|e| panic!("assets/keymap-defaults.toml failed to parse (embedded, build-time bug): {e}"));
+    let table: toml::Table = raw.parse().unwrap_or_else(|e| {
+        panic!("assets/keymap-defaults.toml failed to parse (embedded, build-time bug): {e}")
+    });
 
     for key in table.keys() {
         assert!(
@@ -71,7 +71,8 @@ fn parse(raw: &str) -> Parsed {
             panic!("assets/keymap-defaults.toml: commands.{slug} must be a 2-element array")
         });
         assert_eq!(
-            arr.len(), 2,
+            arr.len(),
+            2,
             "assets/keymap-defaults.toml: commands.{slug} must have exactly 2 chord slots"
         );
         let native = arr[0]
@@ -106,7 +107,10 @@ fn parse(raw: &str) -> Parsed {
         })
         .unwrap_or_else(|| panic!("assets/keymap-defaults.toml: missing linux_builtin_keep array"));
 
-    Parsed { commands, linux_builtin_keep }
+    Parsed {
+        commands,
+        linux_builtin_keep,
+    }
 }
 
 /// Slug -> `(native, emacs)` default chord slots — the single source
@@ -129,7 +133,10 @@ mod tests {
     #[test]
     fn embedded_file_parses_without_panicking() {
         let d = command_defaults();
-        assert!(!d.is_empty(), "the embedded defaults file must name at least one command");
+        assert!(
+            !d.is_empty(),
+            "the embedded defaults file must name at least one command"
+        );
     }
 
     #[test]
@@ -165,6 +172,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "unknown top-level key")]
     fn embedded_unknown_top_level_data_fails_loudly() {
-        let _ = parse("linux_builtin_keep = []\nextra = true\n[commands]\nsave = [\"Cmd-S\", \"\"]\n");
+        let _ =
+            parse("linux_builtin_keep = []\nextra = true\n[commands]\nsave = [\"Cmd-S\", \"\"]\n");
     }
 }

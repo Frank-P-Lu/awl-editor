@@ -281,7 +281,9 @@ impl TextPipeline {
             if !self.md_spans.is_empty() {
                 for (r, k) in &self.md_spans {
                     if *k
-                        == crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Fence)
+                        == crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::Fence,
+                        )
                         && r.start >= start
                         && r.start < end
                     {
@@ -299,7 +301,8 @@ impl TextPipeline {
                 && self.md_spans.iter().any(|(r, k)| {
                     *k == crate::markdown::MdKind::ConcealMarkup(
                         crate::markdown::ConcealKind::Blockquote,
-                    ) && r.start < end && r.end > start
+                    ) && r.start < end
+                        && r.end > start
                 });
             if is_quote && !prev_quote {
                 quotes.push(li);
@@ -310,7 +313,10 @@ impl TextPipeline {
             // `prepare_table_grid`. One entry per table.
             if !self.md_spans.is_empty() {
                 for (r, k) in &self.md_spans {
-                    if *k == crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Table)
+                    if *k
+                        == crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::Table,
+                        )
                         && r.start == start
                     {
                         tables.push((li, r.clone()));
@@ -348,7 +354,10 @@ impl TextPipeline {
     /// (== `doc_top() + visual_rows(line)[0].line_top`, byte-identical). The ornament
     /// CULL + placement both read this instead of the whole-doc `visual_rows(line)`.
     pub(super) fn line_ornament_top(&self, line: usize) -> f32 {
-        self.doc_top() + self.row_geom.line_first_top(&self.buffer, &self.metrics, line)
+        self.doc_top()
+            + self
+                .row_geom
+                .line_first_top(&self.buffer, &self.metrics, line)
     }
 
     /// Buffer-relative -> absolute: the REAL shaped BASELINE y of logical `line`'s
@@ -360,7 +369,10 @@ impl TextPipeline {
     /// centering the glyph in the heading's tall (grown) row box — which used to
     /// read as the tail "floating" above the heading's ink on a big heading.
     pub(super) fn line_ornament_baseline(&self, line: usize) -> f32 {
-        self.doc_top() + self.row_geom.line_first_baseline(&self.buffer, &self.metrics, line)
+        self.doc_top()
+            + self
+                .row_geom
+                .line_first_baseline(&self.buffer, &self.metrics, line)
     }
 
     /// Each GFM table's `(header logical-line, byte range)` (cached per reshape via
@@ -680,8 +692,8 @@ impl TextPipeline {
     /// outline's / gutter's own no-room floors. The tail is UNAFFECTED (it hangs to
     /// the right, in the always-available wrap width).
     fn fold_chevron_has_room(&self) -> bool {
-        let need =
-            self.metrics.char_width * (Self::FOLD_CHEVRON_GAP_CHARS + Self::FOLD_CHEVRON_WIDTH_CHARS);
+        let need = self.metrics.char_width
+            * (Self::FOLD_CHEVRON_GAP_CHARS + Self::FOLD_CHEVRON_WIDTH_CHARS);
         self.text_left() - self.column_left() >= need
     }
 
@@ -1033,8 +1045,13 @@ impl TextPipeline {
         if self.md_spans.is_empty() {
             return Vec::new();
         }
-        let doc_text: String =
-            self.buffer.lines.iter().map(|l| l.text()).collect::<Vec<_>>().join("\n");
+        let doc_text: String = self
+            .buffer
+            .lines
+            .iter()
+            .map(|l| l.text())
+            .collect::<Vec<_>>()
+            .join("\n");
         crate::markdown::destination_ranges(&doc_text, &self.md_spans)
     }
 
@@ -1306,7 +1323,9 @@ impl TextPipeline {
                 crate::nits::line_nits(text)
             };
             if let Some(ranges) = &prose_ranges {
-                spans.retain(|&(s, e)| crate::nits::span_in_prose_ranges(text, line_start, s, e, ranges));
+                spans.retain(|&(s, e)| {
+                    crate::nits::span_in_prose_ranges(text, line_start, s, e, ranges)
+                });
             }
             if !destination_ranges.is_empty() {
                 spans.retain(|&(s, e)| {
@@ -1318,8 +1337,7 @@ impl TextPipeline {
             }
             line_start += text.len() + 1; // +1 for the '\n'
         }
-        let lines: std::collections::BTreeSet<usize> =
-            per_line.iter().map(|(li, _)| *li).collect();
+        let lines: std::collections::BTreeSet<usize> = per_line.iter().map(|(li, _)| *li).collect();
         let rows_by_line = self.visual_rows_for_lines(&lines);
         let mut protos = Vec::new();
         for (li, spans) in per_line {
@@ -1487,14 +1505,15 @@ impl TextPipeline {
             .md_spans
             .iter()
             .filter(|(_, k)| {
-                *k == crate::markdown::MdKind::ConcealMarkup(
-                    crate::markdown::ConcealKind::Table,
-                )
+                *k == crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Table)
             })
             .map(|(r, _)| r.clone())
             .collect();
-        let in_table =
-            |r: &std::ops::Range<usize>| table_ranges.iter().any(|t| t.start < r.end && t.end > r.start);
+        let in_table = |r: &std::ops::Range<usize>| {
+            table_ranges
+                .iter()
+                .any(|t| t.start < r.end && t.end > r.start)
+        };
         let mut spans: Vec<(std::ops::Range<usize>, Bucket)> = Vec::new();
         for (r, k) in &self.syn_spans {
             match k {
@@ -1581,8 +1600,7 @@ impl TextPipeline {
         }
         // One `layout_runs()` walk for ALL washed lines, then the exact
         // `range_rects` per-visual-row clipping into protos.
-        let lines: std::collections::BTreeSet<usize> =
-            segs.iter().map(|(li, ..)| *li).collect();
+        let lines: std::collections::BTreeSet<usize> = segs.iter().map(|(li, ..)| *li).collect();
         let rows_by_line = self.visual_rows_for_lines(&lines);
         let mut comment_protos = Vec::new();
         let mut string_protos = Vec::new();
@@ -1865,7 +1883,9 @@ impl TextPipeline {
         let fence_ranges: Vec<std::ops::Range<usize>> = self
             .md_spans
             .iter()
-            .filter_map(|(r, k)| matches!(k, MdKind::ConcealMarkup(ConcealKind::Fence)).then(|| r.clone()))
+            .filter_map(|(r, k)| {
+                matches!(k, MdKind::ConcealMarkup(ConcealKind::Fence)).then(|| r.clone())
+            })
             .collect();
         if fence_ranges.is_empty() {
             self.fence_panel_cache.protos.borrow_mut().clear();
@@ -1898,7 +1918,10 @@ impl TextPipeline {
                 continue; // unreachable: every requested line gets rows
             };
             for row in rows {
-                protos.push(RowBandProto { line_top: row.line_top, line_height: row.line_height });
+                protos.push(RowBandProto {
+                    line_top: row.line_top,
+                    line_height: row.line_height,
+                });
             }
         }
         *self.fence_panel_cache.protos.borrow_mut() = protos;
@@ -1968,7 +1991,11 @@ impl TextPipeline {
     /// All translucent-quad rects (in pixels, current scroll+zoom) for ONE
     /// ordered ((l0,c0),(l1,c1)) CHAR range. Extracted from `selection_rects`
     /// so search-match highlights reuse the EXACT same advance-aware geometry.
-    pub(super) fn range_rects(&self, (l0, c0): (usize, usize), (l1, c1): (usize, usize)) -> Vec<[f32; 4]> {
+    pub(super) fn range_rects(
+        &self,
+        (l0, c0): (usize, usize),
+        (l1, c1): (usize, usize),
+    ) -> Vec<[f32; 4]> {
         let m = &self.metrics;
         let doc_top = self.doc_top();
         // A small fill so a zero-width (empty-line) selected line still shows a
@@ -1986,7 +2013,10 @@ impl TextPipeline {
         let band_lo = -margin - doc_top;
         let band_hi = self.window_h + margin - doc_top;
         let last_line = self.buffer.lines.len().saturating_sub(1);
-        let first_top = |line: usize| self.row_geom.line_first_top(&self.buffer, &self.metrics, line);
+        let first_top = |line: usize| {
+            self.row_geom
+                .line_first_top(&self.buffer, &self.metrics, line)
+        };
         let mut lines: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
         for line in l0..=l1.min(last_line) {
             let top = first_top(line);
@@ -2019,7 +2049,10 @@ impl TextPipeline {
             // `line_glyph_xs(line).len() - 1`. The logical line's column span
             // [sel_start, sel_end] within the selection: lines before the last run
             // through the (virtual) end-of-line newline; the last line stops at c1.
-            let line_char_count = rows.first().map(|r| r.xs.len().saturating_sub(1)).unwrap_or(0);
+            let line_char_count = rows
+                .first()
+                .map(|r| r.xs.len().saturating_sub(1))
+                .unwrap_or(0);
             let sel_start = if line == l0 { c0 } else { 0 };
             let (sel_end, extends_to_eol) = if line == l1 {
                 (c1.min(line_char_count), false)
@@ -2159,7 +2192,12 @@ impl TextPipeline {
             }
         }
         let caret_x = caret_x.unwrap_or(text_left + m.char_width * fallback_chars as f32);
-        ([card_x, card_y, card_w, card_h], text_left, text_top, caret_x)
+        (
+            [card_x, card_y, card_w, card_h],
+            text_left,
+            text_top,
+            caret_x,
+        )
     }
 
     /// Underline rectangle(s) for an active IME preedit, in the SAME `[x,y,w,h]`

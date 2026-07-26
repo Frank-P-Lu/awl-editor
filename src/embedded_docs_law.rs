@@ -198,10 +198,7 @@ fn scan_markdown_links(text: &str, out: &mut Vec<String>) {
         if let Some(hash) = target.find('#') {
             target = &target[..hash];
         }
-        if target.is_empty()
-            || target.starts_with("http")
-            || target.starts_with("mailto:")
-        {
+        if target.is_empty() || target.starts_with("http") || target.starts_with("mailto:") {
             continue;
         }
         if target.ends_with(".md") {
@@ -304,13 +301,17 @@ fn embed_owner_is_the_only_include_str_site() {
                 Some(t) => t.trim_start(),
                 None => continue, // a prose `include_str!` mention, not a macro call
             };
-            let Some(rest) = tail.strip_prefix('"') else { continue };
+            let Some(rest) = tail.strip_prefix('"') else {
+                continue;
+            };
             let Some(qend) = rest.find('"') else { continue };
             let arg = &rest[..qend];
             let base = arg.rsplit('/').next().unwrap_or(arg);
             let is_doc = base.ends_with(".md") || base == "OFL.txt";
             if is_doc {
-                offenders.push(format!("{name} embeds `{arg}` (must move to embedded_docs.rs)"));
+                offenders.push(format!(
+                    "{name} embeds `{arg}` (must move to embedded_docs.rs)"
+                ));
             }
         }
     }

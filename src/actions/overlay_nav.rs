@@ -70,7 +70,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 return Effect::None;
             }
             Action::DeleteWordForward => {
-                ctx.overlay.as_mut().unwrap().rename_edit_delete_word_forward();
+                ctx.overlay
+                    .as_mut()
+                    .unwrap()
+                    .rename_edit_delete_word_forward();
                 return Effect::None;
             }
             Action::Newline => {
@@ -132,7 +135,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 return Effect::None;
             }
             Action::DeleteWordForward => {
-                ctx.overlay.as_mut().unwrap().link_edit_delete_word_forward();
+                ctx.overlay
+                    .as_mut()
+                    .unwrap()
+                    .link_edit_delete_word_forward();
                 return Effect::None;
             }
             Action::Newline => {
@@ -195,7 +201,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 return Effect::None;
             }
             Action::DeleteWordForward => {
-                ctx.overlay.as_mut().unwrap().keep_edit_delete_word_forward();
+                ctx.overlay
+                    .as_mut()
+                    .unwrap()
+                    .keep_edit_delete_word_forward();
                 return Effect::None;
             }
             Action::Newline => {
@@ -253,7 +262,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 return Effect::None;
             }
             Action::DeleteWordForward => {
-                ctx.overlay.as_mut().unwrap().value_edit_delete_word_forward();
+                ctx.overlay
+                    .as_mut()
+                    .unwrap()
+                    .value_edit_delete_word_forward();
                 return Effect::None;
             }
             Action::Newline => {
@@ -564,7 +576,12 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 // path below.
                 if ov.kind == crate::overlay::OverlayKind::Command {
                     if let Some(row) = ov.selected_setting_row() {
-                        return dispatch_settings_row(ctx, row, crate::overlay::OverlayKind::Command, true);
+                        return dispatch_settings_row(
+                            ctx,
+                            row,
+                            crate::overlay::OverlayKind::Command,
+                            true,
+                        );
                     }
                 }
             }
@@ -649,7 +666,9 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 // folder is a NEW folder to create; nothing typed/selected
                 // accepts the CURRENT level. The caller does the mkdir + move.
                 let eff = match move_dest_value(ov) {
-                    Some(dest) => Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest),
+                    Some(dest) => {
+                        Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest)
+                    }
                     None => Effect::None,
                 };
                 // Moving the note is an ACTION (Navigate) — close the whole stack.
@@ -710,7 +729,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 // `spell.rs` — so it happens exactly ONCE, here, on accept). Set
                 // the process-global THEN emit the committed label so the caller
                 // (App) reconstructs its `SpellChecker` + persists the pref.
-                let eff = match ov.selected_value().and_then(crate::spell::DictVariant::from_label) {
+                let eff = match ov
+                    .selected_value()
+                    .and_then(crate::spell::DictVariant::from_label)
+                {
                     Some(dv) => {
                         crate::spell::set_active_variant(dv);
                         Effect::OverlayAccept(ov.kind, dv.label().to_string())
@@ -728,7 +750,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 // live App and headless `--keys` replay observe the promotion. The
                 // App-only work (persisting the whole ordered list to config.toml) is
                 // handled by the caller from the emitted Effect.
-                let eff = match ov.selected_value().and_then(crate::frontmatter::Lang::from_label) {
+                let eff = match ov
+                    .selected_value()
+                    .and_then(crate::frontmatter::Lang::from_label)
+                {
                     Some(lang) => {
                         let promoted = crate::frontmatter::promote_cjk_priority(lang);
                         crate::frontmatter::set_cjk_priority(&promoted);
@@ -784,7 +809,9 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 // successful trash — see `Effect::TrashAsset`). An empty state (no
                 // selection) is a calm no-op.
                 return match ov.selected_value() {
-                    Some(rel) => Effect::TrashAsset { rel: rel.to_string() },
+                    Some(rel) => Effect::TrashAsset {
+                        rel: rel.to_string(),
+                    },
                     None => Effect::None,
                 };
             }
@@ -1013,7 +1040,9 @@ fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
     ctx.overlay
         .as_mut()?
         .set_selected_range(spec.step_of(next), spec.format(next));
-    Some(Effect::SettingRangeStep { key: key.to_string() })
+    Some(Effect::SettingRangeStep {
+        key: key.to_string(),
+    })
 }
 
 /// SETTINGS MENU accept (Enter on a row): dispatch by the highlighted row's
@@ -1069,7 +1098,9 @@ fn dispatch_settings_row(
             if close_on_toggle {
                 *ctx.overlay = None;
             }
-            Effect::SettingToggle { key: key.to_string() }
+            Effect::SettingToggle {
+                key: key.to_string(),
+            }
         }
         // Open the sub-picker with a breadcrumb back to `breadcrumb`. `make_overlay`
         // builds it from the live globals (theme/caret/dictionary/keybindings), so a
@@ -1176,7 +1207,10 @@ struct Breadcrumb {
 impl Breadcrumb {
     /// Snapshot the breadcrumb off `ov` before it is replaced.
     fn of(ov: &OverlayState) -> Self {
-        Self { return_to: ov.return_to, setting_path_key: ov.setting_path_key.clone() }
+        Self {
+            return_to: ov.return_to,
+            setting_path_key: ov.setting_path_key.clone(),
+        }
     }
     /// Re-apply the snapshot onto a rebuilt level.
     fn apply(self, next: &mut OverlayState) {
@@ -1190,10 +1224,12 @@ impl Breadcrumb {
 /// the whole filesystem); `Browse`/`MoveDest` stay root-relative.
 pub(super) fn descend_target(ov: &OverlayState, name: &str) -> String {
     match ov.kind {
-        crate::overlay::OverlayKind::Project => std::path::Path::new(ov.browse_dir.as_deref().unwrap_or(""))
-            .join(name)
-            .to_string_lossy()
-            .to_string(),
+        crate::overlay::OverlayKind::Project => {
+            std::path::Path::new(ov.browse_dir.as_deref().unwrap_or(""))
+                .join(name)
+                .to_string_lossy()
+                .to_string()
+        }
         _ => join_browse(ov.browse_dir.as_deref(), name),
     }
 }
@@ -1204,9 +1240,11 @@ pub(super) fn descend_target(ov: &OverlayState, name: &str) -> String {
 /// `Browse`/`MoveDest` floor at their root via [`browse_parent`].
 pub(super) fn ascend_target(ov: &OverlayState) -> Option<Option<String>> {
     match ov.kind {
-        crate::overlay::OverlayKind::Project => std::path::Path::new(ov.browse_dir.as_deref().unwrap_or("/"))
-            .parent()
-            .map(|p| Some(p.to_string_lossy().to_string())),
+        crate::overlay::OverlayKind::Project => {
+            std::path::Path::new(ov.browse_dir.as_deref().unwrap_or("/"))
+                .parent()
+                .map(|p| Some(p.to_string_lossy().to_string()))
+        }
         _ => browse_parent(ov.browse_dir.as_deref()),
     }
 }

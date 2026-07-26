@@ -11,7 +11,6 @@ use crate::app::*;
 use std::path::Path;
 
 impl App {
-
     /// INLINE-IMAGE DRAG-RESIZE (v2) WRITE-BACK: stamp the settled `|NNN` width hint
     /// into the image's ALT text as ONE undoable edit — templated on
     /// [`Self::write_back_lang_tag_once`]'s single-`replace_char_range` shape. `range`
@@ -67,7 +66,6 @@ impl App {
         self.active.buffer.set_cursor(restored);
     }
 
-
     /// SAVE-FEEDBACK round: finish an explicit manual save (`Effect::SaveDone`,
     /// an already-pathed buffer's `C-x C-s` / `Cmd-S`) — the core already ran
     /// the SAME `Buffer::save` call every save path uses, `ok`/`message` report
@@ -109,7 +107,6 @@ impl App {
             self.set_sticky_notice(message);
         }
     }
-
 
     /// SAVE-FEEDBACK round: `Cmd-S` / `C-x C-s` on the TRUE scratch surface
     /// (`Effect::ConvertScratchAndSave`) — convert the pathless buffer into a
@@ -171,7 +168,6 @@ impl App {
         }
     }
 
-
     /// THE CONSCIOUS MARK ("Keep version…"): record the CURRENT buffer state as a
     /// PINNED, prune-EXEMPT local-history snapshot ([`crate::history::record_pinned`]),
     /// optionally NAMED (`name` = the naming minibuffer's typed text, `None` for a
@@ -186,12 +182,14 @@ impl App {
     /// Best-effort: any store error is swallowed inside `record_pinned`, so a failed
     /// pin never disrupts the buffer.
     pub(in crate::app) fn keep_version(&self, name: Option<&str>) {
-        let path = crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_unnamed_fresh());
+        let path = crate::history::source_path(
+            self.active.buffer.path(),
+            self.active.buffer.is_unnamed_fresh(),
+        );
         if let Some(path) = path {
             crate::history::record_pinned(&path, &self.active.buffer.text(), &self.config, name);
         }
     }
-
 
     /// RESTORE a local-history VERSION into the buffer (the summoned timeline's Enter).
     /// Resolves `id` to its captured content via [`crate::history::load`] — the awl log
@@ -203,14 +201,16 @@ impl App {
     /// timeline restores too). A no-op for an unnamed note, or an unknown /
     /// unresolvable id (best-effort — a failed restore must never disrupt the buffer).
     pub(in crate::app) fn restore_history(&mut self, id: &str) {
-        let path = crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_unnamed_fresh());
+        let path = crate::history::source_path(
+            self.active.buffer.path(),
+            self.active.buffer.is_unnamed_fresh(),
+        );
         if let Some(path) = path {
             if let Some(content) = crate::history::load(&path, id) {
                 self.active.buffer.set_text(&content);
             }
         }
     }
-
 
     /// ASSET CLEANER: move the orphan at root-relative `rel` to the OS Trash
     /// (recoverable — never `rm`), then — ONLY on success — remove its row from the
@@ -235,7 +235,6 @@ impl App {
             }
         }
     }
-
 
     /// C-x m accept: MOVE the current file into `dest_rel` (a directory relative
     /// to the ACTIVE folder — item 76: the same folder Cmd-N creates a document
@@ -282,7 +281,6 @@ impl App {
             gpu.window.request_redraw();
         }
     }
-
 
     /// NOTES VERBS round: RENAME the current file to `new_name` (a bare filename,
     /// same directory — the minibuffer never lets a typed name cross directories,
@@ -342,7 +340,6 @@ impl App {
         }
     }
 
-
     /// NOTES VERBS round: DUPLICATE the current file — copy the CURRENT buffer
     /// content (including any unsaved edits — a duplicate captures what you're
     /// actually looking at, not necessarily what's on disk) to an auto-named
@@ -367,8 +364,14 @@ impl App {
         self.autosave_flush();
         let bytes = self.active.buffer.disk_bytes();
         let dir = old.parent().map(Path::to_path_buf).unwrap_or_default();
-        let stem = old.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        let ext = old.extension().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        let stem = old
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let ext = old
+            .extension()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
         let new_path = crate::buffer::unique_path(&dir, &stem, &ext);
         match crate::fs::write_atomic(&new_path, &bytes) {
             Ok(()) => {

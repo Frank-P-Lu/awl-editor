@@ -301,7 +301,9 @@ fn no_cwd_reader_outside_the_one_door() {
 /// `needle`. Skips this file (its own doc + `concat!` fragments describe the
 /// needle) — the self-match `println_audit` solves the same way.
 fn scan(base: &std::path::Path, dir: &std::path::Path, needle: &str, out: &mut Vec<String>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -314,7 +316,9 @@ fn scan(base: &std::path::Path, dir: &std::path::Path, needle: &str, out: &mut V
         if path.ends_with("fs/serialization_law.rs") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         if text.contains(needle) {
             let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy();
             out.push(rel.replace('\\', "/"));

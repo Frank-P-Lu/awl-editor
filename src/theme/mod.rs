@@ -1,8 +1,9 @@
-#![allow(dead_code)] // Some tokens (BASE_200, PRIMARY_CONTENT) and converters are
-                     // not consumed by every surface yet — reserved for the
-                     // upcoming minibuffer/panel surfaces. The per-theme `font`
-                     // field is now LIVE: it drives the glyphon `Family::Name`
-                     // used to shape/render the document (see render.rs).
+#![allow(dead_code)]
+// Some tokens (BASE_200, PRIMARY_CONTENT) and converters are
+// not consumed by every surface yet — reserved for the
+// upcoming minibuffer/panel surfaces. The per-theme `font`
+// field is now LIVE: it drives the glyphon `Family::Name`
+// used to shape/render the document (see render.rs).
 
 //! src/theme/ — the palette model, split by natural seam (2026-07
 //! code-organization pass) out of the former `theme.rs` monolith:
@@ -40,6 +41,7 @@ mod model;
 mod ornament;
 mod worlds;
 
+pub(crate) use cjk::EMBEDDED_CJK_FAMILIES;
 pub use cjk::FontId;
 #[allow(unused_imports)] // per-world CJK ladders: public API surface consumed by
 // `theme::worlds` internally + named in doc comments crate-wide; no NON-TEST
@@ -48,36 +50,30 @@ pub use cjk::{
     ALL_FONT_IDS, CJK_GOTHIC, CJK_JA_KLEE, CJK_JA_SHIPPORI, CJK_JA_ZENMARU, CJK_KO, CJK_KO_SERIF,
     CJK_MINCHO, CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
-pub(crate) use cjk::EMBEDDED_CJK_FAMILIES;
 pub use color::Srgb;
-pub use derive::{
-    active, active_index, background, base_100, base_200, base_300, base_content,
-    card_texture_ink, error, faint,
-    fold_afford_chevron_ink, fold_afford_tail_ink,
-    heatmap_colors, image_reveal_scrim, muted, overlay_band_overlap, overlay_bar_unselected,
-    overlay_bars_scrim,
-    overlay_selected_band,
-    page_frame_ink,
-    placard_ink,
-    placard_stipple_density, primary, selected_row_ink, selected_row_secondary_ink, selection,
-    set_active, set_active_by_name,
-    surface_selected,
-};
 #[allow(unused_imports)] // cycle/overlay_scrim/primary_content/tag_for/WorldPin:
 // public API surface, no NON-TEST in-crate caller today (tag_for's real callers
 // all live under `#[cfg(test)]`; `WorldPin` is the explicit world restore a test
 // that renders a NAMED world holds — deliberately never taken by product code).
-pub use derive::{cycle, overlay_scrim, primary_content, tag_for, WorldPin};
+pub use derive::{WorldPin, cycle, overlay_scrim, primary_content, tag_for};
+pub use derive::{
+    active, active_index, background, base_100, base_200, base_300, base_content, card_texture_ink,
+    error, faint, fold_afford_chevron_ink, fold_afford_tail_ink, heatmap_colors,
+    image_reveal_scrim, muted, overlay_band_overlap, overlay_bar_unselected, overlay_bars_scrim,
+    overlay_selected_band, page_frame_ink, placard_ink, placard_stipple_density, primary,
+    selected_row_ink, selected_row_secondary_ink, selection, set_active, set_active_by_name,
+    surface_selected,
+};
 pub use model::{Background, LavaEdge, Theme, WashOverride};
 // ITEM 89's ZIGZAG geometry mirror — `cfg(test)` at the source (see their own
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state
 // the field's laws), so the re-export is gated identically rather than carrying
 // an `allow(dead_code)` a future genuinely-dead constant could hide behind.
-#[cfg(test)]
-pub use model::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
 #[allow(unused_imports)] // Lens/RoleOverrides/ThemeTags: public API surface, no
 // NON-TEST in-crate caller today.
 pub use model::{Lens, RoleOverrides, ThemeTags};
+#[cfg(test)]
+pub use model::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
 // THEME CAPABILITIES AS DATA: the declarative render-behavior bundle every
 // per-theme render decision reads instead of an ad hoc `is_one_bit()` branch.
 // See `model::RenderCaps`'s own module doc.
@@ -88,18 +84,17 @@ pub use model::{
     AmbientStyle, Backdrop, BandResponse, BarCoverage, BarExtent, CardAnchor, CardShape,
     CardTexture, CaretBlockStyle, ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle,
     FoldAfford, Frost, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
-    ListStyle,
-    MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner, PlacardInk, RenderCaps,
-    SelectionStyle, TitleStyle,
+    ListStyle, MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner, PlacardInk,
+    RenderCaps, SelectionStyle, TitleStyle,
 };
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.
 pub use ornament::{
-    Ornaments, ORNAMENTS_DEFAULT, BULLETS_PLAIN, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN,
-    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE,
-    ORNAMENT_MARKS, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
+    BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, LIST_INDENT_SCALE_PLAIN,
+    LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE, ORNAMENT_MARKS,
+    ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT,
+    Ornaments,
 };
-pub use worlds::{world_names, DEFAULT_THEME, THEMES};
 #[allow(unused_imports)] // the seventeen individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code
 // always reaches them through the `THEMES` array instead (Cassowary among them).
@@ -107,6 +102,7 @@ pub use worlds::{
     BILBY, BOMBORA, BOWERBIRD, BROLGA, CURRAWONG, FIRETAIL, GALAH, GUMTREE, MAGPIE, MANGROVE,
     MOPOKE, MULGA, POTOROO, QUOKKA, SALTPAN, TAWNY, WAGTAIL,
 };
+pub use worlds::{DEFAULT_THEME, THEMES, world_names};
 
 #[cfg(test)]
 mod tests;

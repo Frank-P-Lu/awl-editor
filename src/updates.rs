@@ -47,7 +47,10 @@ pub const CHECK_BASE_URL: &str = "https://awl-editor.fly.dev/check";
 /// app builds). Pure — no fs/clock — so it is unit-testable without a
 /// filesystem.
 pub fn check_url(version: &str) -> String {
-    format!("{CHECK_BASE_URL}?v={}", crate::crashlog::url_encode(version))
+    format!(
+        "{CHECK_BASE_URL}?v={}",
+        crate::crashlog::url_encode(version)
+    )
 }
 
 // --- Native-only: the "last checked" marker (mirrors crashlog's own gate — --

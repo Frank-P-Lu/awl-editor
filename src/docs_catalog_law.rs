@@ -83,9 +83,17 @@ fn canonical_rows() -> Vec<Row> {
         .skip(2) // "| Command | macOS | Linux |" header + "|---|---|---|" separator
         .filter_map(|line| {
             let trimmed = line.trim();
-            let cells: Vec<&str> = trimmed.trim_matches('|').split('|').map(str::trim).collect();
+            let cells: Vec<&str> = trimmed
+                .trim_matches('|')
+                .split('|')
+                .map(str::trim)
+                .collect();
             match cells.as_slice() {
-                [name, mac, linux] => Some(Row { name: name.to_string(), mac: mac.to_string(), linux: linux.to_string() }),
+                [name, mac, linux] => Some(Row {
+                    name: name.to_string(),
+                    mac: mac.to_string(),
+                    linux: linux.to_string(),
+                }),
                 _ => None,
             }
         })
@@ -95,7 +103,11 @@ fn canonical_rows() -> Vec<Row> {
 /// Narrow HTML-entity decoder — deliberately not a general one, just the
 /// handful that could plausibly appear in this specific table's cells.
 fn decode_entities(s: &str) -> String {
-    s.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&nbsp;", " ")
+    s.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&nbsp;", " ")
 }
 
 /// Harvest the keys-reference `<table>`'s data rows out of `site/guide.html`
@@ -106,17 +118,25 @@ fn html_table_rows(html: &str) -> Vec<Row> {
     const HEADER: &str = "<th>Command</th><th>macOS</th><th>Linux</th>";
     const BODY_OPEN: &str = "<tbody>";
     const BODY_CLOSE: &str = "</tbody>";
-    let Some(head) = html.find(HEADER) else { return Vec::new() };
+    let Some(head) = html.find(HEADER) else {
+        return Vec::new();
+    };
     let after_head = &html[head..];
-    let Some(body_start) = after_head.find(BODY_OPEN) else { return Vec::new() };
-    let Some(body_end) = after_head.find(BODY_CLOSE) else { return Vec::new() };
+    let Some(body_start) = after_head.find(BODY_OPEN) else {
+        return Vec::new();
+    };
+    let Some(body_end) = after_head.find(BODY_CLOSE) else {
+        return Vec::new();
+    };
     let body = &after_head[body_start + BODY_OPEN.len()..body_end];
 
     let mut rows = Vec::new();
     let mut rest = body;
     while let Some(tr_start) = rest.find("<tr>") {
         let after = &rest[tr_start + "<tr>".len()..];
-        let Some(tr_end) = after.find("</tr>") else { break };
+        let Some(tr_end) = after.find("</tr>") else {
+            break;
+        };
         let row_html = &after[..tr_end];
         let cells: Vec<String> = row_html
             .split("<td>")
@@ -124,7 +144,11 @@ fn html_table_rows(html: &str) -> Vec<Row> {
             .map(|c| decode_entities(c.split("</td>").next().unwrap_or("").trim()))
             .collect();
         if let [name, mac, linux] = cells.as_slice() {
-            rows.push(Row { name: name.clone(), mac: mac.clone(), linux: linux.clone() });
+            rows.push(Row {
+                name: name.clone(),
+                mac: mac.clone(),
+                linux: linux.clone(),
+            });
         }
         rest = &after[tr_end + "</tr>".len()..];
     }
@@ -187,7 +211,10 @@ fn harvest_glyph_chords(text: &str) -> Vec<String> {
 /// the two [`crate::keytoken::synthetic_mac_glyphs`] (command palette, stats
 /// HUD) that have no catalog row to hang a column value on.
 fn valid_mac_chord_tokens() -> HashSet<String> {
-    let mut set: HashSet<String> = canonical_rows().iter().flat_map(|r| harvest_glyph_chords(&r.mac)).collect();
+    let mut set: HashSet<String> = canonical_rows()
+        .iter()
+        .flat_map(|r| harvest_glyph_chords(&r.mac))
+        .collect();
     set.extend(crate::keytoken::synthetic_mac_glyphs());
     set
 }
@@ -204,11 +231,20 @@ fn valid_mac_chord_tokens() -> HashSet<String> {
 #[test]
 fn site_guide_html_keys_table_matches_catalog() {
     let canonical = canonical_rows();
-    assert!(!canonical.is_empty(), "sanity: the generator produced no rows at all");
-    let canon_by_slug: HashMap<String, &Row> = canonical.iter().map(|r| (commands::slug(&r.name), r)).collect();
+    assert!(
+        !canonical.is_empty(),
+        "sanity: the generator produced no rows at all"
+    );
+    let canon_by_slug: HashMap<String, &Row> = canonical
+        .iter()
+        .map(|r| (commands::slug(&r.name), r))
+        .collect();
 
     let harvested = html_table_rows(crate::embedded_docs::SITE_GUIDE_HTML);
-    assert!(!harvested.is_empty(), "expected to find the keys-reference table in site/guide.html");
+    assert!(
+        !harvested.is_empty(),
+        "expected to find the keys-reference table in site/guide.html"
+    );
 
     let mut problems = Vec::new();
     for row in &harvested {
@@ -255,9 +291,15 @@ fn site_guide_html_keys_table_matches_catalog() {
 fn site_guide_html_prose_glyph_chords_resolve() {
     let valid = valid_mac_chord_tokens();
     let harvested = harvest_glyph_chords(crate::embedded_docs::SITE_GUIDE_HTML);
-    assert!(!harvested.is_empty(), "expected at least one glyph chord mention in site/guide.html");
+    assert!(
+        !harvested.is_empty(),
+        "expected at least one glyph chord mention in site/guide.html"
+    );
 
-    let mut unknown: Vec<String> = harvested.into_iter().filter(|t| !valid.contains(t)).collect();
+    let mut unknown: Vec<String> = harvested
+        .into_iter()
+        .filter(|t| !valid.contains(t))
+        .collect();
     unknown.sort();
     unknown.dedup();
     assert!(
@@ -281,7 +323,11 @@ fn sibling_site_pages_carry_no_chord_glyphs() {
     let credits = include_str!("../site/credits.html");
     let index = include_str!("../site/index.html");
     let check = include_str!("../site/check.html");
-    for (name, text) in [("site/credits.html", credits), ("site/index.html", index), ("site/check.html", check)] {
+    for (name, text) in [
+        ("site/credits.html", credits),
+        ("site/index.html", index),
+        ("site/check.html", check),
+    ] {
         assert!(
             !text.chars().any(|c| MAC_GLYPHS.contains(&c)),
             "{name} now carries a mac chord glyph — extend this module's harvest-and-resolve \
@@ -302,7 +348,10 @@ mod tests {
     #[test]
     fn harvest_glyph_chords_finds_every_token_and_skips_bare_prose() {
         let text = "The palette (\u{2318}P) and \u{2318}\u{21E7}H, but not the word command alone.";
-        assert_eq!(harvest_glyph_chords(text), vec!["\u{2318}P".to_string(), "\u{2318}\u{21E7}H".to_string()]);
+        assert_eq!(
+            harvest_glyph_chords(text),
+            vec!["\u{2318}P".to_string(), "\u{2318}\u{21E7}H".to_string()]
+        );
     }
 
     /// A punctuation-keyed chord (`⌘,` Settings, `⌘⇧.` toggle hidden files)
@@ -312,11 +361,20 @@ mod tests {
     /// structured table, which [`html_table_rows`] parses exactly instead.
     #[test]
     fn harvest_glyph_chords_ignores_trailing_sentence_punctuation() {
-        assert_eq!(harvest_glyph_chords("Settings\u{2026} (\u{2318},)"), Vec::<String>::new());
-        assert_eq!(harvest_glyph_chords("Toggle hidden files (\u{2318}\u{21E7}.)"), Vec::<String>::new());
+        assert_eq!(
+            harvest_glyph_chords("Settings\u{2026} (\u{2318},)"),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            harvest_glyph_chords("Toggle hidden files (\u{2318}\u{21E7}.)"),
+            Vec::<String>::new()
+        );
         // The exact real-world case that motivated the restriction: a bare
         // chord immediately followed by a sentence comma, not part of the chord.
-        assert_eq!(harvest_glyph_chords("\u{2318}P, type \"rename\", Enter."), vec!["\u{2318}P".to_string()]);
+        assert_eq!(
+            harvest_glyph_chords("\u{2318}P, type \"rename\", Enter."),
+            vec!["\u{2318}P".to_string()]
+        );
     }
 
     #[test]
@@ -341,7 +399,10 @@ mod tests {
 
     #[test]
     fn decode_entities_handles_the_narrow_set() {
-        assert_eq!(decode_entities("A &amp; B &lt;tag&gt; &quot;q&quot;&nbsp;x"), "A & B <tag> \"q\" x");
+        assert_eq!(
+            decode_entities("A &amp; B &lt;tag&gt; &quot;q&quot;&nbsp;x"),
+            "A & B <tag> \"q\" x"
+        );
     }
 
     #[test]

@@ -63,7 +63,10 @@ pub fn cli_seeds(file: Option<&Path>, config: Option<&Path>) -> Vec<Seed> {
     let mut seeds = Vec::new();
     for path in [file, config].into_iter().flatten() {
         if let Ok(bytes) = std::fs::read(path) {
-            seeds.push(Seed { path: path.to_path_buf(), bytes });
+            seeds.push(Seed {
+                path: path.to_path_buf(),
+                bytes,
+            });
         }
     }
     seeds
@@ -151,19 +154,29 @@ mod tests {
     #[test]
     fn sandbox_contains_exactly_the_seeds_and_the_root_marker() {
         let doc = PathBuf::from("/proj/doc.md");
-        let seeds = vec![Seed { path: doc.clone(), bytes: b"alpha\n".to_vec() }];
+        let seeds = vec![Seed {
+            path: doc.clone(),
+            bytes: b"alpha\n".to_vec(),
+        }];
         let root = PathBuf::from("/proj");
         let fs = build_sandbox(&seeds, &[&root]);
         // The seed is readable at its verbatim path; its parent doubles as the
         // (marked) root dir, so the index walk sees exactly the seeded input.
         assert_eq!(fs.read_to_string(&doc).unwrap(), "alpha\n");
         assert!(fs.is_dir(&root), "the named root is a directory");
-        let names: Vec<String> =
-            fs.read_dir(&root).unwrap().into_iter().map(|e| e.name).collect();
+        let names: Vec<String> = fs
+            .read_dir(&root)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
         assert_eq!(names, vec!["doc.md".to_string()]);
         // NOTHING else: the user-config shape of path is absent, so a config
         // load inside the sandbox degrades to pure defaults.
-        assert!(fs.read_to_string(Path::new("/home/u/.config/awl/config.toml")).is_err());
+        assert!(
+            fs.read_to_string(Path::new("/home/u/.config/awl/config.toml"))
+                .is_err()
+        );
         // And the root carries no `.git`, so `Project::resolve` classifies it
         // non-git and never spawns the read-only git subprocesses.
         assert!(!fs.exists(&root.join(".git")));
@@ -175,11 +188,21 @@ mod tests {
         // document's own directory — the sandbox's `write` marks every seeded
         // file's ancestors as dirs, so no storyboard-specific door is needed.
         let doc = PathBuf::from("scenarios/demo.md");
-        let seeds = vec![Seed { path: doc.clone(), bytes: b"seeded\n".to_vec() }];
+        let seeds = vec![Seed {
+            path: doc.clone(),
+            bytes: b"seeded\n".to_vec(),
+        }];
         let fs = build_sandbox(&seeds, &[]);
-        assert!(fs.is_dir(Path::new("scenarios")), "parent implied by the seed write");
-        let names: Vec<String> =
-            fs.read_dir(Path::new("scenarios")).unwrap().into_iter().map(|e| e.name).collect();
+        assert!(
+            fs.is_dir(Path::new("scenarios")),
+            "parent implied by the seed write"
+        );
+        let names: Vec<String> = fs
+            .read_dir(Path::new("scenarios"))
+            .unwrap()
+            .into_iter()
+            .map(|e| e.name)
+            .collect();
         assert_eq!(names, vec!["demo.md".to_string()]);
     }
 
@@ -195,10 +218,16 @@ mod tests {
         let _restore = crate::fs::FsGuard::capture();
         install_hermetic_fs(Some(&doc), None, Some(&dir));
         // The active backend now serves the seeded copy…
-        assert_eq!(crate::fs::active().read_to_string(&doc).unwrap(), "real bytes\n");
+        assert_eq!(
+            crate::fs::active().read_to_string(&doc).unwrap(),
+            "real bytes\n"
+        );
         // …and a write through the seam lands in the sandbox, NEVER on disk.
         crate::fs::active().write(&doc, b"sandbox edit\n").unwrap();
-        assert_eq!(crate::fs::active().read_to_string(&doc).unwrap(), "sandbox edit\n");
+        assert_eq!(
+            crate::fs::active().read_to_string(&doc).unwrap(),
+            "sandbox edit\n"
+        );
         assert_eq!(
             std::fs::read_to_string(&doc).unwrap(),
             "real bytes\n",

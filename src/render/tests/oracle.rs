@@ -24,19 +24,36 @@ fn oracle_visual_motion_follows_wrapped_rows() {
     let long = "word ".repeat(80); // 400 chars, wraps
     p.set_view(&view(&long, 0, 0));
     let rows = p.visual_rows(0);
-    assert!(rows.len() >= 2, "long line should wrap: {} rows", rows.len());
+    assert!(
+        rows.len() >= 2,
+        "long line should wrap: {} rows",
+        rows.len()
+    );
 
     // DOWN from the very start (goal-x at the left edge) lands on the FIRST
     // column of the SECOND visual row — SAME logical line, different visual row.
     let gx = p.visual_x_of(0, 0, crate::caret::Affinity::Downstream);
     let (dl, dc) = p.visual_line_down(0, 0, gx, crate::caret::Affinity::Downstream);
     assert_eq!(dl, 0, "down stays in the same wrapped logical line");
-    assert_eq!(dc, rows[1].start_col, "down lands at the next visual row's start");
+    assert_eq!(
+        dc, rows[1].start_col,
+        "down lands at the next visual row's start"
+    );
     // UP from there returns to the first visual row's start (col 0).
-    assert_eq!(p.visual_line_up(dl, dc, gx, crate::caret::Affinity::Downstream), (0, 0), "up returns to the top row");
+    assert_eq!(
+        p.visual_line_up(dl, dc, gx, crate::caret::Affinity::Downstream),
+        (0, 0),
+        "up returns to the top row"
+    );
     // visual_line_start/end bracket the SECOND visual row's column span.
-    assert_eq!(p.visual_line_start(0, dc, crate::caret::Affinity::Downstream), (0, rows[1].start_col));
-    assert_eq!(p.visual_line_end(0, dc, crate::caret::Affinity::Downstream), (0, rows[1].end_col));
+    assert_eq!(
+        p.visual_line_start(0, dc, crate::caret::Affinity::Downstream),
+        (0, rows[1].start_col)
+    );
+    assert_eq!(
+        p.visual_line_end(0, dc, crate::caret::Affinity::Downstream),
+        (0, rows[1].end_col)
+    );
 
     // Crossing LOGICAL lines: a short two-line buffer, down from line 0 to
     // line 1 and back up.
@@ -44,7 +61,12 @@ fn oracle_visual_motion_follows_wrapped_rows() {
     let gx2 = p.visual_x_of(0, 1, crate::caret::Affinity::Downstream);
     let (l, c) = p.visual_line_down(0, 1, gx2, crate::caret::Affinity::Downstream);
     assert_eq!(l, 1, "down crosses into the next logical line");
-    assert_eq!(p.visual_line_up(l, c, gx2, crate::caret::Affinity::Downstream).0, 0, "up crosses back to line 0");
+    assert_eq!(
+        p.visual_line_up(l, c, gx2, crate::caret::Affinity::Downstream)
+            .0,
+        0,
+        "up crosses back to line 0"
+    );
 }
 
 /// FULL VERTICAL-MOTION SWEEP over the real CAPTURE.md (wrapped paragraphs,
@@ -105,7 +127,8 @@ fn oracle_vertical_sweep_capture_md_strictly_monotonic() {
             for col in 0..=char_count {
                 let g0 = gvrow(line, col);
                 // DOWN: strictly below unless already at the doc's last visual row.
-                let (dl, dc) = p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream);
+                let (dl, dc) =
+                    p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream);
                 if (dl, dc) == (line, col) {
                     if g0 + 1 != total {
                         fixed_points.push(format!(
@@ -188,14 +211,20 @@ fn oracle_full_vertical_walk_reaches_extremes_capture_md() {
 
     // Walk one direction with a fixed sticky goal_x; return the number of steps
     // and the final (line,col), stopping on a NO-MOVE (a fixed point / stuck).
-    let walk = |p: &TextPipeline, down: bool, seed: (usize, usize), goal: f32| -> (usize, (usize, usize)) {
+    let walk = |p: &TextPipeline,
+                down: bool,
+                seed: (usize, usize),
+                goal: f32|
+     -> (usize, (usize, usize)) {
         let mut buf = Buffer::from_str(&text);
         let seed_idx = buf.line_col_to_char(seed.0, seed.1);
         buf.set_cursor_visual(seed_idx, goal);
         let mut steps = 0usize;
         loop {
             let (line, col) = buf.cursor_line_col();
-            let goal_x = buf.goal_x().unwrap_or_else(|| p.visual_x_of(line, col, crate::caret::Affinity::Downstream));
+            let goal_x = buf
+                .goal_x()
+                .unwrap_or_else(|| p.visual_x_of(line, col, crate::caret::Affinity::Downstream));
             let (nl, nc) = if down {
                 p.visual_line_down(line, col, goal_x, crate::caret::Affinity::Downstream)
             } else {
@@ -207,7 +236,10 @@ fn oracle_full_vertical_walk_reaches_extremes_capture_md() {
                 return (steps, buf.cursor_line_col()); // reached an edge OR stuck
             }
             steps += 1;
-            assert!(steps <= total + 50, "runaway walk (down={down}, goal_x={goal})");
+            assert!(
+                steps <= total + 50,
+                "runaway walk (down={down}, goal_x={goal})"
+            );
         }
     };
 
@@ -290,7 +322,8 @@ fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_
                 let g0 = gvrow(line, col);
                 if let Some(t) = down_target {
                     for gx in gxs_for(t) {
-                        let (dl, dc) = p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream);
+                        let (dl, dc) =
+                            p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream);
                         if (dl, dc) == (line, col) {
                             if g0 + 1 != total {
                                 bad.push(format!(
@@ -308,7 +341,8 @@ fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_
                 }
                 if let Some(t) = up_target {
                     for gx in gxs_for(t) {
-                        let (ul, uc) = p.visual_line_up(line, col, gx, crate::caret::Affinity::Downstream);
+                        let (ul, uc) =
+                            p.visual_line_up(line, col, gx, crate::caret::Affinity::Downstream);
                         if (ul, uc) == (line, col) {
                             if g0 != 0 {
                                 bad.push(format!(
@@ -330,19 +364,29 @@ fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_
     for s in bad.iter().take(25) {
         eprintln!("  {s}");
     }
-    assert!(bad.is_empty(), "{label}: {} sweep violations (total rows {total})", bad.len());
+    assert!(
+        bad.is_empty(),
+        "{label}: {} sweep violations (total rows {total})",
+        bad.len()
+    );
 
     // FULL WALKS — the exact held-arrow gesture, vertical_motion-faithful.
     let last_line = n - 1;
     for &goal in &[0.0f32, 700.0, 100_000.0] {
         for &down in &[true, false] {
             let mut buf = Buffer::from_str(text);
-            let seed = if down { (0usize, 0usize) } else { (last_line, 0usize) };
+            let seed = if down {
+                (0usize, 0usize)
+            } else {
+                (last_line, 0usize)
+            };
             buf.set_cursor_visual(buf.line_col_to_char(seed.0, seed.1), goal);
             let mut steps = 0usize;
             loop {
                 let (line, col) = buf.cursor_line_col();
-                let gx = buf.goal_x().unwrap_or_else(|| p.visual_x_of(line, col, crate::caret::Affinity::Downstream));
+                let gx = buf.goal_x().unwrap_or_else(|| {
+                    p.visual_x_of(line, col, crate::caret::Affinity::Downstream)
+                });
                 let (nl, nc) = if down {
                     p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream)
                 } else {
@@ -354,7 +398,8 @@ fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_
                     let (fl, _fc) = buf.cursor_line_col();
                     let want = if down { last_line } else { 0 };
                     assert_eq!(
-                        fl, want,
+                        fl,
+                        want,
                         "{label}: {} walk (goal_x={goal}) STUCK at line {fl} after {steps} steps",
                         if down { "DOWN" } else { "UP" }
                     );
@@ -432,12 +477,16 @@ fn oracle_vertical_sweep_bullet_bold_fixture() {
              visual rows at every width in the grid, keeping the bold span near an edge.\n"
         ));
     }
-    text.push_str("\ntrailing prose after the list, long enough to wrap as well when the \
-                   column narrows to the smallest width in the sweep grid below.\n");
+    text.push_str(
+        "\ntrailing prose after the list, long enough to wrap as well when the \
+                   column narrows to the smallest width in the sweep grid below.\n",
+    );
     let mut v = view(&text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
-    for w in [480.0f32, 620.0, 760.0, 900.0, 1040.0, 1200.0, 1400.0, 1680.0] {
+    for w in [
+        480.0f32, 620.0, 760.0, 900.0, 1040.0, 1200.0, 1400.0, 1680.0,
+    ] {
         p.set_size(w, 800.0);
         assert_vertical_sweep_clean(&p, &text, &format!("fixture w={w}"), false);
     }
@@ -478,17 +527,25 @@ fn held_cursor_only_view_pushes_stay_fresh() {
     let (mut line, mut col) = (0usize, 0usize);
     for step in 0..200 {
         // One held C-n, exactly as actions::motion::vertical_motion steps it.
-        let gx = goal.unwrap_or_else(|| p.visual_x_of(line, col, crate::caret::Affinity::Downstream));
+        let gx =
+            goal.unwrap_or_else(|| p.visual_x_of(line, col, crate::caret::Affinity::Downstream));
         goal = Some(gx);
         let (nl, nc) = p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream);
-        assert_ne!((nl, nc), (line, col), "stuck at ({line},{col}) on step {step}");
+        assert_ne!(
+            (nl, nc),
+            (line, col),
+            "stuck at ({line},{col}) on step {step}"
+        );
         (line, col) = (nl, nc);
         // The cursor-only re-push sync_view does on the auto-repeat.
         let mut vs = view(&text, line, col);
         vs.is_markdown = true;
         vs.held = true;
         p.set_view(&vs);
-        assert_eq!(p.reshape_count, reshapes, "a cursor-only push must not reshape");
+        assert_eq!(
+            p.reshape_count, reshapes,
+            "a cursor-only push must not reshape"
+        );
         assert_eq!(
             (p.cursor_line, p.cursor_col),
             (line, col),
@@ -511,8 +568,7 @@ fn held_cursor_only_view_pushes_stay_fresh() {
         );
         assert_eq!(warm_row, cold_row, "visual_row_of diverged on step {step}");
         assert!(
-            (warm_target.0 - warm_xy.0).abs() < 0.01
-                && (warm_target.1 - warm_xy.1).abs() < 0.01,
+            (warm_target.0 - warm_xy.0).abs() < 0.01 && (warm_target.1 - warm_xy.1).abs() < 0.01,
             "the spring target was not re-aimed at the pushed cursor on step {step}"
         );
         // WYSIWYG v1.1 exception (documented, not a regression): a line

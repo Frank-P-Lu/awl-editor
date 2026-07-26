@@ -191,7 +191,11 @@ impl Lang {
 /// `doc_lang` is the document's frontmatter tag, if any; `detected` is the
 /// run's own [`Script`] (`None` for a plain Latin run); `cjk_priority` is the
 /// config ladder (default `[Ja, ZhHans, ZhHant, Ko]`).
-pub fn resolve_font_id(doc_lang: Option<Lang>, detected: Option<Script>, cjk_priority: &[Lang]) -> FontId {
+pub fn resolve_font_id(
+    doc_lang: Option<Lang>,
+    detected: Option<Script>,
+    cjk_priority: &[Lang],
+) -> FontId {
     if let Some(dl) = doc_lang {
         if let Some(id) = dl.font_id_for_script(detected) {
             return id;
@@ -230,7 +234,11 @@ mod tests {
     #[test]
     fn classify_char_latin_ascii_digits_punct_are_none() {
         for c in ['a', 'Z', '0', '9', ' ', '\n', '.', ',', '!', 'é', 'ñ'] {
-            assert_eq!(classify_char(c), None, "{c:?} must not classify as a CJK script");
+            assert_eq!(
+                classify_char(c),
+                None,
+                "{c:?} must not classify as a CJK script"
+            );
         }
     }
 
@@ -239,10 +247,15 @@ mod tests {
         // "hi漢字ですaは" -- latin "hi", han "漢字", kana "です", latin "a", kana "は"
         let text = "hi漢字ですaは";
         let runs = script_runs(text);
-        let tagged: Vec<(&str, Script)> = runs.iter().map(|(r, s)| (&text[r.clone()], *s)).collect();
+        let tagged: Vec<(&str, Script)> =
+            runs.iter().map(|(r, s)| (&text[r.clone()], *s)).collect();
         assert_eq!(
             tagged,
-            vec![("漢字", Script::Han), ("です", Script::Kana), ("は", Script::Kana)],
+            vec![
+                ("漢字", Script::Han),
+                ("です", Script::Kana),
+                ("は", Script::Kana)
+            ],
             "runs: {tagged:?}"
         );
     }
@@ -260,7 +273,10 @@ mod tests {
         assert_eq!(runs.len(), 2, "{runs:?}");
         assert_eq!(runs[0].1, Script::Han);
         assert_eq!(runs[1].1, Script::Hangul);
-        assert_eq!(runs[0].0.end, runs[1].0.start, "no gap between the two runs");
+        assert_eq!(
+            runs[0].0.end, runs[1].0.start,
+            "no gap between the two runs"
+        );
     }
 
     #[test]
@@ -301,22 +317,41 @@ mod tests {
     #[test]
     fn doc_lang_for_han_consults_priority_ladder() {
         assert_eq!(
-            doc_lang_for(Script::Han, &[Lang::Ja, Lang::ZhHans, Lang::ZhHant, Lang::Ko]),
+            doc_lang_for(
+                Script::Han,
+                &[Lang::Ja, Lang::ZhHans, Lang::ZhHant, Lang::Ko]
+            ),
             Lang::Ja
         );
         assert_eq!(
-            doc_lang_for(Script::Han, &[Lang::ZhHans, Lang::Ja, Lang::ZhHant, Lang::Ko]),
+            doc_lang_for(
+                Script::Han,
+                &[Lang::ZhHans, Lang::Ja, Lang::ZhHant, Lang::Ko]
+            ),
             Lang::ZhHans
         );
-        assert_eq!(doc_lang_for(Script::Han, &[]), Lang::Ja, "empty ladder never panics, defaults ja");
+        assert_eq!(
+            doc_lang_for(Script::Han, &[]),
+            Lang::Ja,
+            "empty ladder never panics, defaults ja"
+        );
     }
 
     #[test]
     fn resolve_font_id_ladder_step_a_doc_tag_wins_when_compatible() {
         let priority = crate::frontmatter::DEFAULT_CJK_PRIORITY;
-        assert_eq!(resolve_font_id(Some(Lang::Ja), Some(Script::Kana), &priority), FontId::Ja);
-        assert_eq!(resolve_font_id(Some(Lang::Ja), Some(Script::Han), &priority), FontId::Ja);
-        assert_eq!(resolve_font_id(Some(Lang::ZhHans), Some(Script::Han), &priority), FontId::ZhHans);
+        assert_eq!(
+            resolve_font_id(Some(Lang::Ja), Some(Script::Kana), &priority),
+            FontId::Ja
+        );
+        assert_eq!(
+            resolve_font_id(Some(Lang::Ja), Some(Script::Han), &priority),
+            FontId::Ja
+        );
+        assert_eq!(
+            resolve_font_id(Some(Lang::ZhHans), Some(Script::Han), &priority),
+            FontId::ZhHans
+        );
     }
 
     #[test]
@@ -325,7 +360,10 @@ mod tests {
         // embedded hangul run. Step (a) has no ko mapping for a ja tag, so it
         // falls to (b): the run's OWN script (hangul -> ko).
         let priority = crate::frontmatter::DEFAULT_CJK_PRIORITY;
-        assert_eq!(resolve_font_id(Some(Lang::Ja), Some(Script::Hangul), &priority), FontId::Ko);
+        assert_eq!(
+            resolve_font_id(Some(Lang::Ja), Some(Script::Hangul), &priority),
+            FontId::Ko
+        );
     }
 
     #[test]
@@ -333,11 +371,19 @@ mod tests {
         // No doc tag at all, a bare Han run: falls all the way to (c), the
         // cjk_priority tiebreak.
         assert_eq!(
-            resolve_font_id(None, Some(Script::Han), &[Lang::ZhHant, Lang::Ja, Lang::ZhHans, Lang::Ko]),
+            resolve_font_id(
+                None,
+                Some(Script::Han),
+                &[Lang::ZhHant, Lang::Ja, Lang::ZhHans, Lang::Ko]
+            ),
             FontId::ZhHant
         );
         assert_eq!(
-            resolve_font_id(None, Some(Script::Han), &crate::frontmatter::DEFAULT_CJK_PRIORITY),
+            resolve_font_id(
+                None,
+                Some(Script::Han),
+                &crate::frontmatter::DEFAULT_CJK_PRIORITY
+            ),
             FontId::Ja,
             "default ladder is ja-first"
         );
@@ -346,18 +392,34 @@ mod tests {
     #[test]
     fn resolve_font_id_ladder_step_d_no_script_is_latin_floor() {
         assert_eq!(
-            resolve_font_id(Some(Lang::Ja), None, &crate::frontmatter::DEFAULT_CJK_PRIORITY),
+            resolve_font_id(
+                Some(Lang::Ja),
+                None,
+                &crate::frontmatter::DEFAULT_CJK_PRIORITY
+            ),
             FontId::Latin
         );
-        assert_eq!(resolve_font_id(None, None, &crate::frontmatter::DEFAULT_CJK_PRIORITY), FontId::Latin);
+        assert_eq!(
+            resolve_font_id(None, None, &crate::frontmatter::DEFAULT_CJK_PRIORITY),
+            FontId::Latin
+        );
     }
 
     #[test]
     fn resolve_font_id_untagged_unambiguous_scripts_use_natural_mapping() {
         let priority = crate::frontmatter::DEFAULT_CJK_PRIORITY;
-        assert_eq!(resolve_font_id(None, Some(Script::Kana), &priority), FontId::Ja);
-        assert_eq!(resolve_font_id(None, Some(Script::Hangul), &priority), FontId::Ko);
-        assert_eq!(resolve_font_id(None, Some(Script::Bopomofo), &priority), FontId::ZhHant);
+        assert_eq!(
+            resolve_font_id(None, Some(Script::Kana), &priority),
+            FontId::Ja
+        );
+        assert_eq!(
+            resolve_font_id(None, Some(Script::Hangul), &priority),
+            FontId::Ko
+        );
+        assert_eq!(
+            resolve_font_id(None, Some(Script::Bopomofo), &priority),
+            FontId::ZhHant
+        );
     }
 
     #[test]
@@ -365,6 +427,9 @@ mod tests {
         // An `en`-tagged doc with a stray CJK run: `En` has no font_id_for_script
         // mapping, so it falls straight through to the run's own script.
         let priority = crate::frontmatter::DEFAULT_CJK_PRIORITY;
-        assert_eq!(resolve_font_id(Some(Lang::En), Some(Script::Kana), &priority), FontId::Ja);
+        assert_eq!(
+            resolve_font_id(Some(Lang::En), Some(Script::Kana), &priority),
+            FontId::Ja
+        );
     }
 }

@@ -16,7 +16,9 @@ use super::{headless_dqp, headless_pipeline, view};
 #[test]
 fn nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle: no wgpu adapter");
+        eprintln!(
+            "skipping nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -38,7 +40,8 @@ fn nit_underlines_flag_mechanical_typos_straight_and_gate_on_the_toggle() {
     );
     // Every nit underline is STRAIGHT (amp 0) — a flat muted line, NOT a squiggle.
     assert!(
-        ul.iter().all(|s| s.amp == 0.0 && s.thickness > 0.0 && s.w > 0.0),
+        ul.iter()
+            .all(|s| s.amp == 0.0 && s.thickness > 0.0 && s.w > 0.0),
         "nit underlines are straight (amp 0), stroked, and non-empty"
     );
 
@@ -114,14 +117,25 @@ fn nit_underlines_suppress_the_entire_caret_line_only() {
     p.set_view(&v);
     let reshapes = p.reshape_count;
     let ul = p.nit_underlines();
-    assert_eq!(ul.len(), 1, "only line1's nit survives while the caret sits on line0");
+    assert_eq!(
+        ul.len(),
+        1,
+        "only line1's nit survives while the caret sits on line0"
+    );
 
     v.cursor_line = 1; // caret moves to line1 — a pure cursor move, no reshape
     v.cursor_col = 0;
     p.set_view(&v);
-    assert_eq!(p.reshape_count, reshapes, "a pure cursor move must not reshape");
+    assert_eq!(
+        p.reshape_count, reshapes,
+        "a pure cursor move must not reshape"
+    );
     let ul2 = p.nit_underlines();
-    assert_eq!(ul2.len(), 1, "line0's nit now shows; line1's (caret's) is suppressed");
+    assert_eq!(
+        ul2.len(),
+        1,
+        "line0's nit now shows; line1's (caret's) is suppressed"
+    );
     assert!(
         (ul2[0].x - ul[0].x).abs() > 1.0 || (ul2[0].y - ul[0].y).abs() > 1.0,
         "the surviving nit is the OTHER line's, not the same geometry replayed"
@@ -135,21 +149,35 @@ fn nit_underlines_suppress_the_entire_caret_line_only() {
 #[test]
 fn spell_squiggles_suppress_only_the_caret_word_not_the_whole_line() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping spell_squiggles_suppress_only_the_caret_word_not_the_whole_line: no wgpu adapter");
+        eprintln!(
+            "skipping spell_squiggles_suppress_only_the_caret_word_not_the_whole_line: no wgpu adapter"
+        );
         return;
     };
     // "helo" cols 0..4, "wrld" cols 5..9, both misspelled on the SAME line.
     let text = "helo wrld";
     let mis = vec![
-        crate::spell::Misspelling { line: 0, start_col: 0, end_col: 4 },
-        crate::spell::Misspelling { line: 0, start_col: 5, end_col: 9 },
+        crate::spell::Misspelling {
+            line: 0,
+            start_col: 0,
+            end_col: 4,
+        },
+        crate::spell::Misspelling {
+            line: 0,
+            start_col: 5,
+            end_col: 9,
+        },
     ];
     // Caret ON "helo" (col 0, the word's start — inclusive adjacency).
     let mut v = view(text, 0, 0);
     v.misspelled = mis.clone();
     p.set_view(&v);
     let s = p.spell_squiggles();
-    assert_eq!(s.len(), 1, "only 'wrld' squiggles; 'helo' (under the caret) yields");
+    assert_eq!(
+        s.len(),
+        1,
+        "only 'wrld' squiggles; 'helo' (under the caret) yields"
+    );
 
     // Caret moves to "wrld" (col 5): now "helo" squiggles, "wrld" yields.
     v.cursor_col = 5;
@@ -168,7 +196,11 @@ fn spell_squiggles_suppress_only_the_caret_word_not_the_whole_line() {
     v.cursor_col = 100;
     v.misspelled = mis;
     p.set_view(&v);
-    assert_eq!(p.spell_squiggles().len(), 2, "no word under the caret => both flag");
+    assert_eq!(
+        p.spell_squiggles().len(),
+        2,
+        "no word under the caret => both flag"
+    );
 }
 
 /// CODE-BUFFER SCOPE (nits): a recognized code buffer restricts nits to the
@@ -273,7 +305,11 @@ fn underline_cache_rebuilds_on_spell_list_and_edit() {
     // the caret's own word) on the caret's line, which would otherwise
     // swallow this fixture's line0-only spans.
     let text = "helo wrld  x\nzzz";
-    let span = |s: usize, e: usize| crate::spell::Misspelling { line: 0, start_col: s, end_col: e };
+    let span = |s: usize, e: usize| crate::spell::Misspelling {
+        line: 0,
+        start_col: s,
+        end_col: e,
+    };
     let mut v = view(text, 1, 0);
     v.misspelled = vec![span(0, 4)];
     p.set_view(&v);
@@ -288,7 +324,10 @@ fn underline_cache_rebuilds_on_spell_list_and_edit() {
     let mut v2 = view(text, 1, 0);
     v2.misspelled = vec![span(5, 9)];
     p.set_view(&v2);
-    assert_eq!(p.reshape_count, reshapes, "a spell-list-only push must not reshape");
+    assert_eq!(
+        p.reshape_count, reshapes,
+        "a spell-list-only push must not reshape"
+    );
     let s2 = p.spell_squiggles();
     assert_eq!(s2.len(), 1);
     assert!(
@@ -345,7 +384,11 @@ fn underline_cache_rebuilds_on_zoom_change() {
     // (REVEAL-ON-CURSOR would otherwise suppress both fixtures on the caret's
     // own line).
     let text = "aa  bb helo\nzzz";
-    let mis = vec![crate::spell::Misspelling { line: 0, start_col: 7, end_col: 11 }];
+    let mis = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 7,
+        end_col: 11,
+    }];
     let mut v1 = view(text, 1, 0);
     v1.misspelled = mis.clone();
     p.set_view(&v1);
@@ -404,7 +447,11 @@ fn underline_cache_rebuilds_on_theme_font_switch() {
     p.sync_theme();
     let text = "The quick brown fox";
     let mut v = view(text, 0, 0);
-    v.misspelled = vec![crate::spell::Misspelling { line: 0, start_col: 10, end_col: 15 }];
+    v.misspelled = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 10,
+        end_col: 15,
+    }];
     p.set_view(&v);
     let s1 = p.spell_squiggles();
     assert_eq!(s1.len(), 1);
@@ -440,7 +487,9 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping squiggle_scroll_culls_offscreen_and_reveals_on_scroll: no wgpu adapter");
+        eprintln!(
+            "skipping squiggle_scroll_culls_offscreen_and_reveals_on_scroll: no wgpu adapter"
+        );
         return;
     };
     // 100 short lines; "helo" misspelled on line 60 — ~1900px below the top
@@ -453,7 +502,11 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
             text.push_str(&format!("line {i}\n"));
         }
     }
-    let mis = vec![crate::spell::Misspelling { line: 60, start_col: 0, end_col: 4 }];
+    let mis = vec![crate::spell::Misspelling {
+        line: 60,
+        start_col: 0,
+        end_col: 4,
+    }];
     let mut v = view(&text, 0, 0);
     v.misspelled = mis.clone();
     p.set_view(&v);
@@ -469,7 +522,10 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
     v2.misspelled = mis;
     v2.scroll_lines = 55;
     p.set_view(&v2);
-    assert_eq!(p.reshape_count, reshapes, "a scroll-only push must not reshape");
+    assert_eq!(
+        p.reshape_count, reshapes,
+        "a scroll-only push must not reshape"
+    );
     let s = p.spell_squiggles();
     assert_eq!(s.len(), 1, "scrolled into view: the cached proto now emits");
     assert!(
@@ -491,14 +547,20 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
 #[test]
 fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look: no wgpu adapter");
+        eprintln!(
+            "skipping spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look: no wgpu adapter"
+        );
         return;
     };
     // "helo" on line0; caret parked on line1 so reveal-on-cursor never
     // suppresses the one squiggle this test reads.
     let text = "helo\nzzz";
     let mut v = view(text, 1, 0);
-    v.misspelled = vec![crate::spell::Misspelling { line: 0, start_col: 0, end_col: 4 }];
+    v.misspelled = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 4,
+    }];
     p.set_view(&v);
     let s = p.spell_squiggles();
     assert_eq!(s.len(), 1);
@@ -510,14 +572,26 @@ fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
         s[0].thickness
     );
     // Exact new value: zoom 1.0 now matches the OLD zoom-2.0 pixels exactly.
-    assert!((s[0].thickness - 3.6).abs() < 1e-3, "thickness = {}", s[0].thickness);
+    assert!(
+        (s[0].thickness - 3.6).abs() < 1e-3,
+        "thickness = {}",
+        s[0].thickness
+    );
     assert!((s[0].amp - 3.2).abs() < 1e-3, "amp = {}", s[0].amp);
-    assert!((s[0].period - 12.0).abs() < 1e-3, "period = {}", s[0].period);
+    assert!(
+        (s[0].period - 12.0).abs() < 1e-3,
+        "period = {}",
+        s[0].period
+    );
 
     // SCALE-AWARE: still correct at a non-1.0 zoom — every param keeps
     // multiplying by the SAME zoom factor, so the ratio to zoom 1.0 is exact.
     let mut v2 = view(text, 1, 0);
-    v2.misspelled = vec![crate::spell::Misspelling { line: 0, start_col: 0, end_col: 4 }];
+    v2.misspelled = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 4,
+    }];
     v2.zoom = 1.6;
     p.set_view(&v2);
     let s2 = p.spell_squiggles();
@@ -540,7 +614,9 @@ fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
 #[test]
 fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default: no wgpu adapter");
+        eprintln!(
+            "skipping spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -549,7 +625,11 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     // SAME line, so both read the SAME row geometry. Caret on line1, off both.
     let text = "helo  wrld\nzzz";
     let mut v = view(text, 1, 0);
-    v.misspelled = vec![crate::spell::Misspelling { line: 0, start_col: 0, end_col: 4 }];
+    v.misspelled = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 4,
+    }];
 
     // CONTROL: a default-dial world (Tawny — no override).
     theme::set_active_by_name("Tawny").unwrap();
@@ -557,7 +637,11 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     p.set_view(&v);
     let n_ctrl = p.nit_underlines();
     let s_ctrl = p.spell_squiggles();
-    assert_eq!((n_ctrl.len(), s_ctrl.len()), (1, 1), "one nit + one squiggle on line0");
+    assert_eq!(
+        (n_ctrl.len(), s_ctrl.len()),
+        (1, 1),
+        "one nit + one squiggle on line0"
+    );
     assert!(
         (n_ctrl[0].y - s_ctrl[0].y).abs() < 0.01,
         "on the DEFAULT dial the squiggle must sit at the SAME y as the nit \
@@ -572,7 +656,11 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     p.set_view(&v);
     let n_bilby = p.nit_underlines();
     let s_bilby = p.spell_squiggles();
-    assert_eq!((n_bilby.len(), s_bilby.len()), (1, 1), "one nit + one squiggle on line0");
+    assert_eq!(
+        (n_bilby.len(), s_bilby.len()),
+        (1, 1),
+        "one nit + one squiggle on line0"
+    );
     let delta = n_bilby[0].y - s_bilby[0].y;
     assert!(
         (delta - 2.0).abs() < 0.05,
@@ -590,7 +678,12 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
         p.set_view(&v);
         let n = p.nit_underlines();
         let s = p.spell_squiggles();
-        assert_eq!((n.len(), s.len()), (1, 1), "{}: one nit + one squiggle", t.name);
+        assert_eq!(
+            (n.len(), s.len()),
+            (1, 1),
+            "{}: one nit + one squiggle",
+            t.name
+        );
         assert!(
             (n[0].y - s[0].y).abs() < 0.01,
             "{}: not Bilby, so the squiggle must sit at the SAME y as the nit \
@@ -626,7 +719,9 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
 fn spell_squiggle_paints_real_pixels_across_a_world_sample() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping spell_squiggle_paints_real_pixels_across_a_world_sample: no wgpu adapter");
+        eprintln!(
+            "skipping spell_squiggle_paints_real_pixels_across_a_world_sample: no wgpu adapter"
+        );
         return;
     };
     let w = 1200u32;
@@ -636,7 +731,11 @@ fn spell_squiggle_paints_real_pixels_across_a_world_sample() {
     // Caret parked on line 2, off the word's own line, so reveal-on-cursor
     // never suppresses the one squiggle each render might draw.
     let text = "wrold\n\nprose\n";
-    let mis = vec![crate::spell::Misspelling { line: 0, start_col: 0, end_col: 5 }];
+    let mis = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 5,
+    }];
 
     for world in ["Tawny", "Bilby", "Wagtail", "Saltpan"] {
         theme::set_active_by_name(world).unwrap();
@@ -645,7 +744,10 @@ fn spell_squiggle_paints_real_pixels_across_a_world_sample() {
         let mut clean = view(text, 2, 0);
         clean.misspelled = Vec::new();
         p.set_view(&clean);
-        assert!(p.spell_squiggles().is_empty(), "{world}: no misspelling, no squiggle proto");
+        assert!(
+            p.spell_squiggles().is_empty(),
+            "{world}: no misspelling, no squiggle proto"
+        );
         p.prepare(&device, &queue, w, h).unwrap();
         let a = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
 
@@ -703,7 +805,9 @@ fn off_cursor_image_conceal_emits_no_spell_or_nit_underline() {
     crate::markdown::set_wysiwyg_on(true);
     crate::nits::set_nits_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping off_cursor_image_conceal_emits_no_spell_or_nit_underline: no wgpu adapter");
+        eprintln!(
+            "skipping off_cursor_image_conceal_emits_no_spell_or_nit_underline: no wgpu adapter"
+        );
         crate::markdown::set_inline_images_on(prev_img);
         return;
     };
@@ -714,7 +818,11 @@ fn off_cursor_image_conceal_emits_no_spell_or_nit_underline() {
     let text = "![wrold  x](samples/tiny.png)\n\nprose here\n";
     let mut v = view(text, 2, 0);
     v.is_markdown = true;
-    v.misspelled = vec![crate::spell::Misspelling { line: 0, start_col: 2, end_col: 7 }];
+    v.misspelled = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 2,
+        end_col: 7,
+    }];
     p.set_view(&v);
 
     // Sanity: the fixture really IS an off-cursor concealed image line — the row
@@ -724,7 +832,10 @@ fn off_cursor_image_conceal_emits_no_spell_or_nit_underline() {
     let rows0 = p.visual_rows(0);
     let xs = &rows0[0].xs;
     let total = xs.last().copied().unwrap_or(0.0) - xs.first().copied().unwrap_or(0.0);
-    assert!(total < 2.0, "off-cursor the image source is concealed to ~0 width: {total}");
+    assert!(
+        total < 2.0,
+        "off-cursor the image source is concealed to ~0 width: {total}"
+    );
 
     // THE FIX: neither underline layer emits geometry over the concealed source.
     assert!(
@@ -766,16 +877,30 @@ fn revealed_image_destination_never_squiggles_but_alt_text_still_does_item_60() 
     let mut v = view(text, 0, 0);
     v.is_markdown = true;
     v.misspelled = vec![
-        crate::spell::Misspelling { line: 0, start_col: 2, end_col: 7 }, // alt "wrold"
-        crate::spell::Misspelling { line: 0, start_col: 16, end_col: 22 }, // dest "pasted"
+        crate::spell::Misspelling {
+            line: 0,
+            start_col: 2,
+            end_col: 7,
+        }, // alt "wrold"
+        crate::spell::Misspelling {
+            line: 0,
+            start_col: 16,
+            end_col: 22,
+        }, // dest "pasted"
     ];
     p.set_view(&v);
 
     // Sanity: the line really is revealed (real width, not the ~0 collapse).
-    assert!(p.images_report()[0].revealed, "caret on the image line reveals it");
+    assert!(
+        p.images_report()[0].revealed,
+        "caret on the image line reveals it"
+    );
     let xs = &p.visual_rows(0)[0].xs;
     let total = xs.last().copied().unwrap_or(0.0) - xs.first().copied().unwrap_or(0.0);
-    assert!(total > 20.0, "revealed: real glyph width, not the ~0 collapse: {total}");
+    assert!(
+        total > 20.0,
+        "revealed: real glyph width, not the ~0 collapse: {total}"
+    );
 
     let s = p.spell_squiggles();
     assert_eq!(s.len(), 1, "only the ALT-text misspelling squiggles: {s:?}");
@@ -815,8 +940,16 @@ fn off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60
     let mut v = view(text, 1, 0);
     v.is_markdown = true;
     v.misspelled = vec![
-        crate::spell::Misspelling { line: 0, start_col: 5, end_col: 10 }, // label "wrold"
-        crate::spell::Misspelling { line: 0, start_col: 32, end_col: 40 }, // dest "pasted18"
+        crate::spell::Misspelling {
+            line: 0,
+            start_col: 5,
+            end_col: 10,
+        }, // label "wrold"
+        crate::spell::Misspelling {
+            line: 0,
+            start_col: 32,
+            end_col: 40,
+        }, // dest "pasted18"
     ];
     p.set_view(&v);
 
@@ -857,16 +990,28 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60() 
     // Independently derive the expected surviving count from the SAME real
     // functions the pipeline calls — never a hand-picked column.
     let raw = crate::nits::line_nits(line0);
-    assert!(raw.len() >= 2, "sanity: both the label AND destination double-spaces nit raw: {raw:?}");
+    assert!(
+        raw.len() >= 2,
+        "sanity: both the label AND destination double-spaces nit raw: {raw:?}"
+    );
     let md = crate::markdown::spans(&text);
     let dests = crate::markdown::destination_ranges(&text, &md);
-    assert!(!dests.is_empty(), "sanity: the link destination span was found: {md:?}");
+    assert!(
+        !dests.is_empty(),
+        "sanity: the link destination span was found: {md:?}"
+    );
     let expected_surviving = raw
         .iter()
         .filter(|&&(s, e)| !crate::nits::span_in_prose_ranges(line0, 0, s, e, &dests))
         .count();
-    assert!(expected_surviving >= 1, "sanity: the label nit is NOT inside the destination");
-    assert!(expected_surviving < raw.len(), "sanity: at least one raw nit IS inside the destination");
+    assert!(
+        expected_surviving >= 1,
+        "sanity: the label nit is NOT inside the destination"
+    );
+    assert!(
+        expected_surviving < raw.len(),
+        "sanity: at least one raw nit IS inside the destination"
+    );
 
     // Caret on line 1 (prose); a selection spanning line 0 through line 1
     // reveals line 0's raw source without triggering the per-caret-line nit
@@ -875,7 +1020,10 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60() 
     v.is_markdown = true;
     v.selection = Some(((0, 0), (1, 0)));
     p.set_view(&v);
-    assert!(!p.concealed_at(0, 0), "sanity: the selection reveals line 0's raw source");
+    assert!(
+        !p.concealed_at(0, 0),
+        "sanity: the selection reveals line 0's raw source"
+    );
 
     let ul = p.nit_underlines();
     assert_eq!(
@@ -899,7 +1047,9 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60() 
 fn spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph: no wgpu adapter");
+        eprintln!(
+            "skipping spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph: no wgpu adapter"
+        );
         return;
     };
     let w = 1200u32;
@@ -908,7 +1058,11 @@ fn spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph() {
     p.sync_theme();
     // Caret parked off the word's own line so reveal-on-cursor never suppresses it.
     let text = "wrold\n\nprose\n";
-    let mis = vec![crate::spell::Misspelling { line: 0, start_col: 0, end_col: 5 }];
+    let mis = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 5,
+    }];
 
     let mut clean = view(text, 2, 0);
     clean.misspelled = Vec::new();
@@ -950,7 +1104,10 @@ fn spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph() {
             }
         }
     }
-    assert!(n > 5.0, "the squiggle paints ink under the first glyph: only {n} px");
+    assert!(
+        n > 5.0,
+        "the squiggle paints ink under the first glyph: only {n} px"
+    );
     let centroid_y = sum_y / n;
     // CREST-START: the ink's centroid sits ABOVE the band center by a clear
     // fraction of the amplitude. The old sine phase put it the SAME fraction

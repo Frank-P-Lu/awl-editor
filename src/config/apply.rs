@@ -5,8 +5,8 @@
 //! flag-over-config precedence — reading/parsing lives in `config::model`;
 //! format-preserving disk writes live in `config::write`.
 
-use super::model::{parse_caret_mode, parse_dictionary};
 use super::Config;
+use super::model::{parse_caret_mode, parse_dictionary};
 
 impl Config {
     /// LAUNCH-APPLY the remembered THEME / PAGE / CARET onto the process-globals
@@ -95,7 +95,11 @@ impl Config {
         // capture path (this fn runs on both), so a `--config` with
         // `date_format = "iso"` produces the same effective format with no
         // flags at all.
-        if let Some(f) = self.date_format.as_deref().and_then(crate::dateformat::DateFormat::from_config_name) {
+        if let Some(f) = self
+            .date_format
+            .as_deref()
+            .and_then(crate::dateformat::DateFormat::from_config_name)
+        {
             crate::dateformat::set_active_format(f);
         }
         // WYSIWYG has no CLI flag either (like writing_nits/spellcheck): the

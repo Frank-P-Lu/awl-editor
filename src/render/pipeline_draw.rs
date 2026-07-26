@@ -113,8 +113,7 @@ impl TextPipeline {
         // WAGTAIL HIGHLIGHT TEXTURE — same dither mode + color as
         // `wash_highlight_pipeline` (search matches and `==highlight==` spans
         // deliberately share one texture, one meaning).
-        let mut match_pipeline =
-            SelectionPipeline::new(device, format, search_match_rgba_bytes());
+        let mut match_pipeline = SelectionPipeline::new(device, format, search_match_rgba_bytes());
         match_pipeline.set_dither(wagtail_dither_density());
         match_pipeline.set_dither_cell(wagtail_stipple_cell_px(1.0));
         // TRUE INVERSE-VIDEO SELECTION (one-bit worlds only) — its own
@@ -187,8 +186,7 @@ impl TextPipeline {
         let diffpanel_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
         let diffpanel_border =
             SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let diffpanel_card =
-            SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
+        let diffpanel_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
         // The caret-preview panel's sample-line text renderer + buffer.
         let preview_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
@@ -220,8 +218,10 @@ impl TextPipeline {
         // ITEM 94 — the Settings range row's rail. Two quiet INK rungs (never the
         // accent): the faintest for the track, one step up for the fill + thumb.
         // Both start parked; only an open Settings card with a range row uploads.
-        let overlay_range_track = SelectionPipeline::new(device, format, theme::faint().rgba_bytes());
-        let overlay_range_thumb = SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
+        let overlay_range_track =
+            SelectionPipeline::new(device, format, theme::faint().rgba_bytes());
+        let overlay_range_thumb =
+            SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
         // THE STIPPLE PLACARD: the corner wordmark's Bayer-stipple renderer
         // (see the field's own doc). Ink + density re-read per re-tint; starts
         // parked (zero instances) — only a stipple-placard world with an open
@@ -295,7 +295,8 @@ impl TextPipeline {
         // there is no scrim pipeline here; the card rides the same float-panel elevation
         // (shadow -> raised border -> base_300 card) as which-key. All empty/off until held.
         let hud_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let hud_border = SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
+        let hud_border =
+            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
         let hud_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
         // WRITING-STREAKS heatmap squares: per-instance colored (the construction
         // color is a placeholder overridden every draw), with a gentle corner so the
@@ -311,7 +312,8 @@ impl TextPipeline {
         // quads so it can never race the caret-preview / spell panels. Empty/off until
         // the App summons it on a prefix pause.
         let wk_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let wk_border = SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
+        let wk_border =
+            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
         let wk_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
         let wk_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
@@ -328,8 +330,7 @@ impl TextPipeline {
             SelectionPipeline::new(device, format, highlight_wash_rgba_bytes());
         popover_hl_wash.set_dither(wagtail_dither_density());
         popover_hl_wash.set_dither_cell(wagtail_stipple_cell_px(1.0));
-        let popover_strike =
-            SpellUnderlinePipeline::new(device, format, strike_srgba_bytes());
+        let popover_strike = SpellUnderlinePipeline::new(device, format, strike_srgba_bytes());
         let popover_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let popover_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
@@ -338,12 +339,10 @@ impl TextPipeline {
             SpellUnderlinePipeline::new(device, format, theme::error().rgba_bytes());
         // Straight muted WRITING-NIT underlines (same pipeline, amplitude 0 → flat),
         // tinted the neutral muted ink so they read as a quiet "tidy this" hint.
-        let nit_pipeline =
-            SpellUnderlinePipeline::new(device, format, nit_underline_srgba());
+        let nit_pipeline = SpellUnderlinePipeline::new(device, format, nit_underline_srgba());
         // Markdown `~~strikethrough~~` lines (same flat-line pipeline shape),
         // tinted THE strike ink — the one owner the struck text shares.
-        let strike_pipeline =
-            SpellUnderlinePipeline::new(device, format, strike_srgba_bytes());
+        let strike_pipeline = SpellUnderlinePipeline::new(device, format, strike_srgba_bytes());
         // The quiet markdown LINK UNDERLINE (same flat-line pipeline shape, its
         // own instance — a different vertical band from `strike_pipeline`),
         // tinted THE link-underline ink (the same muted rung the strike shares).
@@ -620,5 +619,4 @@ impl TextPipeline {
         me.set_text(HELLO_TEXT);
         me
     }
-
 }

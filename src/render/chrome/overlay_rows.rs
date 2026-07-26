@@ -336,7 +336,12 @@ impl TextPipeline {
         if gap_top > geom.card_y && gap_bottom < card_bottom && gap_bottom > gap_top {
             vec![
                 [geom.card_x, geom.card_y, geom.card_w, gap_top - geom.card_y],
-                [geom.card_x, gap_bottom, geom.card_w, card_bottom - gap_bottom],
+                [
+                    geom.card_x,
+                    gap_bottom,
+                    geom.card_w,
+                    card_bottom - gap_bottom,
+                ],
             ]
         } else {
             vec![full]
@@ -406,12 +411,7 @@ impl TextPipeline {
                 // before, except item 70's chamfer/texture — Quokka's "small card
                 // popup"). The flat/room `panel_*` quads stay empty here.
                 let (chamfer_px, texture) = self.card_shape_texture(&[card_rect]);
-                self.claim_float_panel(
-                    card_rect,
-                    FloatElevation::Rimmed,
-                    chamfer_px,
-                    texture,
-                );
+                self.claim_float_panel(card_rect, FloatElevation::Rimmed, chamfer_px, texture);
                 self.panel_card.prepare(device, queue, width, height, &[]);
                 self.panel_shadow.prepare(device, queue, width, height, &[]);
                 self.panel_border.prepare(device, queue, width, height, &[]);
@@ -885,11 +885,12 @@ impl TextPipeline {
             }
             thumb_rects.push(rail.thumb);
         }
-        let selected_rail = rails
-            .iter()
-            .any(|(item, _)| Some(*item) == sel_disp.and_then(|k| self.overlay_item_at_row(geom, k)));
+        let selected_rail = rails.iter().any(|(item, _)| {
+            Some(*item) == sel_disp.and_then(|k| self.overlay_item_at_row(geom, k))
+        });
         let thumb_ink = if selected_rail && super::selected_secondary_on_band() {
-            match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band())
+            match theme::active()
+                .highlight_treatment(crate::render::effective_overlay_selrow_band())
             {
                 theme::HighlightTreatment::InverseFill { ink, .. } => ink,
                 theme::HighlightTreatment::ValueBand(b) => theme::selected_row_secondary_ink(b),

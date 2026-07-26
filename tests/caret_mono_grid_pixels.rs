@@ -68,7 +68,8 @@ const PARK_KEYS: &str = "Down Down Down Down";
 const PARALLEL: usize = 6;
 
 fn tmp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("awl-item97-caretgrid-{tag}-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("awl-item97-caretgrid-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -101,7 +102,8 @@ fn spawn(job: &Job, sandbox: &Path, doc: &Path) -> Child {
         .env_remove("AWL_CJK_FORCE")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped());
-    cmd.spawn().expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl")
+    cmd.spawn()
+        .expect("failed to spawn the awl binary under CARGO_BIN_EXE_awl")
 }
 
 /// Run every job with bounded parallelism. Returns `false` (skip the whole test)
@@ -141,13 +143,24 @@ struct Image {
 impl Image {
     fn px(&self, x: u32, y: u32) -> [u8; 4] {
         let i = ((y * self.w + x) * 4) as usize;
-        [self.rgba[i], self.rgba[i + 1], self.rgba[i + 2], self.rgba[i + 3]]
+        [
+            self.rgba[i],
+            self.rgba[i + 1],
+            self.rgba[i + 2],
+            self.rgba[i + 3],
+        ]
     }
 }
 
 fn decode(png: &Path) -> Image {
-    let img = image::open(png).unwrap_or_else(|e| panic!("decode {}: {e}", png.display())).to_rgba8();
-    Image { w: img.width(), h: img.height(), rgba: img.into_raw() }
+    let img = image::open(png)
+        .unwrap_or_else(|e| panic!("decode {}: {e}", png.display()))
+        .to_rgba8();
+    Image {
+        w: img.width(),
+        h: img.height(),
+        rgba: img.into_raw(),
+    }
 }
 
 /// The caret's drawn footprint on row 0: the bounding box of pixels that DIFFER
@@ -196,13 +209,20 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
         .arg("--list-worlds")
         .output()
         .expect("awl --list-worlds runs");
-    assert!(listed.status.success(), "--list-worlds failed: {}", listed.status);
+    assert!(
+        listed.status.success(),
+        "--list-worlds failed: {}",
+        listed.status
+    );
     let worlds: Vec<String> = String::from_utf8_lossy(&listed.stdout)
         .lines()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    assert!(worlds.len() >= 18, "expected the full world roster, got {worlds:?}");
+    assert!(
+        worlds.len() >= 18,
+        "expected the full world roster, got {worlds:?}"
+    );
 
     // Every capture up front, so the whole sweep runs at once.
     let mut jobs: Vec<Job> = Vec::new();
@@ -236,8 +256,12 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
         // Row 0's band: the caret can hang a little above the row top and a
         // dipper's block drops below the row bottom, so the band is the row plus
         // a margin — still nowhere near row 4, where the reference caret sits.
-        let top = side["text_origin"]["top"].as_f64().expect("text_origin.top") as u32;
-        let lh = side["font"]["line_height"].as_f64().expect("font.line_height") as u32;
+        let top = side["text_origin"]["top"]
+            .as_f64()
+            .expect("text_origin.top") as u32;
+        let lh = side["font"]["line_height"]
+            .as_f64()
+            .expect("font.line_height") as u32;
         let band = (top.saturating_sub(8), top + lh + 8);
 
         // WHAT THE PREDICATE CLAIMS, read out of the product: with no
@@ -264,8 +288,13 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
         let widths: Vec<i64> = boxes.iter().map(|b| i(b.1) - i(b.0) + 1).collect();
         let bottoms: Vec<u32> = boxes.iter().map(|b| b.3).collect();
         let letters: Vec<char> = COLUMNS.iter().map(|(_, c)| *c).collect();
-        let face = side["theme"]["font_family"].as_str().unwrap_or("?").to_string();
-        let what = format!("{world} ({face}) {letters:?} tops={tops:?} lefts={lefts:?} widths={widths:?} bottoms={bottoms:?}");
+        let face = side["theme"]["font_family"]
+            .as_str()
+            .unwrap_or("?")
+            .to_string();
+        let what = format!(
+            "{world} ({face}) {letters:?} tops={tops:?} lefts={lefts:?} widths={widths:?} bottoms={bottoms:?}"
+        );
 
         // WHETHER THE FACE REALLY IS MONOSPACED, measured from the SAME pixels
         // and INDEPENDENT of the predicate under test: the caret is drawn AT the

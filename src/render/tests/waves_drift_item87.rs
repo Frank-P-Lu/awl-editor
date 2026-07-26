@@ -10,13 +10,12 @@
 //! determinism + liveness + boundedness in one sweep.
 
 use super::super::*;
-use super::dither::{offscreen, read_pixels, FMT};
+use super::dither::{FMT, offscreen, read_pixels};
 use super::view;
 
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -86,7 +85,10 @@ fn bombora_settled_captures_are_byte_identical() {
     crate::page::set_page_on(was_page_on);
     crate::page::set_measure(was_measure);
 
-    assert_eq!(sel_a, sel_b, "no other GPU-instanced layer's count may drift");
+    assert_eq!(
+        sel_a, sel_b,
+        "no other GPU-instanced layer's count may drift"
+    );
     assert_eq!(
         frame_a, frame_b,
         "two captures of the SAME settled/frozen Bombora scene must be byte-identical — \

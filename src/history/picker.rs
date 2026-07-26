@@ -8,7 +8,7 @@
 //! the read-back type this reads, and `prune` for the retention policy
 //! (a picker-independent concern this file never touches).
 
-use super::store::{list, load, Snapshot};
+use super::store::{Snapshot, list, load};
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -154,9 +154,21 @@ pub fn session_epoch_ms() -> Option<u64> {
 /// (versions since this session started) · **Today** (versions from the current
 /// calendar day). "All" is parked FIRST (strip index 0), per the settled convention.
 const HISTORY_FACET_STRIP: [Facet; 3] = [
-    Facet { label: "All", id: "all", sections: &[] },
-    Facet { label: "Session", id: "session", sections: &["Session"] },
-    Facet { label: "Today", id: "today", sections: &["Today"] },
+    Facet {
+        label: "All",
+        id: "all",
+        sections: &[],
+    },
+    Facet {
+        label: "Session",
+        id: "session",
+        sections: &["Session"],
+    },
+    Facet {
+        label: "Today",
+        id: "today",
+        sections: &["Today"],
+    },
 ];
 
 /// Whether two epoch-millis stamps fall on the same UTC calendar day — a plain
@@ -183,8 +195,10 @@ pub(super) fn history_bucket(item: FacetItem, lens_idx: usize) -> Option<&'stati
 
 /// The history timeline's registered [`FacetScheme`], handed back by
 /// [`crate::facets::scheme`] for [`crate::overlay::OverlayKind::History`].
-pub static HISTORY_FACETS: FacetScheme =
-    FacetScheme { strip: &HISTORY_FACET_STRIP, bucket: history_bucket };
+pub static HISTORY_FACETS: FacetScheme = FacetScheme {
+    strip: &HISTORY_FACET_STRIP,
+    bucket: history_bucket,
+};
 
 /// Disambiguate colliding WHEN labels: for every GROUP of rows whose relative
 /// label string collides ("2 hr ago" twice), append the snapshot's ` HH:MM`
@@ -300,8 +314,12 @@ pub fn diff_preview(
     let old = load(&path, &id)?;
     let label = ov.selected_value().unwrap_or("an earlier version");
     let title = format!("Comparing with {label}");
-    let (transcript, counts) =
-        crate::prosediff::diff_and_render(&old, current, crate::prosediff::Params::shipping(), &title);
+    let (transcript, counts) = crate::prosediff::diff_and_render(
+        &old,
+        current,
+        crate::prosediff::Params::shipping(),
+        &title,
+    );
     Some((id, transcript, counts))
 }
 

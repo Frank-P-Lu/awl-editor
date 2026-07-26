@@ -96,10 +96,22 @@ impl Choreo {
     /// The elastic-core params for this preset.
     pub fn params(self) -> MorphParams {
         match self {
-            Choreo::Morph => MorphParams { lead_gain: 1.8, overshoot: true },
-            Choreo::TwoShape => MorphParams { lead_gain: 1.9, overshoot: true },
-            Choreo::Slam => MorphParams { lead_gain: 2.3, overshoot: true },
-            Choreo::Soft => MorphParams { lead_gain: 1.35, overshoot: false },
+            Choreo::Morph => MorphParams {
+                lead_gain: 1.8,
+                overshoot: true,
+            },
+            Choreo::TwoShape => MorphParams {
+                lead_gain: 1.9,
+                overshoot: true,
+            },
+            Choreo::Slam => MorphParams {
+                lead_gain: 2.3,
+                overshoot: true,
+            },
+            Choreo::Soft => MorphParams {
+                lead_gain: 1.35,
+                overshoot: false,
+            },
         }
     }
 
@@ -143,13 +155,20 @@ pub fn morph_band(from_top: f32, to_top: f32, h: f32, t: f32, p: &MorphParams) -
     let e_trail = ease_with(p, t);
     // The physical edge that LEADS depends on travel direction.
     let moving_down = to_top >= from_top;
-    let (e_top, e_bot) = if moving_down { (e_trail, e_lead) } else { (e_lead, e_trail) };
+    let (e_top, e_bot) = if moving_down {
+        (e_trail, e_lead)
+    } else {
+        (e_lead, e_trail)
+    };
     let top = from_top + (to_top - from_top) * e_top;
     let bot = from_bot + (to_bot - from_bot) * e_bot;
     // Guard the transient recoil (trailing edge overshooting past the leading):
     // keep the rect upright and never sub-`MIN_BAND_H`.
     let (top, bot) = if bot >= top { (top, bot) } else { (bot, top) };
-    BandRect { top, height: (bot - top).max(MIN_BAND_H) }
+    BandRect {
+        top,
+        height: (bot - top).max(MIN_BAND_H),
+    }
 }
 
 /// THE TWO-SHAPE choreography — the leading band top, the chasing echo top, and
@@ -173,11 +192,19 @@ pub fn two_shape_band(from_top: f32, to_top: f32, h: f32, t: f32, p: &MorphParam
     let o_top = primary_top.max(echo_top);
     let o_bot = (primary_top + h).min(echo_top + h);
     let overlap = if o_bot - o_top > MIN_BAND_H {
-        Some(BandRect { top: o_top, height: o_bot - o_top })
+        Some(BandRect {
+            top: o_top,
+            height: o_bot - o_top,
+        })
     } else {
         None
     };
-    TwoShape { primary_top, echo_top, height: h, overlap }
+    TwoShape {
+        primary_top,
+        echo_top,
+        height: h,
+        overlap,
+    }
 }
 
 /// INK RIDES THE BAND, NOT THE STATE — which DISPLAY rows the living band
@@ -272,7 +299,10 @@ pub fn parse_motion_force(s: &str) -> Option<MotionForce> {
 /// never fight over one name — each ignores the other's grammar.
 fn awl_living_band() -> &'static Option<MotionForce> {
     static ONCE: std::sync::OnceLock<Option<MotionForce>> = std::sync::OnceLock::new();
-    const DEFAULT: MotionForce = MotionForce { choreo: Choreo::Morph, phase: None };
+    const DEFAULT: MotionForce = MotionForce {
+        choreo: Choreo::Morph,
+        phase: None,
+    };
     ONCE.get_or_init(|| match std::env::var("AWL_LIVING_BAND") {
         Err(_) => Some(DEFAULT),
         Ok(s) if s.trim().is_empty() || s.trim().eq_ignore_ascii_case("off") => None,
@@ -289,7 +319,9 @@ static MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<MotionForce>> = std::sync::
 
 #[cfg(test)]
 pub fn set_motion_test_override(m: Option<MotionForce>) {
-    *MOTION_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = m;
+    *MOTION_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = m;
 }
 
 /// The EFFECTIVE living-band voice for this frame — the calm [`Choreo::Morph`]
@@ -302,7 +334,10 @@ pub fn set_motion_test_override(m: Option<MotionForce>) {
 pub fn overlay_motion_force() -> Option<MotionForce> {
     #[cfg(test)]
     {
-        if let Some(m) = *MOTION_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(m) = *MOTION_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return Some(m);
         }
     }
@@ -324,9 +359,15 @@ mod tests {
         for &pre in &[Choreo::Morph, Choreo::Slam, Choreo::Soft, Choreo::TwoShape] {
             let p = pre.params();
             let a = morph_band(100.0, 340.0, 24.0, 0.0, &p);
-            assert!(approx(a.top, 100.0) && approx(a.height, 24.0), "{pre:?} t=0 == from rect: {a:?}");
+            assert!(
+                approx(a.top, 100.0) && approx(a.height, 24.0),
+                "{pre:?} t=0 == from rect: {a:?}"
+            );
             let b = morph_band(100.0, 340.0, 24.0, 1.0, &p);
-            assert!(approx(b.top, 340.0) && approx(b.height, 24.0), "{pre:?} t=1 == to rect: {b:?}");
+            assert!(
+                approx(b.top, 340.0) && approx(b.height, 24.0),
+                "{pre:?} t=1 == to rect: {b:?}"
+            );
         }
     }
 
@@ -342,8 +383,14 @@ mod tests {
             max_h_down = max_h_down.max(morph_band(100.0, 340.0, 24.0, t, &p).height);
             max_h_up = max_h_up.max(morph_band(340.0, 100.0, 24.0, t, &p).height);
         }
-        assert!(max_h_down > 24.0 + 1.0, "morph stretches moving down (peak {max_h_down})");
-        assert!(max_h_up > 24.0 + 1.0, "morph stretches moving up (peak {max_h_up})");
+        assert!(
+            max_h_down > 24.0 + 1.0,
+            "morph stretches moving down (peak {max_h_down})"
+        );
+        assert!(
+            max_h_up > 24.0 + 1.0,
+            "morph stretches moving up (peak {max_h_up})"
+        );
     }
 
     #[test]
@@ -353,7 +400,10 @@ mod tests {
             for i in 0..=100 {
                 let t = i as f32 / 100.0;
                 let r = morph_band(80.0, 500.0, 30.0, t, &p);
-                assert!(r.height >= MIN_BAND_H, "{pre:?} height >= min at t={t}: {r:?}");
+                assert!(
+                    r.height >= MIN_BAND_H,
+                    "{pre:?} height >= min at t={t}: {r:?}"
+                );
             }
         }
     }
@@ -364,9 +414,15 @@ mod tests {
         for i in 0..=10 {
             let t = i as f32 / 10.0;
             let r = morph_band(200.0, 200.0, 24.0, t, &p);
-            assert!(approx(r.top, 200.0) && approx(r.height, 24.0), "constant at t={t}: {r:?}");
+            assert!(
+                approx(r.top, 200.0) && approx(r.height, 24.0),
+                "constant at t={t}: {r:?}"
+            );
             let s = two_shape_band(200.0, 200.0, 24.0, t, &p);
-            assert!(approx(s.primary_top, 200.0) && approx(s.echo_top, 200.0), "two-shape constant at t={t}: {s:?}");
+            assert!(
+                approx(s.primary_top, 200.0) && approx(s.echo_top, 200.0),
+                "two-shape constant at t={t}: {s:?}"
+            );
             // A no-move always fully overlaps (one solid row).
             let o = s.overlap.expect("no-move fully overlaps");
             assert!(approx(o.height, 24.0), "no-move overlap == one row: {o:?}");
@@ -391,7 +447,10 @@ mod tests {
             let s = two_shape_band(100.0, 340.0, h, t, &p);
             max_sep = max_sep.max((s.primary_top - s.echo_top).abs());
         }
-        assert!(max_sep > 1.0, "two shapes separate mid-flight (peak {max_sep})");
+        assert!(
+            max_sep > 1.0,
+            "two shapes separate mid-flight (peak {max_sep})"
+        );
     }
 
     #[test]
@@ -402,7 +461,10 @@ mod tests {
         let saw_none = (1..40)
             .map(|i| i as f32 / 40.0)
             .any(|t| two_shape_band(0.0, 600.0, 20.0, t, &p).overlap.is_none());
-        assert!(saw_none, "a wide two-shape travel has a fully-cleared (no-crossing) phase");
+        assert!(
+            saw_none,
+            "a wide two-shape travel has a fully-cleared (no-crossing) phase"
+        );
     }
 
     #[test]
@@ -415,7 +477,10 @@ mod tests {
         let soft_lead = morph_band(0.0, 300.0, 24.0, t, &soft).top;
         // Moving down, the leading (bottom) edge races; read progress off `top`
         // (the trailing edge) too — Slam's whole band is further along.
-        assert!(slam_lead > soft_lead, "Slam leads harder than Soft ({slam_lead} vs {soft_lead})");
+        assert!(
+            slam_lead > soft_lead,
+            "Slam leads harder than Soft ({slam_lead} vs {soft_lead})"
+        );
     }
 
     #[test]
@@ -469,7 +534,10 @@ mod tests {
             .map(|i| i as f32 / 400.0)
             .filter_map(|t| two_shape_band(0.0, PIN_JUMP_ROWS * h, h, t, &p).overlap)
             .any(|o| (o.height - h * 0.5).abs() < h * 0.15);
-        assert!(saw_half, "two-shape crosses through a ~half-row overlap window");
+        assert!(
+            saw_half,
+            "two-shape crosses through a ~half-row overlap window"
+        );
     }
 
     #[test]
@@ -481,19 +549,31 @@ mod tests {
         assert_eq!(parse_motion_force("morph:notanum"), None);
         assert_eq!(
             parse_motion_force("morph"),
-            Some(MotionForce { choreo: Choreo::Morph, phase: None })
+            Some(MotionForce {
+                choreo: Choreo::Morph,
+                phase: None
+            })
         );
         assert_eq!(
             parse_motion_force("  TwoShape : 0.35 "),
-            Some(MotionForce { choreo: Choreo::TwoShape, phase: Some(0.35) })
+            Some(MotionForce {
+                choreo: Choreo::TwoShape,
+                phase: Some(0.35)
+            })
         );
         assert_eq!(
             parse_motion_force("slam:1.0"),
-            Some(MotionForce { choreo: Choreo::Slam, phase: Some(1.0) })
+            Some(MotionForce {
+                choreo: Choreo::Slam,
+                phase: Some(1.0)
+            })
         );
         assert_eq!(
             parse_motion_force("soft:0"),
-            Some(MotionForce { choreo: Choreo::Soft, phase: Some(0.0) })
+            Some(MotionForce {
+                choreo: Choreo::Soft,
+                phase: Some(0.0)
+            })
         );
     }
 }

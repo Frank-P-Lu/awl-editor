@@ -45,8 +45,14 @@ fn split_bounds_carve_the_query_beat_above_the_first_row() {
         // The whole gap sits ABOVE the first candidate row's top (nothing below
         // the beat is touched) and BELOW the query line's own top.
         let first_row_top = chrome::overlay_row_top(text_top, header_rows, hg, 0, lh);
-        assert!(gb <= first_row_top + 1e-3, "gap ends at/above the first row");
-        assert!(gt >= text_top + lh - 1e-3, "gap starts at/below the query line");
+        assert!(
+            gb <= first_row_top + 1e-3,
+            "gap ends at/above the first row"
+        );
+        assert!(
+            gt >= text_top + lh - 1e-3,
+            "gap starts at/below the query line"
+        );
         assert!(gt > text_top, "the upper surface is non-empty");
     }
 }
@@ -197,8 +203,10 @@ fn split_draws_two_surfaces_unified_draws_one() {
             p.overlay_lh(),
         )
         .unwrap();
-        assert!((gap_top - gt).abs() < 1e-3 && (gap_bottom - gb).abs() < 1e-3,
-            "the drawn gap == overlay_split_bounds (faceted={faceted})");
+        assert!(
+            (gap_top - gt).abs() < 1e-3 && (gap_bottom - gb).abs() < 1e-3,
+            "the drawn gap == overlay_split_bounds (faceted={faceted})"
+        );
     }
 
     set_pane_split_test_override(None);
@@ -233,9 +241,15 @@ fn split_stays_valid_narrow_and_empty() {
                 let fills = p.overlay_pane_fills_probe();
                 let label = format!("w={w} faceted={faceted} n={n}");
                 for f in &fills {
-                    assert!(f[2] > 0.0 && f[3] > 0.0, "{label}: every fill is non-degenerate ({f:?})");
+                    assert!(
+                        f[2] > 0.0 && f[3] > 0.0,
+                        "{label}: every fill is non-degenerate ({f:?})"
+                    );
                     // Fully inside the card bounds (unclipped surface).
-                    assert!(f[0] >= rect[0] - 1e-3 && f[1] >= rect[1] - 1e-3, "{label}: fill inside card top-left");
+                    assert!(
+                        f[0] >= rect[0] - 1e-3 && f[1] >= rect[1] - 1e-3,
+                        "{label}: fill inside card top-left"
+                    );
                     assert!(
                         f[0] + f[2] <= rect[0] + rect[2] + 1e-3
                             && f[1] + f[3] <= rect[1] + rect[3] + 1e-3,

@@ -16,7 +16,7 @@ use std::path::Path;
 use crate::render::{self, ScriptFontReports, TextPipeline, ViewState};
 
 use super::opts::CaptureOpts;
-use super::{schema_held, schema_plain, schema_timeline, CANVAS_HEIGHT, CANVAS_WIDTH};
+use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
 
 /// THE CAPTURE-SERIALIZATION LAW (queue item 98). Every capture path funnels
 /// through [`write_sidecar`], and a capture READS a fistful of process-global
@@ -581,7 +581,10 @@ fn page_json(pipeline: &TextPipeline) -> String {
         // `kind`/`ground`/`blob_lo`/`blob_hi`/`edge`/`dithered`/`phase`. Every one
         // of the fifteen non-lava worlds reports exactly as before (byte-identical
         // content; `phase` appears only on the lava arm).
-        background_json(pipeline.effective_background(), pipeline.lava_render_phase()),
+        background_json(
+            pipeline.effective_background(),
+            pipeline.lava_render_phase()
+        ),
         // TWINKLING STARS (`/173`): the ambient capability — style + the star
         // instances actually drawn + the effective twinkle phase (fixed 0.0
         // headlessly; the `AWL_STARS_PHASE` knob pins another).
@@ -721,7 +724,9 @@ fn outline_json(pipeline: &TextPipeline) -> String {
     let current = current
         .map(|c| c.to_string())
         .unwrap_or_else(|| "null".to_string());
-    format!("{{ \"on\": {on}, \"headings\": [{body}], \"current\": {current}, \"ancestors\": [{ancestors}], \"collapsed\": [{collapsed}] }}")
+    format!(
+        "{{ \"on\": {on}, \"headings\": [{body}], \"current\": {current}, \"ancestors\": [{ancestors}], \"collapsed\": [{collapsed}] }}"
+    )
 }
 
 /// WEB/LINUX MENU BAR block: `{ shown, open_menu, items }` — whether the awl-rendered
@@ -733,8 +738,14 @@ fn outline_json(pipeline: &TextPipeline) -> String {
 /// byte-identical; `--menu-bar` / `--menu-open N` drive it on.
 fn menubar_json(pipeline: &TextPipeline) -> String {
     let (shown, open, titles) = pipeline.menubar_report();
-    let items = titles.iter().map(|t| json_string(t)).collect::<Vec<_>>().join(", ");
-    let open_json = open.map(|t| json_string(&t)).unwrap_or_else(|| "null".to_string());
+    let items = titles
+        .iter()
+        .map(|t| json_string(t))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let open_json = open
+        .map(|t| json_string(&t))
+        .unwrap_or_else(|| "null".to_string());
     format!("{{ \"shown\": {shown}, \"open_menu\": {open_json}, \"items\": [{items}] }}")
 }
 
@@ -865,7 +876,10 @@ pub(super) fn cjk_json(fonts: &ScriptFontReports) -> String {
 fn script_font_json(fonts: &ScriptFontReports, id: crate::theme::FontId) -> String {
     match fonts.get(id) {
         Some((family, bundled)) => {
-            format!("{{ \"family\": {}, \"bundled\": {bundled} }}", json_string(family))
+            format!(
+                "{{ \"family\": {}, \"bundled\": {bundled} }}",
+                json_string(family)
+            )
         }
         None => "null".to_string(),
     }
@@ -1051,7 +1065,12 @@ fn about_json(pipeline: &TextPipeline) -> String {
 /// claim a figure (or a page) the card doesn't draw.
 fn streaks_json(pipeline: &TextPipeline) -> String {
     let s = pipeline.streaks_report();
-    let cells = s.cells.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(",");
+    let cells = s
+        .cells
+        .iter()
+        .map(|c| c.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
     format!(
         "{{ \"open\": {}, \"view\": \"{}\", \"streak\": {}, \"today_words\": {}, \"total_words\": {}, \"cells\": [{}] }}",
         s.open, s.view, s.streak, s.today_words, s.total_words, cells
@@ -1070,7 +1089,13 @@ fn peek_json(pipeline: &TextPipeline) -> String {
     let rows = p
         .rows
         .iter()
-        .map(|r| format!("{{ \"chord\": {}, \"name\": {} }}", json_string(&r.chord), json_string(&r.name)))
+        .map(|r| {
+            format!(
+                "{{ \"chord\": {}, \"name\": {} }}",
+                json_string(&r.chord),
+                json_string(&r.name)
+            )
+        })
         .collect::<Vec<_>>()
         .join(", ");
     format!("{{ \"open\": {}, \"rows\": [{}] }}", p.open, rows)
@@ -1153,7 +1178,11 @@ fn caret_block(caret: Option<&CaretFrame>) -> (String, String) {
                 ", \"cosmetic_trail\": {{ \"present\": {pr}, \"length\": {len}, \"direction\": {dir}, \"held\": {hd}, \"alpha\": {al}, \"sweep\": {sw}, \"tail\": {{ \"x\": {tlx}, \"y\": {tly} }}, \"head\": {{ \"x\": {hdx}, \"y\": {hdy} }} }}",
                 pr = co.present,
                 len = co.length,
-                dir = json_string(if co.vertical { "vertical" } else { "horizontal" }),
+                dir = json_string(if co.vertical {
+                    "vertical"
+                } else {
+                    "horizontal"
+                }),
                 hd = co.held,
                 al = co.alpha,
                 sw = co.sweep,
@@ -1196,23 +1225,63 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
     match bg {
         Background::Gradient { from, to, dir } => format!(
             "{{ \"kind\": \"gradient\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}] }}",
-            hex(from), hex(to), dir.0, dir.1
+            hex(from),
+            hex(to),
+            dir.0,
+            dir.1
         ),
-        Background::Dots { from, to, dir, tint, edge } => format!(
+        Background::Dots {
+            from,
+            to,
+            dir,
+            tint,
+            edge,
+        } => format!(
             "{{ \"kind\": \"dots\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"edge\": {} }}",
-            hex(from), hex(to), dir.0, dir.1, hex(tint), edge
+            hex(from),
+            hex(to),
+            dir.0,
+            dir.1,
+            hex(tint),
+            edge
         ),
-        Background::Starfield { from, to, dir, tint } => format!(
+        Background::Starfield {
+            from,
+            to,
+            dir,
+            tint,
+        } => format!(
             "{{ \"kind\": \"starfield\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {} }}",
-            hex(from), hex(to), dir.0, dir.1, hex(tint)
+            hex(from),
+            hex(to),
+            dir.0,
+            dir.1,
+            hex(tint)
         ),
-        Background::Pinstripe { from, to, dir, tint } => format!(
+        Background::Pinstripe {
+            from,
+            to,
+            dir,
+            tint,
+        } => format!(
             "{{ \"kind\": \"pinstripe\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {} }}",
-            hex(from), hex(to), dir.0, dir.1, hex(tint)
+            hex(from),
+            hex(to),
+            dir.0,
+            dir.1,
+            hex(tint)
         ),
-        Background::Stripes { from, to, band, angle } => format!(
+        Background::Stripes {
+            from,
+            to,
+            band,
+            angle,
+        } => format!(
             "{{ \"kind\": \"stripes\", \"from\": {}, \"to\": {}, \"band\": {}, \"angle\": {} }}",
-            hex(from), hex(to), hex(band), angle
+            hex(from),
+            hex(to),
+            hex(band),
+            angle
         ),
         // THE LAVA-LAMP GROUND: the metaball ground's DATA (ground/blob tones +
         // edge treatment + dither) plus the effective render `phase` (a FIXED
@@ -1220,28 +1289,61 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
         // emits this arm today (all fifteen are the five static grounds), so a
         // default capture never reaches it; it appears only under the dev
         // `AWL_LAVA` gallery knob or a future authored lava world.
-        Background::Lava { ground, blob_lo, blob_hi, edge, dithered } => format!(
+        Background::Lava {
+            ground,
+            blob_lo,
+            blob_hi,
+            edge,
+            dithered,
+        } => format!(
             "{{ \"kind\": \"lava\", \"ground\": {}, \"blob_lo\": {}, \"blob_hi\": {}, \"edge\": \"{}\", \"dithered\": {}, \"phase\": {} }}",
-            hex(ground), hex(blob_lo), hex(blob_hi), edge.as_str(), dithered, lava_phase
+            hex(ground),
+            hex(blob_lo),
+            hex(blob_hi),
+            edge.as_str(),
+            dithered,
+            lava_phase
         ),
         // ITEM 69: three authored tones (the ground ladder), not a gradient —
         // `tones` serializes as a 3-array so a reviewer reads back exactly what
         // the theme declared, same spirit as every other arm above.
         Background::Bands { tones, angle } => format!(
             "{{ \"kind\": \"bands\", \"tones\": [{}, {}, {}], \"angle\": {} }}",
-            hex(tones[0]), hex(tones[1]), hex(tones[2]), angle
+            hex(tones[0]),
+            hex(tones[1]),
+            hex(tones[2]),
+            angle
         ),
         Background::Waves { tones } => format!(
             "{{ \"kind\": \"waves\", \"tones\": [{}, {}, {}] }}",
-            hex(tones[0]), hex(tones[1]), hex(tones[2])
+            hex(tones[0]),
+            hex(tones[1]),
+            hex(tones[2])
         ),
         // ITEM 86: a repeating chevron mark over a gradient — the same
         // "report the world's own authored data verbatim" shape as every
         // other arm, plus the four distinctness dials (see
         // `Background::Zigzag`'s own doc).
-        Background::Zigzag { from, to, dir, tint, period_px, amplitude_px, angle, density } => format!(
+        Background::Zigzag {
+            from,
+            to,
+            dir,
+            tint,
+            period_px,
+            amplitude_px,
+            angle,
+            density,
+        } => format!(
             "{{ \"kind\": \"zigzag\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"period_px\": {}, \"amplitude_px\": {}, \"angle\": {}, \"density\": {} }}",
-            hex(from), hex(to), dir.0, dir.1, hex(tint), period_px, amplitude_px, angle, density
+            hex(from),
+            hex(to),
+            dir.0,
+            dir.1,
+            hex(tint),
+            period_px,
+            amplitude_px,
+            angle,
+            density
         ),
     }
 }

@@ -66,25 +66,22 @@ impl SpellUnderlinePipeline {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, srgba: [u8; 4]) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("spell underline shader"),
-            source: wgpu::ShaderSource::Wgsl(
-                include_str!("../shaders/spellunderline.wgsl").into(),
-            ),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/spellunderline.wgsl").into()),
         });
 
-        let bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("spell underline globals layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("spell underline globals layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("spell underline globals"),
@@ -339,9 +336,7 @@ mod bytemuck_lite {
     }
 
     pub fn cast_slice<T: Pod>(s: &[T]) -> &[u8] {
-        unsafe {
-            core::slice::from_raw_parts(s.as_ptr() as *const u8, core::mem::size_of_val(s))
-        }
+        unsafe { core::slice::from_raw_parts(s.as_ptr() as *const u8, core::mem::size_of_val(s)) }
     }
 }
 
@@ -441,7 +436,11 @@ mod tests {
         fn relative_luminance(c: crate::theme::Srgb) -> f64 {
             fn lin(v: u8) -> f64 {
                 let c = v as f64 / 255.0;
-                if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+                if c <= 0.04045 {
+                    c / 12.92
+                } else {
+                    ((c + 0.055) / 1.055).powf(2.4)
+                }
             }
             0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
         }
@@ -460,8 +459,12 @@ mod tests {
                  #{:02x}{:02x}{:02x} has only {ratio:.2}:1 contrast (floor {FLOOR}:1) — \
                  the misspelling squiggle would read as near-invisible on this world",
                 th.name,
-                th.error.r, th.error.g, th.error.b,
-                th.base_100.r, th.base_100.g, th.base_100.b,
+                th.error.r,
+                th.error.g,
+                th.error.b,
+                th.base_100.r,
+                th.base_100.g,
+                th.base_100.b,
             );
         }
     }

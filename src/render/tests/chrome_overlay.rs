@@ -59,12 +59,18 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
                 let right = left + w;
                 let ctx = format!("ww={ww} desired={desired} anchor={anchor:?}");
                 assert!(w > 24.0, "{ctx}: card width {w} must leave room for text");
-                assert!(left >= floor - 0.01, "{ctx}: left margin {left} >= floor {floor}");
+                assert!(
+                    left >= floor - 0.01,
+                    "{ctx}: left margin {left} >= floor {floor}"
+                );
                 assert!(
                     right <= ww - floor + 0.01,
                     "{ctx}: right edge {right} must keep a floor margin inside {ww}"
                 );
-                assert!(w <= desired + 0.01, "{ctx}: never wider than desired {desired}");
+                assert!(
+                    w <= desired + 0.01,
+                    "{ctx}: never wider than desired {desired}"
+                );
                 // FILL REGIME: once the desired width can't seat with floor pads,
                 // the card fills (ww - 2*floor) and re-centers (symmetric margins).
                 if desired > ww - 2.0 * floor {
@@ -83,7 +89,8 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
     }
     // WIDE: the top-left card holds the FULL interior-rail inset (item 67 — the
     // card centers near the viewport's one-third mark).
-    let (left, _) = chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, 1200.0, chrome::CARD_MAX_W);
+    let (left, _) =
+        chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, 1200.0, chrome::CARD_MAX_W);
     let want_inset = chrome::overlay_rail_inset(1200.0);
     assert!(
         (left - want_inset).abs() < 0.01,
@@ -239,129 +246,137 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
         // pitch clause covers both uniformly — but each world also exercises its
         // own real face + facet skin.
         for world in crate::theme::world_names() {
-        theme::set_active_by_name(world).unwrap();
-        p.sync_theme();
-        for faceted in [false, true] {
-        for (sname, style) in styles {
-            crate::render::set_list_style_test_override(style);
-            let mut v = view("hello\n", 0, 0);
-            v.overlay_active = true;
-            v.overlay_title = "themes";
-            v.overlay_items = items.clone();
-            v.overlay_bindings = binds.clone();
-            v.overlay_selected = 3;
-            if faceted {
-                // Make a real FACET active (index >= 1) so the active-lens
-                // underline is recorded — the C2 y-owner assertion below reads it.
-                v.overlay_lens = vec![("All".into(), false), ("File".into(), true)];
-            }
-            p.set_view(&v);
-            p.prepare(&device, &queue, 1200, 800).unwrap();
-            let pr = p.overlay_row_y_probe();
-            let ctx = format!("world={world} dpi={dpi} faceted={faceted} list={sname}");
+            theme::set_active_by_name(world).unwrap();
+            p.sync_theme();
+            for faceted in [false, true] {
+                for (sname, style) in styles {
+                    crate::render::set_list_style_test_override(style);
+                    let mut v = view("hello\n", 0, 0);
+                    v.overlay_active = true;
+                    v.overlay_title = "themes";
+                    v.overlay_items = items.clone();
+                    v.overlay_bindings = binds.clone();
+                    v.overlay_selected = 3;
+                    if faceted {
+                        // Make a real FACET active (index >= 1) so the active-lens
+                        // underline is recorded — the C2 y-owner assertion below reads it.
+                        v.overlay_lens = vec![("All".into(), false), ("File".into(), true)];
+                    }
+                    p.set_view(&v);
+                    p.prepare(&device, &queue, 1200, 800).unwrap();
+                    let pr = p.overlay_row_y_probe();
+                    let ctx = format!("world={world} dpi={dpi} faceted={faceted} list={sname}");
 
-            // Per row: the name and the chord label sit on the same y.
-            for (row, &prim) in &pr.primary {
-                let sec = pr.secondary.get(row).copied().unwrap_or_else(|| {
-                    panic!("{ctx}: row {row} has a primary name but no secondary label")
-                });
-                assert!(
-                    (prim - sec).abs() <= 1.0,
-                    "{ctx}: row {row} primary y={prim} vs secondary y={sec} must agree \
+                    // Per row: the name and the chord label sit on the same y.
+                    for (row, &prim) in &pr.primary {
+                        let sec = pr.secondary.get(row).copied().unwrap_or_else(|| {
+                            panic!("{ctx}: row {row} has a primary name but no secondary label")
+                        });
+                        assert!(
+                            (prim - sec).abs() <= 1.0,
+                            "{ctx}: row {row} primary y={prim} vs secondary y={sec} must agree \
                      (the shortcut must not ride high of its name)"
-                );
-            }
-            // The selected row's band sits on its primary name.
-            let sel_prim = pr.primary.get(&pr.sel_disp).copied().unwrap_or_else(|| {
-                panic!("{ctx}: selected display row {} has no primary run", pr.sel_disp)
-            });
-            assert!(
-                (sel_prim - pr.band_top).abs() <= 1.0,
-                "{ctx}: selected band top {} must sit on its name top {sel_prim}",
-                pr.band_top
-            );
-            // EVERY-ROW PITCH: the shaped text row `k` must land exactly where the
-            // plates step to it — `band_top + (k - sel_disp) * lh`. This is the
-            // shaper-pitch == plate/band-pitch invariant whose violation reads as
-            // the "every second row" desync. A tolerance of 1px allows sub-pixel
-            // rounding but nothing near a half-row; a per-row drift accumulates and
-            // trips well before the list ends.
-            for (&k, &prim) in &pr.primary {
-                let pitch_expected = pr.band_top + (k as f32 - pr.sel_disp as f32) * pr.lh;
-                assert!(
-                    (prim - pitch_expected).abs() <= 1.0,
-                    "{ctx}: row {k} text top {prim} must sit on the plate pitch \
+                        );
+                    }
+                    // The selected row's band sits on its primary name.
+                    let sel_prim = pr.primary.get(&pr.sel_disp).copied().unwrap_or_else(|| {
+                        panic!(
+                            "{ctx}: selected display row {} has no primary run",
+                            pr.sel_disp
+                        )
+                    });
+                    assert!(
+                        (sel_prim - pr.band_top).abs() <= 1.0,
+                        "{ctx}: selected band top {} must sit on its name top {sel_prim}",
+                        pr.band_top
+                    );
+                    // EVERY-ROW PITCH: the shaped text row `k` must land exactly where the
+                    // plates step to it — `band_top + (k - sel_disp) * lh`. This is the
+                    // shaper-pitch == plate/band-pitch invariant whose violation reads as
+                    // the "every second row" desync. A tolerance of 1px allows sub-pixel
+                    // rounding but nothing near a half-row; a per-row drift accumulates and
+                    // trips well before the list ends.
+                    for (&k, &prim) in &pr.primary {
+                        let pitch_expected = pr.band_top + (k as f32 - pr.sel_disp as f32) * pr.lh;
+                        assert!(
+                            (prim - pitch_expected).abs() <= 1.0,
+                            "{ctx}: row {k} text top {prim} must sit on the plate pitch \
                      {pitch_expected} (lh={}, band={}, sel_disp={}) — a drift here is \
                      the shaper reading a different pitch than the plate renderer",
-                    pr.lh,
-                    pr.band_top,
-                    pr.sel_disp
-                );
-            }
-            // The caret rides the query line (centered on its REAL shaped height,
-            // never above/below). On the flat pickers under a beat, that line is
-            // inflated by `header_gap`, so the caret must ride the inflated height,
-            // NOT the bare `lh` — the old `lh`-based centre floated a half-beat high.
-            assert!(
-                pr.caret_center >= pr.query_line_top
-                    && pr.caret_center <= pr.query_line_top + pr.query_line_height,
-                "{ctx}: caret center {} must sit on the query line [{}, {}]",
-                pr.caret_center,
-                pr.query_line_top,
-                pr.query_line_top + pr.query_line_height
-            );
-            assert!(
-                (pr.caret_center - (pr.query_line_top + pr.query_line_height * 0.5)).abs() <= 1.0,
-                "{ctx}: caret center {} must be centered on the query line's real height",
-                pr.caret_center
-            );
-            // C2 STRIP-UNDERLINE Y-OWNER LAW (the element round A's law missed):
-            // a `Text`-facet card records an active-lens UNDERLINE; it MUST sit
-            // at/BELOW the strip label's shaped baseline (never mid-glyph — the
-            // Tawny/Firetail strike-through) and stay within the strip row box.
-            // SCOPED to the `Text` facet skin: the poster worlds carry a
-            // `Band`/`Chips` mark whose shape + recording is a SEPARATE (in-flux,
-            // held-back) concern, not this row-geometry law's subject — they are
-            // in the sweep for the row-agreement + pitch clauses above, which do
-            // not depend on the facet skin.
-            if faceted && matches!(crate::render::effective_facet_style(), theme::FacetStyle::Text)
-            {
-                let base = pr.strip_baseline.unwrap_or_else(|| {
-                    panic!("{ctx}: a faceted card must expose a strip baseline")
-                });
-                let bottom = pr.strip_line_bottom.unwrap();
-                let uy = pr.strip_underline_y.unwrap_or_else(|| {
-                    panic!("{ctx}: an active Text facet must record an underline y")
-                });
-                assert!(
-                    uy >= base,
-                    "{ctx}: underline y={uy} must sit at/below the strip baseline \
+                            pr.lh,
+                            pr.band_top,
+                            pr.sel_disp
+                        );
+                    }
+                    // The caret rides the query line (centered on its REAL shaped height,
+                    // never above/below). On the flat pickers under a beat, that line is
+                    // inflated by `header_gap`, so the caret must ride the inflated height,
+                    // NOT the bare `lh` — the old `lh`-based centre floated a half-beat high.
+                    assert!(
+                        pr.caret_center >= pr.query_line_top
+                            && pr.caret_center <= pr.query_line_top + pr.query_line_height,
+                        "{ctx}: caret center {} must sit on the query line [{}, {}]",
+                        pr.caret_center,
+                        pr.query_line_top,
+                        pr.query_line_top + pr.query_line_height
+                    );
+                    assert!(
+                        (pr.caret_center - (pr.query_line_top + pr.query_line_height * 0.5)).abs()
+                            <= 1.0,
+                        "{ctx}: caret center {} must be centered on the query line's real height",
+                        pr.caret_center
+                    );
+                    // C2 STRIP-UNDERLINE Y-OWNER LAW (the element round A's law missed):
+                    // a `Text`-facet card records an active-lens UNDERLINE; it MUST sit
+                    // at/BELOW the strip label's shaped baseline (never mid-glyph — the
+                    // Tawny/Firetail strike-through) and stay within the strip row box.
+                    // SCOPED to the `Text` facet skin: the poster worlds carry a
+                    // `Band`/`Chips` mark whose shape + recording is a SEPARATE (in-flux,
+                    // held-back) concern, not this row-geometry law's subject — they are
+                    // in the sweep for the row-agreement + pitch clauses above, which do
+                    // not depend on the facet skin.
+                    if faceted
+                        && matches!(
+                            crate::render::effective_facet_style(),
+                            theme::FacetStyle::Text
+                        )
+                    {
+                        let base = pr.strip_baseline.unwrap_or_else(|| {
+                            panic!("{ctx}: a faceted card must expose a strip baseline")
+                        });
+                        let bottom = pr.strip_line_bottom.unwrap();
+                        let uy = pr.strip_underline_y.unwrap_or_else(|| {
+                            panic!("{ctx}: an active Text facet must record an underline y")
+                        });
+                        assert!(
+                            uy >= base,
+                            "{ctx}: underline y={uy} must sit at/below the strip baseline \
                      {base} (never strike through the label)"
-                );
-                assert!(
-                    uy <= bottom + 0.5,
-                    "{ctx}: underline y={uy} must stay within the strip row \
+                        );
+                        assert!(
+                            uy <= bottom + 0.5,
+                            "{ctx}: underline y={uy} must stay within the strip row \
                      (bottom {bottom})"
-                );
-            }
-            // INDEPENDENT (non-circular) witness: cosmic-text half-leads the query
-            // glyphs so their baseline sits near the BOTTOM of the (possibly
-            // inflated) line. The caret centre must land a sane ~1/3-row ABOVE that
-            // baseline — covering the x-height — not a half-beat above the whole
-            // line. This is the assertion the full-bleed bug failed: it put the
-            // caret centre a full `header_gap * 0.5` (≈ a third of the *card*)
-            // above the baseline instead of a fraction of one row.
-            let above_baseline = pr.query_baseline - pr.caret_center;
-            assert!(
-                above_baseline > 0.0 && above_baseline <= pr.lh * 0.55,
-                "{ctx}: caret center {} must sit just above the query baseline {} \
+                        );
+                    }
+                    // INDEPENDENT (non-circular) witness: cosmic-text half-leads the query
+                    // glyphs so their baseline sits near the BOTTOM of the (possibly
+                    // inflated) line. The caret centre must land a sane ~1/3-row ABOVE that
+                    // baseline — covering the x-height — not a half-beat above the whole
+                    // line. This is the assertion the full-bleed bug failed: it put the
+                    // caret centre a full `header_gap * 0.5` (≈ a third of the *card*)
+                    // above the baseline instead of a fraction of one row.
+                    let above_baseline = pr.query_baseline - pr.caret_center;
+                    assert!(
+                        above_baseline > 0.0 && above_baseline <= pr.lh * 0.55,
+                        "{ctx}: caret center {} must sit just above the query baseline {} \
                  (0 < {above_baseline} <= {}), not float a half-beat high",
-                pr.caret_center,
-                pr.query_baseline,
-                pr.lh * 0.55
-            );
-        }
-        }
+                        pr.caret_center,
+                        pr.query_baseline,
+                        pr.lh * 0.55
+                    );
+                }
+            }
         }
     }
     crate::render::set_list_style_test_override(None);
@@ -411,8 +426,10 @@ fn gutter_visible_only_in_page_mode_and_dim_overlay_tracks_takeover() {
     let mut peek = view("hello\n", 0, 0);
     peek.search_active = true; // the SPLIT search panel, not a takeover
     p.set_view(&peek);
-    assert!(!p.dims_doc(), "the search split panel keeps the document bright");
-
+    assert!(
+        !p.dims_doc(),
+        "the search split panel keeps the document bright"
+    );
 }
 
 /// OVERLAY IS INSTANT (no summon/dismiss motion): a summoned card appears at its
@@ -451,7 +468,10 @@ fn overlay_appears_and_closes_instantly_no_motion() {
     closed.overlay_active = false;
     p.set_view(&closed);
     assert!(!p.dims_doc(), "the overlay closes instantly");
-    assert!(p.overlay_card_rect().is_none(), "the card is gone the same frame");
+    assert!(
+        p.overlay_card_rect().is_none(),
+        "the card is gone the same frame"
+    );
 }
 
 /// THE BUG (user screenshot): at a narrow page-column width the gutter used to
@@ -512,17 +532,27 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
         project.chars().count()
     );
 
-    let (name, reported_project) =
-        p.gutter_report().expect("a tight-but-real margin still shows the gutter");
+    let (name, reported_project) = p
+        .gutter_report()
+        .expect("a tight-but-real margin still shows the gutter");
     // (1) THE FIX: the filename is ALWAYS one line — never mid-word wrapped —
     // and the sidecar reports EXACTLY what was drawn.
-    assert!(!name.contains('\n'), "the filename must render on ONE line, got {name:?}");
+    assert!(
+        !name.contains('\n'),
+        "the filename must render on ONE line, got {name:?}"
+    );
     assert!(
         name.chars().count() <= avail_chars,
         "the reported name must fit the same budget the pixels draw at, got {name:?} (budget {avail_chars})"
     );
-    assert_ne!(name, long_name, "a name this long in this margin must actually elide");
-    assert!(name.ends_with(".md"), "elision preserves the extension: {name:?}");
+    assert_ne!(
+        name, long_name,
+        "a name this long in this margin must actually elide"
+    );
+    assert!(
+        name.ends_with(".md"),
+        "elision preserves the extension: {name:?}"
+    );
     // (2) THE CORRECTION: the project line does NOT yield just because the
     // filename is eliding — it stays visible, fit independently against the
     // SAME budget. Here it's short enough to still show whole.
@@ -537,10 +567,14 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     short.gutter_name = "short.md".to_string();
     short.gutter_project = project.to_string();
     p.set_view(&short);
-    let (short_name, short_project) =
-        p.gutter_report().expect("a short name always fits this margin");
+    let (short_name, short_project) = p
+        .gutter_report()
+        .expect("a short name always fits this margin");
     assert_eq!(short_name, "short.md", "a short name is never elided");
-    assert_eq!(short_project, project, "a short name leaves plenty of room for the project too");
+    assert_eq!(
+        short_project, project,
+        "a short name leaves plenty of room for the project too"
+    );
 
     // The SYMMETRIC case: a genuinely long PROJECT elides independently too,
     // while a short filename stays whole right alongside it — proving the
@@ -556,13 +590,22 @@ fn narrow_gutter_never_wraps_and_both_lines_elide_independently() {
     swapped.gutter_name = "short.md".to_string();
     swapped.gutter_project = long_project.to_string();
     p.set_view(&swapped);
-    let (swapped_name, elided_project) =
-        p.gutter_report().expect("a tight-but-real margin still shows the gutter");
-    assert_eq!(swapped_name, "short.md", "the short name is unaffected by the project eliding");
-    assert_ne!(elided_project, long_project, "a project this long in this margin must actually elide");
+    let (swapped_name, elided_project) = p
+        .gutter_report()
+        .expect("a tight-but-real margin still shows the gutter");
+    assert_eq!(
+        swapped_name, "short.md",
+        "the short name is unaffected by the project eliding"
+    );
+    assert_ne!(
+        elided_project, long_project,
+        "a project this long in this margin must actually elide"
+    );
     assert!(elided_project.chars().count() <= avail_chars);
-    assert!(!elided_project.contains('\n'), "the project must render on ONE line too");
-
+    assert!(
+        !elided_project.contains('\n'),
+        "the project must render on ONE line too"
+    );
 }
 
 /// FIX: `blur_signature` must invalidate on a PAGE/WRAP geometry change — a page
@@ -578,9 +621,7 @@ fn blur_signature_invalidates_on_page_geometry_change_not_on_a_no_op_frame() {
     let _g = crate::testlock::serial();
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping blur_signature_invalidates_on_page_geometry_change: no wgpu adapter"
-        );
+        eprintln!("skipping blur_signature_invalidates_on_page_geometry_change: no wgpu adapter");
         return;
     };
     crate::page::set_page_on(false);
@@ -618,7 +659,6 @@ fn blur_signature_invalidates_on_page_geometry_change_not_on_a_no_op_frame() {
         sig_page_on_narrow, sig_measure_wider,
         "a measure-only change must also invalidate the blur signature"
     );
-
 }
 #[test]
 fn blur_signature_invalidates_when_the_live_world_phase_changes() {
@@ -647,8 +687,7 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
     // Build a headless pipeline but KEEP the device/queue so we can drive `prepare`
     // (the elevation-quad instance counts are only set during prepare).
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -661,13 +700,14 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping caret_preview_panel_appears_below_picker_and_stops_on_close: no wgpu adapter");
+        eprintln!(
+            "skipping caret_preview_panel_appears_below_picker_and_stops_on_close: no wgpu adapter"
+        );
         return;
     };
 
@@ -690,10 +730,20 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
     let (rect, text, _beat, silhouette) = p
         .caret_preview_panel_report()
         .expect("the preview panel is summoned with the picker");
-    assert_eq!(text, crate::caret::SAMPLE, "the settled panel shows the full sample line");
+    assert_eq!(
+        text,
+        crate::caret::SAMPLE,
+        "the settled panel shows the full sample line"
+    );
     assert!(!silhouette, "Block never paints the Morph silhouette");
-    assert!(rect[2] > 300.0, "the panel spans the picker width: {rect:?}");
-    assert!(rect[3] > p.metrics.line_height, "a two-line-tall box: {rect:?}");
+    assert!(
+        rect[2] > 300.0,
+        "the panel spans the picker width: {rect:?}"
+    );
+    assert!(
+        rect[3] > p.metrics.line_height,
+        "a two-line-tall box: {rect:?}"
+    );
     assert!(
         rect[1] > 52.0 + 3.0 * p.metrics.line_height,
         "the panel floats below the picker card: {rect:?}"
@@ -702,10 +752,25 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
     // drop shadow (dark-depth Option C, 2026-07-22): the shadow quad is
     // retired outright, on every world — the border's own muted surface-step
     // rim + the card's value step carry the depth (DESIGN §5).
-    assert_eq!(p.float_card.instance_count(), 1, "the float card is summoned");
-    assert_eq!(p.float_shadow.instance_count(), 0, "no drop shadow — retired (dark-depth Option C)");
-    assert_eq!(p.float_border.instance_count(), 1, "and a crisp raised edge");
-    assert!(p.caret_preview_pipeline.is_drawn(), "the demo caret rides the sample line");
+    assert_eq!(
+        p.float_card.instance_count(),
+        1,
+        "the float card is summoned"
+    );
+    assert_eq!(
+        p.float_shadow.instance_count(),
+        0,
+        "no drop shadow — retired (dark-depth Option C)"
+    );
+    assert_eq!(
+        p.float_border.instance_count(),
+        1,
+        "and a crisp raised edge"
+    );
+    assert!(
+        p.caret_preview_pipeline.is_drawn(),
+        "the demo caret rides the sample line"
+    );
 
     // CLOSE the picker: the panel + caret park (nothing drawn), the demo resets.
     let closed = view("hello world\n", 0, 0);
@@ -715,10 +780,17 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
         p.caret_preview_panel_report().is_none(),
         "no panel once the picker is closed"
     );
-    assert_eq!(p.float_card.instance_count(), 0, "float card parked on close");
+    assert_eq!(
+        p.float_card.instance_count(),
+        0,
+        "float card parked on close"
+    );
     assert_eq!(p.float_shadow.instance_count(), 0, "shadow parked on close");
     assert_eq!(p.float_border.instance_count(), 0, "border parked on close");
-    assert!(!p.caret_preview_pipeline.is_drawn(), "preview caret parked on close");
+    assert!(
+        !p.caret_preview_pipeline.is_drawn(),
+        "preview caret parked on close"
+    );
 }
 
 /// ITEM 119 — every authored world must keep the caret-preview float alive below
@@ -763,7 +835,10 @@ fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
                 p.settle_caret_preview();
                 p.prepare(&device, &queue, 1200, 800).unwrap();
                 let ctx = format!("world={world} style={style_name} dpi={dpi}");
-                assert!(p.caret_preview_panel_report().is_some(), "{ctx}: preview report");
+                assert!(
+                    p.caret_preview_panel_report().is_some(),
+                    "{ctx}: preview report"
+                );
                 assert_eq!(p.float_card.instance_count(), 1, "{ctx}: float card");
                 assert_eq!(p.float_border.instance_count(), 1, "{ctx}: float border");
                 assert!(p.caret_preview_pipeline.is_drawn(), "{ctx}: demo caret");
@@ -771,8 +846,16 @@ fn caret_preview_float_owner_sweeps_world_style_and_dpi() {
                 p.set_view(&view("hello world\n", 0, 0));
                 p.prepare(&device, &queue, 1200, 800).unwrap();
                 assert_eq!(p.float_card.instance_count(), 0, "{ctx}: close parks card");
-                assert_eq!(p.float_border.instance_count(), 0, "{ctx}: close parks border");
-                assert_eq!(p.float_shadow.instance_count(), 0, "{ctx}: close parks shadow");
+                assert_eq!(
+                    p.float_border.instance_count(),
+                    0,
+                    "{ctx}: close parks border"
+                );
+                assert_eq!(
+                    p.float_shadow.instance_count(),
+                    0,
+                    "{ctx}: close parks shadow"
+                );
             }
         }
     }
@@ -804,13 +887,19 @@ fn list_style_override_reader_writer_are_serialized() {
                 extent: theme::BarExtent::FullWidth,
                 coverage: theme::BarCoverage::All,
             }));
-            assert!(matches!(crate::render::effective_list_style(), theme::ListStyle::Bars { .. }));
+            assert!(matches!(
+                crate::render::effective_list_style(),
+                theme::ListStyle::Bars { .. }
+            ));
             entered.store(true, Ordering::SeqCst);
         })
     };
     barrier.wait();
     std::thread::sleep(std::time::Duration::from_millis(25));
-    assert!(!entered.load(Ordering::SeqCst), "writer/reader must wait behind the outer guard");
+    assert!(
+        !entered.load(Ordering::SeqCst),
+        "writer/reader must wait behind the outer guard"
+    );
     drop(outer);
     worker.join().unwrap();
     let _g = crate::testlock::serial();
@@ -827,8 +916,7 @@ fn list_style_override_reader_writer_are_serialized() {
 fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
     let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -841,13 +929,14 @@ fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping closed_overlay_parks_text_and_quads_even_while_the_hud_is_held: no wgpu adapter");
+        eprintln!(
+            "skipping closed_overlay_parks_text_and_quads_even_while_the_hud_is_held: no wgpu adapter"
+        );
         return;
     };
 
@@ -872,8 +961,15 @@ fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
         p.overlay_pane_fills_probe().len(),
         "the overlay card fill(s) are drawn while open"
     );
-    assert!(p.panel_card.instance_count() >= 1, "at least one card surface is drawn");
-    assert_eq!(p.overlay_rows.instance_count(), 1, "the selected-row band is drawn");
+    assert!(
+        p.panel_card.instance_count() >= 1,
+        "at least one card surface is drawn"
+    );
+    assert_eq!(
+        p.overlay_rows.instance_count(),
+        1,
+        "the selected-row band is drawn"
+    );
     assert!(
         p.overlay_text_glyph_count() > 0,
         "the overlay text carries the palette rows while open"
@@ -893,14 +989,25 @@ fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
         0,
         "the closed overlay's text renderer carries no stale palette glyphs"
     );
-    assert_eq!(p.panel_card.instance_count(), 0, "the card quad is parked on close");
-    assert_eq!(p.overlay_rows.instance_count(), 0, "the row band is parked on close");
+    assert_eq!(
+        p.panel_card.instance_count(),
+        0,
+        "the card quad is parked on close"
+    );
+    assert_eq!(
+        p.overlay_rows.instance_count(),
+        0,
+        "the row band is parked on close"
+    );
     assert_eq!(
         p.overlay_lens_underline.instance_count(),
         0,
         "the theme-lens underline is parked on close"
     );
-    assert!(!p.panel_caret.is_drawn(), "the amber query caret is parked on close");
+    assert!(
+        !p.panel_caret.is_drawn(),
+        "the amber query caret is parked on close"
+    );
 }
 
 /// EMPTY STATE (pass 3): a picker with NO candidate rows draws ONE dim message
@@ -912,8 +1019,7 @@ fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
 fn overlay_empty_state_draws_a_dim_message_row() {
     let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -926,8 +1032,7 @@ fn overlay_empty_state_draws_a_dim_message_row() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
@@ -955,7 +1060,10 @@ fn overlay_empty_state_draws_a_dim_message_row() {
         .map(|l| l.text().to_string())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(joined.contains("no matches"), "shaped panel shows the message: {joined:?}");
+    assert!(
+        joined.contains("no matches"),
+        "shaped panel shows the message: {joined:?}"
+    );
     // No selected-row highlight band: the empty-state message is not selectable.
     assert_eq!(
         p.overlay_rows.instance_count(),
@@ -978,7 +1086,10 @@ fn overlay_empty_state_draws_a_dim_message_row() {
         .map(|l| l.text().to_string())
         .collect::<Vec<_>>()
         .join("\n");
-    assert!(!joined2.contains("no matches"), "no message row when there are rows");
+    assert!(
+        !joined2.contains("no matches"),
+        "no message row when there are rows"
+    );
 }
 
 /// The CARET-STYLE preview PANEL, MORPH highlighted: the settled demo caret
@@ -992,8 +1103,7 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
     // take the same guard before creating its device/pipeline.
     let _g = crate::testlock::serial();
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -1006,13 +1116,14 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping caret_preview_panel_morph_paints_the_glyph_silhouette: no wgpu adapter");
+        eprintln!(
+            "skipping caret_preview_panel_morph_paints_the_glyph_silhouette: no wgpu adapter"
+        );
         return;
     };
 
@@ -1032,7 +1143,11 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
     let (_rect, text, _beat, silhouette) = p
         .caret_preview_panel_report()
         .expect("the preview panel is summoned with the picker");
-    assert_eq!(text, crate::caret::SAMPLE, "settled: the full sample line, caret at rest");
+    assert_eq!(
+        text,
+        crate::caret::SAMPLE,
+        "settled: the full sample line, caret at rest"
+    );
     // Settled at rest on a real letter (the sample ends "...morph", a real glyph
     // one back of the insertion point): the SILHOUETTE pipeline paints (reported
     // straight from the sidecar-facing seam), and the plain block/bar pipeline is
@@ -1058,5 +1173,8 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
         !p.caret_preview_glyph_pipeline.is_drawn(),
         "silhouette parked once the picker closes"
     );
-    assert!(!p.caret_preview_pipeline.is_drawn(), "block/bar caret parked too");
+    assert!(
+        !p.caret_preview_pipeline.is_drawn(),
+        "block/bar caret parked too"
+    );
 }

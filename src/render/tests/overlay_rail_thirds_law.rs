@@ -36,8 +36,10 @@ fn wide_window_card_centers_sit_near_thirds_and_exactly_at_center() {
     for &ww in &[1000.0_f32, 1200.0, 1488.0, 1800.0] {
         for &desired in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
             let (lx, lw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired);
-            let (cx, cw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopCenter, ww, desired);
-            let (rx, rw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
+            let (cx, cw) =
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopCenter, ww, desired);
+            let (rx, rw) =
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
 
             let lfrac = (lx + lw * 0.5) / ww;
             let cfrac = (cx + cw * 0.5) / ww;
@@ -45,7 +47,10 @@ fn wide_window_card_centers_sit_near_thirds_and_exactly_at_center() {
             let ctx = format!("ww={ww} desired={desired}");
 
             // CENTER is the EXACT viewport midpoint, always.
-            assert!((cfrac - 0.5).abs() < 1e-4, "{ctx}: center-anchor fraction {cfrac} must be exactly 0.5");
+            assert!(
+                (cfrac - 0.5).abs() < 1e-4,
+                "{ctx}: center-anchor fraction {cfrac} must be exactly 0.5"
+            );
 
             // LEFT/RIGHT sit NEAR one-third / two-thirds — a real generous rail,
             // not the old ~fixed-pixel corner hug (which at these widths reads
@@ -88,15 +93,25 @@ fn wide_window_card_centers_sit_near_thirds_and_exactly_at_center() {
 fn exact_left_right_mirror_across_widths_and_content_widths() {
     // "content widths" spans the whole realistic range: the flat cap, the
     // faceted cap, and small stand-ins for an item-51 content-hugged card.
-    for &desired in &[120.0_f32, 180.0, 250.0, chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
+    for &desired in &[
+        120.0_f32,
+        180.0,
+        250.0,
+        chrome::CARD_MAX_W,
+        chrome::CARD_MAX_W_FACETED,
+    ] {
         for ww in (280u32..=2000).step_by(20) {
             let ww = ww as f32;
             let (lx, lw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired);
-            let (rx, rw) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
+            let (rx, rw) =
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired);
             let ctx = format!("ww={ww} desired={desired}");
 
             // Alignment moves the card, never resizes it.
-            assert!((lw - rw).abs() < 0.01, "{ctx}: TopLeft/TopRight must compute the same width");
+            assert!(
+                (lw - rw).abs() < 0.01,
+                "{ctx}: TopLeft/TopRight must compute the same width"
+            );
 
             // The RIGHT inset (from the window's right edge) exactly equals the
             // LEFT inset (from the window's left edge) — the mirror law, holding
@@ -128,8 +143,16 @@ fn narrow_sweep_is_continuous_on_canvas_and_symmetric_no_jump_or_drift() {
         let ctx = format!("ww={ww}");
 
         // ON-CANVAS at every step, both rails.
-        assert!(lx >= -0.01 && lx + lw <= ww + 0.01, "{ctx}: TopLeft card off-canvas: [{lx},{}]", lx + lw);
-        assert!(rx >= -0.01 && rx + rw <= ww + 0.01, "{ctx}: TopRight card off-canvas: [{rx},{}]", rx + rw);
+        assert!(
+            lx >= -0.01 && lx + lw <= ww + 0.01,
+            "{ctx}: TopLeft card off-canvas: [{lx},{}]",
+            lx + lw
+        );
+        assert!(
+            rx >= -0.01 && rx + rw <= ww + 0.01,
+            "{ctx}: TopRight card off-canvas: [{rx},{}]",
+            rx + rw
+        );
 
         // SYMMETRIC at every step (no asymmetric drift as the window narrows).
         let left_inset = lx;
@@ -146,10 +169,16 @@ fn narrow_sweep_is_continuous_on_canvas_and_symmetric_no_jump_or_drift() {
         // constant. A loose-but-real bound catches an accidental branch/jump
         // without false-firing on ordinary sub-pixel float noise.
         if let Some(pl) = prev_l {
-            assert!((lx - pl).abs() < 1.5, "{ctx}: TopLeft x jumped {pl} -> {lx} on a 1px width step");
+            assert!(
+                (lx - pl).abs() < 1.5,
+                "{ctx}: TopLeft x jumped {pl} -> {lx} on a 1px width step"
+            );
         }
         if let Some(pr) = prev_r {
-            assert!((rx - pr).abs() < 1.5, "{ctx}: TopRight x jumped {pr} -> {rx} on a 1px width step");
+            assert!(
+                (rx - pr).abs() < 1.5,
+                "{ctx}: TopRight x jumped {pr} -> {rx} on a 1px width step"
+            );
         }
         prev_l = Some(lx);
         prev_r = Some(rx);
@@ -167,13 +196,26 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
     // The width CAPS themselves are pure data, never read by the placement
     // resolver's arithmetic — item 67 only ever moves `left`.
     assert_eq!(chrome::CARD_MAX_W, 520.0, "flat card width cap unchanged");
-    assert_eq!(chrome::CARD_MAX_W_FACETED, 600.0, "faceted card width cap unchanged");
+    assert_eq!(
+        chrome::CARD_MAX_W_FACETED,
+        600.0,
+        "faceted card width cap unchanged"
+    );
 
     // Mirrored Bars growth is a SEPARATE concern (`CardAnchor::mirrors_growth`)
     // from placement, and item 67 never touches it.
-    assert!(theme::CardAnchor::TopRight.mirrors_growth(), "TopRight still mirrors bar growth");
-    assert!(!theme::CardAnchor::TopLeft.mirrors_growth(), "TopLeft still does not mirror");
-    assert!(!theme::CardAnchor::TopCenter.mirrors_growth(), "TopCenter still does not mirror");
+    assert!(
+        theme::CardAnchor::TopRight.mirrors_growth(),
+        "TopRight still mirrors bar growth"
+    );
+    assert!(
+        !theme::CardAnchor::TopLeft.mirrors_growth(),
+        "TopLeft still does not mirror"
+    );
+    assert!(
+        !theme::CardAnchor::TopCenter.mirrors_growth(),
+        "TopCenter still does not mirror"
+    );
     assert!(
         !theme::CardAnchor::Inset { x_frac: 1.0 }.mirrors_growth(),
         "a raw Inset dial still never mirrors (only the first-class TopRight does)"
@@ -188,9 +230,14 @@ fn right_anchor_content_shrink_still_shares_one_right_edge_at_the_policy_level()
     // content-hugged card and a wide flat card share the exact same right edge.
     let ww = 1200.0_f32;
     let (_, w_narrow) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0);
-    let (rx_narrow, rw_narrow) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0);
-    let (rx_wide, rw_wide) = chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, chrome::CARD_MAX_W);
-    assert!(w_narrow < rw_wide - 100.0, "the narrow desired width genuinely produced a narrower card");
+    let (rx_narrow, rw_narrow) =
+        chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0);
+    let (rx_wide, rw_wide) =
+        chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, chrome::CARD_MAX_W);
+    assert!(
+        w_narrow < rw_wide - 100.0,
+        "the narrow desired width genuinely produced a narrower card"
+    );
     assert!(
         ((rx_narrow + rw_narrow) - (rx_wide + rw_wide)).abs() < 0.01,
         "a content-hugged narrow card and a wide flat card share ONE right edge: {} vs {}",

@@ -111,7 +111,9 @@ fn sidecar(png: &Path) -> serde_json::Value {
 /// Decode a capture PNG to `(width, height, rgba_bytes)` (mirrors
 /// `tests/frost_rail_pixels.rs::decode`).
 fn decode(png: &Path) -> (u32, u32, Vec<u8>) {
-    let img = image::open(png).unwrap_or_else(|e| panic!("decode {}: {e}", png.display())).to_rgba8();
+    let img = image::open(png)
+        .unwrap_or_else(|e| panic!("decode {}: {e}", png.display()))
+        .to_rgba8();
     (img.width(), img.height(), img.into_raw())
 }
 
@@ -145,7 +147,11 @@ fn assert_band_identical(
 ) {
     let (bw, bh, bug_px) = bug;
     let (cw, ch, ctrl_px) = control;
-    assert_eq!((bw, bh), (cw, ch), "{label}: captures must share canvas dims");
+    assert_eq!(
+        (bw, bh),
+        (cw, ch),
+        "{label}: captures must share canvas dims"
+    );
     let w = *bw;
     let mut diffs: Vec<(u32, u32, [u8; 3], [u8; 3])> = Vec::new();
     for y in y0..y1.min(*bh) {
@@ -186,23 +192,49 @@ fn blank_line_after_off_cursor_empty_bullet_matches_an_ordinary_blank_line() {
         let bug_png = root.join(format!("{theme}_bug.png"));
         let ctrl_png = root.join(format!("{theme}_control.png"));
         assert!(capture(&bug_png, &bug_doc, theme), "{theme}: bug capture");
-        assert!(capture(&ctrl_png, &control_doc, theme), "{theme}: control capture");
+        assert!(
+            capture(&ctrl_png, &control_doc, theme),
+            "{theme}: control capture"
+        );
 
         let bug_side = sidecar(&bug_png);
         let ctrl_side = sidecar(&ctrl_png);
         // Sanity: the caret really landed OFF the first line (so the bullet
         // glyph — and the bug, pre-fix — actually engages), and both fixtures
         // keep the 3-plain-line shape the row-band math below assumes.
-        assert_eq!(bug_side["cursor"]["line"], 2, "{theme}: bug caret should land on line 2");
-        assert_eq!(ctrl_side["cursor"]["line"], 2, "{theme}: control caret should land on line 2");
-        assert_eq!(bug_side["first_lines"][0], "- ", "{theme}: bug fixture's marker line");
-        assert_eq!(bug_side["first_lines"][1], "", "{theme}: bug fixture's blank line");
-        assert_eq!(ctrl_side["first_lines"][1], "", "{theme}: control fixture's blank line");
+        assert_eq!(
+            bug_side["cursor"]["line"], 2,
+            "{theme}: bug caret should land on line 2"
+        );
+        assert_eq!(
+            ctrl_side["cursor"]["line"], 2,
+            "{theme}: control caret should land on line 2"
+        );
+        assert_eq!(
+            bug_side["first_lines"][0], "- ",
+            "{theme}: bug fixture's marker line"
+        );
+        assert_eq!(
+            bug_side["first_lines"][1], "",
+            "{theme}: bug fixture's blank line"
+        );
+        assert_eq!(
+            ctrl_side["first_lines"][1], "",
+            "{theme}: control fixture's blank line"
+        );
 
-        let top = bug_side["text_origin"]["top"].as_f64().expect("text_origin.top");
-        let line_h = bug_side["font"]["line_height"].as_f64().expect("font.line_height");
-        let col_left = bug_side["page"]["column"]["left"].as_f64().expect("page.column.left");
-        let col_w = bug_side["page"]["column"]["width"].as_f64().expect("page.column.width");
+        let top = bug_side["text_origin"]["top"]
+            .as_f64()
+            .expect("text_origin.top");
+        let line_h = bug_side["font"]["line_height"]
+            .as_f64()
+            .expect("font.line_height");
+        let col_left = bug_side["page"]["column"]["left"]
+            .as_f64()
+            .expect("page.column.left");
+        let col_w = bug_side["page"]["column"]["width"]
+            .as_f64()
+            .expect("page.column.width");
         assert_eq!(
             ctrl_side["text_origin"]["top"].as_f64(),
             Some(top),

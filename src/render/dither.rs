@@ -196,8 +196,14 @@ mod tests {
         }
         // The matrix's extreme ranks (0 and 63) must appear within one 8x8
         // tile, so the offset genuinely reaches close to both ends of the band.
-        assert!(min < -half_lsb * 0.9, "min offset {min} does not reach the low end");
-        assert!(max > half_lsb * 0.9, "max offset {max} does not reach the high end");
+        assert!(
+            min < -half_lsb * 0.9,
+            "min offset {min} does not reach the low end"
+        );
+        assert!(
+            max > half_lsb * 0.9,
+            "max offset {max} does not reach the high end"
+        );
     }
 
     /// `highlight_dither_on` at density 0 never fires, at density 1 always
@@ -209,8 +215,14 @@ mod tests {
         for cell in [1.0f32, 2.0, 4.0] {
             for y in 0..8u32 {
                 for x in 0..8u32 {
-                    assert!(!highlight_dither_on(x, y, 0.0, cell), "density 0 must never fire");
-                    assert!(highlight_dither_on(x, y, 1.0, cell), "density 1 must always fire");
+                    assert!(
+                        !highlight_dither_on(x, y, 0.0, cell),
+                        "density 0 must never fire"
+                    );
+                    assert!(
+                        highlight_dither_on(x, y, 1.0, cell),
+                        "density 1 must always fire"
+                    );
                 }
             }
         }

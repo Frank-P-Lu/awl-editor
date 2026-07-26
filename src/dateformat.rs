@@ -147,7 +147,10 @@ impl DateFormat {
             DateFormat::Iso => format!("{year:04}-{month:02}-{day:02}"),
             DateFormat::YyyyMmDd => format!("{year:04}/{month:02}/{day:02}"),
             DateFormat::DMonthYyyy => {
-                let name = MONTH_NAMES.get(month.wrapping_sub(1) as usize).copied().unwrap_or("?");
+                let name = MONTH_NAMES
+                    .get(month.wrapping_sub(1) as usize)
+                    .copied()
+                    .unwrap_or("?");
                 format!("{day} {name} {year:04}")
             }
         }
@@ -165,7 +168,10 @@ static ACTIVE_FORMAT: AtomicU8 = AtomicU8::new(0);
 fn format_to_u8(f: DateFormat) -> u8 {
     // +1 keeps sentinel 0 reserved for genuine unset; `position` is always Some by
     // ALL's exhaustiveness.
-    DateFormat::ALL.iter().position(|c| *c == f).expect("DateFormat::ALL lists every variant") as u8
+    DateFormat::ALL
+        .iter()
+        .position(|c| *c == f)
+        .expect("DateFormat::ALL lists every variant") as u8
         + 1
 }
 
@@ -175,7 +181,10 @@ pub fn active_format() -> DateFormat {
     if raw == 0 {
         return DateFormat::default();
     }
-    DateFormat::ALL.get(raw as usize - 1).copied().unwrap_or_default()
+    DateFormat::ALL
+        .get(raw as usize - 1)
+        .copied()
+        .unwrap_or_default()
 }
 
 /// Set the active date-insert format (the Settings row's cycle commit, or the
@@ -279,8 +288,18 @@ mod tests {
     #[test]
     fn d_month_yyyy_names_every_month() {
         let expected = [
-            "January", "February", "March", "April", "May", "June", "July", "August",
-            "September", "October", "November", "December",
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
         ];
         for (i, name) in expected.iter().enumerate() {
             let month = (i + 1) as u32;
@@ -327,7 +346,11 @@ mod tests {
     fn config_name_round_trips_for_every_format() {
         for f in DateFormat::ALL {
             let slug = f.config_name();
-            assert_eq!(DateFormat::from_config_name(slug), Some(f), "{slug:?} must round-trip");
+            assert_eq!(
+                DateFormat::from_config_name(slug),
+                Some(f),
+                "{slug:?} must round-trip"
+            );
         }
     }
 
@@ -335,7 +358,11 @@ mod tests {
     fn from_config_name_rejects_garbage() {
         assert_eq!(DateFormat::from_config_name("bogus"), None);
         assert_eq!(DateFormat::from_config_name(""), None);
-        assert_eq!(DateFormat::from_config_name("DDMMYY"), None, "case-sensitive, like caret_mode/dictionary");
+        assert_eq!(
+            DateFormat::from_config_name("DDMMYY"),
+            None,
+            "case-sensitive, like caret_mode/dictionary"
+        );
     }
 
     // ── active_format process-global ───────────────────────────────────────

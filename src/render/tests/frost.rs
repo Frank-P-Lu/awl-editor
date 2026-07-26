@@ -114,7 +114,9 @@ fn frost_seed_geometry_is_dpi_invariant_in_logical_space() {
     const H: f32 = 640.0;
     const ZOOM: f32 = 1.25;
     let Some((_device, _queue, mut p)) = headless_dqp(W, H) else {
-        eprintln!("skipping frost_seed_geometry_is_dpi_invariant_in_logical_space: no wgpu adapter");
+        eprintln!(
+            "skipping frost_seed_geometry_is_dpi_invariant_in_logical_space: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -148,8 +150,15 @@ fn frost_seed_geometry_is_dpi_invariant_in_logical_space() {
     crate::page::set_page_on(was_page_on);
     crate::page::set_measure(was_measure);
 
-    assert!(!one.is_empty(), "control: the logical page seeds a frost field at 1×");
-    assert_eq!(one.len(), two.len(), "same logical headings -> same seed count");
+    assert!(
+        !one.is_empty(),
+        "control: the logical page seeds a frost field at 1×"
+    );
+    assert_eq!(
+        one.len(),
+        two.len(),
+        "same logical headings -> same seed count"
+    );
     for (i, (a, b)) in one.iter().zip(&two).enumerate() {
         let (span_one, span_two) = (a[1] - a[0], b[1] - b[0]);
         assert!(
@@ -195,7 +204,9 @@ fn item61_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 
 #[test]
 fn isolated_punctuation_run_radius_is_bounded_below_a_normal_runs() {
     let Some((_device, _queue, mut p)) = headless_dqp(960.0, 640.0) else {
-        eprintln!("skipping isolated_punctuation_run_radius_is_bounded_below_a_normal_runs: no wgpu adapter");
+        eprintln!(
+            "skipping isolated_punctuation_run_radius_is_bounded_below_a_normal_runs: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -220,7 +231,11 @@ fn isolated_punctuation_run_radius_is_bounded_below_a_normal_runs() {
     crate::page::set_page_on(was_page_on);
     crate::page::set_measure(was_measure);
 
-    assert_eq!(seeds.len(), 8, "the fixture's 8 word-runs (control — a seed-count drift silently changes every other assertion here)");
+    assert_eq!(
+        seeds.len(),
+        8,
+        "the fixture's 8 word-runs (control — a seed-count drift silently changes every other assertion here)"
+    );
     // seed[0] = "&" (row 1, one glyph); seed[1] = "Button-free" (row 2, one
     // run, no internal whitespace); seed[2] = "The" (row 3, first word).
     let (amp_r, button_free_r, the_r) = (seeds[0][3], seeds[1][3], seeds[2][3]);
@@ -272,7 +287,10 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
     // ceiling independent of row height.
     let tall_row_h = 400.0;
     let r_row_tall = crate::render::frost_seed_radius(tall_row_h, 1.0, 1.0);
-    assert!(r_row_tall > r_row * 5.0, "control: the tall row really is much taller");
+    assert!(
+        r_row_tall > r_row * 5.0,
+        "control: the tall row really is much taller"
+    );
     let r_tall = crate::render::frost_run_radius(r_row_tall, 400.0, skirt);
     assert!(
         (r_tall - end_cap).abs() < 0.01,
@@ -291,7 +309,9 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
 #[test]
 fn nearby_ordinary_runs_still_merge_after_the_bounded_radius_round() {
     let Some((_device, _queue, mut p)) = headless_dqp(960.0, 640.0) else {
-        eprintln!("skipping nearby_ordinary_runs_still_merge_after_the_bounded_radius_round: no wgpu adapter");
+        eprintln!(
+            "skipping nearby_ordinary_runs_still_merge_after_the_bounded_radius_round: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();

@@ -105,7 +105,11 @@ fn os_reduced_motion() -> bool {
 #[cfg(target_arch = "wasm32")]
 fn os_reduced_motion() -> bool {
     web_sys::window()
-        .and_then(|w| w.match_media("(prefers-reduced-motion: reduce)").ok().flatten())
+        .and_then(|w| {
+            w.match_media("(prefers-reduced-motion: reduce)")
+                .ok()
+                .flatten()
+        })
         .map(|mql| mql.matches())
         .unwrap_or(false)
 }

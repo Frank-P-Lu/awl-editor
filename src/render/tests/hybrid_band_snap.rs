@@ -35,7 +35,10 @@ const EPS: f32 = 0.05;
 const GLIDE_S: f32 = OVERLAY_BAND_SLIDE_MS / 1000.0;
 
 fn morph_force() -> MotionForce {
-    MotionForce { choreo: Choreo::Morph, phase: None }
+    MotionForce {
+        choreo: Choreo::Morph,
+        phase: None,
+    }
 }
 
 /// The Pane band's DRAWN top this frame for selection `target` — the exact
@@ -78,7 +81,10 @@ fn pane_single_move_glides_through_the_middle_and_settles_on_selection() {
     // Deliberate move 0 -> 1: the FIRST frame draws at the OLD row (gliding, not
     // snapped) — the whole point of "a single move glides".
     let start = pane_band_top(&mut p, row(1), lh);
-    assert!((start - row(0)).abs() < EPS, "glide starts at the previous row (got {start})");
+    assert!(
+        (start - row(0)).abs() < EPS,
+        "glide starts at the previous row (got {start})"
+    );
     assert!(
         (start - row(1)).abs() > lh * 0.5,
         "a single move must NOT snap to the target on frame 0 (got {start}, target {})",
@@ -88,12 +94,18 @@ fn pane_single_move_glides_through_the_middle_and_settles_on_selection() {
     // Mid-flight: strictly between the two rows (the morph is playing).
     p.advance(0.25 * GLIDE_S);
     let mid = pane_band_top(&mut p, row(1), lh);
-    assert!(row(0) < mid && mid < row(1), "mid-glide sits between rows (got {mid})");
+    assert!(
+        row(0) < mid && mid < row(1),
+        "mid-glide sits between rows (got {mid})"
+    );
 
     // Settles EXACTLY on the selected row.
     p.advance(3.0 * GLIDE_S);
     let settled = pane_band_top(&mut p, row(1), lh);
-    assert!((settled - row(1)).abs() < EPS, "the glide settles on the selection (got {settled})");
+    assert!(
+        (settled - row(1)).abs() < EPS,
+        "the glide settles on the selection (got {settled})"
+    );
 
     crate::motion::set_reduced(saved);
 }
@@ -169,12 +181,21 @@ fn bars_single_move_glides_and_settles_on_selection() {
 
     // Move 100 -> 300: first frame at the old row, mid between, settles on 300.
     let start = p.overlay_band_drawn(300.0);
-    assert!((start - 100.0).abs() < EPS, "slide starts at the previous row (got {start})");
+    assert!(
+        (start - 100.0).abs() < EPS,
+        "slide starts at the previous row (got {start})"
+    );
     p.advance(0.25 * GLIDE_S);
     let mid = p.overlay_band_drawn(300.0);
-    assert!(100.0 < mid && mid < 300.0, "mid-slide sits between rows (got {mid})");
+    assert!(
+        100.0 < mid && mid < 300.0,
+        "mid-slide sits between rows (got {mid})"
+    );
     p.advance(3.0 * GLIDE_S);
-    assert!((p.overlay_band_drawn(300.0) - 300.0).abs() < EPS, "slide settles on the target");
+    assert!(
+        (p.overlay_band_drawn(300.0) - 300.0).abs() < EPS,
+        "slide settles on the target"
+    );
 
     set_motion_test_override(None);
     crate::motion::set_reduced(saved);

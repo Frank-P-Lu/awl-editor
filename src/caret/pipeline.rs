@@ -165,20 +165,19 @@ impl CaretPipeline {
             source: wgpu::ShaderSource::Wgsl(include_str!("../../shaders/caret.wgsl").into()),
         });
 
-        let bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("caret globals layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("caret globals layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
 
         let globals_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("caret globals"),
@@ -396,7 +395,5 @@ unsafe impl bytemuck_lite::Pod for Globals {}
 /// of plain-old-data fields (f32 arrays/scalars). The caret pipelines' instance /
 /// globals structs satisfy this.
 pub fn bytes_of_pod<T: Copy + 'static>(t: &T) -> &[u8] {
-    unsafe {
-        core::slice::from_raw_parts((t as *const T) as *const u8, core::mem::size_of::<T>())
-    }
+    unsafe { core::slice::from_raw_parts((t as *const T) as *const u8, core::mem::size_of::<T>()) }
 }

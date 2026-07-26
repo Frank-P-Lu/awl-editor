@@ -69,8 +69,14 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
     }
     let new_path = if crate::fs::active().exists(&natural) {
         let p = Path::new(&filename);
-        let stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        let ext = p.extension().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        let stem = p
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let ext = p
+            .extension()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
         unique_path(dest_dir, &stem, &ext)
     } else {
         natural

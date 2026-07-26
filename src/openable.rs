@@ -111,7 +111,9 @@ fn looks_like_text(bytes: &[u8]) -> bool {
 pub fn classify(path: &Path) -> Openable {
     match crate::fs::active().read(path) {
         Ok(bytes) if bytes.is_empty() || looks_like_text(&bytes) => Openable::Text,
-        Ok(_) => Openable::Unsupported { label: type_label(path) },
+        Ok(_) => Openable::Unsupported {
+            label: type_label(path),
+        },
         Err(_) => Openable::Text,
     }
 }
@@ -142,7 +144,8 @@ mod tests {
         // unfamiliar extension, both stay Text as long as the BYTES decode.
         let mem = InMemoryFs::new();
         mem.write(Path::new("/p/README"), b"hello\n").unwrap();
-        mem.write(Path::new("/p/notes.xyzzy"), b"plain prose\n").unwrap();
+        mem.write(Path::new("/p/notes.xyzzy"), b"plain prose\n")
+            .unwrap();
         crate::fs::with_fs(Arc::new(mem), || {
             assert_eq!(classify(Path::new("/p/README")), Openable::Text);
             assert_eq!(classify(Path::new("/p/notes.xyzzy")), Openable::Text);
@@ -157,7 +160,9 @@ mod tests {
         crate::fs::with_fs(Arc::new(mem), || {
             assert_eq!(
                 classify(Path::new("/p/pic.png")),
-                Openable::Unsupported { label: "PNG".to_string() }
+                Openable::Unsupported {
+                    label: "PNG".to_string()
+                }
             );
         });
     }
@@ -170,7 +175,9 @@ mod tests {
         crate::fs::with_fs(Arc::new(mem), || {
             assert_eq!(
                 classify(Path::new("/p/data.bin")),
-                Openable::Unsupported { label: "BIN".to_string() }
+                Openable::Unsupported {
+                    label: "BIN".to_string()
+                }
             );
         });
     }
@@ -182,7 +189,9 @@ mod tests {
         crate::fs::with_fs(Arc::new(mem), || {
             assert_eq!(
                 classify(Path::new("/p/data")),
-                Openable::Unsupported { label: "Binary".to_string() }
+                Openable::Unsupported {
+                    label: "Binary".to_string()
+                }
             );
         });
     }
@@ -192,8 +201,16 @@ mod tests {
         let mem = InMemoryFs::new();
         mem.write(Path::new("/p/empty.png"), b"").unwrap();
         crate::fs::with_fs(Arc::new(mem), || {
-            assert_eq!(classify(Path::new("/p/nope.png")), Openable::Text, "missing: nothing to refuse");
-            assert_eq!(classify(Path::new("/p/empty.png")), Openable::Text, "empty: nothing disqualifying");
+            assert_eq!(
+                classify(Path::new("/p/nope.png")),
+                Openable::Text,
+                "missing: nothing to refuse"
+            );
+            assert_eq!(
+                classify(Path::new("/p/empty.png")),
+                Openable::Text,
+                "empty: nothing disqualifying"
+            );
         });
     }
 
@@ -203,7 +220,10 @@ mod tests {
         let mem = mem_with("/p/movie.mp4", &bytes);
         crate::fs::with_fs(Arc::new(mem), || {
             let verdict = classify(Path::new("/p/movie.mp4"));
-            assert_eq!(verdict.refusal_message().as_deref(), Some("MP4 \u{b7} not editable in awl"));
+            assert_eq!(
+                verdict.refusal_message().as_deref(),
+                Some("MP4 \u{b7} not editable in awl")
+            );
         });
         assert_eq!(Openable::Text.refusal_message(), None);
     }

@@ -79,7 +79,10 @@ fn selection_and_search_rects_never_paint_past_the_diff_panel_band() {
     let caret_h = p.metrics.caret_h;
 
     let sel = p.selection_rects();
-    assert!(!sel.is_empty(), "precondition: some selected rows still paint");
+    assert!(
+        !sel.is_empty(),
+        "precondition: some selected rows still paint"
+    );
     assert_all_within(&sel, clip, "a selection rect");
     // NON-VACUOUS, part 1: not every one of the 7 selected rows survives —
     // some are dropped outright by the band.
@@ -98,7 +101,10 @@ fn selection_and_search_rects_never_paint_past_the_diff_panel_band() {
     );
 
     let matches = p.search_match_rects();
-    assert!(!matches.is_empty(), "precondition: the search match still paints");
+    assert!(
+        !matches.is_empty(),
+        "precondition: the search match still paints"
+    );
     assert_all_within(&matches, clip, "a search-match rect");
 }
 
@@ -152,7 +158,9 @@ fn preedit_rect_never_paints_past_the_diff_panel_band() {
 fn caret_parks_when_its_row_scrolls_past_the_diff_panel_band() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping caret_parks_when_its_row_scrolls_past_the_diff_panel_band: no wgpu adapter");
+        eprintln!(
+            "skipping caret_parks_when_its_row_scrolls_past_the_diff_panel_band: no wgpu adapter"
+        );
         return;
     };
     crate::caret::set_mode(crate::caret::CaretMode::Block);
@@ -219,7 +227,9 @@ fn every_selection_adjacent_emitter_routes_through_the_shared_clip() {
         ("layers.rs", "fn prepare_caret_layer(", &layers_src),
     ];
     for &(file, sig, src) in checks {
-        let start = src.find(sig).unwrap_or_else(|| panic!("{file}: missing `{sig}`"));
+        let start = src
+            .find(sig)
+            .unwrap_or_else(|| panic!("{file}: missing `{sig}`"));
         // The function body: from the signature to the next top-level `\n    pub`
         // (the next sibling method at the same one-tab indent) or EOF — good
         // enough to scope the search to just this one function's own body.

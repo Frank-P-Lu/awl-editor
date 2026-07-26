@@ -65,7 +65,10 @@ pub(super) const MAX_TOTAL: usize = 150;
 pub(crate) fn prune_ladder(entries: &mut Vec<Entry>, now_ms: u64) {
     let ts: Vec<u64> = entries.iter().map(|e| e.ts).collect();
     // The EXEMPT mask: pinned OR named (see the cap-semantics rule above).
-    let exempt: Vec<bool> = entries.iter().map(|e| e.pinned || e.name.is_some()).collect();
+    let exempt: Vec<bool> = entries
+        .iter()
+        .map(|e| e.pinned || e.name.is_some())
+        .collect();
     let mut chosen = ladder_keep(&ts, now_ms, 0);
     for level in 1..=32u32 {
         // Count only the NON-EXEMPT survivors against the cap — pins/names are
@@ -86,8 +89,8 @@ pub(crate) fn prune_ladder(entries: &mut Vec<Entry>, now_ms: u64) {
     // retained order.
     let mut i = 0;
     entries.retain(|_| {
-        let keep = exempt.get(i).copied().unwrap_or(false)
-            || chosen.get(i).copied().unwrap_or(true);
+        let keep =
+            exempt.get(i).copied().unwrap_or(false) || chosen.get(i).copied().unwrap_or(true);
         i += 1;
         keep
     });

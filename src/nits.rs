@@ -129,10 +129,7 @@ fn line_nits_inner(line: &str, in_table_row: bool) -> Vec<(usize, usize)> {
         Some(lc) => {
             // Leading indentation ends at the first non-whitespace char — meaningful
             // for lists / code, so it is NEVER flagged (skip it entirely below).
-            let lead = chars
-                .iter()
-                .position(|c| !c.is_whitespace())
-                .unwrap_or(0);
+            let lead = chars.iter().position(|c| !c.is_whitespace()).unwrap_or(0);
 
             // --- TRAILING WHITESPACE: the run after the last content char. ---
             let tw_start = lc + 1;
@@ -214,8 +211,12 @@ pub fn span_in_prose_ranges(
     end_col: usize,
     prose_ranges: &[std::ops::Range<usize>],
 ) -> bool {
-    let byte_of =
-        |col: usize| line.char_indices().nth(col).map(|(b, _)| b).unwrap_or(line.len());
+    let byte_of = |col: usize| {
+        line.char_indices()
+            .nth(col)
+            .map(|(b, _)| b)
+            .unwrap_or(line.len())
+    };
     let lo = line_byte_start + byte_of(start_col);
     let hi = line_byte_start + byte_of(end_col);
     prose_ranges.iter().any(|r| r.start <= lo && hi <= r.end)
@@ -234,7 +235,6 @@ pub fn document_nits(text: &str) -> Vec<(usize, usize, usize)> {
     }
     out
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -293,7 +293,11 @@ mod tests {
         // One trailing space -> flagged.
         assert_eq!(line_nits("foo "), vec![(3, 4)]);
         // Exactly TWO trailing spaces -> the Markdown hard break -> NOT flagged.
-        assert_eq!(line_nits("foo  "), Vec::new(), "2 trailing spaces = md hard break");
+        assert_eq!(
+            line_nits("foo  "),
+            Vec::new(),
+            "2 trailing spaces = md hard break"
+        );
         // Three trailing spaces -> flagged (the whole run).
         assert_eq!(line_nits("foo   "), vec![(3, 6)]);
         // A trailing TAB -> flagged (not two spaces).
@@ -367,7 +371,11 @@ mod tests {
         // real double-space between JP words is flagged exactly as it would be in
         // English (the columns are simply wherever the run sits).
         let ms = document_nits("猫が  好きです。");
-        assert_eq!(ms.len(), 1, "a double space inside JP prose still nits: {ms:?}");
+        assert_eq!(
+            ms.len(),
+            1,
+            "a double space inside JP prose still nits: {ms:?}"
+        );
     }
 
     // --- TABLE-ROW EXEMPTION (`line_nits_table_row`). ------------------------
@@ -423,6 +431,9 @@ mod tests {
         // Document byte range for this line is [10, 14); the interior double
         // space is document bytes [11, 13).
         assert!(span_in_prose_ranges(line, 10, 1, 3, &[10..14]));
-        assert!(!span_in_prose_ranges(line, 10, 1, 3, &[0..4]), "a range on a different line must not match");
+        assert!(
+            !span_in_prose_ranges(line, 10, 1, 3, &[0..4]),
+            "a range on a different line must not match"
+        );
     }
 }

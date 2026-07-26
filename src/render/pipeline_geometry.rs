@@ -111,12 +111,14 @@ impl TextPipeline {
         // Held HUD elevation re-tints with the world (same float-panel tokens as which-key:
         // shadow ink, raised surface-step border, base_300 card).
         self.hud_shadow.set_color(float_shadow_srgba());
-        self.hud_border.set_color(theme::surface_selected().rgba_bytes());
+        self.hud_border
+            .set_color(theme::surface_selected().rgba_bytes());
         self.hud_card.set_color(theme::base_300().rgba_bytes());
         // WHICH-KEY panel elevation re-tints with the world (same tokens as the
         // shared float panel: shadow ink, raised surface-step border, base_300 card).
         self.wk_shadow.set_color(float_shadow_srgba());
-        self.wk_border.set_color(theme::surface_selected().rgba_bytes());
+        self.wk_border
+            .set_color(theme::surface_selected().rgba_bytes());
         self.wk_card.set_color(theme::base_300().rgba_bytes());
         // FORMAT POPOVER's active-button wash re-tints with the world (a `base_200`
         // value step, never amber). O(1); geometry is theme-independent. The
@@ -149,8 +151,10 @@ impl TextPipeline {
         // old framebuffer invert of the title text.
         self.menubar_hi.set_color(theme::selection().rgba_bytes());
         self.menu_drop_shadow.set_color(float_shadow_srgba());
-        self.menu_drop_border.set_color(theme::surface_selected().rgba_bytes());
-        self.menu_drop_card.set_color(theme::base_300().rgba_bytes());
+        self.menu_drop_border
+            .set_color(theme::surface_selected().rgba_bytes());
+        self.menu_drop_card
+            .set_color(theme::base_300().rgba_bytes());
         self.menu_drop_sep.set_color(theme::muted().rgba_bytes());
         self.panel_caret.set_color(theme::primary().rgb_bytes());
         self.caret_preview_pipeline
@@ -164,7 +168,8 @@ impl TextPipeline {
         // DIFF-AS-PREVIEW panel: shadow/card re-tint here; the BORDER color is
         // re-decided every `prepare_diff_panel` (it carries the focus cue).
         self.diffpanel_shadow.set_color(float_shadow_srgba());
-        self.diffpanel_card.set_color(theme::base_300().rgba_bytes());
+        self.diffpanel_card
+            .set_color(theme::base_300().rgba_bytes());
         self.overlay_rows.set_color(theme::selection().rgba_bytes());
         // PER-ITEM LIST SURFACES: the bar surfaces re-tint to the new world's
         // quiet value step (their real per-frame color is set at draw time from the
@@ -179,8 +184,10 @@ impl TextPipeline {
         // ITEM 94 — keep the range rail's two ink rungs coherent on a world switch
         // (their real per-frame colour is re-read at draw time, where the
         // selected-row contrast flip is resolved). Parked empty off Settings.
-        self.overlay_range_track.set_color(theme::faint().rgba_bytes());
-        self.overlay_range_thumb.set_color(theme::muted().rgba_bytes());
+        self.overlay_range_track
+            .set_color(theme::faint().rgba_bytes());
+        self.overlay_range_thumb
+            .set_color(theme::muted().rgba_bytes());
         // The theme picker's active-lens underline re-tints to the new world's ink (it
         // is drawn while the picker is up AND the world previews live, so the hairline
         // tracks the previewed world's ink).
@@ -194,7 +201,8 @@ impl TextPipeline {
         self.strike_pipeline.set_color(strike_srgba_bytes());
         // Re-tint the quiet link UNDERLINE from its own ink owner (the same
         // muted rung as the strike, decoupled instance).
-        self.link_underline_pipeline.set_color(link_underline_srgba_bytes());
+        self.link_underline_pipeline
+            .set_color(link_underline_srgba_bytes());
         // Re-tint the PAGE-MODE margin ground to the new world's tokens.
         self.background_pipeline.set_gradient(background_desc());
         // THE PAGE FRAME: re-tint from the one ink owner (`base_content`).
@@ -565,8 +573,7 @@ impl TextPipeline {
         if overlay_opened
             && self.juice_live
             && !crate::motion::reduced()
-            && crate::render::effective_motion_juice().entrance
-                == theme::OverlayEntrance::SpringIn
+            && crate::render::effective_motion_juice().entrance == theme::OverlayEntrance::SpringIn
         {
             self.overlay_enter_t = 0.0;
         }
@@ -742,6 +749,10 @@ impl TextPipeline {
     /// the rendered PNG. The capture sidecar reads this seam instead of the base
     /// constants so its geometry remains composable at every zoom/DPI scale.
     pub fn effective_font_metrics(&self) -> (f32, f32, f32) {
-        (self.metrics.zoom, self.metrics.font_size, self.metrics.line_height)
+        (
+            self.metrics.zoom,
+            self.metrics.font_size,
+            self.metrics.line_height,
+        )
     }
 }

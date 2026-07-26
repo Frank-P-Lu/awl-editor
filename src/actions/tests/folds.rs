@@ -106,14 +106,25 @@ fn collapse_others_over_a_nested_sibling_stores_only_the_shallowest_roots() {
     buffer.set_cursor(buffer.line_col_to_char(1, 0)); // # Alpha's body
     drive_act(&mut buffer, &Action::CollapseOtherSections);
     let folds: Vec<usize> = buffer.folds().iter().copied().collect();
-    assert_eq!(folds, vec![2, 8], "only # Beta + # Gamma roots, no buried folds");
+    assert_eq!(
+        folds,
+        vec![2, 8],
+        "only # Beta + # Gamma roots, no buried folds"
+    );
     // Clicking # Beta open (the caller's unfold-at) reveals its ENTIRE subtree in one
     // gesture, parking the caret on # Beta — not a partly-collapsed accordion.
     assert!(buffer.unfold_at(2), "# Beta was the single stored root");
-    assert_eq!(buffer.cursor_line_col().0, 2, "caret parked on the reopened heading");
+    assert_eq!(
+        buffer.cursor_line_col().0,
+        2,
+        "caret parked on the reopened heading"
+    );
     let hidden = buffer.hidden_lines();
     for line in 3..=7 {
-        assert!(!hidden[line], "# Beta's subtree line {line} is now fully visible");
+        assert!(
+            !hidden[line],
+            "# Beta's subtree line {line} is now fully visible"
+        );
     }
     // Repeating collapse-others from the same caret is idempotent (no accretion).
     buffer.set_cursor(buffer.line_col_to_char(1, 0));
@@ -130,7 +141,11 @@ fn auto_expand_when_a_motion_lands_inside_a_fold() {
     assert!(buffer.folds().contains(&0));
     // Move DOWN into the (hidden) first body line — the fold auto-expands.
     drive_act(&mut buffer, &Action::NextLine);
-    assert_eq!(buffer.cursor_line_col().0, 1, "caret moved into the section");
+    assert_eq!(
+        buffer.cursor_line_col().0,
+        1,
+        "caret moved into the section"
+    );
     assert!(
         buffer.folds().is_empty(),
         "landing inside a fold reveals it"
@@ -165,10 +180,7 @@ fn selection_never_spans_a_fold_invisibly() {
     drive_act(&mut buffer, &Action::SetMark);
     drive_act(&mut buffer, &Action::NextLine); // -> line 2 (heading, visible)
     drive_act(&mut buffer, &Action::NextLine); // -> line 3 (was hidden)
-    assert!(
-        buffer.has_selection(),
-        "the sticky mark built a selection"
-    );
+    assert!(buffer.has_selection(), "the sticky mark built a selection");
     assert!(
         buffer.folds().is_empty(),
         "a selection crossing a fold reveals it so nothing hides inside the region"

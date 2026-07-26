@@ -67,7 +67,11 @@ fn caret_row_y(frame: &[[u8; 4]], w: u32, h: u32) -> Option<f32> {
 fn shared_boundary(p: &mut TextPipeline, text: &str) -> usize {
     p.set_view(&view(text, 0, 0));
     let rows = p.visual_rows(0);
-    assert!(rows.len() >= 2, "fixture must wrap into >=2 visual rows, got {}", rows.len());
+    assert!(
+        rows.len() >= 2,
+        "fixture must wrap into >=2 visual rows, got {}",
+        rows.len()
+    );
     let b = rows[0].end_col;
     assert_eq!(
         rows[1].start_col, b,
@@ -83,7 +87,9 @@ fn wrap_end_caret_renders_on_the_upper_visual_row_real_pixels() {
     // process lock so no parallel writer re-wraps or re-tints mid-render.
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping wrap_end_caret_renders_on_the_upper_visual_row_real_pixels: no wgpu adapter");
+        eprintln!(
+            "skipping wrap_end_caret_renders_on_the_upper_visual_row_real_pixels: no wgpu adapter"
+        );
         return;
     };
     let (w, h) = (1200u32, 800u32);
@@ -193,7 +199,9 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
     // `Upstream`; a plain rightward motion to the same column leaves `Downstream`.
     let _g = crate::testlock::serial();
     let Some((_device, _queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping visual_line_end_motion_sets_upstream_affinity_end_to_end: no wgpu adapter");
+        eprintln!(
+            "skipping visual_line_end_motion_sets_upstream_affinity_end_to_end: no wgpu adapter"
+        );
         return;
     };
     let old_measure = crate::page::measure();
@@ -253,13 +261,23 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
 
         // A second LineEnd from the Upstream caret is a NO-OP (idempotent), not a
         // jump to the lower row's end — the oracle reads the row the caret sits on.
-        let ended2 = drive(&p, &[crate::keymap::Action::LineEnd, crate::keymap::Action::LineEnd]);
+        let ended2 = drive(
+            &p,
+            &[
+                crate::keymap::Action::LineEnd,
+                crate::keymap::Action::LineEnd,
+            ],
+        );
         assert_eq!(
             ended2.cursor_line_col(),
             (0, boundary),
             "{label}: a repeat LineEnd on the Upstream caret stays put"
         );
-        assert_eq!(ended2.affinity(), Affinity::Upstream, "{label}: repeat LineEnd keeps Upstream");
+        assert_eq!(
+            ended2.affinity(),
+            Affinity::Upstream,
+            "{label}: repeat LineEnd keeps Upstream"
+        );
 
         // A rightward motion up to the boundary column leaves Downstream (the lower
         // row's leading edge) — the SAME column, the OTHER legit render.
@@ -277,7 +295,13 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
 
         // LineStart from the Upstream caret goes to the UPPER row's start (col 0),
         // not a no-op at the lower row's start — coherent with the render.
-        let homed = drive(&p, &[crate::keymap::Action::LineEnd, crate::keymap::Action::LineStart]);
+        let homed = drive(
+            &p,
+            &[
+                crate::keymap::Action::LineEnd,
+                crate::keymap::Action::LineStart,
+            ],
+        );
         assert_eq!(
             homed.cursor_line_col(),
             (0, 0),

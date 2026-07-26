@@ -45,9 +45,7 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
     let dr = a.r as f32 - b.r as f32;
     let dg = a.g as f32 - b.g as f32;
     let db = a.b as f32 - b.b as f32;
-    ((2.0 + rbar / 256.0) * dr * dr
-        + 4.0 * dg * dg
-        + (2.0 + (255.0 - rbar) / 256.0) * db * db)
+    ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
         .sqrt()
 }
 
@@ -57,7 +55,11 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
 fn composite(wash: theme::Srgb, ground: theme::Srgb) -> theme::Srgb {
     let a = wash.a as f32 / 255.0;
     let ch = |w: u8, g: u8| (g as f32 + (w as f32 - g as f32) * a).round() as u8;
-    theme::Srgb::rgb(ch(wash.r, ground.r), ch(wash.g, ground.g), ch(wash.b, ground.b))
+    theme::Srgb::rgb(
+        ch(wash.r, ground.r),
+        ch(wash.g, ground.g),
+        ch(wash.b, ground.b),
+    )
 }
 
 /// The AVERAGE color over `region` of a single rendered frame (clamped to
@@ -90,8 +92,7 @@ fn average_color(pixels: &[[u8; 4]], width: i64, height: i64, region: Region) ->
 /// per-file duplication this codebase already carries for GPU test setup).
 fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -104,8 +105,7 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(w, h);
         Some((device, queue, p))
     })
@@ -148,7 +148,11 @@ fn enrolled(s: Surface) -> usize {
 #[test]
 fn surface_roster_is_self_consistent() {
     for (i, s) in SURFACES.iter().enumerate() {
-        assert_eq!(enrolled(*s), i, "SURFACES roster out of sync with Surface's own no-wildcard match");
+        assert_eq!(
+            enrolled(*s),
+            i,
+            "SURFACES roster out of sync with Surface's own no-wildcard match"
+        );
     }
 }
 
@@ -191,7 +195,9 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                         d_band >= floor && d_ink >= floor,
                         "{}: PickerSelectedRow InverseFill band {:?}/ink {:?} — band-vs-card \
                          {d_band:.1}, ink-vs-band {d_ink:.1} (floor {floor})",
-                        th.name, band, ink
+                        th.name,
+                        band,
+                        ink
                     );
                 }
                 theme::HighlightTreatment::ValueBand(color) => {
@@ -200,34 +206,38 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                         d >= floor,
                         "{}: PickerSelectedRow band {:?} vs card ground {:?} only {d:.1} \
                          redmean apart (floor {floor})",
-                        th.name, color, th.base_300
+                        th.name,
+                        color,
+                        th.base_300
                     );
                 }
             }
         }
-        Surface::MenubarOpenTitle => {
-            match th.highlight_treatment(th.selection) {
-                theme::HighlightTreatment::InverseFill { band, ink } => {
-                    let d_band = redmean(band, th.base_100);
-                    let d_ink = redmean(ink, band);
-                    assert!(
-                        d_band >= floor && d_ink >= floor,
-                        "{}: MenubarOpenTitle InverseFill band {:?}/ink {:?} — band-vs-bar \
+        Surface::MenubarOpenTitle => match th.highlight_treatment(th.selection) {
+            theme::HighlightTreatment::InverseFill { band, ink } => {
+                let d_band = redmean(band, th.base_100);
+                let d_ink = redmean(ink, band);
+                assert!(
+                    d_band >= floor && d_ink >= floor,
+                    "{}: MenubarOpenTitle InverseFill band {:?}/ink {:?} — band-vs-bar \
                          {d_band:.1}, ink-vs-band {d_ink:.1} (floor {floor})",
-                        th.name, band, ink
-                    );
-                }
-                theme::HighlightTreatment::ValueBand(color) => {
-                    let d = redmean(color, th.base_100);
-                    assert!(
-                        d >= floor,
-                        "{}: MenubarOpenTitle band {:?} vs bar ground {:?} only {d:.1} \
-                         redmean apart (floor {floor})",
-                        th.name, color, th.base_100
-                    );
-                }
+                    th.name,
+                    band,
+                    ink
+                );
             }
-        }
+            theme::HighlightTreatment::ValueBand(color) => {
+                let d = redmean(color, th.base_100);
+                assert!(
+                    d >= floor,
+                    "{}: MenubarOpenTitle band {:?} vs bar ground {:?} only {d:.1} \
+                         redmean apart (floor {floor})",
+                    th.name,
+                    color,
+                    th.base_100
+                );
+            }
+        },
         Surface::SearchMatch => match th.render_caps.highlight_texture {
             theme::HighlightTexture::Stipple { density, .. } => {
                 assert!(
@@ -242,7 +252,9 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                     d >= floor,
                     "{}: SearchMatch wash {:?} vs ground {:?} only {d:.1} redmean apart \
                      (floor {floor})",
-                    th.name, th.selection, th.base_100
+                    th.name,
+                    th.selection,
+                    th.base_100
                 );
             }
         },
@@ -255,7 +267,9 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                     d >= floor,
                     "{}: DocumentSelection composited {:?} vs ground {:?} only {d:.1} \
                      redmean apart (floor {floor})",
-                    th.name, composited, th.base_100
+                    th.name,
+                    composited,
+                    th.base_100
                 );
             }
         },
@@ -272,7 +286,9 @@ fn check_color_math(th: &theme::Theme, s: Surface, floor: f32) {
                     d >= floor,
                     "{}: CaretVsGround caret accent {:?} vs ground {:?} only {d:.1} redmean \
                      apart (floor {floor})",
-                    th.name, th.primary, th.base_100
+                    th.name,
+                    th.primary,
+                    th.base_100
                 );
             }
         },
@@ -286,7 +302,11 @@ fn wcag_contrast(a: theme::Srgb, b: theme::Srgb) -> f32 {
     fn rel_lum(c: theme::Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -325,7 +345,9 @@ fn selected_row_text_clears_contrast_floor_on_every_world() {
             c >= FLOOR,
             "{}: selected-row ink {:?} on band {:?} = {c:.2}:1 (floor {FLOOR}:1) — the row \
              text washes into its own selection fill",
-            th.name, ink, fill
+            th.name,
+            ink,
+            fill
         );
     }
 
@@ -366,7 +388,9 @@ fn selected_row_secondary_clears_contrast_floor_on_every_world() {
             c >= FLOOR,
             "{}: selected-row SECONDARY hint ink {:?} on band {:?} = {c:.2}:1 (floor \
              {FLOOR}:1) — the dim right-column chord washes into its own selection fill",
-            th.name, ink, fill
+            th.name,
+            ink,
+            fill
         );
     }
 
@@ -420,7 +444,9 @@ fn selected_row_secondary_survives_slant_on_bars_worlds() {
         let mut sorted = lums.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let ground = sorted[sorted.len() / 2];
-        lums.iter().map(|l| (l - ground).abs()).fold(0.0_f32, f32::max)
+        lums.iter()
+            .map(|l| (l - ground).abs())
+            .fold(0.0_f32, f32::max)
     }
 
     let bars_worlds: Vec<&theme::Theme> = theme::THEMES
@@ -446,12 +472,18 @@ fn selected_row_secondary_survives_slant_on_bars_worlds() {
         // surface). Render it selected, then with the selection moved off it.
         let mut v = view("hello world\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_items = vec!["Go to file".into(), "Switch project".into(), "Recent".into()];
+        v.overlay_items = vec![
+            "Go to file".into(),
+            "Switch project".into(),
+            "Recent".into(),
+        ];
         v.overlay_bindings = vec!["\u{2318}O".into(), String::new(), String::new()];
         v.overlay_selected = 0;
         p.set_view(&v);
         p.prepare(&device, &queue, w, h).unwrap();
-        let [cx, _cy, cw, _ch] = p.overlay_card_rect().expect("the Bars picker must have a card");
+        let [cx, _cy, cw, _ch] = p
+            .overlay_card_rect()
+            .expect("the Bars picker must have a card");
         let region = overlay_row_region(&p, 0);
         // The right-column chord band: the rightmost slab of the card text column,
         // where the bare `⌘O` right-aligns — over the GROUND under a HugLabel plate.
@@ -510,9 +542,14 @@ fn interactive_states_are_visible_in_every_world_real_pixels() {
         .iter()
         .find(|t| t.render_caps == theme::RenderCaps::DEFAULT)
         .expect("at least one default-caps control world must exist");
-    let mut worlds: Vec<&theme::Theme> =
-        theme::THEMES.iter().filter(|t| t.render_caps != theme::RenderCaps::DEFAULT).collect();
-    assert!(!worlds.is_empty(), "expected at least one capability-deviant world (Wagtail)");
+    let mut worlds: Vec<&theme::Theme> = theme::THEMES
+        .iter()
+        .filter(|t| t.render_caps != theme::RenderCaps::DEFAULT)
+        .collect();
+    assert!(
+        !worlds.is_empty(),
+        "expected at least one capability-deviant world (Wagtail)"
+    );
     if !worlds.iter().any(|t| t.name == control.name) {
         worlds.push(control);
     }
@@ -568,14 +605,20 @@ fn overlay_chord_sits_on_a_plate_on_every_bars_world() {
         // QUIET unselected plate — the exact bare-chord surface the defect showed.
         let mut v = view("hello world\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_items = vec!["Go to file".into(), "Switch project".into(), "Recent".into()];
+        v.overlay_items = vec![
+            "Go to file".into(),
+            "Switch project".into(),
+            "Recent".into(),
+        ];
         v.overlay_selected = 1;
 
         // WITH a chord on row 0.
         v.overlay_bindings = vec!["\u{2318}O".into(), String::new(), String::new()];
         p.set_view(&v);
         p.prepare(&device, &queue, w, h).unwrap();
-        let [cx, _cy, cw, _ch] = p.overlay_card_rect().expect("the Bars picker must have a card");
+        let [cx, _cy, cw, _ch] = p
+            .overlay_card_rect()
+            .expect("the Bars picker must have a card");
         let region = overlay_row_region(&p, 0);
         // The right-column chord slab: the rightmost span of the card text column,
         // where `⌘O` right-aligns and (after the fix) its plate hugs it.
@@ -608,8 +651,9 @@ fn overlay_chord_sits_on_a_plate_on_every_bars_world() {
 }
 
 fn overlay_row_region(p: &TextPipeline, row: usize) -> Region {
-    let [card_x, card_y, card_w, _] =
-        p.overlay_card_rect().expect("the overlay card must be open");
+    let [card_x, card_y, card_w, _] = p
+        .overlay_card_rect()
+        .expect("the overlay card must be open");
     let lh = p.overlay_lh();
     let text_top = card_y + 12.0; // pad
     // +1 header row (the query line) + the PALETTE-COMPOSITION round's header gap
@@ -745,10 +789,13 @@ fn check_real_pixels(
             let (cx, cy, cw, ch) = p.caret_pixel_rect();
             let inset_w = (cw * 0.5).max(1.0);
             let inset_h = (ch * 0.5).max(1.0);
-            let caret_region =
-                Region::new(cx + cw * 0.25, cy + ch * 0.25, inset_w, inset_h);
-            let ground_region =
-                Region::new(cx + cw * 0.25, cy + ch * 0.25 + LINE_HEIGHT, inset_w, inset_h);
+            let caret_region = Region::new(cx + cw * 0.25, cy + ch * 0.25, inset_w, inset_h);
+            let ground_region = Region::new(
+                cx + cw * 0.25,
+                cy + ch * 0.25 + LINE_HEIGHT,
+                inset_w,
+                inset_h,
+            );
 
             let caret_avg = average_color(&frame, w as i64, h as i64, caret_region);
             let ground_avg = average_color(&frame, w as i64, h as i64, ground_region);
@@ -864,16 +911,26 @@ fn theme_preview_retint_regrounds_the_page_surface_on_every_world() {
         .collect();
     // Self-verify the sample really spans every class (so a future trim can't
     // silently drop one — the exact "a source/dest-class gap went unseen" failure).
-    assert!(dst_worlds.iter().any(|t| t.background.is_lava()), "sample covers a LAVA dest");
     assert!(
-        dst_worlds.iter().any(|t| !t.background.is_lava() && t.dark && !t.is_one_bit()),
+        dst_worlds.iter().any(|t| t.background.is_lava()),
+        "sample covers a LAVA dest"
+    );
+    assert!(
+        dst_worlds
+            .iter()
+            .any(|t| !t.background.is_lava() && t.dark && !t.is_one_bit()),
         "sample covers a NON-LAVA DARK dest"
     );
     assert!(
-        dst_worlds.iter().any(|t| !t.background.is_lava() && !t.dark && !t.is_one_bit()),
+        dst_worlds
+            .iter()
+            .any(|t| !t.background.is_lava() && !t.dark && !t.is_one_bit()),
         "sample covers a NON-LAVA LIGHT dest"
     );
-    assert!(dst_worlds.iter().any(|t| t.is_one_bit()), "sample covers the ONE-BIT dest");
+    assert!(
+        dst_worlds.iter().any(|t| t.is_one_bit()),
+        "sample covers the ONE-BIT dest"
+    );
 
     // The COLD frame of each destination (a full synchronous switch) — the ground
     // truth each preview into it must reproduce byte-for-byte.

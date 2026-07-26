@@ -56,7 +56,10 @@ impl TextBox {
     /// Settings all start from the current value, caret ready to backspace
     /// it; only Keep-version seeds empty, via [`Self::new`]).
     pub fn seeded(s: &str) -> Self {
-        Self { text: s.to_string(), caret: s.chars().count() }
+        Self {
+            text: s.to_string(),
+            caret: s.chars().count(),
+        }
     }
 
     pub fn text(&self) -> &str {
@@ -94,7 +97,11 @@ impl TextBox {
         if idx == 0 {
             return 0;
         }
-        self.text.char_indices().nth(idx).map(|(b, _)| b).unwrap_or(self.text.len())
+        self.text
+            .char_indices()
+            .nth(idx)
+            .map(|(b, _)| b)
+            .unwrap_or(self.text.len())
     }
 
     /// Insert `c` at the caret and advance past it. Accepts ANY char — no
@@ -266,7 +273,11 @@ mod tests {
                 TextField::ReplaceText => {}
             }
         }
-        assert_eq!(TextField::ALL.len(), 7, "the roster is exactly the 7 fields item 10 names");
+        assert_eq!(
+            TextField::ALL.len(),
+            7,
+            "the roster is exactly the 7 fields item 10 names"
+        );
     }
 
     // --- B. UNICODE / BUFFER PARITY -----------------------------------------
@@ -309,7 +320,11 @@ mod tests {
             tb.set_caret(start);
             let mut buf = Buffer::from_str(text);
             buf.set_cursor(start);
-            assert_eq!(tb.caret(), buf.cursor_char(), "{label}: seeded caret parity");
+            assert_eq!(
+                tb.caret(),
+                buf.cursor_char(),
+                "{label}: seeded caret parity"
+            );
 
             // Walk forward by word twice, then back by word once, then char-step
             // in both directions — the SAME ops on both models.
@@ -347,7 +362,11 @@ mod tests {
 
             tb.delete_word_back();
             buf.delete_word_backward();
-            assert_eq!(tb.caret(), buf.cursor_char(), "{label}: delete_word_back caret");
+            assert_eq!(
+                tb.caret(),
+                buf.cursor_char(),
+                "{label}: delete_word_back caret"
+            );
             assert_eq!(tb.text(), buf.text(), "{label}: delete_word_back text");
 
             // Forward word-delete from the START of what remains.
@@ -357,7 +376,11 @@ mod tests {
             buf2.set_cursor(0);
             tb2.delete_word_forward();
             buf2.delete_word_forward();
-            assert_eq!(tb2.caret(), buf2.cursor_char(), "{label}: delete_word_forward caret");
+            assert_eq!(
+                tb2.caret(),
+                buf2.cursor_char(),
+                "{label}: delete_word_forward caret"
+            );
             assert_eq!(tb2.text(), buf2.text(), "{label}: delete_word_forward text");
         }
     }

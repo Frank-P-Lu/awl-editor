@@ -285,7 +285,7 @@ fn matches_ci(b: &[u8], i: usize, needle: &[u8]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::testutil::{at};
+    use crate::syntax::testutil::at;
 
     #[test]
     fn block_comment_recedes() {
@@ -296,7 +296,10 @@ mod tests {
     #[test]
     fn multiline_comment() {
         let t = "<!-- one\ntwo -->\n";
-        assert_eq!(at(t, &spans(t), SynKind::Comment), vec!["<!-- one\ntwo -->"]);
+        assert_eq!(
+            at(t, &spans(t), SynKind::Comment),
+            vec!["<!-- one\ntwo -->"]
+        );
     }
 
     #[test]
@@ -381,7 +384,11 @@ mod tests {
     fn reference_snippet() {
         let t = "<!-- header -->\n<header id=\"top\">\n  <a href=\"/\">Home &amp; Away</a>\n</header>\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["<!-- header -->"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["<!-- header -->"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"top"), "{s:?}");
         assert!(at(t, &s, SynKind::Str).contains(&"\"/\""), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"&amp;"), "{s:?}");

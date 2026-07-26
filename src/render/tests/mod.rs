@@ -16,60 +16,60 @@ mod backgrounds_item69;
 mod backgrounds_item86;
 mod backgrounds_item89;
 mod build_integrity;
+mod card_texture_shape;
 mod caret;
 mod caret_block;
 mod caret_ink_box;
 mod caret_transition_item105;
-mod card_texture_shape;
 mod chrome_overlay;
 mod chrome_panels;
 mod cjk;
 mod date_picker_ink;
+mod distinguishability;
 mod dither;
 mod facepitch;
 mod firetail_showcase;
 mod float_surface_law;
+mod folds;
 mod frost;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
-mod hybrid_band_snap;
 mod hover_slop_law;
 mod hud;
+mod hybrid_band_snap;
 mod images;
 mod list_surfaces;
 mod markdown;
 mod markdown_headings;
 mod nits;
-mod distinguishability;
 mod one_bit;
 mod oracle;
 mod outline;
 mod overlay_align_law;
 mod overlay_hover_stability_law;
 mod overlay_personality;
-mod overlay_rhythm_item112;
 mod overlay_rail_thirds_law;
-mod range_rail;
-mod reanchor_crossing_law;
+mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
 mod page_frame;
-mod folds;
 mod pixeldiff;
+mod range_rail;
+mod reanchor_crossing_law;
 mod selection_clip_law;
 mod settings_row_reach_law;
+mod split_pane;
 mod stars;
 mod syntax_ligatures;
-mod waves_drift_item87;
 mod syntax_roles;
 mod tables;
-mod split_pane;
 mod theme;
 mod theme_caps_law;
 mod washes;
-mod wrap_affinity;
+mod waves_drift_item87;
 #[cfg(not(target_arch = "wasm32"))]
 mod webgl_shader_validation;
+mod wrap_affinity;
 mod wysiwyg;
 mod zoom_anchor;
 
@@ -79,8 +79,7 @@ pub(super) const H: f32 = 800.0;
 /// Build a headless pipeline, or `None` if no wgpu adapter is available.
 pub(super) fn headless_pipeline() -> Option<TextPipeline> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -93,12 +92,7 @@ pub(super) fn headless_pipeline() -> Option<TextPipeline> {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(
-            &device,
-            &queue,
-            &cache,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
-        );
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some(p)
     })
@@ -110,8 +104,7 @@ pub(super) fn headless_pipeline() -> Option<TextPipeline> {
 /// and queue of their own to drive it.
 pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -124,8 +117,7 @@ pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue,
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(w, h);
         Some((device, queue, p))
     })

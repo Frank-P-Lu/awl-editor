@@ -96,7 +96,6 @@ pub fn set_inline_images_on(on: bool) {
     INLINE_IMAGES_ON.store(on, Ordering::Relaxed);
 }
 
-
 mod conceal;
 mod headings;
 mod refs;
@@ -105,19 +104,19 @@ mod tables;
 
 pub use conceal::ConcealKind;
 pub use headings::{
-    heading_row_lead, heading_scale, heading_weight_bold, headings, headings_from_spans,
-    type_scale, Heading,
+    Heading, heading_row_lead, heading_scale, heading_weight_bold, headings, headings_from_spans,
+    type_scale,
 };
 #[allow(unused_imports)] // ImageRef: public API surface, no in-crate caller outside tests
 pub use refs::{
-    destination_ranges, image_refs, image_width_hint_edit, label_destination_range, link_at,
-    link_at_full, parse_image_source, split_alt_hint, ImageRef, LinkAt,
+    ImageRef, LinkAt, destination_ranges, image_refs, image_width_hint_edit,
+    label_destination_range, link_at, link_at_full, parse_image_source, split_alt_hint,
 };
 #[allow(unused_imports)] // ListItem/READING_WPM: public API surface, no in-crate caller today
 pub use spans::{
-    break_kind, equals_runs, fence_line_lang, frontmatter_end, is_thematic_break, list_item,
-    reading_time_min, spans, strike_engaged, word_count, BreakKind, ListItem, MdKind,
-    LIST_INDENT, READING_WPM,
+    BreakKind, LIST_INDENT, ListItem, MdKind, READING_WPM, break_kind, equals_runs,
+    fence_line_lang, frontmatter_end, is_thematic_break, list_item, reading_time_min, spans,
+    strike_engaged, word_count,
 };
 pub(crate) use tables::ColAlign;
 pub use tables::{align_table, table_block_lines};

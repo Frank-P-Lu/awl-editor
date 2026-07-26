@@ -42,8 +42,14 @@ pub(super) enum Tier {
 }
 
 impl Tier {
-    pub(super) const ALL: [Tier; 6] =
-        [Tier::S, Tier::M, Tier::L, Tier::XPara, Tier::XMd, Tier::Code];
+    pub(super) const ALL: [Tier; 6] = [
+        Tier::S,
+        Tier::M,
+        Tier::L,
+        Tier::XPara,
+        Tier::XMd,
+        Tier::Code,
+    ];
 
     pub(super) fn name(self) -> &'static str {
         match self {
@@ -122,21 +128,50 @@ impl Rng {
 /// the last few NOUNS are deliberately outside the bundled dictionary so the
 /// squiggle pipeline always has deterministic work.
 const NOUNS: [&str; 16] = [
-    "river", "editor", "lantern", "harbour", "window", "notebook", "orchard", "signal",
-    "morning", "letter", "garden", "bridge", "quokka", "bilby", "teh", "wombatling",
+    "river",
+    "editor",
+    "lantern",
+    "harbour",
+    "window",
+    "notebook",
+    "orchard",
+    "signal",
+    "morning",
+    "letter",
+    "garden",
+    "bridge",
+    "quokka",
+    "bilby",
+    "teh",
+    "wombatling",
 ];
 const VERBS: [&str; 12] = [
-    "carries", "settles", "opens", "remembers", "follows", "gathers", "holds", "turns",
-    "answers", "leans", "waits", "measures",
+    "carries",
+    "settles",
+    "opens",
+    "remembers",
+    "follows",
+    "gathers",
+    "holds",
+    "turns",
+    "answers",
+    "leans",
+    "waits",
+    "measures",
 ];
 const ADJS: [&str; 12] = [
-    "quiet", "warm", "long", "pale", "steady", "small", "amber", "late",
-    "narrow", "calm", "bright", "worn",
+    "quiet", "warm", "long", "pale", "steady", "small", "amber", "late", "narrow", "calm",
+    "bright", "worn",
 ];
 const TAILS: [&str; 8] = [
-    "before the light changes", "without any hurry", "under the same sky",
-    "as if it mattered", "for most of the year", "against the far wall",
-    "past the old fence", "toward the open door",
+    "before the light changes",
+    "without any hurry",
+    "under the same sky",
+    "as if it mattered",
+    "for most of the year",
+    "against the far wall",
+    "past the old fence",
+    "toward the open door",
 ];
 
 /// One sentence: "The <adj> <noun> <verb> the <adj> <noun> <tail>." — every
@@ -193,7 +228,11 @@ fn prose(rng: &mut Rng, min_words: usize, title: &str, subheads: usize) -> Strin
     let mut para = 0usize;
     while count_words(&s) < min_words as u64 {
         if heads_left > 0 && para == 2 {
-            s.push_str(&format!("## The {} {}\n\n", rng.pick(&ADJS), rng.pick(&NOUNS)));
+            s.push_str(&format!(
+                "## The {} {}\n\n",
+                rng.pick(&ADJS),
+                rng.pick(&NOUNS)
+            ));
             heads_left -= 1;
         }
         let n = 3 + rng.below(4);
@@ -212,7 +251,11 @@ fn essay(rng: &mut Rng, min_words: usize) -> String {
     let mut para = 0usize;
     while count_words(&s) < min_words as u64 {
         if para % 4 == 3 {
-            s.push_str(&format!("## On the {} {}\n\n", rng.pick(&ADJS), rng.pick(&NOUNS)));
+            s.push_str(&format!(
+                "## On the {} {}\n\n",
+                rng.pick(&ADJS),
+                rng.pick(&NOUNS)
+            ));
         }
         let n = 3 + rng.below(4);
         let mut p = paragraph(rng, n);
@@ -288,7 +331,12 @@ fn heavy_markdown(rng: &mut Rng, min_words: usize) -> String {
                 s.push('\n');
             }
             2 => {
-                s.push_str(&format!("- [ ] {}\n- [x] {}\n- [ ] {}\n\n", sentence(rng), sentence(rng), sentence(rng)));
+                s.push_str(&format!(
+                    "- [ ] {}\n- [x] {}\n- [ ] {}\n\n",
+                    sentence(rng),
+                    sentence(rng),
+                    sentence(rng)
+                ));
             }
             3 => {
                 s.push_str(&format!("> {}\n> {}\n\n", sentence(rng), sentence(rng)));
@@ -421,7 +469,12 @@ mod tests {
     #[test]
     fn corpus_generation_is_deterministic_per_tier() {
         for tier in Tier::ALL {
-            assert_eq!(text(tier), text(tier), "tier {} must regenerate byte-identically", tier.name());
+            assert_eq!(
+                text(tier),
+                text(tier),
+                "tier {} must regenerate byte-identically",
+                tier.name()
+            );
         }
     }
 
@@ -441,18 +494,45 @@ mod tests {
         assert!(count_words(&l) >= 50_000, "L must be >= 50,000 words");
         assert!(count_words(&xp) >= 5_000, "XPARA must be >= 5,000 words");
         assert!(count_words(&xm) >= 4_000, "XMD must be >= 4,000 words");
-        assert_eq!(xp.trim_end().lines().count(), 1, "XPARA must be ONE unbroken line");
+        assert_eq!(
+            xp.trim_end().lines().count(),
+            1,
+            "XPARA must be ONE unbroken line"
+        );
         assert!(code.lines().count() >= 2_500, "CODE must be >= 2,500 lines");
-        for (tier, t) in [("S", &s), ("M", &m), ("L", &l), ("XPARA", &xp), ("XMD", &xm), ("CODE", &code)] {
-            assert!(t.contains("the "), "tier {tier} must contain the search query");
+        for (tier, t) in [
+            ("S", &s),
+            ("M", &m),
+            ("L", &l),
+            ("XPARA", &xp),
+            ("XMD", &xm),
+            ("CODE", &code),
+        ] {
+            assert!(
+                t.contains("the "),
+                "tier {tier} must contain the search query"
+            );
             assert!(t.ends_with('\n'), "tier {tier} must end with a newline");
         }
         // XMD really carries the heavy constructs.
-        for needle in ["```rust", "- [ ]", "==always marked==", "| --- |", "\n---\n", "> The"] {
+        for needle in [
+            "```rust",
+            "- [ ]",
+            "==always marked==",
+            "| --- |",
+            "\n---\n",
+            "> The",
+        ] {
             assert!(xm.contains(needle), "XMD must contain {needle:?}");
         }
         // CODE really carries both comment tiers + strings + constants.
-        for needle in ["// The scale below", "// let legacy", "pub fn", "pub const", "\"the "] {
+        for needle in [
+            "// The scale below",
+            "// let legacy",
+            "pub fn",
+            "pub const",
+            "\"the ",
+        ] {
             assert!(code.contains(needle), "CODE must contain {needle:?}");
         }
     }

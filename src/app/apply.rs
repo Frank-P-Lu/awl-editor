@@ -111,7 +111,9 @@ impl App {
                 "retint_preview {} -> {} (page_ground #{:02x}{:02x}{:02x}, bracket armed)",
                 prev.name,
                 crate::theme::active().name,
-                g[0], g[1], g[2],
+                g[0],
+                g[1],
+                g[2],
             ));
         }
         // Unconditional: every preview frame joins the compositor's transaction.
@@ -176,7 +178,9 @@ impl App {
         // input (`theme_switch_at`). The frame this schedules is the settled present,
         // which the frame loop finalizes. Non-debug (and no pending input) takes the
         // byte-identical plain `sync_theme_font`.
-        let input_at = crate::debug::debug_on().then(|| self.theme_switch_at).flatten();
+        let input_at = crate::debug::debug_on()
+            .then(|| self.theme_switch_at)
+            .flatten();
         self.sync_theme_font_maybe_timed(input_at);
         self.sync_view(false);
         // The reshape is now APPLIED into the view but not yet PRESENTED. This
@@ -186,7 +190,9 @@ impl App {
         // lands INSIDE the transaction. See `finish_crossing_settle`.
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
-            crate::probe::trace(format_args!("deferred_reshape applied (bracketed present to follow)"));
+            crate::probe::trace(format_args!(
+                "deferred_reshape applied (bracketed present to follow)"
+            ));
         }
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
@@ -525,7 +531,9 @@ impl App {
         // OTHER keystroke — the corpus is only consumed when building a Go-to overlay,
         // which `OpenGoto` (Cmd-O) and `OpenOutline` ("Go to heading…") both do.
         let goto_headings: Vec<(String, usize)> =
-            if matches!(action, Action::OpenGoto | Action::OpenOutline) && self.active.buffer.is_markdown() {
+            if matches!(action, Action::OpenGoto | Action::OpenOutline)
+                && self.active.buffer.is_markdown()
+            {
                 crate::markdown::headings(&self.active.buffer.text())
                     .into_iter()
                     .map(|h| (h.label(), h.line))
@@ -542,10 +550,20 @@ impl App {
             if matches!(action, Action::OpenSpellSuggest) {
                 self.spell.as_ref().and_then(|sc| {
                     let (line, col) = self.active.buffer.cursor_line_col();
-                    sc.suggest_at(&self.active.buffer.text(), line, col, self.active.buffer.syntax_lang()).map(|t| {
+                    sc.suggest_at(
+                        &self.active.buffer.text(),
+                        line,
+                        col,
+                        self.active.buffer.syntax_lang(),
+                    )
+                    .map(|t| {
                         (
                             t.suggestions,
-                            (t.misspelling.line, t.misspelling.start_col, t.misspelling.end_col),
+                            (
+                                t.misspelling.line,
+                                t.misspelling.start_col,
+                                t.misspelling.end_col,
+                            ),
                             t.word,
                         )
                     })
@@ -565,7 +583,10 @@ impl App {
         // so this clock read never touches a default capture.
         let history_entries: Vec<crate::history::TimelineRow> =
             if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                match crate::history::source_path(self.active.buffer.path(), self.active.buffer.is_unnamed_fresh()) {
+                match crate::history::source_path(
+                    self.active.buffer.path(),
+                    self.active.buffer.is_unnamed_fresh(),
+                ) {
                     Some(path) => crate::history::timeline_rows(
                         &path,
                         &self.active.buffer.text(),
@@ -649,10 +670,19 @@ impl App {
         // The recent-PROJECTS MRU (absolute paths, newest-first) for the Project
         // navigator's Recent lens — captured as strings so the navigator can mark
         // the folders you've switched to. Empty in the headless replay.
-        let recent_projects: Vec<String> =
-            self.recent_projects.iter().map(|p| p.display().to_string()).collect();
+        let recent_projects: Vec<String> = self
+            .recent_projects
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect();
         let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
-            crate::overlay::browse_level(kind, rel, &browse_root, workspace.as_deref(), &recent_projects)
+            crate::overlay::browse_level(
+                kind,
+                rel,
+                &browse_root,
+                workspace.as_deref(),
+                &recent_projects,
+            )
         };
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
         // the shaped wrap geometry. A shared borrow of `self.gpu` (disjoint from the
@@ -681,9 +711,7 @@ impl App {
         // sticky-zoom write (the wheel path arms it in `set_zoom`).
         let zoom_changed = self.zoom != zoom;
         self.zoom = zoom;
-        if zoom_changed
-            && matches!(action, Action::ZoomIn | Action::ZoomOut | Action::ZoomReset)
-        {
+        if zoom_changed && matches!(action, Action::ZoomIn | Action::ZoomOut | Action::ZoomReset) {
             // Anchor the keyboard zoom on the CARET (captured against the still-OLD
             // geometry, BEFORE the deferred reflow reshapes): the caret holds its
             // screen position instead of drifting by its distance from the top.
@@ -873,9 +901,11 @@ impl App {
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
             // REBIND MENU: persist the captured binding (after a conflict gate) /
             // reset to default, then live-reload + refresh the open menu.
-            actions::Effect::RebindCommit { slug, binding, confirmed } => {
-                self.rebind_commit(slug, binding, confirmed)
-            }
+            actions::Effect::RebindCommit {
+                slug,
+                binding,
+                confirmed,
+            } => self.rebind_commit(slug, binding, confirmed),
             actions::Effect::RebindReset { slug } => self.rebind_reset(slug),
             // BLOCKED-ACTION RECOIL: the requested action couldn't proceed; queue a
             // caret bump away from the wall for the next sync_view (it applies the
@@ -1166,7 +1196,12 @@ impl App {
     /// PDF has no web command or format variant.
     pub(super) fn export_document(&mut self, format: crate::export::Format) {
         let markdown = self.active.buffer.text();
-        let doc_dir = self.active.buffer.path().and_then(|p| p.parent()).map(|p| p.to_path_buf());
+        let doc_dir = self
+            .active
+            .buffer
+            .path()
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf());
         let images = crate::export::FsImages { doc_dir };
         let bytes = crate::export::to_bytes(&markdown, format, &images);
 
@@ -1418,7 +1453,9 @@ impl App {
                 .active
                 .buffer
                 .path()
-                .map(|f| !self.config.path.as_os_str().is_empty() && f == self.config.path.as_path())
+                .map(|f| {
+                    !self.config.path.as_os_str().is_empty() && f == self.config.path.as_path()
+                })
                 .unwrap_or(false)
         {
             self.reload_config();

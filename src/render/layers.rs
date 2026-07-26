@@ -128,7 +128,10 @@ pub(super) struct TableGridCache {
 
 impl TableGridCache {
     pub(super) fn new() -> Self {
-        Self { version: std::cell::Cell::new(None), entries: std::cell::RefCell::new(Vec::new()) }
+        Self {
+            version: std::cell::Cell::new(None),
+            entries: std::cell::RefCell::new(Vec::new()),
+        }
     }
 }
 
@@ -167,7 +170,12 @@ const CAPTION_SCRIM_PAD_X: f32 = 4.0;
 impl TextPipeline {
     /// Per-frame PAGE-MODE margin gradient: punch a hole for the page column and
     /// paint the margins (the whole canvas, no margins, when page mode is off).
-    pub(super) fn prepare_background_layer(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
+    pub(super) fn prepare_background_layer(
+        &mut self,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+    ) {
         // PAGE MODE margin gradient: punch a hole for the page column so the flat
         // base_100 clear shows there, and paint the margins. When page mode is OFF
         // we pass `col_w == width` so the column covers everything and the margins
@@ -234,8 +242,8 @@ impl TextPipeline {
         // column, and the drawn outline/gutter TEXT), so warm steady frames pay ZERO
         // rebuilds and a margin-text or zoom change pays EXACTLY ONE. `--bench-frost`
         // witnesses this (a bench that reshaped nothing would be a lie).
-        let frost_active = crate::lava::frost_on()
-            && self.effective_background().lava_params().is_some();
+        let frost_active =
+            crate::lava::frost_on() && self.effective_background().lava_params().is_some();
         if frost_active {
             let key = self.frost_seed_key(width, height);
             if self.frost_seed_key != Some(key) {
@@ -262,38 +270,38 @@ impl TextPipeline {
             crate::lava::frost_px(frost.blur_px, self.metrics.zoom, self.dpi),
             crate::lava::FROST_ISO,
         ];
-        let params = self.effective_background().lava_params().map(
-            |(ground, lo, hi, edge, dithered)| {
-                // A Bayer-posterized source and the downsampled separable blur
-                // form axis-aligned crosses. While frost is active this lava is
-                // visible only through the blur capture, so feed that capture the
-                // same field without posterization; the unobscured document keeps
-                // the world's authored dither unchanged.
-                (
-                    ground,
-                    lo,
-                    hi,
-                    edge,
-                    crate::lava::dither_for_blur(dithered, self.backdrop_blur()),
-                )
-            },
-        );
+        let params =
+            self.effective_background()
+                .lava_params()
+                .map(|(ground, lo, hi, edge, dithered)| {
+                    // A Bayer-posterized source and the downsampled separable blur
+                    // form axis-aligned crosses. While frost is active this lava is
+                    // visible only through the blur capture, so feed that capture the
+                    // same field without posterization; the unobscured document keeps
+                    // the world's authored dither unchanged.
+                    (
+                        ground,
+                        lo,
+                        hi,
+                        edge,
+                        crate::lava::dither_for_blur(dithered, self.backdrop_blur()),
+                    )
+                });
         let phase = self.lava_render_phase();
-        self.lava_pipeline
-            .prepare(
-                queue,
-                width,
-                height,
-                self.lava_field_viewport,
-                bg_left,
-                bg_w,
-                rail_carved,
-                gutter_rect,
-                &self.frost_seeds,
-                frost_params,
-                params,
-                phase,
-            );
+        self.lava_pipeline.prepare(
+            queue,
+            width,
+            height,
+            self.lava_field_viewport,
+            bg_left,
+            bg_w,
+            rail_carved,
+            gutter_rect,
+            &self.frost_seeds,
+            frost_params,
+            params,
+            phase,
+        );
     }
 
     /// How many organic frost SEEDS the cached field currently holds — the live
@@ -403,8 +411,7 @@ impl TextPipeline {
         // data). The scale rides in through the now-scaled `cell_px`/`size_px`.
         let key = (width, height, cell_px.to_bits(), density.to_bits());
         if self.stars_proto_key != Some(key) {
-            self.stars_protos =
-                crate::stars::layout(width as f32, height as f32, cell_px, density);
+            self.stars_protos = crate::stars::layout(width as f32, height as f32, cell_px, density);
             self.stars_proto_key = Some(key);
         }
         let (page_on, _measure, col_left, col_w) = self.page_geometry();
@@ -447,9 +454,10 @@ impl TextPipeline {
                 continue;
             }
             let e = half + 1.0;
-            if ink_zones.iter().any(|r| {
-                s.x + e > r[0] && s.x - e < r[2] && s.y + e > r[1] && s.y - e < r[3]
-            }) {
+            if ink_zones
+                .iter()
+                .any(|r| s.x + e > r[0] && s.x - e < r[2] && s.y + e > r[1] && s.y - e < r[3])
+            {
                 continue;
             }
             let a = crate::stars::brightness(s.seed, phase, floor, peak);
@@ -508,8 +516,7 @@ impl TextPipeline {
                 .prepare(device, queue, width, height, &[]);
             return;
         }
-        let theme::PageFrame::Line { weight_px } = crate::render::effective_page_frame()
-        else {
+        let theme::PageFrame::Line { weight_px } = crate::render::effective_page_frame() else {
             self.page_frame_pipeline
                 .prepare(device, queue, width, height, &[]);
             return;
@@ -574,7 +581,6 @@ impl TextPipeline {
         }
         self.gutter_carve_rect(height)
     }
-
 
     /// Upload the document text layer with the full-ink default color — the one
     /// glyphon `prepare` per frame (the caret is a quad drawn underneath).
@@ -705,7 +711,10 @@ impl TextPipeline {
         // BAR override (`ViewState::selecting_drag`, latched into `caret_look`)
         // reaches the draw path too. When not dragging, `caret_look` == the global,
         // so every non-drag frame is byte-identical.
-        let mode = if theme::active().render_caps.caret_block_style.folds_morph_to_block()
+        let mode = if theme::active()
+            .render_caps
+            .caret_block_style
+            .folds_morph_to_block()
             && self.caret_look == CaretMode::Morph
         {
             CaretMode::Block
@@ -724,7 +733,8 @@ impl TextPipeline {
         // onto a space (settle stays high) resolve DIRECTLY to the thin bar with no
         // block frame, while a genuine fast glide (settle < SHOW) still streaks via
         // the final `else`.
-        let paint_space_bar = mode == CaretMode::Morph && !has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
+        let paint_space_bar =
+            mode == CaretMode::Morph && !has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
         if mode == CaretMode::Ibeam {
             // I-BEAM (prototype): a STEADY thin bar at the insertion point (no
             // breathing — fully static at rest), drawn via the block (rounded-quad)
@@ -806,95 +816,102 @@ impl TextPipeline {
     /// vertical rule at the draw site is exactly how the top edge came to disagree
     /// with the bottom. `render::tests::caret_ink_box`'s grep-law fails if a raster
     /// box, a descender depth or a line-cell height reappears in this file.
-    fn prepare_caret_block(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, width: u32, height: u32) {
+    fn prepare_caret_block(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+    ) {
         let (cx, cy, cw, ch, ccorner, ax, ay) = self.caret_geometry();
         let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
 
         match theme::active().render_caps.caret_block_style {
-        theme::CaretBlockStyle::Filled => {
-            // THE AUTHENTIC CRT PHOSPHOR BLOCK (an ink-caret world, `primary ==
-            // base_content`; Cassowary): an opaque `primary` cell drawn UNDER the
-            // text exactly like an ORDINARY world's block (below), PLUS the covered
-            // glyph knocked back through in the GROUND colour. A plain block here
-            // would paint green-on-green and ERASE the letter (unlike an amber-vs-ink
-            // block, whose value contrast keeps the letter legible); the knockout
-            // fixes that WITHOUT the `InverseVideo` photo-negative (which on a
-            // chromatic ink would flip green → magenta, not a lit cell).
-            self.caret_pipeline
-                .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
-            // KNOCKOUT: reuse the MORPH silhouette pipeline (drawn OVER the text)
-            // to repaint the covered glyph — the SAME anchor glyph the block sits on
-            // (both key off `caret.pos`, so they align by construction) — in
-            // `primary_content` (the ground; set at the draw site below). Only when
-            // SETTLED on a real inhabited glyph: mid-glide the block is a thin streak
-            // with no full cell to punch, and a glyphless anchor (space / line start /
-            // empty line) is simply a solid phosphor cell with nothing to knock out.
-            let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
-            if settled && self.prepare_caret_masks(device, queue) {
-                // THE KNOCKOUT COLOUR — the GROUND (`primary_content`), set at the
-                // draw site so it is authoritative even in the headless capture
-                // (which never runs `sync_theme_colors`); on a Filled world the
-                // silhouette pipeline is ONLY ever the knockout (morph folds to
-                // block), so this override is total, never fighting a morph accent.
-                self.caret_glyph_pipeline
-                    .set_color(theme::primary_content().rgb_bytes());
-                let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
-                self.caret_glyph_pipeline.prepare(
-                    device,
-                    queue,
-                    width,
-                    height,
-                    self.caret_mask_from.as_ref(),
-                    from_box,
-                    self.caret_mask_to.as_ref(),
-                    to_box,
-                    morph_t,
-                    1.0,
-                    CARET_MORPH_DILATE_PX * self.metrics.zoom,
-                );
-            } else {
-                self.caret_glyph_pipeline.clear();
+            theme::CaretBlockStyle::Filled => {
+                // THE AUTHENTIC CRT PHOSPHOR BLOCK (an ink-caret world, `primary ==
+                // base_content`; Cassowary): an opaque `primary` cell drawn UNDER the
+                // text exactly like an ORDINARY world's block (below), PLUS the covered
+                // glyph knocked back through in the GROUND colour. A plain block here
+                // would paint green-on-green and ERASE the letter (unlike an amber-vs-ink
+                // block, whose value contrast keeps the letter legible); the knockout
+                // fixes that WITHOUT the `InverseVideo` photo-negative (which on a
+                // chromatic ink would flip green → magenta, not a lit cell).
+                self.caret_pipeline
+                    .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
+                // KNOCKOUT: reuse the MORPH silhouette pipeline (drawn OVER the text)
+                // to repaint the covered glyph — the SAME anchor glyph the block sits on
+                // (both key off `caret.pos`, so they align by construction) — in
+                // `primary_content` (the ground; set at the draw site below). Only when
+                // SETTLED on a real inhabited glyph: mid-glide the block is a thin streak
+                // with no full cell to punch, and a glyphless anchor (space / line start /
+                // empty line) is simply a solid phosphor cell with nothing to knock out.
+                let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
+                if settled && self.prepare_caret_masks(device, queue) {
+                    // THE KNOCKOUT COLOUR — the GROUND (`primary_content`), set at the
+                    // draw site so it is authoritative even in the headless capture
+                    // (which never runs `sync_theme_colors`); on a Filled world the
+                    // silhouette pipeline is ONLY ever the knockout (morph folds to
+                    // block), so this override is total, never fighting a morph accent.
+                    self.caret_glyph_pipeline
+                        .set_color(theme::primary_content().rgb_bytes());
+                    let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
+                    self.caret_glyph_pipeline.prepare(
+                        device,
+                        queue,
+                        width,
+                        height,
+                        self.caret_mask_from.as_ref(),
+                        from_box,
+                        self.caret_mask_to.as_ref(),
+                        to_box,
+                        morph_t,
+                        1.0,
+                        CARET_MORPH_DILATE_PX * self.metrics.zoom,
+                    );
+                } else {
+                    self.caret_glyph_pipeline.clear();
+                }
             }
-        }
-        theme::CaretBlockStyle::InverseVideo => {
-            self.caret_glyph_pipeline.clear();
-            // TRUE 1-BIT WORLDS: an opaque pre-text quad here — even one
-            // tinted `primary` (pure white on a one-bit world, the SAME
-            // value as the text ink) — would white-out a glyph the caret
-            // lands on: the glyph's own alpha-blended draw on TOP of an
-            // already-white quad composites into uniform white with no
-            // visible seam (the exact bug this round fixes — a caret on a
-            // heading's `#` erased the `#`). Route the caret's own ANIMATED
-            // rect (this frame's settle-driven position + streak size, from
-            // `caret_geometry`/the descender extension above — travel-axis
-            // ROTATION is dropped, `fs_invert` has no axis field, and a
-            // rotated streak is rare + still legible axis-aligned) through
-            // `caret_invert` instead: drawn AFTER text with a `OneMinusDst`
-            // blend, so it flips whatever the ground+text already
-            // composited to beneath it — black ground -> white, white glyph
-            // ink -> black — making the glyph under the caret legible.
-            // `caret_pipeline` draws NOTHING this frame (`prepare_empty`):
-            // an opaque quad here would hand the invert pass a uniform-white
-            // destination with nothing left to flip into a visible glyph.
-            //
-            // THE ROUNDED-SILHOUETTE FIX: `ccorner` here is the EXACT SAME
-            // already-zoom/settle/squash-animated radius `caret_geometry` +
-            // `pop_scaled` computed above — the ONE Rust-side owner an
-            // ORDINARY world's `caret_pipeline.prepare_directed` call below
-            // draws with too. Uploading it into `caret_invert` via
-            // `set_corner` (consumed by `fs_invert`'s SDF discard — see that
-            // shader entry point's doc) makes the 1-bit caret's silhouette
-            // round the SAME way, rather than falling back to a hard square.
-            self.caret_invert.set_corner(ccorner);
-            let rect = [cx - cw * 0.5, cy - ch * 0.5, cw, ch];
-            self.caret_invert.prepare(device, queue, width, height, &[rect]);
-            self.caret_pipeline.prepare_empty();
-        }
-        theme::CaretBlockStyle::Normal => {
-            self.caret_glyph_pipeline.clear();
-            self.caret_pipeline
-                .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
-        }
+            theme::CaretBlockStyle::InverseVideo => {
+                self.caret_glyph_pipeline.clear();
+                // TRUE 1-BIT WORLDS: an opaque pre-text quad here — even one
+                // tinted `primary` (pure white on a one-bit world, the SAME
+                // value as the text ink) — would white-out a glyph the caret
+                // lands on: the glyph's own alpha-blended draw on TOP of an
+                // already-white quad composites into uniform white with no
+                // visible seam (the exact bug this round fixes — a caret on a
+                // heading's `#` erased the `#`). Route the caret's own ANIMATED
+                // rect (this frame's settle-driven position + streak size, from
+                // `caret_geometry`/the descender extension above — travel-axis
+                // ROTATION is dropped, `fs_invert` has no axis field, and a
+                // rotated streak is rare + still legible axis-aligned) through
+                // `caret_invert` instead: drawn AFTER text with a `OneMinusDst`
+                // blend, so it flips whatever the ground+text already
+                // composited to beneath it — black ground -> white, white glyph
+                // ink -> black — making the glyph under the caret legible.
+                // `caret_pipeline` draws NOTHING this frame (`prepare_empty`):
+                // an opaque quad here would hand the invert pass a uniform-white
+                // destination with nothing left to flip into a visible glyph.
+                //
+                // THE ROUNDED-SILHOUETTE FIX: `ccorner` here is the EXACT SAME
+                // already-zoom/settle/squash-animated radius `caret_geometry` +
+                // `pop_scaled` computed above — the ONE Rust-side owner an
+                // ORDINARY world's `caret_pipeline.prepare_directed` call below
+                // draws with too. Uploading it into `caret_invert` via
+                // `set_corner` (consumed by `fs_invert`'s SDF discard — see that
+                // shader entry point's doc) makes the 1-bit caret's silhouette
+                // round the SAME way, rather than falling back to a hard square.
+                self.caret_invert.set_corner(ccorner);
+                let rect = [cx - cw * 0.5, cy - ch * 0.5, cw, ch];
+                self.caret_invert
+                    .prepare(device, queue, width, height, &[rect]);
+                self.caret_pipeline.prepare_empty();
+            }
+            theme::CaretBlockStyle::Normal => {
+                self.caret_glyph_pipeline.clear();
+                self.caret_pipeline
+                    .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
+            }
         }
     }
 
@@ -934,10 +951,16 @@ impl TextPipeline {
     ) {
         let (mut comment_rects, mut string_rects, highlight_rects) = self.wash_rects();
         let th = theme::active();
-        if role_style_for(&th, crate::syntax::SynKind::Comment).wash.is_none() {
+        if role_style_for(&th, crate::syntax::SynKind::Comment)
+            .wash
+            .is_none()
+        {
             comment_rects.clear();
         }
-        if role_style_for(&th, crate::syntax::SynKind::Str).wash.is_none() {
+        if role_style_for(&th, crate::syntax::SynKind::Str)
+            .wash
+            .is_none()
+        {
             string_rects.clear();
         }
         self.wash_comment_pipeline
@@ -1006,7 +1029,8 @@ impl TextPipeline {
         // selection or preedit.
         let mut rects = self.selection_rects();
         rects.extend(self.preedit_rects());
-        let one_bit = theme::active().render_caps.selection_style == theme::SelectionStyle::InverseVideo;
+        let one_bit =
+            theme::active().render_caps.selection_style == theme::SelectionStyle::InverseVideo;
 
         // ORDINARY WORLDS: the translucent fill, unchanged.
         //
@@ -1137,7 +1161,13 @@ impl TextPipeline {
         for &ch in &distinct {
             let mut buf = GlyphBuffer::new(&mut self.font_system, orn_metrics);
             buf.set_size(&mut self.font_system, Some(col_w), Some(orn_line_h));
-            buf.set_text(&mut self.font_system, &ch.to_string(), &rule_attrs, Shaping::Advanced, center);
+            buf.set_text(
+                &mut self.font_system,
+                &ch.to_string(),
+                &rule_attrs,
+                Shaping::Advanced,
+                center,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
             rule_buffers.push(buf);
         }
@@ -1169,7 +1199,13 @@ impl TextPipeline {
         for &ch in &bullet_distinct {
             let mut buf = GlyphBuffer::new(&mut self.font_system, bullet_metrics);
             buf.set_size(&mut self.font_system, Some(bullet_w), Some(m.line_height));
-            buf.set_text(&mut self.font_system, &ch.to_string(), &bullet_attrs, Shaping::Advanced, None);
+            buf.set_text(
+                &mut self.font_system,
+                &ch.to_string(),
+                &bullet_attrs,
+                Shaping::Advanced,
+                None,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
             bullet_buffers.push(buf);
         }
@@ -1193,7 +1229,11 @@ impl TextPipeline {
         let mut quote_buffer = GlyphBuffer::new(&mut self.font_system, quote_metrics);
         let mut quote_left = 0.0f32;
         if !quote_tops.is_empty() {
-            quote_buffer.set_size(&mut self.font_system, Some(quote_box_w), Some(m.line_height));
+            quote_buffer.set_size(
+                &mut self.font_system,
+                Some(quote_box_w),
+                Some(m.line_height),
+            );
             quote_buffer.set_text(
                 &mut self.font_system,
                 &QUOTE_MARK_GLYPH.to_string(),
@@ -1214,12 +1254,8 @@ impl TextPipeline {
                 mark_w = mark_w.max(run.line_w);
             }
             let gap = m.char_width * 0.3;
-            quote_left = super::geometry::pull_quote_left(
-                self.column_left(),
-                self.text_left(),
-                gap,
-                mark_w,
-            );
+            quote_left =
+                super::geometry::pull_quote_left(self.column_left(), self.text_left(), gap, mark_w);
         }
 
         // FENCE LANGUAGE LABEL: a quiet MUTED word (e.g. "rust") right-aligned on
@@ -1245,12 +1281,19 @@ impl TextPipeline {
                 fence_lang_distinct.push(*lang);
             }
         }
-        let mut fence_lang_buffers: Vec<GlyphBuffer> = Vec::with_capacity(fence_lang_distinct.len());
+        let mut fence_lang_buffers: Vec<GlyphBuffer> =
+            Vec::with_capacity(fence_lang_distinct.len());
         let mut fence_lang_widths: Vec<f32> = Vec::with_capacity(fence_lang_distinct.len());
         for &lang in &fence_lang_distinct {
             let mut buf = GlyphBuffer::new(&mut self.font_system, fence_lang_metrics);
             buf.set_size(&mut self.font_system, Some(col_w), Some(m.line_height));
-            buf.set_text(&mut self.font_system, lang.name(), &fence_lang_attrs, Shaping::Advanced, None);
+            buf.set_text(
+                &mut self.font_system,
+                lang.name(),
+                &fence_lang_attrs,
+                Shaping::Advanced,
+                None,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
             let mut w = 0.0f32;
             for run in buf.layout_runs() {
@@ -1320,13 +1363,18 @@ impl TextPipeline {
         // mark — item 73: it's the one thing the PLACEMENT clamp below needs that
         // isn't knowable from geometry alone (the text is short but its pixel width
         // still depends on the active world's own ornament face).
-        let mut fold_tail_buffers: Vec<GlyphBuffer> =
-            Vec::with_capacity(fold_tail_marks.len());
+        let mut fold_tail_buffers: Vec<GlyphBuffer> = Vec::with_capacity(fold_tail_marks.len());
         let mut fold_tail_widths: Vec<f32> = Vec::with_capacity(fold_tail_marks.len());
         for &(_, _, n, _line) in &fold_tail_marks {
             let mut buf = GlyphBuffer::new(&mut self.font_system, fold_mark_metrics);
             buf.set_size(&mut self.font_system, Some(col_w), Some(fold_mark_h));
-            buf.set_text(&mut self.font_system, &fold_tail_text(n), &fold_tail_attrs, Shaping::Advanced, None);
+            buf.set_text(
+                &mut self.font_system,
+                &fold_tail_text(n),
+                &fold_tail_attrs,
+                Shaping::Advanced,
+                None,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
             let mut w = 0.0f32;
             for run in buf.layout_runs() {
@@ -1340,7 +1388,13 @@ impl TextPipeline {
         for &(_, _, _line) in &fold_chevron_marks {
             let mut buf = GlyphBuffer::new(&mut self.font_system, fold_mark_metrics);
             buf.set_size(&mut self.font_system, Some(col_w), Some(fold_mark_h));
-            buf.set_text(&mut self.font_system, FOLD_CHEVRON, &fold_chevron_attrs, Shaping::Advanced, None);
+            buf.set_text(
+                &mut self.font_system,
+                FOLD_CHEVRON,
+                &fold_chevron_attrs,
+                Shaping::Advanced,
+                None,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
             fold_chevron_buffers.push(buf);
         }
@@ -1351,7 +1405,12 @@ impl TextPipeline {
             Some((t, b)) => (t as i32, b as i32),
             None => (0, height as i32),
         };
-        let bounds = TextBounds { left: 0, top: o_top, right: width as i32, bottom: o_bottom };
+        let bounds = TextBounds {
+            left: 0,
+            top: o_top,
+            right: width as i32,
+            bottom: o_bottom,
+        };
         let mut areas: Vec<TextArea> = Vec::with_capacity(
             rule_marks.len()
                 + bullet_marks.len()
@@ -1361,7 +1420,10 @@ impl TextPipeline {
                 + fold_chevron_marks.len(),
         );
         for (top, ch) in &rule_marks {
-            let idx = distinct.iter().position(|c| c == ch).expect("char was deduped in");
+            let idx = distinct
+                .iter()
+                .position(|c| c == ch)
+                .expect("char was deduped in");
             areas.push(TextArea {
                 buffer: &rule_buffers[idx],
                 left,
@@ -1373,7 +1435,10 @@ impl TextPipeline {
             });
         }
         for (top, bleft, ch) in &bullet_marks {
-            let idx = bullet_distinct.iter().position(|c| c == ch).expect("char was deduped in");
+            let idx = bullet_distinct
+                .iter()
+                .position(|c| c == ch)
+                .expect("char was deduped in");
             areas.push(TextArea {
                 buffer: &bullet_buffers[idx],
                 left: *bleft,
@@ -1538,7 +1603,13 @@ impl TextPipeline {
                 // it — the "no cell wraps mid-word" law is structural, not just floored.
                 buf.set_wrap(&mut self.font_system, Wrap::Word);
                 buf.set_size(&mut self.font_system, Some(avail), Some(tall));
-                buf.set_text(&mut self.font_system, cell, &cell_attrs, Shaping::Advanced, None);
+                buf.set_text(
+                    &mut self.font_system,
+                    cell,
+                    &cell_attrs,
+                    Shaping::Advanced,
+                    None,
+                );
                 let al = cell_inline_attrs(&cell_attrs, m.line_height, cell);
                 if let Some(line) = buf.lines.get_mut(0) {
                     line.set_attrs_list(al);
@@ -1593,7 +1664,12 @@ impl TextPipeline {
                 *rh = rh.max(h);
             }
         }
-        TableGridShaped { col_x, col_w, cells, row_heights }
+        TableGridShaped {
+            col_x,
+            col_w,
+            cells,
+            row_heights,
+        }
     }
 
     /// WRAP-NOT-CLIP row RESERVATION: the per-LOGICAL-LINE reserved row height each
@@ -1645,9 +1721,7 @@ impl TextPipeline {
         }
         let mut tmetas: Vec<TMeta> = Vec::new();
         for (r, k) in md_spans {
-            if *k
-                != crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Table)
-            {
+            if *k != crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Table) {
                 continue;
             }
             let Some(header_line) = starts.iter().position(|&s| s == r.start) else {
@@ -1679,7 +1753,11 @@ impl TextPipeline {
                 .max()
                 .unwrap_or(0)
                 .max(align_cells.len());
-            tmetas.push(TMeta { range: r.clone(), grid_rows, ncols });
+            tmetas.push(TMeta {
+                range: r.clone(),
+                grid_rows,
+                ncols,
+            });
         }
         // PHASE B — shape each table ONCE (the ONE shape site, see
         // [`TableGridCache`]'s own doc comment) and reserve the tall row on any
@@ -1759,7 +1837,10 @@ impl TextPipeline {
     /// "the real `|` source is what floats" without a GPU pixel diff.
     #[cfg(test)]
     pub(super) fn xray_lines_report(&self) -> Vec<(usize, String)> {
-        self.xray.iter().map(|x| (x.line, x.source.clone())).collect()
+        self.xray
+            .iter()
+            .map(|x| (x.line, x.source.clone()))
+            .collect()
     }
 
     /// THE X-RAY (the user's canonized metaphor): for every GFM table ROW the
@@ -1839,12 +1920,11 @@ impl TextPipeline {
                 b += self.buffer.lines[li].text().len() + 1;
                 li += 1;
             }
-            let caret_here =
-                (*header_line..=last_line_of_block).contains(&cursor_line);
+            let caret_here = (*header_line..=last_line_of_block).contains(&cursor_line);
             for line in *header_line..=last_line_of_block {
                 let is_caret = caret_here && line == cursor_line;
-                let is_selected = !is_caret
-                    && sel_lines.as_ref().is_some_and(|sl| sl.contains(&line));
+                let is_selected =
+                    !is_caret && sel_lines.as_ref().is_some_and(|sl| sl.contains(&line));
                 if !is_caret && !is_selected {
                     continue;
                 }
@@ -1888,7 +1968,14 @@ impl TextPipeline {
                     (0.0, h)
                 };
                 let top = self.line_ornament_top(line);
-                rows.push(crate::render::XrayRow { line, source: src, glyph_xs, top, height, pan });
+                rows.push(crate::render::XrayRow {
+                    line,
+                    source: src,
+                    glyph_xs,
+                    top,
+                    height,
+                    pan,
+                });
             }
         }
         self.xray = rows;
@@ -1948,7 +2035,8 @@ impl TextPipeline {
         };
         if blocks.is_empty() {
             // Park both layers — byte-identical to a no-table frame.
-            self.table_rule_pipeline.prepare(device, queue, width, height, &[]);
+            self.table_rule_pipeline
+                .prepare(device, queue, width, height, &[]);
             self.table_renderer
                 .prepare(
                     device,
@@ -1978,7 +2066,13 @@ impl TextPipeline {
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
-            |i| self.buffer.lines.get(i).map(|l| l.text().len()).unwrap_or(0),
+            |i| {
+                self.buffer
+                    .lines
+                    .get(i)
+                    .map(|l| l.text().len())
+                    .unwrap_or(0)
+            },
         );
         let content = theme::base_content().to_glyphon();
 
@@ -2094,7 +2188,13 @@ impl TextPipeline {
             let mut buf = GlyphBuffer::new(&mut self.font_system, bodym);
             buf.set_wrap(&mut self.font_system, Wrap::None);
             buf.set_size(&mut self.font_system, None, Some(m.line_height * 2.0));
-            buf.set_text(&mut self.font_system, &x.source, &base, Shaping::Advanced, None);
+            buf.set_text(
+                &mut self.font_system,
+                &x.source,
+                &base,
+                Shaping::Advanced,
+                None,
+            );
             buf.shape_until_scroll(&mut self.font_system, false);
             xray_floats.push((buf, x.top, x.height, x.pan, x.line));
         }
@@ -2107,13 +2207,15 @@ impl TextPipeline {
                 Some(s) => (s.col_x.as_slice(), s.col_w.as_slice()),
                 None => (&[][..], &[][..]),
             };
-            self.table_report.borrow_mut().push(crate::render::TableReport {
-                range: meta.range,
-                rows: meta.grid_rows.len(),
-                cols: meta.ncols,
-                col_widths: col_w.to_vec(),
-                revealed: meta.revealed,
-            });
+            self.table_report
+                .borrow_mut()
+                .push(crate::render::TableReport {
+                    range: meta.range,
+                    rows: meta.grid_rows.len(),
+                    cols: meta.ncols,
+                    col_widths: col_w.to_vec(),
+                    revealed: meta.revealed,
+                });
             let Some(s) = &shaped[mi] else {
                 continue;
             };
@@ -2145,8 +2247,7 @@ impl TextPipeline {
                     let top = self.line_ornament_top(doc_line);
                     let box_left = text_left + col_x[*c];
                     let box_w = col_w[*c];
-                    let off =
-                        crate::markdown::table_align_offset(meta.aligns[*c], box_w, *cw, pad);
+                    let off = crate::markdown::table_align_offset(meta.aligns[*c], box_w, *cw, pad);
                     let clip_left = box_left.max(0.0) as i32;
                     let clip_right = (box_left + box_w).clamp(0.0, width as f32) as i32;
                     areas.push(TextArea {
@@ -2184,7 +2285,10 @@ impl TextPipeline {
                 .map(|(_, o)| o)
                 .unwrap_or(0.0);
             let pan = crate::markdown::table_pan_clamp(pan_req, content_w, view_w);
-            if self.table_pan.is_some_and(|(start, _)| start == meta.range.0) {
+            if self
+                .table_pan
+                .is_some_and(|(start, _)| start == meta.range.0)
+            {
                 pan_writeback = Some((meta.range.0, pan));
             }
             // At pan 0 the grid grows into the margins (clip only at the canvas);
@@ -2438,7 +2542,8 @@ impl TextPipeline {
         // Prune the decode cache to the OPEN DOC's images (visible or not), keyed by
         // canonical path — buffer-swap-safe, and scrolling back to an image never
         // re-decodes (it stays cached while it's in this doc's set).
-        let mut keep: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
+        let mut keep: std::collections::HashSet<std::path::PathBuf> =
+            std::collections::HashSet::new();
         for im in &report {
             let resolved = self.resolve_image_path(&im.path);
             keep.insert(ImageCache::canonical_key(&resolved));
@@ -2527,19 +2632,28 @@ impl TextPipeline {
                 self.push_caption_scrim(im.line, &mut scrim_bands);
             }
             if im.missing {
-                missing.push(Missing { dst, path: im.path.clone(), alt: im.alt.clone() });
+                missing.push(Missing {
+                    dst,
+                    path: im.path.clone(),
+                    alt: im.alt.clone(),
+                });
                 continue;
             }
             let resolved = self.resolve_image_path(&im.path);
             let key = ImageCache::canonical_key(&resolved);
-            match self.image_cache.ensure(device, queue, &resolved, dw, max_dim) {
+            match self
+                .image_cache
+                .ensure(device, queue, &resolved, dw, max_dim)
+            {
                 ImageState::Ready { .. } => ready.push(Ready { dst, alpha, key }),
                 // Header read OK at layout but the full decode failed at draw (a rare
                 // race — the file changed/vanished): fall to the placeholder, drawn in
                 // the aspect-reserved box.
-                ImageState::Missing => {
-                    missing.push(Missing { dst, path: im.path.clone(), alt: im.alt.clone() })
-                }
+                ImageState::Missing => missing.push(Missing {
+                    dst,
+                    path: im.path.clone(),
+                    alt: im.alt.clone(),
+                }),
             }
         }
 
@@ -2551,12 +2665,14 @@ impl TextPipeline {
             let placed: Vec<crate::image_pipeline::PlacedImage> = ready
                 .iter()
                 .filter_map(|r| {
-                    cache.view(&r.key).map(|view| crate::image_pipeline::PlacedImage {
-                        dst: r.dst,
-                        alpha: r.alpha,
-                        corner,
-                        view,
-                    })
+                    cache
+                        .view(&r.key)
+                        .map(|view| crate::image_pipeline::PlacedImage {
+                            dst: r.dst,
+                            alpha: r.alpha,
+                            corner,
+                            view,
+                        })
                 })
                 .collect();
             pipeline.prepare(device, queue, width, height, &placed);
@@ -2602,18 +2718,35 @@ impl TextPipeline {
             let start_y = box_top + (box_h - block_h).max(0.0) * 0.5;
             let mut name_buf = GlyphBuffer::new(&mut self.font_system, gm);
             name_buf.set_size(&mut self.font_system, Some(box_w), Some(line_h));
-            name_buf.set_text(&mut self.font_system, filename, &name_attrs, Shaping::Advanced, center);
+            name_buf.set_text(
+                &mut self.font_system,
+                filename,
+                &name_attrs,
+                Shaping::Advanced,
+                center,
+            );
             name_buf.shape_until_scroll(&mut self.font_system, false);
             buffers.push((name_buf, box_left, start_y, muted));
             if two {
                 let mut alt_buf = GlyphBuffer::new(&mut self.font_system, gm);
                 alt_buf.set_size(&mut self.font_system, Some(box_w), Some(line_h));
-                alt_buf.set_text(&mut self.font_system, mss.alt.trim(), &alt_attrs, Shaping::Advanced, center);
+                alt_buf.set_text(
+                    &mut self.font_system,
+                    mss.alt.trim(),
+                    &alt_attrs,
+                    Shaping::Advanced,
+                    center,
+                );
                 alt_buf.shape_until_scroll(&mut self.font_system, false);
                 buffers.push((alt_buf, box_left, start_y + line_h, faint));
             }
         }
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let areas: Vec<TextArea> = buffers
             .iter()
             .map(|(buf, left, top, color)| TextArea {
@@ -2680,7 +2813,13 @@ impl TextPipeline {
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
-            |i| self.buffer.lines.get(i).map(|l| l.text().len()).unwrap_or(0),
+            |i| {
+                self.buffer
+                    .lines
+                    .get(i)
+                    .map(|l| l.text().len())
+                    .unwrap_or(0)
+            },
         );
         self.image_report
             .borrow()

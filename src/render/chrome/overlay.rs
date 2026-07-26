@@ -568,7 +568,11 @@ impl TextPipeline {
         // keybindings-menu case — no kind check needed. `+ 1` reserves a blank separator
         // line between the hint and the band.
         let footer = self.keybindings_tips.clone();
-        let footer_rows = if footer.is_empty() { 0 } else { footer.len() + 1 };
+        let footer_rows = if footer.is_empty() {
+            0
+        } else {
+            footer.len() + 1
+        };
 
         // EMPTY STATE: no candidate rows (empty corpus / query matched nothing) → the
         // shared dim message row occupies ONE candidate line (grows the card by one).
@@ -741,8 +745,7 @@ impl TextPipeline {
 
         // The word's on-screen rect, from the same layout the squiggle rides. Only the
         // word's POSITION anchors the panel; its WIDTH does not size the card (below).
-        let (word_x, word_top, _word_w, word_h) =
-            self.spell_word_rect(line, start_col, end_col);
+        let (word_x, word_top, _word_w, word_h) = self.spell_word_rect(line, start_col, end_col);
 
         // Width: fit the WIDEST suggestion ROW — its real SHAPED width, measured into
         // `overlay_spell_w` at sync — plus padding, NOT the anchor word. So a short
@@ -846,7 +849,12 @@ impl TextPipeline {
     /// squiggle under the word uses ([`Self::spell_squiggles`]), so the panel lands
     /// directly beneath the word's glyphs. Columns are clamped to the word's visual
     /// row; `x` is relative to the canvas (text-left offset folded in).
-    fn spell_word_rect(&self, line: usize, start_col: usize, end_col: usize) -> (f32, f32, f32, f32) {
+    fn spell_word_rect(
+        &self,
+        line: usize,
+        start_col: usize,
+        end_col: usize,
+    ) -> (f32, f32, f32, f32) {
         let m = self.metrics;
         let doc_top = self.doc_top();
         let rows = self.visual_rows(line);
@@ -909,7 +917,13 @@ impl TextPipeline {
                 .iter()
                 .position(|l| matches!(l, ThemeLine::Item(i) if *i == self.overlay_selected))
                 .unwrap_or(0);
-            Some((geom.top_idx, geom.plan.len(), sel_row, geom.card_h, canvas_h))
+            Some((
+                geom.top_idx,
+                geom.plan.len(),
+                sel_row,
+                geom.card_h,
+                canvas_h,
+            ))
         } else {
             // Flat: `visible` rows from item `top_idx`; the selected row's 0-based position
             // among them (clamped defensively, mirroring the selected-band math).
@@ -965,11 +979,19 @@ impl TextPipeline {
         let lh = self.overlay_lh();
         let secondary = self.overlay_row_secondary_px(geom);
         let primary = self.overlay_row_primary_px(geom);
-        let rows = if geom.theme { geom.plan.len() } else { geom.visible };
+        let rows = if geom.theme {
+            geom.plan.len()
+        } else {
+            geom.visible
+        };
         let mut out = Vec::new();
         for k in 0..rows {
-            let Some(item) = self.overlay_item_at_row(geom, k) else { continue };
-            let Some(Some(frac)) = self.overlay_ranges.get(item).copied() else { continue };
+            let Some(item) = self.overlay_item_at_row(geom, k) else {
+                continue;
+            };
+            let Some(Some(frac)) = self.overlay_ranges.get(item).copied() else {
+                continue;
+            };
             let value_w = secondary.get(&k).copied().unwrap_or(0.0);
             let label_w = primary.get(&k).copied().unwrap_or(0.0);
             let text_right = geom.text_left + geom.text_w;
@@ -993,10 +1015,16 @@ impl TextPipeline {
             return None;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        self.overlay_rails(&geom).into_iter().find_map(|(item, rail)| {
-            crate::render::rowlayout::rail_hit(&rail, px, py)
-                .then(|| (item, crate::render::rowlayout::rail_frac_at(px, rail.x0, rail.x1)))
-        })
+        self.overlay_rails(&geom)
+            .into_iter()
+            .find_map(|(item, rail)| {
+                crate::render::rowlayout::rail_hit(&rail, px, py).then(|| {
+                    (
+                        item,
+                        crate::render::rowlayout::rail_frac_at(px, rail.x0, rail.x1),
+                    )
+                })
+            })
     }
 
     /// ITEM 94 — the rail's px SCALE for the row holding `item` (`x0`, `x1`), so a
@@ -1067,7 +1095,12 @@ impl TextPipeline {
     /// this single function — "what counts as a hover move" can never drift
     /// between live input and a scripted reproduction, and a new caller can't
     /// grow a second, hand-rolled hit-test-then-hover_at pair.
-    pub fn resolve_overlay_hover(&self, overlay: &mut crate::overlay::OverlayState, px: f32, py: f32) -> bool {
+    pub fn resolve_overlay_hover(
+        &self,
+        overlay: &mut crate::overlay::OverlayState,
+        px: f32,
+        py: f32,
+    ) -> bool {
         let hit = self.overlay_row_at(px, py);
         overlay.hover_at(px, py, hit)
     }
@@ -1126,5 +1159,4 @@ impl TextPipeline {
             )
         }
     }
-
 }

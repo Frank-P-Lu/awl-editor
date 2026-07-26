@@ -27,7 +27,9 @@ fn retina_capture_centers_page_column_symmetrically() {
     }
     let dir = std::env::temp_dir().join(format!("awl_capture_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let buf = Buffer::from_str("the quick brown fox jumps over the lazy dog\nsecond line of prose here\nand a third line to fill the page");
+    let buf = Buffer::from_str(
+        "the quick brown fox jumps over the lazy dog\nsecond line of prose here\nand a third line to fill the page",
+    );
 
     // --- RETINA run: 2400x1600 @ dpi 2.0, narrow column so margins are real. ---
     crate::page::set_page_on(true);
@@ -44,11 +46,23 @@ fn retina_capture_centers_page_column_symmetrically() {
     let dpi = num_after(&json, "\"canvas\":", "\"dpi\"");
     let left = num_after(&json, "\"column\":", "\"left\"");
     let width = num_after(&json, "\"column\":", "\"width\"");
-    assert_eq!(cw, 2400.0, "sidecar canvas.width self-describes the physical size");
-    assert_eq!(dpi, 2.0, "sidecar canvas.dpi self-describes the scale factor");
+    assert_eq!(
+        cw, 2400.0,
+        "sidecar canvas.width self-describes the physical size"
+    );
+    assert_eq!(
+        dpi, 2.0,
+        "sidecar canvas.dpi self-describes the scale factor"
+    );
     let right = 2400.0 - (left + width);
-    assert!(left > 0.0, "retina page column needs a LEFT margin, got {left}");
-    assert!(right > 0.0, "retina page column needs a RIGHT margin, got {right}");
+    assert!(
+        left > 0.0,
+        "retina page column needs a LEFT margin, got {left}"
+    );
+    assert!(
+        right > 0.0,
+        "retina page column needs a RIGHT margin, got {right}"
+    );
     assert!(
         (left - right).abs() <= 1.0,
         "retina page column must be CENTERED: left {left} vs right {right}"
@@ -127,15 +141,28 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
     let png = dir.join("narrow_gutter.png");
     capture_with(&png, &buf, &opts).expect("narrow-margin capture");
     let text = std::fs::read_to_string(png.with_extension("json")).unwrap();
-    let v: serde_json::Value =
-        serde_json::from_str(&text).unwrap_or_else(|e| panic!("gutter sidecar is not valid JSON: {e}\n{text}"));
+    let v: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("gutter sidecar is not valid JSON: {e}\n{text}"));
     let gutter = &v["gutter"];
-    assert_eq!(gutter["visible"], serde_json::json!(true), "a tight-but-real margin still shows the gutter");
+    assert_eq!(
+        gutter["visible"],
+        serde_json::json!(true),
+        "a tight-but-real margin still shows the gutter"
+    );
     let name = gutter["name"].as_str().expect("gutter.name is a string");
     // (1) THE FIX: one line only — never mid-word wrapped.
-    assert!(!name.contains('\n'), "the filename must render on ONE line, got {name:?}");
-    assert_ne!(name, long_name, "a name this long in this margin must actually elide");
-    assert!(name.ends_with(".md"), "elision preserves the extension: {name:?}");
+    assert!(
+        !name.contains('\n'),
+        "the filename must render on ONE line, got {name:?}"
+    );
+    assert_ne!(
+        name, long_name,
+        "a name this long in this margin must actually elide"
+    );
+    assert!(
+        name.ends_with(".md"),
+        "elision preserves the extension: {name:?}"
+    );
     // (2) THE CORRECTION: the project does NOT yield just because the filename
     // is eliding — it keeps showing (fit independently against the same
     // budget), here whole since it's short enough for this margin.
@@ -163,8 +190,7 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     let _g = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_json_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let mut buf =
-        Buffer::from_str("# Title\n\nsome **bold** prose to fill a line\nsecond line\n");
+    let mut buf = Buffer::from_str("# Title\n\nsome **bold** prose to fill a line\nsecond line\n");
     buf.set_path(dir.join("doc.md")); // .md so md_spans populate
 
     // --- PLAIN single frame -----------------------------------------------
@@ -174,12 +200,35 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     let v: serde_json::Value = serde_json::from_str(&text)
         .unwrap_or_else(|e| panic!("plain sidecar is not valid JSON: {e}\n{text}"));
     let obj = v.as_object().expect("sidecar root is a JSON object");
-    assert_eq!(obj["schema"], serde_json::json!(crate::capture::schema_plain()), "plain schema");
+    assert_eq!(
+        obj["schema"],
+        serde_json::json!(crate::capture::schema_plain()),
+        "plain schema"
+    );
     // The blocks the agent contract reads, present + the right JSON shape.
     for key in [
-        "canvas", "font", "theme", "caret_mode", "page", "wysiwyg", "outline",
-        "md_spans", "syn_lang", "syn_spans", "readout", "gutter", "dim_overlay", "debug",
-        "hud", "peek", "cursor", "selection", "search", "project", "overlay", "buffers",
+        "canvas",
+        "font",
+        "theme",
+        "caret_mode",
+        "page",
+        "wysiwyg",
+        "outline",
+        "md_spans",
+        "syn_lang",
+        "syn_spans",
+        "readout",
+        "gutter",
+        "dim_overlay",
+        "debug",
+        "hud",
+        "peek",
+        "cursor",
+        "selection",
+        "search",
+        "project",
+        "overlay",
+        "buffers",
     ] {
         assert!(obj.contains_key(key), "plain sidecar missing {key:?}");
     }
@@ -196,9 +245,16 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     // presence is THIS test's job.
     assert!(obj["outline"].is_object(), "outline is an object");
     assert!(obj["outline"]["on"].is_boolean(), "outline.on is a bool");
-    assert!(obj["outline"]["headings"].is_array(), "outline.headings is an array");
+    assert!(
+        obj["outline"]["headings"].is_array(),
+        "outline.headings is an array"
+    );
     let headings = obj["outline"]["headings"].as_array().unwrap();
-    assert_eq!(headings.len(), 1, "one heading in the fixture: {headings:?}");
+    assert_eq!(
+        headings.len(),
+        1,
+        "one heading in the fixture: {headings:?}"
+    );
     assert_eq!(headings[0]["text"], serde_json::json!("Title"));
     assert_eq!(headings[0]["level"], serde_json::json!(1));
     assert_eq!(headings[0]["line"], serde_json::json!(0));
@@ -209,7 +265,11 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     );
     // MULTI-BUFFER default (no `opts.buffers` wired): a single loaded buffer
     // always reports `open: 1` and its own display name as `active`.
-    assert_eq!(obj["buffers"]["open"], serde_json::json!(1), "single buffer by default");
+    assert_eq!(
+        obj["buffers"]["open"],
+        serde_json::json!(1),
+        "single buffer by default"
+    );
     assert_eq!(
         obj["buffers"]["active"],
         serde_json::json!("doc.md"),
@@ -217,8 +277,15 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     );
     // The WYSIWYG block: on by default, and an array of concealed ranges.
     assert!(obj["wysiwyg"].is_object(), "wysiwyg is an object");
-    assert_eq!(obj["wysiwyg"]["on"], serde_json::json!(true), "wysiwyg defaults ON");
-    assert!(obj["wysiwyg"]["concealed"].is_array(), "wysiwyg.concealed is an array");
+    assert_eq!(
+        obj["wysiwyg"]["on"],
+        serde_json::json!(true),
+        "wysiwyg defaults ON"
+    );
+    assert!(
+        obj["wysiwyg"]["concealed"].is_array(),
+        "wysiwyg.concealed is an array"
+    );
     assert!(obj["gutter"].is_object(), "gutter is an object");
     assert!(obj["dim_overlay"].is_boolean(), "dim_overlay is a bool");
     // `font.cjk` (the Japanese-bundle round): present on every capture, an
@@ -226,12 +293,11 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     // buffer with zero CJK text — see `cjk_json`'s doc) rather than a bare
     // `null`, since every normal build has the bundled Noto JP faces registered.
     assert!(obj["font"].get("cjk").is_some(), "font.cjk key present");
-    assert!(obj["font"]["cjk"].is_object(), "font.cjk resolves in a normal build");
-    assert_eq!(
-        obj["font"]["zoom"].as_f64(),
-        Some(1.0),
-        "default font.zoom"
+    assert!(
+        obj["font"]["cjk"].is_object(),
+        "font.cjk resolves in a normal build"
     );
+    assert_eq!(obj["font"]["zoom"].as_f64(), Some(1.0), "default font.zoom");
     assert_eq!(
         obj["font"]["size"].as_f64(),
         Some(24.0),
@@ -251,17 +317,29 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     assert!(obj["hud"]["held"].is_boolean(), "hud.held is a bool");
     assert!(obj["hud"]["percent"].is_number(), "hud.percent is a number");
     // The HUD was TRIMMED to the writer figures: file_created / session are gone.
-    assert!(obj["hud"].get("file_created").is_none(), "hud.file_created was dropped");
-    assert!(obj["hud"].get("session").is_none(), "hud.session was dropped");
+    assert!(
+        obj["hud"].get("file_created").is_none(),
+        "hud.file_created was dropped"
+    );
+    assert!(
+        obj["hud"].get("session").is_none(),
+        "hud.session was dropped"
+    );
     assert!(obj["md_spans"].is_array(), "md_spans is an array");
-    assert!(!obj["md_spans"].as_array().unwrap().is_empty(), "markdown buffer has md spans");
+    assert!(
+        !obj["md_spans"].as_array().unwrap().is_empty(),
+        "markdown buffer has md spans"
+    );
     assert!(obj["page"].is_object(), "page is an object");
     assert!(obj["cursor"].is_object(), "cursor is an object");
     // project / overlay are an object when present, JSON null when absent.
     assert!(obj["project"].is_object() || obj["project"].is_null());
     assert!(obj["overlay"].is_object() || obj["overlay"].is_null());
     // A PLAIN frame carries NO caret block (that is the timeline/held shape).
-    assert!(!obj.contains_key("caret"), "plain frame must omit the caret block");
+    assert!(
+        !obj.contains_key("caret"),
+        "plain frame must omit the caret block"
+    );
 
     // --- TIMELINE frame (caret block, no trail) ---------------------------
     let tl = dir.join("tl.png");
@@ -269,20 +347,44 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     let ttext = std::fs::read_to_string(dir.join("tl.t0.json")).unwrap();
     let tv: serde_json::Value = serde_json::from_str(&ttext)
         .unwrap_or_else(|e| panic!("timeline sidecar is not valid JSON: {e}\n{ttext}"));
-    assert_eq!(tv["schema"], serde_json::json!(crate::capture::schema_timeline()), "timeline schema");
+    assert_eq!(
+        tv["schema"],
+        serde_json::json!(crate::capture::schema_timeline()),
+        "timeline schema"
+    );
     assert!(tv.get("caret").is_some(), "timeline carries a caret block");
-    assert!(tv["caret"].get("trail").is_none(), "timeline caret has no trail block");
-    assert!(tv["caret"].get("cosmetic_trail").is_some(), "timeline caret has cosmetic_trail");
+    assert!(
+        tv["caret"].get("trail").is_none(),
+        "timeline caret has no trail block"
+    );
+    assert!(
+        tv["caret"].get("cosmetic_trail").is_some(),
+        "timeline caret has cosmetic_trail"
+    );
 
     // --- HELD frame (caret block WITH trail) ------------------------------
     let hd = dir.join("hd.png");
-    capture_held(&hd, &buf, (0, 0), HeldDir::Down, &[0, 30], &CaptureOpts::default())
-        .expect("held");
+    capture_held(
+        &hd,
+        &buf,
+        (0, 0),
+        HeldDir::Down,
+        &[0, 30],
+        &CaptureOpts::default(),
+    )
+    .expect("held");
     let htext = std::fs::read_to_string(dir.join("hd.t30.json")).unwrap();
     let hv: serde_json::Value = serde_json::from_str(&htext)
         .unwrap_or_else(|e| panic!("held sidecar is not valid JSON: {e}\n{htext}"));
-    assert_eq!(hv["schema"], serde_json::json!(crate::capture::schema_held()), "held schema");
-    assert!(hv["caret"].get("trail").is_some(), "held caret carries a trail block");
+    assert_eq!(
+        hv["schema"],
+        serde_json::json!(crate::capture::schema_held()),
+        "held schema"
+    );
+    assert!(
+        hv["caret"].get("trail").is_some(),
+        "held caret carries a trail block"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -339,19 +441,31 @@ fn syntax_sidecar_gated_to_code() {
     capture_with(&code_png, &code, &CaptureOpts::default()).expect("code capture");
     let cjson = std::fs::read_to_string(code_png.with_extension("json")).unwrap();
     assert!(
-        cjson.contains(&format!("\"schema\": \"{}\"", crate::capture::schema_plain())),
+        cjson.contains(&format!(
+            "\"schema\": \"{}\"",
+            crate::capture::schema_plain()
+        )),
         "schema bumped: {cjson:.80}"
     );
     let syn = &cjson[cjson.find("\"syn_spans\":").unwrap()..];
-    assert!(syn.contains("\"comment\""), "code syn_spans must carry a comment: {syn:.240}");
+    assert!(
+        syn.contains("\"comment\""),
+        "code syn_spans must carry a comment: {syn:.240}"
+    );
     assert!(
         syn.contains("\"comment_code\""),
         "commented-out code must report the comment_code tier: {syn:.240}"
     );
-    assert!(syn.contains("\"definition\""), "code syn_spans must carry the fn name: {syn:.240}");
+    assert!(
+        syn.contains("\"definition\""),
+        "code syn_spans must carry the fn name: {syn:.240}"
+    );
     // The companion `syn_lang` field reports the DETECTED language, agreeing
     // with the emitted spans (it is `null` when there are none, below).
-    assert!(cjson.contains("\"syn_lang\": \"rust\""), "code syn_lang must be rust: {cjson:.200}");
+    assert!(
+        cjson.contains("\"syn_lang\": \"rust\""),
+        "code syn_lang must be rust: {cjson:.200}"
+    );
 
     // A markdown buffer: syn_spans must be the empty array (no code highlight).
     let mut md = Buffer::from_str("# title\nsome prose\n");
@@ -359,8 +473,14 @@ fn syntax_sidecar_gated_to_code() {
     let md_png = dir.join("notes.png");
     capture_with(&md_png, &md, &CaptureOpts::default()).expect("md capture");
     let mjson = std::fs::read_to_string(md_png.with_extension("json")).unwrap();
-    assert!(mjson.contains("\"syn_spans\": []"), "markdown must emit empty syn_spans");
-    assert!(mjson.contains("\"syn_lang\": null"), "markdown syn_lang must be null");
+    assert!(
+        mjson.contains("\"syn_spans\": []"),
+        "markdown must emit empty syn_spans"
+    );
+    assert!(
+        mjson.contains("\"syn_lang\": null"),
+        "markdown syn_lang must be null"
+    );
 
     // A plain-text buffer: syn_spans empty too.
     let mut txt = Buffer::from_str("just words\n");
@@ -368,8 +488,14 @@ fn syntax_sidecar_gated_to_code() {
     let txt_png = dir.join("scratch.png");
     capture_with(&txt_png, &txt, &CaptureOpts::default()).expect("txt capture");
     let tjson = std::fs::read_to_string(txt_png.with_extension("json")).unwrap();
-    assert!(tjson.contains("\"syn_spans\": []"), ".txt must emit empty syn_spans");
-    assert!(tjson.contains("\"syn_lang\": null"), ".txt syn_lang must be null");
+    assert!(
+        tjson.contains("\"syn_spans\": []"),
+        ".txt must emit empty syn_spans"
+    );
+    assert!(
+        tjson.contains("\"syn_lang\": null"),
+        ".txt syn_lang must be null"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -385,7 +511,9 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
     // `main::args`'s `apply_sticky_globals` + `PageClass::of_path` resolve for
     // the SAME file at real launch).
     if !adapter_available() {
-        eprintln!("skipping page_sidecar_reports_class_and_measure_for_code_vs_prose: no wgpu adapter");
+        eprintln!(
+            "skipping page_sidecar_reports_class_and_measure_for_code_vs_prose: no wgpu adapter"
+        );
         return;
     }
     let _g = crate::testlock::serial();
@@ -401,7 +529,11 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
     let cj: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(code_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(cj["page"]["class"], serde_json::json!("code"), "a .rs fixture reports class=code");
+    assert_eq!(
+        cj["page"]["class"],
+        serde_json::json!("code"),
+        "a .rs fixture reports class=code"
+    );
     assert_eq!(
         cj["page"]["measure"],
         serde_json::json!(crate::page::DEFAULT_MEASURE_CODE),
@@ -416,7 +548,11 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
     let mj: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(md_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(mj["page"]["class"], serde_json::json!("prose"), "a .md fixture reports class=prose");
+    assert_eq!(
+        mj["page"]["class"],
+        serde_json::json!("prose"),
+        "a .md fixture reports class=prose"
+    );
     assert_eq!(
         mj["page"]["measure"],
         serde_json::json!(crate::page::DEFAULT_MEASURE),
@@ -468,12 +604,21 @@ fn fenced_code_syntax_highlights_by_info_language() {
         "sh fence maps to bash + carries a comment role span: {md_spans:.400}"
     );
     // The fence markers + info strings stay dim markup (the whole block is dimmed).
-    assert!(md_spans.contains("\"markup\""), "fence markers stay markup: {md_spans:.200}");
+    assert!(
+        md_spans.contains("\"markup\""),
+        "fence markers stay markup: {md_spans:.200}"
+    );
 
     // Fence syntax lives on the MARKDOWN seam: the code-buffer `syn_spans`/`syn_lang`
     // stay empty/null (this is a markdown buffer, not a code buffer).
-    assert!(json.contains("\"syn_spans\": []"), "markdown syn_spans stays empty");
-    assert!(json.contains("\"syn_lang\": null"), "markdown syn_lang stays null");
+    assert!(
+        json.contains("\"syn_spans\": []"),
+        "markdown syn_spans stays empty"
+    );
+    assert!(
+        json.contains("\"syn_lang\": null"),
+        "markdown syn_lang stays null"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -527,7 +672,9 @@ fn markdown_highlight_tag_present_in_sidecar() {
 #[test]
 fn prose_diff_view_renders_wash_band_pixels_and_reports_state() {
     if !adapter_available() {
-        eprintln!("skipping prose_diff_view_renders_wash_band_pixels_and_reports_state: no wgpu adapter");
+        eprintln!(
+            "skipping prose_diff_view_renders_wash_band_pixels_and_reports_state: no wgpu adapter"
+        );
         return;
     }
     let _g = crate::testlock::serial();
@@ -544,7 +691,10 @@ fn prose_diff_view_renders_wash_band_pixels_and_reports_state() {
         crate::prosediff::Params::shipping(),
         "Comparing with earlier",
     );
-    assert!(counts.struck >= 1 && counts.washed >= 1, "the fixture has both a deletion and an insertion");
+    assert!(
+        counts.struck >= 1 && counts.washed >= 1,
+        "the fixture has both a deletion and an insertion"
+    );
 
     let mut buf = Buffer::from_str(&transcript);
     buf.set_path(dir.join("diff.md"));
@@ -568,12 +718,24 @@ fn prose_diff_view_renders_wash_band_pixels_and_reports_state() {
     // (1) STATE: the sidecar `diff` block reports an active view with the right shape.
     let json = std::fs::read_to_string(png.with_extension("json")).unwrap();
     let diff = &json[json.find("\"diff\":").unwrap()..];
-    assert!(diff.contains("\"active\": true"), "diff view active: {diff:.160}");
-    assert!(diff.contains("\"struck\": 1"), "one struck deletion in state: {diff:.160}");
-    assert!(diff.contains("\"washed\": 1"), "one washed insertion in state: {diff:.160}");
+    assert!(
+        diff.contains("\"active\": true"),
+        "diff view active: {diff:.160}"
+    );
+    assert!(
+        diff.contains("\"struck\": 1"),
+        "one struck deletion in state: {diff:.160}"
+    );
+    assert!(
+        diff.contains("\"washed\": 1"),
+        "one washed insertion in state: {diff:.160}"
+    );
     // The washed insertion is in the render model (its `==` dims to markup).
     let md_spans = &json[json.find("\"md_spans\":").unwrap()..json.find("\"syn_lang\":").unwrap()];
-    assert!(md_spans.contains("\"highlight\""), "washed insertion is a highlight span: {md_spans:.200}");
+    assert!(
+        md_spans.contains("\"highlight\""),
+        "washed insertion is a highlight span: {md_spans:.200}"
+    );
 
     // (2) APPEARANCE (real pixels): the washed insertion draws a FILLED wash band —
     // some row carries a large run of non-background pixels. The page background is
@@ -629,7 +791,10 @@ fn markdown_table_tags_present_in_sidecar() {
 
     let md_spans = &json[json.find("\"md_spans\":").unwrap()..json.find("\"syn_lang\":").unwrap()];
     for tag in ["\"table_pipe\"", "\"table_sep\"", "\"table_header\""] {
-        assert!(md_spans.contains(tag), "table span {tag} present: {md_spans:.400}");
+        assert!(
+            md_spans.contains(tag),
+            "table span {tag} present: {md_spans:.400}"
+        );
     }
 
     let _ = std::fs::remove_dir_all(&dir);

@@ -55,9 +55,18 @@ fn font_metrics_are_scale_invariant_and_sane() {
     // (1) The base metrics (zoom 1, dpi 1) reproduce the source constants
     // EXACTLY — the derivation is identity at s == 1.
     let base = Metrics::new(1.0);
-    assert_eq!(base.font_size, FONT_SIZE, "base font_size drifted from FONT_SIZE");
-    assert_eq!(base.line_height, LINE_HEIGHT, "base line_height drifted from LINE_HEIGHT");
-    assert_eq!(base.char_width, CHAR_WIDTH, "base char_width drifted from CHAR_WIDTH");
+    assert_eq!(
+        base.font_size, FONT_SIZE,
+        "base font_size drifted from FONT_SIZE"
+    );
+    assert_eq!(
+        base.line_height, LINE_HEIGHT,
+        "base line_height drifted from LINE_HEIGHT"
+    );
+    assert_eq!(
+        base.char_width, CHAR_WIDTH,
+        "base char_width drifted from CHAR_WIDTH"
+    );
 
     // The invariant ratios, straight from the source constants.
     let lh_ratio = LINE_HEIGHT / FONT_SIZE; // 32/24 = 1.333…
@@ -68,15 +77,24 @@ fn font_metrics_are_scale_invariant_and_sane() {
     // and char_width ×0.8 DOWN (ratio → ~0.48); both fall OUTSIDE these bands, so
     // even a build that corrupted numerator and denominator independently trips
     // here. Chosen wide enough that any legitimate constant retune stays inside.
-    assert!((1.2..=1.45).contains(&lh_ratio), "line_height/font_size {lh_ratio} outside sane band");
-    assert!((0.5..=0.7).contains(&cw_ratio), "char_width/font_size {cw_ratio} outside sane band");
+    assert!(
+        (1.2..=1.45).contains(&lh_ratio),
+        "line_height/font_size {lh_ratio} outside sane band"
+    );
+    assert!(
+        (0.5..=0.7).contains(&cw_ratio),
+        "char_width/font_size {cw_ratio} outside sane band"
+    );
 
     // (2) Across a spread of zoom × dpi the ratios stay put — this exercises the
     // actual `* s` multiply the corrupt build got wrong, at non-trivial scales.
     for zoom in [0.5_f32, 1.0, 1.5, 2.0, 3.0] {
         for dpi in [1.0_f32, 2.0] {
             let m = Metrics::with_dpi(zoom, dpi);
-            assert!(m.font_size > 0.0, "non-positive font_size at zoom {zoom} dpi {dpi}");
+            assert!(
+                m.font_size > 0.0,
+                "non-positive font_size at zoom {zoom} dpi {dpi}"
+            );
             assert!(
                 close(m.line_height / m.font_size, lh_ratio),
                 "line_height/font_size drifted at zoom {zoom} dpi {dpi}: {} vs {lh_ratio}",

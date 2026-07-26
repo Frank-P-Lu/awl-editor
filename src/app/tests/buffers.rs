@@ -47,12 +47,19 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
         3,
         "the cursor position survived too"
     );
-    assert!(app.active.buffer.is_dirty(), "the unsaved edit is still unsaved");
+    assert!(
+        app.active.buffer.is_dirty(),
+        "the unsaved edit is still unsaved"
+    );
     assert_eq!(app.open_buffer_count(), 2, "A active again, B backgrounded");
 
     // And B's OWN edit is preserved too (not silently dropped when we left it).
     app.load_path(b.clone());
-    assert_eq!(app.active.buffer.text(), "BETA EDITED\n", "B's edit also survived");
+    assert_eq!(
+        app.active.buffer.text(),
+        "BETA EDITED\n",
+        "B's edit also survived"
+    );
 }
 
 #[test]
@@ -67,7 +74,9 @@ fn buffer_switch_clears_the_list_continuation_provenance_flag_item_78() {
     use crate::fs::InMemoryFs;
     let a = PathBuf::from("/proj/a.md");
     let b = PathBuf::from("/proj/b.md");
-    let mem = InMemoryFs::new().with_file(&a, "- \n").with_file(&b, "beta\n");
+    let mem = InMemoryFs::new()
+        .with_file(&a, "- \n")
+        .with_file(&b, "beta\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
     app.active.buffer.mark_list_continuation_generated();
@@ -636,7 +645,10 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     // which would otherwise treat the hand-set `doc_saved_version`/
     // `disk_mtime` sentinels below as a genuine external change and quietly
     // re-stamp them the moment the switch's own `autosave_flush` runs.
-    let cfg = Config { autosave: Some(false), ..Config::empty() };
+    let cfg = Config {
+        autosave: Some(false),
+        ..Config::empty()
+    };
     let mut app = app_on(Some(a.clone()), "/proj", cfg);
 
     // Mutate EVERY BufferExtra field on A to a value distinguishable from
@@ -644,7 +656,10 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     app.active.extra.shift_selecting = true;
     app.active.extra.scroll_lines = 11;
     app.run_spellcheck_now(); // populates spell_cache + spell_checked_version
-    assert!(!app.active.extra.spell_cache.is_empty(), "fixture text must actually misspell");
+    assert!(
+        !app.active.extra.spell_cache.is_empty(),
+        "fixture text must actually misspell"
+    );
     let a_spell_len = app.active.extra.spell_cache.len();
     let _ = app.view_text(); // populates sync_text_cache
     assert!(app.active.extra.sync_text_cache.is_some());
@@ -670,11 +685,20 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     app.active.extra.history_scroll_before = Some(55);
 
     app.load_path(b.clone()); // A parks whole-slot; B activates FRESH
-    assert_eq!(app.active.extra.scroll_lines, 0, "B never sees A's sentinel");
+    assert_eq!(
+        app.active.extra.scroll_lines, 0,
+        "B never sees A's sentinel"
+    );
     assert!(!app.active.extra.shift_selecting);
     assert!(app.active.extra.spell_cache.is_empty());
-    assert_eq!(app.active.extra.caret_synced_version, app.active.buffer.version());
-    assert_eq!(app.active.extra.doc_saved_version, Some(app.active.buffer.version()));
+    assert_eq!(
+        app.active.extra.caret_synced_version,
+        app.active.buffer.version()
+    );
+    assert_eq!(
+        app.active.extra.doc_saved_version,
+        Some(app.active.buffer.version())
+    );
     assert_eq!(app.active.extra.history_preview, None);
     assert_eq!(app.active.extra.history_scroll_before, None);
 
@@ -682,23 +706,35 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     assert!(app.active.extra.shift_selecting);
     assert_eq!(app.active.extra.scroll_lines, 11);
     assert_eq!(app.active.extra.spell_cache.len(), a_spell_len);
-    assert_eq!(app.active.extra.spell_checked_version, Some(app.active.buffer.version()));
+    assert_eq!(
+        app.active.extra.spell_checked_version,
+        Some(app.active.buffer.version())
+    );
     assert!(app.active.extra.sync_text_cache.is_some());
     assert_eq!(app.active.extra.caret_synced_version, 999);
     assert_eq!(app.active.extra.doc_saved_version, Some(777));
     assert_eq!(app.active.extra.scratch_saved_version, Some(888));
     assert!(app.active.extra.disk_mtime.is_some());
     assert!(app.active.extra.scratch_mtime.is_some());
-    assert_eq!(app.active.extra.history_preview, Some(("42".to_string(), "old text".to_string())));
+    assert_eq!(
+        app.active.extra.history_preview,
+        Some(("42".to_string(), "old text".to_string()))
+    );
     assert_eq!(app.active.extra.history_scroll_before, Some(55));
 
     // A -> B -> C -> A: not merely a 2-slot toggle artifact.
     app.load_path(b.clone());
     app.load_path(c.clone());
     app.load_path(a.clone());
-    assert_eq!(app.active.extra.scroll_lines, 11, "A's state survives a 3-way swap too");
+    assert_eq!(
+        app.active.extra.scroll_lines, 11,
+        "A's state survives a 3-way swap too"
+    );
     assert_eq!(app.active.extra.caret_synced_version, 999);
-    assert_eq!(app.active.extra.history_preview, Some(("42".to_string(), "old text".to_string())));
+    assert_eq!(
+        app.active.extra.history_preview,
+        Some(("42".to_string(), "old text".to_string()))
+    );
 }
 
 #[test]
@@ -719,20 +755,38 @@ fn switching_buffers_isolates_the_spell_cache() {
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
     app.run_spellcheck_now();
     assert!(!app.active.extra.spell_cache.is_empty(), "A misspells");
-    assert_eq!(app.active.extra.spell_checked_version, Some(app.active.buffer.version()));
+    assert_eq!(
+        app.active.extra.spell_checked_version,
+        Some(app.active.buffer.version())
+    );
 
     app.load_path(b.clone());
     // B is FRESH: no stale spell cache carried over from A, and its own
     // (empty) verdict must not be confused with A's checked version — both
     // buffers can sit at version 0 simultaneously.
-    assert!(app.active.extra.spell_cache.is_empty(), "B must not inherit A's verdicts");
-    assert_eq!(app.active.extra.spell_checked_version, None, "B has not been checked yet");
+    assert!(
+        app.active.extra.spell_cache.is_empty(),
+        "B must not inherit A's verdicts"
+    );
+    assert_eq!(
+        app.active.extra.spell_checked_version, None,
+        "B has not been checked yet"
+    );
     app.run_spellcheck_now();
-    assert!(app.active.extra.spell_cache.is_empty(), "B is correctly spelled");
-    assert_eq!(app.active.extra.spell_checked_version, Some(app.active.buffer.version()));
+    assert!(
+        app.active.extra.spell_cache.is_empty(),
+        "B is correctly spelled"
+    );
+    assert_eq!(
+        app.active.extra.spell_checked_version,
+        Some(app.active.buffer.version())
+    );
 
     app.load_path(a.clone());
-    assert!(!app.active.extra.spell_cache.is_empty(), "A's OWN verdicts are restored, not B's empty one");
+    assert!(
+        !app.active.extra.spell_cache.is_empty(),
+        "A's OWN verdicts are restored, not B's empty one"
+    );
 }
 
 #[test]
@@ -751,7 +805,10 @@ fn fresh_buffer_starts_with_default_buffer_extra() {
 
     app.new_document(); // a brand-new, never-before-seen buffer
 
-    assert_eq!(app.active.extra.scroll_lines, 0, "fresh-defaults, not carried over");
+    assert_eq!(
+        app.active.extra.scroll_lines, 0,
+        "fresh-defaults, not carried over"
+    );
     assert!(!app.active.extra.shift_selecting);
     assert!(app.active.extra.spell_cache.is_empty());
     assert_eq!(app.active.extra.spell_checked_version, None);
@@ -763,5 +820,8 @@ fn fresh_buffer_starts_with_default_buffer_extra() {
     );
     assert_eq!(app.active.extra.history_preview, None);
     assert_eq!(app.active.extra.history_scroll_before, None);
-    assert!(app.active.buffer.folds().is_empty(), "a fresh note has no folds");
+    assert!(
+        app.active.buffer.folds().is_empty(),
+        "a fresh note has no folds"
+    );
 }

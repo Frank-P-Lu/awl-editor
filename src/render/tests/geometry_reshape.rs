@@ -86,7 +86,9 @@ fn over_writing_column_agrees_with_the_page_column_bounds() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping over_writing_column_agrees_with_the_page_column_bounds: no wgpu adapter");
+        eprintln!(
+            "skipping over_writing_column_agrees_with_the_page_column_bounds: no wgpu adapter"
+        );
         return;
     };
     p.set_size(1200.0, 800.0);
@@ -96,9 +98,18 @@ fn over_writing_column_agrees_with_the_page_column_bounds() {
     crate::page::set_measure(40);
     let left = p.column_left();
     let width = p.column_width();
-    assert!(p.over_writing_column(left + width * 0.5), "column center is over the writing column");
-    assert!(!p.over_writing_column(left - 20.0), "well past the left margin is not");
-    assert!(!p.over_writing_column(left + width + 20.0), "well past the right margin is not");
+    assert!(
+        p.over_writing_column(left + width * 0.5),
+        "column center is over the writing column"
+    );
+    assert!(
+        !p.over_writing_column(left - 20.0),
+        "well past the left margin is not"
+    );
+    assert!(
+        !p.over_writing_column(left + width + 20.0),
+        "well past the right margin is not"
+    );
     crate::page::set_page_on(was_on);
     crate::page::set_measure(was_measure);
 }
@@ -143,7 +154,10 @@ fn collapsed_page_still_arms_the_resize_affordance() {
         Some(ResizeEdge::Right),
         "collapsed right edge must arm the resize (lockout fix)",
     );
-    assert!(p.page_resize_hover(left), "hover must report the collapsed edge too");
+    assert!(
+        p.page_resize_hover(left),
+        "hover must report the collapsed edge too"
+    );
     // And a drag inward from the collapsed right edge narrows the measure below MAX.
     // The gesture anchors the OPPOSITE (left) edge at press time, exactly like the live
     // `begin_page_resize_if_hovering`; dragging the right edge 200px inward of its press
@@ -164,10 +178,18 @@ fn row_geom_invalidate_bumps_generation() {
     let rg = rowgeom::RowGeom::new();
     let g0 = rg.generation();
     rg.invalidate();
-    assert_eq!(rg.generation(), g0 + 1, "one invalidate = one generation step");
+    assert_eq!(
+        rg.generation(),
+        g0 + 1,
+        "one invalidate = one generation step"
+    );
     rg.invalidate();
     rg.invalidate();
-    assert_eq!(rg.generation(), g0 + 3, "the generation is monotonic per invalidate");
+    assert_eq!(
+        rg.generation(),
+        g0 + 3,
+        "the generation is monotonic per invalidate"
+    );
 }
 
 /// `set_size` must INVALIDATE the row-geometry caches when it actually re-wraps:
@@ -237,7 +259,9 @@ fn measure_change_alone_invalidates_row_geometry_on_the_next_set_size() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping measure_change_alone_invalidates_row_geometry_on_the_next_set_size: no wgpu adapter");
+        eprintln!(
+            "skipping measure_change_alone_invalidates_row_geometry_on_the_next_set_size: no wgpu adapter"
+        );
         return;
     };
     crate::page::set_page_on(true);
@@ -425,7 +449,10 @@ fn typewriter_centers_the_cursor_row() {
         centered > minimal,
         "centering must scroll further than the minimal-adjust (centered={centered}, minimal={minimal})"
     );
-    assert!(centered <= max, "centered scroll must stay within max_scroll");
+    assert!(
+        centered <= max,
+        "centered scroll must stay within max_scroll"
+    );
 
     // At the centered scroll, the cursor row's vertical CENTER sits within one
     // row height of the viewport's vertical center (closest integer-row centering).
@@ -479,7 +506,10 @@ fn typewriter_pin_clamps_at_document_edges() {
     // never exceeds max_scroll.
     let mid_row = p.visual_row_of(30, 0);
     let mid = pin(mid_row);
-    assert!(mid > 0 && mid < max, "a body caret centers between the edges (pin={mid}, max={max})");
+    assert!(
+        mid > 0 && mid < max,
+        "a body caret centers between the edges (pin={mid}, max={max})"
+    );
 
     // The pin is MONOTONIC + BOUNDED across the whole document: moving the caret
     // down never scrolls up, and no row's pin ever exceeds max_scroll (the
@@ -487,7 +517,10 @@ fn typewriter_pin_clamps_at_document_edges() {
     // strand the document tail past its bottom).
     let last = total - 1;
     let last_pin = pin(last);
-    assert!(last_pin <= max, "the last row's pin stays within max_scroll");
+    assert!(
+        last_pin <= max,
+        "the last row's pin stays within max_scroll"
+    );
     assert!(
         last_pin >= mid,
         "moving toward the bottom scrolls further down, never up (last={last_pin}, mid={mid})"

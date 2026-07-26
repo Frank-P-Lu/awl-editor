@@ -251,8 +251,7 @@ impl InMemoryFs {
 impl FileSystem for InMemoryFs {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         let bytes = self.read(path)?;
-        String::from_utf8(bytes)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        String::from_utf8(bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
     fn read(&self, path: &Path) -> io::Result<Vec<u8>> {
@@ -328,7 +327,11 @@ impl FileSystem for InMemoryFs {
                 is_file: true,
             });
         }
-        for d in state.dirs.iter().filter(|p| p.as_path() != path && is_child(p)) {
+        for d in state
+            .dirs
+            .iter()
+            .filter(|p| p.as_path() != path && is_child(p))
+        {
             out.push(DirEntry {
                 path: d.clone(),
                 name: leaf_name(d),
@@ -347,7 +350,10 @@ impl FileSystem for InMemoryFs {
                 len: Some(f.bytes.len() as u64),
             })
         } else if state.dirs.contains(path) {
-            Ok(Metadata { modified: None, len: None })
+            Ok(Metadata {
+                modified: None,
+                len: None,
+            })
         } else {
             Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
         }
@@ -431,7 +437,11 @@ pub(crate) const SEED_SENTINEL_KEY: &str = "awlfs:seeded:v2";
 /// `resolved_native_label_truthful` uses); the one real call site
 /// ([`web::WebFs::seed_samples`]) passes both `::current()`.
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn seed_write_if_absent(fs: &dyn FileSystem, convention: crate::convention::Convention, platform: crate::commands::Platform) {
+pub(crate) fn seed_write_if_absent(
+    fs: &dyn FileSystem,
+    convention: crate::convention::Convention,
+    platform: crate::commands::Platform,
+) {
     let _ = fs.create_dir_all(Path::new("/"));
     for (p, content) in SEED_SAMPLES {
         let path = Path::new(p);
@@ -542,14 +552,22 @@ mod web {
         /// method only owns the localStorage-specific sentinel check.
         pub fn seed_samples(&self) {
             let Some(s) = storage() else { return };
-            if s.get_item(super::SEED_SENTINEL_KEY).ok().flatten().is_some() {
+            if s.get_item(super::SEED_SENTINEL_KEY)
+                .ok()
+                .flatten()
+                .is_some()
+            {
                 return; // already seeded this generation — preserve existing notes
             }
             // The UA-detected convention MUST already be set by the time this
             // runs — `main::wasm_start` calls `set_web_convention_from_ua`
             // BEFORE `fs::install_web_fs()` for exactly this reason (see that
             // ordering note there).
-            super::seed_write_if_absent(self, crate::convention::Convention::current(), crate::commands::Platform::current());
+            super::seed_write_if_absent(
+                self,
+                crate::convention::Convention::current(),
+                crate::commands::Platform::current(),
+            );
             let _ = s.set_item(super::SEED_SENTINEL_KEY, "1");
         }
     }
@@ -611,8 +629,14 @@ mod web {
         fn exists(&self, path: &Path) -> bool {
             storage()
                 .map(|s| {
-                    s.get_item(&Self::key(FILE_PREFIX, path)).ok().flatten().is_some()
-                        || s.get_item(&Self::key(DIR_PREFIX, path)).ok().flatten().is_some()
+                    s.get_item(&Self::key(FILE_PREFIX, path))
+                        .ok()
+                        .flatten()
+                        .is_some()
+                        || s.get_item(&Self::key(DIR_PREFIX, path))
+                            .ok()
+                            .flatten()
+                            .is_some()
                 })
                 .unwrap_or(false)
         }
@@ -624,8 +648,8 @@ mod web {
         }
 
         fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>> {
-            let s = storage()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no storage"))?;
+            let s =
+                storage().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no storage"))?;
             let len = s.length().map_err(|_| js_err("length"))?;
             let mut out = Vec::new();
             for i in 0..len {
@@ -657,8 +681,8 @@ mod web {
         }
 
         fn metadata(&self, path: &Path) -> io::Result<Metadata> {
-            let s = storage()
-                .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no storage"))?;
+            let s =
+                storage().ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no storage"))?;
             let read_ms = |prefix: &str| -> Option<SystemTime> {
                 s.get_item(&Self::key(prefix, path))
                     .ok()
@@ -670,14 +694,21 @@ mod web {
             // byte length (the stored UTF-8 string's length); a bare directory has
             // none; an unknown path errors like a native stat.
             let content = s.get_item(&Self::key(FILE_PREFIX, path)).ok().flatten();
-            let is_dir = s.get_item(&Self::key(DIR_PREFIX, path)).ok().flatten().is_some();
+            let is_dir = s
+                .get_item(&Self::key(DIR_PREFIX, path))
+                .ok()
+                .flatten()
+                .is_some();
             if let Some(content) = content {
                 Ok(Metadata {
                     modified: read_ms(MTIME_PREFIX),
                     len: Some(content.len() as u64),
                 })
             } else if is_dir {
-                Ok(Metadata { modified: None, len: None })
+                Ok(Metadata {
+                    modified: None,
+                    len: None,
+                })
             } else {
                 Err(io::Error::new(io::ErrorKind::NotFound, "no such file"))
             }
@@ -1048,14 +1079,17 @@ mod tests {
     #[test]
     fn in_memory_rename_moves_bytes() {
         let fs = InMemoryFs::new().with_file("/a.md", "body");
-        fs.rename(Path::new("/a.md"), Path::new("/sub/b.md")).unwrap();
+        fs.rename(Path::new("/a.md"), Path::new("/sub/b.md"))
+            .unwrap();
         assert!(!fs.exists(Path::new("/a.md")));
         assert_eq!(fs.read_to_string(Path::new("/sub/b.md")).unwrap(), "body");
     }
 
     #[test]
     fn in_memory_remove_file_deletes_and_errors_on_a_missing_path() {
-        let fs = InMemoryFs::new().with_file("/a.md", "body").with_file("/b.md", "other");
+        let fs = InMemoryFs::new()
+            .with_file("/a.md", "body")
+            .with_file("/b.md", "other");
         fs.remove_file(Path::new("/a.md")).unwrap();
         assert!(!fs.exists(Path::new("/a.md")), "removed file is gone");
         assert!(fs.exists(Path::new("/b.md")), "a sibling file is untouched");
@@ -1083,9 +1117,15 @@ mod tests {
         let fake = Arc::new(InMemoryFs::new().with_dir("/docs"));
         with_fs(fake.clone(), || {
             write_atomic(Path::new("/docs/a.md"), b"first").unwrap();
-            assert_eq!(fake.read_to_string(Path::new("/docs/a.md")).unwrap(), "first");
+            assert_eq!(
+                fake.read_to_string(Path::new("/docs/a.md")).unwrap(),
+                "first"
+            );
             write_atomic(Path::new("/docs/a.md"), b"second").unwrap();
-            assert_eq!(fake.read_to_string(Path::new("/docs/a.md")).unwrap(), "second");
+            assert_eq!(
+                fake.read_to_string(Path::new("/docs/a.md")).unwrap(),
+                "second"
+            );
             let names: Vec<String> = fake
                 .read_dir(Path::new("/docs"))
                 .unwrap()
@@ -1110,7 +1150,10 @@ mod tests {
         );
         let stash = scratch_stash_path();
         assert_eq!(
-            stash.file_name().map(|n| n.to_string_lossy().into_owned()).as_deref(),
+            stash
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .as_deref(),
             Some("scratch.md")
         );
     }
@@ -1140,7 +1183,10 @@ mod tests {
     #[test]
     fn seed_sample_list_is_exactly_the_curated_four() {
         let paths: Vec<&str> = SEED_SAMPLES.iter().map(|(p, _)| *p).collect();
-        assert_eq!(paths, vec!["/welcome.md", "/tour.md", "/prose.md", "/japanese.md"]);
+        assert_eq!(
+            paths,
+            vec!["/welcome.md", "/tour.md", "/prose.md", "/japanese.md"]
+        );
         assert!(
             !paths.contains(&"/longwrap.md") && !paths.contains(&"/spellcheck.md"),
             "dev fixtures must never re-enter the first-load seed set: {paths:?}"
@@ -1158,7 +1204,10 @@ mod tests {
     #[test]
     fn seed_sentinel_is_bumped_to_v2() {
         assert_eq!(SEED_SENTINEL_KEY, "awlfs:seeded:v2");
-        assert_ne!(SEED_SENTINEL_KEY, "awlfs:seeded", "must differ from the v1 key");
+        assert_ne!(
+            SEED_SENTINEL_KEY, "awlfs:seeded",
+            "must differ from the v1 key"
+        );
     }
 
     /// THE WRITE-IF-ABSENT LAW: seeding a fresh filesystem writes exactly the
@@ -1167,12 +1216,23 @@ mod tests {
     #[test]
     fn seed_write_if_absent_seeds_the_curated_set_on_a_fresh_fs() {
         let fs = InMemoryFs::new();
-        seed_write_if_absent(&fs, crate::convention::Convention::Mac, crate::commands::Platform::Web);
+        seed_write_if_absent(
+            &fs,
+            crate::convention::Convention::Mac,
+            crate::commands::Platform::Web,
+        );
         for (p, content) in SEED_SAMPLES {
-            let rendered = crate::keytoken::render_key_tokens(content, crate::convention::Convention::Mac, crate::commands::Platform::Web);
+            let rendered = crate::keytoken::render_key_tokens(
+                content,
+                crate::convention::Convention::Mac,
+                crate::commands::Platform::Web,
+            );
             assert_eq!(fs.read_to_string(Path::new(p)).unwrap(), rendered);
             // The seeded text is fully rendered — no stray token/unknown-slug marker survives.
-            assert!(!fs.read_to_string(Path::new(p)).unwrap().contains("{{key:"), "{p} still carries a raw token");
+            assert!(
+                !fs.read_to_string(Path::new(p)).unwrap().contains("{{key:"),
+                "{p} still carries a raw token"
+            );
         }
     }
 
@@ -1189,7 +1249,11 @@ mod tests {
             .with_file("/welcome.md", "my own edited welcome, thanks")
             .with_file("/longwrap.md", "an old dev-fixture leftover, untouched")
             .with_file("/spellcheck.md", "another old leftover, untouched");
-        seed_write_if_absent(&fs, crate::convention::Convention::Mac, crate::commands::Platform::Web);
+        seed_write_if_absent(
+            &fs,
+            crate::convention::Convention::Mac,
+            crate::commands::Platform::Web,
+        );
 
         // The edited existing seed path survives verbatim.
         assert_eq!(
@@ -1210,7 +1274,11 @@ mod tests {
         // Meanwhile every OTHER curated path — absent before — gets seeded,
         // token-rendered same as the fresh-fs case above.
         for (p, content) in SEED_SAMPLES {
-            let content = &crate::keytoken::render_key_tokens(content, crate::convention::Convention::Mac, crate::commands::Platform::Web);
+            let content = &crate::keytoken::render_key_tokens(
+                content,
+                crate::convention::Convention::Mac,
+                crate::commands::Platform::Web,
+            );
             if *p == "/welcome.md" {
                 continue;
             }

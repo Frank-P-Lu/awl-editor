@@ -207,7 +207,13 @@ impl Buffer {
         let before = self.cursor;
         let new_cursor = remap(self.cursor);
         let new_anchor = self.anchor.map(remap);
-        self.apply_edit(block_start, block_end - block_start, &new_block, before, new_cursor);
+        self.apply_edit(
+            block_start,
+            block_end - block_start,
+            &new_block,
+            before,
+            new_cursor,
+        );
         self.anchor = new_anchor;
     }
 
@@ -303,8 +309,7 @@ impl Buffer {
             self.last_was_kill = false;
             return;
         }
-        let i =
-            super::word_delete_backward_boundary(self.cursor, |k| self.rope.char(k));
+        let i = super::word_delete_backward_boundary(self.cursor, |k| self.rope.char(k));
         if i < self.cursor {
             let killed = self.rope.slice(i..self.cursor).to_string();
             // Consecutive word-kills ACCUMULATE into the kill ring (the same

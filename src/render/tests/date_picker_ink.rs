@@ -36,8 +36,10 @@ fn date_examples() -> (Vec<String>, Vec<String>) {
         .iter()
         .map(|f| f.format(today.0, today.1, today.2))
         .collect();
-    let labels: Vec<String> =
-        crate::dateformat::DateFormat::ALL.iter().map(|f| f.label().to_string()).collect();
+    let labels: Vec<String> = crate::dateformat::DateFormat::ALL
+        .iter()
+        .map(|f| f.label().to_string())
+        .collect();
     (items, labels)
 }
 
@@ -77,8 +79,9 @@ fn date_row_regions(world: &str, selected: usize) -> Vec<(f32, f32, f32, f32)> {
     let v = date_picker_view(selected);
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
-    let [card_x, card_y, _card_w, _] =
-        p.overlay_card_rect().expect("the overlay card must be open");
+    let [card_x, card_y, _card_w, _] = p
+        .overlay_card_rect()
+        .expect("the overlay card must be open");
     let hpad = p.overlay_text_hpad();
     let text_left = card_x + hpad;
     let lh = p.overlay_lh();
@@ -95,12 +98,20 @@ fn date_row_regions(world: &str, selected: usize) -> Vec<(f32, f32, f32, f32)> {
 /// Render the Date picker through the REAL headless-capture code path
 /// (`capture::capture_with` — the exact function `--screenshot` calls) and
 /// decode the written PNG back to an `RgbaImage`.
-fn capture_date_picker(dir: &std::path::Path, world: &str, selected: usize, tag: &str) -> image::RgbaImage {
-    use crate::capture::{capture_with, CaptureOpts, OverlayInfo};
+fn capture_date_picker(
+    dir: &std::path::Path,
+    world: &str,
+    selected: usize,
+    tag: &str,
+) -> image::RgbaImage {
+    use crate::capture::{CaptureOpts, OverlayInfo, capture_with};
     // Same reason as `date_row_regions`: this helper swaps the world global, so it
     // holds the standing serialization guard across the swap and the render.
     let _g = crate::testlock::serial();
-    assert!(crate::theme::set_active_by_name(world).is_some(), "unknown world {world:?}");
+    assert!(
+        crate::theme::set_active_by_name(world).is_some(),
+        "unknown world {world:?}"
+    );
     let (items, labels) = date_examples();
     let buf = crate::buffer::Buffer::from_str("hello world\n");
     let mut opts = CaptureOpts::default();
@@ -132,7 +143,9 @@ fn capture_date_picker(dir: &std::path::Path, world: &str, selected: usize, tag:
     });
     let png = dir.join(format!("{world}_{tag}.png"));
     capture_with(&png, &buf, &opts).expect("date picker capture renders");
-    image::open(&png).expect("decode date picker png").to_rgba8()
+    image::open(&png)
+        .expect("decode date picker png")
+        .to_rgba8()
 }
 
 /// The single most-common pixel color over the region — a row's own
@@ -149,7 +162,11 @@ fn region_mode_color(img: &image::RgbaImage, x0: i64, y0: i64, x1: i64, y1: i64)
             *counts.entry(p).or_insert(0) += 1;
         }
     }
-    counts.into_iter().max_by_key(|(_, n)| *n).map(|(c, _)| c).unwrap_or([0, 0, 0, 0])
+    counts
+        .into_iter()
+        .max_by_key(|(_, n)| *n)
+        .map(|(c, _)| c)
+        .unwrap_or([0, 0, 0, 0])
 }
 
 /// Every pixel in the region whose max-channel distance from `bg` clears
@@ -171,7 +188,10 @@ fn solid_ink_pixels(
     for y in y0.max(0)..y1.min(img.height() as i64) {
         for x in x0.max(0)..x1.min(img.width() as i64) {
             let p = img.get_pixel(x as u32, y as u32).0;
-            let d = p[0].abs_diff(bg[0]).max(p[1].abs_diff(bg[1])).max(p[2].abs_diff(bg[2]));
+            let d = p[0]
+                .abs_diff(bg[0])
+                .max(p[1].abs_diff(bg[1]))
+                .max(p[2].abs_diff(bg[2]));
             if d > threshold {
                 out.push(p);
             }
@@ -212,7 +232,11 @@ fn assert_row_one_ink(img: &image::RgbaImage, region: (f32, f32, f32, f32), labe
     // rest of the row).
     let mut d: Vec<u8> = solid
         .iter()
-        .map(|p| p[0].abs_diff(bg[0]).max(p[1].abs_diff(bg[1])).max(p[2].abs_diff(bg[2])))
+        .map(|p| {
+            p[0].abs_diff(bg[0])
+                .max(p[1].abs_diff(bg[1]))
+                .max(p[2].abs_diff(bg[2]))
+        })
         .collect();
     d.sort_unstable();
     let mut max_gap = 0u8;
@@ -269,9 +293,17 @@ fn date_picker_examples_render_one_ink_across_worlds_and_states() {
         for selected in [0usize, 1] {
             let img = capture_date_picker(&dir, world, selected, &format!("sel{selected}"));
             let regions = date_row_regions(world, selected);
-            assert_eq!(regions.len(), items.len(), "{world}: one region per example date");
+            assert_eq!(
+                regions.len(),
+                items.len(),
+                "{world}: one region per example date"
+            );
             for (row, (example, region)) in items.iter().zip(regions.iter()).enumerate() {
-                let state = if row == selected { "selected" } else { "unselected" };
+                let state = if row == selected {
+                    "selected"
+                } else {
+                    "unselected"
+                };
                 assert_row_one_ink(
                     &img,
                     *region,
@@ -339,7 +371,11 @@ fn assert_row_one_ink_would_have_caught_the_pre_fix_split() {
     let two_ink = paint_half(content);
     let region = (0.0, 0.0, w as f32, h as f32);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        assert_row_one_ink(&two_ink, region, "synthetic pre-fix control (muted | content)");
+        assert_row_one_ink(
+            &two_ink,
+            region,
+            "synthetic pre-fix control (muted | content)",
+        );
     }));
     assert!(
         result.is_err(),
@@ -349,7 +385,11 @@ fn assert_row_one_ink_would_have_caught_the_pre_fix_split() {
 
     // ONE-INK strip (this item's fix: the whole row in content ink) — must PASS.
     let one_ink = paint_half(muted); // both halves `muted` now — genuinely uniform
-    assert_row_one_ink(&one_ink, region, "synthetic post-fix control (muted | muted)");
+    assert_row_one_ink(
+        &one_ink,
+        region,
+        "synthetic post-fix control (muted | muted)",
+    );
 
     crate::theme::set_active(orig_theme);
 }

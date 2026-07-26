@@ -68,10 +68,14 @@ pub enum EffectClass {
     Applied,
     /// `detail` is the observed handoff payload (the URL, the trash-bound
     /// root-relative path, …) — empty when the effect carries none.
-    Intercepted { detail: String },
+    Intercepted {
+        detail: String,
+    },
     /// `why` names the live-App-only work the replay cannot perform, for the
     /// strict error / permissive warning.
-    Unsupported { why: &'static str },
+    Unsupported {
+        why: &'static str,
+    },
 }
 
 /// One classified effect: its stable snake_case `name` (used in errors,
@@ -138,17 +142,45 @@ pub fn classify(effect: &Effect) -> Classified {
         // ── INTERCEPTED: external handoffs, observed + recorded, safely not
         // performed — skipping them leaves the editor state exactly as live
         // (the handoff target is OUTSIDE the app). ──
-        Effect::FollowLink(url) => c("follow_link", EffectClass::Intercepted { detail: url.clone() }),
-        Effect::ReportProblem => c("report_problem", EffectClass::Intercepted { detail: String::new() }),
-        Effect::DownloadFile => c("download_file", EffectClass::Intercepted { detail: String::new() }),
+        Effect::FollowLink(url) => c(
+            "follow_link",
+            EffectClass::Intercepted {
+                detail: url.clone(),
+            },
+        ),
+        Effect::ReportProblem => c(
+            "report_problem",
+            EffectClass::Intercepted {
+                detail: String::new(),
+            },
+        ),
+        Effect::DownloadFile => c(
+            "download_file",
+            EffectClass::Intercepted {
+                detail: String::new(),
+            },
+        ),
         // The export renders the document + writes a sibling file (or a web
         // download) — a live-App-only external write the replay/capture safely
         // skips, leaving the editor state exactly as live. Recorded, not performed.
-        Effect::Export(format) => {
-            c("export", EffectClass::Intercepted { detail: format.ext().to_string() })
-        }
-        Effect::CheckForUpdates => c("check_for_updates", EffectClass::Intercepted { detail: String::new() }),
-        Effect::TrashAsset { rel } => c("trash_asset", EffectClass::Intercepted { detail: rel.clone() }),
+        Effect::Export(format) => c(
+            "export",
+            EffectClass::Intercepted {
+                detail: format.ext().to_string(),
+            },
+        ),
+        Effect::CheckForUpdates => c(
+            "check_for_updates",
+            EffectClass::Intercepted {
+                detail: String::new(),
+            },
+        ),
+        Effect::TrashAsset { rel } => c(
+            "trash_asset",
+            EffectClass::Intercepted {
+                detail: rel.clone(),
+            },
+        ),
 
         // ── UNSUPPORTED: live-App-only work whose skip diverges the session
         // from what the same keys do live — strict replay aborts here. ──
@@ -161,39 +193,57 @@ pub fn classify(effect: &Effect) -> Classified {
         ),
         Effect::LastBuffer => c(
             "last_buffer",
-            unsupported("the 2-deep buffer history is live-App-only; the buffer switch would not happen"),
+            unsupported(
+                "the 2-deep buffer history is live-App-only; the buffer switch would not happen",
+            ),
         ),
         Effect::FinishBuffer => c(
             "finish_buffer",
-            unsupported("the daemon notify + switch-away are live-App-only (the save itself already ran)"),
+            unsupported(
+                "the daemon notify + switch-away are live-App-only (the save itself already ran)",
+            ),
         ),
         Effect::KeepVersion { .. } => c(
             "keep_version",
-            unsupported("pinning (and naming) writes the local-history store, gated off the capture path"),
+            unsupported(
+                "pinning (and naming) writes the local-history store, gated off the capture path",
+            ),
         ),
         Effect::AddToDictionary(_) => c(
             "add_to_dictionary",
-            unsupported("silencing the word + appending it to the personal-dictionary file are live-App-only; the squiggle would not clear"),
+            unsupported(
+                "silencing the word + appending it to the personal-dictionary file are live-App-only; the squiggle would not clear",
+            ),
         ),
         Effect::RebindCommit { .. } => c(
             "rebind_commit",
-            unsupported("the config write + live keymap reload are live-App-only; the binding would not take effect"),
+            unsupported(
+                "the config write + live keymap reload are live-App-only; the binding would not take effect",
+            ),
         ),
         Effect::RebindReset { .. } => c(
             "rebind_reset",
-            unsupported("the config write + live keymap reload are live-App-only; the reset would not take effect"),
+            unsupported(
+                "the config write + live keymap reload are live-App-only; the reset would not take effect",
+            ),
         ),
         Effect::SettingToggle { .. } => c(
             "setting_toggle",
-            unsupported("flipping the live global + persisting it are live-App-only; the setting would not change"),
+            unsupported(
+                "flipping the live global + persisting it are live-App-only; the setting would not change",
+            ),
         ),
         Effect::SettingValueCommit { .. } => c(
             "setting_value_commit",
-            unsupported("parse-clamp-apply-persist is live-App-only; the value would not take effect"),
+            unsupported(
+                "parse-clamp-apply-persist is live-App-only; the value would not take effect",
+            ),
         ),
         Effect::SettingPathPick { .. } => c(
             "setting_path_pick",
-            unsupported("the config folder-key write is live-App-only; the path would not take effect"),
+            unsupported(
+                "the config folder-key write is live-App-only; the path would not take effect",
+            ),
         ),
         // ITEM 94 — a RANGE row's step: unlike its Toggle/Value siblings above, the
         // VALUE CHANGE ITSELF already happened in the shared core (`apply_core`
@@ -269,7 +319,11 @@ pub fn warn_line(action: &Action, c: &Classified) -> Option<String> {
     match &c.class {
         EffectClass::Applied => None,
         EffectClass::Intercepted { detail } => {
-            let payload = if detail.is_empty() { String::new() } else { format!(" ({detail})") };
+            let payload = if detail.is_empty() {
+                String::new()
+            } else {
+                format!(" ({detail})")
+            };
             Some(format!(
                 "--keys replay: intercepted `{}`{payload} from action {:?} — recorded, not performed",
                 c.name, action
@@ -331,29 +385,52 @@ mod tests {
             Effect::RunAction(Action::Save),
             Effect::OverlayAccept(OverlayKind::Goto, "a.md".into()),
             Effect::JumpToLine(3),
-            Effect::RebindCommit { slug: "save".into(), binding: "C-t".into(), confirmed: false },
-            Effect::RebindReset { slug: "save".into() },
+            Effect::RebindCommit {
+                slug: "save".into(),
+                binding: "C-t".into(),
+                confirmed: false,
+            },
+            Effect::RebindReset {
+                slug: "save".into(),
+            },
             Effect::Recoil(RecoilDir::Left),
             Effect::TypeImpact,
             Effect::DeleteSquash,
             Effect::Gulp,
             Effect::LineLand,
             Effect::FinishBuffer,
-            Effect::KeepVersion { name: Some("draft A".into()) },
+            Effect::KeepVersion {
+                name: Some("draft A".into()),
+            },
             Effect::FollowLink("https://example.com".into()),
             Effect::ReportProblem,
             Effect::DownloadFile,
             Effect::Export(crate::export::Format::Docx),
             Effect::CheckForUpdates,
             Effect::CopyPulse,
-            Effect::SettingToggle { key: "wysiwyg".into() },
-            Effect::SettingValueCommit { key: "page_width_prose".into(), value: "66".into() },
-            Effect::SettingPathPick { key: "default_folder".into(), path: "/tmp/n".into() },
+            Effect::SettingToggle {
+                key: "wysiwyg".into(),
+            },
+            Effect::SettingValueCommit {
+                key: "page_width_prose".into(),
+                value: "66".into(),
+            },
+            Effect::SettingPathPick {
+                key: "default_folder".into(),
+                path: "/tmp/n".into(),
+            },
             Effect::SettingRangeStep { key: "zoom".into() },
-            Effect::TrashAsset { rel: "assets/orphan.png".into() },
+            Effect::TrashAsset {
+                rel: "assets/orphan.png".into(),
+            },
             Effect::ConvertScratchAndSave,
-            Effect::SaveDone { ok: true, message: "saved".into() },
-            Effect::RenameNoteCommit { new_name: "new.md".into() },
+            Effect::SaveDone {
+                ok: true,
+                message: "saved".into(),
+            },
+            Effect::RenameNoteCommit {
+                new_name: "new.md".into(),
+            },
             Effect::DuplicateNote,
             Effect::InsertDate,
         ]
@@ -364,21 +441,47 @@ mod tests {
         // The bucket each variant belongs to, pinned by NAME (the classify
         // match is the compile-time sweep; this is the reviewed membership).
         let applied = [
-            "none", "new_document", "open_settings", "open_credits", "open_guide", "run_action",
-            "overlay_accept", "jump_to_line", "convert_scratch_and_save", "save_done", "recoil",
-            "type_impact", "delete_squash", "gulp", "line_land", "copy_pulse", "insert_date",
+            "none",
+            "new_document",
+            "open_settings",
+            "open_credits",
+            "open_guide",
+            "run_action",
+            "overlay_accept",
+            "jump_to_line",
+            "convert_scratch_and_save",
+            "save_done",
+            "recoil",
+            "type_impact",
+            "delete_squash",
+            "gulp",
+            "line_land",
+            "copy_pulse",
+            "insert_date",
             // ITEM 94: a range STEP applies in the shared core (unlike its
             // Toggle/Value siblings, which are Unsupported below) — see its arm.
             "setting_range_step",
         ];
         let intercepted = [
-            "follow_link", "report_problem", "download_file", "export", "check_for_updates",
+            "follow_link",
+            "report_problem",
+            "download_file",
+            "export",
+            "check_for_updates",
             "trash_asset",
         ];
         let unsupported = [
-            "quit", "last_buffer", "finish_buffer", "keep_version", "rebind_commit",
-            "rebind_reset", "setting_toggle", "setting_value_commit", "setting_path_pick",
-            "rename_note_commit", "duplicate_note",
+            "quit",
+            "last_buffer",
+            "finish_buffer",
+            "keep_version",
+            "rebind_commit",
+            "rebind_reset",
+            "setting_toggle",
+            "setting_value_commit",
+            "setting_path_pick",
+            "rename_note_commit",
+            "duplicate_note",
         ];
         for e in roster() {
             let c = classify(&e);
@@ -387,10 +490,17 @@ mod tests {
                 EffectClass::Intercepted { .. } => &intercepted,
                 EffectClass::Unsupported { .. } => &unsupported,
             };
-            assert!(expected.contains(&c.name), "`{}` classified off its documented bucket", c.name);
+            assert!(
+                expected.contains(&c.name),
+                "`{}` classified off its documented bucket",
+                c.name
+            );
         }
         // The three buckets partition the roster exactly (no name missing/extra).
-        assert_eq!(roster().len(), applied.len() + intercepted.len() + unsupported.len());
+        assert_eq!(
+            roster().len(),
+            applied.len() + intercepted.len() + unsupported.len()
+        );
     }
 
     #[test]
@@ -407,13 +517,27 @@ mod tests {
         let follow = classify(&Effect::FollowLink("https://awl.example/g".into()));
         assert_eq!(
             follow.class,
-            EffectClass::Intercepted { detail: "https://awl.example/g".into() }
+            EffectClass::Intercepted {
+                detail: "https://awl.example/g".into()
+            }
         );
-        let trash = classify(&Effect::TrashAsset { rel: "assets/o.png".into() });
-        assert_eq!(trash.class, EffectClass::Intercepted { detail: "assets/o.png".into() });
+        let trash = classify(&Effect::TrashAsset {
+            rel: "assets/o.png".into(),
+        });
+        assert_eq!(
+            trash.class,
+            EffectClass::Intercepted {
+                detail: "assets/o.png".into()
+            }
+        );
         // Payload-free handoffs record an empty detail, not a placeholder.
         let report = classify(&Effect::ReportProblem);
-        assert_eq!(report.class, EffectClass::Intercepted { detail: String::new() });
+        assert_eq!(
+            report.class,
+            EffectClass::Intercepted {
+                detail: String::new()
+            }
+        );
     }
 
     #[test]
@@ -429,10 +553,17 @@ mod tests {
             OverlayKind::CjkLang,
         ] {
             let c = classify(&Effect::OverlayAccept(kind, "v".into()));
-            assert_eq!(c.class, EffectClass::Applied, "{kind:?} accept should be Applied");
+            assert_eq!(
+                c.class,
+                EffectClass::Applied,
+                "{kind:?} accept should be Applied"
+            );
         }
         // …the live-only note move is Unsupported…
-        let mv = classify(&Effect::OverlayAccept(OverlayKind::MoveDest, "inbox".into()));
+        let mv = classify(&Effect::OverlayAccept(
+            OverlayKind::MoveDest,
+            "inbox".into(),
+        ));
         assert!(matches!(mv.class, EffectClass::Unsupported { .. }));
         // …and a kind that never emits an accept fails safe (Unsupported), so a
         // new emission aborts a strict run until consciously classified.
@@ -449,13 +580,22 @@ mod tests {
         assert!(err.starts_with("strict replay:"), "strict prefix: {err}");
 
         let warn = warn_line(&Action::Quit, &c).expect("unsupported warns");
-        assert!(warn.contains("`quit`") && warn.contains("Quit"), "warn names both: {warn}");
-        assert!(warn.starts_with("--keys replay:"), "permissive prefix: {warn}");
+        assert!(
+            warn.contains("`quit`") && warn.contains("Quit"),
+            "warn names both: {warn}"
+        );
+        assert!(
+            warn.starts_with("--keys replay:"),
+            "permissive prefix: {warn}"
+        );
 
         // Intercepted warning carries the payload; Applied warns about nothing.
         let f = classify(&Effect::FollowLink("https://x.y/z".into()));
         let warn = warn_line(&Action::FollowLink, &f).expect("intercepted warns");
-        assert!(warn.contains("`follow_link`") && warn.contains("https://x.y/z"), "{warn}");
+        assert!(
+            warn.contains("`follow_link`") && warn.contains("https://x.y/z"),
+            "{warn}"
+        );
         assert_eq!(warn_line(&Action::Save, &classify(&Effect::None)), None);
     }
 

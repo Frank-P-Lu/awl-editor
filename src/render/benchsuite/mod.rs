@@ -32,7 +32,7 @@ mod scenarios;
 
 use std::path::PathBuf;
 
-use anyhow::{ensure, Result};
+use anyhow::{Result, ensure};
 use glyphon::Cache;
 
 use crate::clock::Instant;
@@ -68,7 +68,10 @@ async fn run_async(baseline: Option<PathBuf>) -> Result<()> {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     let config = Config::load(PathBuf::new()); // pure defaults, no file
 
-    println!("bench suite — {WIDTH}x{HEIGHT} @{DPI}x · page ON · debug OFF · schema {}", report::SCHEMA);
+    println!(
+        "bench suite — {WIDTH}x{HEIGHT} @{DPI}x · page ON · debug OFF · schema {}",
+        report::SCHEMA
+    );
     println!("(headless: submit+poll SERIALIZES GPU cost; witnesses are hard failures, not notes)");
     if cfg!(debug_assertions) {
         println!("WARNING: DEV PROFILE — timings are 10-20x off; never baseline or diff this run");
@@ -150,7 +153,11 @@ async fn run_async(baseline: Option<PathBuf>) -> Result<()> {
         println!("skipped {} x {} — {}", k.tier, k.scenario, k.reason);
     }
     let wall_s = wall0.elapsed().as_secs_f64();
-    println!("total wall time: {wall_s:.1}s over {} cells (+{} documented skips)", cells.len(), skips.len());
+    println!(
+        "total wall time: {wall_s:.1}s over {} cells (+{} documented skips)",
+        cells.len(),
+        skips.len()
+    );
 
     let doc = report::BenchDoc::gather(wall_s, cells, skips);
     let out_path = PathBuf::from("bench.json");
@@ -158,7 +165,13 @@ async fn run_async(baseline: Option<PathBuf>) -> Result<()> {
     // law) — a half-written bench.json would poison the next baseline diff.
     crate::fs::write_atomic(&out_path, doc.to_json().as_bytes())
         .map_err(|e| anyhow::anyhow!("failed to write {}: {e}", out_path.display()))?;
-    println!("wrote {} ({} · {} · {})", out_path.display(), doc.host, doc.arch, doc.profile);
+    println!(
+        "wrote {} ({} · {} · {})",
+        out_path.display(),
+        doc.host,
+        doc.arch,
+        doc.profile
+    );
 
     if let Some(bp) = baseline {
         println!();
@@ -224,7 +237,10 @@ mod tests {
             view.scroll_lines = scroll;
             p.set_view(&view);
         }
-        assert_eq!(p.reshape_count, reshapes, "a pure scroll must never reshape");
+        assert_eq!(
+            p.reshape_count, reshapes,
+            "a pure scroll must never reshape"
+        );
         assert_eq!(
             p.row_geom.generation(),
             geom_gen,
@@ -286,7 +302,10 @@ mod tests {
         let reshapes = p.reshape_count;
         // Same world again: free.
         p.sync_theme();
-        assert_eq!(p.reshape_count, reshapes, "a same-world sync_theme must not reshape");
+        assert_eq!(
+            p.reshape_count, reshapes,
+            "a same-world sync_theme must not reshape"
+        );
         // A different-face world: must pay a real reshape.
         crate::theme::set_active_by_name("Tawny").expect("Tawny exists");
         p.sync_theme();

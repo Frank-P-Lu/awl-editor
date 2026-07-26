@@ -22,14 +22,17 @@ use crate::buffer::Buffer;
 #[test]
 fn collapse_then_unfold_restores_the_capture_byte_identically() {
     if !adapter_available() {
-        eprintln!("skipping collapse_then_unfold_restores_the_capture_byte_identically: no wgpu adapter");
+        eprintln!(
+            "skipping collapse_then_unfold_restores_the_capture_byte_identically: no wgpu adapter"
+        );
         return;
     }
     let _g = crate::testlock::serial();
 
     let dir = std::env::temp_dir().join(format!("awl_fold_restore_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let text = "# Alpha\n\nalpha body 1\nalpha body 2\n\n## Beta\n\nbeta body\n\n# Gamma\n\ngamma body\n";
+    let text =
+        "# Alpha\n\nalpha body 1\nalpha body 2\n\n## Beta\n\nbeta body\n\n# Gamma\n\ngamma body\n";
     let mut buf = Buffer::from_str(text);
     // The caret starts at (0,0) — on "# Alpha", the heading `toggle_fold_at_cursor`
     // below folds.
@@ -46,7 +49,11 @@ fn collapse_then_unfold_restores_the_capture_byte_identically() {
 
     // --- COLLAPSE: fold "# Alpha" (the heading enclosing the caret). ---
     let folded_heading = buf.toggle_fold_at_cursor();
-    assert_eq!(folded_heading, Some(0), "Alpha (line 0) is the heading that folded");
+    assert_eq!(
+        folded_heading,
+        Some(0),
+        "Alpha (line 0) is the heading that folded"
+    );
     assert!(buf.has_folds(), "the buffer now carries one fold");
     let mid_png = dir.join("mid.png");
     capture_with(&mid_png, &buf, &CaptureOpts::default()).expect("collapsed capture");
@@ -66,7 +73,11 @@ fn collapse_then_unfold_restores_the_capture_byte_identically() {
 
     // --- UNFOLD: toggle the SAME heading again. ---
     let unfolded_heading = buf.toggle_fold_at_cursor();
-    assert_eq!(unfolded_heading, Some(0), "toggling again unfolds the same heading");
+    assert_eq!(
+        unfolded_heading,
+        Some(0),
+        "toggling again unfolds the same heading"
+    );
     assert!(!buf.has_folds(), "the buffer carries no folds again");
     let after_png = dir.join("after.png");
     capture_with(&after_png, &buf, &CaptureOpts::default()).expect("restored capture");
@@ -91,7 +102,11 @@ fn collapse_then_unfold_restores_the_capture_byte_identically() {
 fn wcag_contrast(a: [u8; 4], b: [u8; 4]) -> f32 {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
-        if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.03928 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     }
     fn rel_lum(c: [u8; 4]) -> f32 {
         0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
@@ -111,7 +126,11 @@ fn wcag_contrast(a: [u8; 4], b: [u8; 4]) -> f32 {
 fn brightest_in(img: &image::RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32) -> [u8; 4] {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
-        if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.03928 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     }
     fn rel_lum(c: [u8; 4]) -> f32 {
         0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
@@ -149,14 +168,17 @@ fn brightest_in(img: &image::RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32) -> [
 #[test]
 fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
     if !adapter_available() {
-        eprintln!("skipping fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world: no wgpu adapter");
+        eprintln!(
+            "skipping fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world: no wgpu adapter"
+        );
         return;
     }
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
 
     const FLOOR: f32 = 2.7; // just under the ~2.9-3.2:1 every calibrated mark actually hits, leaving AA-rounding slack.
-    let dir = std::env::temp_dir().join(format!("awl_fold_afford_lava_test_{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("awl_fold_afford_lava_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let text = "# Alpha\n\nalpha body 1\nalpha body 2\n\n## Beta\n\nbeta body\n";
 
@@ -165,12 +187,21 @@ fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
         // Caret starts at (0,0), on "# Alpha" — folding it also REVEALS its own
         // chevron in headless (caret-on-collapsed-heading; no pointer -> no hover).
         let folded = buf.toggle_fold_at_cursor();
-        assert_eq!(folded, Some(0), "{world}: Alpha (line 0) is the heading that folded");
-        assert!(crate::theme::set_active_by_name(world).is_some(), "unknown world {world:?}");
+        assert_eq!(
+            folded,
+            Some(0),
+            "{world}: Alpha (line 0) is the heading that folded"
+        );
+        assert!(
+            crate::theme::set_active_by_name(world).is_some(),
+            "unknown world {world:?}"
+        );
 
         let png = dir.join(format!("{world}_fold_afford.png"));
         capture_with(&png, &buf, &CaptureOpts::default()).expect("folded capture");
-        let img = image::open(&png).expect("decode fold-afford png").to_rgba8();
+        let img = image::open(&png)
+            .expect("decode fold-afford png")
+            .to_rgba8();
 
         // GEOMETRY, read off THIS capture's own sidecar rather than a hand-
         // guessed pixel constant (`text_origin`/`page.column`/`font.line_height`
@@ -198,7 +229,13 @@ fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
         // — `fold_chevron_left`'s own doc), strictly BEFORE the heading text (and
         // the caret block, which sits over the heading's own first glyph) so it
         // can never pick up the caret's amber ink instead of the chevron's.
-        let chevron = brightest_in(&img, col_left + 1, text_top, text_left.saturating_sub(1), row_bottom);
+        let chevron = brightest_in(
+            &img,
+            col_left + 1,
+            text_top,
+            text_left.saturating_sub(1),
+            row_bottom,
+        );
         let chevron_c = wcag_contrast(chevron, ground);
         assert!(
             chevron_c >= FLOOR,
@@ -209,7 +246,13 @@ fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
         // TAIL: well past "Alpha" (past any wrap — `line_h * 6` clears even a
         // generously-scaled H1's "Alpha"), still short of the right margin, and
         // past the small caret block, which never reaches this far.
-        let tail = brightest_in(&img, text_left + line_h * 6, text_top, col_left + col_w, row_bottom);
+        let tail = brightest_in(
+            &img,
+            text_left + line_h * 6,
+            text_top,
+            col_left + col_w,
+            row_bottom,
+        );
         let tail_c = wcag_contrast(tail, ground);
         assert!(
             tail_c >= FLOOR,
@@ -227,7 +270,10 @@ fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
 /// against a smooth gradient ground does not (the floor below is chosen well
 /// clear of gradient dither).
 fn max_channel_diff(a: [u8; 4], b: [u8; 4]) -> u8 {
-    (0..3).map(|i| (a[i] as i16 - b[i] as i16).unsigned_abs() as u8).max().unwrap()
+    (0..3)
+        .map(|i| (a[i] as i16 - b[i] as i16).unsigned_abs() as u8)
+        .max()
+        .unwrap()
 }
 
 /// The largest [`max_channel_diff`] found in `[x0, x1) x [y0, y1)` against ITS OWN
@@ -261,11 +307,19 @@ fn max_ink_in(img: &image::RgbaImage, x0: u32, x1: u32, y0: u32, y1: u32, ground
 /// The RIGHTMOST x in `[x0, x1)` carrying real ink anywhere in `[y0, y1)` — same
 /// per-column ground convention as [`max_ink_in`] — or `None` when the whole band
 /// is clear.
-fn rightmost_ink_x(img: &image::RgbaImage, x0: u32, x1: u32, y0: u32, y1: u32, ground_y: u32) -> Option<u32> {
+fn rightmost_ink_x(
+    img: &image::RgbaImage,
+    x0: u32,
+    x1: u32,
+    y0: u32,
+    y1: u32,
+    ground_y: u32,
+) -> Option<u32> {
     let gy = ground_y.min(img.height() - 1);
     for x in (x0..x1.min(img.width())).rev() {
         let bg = img.get_pixel(x, gy).0;
-        let hit = (y0..y1.min(img.height())).any(|y| max_channel_diff(img.get_pixel(x, y).0, bg) > 12);
+        let hit =
+            (y0..y1.min(img.height())).any(|y| max_channel_diff(img.get_pixel(x, y).0, bg) > 12);
         if hit {
             return Some(x);
         }
@@ -374,16 +428,26 @@ fn fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading() {
         // hand-guessed pixel band that risks re-detecting the heading's own text.
         let unfolded_buf = Buffer::from_str(&text);
         let unfolded_png = dir.join(format!("case_{i}_{}_unfolded.png", case.world));
-        capture_with(&unfolded_png, &unfolded_buf, &CaptureOpts::default()).expect("unfolded capture");
-        let unfolded_img = image::open(&unfolded_png).expect("decode unfolded png").to_rgba8();
+        capture_with(&unfolded_png, &unfolded_buf, &CaptureOpts::default())
+            .expect("unfolded capture");
+        let unfolded_img = image::open(&unfolded_png)
+            .expect("decode unfolded png")
+            .to_rgba8();
 
         // FOLDED capture: same buffer, heading collapsed.
         let mut buf = Buffer::from_str(&text);
         let folded = buf.toggle_fold_at_cursor();
-        assert_eq!(folded, Some(0), "{}: the heading (line 0) is what folds", case.world);
+        assert_eq!(
+            folded,
+            Some(0),
+            "{}: the heading (line 0) is what folds",
+            case.world
+        );
         let png = dir.join(format!("case_{i}_{}.png", case.world));
         capture_with(&png, &buf, &CaptureOpts::default()).expect("folded capture");
-        let img = image::open(&png).expect("decode fold-tail-clamp png").to_rgba8();
+        let img = image::open(&png)
+            .expect("decode fold-tail-clamp png")
+            .to_rgba8();
 
         // GEOMETRY off THIS capture's own sidecar (never a hand-typed constant).
         let sidecar: serde_json::Value =
@@ -415,7 +479,14 @@ fn fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading() {
 
         // THE LAW: no ink anywhere past the text-column edge, in the heading's
         // own row band. (`+1` so the boundary pixel itself is never over-strict.)
-        let bleed = max_ink_in(&img, column_right + 1, img.width(), row_top, row_bottom, ground_y);
+        let bleed = max_ink_in(
+            &img,
+            column_right + 1,
+            img.width(),
+            row_top,
+            row_bottom,
+            ground_y,
+        );
         assert!(
             bleed <= 12,
             "{}: fold tail bled past the text-column edge (max channel diff {bleed} \
@@ -427,17 +498,29 @@ fn fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading() {
         // The heading's own text (no tail) never reaches the column edge either —
         // a sanity floor on the fixture itself (else this case can't tell "the
         // heading's own ink" apart from "the tail's own ink" below).
-        let unfolded_rightmost =
-            rightmost_ink_x(&unfolded_img, col_left as u32, column_right + 1, row_top, row_bottom, ground_y)
-                .unwrap_or(col_left as u32);
+        let unfolded_rightmost = rightmost_ink_x(
+            &unfolded_img,
+            col_left as u32,
+            column_right + 1,
+            row_top,
+            row_bottom,
+            ground_y,
+        )
+        .unwrap_or(col_left as u32);
 
         if case.tail_still_shows {
             // The FOLDED capture must reach FARTHER RIGHT than the unfolded
             // baseline (the tail adds real ink the bare heading text didn't have)
             // yet still never past the column edge — proving the clamp SHIFTS
             // the tail rather than silently eliding it when there was room to.
-            let folded_rightmost =
-                rightmost_ink_x(&img, col_left as u32, column_right + 1, row_top, row_bottom, ground_y);
+            let folded_rightmost = rightmost_ink_x(
+                &img,
+                col_left as u32,
+                column_right + 1,
+                row_top,
+                row_bottom,
+                ground_y,
+            );
             assert!(
                 folded_rightmost.is_some_and(|x| x > unfolded_rightmost + 10),
                 "{}: fold tail should still be visible (shifted, not elided) past the \

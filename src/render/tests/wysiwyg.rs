@@ -15,7 +15,9 @@ fn wysiwyg_conceals_each_line_scoped_kind_off_cursor_and_reveals_on() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wysiwyg_conceals_each_line_scoped_kind_off_cursor_and_reveals_on: no wgpu adapter");
+        eprintln!(
+            "skipping wysiwyg_conceals_each_line_scoped_kind_off_cursor_and_reveals_on: no wgpu adapter"
+        );
         return;
     };
     // Line 0: heading '#' at byte 0. Line 1: emphasis '**' at byte 0. Line 2:
@@ -26,28 +28,64 @@ fn wysiwyg_conceals_each_line_scoped_kind_off_cursor_and_reveals_on() {
     let mut off = view(text, 5, 0);
     off.is_markdown = true;
     p.set_view(&off);
-    assert!(p.concealed_at(0, 0), "heading '#' concealed off its own line");
-    assert!(p.concealed_at(1, 0), "emphasis '**' concealed off its own line");
-    assert!(p.concealed_at(2, 0), "inline-code backtick concealed off its own line");
-    assert!(p.concealed_at(3, 0), "highlight '==' concealed off its own line");
-    assert!(p.concealed_at(4, 0), "strikethrough '~~' concealed off its own line");
+    assert!(
+        p.concealed_at(0, 0),
+        "heading '#' concealed off its own line"
+    );
+    assert!(
+        p.concealed_at(1, 0),
+        "emphasis '**' concealed off its own line"
+    );
+    assert!(
+        p.concealed_at(2, 0),
+        "inline-code backtick concealed off its own line"
+    );
+    assert!(
+        p.concealed_at(3, 0),
+        "highlight '==' concealed off its own line"
+    );
+    assert!(
+        p.concealed_at(4, 0),
+        "strikethrough '~~' concealed off its own line"
+    );
 
     // Caret on the HEADING line: only it reveals; the other four stay concealed.
     let mut on0 = view(text, 0, 0);
     on0.is_markdown = true;
     p.set_view(&on0);
-    assert!(!p.concealed_at(0, 0), "caret on the heading line reveals its '#'");
-    assert!(p.concealed_at(1, 0), "emphasis stays concealed (caret elsewhere)");
-    assert!(p.concealed_at(2, 0), "code stays concealed (caret elsewhere)");
-    assert!(p.concealed_at(3, 0), "highlight stays concealed (caret elsewhere)");
-    assert!(p.concealed_at(4, 0), "strikethrough stays concealed (caret elsewhere)");
+    assert!(
+        !p.concealed_at(0, 0),
+        "caret on the heading line reveals its '#'"
+    );
+    assert!(
+        p.concealed_at(1, 0),
+        "emphasis stays concealed (caret elsewhere)"
+    );
+    assert!(
+        p.concealed_at(2, 0),
+        "code stays concealed (caret elsewhere)"
+    );
+    assert!(
+        p.concealed_at(3, 0),
+        "highlight stays concealed (caret elsewhere)"
+    );
+    assert!(
+        p.concealed_at(4, 0),
+        "strikethrough stays concealed (caret elsewhere)"
+    );
 
     // Caret on the EMPHASIS line: only it reveals now; the heading re-conceals.
     let mut on1 = view(text, 1, 0);
     on1.is_markdown = true;
     p.set_view(&on1);
-    assert!(p.concealed_at(0, 0), "heading re-conceals once the caret leaves");
-    assert!(!p.concealed_at(1, 0), "caret on the emphasis line reveals its '**'");
+    assert!(
+        p.concealed_at(0, 0),
+        "heading re-conceals once the caret leaves"
+    );
+    assert!(
+        !p.concealed_at(1, 0),
+        "caret on the emphasis line reveals its '**'"
+    );
     assert!(p.concealed_at(2, 0), "code stays concealed");
     assert!(p.concealed_at(3, 0), "highlight stays concealed");
     assert!(p.concealed_at(4, 0), "strikethrough stays concealed");
@@ -56,7 +94,10 @@ fn wysiwyg_conceals_each_line_scoped_kind_off_cursor_and_reveals_on() {
     let mut on4 = view(text, 4, 0);
     on4.is_markdown = true;
     p.set_view(&on4);
-    assert!(!p.concealed_at(4, 0), "caret on the struck line reveals its '~~'");
+    assert!(
+        !p.concealed_at(4, 0),
+        "caret on the struck line reveals its '~~'"
+    );
     assert!(p.concealed_at(3, 0), "highlight stays concealed");
 
     crate::markdown::set_wysiwyg_on(true);
@@ -71,7 +112,9 @@ fn wysiwyg_selection_reveals_every_touched_line_caret_elsewhere() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wysiwyg_selection_reveals_every_touched_line_caret_elsewhere: no wgpu adapter");
+        eprintln!(
+            "skipping wysiwyg_selection_reveals_every_touched_line_caret_elsewhere: no wgpu adapter"
+        );
         return;
     };
     // Line 0: heading. Line 1: emphasis. Line 2: inline code. Line 3:
@@ -85,13 +128,28 @@ fn wysiwyg_selection_reveals_every_touched_line_caret_elsewhere() {
     // WHOLE line's markup, exactly like the caret's own line does).
     v.selection = Some(((0, 3), (2, 1)));
     p.set_view(&v);
-    assert!(!p.concealed_at(0, 0), "heading reveals: selection touches its line");
-    assert!(!p.concealed_at(1, 0), "emphasis reveals: selection touches its line");
-    assert!(!p.concealed_at(2, 0), "inline code reveals: selection touches its line");
+    assert!(
+        !p.concealed_at(0, 0),
+        "heading reveals: selection touches its line"
+    );
+    assert!(
+        !p.concealed_at(1, 0),
+        "emphasis reveals: selection touches its line"
+    );
+    assert!(
+        !p.concealed_at(2, 0),
+        "inline code reveals: selection touches its line"
+    );
     // Lines 3-4 sit OUTSIDE the selection and the caret is on line 5 — both
     // stay concealed, proving the widened rule doesn't over-reveal.
-    assert!(p.concealed_at(3, 0), "highlight stays concealed: outside the selection");
-    assert!(p.concealed_at(4, 0), "strikethrough stays concealed: outside the selection");
+    assert!(
+        p.concealed_at(3, 0),
+        "highlight stays concealed: outside the selection"
+    );
+    assert!(
+        p.concealed_at(4, 0),
+        "strikethrough stays concealed: outside the selection"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -111,13 +169,19 @@ fn wysiwyg_collapsing_selection_reconceals() {
     selected.is_markdown = true;
     selected.selection = Some(((0, 0), (0, 7)));
     p.set_view(&selected);
-    assert!(!p.concealed_at(0, 0), "heading reveals while the selection touches it");
+    assert!(
+        !p.concealed_at(0, 0),
+        "heading reveals while the selection touches it"
+    );
 
     // Same caret line, selection cleared (`None`, the plain `view` default).
     let mut cleared = view(text, 1, 0);
     cleared.is_markdown = true;
     p.set_view(&cleared);
-    assert!(p.concealed_at(0, 0), "heading re-conceals once the selection clears");
+    assert!(
+        p.concealed_at(0, 0),
+        "heading re-conceals once the selection clears"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -145,7 +209,10 @@ fn wysiwyg_selection_change_alone_invalidates_row_geom() {
     off.is_markdown = true;
     p.set_view(&off);
     let xs_off = p.visual_rows(0)[0].xs.clone();
-    assert!(xs_off[2] < 1.0, "no selection: heading concealed: {xs_off:?}");
+    assert!(
+        xs_off[2] < 1.0,
+        "no selection: heading concealed: {xs_off:?}"
+    );
 
     // SAME caret line (1) — only a NEW selection touching line 0 changes.
     let mut selected = view(text, 1, 0);
@@ -181,7 +248,9 @@ fn wysiwyg_no_selection_matches_pre_existing_caret_only_behavior() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wysiwyg_no_selection_matches_pre_existing_caret_only_behavior: no wgpu adapter");
+        eprintln!(
+            "skipping wysiwyg_no_selection_matches_pre_existing_caret_only_behavior: no wgpu adapter"
+        );
         return;
     };
     let text = "# Title\n**bold**\n`code`\n==mark==\n~~cut~~\n";
@@ -189,11 +258,26 @@ fn wysiwyg_no_selection_matches_pre_existing_caret_only_behavior() {
     v.is_markdown = true;
     assert!(v.selection.is_none(), "view() defaults to no selection");
     p.set_view(&v);
-    assert!(!p.concealed_at(0, 0), "caret's own line reveals, exactly as before this round");
-    assert!(p.concealed_at(1, 0), "every other line stays concealed, exactly as before this round");
-    assert!(p.concealed_at(2, 0), "every other line stays concealed, exactly as before this round");
-    assert!(p.concealed_at(3, 0), "every other line stays concealed, exactly as before this round");
-    assert!(p.concealed_at(4, 0), "every other line stays concealed, exactly as before this round");
+    assert!(
+        !p.concealed_at(0, 0),
+        "caret's own line reveals, exactly as before this round"
+    );
+    assert!(
+        p.concealed_at(1, 0),
+        "every other line stays concealed, exactly as before this round"
+    );
+    assert!(
+        p.concealed_at(2, 0),
+        "every other line stays concealed, exactly as before this round"
+    );
+    assert!(
+        p.concealed_at(3, 0),
+        "every other line stays concealed, exactly as before this round"
+    );
+    assert!(
+        p.concealed_at(4, 0),
+        "every other line stays concealed, exactly as before this round"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -209,7 +293,9 @@ fn wysiwyg_fence_markers_are_block_scoped_body_never_conceals() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wysiwyg_fence_markers_are_block_scoped_body_never_conceals: no wgpu adapter");
+        eprintln!(
+            "skipping wysiwyg_fence_markers_are_block_scoped_body_never_conceals: no wgpu adapter"
+        );
         return;
     };
     // line0 "prose", line1 "```rust" (open+info), line2 body, line3 "```"
@@ -218,8 +304,14 @@ fn wysiwyg_fence_markers_are_block_scoped_body_never_conceals() {
     let mut outside = view(text, 0, 0);
     outside.is_markdown = true;
     p.set_view(&outside);
-    assert!(p.concealed_at(1, 0), "fence open+info concealed with caret outside the block");
-    assert!(p.concealed_at(3, 0), "fence close concealed with caret outside the block");
+    assert!(
+        p.concealed_at(1, 0),
+        "fence open+info concealed with caret outside the block"
+    );
+    assert!(
+        p.concealed_at(3, 0),
+        "fence close concealed with caret outside the block"
+    );
     assert!(!p.concealed_at(2, 0), "a body line must NEVER conceal");
 
     // Caret on the BODY line (line 2, inside the block): BOTH marker lines
@@ -227,16 +319,28 @@ fn wysiwyg_fence_markers_are_block_scoped_body_never_conceals() {
     let mut inside_body = view(text, 2, 0);
     inside_body.is_markdown = true;
     p.set_view(&inside_body);
-    assert!(!p.concealed_at(1, 0), "fence open+info reveals: caret is inside the block");
-    assert!(!p.concealed_at(3, 0), "fence close reveals: caret is inside the block");
+    assert!(
+        !p.concealed_at(1, 0),
+        "fence open+info reveals: caret is inside the block"
+    );
+    assert!(
+        !p.concealed_at(3, 0),
+        "fence close reveals: caret is inside the block"
+    );
     assert!(!p.concealed_at(2, 0), "the body line still never conceals");
 
     // Caret AFTER the block (line 4): both markers re-conceal.
     let mut after = view(text, 4, 0);
     after.is_markdown = true;
     p.set_view(&after);
-    assert!(p.concealed_at(1, 0), "fence open+info re-conceals once the caret leaves the block");
-    assert!(p.concealed_at(3, 0), "fence close re-conceals once the caret leaves the block");
+    assert!(
+        p.concealed_at(1, 0),
+        "fence open+info re-conceals once the caret leaves the block"
+    );
+    assert!(
+        p.concealed_at(3, 0),
+        "fence close re-conceals once the caret leaves the block"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -259,24 +363,48 @@ fn wysiwyg_frontmatter_is_block_scoped_like_fence() {
     let mut outside = view(text, 3, 0);
     outside.is_markdown = true;
     p.set_view(&outside);
-    assert!(p.concealed_at(0, 0), "opening --- concealed with caret outside the block");
-    assert!(p.concealed_at(1, 0), "lang: ja concealed with caret outside the block");
-    assert!(p.concealed_at(2, 0), "closing --- concealed with caret outside the block");
+    assert!(
+        p.concealed_at(0, 0),
+        "opening --- concealed with caret outside the block"
+    );
+    assert!(
+        p.concealed_at(1, 0),
+        "lang: ja concealed with caret outside the block"
+    );
+    assert!(
+        p.concealed_at(2, 0),
+        "closing --- concealed with caret outside the block"
+    );
 
     // Caret INSIDE the block (line 1): the whole block reveals together.
     let mut inside = view(text, 1, 0);
     inside.is_markdown = true;
     p.set_view(&inside);
-    assert!(!p.concealed_at(0, 0), "opening --- reveals: caret is inside the block");
-    assert!(!p.concealed_at(1, 0), "lang: ja reveals: caret is inside the block");
-    assert!(!p.concealed_at(2, 0), "closing --- reveals: caret is inside the block");
+    assert!(
+        !p.concealed_at(0, 0),
+        "opening --- reveals: caret is inside the block"
+    );
+    assert!(
+        !p.concealed_at(1, 0),
+        "lang: ja reveals: caret is inside the block"
+    );
+    assert!(
+        !p.concealed_at(2, 0),
+        "closing --- reveals: caret is inside the block"
+    );
 
     // Caret back outside (line 4, the body): re-conceals.
     let mut after = view(text, 4, 0);
     after.is_markdown = true;
     p.set_view(&after);
-    assert!(p.concealed_at(0, 0), "re-conceals once the caret leaves the block");
-    assert!(p.concealed_at(2, 0), "re-conceals once the caret leaves the block");
+    assert!(
+        p.concealed_at(0, 0),
+        "re-conceals once the caret leaves the block"
+    );
+    assert!(
+        p.concealed_at(2, 0),
+        "re-conceals once the caret leaves the block"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -291,7 +419,9 @@ fn wysiwyg_off_never_conceals_and_uploads_no_wash_geometry() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(false);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wysiwyg_off_never_conceals_and_uploads_no_wash_geometry: no wgpu adapter");
+        eprintln!(
+            "skipping wysiwyg_off_never_conceals_and_uploads_no_wash_geometry: no wgpu adapter"
+        );
         return;
     };
     let text = "# Title\n**bold**\n`code`\n==mark==\nprose\n```rust\nlet x = 1;\n```\nmore\n";
@@ -300,14 +430,38 @@ fn wysiwyg_off_never_conceals_and_uploads_no_wash_geometry() {
     let mut v = view(text, 4, 0);
     v.is_markdown = true;
     p.set_view(&v);
-    assert!(!p.concealed_at(0, 0), "wysiwyg=false: heading never conceals");
-    assert!(!p.concealed_at(1, 0), "wysiwyg=false: emphasis never conceals");
-    assert!(!p.concealed_at(2, 0), "wysiwyg=false: inline code never conceals");
-    assert!(!p.concealed_at(3, 0), "wysiwyg=false: highlight never conceals");
-    assert!(!p.concealed_at(5, 0), "wysiwyg=false: fence open never conceals");
-    assert!(!p.concealed_at(7, 0), "wysiwyg=false: fence close never conceals");
-    assert!(p.code_pill_rects().is_empty(), "wysiwyg=false: no inline-code pill geometry");
-    assert!(p.fence_panel_rects().is_empty(), "wysiwyg=false: no fence-panel geometry");
+    assert!(
+        !p.concealed_at(0, 0),
+        "wysiwyg=false: heading never conceals"
+    );
+    assert!(
+        !p.concealed_at(1, 0),
+        "wysiwyg=false: emphasis never conceals"
+    );
+    assert!(
+        !p.concealed_at(2, 0),
+        "wysiwyg=false: inline code never conceals"
+    );
+    assert!(
+        !p.concealed_at(3, 0),
+        "wysiwyg=false: highlight never conceals"
+    );
+    assert!(
+        !p.concealed_at(5, 0),
+        "wysiwyg=false: fence open never conceals"
+    );
+    assert!(
+        !p.concealed_at(7, 0),
+        "wysiwyg=false: fence close never conceals"
+    );
+    assert!(
+        p.code_pill_rects().is_empty(),
+        "wysiwyg=false: no inline-code pill geometry"
+    );
+    assert!(
+        p.fence_panel_rects().is_empty(),
+        "wysiwyg=false: no fence-panel geometry"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -333,12 +487,20 @@ fn wysiwyg_pill_and_panel_rects_present_when_on() {
     v.is_markdown = true;
     p.set_view(&v);
     let pills = p.code_pill_rects();
-    assert_eq!(pills.len(), 1, "one inline-code span => one pill quad: {pills:?}");
+    assert_eq!(
+        pills.len(),
+        1,
+        "one inline-code span => one pill quad: {pills:?}"
+    );
     let panels = p.fence_panel_rects();
     // 4 visual rows in the block (the open+info line, the two body lines,
     // and the closing fence line) MERGE into exactly one continuous card —
     // no internal seam between rows.
-    assert_eq!(panels.len(), 1, "the whole block merges into one panel quad: {panels:?}");
+    assert_eq!(
+        panels.len(),
+        1,
+        "the whole block merges into one panel quad: {panels:?}"
+    );
     let expected_h = 4.0 * p.metrics.line_height;
     assert!(
         (panels[0][3] - expected_h).abs() < 1.0,
@@ -358,9 +520,21 @@ fn wysiwyg_reveals_image_is_line_scoped() {
     use crate::markdown::ConcealKind;
     let range = 5..30;
     // off-cursor (caret on a DIFFERENT line) -> conceal the source.
-    assert!(!super::spans::wysiwyg_reveals(ConcealKind::Image, true, 0, &range, None));
+    assert!(!super::spans::wysiwyg_reveals(
+        ConcealKind::Image,
+        true,
+        0,
+        &range,
+        None
+    ));
     // on-cursor (caret on THIS line) -> reveal the raw `![alt](path)` source.
-    assert!(super::spans::wysiwyg_reveals(ConcealKind::Image, false, 10, &range, None));
+    assert!(super::spans::wysiwyg_reveals(
+        ConcealKind::Image,
+        false,
+        10,
+        &range,
+        None
+    ));
 }
 
 /// A link's `[`/`](url)` plumbing is LINE-scoped, exactly like emphasis /
@@ -370,8 +544,20 @@ fn wysiwyg_reveals_image_is_line_scoped() {
 fn wysiwyg_reveals_link_is_line_scoped() {
     use crate::markdown::ConcealKind;
     let range = 4..25;
-    assert!(!super::spans::wysiwyg_reveals(ConcealKind::Link, true, 0, &range, None));
-    assert!(super::spans::wysiwyg_reveals(ConcealKind::Link, false, 10, &range, None));
+    assert!(!super::spans::wysiwyg_reveals(
+        ConcealKind::Link,
+        true,
+        0,
+        &range,
+        None
+    ));
+    assert!(super::spans::wysiwyg_reveals(
+        ConcealKind::Link,
+        false,
+        10,
+        &range,
+        None
+    ));
 }
 
 /// SELECTION REVEAL (user-decided 2026-07-22): `wysiwyg_reveals` widens EVERY
@@ -453,7 +639,10 @@ fn wysiwyg_link_plumbing_conceals_off_cursor_text_stays_visible() {
     off.is_markdown = true;
     p.set_view(&off);
     assert!(p.concealed_at(0, 4), "opening '[' concealed off the line");
-    assert!(p.concealed_at(0, 16), "the url inside the tail concealed off the line");
+    assert!(
+        p.concealed_at(0, 16),
+        "the url inside the tail concealed off the line"
+    );
     assert!(
         !p.concealed_at(0, 8),
         "the link TEXT stays visible (never concealed)"
@@ -464,7 +653,10 @@ fn wysiwyg_link_plumbing_conceals_off_cursor_text_stays_visible() {
     on.is_markdown = true;
     p.set_view(&on);
     assert!(!p.concealed_at(0, 4), "caret on the link line reveals '['");
-    assert!(!p.concealed_at(0, 16), "caret on the link line reveals the url");
+    assert!(
+        !p.concealed_at(0, 16),
+        "caret on the link line reveals the url"
+    );
 
     crate::markdown::set_wysiwyg_on(true);
 }
@@ -660,7 +852,9 @@ fn wysiwyg_non_markdown_buffer_untouched_by_zero_width_conceal() {
     let _w = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wysiwyg_non_markdown_buffer_untouched_by_zero_width_conceal: no wgpu adapter");
+        eprintln!(
+            "skipping wysiwyg_non_markdown_buffer_untouched_by_zero_width_conceal: no wgpu adapter"
+        );
         return;
     };
     // A CODE-shaped line with literal '#'/'*' characters, is_markdown=false.

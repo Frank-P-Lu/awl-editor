@@ -207,7 +207,10 @@ pub struct BufferRegistry<T> {
 
 impl<T> Default for BufferRegistry<T> {
     fn default() -> Self {
-        Self { entries: Vec::new(), over_cap_warned: false }
+        Self {
+            entries: Vec::new(),
+            over_cap_warned: false,
+        }
     }
 }
 
@@ -286,7 +289,13 @@ mod tests {
         let mut reg: BufferRegistry<()> = BufferRegistry::default();
         let mut b = Buffer::scratch();
         b.set_text("hello");
-        reg.park(keyed("/a.txt"), Entry { buffer: b, extra: () });
+        reg.park(
+            keyed("/a.txt"),
+            Entry {
+                buffer: b,
+                extra: (),
+            },
+        );
         assert_eq!(reg.len(), 1);
         assert!(reg.contains(&keyed("/a.txt")));
         let entry = reg.take(&keyed("/a.txt")).expect("parked entry");
@@ -306,10 +315,24 @@ mod tests {
         a.set_text("alpha");
         let mut b = Buffer::scratch();
         b.set_text("beta");
-        reg.park(keyed("/a.txt"), Entry { buffer: a, extra: () });
-        reg.park(keyed("/b.txt"), Entry { buffer: b, extra: () });
-        let mut seen: Vec<(BufferKey, String)> =
-            reg.iter().map(|(k, e)| (k.clone(), e.buffer.text())).collect();
+        reg.park(
+            keyed("/a.txt"),
+            Entry {
+                buffer: a,
+                extra: (),
+            },
+        );
+        reg.park(
+            keyed("/b.txt"),
+            Entry {
+                buffer: b,
+                extra: (),
+            },
+        );
+        let mut seen: Vec<(BufferKey, String)> = reg
+            .iter()
+            .map(|(k, e)| (k.clone(), e.buffer.text()))
+            .collect();
         seen.sort_by(|a, b| a.1.cmp(&b.1));
         assert_eq!(
             seen,
@@ -342,7 +365,10 @@ mod tests {
         let cwd = crate::fs::current_dir().unwrap();
         let rel = BufferKey::path(Path::new("some_never_created_test_file.rs"));
         let abs = BufferKey::path(&cwd.join("some_never_created_test_file.rs"));
-        assert_eq!(rel, abs, "relative and cwd-joined-absolute must key the same");
+        assert_eq!(
+            rel, abs,
+            "relative and cwd-joined-absolute must key the same"
+        );
     }
 
     #[test]
@@ -361,8 +387,7 @@ mod tests {
         // spelling of the same file, and `normalize_path` now resolves it
         // (real `std::fs::canonicalize`, not just lexical `.`/`..` collapse)
         // rather than tracking the symlink's own name.
-        let base =
-            std::env::temp_dir().join(format!("awl-buffers-symlink-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("awl-buffers-symlink-{}", std::process::id()));
         let real_dir = base.join("real");
         let link_dir = base.join("link");
         std::fs::create_dir_all(&real_dir).unwrap();
@@ -421,7 +446,11 @@ mod tests {
 
         let mut note = Buffer::scratch();
         note.set_note_dir(PathBuf::from("/notes"));
-        assert_eq!(BufferKey::of(&note), None, "an unnamed empty note has no stable identity");
+        assert_eq!(
+            BufferKey::of(&note),
+            None,
+            "an unnamed empty note has no stable identity"
+        );
     }
 
     #[test]
@@ -429,14 +458,29 @@ mod tests {
         let mut reg: BufferRegistry<()> = BufferRegistry::default();
         // Fill to exactly the cap (MAX_OPEN_BUFFERS - 1 backgrounded + 1 active).
         for i in 0..(MAX_OPEN_BUFFERS - 1) {
-            reg.park(keyed(&format!("/f{i}.txt")), Entry { buffer: Buffer::scratch(), extra: () });
+            reg.park(
+                keyed(&format!("/f{i}.txt")),
+                Entry {
+                    buffer: Buffer::scratch(),
+                    extra: (),
+                },
+            );
         }
         assert_eq!(reg.len(), MAX_OPEN_BUFFERS - 1);
         // One more push would exceed the cap: the LRU (last-in, i.e. `/f0.txt`,
         // parked first and never re-touched) is evicted.
-        reg.park(keyed("/new.txt"), Entry { buffer: Buffer::scratch(), extra: () });
+        reg.park(
+            keyed("/new.txt"),
+            Entry {
+                buffer: Buffer::scratch(),
+                extra: (),
+            },
+        );
         assert_eq!(reg.len(), MAX_OPEN_BUFFERS - 1, "cap holds steady");
-        assert!(!reg.contains(&keyed("/f0.txt")), "the LRU clean entry was evicted");
+        assert!(
+            !reg.contains(&keyed("/f0.txt")),
+            "the LRU clean entry was evicted"
+        );
         assert!(reg.contains(&keyed("/new.txt")));
     }
 
@@ -447,21 +491,43 @@ mod tests {
         for i in 0..(MAX_OPEN_BUFFERS - 1) {
             let mut b = Buffer::scratch();
             b.set_text("x");
-            reg.park(keyed(&format!("/f{i}.txt")), Entry { buffer: b, extra: () });
+            reg.park(
+                keyed(&format!("/f{i}.txt")),
+                Entry {
+                    buffer: b,
+                    extra: (),
+                },
+            );
         }
         assert_eq!(reg.len(), MAX_OPEN_BUFFERS - 1);
         // The newly-parked buffer is ALSO dirty, so there is truly no clean
         // victim anywhere in the registry.
         let mut newest = Buffer::scratch();
         newest.set_text("y");
-        reg.park(keyed("/new.txt"), Entry { buffer: newest, extra: () });
+        reg.park(
+            keyed("/new.txt"),
+            Entry {
+                buffer: newest,
+                extra: (),
+            },
+        );
         // Nothing dirty could be evicted, so the registry is left OVER cap
         // rather than discarding unsaved work.
-        assert_eq!(reg.len(), MAX_OPEN_BUFFERS, "over cap: no dirty buffer was evicted");
+        assert_eq!(
+            reg.len(),
+            MAX_OPEN_BUFFERS,
+            "over cap: no dirty buffer was evicted"
+        );
         for i in 0..(MAX_OPEN_BUFFERS - 1) {
-            assert!(reg.contains(&keyed(&format!("/f{i}.txt"))), "dirty entry {i} survives");
+            assert!(
+                reg.contains(&keyed(&format!("/f{i}.txt"))),
+                "dirty entry {i} survives"
+            );
         }
-        assert!(reg.contains(&keyed("/new.txt")), "the new dirty entry survives too");
+        assert!(
+            reg.contains(&keyed("/new.txt")),
+            "the new dirty entry survives too"
+        );
     }
 
     #[test]
@@ -474,10 +540,26 @@ mod tests {
         for i in 0..(MAX_OPEN_BUFFERS - 1) {
             let mut b = Buffer::scratch();
             b.set_text("x");
-            reg.park(keyed(&format!("/f{i}.txt")), Entry { buffer: b, extra: () });
+            reg.park(
+                keyed(&format!("/f{i}.txt")),
+                Entry {
+                    buffer: b,
+                    extra: (),
+                },
+            );
         }
-        reg.park(keyed("/clean.txt"), Entry { buffer: Buffer::scratch(), extra: () });
-        assert_eq!(reg.len(), MAX_OPEN_BUFFERS - 1, "cap holds: the one clean entry was evicted");
+        reg.park(
+            keyed("/clean.txt"),
+            Entry {
+                buffer: Buffer::scratch(),
+                extra: (),
+            },
+        );
+        assert_eq!(
+            reg.len(),
+            MAX_OPEN_BUFFERS - 1,
+            "cap holds: the one clean entry was evicted"
+        );
         assert!(!reg.contains(&keyed("/clean.txt")));
         for i in 0..(MAX_OPEN_BUFFERS - 1) {
             assert!(reg.contains(&keyed(&format!("/f{i}.txt"))));

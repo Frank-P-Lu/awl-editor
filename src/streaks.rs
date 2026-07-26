@@ -319,7 +319,12 @@ pub fn placeholder() -> StreaksView {
         total += *c as u64 * 40;
         cumulative.push(total);
     }
-    StreaksView { cells, cumulative, streak: 12, today_words: 347 }
+    StreaksView {
+        cells,
+        cumulative,
+        streak: 12,
+        today_words: 347,
+    }
 }
 
 /// The cumulative chart's GEOMETRY: one vertical AREA BAR per day of `series`
@@ -496,12 +501,22 @@ pub fn from_toml(src: &str) -> Streaks {
     if let Some(days) = table.get("days").and_then(|v| v.as_table()) {
         for (day, v) in days {
             let Some(row) = v.as_table() else { continue };
-            let words = row.get("words").and_then(|x| x.as_integer()).unwrap_or(0).max(0) as u64;
+            let words = row
+                .get("words")
+                .and_then(|x| x.as_integer())
+                .unwrap_or(0)
+                .max(0) as u64;
             let raw = row.get("raw").and_then(|x| x.as_integer()).unwrap_or(0);
             if words == 0 && raw == 0 {
                 continue;
             }
-            streaks.days.insert(day.clone(), DayWords { words, raw_net: raw });
+            streaks.days.insert(
+                day.clone(),
+                DayWords {
+                    words,
+                    raw_net: raw,
+                },
+            );
         }
     }
     streaks
@@ -531,7 +546,10 @@ mod tests {
     fn defaults_closed() {
         let _g = crate::testlock::serial();
         set_open(false);
-        assert!(!streaks_open(), "the Writing streaks card is closed by default");
+        assert!(
+            !streaks_open(),
+            "the Writing streaks card is closed by default"
+        );
         set_open(true);
         assert!(streaks_open());
         set_open(false);
@@ -563,12 +581,24 @@ mod tests {
     fn current_streak_counts_consecutive_days_and_tolerates_today_being_blank() {
         let mut s = Streaks::default();
         for day in ["2026-07-14", "2026-07-15", "2026-07-16"] {
-            s.days.insert(day.to_string(), DayWords { words: 10, raw_net: 10 });
+            s.days.insert(
+                day.to_string(),
+                DayWords {
+                    words: 10,
+                    raw_net: 10,
+                },
+            );
         }
         // Today (17th) blank but yesterday (16th) written → streak still alive = 3.
         assert_eq!(s.current_streak((2026, 7, 17)), 3);
         // Today written extends it to 4.
-        s.days.insert("2026-07-17".to_string(), DayWords { words: 5, raw_net: 5 });
+        s.days.insert(
+            "2026-07-17".to_string(),
+            DayWords {
+                words: 5,
+                raw_net: 5,
+            },
+        );
         assert_eq!(s.current_streak((2026, 7, 17)), 4);
         // A two-day gap (neither today nor yesterday) → 0.
         assert_eq!(s.current_streak((2026, 7, 19)), 0);
@@ -623,17 +653,29 @@ mod tests {
     #[test]
     fn view_lays_today_in_the_last_column_and_leaves_the_future_empty() {
         let mut s = Streaks::default();
-        s.days.insert("2026-07-17".to_string(), DayWords { words: 500, raw_net: 500 });
+        s.days.insert(
+            "2026-07-17".to_string(),
+            DayWords {
+                words: 500,
+                raw_net: 500,
+            },
+        );
         let v = s.view((2026, 7, 17));
         // 2026-07-17 is a Friday → weekday 5. It sits in the LAST week column at
         // row 5; the peak day lights level 4.
         let today_days = days_from_civil(2026, 7, 17);
         assert_eq!(weekday(today_days), 5);
         let today_idx = (WEEKS - 1) * DAYS_PER_WEEK + 5;
-        assert_eq!(v.cells[today_idx], 4, "today (the only writing day) is the peak rung");
+        assert_eq!(
+            v.cells[today_idx], 4,
+            "today (the only writing day) is the peak rung"
+        );
         // Saturday of this week is in the future → empty.
         let future_idx = (WEEKS - 1) * DAYS_PER_WEEK + 6;
-        assert_eq!(v.cells[future_idx], 0, "a day later this week than today stays empty");
+        assert_eq!(
+            v.cells[future_idx], 0,
+            "a day later this week than today stays empty"
+        );
         assert_eq!(v.streak, 1);
         assert_eq!(v.today_words, 500);
     }
@@ -644,15 +686,24 @@ mod tests {
         let b = placeholder();
         assert_eq!(a, b, "the synthetic year is byte-stable");
         for lvl in 0..LEVELS as u8 {
-            assert!(a.cells.iter().any(|&c| c == lvl), "level {lvl} appears in the synthetic year");
+            assert!(
+                a.cells.iter().any(|&c| c == lvl),
+                "level {lvl} appears in the synthetic year"
+            );
         }
         assert_eq!(a.streak, 12);
         assert_eq!(a.today_words, 347);
         // The synthetic cumulative series: full-length, non-decreasing (a running
         // total never dips), ends positive (the chart has a line to draw).
         assert_eq!(a.cumulative.len(), CELLS);
-        assert!(a.cumulative.windows(2).all(|w| w[0] <= w[1]), "a running total never dips");
-        assert!(*a.cumulative.last().unwrap() > 0, "the synthetic year wrote something");
+        assert!(
+            a.cumulative.windows(2).all(|w| w[0] <= w[1]),
+            "a running total never dips"
+        );
+        assert!(
+            *a.cumulative.last().unwrap() > 0,
+            "the synthetic year wrote something"
+        );
     }
 
     #[test]
@@ -660,7 +711,11 @@ mod tests {
         let _g = crate::testlock::serial();
         set_open(false);
         set_open(true);
-        assert_eq!(card_view(), CardView::Heatmap, "every summon opens on the habit view");
+        assert_eq!(
+            card_view(),
+            CardView::Heatmap,
+            "every summon opens on the habit view"
+        );
         toggle_view();
         assert_eq!(card_view(), CardView::Cumulative);
         toggle_view();
@@ -670,7 +725,11 @@ mod tests {
         toggle_view();
         set_open(false);
         set_open(true);
-        assert_eq!(card_view(), CardView::Heatmap, "a fresh summon never remembers the page");
+        assert_eq!(
+            card_view(),
+            CardView::Heatmap,
+            "a fresh summon never remembers the page"
+        );
         set_open(false);
     }
 
@@ -683,29 +742,64 @@ mod tests {
         // Empty store: a full-length, all-zero series (a flat baseline, no bars).
         let empty = Streaks::default().cumulative_series(today);
         assert_eq!(empty.len(), 370);
-        assert!(empty.iter().all(|&v| v == 0), "an empty store totals zero everywhere");
+        assert!(
+            empty.iter().all(|&v| v == 0),
+            "an empty store totals zero everywhere"
+        );
 
         // Two writing days with a GAP between them: the gap day carries the
         // total FLAT (a plateau, never a dip), today (blank) carries the final.
         let mut s = Streaks::default();
-        s.days.insert("2026-07-14".to_string(), DayWords { words: 100, raw_net: 100 });
-        s.days.insert("2026-07-16".to_string(), DayWords { words: 50, raw_net: 50 });
+        s.days.insert(
+            "2026-07-14".to_string(),
+            DayWords {
+                words: 100,
+                raw_net: 100,
+            },
+        );
+        s.days.insert(
+            "2026-07-16".to_string(),
+            DayWords {
+                words: 50,
+                raw_net: 50,
+            },
+        );
         let series = s.cumulative_series(today);
         assert_eq!(series.len(), 370);
         let last = series.len() - 1; // today's index
         assert_eq!(series[last], 150, "the final running total sums every day");
         assert_eq!(series[last - 1], 150, "2026-07-16 adds its 50");
-        assert_eq!(series[last - 2], 100, "the gap day (07-15) carries the total flat");
+        assert_eq!(
+            series[last - 2],
+            100,
+            "the gap day (07-15) carries the total flat"
+        );
         assert_eq!(series[last - 3], 100, "2026-07-14 starts the total");
-        assert_eq!(series[last - 4], 0, "before the first writing day the total is 0");
-        assert!(series.windows(2).all(|w| w[0] <= w[1]), "a running total never dips");
+        assert_eq!(
+            series[last - 4],
+            0,
+            "before the first writing day the total is 0"
+        );
+        assert!(
+            series.windows(2).all(|w| w[0] <= w[1]),
+            "a running total never dips"
+        );
 
         // Single day: one step, then flat all the way to today.
         let mut one = Streaks::default();
-        one.days.insert("2026-07-10".to_string(), DayWords { words: 7, raw_net: 7 });
+        one.days.insert(
+            "2026-07-10".to_string(),
+            DayWords {
+                words: 7,
+                raw_net: 7,
+            },
+        );
         let series = one.cumulative_series(today);
         assert_eq!(*series.last().unwrap(), 7);
-        assert!(series.contains(&0), "days before the single writing day are zero");
+        assert!(
+            series.contains(&0),
+            "days before the single writing day are zero"
+        );
         assert!(series.windows(2).all(|w| w[0] <= w[1]));
     }
 
@@ -742,7 +836,10 @@ mod tests {
         }
         // The FINAL bar reaches the rect's full height: the total IS the top.
         let final_bar = bars.last().unwrap();
-        assert!((final_bar[3] - rect[3]).abs() < 0.01, "the line tops out at the right edge");
+        assert!(
+            (final_bar[3] - rect[3]).abs() < 0.01,
+            "the line tops out at the right edge"
+        );
 
         // A single-entry series fills the full height with one bar.
         let single = chart_bars(&[42], rect);
@@ -754,8 +851,20 @@ mod tests {
     #[test]
     fn round_trips_through_toml_and_is_lenient() {
         let mut s = Streaks::default();
-        s.days.insert("2026-07-16".to_string(), DayWords { words: 200, raw_net: 180 });
-        s.days.insert("2026-07-17".to_string(), DayWords { words: 0, raw_net: -40 });
+        s.days.insert(
+            "2026-07-16".to_string(),
+            DayWords {
+                words: 200,
+                raw_net: 180,
+            },
+        );
+        s.days.insert(
+            "2026-07-17".to_string(),
+            DayWords {
+                words: 0,
+                raw_net: -40,
+            },
+        );
         assert_eq!(from_toml(&to_toml(&s)), s);
         // Garbage / empty degrade to an empty record, never a panic.
         assert_eq!(from_toml(""), Streaks::default());
@@ -774,7 +883,11 @@ mod tests {
         let fake = Arc::new(crate::fs::InMemoryFs::new());
         crate::fs::with_fs(fake, || {
             let path = PathBuf::from("/data/streaks.toml");
-            assert_eq!(load(&path), Streaks::default(), "missing file: empty record");
+            assert_eq!(
+                load(&path),
+                Streaks::default(),
+                "missing file: empty record"
+            );
             let mut s = Streaks::default();
             s.record_delta("2026-07-17", 250);
             save(&path, &s).unwrap();

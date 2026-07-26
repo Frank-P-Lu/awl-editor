@@ -145,7 +145,7 @@ fn scan_number(b: &[u8], i: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::testutil::{at};
+    use crate::syntax::testutil::at;
 
     #[test]
     fn line_and_block_comments_recede() {
@@ -162,7 +162,11 @@ mod tests {
     fn block_comment_spans_multiple_lines() {
         let t = "/* one\n   two */\n42\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["/* one\n   two */"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["/* one\n   two */"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Constant).contains(&"42"), "{s:?}");
     }
 
@@ -178,7 +182,11 @@ mod tests {
         let t = "[\"a\\\"b\", \"c\\\\\"]";
         let s = spans(t);
         // Two value strings; the escaped `\"` and `\\` stay inside the span.
-        assert_eq!(at(t, &s, SynKind::Str), vec!["\"a\\\"b\"", "\"c\\\\\""], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["\"a\\\"b\"", "\"c\\\\\""],
+            "{s:?}"
+        );
     }
 
     #[test]

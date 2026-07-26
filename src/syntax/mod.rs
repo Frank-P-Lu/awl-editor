@@ -308,9 +308,9 @@ pub fn spans(lang: Lang, text: &str) -> Vec<(Range<usize>, SynKind)> {
 /// comment whose body STARTS with one of these (and carries a code-shaped
 /// symbol) reads as a disabled statement. One shared table — never per-language.
 const CODE_LEAD_KEYWORDS: &[&str] = &[
-    "let", "fn", "return", "if", "for", "while", "const", "var", "import", "use",
-    "pub", "def", "class", "struct", "impl", "match", "function", "echo",
-    "foreach", "select", "insert", "update", "delete", "print", "elif",
+    "let", "fn", "return", "if", "for", "while", "const", "var", "import", "use", "pub", "def",
+    "class", "struct", "impl", "match", "function", "echo", "foreach", "select", "insert",
+    "update", "delete", "print", "elif",
 ];
 
 /// Strip the LEADING comment markers (`//`+ incl. `///`/`//!`, `/*`, `#`+,
@@ -642,12 +642,16 @@ pub(crate) mod testutil {
 
     /// True if `s` contains an exact `lo..hi` span of role `k`.
     pub(crate) fn has(s: &[(Range<usize>, SynKind)], lo: usize, hi: usize, k: SynKind) -> bool {
-        s.iter().any(|(r, kk)| r.start == lo && r.end == hi && *kk == k)
+        s.iter()
+            .any(|(r, kk)| r.start == lo && r.end == hi && *kk == k)
     }
 
     /// The substring each span of role `k` covers, for readable assertions.
     pub(crate) fn at<'a>(text: &'a str, s: &[(Range<usize>, SynKind)], k: SynKind) -> Vec<&'a str> {
-        s.iter().filter(|(_, kk)| *kk == k).map(|(r, _)| &text[r.clone()]).collect()
+        s.iter()
+            .filter(|(_, kk)| *kk == k)
+            .map(|(r, _)| &text[r.clone()])
+            .collect()
     }
 }
 
@@ -754,13 +758,13 @@ mod tests {
         // PROSE (prominent) — the default.
         for prose in [
             "// TODO: fix the wrap",
-            "// return early here",              // keyword alone, no symbol
-            "// use two spaces here",            // keyword alone, no symbol
-            "// If you set x, it breaks",        // capitalized prose never trips rule 2
+            "// return early here",       // keyword alone, no symbol
+            "// use two spaces here",     // keyword alone, no symbol
+            "// If you set x, it breaks", // capitalized prose never trips rule 2
             "// A calm, quiet note.",
             "// don't check: prose punctuation!",
-            "//",                                // empty body
-            "// ok",                             // short body
+            "//",    // empty body
+            "// ok", // short body
             "# reads the active theme",
             "-- migration notes below",
             "<!-- page header -->",
@@ -812,7 +816,8 @@ mod tests {
         let rs = "// TODO: fix the wrap\n// let x = foo(bar);\nfn main() {}\n";
         let s = spans(Lang::Rust, rs);
         assert!(
-            s.iter().any(|(r, k)| *k == SynKind::Comment && rs[r.clone()].contains("TODO")),
+            s.iter()
+                .any(|(r, k)| *k == SynKind::Comment && rs[r.clone()].contains("TODO")),
             "prose comment stays Comment: {s:?}"
         );
         assert!(
@@ -822,12 +827,14 @@ mod tests {
         );
         let py = "# reads the config\n# print(x)\n";
         let s = spans(Lang::Python, py);
-        assert!(s
-            .iter()
-            .any(|(r, k)| *k == SynKind::Comment && py[r.clone()].contains("config")));
-        assert!(s
-            .iter()
-            .any(|(r, k)| *k == SynKind::CommentCode && py[r.clone()].contains("print")));
+        assert!(
+            s.iter()
+                .any(|(r, k)| *k == SynKind::Comment && py[r.clone()].contains("config"))
+        );
+        assert!(
+            s.iter()
+                .any(|(r, k)| *k == SynKind::CommentCode && py[r.clone()].contains("print"))
+        );
     }
 
     #[test]
@@ -892,7 +899,11 @@ mod tests {
 
     #[test]
     fn shared_scan_number_radix_fraction_and_boundaries() {
-        let o = || NumOpts { radix: b"xXoObB", radix_extra: b"", dot_dot_stops: true };
+        let o = || NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        };
         // A hex body consumes alnum + `_`; the suffix rides along.
         let hex = b"0xFF_u8;";
         assert_eq!(scan_number(hex, 0, o(), is_ident_start), 7);
@@ -907,7 +918,11 @@ mod tests {
         assert_eq!(scan_number(m, 0, o(), is_ident_start), 1);
         // Without `dot_dot_stops`, only the member-access guard applies, so a
         // `.`-before-digit is consumed as a fraction.
-        let no = NumOpts { radix: b"xXbB", radix_extra: b"", dot_dot_stops: false };
+        let no = NumOpts {
+            radix: b"xXbB",
+            radix_extra: b"",
+            dot_dot_stops: false,
+        };
         assert_eq!(scan_number(b"1.5", 0, no, is_ident_start), 3);
     }
 
@@ -920,16 +935,25 @@ mod tests {
         assert_eq!(ident_role("fn", DEF, CONST, &mut e), None);
         assert!(e, "an introducer arms expect_def");
         // The very next identifier is the definition name; the flag is consumed.
-        assert_eq!(ident_role("main", DEF, CONST, &mut e), Some(SynKind::Definition));
+        assert_eq!(
+            ident_role("main", DEF, CONST, &mut e),
+            Some(SynKind::Definition)
+        );
         assert!(!e, "emitting a name clears expect_def");
         // A constant word (when not awaiting a name) is a Constant.
-        assert_eq!(ident_role("true", DEF, CONST, &mut e), Some(SynKind::Constant));
+        assert_eq!(
+            ident_role("true", DEF, CONST, &mut e),
+            Some(SynKind::Constant)
+        );
         // An ordinary identifier is unstyled.
         assert_eq!(ident_role("foo", DEF, CONST, &mut e), None);
         // Pending-name wins over the constant/introducer tables: a keyword sitting
         // in the name slot is still styled as the Definition.
         let mut e2 = true;
-        assert_eq!(ident_role("true", DEF, CONST, &mut e2), Some(SynKind::Definition));
+        assert_eq!(
+            ident_role("true", DEF, CONST, &mut e2),
+            Some(SynKind::Definition)
+        );
         assert!(!e2);
     }
 
@@ -981,13 +1005,32 @@ mod tests {
         assert_eq!(Lang::Cpp.name(), "cpp");
         assert_eq!(Lang::CSharp.name(), "csharp");
         for l in [
-            Lang::Rust, Lang::Python, Lang::JavaScript, Lang::TypeScript, Lang::Go,
-            Lang::C, Lang::Cpp, Lang::Java, Lang::CSharp, Lang::Ruby, Lang::Php,
-            Lang::Swift, Lang::Kotlin, Lang::Bash, Lang::Html, Lang::Css, Lang::Json,
-            Lang::Yaml, Lang::Toml, Lang::Sql,
+            Lang::Rust,
+            Lang::Python,
+            Lang::JavaScript,
+            Lang::TypeScript,
+            Lang::Go,
+            Lang::C,
+            Lang::Cpp,
+            Lang::Java,
+            Lang::CSharp,
+            Lang::Ruby,
+            Lang::Php,
+            Lang::Swift,
+            Lang::Kotlin,
+            Lang::Bash,
+            Lang::Html,
+            Lang::Css,
+            Lang::Json,
+            Lang::Yaml,
+            Lang::Toml,
+            Lang::Sql,
         ] {
             let n = l.name();
-            assert!(!n.is_empty() && n == n.to_ascii_lowercase(), "{n:?} must be lowercase");
+            assert!(
+                !n.is_empty() && n == n.to_ascii_lowercase(),
+                "{n:?} must be lowercase"
+            );
         }
     }
 }
@@ -1028,7 +1071,10 @@ mod verifier_probe {
             ("// the answer is 42 (see DESIGN.md, section 3)", false),
             ("// a + b, then c - d: simple arithmetic in prose", false),
             ("// O(visible) not O(doc) per frame", false),
-            ("/// Returns the width in px (physical, not logical).", false),
+            (
+                "/// Returns the width in px (physical, not logical).",
+                false,
+            ),
             ("// -----------------------------------------", false),
             // code-like prose probes (KNOWN heuristic edges - record behavior)
             // first-word keyword + any of =(){}[]<>* reads as code:
@@ -1077,7 +1123,9 @@ mod verifier_probe {
             );
         }
         // equals-sign divider also reads as code (density rule):
-        assert!(looks_like_code(comment_body("// ============================")));
+        assert!(looks_like_code(comment_body(
+            "// ============================"
+        )));
     }
 
     /// Corpus sweep over this repo's own source comments: measure how many
@@ -1111,7 +1159,10 @@ mod verifier_probe {
                 }
             }
         }
-        println!("corpus: {total} comment lines, {} classified code", flagged.len());
+        println!(
+            "corpus: {total} comment lines, {} classified code",
+            flagged.len()
+        );
         for f in &flagged {
             println!("  CODE: {f}");
         }

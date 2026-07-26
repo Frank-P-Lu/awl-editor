@@ -20,9 +20,15 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         self.panel_remetric();
         let shape = self.panel_shape_text(width);
-        let (card_rect, text_left, text_top, caret_x) =
-            self.panel_layout(width, shape.caret_byte, shape.caret_fallback_chars, shape.caret_row);
-        self.panel_upload_text(device, queue, width, height, &shape, card_rect, text_left, text_top)?;
+        let (card_rect, text_left, text_top, caret_x) = self.panel_layout(
+            width,
+            shape.caret_byte,
+            shape.caret_fallback_chars,
+            shape.caret_row,
+        );
+        self.panel_upload_text(
+            device, queue, width, height, &shape, card_rect, text_left, text_top,
+        )?;
         self.panel_place_caret(queue, width, height, caret_x, text_top, shape.caret_row);
         Ok(())
     }
@@ -117,8 +123,11 @@ impl TextPipeline {
         let field = |c| Attrs::new().family(Family::Monospace).color(c);
 
         let replacement = self.search_replacement.clone();
-        let (replacement_view, replacement_view_caret) =
-            field_view_window(&replacement, self.search_replacement_caret, PANEL_FIELD_CHARS);
+        let (replacement_view, replacement_view_caret) = field_view_window(
+            &replacement,
+            self.search_replacement_caret,
+            PANEL_FIELD_CHARS,
+        );
         let replace_active = self.search_replace_active;
         let editing_replacement = replace_active && self.search_editing_replacement;
         // The dim key-hint line that teaches the replace actions — muted ink, present
@@ -160,12 +169,14 @@ impl TextPipeline {
             // brighten (`hint_color`) when case-sensitivity is on.
             spans.push(("\n", mk(muted)));
             // The color-change boundaries within the hint: the case-chunk edges.
-            let bounds: [usize; 2] =
-                case_hint_span.map(|(s, e)| [s, e]).unwrap_or([hint.len(), hint.len()]);
+            let bounds: [usize; 2] = case_hint_span
+                .map(|(s, e)| [s, e])
+                .unwrap_or([hint.len(), hint.len()]);
             // A run is emitted piecewise, cutting at any boundary strictly inside it, so
             // each emitted piece is uniformly inside or outside the case chunk.
             let emit = |spans: &mut Vec<(&str, Attrs)>, mut s: usize, e: usize, is_sym: bool| {
-                let mut cuts: Vec<usize> = bounds.iter().copied().filter(|&b| b > s && b < e).collect();
+                let mut cuts: Vec<usize> =
+                    bounds.iter().copied().filter(|&b| b > s && b < e).collect();
                 cuts.push(e);
                 for c in cuts {
                     let col = hint_color(s);
@@ -292,12 +303,7 @@ impl TextPipeline {
         // document (DESIGN §5) — clearer, more present furniture than the old
         // flat pill. The flat `panel_card` is left empty; the search draw
         // branch draws the float quads (parked whenever the panel is down).
-        self.claim_float_panel(
-            card_rect,
-            FloatElevation::Rimmed,
-            0.0,
-            None,
-        );
+        self.claim_float_panel(card_rect, FloatElevation::Rimmed, 0.0, None);
         self.panel_card.prepare(device, queue, width, height, &[]);
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);

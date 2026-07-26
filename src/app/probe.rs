@@ -113,8 +113,13 @@ impl App {
             match via_ws {
                 Ok(img) => {
                     match img.save(path) {
-                        Ok(()) => println!("LIVE-PROBE shot {} ok backend=window-server", path.display()),
-                        Err(e) => println!("LIVE-PROBE shot {} FAILED: png write: {e}", path.display()),
+                        Ok(()) => println!(
+                            "LIVE-PROBE shot {} ok backend=window-server",
+                            path.display()
+                        ),
+                        Err(e) => {
+                            println!("LIVE-PROBE shot {} FAILED: png write: {e}", path.display())
+                        }
                     }
                     // ALSO write the frame mirror beside it (`<name>.mirror.png`):
                     // the pair is the disambiguator for the exact bug class this
@@ -153,7 +158,10 @@ impl App {
                 ),
                 Err(e) => println!("LIVE-PROBE shot {} FAILED: png write: {e}", path.display()),
             },
-            Err(e) => println!("LIVE-PROBE shot {} FAILED: {e} ({why_not_ws})", path.display()),
+            Err(e) => println!(
+                "LIVE-PROBE shot {} FAILED: {e} ({why_not_ws})",
+                path.display()
+            ),
         }
     }
 }

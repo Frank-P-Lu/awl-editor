@@ -181,7 +181,10 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             // First flush ANCHORS the empty scratch buffer — records nothing.
             app.streaks_flush();
-            assert!(app.streaks.days.is_empty(), "the anchor flush records nothing");
+            assert!(
+                app.streaks.days.is_empty(),
+                "the anchor flush records nothing"
+            );
             let today = app.streaks_local_today();
 
             // Write some words, then flush: the net delta is recorded under today.
@@ -193,7 +196,11 @@ mod tests {
             // total (raw net still drops).
             app.active.buffer.set_text("hello there");
             app.streaks_flush();
-            assert_eq!(app.streaks.words_on(&today), 3, "a cut never lowers the day total");
+            assert_eq!(
+                app.streaks.words_on(&today),
+                3,
+                "a cut never lowers the day total"
+            );
             assert!(app.streaks.days.get(&today).unwrap().raw_net <= 3);
 
             // Persisted to (and reloaded from) streaks.toml.
@@ -281,7 +288,9 @@ mod tests {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             let today = app.streaks_local_today_ymd();
             // Type into the birth scratch, but DON'T let an idle flush fire.
-            app.active.buffer.set_text("live words not yet flushed today");
+            app.active
+                .buffer
+                .set_text("live words not yet flushed today");
             // The delta is still pending — the store hasn't seen it.
             assert_eq!(
                 app.streaks.view(today).today_words,
@@ -307,13 +316,18 @@ mod tests {
     #[test]
     fn kill_switch_off_records_nothing_and_never_writes() {
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
-            let cfg = Config { stats: Some(false), ..Config::empty() };
+            let cfg = Config {
+                stats: Some(false),
+                ..Config::empty()
+            };
             let mut app = App::new(None, PathBuf::from("/n"), None, None, cfg);
             app.active.buffer.set_text("some words here now");
             app.streaks_flush();
             assert!(app.streaks.days.is_empty(), "off: no recording");
             assert!(
-                crate::fs::active().read(&crate::streaks::streaks_path()).is_err(),
+                crate::fs::active()
+                    .read(&crate::streaks::streaks_path())
+                    .is_err(),
                 "off: never writes streaks.toml"
             );
         });

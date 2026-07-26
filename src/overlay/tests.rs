@@ -26,7 +26,12 @@ fn orphan(rel: &str, size: u64) -> crate::assets::Orphan {
         Some((d, n)) => (n.to_string(), d.to_string()),
         None => (rel.to_string(), String::new()),
     };
-    crate::assets::Orphan { rel: rel.to_string(), name, parent, size: Some(size) }
+    crate::assets::Orphan {
+        rel: rel.to_string(),
+        name,
+        parent,
+        size: Some(size),
+    }
 }
 
 #[test]
@@ -73,7 +78,11 @@ fn assets_remove_asset_row_shrinks_the_list_and_keeps_the_picker_open() {
     // together as a single element — there is no second parallel array that
     // could drift out of step with `rows` after the shift. Assert it directly
     // against the underlying `rows`, not just the filtered `items` view.
-    assert_eq!(ov.rows.len(), 2, "b's row is actually gone, not just hidden");
+    assert_eq!(
+        ov.rows.len(),
+        2,
+        "b's row is actually gone, not just hidden"
+    );
     let want_secondary = |rel: &str| {
         let size = if rel == "assets/a.png" { 1 } else { 3 };
         crate::assets::secondary_label(&orphan(rel, size))
@@ -137,17 +146,32 @@ fn goto_hides_dotfiles_until_revealed() {
     let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
     // Default (Text): dotfiles hidden, `.env` and ordinary files visible.
     let shown = ov.item_strings();
-    assert!(!shown.iter().any(|s| s == ".gitignore"), "dotfile hidden: {shown:?}");
-    assert!(!shown.iter().any(|s| s == "src/.hidden/x.rs"), "nested dot dir hidden: {shown:?}");
-    assert!(shown.iter().any(|s| s == ".env"), ".env stays visible: {shown:?}");
+    assert!(
+        !shown.iter().any(|s| s == ".gitignore"),
+        "dotfile hidden: {shown:?}"
+    );
+    assert!(
+        !shown.iter().any(|s| s == "src/.hidden/x.rs"),
+        "nested dot dir hidden: {shown:?}"
+    );
+    assert!(
+        shown.iter().any(|s| s == ".env"),
+        ".env stays visible: {shown:?}"
+    );
     assert!(shown.iter().any(|s| s == "README.md"));
     assert!(shown.iter().any(|s| s == "src/main.rs"));
     // Flip to All -> dotfiles now revealed alongside everything.
     crate::file_visibility::set_all_on(true);
     ov.refilter();
     let shown = ov.item_strings();
-    assert!(shown.iter().any(|s| s == ".gitignore"), "dotfile revealed: {shown:?}");
-    assert!(shown.iter().any(|s| s == "src/.hidden/x.rs"), "nested dot dir revealed: {shown:?}");
+    assert!(
+        shown.iter().any(|s| s == ".gitignore"),
+        "dotfile revealed: {shown:?}"
+    );
+    assert!(
+        shown.iter().any(|s| s == "src/.hidden/x.rs"),
+        "nested dot dir revealed: {shown:?}"
+    );
     assert!(shown.iter().any(|s| s == ".env"));
     // Flip back to Text -> hidden again.
     crate::file_visibility::set_all_on(false);
@@ -179,12 +203,21 @@ fn browse_hides_dot_leaves_until_revealed() {
         None,
     );
     let shown = ov.item_strings();
-    assert!(!shown.iter().any(|s| s.starts_with(".config")), "dot dir hidden: {shown:?}");
+    assert!(
+        !shown.iter().any(|s| s.starts_with(".config")),
+        "dot dir hidden: {shown:?}"
+    );
     assert!(shown.iter().any(|s| s == "notes.md"));
-    assert!(shown.iter().any(|s| s == ".env"), ".env visible in browse too");
+    assert!(
+        shown.iter().any(|s| s == ".env"),
+        ".env visible in browse too"
+    );
     crate::file_visibility::set_all_on(true);
     ov.refilter();
-    assert!(ov.item_strings().iter().any(|s| s.starts_with(".config")), "dot dir revealed");
+    assert!(
+        ov.item_strings().iter().any(|s| s.starts_with(".config")),
+        "dot dir revealed"
+    );
     crate::file_visibility::set_all_on(saved);
 }
 
@@ -200,29 +233,58 @@ fn browse_listing_hides_unsupported_files_in_text_and_labels_them_in_all() {
     let _g_lock = crate::testlock::serial();
     let saved = crate::file_visibility::all_on();
     let mem = InMemoryFs::new();
-    mem.write(std::path::Path::new("/proj/notes.xyzzy"), b"real prose, odd extension\n").unwrap();
+    mem.write(
+        std::path::Path::new("/proj/notes.xyzzy"),
+        b"real prose, odd extension\n",
+    )
+    .unwrap();
     mem.write(
         std::path::Path::new("/proj/logo.png"),
         &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00],
     )
     .unwrap();
-    mem.create_dir_all(std::path::Path::new("/proj/sub")).unwrap();
+    mem.create_dir_all(std::path::Path::new("/proj/sub"))
+        .unwrap();
     let _g_fs = crate::fs::FsGuard::install(Arc::new(mem));
 
     crate::file_visibility::set_all_on(false);
-    let ov = crate::overlay::browse_level(OverlayKind::Browse, None, std::path::Path::new("/proj"), None, &[])
-        .expect("a browse level always builds");
+    let ov = crate::overlay::browse_level(
+        OverlayKind::Browse,
+        None,
+        std::path::Path::new("/proj"),
+        None,
+        &[],
+    )
+    .expect("a browse level always builds");
     let shown = ov.item_strings();
-    assert!(shown.iter().any(|s| s == "notes.xyzzy"), "unusual-extension TEXT stays listed: {shown:?}");
-    assert!(shown.iter().any(|s| s == "sub/"), "folders always list: {shown:?}");
-    assert!(!shown.iter().any(|s| s == "logo.png"), "Text mode hides the unsupported file: {shown:?}");
+    assert!(
+        shown.iter().any(|s| s == "notes.xyzzy"),
+        "unusual-extension TEXT stays listed: {shown:?}"
+    );
+    assert!(
+        shown.iter().any(|s| s == "sub/"),
+        "folders always list: {shown:?}"
+    );
+    assert!(
+        !shown.iter().any(|s| s == "logo.png"),
+        "Text mode hides the unsupported file: {shown:?}"
+    );
 
     crate::file_visibility::set_all_on(true);
-    let ov = crate::overlay::browse_level(OverlayKind::Browse, None, std::path::Path::new("/proj"), None, &[])
-        .expect("a browse level always builds");
+    let ov = crate::overlay::browse_level(
+        OverlayKind::Browse,
+        None,
+        std::path::Path::new("/proj"),
+        None,
+        &[],
+    )
+    .expect("a browse level always builds");
     let shown = ov.item_strings();
     let secs = ov.item_bindings(); // the secondary column, parallel to item_strings
-    let i = shown.iter().position(|s| s == "logo.png").expect("All mode reveals the unsupported file");
+    let i = shown
+        .iter()
+        .position(|s| s == "logo.png")
+        .expect("All mode reveals the unsupported file");
     assert_eq!(secs[i], "PNG", "the row carries a concise type label");
 
     crate::file_visibility::set_all_on(saved);
@@ -242,7 +304,11 @@ fn non_file_picker_ignores_file_visibility() {
     let before = ov.item_strings();
     crate::file_visibility::set_all_on(!crate::file_visibility::all_on());
     ov.refilter();
-    assert_eq!(ov.item_strings(), before, "listing unchanged for a non-file picker");
+    assert_eq!(
+        ov.item_strings(),
+        before,
+        "listing unchanged for a non-file picker"
+    );
     crate::file_visibility::set_all_on(saved);
 }
 
@@ -276,7 +342,10 @@ fn switch_marks_git_children() {
     );
     let items = ov.item_strings();
     // The NAME column carries no git marker any more — a clean folder name (+ `/`).
-    assert!(items.iter().all(|s| !s.contains('•')), "no bullet in names: {items:?}");
+    assert!(
+        items.iter().all(|s| !s.contains('•')),
+        "no bullet in names: {items:?}"
+    );
     // Git repos carry a `"git"` SECONDARY-column tag, parallel to `items`; a plain
     // folder's slot is empty.
     let tags = ov.item_git_tags();
@@ -292,7 +361,10 @@ fn switch_marks_git_children() {
     let pn = items.iter().find(|s| s.contains("plain-notes")).unwrap();
     assert!(pn.ends_with('/'));
     // The accept value is always the RAW name (no marker).
-    assert_eq!(ov.rows[ov.selected_corpus_index().unwrap()].accept, "plain-notes");
+    assert_eq!(
+        ov.rows[ov.selected_corpus_index().unwrap()].accept,
+        "plain-notes"
+    );
 
     // ITEM 54 PRESERVATION LAW (git/dir survive reorder): a typed query that
     // RE-RANKS the rows must never let a git/dir marker follow the wrong row —
@@ -306,15 +378,25 @@ fn switch_marks_git_children() {
     ov.push('o');
     let items2 = ov.item_strings();
     let tags2 = ov.item_git_tags();
-    assert_eq!(tags2.len(), items2.len(), "git tags stay parallel after reorder");
+    assert_eq!(
+        tags2.len(),
+        items2.len(),
+        "git tags stay parallel after reorder"
+    );
     assert!(
         items2.iter().any(|s| s.starts_with("repo")),
         "the query genuinely reordered toward the repo rows: {items2:?}"
     );
     for (i, s) in items2.iter().enumerate() {
-        assert!(s.ends_with('/'), "every surviving row is still a directory: {s:?}");
+        assert!(
+            s.ends_with('/'),
+            "every surviving row is still a directory: {s:?}"
+        );
         if s.contains("repo") {
-            assert_eq!(tags2[i], "git", "reordered {s:?} keeps its OWN git tag, not a neighbor's");
+            assert_eq!(
+                tags2[i], "git",
+                "reordered {s:?} keeps its OWN git tag, not a neighbor's"
+            );
         }
     }
 }
@@ -340,7 +422,10 @@ fn new_project_pins_accept_row_and_marks_git() {
     assert!(ov.selected_is_dir(), "first folder is a directory");
     // Git children carry the `"git"` SECONDARY tag (not a name bullet); "." is
     // neither git nor a dir, and no name carries a bullet.
-    assert!(items.iter().all(|s| !s.contains('•')), "no name bullet: {items:?}");
+    assert!(
+        items.iter().all(|s| !s.contains('•')),
+        "no name bullet: {items:?}"
+    );
     let tags = ov.item_git_tags();
     let alpha = items.iter().position(|s| s.contains("repo-alpha")).unwrap();
     assert_eq!(tags[alpha], "git");
@@ -367,10 +452,22 @@ fn project_hides_dotfolders_but_keeps_accept_row_and_env() {
     // exception) stay visible.
     assert!(ov.kind.hides_dotfiles(), "Project hides dotfiles now");
     let shown = ov.item_strings();
-    assert!(shown.iter().any(|s| s == "."), "the '.' accept row survives: {shown:?}");
-    assert!(!shown.iter().any(|s| s.starts_with(".git")), ".git hidden: {shown:?}");
-    assert!(!shown.iter().any(|s| s.starts_with(".claude")), ".claude hidden: {shown:?}");
-    assert!(shown.iter().any(|s| s.starts_with(".env")), ".env stays visible: {shown:?}");
+    assert!(
+        shown.iter().any(|s| s == "."),
+        "the '.' accept row survives: {shown:?}"
+    );
+    assert!(
+        !shown.iter().any(|s| s.starts_with(".git")),
+        ".git hidden: {shown:?}"
+    );
+    assert!(
+        !shown.iter().any(|s| s.starts_with(".claude")),
+        ".claude hidden: {shown:?}"
+    );
+    assert!(
+        shown.iter().any(|s| s.starts_with(".env")),
+        ".env stays visible: {shown:?}"
+    );
     assert!(shown.iter().any(|s| s.starts_with("src")));
     assert!(shown.iter().any(|s| s.starts_with("repo")));
     // The `.env` folder is not git, so its secondary tag is empty; the repo carries
@@ -382,9 +479,18 @@ fn project_hides_dotfolders_but_keeps_accept_row_and_env() {
     crate::file_visibility::set_all_on(true);
     ov.refilter();
     let revealed = ov.item_strings();
-    assert!(revealed.iter().any(|s| s.starts_with(".git")), "revealed: {revealed:?}");
-    assert!(revealed.iter().any(|s| s.starts_with(".claude")), "revealed: {revealed:?}");
-    assert!(revealed.iter().any(|s| s == "."), "'.' still present after reveal");
+    assert!(
+        revealed.iter().any(|s| s.starts_with(".git")),
+        "revealed: {revealed:?}"
+    );
+    assert!(
+        revealed.iter().any(|s| s.starts_with(".claude")),
+        "revealed: {revealed:?}"
+    );
+    assert!(
+        revealed.iter().any(|s| s == "."),
+        "'.' still present after reveal"
+    );
     crate::file_visibility::set_all_on(saved);
 }
 
@@ -399,9 +505,16 @@ fn project_picker_has_an_all_recent_strip_and_lands_on_all() {
     assert_eq!(strip, vec!["All".to_string(), "Recent".to_string()]);
     // HOME LAW: All is FIRST and the picker lands on it (the flat list).
     assert_eq!(ov.active_facet_id(), Some("all"));
-    assert_eq!(ov.lens_strip().first().map(|(_, a)| *a), Some(true), "All is active on open");
+    assert_eq!(
+        ov.lens_strip().first().map(|(_, a)| *a),
+        Some(true),
+        "All is active on open"
+    );
     // The synthetic "." select-this-folder row survives under All (flat home).
-    assert!(ov.item_strings().iter().any(|s| s == "."), "'.' survives under All");
+    assert!(
+        ov.item_strings().iter().any(|s| s == "."),
+        "'.' survives under All"
+    );
 }
 
 #[test]
@@ -426,7 +539,10 @@ fn project_recent_lens_shows_only_mru_projects_in_mru_order() {
     // ONLY the two MRU folders show, in MRU order (proj-c before proj-a) — the
     // "." row and the non-MRU proj-b opt out.
     // (Folder rows render with a trailing "/" in the display strings.)
-    assert_eq!(ov.item_strings(), vec!["proj-c/".to_string(), "proj-a/".to_string()]);
+    assert_eq!(
+        ov.item_strings(),
+        vec!["proj-c/".to_string(), "proj-a/".to_string()]
+    );
     // Every surviving row sits under the single "Recent" section header.
     assert!(ov.item_sections().iter().all(|s| s == "Recent"));
 }
@@ -483,7 +599,10 @@ fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() 
     // NO waiter (the default `BuildCtx`, matching headless capture / a fresh
     // live App with nothing waiting): "Finish file" is absent from what's
     // rankable/selectable...
-    let ctx_idle = BuildCtx { has_waiter: false, ..empty_build_ctx(&[]) };
+    let ctx_idle = BuildCtx {
+        has_waiter: false,
+        ..empty_build_ctx(&[])
+    };
     let ov_idle = crate::overlay::build(OverlayKind::Command, &ctx_idle)
         .expect("the Command palette always summons");
     assert!(
@@ -504,11 +623,16 @@ fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() 
     );
 
     // A waiter IS active: the row reappears...
-    let ctx_waiting = BuildCtx { has_waiter: true, ..empty_build_ctx(&[]) };
+    let ctx_waiting = BuildCtx {
+        has_waiter: true,
+        ..empty_build_ctx(&[])
+    };
     let mut ov_waiting = crate::overlay::build(OverlayKind::Command, &ctx_waiting)
         .expect("the Command palette always summons");
     assert!(
-        ov_waiting.item_strings().contains(&"Finish file".to_string()),
+        ov_waiting
+            .item_strings()
+            .contains(&"Finish file".to_string()),
         "Finish file must show while a daemon waiter is active"
     );
     // ...and selecting it resolves through the SAME `commands::visible_action_of`
@@ -520,7 +644,10 @@ fn command_palette_hides_finish_buffer_without_a_waiter_and_shows_it_with_one() 
     let idx = ov_waiting
         .selected_corpus_index()
         .expect("the exact name must fuzzy-match its own row");
-    assert_eq!(crate::commands::visible_action_of(idx), crate::keymap::Action::FinishBuffer);
+    assert_eq!(
+        crate::commands::visible_action_of(idx),
+        crate::keymap::Action::FinishBuffer
+    );
 }
 
 #[test]
@@ -562,12 +689,24 @@ fn goto_headings_lens_folds_in_the_docs_headings() {
         ov.item_strings(),
         vec![format!("{H}Introduction"), format!("{H}  Details")]
     );
-    assert!(ov.selected_is_heading(), "the Headings lens rows are headings");
-    assert_eq!(ov.selected_line(), Some(3), "the first heading jumps to line 3");
+    assert!(
+        ov.selected_is_heading(),
+        "the Headings lens rows are headings"
+    );
+    assert_eq!(
+        ov.selected_line(),
+        Some(3),
+        "the first heading jumps to line 3"
+    );
     // "This folder" (strip index 2): a file-only REFINEMENT — headings drop out.
     ov.set_facet_lens(2);
     let folder = ov.item_strings();
-    assert!(!folder.iter().any(|s| s == "Introduction" || s == "  Details"), "{folder:?}");
+    assert!(
+        !folder
+            .iter()
+            .any(|s| s == "Introduction" || s == "  Details"),
+        "{folder:?}"
+    );
 }
 
 #[test]
@@ -587,27 +726,53 @@ fn goto_headings_lens_is_empty_without_headings() {
 fn theme_picker_is_flat_and_lists_every_world_with_active_selected() {
     // The theme picker's runtime lens strip was RETIRED (2026-07-15): it is now a
     // FLAT browsable list of every world in THEMES order, no faceting, no sections.
-    let names: Vec<String> = crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect();
+    let names: Vec<String> = crate::theme::THEMES
+        .iter()
+        .map(|t| t.name.to_string())
+        .collect();
     let gum = names.iter().position(|n| n == "Gumtree").unwrap();
     let mut ov = OverlayState::new_theme(names.clone(), gum);
     assert_eq!(ov.kind.as_str(), "theme");
-    assert_eq!(ov.original_theme, Some(gum), "the opening theme is remembered for revert");
+    assert_eq!(
+        ov.original_theme,
+        Some(gum),
+        "the opening theme is remembered for revert"
+    );
     // FLAT: no facet scheme, no lens strip, no section labels.
     assert!(!ov.is_faceting(), "the theme picker does not facet");
     assert!(ov.active_facet_id().is_none(), "no active lens");
     assert!(ov.lens_strip().is_empty(), "no lens strip");
-    assert!(ov.item_sections().iter().all(|s| s.is_empty()), "no section grouping");
+    assert!(
+        ov.item_sections().iter().all(|s| s.is_empty()),
+        "no section grouping"
+    );
     // Every world is listed, in THEMES declaration order, and the active world opens
     // selected (so it is highlighted + previewable with no move).
-    assert_eq!(ov.item_strings(), names, "flat list = every world in THEMES order");
-    assert_eq!(ov.selected_value(), Some("Gumtree"), "active world opens selected");
+    assert_eq!(
+        ov.item_strings(),
+        names,
+        "flat list = every world in THEMES order"
+    );
+    assert_eq!(
+        ov.selected_value(),
+        Some("Gumtree"),
+        "active world opens selected"
+    );
     // No git / dir markers on the theme rows.
-    assert!(ov.item_strings().iter().all(|s| !s.contains('•') && !s.ends_with('/')));
+    assert!(
+        ov.item_strings()
+            .iter()
+            .all(|s| !s.contains('•') && !s.ends_with('/'))
+    );
     // cycle_lens is inert on a non-faceting picker (it grew no strip to cycle).
     ov.cycle_lens(1);
     assert_eq!(ov.facet_lens, 0);
     assert!(ov.active_facet_id().is_none());
-    assert_eq!(ov.item_strings(), names, "cycle_lens did not regroup the flat list");
+    assert_eq!(
+        ov.item_strings(),
+        names,
+        "cycle_lens did not regroup the flat list"
+    );
 }
 
 /// The CLICKABLE lens strip's pointing counterpart to a no-op LEFT/RIGHT at an
@@ -640,13 +805,31 @@ fn flat_pickers_have_no_lens_strip() {
     // facet scheme (so `active_facet_id` is None). Both the Caret picker and — since
     // 2026-07-15 — the THEME picker are flat, non-faceting examples (Goto / Browse /
     // Project / Command / History / Settings still facet — see `facets::scheme`).
-    let names: Vec<String> = crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect();
+    let names: Vec<String> = crate::theme::THEMES
+        .iter()
+        .map(|t| t.name.to_string())
+        .collect();
     let theme = OverlayState::new_theme(names, 0);
-    for mut ov in [OverlayState::new(OverlayKind::Caret, corpus(), vec![], vec![]), theme] {
+    for mut ov in [
+        OverlayState::new(OverlayKind::Caret, corpus(), vec![], vec![]),
+        theme,
+    ] {
         assert!(!ov.is_faceting(), "{:?} must not facet", ov.kind);
-        assert!(ov.lens_strip().is_empty(), "{:?} has no lens strip", ov.kind);
-        assert!(ov.active_facet_id().is_none(), "{:?} has no active lens", ov.kind);
-        assert!(ov.item_sections().iter().all(|s| s.is_empty()), "{:?} no sections", ov.kind);
+        assert!(
+            ov.lens_strip().is_empty(),
+            "{:?} has no lens strip",
+            ov.kind
+        );
+        assert!(
+            ov.active_facet_id().is_none(),
+            "{:?} has no active lens",
+            ov.kind
+        );
+        assert!(
+            ov.item_sections().iter().all(|s| s.is_empty()),
+            "{:?} no sections",
+            ov.kind
+        );
         // cycle_lens on a non-faceting picker is inert (facet_lens stays 0).
         ov.cycle_lens(1);
         assert_eq!(ov.facet_lens, 0, "{:?} cycle_lens is inert", ov.kind);
@@ -695,10 +878,7 @@ fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
     assert!(!ov2.original_caret_was_auto);
     // The hint leads with the universal jump cluster (move + type-to-filter) then
     // names ↵'s action; flat picker (no descend).
-    assert_eq!(
-        OverlayKind::Caret.hint(),
-        "type to filter   \u{21B5} apply"
-    );
+    assert_eq!(OverlayKind::Caret.hint(), "type to filter   \u{21B5} apply");
     // selected_caret_mode is None for a non-caret picker.
     let theme = OverlayState::new_theme(vec!["Tawny".into()], 0);
     assert_eq!(theme.selected_caret_mode(), None);
@@ -725,7 +905,13 @@ fn date_picker_lists_five_examples_with_names_and_maps_by_index() {
     assert_eq!(OverlayKind::Date.title(), "date format");
     assert_eq!(
         ov.item_strings(),
-        vec!["07/03/09", "03/07/09", "2009-03-07", "2009/03/07", "7 March 2009"],
+        vec![
+            "07/03/09",
+            "03/07/09",
+            "2009-03-07",
+            "2009/03/07",
+            "7 March 2009"
+        ],
         "each row is TODAY rendered in that format — what you see is what inserts"
     );
     assert_eq!(
@@ -742,7 +928,8 @@ fn date_picker_lists_five_examples_with_names_and_maps_by_index() {
     assert_eq!(ov.selected_value(), Some("07/03/09"));
     // The selected CORPUS INDEX maps back to the format (the accept path).
     assert_eq!(
-        ov.selected_corpus_index().and_then(|i| DateFormat::ALL.get(i).copied()),
+        ov.selected_corpus_index()
+            .and_then(|i| DateFormat::ALL.get(i).copied()),
         Some(DateFormat::DdMmYy)
     );
     // NAVIGATE down: the row's example + its mapped format both advance.
@@ -750,7 +937,8 @@ fn date_picker_lists_five_examples_with_names_and_maps_by_index() {
     ov.move_sel(2);
     assert_eq!(ov.selected_value(), Some("2009-03-07"));
     assert_eq!(
-        ov.selected_corpus_index().and_then(|i| DateFormat::ALL.get(i).copied()),
+        ov.selected_corpus_index()
+            .and_then(|i| DateFormat::ALL.get(i).copied()),
         Some(DateFormat::Iso)
     );
     // Opening with a different active format pre-selects THAT row.
@@ -804,15 +992,25 @@ fn caret_picker_captures_whether_it_opened_while_auto() {
     crate::theme::set_active_by_name("Tawny").unwrap();
     assert_eq!(crate::caret::mode(), CaretMode::Block);
     let ov = OverlayState::new_caret(crate::caret::mode());
-    assert_eq!(ov.original_caret, Some(CaretMode::Block), "records the RESOLVED look");
-    assert!(ov.original_caret_was_auto, "but flags it as auto's resolution, not a pin");
+    assert_eq!(
+        ov.original_caret,
+        Some(CaretMode::Block),
+        "records the RESOLVED look"
+    );
+    assert!(
+        ov.original_caret_was_auto,
+        "but flags it as auto's resolution, not a pin"
+    );
 
     // EXPLICIT: an actual pin, even one that resolves to the exact same
     // concrete mode, is NOT auto.
     crate::caret::set_mode(CaretMode::Block);
     let ov2 = OverlayState::new_caret(crate::caret::mode());
     assert_eq!(ov2.original_caret, Some(CaretMode::Block));
-    assert!(!ov2.original_caret_was_auto, "an explicit pin is never reported as auto");
+    assert!(
+        !ov2.original_caret_was_auto,
+        "an explicit pin is never reported as auto"
+    );
 
     // Restore.
     crate::caret::clear_override();
@@ -826,7 +1024,11 @@ fn command_palette_lists_names_with_parallel_bindings() {
         "Switch theme".to_string(),
         "Save".to_string(),
     ];
-    let binds = vec!["C-x C-f".to_string(), "C-x t".to_string(), "C-x C-s".to_string()];
+    let binds = vec![
+        "C-x C-f".to_string(),
+        "C-x t".to_string(),
+        "C-x C-s".to_string(),
+    ];
     let mut ov = OverlayState::new_command(names.clone(), binds.clone(), vec![false; names.len()]);
     assert_eq!(ov.kind.as_str(), "command");
     // Empty query: rows are the names in order, bindings stay parallel.
@@ -837,7 +1039,10 @@ fn command_palette_lists_names_with_parallel_bindings() {
     ov.push('h');
     ov.push('e');
     assert_eq!(ov.selected_value(), Some("Switch theme"));
-    assert_eq!(ov.item_bindings().first().map(|s| s.as_str()), Some("C-x t"));
+    assert_eq!(
+        ov.item_bindings().first().map(|s| s.as_str()),
+        Some("C-x t")
+    );
 }
 
 #[test]
@@ -857,7 +1062,11 @@ fn goto_headings_lens_fuzzy_filters_and_jumps_by_line() {
     const H: &str = OverlayKind::HEADING_MARKER_PREFIX;
     assert_eq!(
         ov.item_strings(),
-        vec![format!("{H}Intro"), format!("{H}  Setup"), format!("{H}  Usage")]
+        vec![
+            format!("{H}Intro"),
+            format!("{H}  Setup"),
+            format!("{H}  Usage")
+        ]
     );
     assert_eq!(ov.selected_line(), Some(0));
     // Fuzzy filter to "Usage" -> selected row jumps to its line (9), not its text.
@@ -869,20 +1078,32 @@ fn goto_headings_lens_fuzzy_filters_and_jumps_by_line() {
     assert!(ov.selected_is_heading());
     assert_eq!(ov.selected_line(), Some(9));
     // No git / dir markers on heading rows; the indentation + kind-hint survive.
-    assert!(ov.item_strings().iter().all(|s| !s.contains('•') && !s.ends_with('/')));
+    assert!(
+        ov.item_strings()
+            .iter()
+            .all(|s| !s.contains('•') && !s.ends_with('/'))
+    );
     assert!(ov.item_strings().iter().all(|s| s.starts_with(H)));
 }
 
 #[test]
 fn spell_picker_lists_suggestions_and_carries_target() {
     // Three corrections for a word flagged at line 2, cols 6..13.
-    let sugg = vec!["receive".to_string(), "relieve".to_string(), "reprieve".to_string()];
+    let sugg = vec![
+        "receive".to_string(),
+        "relieve".to_string(),
+        "reprieve".to_string(),
+    ];
     let ov = OverlayState::new_spell(sugg.clone(), (2, 6, 13), "recieve".to_string());
     assert_eq!(ov.kind.as_str(), "spell");
     // Rows are the suggestions in order (best first), then ONE appended "Add
     // '<word>' to dictionary" row; the top suggestion is selected.
     let rows = ov.item_strings();
-    assert_eq!(&rows[..sugg.len()], &sugg[..], "the suggestions lead, in order");
+    assert_eq!(
+        &rows[..sugg.len()],
+        &sugg[..],
+        "the suggestions lead, in order"
+    );
     assert_eq!(
         rows.last().map(String::as_str),
         Some(super::state::add_to_dictionary_label("recieve").as_str()),
@@ -892,9 +1113,16 @@ fn spell_picker_lists_suggestions_and_carries_target() {
     // The target span is carried so the accept can replace the word.
     assert_eq!(ov.spell_target, Some((2, 6, 13)));
     // No git / dir markers on the suggestion rows.
-    assert!(ov.item_strings().iter().all(|s| !s.contains('•') && !s.ends_with('/')));
+    assert!(
+        ov.item_strings()
+            .iter()
+            .all(|s| !s.contains('•') && !s.ends_with('/'))
+    );
     // The add row is flagged (only it) and carries the word for the accept effect.
-    assert!(!ov.selected_is_add_to_dictionary(), "a suggestion row is not the add row");
+    assert!(
+        !ov.selected_is_add_to_dictionary(),
+        "a suggestion row is not the add row"
+    );
     assert_eq!(ov.add_word.as_deref(), Some("recieve"));
     let last = ov.items.len() - 1;
     assert!(
@@ -950,7 +1178,10 @@ fn spell_picker_caps_corrections_to_the_top_five_across_corpora() {
             "n={n}: the last corpus entry is flagged as the add row"
         );
         assert_eq!(
-            ov.rows.iter().filter(|r| matches!(r.meta, RowMeta::SpellAdd)).count(),
+            ov.rows
+                .iter()
+                .filter(|r| matches!(r.meta, RowMeta::SpellAdd))
+                .count(),
             1,
             "n={n}: exactly one add row, never more"
         );
@@ -977,14 +1208,26 @@ fn spell_picker_named_corpora_0_1_5_6_20() {
 
     // 5 corrections (exactly the cap) -> all 5 kept + add, nothing dropped.
     let ov5 = OverlayState::new_spell(mk(5), target, word.clone());
-    assert_eq!(ov5.items.len(), 6, "5 corrections -> all 5 + add, at the cap exactly");
+    assert_eq!(
+        ov5.items.len(),
+        6,
+        "5 corrections -> all 5 + add, at the cap exactly"
+    );
     assert_eq!(&ov5.item_strings()[..5], &mk(5)[..]);
 
     // 6 corrections (one over the cap) -> still top 5 + add == 6 rows; the 6th
     // never shows, no scrollbar/More button reaches it.
     let ov6 = OverlayState::new_spell(mk(6), target, word.clone());
-    assert_eq!(ov6.items.len(), 6, "6 corrections still show only 5 + add == 6 rows");
-    assert_eq!(&ov6.item_strings()[..5], &mk(6)[..5], "the top 5, not the last 5");
+    assert_eq!(
+        ov6.items.len(),
+        6,
+        "6 corrections still show only 5 + add == 6 rows"
+    );
+    assert_eq!(
+        &ov6.item_strings()[..5],
+        &mk(6)[..5],
+        "the top 5, not the last 5"
+    );
     assert!(
         !ov6.item_strings().iter().any(|s| s == "word5"),
         "the 6th (dropped) correction never shows"
@@ -992,7 +1235,11 @@ fn spell_picker_named_corpora_0_1_5_6_20() {
 
     // 20 corrections -> still top 5 + add == 6 rows.
     let ov20 = OverlayState::new_spell(mk(20), target, word.clone());
-    assert_eq!(ov20.items.len(), 6, "20 corrections still show only 6 rows total");
+    assert_eq!(
+        ov20.items.len(),
+        6,
+        "20 corrections still show only 6 rows total"
+    );
     assert_eq!(&ov20.item_strings()[..5], &mk(20)[..5]);
 }
 
@@ -1027,7 +1274,11 @@ fn history_picker_lists_versions_navigates_and_carries_ids() {
     ov.move_sel(1);
     assert_eq!(ov.selected_history_id(), Some("100"));
     // No git / dir markers on the version rows.
-    assert!(ov.item_strings().iter().all(|s| !s.contains('•') && !s.ends_with('/')));
+    assert!(
+        ov.item_strings()
+            .iter()
+            .all(|s| !s.contains('•') && !s.ends_with('/'))
+    );
     // The hint teaches restore + diff + lens + close (informational, button-free) —
     // DIFF-AS-PREVIEW: Tab shifts focus into the diff panel, so the cell reads "diff".
     assert_eq!(
@@ -1044,24 +1295,44 @@ fn command_picker_lands_on_all_then_groups_by_menu_section_and_recent() {
     let hidden = vec![false; names.len()];
     let mut ov = OverlayState::new_command(names, binds, hidden);
     // Lands on the flat All home; the strip is All-first.
-    assert_eq!(ov.active_facet_id(), Some("all"), "opens on the flat All landing");
-    assert_eq!(ov.lens_strip().first().map(|(l, _)| l.clone()), Some("All".to_string()));
-    assert!(ov.item_sections().iter().all(|s| s.is_empty()), "All never groups");
+    assert_eq!(
+        ov.active_facet_id(),
+        Some("all"),
+        "opens on the flat All landing"
+    );
+    assert_eq!(
+        ov.lens_strip().first().map(|(l, _)| l.clone()),
+        Some("All".to_string())
+    );
+    assert!(
+        ov.item_sections().iter().all(|s| s.is_empty()),
+        "All never groups"
+    );
     // → File lens: every shown row is a File-section command, headed "File".
     ov.cycle_lens(1);
     assert_eq!(ov.active_facet_id(), Some("file"));
     assert!(!ov.items.is_empty(), "File section is non-empty");
     for (row, &ci) in ov.items.iter().enumerate() {
         assert_eq!(ov.item_sections()[row], "File");
-        assert_eq!(crate::commands::menu_section(&ov.rows[ci].accept), Some("File"));
+        assert_eq!(
+            crate::commands::menu_section(&ov.rows[ci].accept),
+            Some("File")
+        );
     }
-    assert!(ov.item_strings().iter().any(|s| s == "Save"), "Save is a File command");
+    assert!(
+        ov.item_strings().iter().any(|s| s == "Save"),
+        "Save is a File command"
+    );
     // The Recent lens (strip index 4) reads the recency vec: seed one, see it group.
     let undo = ov.rows.iter().position(|r| r.accept == "Undo").unwrap();
     ov.recent = vec![undo];
     ov.set_facet_lens(4);
     assert_eq!(ov.active_facet_id(), Some("recent"));
-    assert_eq!(ov.item_strings(), vec!["Undo".to_string()], "only the recent command");
+    assert_eq!(
+        ov.item_strings(),
+        vec!["Undo".to_string()],
+        "only the recent command"
+    );
     assert!(ov.item_sections().iter().all(|s| s == "Recent"));
 }
 
@@ -1160,9 +1431,21 @@ fn history_picker_marks_a_pinned_version_in_the_secondary_column() {
     };
     let ov = OverlayState::new_history(vec![mk("2", true), mk("1", false)], None, None);
     let binds = ov.item_bindings();
-    assert!(binds[0].contains(PIN_TAG), "the pinned row is marked: {:?}", binds[0]);
-    assert!(binds[0].contains("+0 −1"), "and keeps its changed-count: {:?}", binds[0]);
-    assert!(!binds[1].contains(PIN_TAG), "an un-pinned row stays bare: {:?}", binds[1]);
+    assert!(
+        binds[0].contains(PIN_TAG),
+        "the pinned row is marked: {:?}",
+        binds[0]
+    );
+    assert!(
+        binds[0].contains("+0 −1"),
+        "and keeps its changed-count: {:?}",
+        binds[0]
+    );
+    assert!(
+        !binds[1].contains(PIN_TAG),
+        "an un-pinned row stays bare: {:?}",
+        binds[1]
+    );
 }
 
 #[test]
@@ -1183,19 +1466,36 @@ fn history_picker_named_row_shows_name_primary_and_demotes_the_timestamp() {
         name: name.map(str::to_string),
     };
     let ov = OverlayState::new_history(
-        vec![mk("3", true, Some("draft A")), mk("2", true, None), mk("1", false, None)],
+        vec![
+            mk("3", true, Some("draft A")),
+            mk("2", true, None),
+            mk("1", false, None),
+        ],
         None,
         None,
     );
     // Primary cells: name for the named row, "when · which" for the rest.
     assert_eq!(ov.rows[0].accept, "draft A", "the name IS the primary cell");
-    assert_eq!(ov.rows[1].accept, "2 hr ago · edited \"Title\"", "unnamed rows unchanged");
+    assert_eq!(
+        ov.rows[1].accept, "2 hr ago · edited \"Title\"",
+        "unnamed rows unchanged"
+    );
     // Secondary cells: timestamp demoted for the named row; pin tag only on the
     // unnamed pinned row.
     let binds = ov.item_bindings();
-    assert_eq!(binds[0], "2 hr ago · +3 −1", "timestamp + count demoted to secondary");
-    assert!(!binds[0].contains(PIN_TAG), "no redundant pin tag on a named row");
-    assert_eq!(binds[1], format!("{PIN_TAG} · +3 −1"), "unnamed pinned row keeps its tag");
+    assert_eq!(
+        binds[0], "2 hr ago · +3 −1",
+        "timestamp + count demoted to secondary"
+    );
+    assert!(
+        !binds[0].contains(PIN_TAG),
+        "no redundant pin tag on a named row"
+    );
+    assert_eq!(
+        binds[1],
+        format!("{PIN_TAG} · +3 −1"),
+        "unnamed pinned row keeps its tag"
+    );
     assert_eq!(binds[2], "+3 −1", "plain row untouched");
     // The restore ids stay parallel — Enter/Tab on a named row reach id "3".
     let ids: Vec<&str> = ov
@@ -1223,13 +1523,20 @@ fn history_picker_empty_state_shows_calm_row_and_no_op_accept() {
     // and every accept path already no-ops on an empty item list.
     let ov = OverlayState::new_history(Vec::new(), None, None);
     assert_eq!(ov.kind.as_str(), "history");
-    assert!(ov.item_strings().is_empty(), "empty corpus lists no real rows");
+    assert!(
+        ov.item_strings().is_empty(),
+        "empty corpus lists no real rows"
+    );
     assert_eq!(
         ov.empty_notice().as_deref(),
         Some("no history yet"),
         "the shared empty-state supplies History's calm message"
     );
-    assert_eq!(ov.selected_history_id(), None, "nothing to restore on empty");
+    assert_eq!(
+        ov.selected_history_id(),
+        None,
+        "nothing to restore on empty"
+    );
 }
 
 #[test]
@@ -1258,7 +1565,10 @@ fn keybindings_capture_key_mode_finishes_instantly() {
     assert_eq!(ov.capture.as_ref().unwrap().stage, CaptureStage::Recording);
     let done = ov.capture_record("C-j".to_string());
     assert!(done, "KEY mode finishes on the first combo");
-    assert_eq!(ov.capture_target(), Some(("undo".to_string(), "C-j".to_string())));
+    assert_eq!(
+        ov.capture_target(),
+        Some(("undo".to_string(), "C-j".to_string()))
+    );
 }
 
 #[test]
@@ -1320,11 +1630,23 @@ fn hint_teaches_descend_only_for_navigable_kinds() {
     for k in [OverlayKind::Project, OverlayKind::MoveDest] {
         let h = k.hint();
         // Unicode arrows, never the old ASCII/word-chord forms.
-        assert!(h.contains('\u{2192}'), "{k:?} hint should teach → descend: {h}");
-        assert!(h.contains('\u{2190}'), "{k:?} hint should teach ← ascend: {h}");
-        assert!(!h.contains("C-f") && !h.contains("->"), "{k:?} no ASCII chord: {h}");
+        assert!(
+            h.contains('\u{2192}'),
+            "{k:?} hint should teach → descend: {h}"
+        );
+        assert!(
+            h.contains('\u{2190}'),
+            "{k:?} hint should teach ← ascend: {h}"
+        );
+        assert!(
+            !h.contains("C-f") && !h.contains("->"),
+            "{k:?} no ASCII chord: {h}"
+        );
         // The universal type-to-filter cell LEADS the line, then the primary ↵ Return action.
-        assert!(h.starts_with("type to filter"), "{k:?} hint leads with type to filter: {h}");
+        assert!(
+            h.starts_with("type to filter"),
+            "{k:?} hint leads with type to filter: {h}"
+        );
         assert!(h.contains("\u{21B5}"), "{k:?} hint names ↵ Return: {h}");
     }
     // Project ↵ SELECTS; MoveDest ↵ MOVES.
@@ -1341,16 +1663,31 @@ fn hint_teaches_descend_only_for_navigable_kinds() {
     ] {
         let h = k.hint();
         assert!(!h.contains("C-f"), "{k:?} facets, no descend hint: {h}");
-        assert!(h.contains("\u{2190}/\u{2192} lens"), "{k:?} hint should teach ←/→ lens: {h}");
-        assert!(h.starts_with("type to filter"), "{k:?} hint leads with type to filter: {h}");
+        assert!(
+            h.contains("\u{2190}/\u{2192} lens"),
+            "{k:?} hint should teach ←/→ lens: {h}"
+        );
+        assert!(
+            h.starts_with("type to filter"),
+            "{k:?} hint leads with type to filter: {h}"
+        );
     }
     // The FLAT theme picker teaches ↵ keep + esc revert, and NO lens axis (its strip
     // was retired) — type to filter still leads.
     let th = OverlayKind::Theme.hint();
-    assert!(th.starts_with("type to filter"), "theme hint leads with type to filter: {th}");
+    assert!(
+        th.starts_with("type to filter"),
+        "theme hint leads with type to filter: {th}"
+    );
     assert!(th.contains("\u{21B5} keep"), "theme ↵ keeps: {th}");
-    assert!(th.contains("esc") && th.contains("revert"), "theme esc reverts: {th}");
-    assert!(!th.contains("lens"), "the flat theme picker teaches no lens: {th}");
+    assert!(
+        th.contains("esc") && th.contains("revert"),
+        "theme esc reverts: {th}"
+    );
+    assert!(
+        !th.contains("lens"),
+        "the flat theme picker teaches no lens: {th}"
+    );
     // Browse ↵ still OPENS (a folder descends / a file opens) and ⌫ ascends.
     assert!(OverlayKind::Browse.hint().contains("\u{21B5} open"));
     assert!(OverlayKind::Browse.hint().contains("\u{232B} up"));
@@ -1365,15 +1702,27 @@ fn hint_teaches_descend_only_for_navigable_kinds() {
 fn hint_formatter_is_consistent_across_pickers() {
     // The formatter itself: `glyph label`, HINT_SEP-joined, in order.
     let sample = [
-        HintAction { glyph: "\u{21B5}", label: "keep" },
-        HintAction { glyph: "\u{2190}/\u{2192}", label: "lens" },
-        HintAction { glyph: "esc", label: "revert" },
+        HintAction {
+            glyph: "\u{21B5}",
+            label: "keep",
+        },
+        HintAction {
+            glyph: "\u{2190}/\u{2192}",
+            label: "lens",
+        },
+        HintAction {
+            glyph: "esc",
+            label: "revert",
+        },
     ];
     assert_eq!(
         format_hint(&sample),
         format!("\u{21B5} keep{HINT_SEP}\u{2190}/\u{2192} lens{HINT_SEP}esc revert")
     );
-    assert_eq!(HINT_SEP, "   ", "the one canonical separator is a triple space");
+    assert_eq!(
+        HINT_SEP, "   ",
+        "the one canonical separator is a triple space"
+    );
 
     // Every kind's rendered hint obeys the shape: each action is `glyph SPACE
     // label` (exactly one space), the separator is HINT_SEP, the universal JUMP
@@ -1381,12 +1730,21 @@ fn hint_formatter_is_consistent_across_pickers() {
     // cancel action is the lowercase `esc` (never `Esc`) LAST.
     for k in OverlayKind::ALL {
         let actions = k.hint_actions();
-        assert!(actions.len() >= 2, "{k:?} must teach the filter lead + ↵ primary");
+        assert!(
+            actions.len() >= 2,
+            "{k:?} must teach the filter lead + ↵ primary"
+        );
         // The universal jump-affordance lead: type to filter —
         // the discoverability fix for "you can only go one by one".
         assert_eq!(actions[0].glyph, "type", "{k:?} leads with type to filter");
-        assert_eq!(actions[0].label, "to filter", "{k:?} lead cell reads type to filter");
-        assert_eq!(actions[1].glyph, "\u{21B5}", "{k:?} ↵ primary follows the jump lead");
+        assert_eq!(
+            actions[0].label, "to filter",
+            "{k:?} lead cell reads type to filter"
+        );
+        assert_eq!(
+            actions[1].glyph, "\u{21B5}",
+            "{k:?} ↵ primary follows the jump lead"
+        );
         // Cancel-last + lowercase esc: no action names capital `Esc`; if any
         // action is the esc cancel, it is the LAST one.
         for (i, a) in actions.iter().enumerate() {
@@ -1397,13 +1755,20 @@ fn hint_formatter_is_consistent_across_pickers() {
         }
         // The rendered line == the formatter over the same actions (one owner).
         let h = k.hint();
-        assert_eq!(h, format_hint(&actions), "{k:?} hint routes through format_hint");
+        assert_eq!(
+            h,
+            format_hint(&actions),
+            "{k:?} hint routes through format_hint"
+        );
         // Separator discipline: the ONLY multi-space runs are the HINT_SEP joins,
         // so splitting on HINT_SEP yields exactly `actions.len()` `glyph label` cells.
         let cells: Vec<&str> = h.split(HINT_SEP).collect();
         assert_eq!(cells.len(), actions.len(), "{k:?} cells == actions: {h}");
         for cell in cells {
-            assert!(!cell.contains("  "), "{k:?} no stray double space in {cell:?}");
+            assert!(
+                !cell.contains("  "),
+                "{k:?} no stray double space in {cell:?}"
+            );
         }
     }
 }
@@ -1430,7 +1795,11 @@ fn empty_state_message_is_shared_and_accept_is_a_no_op() {
 
     // A non-empty list reports NO empty-state (it has rows to show).
     let ov2 = OverlayState::new(OverlayKind::Goto, vec!["alpha.md".into()], vec![], vec![]);
-    assert_eq!(ov2.empty_notice(), None, "a picker with rows has no empty-state");
+    assert_eq!(
+        ov2.empty_notice(),
+        None,
+        "a picker with rows has no empty-state"
+    );
 
     // An EMPTY corpus reads the per-kind message (query still empty).
     let empty_goto = OverlayState::new(OverlayKind::Goto, vec![], vec![], vec![]);
@@ -1439,7 +1808,10 @@ fn empty_state_message_is_shared_and_accept_is_a_no_op() {
     assert_eq!(empty_hist.empty_notice().as_deref(), Some("no history yet"));
     // Every kind's empty-corpus message is a non-empty calm line (never blank).
     for k in OverlayKind::ALL {
-        assert!(!k.empty_corpus_message().is_empty(), "{k:?} needs an empty line");
+        assert!(
+            !k.empty_corpus_message().is_empty(),
+            "{k:?} needs an empty line"
+        );
     }
 }
 
@@ -1460,8 +1832,16 @@ fn every_kind_declares_an_accept_disposition() {
     }
     // The VALUE-PICKERS pop back to the parent (theme keep / caret apply /
     // dictionary apply commit a setting the summoning overlay was choosing).
-    for k in [OverlayKind::Theme, OverlayKind::Caret, OverlayKind::Dictionary] {
-        assert_eq!(k.accept_disposition(), ValuePick, "{k:?} is a value-picker → pop");
+    for k in [
+        OverlayKind::Theme,
+        OverlayKind::Caret,
+        OverlayKind::Dictionary,
+    ] {
+        assert_eq!(
+            k.accept_disposition(),
+            ValuePick,
+            "{k:?} is a value-picker → pop"
+        );
     }
     // The NAVIGATORS close the whole stack (open a file, jump, switch project,
     // move a note, restore a version, run a command — you land in the result).
@@ -1474,12 +1854,24 @@ fn every_kind_declares_an_accept_disposition() {
         OverlayKind::History,
         OverlayKind::Command,
     ] {
-        assert_eq!(k.accept_disposition(), Navigate, "{k:?} navigates → close-all");
+        assert_eq!(
+            k.accept_disposition(),
+            Navigate,
+            "{k:?} navigates → close-all"
+        );
     }
     // The STAY-OPEN kinds never close on accept (trash keeps listing, rebind
     // starts a capture, the settings menu toggles / swaps in place).
-    for k in [OverlayKind::Assets, OverlayKind::Keybindings, OverlayKind::Settings] {
-        assert_eq!(k.accept_disposition(), StayOpen, "{k:?} stays open on accept");
+    for k in [
+        OverlayKind::Assets,
+        OverlayKind::Keybindings,
+        OverlayKind::Settings,
+    ] {
+        assert_eq!(
+            k.accept_disposition(),
+            StayOpen,
+            "{k:?} stays open on accept"
+        );
     }
 }
 
@@ -1495,15 +1887,28 @@ fn every_kind_names_itself_with_a_nonempty_distinct_title() {
         let t = k.title();
         assert!(!t.is_empty(), "{k:?} has no title");
         assert_eq!(t, t.to_lowercase(), "{k:?}'s title {t:?} must be lowercase");
-        assert!(titles.insert(t), "{k:?}'s title {t:?} collides with another kind's");
+        assert!(
+            titles.insert(t),
+            "{k:?}'s title {t:?} collides with another kind's"
+        );
     }
     // Rename/InsertLink/KeepName are the RENDER exceptions (their own modal
     // prompt already orients) — every other kind draws its title prefix.
-    for k in [OverlayKind::Rename, OverlayKind::InsertLink, OverlayKind::KeepName] {
-        assert!(!k.draws_title_prefix(), "{k:?} should not draw the title prefix");
+    for k in [
+        OverlayKind::Rename,
+        OverlayKind::InsertLink,
+        OverlayKind::KeepName,
+    ] {
+        assert!(
+            !k.draws_title_prefix(),
+            "{k:?} should not draw the title prefix"
+        );
     }
     for k in OverlayKind::ALL {
-        if !matches!(k, OverlayKind::Rename | OverlayKind::InsertLink | OverlayKind::KeepName) {
+        if !matches!(
+            k,
+            OverlayKind::Rename | OverlayKind::InsertLink | OverlayKind::KeepName
+        ) {
             assert!(k.draws_title_prefix(), "{k:?} should draw the title prefix");
         }
     }
@@ -1551,7 +1956,11 @@ fn breadcrumb_kinds_are_value_based_never_positional() {
             k.as_str()
         );
     }
-    assert_eq!(names.len(), OverlayKind::ALL.len(), "every kind has a distinct name");
+    assert_eq!(
+        names.len(),
+        OverlayKind::ALL.len(),
+        "every kind has a distinct name"
+    );
     // Exactly ONE parent retains a value-pick child on commit: Settings.
     for k in OverlayKind::ALL {
         assert_eq!(
@@ -1569,11 +1978,20 @@ fn breadcrumb_kinds_are_value_based_never_positional() {
 #[test]
 fn empty_state_copy_is_calm_and_context_aware() {
     // The refined per-kind corpus lines.
-    assert_eq!(OverlayKind::Browse.empty_corpus_message(), "this folder is empty");
-    assert_eq!(OverlayKind::History.empty_corpus_message(), "no history yet");
+    assert_eq!(
+        OverlayKind::Browse.empty_corpus_message(),
+        "this folder is empty"
+    );
+    assert_eq!(
+        OverlayKind::History.empty_corpus_message(),
+        "no history yet"
+    );
     assert_eq!(OverlayKind::Spell.empty_corpus_message(), "no suggestions");
     // Jump-to-heading + recent-projects are LENS empty-states now (the folds):
-    assert_eq!(OverlayKind::Goto.empty_lens_message("headings"), Some("no headings yet"));
+    assert_eq!(
+        OverlayKind::Goto.empty_lens_message("headings"),
+        Some("no headings yet")
+    );
     assert_eq!(
         OverlayKind::Project.empty_lens_message("recent"),
         Some("no recent projects yet")
@@ -1585,7 +2003,10 @@ fn empty_state_copy_is_calm_and_context_aware() {
         OverlayKind::Goto.empty_lens_message("recent").as_deref(),
         Some("no recent files yet"),
     );
-    assert_eq!(OverlayKind::Goto.empty_lens_message("folder").as_deref(), Some("nothing here"));
+    assert_eq!(
+        OverlayKind::Goto.empty_lens_message("folder").as_deref(),
+        Some("nothing here")
+    );
     assert_eq!(OverlayKind::Goto.empty_lens_message("all"), None);
 }
 
@@ -1603,10 +2024,7 @@ fn goto_recent_empty_lens_reads_the_warm_invitation() {
     ov.set_facet_lens(1); // strip index 1 == Recent
     assert_eq!(ov.active_facet_id(), Some("recent"));
     assert!(ov.items.is_empty(), "a fresh Recent lens lists nothing");
-    assert_eq!(
-        ov.empty_notice().as_deref(),
-        Some("no recent files yet"),
-    );
+    assert_eq!(ov.empty_notice().as_deref(), Some("no recent files yet"),);
     // A query on the empty Recent lens still reads the universal "no matches".
     ov.push('z');
     assert_eq!(ov.empty_notice().as_deref(), Some("no matches"));
@@ -1661,7 +2079,10 @@ fn hover_only_highlights_visible_rows_and_never_scrolls() {
 #[test]
 fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
     let mut ov = deep(10);
-    assert_eq!(ov.last_hover_px, None, "a fresh summon has no hover memory yet");
+    assert_eq!(
+        ov.last_hover_px, None,
+        "a fresh summon has no hover memory yet"
+    );
 
     // The pointer's FIRST real hover: it rests at (100.0, 200.0), which the
     // caller's hit-test resolves to row 3 (whatever picker layout was current).
@@ -1686,7 +2107,10 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
         naive.hover_select(relayout_hit.unwrap()),
         "an UNGATED re-hit-test really would flip the highlight — the bug is real"
     );
-    assert_eq!(naive.selected, 7, "the naive path cascades onto whatever row the relayout put there");
+    assert_eq!(
+        naive.selected, 7,
+        "the naive path cascades onto whatever row the relayout put there"
+    );
 
     // THE ACTUAL LAW: the SAME stationary pixel, run back through the gated
     // `hover_at`, must NOT move the highlight — the pointer didn't move, only the
@@ -1695,7 +2119,10 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
         !ov.hover_at(100.0, 200.0, relayout_hit),
         "a relayout under a stationary pointer must not report a hover move"
     );
-    assert_eq!(ov.selected, 3, "the highlighted world stays stable across its own re-layout");
+    assert_eq!(
+        ov.selected, 3,
+        "the highlighted world stays stable across its own re-layout"
+    );
     assert_eq!(
         ov.last_hover_px,
         Some((100.0, 200.0)),
@@ -1717,7 +2144,10 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
         !ov.hover_at(101.0, 200.0, Some(7)),
         "a 1px jitter — real travel, but under the slop — must not steal the highlight"
     );
-    assert_eq!(ov.selected, 3, "jitter below the slop leaves the highlight exactly where it was");
+    assert_eq!(
+        ov.selected, 3,
+        "jitter below the slop leaves the highlight exactly where it was"
+    );
     // The anchor is STICKY below the slop (never re-based on a rejected check),
     // so it still reads the ORIGINAL (100,200) — not the jittered (101,200).
     assert_eq!(ov.last_hover_px, Some((100.0, 200.0)));
@@ -1743,24 +2173,36 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
 #[test]
 fn hover_at_movement_slop_boundary_law() {
     let slop = super::nav::HOVER_MOVE_SLOP_PX;
-    assert!(slop > 1.0, "the boundary probes below assume at least 1px of headroom");
+    assert!(
+        slop > 1.0,
+        "the boundary probes below assume at least 1px of headroom"
+    );
 
     // Below the slop: no take-over.
     let mut under = deep(10);
-    assert!(under.hover_at(0.0, 0.0, Some(1)), "cold-start anchor at the origin");
+    assert!(
+        under.hover_at(0.0, 0.0, Some(1)),
+        "cold-start anchor at the origin"
+    );
     assert!(
         !under.hover_at(slop - 1.0, 0.0, Some(5)),
         "{}px (slop - 1) must NOT take over",
         slop - 1.0
     );
-    assert_eq!(under.selected, 1, "the anchor's selection survives a sub-slop move");
+    assert_eq!(
+        under.selected, 1,
+        "the anchor's selection survives a sub-slop move"
+    );
 
     // Exactly at the slop: the gate is a STRICT inequality (`>`), so a move of
     // EXACTLY the slop distance still does not take over (matches
     // `App::exceeds_drag_slop`'s own strict `>`).
     let mut at = deep(10);
     assert!(at.hover_at(0.0, 0.0, Some(1)));
-    assert!(!at.hover_at(slop, 0.0, Some(5)), "a move of EXACTLY the slop must not take over (strict >)");
+    assert!(
+        !at.hover_at(slop, 0.0, Some(5)),
+        "a move of EXACTLY the slop must not take over (strict >)"
+    );
     assert_eq!(at.selected, 1);
 
     // Past the slop: takes over immediately, first event.
@@ -1771,7 +2213,10 @@ fn hover_at_movement_slop_boundary_law() {
         "{}px (slop + 1) MUST take over, on the first such event",
         slop + 1.0
     );
-    assert_eq!(over.selected, 5, "the real move wins outright — no debounce, no dead zone");
+    assert_eq!(
+        over.selected, 5,
+        "the real move wins outright — no debounce, no dead zone"
+    );
 
     // DIAGONAL travel: the gate is a squared-distance circle, not an x-axis-only
     // check — every case above moves along dy=0, which would pass even a buggy
@@ -1815,7 +2260,10 @@ fn hover_at_movement_slop_boundary_law() {
 #[test]
 fn keyboard_baseline_stamp_protects_a_pointer_that_was_never_explicitly_hovered() {
     let mut ov = deep(30);
-    assert_eq!(ov.last_hover_px, None, "a pure keyboard session never calls hover_at");
+    assert_eq!(
+        ov.last_hover_px, None,
+        "a pure keyboard session never calls hover_at"
+    );
 
     // A plain keyboard session: Down x5. The pointer has been resting at
     // (500, 500) the whole time — nobody ever hovered a row with it.
@@ -1836,7 +2284,10 @@ fn keyboard_baseline_stamp_protects_a_pointer_that_was_never_explicitly_hovered(
         "UNSTAMPED: a None baseline really does treat the pointer's first \
          incidental check as unconditional motion — the bug is real"
     );
-    assert_eq!(unstamped.selected, 8, "and it really does steal the keyboard's selection");
+    assert_eq!(
+        unstamped.selected, 8,
+        "and it really does steal the keyboard's selection"
+    );
 
     // THE ACTUAL LAW: `App::apply`'s stamp ran after every one of those five
     // keyboard presses, so the baseline is already (500, 500) by the time
@@ -1897,7 +2348,10 @@ fn keyboard_nav_survives_a_pointer_parked_over_any_row_relative_to_the_destinati
         // pointer physically never moves. `App::apply` stamps the baseline
         // again after this action too (idempotent: same px, py).
         ov.move_sel(LANDING as isize);
-        assert_eq!(ov.selected, LANDING, "{label}: keyboard reaches the landing row");
+        assert_eq!(
+            ov.selected, LANDING,
+            "{label}: keyboard reaches the landing row"
+        );
         ov.arm_hover_baseline(px, py);
 
         // A stray check at the SAME parked pixel — jitter, a relayout, or a
@@ -1908,7 +2362,10 @@ fn keyboard_nav_survives_a_pointer_parked_over_any_row_relative_to_the_destinati
             !ov.hover_at(px, py, Some(parked_row)),
             "{label}: a stationary parked pointer must not override the keyboard"
         );
-        assert_eq!(ov.selected, LANDING, "{label}: keyboard selection survives a stray re-check");
+        assert_eq!(
+            ov.selected, LANDING,
+            "{label}: keyboard selection survives a stray re-check"
+        );
     }
 }
 
@@ -1993,9 +2450,16 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
 fn hover_at_off_a_row_records_position_without_selecting() {
     let mut ov = deep(10);
     ov.move_sel(2); // selected = 2, established by keyboard (not hover)
-    assert!(!ov.hover_at(50.0, 50.0, None), "off a row: no selection move");
+    assert!(
+        !ov.hover_at(50.0, 50.0, None),
+        "off a row: no selection move"
+    );
     assert_eq!(ov.selected, 2, "the keyboard-set selection is untouched");
-    assert_eq!(ov.last_hover_px, Some((50.0, 50.0)), "position still recorded");
+    assert_eq!(
+        ov.last_hover_px,
+        Some((50.0, 50.0)),
+        "position still recorded"
+    );
 }
 
 /// ITEM 85 — the keyboard half of the law: ↓/↑ (`move_sel(±1)`, what
@@ -2007,14 +2471,23 @@ fn hover_at_off_a_row_records_position_without_selecting() {
 #[test]
 fn keyboard_advances_exactly_one_visible_row_per_press_even_after_a_hover() {
     let mut ov = deep(20);
-    assert!(ov.hover_at(10.0, 10.0, Some(4)), "a mouse hover selects row 4");
+    assert!(
+        ov.hover_at(10.0, 10.0, Some(4)),
+        "a mouse hover selects row 4"
+    );
     assert_eq!(ov.selected, 4);
     ov.move_sel(1);
-    assert_eq!(ov.selected, 5, "one keyboard press = exactly one row of movement");
+    assert_eq!(
+        ov.selected, 5,
+        "one keyboard press = exactly one row of movement"
+    );
     ov.move_sel(1);
     assert_eq!(ov.selected, 6);
     ov.move_sel(-1);
-    assert_eq!(ov.selected, 5, "PreviousLine likewise moves exactly one row back");
+    assert_eq!(
+        ov.selected, 5,
+        "PreviousLine likewise moves exactly one row back"
+    );
 }
 
 #[test]
@@ -2050,7 +2523,10 @@ fn query_edit_resets_scroll_to_top() {
 fn elide_keeps_filename_and_extension_with_one_ellipsis() {
     // A deep path, narrow budget: the filename + ext survive, the DIR is elided.
     let out = elide_path("src/app/render/chrome.rs", 16);
-    assert!(out.ends_with("chrome.rs"), "filename+ext must survive: {out}");
+    assert!(
+        out.ends_with("chrome.rs"),
+        "filename+ext must survive: {out}"
+    );
     assert_eq!(out.matches('…').count(), 1, "exactly one ellipsis: {out}");
     assert!(out.chars().count() <= 16, "fits the budget: {out}");
     // The split point is the last '/': dir prefix (muted) vs filename (content).
@@ -2070,7 +2546,10 @@ fn elide_middle_truncates_the_filename_when_it_alone_overflows() {
     assert_eq!(out.matches('…').count(), 1, "one ellipsis: {out}");
     assert!(out.chars().count() <= 12, "fits: {out}");
     assert!(out.ends_with(".rs"), "extension survives: {out}");
-    assert!(!out.contains('/'), "dir dropped when the filename alone overflows: {out}");
+    assert!(
+        !out.contains('/'),
+        "dir dropped when the filename alone overflows: {out}"
+    );
     assert_eq!(row_split(&out), 0, "no '/', so all content ink");
     // A bare filename with no directory elides the same way.
     let bare = elide_path("supercalifragilistic.md", 10);
@@ -2143,8 +2622,10 @@ fn rename_minibuffer_word_delete() {
 
 #[test]
 fn link_minibuffer_word_delete() {
-    let mut ov =
-        OverlayState::new_link_edit("http://a.com/path".to_string(), LinkEditMode::Empty { at: 0 });
+    let mut ov = OverlayState::new_link_edit(
+        "http://a.com/path".to_string(),
+        LinkEditMode::Empty { at: 0 },
+    );
     ov.link_edit_pop_word(); // drops the trailing "path" segment, keeps the "/"
     assert_eq!(ov.rows[0].accept, "http://a.com/");
 }
@@ -2176,13 +2657,20 @@ fn picker_query_word_motion_does_not_refilter_then_insert_splices_mid_string() {
     let selected_before = ov.selected;
     // Word-left twice lands the caret at the START ("readme" is one word).
     ov.query.word_left();
-    assert_eq!(ov.query.caret(), 0, "word_left walks to the start of the one word");
+    assert_eq!(
+        ov.query.caret(),
+        0,
+        "word_left walks to the start of the one word"
+    );
     // Pure motion: the ranked list is untouched.
     assert_eq!(ov.items, items_before, "caret motion never refilters");
     assert_eq!(ov.selected, selected_before);
     // Insert at the (now START) caret splices, not appends.
     ov.push('x');
-    assert_eq!(ov.query, "xreadme", "insert lands at the caret, not the end");
+    assert_eq!(
+        ov.query, "xreadme",
+        "insert lands at the caret, not the end"
+    );
 }
 
 /// C — RENAME MINIBUFFER: item 10's `/`-reject filter still applies at a
@@ -2192,9 +2680,15 @@ fn rename_minibuffer_rejects_slash_mid_string() {
     let mut ov = OverlayState::new_rename("hello".to_string());
     ov.rename_edit_word_left(); // caret -> 0 (one word)
     ov.rename_edit_push('/'); // rejected everywhere, including mid-string
-    assert_eq!(ov.rows[0].accept, "hello", "the / is rejected, caret position or not");
+    assert_eq!(
+        ov.rows[0].accept, "hello",
+        "the / is rejected, caret position or not"
+    );
     ov.rename_edit_push('X');
-    assert_eq!(ov.rows[0].accept, "Xhello", "a normal char still splices at the caret");
+    assert_eq!(
+        ov.rows[0].accept, "Xhello",
+        "a normal char still splices at the caret"
+    );
 }
 
 /// C — LINK MINIBUFFER: no character filter, INCLUDING `/`, at a mid-string
@@ -2215,7 +2709,11 @@ fn keep_minibuffer_empty_after_motion_still_targets_none() {
     let mut ov = OverlayState::new_keep_name();
     ov.keep_edit_word_left(); // no-op motion on an empty field
     ov.keep_edit_char_right(); // no-op motion (nothing to move onto)
-    assert_eq!(ov.keep_edit_target(), Some(None), "empty input is still the nameless keep");
+    assert_eq!(
+        ov.keep_edit_target(),
+        Some(None),
+        "empty input is still the nameless keep"
+    );
     for c in "  ".chars() {
         ov.keep_edit_push(c);
     }
@@ -2231,21 +2729,36 @@ fn keep_minibuffer_empty_after_motion_still_targets_none() {
 /// the digits), and Esc still restores the ORIGINAL cell.
 #[test]
 fn settings_value_edit_filters_mid_string_and_esc_restores() {
-    let mut ov = OverlayState::new(OverlayKind::Settings, vec!["Zoom".to_string()], vec![], vec![]);
+    let mut ov = OverlayState::new(
+        OverlayKind::Settings,
+        vec!["Zoom".to_string()],
+        vec![],
+        vec![],
+    );
     ov.set_secondaries(vec!["100%".to_string()]);
     ov.start_value_edit("zoom".to_string(), "Zoom".to_string());
-    assert_eq!(ov.value_edit.as_ref().unwrap().input.caret(), 4, "seeded caret at the end");
+    assert_eq!(
+        ov.value_edit.as_ref().unwrap().input.caret(),
+        4,
+        "seeded caret at the end"
+    );
     ov.value_edit_word_left();
     assert_eq!(ov.value_edit.as_ref().unwrap().input.caret(), 0);
     // A letter is rejected at the mid-string (here, start) caret too.
     ov.value_edit_push('x');
-    assert_eq!(ov.rows[0].secondary, "100%", "non-digit/./% rejected at any caret position");
+    assert_eq!(
+        ov.rows[0].secondary, "100%",
+        "non-digit/./% rejected at any caret position"
+    );
     // A digit splices at the caret.
     ov.value_edit_push('9');
     assert_eq!(ov.rows[0].secondary, "9100%");
     // Esc restores the cell to what it showed before the edit began.
     ov.value_edit_cancel();
-    assert_eq!(ov.rows[0].secondary, "100%", "Esc restores the original value");
+    assert_eq!(
+        ov.rows[0].secondary, "100%",
+        "Esc restores the original value"
+    );
     assert!(ov.value_edit.is_none());
 }
 
@@ -2253,12 +2766,20 @@ fn settings_value_edit_filters_mid_string_and_esc_restores() {
 /// value regardless of where the caret ended up.
 #[test]
 fn settings_value_edit_commit_target_reads_current_value_after_motion() {
-    let mut ov = OverlayState::new(OverlayKind::Settings, vec!["Zoom".to_string()], vec![], vec![]);
+    let mut ov = OverlayState::new(
+        OverlayKind::Settings,
+        vec!["Zoom".to_string()],
+        vec![],
+        vec![],
+    );
     ov.set_secondaries(vec!["50%".to_string()]);
     ov.start_value_edit("zoom".to_string(), "Zoom".to_string());
     ov.value_edit_char_left(); // caret before the trailing '%'
     ov.value_edit_push('5'); // splices before the '%': "50%" -> "505%"
-    assert_eq!(ov.value_edit_target(), Some(("zoom".to_string(), "505%".to_string())));
+    assert_eq!(
+        ov.value_edit_target(),
+        Some(("zoom".to_string(), "505%".to_string()))
+    );
 }
 
 /// B (per-surface) — UNICODE round-trip through the REAL Rename minibuffer:
@@ -2343,7 +2864,9 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             ); // touches CommandSetting
             ov
         }
-        OverlayKind::Spell => OverlayState::new_spell(vec!["the".to_string()], (0, 0, 3), "teh".to_string()),
+        OverlayKind::Spell => {
+            OverlayState::new_spell(vec!["the".to_string()], (0, 0, 3), "teh".to_string())
+        }
         OverlayKind::Keybindings => OverlayState::new_keybindings(
             crate::commands::visible_names(),
             crate::commands::visible_effective_bindings(&[], &[]),
@@ -2356,9 +2879,10 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         }
         OverlayKind::Assets => OverlayState::new_assets(vec![orphan("assets/a.png", 1)]),
         OverlayKind::Rename => OverlayState::new_rename("old.md".to_string()),
-        OverlayKind::InsertLink => {
-            OverlayState::new_link_edit(String::new(), crate::overlay::LinkEditMode::Empty { at: 0 })
-        }
+        OverlayKind::InsertLink => OverlayState::new_link_edit(
+            String::new(),
+            crate::overlay::LinkEditMode::Empty { at: 0 },
+        ),
         OverlayKind::KeepName => OverlayState::new_keep_name(),
     }
 }
@@ -2372,11 +2896,18 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
 /// bug a pure compile-time sweep can't see.
 #[test]
 fn every_kind_produces_only_its_declared_row_meta_roster() {
-    assert_eq!(OverlayKind::ALL.len(), 18, "the kind roster itself is this sweep's scope");
+    assert_eq!(
+        OverlayKind::ALL.len(),
+        18,
+        "the kind roster itself is this sweep's scope"
+    );
     for kind in OverlayKind::ALL {
         let ov = representative_overlay(kind);
         let roster = kind.row_meta_roster();
-        assert!(!roster.is_empty(), "{kind:?} must declare at least one RowMeta tag");
+        assert!(
+            !roster.is_empty(),
+            "{kind:?} must declare at least one RowMeta tag"
+        );
         for row in &ov.rows {
             let tag = row.meta.tag();
             assert!(
@@ -2396,15 +2927,34 @@ fn every_kind_produces_only_its_declared_row_meta_roster() {
 #[test]
 fn row_meta_tag_maps_every_variant_correctly() {
     assert_eq!(RowMeta::Plain.tag(), RowMetaTag::Plain);
-    assert_eq!(RowMeta::GotoFile { time: "5m ago".to_string() }.tag(), RowMetaTag::GotoFile);
-    assert_eq!(RowMeta::GotoHeading { line: 3 }.tag(), RowMetaTag::GotoHeading);
     assert_eq!(
-        RowMeta::CommandSetting { id: crate::settings::SettingId::Keymap }.tag(),
+        RowMeta::GotoFile {
+            time: "5m ago".to_string()
+        }
+        .tag(),
+        RowMetaTag::GotoFile
+    );
+    assert_eq!(
+        RowMeta::GotoHeading { line: 3 }.tag(),
+        RowMetaTag::GotoHeading
+    );
+    assert_eq!(
+        RowMeta::CommandSetting {
+            id: crate::settings::SettingId::Keymap
+        }
+        .tag(),
         RowMetaTag::CommandSetting
     );
     assert_eq!(RowMeta::CommandHidden.tag(), RowMetaTag::CommandHidden);
     assert_eq!(RowMeta::SpellAdd.tag(), RowMetaTag::SpellAdd);
-    assert_eq!(RowMeta::History { id: "1".to_string(), ts: 0 }.tag(), RowMetaTag::History);
+    assert_eq!(
+        RowMeta::History {
+            id: "1".to_string(),
+            ts: 0
+        }
+        .tag(),
+        RowMetaTag::History
+    );
 }
 
 /// ITEM 54 PRESERVATION LAW 2 — Go-to HEADING rows keep their `line` across a
@@ -2425,7 +2975,10 @@ fn goto_heading_rows_keep_their_line_across_refilter() {
     for c in "eta".chars() {
         ov.push(c);
     }
-    assert!(ov.items.iter().any(|&ci| ci == details_ci), "the Details row survives the query");
+    assert!(
+        ov.items.iter().any(|&ci| ci == details_ci),
+        "the Details row survives the query"
+    );
     assert_eq!(
         ov.rows[details_ci].meta,
         RowMeta::GotoHeading { line: 42 },
@@ -2433,7 +2986,11 @@ fn goto_heading_rows_keep_their_line_across_refilter() {
     );
     let pos = ov.items.iter().position(|&ci| ci == details_ci).unwrap();
     ov.selected = pos;
-    assert_eq!(ov.selected_line(), Some(42), "selected_line resolves through the survived row");
+    assert_eq!(
+        ov.selected_line(),
+        Some(42),
+        "selected_line resolves through the survived row"
+    );
 }
 
 /// ITEM 54 PRESERVATION LAW 4 — Command palette appended SETTINGS rows keep
@@ -2452,15 +3009,25 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
         crate::settings::palette_value_cells(&Default::default()),
     );
     let ci = ov.rows.iter().position(|r| r.accept == "Keymap").unwrap();
-    assert!(matches!(ov.rows[ci].meta, RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap));
+    assert!(
+        matches!(ov.rows[ci].meta, RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap)
+    );
     let value_before = ov.rows[ci].secondary.clone();
     for c in "keym".chars() {
         ov.push(c);
     }
-    assert!(ov.items.iter().any(|&i| i == ci), "the Keymap row survives the query");
-    assert_eq!(ov.rows[ci].secondary, value_before, "the value traveled with its OWN row");
+    assert!(
+        ov.items.iter().any(|&i| i == ci),
+        "the Keymap row survives the query"
+    );
+    assert_eq!(
+        ov.rows[ci].secondary, value_before,
+        "the value traveled with its OWN row"
+    );
     ov.selected = ov.items.iter().position(|&i| i == ci).unwrap();
-    let resolved = ov.selected_setting_row().expect("the highlighted row resolves to a SettingRow");
+    let resolved = ov
+        .selected_setting_row()
+        .expect("the highlighted row resolves to a SettingRow");
     assert_eq!(resolved.name, "Keymap");
 }
 
@@ -2496,10 +3063,16 @@ fn history_rows_keep_id_and_ts_across_lens_switch_and_query() {
     for c in "fix".chars() {
         ov.push(c);
     }
-    assert!(ov.items.iter().any(|&i| i == a_ci), "row a survives the lens switch + query");
+    assert!(
+        ov.items.iter().any(|&i| i == a_ci),
+        "row a survives the lens switch + query"
+    );
     assert_eq!(
         ov.rows[a_ci].meta,
-        RowMeta::History { id: "a".to_string(), ts: 100 * DAY + 4_000 },
+        RowMeta::History {
+            id: "a".to_string(),
+            ts: 100 * DAY + 4_000
+        },
         "id + ts stayed with row a across the lens switch and the query"
     );
 }
@@ -2530,8 +3103,14 @@ fn goto_file_rows_keep_their_own_time_and_headings_read_heading() {
     ov.push('a');
     let strings2 = ov.item_strings();
     let times2 = ov.item_times();
-    let a_pos2 = strings2.iter().position(|s| s == "a.md").expect("a.md still matches \"a\"");
-    assert_eq!(times2[a_pos2], "5m ago", "a.md's own time survives the reorder");
+    let a_pos2 = strings2
+        .iter()
+        .position(|s| s == "a.md")
+        .expect("a.md still matches \"a\"");
+    assert_eq!(
+        times2[a_pos2], "5m ago",
+        "a.md's own time survives the reorder"
+    );
 }
 
 /// ITEM 54 PRESERVATION LAW 7 — a Command palette row marked
@@ -2547,9 +3126,16 @@ fn command_hidden_rows_never_reach_items_but_stay_in_rows() {
     hidden[0] = true;
     let hidden_name = names[0].clone();
     let ov = OverlayState::new_command(names, vec![String::new(); n], hidden);
-    assert_eq!(ov.rows.len(), n, "a hidden row is NOT removed from rows — only from items");
+    assert_eq!(
+        ov.rows.len(),
+        n,
+        "a hidden row is NOT removed from rows — only from items"
+    );
     assert!(matches!(ov.rows[0].meta, RowMeta::CommandHidden));
-    assert_eq!(ov.rows[0].accept, hidden_name, "index 0 still names the hidden command");
+    assert_eq!(
+        ov.rows[0].accept, hidden_name,
+        "index 0 still names the hidden command"
+    );
     assert!(
         !ov.item_strings().iter().any(|s| s == &hidden_name),
         "a hidden row never appears in the SELECTABLE items"
@@ -2596,18 +3182,29 @@ fn item_range_fracs_are_parallel_to_the_rows_and_derived_from_the_spec() {
     let ov = settings_with_rails(1.4);
     let fracs = ov.item_range_fracs();
     let names = ov.item_strings();
-    assert_eq!(fracs.len(), names.len(), "the rail column is parallel to the rows");
+    assert_eq!(
+        fracs.len(),
+        names.len(),
+        "the rail column is parallel to the rows"
+    );
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     for (name, frac) in names.iter().zip(&fracs) {
         if name == "Zoom" {
             let f = frac.expect("the Zoom row carries a rail");
-            assert!((f - spec.frac_of(1.4)).abs() < 1e-6, "the thumb is the spec's fraction");
+            assert!(
+                (f - spec.frac_of(1.4)).abs() < 1e-6,
+                "the thumb is the spec's fraction"
+            );
         } else {
             assert!(frac.is_none(), "{name} must carry no rail");
         }
     }
     // The row's own secondary TEXT and its rail agree (one gathered instant).
-    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    let zi = ov
+        .items
+        .iter()
+        .position(|&i| ov.rows[i].accept == "Zoom")
+        .unwrap();
     assert_eq!(ov.item_bindings()[zi], spec.format(1.4));
     assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(1.4));
 }
@@ -2638,7 +3235,11 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
     let _g = crate::testlock::serial();
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     let mut ov = settings_with_rails(1.0);
-    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    let zi = ov
+        .items
+        .iter()
+        .position(|&i| ov.rows[i].accept == "Zoom")
+        .unwrap();
     ov.selected = zi;
     let others: Vec<String> = ov.item_bindings();
 
@@ -2671,7 +3272,11 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
 fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
     let _g = crate::testlock::serial();
     let mut ov = settings_with_rails(1.0);
-    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    let zi = ov
+        .items
+        .iter()
+        .position(|&i| ov.rows[i].accept == "Zoom")
+        .unwrap();
 
     ov.selected = zi;
     assert_eq!(
@@ -2685,7 +3290,11 @@ fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
             continue;
         }
         ov.selected = other;
-        assert_eq!(ov.foot_hint(), OverlayKind::Settings.hint(), "row {other} keeps the lens line");
+        assert_eq!(
+            ov.foot_hint(),
+            OverlayKind::Settings.hint(),
+            "row {other} keeps the lens line"
+        );
     }
     // The two variants differ in EXACTLY the ←/→ cell.
     let plain_line = OverlayKind::Settings.hint();

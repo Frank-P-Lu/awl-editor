@@ -113,7 +113,8 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
     // trailing newline): `line_col_to_char` clamps the huge col to the line length.
     let start_char = ctx.buffer.line_col_to_char(start, 0);
     let end_char = ctx.buffer.line_col_to_char(end - 1, usize::MAX);
-    ctx.buffer.replace_char_range(start_char, end_char, &aligned);
+    ctx.buffer
+        .replace_char_range(start_char, end_char, &aligned);
 }
 
 /// TAB dispatch: on a markdown LIST context (the caret line — or ANY line of an

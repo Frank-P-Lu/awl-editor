@@ -64,7 +64,13 @@ fn already_pathed_buffer_save_writes_and_signals_save_done_ok() {
         let mut buffer = Buffer::from_str("hello");
         buffer.set_path(path.clone());
         let effect = drive_save(&mut buffer);
-        assert_eq!(effect, Effect::SaveDone { ok: true, message: "saved".to_string() });
+        assert_eq!(
+            effect,
+            Effect::SaveDone {
+                ok: true,
+                message: "saved".to_string()
+            }
+        );
         use crate::fs::FileSystem;
         assert_eq!(mem.read_to_string(&path).unwrap(), "hello");
     });
@@ -82,7 +88,10 @@ fn already_a_note_buffer_named_or_not_never_signals_convert() {
     let effect = drive_save(&mut buffer);
     assert_eq!(
         effect,
-        Effect::SaveDone { ok: false, message: "save failed: empty note: nothing to save yet".to_string() }
+        Effect::SaveDone {
+            ok: false,
+            message: "save failed: empty note: nothing to save yet".to_string()
+        }
     );
 }
 
@@ -98,8 +107,17 @@ fn a_note_with_text_saves_and_derives_its_filename_via_save_done_ok() {
             buffer.insert_char(c);
         }
         let effect = drive_save(&mut buffer);
-        assert_eq!(effect, Effect::SaveDone { ok: true, message: "saved".to_string() });
-        assert_eq!(buffer.path().unwrap().file_name().unwrap(), "first-light.md");
+        assert_eq!(
+            effect,
+            Effect::SaveDone {
+                ok: true,
+                message: "saved".to_string()
+            }
+        );
+        assert_eq!(
+            buffer.path().unwrap().file_name().unwrap(),
+            "first-light.md"
+        );
     });
 }
 
@@ -124,6 +142,12 @@ fn second_save_on_a_converted_scratch_buffer_is_a_plain_save_done() {
 
         buffer.insert_char('!');
         let effect = drive_save(&mut buffer);
-        assert_eq!(effect, Effect::SaveDone { ok: true, message: "saved".to_string() });
+        assert_eq!(
+            effect,
+            Effect::SaveDone {
+                ok: true,
+                message: "saved".to_string()
+            }
+        );
     });
 }

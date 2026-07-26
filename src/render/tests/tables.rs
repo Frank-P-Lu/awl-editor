@@ -26,8 +26,7 @@ fn table_allocation_holds_token_columns_rigid_across_widths() {
     crate::markdown::set_wysiwyg_on(true);
     crate::page::set_page_on(true);
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -40,13 +39,14 @@ fn table_allocation_holds_token_columns_rigid_across_widths() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping table_allocation_holds_token_columns_rigid_across_widths: no wgpu adapter");
+        eprintln!(
+            "skipping table_allocation_holds_token_columns_rigid_across_widths: no wgpu adapter"
+        );
         return;
     };
     // A WORLDS.md-style wide table: token columns 0/4/5 (World/Time/Register)
@@ -61,7 +61,11 @@ fn table_allocation_holds_token_columns_rigid_across_widths() {
 \n\
 prose after\n";
 
-    let widths_at = |p: &mut TextPipeline, device: &wgpu::Device, queue: &wgpu::Queue, measure: usize| -> Vec<f32> {
+    let widths_at = |p: &mut TextPipeline,
+                     device: &wgpu::Device,
+                     queue: &wgpu::Queue,
+                     measure: usize|
+     -> Vec<f32> {
         crate::page::set_measure(measure);
         let mut v = view(text, 5, 0);
         v.is_markdown = true;
@@ -83,7 +87,8 @@ prose after\n";
             (narrow[c] - wide[c]).abs() < 0.01,
             "token column {c} is rigid across widths (never shrinks below its word): \
              narrow={:?} wide={:?}",
-            narrow, wide
+            narrow,
+            wide
         );
     }
     // The phrase columns absorbed the extra room at the wide measure — they
@@ -94,7 +99,8 @@ prose after\n";
             wide[c] > narrow[c] + 1.0,
             "phrase column {c} absorbs the squeeze (grows with room): \
              narrow={:?} wide={:?}",
-            narrow, wide
+            narrow,
+            wide
         );
     }
 
@@ -118,12 +124,21 @@ fn xray_caret_redirect_and_pan_are_pure_and_clamped() {
     };
     // Redirect: x = glyph_xs[col] − pan; advance = next − this.
     let (gx, adv) = geometry::xray_col_x(&x, 0, 8.0);
-    assert!((gx + 5.0).abs() < 1e-3 && (adv - 10.0).abs() < 1e-3, "col 0: {gx} {adv}");
+    assert!(
+        (gx + 5.0).abs() < 1e-3 && (adv - 10.0).abs() < 1e-3,
+        "col 0: {gx} {adv}"
+    );
     let (gx, adv) = geometry::xray_col_x(&x, 2, 8.0);
-    assert!((gx - 20.0).abs() < 1e-3 && (adv - 15.0).abs() < 1e-3, "col 2: {gx} {adv}");
+    assert!(
+        (gx - 20.0).abs() < 1e-3 && (adv - 15.0).abs() < 1e-3,
+        "col 2: {gx} {adv}"
+    );
     // End of row (col == n) falls back to a default char cell.
     let (gx, adv) = geometry::xray_col_x(&x, 3, 8.0);
-    assert!((gx - 35.0).abs() < 1e-3 && (adv - 8.0).abs() < 1e-3, "end col: {gx} {adv}");
+    assert!(
+        (gx - 35.0).abs() < 1e-3 && (adv - 8.0).abs() < 1e-3,
+        "end col: {gx} {adv}"
+    );
     // Past the end clamps to n (never panics / reads OOB).
     let (gx, _) = geometry::xray_col_x(&x, 99, 8.0);
     assert!((gx - 35.0).abs() < 1e-3, "past-end clamps to n: {gx}");
@@ -154,7 +169,11 @@ fn table_cell_bold_marker_conceals_and_content_is_bold() {
     // "**bold**": `*`=0,`*`=1, "bold"=2..6, `*`=6,`*`=7.
     let al = cell_inline_attrs(&base, 20.0, "**bold**");
     // Content shapes in the real BOLD weight (the world's bundled 700 face).
-    assert_eq!(al.get_span(2).weight.0, 700, "the cell content is bold weight");
+    assert_eq!(
+        al.get_span(2).weight.0,
+        700,
+        "the cell content is bold weight"
+    );
     // The `**` delimiters are concealed (transparent ink) — no literal asterisks.
     assert!(
         matches!(al.get_span(0).color_opt, Some(c) if c.a() == 0),
@@ -213,10 +232,22 @@ fn table_cell_plain_text_is_unchanged_from_base() {
     let al = cell_inline_attrs(&base, 20.0, "Monaspace Xenon");
     let s = al.get_span(0);
     assert_eq!(s.weight.0, 400, "plain cell keeps the normal weight");
-    assert!(matches!(s.style, glyphon::Style::Normal), "plain cell is not italic");
-    assert!(!matches!(s.family, Family::Monospace), "plain cell is not mono");
-    assert!(s.color_opt.is_none(), "plain cell has no conceal / tint override");
-    assert!(s.metrics_opt.is_none(), "plain cell has no zero-width metrics override");
+    assert!(
+        matches!(s.style, glyphon::Style::Normal),
+        "plain cell is not italic"
+    );
+    assert!(
+        !matches!(s.family, Family::Monospace),
+        "plain cell is not mono"
+    );
+    assert!(
+        s.color_opt.is_none(),
+        "plain cell has no conceal / tint override"
+    );
+    assert!(
+        s.metrics_opt.is_none(),
+        "plain cell has no zero-width metrics override"
+    );
     crate::markdown::set_wysiwyg_on(true);
 }
 
@@ -241,9 +272,8 @@ fn wide_table_wraps_and_reserves_a_tall_row_while_a_short_row_does_not() {
     let long = "pale eucalyptus-green with a very long description that keeps \
                 going well past any single column width so it is forced to wrap \
                 onto several lines inside its own narrow column";
-    let text = format!(
-        "| World | Ground |\n|-------|--------|\n| Short | {long} |\n| Tiny | ok |\n"
-    );
+    let text =
+        format!("| World | Ground |\n|-------|--------|\n| Short | {long} |\n| Tiny | ok |\n");
     let md_spans = crate::markdown::spans(&text);
     // set_view configures md_enabled + metrics + wrap width for the pipeline.
     p.set_view(&view_md(&text, 0, 0));
@@ -261,7 +291,10 @@ fn wide_table_wraps_and_reserves_a_tall_row_while_a_short_row_does_not() {
     for (li, h) in heights.iter().enumerate() {
         if li != 2 {
             if let Some(other) = h {
-                assert!(wide > *other, "the long row (got {wide}) is tallest (line {li}: {other})");
+                assert!(
+                    wide > *other,
+                    "the long row (got {wide}) is tallest (line {li}: {other})"
+                );
             }
         }
     }
@@ -300,8 +333,7 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
     crate::page::set_page_on(true);
     crate::page::set_measure(80);
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -314,13 +346,14 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping revealed_row_uploads_no_grid_cells_other_rows_still_draw: no wgpu adapter");
+        eprintln!(
+            "skipping revealed_row_uploads_no_grid_cells_other_rows_still_draw: no wgpu adapter"
+        );
         return;
     };
     // Doc lines: 0 header, 1 separator, 2 first body row, 3 second body row.
@@ -332,7 +365,10 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
 
     let rep = p.tables_report();
     assert_eq!(rep.len(), 1, "one table laid out");
-    assert!(rep[0].revealed, "the table is revealed (caret sits inside it)");
+    assert!(
+        rep[0].revealed,
+        "the table is revealed (caret sits inside it)"
+    );
 
     let drawn = p.table_cell_lines_drawn();
     assert!(
@@ -343,7 +379,6 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
         drawn.contains(&0) && drawn.contains(&3),
         "every OTHER row (header line 0, body line 3) still draws its grid cells: {drawn:?}"
     );
-
 }
 
 /// SELECTION REVEAL (user-decided 2026-07-22): a table the CARET never
@@ -365,8 +400,7 @@ fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
     crate::page::set_page_on(true);
     crate::page::set_measure(80);
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -379,13 +413,14 @@ fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping selected_table_rows_swap_to_raw_source_caret_never_touches_table: no wgpu adapter");
+        eprintln!(
+            "skipping selected_table_rows_swap_to_raw_source_caret_never_touches_table: no wgpu adapter"
+        );
         return;
     };
     // Doc lines: 0 prose (caret's home, outside the table entirely), 1
@@ -446,7 +481,6 @@ fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
         "neither the caret's own line (0, not a table row) nor the untouched \
          header row (1) is x-rayed: {xrayed:?}"
     );
-
 }
 
 /// Clearing the selection heals every selection-only x-ray row: with the
@@ -462,8 +496,7 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
     crate::page::set_page_on(true);
     crate::page::set_measure(80);
     let got = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -476,8 +509,7 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(1200.0, 800.0);
         Some((device, queue, p))
     });
@@ -495,7 +527,10 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
     p.set_view(&selected);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert!(p.tables_report()[0].revealed, "revealed while selected");
-    assert!(!p.xray_lines_report().is_empty(), "rows x-rayed while selected");
+    assert!(
+        !p.xray_lines_report().is_empty(),
+        "rows x-rayed while selected"
+    );
 
     // SAME caret line (0) — only the selection clears.
     let cleared = view_md(text, 0, 0);
@@ -515,7 +550,6 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
         drawn.contains(&3) && drawn.contains(&4),
         "both body rows draw their grid cells again: {drawn:?}"
     );
-
 }
 
 /// BUG FIX (one-owner law): the per-frame DRAW never reshapes its own copy of
@@ -575,13 +609,17 @@ fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
     // WRAP at a NARROW one — the exact "reshape at a different width changes
     // the row height" shape the bug needed. Caret sits OFF the table (trailing
     // prose) so the grid draws (not the x-ray).
-    let phrase = "a phrase long enough to sit on one line at a wide measure but wrap at a narrow one";
-    let text = format!("| World | Ground |\n|-------|--------|\n| Short | {phrase} |\n\nprose after\n");
+    let phrase =
+        "a phrase long enough to sit on one line at a wide measure but wrap at a narrow one";
+    let text =
+        format!("| World | Ground |\n|-------|--------|\n| Short | {phrase} |\n\nprose after\n");
     let wide = crate::page::MAX_MEASURE;
     let narrow = crate::page::MIN_MEASURE;
 
     let Some((device, queue, mut p)) = new_pipeline(wide) else {
-        eprintln!("skipping table_draw_and_reservation_stay_identical_across_a_width_only_frame: no wgpu adapter");
+        eprintln!(
+            "skipping table_draw_and_reservation_stay_identical_across_a_width_only_frame: no wgpu adapter"
+        );
         return;
     };
     // WIDE — the first ever shape, a real reshape.
@@ -622,7 +660,9 @@ fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
     // resync above genuinely CAUGHT UP to the new width, matching it exactly,
     // rather than merely being internally self-consistent at some stale value.
     let Some((device2, queue2, mut p2)) = new_pipeline(narrow) else {
-        eprintln!("skipping table_draw_and_reservation_stay_identical_across_a_width_only_frame: no wgpu adapter (2nd)");
+        eprintln!(
+            "skipping table_draw_and_reservation_stay_identical_across_a_width_only_frame: no wgpu adapter (2nd)"
+        );
         return;
     };
     p2.set_view(&view_md(&text, 4, 0));
@@ -648,7 +688,6 @@ fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
         "the drawn column widths likewise caught up exactly: {cols_after:?} vs \
          {cols_fresh_narrow:?}"
     );
-
 }
 
 /// BUG FIX (the real user-reported overflow): a genuine WINDOW RESIZE — i.e. a
@@ -677,8 +716,7 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
     crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 
     let Some((device, queue, mut p)) = pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -691,12 +729,13 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
             .await
             .ok()?;
         let cache = Cache::new(&device);
-        let mut p =
-            TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
         p.set_size(2400.0, 800.0);
         Some((device, queue, p))
     }) else {
-        eprintln!("skipping table_grid_reclamps_to_the_column_on_a_real_window_resize: no wgpu adapter");
+        eprintln!(
+            "skipping table_grid_reclamps_to_the_column_on_a_real_window_resize: no wgpu adapter"
+        );
         return;
     };
 
@@ -705,7 +744,8 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
     // grid draws (not the x-ray).
     let phrase = "a phrase long enough to sit on one line at a wide canvas but must \
                   wrap once the window shrinks to a much narrower size";
-    let text = format!("| World | Ground |\n|-------|--------|\n| Short | {phrase} |\n\nprose after\n");
+    let text =
+        format!("| World | Ground |\n|-------|--------|\n| Short | {phrase} |\n\nprose after\n");
 
     // WIDE canvas — first real reshape.
     p.set_view(&view_md(&text, 4, 0));
@@ -747,7 +787,6 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
              (wide_cols={wide_cols:?} narrow_cols={narrow_cols:?})"
         );
     }
-
 }
 
 /// GUARD (theme-QA audit, reported cell "Potoroo TABLE text ink wrong"):
@@ -780,7 +819,8 @@ fn potoroo_table_cell_ink_matches_body_prose_at_real_pixels() {
     // Line 0: plain body prose (the reference ink). Line 2 (header) / line 4
     // (one body row): a two-column table. Caret parked on line 0, so the
     // table stays in its ORDINARY drawn-grid state (not revealed/x-ray).
-    let text = "Body prose ink reference line here.\n\n| Name | Role |\n| --- | --- |\n| Alpha | Lead |\n";
+    let text =
+        "Body prose ink reference line here.\n\n| Name | Role |\n| --- | --- |\n| Alpha | Lead |\n";
     let mut v = view(text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
@@ -796,13 +836,16 @@ fn potoroo_table_cell_ink_matches_body_prose_at_real_pixels() {
     let prose_top = p.line_ornament_top(0) as i64;
     let header_top = p.line_ornament_top(2) as i64;
     let body_top = p.line_ornament_top(4) as i64;
-    let prose_region = pixeldiff::Region::new(text_left as f32, prose_top as f32, 400.0, row_h as f32);
+    let prose_region =
+        pixeldiff::Region::new(text_left as f32, prose_top as f32, 400.0, row_h as f32);
     let header_region =
         pixeldiff::Region::new(text_left as f32, header_top as f32, 200.0, row_h as f32);
-    let body_region = pixeldiff::Region::new(text_left as f32, body_top as f32, 200.0, row_h as f32);
+    let body_region =
+        pixeldiff::Region::new(text_left as f32, body_top as f32, 200.0, row_h as f32);
 
-    let prose_ink = pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, prose_region, bg, 18)
-        .expect("body prose line must paint SOME ink");
+    let prose_ink =
+        pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, prose_region, bg, 18)
+            .expect("body prose line must paint SOME ink");
     let header_ink =
         pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, header_region, bg, 18)
             .expect("table header cell must paint SOME ink");

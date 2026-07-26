@@ -155,7 +155,15 @@ fn cell_delta(a: (f32, f32), b: (f32, f32)) -> f32 {
 
 /// Assert the step from `(cy0, h0)` to `(cy1, h1)` stays inside `bound_px`
 /// (scaled by this pipeline's own pixel scale).
-fn assert_bounded_by(p: &TextPipeline, bound_px: f32, what: &str, cy0: f32, h0: f32, cy1: f32, h1: f32) {
+fn assert_bounded_by(
+    p: &TextPipeline,
+    bound_px: f32,
+    what: &str,
+    cy0: f32,
+    h0: f32,
+    cy1: f32,
+    h1: f32,
+) {
     let bound = bound_px * pixel_scale(p);
     let d_cy = (cy1 - cy0).abs();
     let d_h = (h1 - h0).abs();
@@ -189,7 +197,9 @@ fn aaa_to_eol_transition_is_bounded_on_every_proportional_world() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping aaa_to_eol_transition_is_bounded_on_every_proportional_world: no wgpu adapter");
+        eprintln!(
+            "skipping aaa_to_eol_transition_is_bounded_on_every_proportional_world: no wgpu adapter"
+        );
         return;
     };
     let text = "aaa";
@@ -225,10 +235,20 @@ fn aaa_to_eol_transition_is_bounded_on_every_proportional_world() {
 
         // THE LAW: the ACTUAL (repaired) fallback cell must stay bounded.
         let (cy_eol, h_eol) = p.caret_cell_vertical();
-        assert_bounded(&p, &format!("{} aaa->EOL", t.name), cy_glyph, h_glyph, cy_eol, h_eol);
+        assert_bounded(
+            &p,
+            &format!("{} aaa->EOL", t.name),
+            cy_glyph,
+            h_glyph,
+            cy_eol,
+            h_eol,
+        );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -246,12 +266,17 @@ fn aaa_to_eol_transition_is_exactly_zero_on_every_mono_world() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping aaa_to_eol_transition_is_exactly_zero_on_every_mono_world: no wgpu adapter");
+        eprintln!(
+            "skipping aaa_to_eol_transition_is_exactly_zero_on_every_mono_world: no wgpu adapter"
+        );
         return;
     };
     let text = "aaa";
     let worlds = super::facepitch::mono_display_worlds();
-    assert!(worlds.len() >= 7, "every mono-display world is swept, got {worlds:?}");
+    assert!(
+        worlds.len() >= 7,
+        "every mono-display world is swept, got {worlds:?}"
+    );
 
     for world in worlds {
         theme::set_active_by_name(world).unwrap();
@@ -299,7 +324,9 @@ fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping every_glyph_class_closes_exactly_at_the_literal_eol_seam: no wgpu adapter");
+        eprintln!(
+            "skipping every_glyph_class_closes_exactly_at_the_literal_eol_seam: no wgpu adapter"
+        );
         return;
     };
     // (fixture, class label) — the class char is always the LAST char, col
@@ -366,7 +393,10 @@ fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
         }
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -404,7 +434,8 @@ fn ligature_to_plain_glyph_transition_is_bounded() {
 
         p.set_view(&view(text, 0, 1)); // still inside the "fi" cluster
         p.settle_caret();
-        let is_ligature = p.caret_anchor_ink_box().is_none() && p.caret_anchor_raster_box().is_some();
+        let is_ligature =
+            p.caret_anchor_ink_box().is_none() && p.caret_anchor_raster_box().is_some();
         if !is_ligature {
             // Not every face is guaranteed to ligate "fi" (a face without the
             // `liga` feature would shape one glyph per char) — skip rather than
@@ -453,7 +484,9 @@ fn wrap_boundary_transition_is_bounded_on_a_proportional_world() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping wrap_boundary_transition_is_bounded_on_a_proportional_world: no wgpu adapter");
+        eprintln!(
+            "skipping wrap_boundary_transition_is_bounded_on_a_proportional_world: no wgpu adapter"
+        );
         return;
     };
     let long = "word ".repeat(80);
@@ -550,10 +583,20 @@ fn leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph() {
         // outward search finds col 1's own real ink from col 0, so this
         // closes to (near-)zero exactly like the mirror (real-glyph ->
         // glyphless) direction already does.
-        assert_bounded(&p, &format!("{} leading-space->A", t.name), cy0, h0, cy_a, h_a);
+        assert_bounded(
+            &p,
+            &format!("{} leading-space->A", t.name),
+            cy0,
+            h0,
+            cy_a,
+            h_a,
+        );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -593,13 +636,25 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
         p.sync_theme();
 
         let (cy_a, h_a) = cell_at(&mut p, text, 0, 0); // 'A' — real ink
-        assert!(p.caret_anchor_ink_box().is_some(), "{}: 'A' must anchor a real ink box", t.name);
+        assert!(
+            p.caret_anchor_ink_box().is_some(),
+            "{}: 'A' must anchor a real ink box",
+            t.name
+        );
 
         let (cy_s1, h_s1) = cell_at(&mut p, text, 0, 1); // first trailing space
-        assert!(p.caret_anchor_ink_box().is_none(), "{}: space 1 must be glyphless", t.name);
+        assert!(
+            p.caret_anchor_ink_box().is_none(),
+            "{}: space 1 must be glyphless",
+            t.name
+        );
 
         let (cy_s2, h_s2) = cell_at(&mut p, text, 0, 2); // second trailing space
-        assert!(p.caret_anchor_ink_box().is_none(), "{}: space 2 must be glyphless", t.name);
+        assert!(
+            p.caret_anchor_ink_box().is_none(),
+            "{}: space 2 must be glyphless",
+            t.name
+        );
 
         let (cy_eol, h_eol) = cell_at(&mut p, text, 0, 3); // literal EOL
 
@@ -621,8 +676,22 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
 
         // THE LAW: every adjacent pair across the run stays bounded.
         assert_bounded(&p, &format!("{} A->space1", t.name), cy_a, h_a, cy_s1, h_s1);
-        assert_bounded(&p, &format!("{} space1->space2", t.name), cy_s1, h_s1, cy_s2, h_s2);
-        assert_bounded(&p, &format!("{} space2->EOL", t.name), cy_s2, h_s2, cy_eol, h_eol);
+        assert_bounded(
+            &p,
+            &format!("{} space1->space2", t.name),
+            cy_s1,
+            h_s1,
+            cy_s2,
+            h_s2,
+        );
+        assert_bounded(
+            &p,
+            &format!("{} space2->EOL", t.name),
+            cy_s2,
+            h_s2,
+            cy_eol,
+            h_eol,
+        );
 
         // THE MECHANISM CLAIM: space1, space2, and EOL all borrow the SAME
         // real 'A' ink via the outward search (same baseline, same box), so
@@ -637,7 +706,10 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
         );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -656,7 +728,9 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap: no wgpu adapter");
+        eprintln!(
+            "skipping empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap: no wgpu adapter"
+        );
         return;
     };
     let mono = super::facepitch::mono_display_worlds();
@@ -668,11 +742,19 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
 
         // A real x-height letter's ink-arm height, on its own line...
         let (_cy_glyph, h_glyph) = cell_at(&mut p, "a", 0, 0);
-        assert!(p.caret_anchor_ink_box().is_some(), "{}: 'a' must ink-align", t.name);
+        assert!(
+            p.caret_anchor_ink_box().is_some(),
+            "{}: 'a' must ink-align",
+            t.name
+        );
 
         // ...versus an EMPTY line's synthetic fallback height.
         let (_cy_empty, h_empty) = cell_at(&mut p, "", 0, 0);
-        assert!(p.caret_anchor_ink_box().is_none(), "{}: an empty line has no ink", t.name);
+        assert!(
+            p.caret_anchor_ink_box().is_none(),
+            "{}: an empty line has no ink",
+            t.name
+        );
 
         assert!(
             h_empty > 0.0,
@@ -706,7 +788,10 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
         );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -752,14 +837,24 @@ fn transition_stays_bounded_across_zoom_and_dpi() {
                 p.metrics.zoom
             );
             let (cy0, h0) = p.caret_cell_vertical();
-            assert!(p.caret_anchor_ink_box().is_some(), "{world} z{zoom} d{dpi}: fixture must ink-align");
+            assert!(
+                p.caret_anchor_ink_box().is_some(),
+                "{world} z{zoom} d{dpi}: fixture must ink-align"
+            );
 
             let mut v2 = view(text, 0, 3);
             v2.zoom = zoom;
             p.set_view(&v2);
             p.settle_caret();
             let (cy1, h1) = p.caret_cell_vertical();
-            assert_bounded(&p, &format!("{world} zoom={zoom} dpi={dpi}"), cy0, h0, cy1, h1);
+            assert_bounded(
+                &p,
+                &format!("{world} zoom={zoom} dpi={dpi}"),
+                cy0,
+                h0,
+                cy1,
+                h1,
+            );
         }
         // Restore DPI to the capture default before the next world.
         p.set_dpi(1.0);
@@ -784,7 +879,9 @@ fn morph_rest_transition_is_bounded_through_caret_geometry() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Morph);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping morph_rest_transition_is_bounded_through_caret_geometry: no wgpu adapter");
+        eprintln!(
+            "skipping morph_rest_transition_is_bounded_through_caret_geometry: no wgpu adapter"
+        );
         return;
     };
     // Morph anchors one char BACK, so "aaaa" col 3 anchors the 3rd 'a' (ink
@@ -824,10 +921,20 @@ fn morph_rest_transition_is_bounded_through_caret_geometry() {
             t.name
         );
         let (cy1, h1) = p.caret_cell_vertical();
-        assert_bounded(&p, &format!("{} morph rest a->space", t.name), owner_cy, owner_h, cy1, h1);
+        assert_bounded(
+            &p,
+            &format!("{} morph rest a->space", t.name),
+            owner_cy,
+            owner_h,
+            cy1,
+            h1,
+        );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -848,7 +955,9 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping morph_travel_stays_a_thin_streak_on_every_proportional_world: no wgpu adapter");
+        eprintln!(
+            "skipping morph_travel_stays_a_thin_streak_on_every_proportional_world: no wgpu adapter"
+        );
         return;
     };
     let text = "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\ntheta\niota";
@@ -863,8 +972,16 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
         p.inject_motion_demo();
         let (_cx, cy, w, h, ..) = p.caret_geometry();
         let s = p.caret.settle_factor();
-        assert!(s < 0.2, "{}: fixture must be genuinely mid-glide (s={s})", t.name);
-        assert!(w > h, "{}: motion pose must be long-and-thin: w={w} h={h}", t.name);
+        assert!(
+            s < 0.2,
+            "{}: fixture must be genuinely mid-glide (s={s})",
+            t.name
+        );
+        assert!(
+            w > h,
+            "{}: motion pose must be long-and-thin: w={w} h={h}",
+            t.name
+        );
         assert!(
             h < p.metrics.caret_block_h * 0.5,
             "{}: the streak must stay thin — the ink/synthetic box must not thicken it: h={h}",
@@ -878,7 +995,10 @@ fn morph_travel_stays_a_thin_streak_on_every_proportional_world() {
         );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -917,7 +1037,9 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font: no wgpu adapter");
+        eprintln!(
+            "skipping caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font: no wgpu adapter"
+        );
         return;
     };
     // An EMPTY buffer: no real glyph anywhere, so `caret_cell_vertical` is
@@ -1020,7 +1142,9 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent: no wgpu adapter");
+        eprintln!(
+            "skipping caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent: no wgpu adapter"
+        );
         return;
     };
     // Bound: comfortably above the fixed formula's measured worst, comfortably
@@ -1037,7 +1161,10 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
         .filter(|t| !mono.contains(&t.name))
         .map(|t| t.name)
         .collect();
-    assert!(mono.len() >= 7 && prop.len() >= 11, "full roster on both sides");
+    assert!(
+        mono.len() >= 7 && prop.len() >= 11,
+        "full roster on both sides"
+    );
 
     let mut worst = 0.0f32;
     let mut worst_pair = ("", "");
@@ -1059,7 +1186,10 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
             p.sync_theme();
             p.set_view(&view(text, 0, 2));
             p.settle_caret();
-            assert!(p.caret_anchor_ink_box().is_none(), "fixture must be glyphless at the anchor");
+            assert!(
+                p.caret_anchor_ink_box().is_none(),
+                "fixture must be glyphless at the anchor"
+            );
             let src_family = p.shaped_font; // the FONT family, not the world name
             theme::set_active_by_name(dst).unwrap();
             p.sync_theme_colors();
@@ -1141,7 +1271,11 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
         .filter(|t| !mono.contains(&t.name))
         .map(|t| t.name)
         .collect();
-    assert!(prop.len() >= 11, "full proportional roster (got {})", prop.len());
+    assert!(
+        prop.len() >= 11,
+        "full proportional roster (got {})",
+        prop.len()
+    );
 
     // ---- STEP 1: measure the bar. Real glyph pairs, adjacent columns, both
     // sides genuine ink (never the fallback arm) — the transitions the
@@ -1210,16 +1344,16 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
 
         // The rest of the round's fixture list, each within the same bar.
         let fixtures: &[(&str, usize, usize)] = &[
-            ("aaa", 2, 3),      // the headline case
-            (" A", 0, 1),       // leading glyphless, column 0
-            ("A  ", 0, 1),      // run of 2+, first seam
-            ("A  ", 1, 2),      // run of 2+, interior seam
-            ("A  ", 2, 3),      // run of 2+, tail -> EOL
+            ("aaa", 2, 3),            // the headline case
+            (" A", 0, 1),             // leading glyphless, column 0
+            ("A  ", 0, 1),            // run of 2+, first seam
+            ("A  ", 1, 2),            // run of 2+, interior seam
+            ("A  ", 2, 3),            // run of 2+, tail -> EOL
             ("| 1  Capital |", 2, 3), // real table row
             ("| 1  Capital |", 4, 5),
-            ("hi ", 1, 2),      // line ending in a space
+            ("hi ", 1, 2), // line ending in a space
             ("hi ", 2, 3),
-            ("xg", 1, 2),       // descender adjacent to EOL
+            ("xg", 1, 2), // descender adjacent to EOL
         ];
         for &(text, a, b) in fixtures {
             let ca = cell_at(&mut p, text, 0, a);
@@ -1281,7 +1415,9 @@ fn interior_run_between_two_different_letters_has_no_flip_step() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping interior_run_between_two_different_letters_has_no_flip_step: no wgpu adapter");
+        eprintln!(
+            "skipping interior_run_between_two_different_letters_has_no_flip_step: no wgpu adapter"
+        );
         return;
     };
     // 'A' (capital), 5 glyphless spaces, 'y' (descender) — a run of 5
@@ -1299,7 +1435,9 @@ fn interior_run_between_two_different_letters_has_no_flip_step() {
         let ps = pixel_scale(&p);
 
         let cols: Vec<(f32, f32)> = (0..=6).map(|c| cell_at(&mut p, text, 0, c)).collect();
-        let steps: Vec<f32> = (0..cols.len() - 1).map(|i| cell_delta(cols[i], cols[i + 1]) / ps).collect();
+        let steps: Vec<f32> = (0..cols.len() - 1)
+            .map(|i| cell_delta(cols[i], cols[i + 1]) / ps)
+            .collect();
         let max_step = steps.iter().cloned().fold(0.0f32, f32::max);
         let min_step = steps.iter().cloned().fold(f32::MAX, f32::min);
 
@@ -1321,7 +1459,10 @@ fn interior_run_between_two_different_letters_has_no_flip_step() {
         );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -1462,12 +1603,28 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
     };
 
     let mono = super::facepitch::mono_display_worlds();
-    let prop: Vec<&'static str> = theme::THEMES.iter().filter(|t| !mono.contains(&t.name)).map(|t| t.name).collect();
-    assert!(prop.len() >= 11, "full proportional roster is swept (got {})", prop.len());
-    assert!(mono.len() >= 7, "full mono roster is swept (got {})", mono.len());
+    let prop: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| !mono.contains(&t.name))
+        .map(|t| t.name)
+        .collect();
+    assert!(
+        prop.len() >= 11,
+        "full proportional roster is swept (got {})",
+        prop.len()
+    );
+    assert!(
+        mono.len() >= 7,
+        "full mono roster is swept (got {})",
+        mono.len()
+    );
 
     let endpoints = endpoint_classes();
-    assert_eq!(endpoints.len(), 7, "7 endpoint classes expected (10-class roster minus space/eol/empty-line)");
+    assert_eq!(
+        endpoints.len(),
+        7,
+        "7 endpoint classes expected (10-class roster minus space/eol/empty-line)"
+    );
 
     let mut global_worst = 0.0f32;
     let mut global_worst_desc = String::new();
@@ -1504,7 +1661,10 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
                 bar = bar.max(cell_delta(solo[i].1, solo[j].1) / ps);
             }
         }
-        assert!(bar > 5.0, "{world}: the measured glyph-to-glyph bar must be real (got {bar:.2}px)");
+        assert!(
+            bar > 5.0,
+            "{world}: the measured glyph-to-glyph bar must be real (got {bar:.2}px)"
+        );
 
         // PHASE 1 — THE CORE SWEEP: every ordered endpoint pair, tied
         // through one glyphless space, both seams, both directions.
@@ -1574,7 +1734,10 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
             let c0 = cell_at(&mut p, ta, 0, col_a);
             let c1 = cell_at(&mut p, ta, 0, col_eol);
             let d = cell_delta(c0, c1) / ps;
-            assert!(d <= bar, "{world}: {ca:?}->Eol ({ta:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}");
+            assert!(
+                d <= bar,
+                "{world}: {ca:?}->Eol ({ta:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}"
+            );
         }
 
         // PHASE 3 — the structural `Space` class as an endpoint in its own
@@ -1585,7 +1748,10 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
             let c0 = cell_at(&mut p, &text, 0, 0);
             let c1 = cell_at(&mut p, &text, 0, 1);
             let d = cell_delta(c0, c1) / ps;
-            assert!(d <= bar, "{world}: Space->{cb:?} (leading, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}");
+            assert!(
+                d <= bar,
+                "{world}: Space->{cb:?} (leading, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}"
+            );
         }
         for &(ca, ta) in &endpoints {
             let text = format!("{ta} ");
@@ -1594,7 +1760,10 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
             let c0 = cell_at(&mut p, &text, 0, col_a);
             let c1 = cell_at(&mut p, &text, 0, col_sp);
             let d = cell_delta(c0, c1) / ps;
-            assert!(d <= bar, "{world}: {ca:?}->Space (trailing, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}");
+            assert!(
+                d <= bar,
+                "{world}: {ca:?}->Space (trailing, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}"
+            );
         }
 
         // PHASE 4 — the structural `EmptyLine` class: the whole-line
@@ -1602,7 +1771,10 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
         let (_cy_a, h_a) = cell_at(&mut p, "a", 0, 0);
         let (_cy_e, h_e) = cell_at(&mut p, "", 0, 0);
         let d = (h_a - h_e).abs() / ps;
-        assert!(d <= bar, "{world}: EmptyLine vs a real line exceeds the bar ({bar:.2}px): Δ={d:.2}");
+        assert!(
+            d <= bar,
+            "{world}: EmptyLine vs a real line exceeds the bar ({bar:.2}px): Δ={d:.2}"
+        );
     }
 
     eprintln!(
@@ -1712,7 +1884,9 @@ fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping glyphless_row_transition_is_bounded_row_relatively_across_a_wrap: no wgpu adapter");
+        eprintln!(
+            "skipping glyphless_row_transition_is_bounded_row_relatively_across_a_wrap: no wgpu adapter"
+        );
         return;
     };
     // 20 real 'a's, a run of 30 spaces long enough to fill an entire wrapped
@@ -1721,7 +1895,12 @@ fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
     let a_run = 20usize;
     let space_run = 30usize;
     let b_run = 20usize;
-    let text = format!("{}{}{}", "a".repeat(a_run), " ".repeat(space_run), "b".repeat(b_run));
+    let text = format!(
+        "{}{}{}",
+        "a".repeat(a_run),
+        " ".repeat(space_run),
+        "b".repeat(b_run)
+    );
     let blank_start = a_run;
     let blank_end = a_run + space_run;
     let n = text.chars().count();
@@ -1745,11 +1924,14 @@ fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
         // run, on THIS world's own real glyph metrics.
         let rows = p.visual_rows(0);
         assert!(
-            rows.iter().any(|r| r.start_col >= blank_start && r.end_col <= blank_end),
+            rows.iter()
+                .any(|r| r.start_col >= blank_start && r.end_col <= blank_end),
             "{}: fixture must wrap a fully-blank row at this width ({} rows: {:?})",
             t.name,
             rows.len(),
-            rows.iter().map(|r| (r.start_col, r.end_col)).collect::<Vec<_>>()
+            rows.iter()
+                .map(|r| (r.start_col, r.end_col))
+                .collect::<Vec<_>>()
         );
 
         // Sweep every adjacent column pair across the whole line: the
@@ -1775,7 +1957,10 @@ fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
         let mut max_rowrel = 0.0f32;
         for i in 0..n {
             let d_abs = (cy[i + 1] - cy[i]).abs() / ps;
-            let d_rowrel = (residual[i + 1] - residual[i]).abs().max((h[i + 1] - h[i]).abs()) / ps;
+            let d_rowrel = (residual[i + 1] - residual[i])
+                .abs()
+                .max((h[i + 1] - h[i]).abs())
+                / ps;
             max_abs = max_abs.max(d_abs);
             max_rowrel = max_rowrel.max(d_rowrel);
         }
@@ -1809,7 +1994,10 @@ fn glyphless_row_transition_is_bounded_row_relatively_across_a_wrap() {
         worst_rowrel = worst_rowrel.max(max_rowrel);
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
     eprintln!(
         "glyphless_row_transition_is_bounded_row_relatively_across_a_wrap: \
          worst row-relative residual={worst_rowrel:.2}px (bound {TRANSITION_BOUND_WIDE_PX}px)"

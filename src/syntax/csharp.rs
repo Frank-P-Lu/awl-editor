@@ -109,7 +109,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -248,7 +249,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXbB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXbB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -310,7 +315,11 @@ mod tests {
         let t = "var r = \"\"\"he said \"hi\"\"\"\";";
         let s = spans(t);
         // The whole triple-quoted raw literal is ONE Str span.
-        assert_eq!(at(t, &s, SynKind::Str), vec!["\"\"\"he said \"hi\"\"\"\""], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["\"\"\"he said \"hi\"\"\"\""],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -357,8 +366,14 @@ mod tests {
         // `class` keyword stays default ink; only the NAME is a Definition.
         let t = "class Foo {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 5, SynKind::Definition), "the `class` keyword must stay plain: {s:?}");
-        assert!(has(&s, 6, 9, SynKind::Definition), "`Foo` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 5, SynKind::Definition),
+            "the `class` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 6, 9, SynKind::Definition),
+            "`Foo` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -373,7 +388,11 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nclass Calc {\n    int Add(int a, int b) { return a + b; } // ok\n    const int Max = 100;\n}\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"Calc"), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }

@@ -23,14 +23,24 @@ use std::ops::Range;
 
 /// Introducers after which the next identifier is the DEFINITION name.
 const DEF_KEYWORDS: &[&str] = &[
-    "function", "class", "interface", "type", "enum", "namespace", "module",
-    "const", "let", "var",
+    "function",
+    "class",
+    "interface",
+    "type",
+    "enum",
+    "namespace",
+    "module",
+    "const",
+    "let",
+    "var",
 ];
 
 /// Identifiers that are CONSTANT literals (booleans + the nil-style values).
 const CONST_WORDS: &[&str] = &["true", "false", "null", "undefined"];
 
-use super::{is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start};
+use super::{
+    is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start,
+};
 
 pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
     let b = text.as_bytes();
@@ -95,7 +105,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -143,7 +154,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXoObB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -227,8 +242,14 @@ mod tests {
         // `function` keyword stays default ink; only the NAME is a Definition.
         let t = "function main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 8, SynKind::Definition), "the keyword must stay plain: {s:?}");
-        assert!(has(&s, 9, 13, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 8, SynKind::Definition),
+            "the keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 9, 13, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -242,9 +263,16 @@ mod tests {
     fn reference_snippet() {
         let t = "// sum\nfunction add(a: number, b: number): number {\n    const total = a + b; // ok\n    return total;\n}\nconst MAX = 100;\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
-        assert!(ds.contains(&"add") && ds.contains(&"total") && ds.contains(&"MAX"), "{ds:?}");
+        assert!(
+            ds.contains(&"add") && ds.contains(&"total") && ds.contains(&"MAX"),
+            "{ds:?}"
+        );
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }
 }

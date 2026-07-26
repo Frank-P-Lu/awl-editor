@@ -79,7 +79,10 @@ struct Canvas {
 
 impl Canvas {
     fn new(size: u32) -> Self {
-        Self { size, px: vec![0u8; size as usize * size as usize * 4] }
+        Self {
+            size,
+            px: vec![0u8; size as usize * size as usize * 4],
+        }
     }
 
     fn set(&mut self, x: i32, y: i32, color: [u8; 4]) {
@@ -142,8 +145,20 @@ fn draw_new_document() -> (Vec<u8>, u32, u32) {
     let mid = SIZE / 2;
     let arm = 10; // half-length of each bar
     let thick = 4; // half-thickness
-    c.fill_rect(mid - arm, mid - thick / 2, mid + arm, mid + thick / 2, ICON_GRAY);
-    c.fill_rect(mid - thick / 2, mid - arm, mid + thick / 2, mid + arm, ICON_GRAY);
+    c.fill_rect(
+        mid - arm,
+        mid - thick / 2,
+        mid + arm,
+        mid + thick / 2,
+        ICON_GRAY,
+    );
+    c.fill_rect(
+        mid - thick / 2,
+        mid - arm,
+        mid + thick / 2,
+        mid + arm,
+        ICON_GRAY,
+    );
     c.into_rgba()
 }
 
@@ -187,7 +202,13 @@ fn draw_finish_buffer() -> (Vec<u8>, u32, u32) {
     }
     for t in 0..9 {
         // long up-right stroke
-        c.fill_rect(mid - 1 + t, mid + 5 - t, mid + 2 + t, mid + 8 - t, ICON_GRAY);
+        c.fill_rect(
+            mid - 1 + t,
+            mid + 5 - t,
+            mid + 2 + t,
+            mid + 8 - t,
+            ICON_GRAY,
+        );
     }
     c.into_rgba()
 }
@@ -208,12 +229,12 @@ fn draw_switch_theme() -> (Vec<u8>, u32, u32) {
 /// fallback ([`draw_for`]) mirrors id-for-id, so the two can't drift.
 pub(crate) fn symbol_for(id: &str) -> Option<&'static str> {
     match id {
-        "awl.new_document" => Some("square.and.pencil"),        // the compose / new-note glyph
-        "awl.open" => Some("folder"),                       // the Finder-style "open a file" glyph
+        "awl.new_document" => Some("square.and.pencil"), // the compose / new-note glyph
+        "awl.open" => Some("folder"),                    // the Finder-style "open a file" glyph
         "awl.switch_project" => Some("folder.badge.gearshape"), // switch the active project folder
-        "awl.save" => Some("square.and.arrow.down"),        // the standard save/download glyph
-        "awl.finish_buffer" => Some("checkmark.circle"),    // "done with this buffer" (server-edit)
-        "awl.switch_theme" => Some("paintpalette"),         // a palette of swatches
+        "awl.save" => Some("square.and.arrow.down"),     // the standard save/download glyph
+        "awl.finish_buffer" => Some("checkmark.circle"), // "done with this buffer" (server-edit)
+        "awl.switch_theme" => Some("paintpalette"),      // a palette of swatches
         _ => None,
     }
 }
@@ -267,9 +288,18 @@ mod tests {
     /// reject a length/dimension mismatch too — both `None`, never a panic.
     #[test]
     fn safe_icon_rejects_zero_dimensions_and_length_mismatch() {
-        assert!(safe_icon(vec![], 0, 0).is_none(), "zero width/height must be rejected");
-        assert!(safe_icon(vec![0; 4], 0, 1).is_none(), "zero width alone must be rejected");
-        assert!(safe_icon(vec![0; 4], 1, 0).is_none(), "zero height alone must be rejected");
+        assert!(
+            safe_icon(vec![], 0, 0).is_none(),
+            "zero width/height must be rejected"
+        );
+        assert!(
+            safe_icon(vec![0; 4], 0, 1).is_none(),
+            "zero width alone must be rejected"
+        );
+        assert!(
+            safe_icon(vec![0; 4], 1, 0).is_none(),
+            "zero height alone must be rejected"
+        );
         assert!(
             safe_icon(vec![0; 3], 1, 1).is_none(),
             "a buffer shorter than width*height*4 must be rejected"
@@ -286,7 +316,10 @@ mod tests {
     #[test]
     fn every_drawn_glyph_is_a_valid_nonzero_icon() {
         for (name, f) in [
-            ("new_document", draw_new_document as fn() -> (Vec<u8>, u32, u32)),
+            (
+                "new_document",
+                draw_new_document as fn() -> (Vec<u8>, u32, u32),
+            ),
             ("open", draw_open),
             ("switch_project", draw_switch_project),
             ("save", draw_save),
@@ -294,8 +327,15 @@ mod tests {
             ("switch_theme", draw_switch_theme),
         ] {
             let (rgba, w, h) = f();
-            assert_eq!(rgba.len(), (w * h * 4) as usize, "{name}: buffer length must match w*h*4");
-            assert!(safe_icon(rgba, w, h).is_some(), "{name}: must produce a valid Icon");
+            assert_eq!(
+                rgba.len(),
+                (w * h * 4) as usize,
+                "{name}: buffer length must match w*h*4"
+            );
+            assert!(
+                safe_icon(rgba, w, h).is_some(),
+                "{name}: must produce a valid Icon"
+            );
         }
     }
 

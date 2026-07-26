@@ -233,8 +233,11 @@ impl TextPipeline {
     /// [`Self::caret_block_w`], and the IME rect computes its own insertion-point
     /// cell in [`Self::caret_pixel_rect`].
     pub fn caret_target_w(&self) -> f32 {
-        let (_x, adv) =
-            self.col_x_and_advance_aff(self.cursor_line, self.caret_anchor_col(), self.caret_affinity);
+        let (_x, adv) = self.col_x_and_advance_aff(
+            self.cursor_line,
+            self.caret_anchor_col(),
+            self.caret_affinity,
+        );
         adv.max(self.metrics.caret_w)
     }
 
@@ -260,8 +263,11 @@ impl TextPipeline {
     /// editing a `.rs` shapes the buffer in the world's mono companion, and the
     /// block must follow the grid actually on screen.
     pub fn caret_block_w(&self) -> f32 {
-        let (_x, adv) =
-            self.col_x_and_advance_aff(self.cursor_line, self.caret_anchor_col(), self.caret_affinity);
+        let (_x, adv) = self.col_x_and_advance_aff(
+            self.cursor_line,
+            self.caret_anchor_col(),
+            self.caret_affinity,
+        );
         if crate::caret::font_is_mono(self.shaped_font) {
             adv.max(self.metrics.caret_w)
         } else {
@@ -979,7 +985,11 @@ impl TextPipeline {
     /// cell's glyph sits AHEAD of the cursor; see [`Self::caret_inhabited_key`])
     /// — signalling the caller to fall back to the slim bar / block caret this
     /// frame.
-    pub(super) fn prepare_caret_masks(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) -> bool {
+    pub(super) fn prepare_caret_masks(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> bool {
         let to_key = self.caret_inhabited_key();
         // The "from" glyph fades out only while a glide is settling; once at rest
         // (or with no captured from-key) drop it so the resting caret is a clean
@@ -1000,7 +1010,14 @@ impl TextPipeline {
                 font_system,
                 ..
             } = self;
-            Self::ensure_mask(caret_mask_to, swash_cache, font_system, device, queue, to_key);
+            Self::ensure_mask(
+                caret_mask_to,
+                swash_cache,
+                font_system,
+                device,
+                queue,
+                to_key,
+            );
             Self::ensure_mask(
                 caret_mask_from,
                 swash_cache,
@@ -1055,16 +1072,15 @@ impl TextPipeline {
         let block_w = self.caret_block_w(); // real glyph advance (narrow i, wide m)
         let streak_thin = m.caret_streak_h; // the streak's thin cross-dimension
         // Corner radius: small bar radius in motion, large soft radius at rest.
-        let corner =
-            STREAK_RADIUS * m.zoom + (CORNER_RADIUS * m.zoom - STREAK_RADIUS * m.zoom) * s;
+        let corner = STREAK_RADIUS * m.zoom + (CORNER_RADIUS * m.zoom - STREAK_RADIUS * m.zoom) * s;
 
         // --- ONE rule for every direction (no if-vertical / if-horizontal) -----
         // The trail is a DIRECT line along the TRUE travel vector (diagonal too),
         // not mirrored onto an axis. Length scales with the (euclidean) speed,
         // floored by this frame's advance so a fast glide bridges with no gaps; the
         // unified `motion_geometry` orients it and trails it behind the leading edge.
-        let speed = (self.caret.vel.x * self.caret.vel.x + self.caret.vel.y * self.caret.vel.y)
-            .sqrt();
+        let speed =
+            (self.caret.vel.x * self.caret.vel.x + self.caret.vel.y * self.caret.vel.y).sqrt();
         // While HOLDING (continuous/held motion) the length is a STEADY constant
         // (`caret_held_len`) so the trail is a smooth, near-constant streak instead
         // of breathing once per auto-repeat. Non-held is the old speed-derived
@@ -1293,8 +1309,8 @@ impl TextPipeline {
             };
             // Drop the trail anchor to the TEXT optical centre (scaled by motion, so
             // the resting bar is unchanged), consistent with the Block/Morph trail.
-            let cy = self.caret.pos.y + m.caret_trail_drop * motion
-                - dir * ((h - tall) * 0.5) * motion;
+            let cy =
+                self.caret.pos.y + m.caret_trail_drop * motion - dir * ((h - tall) * 0.5) * motion;
             let corner = 0.5 * w.min(h);
             return (cx, cy, w, h, corner);
         }
@@ -1538,7 +1554,16 @@ impl TextPipeline {
                 let half = w * 0.5;
                 let tail = (cx - ax * half, cy - ay * half);
                 let head = (cx + ax * half, cy + ay * half);
-                (true, w, self.caret.is_trail_vertical(), held, alpha, sweep, tail, head)
+                (
+                    true,
+                    w,
+                    self.caret.is_trail_vertical(),
+                    held,
+                    alpha,
+                    sweep,
+                    tail,
+                    head,
+                )
             }
             None => (
                 false,
@@ -1625,7 +1650,10 @@ impl TextPipeline {
         // the caret is a long trailing streak (tail to the left), not a square.
         let back: f32 = 9.0 * self.metrics.char_width; // ~9 cells left of target
         const PHASE: f32 = 0.55; // fraction of the gap still remaining to the left
-        let pos = Sample { x: tx - back * PHASE, y: ty };
+        let pos = Sample {
+            x: tx - back * PHASE,
+            y: ty,
+        };
         // Moving rightward (toward the target) fast: the high speed both collapses
         // the settle factor and drives the velocity-scaled streak length long.
         let vel = Sample { x: 1900.0, y: 0.0 };
@@ -1652,7 +1680,10 @@ impl TextPipeline {
         // drives the streak long, so the caret is a tall left-edge bar trailing up.
         let back: f32 = 5.0 * self.metrics.line_height; // ~5 lines above target
         const PHASE: f32 = 0.55; // fraction of the gap still remaining above
-        let pos = Sample { x: tx, y: ty - back * PHASE };
+        let pos = Sample {
+            x: tx,
+            y: ty - back * PHASE,
+        };
         let vel = Sample { x: 0.0, y: 1900.0 };
         self.caret.inject_motion(target, pos, vel);
     }
@@ -1684,7 +1715,10 @@ impl TextPipeline {
             x: tx - back_x * PHASE,
             y: ty - back_y * PHASE,
         };
-        let vel = Sample { x: 1600.0, y: 1600.0 };
+        let vel = Sample {
+            x: 1600.0,
+            y: 1600.0,
+        };
         self.caret.inject_motion(target, pos, vel);
     }
 

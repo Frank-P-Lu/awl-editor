@@ -173,7 +173,9 @@ impl TextPipeline {
     /// when none was pushed (a capture, which never runs the live App). ONE owner
     /// shared by the pixels (`prepare_hud`) + the sidecar (`streaks_report`).
     pub(in crate::render) fn streaks_effective_view(&self) -> crate::streaks::StreaksView {
-        self.streaks_view.clone().unwrap_or_else(crate::streaks::placeholder)
+        self.streaks_view
+            .clone()
+            .unwrap_or_else(crate::streaks::placeholder)
     }
 
     /// The HOLD-⌘ SHORTCUT PEEK's machine-readable state for the sidecar (see
@@ -255,7 +257,12 @@ impl TextPipeline {
         }
 
         let m = self.metrics;
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let content = theme::base_content().to_glyphon();
         let faint = theme::faint().to_glyphon();
 
@@ -328,7 +335,10 @@ impl TextPipeline {
                 owned.push((format!("{line}\n"), 0));
             }
             if self.hud_pending_crash {
-                owned.push(("previous crash log available · Settings → Report a Problem\n".to_string(), 0));
+                owned.push((
+                    "previous crash log available · Settings → Report a Problem\n".to_string(),
+                    0,
+                ));
             }
             // Quiet pointer to the in-app Credits door (⌘P → Credits opens the
             // embedded CREDITS.md as a buffer) — TASTE-FLAGGED wording, see
@@ -351,7 +361,11 @@ impl TextPipeline {
             let last = rows.len().saturating_sub(1);
             for (i, (caption, value)) in rows.into_iter().enumerate() {
                 owned.push((format!("{caption}\n"), 0)); // caption (label / faint)
-                let val_line = if i == last { value } else { format!("{value}\n\n") };
+                let val_line = if i == last {
+                    value
+                } else {
+                    format!("{value}\n\n")
+                };
                 owned.push((val_line, 1));
             }
         } else if peek {
@@ -368,8 +382,11 @@ impl TextPipeline {
             let last = rows.len().saturating_sub(1);
             for (i, row) in rows.into_iter().enumerate() {
                 owned.push((format!("{}\n", row.chord), 1)); // chord figure (content / body)
-                let name_line =
-                    if i == last { row.name } else { format!("{}\n\n", row.name) };
+                let name_line = if i == last {
+                    row.name
+                } else {
+                    format!("{}\n\n", row.name)
+                };
                 owned.push((name_line, 0)); // name caption (faint / label)
             }
         } else {
@@ -453,8 +470,11 @@ impl TextPipeline {
         // No alignment (cosmic-text defaults to LEFT): each line starts at the buffer's
         // left edge, and the TextArea `left` (below) plants that spine inside the card.
         // Generous buffer width so the value lines never wrap.
-        self.hud_buffer
-            .set_size(&mut self.font_system, Some(width as f32), Some(height as f32));
+        self.hud_buffer.set_size(
+            &mut self.font_system,
+            Some(width as f32),
+            Some(height as f32),
+        );
         let default_attrs = base.clone().color(content).metrics(body_metrics);
         self.hud_buffer.set_rich_text(
             &mut self.font_system,
@@ -551,7 +571,12 @@ impl TextPipeline {
         let view = self.streaks_effective_view();
         let page = crate::streaks::card_view();
         let m = self.metrics;
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let content = theme::base_content().to_glyphon();
         let faint = theme::faint().to_glyphon();
         let label = crate::markdown::type_scale::LABEL;
@@ -605,8 +630,11 @@ impl TextPipeline {
                 (s.as_str(), attrs)
             })
             .collect();
-        self.hud_buffer
-            .set_size(&mut self.font_system, Some(width as f32), Some(height as f32));
+        self.hud_buffer.set_size(
+            &mut self.font_system,
+            Some(width as f32),
+            Some(height as f32),
+        );
         let default_attrs = base.clone().color(content).metrics(body_metrics);
         self.hud_buffer.set_rich_text(
             &mut self.font_system,
@@ -649,8 +677,7 @@ impl TextPipeline {
         // Both ride the same `streak_cells` quad pipeline + the same
         // `heatmap_colors` ladder, so every world's tint law covers both. ──
         let colors = theme::heatmap_colors();
-        let mut quads: Vec<([f32; 4], [u8; 4])> =
-            Vec::with_capacity(WEEKS * DAYS_PER_WEEK * 2 + 2);
+        let mut quads: Vec<([f32; 4], [u8; 4])> = Vec::with_capacity(WEEKS * DAYS_PER_WEEK * 2 + 2);
         match page {
             CardView::Heatmap => {
                 // One square per (week, day), tinted by intensity bucket.
@@ -676,7 +703,10 @@ impl TextPipeline {
                     crate::streaks::chart_bars(&view.cumulative, [grid_x, grid_y, grid_w, grid_h]);
                 for b in &bars {
                     quads.push((*b, colors[1].rgba_bytes()));
-                    quads.push(([b[0], b[1], b[2], b[3].min(2.0)], colors[LEVELS - 1].rgba_bytes()));
+                    quads.push((
+                        [b[0], b[1], b[2], b[3].min(2.0)],
+                        colors[LEVELS - 1].rgba_bytes(),
+                    ));
                 }
             }
         }

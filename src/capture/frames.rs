@@ -142,7 +142,12 @@ async fn capture_frames_async(
             .with_context(|| format!("failed to write PNG {}", frame_png.display()))?;
         write_sidecar(&frame_png, &vstate, &pipeline, opts, None)?;
 
-        records.push(FrameRecord { frame: i, elapsed_ms, whichkey_shown: shown, wait_scheduled });
+        records.push(FrameRecord {
+            frame: i,
+            elapsed_ms,
+            whichkey_shown: shown,
+            wait_scheduled,
+        });
     }
 
     write_frames_summary(out_png, step_ms, &records)?;

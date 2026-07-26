@@ -254,7 +254,11 @@ impl TextPipeline {
             return (target, target, 1.0);
         }
         self.chase_or_snap(target);
-        (self.overlay_band_from, self.overlay_band_last.unwrap_or(target), self.overlay_band_t)
+        (
+            self.overlay_band_from,
+            self.overlay_band_last.unwrap_or(target),
+            self.overlay_band_t,
+        )
     }
 
     /// ARM B LIVING-BAND PROBE — the choreography's drawn rects this frame, from
@@ -286,7 +290,11 @@ impl TextPipeline {
             (primary, echo, cross)
         } else {
             let b = livingband::morph_band(from, to, lh, t, &params);
-            (vec![[card_x, b.top, card_w, b.height]], Vec::new(), Vec::new())
+            (
+                vec![[card_x, b.top, card_w, b.height]],
+                Vec::new(),
+                Vec::new(),
+            )
         }
     }
 

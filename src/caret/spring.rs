@@ -15,7 +15,6 @@
 
 use super::*;
 
-
 impl CaretAnim {
     /// Set the cursor's true target. The first call snaps (no glide-in); later
     /// calls to a NEW target start a glide.
@@ -166,8 +165,8 @@ impl CaretAnim {
         // caret stays settled. The kick rides ON TOP of whatever the move does to the
         // position below (an instant snap for a small hop, a glide for a zip); it is
         // purely a draw-time scale, so the position is unaffected either way.
-        let moved = (x - self.target.x).abs() > f32::EPSILON
-            || (y - self.target.y).abs() > f32::EPSILON;
+        let moved =
+            (x - self.target.x).abs() > f32::EPSILON || (y - self.target.y).abs() > f32::EPSILON;
         if self.primed && moved {
             self.kick_pop();
             // COSMETIC | TRAIL: kick a fading accent streak from the OLD caret position

@@ -40,8 +40,9 @@ use std::sync::{Arc, RwLock};
 /// asset the renderer can't decode but the user still keeps in `assets/`). Matching
 /// on extension — not a magic-byte sniff — is deliberate: a file the DOCUMENTS refer
 /// to by an image path IS an image for this scan's purpose, whatever its bytes.
-pub const IMAGE_EXTS: &[&str] =
-    &["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif", "tif", "tiff", "heic"];
+pub const IMAGE_EXTS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico", "avif", "tif", "tiff", "heic",
+];
 
 /// One UNREFERENCED image asset — a row in the "Clean unused assets…" picker. `rel`
 /// is the project-root-relative path (forward-slashed; the picker's accept/trash key
@@ -161,7 +162,11 @@ fn normalize(p: &Path) -> PathBuf {
 /// path takes.
 fn resolve_ref(doc_dir: &Path, path: &str) -> PathBuf {
     let p = Path::new(path);
-    let joined = if p.is_absolute() { p.to_path_buf() } else { doc_dir.join(p) };
+    let joined = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        doc_dir.join(p)
+    };
     normalize(&joined)
 }
 
@@ -188,7 +193,10 @@ pub fn scan(root: &Path, corpus: &[String]) -> Vec<Orphan> {
         let Ok(text) = fs.read_to_string(&abs) else {
             continue;
         };
-        let doc_dir = abs.parent().map(Path::to_path_buf).unwrap_or_else(|| root.to_path_buf());
+        let doc_dir = abs
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| root.to_path_buf());
         for img in crate::markdown::image_refs(&text) {
             referenced.insert(resolve_ref(&doc_dir, &img.path));
         }
@@ -205,7 +213,12 @@ pub fn scan(root: &Path, corpus: &[String]) -> Vec<Orphan> {
         }
         let size = fs.metadata(&root.join(rel)).ok().and_then(|m| m.len);
         let (name, parent) = split_rel(rel);
-        orphans.push(Orphan { rel: rel.clone(), name, parent, size });
+        orphans.push(Orphan {
+            rel: rel.clone(),
+            name,
+            parent,
+            size,
+        });
     }
     orphans.sort_by(|a, b| a.rel.cmp(&b.rel));
     orphans
@@ -380,13 +393,17 @@ mod tests {
             ("sub/b.md", "![y](assets/two.png)"), // resolves to sub/assets/two.png
             ("assets/one.png", "1"),
             ("sub/assets/two.png", "2"),
-            ("assets/three.png", "3"),   // orphan (under assets/)
-            ("loose.png", "4"),          // NOT under assets/ → never a candidate
-            ("assets/note.txt", "hi"),   // not an image ext → never a candidate
+            ("assets/three.png", "3"), // orphan (under assets/)
+            ("loose.png", "4"),        // NOT under assets/ → never a candidate
+            ("assets/note.txt", "hi"), // not an image ext → never a candidate
         ]);
         let orphans = crate::fs::with_fs(fs, || scan(&root, &corpus));
         let rels: Vec<&str> = orphans.iter().map(|o| o.rel.as_str()).collect();
-        assert_eq!(rels, vec!["assets/three.png"], "only the unreferenced assets/ image");
+        assert_eq!(
+            rels,
+            vec!["assets/three.png"],
+            "only the unreferenced assets/ image"
+        );
     }
 
     #[test]
@@ -420,7 +437,12 @@ mod tests {
             size: Some(12_600),
         };
         assert_eq!(secondary_label(&o), "12.3 KB · notes/assets");
-        let top = Orphan { rel: "x.png".into(), name: "x.png".into(), parent: String::new(), size: Some(5) };
+        let top = Orphan {
+            rel: "x.png".into(),
+            name: "x.png".into(),
+            parent: String::new(),
+            size: Some(5),
+        };
         assert_eq!(secondary_label(&top), "5 B");
     }
 
@@ -429,8 +451,13 @@ mod tests {
         let fake = Arc::new(FakeTrash::default());
         let f2 = fake.clone();
         with_trash(fake, || {
-            active_trash().trash(Path::new("/proj/assets/x.png")).unwrap();
+            active_trash()
+                .trash(Path::new("/proj/assets/x.png"))
+                .unwrap();
         });
-        assert_eq!(f2.trashed.lock().unwrap().as_slice(), &[PathBuf::from("/proj/assets/x.png")]);
+        assert_eq!(
+            f2.trashed.lock().unwrap().as_slice(),
+            &[PathBuf::from("/proj/assets/x.png")]
+        );
     }
 }

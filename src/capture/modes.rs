@@ -73,7 +73,12 @@ pub(super) fn base_viewstate(
 /// pipeline helpers. Shared by the timeline / held paths and the minimal-adjust
 /// branch of the single-frame path, so the three never drift (the typewriter-scroll
 /// single-frame path CENTERS instead, so it keeps its own branch). `height` is px.
-pub(super) fn follow_scroll(pipeline: &TextPipeline, line: usize, col: usize, height: f32) -> usize {
+pub(super) fn follow_scroll(
+    pipeline: &TextPipeline,
+    line: usize,
+    col: usize,
+    height: f32,
+) -> usize {
     let row = pipeline.visual_row_of(line, col);
     pipeline
         .scroll_to_show_row(row, 0, height)
@@ -275,7 +280,14 @@ pub(super) fn settled_viewstate(
     // Start from the shared inert-default base (project status + flags filled once),
     // then drive the search / overlay / selection fields this single-frame path
     // verifies. With an active --search the resting caret lands on the current match.
-    let mut vstate = base_viewstate(buffer, &opts.project, (sc_line, sc_col), zoom, misspelled, false);
+    let mut vstate = base_viewstate(
+        buffer,
+        &opts.project,
+        (sc_line, sc_col),
+        zoom,
+        misspelled,
+        false,
+    );
     vstate.selection = opts.selection;
     vstate.preedit = opts.preedit.clone().unwrap_or_default();
     vstate.search_matches = search_matches;
@@ -334,7 +346,11 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.mode == "theme" || o.mode == "caret" || o.mode == "history")
         .unwrap_or(false);
-    vstate.overlay_query = opts.overlay.as_ref().map(|o| o.query.clone()).unwrap_or_default();
+    vstate.overlay_query = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.query.clone())
+        .unwrap_or_default();
     // ITEM 10 — mirrors the search fields above: `OverlayInfo` carries no caret
     // yet, so this synthetic path always renders it at the END (byte-identical
     // to pre-item-10, where the query caret was ALWAYS the end).
@@ -352,8 +368,7 @@ pub(super) fn settled_viewstate(
         .overlay
         .as_ref()
         .filter(|o| {
-            crate::overlay::OverlayKind::from_mode(o.mode)
-                .map_or(true, |k| k.draws_title_prefix())
+            crate::overlay::OverlayKind::from_mode(o.mode).map_or(true, |k| k.draws_title_prefix())
         })
         .map(|o| o.title)
         .unwrap_or("");
@@ -369,21 +384,45 @@ pub(super) fn settled_viewstate(
         .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
         .map(|k| k.row_path_splits())
         .unwrap_or(false);
-    vstate.overlay_items = opts.overlay.as_ref().map(|o| o.items.clone()).unwrap_or_default();
+    vstate.overlay_items = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.items.clone())
+        .unwrap_or_default();
     vstate.overlay_empty = opts.overlay.as_ref().and_then(|o| o.empty.clone());
-    vstate.overlay_bindings = opts.overlay.as_ref().map(|o| o.bindings.clone()).unwrap_or_default();
+    vstate.overlay_bindings = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.bindings.clone())
+        .unwrap_or_default();
     // ITEM 94: the rail fractions ride the sidecar's own `overlay.ranges` block, so
     // a JSON-driven capture draws the same thumbs the live picker does.
-    vstate.overlay_ranges = opts.overlay.as_ref().map(|o| o.ranges.clone()).unwrap_or_default();
-    vstate.overlay_git = opts.overlay.as_ref().map(|o| o.git.clone()).unwrap_or_default();
+    vstate.overlay_ranges = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.ranges.clone())
+        .unwrap_or_default();
+    vstate.overlay_git = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.git.clone())
+        .unwrap_or_default();
     vstate.overlay_selected = opts.overlay.as_ref().map(|o| o.selected_index).unwrap_or(0);
     // Scroll window: keep the selection visible with the same min-scroll math
     // `OverlayState::scroll_to_selected` uses (item 64's row cap for the spell
     // popup, else 12), so a JSON-driven capture windows a long list identically to
     // the live picker. The pipeline re-clamps to the item count, so this needs no
     // `n_items` here.
-    let spell_panel = opts.overlay.as_ref().map(|o| o.mode == "spell").unwrap_or(false);
-    let theme_panel = opts.overlay.as_ref().map(|o| o.mode == "theme").unwrap_or(false);
+    let spell_panel = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.mode == "spell")
+        .unwrap_or(false);
+    let theme_panel = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.mode == "theme")
+        .unwrap_or(false);
     // Reads the SAME `OverlayKind::window_rows` owner as `overlay_window_rows`
     // below, rather than a second hand-copied magic number, so a re-tune of the
     // spell cap can't leave the scroll HINT and the drawn window disagreeing.
@@ -413,9 +452,17 @@ pub(super) fn settled_viewstate(
     } else {
         vstate.overlay_selected.saturating_sub(win - 1)
     };
-    vstate.overlay_hint = opts.overlay.as_ref().map(|o| o.hint.clone()).unwrap_or_default();
+    vstate.overlay_hint = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.hint.clone())
+        .unwrap_or_default();
     // THEME PICKER: the lens strip + per-row section labels (drives the faceted render).
-    vstate.overlay_lens = opts.overlay.as_ref().map(|o| o.lens_strip.clone()).unwrap_or_default();
+    vstate.overlay_lens = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.lens_strip.clone())
+        .unwrap_or_default();
     // CHIP-VARIATIONS PROBE (capture-only, inert unless `AWL_THEME_LENS_DEMO` is set):
     // the theme picker's runtime lens strip was RETIRED (facets.rs), so a live
     // `--keys "Cmd-T"` capture carries an EMPTY strip and the chip skins have no
@@ -423,9 +470,7 @@ pub(super) fn settled_viewstate(
     // facet + neighbours) ONLY into the theme picker capture, so the six
     // `AWL_FACET_STYLE_FORCE=chips:<variant>` shots have something to render. No-op
     // unless the env is set; never compiled into any live-app path.
-    if theme_panel
-        && vstate.overlay_lens.is_empty()
-        && std::env::var("AWL_THEME_LENS_DEMO").is_ok()
+    if theme_panel && vstate.overlay_lens.is_empty() && std::env::var("AWL_THEME_LENS_DEMO").is_ok()
     {
         vstate.overlay_lens = vec![
             ("All".to_string(), false),
@@ -435,18 +480,26 @@ pub(super) fn settled_viewstate(
             ("Dark".to_string(), false),
         ];
     }
-    vstate.overlay_sections = opts.overlay.as_ref().map(|o| o.sections.clone()).unwrap_or_default();
+    vstate.overlay_sections = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.sections.clone())
+        .unwrap_or_default();
     // SPELL contextual panel: the misspelled word's span (from the still-open spell
     // picker) anchors the small floating panel at the word — no blur backdrop.
     vstate.overlay_spell = opts.overlay.as_ref().and_then(|o| o.spell_target);
     // CARET-STYLE PICKER preview: when the still-open overlay is the caret picker,
     // map its highlighted row label back to the look so the headless capture renders
     // that look's SETTLED preview caret (the loop is live-only; see settle_caret_preview).
-    vstate.caret_preview = opts.overlay.as_ref().filter(|o| o.mode == "caret").and_then(|o| {
-        o.items
-            .get(o.selected_index)
-            .and_then(|name| crate::caret::CaretMode::from_label(name))
-    });
+    vstate.caret_preview = opts
+        .overlay
+        .as_ref()
+        .filter(|o| o.mode == "caret")
+        .and_then(|o| {
+            o.items
+                .get(o.selected_index)
+                .and_then(|name| crate::caret::CaretMode::from_label(name))
+        });
     // HISTORY TIMELINE live preview: the still-open History overlay's highlighted
     // row previews THAT VERSION in the document itself — override the snapshot's
     // text BEFORE the first `set_view`, so the scroll math below shapes the
@@ -469,11 +522,7 @@ pub(super) fn settled_viewstate(
         // Dress the page column as the diff panel card, with the focus cue
         // mirrored from the overlay state.
         vstate.diff_panel = true;
-        vstate.diff_panel_focus = opts
-            .overlay
-            .as_ref()
-            .map(|o| o.diff_focus)
-            .unwrap_or(false);
+        vstate.diff_panel_focus = opts.overlay.as_ref().map(|o| o.diff_focus).unwrap_or(false);
         vstate.selection = None;
         vstate.misspelled = Vec::new();
         vstate.search_matches = Vec::new();

@@ -86,7 +86,9 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders: no wgpu adapter");
+        eprintln!(
+            "skipping cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders: no wgpu adapter"
+        );
         return;
     };
     theme::set_active_by_name("Gumtree").unwrap(); // proportional (Literata)
@@ -194,7 +196,9 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping cell_caret_vertical_has_one_owner_across_every_caret_form: no wgpu adapter");
+        eprintln!(
+            "skipping cell_caret_vertical_has_one_owner_across_every_caret_form: no wgpu adapter"
+        );
         return;
     };
     theme::set_active_by_name("Gumtree").unwrap();
@@ -280,13 +284,18 @@ fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping mono_world_caret_grid_stays_uniform_and_line_box_sized: no wgpu adapter");
+        eprintln!(
+            "skipping mono_world_caret_grid_stays_uniform_and_line_box_sized: no wgpu adapter"
+        );
         return;
     };
     let text = "lamgy";
 
     let worlds = super::facepitch::mono_display_worlds();
-    assert!(worlds.len() >= 7, "every mono-display world is swept, got {worlds:?}");
+    assert!(
+        worlds.len() >= 7,
+        "every mono-display world is swept, got {worlds:?}"
+    );
     for world in worlds {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
@@ -356,7 +365,9 @@ fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
     let _t = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping proportional_worlds_still_ink_align_with_a_per_letter_top: no wgpu adapter");
+        eprintln!(
+            "skipping proportional_worlds_still_ink_align_with_a_per_letter_top: no wgpu adapter"
+        );
         return;
     };
     let text = "lamgy";
@@ -390,7 +401,10 @@ fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
         );
         checked += 1;
     }
-    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+    assert!(
+        checked >= 11,
+        "every proportional-display world is swept (got {checked})"
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -426,8 +440,14 @@ fn moving_caret_streak_is_unaffected_by_the_ink_box() {
         p.inject_motion_demo();
         let (_cx, cy, w, h, _c, _ax, _ay) = p.caret_geometry();
         let s = p.caret.settle_factor();
-        assert!(s < 0.2, "{world}: fixture must be genuinely mid-glide (s={s})");
-        assert!(w > h, "{world}: the motion pose must be long-and-thin: w={w} h={h}");
+        assert!(
+            s < 0.2,
+            "{world}: fixture must be genuinely mid-glide (s={s})"
+        );
+        assert!(
+            w > h,
+            "{world}: the motion pose must be long-and-thin: w={w} h={h}"
+        );
         assert!(
             h < p.metrics.caret_block_h * 0.5,
             "{world}: the streak must stay thin — the ink box must not thicken it: h={h}"
@@ -474,7 +494,9 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds: no wgpu adapter");
+        eprintln!(
+            "skipping glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds: no wgpu adapter"
+        );
         return;
     };
     theme::set_active_by_name("Gumtree").unwrap();

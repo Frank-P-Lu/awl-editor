@@ -4,7 +4,7 @@
 //! monolithic `capture::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{adapter_available};
+use super::adapter_available;
 use crate::buffer::Buffer;
 
 /// THE JAPANESE-BUNDLE ROUND's headline guarantee, made assertable: with the
@@ -21,7 +21,9 @@ use crate::buffer::Buffer;
 #[test]
 fn japanese_fixture_resolves_bundled_cjk_face_deterministically() {
     if !adapter_available() {
-        eprintln!("skipping japanese_fixture_resolves_bundled_cjk_face_deterministically: no wgpu adapter");
+        eprintln!(
+            "skipping japanese_fixture_resolves_bundled_cjk_face_deterministically: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -46,7 +48,10 @@ fn japanese_fixture_resolves_bundled_cjk_face_deterministically() {
     let j: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(j["font"]["cjk"]["family"], serde_json::json!("Noto Serif JP"));
+    assert_eq!(
+        j["font"]["cjk"]["family"],
+        serde_json::json!("Noto Serif JP")
+    );
     assert_eq!(j["font"]["cjk"]["bundled"], serde_json::json!(true));
     // The doc actually rendered non-empty first lines (sanity: not a blank capture).
     assert!(!j["first_lines"].as_array().unwrap().is_empty());
@@ -60,7 +65,10 @@ fn japanese_fixture_resolves_bundled_cjk_face_deterministically() {
     let j2: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png2.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(j2["font"]["cjk"]["family"], serde_json::json!("Noto Sans JP"));
+    assert_eq!(
+        j2["font"]["cjk"]["family"],
+        serde_json::json!("Noto Sans JP")
+    );
     assert_eq!(j2["font"]["cjk"]["bundled"], serde_json::json!(true));
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
@@ -77,7 +85,9 @@ fn japanese_fixture_resolves_bundled_cjk_face_deterministically() {
 #[test]
 fn ja_variety_worlds_resolve_bundled_faces_deterministically() {
     if !adapter_available() {
-        eprintln!("skipping ja_variety_worlds_resolve_bundled_faces_deterministically: no wgpu adapter");
+        eprintln!(
+            "skipping ja_variety_worlds_resolve_bundled_faces_deterministically: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -91,10 +101,11 @@ fn ja_variety_worlds_resolve_bundled_faces_deterministically() {
     // One world per new ladder → its distinct bundled face.
     for (world, family) in [
         ("Bombora", "Shippori Mincho"), // book-serif override
-        ("Galah", "Zen Maru Gothic"),    // rounded-sans override
-        ("Mopoke", "Klee One"),          // Klee-world brush override
+        ("Galah", "Zen Maru Gothic"),   // rounded-sans override
+        ("Mopoke", "Klee One"),         // Klee-world brush override
     ] {
-        crate::theme::set_active_by_name(world).unwrap_or_else(|| panic!("{world} is a real world"));
+        crate::theme::set_active_by_name(world)
+            .unwrap_or_else(|| panic!("{world} is a real world"));
         let mut buf = Buffer::from_str(&jp_text);
         buf.set_path(dir.join(format!("{world}.md")));
         let png = dir.join(format!("{world}.png"));
@@ -108,7 +119,11 @@ fn ja_variety_worlds_resolve_bundled_faces_deterministically() {
             serde_json::json!(family),
             "{world} should resolve {family}"
         );
-        assert_eq!(j["font"]["cjk"]["bundled"], serde_json::json!(true), "{world} bundled");
+        assert_eq!(
+            j["font"]["cjk"]["bundled"],
+            serde_json::json!(true),
+            "{world} bundled"
+        );
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
@@ -127,7 +142,9 @@ fn ja_variety_worlds_resolve_bundled_faces_deterministically() {
 #[test]
 fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
     if !adapter_available() {
-        eprintln!("skipping table_fixture_renders_grid_and_reveals_source_on_cursor: no wgpu adapter");
+        eprintln!(
+            "skipping table_fixture_renders_grid_and_reveals_source_on_cursor: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -157,7 +174,11 @@ fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
         widths.iter().all(|w| w.as_f64().unwrap() > 0.0),
         "every column has a positive width: {widths:?}"
     );
-    assert_eq!(t["revealed"], serde_json::json!(false), "grid drawn off-cursor");
+    assert_eq!(
+        t["revealed"],
+        serde_json::json!(false),
+        "grid drawn off-cursor"
+    );
     // Off-cursor the whole table is concealed (source hidden, grid in its place).
     let concealed_off = j["wysiwyg"]["concealed"]
         .as_array()
@@ -165,7 +186,11 @@ fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
         .iter()
         .any(|c| c[2] == serde_json::json!("table"));
     assert!(concealed_off, "table source concealed off-cursor");
-    assert_eq!(j["xray"]["active"], serde_json::json!(false), "no x-ray off-cursor");
+    assert_eq!(
+        j["xray"]["active"],
+        serde_json::json!(false),
+        "no x-ray off-cursor"
+    );
     let line_count_off = j["line_count"].as_u64().unwrap();
 
     // --- CARET INSIDE THE TABLE: THE X-RAY — grid STAYS DRAWN, zero reflow -----
@@ -183,9 +208,17 @@ fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
     let t2 = &j2["tables"].as_array().unwrap()[0];
     // `revealed` now means "the x-ray is active on this table" — the grid STILL
     // draws (its widths are still measured), it is not parked.
-    assert_eq!(t2["revealed"], serde_json::json!(true), "x-ray active on-cursor");
+    assert_eq!(
+        t2["revealed"],
+        serde_json::json!(true),
+        "x-ray active on-cursor"
+    );
     assert!(
-        t2["col_widths"].as_array().unwrap().iter().all(|w| w.as_f64().unwrap() > 0.0),
+        t2["col_widths"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|w| w.as_f64().unwrap() > 0.0),
         "the grid is still laid out (drawn) while the x-ray is active: {t2}"
     );
     // ZERO REFLOW: the source stays concealed (the x-ray FLOATS it, never
@@ -195,8 +228,15 @@ fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
         .unwrap()
         .iter()
         .any(|c| c[2] == serde_json::json!("table"));
-    assert!(concealed_in, "table source STAYS concealed on-cursor (zero reflow)");
-    assert_eq!(j2["xray"]["active"], serde_json::json!(true), "x-ray active flag set on-cursor");
+    assert!(
+        concealed_in,
+        "table source STAYS concealed on-cursor (zero reflow)"
+    );
+    assert_eq!(
+        j2["xray"]["active"],
+        serde_json::json!(true),
+        "x-ray active flag set on-cursor"
+    );
     assert_eq!(
         j2["line_count"].as_u64().unwrap(),
         line_count_off,
@@ -239,7 +279,11 @@ fn link_source_conceals_off_cursor_and_reveals_on() {
             .iter()
             .any(|c| c[2] == serde_json::json!("link"))
     };
-    assert!(link_concealed(&j), "link plumbing concealed off-cursor: {}", j["wysiwyg"]);
+    assert!(
+        link_concealed(&j),
+        "link plumbing concealed off-cursor: {}",
+        j["wysiwyg"]
+    );
 
     // --- CARET INSIDE THE LINK: the source reveals ----------------------------
     let mut buf2 = Buffer::from_str(md);
@@ -250,7 +294,11 @@ fn link_source_conceals_off_cursor_and_reveals_on() {
     let j2: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png2.with_extension("json")).unwrap())
             .unwrap();
-    assert!(!link_concealed(&j2), "link source revealed on-cursor: {}", j2["wysiwyg"]);
+    assert!(
+        !link_concealed(&j2),
+        "link source revealed on-cursor: {}",
+        j2["wysiwyg"]
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -267,7 +315,9 @@ fn link_source_conceals_off_cursor_and_reveals_on() {
 #[test]
 fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
     if !adapter_available() {
-        eprintln!("skipping chinese_fixture_resolves_bundled_zh_hans_face_deterministically: no wgpu adapter");
+        eprintln!(
+            "skipping chinese_fixture_resolves_bundled_zh_hans_face_deterministically: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -289,8 +339,14 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
     let j: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(j["font"]["scripts"]["zh_hans"]["family"], serde_json::json!("Noto Serif SC"));
-    assert_eq!(j["font"]["scripts"]["zh_hans"]["bundled"], serde_json::json!(true));
+    assert_eq!(
+        j["font"]["scripts"]["zh_hans"]["family"],
+        serde_json::json!("Noto Serif SC")
+    );
+    assert_eq!(
+        j["font"]["scripts"]["zh_hans"]["bundled"],
+        serde_json::json!(true)
+    );
     assert!(!j["first_lines"].as_array().unwrap().is_empty());
 
     // --- Currawong (sans/mono world -> Sans SC candidate list) --------------
@@ -302,8 +358,14 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
     let j2: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(png2.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(j2["font"]["scripts"]["zh_hans"]["family"], serde_json::json!("Noto Sans SC"));
-    assert_eq!(j2["font"]["scripts"]["zh_hans"]["bundled"], serde_json::json!(true));
+    assert_eq!(
+        j2["font"]["scripts"]["zh_hans"]["family"],
+        serde_json::json!("Noto Sans SC")
+    );
+    assert_eq!(
+        j2["font"]["scripts"]["zh_hans"]["bundled"],
+        serde_json::json!(true)
+    );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     let _ = std::fs::remove_dir_all(&dir);
@@ -317,7 +379,9 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
 #[test]
 fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
     if !adapter_available() {
-        eprintln!("skipping klee_worlds_zh_hans_resolves_wenkai_characterful_face: no wgpu adapter");
+        eprintln!(
+            "skipping klee_worlds_zh_hans_resolves_wenkai_characterful_face: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -329,7 +393,8 @@ fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
     .unwrap();
 
     for world in ["Mopoke", "Quokka"] {
-        crate::theme::set_active_by_name(world).unwrap_or_else(|| panic!("{world} is a real world"));
+        crate::theme::set_active_by_name(world)
+            .unwrap_or_else(|| panic!("{world} is a real world"));
         let mut buf = Buffer::from_str(&zh_text);
         buf.set_path(dir.join(format!("{world}.md")));
         let png = dir.join(format!("{world}.png"));
@@ -342,7 +407,10 @@ fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
             serde_json::json!("LXGW WenKai"),
             "{world} should resolve the characterful WenKai face"
         );
-        assert_eq!(j["font"]["scripts"]["zh_hans"]["bundled"], serde_json::json!(true));
+        assert_eq!(
+            j["font"]["scripts"]["zh_hans"]["bundled"],
+            serde_json::json!(true)
+        );
     }
 
     // A non-Klee sans world stays on the plain floor.
@@ -352,8 +420,12 @@ fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
     let png = dir.join("bowerbird.png");
     capture_with(&png, &buf, &CaptureOpts::default()).expect("floor capture renders");
     let j: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap();
-    assert_eq!(j["font"]["scripts"]["zh_hans"]["family"], serde_json::json!("Noto Sans SC"));
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        j["font"]["scripts"]["zh_hans"]["family"],
+        serde_json::json!("Noto Sans SC")
+    );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     let _ = std::fs::remove_dir_all(&dir);
@@ -370,7 +442,9 @@ fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
 #[test]
 fn korean_fixture_resolves_bundled_ko_face_deterministically() {
     if !adapter_available() {
-        eprintln!("skipping korean_fixture_resolves_bundled_ko_face_deterministically: no wgpu adapter");
+        eprintln!(
+            "skipping korean_fixture_resolves_bundled_ko_face_deterministically: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -385,7 +459,8 @@ fn korean_fixture_resolves_bundled_ko_face_deterministically() {
     // (world, expected bundled ko family) — Bilby is a serif world (Gowun
     // Batang), Tawny a mono world (the Noto Sans KR floor).
     for (world, want) in [("Bilby", "Gowun Batang"), ("Tawny", "Noto Sans KR")] {
-        crate::theme::set_active_by_name(world).unwrap_or_else(|| panic!("{world} is a real world"));
+        crate::theme::set_active_by_name(world)
+            .unwrap_or_else(|| panic!("{world} is a real world"));
         let mut buf = Buffer::from_str(&ko_text);
         buf.set_path(dir.join(format!("{world}.md")));
         let png = dir.join(format!("{world}.png"));
@@ -398,7 +473,10 @@ fn korean_fixture_resolves_bundled_ko_face_deterministically() {
             serde_json::json!(want),
             "{world}: ko should resolve {want}"
         );
-        assert_eq!(j["font"]["scripts"]["ko"]["bundled"], serde_json::json!(true));
+        assert_eq!(
+            j["font"]["scripts"]["ko"]["bundled"],
+            serde_json::json!(true)
+        );
         assert!(!j["first_lines"].as_array().unwrap().is_empty());
     }
 
@@ -420,7 +498,9 @@ fn korean_fixture_resolves_bundled_ko_face_deterministically() {
 #[test]
 fn ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans() {
     if !adapter_available() {
-        eprintln!("skipping ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans: no wgpu adapter");
+        eprintln!(
+            "skipping ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -441,10 +521,17 @@ fn ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans() {
     let png = dir.join("han_only.png");
     capture_with(&png, &buf, &CaptureOpts::default()).expect("capture renders");
     let j: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
     assert_eq!(j["doc_lang"], serde_json::json!("ja"));
-    assert_eq!(j["font"]["scripts"]["ja"]["family"], serde_json::json!("Noto Serif JP"));
-    assert_eq!(j["font"]["scripts"]["ja"]["bundled"], serde_json::json!(true));
+    assert_eq!(
+        j["font"]["scripts"]["ja"]["family"],
+        serde_json::json!("Noto Serif JP")
+    );
+    assert_eq!(
+        j["font"]["scripts"]["ja"]["bundled"],
+        serde_json::json!(true)
+    );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     let _ = std::fs::remove_dir_all(&dir);
@@ -459,7 +546,9 @@ fn ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans() {
 #[test]
 fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
     if !adapter_available() {
-        eprintln!("skipping sidecar_reports_doc_lang_and_per_script_font_resolution: no wgpu adapter");
+        eprintln!(
+            "skipping sidecar_reports_doc_lang_and_per_script_font_resolution: no wgpu adapter"
+        );
         return;
     }
     // THE guard every capture test takes (queue item 98: this one didn't, and
@@ -474,14 +563,30 @@ fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
     let png = dir.join("tagged.png");
     capture_with(&png, &tagged, &CaptureOpts::default()).expect("tagged capture renders");
     let j: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
     assert_eq!(j["doc_lang"], serde_json::json!("ja"));
     // font.scripts mirrors font.cjk's shape for `ja`, plus the three new IDs.
-    assert!(j["font"]["scripts"]["ja"].is_object(), "ja resolves in a normal build");
-    assert_eq!(j["font"]["scripts"]["ja"]["family"], j["font"]["cjk"]["family"]);
-    assert!(j["font"]["scripts"].get("zh_hans").is_some(), "zh_hans key present (may be null)");
-    assert!(j["font"]["scripts"].get("zh_hant").is_some(), "zh_hant key present (may be null)");
-    assert!(j["font"]["scripts"].get("ko").is_some(), "ko key present (may be null)");
+    assert!(
+        j["font"]["scripts"]["ja"].is_object(),
+        "ja resolves in a normal build"
+    );
+    assert_eq!(
+        j["font"]["scripts"]["ja"]["family"],
+        j["font"]["cjk"]["family"]
+    );
+    assert!(
+        j["font"]["scripts"].get("zh_hans").is_some(),
+        "zh_hans key present (may be null)"
+    );
+    assert!(
+        j["font"]["scripts"].get("zh_hant").is_some(),
+        "zh_hant key present (may be null)"
+    );
+    assert!(
+        j["font"]["scripts"].get("ko").is_some(),
+        "ko key present (may be null)"
+    );
 
     // UNTAGGED: doc_lang is null.
     let mut untagged = Buffer::from_str("just some prose\n");
@@ -489,7 +594,8 @@ fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
     let png2 = dir.join("untagged.png");
     capture_with(&png2, &untagged, &CaptureOpts::default()).expect("untagged capture renders");
     let j2: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png2.with_extension("json")).unwrap()).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(png2.with_extension("json")).unwrap())
+            .unwrap();
     assert_eq!(j2["doc_lang"], serde_json::json!(null));
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -514,7 +620,8 @@ fn hud_reports_the_doc_lang_tag() {
     let png = dir.join("held.png");
     capture_with(&png, &tagged, &CaptureOpts::default()).expect("held capture renders");
     let j: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
     assert_eq!(j["hud"]["lang"], serde_json::json!("ko"));
 
     crate::hud::set_held(false);

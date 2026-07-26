@@ -13,7 +13,6 @@
 
 use super::*;
 
-
 impl CaretAnim {
     /// The UNIT travel direction of the current glide — the TRUE motion vector, not
     /// an axis. Prefers the spring velocity (the live direction of travel); when the

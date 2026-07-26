@@ -60,23 +60,19 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let (look, rect, text_left, row_cy) = match (self.caret_preview, self.caret_preview_panel_rect(width)) {
-            (Some(look), Some((rect, text_left, row_cy))) => (look, rect, text_left, row_cy),
-            _ => {
-                // Picker closed: park the panel, the caret quad(s), and the sample text.
-                self.caret_preview_pipeline.prepare_empty();
-                self.caret_preview_glyph_pipeline.clear();
-                self.park_preview_text(device, queue, width, height)?;
-                return Ok(());
-            }
-        };
+        let (look, rect, text_left, row_cy) =
+            match (self.caret_preview, self.caret_preview_panel_rect(width)) {
+                (Some(look), Some((rect, text_left, row_cy))) => (look, rect, text_left, row_cy),
+                _ => {
+                    // Picker closed: park the panel, the caret quad(s), and the sample text.
+                    self.caret_preview_pipeline.prepare_empty();
+                    self.caret_preview_glyph_pipeline.clear();
+                    self.park_preview_text(device, queue, width, height)?;
+                    return Ok(());
+                }
+            };
         self.caret_demo.mode = look;
-        self.claim_float_panel(
-            rect,
-            FloatElevation::Rimmed,
-            0.0,
-            None,
-        );
+        self.claim_float_panel(rect, FloatElevation::Rimmed, 0.0, None);
 
         // Shape the sample line into the preview buffer (calm content ink, world face).
         //
@@ -93,16 +89,23 @@ impl TextPipeline {
         // One extra advance of headroom: a mono face's real width EQUALS the mean
         // estimate, so an exact-fit scale would land fractionally over and wrap.
         let est = (crate::caret::SAMPLE.chars().count() + 1) as f32 * m.char_width;
-        let s = if est > avail { (avail / est).max(0.5) } else { 1.0 };
+        let s = if est > avail {
+            (avail / est).max(0.5)
+        } else {
+            1.0
+        };
         let ink = theme::base_content().to_glyphon();
-        self.preview_buffer
-            .set_metrics(&mut self.font_system, GlyphMetrics::new(m.font_size * s, m.line_height * s));
+        self.preview_buffer.set_metrics(
+            &mut self.font_system,
+            GlyphMetrics::new(m.font_size * s, m.line_height * s),
+        );
         let text = self.caret_demo.text();
         self.preview_buffer
             .set_size(&mut self.font_system, Some(avail), Some(m.line_height * s));
         // The sample is ONE line by construction: never wrap it (a fractional
         // overshoot clips at the panel edge instead of folding under the box).
-        self.preview_buffer.set_wrap(&mut self.font_system, Wrap::None);
+        self.preview_buffer
+            .set_wrap(&mut self.font_system, Wrap::None);
         self.preview_buffer.set_text(
             &mut self.font_system,
             &text,
@@ -124,8 +127,13 @@ impl TextPipeline {
             _ => self.caret_demo.cursor_char(),
         };
         let caret_x = text_left + self.preview_caret_local_x(anchor_char, &text);
-        let target = crate::caret::Sample { x: caret_x, y: row_cy };
-        let first = self.caret_demo.set_metrics(m.char_width * s, m.line_height * s);
+        let target = crate::caret::Sample {
+            x: caret_x,
+            y: row_cy,
+        };
+        let first = self
+            .caret_demo
+            .set_metrics(m.char_width * s, m.line_height * s);
         if first {
             // First frame: SNAP the caret onto the line (no glide-in from nowhere).
             self.caret_demo.anim.jump_to(target.x, target.y);
@@ -153,7 +161,12 @@ impl TextPipeline {
 
         // Upload the sample text (top = row centre minus half a line height).
         let text_top = row_cy - 0.5 * m.line_height * s;
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let area = TextArea {
             buffer: &self.preview_buffer,
             left: text_left,
@@ -180,7 +193,15 @@ impl TextPipeline {
         // demo's scale, over the SAME shaped sample text just uploaded (so a Morph
         // silhouette's glyph masks match the glyphs actually on screen).
         self.emit_preview_caret(
-            device, queue, width, height, look, s, anchor_char, &text, text_top,
+            device,
+            queue,
+            width,
+            height,
+            look,
+            s,
+            anchor_char,
+            &text,
+            text_top,
         );
         Ok(())
     }
@@ -276,7 +297,14 @@ impl TextPipeline {
                     font_system,
                     ..
                 } = self;
-                Self::ensure_mask(caret_preview_mask_to, swash_cache, font_system, device, queue, to_key);
+                Self::ensure_mask(
+                    caret_preview_mask_to,
+                    swash_cache,
+                    font_system,
+                    device,
+                    queue,
+                    to_key,
+                );
                 Self::ensure_mask(
                     caret_preview_mask_from,
                     swash_cache,
@@ -333,9 +361,17 @@ impl TextPipeline {
             // Block: a one-cell rounded square sitting on the character, its thin streak.
             CaretMode::Block => (m.char_width, m.caret_block_h, m.caret_streak_h),
             CaretMode::Ibeam => (IBEAM_W * m.zoom, m.caret_h, IBEAM_W * m.zoom),
-            CaretMode::Morph => (CARET_SPACE_BAR_W * m.zoom, m.caret_block_h, IBEAM_W * m.zoom),
+            CaretMode::Morph => (
+                CARET_SPACE_BAR_W * m.zoom,
+                m.caret_block_h,
+                IBEAM_W * m.zoom,
+            ),
         };
-        let (block_w, block_h, thin) = (block_w * demo_scale, block_h * demo_scale, thin * demo_scale);
+        let (block_w, block_h, thin) = (
+            block_w * demo_scale,
+            block_h * demo_scale,
+            thin * demo_scale,
+        );
         let speed = (anim.vel.x * anim.vel.x + anim.vel.y * anim.vel.y).sqrt();
         let streak_len = anim.streak_length(
             m.streak_len_for_speed(speed),
@@ -393,11 +429,21 @@ impl TextPipeline {
         let content = theme::base_content().to_glyphon();
         self.preview_buffer
             .set_size(&mut self.font_system, Some(1.0), Some(m.line_height));
-        self.preview_buffer
-            .set_text(&mut self.font_system, "", &panel_attrs().color(content), Shaping::Advanced, None);
+        self.preview_buffer.set_text(
+            &mut self.font_system,
+            "",
+            &panel_attrs().color(content),
+            Shaping::Advanced,
+            None,
+        );
         self.preview_buffer
             .shape_until_scroll(&mut self.font_system, false);
-        let bounds = TextBounds { left: 0, top: 0, right: width as i32, bottom: height as i32 };
+        let bounds = TextBounds {
+            left: 0,
+            top: 0,
+            right: width as i32,
+            bottom: height as i32,
+        };
         let area = TextArea {
             buffer: &self.preview_buffer,
             left: 0.0,

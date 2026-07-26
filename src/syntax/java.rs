@@ -25,7 +25,9 @@ const DEF_KEYWORDS: &[&str] = &["class", "interface", "enum", "record"];
 /// Identifiers that are CONSTANT literals (booleans + the `null` nil value).
 const CONST_WORDS: &[&str] = &["true", "false", "null"];
 
-use super::{is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start};
+use super::{
+    is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start,
+};
 
 pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
     let b = text.as_bytes();
@@ -99,7 +101,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -151,7 +154,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXbB", radix_extra: b"", dot_dot_stops: false },
+        super::NumOpts {
+            radix: b"xXbB",
+            radix_extra: b"",
+            dot_dot_stops: false,
+        },
         is_ident_start,
     )
 }
@@ -237,8 +244,14 @@ mod tests {
         // `class` keyword stays default ink; only the NAME is a Definition.
         let t = "class Foo {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 5, SynKind::Definition), "the `class` keyword must stay plain: {s:?}");
-        assert!(has(&s, 6, 9, SynKind::Definition), "`Foo` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 5, SynKind::Definition),
+            "the `class` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 6, 9, SynKind::Definition),
+            "`Foo` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -252,7 +265,11 @@ mod tests {
     fn reference_snippet() {
         let t = "// sum\nclass Adder {\n    int add(int a, int b) {\n        return a + b; // ok\n    }\n}\nstatic final int MAX = 100;\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"Adder"), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }

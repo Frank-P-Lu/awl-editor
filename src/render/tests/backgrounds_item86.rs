@@ -29,8 +29,8 @@
 //! Skips (with a printed note, not a failure) on a machine with no wgpu
 //! adapter, exactly like every other GPU-backed render test in this tree.
 
-use crate::theme;
 use super::backgrounds_item69::headless_dq;
+use crate::theme;
 
 // ---------------------------------------------------------------------------
 // STRUCTURAL ROSTER — exhaustive, no wildcard (background-ground half of the
@@ -78,9 +78,11 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
 fn distinctness_check_fails_on_identical_dials_proving_it_is_non_vacuous() {
     let a = (50.0f32, 10.0f32, 0.95f32, 0.60f32);
     let b = a; // an identical copy — exactly the "recolor of one asset" bug.
-    let all_distinct =
-        a.0 != b.0 && a.1 != b.1 && a.2 != b.2 && a.3 != b.3;
-    assert!(!all_distinct, "identical dials must NOT pass the distinctness check");
+    let all_distinct = a.0 != b.0 && a.1 != b.1 && a.2 != b.2 && a.3 != b.3;
+    assert!(
+        !all_distinct,
+        "identical dials must NOT pass the distinctness check"
+    );
 }
 
 /// THE DISTINCTNESS LAW (data half): every one of the four authored dials —
@@ -90,19 +92,22 @@ fn distinctness_check_fails_on_identical_dials_proving_it_is_non_vacuous() {
 /// pair per the round's own brief (broader spacing, lower contrast).
 #[test]
 fn zigzag_dials_are_measurably_distinct_between_quokka_and_gumtree() {
-    let (theme::Background::Zigzag {
-        period_px: qp,
-        amplitude_px: qa,
-        angle: qang,
-        density: qd,
-        ..
-    }, theme::Background::Zigzag {
-        period_px: gp,
-        amplitude_px: ga,
-        angle: gang,
-        density: gd,
-        ..
-    }) = (theme::QUOKKA.background, theme::GUMTREE.background)
+    let (
+        theme::Background::Zigzag {
+            period_px: qp,
+            amplitude_px: qa,
+            angle: qang,
+            density: qd,
+            ..
+        },
+        theme::Background::Zigzag {
+            period_px: gp,
+            amplitude_px: ga,
+            angle: gang,
+            density: gd,
+            ..
+        },
+    ) = (theme::QUOKKA.background, theme::GUMTREE.background)
     else {
         panic!("both Quokka and Gumtree must ship Background::Zigzag");
     };
@@ -151,7 +156,9 @@ fn zigzag_dials_are_measurably_distinct_between_quokka_and_gumtree() {
 #[test]
 fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels: no wgpu adapter");
+        eprintln!(
+            "skipping quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -169,7 +176,10 @@ fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
     let quokka_peak = peak_ink(theme::QUOKKA.background);
     let gumtree_peak = peak_ink(theme::GUMTREE.background);
     assert!(quokka_peak > 0, "Quokka's zigzag must reach SOME real ink");
-    assert!(gumtree_peak > 0, "Gumtree's zigzag must reach SOME real ink");
+    assert!(
+        gumtree_peak > 0,
+        "Gumtree's zigzag must reach SOME real ink"
+    );
     assert!(
         quokka_peak > gumtree_peak,
         "Quokka's higher-density zigzag (peak mark deviation {quokka_peak}) must lay down BOLDER \
@@ -189,7 +199,13 @@ fn zigzag_dials_are_sane_and_positive_on_both_worlds() {
         ("Gumtree", theme::GUMTREE.background),
     ] {
         assert!(bg.period_px() > 0.0, "{name}: period_px must be positive");
-        assert!(bg.amplitude_px() > 0.0, "{name}: amplitude_px must be positive");
-        assert!((0.0..=1.0).contains(&bg.density()), "{name}: density must sit in [0,1]");
+        assert!(
+            bg.amplitude_px() > 0.0,
+            "{name}: amplitude_px must be positive"
+        );
+        assert!(
+            (0.0..=1.0).contains(&bg.density()),
+            "{name}: density must sit in [0,1]"
+        );
     }
 }

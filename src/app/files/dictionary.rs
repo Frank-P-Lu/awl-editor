@@ -6,14 +6,12 @@
 use crate::app::*;
 
 impl App {
-
     /// Persist the now-active DICTIONARY variant (write-on-change after the
     /// Dictionary picker commits).
     pub(in crate::app) fn persist_dictionary(&mut self) {
         let name = crate::config::dictionary_name(crate::spell::active_variant());
         self.persist_pref("dictionary", &format!("\"{name}\""));
     }
-
 
     /// Persist the now-active CJK ambiguity LADDER (write-on-change after the
     /// CJK-priority language picker commits) — mirrors `persist_dictionary`,
@@ -30,7 +28,6 @@ impl App {
         let quoted: Vec<String> = ladder.iter().map(|l| format!("\"{}\"", l.code())).collect();
         self.persist_pref("cjk_priority", &format!("[{}]", quoted.join(", ")));
     }
-
 
     /// SWITCH the active spell-check dictionary: reconstruct the App's
     /// [`crate::spell::SpellChecker`] for `variant` (the ONE real per-switch cost —
@@ -67,14 +64,12 @@ impl App {
         self.persist_dictionary();
     }
 
-
     /// The USER (personal) DICTIONARY path — `dictionary.txt` beside `config.toml`
     /// (GLOBAL across projects). `None` when no config dir resolved (the
     /// `Config::empty` placeholder), so the add stays in-memory-only that session.
     pub(in crate::app) fn user_dictionary_path(&self) -> Option<std::path::PathBuf> {
         crate::config::dictionary_path(&self.config.path)
     }
-
 
     /// LOAD the user's personal dictionary from disk into the live
     /// [`crate::spell::SpellChecker`] — called at launch and after
@@ -83,14 +78,17 @@ impl App {
     /// ZERO-NETWORK: a plain file read through the [`crate::fs`] seam, never a
     /// fetch. The one owner of "pull the word list into the checker".
     pub(in crate::app) fn load_user_dictionary(&mut self) {
-        let Some(path) = self.user_dictionary_path() else { return };
-        let text = crate::fs::active().read_to_string(&path).unwrap_or_default();
+        let Some(path) = self.user_dictionary_path() else {
+            return;
+        };
+        let text = crate::fs::active()
+            .read_to_string(&path)
+            .unwrap_or_default();
         let words = crate::spell::parse_dictionary(&text);
         if let Some(sc) = self.spell.as_mut() {
             sc.set_user_words(words);
         }
     }
-
 
     /// "Add '<word>' to dictionary" (the Cmd-`;` overlay row / the right-click
     /// summon): add `word` to the live checker AND persist it to the personal
@@ -105,18 +103,24 @@ impl App {
         if word.is_empty() {
             return;
         }
-        let newly = self.spell.as_mut().map(|sc| sc.add_user_word(word)).unwrap_or(false);
+        let newly = self
+            .spell
+            .as_mut()
+            .map(|sc| sc.add_user_word(word))
+            .unwrap_or(false);
         if newly {
             if let Some(path) = self.user_dictionary_path() {
                 if let Err(e) = Self::append_word_to_dictionary_file(&path, word) {
-                    eprintln!("could not add '{word}' to dictionary at {}: {e}", path.display());
+                    eprintln!(
+                        "could not add '{word}' to dictionary at {}: {e}",
+                        path.display()
+                    );
                 }
             }
         }
         self.active.extra.spell_checked_version = None;
         self.run_spellcheck_now();
     }
-
 
     /// Append `word` as its own line to the personal dictionary FILE (creating the
     /// file + its config dir), through the [`crate::fs`] seam + atomic write (crash

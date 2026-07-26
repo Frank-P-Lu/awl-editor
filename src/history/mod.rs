@@ -41,8 +41,8 @@ mod prune;
 mod store;
 
 pub use picker::{
-    clamp_line_col, diff_preview, mark_session_start, session_epoch_ms, source_path,
-    timeline_rows, TimelineRow, HISTORY_FACETS,
+    HISTORY_FACETS, TimelineRow, clamp_line_col, diff_preview, mark_session_start,
+    session_epoch_ms, source_path, timeline_rows,
 };
 #[allow(unused_imports)] // auto_description/clock_hm/first_changed_line/line_diff_counts/
 // relative_label/rows_from: public API surface (the pure row-composer helpers
@@ -68,12 +68,12 @@ pub(crate) use store::Entry;
 // tests.rs) rather than this re-export today — kept for parity with its
 // pre-split reachability at `crate::history::record_at`.
 pub(crate) use store::record_at;
-pub use store::{load, now_millis, record, record_pinned, rename};
 #[allow(unused_imports)] // Snapshot/is_git_managed/git_repo_root/list: public API
 // surface, reached in-crate via `history::tests` (this module's own
 // `#[cfg(test)]` suite, plus `app.rs`'s own test module for `list`) rather than
 // this re-export in a non-test build.
-pub use store::{git_repo_root, is_git_managed, list, Snapshot};
+pub use store::{Snapshot, git_repo_root, is_git_managed, list};
+pub use store::{load, now_millis, record, record_pinned, rename};
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;

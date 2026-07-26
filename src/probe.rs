@@ -70,7 +70,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 /// One parsed `--live-script` step. See the module doc for the grammar.
 #[derive(Debug, Clone, PartialEq)]
@@ -209,7 +209,11 @@ pub fn init_flight() {
 /// writes a header line stamping the build + wall-clock start.
 #[cfg(not(target_arch = "wasm32"))]
 fn arm_flight(path: &std::path::Path) {
-    match std::fs::OpenOptions::new().create(true).append(true).open(path) {
+    match std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+    {
         Ok(f) => {
             let _ = FLIGHT_START.set(std::time::Instant::now());
             if let Ok(mut sink) = FLIGHT_SINK.lock() {
@@ -394,9 +398,9 @@ pub fn parse_script(spec: &str) -> Result<Vec<Step>> {
                 steps.push(Step::Keys(crate::keyspec::parse_chords(rest)?));
             }
             "sleep" => {
-                let ms: u64 = rest
-                    .parse()
-                    .map_err(|_| anyhow::anyhow!("--live-script: `sleep` needs ms, got {rest:?}"))?;
+                let ms: u64 = rest.parse().map_err(|_| {
+                    anyhow::anyhow!("--live-script: `sleep` needs ms, got {rest:?}")
+                })?;
                 steps.push(Step::Sleep(ms));
             }
             "shot" => {
@@ -412,9 +416,14 @@ pub fn parse_script(spec: &str) -> Result<Vec<Step>> {
             "move" => {
                 let mut it = rest.split_whitespace();
                 let (x, y) = (it.next(), it.next());
-                match (x.and_then(|s| s.parse::<f64>().ok()), y.and_then(|s| s.parse::<f64>().ok())) {
+                match (
+                    x.and_then(|s| s.parse::<f64>().ok()),
+                    y.and_then(|s| s.parse::<f64>().ok()),
+                ) {
                     (Some(x), Some(y)) if it.next().is_none() => steps.push(Step::MouseMove(x, y)),
-                    _ => bail!("--live-script: `move` needs PHYSICAL x y (e.g. \"move 900 640\"), got {rest:?}"),
+                    _ => bail!(
+                        "--live-script: `move` needs PHYSICAL x y (e.g. \"move 900 640\"), got {rest:?}"
+                    ),
                 }
             }
             "wheel" => {
@@ -425,7 +434,9 @@ pub fn parse_script(spec: &str) -> Result<Vec<Step>> {
             }
             "latency" => steps.push(Step::Latency),
             "quit" => steps.push(Step::Quit),
-            other => bail!("--live-script: unknown step {other:?} (keys|sleep|shot|move|wheel|latency|quit)"),
+            other => bail!(
+                "--live-script: unknown step {other:?} (keys|sleep|shot|move|wheel|latency|quit)"
+            ),
         }
     }
     if steps.is_empty() {
@@ -467,14 +478,12 @@ pub fn spawn_driver(
                         std::thread::sleep(std::time::Duration::from_millis(ms));
                         true
                     }
-                    Step::Keys(chords) => chords
-                        .into_iter()
-                        .all(|c| post(ProbeEvent::Chord(c))),
+                    Step::Keys(chords) => chords.into_iter().all(|c| post(ProbeEvent::Chord(c))),
                     Step::MouseMove(x, y) => post(ProbeEvent::MouseMove(x, y)),
                     Step::Wheel(n) => post(ProbeEvent::Wheel(n)),
-                    Step::Shot(name) => {
-                        post(ProbeEvent::Shot(script.shots_dir.join(format!("{name}.png"))))
-                    }
+                    Step::Shot(name) => post(ProbeEvent::Shot(
+                        script.shots_dir.join(format!("{name}.png")),
+                    )),
                     Step::Latency => post(ProbeEvent::Latency),
                     Step::Quit => {
                         let _ = post(ProbeEvent::Quit);
@@ -565,7 +574,8 @@ mod cgshot {
         // every path before return, and the byte slice is copied out before
         // its owning CFData is released.
         unsafe {
-            let image = CGWindowListCreateImage(CGRectNull, INCLUDING_WINDOW, window_id, IMAGE_OPTS);
+            let image =
+                CGWindowListCreateImage(CGRectNull, INCLUDING_WINDOW, window_id, IMAGE_OPTS);
             if image.is_null() {
                 return Err("CGWindowListCreateImage returned null (window gone?)".into());
             }
@@ -619,8 +629,7 @@ mod tests {
 
     #[test]
     fn parse_covers_every_verb_and_appends_the_terminating_quit() {
-        let steps =
-            parse_script("keys Cmd-T Down; sleep 250; shot dwell-1").expect("parses");
+        let steps = parse_script("keys Cmd-T Down; sleep 250; shot dwell-1").expect("parses");
         assert_eq!(steps.len(), 4, "keys + sleep + shot + the appended quit");
         match &steps[0] {
             Step::Keys(chords) => assert_eq!(chords.len(), 2),
@@ -683,24 +692,36 @@ mod tests {
         let path = std::env::temp_dir().join(format!("awl-flight-test-{}.log", std::process::id()));
         let _ = std::fs::remove_file(&path);
         assert!(!flight_active(), "flight starts disarmed");
-        assert!(!live_active(), "no probe in a unit test, so recording() == flight_active()");
+        assert!(
+            !live_active(),
+            "no probe in a unit test, so recording() == flight_active()"
+        );
         arm_flight(&path);
         assert!(flight_active(), "arming flips the flag");
-        assert!(recording(), "recording() is true under the flight recorder alone");
+        assert!(
+            recording(),
+            "recording() is true under the flight recorder alone"
+        );
         trace(format_args!("preview Galah -> Magpie {}", 42));
         let body = std::fs::read_to_string(&path).expect("the flight file exists");
         assert!(
             body.contains("preview Galah -> Magpie 42"),
             "the traced line landed in the black box, got:\n{body}"
         );
-        assert!(body.contains("flight-recorder armed"), "the header line is present:\n{body}");
         assert!(
-            body.lines().all(|l| l.starts_with("+") && l.contains("ms ")),
+            body.contains("flight-recorder armed"),
+            "the header line is present:\n{body}"
+        );
+        assert!(
+            body.lines()
+                .all(|l| l.starts_with("+") && l.contains("ms ")),
             "every line carries the +<ms> stamp:\n{body}"
         );
         // Disarm + clean up so the process global never leaks past this test.
         FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut s) = FLIGHT_SINK.lock() { *s = None; }
+        if let Ok(mut s) = FLIGHT_SINK.lock() {
+            *s = None;
+        }
         let _ = std::fs::remove_file(&path);
         assert!(!recording(), "disarmed again — no leak into sibling tests");
     }
@@ -715,7 +736,10 @@ mod tests {
             ("shot ../escape", "shot"),
             ("keys NotAChord-", "chord"),
         ] {
-            let err = parse_script(spec).expect_err(spec).to_string().to_lowercase();
+            let err = parse_script(spec)
+                .expect_err(spec)
+                .to_string()
+                .to_lowercase();
             assert!(
                 err.contains(&needle.to_lowercase()),
                 "{spec:?} should fail mentioning {needle:?}, got: {err}"
@@ -742,13 +766,21 @@ mod tests {
     fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
         let _g = crate::testlock::serial();
         // Clean slate: a sibling test's leftover mark/sample must never leak in.
-        if let Ok(mut p) = LATENCY_PENDING.lock() { *p = None; }
-        if let Ok(mut s) = LATENCY_SAMPLES.lock() { s.clear(); }
+        if let Ok(mut p) = LATENCY_PENDING.lock() {
+            *p = None;
+        }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() {
+            s.clear();
+        }
 
-        let path = std::env::temp_dir().join(format!("awl-latency-test-{}.log", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("awl-latency-test-{}.log", std::process::id()));
         let _ = std::fs::remove_file(&path);
         arm_flight(&path);
-        assert!(recording(), "the flight recorder alone is enough to arm `recording()`");
+        assert!(
+            recording(),
+            "the flight recorder alone is enough to arm `recording()`"
+        );
 
         // A `note` with nothing pending is a harmless no-op (an ordinary frame,
         // unrelated to any picker movement).
@@ -756,19 +788,31 @@ mod tests {
         assert!(latency_distribution().is_none(), "nothing sampled yet");
 
         mark_movement_input();
-        assert!(LATENCY_PENDING.lock().unwrap().is_some(), "the mark armed the clock");
+        assert!(
+            LATENCY_PENDING.lock().unwrap().is_some(),
+            "the mark armed the clock"
+        );
         std::thread::sleep(std::time::Duration::from_millis(2));
         note_presented_frame();
-        assert!(LATENCY_PENDING.lock().unwrap().is_none(), "closing out clears the pending mark");
+        assert!(
+            LATENCY_PENDING.lock().unwrap().is_none(),
+            "closing out clears the pending mark"
+        );
 
         let dist = latency_distribution().expect("one sample now recorded");
-        assert!(dist.starts_with("n=1"), "exactly one sample so far, got: {dist}");
+        assert!(
+            dist.starts_with("n=1"),
+            "exactly one sample so far, got: {dist}"
+        );
         for field in ["min=", "p50=", "p95=", "max="] {
             assert!(dist.contains(field), "{dist:?} is missing {field:?}");
         }
 
         let body = std::fs::read_to_string(&path).expect("the flight file exists");
-        assert!(body.contains("movement-latency"), "the sample traced into the black box:\n{body}");
+        assert!(
+            body.contains("movement-latency"),
+            "the sample traced into the black box:\n{body}"
+        );
 
         // A SECOND `note` with nothing pending (already closed out above) must not
         // fabricate a phantom sample.
@@ -780,9 +824,15 @@ mod tests {
 
         // Disarm everything so no global leaks into a sibling test.
         FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut s) = FLIGHT_SINK.lock() { *s = None; }
-        if let Ok(mut p) = LATENCY_PENDING.lock() { *p = None; }
-        if let Ok(mut s) = LATENCY_SAMPLES.lock() { s.clear(); }
+        if let Ok(mut s) = FLIGHT_SINK.lock() {
+            *s = None;
+        }
+        if let Ok(mut p) = LATENCY_PENDING.lock() {
+            *p = None;
+        }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() {
+            s.clear();
+        }
         let _ = std::fs::remove_file(&path);
         assert!(!recording(), "disarmed again — no leak into sibling tests");
     }
@@ -795,10 +845,17 @@ mod tests {
     fn movement_latency_is_a_no_op_outside_recording() {
         let _g = crate::testlock::serial();
         assert!(!recording(), "no probe/flight armed in a plain unit test");
-        if let Ok(mut p) = LATENCY_PENDING.lock() { *p = None; }
-        if let Ok(mut s) = LATENCY_SAMPLES.lock() { s.clear(); }
+        if let Ok(mut p) = LATENCY_PENDING.lock() {
+            *p = None;
+        }
+        if let Ok(mut s) = LATENCY_SAMPLES.lock() {
+            s.clear();
+        }
         mark_movement_input();
-        assert!(LATENCY_PENDING.lock().unwrap().is_none(), "a mark outside recording never arms");
+        assert!(
+            LATENCY_PENDING.lock().unwrap().is_none(),
+            "a mark outside recording never arms"
+        );
         note_presented_frame();
         assert!(latency_distribution().is_none());
     }

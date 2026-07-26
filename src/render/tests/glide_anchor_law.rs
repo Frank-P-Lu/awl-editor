@@ -66,7 +66,9 @@ fn line_violates(line: &str) -> bool {
 /// and `pipeline_overlay.rs` itself (the two fns' own definitions — checked
 /// separately below, non-vacuously), collecting `(rel_path, line)` violations.
 fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     let mut entries: Vec<_> = entries.flatten().collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
@@ -84,8 +86,14 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
         if path.file_name().and_then(|n| n.to_str()) == Some("pipeline_overlay.rs") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
-        let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let rel = path
+            .strip_prefix(base)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
         for (i, line) in text.lines().enumerate() {
             if line_violates(line) {
                 out.push((rel.clone(), i + 1));
@@ -96,8 +104,9 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
 
 #[test]
 fn glide_anchor_has_no_bypass_among_summoned_surfaces() {
-    let render_root =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("render");
+    let render_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("render");
     let mut hits = Vec::new();
     scan_dir(&render_root, &render_root, &mut hits);
     assert!(
@@ -139,8 +148,12 @@ fn glide_anchor_has_no_bypass_among_summoned_surfaces() {
 #[test]
 fn line_violates_catches_both_calls_and_skips_comments() {
     assert!(line_violates("        self.overlay_band_drawn(target)"));
-    assert!(line_violates("let (from, to, t) = self.living_band_phase(force, target, lh);"));
-    assert!(!line_violates("/// calls `overlay_band_drawn` — history note"));
+    assert!(line_violates(
+        "let (from, to, t) = self.living_band_phase(force, target, lh);"
+    ));
+    assert!(!line_violates(
+        "/// calls `overlay_band_drawn` — history note"
+    ));
     assert!(!line_violates("// mentions living_band_phase( in prose"));
     assert!(!line_violates("let x = theme.render_caps.elevation;"));
 }
@@ -150,8 +163,9 @@ fn scan_dir_exempts_the_tests_directory() {
     // The pure-fn chase-formula regression coverage in `tests/firetail_showcase.rs`
     // calls both fns directly (legitimate — see the module doc); a scan that
     // failed to skip the `tests/` subdirectory would flag them as violations.
-    let render_root =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("render");
+    let render_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("render");
     let mut hits = Vec::new();
     scan_dir(&render_root, &render_root, &mut hits);
     assert!(

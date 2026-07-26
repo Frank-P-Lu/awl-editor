@@ -80,8 +80,7 @@ fn plain_and_secondary_right_anchored_cards_share_one_right_edge() {
     };
 
     let (plain_right, plain_w) = right_edge(&mut p, &right_flat(&items, &[]));
-    let (sec_right, sec_w) =
-        right_edge(&mut p, &right_flat(&items, &["C-x", "C-c", "M-x"]));
+    let (sec_right, sec_w) = right_edge(&mut p, &right_flat(&items, &["C-x", "C-c", "M-x"]));
 
     let want = w as f32 - chrome::overlay_rail_inset(w as f32);
     assert!(
@@ -198,7 +197,10 @@ fn right_anchored_secondary_survives_shrink_and_stays_content_bounded() {
     let hpad = p.overlay_text_hpad();
     let geom = p.overlay_geometry(w);
     let secs = p.overlay_row_secondary_px(&geom);
-    assert!(!secs.is_empty(), "every row carries a chord, so the secondary map is populated");
+    assert!(
+        !secs.is_empty(),
+        "every row carries a chord, so the secondary map is populated"
+    );
 
     // The right column right-aligns to the card's OWN text edge (a tidy shared
     // scanning column just past the widest primary), never a remote card/window edge.
@@ -244,7 +246,9 @@ fn right_anchored_primaries_stay_inside_their_plates_wide_and_narrow() {
     ];
     for &(w, h) in &[(1400u32, 800u32), (420u32, 800u32)] {
         let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-            eprintln!("skipping right_anchored_primaries_stay_inside_their_plates: no wgpu adapter");
+            eprintln!(
+                "skipping right_anchored_primaries_stay_inside_their_plates: no wgpu adapter"
+            );
             set_list_style_test_override(None);
             return;
         };
@@ -263,7 +267,11 @@ fn right_anchored_primaries_stay_inside_their_plates_wide_and_narrow() {
             );
         }
         // Card fully on-canvas at every width (the right group never runs off-screen).
-        assert!(rx >= -0.5 && rx + rw <= w as f32 + 0.5, "ww={w}: card [{rx}, {}] on-canvas", rx + rw);
+        assert!(
+            rx >= -0.5 && rx + rw <= w as f32 + 0.5,
+            "ww={w}: card [{rx}, {}] on-canvas",
+            rx + rw
+        );
     }
 
     set_list_style_test_override(None);
@@ -321,8 +329,8 @@ fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
 /// itself (`measure_overlay_content_w` used to read the ALREADY-elided text's
 /// pixel width as "the content"), so the card never grew enough to show it.
 #[test]
-fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_another_rows_long_chord(
-) {
+fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_another_rows_long_chord()
+ {
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(
@@ -409,8 +417,8 @@ fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_a
 /// (19 chars) sits EXACTLY at the pre-fix budget edge on Mangrove — the row a
 /// one-char margin either closes or misses.
 #[test]
-fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_the_fallback_reserve(
-) {
+fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_the_fallback_reserve()
+{
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!(

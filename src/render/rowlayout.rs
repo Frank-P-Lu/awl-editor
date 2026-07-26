@@ -63,7 +63,9 @@ pub enum Plan {
 /// column at all — not even an empty one).
 pub fn plan(total_chars: usize, widest_secondary_chars: Option<usize>) -> Plan {
     let Some(widest) = widest_secondary_chars else {
-        return Plan::Full { primary: full_budget(total_chars) };
+        return Plan::Full {
+            primary: full_budget(total_chars),
+        };
     };
     let primary = total_chars.saturating_sub(1 + widest + GAP_CHARS);
     if primary >= PRIMARY_MIN_CHARS {
@@ -174,7 +176,11 @@ fn elide_end(s: &str, max: usize) -> String {
 /// `candidate` (this function's own shrink loop does exactly that): an appended
 /// `…` never re-triggers the subtitle-divider scan, so re-applying with a smaller
 /// budget just shaves further, correctly, every time.
-pub fn fit_primary_end_to_px(candidate: &str, budget_px: f32, mut measure: impl FnMut(&str) -> f32) -> String {
+pub fn fit_primary_end_to_px(
+    candidate: &str,
+    budget_px: f32,
+    mut measure: impl FnMut(&str) -> f32,
+) -> String {
     let mut text = candidate.to_string();
     loop {
         if measure(&text) <= budget_px {
@@ -338,7 +344,11 @@ pub fn rail_geom(
     }
     let x1 = text_right - value_w - gap;
     let x0 = x1 - w;
-    let frac = if frac.is_nan() { 0.0 } else { frac.clamp(0.0, 1.0) };
+    let frac = if frac.is_nan() {
+        0.0
+    } else {
+        frac.clamp(0.0, 1.0)
+    };
     let th = (RAIL_H_LH * lh).max(1.0);
     let ty = row_top + (lh - th) * 0.5;
     let tw = (THUMB_W_LH * lh).max(2.0);
@@ -638,7 +648,10 @@ mod tests {
         for total in (8..=80).rev() {
             match plan(total, widest) {
                 Plan::Split { primary } => {
-                    assert!(granted, "a withdrawn secondary must not re-grant at {total}");
+                    assert!(
+                        granted,
+                        "a withdrawn secondary must not re-grant at {total}"
+                    );
                     assert!(primary >= PRIMARY_MIN_CHARS);
                 }
                 Plan::Measure => granted = false,
@@ -654,8 +667,14 @@ mod tests {
     #[test]
     fn fits_charges_the_gap_only_when_a_secondary_shows() {
         assert!(fits(100.0, 10.0, 60.0, 30.0));
-        assert!(!fits(100.0, 10.0, 61.0, 30.0), "gap + cells past the width must fail");
-        assert!(fits(100.0, 10.0, 100.0, 0.0), "a lone primary may fill the full width");
+        assert!(
+            !fits(100.0, 10.0, 61.0, 30.0),
+            "gap + cells past the width must fail"
+        );
+        assert!(
+            fits(100.0, 10.0, 100.0, 0.0),
+            "a lone primary may fill the full width"
+        );
         assert!(!fits(100.0, 10.0, 100.5, 0.0));
     }
 
@@ -677,7 +696,11 @@ mod tests {
         // A budget that comfortably holds the bare head drops the subtitle whole.
         let head = "WORLDS.md";
         let budget = head.chars().count() + 6;
-        assert_eq!(fit_primary_end(title, budget), head, "the subtitle is dropped whole");
+        assert_eq!(
+            fit_primary_end(title, budget),
+            head,
+            "the subtitle is dropped whole"
+        );
         // …and that is DIFFERENT from the filename middle-elide, which mangles the
         // front-loaded prose (keeps the extensionless tail it thinks matters).
         assert_ne!(
@@ -709,9 +732,7 @@ mod tests {
     /// repro) more than plain ones per char — a pure stand-in for a real shaped
     /// probe, so this test needs no font system at all.
     fn wide_glyph_measure(s: &str) -> f32 {
-        s.chars()
-            .map(|c| if c == '⌘' { 3.0 } else { 1.0 })
-            .sum()
+        s.chars().map(|c| if c == '⌘' { 3.0 } else { 1.0 }).sum()
     }
 
     /// THE PIXEL-TRUTH SHRINK ([`fit_primary_end_to_px`]): a candidate whose CHAR
@@ -730,8 +751,14 @@ mod tests {
             "the shrunk candidate must genuinely fit the pixel budget: {out:?} measures {}",
             wide_glyph_measure(&out)
         );
-        assert!(out.chars().count() < wide.chars().count(), "it must have actually shrunk: {out:?}");
-        assert!(out.ends_with('…'), "shrinking always leaves a trailing ellipsis: {out:?}");
+        assert!(
+            out.chars().count() < wide.chars().count(),
+            "it must have actually shrunk: {out:?}"
+        );
+        assert!(
+            out.ends_with('…'),
+            "shrinking always leaves a trailing ellipsis: {out:?}"
+        );
 
         // A candidate that ALREADY fits is returned untouched (no needless shrink).
         let short = "⌘⌘⌘";
@@ -757,7 +784,10 @@ mod tests {
         // First, the ordinary CHAR-count fit (what `outline_layout` computes today):
         // the budget comfortably holds "Head", so the subtitle drops whole.
         let char_fit = fit_primary_end(title, 10);
-        assert_eq!(char_fit, "Head", "sanity: the char-count fit dropped the subtitle");
+        assert_eq!(
+            char_fit, "Head",
+            "sanity: the char-count fit dropped the subtitle"
+        );
         // Now pixel-shrink THAT (not the original title) with a measure that still
         // finds it too wide — must shrink further, not get stuck.
         let out = fit_primary_end_to_px(&char_fit, 2.0, |s| s.chars().count() as f32);
@@ -803,7 +833,10 @@ mod tests {
         let project = "awl"; // 3 chars
         for avail in GUTTER_MIN_NAME_CHARS..=40 {
             let plan = gutter_plan(avail).expect("avail is at/above the hard floor");
-            assert!(plan.show_project, "the gutter never hides the project from width pressure alone");
+            assert!(
+                plan.show_project,
+                "the gutter never hides the project from width pressure alone"
+            );
             if name.chars().count() <= avail {
                 assert_eq!(
                     fit_primary(name, plan.name_budget),
@@ -830,15 +863,30 @@ mod tests {
         let name = "a-fairly-long-descriptive-filename.md";
         let project = "awl-next"; // short enough to stay whole at the avail below
         let avail = GUTTER_MIN_NAME_CHARS + 2;
-        assert!(avail < name.chars().count(), "fixture must land the name in its eliding band");
-        assert!(project.chars().count() <= avail, "fixture project must stay whole at this avail");
+        assert!(
+            avail < name.chars().count(),
+            "fixture must land the name in its eliding band"
+        );
+        assert!(
+            project.chars().count() <= avail,
+            "fixture project must stay whole at this avail"
+        );
 
         let plan = gutter_plan(avail).unwrap();
-        assert!(plan.show_project, "the project must never be hidden just because the name is eliding");
+        assert!(
+            plan.show_project,
+            "the project must never be hidden just because the name is eliding"
+        );
         let fitted_name = fit_primary(name, plan.name_budget);
-        assert_ne!(fitted_name, name, "a name this long at avail={avail} must actually elide");
+        assert_ne!(
+            fitted_name, name,
+            "a name this long at avail={avail} must actually elide"
+        );
         assert!(fitted_name.chars().count() <= avail);
-        assert!(fitted_name.ends_with(".md"), "elision preserves the extension: {fitted_name:?}");
+        assert!(
+            fitted_name.ends_with(".md"),
+            "elision preserves the extension: {fitted_name:?}"
+        );
         assert_eq!(
             fit_primary(project, plan.project_budget),
             project,
@@ -854,8 +902,14 @@ mod tests {
         let name = "short.md";
         let project = "a-fairly-long-project-directory-name";
         let avail = GUTTER_MIN_NAME_CHARS + 2;
-        assert!(avail < project.chars().count(), "fixture must land the project in its eliding band");
-        assert!(name.chars().count() <= avail, "fixture name must stay whole at this avail");
+        assert!(
+            avail < project.chars().count(),
+            "fixture must land the project in its eliding band"
+        );
+        assert!(
+            name.chars().count() <= avail,
+            "fixture name must stay whole at this avail"
+        );
 
         let plan = gutter_plan(avail).unwrap();
         assert!(plan.show_project);
@@ -865,7 +919,10 @@ mod tests {
             "the name is unaffected by the project eliding alongside it"
         );
         let fitted_project = fit_primary(project, plan.project_budget);
-        assert_ne!(fitted_project, project, "a project this long at avail={avail} must actually elide");
+        assert_ne!(
+            fitted_project, project,
+            "a project this long at avail={avail} must actually elide"
+        );
         assert!(fitted_project.chars().count() <= avail);
     }
 
@@ -879,7 +936,10 @@ mod tests {
         let avail = GUTTER_MIN_NAME_CHARS + 2;
 
         let plan = gutter_plan(avail).unwrap();
-        assert!(plan.show_project, "the project line never disappears from width pressure alone");
+        assert!(
+            plan.show_project,
+            "the project line never disappears from width pressure alone"
+        );
         let fitted_name = fit_primary(name, plan.name_budget);
         let fitted_project = fit_primary(project, plan.project_budget);
         assert_ne!(fitted_name, name);
@@ -898,6 +958,9 @@ mod tests {
         assert_eq!(out, crate::overlay::elide_path(long, plan.name_budget));
         assert!(out.chars().count() <= GUTTER_MIN_NAME_CHARS);
         assert!(out.ends_with(".md"), "the extension survives: {out}");
-        assert!(!out.contains('\n'), "the fitted name must always be ONE line");
+        assert!(
+            !out.contains('\n'),
+            "the fitted name must always be ONE line"
+        );
     }
 }

@@ -10,7 +10,7 @@
 //! `active`/`label` from the live selection.
 
 use super::format::{self, InlineKind};
-use crate::popover::{ButtonState, PopoverButton, PopoverModel, ALL};
+use crate::popover::{ALL, ButtonState, PopoverButton, PopoverModel};
 
 /// The [`InlineKind`] a button's active-state reads through, or `None` for the two
 /// non-inline buttons (`Heading` reads [`format::heading_level`], `Link` reads
@@ -29,7 +29,10 @@ fn inline_kind(b: PopoverButton) -> Option<InlineKind> {
 /// Byte offset of char index `cursor` into `text` (the coordinate
 /// [`crate::markdown::link_at_full`] works in).
 fn char_to_byte(text: &str, cursor: usize) -> usize {
-    text.char_indices().nth(cursor).map(|(b, _)| b).unwrap_or(text.len())
+    text.char_indices()
+        .nth(cursor)
+        .map(|(b, _)| b)
+        .unwrap_or(text.len())
 }
 
 /// Build the popover's render model for the current selection state, or `None`
@@ -73,7 +76,11 @@ pub(crate) fn plan(
                     button.base_label().to_string(),
                 ),
             };
-            ButtonState { button, active, label }
+            ButtonState {
+                button,
+                active,
+                label,
+            }
         })
         .collect();
 
@@ -88,7 +95,11 @@ mod tests {
         m.buttons.iter().map(|b| b.label.clone()).collect()
     }
     fn active(m: &PopoverModel, button: PopoverButton) -> bool {
-        m.buttons.iter().find(|b| b.button == button).unwrap().active
+        m.buttons
+            .iter()
+            .find(|b| b.button == button)
+            .unwrap()
+            .active
     }
 
     #[test]
@@ -114,20 +125,34 @@ mod tests {
         // here and the popover must mirror that. `==` is the clean negative too.
         let m = plan("the **quick** fox", Some(6), 11, true).unwrap();
         assert!(active(&m, PopoverButton::Bold), "B lit inside **…**");
-        assert!(!active(&m, PopoverButton::Italic), "I dark inside plain bold (not two * markers)");
-        assert!(!active(&m, PopoverButton::Highlight), "== unlit on bold text");
+        assert!(
+            !active(&m, PopoverButton::Italic),
+            "I dark inside plain bold (not two * markers)"
+        );
+        assert!(
+            !active(&m, PopoverButton::Highlight),
+            "== unlit on bold text"
+        );
     }
 
     #[test]
     fn heading_button_reflects_the_level_and_lights() {
         let off = plan("Title\n", Some(0), 3, true).unwrap();
         assert_eq!(off.buttons.last().is_some(), true);
-        let h = off.buttons.iter().find(|b| b.button == PopoverButton::Heading).unwrap();
+        let h = off
+            .buttons
+            .iter()
+            .find(|b| b.button == PopoverButton::Heading)
+            .unwrap();
         assert_eq!(h.label, "H");
         assert!(!h.active);
 
         let h2 = plan("## Sec\n", Some(4), 4, true).unwrap();
-        let hb = h2.buttons.iter().find(|b| b.button == PopoverButton::Heading).unwrap();
+        let hb = h2
+            .buttons
+            .iter()
+            .find(|b| b.button == PopoverButton::Heading)
+            .unwrap();
         assert_eq!(hb.label, "H2", "H button shows the current level");
         assert!(hb.active);
     }

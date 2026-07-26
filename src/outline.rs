@@ -56,7 +56,6 @@ pub fn toggle() -> bool {
     next
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -65,7 +64,10 @@ mod tests {
     fn outline_is_on_by_default_and_toggles() {
         let _g = crate::testlock::serial();
         set_outline_on(true);
-        assert!(outline_on(), "the margin outline is ON by default (2026-07-09 taste flip)");
+        assert!(
+            outline_on(),
+            "the margin outline is ON by default (2026-07-09 taste flip)"
+        );
         assert!(!toggle(), "toggle turns it off and reports the new state");
         assert!(!outline_on());
         assert!(toggle(), "toggle turns it back on");

@@ -23,7 +23,13 @@ use std::ops::Range;
 /// Introducers after which the next identifier is the DEFINITION name. `val`/`var`
 /// cover the let-binding case; `enum class X` is caught by `class`.
 const DEF_KEYWORDS: &[&str] = &[
-    "fun", "class", "interface", "object", "typealias", "val", "var",
+    "fun",
+    "class",
+    "interface",
+    "object",
+    "typealias",
+    "val",
+    "var",
 ];
 
 /// Identifiers that are CONSTANT literals (booleans + the `null` nil value).
@@ -103,7 +109,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -171,7 +178,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXbB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXbB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -207,7 +218,11 @@ mod tests {
     fn interpolation_is_one_string_span() {
         let t = "val s = \"hi $name and ${a.b}\"\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Str), vec!["\"hi $name and ${a.b}\""], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec!["\"hi $name and ${a.b}\""],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -227,7 +242,8 @@ mod tests {
 
     #[test]
     fn numbers_and_constants() {
-        let t = "val a = 42; val b = 0xFF_u; val c = 3.14; val d = 100L; val ok = true; val z = null";
+        let t =
+            "val a = 42; val b = 0xFF_u; val c = 3.14; val d = 100L; val ok = true; val z = null";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
         for want in ["42", "0xFF_u", "3.14", "100L", "true", "null"] {
@@ -240,7 +256,10 @@ mod tests {
         let t = "for (i in 0..5) {}";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
-        assert!(cs.contains(&"0") && cs.contains(&"5"), "ranges split: {cs:?}");
+        assert!(
+            cs.contains(&"0") && cs.contains(&"5"),
+            "ranges split: {cs:?}"
+        );
     }
 
     #[test]
@@ -248,7 +267,15 @@ mod tests {
         let t = "fun frobnicate() {}\nclass Widget\ninterface Shape\nobject Single\ntypealias Alias = Int\nval count = 0\nvar total = 0";
         let s = spans(t);
         let ds = at(t, &s, SynKind::Definition);
-        for want in ["frobnicate", "Widget", "Shape", "Single", "Alias", "count", "total"] {
+        for want in [
+            "frobnicate",
+            "Widget",
+            "Shape",
+            "Single",
+            "Alias",
+            "count",
+            "total",
+        ] {
             assert!(ds.contains(&want), "missing def {want}: {ds:?}");
         }
     }
@@ -258,8 +285,14 @@ mod tests {
         // `fun` keyword stays default ink; only the NAME is a Definition.
         let t = "fun main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 3, SynKind::Definition), "the `fun` keyword must stay plain: {s:?}");
-        assert!(has(&s, 4, 8, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 3, SynKind::Definition),
+            "the `fun` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 4, 8, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -273,7 +306,11 @@ mod tests {
     fn reference_snippet() {
         let t = "// sum\nfun add(a: Int, b: Int): Int {\n    val total = a + b // ok\n    return total\n}\nconst val MAX = 100\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"add") && ds.contains(&"MAX"), "{ds:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");

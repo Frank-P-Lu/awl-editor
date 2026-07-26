@@ -51,7 +51,10 @@ impl Rep {
 }
 
 const fn rep(ostype: &[u8; 4], px: u32) -> Rep {
-    Rep { ostype: *ostype, px }
+    Rep {
+        ostype: *ostype,
+        px,
+    }
 }
 
 /// THE REP ROSTER we write, in file order — the same set `iconutil` produces
@@ -104,7 +107,9 @@ pub fn pack(pngs: &[(u32, Vec<u8>)]) -> anyhow::Result<Vec<u8>> {
             .iter()
             .find(|(px, _)| *px == r.px)
             .map(|(_, bytes)| bytes)
-            .ok_or_else(|| anyhow::anyhow!("rep {} wants a {}px PNG, none supplied", r.name(), r.px))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!("rep {} wants a {}px PNG, none supplied", r.name(), r.px)
+            })?;
         let (w, h) = png_size(png)
             .ok_or_else(|| anyhow::anyhow!("rep {}: not a PNG (no readable IHDR)", r.name()))?;
         if w != r.px || h != r.px {
@@ -116,8 +121,8 @@ pub fn pack(pngs: &[(u32, Vec<u8>)]) -> anyhow::Result<Vec<u8>> {
         body.extend_from_slice(&len.to_be_bytes());
         body.extend_from_slice(png);
     }
-    let total = u32::try_from(body.len() + 8)
-        .map_err(|_| anyhow::anyhow!("icns would exceed 4 GiB"))?;
+    let total =
+        u32::try_from(body.len() + 8).map_err(|_| anyhow::anyhow!("icns would exceed 4 GiB"))?;
     let mut out = Vec::with_capacity(body.len() + 8);
     out.extend_from_slice(b"icns");
     out.extend_from_slice(&total.to_be_bytes());
@@ -148,9 +153,12 @@ pub fn unpack(bytes: &[u8]) -> anyhow::Result<Vec<([u8; 4], &[u8])>> {
         }
         let mut ostype = [0u8; 4];
         ostype.copy_from_slice(&bytes[pos..pos + 4]);
-        let len =
-            u32::from_be_bytes([bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]])
-                as usize;
+        let len = u32::from_be_bytes([
+            bytes[pos + 4],
+            bytes[pos + 5],
+            bytes[pos + 6],
+            bytes[pos + 7],
+        ]) as usize;
         if len < 8 || pos + len > bytes.len() {
             anyhow::bail!("chunk {:?} declares {len} bytes at {pos}", ostype);
         }

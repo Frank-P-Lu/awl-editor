@@ -10,11 +10,11 @@ use glyphon::{
 };
 
 use crate::background::{BackgroundPipeline, BgDesc};
-use crate::caret::{CaretAnim, CaretMode, CaretPipeline, Sample, CORNER_RADIUS, STREAK_RADIUS};
+use crate::caret::{CORNER_RADIUS, CaretAnim, CaretMode, CaretPipeline, STREAK_RADIUS, Sample};
 use crate::caret_glyph::{CaretGlyphPipeline, GlyphMask};
 use crate::selection::SelectionPipeline;
 use crate::spell::Misspelling;
-use crate::spellunderline::{Squiggle, SpellUnderlinePipeline};
+use crate::spellunderline::{SpellUnderlinePipeline, Squiggle};
 use crate::theme;
 
 /// CARET RENDER GEOMETRY — the layout-entangled half of the animated caret (the
@@ -67,9 +67,9 @@ mod rowgeom;
 /// its glyphon renderers/atlas/viewport — so the submodule is a physical home for that
 /// cluster, carved out verbatim. The corner readouts share one body, `prepare_corner_label`.
 mod chrome;
-pub use chrome::PanelHit;
 #[cfg(test)]
 pub(crate) use chrome::POPOVER_VPAD;
+pub use chrome::PanelHit;
 
 /// ROW LAYOUT — the ONE owner of picker-row column budgets: how a summoned
 /// overlay row splits its width between the PRIMARY cell (name/path — never
@@ -99,8 +99,8 @@ mod blur;
 /// glob in like [`spans`]. The two app-facing helpers stay re-exported by name so
 /// `render::hit_test` / `render::visible_lines_z` resolve unchanged. Byte-identical.
 mod geometry;
-pub use geometry::{hit_test, visible_lines_z, ImageHandle, ResizeEdge};
 use geometry::*;
+pub use geometry::{ImageHandle, ResizeEdge, hit_test, visible_lines_z};
 
 /// TEXT / SHAPING SEAM — the `set_text` family + its supporting layout machinery
 /// (incremental-vs-full reshape, per-line `AttrsList` assembly, IME preedit
@@ -189,6 +189,7 @@ pub mod caretbench;
 mod viewstate_def;
 pub use viewstate_def::{FoldTail, ViewState};
 
+mod pipeline_draw;
 /// PIPELINE IMPL — the giant `impl TextPipeline` from `render.rs`, split by
 /// frame-pipeline STAGE into three physical homes (each an `impl TextPipeline`
 /// block on the same type, carved out VERBATIM — the capture output is
@@ -199,10 +200,9 @@ pub use viewstate_def::{FoldTail, ViewState};
 /// preparation + blur state; `pipeline_layers` = render-pass composition and
 /// ordered layer emission.
 mod pipeline_geometry;
-mod pipeline_overlay;
-mod pipeline_draw;
-mod pipeline_prepare;
 mod pipeline_layers;
+mod pipeline_overlay;
+mod pipeline_prepare;
 
 /// Fixed look-and-feel constants. Keeping these in one spot makes the headless
 /// capture deterministic and keeps windowed/headless visually identical.
@@ -542,15 +542,33 @@ pub const SYMBOL_FAMILY: &str = "Awl Marks";
 /// missing call FAILS `render::tests::facepitch` instead of quietly changing how
 /// the caret looks.
 pub const FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
-    (include_bytes!("../assets/fonts/Literata-Regular.ttf"), facepitch::Pitch::Proportional),
-    (include_bytes!("../assets/fonts/Newsreader-Regular.ttf"), facepitch::Pitch::Proportional),
-    (include_bytes!("../assets/fonts/IBMPlexSans-Regular.ttf"), facepitch::Pitch::Proportional),
-    (include_bytes!("../assets/fonts/ZillaSlab-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/Literata-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
+    (
+        include_bytes!("../assets/fonts/Newsreader-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
+    (
+        include_bytes!("../assets/fonts/IBMPlexSans-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
+    (
+        include_bytes!("../assets/fonts/ZillaSlab-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
     // JetBrains Mono — Mangrove's + Wagtail's crisp coding face (registers as
     // "JetBrains Mono"); a real fixed pitch.
-    (include_bytes!("../assets/fonts/JetBrainsMono.ttf"), facepitch::Pitch::Mono),
+    (
+        include_bytes!("../assets/fonts/JetBrainsMono.ttf"),
+        facepitch::Pitch::Mono,
+    ),
     // Figtree — Galah's friendly humanist sans (registers as "Figtree").
-    (include_bytes!("../assets/fonts/Figtree-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/Figtree-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
     // iA Writer Quattro S — a DUOSPACED writing face (registers as
     // "iA Writer Quattro S"); bundled + bold-paired, currently unassigned to a
     // world (Mopoke moved to Bitter, queue item 30). SIL OFL, github.com/iaolo/iA-Fonts.
@@ -562,26 +580,44 @@ pub const FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
     ),
     // Monaspace Xenon — Potoroo's/Firetail's slab-serif monospace (registers as
     // "Monaspace Xenon"). SIL OFL, github.com/githubnext/monaspace.
-    (include_bytes!("../assets/fonts/MonaspaceXenon-Regular.ttf"), facepitch::Pitch::Mono),
+    (
+        include_bytes!("../assets/fonts/MonaspaceXenon-Regular.ttf"),
+        facepitch::Pitch::Mono,
+    ),
     // Fraunces 9pt — Saltpan's warm old-style serif at the text optical size
     // (registers as "Fraunces 9pt"). SIL OFL, github.com/undercasetype/Fraunces.
-    (include_bytes!("../assets/fonts/Fraunces9pt-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/Fraunces9pt-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
     // EB Garamond — Bombora's classic Garamond serif (registers as
     // "EB Garamond"). SIL OFL, github.com/octaviopardo/EBGaramond12.
-    (include_bytes!("../assets/fonts/EBGaramond-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/EBGaramond-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
     // Fira Sans — a humanist sans (registers as "Fira Sans"), Latin-subset.
     // SIL OFL, github.com/google/fonts/tree/main/ofl/firasans. Registered for
     // addressability; not yet assigned to any world (wiring follows).
-    (include_bytes!("../assets/fonts/FiraSans-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/FiraSans-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
     // Iosevka — a narrow MONOSPACE (registers as "Iosevka", isFixedPitch),
     // Latin-subset. SIL OFL, github.com/be5invis/Iosevka. The display + code face
     // of Currawong and Cassowary — the face the retired name list forgot.
-    (include_bytes!("../assets/fonts/Iosevka-Regular.ttf"), facepitch::Pitch::Mono),
+    (
+        include_bytes!("../assets/fonts/Iosevka-Regular.ttf"),
+        facepitch::Pitch::Mono,
+    ),
     // Bitter — a slab serif for reading (registers as "Bitter"), instanced at
     // wght=400 then Latin-subset. SIL OFL, github.com/google/fonts/tree/main/
     // ofl/bitter. The shared body face of Magpie (stark-paper masthead) and
     // Mopoke (warm cosy dark, queue item 30) — precedented face-sharing.
-    (include_bytes!("../assets/fonts/Bitter-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/Bitter-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
     // Sour Gummy — Quokka's printed-card display face (item 70, registers as
     // "Sour Gummy"), instanced from the OFL variable master
     // (google/fonts ofl/sourgummy) at `wght=400 wdth=100`, Latin+punctuation
@@ -589,7 +625,10 @@ pub const FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
     // `assets/fonts/LICENSES.md` for the full provenance + the documented
     // 21-codepoint upstream gap, and [`FONT_SOURGUMMY_HEAVY_CANDIDATE`] for
     // the bundled 900 A/B candidate.
-    (include_bytes!("../assets/fonts/SourGummy-Regular.ttf"), facepitch::Pitch::Proportional),
+    (
+        include_bytes!("../assets/fonts/SourGummy-Regular.ttf"),
+        facepitch::Pitch::Proportional,
+    ),
 ];
 
 /// THE ONE ROSTER of bundled DISPLAY faces + their declared pitch: [`FONT_DATA`]
@@ -685,9 +724,8 @@ pub const FONT_THEME_BOLD_FACES: &[&[u8]] = &[
 /// [`crate::theme::ORNAMENT_MARKS`] IS the merged `SYMBOL_FAMILY` face. (The dud
 /// `Vollkorn-Ornaments.ttf` — it ships NO classic fleurons, only ¶ ‸ ‽ … — was
 /// dropped: no world could use it for a section break.)
-pub const FONT_ORNAMENT_FACES: &[&[u8]] = &[
-    include_bytes!("../assets/fonts/Junicode-Ornaments.ttf"),
-];
+pub const FONT_ORNAMENT_FACES: &[&[u8]] =
+    &[include_bytes!("../assets/fonts/Junicode-Ornaments.ttf")];
 
 /// BUNDLED CHROME-VOICE faces — the CHROME-VOICES round's two curated overlay
 /// CHROME faces (see [`crate::theme::ChromeFace`]'s doc for the closed surface
@@ -736,7 +774,8 @@ pub const FONT_CHROME_FACES: &[&[u8]] = &[
 /// ([`apply_sourgummy_heavy_force`]), so the SAME `Weight::BOLD` request
 /// falls through to THIS file instead — a true in-app A/B capture of the
 /// heavy candidate, not a synthetic side-by-side image.
-pub const FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] = include_bytes!("../assets/fonts/SourGummy-Black.ttf");
+pub const FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
+    include_bytes!("../assets/fonts/SourGummy-Black.ttf");
 
 /// BUNDLED per-script JAPANESE faces — the "Japanese bundle round" (TASTE-GATED,
 /// see `theme::CJK_MINCHO`/`CJK_GOTHIC`): Noto Serif JP + Noto Sans JP, the
@@ -1143,7 +1182,6 @@ pub struct ImageReport {
 /// into an infinite blank void. Tunable.
 pub const OVERSCROLL_KEEP_ROWS: usize = 1;
 
-
 /// The glyphon `Attrs` for the SUMMONED overlays / search panel / gutter —
 /// the SAME active-world display family the DOCUMENT uses (see
 /// [`TextPipeline::doc_attrs`]). This makes a serif/sans world render the command
@@ -1327,15 +1365,20 @@ fn build_font_system() -> FontSystem {
     // the monospace family, so the panel + the mono worlds (and any glyph a
     // proportional theme face lacks) resolve to it via Family::Monospace.
     let font_bytes: Vec<u8> = match awl_font_override() {
-        Some(path) => crate::fs::active().read(path.as_path()).unwrap_or_else(|e| {
-            eprintln!("AWL_FONT {path:?}: {e}; falling back to bundled font");
-            FONT_DATA.to_vec()
-        }),
+        Some(path) => crate::fs::active()
+            .read(path.as_path())
+            .unwrap_or_else(|e| {
+                eprintln!("AWL_FONT {path:?}: {e}; falling back to bundled font");
+                FONT_DATA.to_vec()
+            }),
         None => FONT_DATA.to_vec(),
     };
-    let face_ids = font_system.db_mut().load_font_source(
-        glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(font_bytes)),
-    );
+    let face_ids =
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(font_bytes),
+            ));
     if let Some(family) = face_ids
         .first()
         .and_then(|id| font_system.db().face(*id))
@@ -1352,11 +1395,11 @@ fn build_font_system() -> FontSystem {
     // monospace family, so it remains the fallback for any glyph a proportional
     // face is missing, and the panel/UI text keeps its mono look.
     for &(face_bytes, _pitch) in FONT_THEME_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // DEV-ONLY (FIRETAIL-MAXIMALIST-SHOWCASE round): `AWL_CHROME_FACE_FILE`
@@ -1386,11 +1429,11 @@ fn build_font_system() -> FontSystem {
     // (which otherwise drops the Regular and lands in the mono fallback). No new
     // family and no other wiring — the bold arm is unchanged.
     for &face_bytes in FONT_THEME_BOLD_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the bundled JAPANESE faces (Noto Serif/Sans JP — see
@@ -1399,11 +1442,11 @@ fn build_font_system() -> FontSystem {
     // Named only via per-run CJK `AttrsList` spans (never a `Theme::font`), so
     // this changes zero Latin display shaping.
     for &face_bytes in FONT_CJK_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the bundled per-WORLD JAPANESE VARIETY faces (Shippori Mincho,
@@ -1412,11 +1455,11 @@ fn build_font_system() -> FontSystem {
     // no dependency on a system CJK face. Named only via per-run CJK `AttrsList`
     // spans (never a `Theme::font`), so this changes zero Latin display shaping.
     for &face_bytes in FONT_JA_VARIETY_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the bundled ZH-HANS + KOREAN faces (Noto Serif/Sans SC, Noto
@@ -1426,11 +1469,11 @@ fn build_font_system() -> FontSystem {
     // `AttrsList` spans (never a `Theme::font`), so this changes zero Latin
     // display shaping — mirrors the JP faces' registration exactly.
     for &face_bytes in FONT_ZH_KO_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the bundled CJK COMPANION faces (Gowun Batang — the serif worlds'
@@ -1439,11 +1482,11 @@ fn build_font_system() -> FontSystem {
     // Named only via per-run CJK `AttrsList` spans (never a `Theme::font`), so
     // this changes zero Latin display shaping — mirrors the JP/ZH faces exactly.
     for &face_bytes in FONT_CJK_COMPANION_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the bundled ORNAMENT faces (Junicode — see FONT_ORNAMENT_FACES) so
@@ -1451,11 +1494,11 @@ fn build_font_system() -> FontSystem {
     // `Theme::ornament_face` and named only through the per-run family span on the
     // section-break fleuron / About end-mark, so this changes zero display shaping.
     for &face_bytes in FONT_ORNAMENT_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the bundled CHROME-VOICE faces (Archivo Black, Abril Fatface — see
@@ -1465,20 +1508,22 @@ fn build_font_system() -> FontSystem {
     // label — never a `Theme::font`), so this changes zero document display
     // shaping — a world with `ChromeFace::Body` (all but Firetail) is untouched.
     for &face_bytes in FONT_CHROME_FACES {
-        font_system.db_mut().load_font_source(
-            glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(
-                face_bytes.to_vec(),
-            )),
-        );
+        font_system
+            .db_mut()
+            .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+                std::sync::Arc::new(face_bytes.to_vec()),
+            ));
     }
 
     // Register the item-70 bundled Sour Gummy 900 HEAVY CANDIDATE (see its own
     // doc). Always loaded (so it stays addressable for the A/B knob below);
     // `apply_sourgummy_heavy_force` runs after every registration and prunes
     // the 700 file instead when the dev knob asks for it.
-    font_system.db_mut().load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
-        std::sync::Arc::new(FONT_SOURGUMMY_HEAVY_CANDIDATE.to_vec()),
-    ));
+    font_system
+        .db_mut()
+        .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+            std::sync::Arc::new(FONT_SOURGUMMY_HEAVY_CANDIDATE.to_vec()),
+        ));
 
     // Register the bundled SYMBOL / ORNAMENT face under its private family name
     // (`SYMBOL_FAMILY`). It is never a display face — the renderer names it only
@@ -1486,9 +1531,11 @@ fn build_font_system() -> FontSystem {
     // (`spans::add_symbol_spans`), so the modifier glyphs + ornaments resolve here
     // (not to a flaky platform fallback / tofu) in every world, leaving each
     // theme's display face untouched.
-    font_system.db_mut().load_font_source(
-        glyphon::cosmic_text::fontdb::Source::Binary(std::sync::Arc::new(FONT_SYMBOLS.to_vec())),
-    );
+    font_system
+        .db_mut()
+        .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
+            std::sync::Arc::new(FONT_SYMBOLS.to_vec()),
+        ));
 
     // Drop non-scalable / advance-breaking fallback faces before any shaping.
     // On macOS the system font DB includes bitmap CJK faces (e.g. "GB18030
@@ -1539,8 +1586,13 @@ const SYSTEM_CJK_FAMILIES: &[&str] = &[
 /// world that names one down to its plain Noto floor, for the
 /// `gallery/zh-worlds/` + `gallery/jp-worlds/` + `gallery/ko-worlds/`
 /// "floor" vs "characterful" A/B captures.
-const CHARACTERFUL_CJK_FAMILIES: &[&str] =
-    &["LXGW WenKai", "Shippori Mincho", "Zen Maru Gothic", "Klee One", "Gowun Batang"];
+const CHARACTERFUL_CJK_FAMILIES: &[&str] = &[
+    "LXGW WenKai",
+    "Shippori Mincho",
+    "Zen Maru Gothic",
+    "Klee One",
+    "Gowun Batang",
+];
 
 /// The `AWL_CJK_FORCE` dev knob, read ONCE and memoized — see
 /// [`awl_font_override`]'s doc for why this must not be a per-call
@@ -1581,7 +1633,11 @@ fn apply_cjk_force(font_system: &mut FontSystem) {
     let bad_ids: Vec<_> = font_system
         .db()
         .faces()
-        .filter(|f| f.families.iter().any(|(name, _)| drop.iter().any(|d| name.eq_ignore_ascii_case(d))))
+        .filter(|f| {
+            f.families
+                .iter()
+                .any(|(name, _)| drop.iter().any(|d| name.eq_ignore_ascii_case(d)))
+        })
         .map(|f| f.id)
         .collect();
     let db = font_system.db_mut();
@@ -1619,7 +1675,9 @@ fn apply_sourgummy_heavy_force(font_system: &mut FontSystem) {
         .faces()
         .filter(|f| {
             f.weight == bold_weight
-                && f.families.iter().any(|(name, _)| name.eq_ignore_ascii_case("Sour Gummy"))
+                && f.families
+                    .iter()
+                    .any(|(name, _)| name.eq_ignore_ascii_case("Sour Gummy"))
         })
         .map(|f| f.id)
         .collect();
@@ -1685,7 +1743,9 @@ fn parse_overlay_style_force(s: &str) -> Option<theme::TitleStyle> {
 fn awl_overlay_style_force() -> &'static Option<theme::TitleStyle> {
     static ONCE: std::sync::OnceLock<Option<theme::TitleStyle>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
-        std::env::var("AWL_OVERLAY_STYLE_FORCE").ok().and_then(|s| parse_overlay_style_force(&s))
+        std::env::var("AWL_OVERLAY_STYLE_FORCE")
+            .ok()
+            .and_then(|s| parse_overlay_style_force(&s))
     })
 }
 
@@ -1721,7 +1781,9 @@ fn parse_page_frame_force(s: &str) -> Option<theme::PageFrame> {
 fn awl_page_frame_force() -> &'static Option<theme::PageFrame> {
     static ONCE: std::sync::OnceLock<Option<theme::PageFrame>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
-        std::env::var("AWL_PAGE_FRAME_FORCE").ok().and_then(|s| parse_page_frame_force(&s))
+        std::env::var("AWL_PAGE_FRAME_FORCE")
+            .ok()
+            .and_then(|s| parse_page_frame_force(&s))
     })
 }
 
@@ -1839,7 +1901,9 @@ static PLACARD_TEST_OVERRIDE: std::sync::Mutex<Option<theme::TitleStyle>> =
 
 #[cfg(test)]
 pub(crate) fn set_title_style_test_override(style: Option<theme::TitleStyle>) {
-    *PLACARD_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = style;
+    *PLACARD_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = style;
 }
 
 /// The EFFECTIVE [`theme::TitleStyle`] for this frame: a `cfg(test)` override
@@ -1850,7 +1914,10 @@ pub(crate) fn set_title_style_test_override(style: Option<theme::TitleStyle>) {
 pub(crate) fn effective_title_style() -> theme::TitleStyle {
     #[cfg(test)]
     {
-        if let Some(style) = *PLACARD_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(style) = *PLACARD_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return style;
         }
     }
@@ -1985,7 +2052,9 @@ static CARD_ANCHOR_TEST_OVERRIDE: std::sync::Mutex<Option<theme::CardAnchor>> =
 
 #[cfg(test)]
 pub(crate) fn set_card_anchor_test_override(anchor: Option<theme::CardAnchor>) {
-    *CARD_ANCHOR_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = anchor;
+    *CARD_ANCHOR_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = anchor;
 }
 
 /// The EFFECTIVE [`theme::CardAnchor`] the summon-time freeze RESOLVES against: a
@@ -2001,7 +2070,10 @@ pub(crate) fn set_card_anchor_test_override(anchor: Option<theme::CardAnchor>) {
 pub(crate) fn effective_card_anchor() -> theme::CardAnchor {
     #[cfg(test)]
     {
-        if let Some(a) = *CARD_ANCHOR_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(a) = *CARD_ANCHOR_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return a;
         }
     }
@@ -2132,7 +2204,9 @@ fn awl_chrome_face_force() -> &'static Option<theme::ChromeFace> {
             if s.is_empty() {
                 return None;
             }
-            Some(theme::ChromeFace::Named(Box::leak(s.to_string().into_boxed_str())))
+            Some(theme::ChromeFace::Named(Box::leak(
+                s.to_string().into_boxed_str(),
+            )))
         })
     })
 }
@@ -2146,7 +2220,9 @@ static CHROME_FACE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::ChromeFace>> =
 
 #[cfg(test)]
 pub(crate) fn set_chrome_face_test_override(face: Option<theme::ChromeFace>) {
-    *CHROME_FACE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = face;
+    *CHROME_FACE_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = face;
 }
 
 /// The EFFECTIVE [`theme::ChromeFace`] for this frame: a `cfg(test)` override
@@ -2157,7 +2233,10 @@ pub(crate) fn set_chrome_face_test_override(face: Option<theme::ChromeFace>) {
 pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
     #[cfg(test)]
     {
-        if let Some(f) = *CHROME_FACE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(f) = *CHROME_FACE_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return f;
         }
     }
@@ -2194,7 +2273,9 @@ fn parse_motion_force(s: &str) -> Option<theme::MotionJuice> {
 fn awl_motion_force() -> &'static Option<theme::MotionJuice> {
     static ONCE: std::sync::OnceLock<Option<theme::MotionJuice>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
-        std::env::var("AWL_MOTION_FORCE").ok().and_then(|s| parse_motion_force(&s))
+        std::env::var("AWL_MOTION_FORCE")
+            .ok()
+            .and_then(|s| parse_motion_force(&s))
     })
 }
 
@@ -2206,7 +2287,9 @@ static MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<theme::MotionJuice>> =
 
 #[cfg(test)]
 pub(crate) fn set_motion_test_override(m: Option<theme::MotionJuice>) {
-    *MOTION_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = m;
+    *MOTION_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = m;
 }
 
 /// The EFFECTIVE [`theme::MotionJuice`] for this frame: test override → env
@@ -2217,7 +2300,10 @@ pub(crate) fn set_motion_test_override(m: Option<theme::MotionJuice>) {
 pub(crate) fn effective_motion_juice() -> theme::MotionJuice {
     #[cfg(test)]
     {
-        if let Some(m) = *MOTION_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(m) = *MOTION_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return m;
         }
     }
@@ -2255,7 +2341,10 @@ fn parse_overlay_slant_force(s: &str) -> Option<SlantProbe> {
     };
     let px: f32 = px_s.trim().parse().ok()?;
     if px > 0.0 && px.is_finite() {
-        Some(SlantProbe { px_per_row: px, italic })
+        Some(SlantProbe {
+            px_per_row: px,
+            italic,
+        })
     } else {
         None
     }
@@ -2278,7 +2367,9 @@ static SLANT_TEST_OVERRIDE: std::sync::Mutex<Option<SlantProbe>> = std::sync::Mu
 
 #[cfg(test)]
 pub(crate) fn set_slant_test_override(s: Option<SlantProbe>) {
-    *SLANT_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = s;
+    *SLANT_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
 /// The EFFECTIVE slant probe for this frame — `None` (the shipped layout) on
@@ -2288,7 +2379,10 @@ pub(crate) fn set_slant_test_override(s: Option<SlantProbe>) {
 pub(crate) fn overlay_slant() -> Option<SlantProbe> {
     #[cfg(test)]
     {
-        if let Some(s) = *SLANT_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(s) = *SLANT_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return Some(s);
         }
     }
@@ -2398,7 +2492,13 @@ fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
             }
         }
     }
-    Some(theme::ListStyle::Bars { radius, gap, grow_px, extent, coverage })
+    Some(theme::ListStyle::Bars {
+        radius,
+        gap,
+        grow_px,
+        extent,
+        coverage,
+    })
 }
 
 /// The three states an `AWL_*_FORCE` dev knob can be in. The `Retired` arm is
@@ -2473,7 +2573,9 @@ pub(crate) fn set_list_style_test_override(s: Option<theme::ListStyle>) {
         crate::testlock::currently_held(),
         "LIST_STYLE_TEST_OVERRIDE writer requires crate::testlock::serial()"
     );
-    *LIST_STYLE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = s;
+    *LIST_STYLE_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
 /// The EFFECTIVE [`theme::ListStyle`] for this frame: a `cfg(test)` override if
@@ -2489,7 +2591,10 @@ pub(crate) fn effective_list_style() -> theme::ListStyle {
             crate::testlock::currently_held(),
             "LIST_STYLE_TEST_OVERRIDE reader requires crate::testlock::serial()"
         );
-        if let Some(s) = *LIST_STYLE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(s) = *LIST_STYLE_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return s;
         }
     }
@@ -2549,7 +2654,9 @@ static FACET_STYLE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::FacetStyle>> =
 
 #[cfg(test)]
 pub(crate) fn set_facet_style_test_override(s: Option<theme::FacetStyle>) {
-    *FACET_STYLE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = s;
+    *FACET_STYLE_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
 /// The EFFECTIVE [`theme::FacetStyle`] for this frame: a `cfg(test)` override if
@@ -2561,7 +2668,10 @@ pub(crate) fn set_facet_style_test_override(s: Option<theme::FacetStyle>) {
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {
     #[cfg(test)]
     {
-        if let Some(s) = *FACET_STYLE_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(s) = *FACET_STYLE_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return s;
         }
     }
@@ -2603,7 +2713,9 @@ static PANE_SPLIT_TEST_OVERRIDE: std::sync::Mutex<Option<theme::PaneSplit>> =
 
 #[cfg(test)]
 pub(crate) fn set_pane_split_test_override(s: Option<theme::PaneSplit>) {
-    *PANE_SPLIT_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = s;
+    *PANE_SPLIT_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
 /// The EFFECTIVE [`theme::PaneSplit`] for this frame: a `cfg(test)` override if
@@ -2616,7 +2728,10 @@ pub(crate) fn set_pane_split_test_override(s: Option<theme::PaneSplit>) {
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     #[cfg(test)]
     {
-        if let Some(s) = *PANE_SPLIT_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(s) = *PANE_SPLIT_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return s;
         }
     }
@@ -2667,7 +2782,10 @@ impl TypeDensity {
     /// The shipped default: the historical [`chrome::OVERLAY_UI_SCALE`] with zero
     /// extra leading, so an unset probe is byte-identical.
     pub(crate) fn shipped() -> Self {
-        TypeDensity { scale: chrome::OVERLAY_UI_SCALE, leading: 0.0 }
+        TypeDensity {
+            scale: chrome::OVERLAY_UI_SCALE,
+            leading: 0.0,
+        }
     }
 }
 
@@ -2715,7 +2833,9 @@ static DENSITY_TEST_OVERRIDE: std::sync::Mutex<Option<TypeDensity>> = std::sync:
 
 #[cfg(test)]
 pub(crate) fn set_overlay_density_test_override(d: Option<TypeDensity>) {
-    *DENSITY_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = d;
+    *DENSITY_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = d;
 }
 
 /// The EFFECTIVE overlay type density for this frame: a `cfg(test)` override if
@@ -2724,7 +2844,10 @@ pub(crate) fn set_overlay_density_test_override(d: Option<TypeDensity>) {
 pub(crate) fn effective_overlay_density() -> TypeDensity {
     #[cfg(test)]
     {
-        if let Some(d) = *DENSITY_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(d) = *DENSITY_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return d;
         }
     }
@@ -2783,7 +2906,10 @@ fn parse_overlay_motion_force(s: &str) -> Option<OverlayMotionProbe> {
         }
         None => enter,
     };
-    Some(OverlayMotionProbe { enter: enter.clamp(0.0, 1.0), band: band.clamp(0.0, 1.0) })
+    Some(OverlayMotionProbe {
+        enter: enter.clamp(0.0, 1.0),
+        band: band.clamp(0.0, 1.0),
+    })
 }
 
 /// The `AWL_OVERLAY_MOTION_FORCE` dev knob, read ONCE and memoized.
@@ -2806,7 +2932,9 @@ static OVERLAY_MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<OverlayMotionProbe>
 
 #[cfg(test)]
 pub(crate) fn set_overlay_motion_test_override(m: Option<OverlayMotionProbe>) {
-    *OVERLAY_MOTION_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = m;
+    *OVERLAY_MOTION_TEST_OVERRIDE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = m;
 }
 
 /// The EFFECTIVE overlay motion frame-dump phase this frame, or `None` (the
@@ -2816,7 +2944,10 @@ pub(crate) fn set_overlay_motion_test_override(m: Option<OverlayMotionProbe>) {
 pub(crate) fn overlay_motion_probe() -> Option<OverlayMotionProbe> {
     #[cfg(test)]
     {
-        if let Some(m) = *OVERLAY_MOTION_TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) {
+        if let Some(m) = *OVERLAY_MOTION_TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+        {
             return Some(m);
         }
     }
@@ -2938,7 +3069,6 @@ fn nearest_row_index(tops: &[f32], target: f32) -> usize {
         }
     }
 }
-
 
 /// Everything needed to lay out and draw text + caret onto a wgpu render pass.
 /// Created once, reused every frame. Format must match the target texture's

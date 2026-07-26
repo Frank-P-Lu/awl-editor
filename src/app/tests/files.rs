@@ -62,10 +62,7 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     };
     let ov = crate::overlay::build(crate::overlay::OverlayKind::Goto, &build_ctx)
         .expect("Goto always summons");
-    assert!(
-        ov.accepts().contains(&"b.txt"),
-        "the new file is listed"
-    );
+    assert!(ov.accepts().contains(&"b.txt"), "the new file is listed");
 }
 
 // ── THE KEYMAP FLAVOR ROUND — the Settings "Keymap" toggle round-trip ────
@@ -229,8 +226,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
         // snapshot the process-global directly so restoration below doesn't
         // assume "two toggles returns to start" (true for a 2-state row,
         // false for a 5-state one).
-        let date_format_before =
-            (row.name == "Date format").then(crate::dateformat::active_format);
+        let date_format_before = (row.name == "Date format").then(crate::dateformat::active_format);
 
         app.setting_toggle(key);
         let values1 = gather(&app);
@@ -267,7 +263,10 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
 #[test]
 fn settings_corpus_includes_the_keymap_row() {
     assert!(crate::settings::visible_names().contains(&"Keymap".to_string()));
-    assert_eq!(crate::settings::toggle_key(crate::settings::SettingId::Keymap), Some("keymap"));
+    assert_eq!(
+        crate::settings::toggle_key(crate::settings::SettingId::Keymap),
+        Some("keymap")
+    );
 }
 
 #[test]
@@ -389,7 +388,10 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
     );
     // The version is marked handled so the idle timer doesn't spin; the NEXT
     // edit re-arms the engine (and the notice would recur calmly).
-    assert_eq!(app.active.extra.doc_saved_version, Some(app.active.buffer.version()));
+    assert_eq!(
+        app.active.extra.doc_saved_version,
+        Some(app.active.buffer.version())
+    );
 }
 
 #[test]
@@ -629,7 +631,11 @@ fn load_path_preserves_a_clobber_notice_the_leaving_flush_just_raised() {
 
     app.load_path(b.clone());
 
-    assert_eq!(app.active.buffer.text(), "B\n", "the switch to B still happens");
+    assert_eq!(
+        app.active.buffer.text(),
+        "B\n",
+        "the switch to B still happens"
+    );
     assert_eq!(
         mem.read_to_string(&a).unwrap(),
         "external edit\n",
@@ -664,7 +670,11 @@ fn scratch_stash_and_restore_round_trip() {
     // A fresh no-argument launch RESTORES it: still path-less, still the
     // markdown-first scratch surface, not a note.
     let mut app2 = app_on(None, "/proj", Config::empty());
-    assert_eq!(app2.active.buffer.text(), "brain dump\n", "the stash restores");
+    assert_eq!(
+        app2.active.buffer.text(),
+        "brain dump\n",
+        "the stash restores"
+    );
     assert!(
         app2.active.buffer.path().is_none(),
         "restored scratch stays path-less"
@@ -956,7 +966,11 @@ fn rename_current_file_unchanged_or_blank_name_is_a_quiet_no_op() {
     assert!(app.notice.is_none(), "no notice for a no-op");
 
     app.rename_current_file("   ");
-    assert_eq!(app.active.buffer.path(), Some(old.as_path()), "blank name: no-op");
+    assert_eq!(
+        app.active.buffer.path(),
+        Some(old.as_path()),
+        "blank name: no-op"
+    );
     assert!(app.notice.is_none(), "no notice for a no-op");
 }
 
@@ -1031,7 +1045,10 @@ fn duplicate_current_file_on_a_pathless_buffer_is_a_quiet_no_op() {
     let mut app = app_on(None, "/proj", Config::empty());
     assert!(app.active.buffer.path().is_none());
     app.duplicate_current_file();
-    assert!(app.active.buffer.path().is_none(), "nothing to duplicate yet");
+    assert!(
+        app.active.buffer.path().is_none(),
+        "nothing to duplicate yet"
+    );
     assert!(app.notice.is_none());
 }
 
@@ -1305,7 +1322,10 @@ fn scratch_restore_skips_empty_stash() {
         let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
         mem.write(&crate::fs::scratch_stash_path(), b"").unwrap();
         let app = app_on(None, "/proj", Config::empty());
-        assert!(app.active.buffer.text().is_empty(), "empty stash → plain scratch");
+        assert!(
+            app.active.buffer.text().is_empty(),
+            "empty stash → plain scratch"
+        );
     }
     // …and so does a MISSING one (fresh fake).
     {
@@ -1413,7 +1433,9 @@ fn path_law_across_a_plain_file_lifecycle_open_rename_duplicate_close_toggle() {
     use crate::fs::InMemoryFs;
     let a = PathBuf::from("/proj/a.txt");
     let b = PathBuf::from("/proj/b.txt");
-    let mem = InMemoryFs::new().with_file(&a, "alpha\n").with_file(&b, "beta\n");
+    let mem = InMemoryFs::new()
+        .with_file(&a, "alpha\n")
+        .with_file(&b, "beta\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
 
     // OPEN: the launch argument becomes the buffer's own path.
@@ -1442,7 +1464,11 @@ fn path_law_across_a_plain_file_lifecycle_open_rename_duplicate_close_toggle() {
 
     // OPEN a second, previously-untouched file: still tracks exactly.
     app.load_path(b.clone());
-    assert_eq!(app.active.buffer.path(), Some(b.as_path()), "open a second file");
+    assert_eq!(
+        app.active.buffer.path(),
+        Some(b.as_path()),
+        "open a second file"
+    );
 }
 
 #[test]
@@ -1459,7 +1485,11 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     // NEW DOCUMENT: no path until it has content, and it lands in the
     // CURRENT active folder — no root jump.
     app.new_document();
-    assert_eq!(app.active.buffer.path(), None, "a fresh document is unnamed");
+    assert_eq!(
+        app.active.buffer.path(),
+        None,
+        "a fresh document is unnamed"
+    );
     assert_eq!(app.root, PathBuf::from("/proj"), "no root jump on Cmd-N");
 
     // FIRST (MATERIAL) SAVE (auto-name from the first line): the buffer gains
@@ -1473,7 +1503,10 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
         named.as_deref().unwrap().starts_with("/proj"),
         "named under the ACTIVE folder, not a separate notes-root concept: {named:?}"
     );
-    assert!(!app.active.buffer.is_unnamed_fresh(), "one-shot: named once, ordinary now");
+    assert!(
+        !app.active.buffer.is_unnamed_fresh(),
+        "one-shot: named once, ordinary now"
+    );
 
     // A LATER title edit NEVER renames (the old live-rename-to-title behavior
     // is retired): editing the FIRST LINE again leaves the path untouched.
@@ -1482,7 +1515,10 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     app.active.buffer.insert_text(" retitled");
     app.autosave_note(); // is_unnamed_fresh() is false: this is now a no-op
     let after_title_edit = app.active.buffer.path().map(|p| p.to_path_buf());
-    assert_eq!(after_title_edit, named, "later title edits never rename (one-shot naming)");
+    assert_eq!(
+        after_title_edit, named,
+        "later title edits never rename (one-shot naming)"
+    );
 
     // MOVE (C-x m): re-points the buffer to the destination folder (relative
     // to the ACTIVE folder), keeping the filename.
@@ -1494,7 +1530,10 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
         before_move.file_name(),
         "the filename survives the move"
     );
-    assert!(moved.starts_with("/proj/sub"), "moved under the active folder's dest: {moved:?}");
+    assert!(
+        moved.starts_with("/proj/sub"),
+        "moved under the active folder's dest: {moved:?}"
+    );
 }
 
 // ── ITEM 94 — RANGE ROWS at the LIVE APP seam (apply / persist accounting) ────
@@ -1516,7 +1555,11 @@ fn settings_overlay_with_rail(app: &App) -> (crate::overlay::OverlayState, usize
     );
     ov.set_secondaries(crate::settings::visible_value_cells(&vals));
     ov.set_range_cells(crate::settings::visible_range_cells(&vals));
-    let zi = ov.items.iter().position(|&i| ov.rows[i].accept == "Zoom").unwrap();
+    let zi = ov
+        .items
+        .iter()
+        .position(|&i| ov.rows[i].accept == "Zoom")
+        .unwrap();
     ov.selected = zi;
     (ov, zi)
 }
@@ -1533,7 +1576,10 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     let mem = InMemoryFs::new();
     let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let _g = crate::testlock::serial();
-    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
     let mut app = app_on(None, "/proj", cfg);
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     app.zoom = spec.default;
@@ -1551,7 +1597,8 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     });
 
     let config_text = |mem: &InMemoryFs| -> String {
-        mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default()
+        mem.read_to_string(std::path::Path::new("/cfg/config.toml"))
+            .unwrap_or_default()
     };
     // EVERY resolved step of the scrub applies live…
     let mut applied = Vec::new();
@@ -1560,7 +1607,11 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         app.cursor_px = (px, 0.0);
         app.on_range_drag();
         let want = spec.value_at_frac(crate::render::rail_frac_at(px, x0, x1));
-        assert_eq!(app.zoom.to_bits(), want.to_bits(), "step {i} applied a parallel value");
+        assert_eq!(
+            app.zoom.to_bits(),
+            want.to_bits(),
+            "step {i} applied a parallel value"
+        );
         applied.push(app.zoom);
         // …and the row's own readout + thumb track it in the same move.
         let ov = app.overlay.as_ref().unwrap();
@@ -1573,14 +1624,20 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
             config_text(&mem)
         );
     }
-    assert!(applied.iter().any(|v| *v != spec.default), "the scrub genuinely moved the value");
+    assert!(
+        applied.iter().any(|v| *v != spec.default),
+        "the scrub genuinely moved the value"
+    );
     let settled = app.zoom;
 
     // THE RELEASE: exactly one write, of the settled value, and the drag is over.
     app.end_range_drag();
     let written = config_text(&mem);
     assert_eq!(
-        written.lines().filter(|l| l.trim_start().starts_with("zoom")).count(),
+        written
+            .lines()
+            .filter(|l| l.trim_start().starts_with("zoom"))
+            .count(),
         1,
         "the whole gesture writes ONE zoom line, not one per step: {written:?}"
     );
@@ -1593,7 +1650,11 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         app.zoom_persist_at.is_none(),
         "the release supersedes (and cancels) the debounced write the live apply armed"
     );
-    assert_eq!(app.config.zoom, Some(settled), "the in-memory config mirrors the write");
+    assert_eq!(
+        app.config.zoom,
+        Some(settled),
+        "the in-memory config mirrors the write"
+    );
 }
 
 /// THE PAUSED SCRUB — the same accounting rule, but with REAL TIME PASSING inside
@@ -1615,7 +1676,10 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     let mem = InMemoryFs::new();
     let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let _g = crate::testlock::serial();
-    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
     let mut app = app_on(None, "/proj", cfg);
     // VIRTUAL TIME: the App's own clock, so `about_to_wait_impl` sees the pause as a
     // live idle loop would — deterministically, with no sleeping.
@@ -1634,7 +1698,8 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
         x1,
     });
     let config_text = |mem: &InMemoryFs| -> String {
-        mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default()
+        mem.read_to_string(std::path::Path::new("/cfg/config.toml"))
+            .unwrap_or_default()
     };
     // The LIVE `zoom = …` lines actually in the file (the commented template lines the
     // config writer emits are not settings) — the compact oracle every step below reads.
@@ -1650,7 +1715,10 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     app.cursor_px = (x0 + (x1 - x0) * 0.15, 0.0);
     app.on_range_drag();
     let paused = app.zoom;
-    assert_ne!(paused, spec.default, "the scrub genuinely moved off the default");
+    assert_ne!(
+        paused, spec.default,
+        "the scrub genuinely moved off the default"
+    );
     assert!(
         app.zoom_persist_at.is_some(),
         "the live apply still ARMS the in-flight stamp (the zoom gesture is live — the \
@@ -1673,8 +1741,15 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
             "t={t}ms into a held pause (debounce window {win_ms}ms): a mid-gesture value \
              must NEVER reach the config — only the release writes"
         );
-        assert_eq!(app.zoom.to_bits(), paused.to_bits(), "t={t}ms: the value itself is untouched");
-        assert!(app.range_drag.is_some(), "t={t}ms: the gesture is still in flight");
+        assert_eq!(
+            app.zoom.to_bits(),
+            paused.to_bits(),
+            "t={t}ms: the value itself is untouched"
+        );
+        assert!(
+            app.range_drag.is_some(),
+            "t={t}ms: the gesture is still in flight"
+        );
         wakes.push((t, sched.scheduled_this_step()));
     }
     // HELD MEANS INERT: no write AND no wake armed — the loop still falls quiet
@@ -1688,7 +1763,11 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     app.cursor_px = (x0 + (x1 - x0) * 0.95, 0.0);
     app.on_range_drag();
     let settled = app.zoom;
-    assert_ne!(settled.to_bits(), paused.to_bits(), "the release value differs from the paused one");
+    assert_ne!(
+        settled.to_bits(),
+        paused.to_bits(),
+        "the release value differs from the paused one"
+    );
     assert_eq!(
         zoom_lines(&mem),
         Vec::<String>::new(),
@@ -1728,7 +1807,10 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     let mem = InMemoryFs::new();
     let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let _g = crate::testlock::serial();
-    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
     let mut app = app_on(None, "/proj", cfg);
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     let (ov, zi) = settings_overlay_with_rail(&app);
@@ -1739,12 +1821,17 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     // resolves to at the `app/apply.rs` seam.
     app.zoom = spec.stepped(spec.default, 1);
     app.setting_range_step("zoom");
-    let written = mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap();
+    let written = mem
+        .read_to_string(std::path::Path::new("/cfg/config.toml"))
+        .unwrap();
     assert!(
         written.contains(&format!("zoom = {}", spec.persist_value(app.zoom))),
         "a discrete step persists at once: {written:?}"
     );
-    assert!(app.zoom_persist_at.is_none(), "nothing left pending after a discrete write");
+    assert!(
+        app.zoom_persist_at.is_none(),
+        "nothing left pending after a discrete write"
+    );
     // The still-open menu was refreshed from the LIVE values through the one
     // owner, so its cell and its thumb both show the stepped value.
     let ov = app.overlay.as_ref().unwrap();
@@ -1760,12 +1847,19 @@ fn the_live_range_apply_door_clamps_through_the_settings_own_owner() {
     use crate::fs::InMemoryFs;
     let _g2 = crate::fs::FsGuard::install(Arc::new(InMemoryFs::new()));
     let _g = crate::testlock::serial();
-    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
     let mut app = app_on(None, "/proj", cfg);
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     for raw in [-4.0f32, 0.0, 0.53, 1.0, 2.97, 99.0] {
         app.range_apply_live(crate::settings::SettingId::Zoom, raw);
-        assert_eq!(app.zoom.to_bits(), spec.quantize(raw).to_bits(), "raw {raw}");
+        assert_eq!(
+            app.zoom.to_bits(),
+            spec.quantize(raw).to_bits(),
+            "raw {raw}"
+        );
         assert!((spec.min..=spec.max).contains(&app.zoom));
     }
 }
@@ -1782,7 +1876,10 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
     let mem = InMemoryFs::new();
     let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let _g = crate::testlock::serial();
-    let cfg = Config { path: PathBuf::from("/cfg/config.toml"), ..Config::empty() };
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
     let mut app = app_on(None, "/proj", cfg);
 
     let range_rows: Vec<crate::settings::SettingRow> = crate::settings::visible_rows()
@@ -1790,13 +1887,21 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
         .filter(|r| r.kind == crate::settings::SettingKind::Range)
         .copied()
         .collect();
-    assert_eq!(range_rows.len(), 1, "the range roster changed size — update this sweep");
+    assert_eq!(
+        range_rows.len(),
+        1,
+        "the range roster changed size — update this sweep"
+    );
     for row in range_rows {
         let spec = crate::settings::range_spec(row.id).unwrap();
         let key = crate::settings::value_key(row.id).unwrap();
         // A value the setting is definitely NOT sitting on.
         let target = spec.stepped(spec.default, 3);
-        assert_ne!(target, spec.default, "{}: pick a genuinely different value", row.name);
+        assert_ne!(
+            target, spec.default,
+            "{}: pick a genuinely different value",
+            row.name
+        );
 
         app.range_apply_live(row.id, target);
         let values = crate::settings::SettingsValues::gather(
@@ -1812,8 +1917,9 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
             row.name
         );
         app.range_persist(key);
-        let written =
-            mem.read_to_string(std::path::Path::new("/cfg/config.toml")).unwrap_or_default();
+        let written = mem
+            .read_to_string(std::path::Path::new("/cfg/config.toml"))
+            .unwrap_or_default();
         assert!(
             written.contains(&format!("{key} = {}", spec.persist_value(target))),
             "{}: the persist door must write {key}: {written:?}",

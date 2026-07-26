@@ -23,7 +23,7 @@
 //! a self-insert / literal char (case + shifted glyphs like `<` `>` pass through
 //! verbatim, matching how the keymap reads them).
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use winit::event::Modifiers;
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
@@ -56,7 +56,11 @@ pub fn parse_chords(spec: &str) -> Result<Vec<Chord>> {
     spec.split_whitespace()
         .map(|tok| {
             let (key, mods) = parse_chord(tok)?;
-            Ok(Chord { spec: tok.to_string(), key, mods })
+            Ok(Chord {
+                spec: tok.to_string(),
+                key,
+                mods,
+            })
         })
         .collect()
 }
@@ -84,7 +88,11 @@ pub struct ChordResolver<'a> {
 
 impl<'a> ChordResolver<'a> {
     pub fn new(km: &'a mut KeymapState, strict: bool) -> Self {
-        Self { km, strict, pending_prefix: None }
+        Self {
+            km,
+            strict,
+            pending_prefix: None,
+        }
     }
 
     /// Resolve one chord through the persistent keymap. `Ok(Some(action))` is
@@ -94,7 +102,10 @@ impl<'a> ChordResolver<'a> {
         let action = self.km.resolve(&chord.key, &chord.mods);
         if self.strict {
             if matches!(action, Action::Ignore) {
-                bail!("strict replay: chord {:?} is unbound (resolves to no action)", chord.spec);
+                bail!(
+                    "strict replay: chord {:?} is unbound (resolves to no action)",
+                    chord.spec
+                );
             }
             if let Some(pfx) = &self.pending_prefix {
                 if matches!(action, Action::Cancel)
@@ -134,7 +145,10 @@ pub fn parse_keys(spec: &str) -> Result<Vec<Action>> {
 /// pinned sibling exists only so hardcoded-literal unit tests can say exactly
 /// which convention they mean.
 #[cfg(test)]
-pub(crate) fn parse_keys_pinned(spec: &str, convention: crate::convention::Convention) -> Result<Vec<Action>> {
+pub(crate) fn parse_keys_pinned(
+    spec: &str,
+    convention: crate::convention::Convention,
+) -> Result<Vec<Action>> {
     parse_keys_through(spec, KeymapState::new_with_convention(convention))
 }
 
@@ -207,7 +221,10 @@ pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
         // Word-form modifiers (case-insensitive). Each `pfx` includes its trailing
         // '-'; `len() > pfx.len()` guarantees at least one key char remains after it.
         if let Some((pfx, flag)) = WORD_MODS.iter().find(|(pfx, _)| {
-            rest.len() > pfx.len() && rest.get(..pfx.len()).is_some_and(|h| h.eq_ignore_ascii_case(pfx))
+            rest.len() > pfx.len()
+                && rest
+                    .get(..pfx.len())
+                    .is_some_and(|h| h.eq_ignore_ascii_case(pfx))
         }) {
             state |= *flag;
             rest = &rest[pfx.len()..];
@@ -369,7 +386,11 @@ pub fn text_chords(text: &str) -> Result<Vec<Chord>> {
                 c => c.to_string(),
             };
             let (key, mods) = parse_chord(&tok)?;
-            Ok(Chord { spec: tok, key, mods })
+            Ok(Chord {
+                spec: tok,
+                key,
+                mods,
+            })
         })
         .collect()
 }
@@ -522,7 +543,13 @@ mod tests {
         super::parse_keys_pinned(spec, crate::convention::Convention::Mac)
     }
     fn parse_keys_with(spec: &str, cfg: &crate::config::Config) -> Result<Vec<Action>> {
-        parse_keys_through(spec, KeymapState::with_overrides_and_convention(&cfg.keys, crate::convention::Convention::Mac))
+        parse_keys_through(
+            spec,
+            KeymapState::with_overrides_and_convention(
+                &cfg.keys,
+                crate::convention::Convention::Mac,
+            ),
+        )
     }
 
     #[test]
@@ -571,8 +598,15 @@ mod tests {
         // correctly. The default (no-override) path must NOT produce that Action.
         let mut cfg = Config::empty();
         cfg.keys.push(("toggle_debug".into(), vec!["C-j".into()]));
-        assert_eq!(parse_keys_with("C-j", &cfg).unwrap(), vec![Action::ToggleDebug]);
-        assert_ne!(parse_keys("C-j").unwrap(), vec![Action::ToggleDebug], "default C-j is not ToggleDebug");
+        assert_eq!(
+            parse_keys_with("C-j", &cfg).unwrap(),
+            vec![Action::ToggleDebug]
+        );
+        assert_ne!(
+            parse_keys("C-j").unwrap(),
+            vec![Action::ToggleDebug],
+            "default C-j is not ToggleDebug"
+        );
         // An empty config makes parse_keys_with identical to parse_keys, including a
         // C-x prefix sequence.
         let empty = Config::empty();
@@ -589,7 +623,12 @@ mod tests {
     fn word_form_modifiers_parse_like_terse() {
         // The macOS-native word spellings resolve to the SAME chords as the terse
         // single-letter forms, so a config `Cmd-S` reaches the keymap as Super+S.
-        let pairs = [("Cmd-s", "s-s"), ("Option-f", "M-f"), ("Ctrl-x", "C-x"), ("Cmd-S-z", "s-S-z")];
+        let pairs = [
+            ("Cmd-s", "s-s"),
+            ("Option-f", "M-f"),
+            ("Ctrl-x", "C-x"),
+            ("Cmd-S-z", "s-S-z"),
+        ];
         for (word, terse) in pairs {
             assert_eq!(
                 parse_chord(word).map(|(k, m)| (k, m.state())).unwrap(),
@@ -598,7 +637,10 @@ mod tests {
             );
         }
         // Case-insensitive on the word, and "Cmd--" is Super + the literal '-' key.
-        assert_eq!(parse_chord("CMD-=").unwrap().1.state(), ModifiersState::SUPER);
+        assert_eq!(
+            parse_chord("CMD-=").unwrap().1.state(),
+            ModifiersState::SUPER
+        );
         let (k, m) = parse_chord("Cmd--").unwrap();
         assert_eq!(m.state(), ModifiersState::SUPER);
         assert_eq!(k, Key::Character(SmolStr::new("-")));
@@ -609,11 +651,17 @@ mod tests {
         // A captured key press → canonical terse spec, in the FIXED modifier order,
         // that parses back to the SAME (key, mods). Covers letter-folding, named
         // keys, and the macOS `s-`/`M-` modifiers.
-        for spec in ["C-t", "M-f", "s-s", "Left", "Enter", "Esc", "s-S-z", "C-x", "="] {
+        for spec in [
+            "C-t", "M-f", "s-s", "Left", "Enter", "Esc", "s-S-z", "C-x", "=",
+        ] {
             let (k, m) = parse_chord(spec).unwrap();
             let formatted = format_chord(&k, m.state());
             let (k2, m2) = parse_chord(&formatted).unwrap();
-            assert_eq!((canon(&k2), m2.state()), (canon(&k), m.state()), "{spec:?} → {formatted:?}");
+            assert_eq!(
+                (canon(&k2), m2.state()),
+                (canon(&k), m.state()),
+                "{spec:?} → {formatted:?}"
+            );
         }
         // A shifted/upper letter folds to lower-case; the modifier order is fixed.
         assert_eq!(format_chord(&ch_key("T"), ModifiersState::CONTROL), "C-t");
@@ -664,7 +712,10 @@ mod tests {
         assert_eq!(linux_glyph_chord("M-Right"), "Alt+Right");
         // Fixed modifier order Ctrl, Alt, Shift, Super regardless of input order.
         assert_eq!(
-            linux_glyph_chord(&format_chord(&ch_key("z"), ModifiersState::SUPER | ModifiersState::CONTROL)),
+            linux_glyph_chord(&format_chord(
+                &ch_key("z"),
+                ModifiersState::SUPER | ModifiersState::CONTROL
+            )),
             "Ctrl+Super+Z"
         );
         // An unparseable token passes through verbatim (never panics).
@@ -707,15 +758,26 @@ mod tests {
         // (the harness stays real).
         for tok in ["PageUp", "pageup", "PgUp"] {
             let chords = parse_chords(tok).unwrap();
-            assert_eq!(chords[0].key, Key::Named(NamedKey::PageUp), "{tok} -> PageUp");
+            assert_eq!(
+                chords[0].key,
+                Key::Named(NamedKey::PageUp),
+                "{tok} -> PageUp"
+            );
         }
         for tok in ["PageDown", "pagedown", "PgDn", "pagedn"] {
             let chords = parse_chords(tok).unwrap();
-            assert_eq!(chords[0].key, Key::Named(NamedKey::PageDown), "{tok} -> PageDown");
+            assert_eq!(
+                chords[0].key,
+                Key::Named(NamedKey::PageDown),
+                "{tok} -> PageDown"
+            );
         }
         // Round-trips through the canonical token spelling.
         assert_eq!(super::key_token(&Key::Named(NamedKey::PageUp)), "PageUp");
-        assert_eq!(super::key_token(&Key::Named(NamedKey::PageDown)), "PageDown");
+        assert_eq!(
+            super::key_token(&Key::Named(NamedKey::PageDown)),
+            "PageDown"
+        );
     }
 
     #[test]
@@ -737,8 +799,14 @@ mod tests {
         // And the chars resolve through the REAL keymap to self-inserts.
         let mut km = KeymapState::new_with_convention(crate::convention::Convention::Mac);
         let mut resolver = ChordResolver::new(&mut km, true);
-        assert_eq!(resolver.resolve(&chords[0]).unwrap(), Some(Action::InsertChar('H')));
-        assert_eq!(resolver.resolve(&chords[2]).unwrap(), Some(Action::InsertChar(' ')));
+        assert_eq!(
+            resolver.resolve(&chords[0]).unwrap(),
+            Some(Action::InsertChar('H'))
+        );
+        assert_eq!(
+            resolver.resolve(&chords[2]).unwrap(),
+            Some(Action::InsertChar(' '))
+        );
     }
 
     // ── STRICT REPLAY TRUTHFULNESS: the strict parse door ──
@@ -747,7 +815,11 @@ mod tests {
     /// tests document MAC-native defaults; Linux displacement is law-tested in
     /// `keymap.rs`).
     fn parse_keys_strict(spec: &str) -> Result<Vec<Action>> {
-        parse_keys_mode(spec, KeymapState::new_with_convention(crate::convention::Convention::Mac), true)
+        parse_keys_mode(
+            spec,
+            KeymapState::new_with_convention(crate::convention::Convention::Mac),
+            true,
+        )
     }
 
     #[test]
@@ -788,7 +860,13 @@ mod tests {
 
     #[test]
     fn strict_matches_permissive_on_fully_bound_specs() {
-        for spec in ["C-n C-n", "s-s", "a b C-Space Left", "Enter Tab Backspace", "s-Down M->"] {
+        for spec in [
+            "C-n C-n",
+            "s-s",
+            "a b C-Space Left",
+            "Enter Tab Backspace",
+            "s-Down M->",
+        ] {
             assert_eq!(
                 parse_keys_strict(spec).unwrap(),
                 parse_keys(spec).unwrap(),
@@ -842,10 +920,7 @@ mod tests {
 
     #[test]
     fn case_preserved_on_self_insert() {
-        assert_eq!(
-            parse_keys("Z").unwrap(),
-            vec![Action::InsertChar('Z')]
-        );
+        assert_eq!(parse_keys("Z").unwrap(), vec![Action::InsertChar('Z')]);
     }
 
     #[test]

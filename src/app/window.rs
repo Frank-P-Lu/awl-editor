@@ -40,9 +40,13 @@ impl App {
             GpuFaultAction::RetryOneFrame => {
                 self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 1 };
                 self.set_sticky_notice("graphics memory pressure — skipped one frame");
-                if let Some(gpu) = self.gpu.as_ref() { gpu.window.request_redraw(); }
+                if let Some(gpu) = self.gpu.as_ref() {
+                    gpu.window.request_redraw();
+                }
             }
-            GpuFaultAction::NoticeOnly => self.set_sticky_notice("graphics rejected one frame — editing is safe"),
+            GpuFaultAction::NoticeOnly => {
+                self.set_sticky_notice("graphics rejected one frame — editing is safe")
+            }
             GpuFaultAction::Rebuild => {
                 let reason = match fault.kind {
                     gpu::GpuFaultKind::OutOfMemory => "graphics memory stayed full",
@@ -56,19 +60,33 @@ impl App {
         }
     }
 
-    fn handle_gpu_frame_outcome(&mut self, event_loop: &ActiveEventLoop, outcome: gpu::GpuFrameOutcome) -> Result<(Option<(f32, Instant)>, bool), ()> {
+    fn handle_gpu_frame_outcome(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        outcome: gpu::GpuFrameOutcome,
+    ) -> Result<(Option<(f32, Instant)>, bool), ()> {
         match outcome {
             gpu::GpuFrameOutcome::Presented(perf) => {
                 self.gpu_lifecycle = GpuLifecycle::Active { oom_skips: 0 };
                 self.gpu_retry_at = None;
                 self.gpu_timeout_streak = 0;
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Some(soak) = self.soak.as_mut() { soak.observe_frame(crate::soak_gpu::FrameOutcome::Presented, true); if let Some(kind) = self.soak_recovery_pending.take() { soak.observe_recovered(kind, Instant::now()); } }
+                if let Some(soak) = self.soak.as_mut() {
+                    soak.observe_frame(crate::soak_gpu::FrameOutcome::Presented, true);
+                    if let Some(kind) = self.soak_recovery_pending.take() {
+                        soak.observe_recovered(kind, Instant::now());
+                    }
+                }
                 Ok((perf, true))
             }
             gpu::GpuFrameOutcome::Skipped(skip) => {
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Some(soak) = self.soak.as_mut() { soak.observe_frame(crate::soak_gpu::FrameOutcome::Skipped(soak_skip_kind(skip)), false); }
+                if let Some(soak) = self.soak.as_mut() {
+                    soak.observe_frame(
+                        crate::soak_gpu::FrameOutcome::Skipped(soak_skip_kind(skip)),
+                        false,
+                    );
+                }
                 // FLIGHT-RECORDER / PROBE: a frame that DIDN'T present is the vanish
                 // signature — the writing surface can only go stale/blank on screen
                 // when a scheduled frame is skipped (occluded / timeout / surface
@@ -107,7 +125,12 @@ impl App {
             }
             gpu::GpuFrameOutcome::Fault(fault) => {
                 #[cfg(not(target_arch = "wasm32"))]
-                if let Some(soak) = self.soak.as_mut() { soak.observe_frame(crate::soak_gpu::FrameOutcome::Skipped(crate::soak_gpu::SkipKind::Fault), false); }
+                if let Some(soak) = self.soak.as_mut() {
+                    soak.observe_frame(
+                        crate::soak_gpu::FrameOutcome::Skipped(crate::soak_gpu::SkipKind::Fault),
+                        false,
+                    );
+                }
                 self.handle_gpu_fault(event_loop, fault);
                 Err(())
             }
@@ -131,15 +154,23 @@ impl App {
         // ever fires during a probe run, the window stole the user's keyboard
         // focus — a hard regression the smoke run asserts on (grep the stderr).
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::live_active() { crate::probe::trace(format_args!("FOCUS-GAINED (window became key — focus theft!)")); }
+        if crate::probe::live_active() {
+            crate::probe::trace(format_args!(
+                "FOCUS-GAINED (window became key — focus theft!)"
+            ));
+        }
         // FLIGHT RECORDER (not the probe — its window is never key): a normal focus
         // regain resumes the ambient tick. Logged so the black box can tell a stale
         // frame during a blurred gap apart from a genuine preview-time race.
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::flight_active() { crate::probe::trace(format_args!("focus gained (ambient tick resumes)")); }
+        if crate::probe::flight_active() {
+            crate::probe::trace(format_args!("focus gained (ambient tick resumes)"));
+        }
         self.focused = true;
         self.lava_tick_at = None;
-        if let Some(gpu) = self.gpu.as_ref() { gpu.window.request_redraw(); }
+        if let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
+        }
     }
 
     /// `WindowEvent::Occluded`: the window's compositor visibility changed.
@@ -159,13 +190,17 @@ impl App {
             crate::probe::trace(format_args!("occluded={occluded}"));
         }
         if occluded_change_wants_redraw(occluded) {
-            if let Some(gpu) = self.gpu.as_ref() { gpu.window.request_redraw(); }
+            if let Some(gpu) = self.gpu.as_ref() {
+                gpu.window.request_redraw();
+            }
         }
     }
 
     pub(super) fn on_focus_lost(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::flight_active() { crate::probe::trace(format_args!("focus lost (ambient tick pauses)")); }
+        if crate::probe::flight_active() {
+            crate::probe::trace(format_args!("focus lost (ambient tick pauses)"));
+        }
         // AMBIENT LAVA TICK: the window lost focus — PAUSE the lava drift (hold the
         // current phase, stop scheduling frames) so a backgrounded window costs 0%
         // CPU. `about_to_wait`'s gate reads `self.focused`; clearing the stamp means
@@ -232,7 +267,11 @@ impl App {
     /// the compositor briefly STRETCHING the last frame instead of showing a
     /// blank/stale one — see `Gpu::set_presents_with_transaction`'s doc for
     /// the companion half of this fix (`arm_live_resize_sync` below).
-    pub(super) fn on_resized(&mut self, event_loop: &ActiveEventLoop, size: winit::dpi::PhysicalSize<u32>) {
+    pub(super) fn on_resized(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        size: winit::dpi::PhysicalSize<u32>,
+    ) {
         let mut changed = false;
         let mut request_redraw = true;
         #[cfg(not(target_arch = "wasm32"))]
@@ -244,24 +283,36 @@ impl App {
                     .hold_lava_field_viewport(gpu.config.width, gpu.config.height);
             }
             #[cfg(not(target_arch = "wasm32"))]
-            { reconfigured = gpu.resize(size.width, size.height) == gpu::GpuResizeOutcome::Reconfigured; }
+            {
+                reconfigured =
+                    gpu.resize(size.width, size.height) == gpu::GpuResizeOutcome::Reconfigured;
+            }
             #[cfg(target_arch = "wasm32")]
-            { gpu.resize(size.width, size.height); }
+            {
+                gpu.resize(size.width, size.height);
+            }
         }
         #[cfg(not(target_arch = "wasm32"))]
-        if reconfigured { if let Some(soak) = self.soak.as_mut() { soak.observe_resize(); } }
+        if reconfigured {
+            if let Some(soak) = self.soak.as_mut() {
+                soak.observe_resize();
+            }
+        }
         self.sync_view(true);
         if changed {
             self.arm_live_resize_sync();
             let outcome = self.gpu.as_mut().map(Gpu::redraw);
             if let Some(outcome) = outcome {
-                request_redraw = self.handle_gpu_frame_outcome(event_loop, outcome)
+                request_redraw = self
+                    .handle_gpu_frame_outcome(event_loop, outcome)
                     .is_ok_and(|(_, presented)| presented);
             }
         }
-        if request_redraw { if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }}
+        if request_redraw {
+            if let Some(gpu) = self.gpu.as_ref() {
+                gpu.window.request_redraw();
+            }
+        }
     }
 
     /// Re-arm the cross-platform live-resize settle debounce and (through the
@@ -300,7 +351,9 @@ impl App {
         // it takes this arm as a TOTAL no-op, byte-identical as ever.
         if crate::theme::active().has_ambient_motion() {
             #[cfg(not(target_arch = "wasm32"))]
-            if crate::probe::recording() { crate::probe::trace(format_args!("on_moved (ambient world)")); }
+            if crate::probe::recording() {
+                crate::probe::trace(format_args!("on_moved (ambient world)"));
+            }
             self.move_settle_at = Some(self.clock.now());
             self.lava_tick_at = None;
             self.sync_present_txn();
@@ -381,7 +434,9 @@ impl App {
     /// flash. Clearing `move_settle_at` first makes it fire exactly once.
     pub(super) fn finish_move_settle(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::recording() { crate::probe::trace(format_args!("finish_move_settle")); }
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!("finish_move_settle"));
+        }
         self.move_settle_at = None;
         self.lava_tick_at = None;
         self.sync_present_txn();
@@ -408,7 +463,11 @@ impl App {
     /// owner composes all three). Live-only: a headless capture never previews.
     pub(super) fn finish_crossing_settle(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::recording() { crate::probe::trace(format_args!("finish_crossing_settle -> teardown armed (bracket HELD through reshape present)")); }
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!(
+                "finish_crossing_settle -> teardown armed (bracket HELD through reshape present)"
+            ));
+        }
         self.crossing_settle_at = None;
         // Hand off to the event-ordered teardown: hold the bracket ON until the
         // post-reshape present completes (see `finish_crossing_teardown`).
@@ -429,7 +488,11 @@ impl App {
     /// STRICTLY follows the bracketed reshape present, never coalesces with it.
     pub(super) fn finish_crossing_teardown(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::recording() { crate::probe::trace(format_args!("finish_crossing_teardown (reshape presented in-bracket) -> disarm")); }
+        if crate::probe::recording() {
+            crate::probe::trace(format_args!(
+                "finish_crossing_teardown (reshape presented in-bracket) -> disarm"
+            ));
+        }
         self.crossing_teardown_pending = false;
         self.sync_present_txn();
         if let Some(gpu) = self.gpu.as_ref() {
@@ -460,10 +523,18 @@ impl App {
     /// DEBUG-panel perf lines (all timing work gated on `debug_on()`) and drives
     /// its settle-stamp.
     pub(super) fn on_redraw_requested(&mut self, event_loop: &ActiveEventLoop) {
-        let fault = self.gpu.as_ref().and_then(|g| g.take_faults().into_iter().next());
+        let fault = self
+            .gpu
+            .as_ref()
+            .and_then(|g| g.take_faults().into_iter().next());
         if let Some(fault) = fault {
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(soak) = self.soak.as_mut() { soak.observe_frame(crate::soak_gpu::FrameOutcome::Skipped(crate::soak_gpu::SkipKind::Fault), false); }
+            if let Some(soak) = self.soak.as_mut() {
+                soak.observe_frame(
+                    crate::soak_gpu::FrameOutcome::Skipped(crate::soak_gpu::SkipKind::Fault),
+                    false,
+                );
+            }
             self.handle_gpu_fault(event_loop, fault);
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
@@ -580,9 +651,13 @@ impl App {
         } else {
             return;
         };
-        let (presented, frame_presented) = match self.handle_gpu_frame_outcome(event_loop, outcome) {
+        let (presented, frame_presented) = match self.handle_gpu_frame_outcome(event_loop, outcome)
+        {
             Ok(result) => result,
-            Err(()) => { event_loop.set_control_flow(ControlFlow::Wait); return; }
+            Err(()) => {
+                event_loop.set_control_flow(ControlFlow::Wait);
+                return;
+            }
         };
         // DEBUG bookkeeping for the frame that just PRESENTED (`presented`
         // is `Some` only with the panel on — see `Gpu::redraw`): close the

@@ -26,8 +26,13 @@ fn seeded_fs() -> crate::fs::InMemoryFs {
     let mem = crate::fs::InMemoryFs::new();
     // A supported UNUSUAL-text file: an unfamiliar extension, real prose bytes
     // — NOT an extension allow-list, see `crate::openable`'s module doc.
-    mem.write(std::path::Path::new("/proj/notes.xyzzy"), b"plain prose, odd extension\n").unwrap();
-    mem.write(std::path::Path::new("/proj/logo.png"), PNG_BYTES).unwrap();
+    mem.write(
+        std::path::Path::new("/proj/notes.xyzzy"),
+        b"plain prose, odd extension\n",
+    )
+    .unwrap();
+    mem.write(std::path::Path::new("/proj/logo.png"), PNG_BYTES)
+        .unwrap();
     mem
 }
 
@@ -40,14 +45,22 @@ fn seeded_fs() -> crate::fs::InMemoryFs {
 fn cli_launch_door_opens_text_and_refuses_binary() {
     let _g = crate::fs::FsGuard::install(std::sync::Arc::new(seeded_fs()));
 
-    let app = app_on(Some(PathBuf::from("/proj/notes.xyzzy")), "/proj", Config::empty());
+    let app = app_on(
+        Some(PathBuf::from("/proj/notes.xyzzy")),
+        "/proj",
+        Config::empty(),
+    );
     assert_eq!(
         app.active.buffer.path(),
         Some(std::path::Path::new("/proj/notes.xyzzy")),
         "a supported unusual-text CLI argument opens"
     );
 
-    let refused = app_on(Some(PathBuf::from("/proj/logo.png")), "/proj", Config::empty());
+    let refused = app_on(
+        Some(PathBuf::from("/proj/logo.png")),
+        "/proj",
+        Config::empty(),
+    );
     assert_eq!(
         refused.active.buffer.path(),
         None,
@@ -67,7 +80,11 @@ fn cli_launch_door_opens_text_and_refuses_binary() {
 #[test]
 fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
     let _g = crate::fs::FsGuard::install(std::sync::Arc::new(seeded_fs()));
-    let mut app = app_on(Some(PathBuf::from("/proj/notes.xyzzy")), "/proj", Config::empty());
+    let mut app = app_on(
+        Some(PathBuf::from("/proj/notes.xyzzy")),
+        "/proj",
+        Config::empty(),
+    );
     let before_path = app.active.buffer.path().map(|p| p.to_path_buf());
     let before_root = app.root.clone();
 
@@ -77,8 +94,14 @@ fn load_path_door_opens_text_and_refuses_binary_leaving_context_intact() {
         before_path,
         "a refused open leaves the active DOCUMENT intact"
     );
-    assert_eq!(app.root, before_root, "a refused open leaves the active FOLDER intact");
-    assert_eq!(app.notice.as_deref(), Some("PNG \u{b7} not editable in awl"));
+    assert_eq!(
+        app.root, before_root,
+        "a refused open leaves the active FOLDER intact"
+    );
+    assert_eq!(
+        app.notice.as_deref(),
+        Some("PNG \u{b7} not editable in awl")
+    );
 
     // The SAME door opens a supported unusual-text file from a bare scratch
     // start too.
@@ -119,7 +142,11 @@ fn file_visibility_never_changes_the_openable_verdict() {
             "file_visibility={all}: the binary verdict is unchanged"
         );
 
-        let mut app = app_on(Some(PathBuf::from("/proj/notes.xyzzy")), "/proj", Config::empty());
+        let mut app = app_on(
+            Some(PathBuf::from("/proj/notes.xyzzy")),
+            "/proj",
+            Config::empty(),
+        );
         app.load_path(PathBuf::from("/proj/logo.png"));
         assert_eq!(
             app.active.buffer.path(),

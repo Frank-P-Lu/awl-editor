@@ -255,7 +255,10 @@ fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
     // parks it): the chevron reveals on that row, LEFT of the heading text.
     let mut on = view_md(DOC, 0, 0);
     crate::fold::apply_to_view(&mut on, &hidden, &tails);
-    assert_eq!(on.cursor_line, 0, "caret on the folded heading's filtered row");
+    assert_eq!(
+        on.cursor_line, 0,
+        "caret on the folded heading's filtered row"
+    );
     p.set_view(&on);
     let ch = p.fold_chevron_marks();
     assert_eq!(ch.len(), 1, "the caret-on-heading chevron reveals");
@@ -333,7 +336,11 @@ fn fold_chevron_reveal_never_shifts_the_heading_glyph_positions() {
 
     // HOVER on the collapsed heading's row: chevron revealed.
     p.set_hover_line(Some(0));
-    assert_eq!(p.fold_chevron_marks().len(), 1, "chevron revealed: hovering the heading");
+    assert_eq!(
+        p.fold_chevron_marks().len(),
+        1,
+        "chevron revealed: hovering the heading"
+    );
     let xs_reveal = p.line_glyph_xs(0);
     let top_reveal = p.line_ornament_top(0);
     let rows_reveal = p.total_visual_rows();
@@ -343,8 +350,14 @@ fn fold_chevron_reveal_never_shifts_the_heading_glyph_positions() {
         "the heading's own shaped glyph x-boundaries must be IDENTICAL whether or \
          not the chevron is revealed (it lives outside the text advance entirely)"
     );
-    assert_eq!(top_rest, top_reveal, "the heading row's top never moves either");
-    assert_eq!(rows_rest, rows_reveal, "revealing the chevron adds no visual row");
+    assert_eq!(
+        top_rest, top_reveal,
+        "the heading row's top never moves either"
+    );
+    assert_eq!(
+        rows_rest, rows_reveal,
+        "revealing the chevron adds no visual row"
+    );
     crate::page::set_page_on(true);
 }
 
@@ -464,7 +477,11 @@ fn fold_chevron_reveal_on_an_expanded_heading_never_shifts_glyph_positions() {
     let rows_rest = p.total_visual_rows();
 
     p.set_hover_line(Some(0));
-    assert_eq!(p.fold_chevron_marks().len(), 1, "chevron revealed: hovering the heading");
+    assert_eq!(
+        p.fold_chevron_marks().len(),
+        1,
+        "chevron revealed: hovering the heading"
+    );
     let xs_reveal = p.line_glyph_xs(0);
     let top_reveal = p.line_ornament_top(0);
     let rows_reveal = p.total_visual_rows();
@@ -474,8 +491,14 @@ fn fold_chevron_reveal_on_an_expanded_heading_never_shifts_glyph_positions() {
         "the expanded heading's shaped glyph x-boundaries must be IDENTICAL \
          whether or not the chevron is revealed"
     );
-    assert_eq!(top_rest, top_reveal, "the heading row's top never moves either");
-    assert_eq!(rows_rest, rows_reveal, "revealing the chevron adds no visual row");
+    assert_eq!(
+        top_rest, top_reveal,
+        "the heading row's top never moves either"
+    );
+    assert_eq!(
+        rows_rest, rows_reveal,
+        "revealing the chevron adds no visual row"
+    );
     crate::page::set_page_on(true);
 }
 
@@ -502,7 +525,11 @@ fn fold_chevron_hit_toggles_through_one_owner_both_directions() {
     p.set_view(&view);
     p.set_hover_line(Some(0));
     let marks = p.fold_chevron_marks();
-    assert_eq!(marks.len(), 1, "expanded heading's chevron must be revealed to hit it");
+    assert_eq!(
+        marks.len(),
+        1,
+        "expanded heading's chevron must be revealed to hit it"
+    );
     let (_, left, line) = marks[0];
     let top = p.line_ornament_top(line);
     let hit = p
@@ -523,7 +550,11 @@ fn fold_chevron_hit_toggles_through_one_owner_both_directions() {
     p.set_view(&folded_view);
     p.set_hover_line(Some(0));
     let marks2 = p.fold_chevron_marks();
-    assert_eq!(marks2.len(), 1, "collapsed heading's chevron must be revealed to hit it");
+    assert_eq!(
+        marks2.len(),
+        1,
+        "collapsed heading's chevron must be revealed to hit it"
+    );
     let (_, left2, line2) = marks2[0];
     let top2 = p.line_ornament_top(line2);
     let hit2 = p
@@ -555,7 +586,10 @@ fn no_chevron_off_a_heading_or_off_a_markdown_buffer() {
         p.fold_chevron_marks().is_empty(),
         "a non-heading row never shows a chevron, even hovered"
     );
-    assert_eq!(p.fold_chevron_hit(p.column_left() + 1.0, p.line_ornament_top(1) + 1.0), None);
+    assert_eq!(
+        p.fold_chevron_hit(p.column_left() + 1.0, p.line_ornament_top(1) + 1.0),
+        None
+    );
 
     // The SAME text, NOT flagged markdown: no chevron even hovering the heading row.
     let plain_view = view(DOC, 4, 0);

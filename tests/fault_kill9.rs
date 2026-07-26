@@ -92,7 +92,10 @@ fn wait_for_write_count(child: &mut Child, target_writes: u32) -> Option<u32> {
     let mut last_seen = None;
     for line in reader.lines() {
         let Ok(line) = line else { break };
-        if let Some(n) = line.strip_prefix("wrote ").and_then(|s| s.parse::<u32>().ok()) {
+        if let Some(n) = line
+            .strip_prefix("wrote ")
+            .and_then(|s| s.parse::<u32>().ok())
+        {
             last_seen = Some(n);
             if n + 1 >= target_writes {
                 break;
@@ -184,8 +187,15 @@ fn write_atomic_survives_a_kill_that_lands_after_the_loop_already_finished() {
     let mut child = spawn_write_loop(&target, COUNT, 0);
     wait_for_write_count(&mut child, COUNT + 10);
     let status = child.wait().expect("child already exited on its own");
-    assert!(status.success(), "an un-killed loop must exit cleanly: {status:?}");
+    assert!(
+        status.success(),
+        "an un-killed loop must exit cleanly: {status:?}"
+    );
     let text = std::fs::read_to_string(&target).unwrap();
-    assert_eq!(text, payload(COUNT - 1), "the file holds exactly the LAST iteration's payload");
+    assert_eq!(
+        text,
+        payload(COUNT - 1),
+        "the file holds exactly the LAST iteration's payload"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

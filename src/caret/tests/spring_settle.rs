@@ -3,7 +3,7 @@
 //! `caret::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{settle};
+use super::settle;
 
 #[test]
 fn first_target_snaps_no_glide() {
@@ -42,7 +42,11 @@ fn timeline_injected_dt_progresses_and_is_deterministic() {
 
     let xs = run();
     // t0: no step taken yet -> still at the origin.
-    assert!((xs[0] - origin.x).abs() < 1e-6, "t0 must be at origin: {}", xs[0]);
+    assert!(
+        (xs[0] - origin.x).abs() < 1e-6,
+        "t0 must be at origin: {}",
+        xs[0]
+    );
     // Strictly progressing toward the destination across the early/mid steps.
     for w in xs.windows(2).take(3) {
         assert!(w[1] > w[0], "caret x must progress toward target: {w:?}");
@@ -56,7 +60,10 @@ fn timeline_injected_dt_progresses_and_is_deterministic() {
     );
     // Late in the sequence the caret has effectively arrived at the line end.
     let last = *xs.last().unwrap();
-    assert!((last - dest.x).abs() < POS_EPSILON, "late step must settle at target: {last}");
+    assert!(
+        (last - dest.x).abs() < POS_EPSILON,
+        "late step must settle at target: {last}"
+    );
 
     // Determinism: the injected-dt sequence is byte-identical across runs.
     assert_eq!(xs, run(), "injected-dt timeline must be deterministic");
@@ -71,10 +78,16 @@ fn spring_settles_and_stops() {
         1.0 / 60.0,
     );
     // Must come to rest exactly on target and stop animating.
-    assert!((final_y - 20.0).abs() < 1.0, "did not settle on target: {final_y}");
+    assert!(
+        (final_y - 20.0).abs() < 1.0,
+        "did not settle on target: {final_y}"
+    );
     // ~140-160 ms at 60 fps is ~9-11 frames; allow slack but bound it so a
     // runaway/never-settling spring fails the test.
-    assert!(frames > 3 && frames < 60, "settle frames out of range: {frames}");
+    assert!(
+        frames > 3 && frames < 60,
+        "settle frames out of range: {frames}"
+    );
 }
 
 #[test]
@@ -114,14 +127,26 @@ fn pop_kicks_below_one_then_eases_back_with_pos_pinned() {
     // target instantly (pinned), and the cosmetic pop kicks.
     a.nav_to(100.0 + crate::render::CHAR_WIDTH, 50.0);
     let target = a.target;
-    assert_eq!(a.pos.x, target.x, "small move must pin pos.x to target at t0");
-    assert_eq!(a.pos.y, target.y, "small move must pin pos.y to target at t0");
-    assert!(!a.is_animating(), "a small move snaps: the spring must not animate");
+    assert_eq!(
+        a.pos.x, target.x,
+        "small move must pin pos.x to target at t0"
+    );
+    assert_eq!(
+        a.pos.y, target.y,
+        "small move must pin pos.y to target at t0"
+    );
+    assert!(
+        !a.is_animating(),
+        "a small move snaps: the spring must not animate"
+    );
 
     // The pop is squashed below 1 (down to ~CARET_POP_SCALE) right after the kick.
     let s0 = a.pop_scale();
     assert!(s0 < 1.0, "pop must squash the drawn scale below 1: {s0}");
-    assert!(s0 >= CARET_POP_SCALE - 1e-6, "pop must not squash past CARET_POP_SCALE: {s0}");
+    assert!(
+        s0 >= CARET_POP_SCALE - 1e-6,
+        "pop must not squash past CARET_POP_SCALE: {s0}"
+    );
 
     // Step the LIVE clock: the scale eases monotonically back to 1.0 while the
     // caret POSITION stays pinned to target the whole time (the pop never moves it).
@@ -132,20 +157,35 @@ fn pop_kicks_below_one_then_eases_back_with_pos_pinned() {
         popping = a.step_pop(1.0 / 120.0);
         assert_eq!(a.pos.x, target.x, "pop must not move pos.x");
         assert_eq!(a.pos.y, target.y, "pop must not move pos.y");
-        assert!(!a.is_animating(), "pop must never animate the spring/position");
+        assert!(
+            !a.is_animating(),
+            "pop must never animate the spring/position"
+        );
         let s = a.pop_scale();
-        assert!(s + 1e-6 >= prev, "pop scale must ease back monotonically: {prev} -> {s}");
+        assert!(
+            s + 1e-6 >= prev,
+            "pop scale must ease back monotonically: {prev} -> {s}"
+        );
         assert!(s <= 1.0 + 1e-6, "pop scale must never exceed 1.0: {s}");
         prev = s;
         frames += 1;
     }
-    assert!((a.pop_scale() - 1.0).abs() < 1e-6, "pop must settle exactly at scale 1.0");
+    assert!(
+        (a.pop_scale() - 1.0).abs() < 1e-6,
+        "pop must settle exactly at scale 1.0"
+    );
     // ~90ms at 120fps is ~11 frames; bound it so a never-settling pop fails.
-    assert!(frames > 3 && frames < 60, "pop settle frames out of range: {frames}");
+    assert!(
+        frames > 3 && frames < 60,
+        "pop settle frames out of range: {frames}"
+    );
 
     // RE-KICK (a held repeat) restarts the squash with the position still pinned.
     a.kick_pop();
-    assert!(a.pop_scale() < 1.0, "re-kick must squash again (interruptible)");
+    assert!(
+        a.pop_scale() < 1.0,
+        "re-kick must squash again (interruptible)"
+    );
     assert_eq!(a.pos.x, target.x);
     assert_eq!(a.pos.y, target.y);
 }
@@ -159,5 +199,8 @@ fn snap_to_target_settles_the_pop() {
     a.nav_to(80.0, 0.0); // kicks the pop
     assert!(a.pop_scale() < 1.0);
     a.snap_to_target();
-    assert!((a.pop_scale() - 1.0).abs() < 1e-6, "snap_to_target must settle the pop");
+    assert!(
+        (a.pop_scale() - 1.0).abs() < 1e-6,
+        "snap_to_target must settle the pop"
+    );
 }

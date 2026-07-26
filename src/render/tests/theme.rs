@@ -120,7 +120,10 @@ fn theme_preview_color_split_defers_reshape_and_revert_leaves_none() {
         p.reshape_count, n,
         "a color-only preview burst must not reshape the document"
     );
-    assert_eq!(p.shaped_font, "IBM Plex Mono", "still shaped in the opening face");
+    assert_eq!(
+        p.shaped_font, "IBM Plex Mono",
+        "still shaped in the opening face"
+    );
     assert!(
         p.needs_theme_reshape(),
         "the deferred font change is pending (Quokka is Sour Gummy)"
@@ -129,10 +132,16 @@ fn theme_preview_color_split_defers_reshape_and_revert_leaves_none() {
     // SETTLE: the one deferred reshape lands. Exactly one reshape, and the
     // shaped state is identical to the synchronous `sync_theme` route.
     p.sync_theme_font();
-    assert_eq!(p.reshape_count, n + 1, "the settle pays exactly ONE reshape");
+    assert_eq!(
+        p.reshape_count,
+        n + 1,
+        "the settle pays exactly ONE reshape"
+    );
     assert_eq!(p.shaped_font, "Sour Gummy");
     let deferred_x = p.caret_target_xy().0;
-    let Some(mut q) = headless_pipeline() else { return };
+    let Some(mut q) = headless_pipeline() else {
+        return;
+    };
     q.sync_theme(); // synchronous full switch to the same (Quokka) world
     q.set_view(&view(text, 0, 10));
     assert_eq!(
@@ -148,11 +157,17 @@ fn theme_preview_color_split_defers_reshape_and_revert_leaves_none() {
     // (the case the App cancels; harmless even if it raced through) no-ops.
     theme::set_active_by_name("Bombora").unwrap();
     p.sync_theme_colors();
-    assert!(p.needs_theme_reshape(), "a deferral is pending toward EB Garamond");
+    assert!(
+        p.needs_theme_reshape(),
+        "a deferral is pending toward EB Garamond"
+    );
     let m = p.reshape_count;
     theme::set_active_by_name("Quokka").unwrap(); // the world the picker opened on
     p.sync_theme(); // retint_theme_now: full, synchronous
-    assert_eq!(p.reshape_count, m, "reverting to the shaped face reshapes nothing");
+    assert_eq!(
+        p.reshape_count, m,
+        "reverting to the shaped face reshapes nothing"
+    );
     p.sync_theme_font(); // the stray late fire
     assert_eq!(
         p.reshape_count, m,
@@ -239,7 +254,11 @@ fn code_mono_switch_reshapes_effective_face() {
         "IBM Plex Sans",
         "Mangrove's display face differs from Bowerbird's"
     );
-    assert_eq!(theme::active().mono, "JetBrains Mono", "Mangrove shares Bowerbird's mono");
+    assert_eq!(
+        theme::active().mono,
+        "JetBrains Mono",
+        "Mangrove shares Bowerbird's mono"
+    );
     assert!(
         p.reshape_count > m,
         "a world switch re-bakes span colors even when the code mono is shared"
@@ -293,10 +312,17 @@ fn theme_switch_rebakes_span_colors_across_shared_effective_face() {
     // moves).
     let colored_byte = (0..text.len())
         .find(|&b| {
-            p.buffer.lines[0].attrs_list().get_span(b).color_opt.is_some()
+            p.buffer.lines[0]
+                .attrs_list()
+                .get_span(b)
+                .color_opt
+                .is_some()
         })
         .expect("a rust code buffer bakes at least one colored syntax span");
-    let magpie_color = p.buffer.lines[0].attrs_list().get_span(colored_byte).color_opt;
+    let magpie_color = p.buffer.lines[0]
+        .attrs_list()
+        .get_span(colored_byte)
+        .color_opt;
     assert!(magpie_color.is_some());
     let n = p.reshape_count;
 
@@ -316,7 +342,10 @@ fn theme_switch_rebakes_span_colors_across_shared_effective_face() {
         p.shaped_font, "Monaspace Xenon",
         "the effective face is unchanged across the color re-bake"
     );
-    let bombora_color = p.buffer.lines[0].attrs_list().get_span(colored_byte).color_opt;
+    let bombora_color = p.buffer.lines[0]
+        .attrs_list()
+        .get_span(colored_byte)
+        .color_opt;
     assert!(bombora_color.is_some());
     assert_ne!(
         magpie_color, bombora_color,
@@ -327,9 +356,15 @@ fn theme_switch_rebakes_span_colors_across_shared_effective_face() {
     // `shaped_theme == active_index()` guard mirrors the `shaped_font` one).
     let m = p.reshape_count;
     p.sync_theme();
-    assert_eq!(p.reshape_count, m, "re-syncing the SAME world must not restyle");
     assert_eq!(
-        p.buffer.lines[0].attrs_list().get_span(colored_byte).color_opt,
+        p.reshape_count, m,
+        "re-syncing the SAME world must not restyle"
+    );
+    assert_eq!(
+        p.buffer.lines[0]
+            .attrs_list()
+            .get_span(colored_byte)
+            .color_opt,
         bombora_color,
         "an idempotent re-sync leaves the baked color untouched"
     );
@@ -413,7 +448,9 @@ fn mono_world_shapes_uniform_pitch() {
 #[test]
 fn bold_display_faces_register_under_their_family_names_at_weight_700() {
     let Some(p) = headless_pipeline() else {
-        eprintln!("skipping bold_display_faces_register_under_their_family_names_at_weight_700: no wgpu adapter");
+        eprintln!(
+            "skipping bold_display_faces_register_under_their_family_names_at_weight_700: no wgpu adapter"
+        );
         return;
     };
     for expected in [
@@ -434,9 +471,11 @@ fn bold_display_faces_register_under_their_family_names_at_weight_700() {
         "Monaspace Xenon",
         "Iosevka",
     ] {
-        let has_bold = p.font_system.db().faces().any(|f| {
-            f.weight.0 == 700 && f.families.iter().any(|(n, _)| n == expected)
-        });
+        let has_bold = p
+            .font_system
+            .db()
+            .faces()
+            .any(|f| f.weight.0 == 700 && f.families.iter().any(|(n, _)| n == expected));
         assert!(
             has_bold,
             "a weight-700 face must be registered under {expected:?} (the family its \
@@ -458,7 +497,9 @@ fn bold_display_faces_register_under_their_family_names_at_weight_700() {
 fn markdown_bold_resolves_to_a_real_bold_face_never_the_mono_fallback() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping markdown_bold_resolves_to_a_real_bold_face_never_the_mono_fallback: no wgpu adapter");
+        eprintln!(
+            "skipping markdown_bold_resolves_to_a_real_bold_face_never_the_mono_fallback: no wgpu adapter"
+        );
         return;
     };
     let bold_families = [
@@ -515,10 +556,17 @@ fn markdown_bold_resolves_to_a_real_bold_face_never_the_mono_fallback() {
                 saw_glyph = true;
             }
         }
-        assert!(saw_glyph, "{}: found no bold content glyph to check", t.name);
+        assert!(
+            saw_glyph,
+            "{}: found no bold content glyph to check",
+            t.name
+        );
         checked += 1;
     }
-    assert!(checked >= 8, "expected to check all 8 assigned bold worlds, checked {checked}");
+    assert!(
+        checked >= 8,
+        "expected to check all 8 assigned bold worlds, checked {checked}"
+    );
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
@@ -541,7 +589,9 @@ fn markdown_bold_resolves_to_a_real_bold_face_never_the_mono_fallback() {
 fn markdown_bold_on_mono_worlds_keeps_the_grid_never_a_foreign_face() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping markdown_bold_on_mono_worlds_keeps_the_grid_never_a_foreign_face: no wgpu adapter");
+        eprintln!(
+            "skipping markdown_bold_on_mono_worlds_keeps_the_grid_never_a_foreign_face: no wgpu adapter"
+        );
         return;
     };
     // A world is mono-display iff its display family has a registered monospaced
@@ -595,7 +645,11 @@ fn markdown_bold_on_mono_worlds_keeps_the_grid_never_a_foreign_face() {
                 saw_glyph = true;
             }
         }
-        assert!(saw_glyph, "{}: found no bold content glyph to check", t.name);
+        assert!(
+            saw_glyph,
+            "{}: found no bold content glyph to check",
+            t.name
+        );
         checked += 1;
         names.push(t.name);
     }
@@ -659,7 +713,11 @@ fn heading_bold_worlds_shape_bold_in_their_own_family() {
         // "## Head" on line 1 (caret parked on line 0): content "Head" is
         // line-relative bytes 3..7.
         let section = faces_of(&mut p, "\n## Head", 3..7);
-        assert!(!section.is_empty(), "{}: no section-heading content glyphs shaped", t.name);
+        assert!(
+            !section.is_empty(),
+            "{}: no section-heading content glyphs shaped",
+            t.name
+        );
         for (fam, wt) in &section {
             if t.heading_bold {
                 assert_eq!(
@@ -685,7 +743,11 @@ fn heading_bold_worlds_shape_bold_in_their_own_family() {
         // "# Head" on line 1: content bytes 2..6. The TITLE NEVER bolds — on
         // any world, whatever the bit says.
         let title = faces_of(&mut p, "\n# Head", 2..6);
-        assert!(!title.is_empty(), "{}: no title content glyphs shaped", t.name);
+        assert!(
+            !title.is_empty(),
+            "{}: no title content glyphs shaped",
+            t.name
+        );
         for (fam, wt) in &title {
             assert_eq!(
                 fam, t.font,
@@ -729,7 +791,9 @@ fn heading_bold_worlds_shape_bold_in_their_own_family() {
 fn markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback: no wgpu adapter");
+        eprintln!(
+            "skipping markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback: no wgpu adapter"
+        );
         return;
     };
     for world in ["Bombora", "Currawong"] {
@@ -741,8 +805,12 @@ fn markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback() {
         // line 0 blank (caret here); line 1 bold, line 2 italic, line 3 bold-italic.
         let text = "\n**太字**\n*斜体*\n***両方***";
         p.set_view(&view_md(text, 0, 0));
-        let lines: Vec<String> =
-            p.buffer.lines.iter().map(|l| l.text().to_string()).collect();
+        let lines: Vec<String> = p
+            .buffer
+            .lines
+            .iter()
+            .map(|l| l.text().to_string())
+            .collect();
         let mut checked = 0usize;
         for run in p.buffer.layout_runs() {
             if run.line_i == 0 {
@@ -800,7 +868,9 @@ fn markdown_emphasis_keeps_the_bundled_cjk_face_never_a_fallback() {
 #[test]
 fn bundled_text_and_ornament_faces_register_under_their_family_names() {
     let Some(p) = headless_pipeline() else {
-        eprintln!("skipping bundled_text_and_ornament_faces_register_under_their_family_names: no wgpu adapter");
+        eprintln!(
+            "skipping bundled_text_and_ornament_faces_register_under_their_family_names: no wgpu adapter"
+        );
         return;
     };
     for expected in ["Fira Sans", "Iosevka", "Bitter", "Junicode", "Awl Marks"] {
@@ -835,11 +905,14 @@ fn bundled_text_and_ornament_faces_register_under_their_family_names() {
 fn saltpan_body_face_is_the_text_optical_size_not_a_display_cut() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping saltpan_body_face_is_the_text_optical_size_not_a_display_cut: no wgpu adapter");
+        eprintln!(
+            "skipping saltpan_body_face_is_the_text_optical_size_not_a_display_cut: no wgpu adapter"
+        );
         return;
     };
     assert_eq!(
-        theme::SALTPAN.font, "Fraunces 9pt",
+        theme::SALTPAN.font,
+        "Fraunces 9pt",
         "Saltpan's display face must stay the TEXT optical size, never a bare \"Fraunces\" display cut"
     );
     theme::set_active_by_name("Saltpan").unwrap();

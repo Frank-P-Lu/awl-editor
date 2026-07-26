@@ -116,7 +116,12 @@ async fn run_async() -> anyhow::Result<()> {
     let content_line = |near: usize| -> usize {
         (near..n)
             .chain((0..near).rev())
-            .find(|&i| lines.get(i).map(|l| l.chars().count() >= 6).unwrap_or(false))
+            .find(|&i| {
+                lines
+                    .get(i)
+                    .map(|l| l.chars().count() >= 6)
+                    .unwrap_or(false)
+            })
             .unwrap_or(0)
     };
     let top = content_line(2);

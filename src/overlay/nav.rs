@@ -53,7 +53,12 @@ impl OverlayState {
         // between them, so the Recent lens reads newest-first without any per-picker
         // code. Inert when `recent` is empty (the headless capture path) — every
         // position is `MAX`, so the order is byte-identical to the plain rank.
-        let recent_rank = |ci: usize| self.recent.iter().position(|&x| x == ci).unwrap_or(usize::MAX);
+        let recent_rank = |ci: usize| {
+            self.recent
+                .iter()
+                .position(|&x| x == ci)
+                .unwrap_or(usize::MAX)
+        };
         scored.sort_by(|a, b| {
             b.score
                 .cmp(&a.score)
@@ -73,7 +78,11 @@ impl OverlayState {
         // unconditionally — the corrections keep the ranker's order among
         // themselves, the add row simply always trails them. Inert for every other
         // kind (no row ever carries `RowMeta::SpellAdd`).
-        if self.rows.iter().any(|r| matches!(r.meta, RowMeta::SpellAdd)) {
+        if self
+            .rows
+            .iter()
+            .any(|r| matches!(r.meta, RowMeta::SpellAdd))
+        {
             let add_rows: Vec<usize> = self
                 .rows
                 .iter()
@@ -91,7 +100,12 @@ impl OverlayState {
         // so the row-index math `commands::visible_action_of` relies on stays
         // valid. A no-op (no row ever carries the tag) for every kind but the
         // Command palette.
-        ranked.retain(|&i| !matches!(self.rows.get(i).map(|r| &r.meta), Some(RowMeta::CommandHidden)));
+        ranked.retain(|&i| {
+            !matches!(
+                self.rows.get(i).map(|r| &r.meta),
+                Some(RowMeta::CommandHidden)
+            )
+        });
         // FILE VISIBILITY (item 77 — file pickers only, gated on the ONE sticky
         // process global `crate::file_visibility::all_on`): Text (the default)
         // drops any corpus entry whose basename / ancestor component starts with
@@ -129,7 +143,9 @@ impl OverlayState {
         // own bucket ([`crate::index::goto_bucket`]). A no-op for every other kind
         // (no row ever carries `RowMeta::GotoHeading`) and for a Go-to over a
         // buffer with no headings.
-        if self.kind == OverlayKind::Goto && self.facet_lens != 0 && self.active_facet_id() != Some("headings")
+        if self.kind == OverlayKind::Goto
+            && self.facet_lens != 0
+            && self.active_facet_id() != Some("headings")
         {
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. }));
         }
@@ -453,7 +469,12 @@ impl OverlayState {
     /// for an ordinary file row and every non-Go-to picker.
     pub fn selected_is_heading(&self) -> bool {
         self.selected_corpus_index()
-            .map(|i| matches!(self.rows.get(i).map(|r| &r.meta), Some(RowMeta::GotoHeading { .. })))
+            .map(|i| {
+                matches!(
+                    self.rows.get(i).map(|r| &r.meta),
+                    Some(RowMeta::GotoHeading { .. })
+                )
+            })
             .unwrap_or(false)
     }
 
@@ -493,12 +514,15 @@ impl OverlayState {
     /// The RAW corpus string currently highlighted (the accept value), or `None`
     /// when no item matches.
     pub fn selected_value(&self) -> Option<&str> {
-        self.selected_corpus_index().map(|i| self.rows[i].accept.as_str())
+        self.selected_corpus_index()
+            .map(|i| self.rows[i].accept.as_str())
     }
 
     /// True when the highlighted entry is a directory (Browse: Enter descends).
     pub fn selected_is_dir(&self) -> bool {
-        self.selected_corpus_index().map(|i| self.rows[i].is_dir).unwrap_or(false)
+        self.selected_corpus_index()
+            .map(|i| self.rows[i].is_dir)
+            .unwrap_or(false)
     }
 
     /// The DISPLAY string for corpus entry `i`: the raw value plus a trailing
@@ -559,7 +583,13 @@ impl OverlayState {
         }
         self.items
             .iter()
-            .map(|&i| if self.rows[i].git { "git".to_string() } else { String::new() })
+            .map(|&i| {
+                if self.rows[i].git {
+                    "git".to_string()
+                } else {
+                    String::new()
+                }
+            })
             .collect()
     }
 
@@ -602,7 +632,10 @@ impl OverlayState {
     /// secondary column). Lets the render + sidecar show each row's secondary
     /// cell without re-deriving it.
     pub fn item_bindings(&self) -> Vec<String> {
-        self.items.iter().map(|&i| self.rows[i].secondary.clone()).collect()
+        self.items
+            .iter()
+            .map(|&i| self.rows[i].secondary.clone())
+            .collect()
     }
 
     /// ITEM 94 — the per-row RAIL FRACTION (0..1), in the same row order as
@@ -648,9 +681,15 @@ impl OverlayState {
     /// same frame — live AND in a headless `--keys` replay, which has no App to
     /// refresh the overlay afterwards. A no-op when the selection carries no rail.
     pub fn set_selected_range(&mut self, step: u16, readout: String) {
-        let Some(ci) = self.selected_corpus_index() else { return };
-        let Some(row) = self.rows.get_mut(ci) else { return };
-        let Some(cell) = row.range.as_mut() else { return };
+        let Some(ci) = self.selected_corpus_index() else {
+            return;
+        };
+        let Some(row) = self.rows.get_mut(ci) else {
+            return;
+        };
+        let Some(cell) = row.range.as_mut() else {
+            return;
+        };
         cell.step = step;
         row.secondary = readout;
     }

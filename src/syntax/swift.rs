@@ -99,7 +99,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 i += 1;
             }
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -173,11 +174,7 @@ fn hashes_after(b: &[u8], p: usize, hashes: usize) -> Option<usize> {
         h += 1;
         q += 1;
     }
-    if h == hashes {
-        Some(q)
-    } else {
-        None
-    }
+    if h == hashes { Some(q) } else { None }
 }
 
 /// Scan a numeric literal beginning at the digit `i`; returns the index just past
@@ -195,11 +192,7 @@ fn scan_number(b: &[u8], i: usize) -> usize {
             let c = b[j];
             if c.is_ascii_alphanumeric() || c == b'_' {
                 j += 1;
-            } else if c == b'.'
-                && j + 1 < n
-                && b[j + 1] != b'.'
-                && b[j + 1].is_ascii_hexdigit()
-            {
+            } else if c == b'.' && j + 1 < n && b[j + 1] != b'.' && b[j + 1].is_ascii_hexdigit() {
                 j += 1;
             } else if (c == b'+' || c == b'-') && j > 0 && matches!(b[j - 1], b'p' | b'P') {
                 j += 1;
@@ -278,7 +271,11 @@ mod tests {
     fn raw_string_with_hashes() {
         let t = r##"let s = #"he said "hi""#"##;
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Str), vec![r##"#"he said "hi""#"##], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Str),
+            vec![r##"#"he said "hi""#"##],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -316,7 +313,10 @@ mod tests {
         let t = "for i in 0..<5 {}";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
-        assert!(cs.contains(&"0") && cs.contains(&"5"), "range split: {cs:?}");
+        assert!(
+            cs.contains(&"0") && cs.contains(&"5"),
+            "range split: {cs:?}"
+        );
     }
 
     #[test]
@@ -325,7 +325,14 @@ mod tests {
         let s = spans(t);
         let ds = at(t, &s, SynKind::Definition);
         for want in [
-            "frobnicate", "Widget", "Point", "E", "P", "Alias", "count", "total",
+            "frobnicate",
+            "Widget",
+            "Point",
+            "E",
+            "P",
+            "Alias",
+            "count",
+            "total",
         ] {
             assert!(ds.contains(&want), "missing {want}: {ds:?}");
         }
@@ -336,8 +343,14 @@ mod tests {
         // `func` keyword stays default ink; only the NAME is a Definition.
         let t = "func main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 4, SynKind::Definition), "the `func` keyword must stay plain: {s:?}");
-        assert!(has(&s, 5, 9, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 4, SynKind::Definition),
+            "the `func` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 5, 9, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -352,9 +365,16 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nfunc add(_ a: Int, _ b: Int) -> Int {\n    let total = a + b // ok\n    return total\n}\nlet MAX = 100\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
-        assert!(ds.contains(&"add") && ds.contains(&"total") && ds.contains(&"MAX"), "{ds:?}");
+        assert!(
+            ds.contains(&"add") && ds.contains(&"total") && ds.contains(&"MAX"),
+            "{ds:?}"
+        );
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }
 }

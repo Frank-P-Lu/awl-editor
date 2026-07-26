@@ -420,7 +420,10 @@ mod tests {
         assert!(ds.contains(&"greet"), "{ds:?}");
         assert!(ds.contains(&"hello"), "{ds:?}");
         // The `function` keyword itself stays plain.
-        assert!(!has(&s, 0, 8, SynKind::Definition), "`function` must stay plain: {s:?}");
+        assert!(
+            !has(&s, 0, 8, SynKind::Definition),
+            "`function` must stay plain: {s:?}"
+        );
     }
 
     #[test]

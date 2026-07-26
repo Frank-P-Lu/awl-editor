@@ -298,10 +298,18 @@ impl BlurBackdrop {
             let dummy_tint = [0.0, 0.0, 0.0, 0.0];
             // The downsample's 4-tap box reads ONE texel of the (possibly capped) doc,
             // so its step is the capped doc's texel size, not the surface's.
-            let u_down = self.mk_uniform(device, [1.0 / cw as f32, 1.0 / ch as f32, 0.0, 0.0], dummy_tint);
+            let u_down = self.mk_uniform(
+                device,
+                [1.0 / cw as f32, 1.0 / ch as f32, 0.0, 0.0],
+                dummy_tint,
+            );
             let u_blur_h = self.mk_uniform(device, [1.0 / qw as f32, 0.0, 0.0, 0.0], dummy_tint);
             let u_blur_v = self.mk_uniform(device, [0.0, 1.0 / qh as f32, 0.0, 0.0], dummy_tint);
-            let u_comp = self.mk_uniform(device, [0.0; 4], [base100_linear[0], base100_linear[1], base100_linear[2], DIM]);
+            let u_comp = self.mk_uniform(
+                device,
+                [0.0; 4],
+                [base100_linear[0], base100_linear[1], base100_linear[2], DIM],
+            );
 
             self.bg_down = Some(self.mk_bind(device, &u_down, &doc_view));
             self.bg_h = Some(self.mk_bind(device, &u_blur_h, &qa_view));
@@ -440,9 +448,7 @@ impl BlurBackdrop {
 /// Reinterpret a `#[repr(C)]` POD as bytes for an upload (same minimal shim the
 /// other pipelines use; the type is a small f32 array struct with no padding).
 fn bytes_of(u: &U) -> &[u8] {
-    unsafe {
-        core::slice::from_raw_parts((u as *const U) as *const u8, core::mem::size_of::<U>())
-    }
+    unsafe { core::slice::from_raw_parts((u as *const U) as *const u8, core::mem::size_of::<U>()) }
 }
 
 #[cfg(test)]
@@ -455,8 +461,14 @@ mod tests {
         // UNCHANGED — so the capture (and thus the blurred backdrop) is byte-identical.
         assert_eq!(capped_doc_size(1200, 800), (1200, 800));
         assert_eq!(capped_doc_size(2400, 1600), (2400, 1600));
-        assert_eq!(capped_doc_size(DOC_CAPTURE_MAX, 1000), (DOC_CAPTURE_MAX, 1000));
-        assert_eq!(capped_doc_size(1000, DOC_CAPTURE_MAX), (1000, DOC_CAPTURE_MAX));
+        assert_eq!(
+            capped_doc_size(DOC_CAPTURE_MAX, 1000),
+            (DOC_CAPTURE_MAX, 1000)
+        );
+        assert_eq!(
+            capped_doc_size(1000, DOC_CAPTURE_MAX),
+            (1000, DOC_CAPTURE_MAX)
+        );
     }
 
     #[test]

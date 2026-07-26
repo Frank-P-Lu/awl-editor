@@ -40,7 +40,10 @@ fn icon_bytes(world: &str) -> Vec<u8> {
 /// One rep decoded to RGBA8. `px` must be one of [`REPS`]'s pixel sizes.
 fn rep_rgba(icns_bytes: &[u8], px: u32) -> image::RgbaImage {
     let chunks = icns::unpack(icns_bytes).expect("committed icns parses");
-    let want = REPS.iter().find(|r| r.px == px).expect("a rep at this size");
+    let want = REPS
+        .iter()
+        .find(|r| r.px == px)
+        .expect("a rep at this size");
     let (_, png) = chunks
         .iter()
         .find(|(t, _)| *t == want.ostype)
@@ -79,7 +82,12 @@ impl Bbox {
     }
     fn grow(bb: &mut Option<Bbox>, x: u32, y: u32) {
         *bb = Some(match *bb {
-            None => Bbox { x0: x, y0: y, x1: x, y1: y },
+            None => Bbox {
+                x0: x,
+                y0: y,
+                x1: x,
+                y1: y,
+            },
             Some(b) => Bbox {
                 x0: b.x0.min(x),
                 y0: b.y0.min(y),
@@ -200,12 +208,7 @@ fn cursor_slab(mask: &[bool], w: u32, h: u32) -> (u32, Option<Bbox>, Vec<bool>) 
 /// corner fails that (it is outside the row's slab span); a letter knocked out
 /// of the middle passes it, including the narrow preset's case where the glyph
 /// splits the pill into two slivers and sits between them.
-fn letter_mask(
-    img: &image::RgbaImage,
-    slab: &[bool],
-    ink: [u8; 3],
-    tol: i32,
-) -> Vec<bool> {
+fn letter_mask(img: &image::RgbaImage, slab: &[bool], ink: [u8; 3], tol: i32) -> Vec<bool> {
     let (w, h) = img.dimensions();
     let mut out = vec![false; slab.len()];
     for y in 0..h {
@@ -270,7 +273,10 @@ fn every_shipped_world_resolves_to_exactly_one_committed_icon() {
     let wanted: BTreeSet<String> = THEMES.iter().map(|t| format!("{}.icns", t.name)).collect();
 
     let missing: Vec<&String> = wanted.difference(&on_disk).collect();
-    assert!(missing.is_empty(), "shipped worlds with no icon: {missing:?}");
+    assert!(
+        missing.is_empty(),
+        "shipped worlds with no icon: {missing:?}"
+    );
     let orphans: Vec<&String> = on_disk.difference(&wanted).collect();
     assert!(
         orphans.is_empty(),
@@ -352,7 +358,11 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
         ("Cassowary", IconCursor::Block),
     ];
     for (name, want) in expected {
-        assert_eq!(world(name).icon_cursor, want, "{name}'s assigned logo-cursor");
+        assert_eq!(
+            world(name).icon_cursor,
+            want,
+            "{name}'s assigned logo-cursor"
+        );
     }
     assert_eq!(expected.len(), THEMES.len(), "every world is named above");
 
@@ -508,7 +518,10 @@ fn repacking_a_committed_icon_reproduces_it_byte_for_byte() {
         // Feed the packer by SIZE, exactly as `pack_world` feeds it from tiles.
         let mut pngs: Vec<(u32, Vec<u8>)> = Vec::new();
         for (ostype, png) in &chunks {
-            let rep = REPS.iter().find(|r| r.ostype == *ostype).expect("known rep");
+            let rep = REPS
+                .iter()
+                .find(|r| r.ostype == *ostype)
+                .expect("known rep");
             if !pngs.iter().any(|(px, _)| *px == rep.px) {
                 pngs.push((rep.px, png.to_vec()));
             }
@@ -567,7 +580,10 @@ fn the_parser_rejects_a_malformed_container() {
     assert!(icns::unpack(&bad_chunk).is_err(), "over-long chunk length");
     let mut zero_chunk = good.clone();
     zero_chunk[12..16].copy_from_slice(&0u32.to_be_bytes()); // shorter than its own header
-    assert!(icns::unpack(&zero_chunk).is_err(), "impossible chunk length");
+    assert!(
+        icns::unpack(&zero_chunk).is_err(),
+        "impossible chunk length"
+    );
     assert!(
         icns::unpack(&good[..good.len() - 1]).is_err(),
         "a truncated file no longer matches its declared total"
@@ -664,8 +680,7 @@ fn the_l_reads_as_a_stem_on_the_wordmarks_own_baseline() {
             let (w, h) = img.dimensions();
             let cursor_mask = mask_of(&img, rgb(t.primary), 6);
             let (_, slab_bbox, slab) = cursor_slab(&cursor_mask, w, h);
-            let slab_bbox =
-                slab_bbox.unwrap_or_else(|| panic!("{} @{px}: no cursor slab", t.name));
+            let slab_bbox = slab_bbox.unwrap_or_else(|| panic!("{} @{px}: no cursor slab", t.name));
 
             // The knocked-out letter: primary_content INTERIOR to the slab (see
             // `letter_mask`). The wordmark: base_content outside the slab.
@@ -969,21 +984,69 @@ impl Blessed {
 /// 28.33% today, i.e. the whole low cluster below the roster's own cliff to
 /// 80.47% (Potoroo/Firetail) — see `axes()`'s `danger` value.
 const DIFFERING_BLESSED: &[Blessed] = &[
-    Blessed { a: "Currawong", b: "Cassowary", baseline: 0.123047 },
-    Blessed { a: "Bilby", b: "Galah", baseline: 0.203125 },
-    Blessed { a: "Mopoke", b: "Mulga", baseline: 0.206055 },
-    Blessed { a: "Bilby", b: "Magpie", baseline: 0.208008 },
-    Blessed { a: "Saltpan", b: "Quokka", baseline: 0.228516 },
-    Blessed { a: "Galah", b: "Magpie", baseline: 0.232422 },
+    Blessed {
+        a: "Currawong",
+        b: "Cassowary",
+        baseline: 0.123047,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Galah",
+        baseline: 0.203125,
+    },
+    Blessed {
+        a: "Mopoke",
+        b: "Mulga",
+        baseline: 0.206055,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Magpie",
+        baseline: 0.208008,
+    },
+    Blessed {
+        a: "Saltpan",
+        b: "Quokka",
+        baseline: 0.228516,
+    },
+    Blessed {
+        a: "Galah",
+        b: "Magpie",
+        baseline: 0.232422,
+    },
     // Item 110 aligned every face's rendered baseline; the intentional seat
     // change moved this cream-ground near-pair without changing palette or
     // its deliberately split block/pill silhouettes.
-    Blessed { a: "Bilby", b: "Saltpan", baseline: 0.2294921875 },
-    Blessed { a: "Tawny", b: "Mulga", baseline: 0.253906 },
-    Blessed { a: "Tawny", b: "Mopoke", baseline: 0.268555 },
-    Blessed { a: "Tawny", b: "Bowerbird", baseline: 0.272461 },
-    Blessed { a: "Currawong", b: "Wagtail", baseline: 0.279297 },
-    Blessed { a: "Wagtail", b: "Cassowary", baseline: 0.283203 },
+    Blessed {
+        a: "Bilby",
+        b: "Saltpan",
+        baseline: 0.2294921875,
+    },
+    Blessed {
+        a: "Tawny",
+        b: "Mulga",
+        baseline: 0.253906,
+    },
+    Blessed {
+        a: "Tawny",
+        b: "Mopoke",
+        baseline: 0.268555,
+    },
+    Blessed {
+        a: "Tawny",
+        b: "Bowerbird",
+        baseline: 0.272461,
+    },
+    Blessed {
+        a: "Currawong",
+        b: "Wagtail",
+        baseline: 0.279297,
+    },
+    Blessed {
+        a: "Wagtail",
+        b: "Cassowary",
+        baseline: 0.283203,
+    },
 ];
 
 /// Measured 2026-07-26 (item 102): every pair whose `mean` sits under 70.0
@@ -992,18 +1055,58 @@ const DIFFERING_BLESSED: &[Blessed] = &[
 /// Bombora/Wagtail -> Gumtree/Mangrove), so this axis's `danger` is set with
 /// margin above the tightest 10, not at that far cliff (see `axes()`'s doc).
 const MEAN_BLESSED: &[Blessed] = &[
-    Blessed { a: "Currawong", b: "Cassowary", baseline: 19.52 },
-    Blessed { a: "Potoroo", b: "Firetail", baseline: 32.25 },
-    Blessed { a: "Galah", b: "Brolga", baseline: 54.86 },
-    Blessed { a: "Mopoke", b: "Mulga", baseline: 55.84 },
-    Blessed { a: "Tawny", b: "Mangrove", baseline: 56.46 },
-    Blessed { a: "Saltpan", b: "Galah", baseline: 65.89 },
+    Blessed {
+        a: "Currawong",
+        b: "Cassowary",
+        baseline: 19.52,
+    },
+    Blessed {
+        a: "Potoroo",
+        b: "Firetail",
+        baseline: 32.25,
+    },
+    Blessed {
+        a: "Galah",
+        b: "Brolga",
+        baseline: 54.86,
+    },
+    Blessed {
+        a: "Mopoke",
+        b: "Mulga",
+        baseline: 55.84,
+    },
+    Blessed {
+        a: "Tawny",
+        b: "Mangrove",
+        baseline: 56.46,
+    },
+    Blessed {
+        a: "Saltpan",
+        b: "Galah",
+        baseline: 65.89,
+    },
     // Item 110's vertical-seat correction moves Bilby's rendered ink while
     // preserving every palette and cursor assignment.
-    Blessed { a: "Bilby", b: "Galah", baseline: 60.611328125 },
-    Blessed { a: "Bilby", b: "Saltpan", baseline: 63.974609375 },
-    Blessed { a: "Bowerbird", b: "Mulga", baseline: 67.55 },
-    Blessed { a: "Tawny", b: "Firetail", baseline: 68.89 },
+    Blessed {
+        a: "Bilby",
+        b: "Galah",
+        baseline: 60.611328125,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Saltpan",
+        baseline: 63.974609375,
+    },
+    Blessed {
+        a: "Bowerbird",
+        b: "Mulga",
+        baseline: 67.55,
+    },
+    Blessed {
+        a: "Tawny",
+        b: "Firetail",
+        baseline: 68.89,
+    },
 ];
 
 /// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
@@ -1013,11 +1116,31 @@ const MEAN_BLESSED: &[Blessed] = &[
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
 const INK_BLESSED: &[Blessed] = &[
-    Blessed { a: "Potoroo", b: "Firetail", baseline: 0.510121 },
-    Blessed { a: "Bilby", b: "Wagtail", baseline: 0.688136 },
-    Blessed { a: "Magpie", b: "Wagtail", baseline: 0.807947 },
-    Blessed { a: "Currawong", b: "Cassowary", baseline: 0.857143 },
-    Blessed { a: "Bowerbird", b: "Firetail", baseline: 0.883895 },
+    Blessed {
+        a: "Potoroo",
+        b: "Firetail",
+        baseline: 0.510121,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Wagtail",
+        baseline: 0.688136,
+    },
+    Blessed {
+        a: "Magpie",
+        b: "Wagtail",
+        baseline: 0.807947,
+    },
+    Blessed {
+        a: "Currawong",
+        b: "Cassowary",
+        baseline: 0.857143,
+    },
+    Blessed {
+        a: "Bowerbird",
+        b: "Firetail",
+        baseline: 0.883895,
+    },
 ];
 
 /// (axis name, how to read it off a pair, absolute floor, danger-zone
@@ -1032,9 +1155,30 @@ const INK_BLESSED: &[Blessed] = &[
 /// danger zone instead, which is not the same shape.
 fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
     [
-        ("differing pixels", |p| p.differing, 0.10, 0.35, DIFFERING_BLESSED, true),
-        ("mean channel distance", |p| p.mean, 10.0, 70.0, MEAN_BLESSED, false),
-        ("differing INK pixels", |p| p.ink, 0.40, 0.92, INK_BLESSED, true),
+        (
+            "differing pixels",
+            |p| p.differing,
+            0.10,
+            0.35,
+            DIFFERING_BLESSED,
+            true,
+        ),
+        (
+            "mean channel distance",
+            |p| p.mean,
+            10.0,
+            70.0,
+            MEAN_BLESSED,
+            false,
+        ),
+        (
+            "differing INK pixels",
+            |p| p.ink,
+            0.40,
+            0.92,
+            INK_BLESSED,
+            true,
+        ),
     ]
 }
 
@@ -1276,7 +1420,13 @@ fn small_sizes_keep_every_pair_of_worlds_apart() {
 fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
     let mut failures = Vec::new();
     for (name, read, floor, danger, blessed, pct) in axes() {
-        let show = |v: f64| if pct { format!("{:.2}%", v * 100.0) } else { format!("{v:.2}") };
+        let show = |v: f64| {
+            if pct {
+                format!("{:.2}%", v * 100.0)
+            } else {
+                format!("{v:.2}")
+            }
+        };
 
         let closest = pairs
             .iter()
@@ -1490,7 +1640,11 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
          check_pair_axes reported no failures — the danger-zone guard is not catching the \
          case item 102 was filed for"
     );
-    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+    for axis in [
+        "differing pixels",
+        "mean channel distance",
+        "differing INK pixels",
+    ] {
         assert!(
             failures.iter().any(|f| f.contains(axis)),
             "expected a failure mentioning {axis:?} (Ibis should crowd every axis); got:\n\n{}",
@@ -1535,7 +1689,11 @@ fn ordinary_new_world_passes_the_danger_zone_guard() {
             *out = image::Rgba(p);
             continue;
         }
-        let new_rgb = if near(&p, ground_from, 10) { new_ground } else { new_ink };
+        let new_rgb = if near(&p, ground_from, 10) {
+            new_ground
+        } else {
+            new_ink
+        };
         *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
     }
 
@@ -1595,12 +1753,21 @@ fn ground_clone_crowding_is_caught_regardless_of_rank() {
         let mut pairs = all_real_pairs();
         for t in THEMES.iter() {
             let img = rep_rgba(&icon_bytes(t.name), 32);
-            pairs.push(measure_pair("GroundClone", &clone_img, ground, t.name, &img, rgb(t.base_100)));
+            pairs.push(measure_pair(
+                "GroundClone",
+                &clone_img,
+                ground,
+                t.name,
+                &img,
+                rgb(t.base_100),
+            ));
         }
 
         let failures = check_pair_axes(&pairs);
         assert!(
-            failures.iter().any(|f| f.contains("differing pixels") && f.contains(name)),
+            failures
+                .iter()
+                .any(|f| f.contains("differing pixels") && f.contains(name)),
             "a ground-preserving clone of {name} (identical ground, fully recoloured ink) \
              should crowd {name} on `differing pixels` regardless of what rank it lands at; \
              got:\n\n{}",
@@ -1639,7 +1806,14 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
     let mut pairs = all_real_pairs();
     for t in THEMES.iter() {
         let img = rep_rgba(&icon_bytes(t.name), 32);
-        pairs.push(measure_pair("Ibis", &ibis_img, rgb(galah.base_100), t.name, &img, rgb(t.base_100)));
+        pairs.push(measure_pair(
+            "Ibis",
+            &ibis_img,
+            rgb(galah.base_100),
+            t.name,
+            &img,
+            rgb(t.base_100),
+        ));
     }
 
     // Six ORDINARY growth worlds, each Galah's silhouette recoloured to a
@@ -1664,12 +1838,23 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
                 *out = image::Rgba(p);
                 continue;
             }
-            let new_rgb = if near(&p, ground_from, 10) { *new_ground } else { *new_ink };
+            let new_rgb = if near(&p, ground_from, 10) {
+                *new_ground
+            } else {
+                *new_ink
+            };
             *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
         }
         for t in THEMES.iter() {
             let img = rep_rgba(&icon_bytes(t.name), 32);
-            pairs.push(measure_pair(name, &growth_img, *new_ground, t.name, &img, rgb(t.base_100)));
+            pairs.push(measure_pair(
+                name,
+                &growth_img,
+                *new_ground,
+                t.name,
+                &img,
+                rgb(t.base_100),
+            ));
         }
         // Growth worlds also pair with each other and with Ibis, exactly as
         // a real roster growing by six worlds would.
@@ -1685,10 +1870,21 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
                     *out = image::Rgba(p);
                     continue;
                 }
-                let new_rgb = if near(&p, ground_from, 10) { *other_ground } else { *other_ink };
+                let new_rgb = if near(&p, ground_from, 10) {
+                    *other_ground
+                } else {
+                    *other_ink
+                };
                 *out = image::Rgba([new_rgb[0], new_rgb[1], new_rgb[2], p[3]]);
             }
-            pairs.push(measure_pair(name, &growth_img, *new_ground, other_name, &other_img, *other_ground));
+            pairs.push(measure_pair(
+                name,
+                &growth_img,
+                *new_ground,
+                other_name,
+                &other_img,
+                *other_ground,
+            ));
         }
         pairs.push(measure_pair(
             "Ibis",
@@ -1701,9 +1897,15 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
     }
 
     let failures = check_pair_axes(&pairs);
-    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+    for axis in [
+        "differing pixels",
+        "mean channel distance",
+        "differing INK pixels",
+    ] {
         assert!(
-            failures.iter().any(|f| f.contains(axis) && f.contains("Ibis") && f.contains("Galah")),
+            failures
+                .iter()
+                .any(|f| f.contains(axis) && f.contains("Ibis") && f.contains("Galah")),
             "Ibis vs Galah's own crowding never changed, but it went uncaught on {axis:?} \
              after growing the roster around it — the guard must not dilute with rank; \
              got:\n\n{}",
@@ -1758,9 +1960,15 @@ fn coordinated_erosion_across_the_blessed_list_is_caught() {
          check_pair_axes reported no failures — the systemic-drift guard is not catching \
          coordinated erosion across the blessed list"
     );
-    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+    for axis in [
+        "differing pixels",
+        "mean channel distance",
+        "differing INK pixels",
+    ] {
         assert!(
-            failures.iter().any(|f| f.contains(axis) && f.contains("eroded together")),
+            failures
+                .iter()
+                .any(|f| f.contains(axis) && f.contains("eroded together")),
             "expected a systemic-drift failure mentioning {axis:?}; got:\n\n{}",
             failures.join("\n\n")
         );
@@ -1775,11 +1983,22 @@ fn coordinated_erosion_across_the_blessed_list_is_caught() {
 #[test]
 fn stale_blessed_entry_for_a_renamed_world_is_flagged() {
     let _g = crate::testlock::serial();
-    let probe = Blessed { a: "Currawong", b: "Cassowary", baseline: 0.0 };
-    let pairs: Vec<Pair> = all_real_pairs().into_iter().filter(|p| !probe.matches(p)).collect();
+    let probe = Blessed {
+        a: "Currawong",
+        b: "Cassowary",
+        baseline: 0.0,
+    };
+    let pairs: Vec<Pair> = all_real_pairs()
+        .into_iter()
+        .filter(|p| !probe.matches(p))
+        .collect();
 
     let failures = check_pair_axes(&pairs);
-    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+    for axis in [
+        "differing pixels",
+        "mean channel distance",
+        "differing INK pixels",
+    ] {
         assert!(
             failures.iter().any(|f| {
                 f.contains(axis)
@@ -1806,7 +2025,9 @@ fn stale_blessed_entry_for_a_widened_pair_is_flagged() {
     let mut pairs = all_real_pairs();
     let p = pairs
         .iter_mut()
-        .find(|p| (p.a == "Currawong" && p.b == "Cassowary") || (p.a == "Cassowary" && p.b == "Currawong"))
+        .find(|p| {
+            (p.a == "Currawong" && p.b == "Cassowary") || (p.a == "Cassowary" && p.b == "Currawong")
+        })
         .expect("Currawong vs Cassowary is a real pair");
     p.differing = 0.50; // well clear of `differing`'s 35% danger threshold
 
@@ -1866,8 +2087,7 @@ fn the_packer_asks_for_the_worlds_assigned_preset() {
 #[test]
 fn a_missing_tile_stops_the_pack() {
     let _g = crate::testlock::serial();
-    let err =
-        icns::pack_world(Path::new("/nonexistent/tiles"), &THEMES[0]).expect_err("must fail");
+    let err = icns::pack_world(Path::new("/nonexistent/tiles"), &THEMES[0]).expect_err("must fail");
     let msg = err.to_string();
     assert!(
         msg.contains(THEMES[0].name) && msg.contains("export-icons.sh"),

@@ -17,8 +17,7 @@ use super::view;
 /// Request a headless device/queue, or `None` on a GPU-less machine.
 fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -39,10 +38,18 @@ pub(super) const FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// so a SECOND readback dance never has to be hand-copied a third time — see
 /// this module's own doc comment for why the FIRST copy (vs. `capture/gpu.rs`)
 /// is itself an accepted exception.
-pub(super) fn offscreen(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {
+pub(super) fn offscreen(
+    device: &wgpu::Device,
+    width: u32,
+    height: u32,
+) -> (wgpu::Texture, wgpu::TextureView) {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("awl dither-test offscreen"),
-        size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
@@ -61,7 +68,13 @@ pub(super) fn align_256(n: u32) -> u32 {
 
 /// Read `texture` back to a flat row-major `Vec<[u8;4]>` (already-submitted
 /// draws only). Mirrors `capture/gpu.rs::read_frame`'s dance in miniature.
-pub(super) fn read_pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &wgpu::Texture, width: u32, height: u32) -> Vec<[u8; 4]> {
+pub(super) fn read_pixels(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture: &wgpu::Texture,
+    width: u32,
+    height: u32,
+) -> Vec<[u8; 4]> {
     let unpadded_bpr = width * 4;
     let padded_bpr = align_256(unpadded_bpr);
     let readback = device.create_buffer(&wgpu::BufferDescriptor {
@@ -88,7 +101,11 @@ pub(super) fn read_pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &
                 rows_per_image: Some(height),
             },
         },
-        wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
     );
     queue.submit(Some(encoder.finish()));
 
@@ -96,8 +113,12 @@ pub(super) fn read_pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &
     readback.slice(..).map_async(wgpu::MapMode::Read, move |r| {
         let _ = tx.send(r);
     });
-    device.poll(wgpu::PollType::wait_indefinitely()).expect("device poll failed");
-    rx.recv().expect("map_async channel closed").expect("buffer map failed");
+    device
+        .poll(wgpu::PollType::wait_indefinitely())
+        .expect("device poll failed");
+    rx.recv()
+        .expect("map_async channel closed")
+        .expect("buffer map failed");
 
     let mut out = Vec::with_capacity((width * height) as usize);
     {
@@ -118,7 +139,13 @@ pub(super) fn read_pixels(device: &wgpu::Device, queue: &wgpu::Queue, texture: &
 /// canvas as margin (`col_w = 0`, so no page-column hole is punched) and read
 /// the result back. Isolates the gradient/dither math from text/glyphs
 /// entirely — the purest reachable seam for deliverable 1's claims.
-fn render_background(device: &wgpu::Device, queue: &wgpu::Queue, desc: crate::background::BgDesc, width: u32, height: u32) -> Vec<[u8; 4]> {
+fn render_background(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    desc: crate::background::BgDesc,
+    width: u32,
+    height: u32,
+) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, FMT, desc);
     bg.prepare(queue, width, height, 0.0, 0.0, 0.0);
     let (texture, tview) = offscreen(device, width, height);
@@ -176,7 +203,9 @@ fn srgb_u8_to_linear(u: u8) -> f32 {
 #[test]
 fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping flat_gradient_renders_byte_identical_pure_pixels_end_to_end: no wgpu adapter");
+        eprintln!(
+            "skipping flat_gradient_renders_byte_identical_pure_pixels_end_to_end: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -212,7 +241,9 @@ fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
 #[test]
 fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_active() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_active: no wgpu adapter");
+        eprintln!(
+            "skipping real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_active: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -279,7 +310,9 @@ fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_
 #[test]
 fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping dither_mode_paints_only_pure_values_at_roughly_the_configured_density: no wgpu adapter");
+        eprintln!(
+            "skipping dither_mode_paints_only_pure_values_at_roughly_the_configured_density: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -288,7 +321,10 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
     // — a whole number of physical px, and a divisor of the 64-px canvas so one
     // full Bayer period tiles it exactly (keeps the density fraction exact).
     let cell = crate::render::dither::WAGTAIL_HIGHLIGHT_STIPPLE_CELL_LOGICAL.round() as u32;
-    assert!(cell >= 1 && 64 % (8 * cell) == 0, "test canvas must tile whole Bayer periods at cell {cell}");
+    assert!(
+        cell >= 1 && 64 % (8 * cell) == 0,
+        "test canvas must tile whole Bayer periods at cell {cell}"
+    );
 
     let mut sel = crate::selection::SelectionPipeline::new(&device, FMT, [255, 255, 255, 255]);
     sel.set_dither(0.25);
@@ -363,7 +399,8 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
                 for dx in 0..cell {
                     let p = pixels[((by + dy) * w + (bx + dx)) as usize];
                     assert_eq!(
-                        p, anchor,
+                        p,
+                        anchor,
                         "block at ({bx},{by}) is not uniform: pixel ({},{}) = {p:?} vs anchor {anchor:?} \
                          — the CHUNK cell {cell} must paint solid blocks",
                         bx + dx,
@@ -398,7 +435,9 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
 #[test]
 fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping invert_pipeline_flips_pure_black_and_pure_white_exactly: no wgpu adapter");
+        eprintln!(
+            "skipping invert_pipeline_flips_pure_black_and_pure_white_exactly: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -422,7 +461,10 @@ fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
                     view: &tview,
                     depth_slice: None,
                     resolve_target: None,
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(clear), store: wgpu::StoreOp::Store },
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(clear),
+                        store: wgpu::StoreOp::Store,
+                    },
                 })],
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
@@ -438,7 +480,11 @@ fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
             // One on that channel) — the clear color's own alpha (always 255 for
             // an opaque BLACK/WHITE clear) survives, so only rgb is asserted
             // against `expect`'s rgb; alpha is checked separately for honesty.
-            assert_eq!(&p[..3], &expect[..3], "pixel {i}: expected {expect:?}, got {p:?}");
+            assert_eq!(
+                &p[..3],
+                &expect[..3],
+                "pixel {i}: expected {expect:?}, got {p:?}"
+            );
         }
     }
 }
@@ -473,7 +519,10 @@ fn draw_invert_rect(
                 view: &tview,
                 depth_slice: None,
                 resolve_target: None,
-                ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color::BLACK), store: wgpu::StoreOp::Store },
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: wgpu::StoreOp::Store,
+                },
             })],
             depth_stencil_attachment: None,
             timestamp_writes: None,
@@ -500,7 +549,9 @@ fn draw_invert_rect(
 #[test]
 fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette: no wgpu adapter");
+        eprintln!(
+            "skipping caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -531,7 +582,11 @@ fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
     // The rect's CENTER: deep inside the silhouette regardless of rounding —
     // must invert to pure white.
     let center = pixels[idx(45, 45)];
-    assert_eq!(&center[..3], &[255u8, 255, 255], "center pixel must invert to pure white — got {center:?}");
+    assert_eq!(
+        &center[..3],
+        &[255u8, 255, 255],
+        "center pixel must invert to pure white — got {center:?}"
+    );
     // An EDGE MIDPOINT (top edge, x = rect center, y = rect top) — inside the
     // rounded silhouette (the corner rounding only eats the actual corners,
     // not the straight edge run between them) — must ALSO invert to white,
@@ -556,7 +611,9 @@ fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
 #[test]
 fn selection_invert_never_rounds_corners_stay_rectangular() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping selection_invert_never_rounds_corners_stay_rectangular: no wgpu adapter");
+        eprintln!(
+            "skipping selection_invert_never_rounds_corners_stay_rectangular: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -595,9 +652,15 @@ fn selection_invert_never_rounds_corners_stay_rectangular() {
 fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor { label: Some("awl caret-readability device"), ..Default::default() })
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("awl caret-readability device"),
+                ..Default::default()
+            })
             .await
             .ok()?;
         let cache = Cache::new(&device);
@@ -606,7 +669,9 @@ fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -650,7 +715,10 @@ fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
     let right = ((cx + cw * 0.5).ceil() as i32 + MARGIN).min(300);
     let top = ((cy - ch * 0.5).floor() as i32 - MARGIN).max(0);
     let bottom = ((cy + ch * 0.5).ceil() as i32 + MARGIN).min(160);
-    assert!(left < right && top < bottom, "fixture must yield a real caret rect");
+    assert!(
+        left < right && top < bottom,
+        "fixture must yield a real caret rect"
+    );
 
     let mut white = 0usize;
     let mut black = 0usize;
@@ -664,7 +732,10 @@ fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
             }
         }
     }
-    assert!(white > 0, "the caret rect must show white (the inverted GROUND) — got none");
+    assert!(
+        white > 0,
+        "the caret rect must show white (the inverted GROUND) — got none"
+    );
     // A meaningful floor, not just a stray AA pixel: the flipped `#` glyph
     // is a real multi-stroke symbol, so a genuinely visible glyph paints
     // dozens of black pixels, not one or two.
@@ -695,9 +766,15 @@ fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
 fn wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active() {
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor { label: Some("awl pixel-law device"), ..Default::default() })
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("awl pixel-law device"),
+                ..Default::default()
+            })
             .await
             .ok()?;
         let cache = Cache::new(&device);
@@ -706,7 +783,9 @@ fn wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active() {
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -848,9 +927,15 @@ fn wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active() {
 fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line() {
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor { label: Some("awl multiline-selection device"), ..Default::default() })
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("awl multiline-selection device"),
+                ..Default::default()
+            })
             .await
             .ok()?;
         let cache = Cache::new(&device);
@@ -859,7 +944,9 @@ fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line
         Some((device, queue, p))
     });
     let Some((device, queue, mut p)) = got else {
-        eprintln!("skipping wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line: no wgpu adapter");
+        eprintln!(
+            "skipping wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -939,7 +1026,10 @@ fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line
     // BLACK text ink legible inside it.
     for (idx, rect) in [(0usize, sel_rects[0]), (2, sel_rects[2])] {
         let (white, black) = count_colors(rect);
-        assert!(white > 0, "selected text row {idx}: must show white (the inverted ground)");
+        assert!(
+            white > 0,
+            "selected text row {idx}: must show white (the inverted ground)"
+        );
         assert!(
             black > 10,
             "selected text row {idx}: must show a REAL amount of black (the flipped glyph \
@@ -955,7 +1045,10 @@ fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line
     // The EMPTY middle line (line 1): nothing to invert but the ground
     // itself -- "solid white on empty stretches", never a partial value.
     let (white, black) = count_colors(sel_rects[1]);
-    assert!(white > 0, "the empty selected line must show white (the inverted ground)");
+    assert!(
+        white > 0,
+        "the empty selected line must show white (the inverted ground)"
+    );
     assert_eq!(
         black, 0,
         "the empty selected line must be SOLID white -- no black pixels at all (there was no \
@@ -993,9 +1086,15 @@ fn gallery_wagtail_selection_highlight_search() {
     let (w, h) = (900u32, 560u32);
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor { label: Some("awl gallery device"), ..Default::default() })
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("awl gallery device"),
+                ..Default::default()
+            })
             .await
             .ok()?;
         let cache = Cache::new(&device);
@@ -1042,7 +1141,8 @@ fn gallery_wagtail_selection_highlight_search() {
     for (i, px) in pixels.iter().enumerate() {
         img.put_pixel((i as u32) % w, (i as u32) / w, image::Rgba(*px));
     }
-    img.save("gallery/wagtail/selection-highlight-search.png").unwrap();
+    img.save("gallery/wagtail/selection-highlight-search.png")
+        .unwrap();
     eprintln!("wrote gallery/wagtail/selection-highlight-search.png");
 
     theme::set_active(theme::DEFAULT_THEME);
@@ -1062,9 +1162,15 @@ fn gallery_wagtail_caret() {
     let (w, h) = (900u32, 300u32);
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor { label: Some("awl caret gallery device"), ..Default::default() })
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("awl caret gallery device"),
+                ..Default::default()
+            })
             .await
             .ok()?;
         let cache = Cache::new(&device);
@@ -1123,9 +1229,15 @@ fn gallery_wagtail_multiline_selection() {
     let (w, h) = (700u32, 320u32);
     let got = pollster::block_on(async {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions::default()).await.ok()?;
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .ok()?;
         let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor { label: Some("awl multiline gallery device"), ..Default::default() })
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("awl multiline gallery device"),
+                ..Default::default()
+            })
             .await
             .ok()?;
         let cache = Cache::new(&device);

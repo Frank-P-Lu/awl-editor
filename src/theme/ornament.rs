@@ -39,7 +39,11 @@ impl Ornaments {
 /// stars for three asterisks), `___` → ❦ floral heart. All three are bundled in
 /// the merged `AwlMarks.ttf` (the [`ORNAMENT_MARKS`] face), so they render in
 /// every world that keeps that face.
-pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments { dash: '❧', star: '⁂', underscore: '❦' };
+pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
+    dash: '❧',
+    star: '⁂',
+    underscore: '❦',
+};
 
 // --- The per-world ORNAMENT FACE (the fleuron / About end-mark face) ----------
 //

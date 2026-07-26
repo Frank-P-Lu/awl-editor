@@ -25,7 +25,11 @@ pub const CJK_MINCHO: &[&str] = &["Noto Serif JP", "Hiragino Mincho ProN", "Noto
 /// GOTHIC (sans) Japanese fallback for the SANS / MONO worlds: bundled Noto
 /// Sans JP first, then Hiragino Kaku Gothic ProN (macOS) / Noto Sans CJK JP
 /// (Linux).
-pub const CJK_GOTHIC: &[&str] = &["Noto Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP"];
+pub const CJK_GOTHIC: &[&str] = &[
+    "Noto Sans JP",
+    "Hiragino Kaku Gothic ProN",
+    "Noto Sans CJK JP",
+];
 
 // --- Phase 2 "JP face variety" round: per-WORLD Japanese overrides ----------
 //
@@ -43,23 +47,35 @@ pub const CJK_GOTHIC: &[&str] = &["Noto Sans JP", "Hiragino Kaku Gothic ProN", "
 /// worlds (Gumtree, Bilby, Bombora): bundled Shippori Mincho first, then the
 /// Noto Serif JP floor + the same Hiragino/Noto-CJK system trailing candidates
 /// as [`CJK_MINCHO`].
-pub const CJK_JA_SHIPPORI: &[&str] =
-    &["Shippori Mincho", "Noto Serif JP", "Hiragino Mincho ProN", "Noto Serif CJK JP"];
+pub const CJK_JA_SHIPPORI: &[&str] = &[
+    "Shippori Mincho",
+    "Noto Serif JP",
+    "Hiragino Mincho ProN",
+    "Noto Serif CJK JP",
+];
 
 /// JAPANESE rounded-gothic ladder — the warm rounded "maru" sans for the two
 /// dedicated sans worlds (Galah, Bowerbird): bundled Zen Maru Gothic first,
 /// then the Noto Sans JP floor + the same gothic system trailing candidates as
 /// [`CJK_GOTHIC`].
-pub const CJK_JA_ZENMARU: &[&str] =
-    &["Zen Maru Gothic", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP"];
+pub const CJK_JA_ZENMARU: &[&str] = &[
+    "Zen Maru Gothic",
+    "Noto Sans JP",
+    "Hiragino Kaku Gothic ProN",
+    "Noto Sans CJK JP",
+];
 
 /// JAPANESE Klee ladder — the CHARACTERFUL kaisho/brush override for the two
 /// Klee-derived worlds (Mopoke, Quokka), so their JA shares the brush character
 /// of their ZH (LXGW WenKai, a Klee One-derived Chinese face — see
 /// [`CJK_ZH_HANS_KLEE`], whose doc anticipated exactly this pairing): bundled
 /// Klee One first, then the Noto Sans JP floor + gothic system candidates.
-pub const CJK_JA_KLEE: &[&str] =
-    &["Klee One", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP"];
+pub const CJK_JA_KLEE: &[&str] = &[
+    "Klee One",
+    "Noto Sans JP",
+    "Hiragino Kaku Gothic ProN",
+    "Noto Sans CJK JP",
+];
 
 /// The bundled CJK family names — the "embedded" side of the [`FontId`]
 /// resolver's asset-source classification (also the `apply_cjk_force` A/B
@@ -133,8 +149,13 @@ pub enum FontId {
 /// lockstep with the enum by hand (a `match` elsewhere enumerating `FontId`
 /// with a no-wildcard arm is the actual compile-time guard; this is for
 /// iteration convenience in tests).
-pub const ALL_FONT_IDS: [FontId; 5] =
-    [FontId::Latin, FontId::Ja, FontId::ZhHans, FontId::ZhHant, FontId::Ko];
+pub const ALL_FONT_IDS: [FontId; 5] = [
+    FontId::Latin,
+    FontId::Ja,
+    FontId::ZhHans,
+    FontId::ZhHant,
+    FontId::Ko,
+];
 
 /// Simplified Chinese SERIF ladder — the "Chinese round"'s zh-Hans mincho
 /// companion, for the SERIF worlds (`Theme::cjk == CJK_MINCHO`): bundled Noto
@@ -159,8 +180,12 @@ pub const CJK_ZH_HANS_SANS: &[&str] = &["Noto Sans SC", "PingFang SC", "Noto San
 /// CALL (logged): this pairing anticipates the (separately landed, not yet
 /// merged into this branch) "JP world-faces round"'s Klee One ↔ Mopoke/Quokka
 /// assignment — see CLAUDE.md's Chinese-round report for the exact status.
-pub const CJK_ZH_HANS_KLEE: &[&str] =
-    &["LXGW WenKai", "Noto Sans SC", "PingFang SC", "Noto Sans CJK SC"];
+pub const CJK_ZH_HANS_KLEE: &[&str] = &[
+    "LXGW WenKai",
+    "Noto Sans SC",
+    "PingFang SC",
+    "Noto Sans CJK SC",
+];
 
 /// Traditional Chinese v1 ladder: PingFang TC (macOS) then Noto Sans CJK TC
 /// (Linux). STILL no bundled asset — Big5 coverage (~13k chars) is banked,

@@ -4,7 +4,7 @@
 //! monolithic `capture::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{adapter_available};
+use super::adapter_available;
 use crate::buffer::Buffer;
 
 /// DEBUG PANEL: the panel is ABSENT from a default capture (empty readout,
@@ -55,7 +55,10 @@ fn debug_panel_absent_by_default_and_toggles() {
     let on_png = dir.join("on.png");
     capture_with(&on_png, &buf, &CaptureOpts::default()).expect("on capture");
     let on_json = std::fs::read_to_string(on_png.with_extension("json")).unwrap();
-    assert!(on_json.contains("\"debug\": { \"enabled\": true,"), "enabled flag: {on_json}");
+    assert!(
+        on_json.contains("\"debug\": { \"enabled\": true,"),
+        "enabled flag: {on_json}"
+    );
     // The clockless still-form placeholders lead the stack (newlines are escaped
     // as \\n inside the JSON string).
     assert!(
@@ -79,7 +82,10 @@ fn debug_panel_absent_by_default_and_toggles() {
     assert!(on_json.contains("md:"), "md/syn line: {on_json}");
     // The AUTOSAVE line trails the panel text as the fixed clockless placeholder
     // (the engine is structurally live-App-only — never fed in a capture).
-    assert!(on_json.contains("autosave —"), "autosave placeholder line: {on_json}");
+    assert!(
+        on_json.contains("autosave —"),
+        "autosave placeholder line: {on_json}"
+    );
     // THEME-SWITCH SETTLE readout (determinism law): STRUCTURALLY ABSENT from a
     // `--debug` capture. The reshape timers + panel feed live only on the live App
     // behind a real present, so a capture never measures a switch and
@@ -110,7 +116,9 @@ fn debug_panel_absent_by_default_and_toggles() {
 #[test]
 fn whichkey_absent_by_default_and_shown_lists_continuations() {
     if !adapter_available() {
-        eprintln!("skipping whichkey_absent_by_default_and_shown_lists_continuations: no wgpu adapter");
+        eprintln!(
+            "skipping whichkey_absent_by_default_and_shown_lists_continuations: no wgpu adapter"
+        );
         return;
     }
     let _pg = crate::testlock::serial();
@@ -141,15 +149,30 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
         .map(|c| (c.key, c.name))
         .collect();
     let on_png = dir.join("on.png");
-    let opts = CaptureOpts { whichkey: Some(rows), ..CaptureOpts::default() };
+    let opts = CaptureOpts {
+        whichkey: Some(rows),
+        ..CaptureOpts::default()
+    };
     capture_with(&on_png, &buf, &opts).expect("on capture");
     let on_json = std::fs::read_to_string(on_png.with_extension("json")).unwrap();
-    assert!(on_json.contains("\"whichkey\": { \"shown\": true,"), "shown flag: {on_json}");
+    assert!(
+        on_json.contains("\"whichkey\": { \"shown\": true,"),
+        "shown flag: {on_json}"
+    );
     // A representative sampling of the reclaimed continuations: a `C-x C-…` chord
     // plus the single-key ones.
-    assert!(on_json.contains("[\"C-s\", \"Save\"]"), "save row: {on_json}");
-    assert!(on_json.contains("[\"t\", \"Switch theme…\"]"), "theme row: {on_json}");
-    assert!(on_json.contains("[\"n\", \"New document\"]"), "note row: {on_json}");
+    assert!(
+        on_json.contains("[\"C-s\", \"Save\"]"),
+        "save row: {on_json}"
+    );
+    assert!(
+        on_json.contains("[\"t\", \"Switch theme…\"]"),
+        "theme row: {on_json}"
+    );
+    assert!(
+        on_json.contains("[\"n\", \"New document\"]"),
+        "note row: {on_json}"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -181,9 +204,21 @@ fn replace_panel_reports_labeled_fields_and_find_focus() {
     capture_with(&find_png, &buf, &find_opts).expect("find capture");
     let fj = std::fs::read_to_string(find_png.with_extension("json")).unwrap();
     let fv: serde_json::Value = serde_json::from_str(&fj).unwrap();
-    assert_eq!(fv["search"]["active"], serde_json::json!(true), "find panel active");
-    assert_eq!(fv["search"]["replace_active"], serde_json::json!(false), "replace not revealed");
-    assert_eq!(fv["search"]["hit_count"], serde_json::json!(2), "two 'the' hits");
+    assert_eq!(
+        fv["search"]["active"],
+        serde_json::json!(true),
+        "find panel active"
+    );
+    assert_eq!(
+        fv["search"]["replace_active"],
+        serde_json::json!(false),
+        "replace not revealed"
+    );
+    assert_eq!(
+        fv["search"]["hit_count"],
+        serde_json::json!(2),
+        "two 'the' hits"
+    );
 
     // REPLACE revealed (Cmd-R open): both labeled rows + the key-hint line render,
     // and focus stays on the FIND field (editing_replacement == false).
@@ -196,13 +231,21 @@ fn replace_panel_reports_labeled_fields_and_find_focus() {
     capture_with(&rep_png, &buf, &rep_opts).expect("replace capture");
     let rj = std::fs::read_to_string(rep_png.with_extension("json")).unwrap();
     let rv: serde_json::Value = serde_json::from_str(&rj).unwrap();
-    assert_eq!(rv["search"]["replace_active"], serde_json::json!(true), "replace row revealed");
+    assert_eq!(
+        rv["search"]["replace_active"],
+        serde_json::json!(true),
+        "replace row revealed"
+    );
     assert_eq!(
         rv["search"]["editing_replacement"],
         serde_json::json!(false),
         "Cmd-R opens focused on the find field"
     );
-    assert_eq!(rv["search"]["replacement"], serde_json::json!(""), "replacement empty headlessly");
+    assert_eq!(
+        rv["search"]["replacement"],
+        serde_json::json!(""),
+        "replacement empty headlessly"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -235,16 +278,33 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["hud"]["held"], serde_json::json!(false), "default: HUD released");
+    assert_eq!(
+        off["hud"]["held"],
+        serde_json::json!(false),
+        "default: HUD released"
+    );
     // The trimmed HUD carries ONLY the writer figures — no file-date / session fields.
-    assert!(off["hud"].get("file_created").is_none(), "file_created dropped");
+    assert!(
+        off["hud"].get("file_created").is_none(),
+        "file_created dropped"
+    );
     assert!(off["hud"].get("session").is_none(), "session dropped");
     // Markdown buffer => the word-count figure is present.
-    assert!(off["hud"]["words"].is_number(), "markdown buffer reports a word count");
-    assert!(off["hud"]["percent"].is_number(), "percent is always present");
+    assert!(
+        off["hud"]["words"].is_number(),
+        "markdown buffer reports a word count"
+    );
+    assert!(
+        off["hud"]["percent"].is_number(),
+        "percent is always present"
+    );
     // NOTES VERBS round: SAVED is a LIVE clock read (the App's `sync_hud_saved`),
     // never called by a headless capture — the fixed placeholder, always.
-    assert_eq!(off["hud"]["saved"], serde_json::json!("—"), "no clock: the fixed placeholder");
+    assert_eq!(
+        off["hud"]["saved"],
+        serde_json::json!("—"),
+        "no clock: the fixed placeholder"
+    );
 
     // HELD (`--hud` / `--keys "Cmd-M-i"` (Option-Cmd-I)): held=true, the settled panel, SAME writer
     // figures (a pure function of the doc — deterministic in a capture).
@@ -254,8 +314,15 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
     let on: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(on["hud"]["held"], serde_json::json!(true), "held: HUD summoned");
-    assert!(on["hud"]["words"].is_number(), "held markdown HUD reports a word count");
+    assert_eq!(
+        on["hud"]["held"],
+        serde_json::json!(true),
+        "held: HUD summoned"
+    );
+    assert!(
+        on["hud"]["words"].is_number(),
+        "held markdown HUD reports a word count"
+    );
     assert_eq!(
         on["hud"]["saved"],
         serde_json::json!("—"),
@@ -278,7 +345,11 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
     let cv: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(code_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(cv["hud"]["words"], serde_json::json!(null), "non-markdown omits the word count");
+    assert_eq!(
+        cv["hud"]["words"],
+        serde_json::json!(null),
+        "non-markdown omits the word count"
+    );
 
     crate::hud::set_held(false);
     let _ = std::fs::remove_dir_all(&dir);
@@ -308,8 +379,10 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
     md.set_path(dir.join("doc.md"));
 
     // The bar's `items` always mirror the roster titles.
-    let roster_titles: Vec<String> =
-        crate::menu::roster().iter().map(|m| m.title.to_string()).collect();
+    let roster_titles: Vec<String> = crate::menu::roster()
+        .iter()
+        .map(|m| m.title.to_string())
+        .collect();
 
     // DEFAULT (bar off on macOS): shown=false, doc at the unreserved top, items present.
     crate::menubar::set_menu_bar_on(false);
@@ -317,32 +390,62 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
     let off_png = dir.join("off.png");
     capture_with(&off_png, &md, &CaptureOpts::default()).expect("off capture");
     let off: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap()).unwrap();
-    assert_eq!(off["menubar"]["shown"], serde_json::json!(false), "default: bar hidden");
-    assert_eq!(off["menubar"]["open_menu"], serde_json::json!(null), "default: no dropdown");
-    let off_items: Vec<String> =
-        off["menubar"]["items"].as_array().unwrap().iter().map(|v| v.as_str().unwrap().to_string()).collect();
+        serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        off["menubar"]["shown"],
+        serde_json::json!(false),
+        "default: bar hidden"
+    );
+    assert_eq!(
+        off["menubar"]["open_menu"],
+        serde_json::json!(null),
+        "default: no dropdown"
+    );
+    let off_items: Vec<String> = off["menubar"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
     assert_eq!(off_items, roster_titles, "items mirror the roster titles");
     let off_top = off["text_origin"]["top"].as_f64().unwrap();
-    assert_eq!(off_top, crate::render::TEXT_TOP as f64, "bar off => doc at the unreserved top");
+    assert_eq!(
+        off_top,
+        crate::render::TEXT_TOP as f64,
+        "bar off => doc at the unreserved top"
+    );
 
     // SHOWN (`--menu-bar` / a web/Linux launch): shown=true, the doc inset BELOW the bar.
     crate::menubar::set_menu_bar_on(true);
     let on_png = dir.join("on.png");
     capture_with(&on_png, &md, &CaptureOpts::default()).expect("on capture");
     let on: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap()).unwrap();
-    assert_eq!(on["menubar"]["shown"], serde_json::json!(true), "forced on: bar shown");
+        serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        on["menubar"]["shown"],
+        serde_json::json!(true),
+        "forced on: bar shown"
+    );
     let on_top = on["text_origin"]["top"].as_f64().unwrap();
-    assert!(on_top > off_top, "bar shown => the document is inset below the bar ({on_top} > {off_top})");
+    assert!(
+        on_top > off_top,
+        "bar shown => the document is inset below the bar ({on_top} > {off_top})"
+    );
 
     // DROPDOWN (`--menu-open 1`): the File menu's dropdown open, reported by title.
     crate::menubar::set_open(Some(1));
     let drop_png = dir.join("drop.png");
     capture_with(&drop_png, &md, &CaptureOpts::default()).expect("dropdown capture");
     let drop: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(drop_png.with_extension("json")).unwrap()).unwrap();
-    assert_eq!(drop["menubar"]["open_menu"], serde_json::json!("File"), "menu 1 is File");
+        serde_json::from_str(&std::fs::read_to_string(drop_png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        drop["menubar"]["open_menu"],
+        serde_json::json!("File"),
+        "menu 1 is File"
+    );
 
     crate::menubar::set_open(None);
     crate::menubar::set_menu_bar_on(cfg!(not(target_os = "macos")));
@@ -378,7 +481,11 @@ fn hud_reports_the_buffer_eol_and_convert_flips_it() {
     let lfj: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(lf_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(lfj["hud"]["eol"], serde_json::json!("LF"), "LF fixture reports LF");
+    assert_eq!(
+        lfj["hud"]["eol"],
+        serde_json::json!("LF"),
+        "LF fixture reports LF"
+    );
 
     // CRLF fixture: loaded through the REAL from_file detection path (normalizes the
     // `\r\n` away, remembers Eol::Crlf) => the sidecar reports "CRLF".
@@ -391,7 +498,11 @@ fn hud_reports_the_buffer_eol_and_convert_flips_it() {
     let cj: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(crlf_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(cj["hud"]["eol"], serde_json::json!("CRLF"), "CRLF fixture reports CRLF");
+    assert_eq!(
+        cj["hud"]["eol"],
+        serde_json::json!("CRLF"),
+        "CRLF fixture reports CRLF"
+    );
 
     // CONVERT (the palette command's exact primitive): flip the CRLF buffer to LF and
     // re-capture — the sidecar follows, proving the surfacing is live end-to-end.
@@ -402,7 +513,11 @@ fn hud_reports_the_buffer_eol_and_convert_flips_it() {
     let tj: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(tog_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(tj["hud"]["eol"], serde_json::json!("LF"), "convert flips CRLF -> LF");
+    assert_eq!(
+        tj["hud"]["eol"],
+        serde_json::json!("LF"),
+        "convert flips CRLF -> LF"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -436,7 +551,11 @@ fn about_card_absent_by_default_and_open_reports_true() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["about"]["open"], serde_json::json!(false), "default: About closed");
+    assert_eq!(
+        off["about"]["open"],
+        serde_json::json!(false),
+        "default: About closed"
+    );
 
     // OPEN: the settled card render — deterministic (name/version/world/ornament
     // are all pure functions of a const + the active theme, no clock involved).
@@ -446,7 +565,11 @@ fn about_card_absent_by_default_and_open_reports_true() {
     let on: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(on["about"]["open"], serde_json::json!(true), "open: About summoned");
+    assert_eq!(
+        on["about"]["open"],
+        serde_json::json!(true),
+        "open: About summoned"
+    );
     // CHECK FOR UPDATES round: a headless capture never calls the live-only
     // `sync_update_checked` seam, so the pipeline field stays `None` and
     // `about.checked` reports the fixed placeholder STRING (never `null`,
@@ -463,12 +586,14 @@ fn about_card_absent_by_default_and_open_reports_true() {
     // crash directory, but can inject the state deterministically to prove the
     // About pixels and sidecar take the passive-recovery branch.
     let pending_png = dir.join("pending.png");
-    let pending_opts = CaptureOpts { pending_crash: true, ..CaptureOpts::default() };
+    let pending_opts = CaptureOpts {
+        pending_crash: true,
+        ..CaptureOpts::default()
+    };
     capture_with(&pending_png, &md, &pending_opts).expect("pending-crash About capture");
-    let pending: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(pending_png.with_extension("json")).unwrap(),
-    )
-    .unwrap();
+    let pending: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(pending_png.with_extension("json")).unwrap())
+            .unwrap();
     assert_eq!(pending["about"]["pending_crash"], serde_json::json!(true));
 
     crate::about::set_open(false);
@@ -484,7 +609,9 @@ fn about_card_absent_by_default_and_open_reports_true() {
 #[test]
 fn lifetime_card_absent_by_default_and_summoned_shows_placeholders() {
     if !adapter_available() {
-        eprintln!("skipping lifetime_card_absent_by_default_and_summoned_shows_placeholders: no wgpu adapter");
+        eprintln!(
+            "skipping lifetime_card_absent_by_default_and_summoned_shows_placeholders: no wgpu adapter"
+        );
         return;
     }
     let _pg = crate::testlock::serial();
@@ -500,7 +627,11 @@ fn lifetime_card_absent_by_default_and_summoned_shows_placeholders() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["lifetime"]["open"], serde_json::json!(false), "default: Lifetime card closed");
+    assert_eq!(
+        off["lifetime"]["open"],
+        serde_json::json!(false),
+        "default: Lifetime card closed"
+    );
 
     // SUMMONED: the settled card render — the five odometer figures are all the
     // fixed "—" placeholder (no live store in a capture), so this is deterministic.
@@ -510,8 +641,18 @@ fn lifetime_card_absent_by_default_and_summoned_shows_placeholders() {
     let on: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(on["lifetime"]["open"], serde_json::json!(true), "summoned: Lifetime card open");
-    for field in ["characters", "time_writing", "files_touched", "caret_travel", "your_world"] {
+    assert_eq!(
+        on["lifetime"]["open"],
+        serde_json::json!(true),
+        "summoned: Lifetime card open"
+    );
+    for field in [
+        "characters",
+        "time_writing",
+        "files_touched",
+        "caret_travel",
+        "your_world",
+    ] {
         assert_eq!(
             on["lifetime"][field],
             serde_json::json!("—"),
@@ -531,7 +672,9 @@ fn lifetime_card_absent_by_default_and_summoned_shows_placeholders() {
 #[test]
 fn peek_card_absent_by_default_and_summoned_shows_the_starter_six() {
     if !adapter_available() {
-        eprintln!("skipping peek_card_absent_by_default_and_summoned_shows_the_starter_six: no wgpu adapter");
+        eprintln!(
+            "skipping peek_card_absent_by_default_and_summoned_shows_the_starter_six: no wgpu adapter"
+        );
         return;
     }
     let _pg = crate::testlock::serial();
@@ -548,7 +691,11 @@ fn peek_card_absent_by_default_and_summoned_shows_the_starter_six() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["peek"]["open"], serde_json::json!(false), "default: peek closed");
+    assert_eq!(
+        off["peek"]["open"],
+        serde_json::json!(false),
+        "default: peek closed"
+    );
 
     // SUMMONED: the settled card — the curated starter six (deterministic).
     crate::peek::set_open(true);
@@ -557,7 +704,11 @@ fn peek_card_absent_by_default_and_summoned_shows_the_starter_six() {
     let on: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(on["peek"]["open"], serde_json::json!(true), "summoned: peek open");
+    assert_eq!(
+        on["peek"]["open"],
+        serde_json::json!(true),
+        "summoned: peek open"
+    );
     let rows = on["peek"]["rows"].as_array().expect("rows array");
     assert_eq!(rows.len(), 6, "the curated starter six");
     // CONVENTION-PARAMETRIC expected chord: `peek::PeekRow` resolves its chord via
@@ -590,7 +741,9 @@ fn peek_card_absent_by_default_and_summoned_shows_the_starter_six() {
 #[test]
 fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     if !adapter_available() {
-        eprintln!("skipping streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year: no wgpu adapter");
+        eprintln!(
+            "skipping streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year: no wgpu adapter"
+        );
         return;
     }
     let _pg = crate::testlock::serial();
@@ -613,7 +766,11 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_a.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["streaks"]["open"], serde_json::json!(false), "default: Streaks card closed");
+    assert_eq!(
+        off["streaks"]["open"],
+        serde_json::json!(false),
+        "default: Streaks card closed"
+    );
 
     // SUMMONED: the settled card render is the fixed synthetic year — deterministic
     // AND byte-stable across two runs (no live store).
@@ -630,7 +787,11 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     let on: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(on_a.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(on["streaks"]["open"], serde_json::json!(true), "summoned: Streaks card open");
+    assert_eq!(
+        on["streaks"]["open"],
+        serde_json::json!(true),
+        "summoned: Streaks card open"
+    );
     // The synthetic placeholder figures (see `streaks::placeholder`).
     assert_eq!(on["streaks"]["streak"], serde_json::json!(12));
     assert_eq!(on["streaks"]["today_words"], serde_json::json!(347));
@@ -649,9 +810,16 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     // page + the synthetic running total, the capture stays byte-stable across
     // runs, and the pixels actually CHANGE (the flip is a real render, not just
     // state — the sidecar-is-not-an-appearance-oracle tripwire).
-    assert_eq!(on["streaks"]["view"], serde_json::json!("heatmap"), "a summon opens on the heatmap");
+    assert_eq!(
+        on["streaks"]["view"],
+        serde_json::json!("heatmap"),
+        "a summon opens on the heatmap"
+    );
     let expect_total = *crate::streaks::placeholder().cumulative.last().unwrap();
-    assert_eq!(on["streaks"]["total_words"], serde_json::json!(expect_total));
+    assert_eq!(
+        on["streaks"]["total_words"],
+        serde_json::json!(expect_total)
+    );
 
     crate::streaks::toggle_view();
     let cum_a = dir.join("cum_a.png");
@@ -671,8 +839,15 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     let cum: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(cum_a.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(cum["streaks"]["view"], serde_json::json!("cumulative"), "the sidecar reports the flipped page");
-    assert_eq!(cum["streaks"]["total_words"], serde_json::json!(expect_total));
+    assert_eq!(
+        cum["streaks"]["view"],
+        serde_json::json!("cumulative"),
+        "the sidecar reports the flipped page"
+    );
+    assert_eq!(
+        cum["streaks"]["total_words"],
+        serde_json::json!(expect_total)
+    );
 
     // WAGTAIL (1-bit): the flip stays VISIBLE under the binary ramp (fill and
     // cap collapse to full ink — a solid area chart, the declared monochrome
@@ -705,7 +880,9 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
 #[test]
 fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     if !adapter_available() {
-        eprintln!("skipping caret_picker_absent_by_default_and_open_reflects_selected_style: no wgpu adapter");
+        eprintln!(
+            "skipping caret_picker_absent_by_default_and_open_reflects_selected_style: no wgpu adapter"
+        );
         return;
     }
     let _pg = crate::testlock::serial();
@@ -721,7 +898,11 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["overlay"]["active"], serde_json::json!(false), "no overlay by default");
+    assert_eq!(
+        off["overlay"]["active"],
+        serde_json::json!(false),
+        "no overlay by default"
+    );
 
     // OPEN on the I-beam row: the live preview applied I-beam to the global (as the
     // replay would), so set it here too. The sidecar reflects the picker + the look.
@@ -833,10 +1014,14 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     let png = dir.join("morph.png");
     capture_with(&png, &buf, &opts).expect("morph preview capture");
     let v: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
     assert_eq!(v["caret_mode"], serde_json::json!("morph"));
     let preview = &v["caret_preview"];
-    assert!(!preview.is_null(), "the preview panel block is present while the picker is open");
+    assert!(
+        !preview.is_null(),
+        "the preview panel block is present while the picker is open"
+    );
     assert_eq!(
         preview["text"],
         serde_json::json!(crate::caret::SAMPLE),
@@ -863,7 +1048,9 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
 #[test]
 fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     if !adapter_available() {
-        eprintln!("skipping dictionary_picker_absent_by_default_and_open_does_not_preview: no wgpu adapter");
+        eprintln!(
+            "skipping dictionary_picker_absent_by_default_and_open_does_not_preview: no wgpu adapter"
+        );
         return;
     }
     let _g = crate::testlock::serial();
@@ -879,7 +1066,11 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     let off: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(off_png.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(off["overlay"]["active"], serde_json::json!(false), "no overlay by default");
+    assert_eq!(
+        off["overlay"]["active"],
+        serde_json::json!(false),
+        "no overlay by default"
+    );
     assert_eq!(off["dictionary"], serde_json::json!("en_US"));
 
     // OPEN via the REAL OverlayState builder, highlighting "English (Australia)"
@@ -941,7 +1132,11 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     );
     // NO PREVIEW: merely highlighting "English (Australia)" must not flip the
     // active dictionary — the defining difference from the caret/theme pickers.
-    assert_eq!(nav["dictionary"], serde_json::json!("en_US"), "navigating alone must not switch");
+    assert_eq!(
+        nav["dictionary"],
+        serde_json::json!("en_US"),
+        "navigating alone must not switch"
+    );
 
     // COMMIT (mirrors what `overlay_intercept`'s Enter arm does): NOW the global
     // flips, and a fresh capture with NO overlay/flags reports it.
@@ -1027,7 +1222,11 @@ fn popover_card_hugs_the_button_row() {
             serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
                 .unwrap();
         let pop = &j["popover"];
-        assert_eq!(pop["shown"], serde_json::json!(true), "forced popover is shown: {pop}");
+        assert_eq!(
+            pop["shown"],
+            serde_json::json!(true),
+            "forced popover is shown: {pop}"
+        );
         let card = pop["card"].as_array().expect("card rect");
         let cx = card[0].as_f64().unwrap() as f32;
         let cy = card[1].as_f64().unwrap() as f32;
@@ -1041,9 +1240,18 @@ fn popover_card_hugs_the_button_row() {
             .unwrap()
             .iter()
             .filter(|b| !b["active"].as_bool().unwrap())
-            .map(|b| (b["x0"].as_f64().unwrap() as f32, b["x1"].as_f64().unwrap() as f32))
+            .map(|b| {
+                (
+                    b["x0"].as_f64().unwrap() as f32,
+                    b["x1"].as_f64().unwrap() as f32,
+                )
+            })
             .collect();
-        assert!(spans.len() >= 5, "[{label}] expected the muted button roster, got {}", spans.len());
+        assert!(
+            spans.len() >= 5,
+            "[{label}] expected the muted button roster, got {}",
+            spans.len()
+        );
 
         // Read the rendered pixels and find the glyph ink band strictly INSIDE the card
         // interior (skip the 1px raised border at each edge).
@@ -1102,12 +1310,20 @@ fn popover_card_hugs_the_button_row() {
         let mut copts = opts.clone();
         copts.force_popover = false;
         capture_with(&control_png, &buf, &copts).expect("control capture renders");
-        let ctl = image::open(&control_png).expect("decode control png").to_rgba8();
+        let ctl = image::open(&control_png)
+            .expect("decode control png")
+            .to_rgba8();
         let x0 = (cx - 4.0).max(0.0) as u32;
         let x1 = ((cx + cw + 4.0) as u32).min(img.width() - 1);
         let bands = [
-            ((card_top - 12.0).max(0.0) as u32, (card_top - 3.0).max(0.0) as u32),
-            ((card_bottom + 3.0) as u32, ((card_bottom + 12.0) as u32).min(img.height() - 1)),
+            (
+                (card_top - 12.0).max(0.0) as u32,
+                (card_top - 3.0).max(0.0) as u32,
+            ),
+            (
+                (card_bottom + 3.0) as u32,
+                ((card_bottom + 12.0) as u32).min(img.height() - 1),
+            ),
         ];
         for (y0, y1) in bands {
             for y in y0..=y1 {
@@ -1174,7 +1390,11 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
             serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
                 .unwrap();
         let pop = &j["popover"];
-        assert_eq!(pop["shown"], serde_json::json!(true), "forced popover is shown: {pop}");
+        assert_eq!(
+            pop["shown"],
+            serde_json::json!(true),
+            "forced popover is shown: {pop}"
+        );
         let card = pop["card"].as_array().expect("card rect");
         let cx = card[0].as_f64().unwrap() as f32;
         let cy = card[1].as_f64().unwrap() as f32;
@@ -1185,7 +1405,11 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
             .iter()
             .find(|b| b["label"] == serde_json::json!("B"))
             .expect("B button");
-        assert_eq!(b["active"], serde_json::json!(true), "[{label}] B lights inside **bold**");
+        assert_eq!(
+            b["active"],
+            serde_json::json!(true),
+            "[{label}] B lights inside **bold**"
+        );
         let bx0 = b["x0"].as_f64().unwrap() as f32;
 
         let img = image::open(&png).expect("decode popover png").to_rgba8();
@@ -1272,15 +1496,29 @@ fn popover_labels_demonstrate_their_own_effects() {
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
             .unwrap();
     let pop = &j["popover"];
-    assert_eq!(pop["shown"], serde_json::json!(true), "forced popover is shown: {pop}");
+    assert_eq!(
+        pop["shown"],
+        serde_json::json!(true),
+        "forced popover is shown: {pop}"
+    );
 
     // The roster speaks LETTERS, never raw syntax.
     let rows = pop["buttons"].as_array().expect("buttons array");
     let labels: Vec<&str> = rows.iter().map(|b| b["label"].as_str().unwrap()).collect();
-    assert_eq!(labels, vec!["B", "I", "A", "code", "S", "H", "Link"], "self-demonstrating labels");
+    assert_eq!(
+        labels,
+        vec!["B", "I", "A", "code", "S", "H", "Link"],
+        "self-demonstrating labels"
+    );
     let span_of = |label: &str| -> (f32, f32) {
-        let b = rows.iter().find(|b| b["label"] == serde_json::json!(label)).unwrap();
-        (b["x0"].as_f64().unwrap() as f32, b["x1"].as_f64().unwrap() as f32)
+        let b = rows
+            .iter()
+            .find(|b| b["label"] == serde_json::json!(label))
+            .unwrap();
+        (
+            b["x0"].as_f64().unwrap() as f32,
+            b["x1"].as_f64().unwrap() as f32,
+        )
     };
 
     let card = pop["card"].as_array().expect("card rect");
@@ -1298,13 +1536,12 @@ fn popover_labels_demonstrate_their_own_effects() {
     };
 
     // Measure the buttons' GLYPH ink band (the hug-law scan, glyph threshold).
-    let all_spans: Vec<(f32, f32)> =
-        labels.iter().map(|l| span_of(l)).collect();
+    let all_spans: Vec<(f32, f32)> = labels.iter().map(|l| span_of(l)).collect();
     let (mut ink_top, mut ink_bot): (Option<u32>, Option<u32>) = (None, None);
     for y in (cy + 1.0) as u32..=(cy + ch - 1.0) as u32 {
-        let hit = all_spans.iter().any(|(x0, x1)| {
-            (*x0 as u32..=*x1 as u32).any(|x| diff_sum(img.get_pixel(x, y)) > 40)
-        });
+        let hit = all_spans
+            .iter()
+            .any(|(x0, x1)| (*x0 as u32..=*x1 as u32).any(|x| diff_sum(img.get_pixel(x, y)) > 40));
         if hit {
             ink_top.get_or_insert(y);
             ink_bot = Some(y);
@@ -1317,8 +1554,7 @@ fn popover_labels_demonstrate_their_own_effects() {
     // every x column is inked in at least one of the three middle rows.
     let (sx0, sx1) = span_of("S");
     for x in sx0 as u32..=sx1 as u32 {
-        let inked = (y_mid - 1..=y_mid + 1)
-            .any(|y| diff_sum(img.get_pixel(x, y)) > 40);
+        let inked = (y_mid - 1..=y_mid + 1).any(|y| diff_sum(img.get_pixel(x, y)) > 40);
         assert!(
             inked,
             "strike line must cross the S run: gap at x={x} (span {sx0}..{sx1}, y_mid {y_mid})"
@@ -1328,10 +1564,12 @@ fn popover_labels_demonstrate_their_own_effects() {
     // (letters do not touch), so the full crossing above proves a DRAWN line,
     // not glyph ink.
     let (lx0, lx1) = span_of("Link");
-    let link_gap = (lx0 as u32..=lx1 as u32).any(|x| {
-        (y_mid - 1..=y_mid + 1).all(|y| diff_sum(img.get_pixel(x, y)) <= 40)
-    });
-    assert!(link_gap, "the un-struck Link label must show a gap at the strike rows");
+    let link_gap = (lx0 as u32..=lx1 as u32)
+        .any(|x| (y_mid - 1..=y_mid + 1).all(|y| diff_sum(img.get_pixel(x, y)) <= 40));
+    assert!(
+        link_gap,
+        "the un-struck Link label must show a gap at the strike rows"
+    );
 
     // (2) PILLS: 2px LEFT of a pilled letter's ink (inside the pill's 3px
     // overhang) the card is tinted; the same offset beside an un-pilled letter
@@ -1388,7 +1626,9 @@ fn popover_labels_demonstrate_their_own_effects() {
 #[test]
 fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
     if !adapter_available() {
-        eprintln!("skipping diff_panel_card_dressing_is_visible_around_the_column_in_every_world: no wgpu adapter");
+        eprintln!(
+            "skipping diff_panel_card_dressing_is_visible_around_the_column_in_every_world: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -1500,7 +1740,11 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
             y += 4;
         }
         // And the margin OUTSIDE the panel (2px left of the edge) is still bg.
-        let outside_delta = if left_edge >= 2 { delta(img.get_pixel(left_edge - 2, y_mid)) } else { 999 };
+        let outside_delta = if left_edge >= 2 {
+            delta(img.get_pixel(left_edge - 2, y_mid))
+        } else {
+            999
+        };
         assert!(
             rim_rows * 100 >= sampled * 80,
             "{world}: the panel rim must be a CONTINUOUS edge around the column, not stray text; only {rim_rows}/{sampled} rows lit near x={left_edge}"
@@ -1550,7 +1794,11 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
 fn px_rel_lum(px: image::Rgba<u8>) -> f32 {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
-        if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     }
     0.2126 * lin(px[0]) + 0.7152 * lin(px[1]) + 0.0722 * lin(px[2])
 }
@@ -1622,9 +1870,13 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
     let png = dir.join(format!("{tag}.png"));
     capture_with(&png, &buf, &opts).expect("caret preview capture");
     let sidecar: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap();
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
     let rect = &sidecar["caret_preview"]["rect"];
-    assert!(!rect.is_null(), "{tag}: the caret-preview panel must be open");
+    assert!(
+        !rect.is_null(),
+        "{tag}: the caret-preview panel must be open"
+    );
     let r = [
         rect[0].as_f64().unwrap(),
         rect[1].as_f64().unwrap(),
@@ -1659,7 +1911,8 @@ fn dark_world_card_casts_no_brightening_slab_below_it() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_darkdepth_noslab_test_{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("awl_darkdepth_noslab_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 
     // SAMPLED, not exhaustive (the standing audit policy): Currawong is the
@@ -1702,7 +1955,9 @@ fn dark_world_card_casts_no_brightening_slab_below_it() {
 #[test]
 fn light_world_card_still_reads_elevated_without_a_drop_shadow() {
     if !adapter_available() {
-        eprintln!("skipping light_world_card_still_reads_elevated_without_a_drop_shadow: no wgpu adapter");
+        eprintln!(
+            "skipping light_world_card_still_reads_elevated_without_a_drop_shadow: no wgpu adapter"
+        );
         return;
     }
     let _tg = crate::testlock::serial();
@@ -1779,20 +2034,36 @@ fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() 
         let img = image::open(&png).expect("decode PNG").to_rgba8();
         // The card's top sits at `margin(12) + menubar_reserve(0)`; y=20 is a few
         // px inside the opaque card fill, above row 0's own text baseline.
-        find_card_left_edge(&img, 20).unwrap_or_else(|| panic!("{tag}: no card edge found in the PNG"))
+        find_card_left_edge(&img, 20)
+            .unwrap_or_else(|| panic!("{tag}: no card edge found in the PNG"))
     };
 
     // --- FIND row: short -> long -> short ------------------------------------
     let x_short1 = card_left(
         "find_short1",
-        &CaptureOpts { search: Some(short.to_string()), ..CaptureOpts::default() },
+        &CaptureOpts {
+            search: Some(short.to_string()),
+            ..CaptureOpts::default()
+        },
     );
-    let x_long = card_left("find_long", &CaptureOpts { search: Some(long.to_string()), ..CaptureOpts::default() });
+    let x_long = card_left(
+        "find_long",
+        &CaptureOpts {
+            search: Some(long.to_string()),
+            ..CaptureOpts::default()
+        },
+    );
     let x_short2 = card_left(
         "find_short2",
-        &CaptureOpts { search: Some(short.to_string()), ..CaptureOpts::default() },
+        &CaptureOpts {
+            search: Some(short.to_string()),
+            ..CaptureOpts::default()
+        },
     );
-    assert_eq!(x_short1, x_short2, "two identical short queries must land the exact same card edge");
+    assert_eq!(
+        x_short1, x_short2,
+        "two identical short queries must land the exact same card edge"
+    );
     assert_eq!(
         x_long, x_short1,
         "a query far longer than the fixed field must NOT widen the card \
@@ -1800,17 +2071,36 @@ fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() 
     );
 
     // --- REPLACE row: the SAME law over the replacement text ----------------
-    let base = CaptureOpts { search: Some("qqq".to_string()), search_replace_active: true, ..CaptureOpts::default() };
+    let base = CaptureOpts {
+        search: Some("qqq".to_string()),
+        search_replace_active: true,
+        ..CaptureOpts::default()
+    };
     let r_short1 = card_left(
         "rep_short1",
-        &CaptureOpts { search_replacement: short.to_string(), ..base.clone() },
+        &CaptureOpts {
+            search_replacement: short.to_string(),
+            ..base.clone()
+        },
     );
-    let r_long = card_left("rep_long", &CaptureOpts { search_replacement: long.to_string(), ..base.clone() });
+    let r_long = card_left(
+        "rep_long",
+        &CaptureOpts {
+            search_replacement: long.to_string(),
+            ..base.clone()
+        },
+    );
     let r_short2 = card_left(
         "rep_short2",
-        &CaptureOpts { search_replacement: short.to_string(), ..base.clone() },
+        &CaptureOpts {
+            search_replacement: short.to_string(),
+            ..base.clone()
+        },
     );
-    assert_eq!(r_short1, r_short2, "two identical short replacements must land the exact same card edge");
+    assert_eq!(
+        r_short1, r_short2,
+        "two identical short replacements must land the exact same card edge"
+    );
     assert_eq!(
         r_long, r_short1,
         "a replacement far longer than the fixed field must NOT widen the card \

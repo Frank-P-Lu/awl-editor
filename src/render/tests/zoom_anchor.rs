@@ -17,7 +17,10 @@ use super::{headless_pipeline, view, view_md};
 /// A tall body-text fixture: `n` short lines that never wrap, so every visual row is
 /// a uniform `LINE_HEIGHT`.
 fn body(n: usize) -> String {
-    (0..n).map(|i| format!("line {i:02} body text")).collect::<Vec<_>>().join("\n")
+    (0..n)
+        .map(|i| format!("line {i:02} body text"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// A heading-heavy markdown fixture: a `#`/`##` heading every few lines, so the
@@ -36,8 +39,20 @@ fn headings(n: usize) -> String {
 /// Reshape `p` to `zoom` (+ `scroll`) with the given (markdown?) fixture, returning
 /// the pipeline shaped at that zoom. Mirrors the live `set_view` reshape the deferred
 /// zoom reflow performs.
-fn reshape(p: &mut TextPipeline, text: &str, cl: usize, cc: usize, zoom: f32, scroll: usize, md: bool) {
-    let mut v = if md { view_md(text, cl, cc) } else { view(text, cl, cc) };
+fn reshape(
+    p: &mut TextPipeline,
+    text: &str,
+    cl: usize,
+    cc: usize,
+    zoom: f32,
+    scroll: usize,
+    md: bool,
+) {
+    let mut v = if md {
+        view_md(text, cl, cc)
+    } else {
+        view(text, cl, cc)
+    };
     v.zoom = zoom;
     v.scroll_lines = scroll;
     p.set_view(&v);
@@ -72,7 +87,10 @@ fn caret_screen_y_holds_across_zoom_in_uniform() {
         // Zoom 1.0, caret mid-viewport at scroll 20.
         reshape(&mut p, &text, cl, cc, 1.0, 20, false);
         let caret_y_old = p.char_screen_top(cl, cc, 20);
-        assert!(caret_y_old > TEXT_TOP && caret_y_old < 800.0, "caret must start on screen: {caret_y_old}");
+        assert!(
+            caret_y_old > TEXT_TOP && caret_y_old < 800.0,
+            "caret must start on screen: {caret_y_old}"
+        );
         // Reshape to zoom 1.2, then anchor.
         reshape(&mut p, &text, cl, cc, 1.2, 20, false);
         let new_scroll = p.zoom_anchor_scroll(cl, cc, caret_y_old, 800.0);
@@ -108,13 +126,18 @@ fn caret_screen_y_holds_across_zoom_variable_rows() {
         let (cl, cc) = (33, 0);
         reshape(&mut p, &text, cl, cc, 1.0, 18, true);
         let caret_y_old = p.char_screen_top(cl, cc, 18);
-        assert!(caret_y_old > TEXT_TOP && caret_y_old < 800.0, "caret on screen: {caret_y_old}");
+        assert!(
+            caret_y_old > TEXT_TOP && caret_y_old < 800.0,
+            "caret on screen: {caret_y_old}"
+        );
         reshape(&mut p, &text, cl, cc, 1.3, 18, true);
         let new_scroll = p.zoom_anchor_scroll(cl, cc, caret_y_old, 800.0);
         let caret_y_new = p.char_screen_top(cl, cc, new_scroll);
         // Tolerance = the tallest row that could sit at the boundary (the anchor is
         // quantised to whole variable-height rows).
-        let tol = p.row_height_px(p.visual_row_of(cl, cc)).max(p.row_height_px(new_scroll));
+        let tol = p
+            .row_height_px(p.visual_row_of(cl, cc))
+            .max(p.row_height_px(new_scroll));
         assert!(
             (caret_y_new - caret_y_old).abs() < tol,
             "variable-row anchor drift {} px (tol {tol}); old {caret_y_old} new {caret_y_new}",
@@ -170,7 +193,10 @@ fn off_screen_caret_anchors_viewport_center() {
         reshape(&mut p, &text, cl, cc, 1.0, scroll, false);
         // Predicate the app's fallback branch reads: the caret is off-screen (above).
         let caret_y = p.char_screen_top(cl, cc, scroll);
-        assert!(caret_y < TEXT_TOP, "caret should be off-screen above: {caret_y}");
+        assert!(
+            caret_y < TEXT_TOP,
+            "caret should be off-screen above: {caret_y}"
+        );
         // Fallback: anchor whatever sits at the viewport centre.
         let center_y = (TEXT_TOP + 800.0) * 0.5;
         let (center_x, _) = (600.0f32, center_y);
@@ -251,6 +277,9 @@ fn zoom_anchor_clamps_at_document_bounds() {
         reshape(&mut p, &text, last, 0, 1.5, max0, false);
         let bot_scroll = p.zoom_anchor_scroll(last, 0, caret_y_bot, 800.0);
         let max1 = p.max_scroll_rows(800.0);
-        assert_eq!(bot_scroll, max1, "zoom-in at the bottom must clamp at max_scroll_rows");
+        assert_eq!(
+            bot_scroll, max1,
+            "zoom-in at the bottom must clamp at max_scroll_rows"
+        );
     });
 }

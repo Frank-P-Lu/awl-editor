@@ -84,7 +84,11 @@ fn font_features_owner_is_the_three_way_ligature_split() {
     };
     // Last-set value of a tag (None = untouched → the font default applies).
     let val = |f: &FontFeatures, tag: FeatureTag| -> Option<u32> {
-        f.features.iter().rev().find(|x| x.tag == tag).map(|x| x.value)
+        f.features
+            .iter()
+            .rev()
+            .find(|x| x.tag == tag)
+            .map(|x| x.value)
     };
     let liga = FeatureTag::STANDARD_LIGATURES;
     let clig = FeatureTag::CONTEXTUAL_LIGATURES;
@@ -101,10 +105,22 @@ fn font_features_owner_is_the_three_way_ligature_split() {
     for code_ligs in [true, false] {
         for face in ["Literata", "Monaspace Xenon", "JetBrains Mono"] {
             let f = ff(false, face, code_ligs);
-            assert_eq!(val(&f, liga), Some(1), "{face}: prose standard ligatures ON");
-            assert_eq!(val(&f, clig), Some(1), "{face}: prose contextual ligatures ON");
+            assert_eq!(
+                val(&f, liga),
+                Some(1),
+                "{face}: prose standard ligatures ON"
+            );
+            assert_eq!(
+                val(&f, clig),
+                Some(1),
+                "{face}: prose contextual ligatures ON"
+            );
             assert_eq!(val(&f, dlig), Some(0), "{face}: prose discretionary OFF");
-            assert_eq!(val(&f, calt), Some(0), "{face}: prose calt OFF (no ligature leak)");
+            assert_eq!(
+                val(&f, calt),
+                Some(0),
+                "{face}: prose calt OFF (no ligature leak)"
+            );
         }
     }
 
@@ -112,7 +128,11 @@ fn font_features_owner_is_the_three_way_ligature_split() {
     // standard/contextual OFF; discretionary OFF.
     for face in ["JetBrains Mono", "Iosevka"] {
         let f = ff(true, face, true);
-        assert_eq!(val(&f, calt), Some(1), "{face}: programming ligatures via calt ON");
+        assert_eq!(
+            val(&f, calt),
+            Some(1),
+            "{face}: programming ligatures via calt ON"
+        );
         assert_eq!(val(&f, liga), Some(0), "{face}: standard OFF");
         assert_eq!(val(&f, clig), Some(0), "{face}: contextual-lig OFF");
         assert_eq!(val(&f, dlig), Some(0), "{face}: discretionary OFF");
@@ -122,7 +142,11 @@ fn font_features_owner_is_the_three_way_ligature_split() {
     // OFF (no programming ligatures), rclt+ccmp OFF. This is the "back to the
     // current no-ligature code behaviour" branch.
     let f = ff(true, "JetBrains Mono", false);
-    assert_eq!(val(&f, calt), Some(0), "toggle off: calt OFF (no code ligatures)");
+    assert_eq!(
+        val(&f, calt),
+        Some(0),
+        "toggle off: calt OFF (no code ligatures)"
+    );
     assert_eq!(val(&f, rclt), Some(0), "toggle off: rclt OFF");
     assert_eq!(val(&f, ccmp), Some(0), "toggle off: ccmp OFF");
     assert_eq!(val(&f, dlig), Some(0), "toggle off: discretionary OFF");
@@ -133,8 +157,16 @@ fn font_features_owner_is_the_three_way_ligature_split() {
     for face in ["Monaspace Xenon", "IBM Plex Mono"] {
         let f = ff(true, face, true);
         assert_eq!(val(&f, calt), Some(0), "{face}: calt OFF (unsafe/inert)");
-        assert_eq!(val(&f, rclt), Some(0), "{face}: rclt OFF (stop cluster merge)");
-        assert_eq!(val(&f, ccmp), Some(0), "{face}: ccmp OFF (stop cluster merge)");
+        assert_eq!(
+            val(&f, rclt),
+            Some(0),
+            "{face}: rclt OFF (stop cluster merge)"
+        );
+        assert_eq!(
+            val(&f, ccmp),
+            Some(0),
+            "{face}: ccmp OFF (stop cluster merge)"
+        );
         assert_eq!(val(&f, dlig), Some(0), "{face}: discretionary OFF");
     }
 
@@ -143,11 +175,19 @@ fn font_features_owner_is_the_three_way_ligature_split() {
     // since the prose branch returns before `mono_is_pitch_safe` is ever
     // consulted (calt has no legitimate prose role, safe mono or not).
     let f = ff(false, "Some Future Mono", true);
-    assert_eq!(val(&f, calt), Some(0), "prose on an unknown face: calt still OFF");
+    assert_eq!(
+        val(&f, calt),
+        Some(0),
+        "prose on an unknown face: calt still OFF"
+    );
 
     // An UNKNOWN mono defaults to the conservative ligature-free set.
     let f = ff(true, "Some Future Mono", true);
-    assert_eq!(val(&f, calt), Some(0), "unknown mono: conservative ligature-free");
+    assert_eq!(
+        val(&f, calt),
+        Some(0),
+        "unknown mono: conservative ligature-free"
+    );
     assert_eq!(val(&f, rclt), Some(0), "unknown mono: rclt OFF");
 
     // The per-mono safety classifier itself: only the measured-safe monos.
@@ -213,7 +253,13 @@ fn prose_calt_off_keeps_highlight_delimiters_as_separate_glyphs() {
         .family(Family::Name("JetBrains Mono"))
         .weight(mono_safe_weight("JetBrains Mono"))
         .font_features(ff_calt_on);
-    p.buffer.set_text(&mut p.font_system, line_text, &attrs, Shaping::Advanced, None);
+    p.buffer.set_text(
+        &mut p.font_system,
+        line_text,
+        &attrs,
+        Shaping::Advanced,
+        None,
+    );
     let calt_on_bang = glyph_at(&p, 4);
 
     assert_ne!(
@@ -293,7 +339,10 @@ fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
     // Sanity: the three controllable monos were actually exercised (a mis-rename
     // of a mono face would otherwise silently shrink this guard to nothing).
     for m in ["JetBrains Mono", "Iosevka", "IBM Plex Mono"] {
-        assert!(covered.contains(m), "expected a world with mono {m} to be tested");
+        assert!(
+            covered.contains(m),
+            "expected a world with mono {m} to be tested"
+        );
     }
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -425,9 +474,17 @@ fn caret_and_hit_test_are_per_char_inside_a_programming_ligature_cluster() {
         for c in 0..n {
             let cell = xs[c + 1] - xs[c];
             let (_l, col_lo) = p.hit_test(text_left + xs[c] + cell * 0.25, py, 0);
-            assert_eq!(col_lo, c, "{world}: click in the near quarter of col {c} → col {c}");
+            assert_eq!(
+                col_lo, c,
+                "{world}: click in the near quarter of col {c} → col {c}"
+            );
             let (_l, col_hi) = p.hit_test(text_left + xs[c] + cell * 0.75, py, 0);
-            assert_eq!(col_hi, c + 1, "{world}: click in the far quarter of col {c} → col {}", c + 1);
+            assert_eq!(
+                col_hi,
+                c + 1,
+                "{world}: click in the far quarter of col {c} → col {}",
+                c + 1
+            );
         }
     }
     theme::set_active(theme::DEFAULT_THEME);

@@ -96,7 +96,13 @@ pub fn max_scroll(total_visual_rows: usize, height: f32, line_height: f32) -> us
 /// clamps `line`/`col` to the actual buffer (via `line_col_to_char`), since this
 /// function does not know the document. Mirrors EXACTLY the layout math used to
 /// place glyphs + the caret, so a click lands on the right glyph.
-pub fn hit_test(px: f32, py: f32, scroll_lines: usize, metrics: &Metrics, left: f32) -> (usize, usize) {
+pub fn hit_test(
+    px: f32,
+    py: f32,
+    scroll_lines: usize,
+    metrics: &Metrics,
+    left: f32,
+) -> (usize, usize) {
     let rel_y = (py - TEXT_TOP).max(0.0);
     let line = scroll_lines + (rel_y / metrics.line_height).floor() as usize;
     let rel_x = (px - left).max(0.0);
@@ -604,7 +610,11 @@ pub fn page_resize_measure_anchored(
         ResizeEdge::Left => anchor_x - pointer_x,
     };
     let width = width.max(1.0);
-    let measure = if advance > 0.0 { (width / advance).round() } else { 0.0 };
+    let measure = if advance > 0.0 {
+        (width / advance).round()
+    } else {
+        0.0
+    };
     (measure.max(0.0) as usize).clamp(crate::page::MIN_MEASURE, crate::page::MAX_MEASURE)
 }
 
@@ -654,7 +664,11 @@ pub enum ImageHandle {
 /// parallel geometry), and gates on the feature being on; this only does the border
 /// proximity. The proximity counterpart to [`page_boundary_hit`], unit-testable
 /// without a GPU.
-pub fn image_handle_hit(pointer: (f32, f32), image_rect: [f32; 4], tol: f32) -> Option<ImageHandle> {
+pub fn image_handle_hit(
+    pointer: (f32, f32),
+    image_rect: [f32; 4],
+    tol: f32,
+) -> Option<ImageHandle> {
     let [left, top, w, h] = image_rect;
     let (px, py) = pointer;
     let right = left + w;
@@ -750,7 +764,11 @@ pub fn image_resize_width(
     // The width whose implied height (at this rect's fixed aspect) lands exactly
     // on the viewport cap — never tighter than `min` (a very short/wide rect could
     // otherwise imply a ceiling below the floor).
-    let height_ceil = if max_h > 0.0 { (max_h * aspect).max(min) } else { f32::INFINITY };
+    let height_ceil = if max_h > 0.0 {
+        (max_h * aspect).max(min)
+    } else {
+        f32::INFINITY
+    };
     raw.clamp(min, wrap.max(min).min(height_ceil))
 }
 
@@ -833,7 +851,13 @@ pub(super) fn pick_row_index(rows: &[VisualRow], col: usize) -> usize {
 /// width is floored at `min_w` so a zero-width span still shows a sliver where the
 /// caller wants one. `s`/`e` must already be clamped to the row's column count.
 /// Shared by the squiggle / selection / preedit rect builders.
-pub(super) fn row_x_span(row: &VisualRow, text_left: f32, s: usize, e: usize, min_w: f32) -> (f32, f32) {
+pub(super) fn row_x_span(
+    row: &VisualRow,
+    text_left: f32,
+    s: usize,
+    e: usize,
+    min_w: f32,
+) -> (f32, f32) {
     // Belt-and-suspenders: every current caller clamps `s`/`e` to the row's column
     // count, so these indices are in range today. Read through `.get` anyway so a
     // future mis-clamping caller degrades to a benign zero instead of panicking —
@@ -949,8 +973,16 @@ pub(super) fn assemble_glyph_xs(
         }
         i = j;
 
-        let start_col = byte_to_col.get(start_b).copied().unwrap_or(char_count).min(char_count);
-        let end_col = byte_to_col.get(end_b).copied().unwrap_or(char_count).min(char_count);
+        let start_col = byte_to_col
+            .get(start_b)
+            .copied()
+            .unwrap_or(char_count)
+            .min(char_count);
+        let end_col = byte_to_col
+            .get(end_b)
+            .copied()
+            .unwrap_or(char_count)
+            .min(char_count);
         max_right = max_right.max(group_right);
         // Left edge of the cluster's first char.
         if xs[start_col].is_nan() {
@@ -1158,9 +1190,21 @@ impl TextPipeline {
     /// handle + press rect + pointer, the pipeline owns the column geometry (the
     /// fit-to-column wrap ceiling) and the window height, so no raw geometry leaks
     /// to the app.
-    pub fn image_resize_width_at(&self, handle: ImageHandle, rect: [f32; 4], pointer: (f32, f32)) -> f32 {
+    pub fn image_resize_width_at(
+        &self,
+        handle: ImageHandle,
+        rect: [f32; 4],
+        pointer: (f32, f32),
+    ) -> f32 {
         let max_h = self.window_h * super::spans::IMAGE_MAX_VIEWPORT_FRAC;
-        image_resize_width(handle, rect, pointer, self.text_wrap_width(), MIN_IMAGE_W, max_h)
+        image_resize_width(
+            handle,
+            rect,
+            pointer,
+            self.text_wrap_width(),
+            MIN_IMAGE_W,
+            max_h,
+        )
     }
 
     /// PAGE MODE geometry bundle for the sidecar: (on, measure_chars, left, width).
@@ -1222,7 +1266,9 @@ impl TextPipeline {
     /// can report the TRUE text-origin top (`TEXT_TOP + this`) when the bar is shown.
     pub fn menubar_reserve(&self) -> f32 {
         if crate::menubar::menu_bar_on() {
-            crate::menubar::bar_height(self.metrics.line_height * crate::markdown::type_scale::LABEL)
+            crate::menubar::bar_height(
+                self.metrics.line_height * crate::markdown::type_scale::LABEL,
+            )
         } else {
             0.0
         }
@@ -1369,7 +1415,13 @@ impl TextPipeline {
     /// against the freshly reshaped row geometry. Exact for the caret (its row top IS
     /// the anchor); the pointer keeps its char's row top under the cursor to sub-row
     /// tolerance (integer-row scroll quantisation dominates the residual).
-    pub fn zoom_anchor_scroll(&self, line: usize, col: usize, anchor_py: f32, height: f32) -> usize {
+    pub fn zoom_anchor_scroll(
+        &self,
+        line: usize,
+        col: usize,
+        anchor_py: f32,
+        height: f32,
+    ) -> usize {
         let row = self.visual_row_of(line, col);
         let anchor_top = self.row_top_px(row);
         let target_top = zoom_anchor_target_top(anchor_top, anchor_py, self.menubar_reserve());
@@ -1468,7 +1520,11 @@ impl TextPipeline {
                 }
                 continue;
             }
-            rows.push(visual_row_from_run(&line_text, &run, self.metrics.char_width));
+            rows.push(visual_row_from_run(
+                &line_text,
+                &run,
+                self.metrics.char_width,
+            ));
         }
         if rows.is_empty() {
             // Empty / glyphless logical line: synthesize one row at the uniform
@@ -1524,9 +1580,11 @@ impl TextPipeline {
                 cur = Some((run.line_i, text));
             }
             let line_text = &cur.as_ref().unwrap().1;
-            out.entry(run.line_i)
-                .or_default()
-                .push(visual_row_from_run(line_text, &run, self.metrics.char_width));
+            out.entry(run.line_i).or_default().push(visual_row_from_run(
+                line_text,
+                &run,
+                self.metrics.char_width,
+            ));
         }
         // Same fallback as `visual_rows`: a requested line with no shaped runs
         // (empty / glyphless / out-of-range) synthesizes one uniform-top row.
@@ -1664,7 +1722,8 @@ impl TextPipeline {
     ) -> usize {
         let rows = self.visual_rows(line);
         let target = pick_row_aff(&rows, col, affinity).line_top;
-        self.row_geom.nearest_row(&self.buffer, &self.metrics, target)
+        self.row_geom
+            .nearest_row(&self.buffer, &self.metrics, target)
     }
 
     /// Wrap-aware visual-row top y (absolute, scroll-applied) for the position at
@@ -1812,11 +1871,7 @@ impl TextPipeline {
             return 1.0;
         }
         let lh = self.metrics.line_height;
-        if lh > 0.0 {
-            row_height / lh
-        } else {
-            1.0
-        }
+        if lh > 0.0 { row_height / lh } else { 1.0 }
     }
 
     /// Advance-aware, WRAP-aware pixel -> (line, col) hit test. Walks the real
@@ -1841,8 +1896,7 @@ impl TextPipeline {
         let mut first_run = true;
         for run in self.buffer.layout_runs() {
             let above_first = first_run && want_top < run.line_top;
-            let in_band =
-                want_top >= run.line_top && want_top < run.line_top + run.line_height;
+            let in_band = want_top >= run.line_top && want_top < run.line_top + run.line_height;
             if above_first || in_band {
                 return (run.line_i, Self::col_in_run(&run, target_x));
             }
@@ -1925,10 +1979,19 @@ mod tests {
         let measure_px = 40.0 * CW; // 576
         let w = column_width_for(1200.0, CW, true, 40);
         let left = column_left_for(1200.0, CW, true, 40);
-        assert!((w - measure_px).abs() < 1e-3, "wide: column == measure, got {w}");
-        assert!((left - (1200.0 - measure_px) * 0.5).abs() < 1e-3, "wide: centered, got {left}");
+        assert!(
+            (w - measure_px).abs() < 1e-3,
+            "wide: column == measure, got {w}"
+        );
+        assert!(
+            (left - (1200.0 - measure_px) * 0.5).abs() < 1e-3,
+            "wide: centered, got {left}"
+        );
         // The leftover margin is the generous band (well past the small pad).
-        assert!(left > page_min_margin(1200.0) - 1e-3, "wide leftover >= generous margin");
+        assert!(
+            left > page_min_margin(1200.0) - 1e-3,
+            "wide leftover >= generous margin"
+        );
     }
 
     #[test]
@@ -1938,9 +2001,18 @@ mod tests {
         for &win in &[300.0_f32, 400.0, 700.0] {
             let w = column_width_for(win, CW, true, 80); // 80-char measure ~1152px >> win
             let left = column_left_for(win, CW, true, 80);
-            assert!((w - (win - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3, "narrow {win}: fills minus pad, got {w}");
-            assert!((left - PAGE_MIN_PAD).abs() < 1e-3, "narrow {win}: left at small pad, got {left}");
-            assert!(w + 2.0 * left <= win + 1e-3, "narrow {win}: never overflows");
+            assert!(
+                (w - (win - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3,
+                "narrow {win}: fills minus pad, got {w}"
+            );
+            assert!(
+                (left - PAGE_MIN_PAD).abs() < 1e-3,
+                "narrow {win}: left at small pad, got {left}"
+            );
+            assert!(
+                w + 2.0 * left <= win + 1e-3,
+                "narrow {win}: never overflows"
+            );
         }
     }
 
@@ -1955,10 +2027,22 @@ mod tests {
         while w <= 2600.0 {
             let col = column_width_for(w, CW, true, 80);
             let left = column_left_for(w, CW, true, 80);
-            assert!(col >= prev - 1e-3, "column must not shrink as window grows (w={w})");
-            assert!(col <= measure_px + 1e-3, "column never exceeds the measure (w={w})");
-            assert!(left >= PAGE_MIN_PAD - 1e-3, "always at least the small pad (w={w})");
-            assert!(col + 2.0 * left <= w + 1e-2, "never overflows the window (w={w})");
+            assert!(
+                col >= prev - 1e-3,
+                "column must not shrink as window grows (w={w})"
+            );
+            assert!(
+                col <= measure_px + 1e-3,
+                "column never exceeds the measure (w={w})"
+            );
+            assert!(
+                left >= PAGE_MIN_PAD - 1e-3,
+                "always at least the small pad (w={w})"
+            );
+            assert!(
+                col + 2.0 * left <= w + 1e-2,
+                "never overflows the window (w={w})"
+            );
             prev = col;
             w += 50.0;
         }
@@ -1981,7 +2065,9 @@ mod tests {
     fn page_off_is_edge_to_edge_unaffected() {
         // Page mode off keeps the fixed NONPAGE_INSET origin + full content width.
         assert!((column_left_for(1200.0, CW, false, 80) - NONPAGE_INSET).abs() < 1e-3);
-        assert!((column_width_for(1200.0, CW, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3);
+        assert!(
+            (column_width_for(1200.0, CW, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3
+        );
         // The plain inset is a touch wider than the page collapse floor.
         assert!(NONPAGE_INSET > PAGE_MIN_PAD);
     }
@@ -2012,7 +2098,14 @@ mod tests {
         // preferred rail, so this must be an EXACT passthrough (the hard law:
         // "wide screens byte-identical").
         let left = adaptive_column_left(
-            1200.0, CW, true, 40, true, outline_pref_px(), outline_min_px(), margin_gap(),
+            1200.0,
+            CW,
+            true,
+            40,
+            true,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
         let symmetric = column_left_for(1200.0, CW, true, 40);
@@ -2025,7 +2118,14 @@ mod tests {
         // is false (feature off / no headings / non-md) — must stay symmetric
         // regardless of how tight the margin is.
         let left = adaptive_column_left(
-            900.0, CW, true, 40, false, outline_pref_px(), outline_min_px(), margin_gap(),
+            900.0,
+            CW,
+            true,
+            40,
+            false,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
         let symmetric = column_left_for(900.0, CW, true, 40);
@@ -2035,7 +2135,14 @@ mod tests {
     #[test]
     fn adaptive_page_off_never_shifts() {
         let left = adaptive_column_left(
-            900.0, CW, false, 40, true, outline_pref_px(), outline_min_px(), margin_gap(),
+            900.0,
+            CW,
+            false,
+            40,
+            true,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
         assert_eq!(left, NONPAGE_INSET);
@@ -2054,9 +2161,21 @@ mod tests {
         let pref = outline_pref_px();
         let min = outline_min_px();
         let gap = margin_gap();
-        let left =
-            adaptive_column_left(win, CW, true, measure, true, pref, min, gap, ADAPTIVE_LEFT_PAD);
-        assert!(left > symmetric, "narrow: column shifts right, got {left} vs symmetric {symmetric}");
+        let left = adaptive_column_left(
+            win,
+            CW,
+            true,
+            measure,
+            true,
+            pref,
+            min,
+            gap,
+            ADAPTIVE_LEFT_PAD,
+        );
+        assert!(
+            left > symmetric,
+            "narrow: column shifts right, got {left} vs symmetric {symmetric}"
+        );
         // The granted rail sits within ONE pixel of the full preference: the raw
         // policy grants it exactly, and the whole-pixel snap (the subpixel-shimmer
         // fix) floors the final left, costing the rail at most a sub-pixel sliver.
@@ -2090,10 +2209,20 @@ mod tests {
         let total_margin = win - width;
         let symmetric = column_left_for(win, CW, true, measure);
         let left = adaptive_column_left(
-            win, CW, true, measure, true, outline_pref_px(), outline_min_px(), margin_gap(),
+            win,
+            CW,
+            true,
+            measure,
+            true,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
-        assert!(left > symmetric, "still shifts right from the symmetric position");
+        assert!(
+            left > symmetric,
+            "still shifts right from the symmetric position"
+        );
         let right_margin = total_margin - left;
         assert!(
             (right_margin - RIGHT_MARGIN_BREATH).abs() < 0.5,
@@ -2105,7 +2234,8 @@ mod tests {
             "granted rail is LESS than the full preference (capped by the floor), avail={avail}"
         );
         assert!(
-            (avail / (CW * crate::markdown::type_scale::LABEL)).floor() >= rowlayout::OUTLINE_MIN_CHARS as f32,
+            (avail / (CW * crate::markdown::type_scale::LABEL)).floor()
+                >= rowlayout::OUTLINE_MIN_CHARS as f32,
             "but still comfortably above the hard hide floor"
         );
     }
@@ -2122,10 +2252,20 @@ mod tests {
         let measure = 80usize; // way more than fits at 300px
         let symmetric = column_left_for(win, CW, true, measure);
         let left = adaptive_column_left(
-            win, CW, true, measure, true, outline_pref_px(), outline_min_px(), margin_gap(),
+            win,
+            CW,
+            true,
+            measure,
+            true,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
-        assert_eq!(left, symmetric, "narrowest: no shift possible, column re-centers exactly");
+        assert_eq!(
+            left, symmetric,
+            "narrowest: no shift possible, column re-centers exactly"
+        );
     }
 
     #[test]
@@ -2142,7 +2282,14 @@ mod tests {
         let measure = 70usize;
         let symmetric = column_left_for(win, CW, true, measure);
         let left = adaptive_column_left(
-            win, CW, true, measure, true, outline_pref_px(), outline_min_px(), margin_gap(),
+            win,
+            CW,
+            true,
+            measure,
+            true,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
         assert_eq!(
@@ -2155,7 +2302,10 @@ mod tests {
         let width = column_width_for(win, CW, true, measure);
         let total_margin = win - width;
         let old_max_left = (total_margin - RIGHT_MARGIN_BREATH).max(0.0);
-        assert!(old_max_left > symmetric, "fixture: the old formula would have shifted");
+        assert!(
+            old_max_left > symmetric,
+            "fixture: the old formula would have shifted"
+        );
         let old_avail = (old_max_left - margin_gap()) - ADAPTIVE_LEFT_PAD;
         let label_char_w = CW * crate::markdown::type_scale::LABEL;
         let old_avail_chars = (old_avail / label_char_w).floor().max(0.0) as usize;
@@ -2184,8 +2334,17 @@ mod tests {
             (symmetric - desired_left).abs() < 1.0,
             "fixture: symmetric lands at desired_left, got {symmetric} vs {desired_left}"
         );
-        let left =
-            adaptive_column_left(win, CW, true, measure, true, pref, min, gap, ADAPTIVE_LEFT_PAD);
+        let left = adaptive_column_left(
+            win,
+            CW,
+            true,
+            measure,
+            true,
+            pref,
+            min,
+            gap,
+            ADAPTIVE_LEFT_PAD,
+        );
         // The boundary resolves to WIDE — the SNAPPED symmetric position, never a
         // spurious NARROW shift past it (the whole-pixel snap floors the final
         // left, so compare against the symmetric position's own floor).
@@ -2203,7 +2362,14 @@ mod tests {
         for &(win, measure) in &[(1200.0_f32, 40usize), (900.0, 40), (800.0, 40), (300.0, 80)] {
             let width = column_width_for(win, CW, true, measure);
             let left = adaptive_column_left(
-                win, CW, true, measure, true, outline_pref_px(), outline_min_px(), margin_gap(),
+                win,
+                CW,
+                true,
+                measure,
+                true,
+                outline_pref_px(),
+                outline_min_px(),
+                margin_gap(),
                 ADAPTIVE_LEFT_PAD,
             );
             assert!(
@@ -2230,11 +2396,22 @@ mod tests {
         let mut prev: Option<f32> = None;
         for w in 1090..=1170 {
             let left = adaptive_column_left(
-                w as f32, CW, true, 70, true, pref, min, gap, ADAPTIVE_LEFT_PAD,
+                w as f32,
+                CW,
+                true,
+                70,
+                true,
+                pref,
+                min,
+                gap,
+                ADAPTIVE_LEFT_PAD,
             );
             if let Some(p) = prev {
                 let step = left - p;
-                assert!(step >= -1e-3, "width {w}px: column_left decreased ({p} -> {left})");
+                assert!(
+                    step >= -1e-3,
+                    "width {w}px: column_left decreased ({p} -> {left})"
+                );
                 assert!(
                     step <= 20.0,
                     "width {w}px: column_left jumped {step}px in a single pixel of resize ({p} -> {left}) — the jitter bug"
@@ -2256,10 +2433,20 @@ mod tests {
         let measure = 70usize;
         let symmetric = column_left_for(win, CW, true, measure);
         let left = adaptive_column_left(
-            win, CW, true, measure, true, outline_pref_px(), outline_min_px(), margin_gap(),
+            win,
+            CW,
+            true,
+            measure,
+            true,
+            outline_pref_px(),
+            outline_min_px(),
+            margin_gap(),
             ADAPTIVE_LEFT_PAD,
         );
-        assert_eq!(left, symmetric, "well outside the ramp band: still a bare recenter, no partial shift");
+        assert_eq!(
+            left, symmetric,
+            "well outside the ramp band: still a bare recenter, no partial shift"
+        );
     }
 
     #[test]
@@ -2283,7 +2470,15 @@ mod tests {
             let mut prev: Option<f32> = None;
             for w in 1000..=1400u32 {
                 let left = adaptive_column_left(
-                    w as f32, CW, true, 70, wants, pref, min, gap, ADAPTIVE_LEFT_PAD,
+                    w as f32,
+                    CW,
+                    true,
+                    70,
+                    wants,
+                    pref,
+                    min,
+                    gap,
+                    ADAPTIVE_LEFT_PAD,
                 );
                 assert_eq!(
                     left,
@@ -2318,7 +2513,10 @@ mod tests {
             for &zoom in &[0.5_f32, 1.0, 1.6, 2.5, 3.0] {
                 let live = CW * zoom * dpi; // == metrics.char_width
                 let adv = page_column_advance(live, zoom);
-                assert!((adv - base).abs() < 1e-3, "zoom={zoom} dpi={dpi}: advance must be zoom-free");
+                assert!(
+                    (adv - base).abs() < 1e-3,
+                    "zoom={zoom} dpi={dpi}: advance must be zoom-free"
+                );
             }
         }
         // Zoom 1.0 (the deterministic capture path) is an exact identity.
@@ -2338,18 +2536,30 @@ mod tests {
         let ref_w = column_width_for(window, base_adv, true, measure);
         let ref_left = column_left_for(window, base_adv, true, measure);
         // A real gutter needs real margin room at zoom 1.0 (sanity for the fixture).
-        assert!(ref_left > PAGE_MIN_PAD + 1.0, "fixture must have a visible margin/gutter");
+        assert!(
+            ref_left > PAGE_MIN_PAD + 1.0,
+            "fixture must have a visible margin/gutter"
+        );
         for &zoom in &[0.5_f32, 1.0, 1.6, 2.5, 3.0] {
             let live = CW * zoom; // metrics.char_width at this zoom (dpi 1.0)
             let adv = page_column_advance(live, zoom);
             let w = column_width_for(window, adv, true, measure);
             let left = column_left_for(window, adv, true, measure);
-            assert!((w - ref_w).abs() < 1e-3, "zoom={zoom}: column px must not change (got {w}, want {ref_w})");
-            assert!((left - ref_left).abs() < 1e-3, "zoom={zoom}: left margin must not change");
+            assert!(
+                (w - ref_w).abs() < 1e-3,
+                "zoom={zoom}: column px must not change (got {w}, want {ref_w})"
+            );
+            assert!(
+                (left - ref_left).abs() < 1e-3,
+                "zoom={zoom}: left margin must not change"
+            );
             // The RIGHT margin (window - left - width) is the mirror; it too is fixed.
             let right = window - left - w;
             let ref_right = window - ref_left - ref_w;
-            assert!((right - ref_right).abs() < 1e-3, "zoom={zoom}: right margin must not change");
+            assert!(
+                (right - ref_right).abs() < 1e-3,
+                "zoom={zoom}: right margin must not change"
+            );
         }
     }
 
@@ -2366,12 +2576,24 @@ mod tests {
         let left = (1200.0 - measure_px) * 0.5; // 312
         let tol = PAGE_RESIZE_GRAB_PX;
         // Right ON the left edge -> Left; just inside grab -> Left; past grab -> None.
-        assert_eq!(page_boundary_hit(left, left, measure_px, tol), Some(ResizeEdge::Left));
-        assert_eq!(page_boundary_hit(left + tol - 0.5, left, measure_px, tol), Some(ResizeEdge::Left));
-        assert_eq!(page_boundary_hit(left + tol + 2.0, left, measure_px, tol), None);
+        assert_eq!(
+            page_boundary_hit(left, left, measure_px, tol),
+            Some(ResizeEdge::Left)
+        );
+        assert_eq!(
+            page_boundary_hit(left + tol - 0.5, left, measure_px, tol),
+            Some(ResizeEdge::Left)
+        );
+        assert_eq!(
+            page_boundary_hit(left + tol + 2.0, left, measure_px, tol),
+            None
+        );
         // The right edge arms the Right handle; dead center (far from both) is None.
         let right = left + measure_px; // 888
-        assert_eq!(page_boundary_hit(right - 1.0, left, measure_px, tol), Some(ResizeEdge::Right));
+        assert_eq!(
+            page_boundary_hit(right - 1.0, left, measure_px, tol),
+            Some(ResizeEdge::Right)
+        );
         assert_eq!(page_boundary_hit(600.0, left, measure_px, tol), None);
     }
 
@@ -2453,11 +2675,26 @@ mod tests {
         let measure_px = 40.0 * CW; // 576
         let left = (1200.0 - measure_px) * 0.5; // 312
         let right = left + measure_px; // 888
-        assert!(in_writing_column(left, left, measure_px), "exactly on the left edge counts as inside");
-        assert!(in_writing_column(right, left, measure_px), "exactly on the right edge counts as inside");
-        assert!(in_writing_column(600.0, left, measure_px), "dead center is inside");
-        assert!(!in_writing_column(left - 1.0, left, measure_px), "just past the left margin is outside");
-        assert!(!in_writing_column(right + 1.0, left, measure_px), "just past the right margin is outside");
+        assert!(
+            in_writing_column(left, left, measure_px),
+            "exactly on the left edge counts as inside"
+        );
+        assert!(
+            in_writing_column(right, left, measure_px),
+            "exactly on the right edge counts as inside"
+        );
+        assert!(
+            in_writing_column(600.0, left, measure_px),
+            "dead center is inside"
+        );
+        assert!(
+            !in_writing_column(left - 1.0, left, measure_px),
+            "just past the left margin is outside"
+        );
+        assert!(
+            !in_writing_column(right + 1.0, left, measure_px),
+            "just past the right margin is outside"
+        );
     }
 
     #[test]
@@ -2467,15 +2704,39 @@ mod tests {
         let rect = [100.0_f32, 50.0, 300.0, 200.0];
         let tol = IMAGE_RESIZE_GRAB_PX;
         // The four corners (each the intersection of two edge bands -> the corner).
-        assert_eq!(image_handle_hit((100.0, 50.0), rect, tol), Some(ImageHandle::TopLeft));
-        assert_eq!(image_handle_hit((400.0, 50.0), rect, tol), Some(ImageHandle::TopRight));
-        assert_eq!(image_handle_hit((100.0, 250.0), rect, tol), Some(ImageHandle::BottomLeft));
-        assert_eq!(image_handle_hit((400.0, 250.0), rect, tol), Some(ImageHandle::BottomRight));
+        assert_eq!(
+            image_handle_hit((100.0, 50.0), rect, tol),
+            Some(ImageHandle::TopLeft)
+        );
+        assert_eq!(
+            image_handle_hit((400.0, 50.0), rect, tol),
+            Some(ImageHandle::TopRight)
+        );
+        assert_eq!(
+            image_handle_hit((100.0, 250.0), rect, tol),
+            Some(ImageHandle::BottomLeft)
+        );
+        assert_eq!(
+            image_handle_hit((400.0, 250.0), rect, tol),
+            Some(ImageHandle::BottomRight)
+        );
         // The four MID-edges (near one border, far from both its corners).
-        assert_eq!(image_handle_hit((100.0, 150.0), rect, tol), Some(ImageHandle::Left));
-        assert_eq!(image_handle_hit((400.0, 150.0), rect, tol), Some(ImageHandle::Right));
-        assert_eq!(image_handle_hit((250.0, 50.0), rect, tol), Some(ImageHandle::Top));
-        assert_eq!(image_handle_hit((250.0, 250.0), rect, tol), Some(ImageHandle::Bottom));
+        assert_eq!(
+            image_handle_hit((100.0, 150.0), rect, tol),
+            Some(ImageHandle::Left)
+        );
+        assert_eq!(
+            image_handle_hit((400.0, 150.0), rect, tol),
+            Some(ImageHandle::Right)
+        );
+        assert_eq!(
+            image_handle_hit((250.0, 50.0), rect, tol),
+            Some(ImageHandle::Top)
+        );
+        assert_eq!(
+            image_handle_hit((250.0, 250.0), rect, tol),
+            Some(ImageHandle::Bottom)
+        );
         // Just inside the tolerance band still arms (bottom-right corner).
         assert_eq!(
             image_handle_hit((400.0 - tol + 1.0, 250.0 - tol + 1.0), rect, tol),
@@ -2485,9 +2746,17 @@ mod tests {
         assert_eq!(image_handle_hit((250.0, 150.0), rect, tol), None, "center");
         // Past the border band on the perpendicular axis: a left-edge x but far
         // above the image is NOT the left edge (the span gate rejects it).
-        assert_eq!(image_handle_hit((100.0, 50.0 - tol - 5.0), rect, tol), None, "above the top-left, off both");
+        assert_eq!(
+            image_handle_hit((100.0, 50.0 - tol - 5.0), rect, tol),
+            None,
+            "above the top-left, off both"
+        );
         // Well outside the whole rect arms nothing.
-        assert_eq!(image_handle_hit((1000.0, 1000.0), rect, tol), None, "far outside");
+        assert_eq!(
+            image_handle_hit((1000.0, 1000.0), rect, tol),
+            None,
+            "far outside"
+        );
     }
 
     #[test]
@@ -2520,14 +2789,22 @@ mod tests {
         assert!((w(ImageHandle::BottomLeft, (100.0, 250.0)) - 300.0).abs() < 1e-3);
         // Each corner GROWS when dragged outward past its native corner and SHRINKS
         // toward center — a TopLeft grip dragged up-left widens; toward center narrows.
-        assert!(w(ImageHandle::TopLeft, (60.0, 20.0)) > 300.0, "TopLeft out widens");
-        assert!(w(ImageHandle::TopLeft, (250.0, 150.0)) < 300.0, "TopLeft toward center narrows");
+        assert!(
+            w(ImageHandle::TopLeft, (60.0, 20.0)) > 300.0,
+            "TopLeft out widens"
+        );
+        assert!(
+            w(ImageHandle::TopLeft, (250.0, 150.0)) < 300.0,
+            "TopLeft toward center narrows"
+        );
         // Clamps: dragging way out clamps to wrap; way in clamps up to the floor.
         assert!((w(ImageHandle::Right, (5000.0, 150.0)) - wrap).abs() < 1e-3);
         assert!((w(ImageHandle::Right, (100.0, 150.0)) - min).abs() < 1e-3);
         // A degenerate wrap below the floor never inverts the clamp band.
         assert!(
-            (image_resize_width(ImageHandle::Right, rect, (350.0, 150.0), 10.0, min, 0.0) - min).abs() < 1e-3
+            (image_resize_width(ImageHandle::Right, rect, (350.0, 150.0), 10.0, min, 0.0) - min)
+                .abs()
+                < 1e-3
         );
     }
 
@@ -2549,7 +2826,10 @@ mod tests {
         assert!((w2 - wrap).abs() < 1e-3, "max_h<=0 disables the cap: {w2}");
         // The height ceiling never drops the clamp band below the width floor.
         let w3 = image_resize_width(ImageHandle::Right, rect, (100.0, 150.0), wrap, min, max_h);
-        assert!((w3 - min).abs() < 1e-3, "floor still wins under a tight height cap: {w3}");
+        assert!(
+            (w3 - min).abs() < 1e-3,
+            "floor still wins under a tight height cap: {w3}"
+        );
     }
 
     #[test]
@@ -2578,13 +2858,25 @@ mod tests {
         };
         let cliffs = (crate::page::MIN_MEASURE + 1..=crate::page::MAX_MEASURE)
             .any(|m| rendered_right(m) < rendered_right(m - 1));
-        assert!(cliffs, "fixture must span the rail-hide cliff or it can't reproduce the bug");
+        assert!(
+            cliffs,
+            "fixture must span the rail-hide cliff or it can't reproduce the bug"
+        );
 
         // Press on the right edge in the rail-granted regime; anchor the LEFT edge once,
         // exactly as the live gesture does at press time.
         let start = 100usize;
-        let anchor =
-            adaptive_column_left(window, CW, true, start, true, pref, min, gap, ADAPTIVE_LEFT_PAD);
+        let anchor = adaptive_column_left(
+            window,
+            CW,
+            true,
+            start,
+            true,
+            pref,
+            min,
+            gap,
+            ADAPTIVE_LEFT_PAD,
+        );
 
         // Sweep the pointer rightward, one physical pixel at a time, straight through the
         // pointer band where the old code oscillated, and assert the measure never drops.
@@ -2601,12 +2893,18 @@ mod tests {
         // ...and the sweep exercised a REAL climb, not a flat clamp (else "monotone" is
         // vacuous). Also probe the LEFT edge: dragging it leftward off a fixed RIGHT
         // anchor is monotone too.
-        assert!(prev > first, "the sweep must climb, not sit pinned (got {first}..{prev})");
+        assert!(
+            prev > first,
+            "the sweep must climb, not sit pinned (got {first}..{prev})"
+        );
         let right_anchor = 2000.0;
         let mut lprev = page_resize_measure_anchored(CW, 1900.0, right_anchor, ResizeEdge::Left);
         for px in (1400..=1900).rev() {
             let m = page_resize_measure_anchored(CW, px as f32, right_anchor, ResizeEdge::Left);
-            assert!(m >= lprev, "leftward drag of the left edge must never shrink the measure");
+            assert!(
+                m >= lprev,
+                "leftward drag of the left edge must never shrink the measure"
+            );
             lprev = m;
         }
     }
@@ -2656,20 +2954,40 @@ mod tests {
             let left_anchor = 100.0;
             let right_anchor = 2000.0;
             let dist = 40.0 * CW; // 40 chars of travel from the anchor
-            let m_right =
-                page_resize_measure_anchored(adv, left_anchor + dist, left_anchor, ResizeEdge::Right);
-            let m_left =
-                page_resize_measure_anchored(adv, right_anchor - dist, right_anchor, ResizeEdge::Left);
+            let m_right = page_resize_measure_anchored(
+                adv,
+                left_anchor + dist,
+                left_anchor,
+                ResizeEdge::Right,
+            );
+            let m_left = page_resize_measure_anchored(
+                adv,
+                right_anchor - dist,
+                right_anchor,
+                ResizeEdge::Left,
+            );
             assert_eq!(m_right, 40, "zoom={zoom}: 40 chars of travel -> 40 chars");
-            assert_eq!(m_left, m_right, "zoom={zoom}: left/right mirror to the same measure");
+            assert_eq!(
+                m_left, m_right,
+                "zoom={zoom}: left/right mirror to the same measure"
+            );
             // Farther from the anchor widens; closer narrows.
             let wider = page_resize_measure_anchored(
-                adv, left_anchor + dist + 200.0, left_anchor, ResizeEdge::Right,
+                adv,
+                left_anchor + dist + 200.0,
+                left_anchor,
+                ResizeEdge::Right,
             );
             let narrower = page_resize_measure_anchored(
-                adv, left_anchor + dist - 200.0, left_anchor, ResizeEdge::Right,
+                adv,
+                left_anchor + dist - 200.0,
+                left_anchor,
+                ResizeEdge::Right,
             );
-            assert!(wider > m_right && narrower < m_right, "zoom={zoom}: out widens, in narrows");
+            assert!(
+                wider > m_right && narrower < m_right,
+                "zoom={zoom}: out widens, in narrows"
+            );
         }
     }
 
@@ -2711,8 +3029,14 @@ mod tests {
             let adv = page_column_advance(CW * zoom, zoom);
             let w = column_width_for(window, adv, true, 40);
             let left = column_left_for(window, adv, true, 40);
-            assert!((w - (window - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3, "zoom={zoom}: fills minus pad");
-            assert!((left - PAGE_MIN_PAD).abs() < 1e-3, "zoom={zoom}: collapses to the small pad");
+            assert!(
+                (w - (window - 2.0 * PAGE_MIN_PAD)).abs() < 1e-3,
+                "zoom={zoom}: fills minus pad"
+            );
+            assert!(
+                (left - PAGE_MIN_PAD).abs() < 1e-3,
+                "zoom={zoom}: collapses to the small pad"
+            );
         }
     }
 }

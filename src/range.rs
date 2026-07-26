@@ -117,8 +117,22 @@ impl RangeSpec {
     /// Author a spec. `const` so each setting's spec is a plain constant and the
     /// historical `ZOOM_MIN`/`ZOOM_MAX`/`ZOOM_STEP` consts can be derived from it
     /// in const context (no duplicated literals anywhere).
-    pub const fn new(min: f32, max: f32, step: f32, default: f32, unit: Unit, map: RailMap) -> Self {
-        Self { min, max, step, default, unit, map }
+    pub const fn new(
+        min: f32,
+        max: f32,
+        step: f32,
+        default: f32,
+        unit: Unit,
+        map: RailMap,
+    ) -> Self {
+        Self {
+            min,
+            max,
+            step,
+            default,
+            unit,
+            map,
+        }
     }
 
     /// QUANTIZE + CLAMP a raw value onto the authored grid — the ONE clamp every
@@ -256,8 +270,7 @@ impl RangeSpec {
 /// `render::clamp_zoom` (which now delegates here), so every existing zoom door
 /// — ⌘=/⌘-, ⌘-wheel, `--zoom`, a sticky `zoom = 1.4`, a typed `125%` — keeps its
 /// exact behaviour while gaining the rail.
-pub const ZOOM: RangeSpec =
-    RangeSpec::new(0.5, 3.0, 0.1, 1.0, Unit::Percent, RailMap::Linear);
+pub const ZOOM: RangeSpec = RangeSpec::new(0.5, 3.0, 0.1, 1.0, Unit::Percent, RailMap::Linear);
 
 /// Every spec the app registers, for the sweep laws. (A spec reachable only from
 /// [`crate::settings::range_spec`] would be law-tested there too; this is the
@@ -325,18 +338,27 @@ mod tests {
                     "{name}: {what} {v} is off the step grid"
                 );
             }
-            assert!(s.step_count() >= 2, "{name}: a range needs at least two stops");
+            assert!(
+                s.step_count() >= 2,
+                "{name}: a range needs at least two stops"
+            );
         }
     }
 
     #[test]
     fn value_and_step_round_trip_across_the_whole_grid() {
         let _g = crate::testlock::serial();
-        for (name, s) in REGISTERED.iter().chain([("sensitivity", SENSITIVITY_SHAPE)].iter()) {
+        for (name, s) in REGISTERED
+            .iter()
+            .chain([("sensitivity", SENSITIVITY_SHAPE)].iter())
+        {
             for k in s.min_step()..=s.max_step() {
                 let v = s.value_of_step(k);
                 assert_eq!(s.step_of(v), k, "{name}: step {k} -> {v} -> lost its index");
-                assert!(v >= s.min - 1e-6 && v <= s.max + 1e-6, "{name}: {v} escaped the band");
+                assert!(
+                    v >= s.min - 1e-6 && v <= s.max + 1e-6,
+                    "{name}: {v} escaped the band"
+                );
             }
         }
     }
@@ -344,7 +366,10 @@ mod tests {
     #[test]
     fn rail_fraction_round_trips_every_authored_step_in_both_mappings() {
         let _g = crate::testlock::serial();
-        for (name, s) in REGISTERED.iter().chain([("sensitivity", SENSITIVITY_SHAPE)].iter()) {
+        for (name, s) in REGISTERED
+            .iter()
+            .chain([("sensitivity", SENSITIVITY_SHAPE)].iter())
+        {
             for k in s.min_step()..=s.max_step() {
                 let f = s.frac_of_step(k);
                 assert!((0.0..=1.0).contains(&f), "{name}: frac {f} out of [0,1]");
@@ -355,7 +380,10 @@ mod tests {
                 );
             }
             assert_eq!(s.frac_of(s.min), 0.0, "{name}: min sits at the rail head");
-            assert!((s.frac_of(s.max) - 1.0).abs() < 1e-5, "{name}: max sits at the rail tail");
+            assert!(
+                (s.frac_of(s.max) - 1.0).abs() < 1e-5,
+                "{name}: max sits at the rail tail"
+            );
             assert_eq!(s.value_at_frac(0.0), s.min);
             assert!((s.value_at_frac(1.0) - s.max).abs() < s.step * 0.5);
         }
@@ -364,7 +392,10 @@ mod tests {
     #[test]
     fn a_rail_fraction_always_resolves_onto_the_authored_grid_and_never_escapes_the_band() {
         let _g = crate::testlock::serial();
-        for (name, s) in REGISTERED.iter().chain([("sensitivity", SENSITIVITY_SHAPE)].iter()) {
+        for (name, s) in REGISTERED
+            .iter()
+            .chain([("sensitivity", SENSITIVITY_SHAPE)].iter())
+        {
             // Out-of-range + NaN fractions clamp rather than escape.
             assert_eq!(s.value_at_frac(-3.0), s.min, "{name}");
             assert_eq!(s.value_at_frac(9.0), s.max, "{name}");
@@ -372,7 +403,10 @@ mod tests {
             let mut f = 0.0f32;
             while f <= 1.0 {
                 let v = s.value_at_frac(f);
-                assert!(v >= s.min && v <= s.max, "{name}: frac {f} -> {v} out of band");
+                assert!(
+                    v >= s.min && v <= s.max,
+                    "{name}: frac {f} -> {v} out of band"
+                );
                 assert_eq!(
                     s.quantize(v).to_bits(),
                     v.to_bits(),
@@ -390,7 +424,13 @@ mod tests {
     fn a_log_rail_seats_every_doubling_at_an_equal_interval() {
         let _g = crate::testlock::serial();
         let s = SENSITIVITY_SHAPE;
-        let want = [(0.25, 0.0), (0.5, 0.25), (1.0, 0.5), (2.0, 0.75), (4.0, 1.0)];
+        let want = [
+            (0.25, 0.0),
+            (0.5, 0.25),
+            (1.0, 0.5),
+            (2.0, 0.75),
+            (4.0, 1.0),
+        ];
         for (v, f) in want {
             assert!(
                 (s.frac_of(v) - f).abs() < 1e-4,
@@ -410,7 +450,10 @@ mod tests {
     #[test]
     fn keyboard_stepping_moves_exactly_one_authored_increment_and_saturates() {
         let _g = crate::testlock::serial();
-        for (name, s) in REGISTERED.iter().chain([("sensitivity", SENSITIVITY_SHAPE)].iter()) {
+        for (name, s) in REGISTERED
+            .iter()
+            .chain([("sensitivity", SENSITIVITY_SHAPE)].iter())
+        {
             let mid = s.value_of_step((s.min_step() + s.max_step()) / 2);
             assert!(
                 (s.stepped(mid, 1) - (mid + s.step)).abs() < s.step * 1e-3,
@@ -421,10 +464,18 @@ mod tests {
                 "{name}: -1 step must move exactly one increment"
             );
             assert_eq!(s.stepped(s.max, 1), s.max, "{name}: saturates at the top");
-            assert_eq!(s.stepped(s.min, -1), s.min, "{name}: saturates at the bottom");
+            assert_eq!(
+                s.stepped(s.min, -1),
+                s.min,
+                "{name}: saturates at the bottom"
+            );
             // An OFF-GRID start lands on the grid, not one increment off it.
             let off = s.min + s.step * 0.4;
-            assert_eq!(s.stepped(off, 1), s.value_of_step(s.min_step() + 1), "{name}");
+            assert_eq!(
+                s.stepped(off, 1),
+                s.value_of_step(s.min_step() + 1),
+                "{name}"
+            );
             // Repeated single steps == one batched step (ordinary key repeat).
             let mut v = s.min;
             for _ in 0..5 {
@@ -441,7 +492,10 @@ mod tests {
     #[test]
     fn a_drag_resolved_step_by_step_settles_where_one_jump_would() {
         let _g = crate::testlock::serial();
-        for (name, s) in REGISTERED.iter().chain([("sensitivity", SENSITIVITY_SHAPE)].iter()) {
+        for (name, s) in REGISTERED
+            .iter()
+            .chain([("sensitivity", SENSITIVITY_SHAPE)].iter())
+        {
             let path: Vec<f32> = (0..=97).map(|i| (i as f32) / 97.0).collect();
             for end in [0.0f32, 0.13, 0.5, 0.77, 1.0] {
                 // A SLOW drag: every intermediate fraction applies live, then the
@@ -450,7 +504,10 @@ mod tests {
                 for f in path.iter().copied().filter(|f| *f <= end) {
                     slow = s.value_at_frac(f); // every drag move applies live
                 }
-                assert!(slow >= s.min && slow <= s.max, "{name}: scrub left the band");
+                assert!(
+                    slow >= s.min && slow <= s.max,
+                    "{name}: scrub left the band"
+                );
                 slow = s.value_at_frac(end); // the release's own resolved step
                 // A FAST drag: one move straight to `end` from the other extreme.
                 let start_high = s.value_at_frac(1.0);
@@ -489,7 +546,11 @@ mod tests {
         // types back to the same value (the exact-entry path can't lose a step).
         for k in ZOOM.min_step()..=ZOOM.max_step() {
             let v = ZOOM.value_of_step(k);
-            assert_eq!(ZOOM.parse(&ZOOM.format(v)), Some(v), "readout of {v} did not re-parse");
+            assert_eq!(
+                ZOOM.parse(&ZOOM.format(v)),
+                Some(v),
+                "readout of {v} did not re-parse"
+            );
         }
     }
 }

@@ -126,7 +126,9 @@ fn scan_dir(
     dir: &std::path::Path,
     counts: &mut std::collections::BTreeMap<String, usize>,
 ) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -139,16 +141,25 @@ fn scan_dir(
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
-        let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        let fname = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
         if fname == "tests.rs" || fname == "clock_law.rs" {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
         let n = scan_file(&text);
         if n == 0 {
             continue;
         }
-        let rel = path.strip_prefix(src_root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        let rel = path
+            .strip_prefix(src_root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
         counts.insert(rel, n);
     }
 }
@@ -183,11 +194,23 @@ fn app_module_reads_time_only_through_the_clock_seam() {
 
 #[test]
 fn needle_count_matches_both_call_and_fn_pointer_forms_and_skips_comments() {
-    assert_eq!(needle_count("        let deadline = Instant::now() >= x;"), 1);
-    assert_eq!(needle_count("        let t0 = debug.then(Instant::now);"), 1);
-    assert_eq!(needle_count("        let t0 = std::time::Instant::now();"), 1);
+    assert_eq!(
+        needle_count("        let deadline = Instant::now() >= x;"),
+        1
+    );
+    assert_eq!(
+        needle_count("        let t0 = debug.then(Instant::now);"),
+        1
+    );
+    assert_eq!(
+        needle_count("        let t0 = std::time::Instant::now();"),
+        1
+    );
     assert_eq!(needle_count("        self.x = Some(self.clock.now());"), 0);
-    assert_eq!(needle_count("    /// reads `Instant::now()` — history prose"), 0);
+    assert_eq!(
+        needle_count("    /// reads `Instant::now()` — history prose"),
+        0
+    );
     assert_eq!(needle_count("    // mentions Instant::now in a comment"), 0);
 }
 

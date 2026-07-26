@@ -219,7 +219,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXoObB", radix_extra: b"", dot_dot_stops: true },
+        super::NumOpts {
+            radix: b"xXoObB",
+            radix_extra: b"",
+            dot_dot_stops: true,
+        },
         is_ident_start,
     )
 }
@@ -233,7 +237,11 @@ mod tests {
     fn line_comments_slash_and_hash() {
         let t = "$x = 1; // slash\n$y = 2; # hash\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// slash", "# hash"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// slash", "# hash"],
+            "{s:?}"
+        );
     }
 
     #[test]
@@ -275,8 +283,16 @@ mod tests {
         let t = "$a = <<<EOT\nhello $x\nEOT;\n$b = <<<'RAW'\nliteral $x\nRAW;\n";
         let s = spans(t);
         let ss = at(t, &s, SynKind::Str);
-        assert!(ss.iter().any(|x| x.starts_with("<<<EOT") && x.ends_with("EOT")), "{ss:?}");
-        assert!(ss.iter().any(|x| x.starts_with("<<<'RAW'") && x.ends_with("RAW")), "{ss:?}");
+        assert!(
+            ss.iter()
+                .any(|x| x.starts_with("<<<EOT") && x.ends_with("EOT")),
+            "{ss:?}"
+        );
+        assert!(
+            ss.iter()
+                .any(|x| x.starts_with("<<<'RAW'") && x.ends_with("RAW")),
+            "{ss:?}"
+        );
     }
 
     #[test]
@@ -294,7 +310,10 @@ mod tests {
         let t = "$a = TRUE; $b = Null; $c = False;";
         let s = spans(t);
         let cs = at(t, &s, SynKind::Constant);
-        assert!(cs.contains(&"TRUE") && cs.contains(&"Null") && cs.contains(&"False"), "{cs:?}");
+        assert!(
+            cs.contains(&"TRUE") && cs.contains(&"Null") && cs.contains(&"False"),
+            "{cs:?}"
+        );
     }
 
     #[test]
@@ -312,8 +331,14 @@ mod tests {
         // `function` stays default ink; only the NAME is a Definition.
         let t = "function main() {}";
         let s = spans(t);
-        assert!(!has(&s, 0, 8, SynKind::Definition), "the `function` keyword must stay plain: {s:?}");
-        assert!(has(&s, 9, 13, SynKind::Definition), "`main` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 8, SynKind::Definition),
+            "the `function` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 9, 13, SynKind::Definition),
+            "`main` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -326,7 +351,11 @@ mod tests {
     fn reference_snippet() {
         let t = "<?php\n// add two\nfunction add($a, $b) {\n    $total = $a + $b; # sum\n    return $total;\n}\nconst MAX = 100;\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// add two", "# sum"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// add two", "# sum"],
+            "{s:?}"
+        );
         let ds = at(t, &s, SynKind::Definition);
         assert!(ds.contains(&"add") && ds.contains(&"MAX"), "{ds:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");

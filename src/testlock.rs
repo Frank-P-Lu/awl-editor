@@ -141,7 +141,11 @@ pub(crate) fn product_requests() -> usize {
 
 fn acquire(check_world: bool) -> SerialGuard {
     if HELD.with(|h| h.get()) {
-        return SerialGuard { inner: None, world_at_entry: None, page_at_entry: None };
+        return SerialGuard {
+            inner: None,
+            world_at_entry: None,
+            page_at_entry: None,
+        };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     HELD.with(|h| h.set(true));
@@ -227,7 +231,11 @@ mod tests {
         // writer must nest for free (not self-deadlock), and the write must land.
         let _g = serial();
         crate::page::set_measure(33);
-        assert_eq!(crate::page::measure(), 33, "the nested writer's write lands");
+        assert_eq!(
+            crate::page::measure(),
+            33,
+            "the nested writer's write lands"
+        );
         crate::page::set_measure(crate::page::DEFAULT_MEASURE); // leave as found
     }
 
@@ -241,7 +249,10 @@ mod tests {
             let _g = serial();
             crate::theme::set_active(before + 1);
         });
-        assert!(leaked.is_err(), "a checked test window must reject a dirty exit");
+        assert!(
+            leaked.is_err(),
+            "a checked test window must reject a dirty exit"
+        );
         let _g = serial();
         assert_eq!(
             crate::theme::active_index(),
@@ -297,7 +308,10 @@ mod tests {
             crate::page::set_page_on(!before.0);
             crate::page::set_measure(before.1 + 1);
         });
-        assert!(leaked.is_err(), "a checked window must reject dirty page inputs");
+        assert!(
+            leaked.is_err(),
+            "a checked window must reject dirty page inputs"
+        );
         let _g = serial();
         assert_eq!(
             (crate::page::page_on(), crate::page::measure()),
@@ -315,7 +329,10 @@ mod tests {
         {
             let _inner = serial();
         }
-        assert!(currently_held(), "the outer hold survives an inner acquire+drop");
+        assert!(
+            currently_held(),
+            "the outer hold survives an inner acquire+drop"
+        );
         crate::page::set_measure(44);
         assert_eq!(crate::page::measure(), 44);
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);

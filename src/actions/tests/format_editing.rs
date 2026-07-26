@@ -4,8 +4,8 @@
 //! code-organization pass).
 
 use super::super::*;
+use super::{drive_act, drive_format, drive_newline, md};
 use crate::overlay::OverlayKind;
-use super::{drive_format, drive_newline, md, drive_act};
 
 #[test]
 fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
@@ -19,8 +19,7 @@ fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
 
     // Caret INSIDE the table (on the body row) — align re-pads the block.
     buffer.set_cursor(buffer.line_col_to_char(3, 2));
@@ -48,7 +47,11 @@ fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
 
     // UNDOABLE: one Cmd-Z restores the exact pre-align source.
     ctx.buffer.undo();
-    assert_eq!(ctx.buffer.text(), before, "undo restores the pre-align source");
+    assert_eq!(
+        ctx.buffer.text(),
+        before,
+        "undo restores the pre-align source"
+    );
 
     // NO-OP outside a table: caret on the prose intro line does nothing.
     ctx.buffer.set_cursor(0);
@@ -79,7 +82,12 @@ fn bullet_list_toggle_through_apply_core_round_trips_and_undoes() {
     let mut b = drive_format("a\nb\nc\n", Some(0), 4, &Action::ToggleBulletList);
     assert_eq!(b.text(), "- a\n- b\nc\n", "every selected line is prefixed");
     // A second dispatch (the selection now spans the prefixed lines) strips them.
-    let re = drive_format(&b.text(), b.selection_range().map(|(s, _)| s), b.selection_range().unwrap().1, &Action::ToggleBulletList);
+    let re = drive_format(
+        &b.text(),
+        b.selection_range().map(|(s, _)| s),
+        b.selection_range().unwrap().1,
+        &Action::ToggleBulletList,
+    );
     assert_eq!(re.text(), "a\nb\nc\n", "re-toggle strips the bullets back");
     // And one undo of the FIRST toggle restores the plain lines.
     b.undo();
@@ -89,7 +97,11 @@ fn bullet_list_toggle_through_apply_core_round_trips_and_undoes() {
 #[test]
 fn code_block_toggle_through_apply_core_wraps_and_undoes() {
     let mut b = drive_format("let x = 1;\n", None, 3, &Action::ToggleCodeBlock);
-    assert_eq!(b.text(), "```\nlet x = 1;\n```\n", "the caret line is fenced");
+    assert_eq!(
+        b.text(),
+        "```\nlet x = 1;\n```\n",
+        "the caret line is fenced"
+    );
     b.undo();
     assert_eq!(b.text(), "let x = 1;\n", "one Cmd-Z reverts the fence");
 }
@@ -107,8 +119,7 @@ fn heading_toggle_is_a_noop_on_a_code_buffer() {
     let mut search = None;
     let mut overlay = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer: &mut buffer,
         shift_selecting: &mut shift,
@@ -121,7 +132,11 @@ fn heading_toggle_is_a_noop_on_a_code_buffer() {
         oracle: None,
     };
     apply_core(&mut ctx, &Action::ToggleHeading, false);
-    assert_eq!(ctx.buffer.text(), "fn main() {}\n", "a code buffer is left untouched");
+    assert_eq!(
+        ctx.buffer.text(),
+        "fn main() {}\n",
+        "a code buffer is left untouched"
+    );
     assert!(!ctx.buffer.can_undo(), "no edit was recorded");
 }
 
@@ -161,7 +176,11 @@ fn smart_newline_continues_a_task_item_unchecked_item_78() {
     // item (a fresh continuation line is new, unfinished work).
     let mut b = md("- [ ] buy milk", 14);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "- [ ] buy milk\n- [ ] ", "the checkbox continues, unchecked");
+    assert_eq!(
+        b.text(),
+        "- [ ] buy milk\n- [ ] ",
+        "the checkbox continues, unchecked"
+    );
 
     let mut b = md("- [x] done already", 19);
     drive_newline(&mut b);
@@ -209,21 +228,37 @@ fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved_item_63() {
             "the `{marker} ` bullet stays intact and a plain line opens below"
         );
         // Caret is at column 0 of the NEW empty line (char 7 over the 7-char body).
-        assert_eq!(b.cursor_char(), 7, "caret parks on the new plain line, col 0");
+        assert_eq!(
+            b.cursor_char(),
+            7,
+            "caret parks on the new plain line, col 0"
+        );
         let (line, col) = b.cursor_line_col();
-        assert_eq!((line, col), (2, 0), "caret on the fresh line below the bullet");
+        assert_eq!(
+            (line, col),
+            (2, 0),
+            "caret on the fresh line below the bullet"
+        );
     }
 
     // The lone bullet at document START, no preceding sibling: still preserved.
     let mut b = md("- ", 2);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "- \n", "a lone empty bullet is preserved, plain line below");
+    assert_eq!(
+        b.text(),
+        "- \n",
+        "a lone empty bullet is preserved, plain line below"
+    );
     assert_eq!(b.cursor_char(), 3);
 
     // NESTED empty bullet: the indent + `- ` marker are ALL preserved intact.
     let mut b = md("  - ", 4);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "  - \n", "the nested bullet (indent + marker) is preserved");
+    assert_eq!(
+        b.text(),
+        "  - \n",
+        "the nested bullet (indent + marker) is preserved"
+    );
     assert_eq!(b.cursor_char(), 5);
     assert_eq!(b.cursor_line_col(), (1, 0));
 
@@ -232,19 +267,31 @@ fn smart_newline_empty_list_item_of_unknown_provenance_is_preserved_item_63() {
     // block" behavior for the non-generated case).
     let mut b = md("1. ", 3);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "1. \n", "the ordered marker is preserved, plain line below");
+    assert_eq!(
+        b.text(),
+        "1. \n",
+        "the ordered marker is preserved, plain line below"
+    );
     assert_eq!(b.cursor_char(), 4);
     assert_eq!(b.cursor_line_col(), (1, 0));
 
     // A NESTED empty ordered item: indent + marker both preserved.
     let mut b = md("  1. ", 5);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "  1. \n", "the nested ordered marker is preserved intact");
+    assert_eq!(
+        b.text(),
+        "  1. \n",
+        "the nested ordered marker is preserved intact"
+    );
 
     // An empty TASK item (unchecked box, no text) is preserved too.
     let mut b = md("- [ ] ", 6);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "- [ ] \n", "the empty checkbox is preserved, plain line below");
+    assert_eq!(
+        b.text(),
+        "- [ ] \n",
+        "the empty checkbox is preserved, plain line below"
+    );
 
     // …and a CHECKED empty task item preserves the checked state.
     let mut b = md("- [x] ", 6);
@@ -264,7 +311,11 @@ fn smart_newline_no_guess_provenance_law_item_78() {
     // Enter PRESERVES the marker and opens a plain line below (item 63).
     let mut loaded = md("- ", 2);
     drive_act(&mut loaded, &Action::Newline);
-    assert_eq!(loaded.text(), "- \n", "a loaded/typed empty marker is preserved");
+    assert_eq!(
+        loaded.text(),
+        "- \n",
+        "a loaded/typed empty marker is preserved"
+    );
     assert_eq!(loaded.cursor_line_col(), (1, 0));
 
     // (2) The SAME bytes, but reached by awl's OWN continuation: type "- a",
@@ -277,14 +328,22 @@ fn smart_newline_no_guess_provenance_law_item_78() {
     drive_act(&mut generated, &Action::InsertChar(' '));
     drive_act(&mut generated, &Action::InsertChar('a'));
     drive_act(&mut generated, &Action::Newline); // continuation: "- a\n- "
-    assert_eq!(generated.text(), "- a\n- ", "the continuation opened a bare empty marker");
+    assert_eq!(
+        generated.text(),
+        "- a\n- ",
+        "the continuation opened a bare empty marker"
+    );
     drive_act(&mut generated, &Action::Newline); // the "second Enter"
     assert_eq!(
         generated.text(),
         "- a\n",
         "Enter on AWL'S OWN generated empty continuation ends the list"
     );
-    assert_eq!(generated.cursor_char(), 4, "caret parks at the now-blank line");
+    assert_eq!(
+        generated.cursor_char(),
+        4,
+        "caret parks at the now-blank line"
+    );
 
     // (3) Non-vacuous by construction: (1) and (2) reach the SAME "- a\n- "
     // intermediate text via different routes and DIVERGE on the very next
@@ -334,7 +393,11 @@ fn smart_newline_no_guess_provenance_law_item_78() {
     drive_act(&mut undo_redo, &Action::Newline); // "- a\n- ", flag SET
     undo_redo.undo();
     undo_redo.redo(); // back to "- a\n- ", byte-identical, provenance gone
-    assert_eq!(undo_redo.text(), "- a\n- ", "redo restored the identical bytes");
+    assert_eq!(
+        undo_redo.text(),
+        "- a\n- ",
+        "redo restored the identical bytes"
+    );
     drive_act(&mut undo_redo, &Action::Newline);
     assert_eq!(
         undo_redo.text(),
@@ -350,7 +413,11 @@ fn smart_newline_no_guess_provenance_law_item_78() {
     drive_act(&mut cancel, &Action::Newline); // "- a\n- ", flag SET
     drive_act(&mut cancel, &Action::Cancel);
     drive_act(&mut cancel, &Action::Newline);
-    assert_eq!(cancel.text(), "- a\n- \n", "C-g clears the flag too — preserved, not ended");
+    assert_eq!(
+        cancel.text(),
+        "- a\n- \n",
+        "C-g clears the flag too — preserved, not ended"
+    );
 }
 
 #[test]
@@ -363,11 +430,23 @@ fn smart_newline_empty_bullet_preserve_is_one_undo_group_item_63() {
     let after = b.text();
 
     b.undo();
-    assert_eq!(b.text(), "- a\n- ", "one undo removes exactly the opened line");
-    assert_eq!(b.cursor_char(), 6, "caret restored to the end of the empty bullet");
+    assert_eq!(
+        b.text(),
+        "- a\n- ",
+        "one undo removes exactly the opened line"
+    );
+    assert_eq!(
+        b.cursor_char(),
+        6,
+        "caret restored to the end of the empty bullet"
+    );
 
     b.redo();
-    assert_eq!(b.text(), after, "redo re-opens the plain line under the preserved bullet");
+    assert_eq!(
+        b.text(),
+        after,
+        "redo re-opens the plain line under the preserved bullet"
+    );
     assert_eq!(b.cursor_char(), 7);
 
     // Driven as the real keystroke stream `- <space> Enter`: typing then Enter must
@@ -378,12 +457,24 @@ fn smart_newline_empty_bullet_preserve_is_one_undo_group_item_63() {
     drive_act(&mut b, &Action::InsertChar(' '));
     drive_act(&mut b, &Action::Newline);
     drive_act(&mut b, &Action::InsertChar('x'));
-    assert_eq!(b.text(), "- \nx", "typed bullet preserved; `x` lands on the plain line");
+    assert_eq!(
+        b.text(),
+        "- \nx",
+        "typed bullet preserved; `x` lands on the plain line"
+    );
     assert_eq!(b.cursor_char(), 4);
     b.undo(); // remove the x
-    assert_eq!(b.text(), "- \n", "undo the typed x, bullet + plain line intact");
+    assert_eq!(
+        b.text(),
+        "- \n",
+        "undo the typed x, bullet + plain line intact"
+    );
     b.undo(); // remove the opened line
-    assert_eq!(b.text(), "- ", "undo the Enter — the preserved bullet remains");
+    assert_eq!(
+        b.text(),
+        "- ",
+        "undo the Enter — the preserved bullet remains"
+    );
 }
 
 #[test]
@@ -394,9 +485,16 @@ fn smart_newline_empty_bullet_preserve_round_trips_crlf_item_63() {
     let mut b = md("- a\n- ", 6);
     b.set_eol(crate::buffer::Eol::Crlf);
     drive_newline(&mut b);
-    assert_eq!(b.text(), "- a\n- \n", "the rope preserves the bullet + a plain line");
+    assert_eq!(
+        b.text(),
+        "- a\n- \n",
+        "the rope preserves the bullet + a plain line"
+    );
     let disk = String::from_utf8(b.disk_bytes()).unwrap();
-    assert_eq!(disk, "- a\r\n- \r\n", "save restores CRLF on every line, opened one too");
+    assert_eq!(
+        disk, "- a\r\n- \r\n",
+        "save restores CRLF on every line, opened one too"
+    );
 }
 
 #[test]
@@ -437,7 +535,11 @@ fn tab_indents_an_ordered_list_without_renumbering() {
     // Ordered items indent too (Tab/Shift-Tab), and we do NOT auto-renumber.
     let mut b = md("1. first", 8);
     drive_act(&mut b, &Action::InsertTab);
-    assert_eq!(b.text(), "  1. first", "ordered item indents, number unchanged");
+    assert_eq!(
+        b.text(),
+        "  1. first",
+        "ordered item indents, number unchanged"
+    );
     drive_act(&mut b, &Action::Outdent);
     assert_eq!(b.text(), "1. first");
 }
@@ -458,10 +560,18 @@ fn tab_indents_all_selected_list_lines() {
     b.set_mark(); // anchor at 0
     b.set_cursor(b.text().chars().count()); // extend to end => whole doc selected
     drive_act(&mut b, &Action::InsertTab);
-    assert_eq!(b.text(), "  - a\n  - b\n  - c", "every selected bullet indents");
+    assert_eq!(
+        b.text(),
+        "  - a\n  - b\n  - c",
+        "every selected bullet indents"
+    );
     // One undo restores the whole block (the indent is atomic).
     b.undo();
-    assert_eq!(b.text(), "- a\n- b\n- c", "the block indent is one atomic undo");
+    assert_eq!(
+        b.text(),
+        "- a\n- b\n- c",
+        "the block indent is one atomic undo"
+    );
 
     // Shift-Tab outdents a whole selection back, on an already-indented block.
     let mut b = md("  - a\n  - b\n  - c", 0);
@@ -498,7 +608,10 @@ fn select_all_on_empty_buffer_is_a_safe_no_op() {
     // (anchor == cursor == 0), so nothing is "selected".
     let mut b = Buffer::from_str("");
     drive_act(&mut b, &Action::SelectAll);
-    assert!(!b.has_selection(), "empty buffer => empty region, not a selection");
+    assert!(
+        !b.has_selection(),
+        "empty buffer => empty region, not a selection"
+    );
     assert_eq!(b.cursor_char(), 0);
     assert_eq!(b.selection_range(), None);
 }
@@ -513,7 +626,11 @@ fn kill_region_after_select_all_empties_the_buffer() {
     assert!(!b.has_selection());
     // The cut text is in the kill buffer, so a yank restores the whole doc.
     drive_act(&mut b, &Action::Yank);
-    assert_eq!(b.text(), "one\ntwo\nthree\n", "the cut whole-doc yanks back");
+    assert_eq!(
+        b.text(),
+        "one\ntwo\nthree\n",
+        "the cut whole-doc yanks back"
+    );
 }
 
 #[test]
@@ -523,10 +640,18 @@ fn type_after_select_all_replaces_the_whole_buffer() {
     let mut b = Buffer::from_str("keep\nnothing\nof this\n");
     drive_act(&mut b, &Action::SelectAll);
     drive_act(&mut b, &Action::InsertChar('x'));
-    assert_eq!(b.text(), "x", "the whole selection is replaced by the typed char");
+    assert_eq!(
+        b.text(),
+        "x",
+        "the whole selection is replaced by the typed char"
+    );
     assert_eq!(b.cursor_char(), 1);
     b.undo();
-    assert_eq!(b.text(), "keep\nnothing\nof this\n", "one undo restores the original");
+    assert_eq!(
+        b.text(),
+        "keep\nnothing\nof this\n",
+        "one undo restores the original"
+    );
 }
 
 #[test]
@@ -541,7 +666,11 @@ fn copy_region_after_select_all_copies_all_and_keeps_text() {
     // Yanking at the end appends the copied whole document.
     b.buffer_end();
     drive_act(&mut b, &Action::Yank);
-    assert_eq!(b.text(), "copy\nme\ncopy\nme\n", "the copied whole doc yanks in");
+    assert_eq!(
+        b.text(),
+        "copy\nme\ncopy\nme\n",
+        "the copied whole doc yanks in"
+    );
 }
 
 #[test]
@@ -569,12 +698,20 @@ fn dash_then_enter_leaves_a_writable_line_item_40() {
     drive_act(&mut b, &Action::InsertChar('-'));
     drive_act(&mut b, &Action::Newline);
     drive_act(&mut b, &Action::InsertChar('x'));
-    assert_eq!(b.text(), "-\nx", "the dash stays literal and `x` lands on the new line");
+    assert_eq!(
+        b.text(),
+        "-\nx",
+        "the dash stays literal and `x` lands on the new line"
+    );
     // Caret sits AFTER the `x`: char 3 over "-\nx" — the line the user landed on
     // genuinely took the keystroke.
     assert_eq!(b.cursor_char(), 3, "caret advanced past the written `x`");
     let (line, col) = b.cursor_line_col();
-    assert_eq!((line, col), (1, 1), "caret is on the new line, one column in");
+    assert_eq!(
+        (line, col),
+        (1, 1),
+        "caret is on the new line, one column in"
+    );
 }
 
 #[test]
@@ -588,8 +725,15 @@ fn smart_newline_ordered_marker_at_usize_max_saturates_no_overflow() {
     let col = line.chars().count();
     match smart_newline_for(&line, col) {
         Some(SmartNewline::ContinueListItem { prefix, bare }) => {
-            assert_eq!(prefix, format!("{max}. "), "the number saturates, never overflows");
-            assert!(bare, "nothing followed the cursor — the opened line is bare");
+            assert_eq!(
+                prefix,
+                format!("{max}. "),
+                "the number saturates, never overflows"
+            );
+            assert!(
+                bare,
+                "nothing followed the cursor — the opened line is bare"
+            );
         }
         _ => panic!("expected a continued ordered item at the usize::MAX marker"),
     }

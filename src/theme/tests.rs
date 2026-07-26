@@ -4,8 +4,8 @@
 //! PATH are unchanged (`theme::tests::foo`) -- only which file its source
 //! lives in moved.
 
-use super::*;
 use super::derive::{OVERLAY_SELROW_EXTRA_STEPS, SELECTED_BAND_STEPS};
+use super::*;
 
 /// PALETTE-COMPOSITION round (item 5): the picker's selected-row band
 /// ([`overlay_selected_band`]) is the shared [`surface_selected`] climbed
@@ -16,10 +16,16 @@ use super::derive::{OVERLAY_SELROW_EXTRA_STEPS, SELECTED_BAND_STEPS};
 #[test]
 fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
     let _g = crate::testlock::serial();
-    assert!(OVERLAY_SELROW_EXTRA_STEPS > 0, "the round strengthens the band by default");
+    assert!(
+        OVERLAY_SELROW_EXTRA_STEPS > 0,
+        "the round strengthens the band by default"
+    );
     for world in ["Bowerbird", "Saltpan", "Firetail", "Tawny"] {
         let t = set_active_by_name(world).unwrap();
-        assert_ne!(t.base_200, t.base_300, "{world}: ordinary (non-collapsed) ramp");
+        assert_ne!(
+            t.base_200, t.base_300,
+            "{world}: ordinary (non-collapsed) ramp"
+        );
         let shared = surface_selected();
         let band = overlay_selected_band();
         // Per channel: the overlay band moves in the SAME direction the ramp step
@@ -34,7 +40,10 @@ fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
             let d = (hi as i32 - lo as i32).signum();
             let band_delta = bd as i32 - hi as i32;
             let shared_delta = sh as i32 - hi as i32;
-            assert!(band_delta * d >= 0, "{world}: band stays in the ramp direction");
+            assert!(
+                band_delta * d >= 0,
+                "{world}: band stays in the ramp direction"
+            );
             assert!(
                 band_delta * d >= shared_delta * d,
                 "{world}: overlay band is >= the shared band's step (stronger-or-equal)"
@@ -112,7 +121,11 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
             let d = dir[i];
             let unsel_step = (u as i32 - c as i32) * d;
             let sel_step = (s as i32 - c as i32) * d;
-            assert!(unsel_step >= 0, "{}: unselected whisper lifts off the ground in the ramp direction", t.name);
+            assert!(
+                unsel_step >= 0,
+                "{}: unselected whisper lifts off the ground in the ramp direction",
+                t.name
+            );
             assert!(
                 sel_step >= unsel_step,
                 "{}: selected band ({s}) must sit at least as far up the ramp as the unselected whisper ({u}) from the ground ({c})",
@@ -132,7 +145,6 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
     }
     set_active(DEFAULT_THEME);
 }
-
 
 #[test]
 fn worlds_eleven_dark_seven_light() {
@@ -162,7 +174,11 @@ fn world_names_mirrors_themes_order_exactly() {
     let mut sorted = names.clone();
     sorted.sort_unstable();
     sorted.dedup();
-    assert_eq!(sorted.len(), names.len(), "world_names() contains a duplicate");
+    assert_eq!(
+        sorted.len(),
+        names.len(),
+        "world_names() contains a duplicate"
+    );
 }
 
 /// `Theme::is_one_bit` — Wagtail's 2026-07 rework, from greyscale (any grey
@@ -171,10 +187,18 @@ fn world_names_mirrors_themes_order_exactly() {
 /// world is ALSO monochrome (`is_monochrome`'s broader "no hue" signal).
 #[test]
 fn wagtail_alone_is_one_bit() {
-    let one_bit: Vec<&str> = THEMES.iter().filter(|t| t.is_one_bit()).map(|t| t.name).collect();
+    let one_bit: Vec<&str> = THEMES
+        .iter()
+        .filter(|t| t.is_one_bit())
+        .map(|t| t.name)
+        .collect();
     assert_eq!(one_bit, ["Wagtail"], "exactly Wagtail should be one-bit");
     for t in THEMES.iter().filter(|t| t.is_one_bit()) {
-        assert!(t.is_monochrome(), "{}: a one-bit world must also be monochrome", t.name);
+        assert!(
+            t.is_monochrome(),
+            "{}: a one-bit world must also be monochrome",
+            t.name
+        );
     }
 }
 
@@ -185,9 +209,19 @@ fn wagtail_alone_is_one_bit() {
 fn every_world_has_a_valid_background() {
     for t in THEMES.iter() {
         let bg = t.background;
-        assert_eq!(bg.from().a, 0xFF, "{} background from must be opaque", t.name);
+        assert_eq!(
+            bg.from().a,
+            0xFF,
+            "{} background from must be opaque",
+            t.name
+        );
         assert_eq!(bg.to().a, 0xFF, "{} background to must be opaque", t.name);
-        assert_eq!(bg.tint().a, 0xFF, "{} background tint must be opaque", t.name);
+        assert_eq!(
+            bg.tint().a,
+            0xFF,
+            "{} background tint must be opaque",
+            t.name
+        );
         // 0..=4 the five original static grounds (Lava also degrades to 0 for
         // this base-margin pass), 5=Bands, 6=Waves (item 69), 7=Zigzag (item 86).
         assert!(bg.shader_id() <= 7, "{} bad shader id", t.name);
@@ -199,7 +233,15 @@ fn every_world_has_a_valid_background() {
     // this roster; the dormancy is pinned directly, further down.
     let used: std::collections::HashSet<&str> =
         THEMES.iter().map(|t| t.background.as_str()).collect();
-    for p in ["gradient", "dots", "starfield", "pinstripe", "stripes", "waves", "zigzag"] {
+    for p in [
+        "gradient",
+        "dots",
+        "starfield",
+        "pinstripe",
+        "stripes",
+        "waves",
+        "zigzag",
+    ] {
         assert!(used.contains(p), "ground {p} unused by any world");
     }
     // Stripes stays Potoroo's alone.
@@ -223,7 +265,11 @@ fn every_world_has_a_valid_background() {
         .filter(|t| matches!(t.background, Background::Zigzag { .. }))
         .map(|t| t.name)
         .collect();
-    assert_eq!(zigzag, ["Gumtree", "Quokka"], "Zigzag ships on Gumtree and Quokka alone");
+    assert_eq!(
+        zigzag,
+        ["Gumtree", "Quokka"],
+        "Zigzag ships on Gumtree and Quokka alone"
+    );
     // Mulga is the roster's SOLE remaining shipping Starfield world — Bombora's
     // former Starfield became Waves (item 69).
     let starfield: Vec<&str> = THEMES
@@ -231,7 +277,11 @@ fn every_world_has_a_valid_background() {
         .filter(|t| matches!(t.background, Background::Starfield { .. }))
         .map(|t| t.name)
         .collect();
-    assert_eq!(starfield, ["Mulga"], "Starfield is Mulga's alone since item 69");
+    assert_eq!(
+        starfield,
+        ["Mulga"],
+        "Starfield is Mulga's alone since item 69"
+    );
     // ITEM 69 PALETTE LAW (Bombora's Waves alone, post item-86 — Gumtree's own
     // Zigzag carries its own, separately-checked, palette law below): `tones`
     // is exactly `[base_100, base_200, base_300]`, no separately-tuned tint,
@@ -239,8 +289,11 @@ fn every_world_has_a_valid_background() {
     // not a flat repeat).
     match BOMBORA.background {
         Background::Waves { tones } => {
-            assert_eq!(tones, [BOMBORA.base_100, BOMBORA.base_200, BOMBORA.base_300],
-                "Bombora's Waves tones must be exactly its own ground ladder");
+            assert_eq!(
+                tones,
+                [BOMBORA.base_100, BOMBORA.base_200, BOMBORA.base_300],
+                "Bombora's Waves tones must be exactly its own ground ladder"
+            );
             assert_ne!(tones[0], tones[1]);
             assert_ne!(tones[1], tones[2]);
             assert_ne!(tones[0], tones[2]);
@@ -252,9 +305,18 @@ fn every_world_has_a_valid_background() {
     // same restraint the retired Bands field kept.
     match GUMTREE.background {
         Background::Zigzag { from, to, tint, .. } => {
-            assert_eq!(from, GUMTREE.base_100, "Gumtree's Zigzag `from` must be its own base_100");
-            assert_eq!(to, GUMTREE.base_200, "Gumtree's Zigzag `to` must be its own base_200");
-            assert_eq!(tint, GUMTREE.base_300, "Gumtree's Zigzag `tint` must be its own base_300");
+            assert_eq!(
+                from, GUMTREE.base_100,
+                "Gumtree's Zigzag `from` must be its own base_100"
+            );
+            assert_eq!(
+                to, GUMTREE.base_200,
+                "Gumtree's Zigzag `to` must be its own base_200"
+            );
+            assert_eq!(
+                tint, GUMTREE.base_300,
+                "Gumtree's Zigzag `tint` must be its own base_300"
+            );
         }
         _ => panic!("Gumtree must ship Background::Zigzag"),
     }
@@ -264,15 +326,45 @@ fn every_world_has_a_valid_background() {
     // is the "broader and quieter" of the pair per the round's own brief.
     match (QUOKKA.background, GUMTREE.background) {
         (
-            Background::Zigzag { period_px: qp, amplitude_px: qa, angle: qang, density: qd, .. },
-            Background::Zigzag { period_px: gp, amplitude_px: ga, angle: gang, density: gd, .. },
+            Background::Zigzag {
+                period_px: qp,
+                amplitude_px: qa,
+                angle: qang,
+                density: qd,
+                ..
+            },
+            Background::Zigzag {
+                period_px: gp,
+                amplitude_px: ga,
+                angle: gang,
+                density: gd,
+                ..
+            },
         ) => {
-            assert_ne!(qp, gp, "period_px (scale/spacing) must differ between Quokka and Gumtree");
-            assert_ne!(qa, ga, "amplitude_px (profile) must differ between Quokka and Gumtree");
-            assert_ne!(qang, gang, "angle (direction) must differ between Quokka and Gumtree");
-            assert_ne!(qd, gd, "density (contrast) must differ between Quokka and Gumtree");
-            assert!(gp > qp, "Gumtree's period must be BROADER (larger) than Quokka's");
-            assert!(gd < qd, "Gumtree's density must be QUIETER (lower) than Quokka's");
+            assert_ne!(
+                qp, gp,
+                "period_px (scale/spacing) must differ between Quokka and Gumtree"
+            );
+            assert_ne!(
+                qa, ga,
+                "amplitude_px (profile) must differ between Quokka and Gumtree"
+            );
+            assert_ne!(
+                qang, gang,
+                "angle (direction) must differ between Quokka and Gumtree"
+            );
+            assert_ne!(
+                qd, gd,
+                "density (contrast) must differ between Quokka and Gumtree"
+            );
+            assert!(
+                gp > qp,
+                "Gumtree's period must be BROADER (larger) than Quokka's"
+            );
+            assert!(
+                gd < qd,
+                "Gumtree's density must be QUIETER (lower) than Quokka's"
+            );
         }
         _ => unreachable!("both Quokka and Gumtree must ship Background::Zigzag"),
     }
@@ -285,7 +377,10 @@ fn every_world_has_a_valid_background() {
         .filter(|t| matches!(t.background, Background::Bands { .. }))
         .map(|t| t.name)
         .collect();
-    assert!(bands.is_empty(), "Bands is dormant since item 86 moved Gumtree to Zigzag, got {bands:?}");
+    assert!(
+        bands.is_empty(),
+        "Bands is dormant since item 86 moved Gumtree to Zigzag, got {bands:?}"
+    );
     // PROXIMITY-SCALED Dots (`edge: true`) rode Mangrove alone, and Mangrove
     // folded into a lava ground (2026-07), so no world carries proximity Dots
     // now — the `edge: bool` machinery is intact but currently unassigned (like
@@ -296,7 +391,10 @@ fn every_world_has_a_valid_background() {
         .filter(|t| t.background.edge())
         .map(|t| t.name)
         .collect();
-    assert!(edge_dots.is_empty(), "proximity Dots is unassigned since Mangrove became lava, got {edge_dots:?}");
+    assert!(
+        edge_dots.is_empty(),
+        "proximity Dots is unassigned since Mangrove became lava, got {edge_dots:?}"
+    );
 }
 
 /// THE LAVA-LAMP WORLDS round: EXACTLY two worlds ship a `Background::Lava` —
@@ -313,7 +411,11 @@ fn exactly_firetail_and_mangrove_ship_lava() {
         .filter(|t| t.background.is_lava())
         .map(|t| t.name)
         .collect();
-    assert_eq!(lava, ["Mangrove", "Firetail"], "exactly Mangrove + Firetail are lava worlds");
+    assert_eq!(
+        lava,
+        ["Mangrove", "Firetail"],
+        "exactly Mangrove + Firetail are lava worlds"
+    );
     for t in THEMES.iter().filter(|t| !t.background.is_lava()) {
         assert!(
             t.background.shader_id() <= 7,
@@ -324,13 +426,19 @@ fn exactly_firetail_and_mangrove_ship_lava() {
     // Firetail: WARM, undithered, Glow edge; ground == its own base_100 (seamless).
     let f = set_active_by_name("Firetail").unwrap();
     let (fg, _flo, _fhi, fe, fd) = f.background.lava_params().unwrap();
-    assert_eq!(fg, f.base_100, "Firetail lava ground == base_100 (seamless margin↔page)");
+    assert_eq!(
+        fg, f.base_100,
+        "Firetail lava ground == base_100 (seamless margin↔page)"
+    );
     assert_eq!(fe, model::LavaEdge::Glow, "Firetail default edge is Glow");
     assert!(!fd, "Firetail is the SMOOTH warm lamp (undithered)");
     // Mangrove: COOL deepsea, DITHERED, Glow edge; ground == its own base_100.
     let m = set_active_by_name("Mangrove").unwrap();
     let (mg, _mlo, _mhi, me, md) = m.background.lava_params().unwrap();
-    assert_eq!(mg, m.base_100, "Mangrove lava ground == base_100 (seamless margin↔page)");
+    assert_eq!(
+        mg, m.base_100,
+        "Mangrove lava ground == base_100 (seamless margin↔page)"
+    );
     assert_eq!(me, model::LavaEdge::Glow, "Mangrove default edge is Glow");
     assert!(md, "Mangrove is the DITHERED cool lamp (print-grain)");
     set_active(DEFAULT_THEME);
@@ -350,7 +458,11 @@ fn lava_worlds_keep_figure_ground_at_the_worst_animation_phase() {
     fn rel_lum(c: Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -365,7 +477,11 @@ fn lava_worlds_keep_figure_ground_at_the_worst_animation_phase() {
     }
     for t in THEMES.iter().filter(|t| t.background.is_lava()) {
         let (ground, blob_lo, blob_hi, _edge, _dith) = t.background.lava_params().unwrap();
-        assert_eq!(ground, t.base_100, "{}: lava ground must be base_100", t.name);
+        assert_eq!(
+            ground, t.base_100,
+            "{}: lava ground must be base_100",
+            t.name
+        );
 
         // (1) VALUE BAND. The shader only ever blends ground → blob_lo → blob_hi
         //     (`rgb = mix(ground, mix(blob_lo, blob_hi, core_t), edge_t)`), and
@@ -380,11 +496,15 @@ fn lava_worlds_keep_figure_ground_at_the_worst_animation_phase() {
             rel_lum(blob_hi) <= band_ceiling,
             "{}: blob_hi luminance {:.4} exceeds the ground band ceiling base_300 {:.4} \
              (animated margin brightens into figure territory)",
-            t.name, rel_lum(blob_hi), rel_lum(t.base_300)
+            t.name,
+            rel_lum(blob_hi),
+            rel_lum(t.base_300)
         );
         assert!(
             rel_lum(blob_lo) <= band_ceiling,
-            "{}: blob_lo luminance {:.4} exceeds the ground band ceiling", t.name, rel_lum(blob_lo)
+            "{}: blob_lo luminance {:.4} exceeds the ground band ceiling",
+            t.name,
+            rel_lum(blob_lo)
         );
 
         // (2) blob_hi is a REAL rendered pixel, not just a theoretical ceiling: drive
@@ -399,8 +519,7 @@ fn lava_worlds_keep_figure_ground_at_the_worst_animation_phase() {
         for step in 0..128 {
             let phase = step as f32 * crate::lava::LAVA_LOOP_CYCLES / 128.0;
             for (i, b) in blobs.iter().enumerate() {
-                let (cx, cy) =
-                    crate::lava::animated_center(i, b[0], b[1], b[2], vp, phase);
+                let (cx, cy) = crate::lava::animated_center(i, b[0], b[1], b[2], vp, phase);
                 let px = (cx * vp.0, cy * vp.1);
                 peak = peak.max(crate::lava::metaball_field(px, vp, blobs, phase));
             }
@@ -499,7 +618,11 @@ fn lava_blob_hues_stay_clear_of_the_amber_caret() {
 fn ambient_stars_laws_hold_for_every_world() {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
-        if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     }
     fn rel_lum(c: Srgb) -> f32 {
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
@@ -517,7 +640,14 @@ fn ambient_stars_laws_hold_for_every_world() {
     for t in THEMES.iter() {
         match t.render_caps.ambient {
             model::AmbientStyle::None => continue,
-            model::AmbientStyle::Stars { tint, cell_px, density, size_px, peak, floor } => {
+            model::AmbientStyle::Stars {
+                tint,
+                cell_px,
+                density,
+                size_px,
+                peak,
+                floor,
+            } => {
                 stars_worlds += 1;
                 // Param sanity.
                 assert!(
@@ -558,7 +688,11 @@ fn ambient_stars_laws_hold_for_every_world() {
                 let (ph, _ps, _pl) = t.primary.to_hsl();
                 for st in palette {
                     // (c) AMBER GUARD, per palette entry.
-                    assert_ne!(st, t.primary, "{}: a star tint must never BE the accent", t.name);
+                    assert_ne!(
+                        st, t.primary,
+                        "{}: a star tint must never BE the accent",
+                        t.name
+                    );
                     let (sh, ss, _sl) = st.to_hsl();
                     if ss > 0.15 {
                         let gap = hue_gap(sh, ph);
@@ -580,7 +714,9 @@ fn ambient_stars_laws_hold_for_every_world() {
                     .unwrap();
                 let mut relaxation_seen = false;
                 for st in palette {
-                    for (label, ground) in [("from", t.background.from()), ("to", t.background.to())] {
+                    for (label, ground) in
+                        [("from", t.background.from()), ("to", t.background.to())]
+                    {
                         let gy = rel_lum(ground);
                         let peak_dev = (composite_y(st, peak, ground) - gy).abs();
                         // CALM CEILING: strictly under the text ink — the figure
@@ -626,7 +762,10 @@ fn ambient_stars_laws_hold_for_every_world() {
     }
     // The round's assignment: exactly ONE stars world ships (Currawong — the
     // user's pick). A second is a conscious data edit that lands here.
-    assert_eq!(stars_worlds, 1, "exactly one world ships AmbientStyle::Stars today");
+    assert_eq!(
+        stars_worlds, 1,
+        "exactly one world ships AmbientStyle::Stars today"
+    );
 }
 
 /// THE FROST PILL CONTRAST LAW (the FROST RAIL round — RE-SCOPED from the retired
@@ -679,14 +818,23 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             | Background::Bands { .. }
             | Background::Waves { .. }
             | Background::Zigzag { .. } => continue,
-            Background::Lava { ground, blob_lo, blob_hi, .. } => (ground, blob_lo, blob_hi),
+            Background::Lava {
+                ground,
+                blob_lo,
+                blob_hi,
+                ..
+            } => (ground, blob_lo, blob_hi),
         };
         // FROST-AS-CAPABILITY: read the WORLD's own recipe (`render_caps.frost`),
         // not the shipped consts — so a world that dials a gentler/stronger frost
         // is held to the SAME ink-contrast floor it must clear.
         let blur = t.render_caps.frost.blur_px;
         let dim = t.render_caps.frost.dim;
-        assert_eq!(ground, t.base_100, "{}: frost ground must be base_100", t.name);
+        assert_eq!(
+            ground, t.base_100,
+            "{}: frost ground must be base_100",
+            t.name
+        );
 
         // (1) Phase sweep × a pill-region grid: the ACTUAL frost pixel clears the
         //     ink-ladder floors, and the lamp genuinely reads through the frost.
@@ -697,7 +845,13 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             for xi in 0..24 {
                 let x = 80.0 + (270.0 - 80.0) * (xi as f32 + 0.5) / 24.0;
                 for y in [150.0, 320.0, 500.0, 680.0, 850.0] {
-                    let field = crate::lava::frost_field((x, y), vp, &crate::lava::BACKDROP_BLOBS, phase, blur);
+                    let field = crate::lava::frost_field(
+                        (x, y),
+                        vp,
+                        &crate::lava::BACKDROP_BLOBS,
+                        phase,
+                        blur,
+                    );
                     let px = crate::lava::frost_pixel(field, ground, blob_lo, blob_hi, dim);
                     let dimd = redmean(t.faint, px);
                     assert!(
@@ -812,7 +966,12 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             | Background::Bands { .. }
             | Background::Waves { .. }
             | Background::Zigzag { .. } => continue,
-            Background::Lava { ground, blob_lo, blob_hi, .. } => (ground, blob_lo, blob_hi),
+            Background::Lava {
+                ground,
+                blob_lo,
+                blob_hi,
+                ..
+            } => (ground, blob_lo, blob_hi),
         };
         // FROST-AS-CAPABILITY: the WORLD's own recipe (`render_caps.frost`), so a
         // world tuning its gutter frost is held to the same ink-contrast floor.
@@ -820,7 +979,11 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
         let dim = t.render_caps.frost.dim;
         // The field's un-lit floor IS the page's own ground — the ink-ladder laws
         // govern it; the frost only ever LIFTS from there toward the dimmed lamp.
-        assert_eq!(ground, t.base_100, "{}: frost ground must be base_100", t.name);
+        assert_eq!(
+            ground, t.base_100,
+            "{}: frost ground must be base_100",
+            t.name
+        );
 
         // (1)+(2) Phase sweep × in-pill grid: the ACTUAL frost pixel clears the
         //         gutter ink floors, AND the lamp genuinely reads through the frost
@@ -933,8 +1096,16 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
 fn frost_recipe_is_a_per_world_capability_defaulting_to_the_shipped_lava_values() {
     use crate::theme::Frost;
     // (1) One source of truth: the capability default IS the lava consts.
-    assert_eq!(Frost::DEFAULT.dim, crate::lava::FROST_DIM, "frost dim default == lava const");
-    assert_eq!(Frost::DEFAULT.blur_px, crate::lava::FROST_BLUR_PX, "frost blur default == lava const");
+    assert_eq!(
+        Frost::DEFAULT.dim,
+        crate::lava::FROST_DIM,
+        "frost dim default == lava const"
+    );
+    assert_eq!(
+        Frost::DEFAULT.blur_px,
+        crate::lava::FROST_BLUR_PX,
+        "frost blur default == lava const"
+    );
     assert_eq!(
         Frost::DEFAULT.feather_px,
         crate::lava::FROST_FEATHER_PX,
@@ -958,13 +1129,26 @@ fn frost_recipe_is_a_per_world_capability_defaulting_to_the_shipped_lava_values(
             t.name,
             f.dim
         );
-        assert!(f.blur_px > 0.0, "{}: frost blur must be positive ({})", t.name, f.blur_px);
-        assert!(f.feather_px >= 0.0, "{}: frost feather must be non-negative ({})", t.name, f.feather_px);
+        assert!(
+            f.blur_px > 0.0,
+            "{}: frost blur must be positive ({})",
+            t.name,
+            f.blur_px
+        );
+        assert!(
+            f.feather_px >= 0.0,
+            "{}: frost feather must be non-negative ({})",
+            t.name,
+            f.feather_px
+        );
         if t.background.is_lava() {
             saw_lava = true;
         }
     }
-    assert!(saw_lava, "a lava world ships (the frost capability has a live consumer)");
+    assert!(
+        saw_lava,
+        "a lava world ships (the frost capability has a live consumer)"
+    );
 }
 
 /// ITEM 65's FOLD-AFFORDANCE CAPABILITY law (mirrors
@@ -1019,7 +1203,10 @@ fn fold_afford_is_a_per_world_capability_inert_off_the_lava_worlds() {
             );
         }
     }
-    assert!(saw_dialed, "a lava world dials its own fold-afford lift (the capability has a live consumer)");
+    assert!(
+        saw_dialed,
+        "a lava world dials its own fold-afford lift (the capability has a live consumer)"
+    );
 }
 
 /// FIRETAIL PALETTE CHARACTER law: the sixteenth world is an ORIGINAL deep
@@ -1035,9 +1222,7 @@ fn firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet() {
         let dr = a.r as f32 - b.r as f32;
         let dg = a.g as f32 - b.g as f32;
         let db = a.b as f32 - b.b as f32;
-        ((2.0 + rbar / 256.0) * dr * dr
-            + 4.0 * dg * dg
-            + (2.0 + (255.0 - rbar) / 256.0) * db * db)
+        ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
             .sqrt()
     }
     fn hue_gap(a: f32, b: f32) -> f32 {
@@ -1080,8 +1265,7 @@ fn firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet() {
         "Firetail caret hue {caret_h:.1}° must stay ember-gold"
     );
     assert!(
-        hue_gap(caret_h, lo.to_hsl().0) >= 45.0
-            && hue_gap(caret_h, hi.to_hsl().0) >= 45.0,
+        hue_gap(caret_h, lo.to_hsl().0) >= 45.0 && hue_gap(caret_h, hi.to_hsl().0) >= 45.0,
         "Firetail's ember caret must stay at least 45° clear of both wine-lava tones"
     );
     assert!(
@@ -1092,8 +1276,15 @@ fn firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet() {
         redmean(FIRETAIL.primary, FIRETAIL.base_100) >= 300.0,
         "Firetail ember caret must remain immediately visible over the ground"
     );
-    assert_eq!(edge, model::LavaEdge::Glow, "Firetail keeps its authored glow");
-    assert!(!dithered, "Firetail stays smooth; Mangrove owns lava dither");
+    assert_eq!(
+        edge,
+        model::LavaEdge::Glow,
+        "Firetail keeps its authored glow"
+    );
+    assert!(
+        !dithered,
+        "Firetail stays smooth; Mangrove owns lava dither"
+    );
 }
 
 /// NUMERIC INTER-WORLD DISTINCTNESS law: compare Firetail's WHOLE authored token
@@ -1108,9 +1299,7 @@ fn firetail_palette_is_numerically_distinct_from_every_other_world() {
         let dr = a.r as f32 - b.r as f32;
         let dg = a.g as f32 - b.g as f32;
         let db = a.b as f32 - b.b as f32;
-        ((2.0 + rbar / 256.0) * dr * dr
-            + 4.0 * dg * dg
-            + (2.0 + (255.0 - rbar) / 256.0) * db * db)
+        ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
             .sqrt()
     }
     fn tokens(t: &Theme) -> [Srgb; 10] {
@@ -1163,9 +1352,7 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
         let dr = a.r as f32 - b.r as f32;
         let dg = a.g as f32 - b.g as f32;
         let db = a.b as f32 - b.b as f32;
-        ((2.0 + rbar / 256.0) * dr * dr
-            + 4.0 * dg * dg
-            + (2.0 + (255.0 - rbar) / 256.0) * db * db)
+        ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
             .sqrt()
     }
     fn tokens(t: &Theme) -> [Srgb; 10] {
@@ -1222,20 +1409,44 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
     let ground = Srgb::rgb(0x11, 0x27, 0x23);
     let lo = Srgb::rgb(0x17, 0x23, 0x2b);
     let hi = Srgb::rgb(0x22, 0x3c, 0x4f);
-    let bg = Background::Lava { ground, blob_lo: lo, blob_hi: hi, edge: model::LavaEdge::Glow, dithered: true };
+    let bg = Background::Lava {
+        ground,
+        blob_lo: lo,
+        blob_hi: hi,
+        edge: model::LavaEdge::Glow,
+        dithered: true,
+    };
     // Degrades to a FLAT ground of the lava `ground`, shader 0 (no margin marks).
     assert_eq!(bg.shader_id(), 0);
     assert_eq!(bg.from(), ground);
     assert_eq!(bg.to(), ground, "flat: from == to");
     assert_eq!(bg.tint(), ground);
-    assert!(!bg.edge(), "the Dots proximity flag is unrelated to LavaEdge");
+    assert!(
+        !bg.edge(),
+        "the Dots proximity flag is unrelated to LavaEdge"
+    );
     assert_eq!(bg.as_str(), "lava");
     // The one is_lava variant + its params.
     assert!(bg.is_lava());
-    assert!(!Background::Gradient { from: ground, to: ground, dir: (0.0, 1.0) }.is_lava());
-    assert_eq!(bg.lava_params(), Some((ground, lo, hi, model::LavaEdge::Glow, true)));
+    assert!(
+        !Background::Gradient {
+            from: ground,
+            to: ground,
+            dir: (0.0, 1.0)
+        }
+        .is_lava()
+    );
     assert_eq!(
-        Background::Gradient { from: ground, to: ground, dir: (0.0, 1.0) }.lava_params(),
+        bg.lava_params(),
+        Some((ground, lo, hi, model::LavaEdge::Glow, true))
+    );
+    assert_eq!(
+        Background::Gradient {
+            from: ground,
+            to: ground,
+            dir: (0.0, 1.0)
+        }
+        .lava_params(),
         None
     );
     // LavaEdge contract (the shader mask-mode selector + sidecar names).
@@ -1266,8 +1477,12 @@ fn mangrove_is_jetbrains_mono() {
 /// face (`mono == font`); every other world borrows a bundled mono (`mono != font`).
 #[test]
 fn every_world_has_a_bundled_mono() {
-    const BUNDLED_MONOS: [&str; 4] =
-        ["IBM Plex Mono", "JetBrains Mono", "Monaspace Xenon", "Iosevka"];
+    const BUNDLED_MONOS: [&str; 4] = [
+        "IBM Plex Mono",
+        "JetBrains Mono",
+        "Monaspace Xenon",
+        "Iosevka",
+    ];
     // The worlds whose DISPLAY face is itself a bundled mono (so they reuse it).
     // Wagtail was the FIFTH (sharing Mangrove's JetBrains Mono); Firetail is the
     // SIXTH — it derives from Potoroo's warm den and shares its Monaspace Xenon
@@ -1275,8 +1490,15 @@ fn every_world_has_a_bundled_mono() {
     // bundled display faces; see `worlds.rs::FIRETAIL`'s own doc comment).
     // Cassowary (the NERV terminal) is the SEVENTH — it shares Currawong's
     // Iosevka as the terminal-readout face for both display and code.
-    const MONO_DISPLAY: [&str; 7] =
-        ["Tawny", "Currawong", "Potoroo", "Mangrove", "Wagtail", "Firetail", "Cassowary"];
+    const MONO_DISPLAY: [&str; 7] = [
+        "Tawny",
+        "Currawong",
+        "Potoroo",
+        "Mangrove",
+        "Wagtail",
+        "Firetail",
+        "Cassowary",
+    ];
     for t in THEMES.iter() {
         assert!(
             BUNDLED_MONOS.contains(&t.mono),
@@ -1285,7 +1507,11 @@ fn every_world_has_a_bundled_mono() {
             t.mono
         );
         if MONO_DISPLAY.contains(&t.name) {
-            assert_eq!(t.mono, t.font, "{} has a mono display face → must reuse it", t.name);
+            assert_eq!(
+                t.mono, t.font,
+                "{} has a mono display face → must reuse it",
+                t.name
+            );
         } else {
             assert_ne!(
                 t.mono, t.font,
@@ -1322,19 +1548,48 @@ fn cjk_fallback_matches_world_character() {
     let zenmaru = ["Galah", "Bowerbird"];
     let klee = ["Mopoke", "Quokka"];
     let mincho = ["Saltpan", "Mulga", "Magpie"]; // neutral serif (Noto Serif JP)
-    let gothic = ["Tawny", "Potoroo", "Mangrove", "Currawong", "Wagtail", "Firetail", "Brolga", "Cassowary"]; // neutral sans/mono (Noto Sans JP)
+    let gothic = [
+        "Tawny",
+        "Potoroo",
+        "Mangrove",
+        "Currawong",
+        "Wagtail",
+        "Firetail",
+        "Brolga",
+        "Cassowary",
+    ]; // neutral sans/mono (Noto Sans JP)
     for t in THEMES.iter() {
         assert!(!t.cjk.is_empty(), "{} has no CJK fallback list", t.name);
         if shippori.contains(&t.name) {
-            assert_eq!(t.cjk, CJK_JA_SHIPPORI, "{} is a book-serif world -> Shippori JA", t.name);
+            assert_eq!(
+                t.cjk, CJK_JA_SHIPPORI,
+                "{} is a book-serif world -> Shippori JA",
+                t.name
+            );
         } else if zenmaru.contains(&t.name) {
-            assert_eq!(t.cjk, CJK_JA_ZENMARU, "{} is a sans world -> Zen Maru JA", t.name);
+            assert_eq!(
+                t.cjk, CJK_JA_ZENMARU,
+                "{} is a sans world -> Zen Maru JA",
+                t.name
+            );
         } else if klee.contains(&t.name) {
-            assert_eq!(t.cjk, CJK_JA_KLEE, "{} is a Klee world -> Klee One JA", t.name);
+            assert_eq!(
+                t.cjk, CJK_JA_KLEE,
+                "{} is a Klee world -> Klee One JA",
+                t.name
+            );
         } else if mincho.contains(&t.name) {
-            assert_eq!(t.cjk, CJK_MINCHO, "{} is a neutral serif world -> mincho JA", t.name);
+            assert_eq!(
+                t.cjk, CJK_MINCHO,
+                "{} is a neutral serif world -> mincho JA",
+                t.name
+            );
         } else if gothic.contains(&t.name) {
-            assert_eq!(t.cjk, CJK_GOTHIC, "{} is a neutral sans/mono world -> gothic JA", t.name);
+            assert_eq!(
+                t.cjk, CJK_GOTHIC,
+                "{} is a neutral sans/mono world -> gothic JA",
+                t.name
+            );
         } else {
             panic!("{} not classified for CJK fallback", t.name);
         }
@@ -1342,19 +1597,44 @@ fn cjk_fallback_matches_world_character() {
     // Priority order: bundled face first, macOS Hiragino, Linux Noto CJK. The
     // three variety ladders keep the NEUTRAL Noto face as their bundled floor
     // (so `AWL_CJK_FORCE=floor` drops cleanly to it; never-tofu unchanged).
-    assert_eq!(CJK_MINCHO, &["Noto Serif JP", "Hiragino Mincho ProN", "Noto Serif CJK JP"]);
-    assert_eq!(CJK_GOTHIC, &["Noto Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP"]);
+    assert_eq!(
+        CJK_MINCHO,
+        &["Noto Serif JP", "Hiragino Mincho ProN", "Noto Serif CJK JP"]
+    );
+    assert_eq!(
+        CJK_GOTHIC,
+        &[
+            "Noto Sans JP",
+            "Hiragino Kaku Gothic ProN",
+            "Noto Sans CJK JP"
+        ]
+    );
     assert_eq!(
         CJK_JA_SHIPPORI,
-        &["Shippori Mincho", "Noto Serif JP", "Hiragino Mincho ProN", "Noto Serif CJK JP"]
+        &[
+            "Shippori Mincho",
+            "Noto Serif JP",
+            "Hiragino Mincho ProN",
+            "Noto Serif CJK JP"
+        ]
     );
     assert_eq!(
         CJK_JA_ZENMARU,
-        &["Zen Maru Gothic", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP"]
+        &[
+            "Zen Maru Gothic",
+            "Noto Sans JP",
+            "Hiragino Kaku Gothic ProN",
+            "Noto Sans CJK JP"
+        ]
     );
     assert_eq!(
         CJK_JA_KLEE,
-        &["Klee One", "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP"]
+        &[
+            "Klee One",
+            "Noto Sans JP",
+            "Hiragino Kaku Gothic ProN",
+            "Noto Sans CJK JP"
+        ]
     );
 }
 
@@ -1456,8 +1736,16 @@ fn every_world_has_an_ornament_scale() {
     let by = |name: &str| set_active_by_name(name).unwrap().ornament_scale;
     let _t = crate::testlock::serial();
     assert_eq!(by("Mopoke"), 2.2, "Mopoke (Junicode flowers) is ornate 2.2");
-    assert_eq!(by("Bombora"), 1.8, "Bombora (Garamond fleurons) is fleuron 1.8");
-    assert_eq!(by("Currawong"), 1.5, "Currawong (geometric marks) is geometric 1.5");
+    assert_eq!(
+        by("Bombora"),
+        1.8,
+        "Bombora (Garamond fleurons) is fleuron 1.8"
+    );
+    assert_eq!(
+        by("Currawong"),
+        1.5,
+        "Currawong (geometric marks) is geometric 1.5"
+    );
     set_active(DEFAULT_THEME);
 }
 
@@ -1472,7 +1760,11 @@ fn every_world_has_an_ornament_scale() {
 /// showpiece (Bombora's level-1 ☞, exclusive to that one level).
 #[test]
 fn every_world_has_a_bullet_pair() {
-    assert_eq!(BULLETS_PLAIN, ('•', '◦', '▪'), "the plain bullet triple is • / ◦ / ▪");
+    assert_eq!(
+        BULLETS_PLAIN,
+        ('•', '◦', '▪'),
+        "the plain bullet triple is • / ◦ / ▪"
+    );
     assert_eq!(BULLET_SCALE_PLAIN, 1.0, "plain bullets keep body size");
     assert!(
         BULLET_SCALE_ORNAMENT > 0.0 && BULLET_SCALE_ORNAMENT < BULLET_SCALE_PLAIN,
@@ -1561,7 +1853,10 @@ fn every_world_has_a_bullet_pair() {
     // The manicule showpiece: Bombora alone rides the antique pointing hand,
     // at its top level (level 1) — NEVER at level 3 either (the rotation
     // composes with, never dilutes, item 7's "one world, one level" pick).
-    assert_eq!(BOMBORA.bullets.0, '☞', "Bombora's level-1 bullet is the manicule");
+    assert_eq!(
+        BOMBORA.bullets.0, '☞',
+        "Bombora's level-1 bullet is the manicule"
+    );
     assert!(
         THEMES
             .iter()
@@ -1584,7 +1879,10 @@ fn every_world_has_a_bullet_pair() {
 /// already give.
 #[test]
 fn every_world_has_a_list_indent_scale() {
-    assert_eq!(LIST_INDENT_SCALE_PLAIN, 1.0, "the plain tier is byte-identical");
+    assert_eq!(
+        LIST_INDENT_SCALE_PLAIN, 1.0,
+        "the plain tier is byte-identical"
+    );
     assert!(
         LIST_INDENT_SCALE_WIDE > LIST_INDENT_SCALE_PLAIN,
         "the wide tier must actually widen the indent"
@@ -1597,7 +1895,11 @@ fn every_world_has_a_list_indent_scale() {
             t.name,
             t.list_indent_scale
         );
-        assert!(t.list_indent_scale >= 1.0, "{}: indent scale must never shrink the typed indent", t.name);
+        assert!(
+            t.list_indent_scale >= 1.0,
+            "{}: indent scale must never shrink the typed indent",
+            t.name
+        );
         let plain_pair = t.bullets == BULLETS_PLAIN;
         assert_eq!(
             t.list_indent_scale == LIST_INDENT_SCALE_PLAIN,
@@ -1628,24 +1930,62 @@ fn latin_candidates_is_the_worlds_own_display_face() {
 fn zh_hans_ladder_matches_world_character_with_klee_override() {
     let mincho = ["Gumtree", "Saltpan", "Bilby", "Bombora", "Mulga", "Magpie"];
     let klee = ["Mopoke", "Quokka"];
-    let gothic = ["Tawny", "Potoroo", "Mangrove", "Galah", "Bowerbird", "Currawong", "Wagtail", "Firetail", "Brolga", "Cassowary"];
+    let gothic = [
+        "Tawny",
+        "Potoroo",
+        "Mangrove",
+        "Galah",
+        "Bowerbird",
+        "Currawong",
+        "Wagtail",
+        "Firetail",
+        "Brolga",
+        "Cassowary",
+    ];
     for t in THEMES.iter() {
-        assert!(!t.zh_hans.is_empty(), "{} has no zh-Hans candidate list", t.name);
+        assert!(
+            !t.zh_hans.is_empty(),
+            "{} has no zh-Hans candidate list",
+            t.name
+        );
         if klee.contains(&t.name) {
-            assert_eq!(t.zh_hans, CJK_ZH_HANS_KLEE, "{} is a Klee world -> WenKai zh-Hans", t.name);
+            assert_eq!(
+                t.zh_hans, CJK_ZH_HANS_KLEE,
+                "{} is a Klee world -> WenKai zh-Hans",
+                t.name
+            );
         } else if mincho.contains(&t.name) {
-            assert_eq!(t.zh_hans, CJK_ZH_HANS_SERIF, "{} is a serif world -> Serif SC zh-Hans", t.name);
+            assert_eq!(
+                t.zh_hans, CJK_ZH_HANS_SERIF,
+                "{} is a serif world -> Serif SC zh-Hans",
+                t.name
+            );
         } else if gothic.contains(&t.name) {
-            assert_eq!(t.zh_hans, CJK_ZH_HANS_SANS, "{} is a sans/mono world -> Sans SC zh-Hans", t.name);
+            assert_eq!(
+                t.zh_hans, CJK_ZH_HANS_SANS,
+                "{} is a sans/mono world -> Sans SC zh-Hans",
+                t.name
+            );
         } else {
             panic!("{} not classified for zh-Hans fallback", t.name);
         }
     }
-    assert_eq!(CJK_ZH_HANS_SERIF, &["Noto Serif SC", "PingFang SC", "Noto Sans CJK SC"]);
-    assert_eq!(CJK_ZH_HANS_SANS, &["Noto Sans SC", "PingFang SC", "Noto Sans CJK SC"]);
+    assert_eq!(
+        CJK_ZH_HANS_SERIF,
+        &["Noto Serif SC", "PingFang SC", "Noto Sans CJK SC"]
+    );
+    assert_eq!(
+        CJK_ZH_HANS_SANS,
+        &["Noto Sans SC", "PingFang SC", "Noto Sans CJK SC"]
+    );
     assert_eq!(
         CJK_ZH_HANS_KLEE,
-        &["LXGW WenKai", "Noto Sans SC", "PingFang SC", "Noto Sans CJK SC"]
+        &[
+            "LXGW WenKai",
+            "Noto Sans SC",
+            "PingFang SC",
+            "Noto Sans CJK SC"
+        ]
     );
 }
 
@@ -1666,7 +2006,11 @@ fn zh_hant_uniform_ko_splits_serif_from_sans() {
     for t in THEMES.iter() {
         assert_eq!(t.zh_hant, CJK_ZH_HANT, "{}: zh-Hant stays uniform", t.name);
         if serif.contains(&t.name) {
-            assert_eq!(t.ko, CJK_KO_SERIF, "{} is a serif world -> Gowun Batang ko", t.name);
+            assert_eq!(
+                t.ko, CJK_KO_SERIF,
+                "{} is a serif world -> Gowun Batang ko",
+                t.name
+            );
             // A serif world's ko is a mincho-family ja ladder, never gothic.
             assert!(
                 t.zh_hans == CJK_ZH_HANS_SERIF,
@@ -1674,11 +2018,18 @@ fn zh_hant_uniform_ko_splits_serif_from_sans() {
                 t.name
             );
         } else {
-            assert_eq!(t.ko, CJK_KO, "{} is a sans/mono world -> Noto Sans KR ko", t.name);
+            assert_eq!(
+                t.ko, CJK_KO,
+                "{} is a sans/mono world -> Noto Sans KR ko",
+                t.name
+            );
         }
     }
     assert_eq!(CJK_ZH_HANT, &["PingFang TC", "Noto Sans CJK TC"]);
-    assert_eq!(CJK_KO, &["Noto Sans KR", "Apple SD Gothic Neo", "Noto Sans CJK KR"]);
+    assert_eq!(
+        CJK_KO,
+        &["Noto Sans KR", "Apple SD Gothic Neo", "Noto Sans CJK KR"]
+    );
     // Gowun Batang FIRST (the bundled characterful serif Korean), then the
     // SAME Noto Sans KR bundled floor CJK_KO uses (the AWL_CJK_FORCE=floor
     // target), then serif-first system trailing candidates.
@@ -1696,7 +2047,10 @@ fn zh_hant_uniform_ko_splits_serif_from_sans() {
     // The floor CJK_KO_SERIF drops to under AWL_CJK_FORCE=floor is exactly
     // CJK_KO's bundled floor — so the ko-worlds gallery's "floor" side is the
     // plain Noto Sans KR, machine-independent.
-    assert_eq!(CJK_KO_SERIF[1], CJK_KO[0], "ko-serif floor == the bundled Noto Sans KR floor");
+    assert_eq!(
+        CJK_KO_SERIF[1], CJK_KO[0],
+        "ko-serif floor == the bundled Noto Sans KR floor"
+    );
 }
 
 /// AXIS COVERAGE RULER (the reason [`Lens`] + [`ThemeTags`] survive after the theme
@@ -1724,7 +2078,12 @@ fn axis_coverage_ruler() {
                 );
             }
             // The name-keyed accessor agrees with the inline field.
-            assert_eq!(tag_for(t.name, lens), t.tags.section(lens), "{} tag_for disagrees", t.name);
+            assert_eq!(
+                tag_for(t.name, lens),
+                t.tags.section(lens),
+                "{} tag_for disagrees",
+                t.name
+            );
         }
         // Every declared header shows a CURATED band of worlds: never an empty
         // faint header, never the pre-curation crowd (Time=Night once held 6). The
@@ -1804,7 +2163,9 @@ fn roster_position_is_name_stable() {
         assert_eq!(got.name, t.name);
         // Case-insensitive too (the config value is compared ASCII-insensitively).
         assert_eq!(
-            set_active_by_name(&t.name.to_ascii_lowercase()).unwrap().name,
+            set_active_by_name(&t.name.to_ascii_lowercase())
+                .unwrap()
+                .name,
             t.name
         );
     }
@@ -1893,10 +2254,18 @@ fn surface_selected_is_an_opaque_ramp_step_past_base_300() {
         // never by hue or translucency, which no longer exist to distinguish
         // them with. See THEMES.md's "The 1-bit law".
         if t.is_one_bit() {
-            assert_eq!(band, t.selection, "{}: one-bit surface_selected and selection are necessarily the same pure white", t.name);
+            assert_eq!(
+                band, t.selection,
+                "{}: one-bit surface_selected and selection are necessarily the same pure white",
+                t.name
+            );
             continue;
         }
-        assert_ne!(band, t.selection, "{} band must not be the selection token", t.name);
+        assert_ne!(
+            band, t.selection,
+            "{} band must not be the selection token",
+            t.name
+        );
         // Each channel continues the base_200 -> base_300 step SELECTED_BAND_STEPS
         // more increments, or saturates at the gamut edge (never reverses direction).
         let want = SELECTED_BAND_STEPS;
@@ -1908,9 +2277,17 @@ fn surface_selected_is_an_opaque_ramp_step_past_base_300() {
             let dir = hi as i32 - lo as i32; // ramp direction (toward the ink)
             let step = got as i32 - hi as i32; // band's move past base_300
             if dir > 0 {
-                assert!(step >= 0 && (got == 255 || step == dir * want), "{} band channel reversed", t.name);
+                assert!(
+                    step >= 0 && (got == 255 || step == dir * want),
+                    "{} band channel reversed",
+                    t.name
+                );
             } else if dir < 0 {
-                assert!(step <= 0 && (got == 0 || step == dir * want), "{} band channel reversed", t.name);
+                assert!(
+                    step <= 0 && (got == 0 || step == dir * want),
+                    "{} band channel reversed",
+                    t.name
+                );
             }
         }
     }
@@ -1925,7 +2302,12 @@ fn selection_is_the_only_translucent_token() {
         assert_eq!(t.error.a, 0xFF);
         // The margin gradient endpoints are opaque (the shader owns the
         // margin opacity), so selection stays the only translucent token.
-        assert_eq!(t.background.from().a, 0xFF, "{} background from alpha", t.name);
+        assert_eq!(
+            t.background.from().a,
+            0xFF,
+            "{} background from alpha",
+            t.name
+        );
         assert_eq!(t.background.to().a, 0xFF, "{} background to alpha", t.name);
         // TRUE 1-BIT WORLDS (`Theme::is_one_bit`): a DECLARED exemption from
         // "selection is THE translucent token" — any alpha strictly between 0
@@ -1936,7 +2318,11 @@ fn selection_is_the_only_translucent_token() {
         // `TextPipeline::selection_invert`), not by this token's alpha. See
         // THEMES.md's "The 1-bit law".
         if t.is_one_bit() {
-            assert_eq!(t.selection.a, 0xFF, "{}: one-bit selection must be fully OPAQUE", t.name);
+            assert_eq!(
+                t.selection.a, 0xFF,
+                "{}: one-bit selection must be fully OPAQUE",
+                t.name
+            );
             continue;
         }
         // Selection is the ONE translucent token — a calm highlight, never opaque
@@ -1947,7 +2333,8 @@ fn selection_is_the_only_translucent_token() {
         assert!(
             (0x40..0xA0).contains(&t.selection.a),
             "{} selection alpha {:#04x} outside the calm-translucent band [0x40, 0xA0)",
-            t.name, t.selection.a
+            t.name,
+            t.selection.a
         );
     }
 }
@@ -1975,7 +2362,11 @@ fn wysiwyg_value_step_law_holds_for_every_world() {
         // world with only two legal values and no border companion for this
         // specific primitive; see THEMES.md's "The 1-bit law".
         if t.is_one_bit() {
-            assert_eq!(t.base_200, t.base_100, "{}: one-bit base_200 stays flush with the ground (the panel/pill's OFF answer)", t.name);
+            assert_eq!(
+                t.base_200, t.base_100,
+                "{}: one-bit base_200 stays flush with the ground (the panel/pill's OFF answer)",
+                t.name
+            );
             continue;
         }
         assert_ne!(
@@ -1985,7 +2376,8 @@ fn wysiwyg_value_step_law_holds_for_every_world() {
         );
         assert_ne!(
             t.base_200, t.primary,
-            "{}: base_200 must never be exactly the accent color", t.name
+            "{}: base_200 must never be exactly the accent color",
+            t.name
         );
     }
 }
@@ -2006,9 +2398,11 @@ fn every_world_has_a_real_margin_gradient() {
         // every pixel). See THEMES.md's "The 1-bit law".
         if t.is_one_bit() {
             assert_eq!(
-                bg.from(), bg.to(),
+                bg.from(),
+                bg.to(),
                 "{}: a one-bit world's margin gradient must be FLAT (from == to) — \
-                 any real gradient interpolates through forbidden greys", t.name
+                 any real gradient interpolates through forbidden greys",
+                t.name
             );
             continue;
         }
@@ -2020,14 +2414,17 @@ fn every_world_has_a_real_margin_gradient() {
         // painted before the overlay draws. See `Background::Lava`'s shader_id() doc.
         if t.background.is_lava() {
             assert_eq!(
-                bg.from(), bg.to(),
+                bg.from(),
+                bg.to(),
                 "{}: a lava world's BASE margin ground must be FLAT (the lava overlay \
-                 carries the motion)", t.name
+                 carries the motion)",
+                t.name
             );
             continue;
         }
         assert_ne!(
-            bg.from(), bg.to(),
+            bg.from(),
+            bg.to(),
             "{} margin gradient is degenerate (from == to)",
             t.name
         );
@@ -2084,15 +2481,24 @@ fn at_least_six_distinct_faces() {
 /// (they never touch the text) cover the appearance half.
 #[test]
 fn mopoke_body_face_is_bitter_with_the_item_30_bullet_triple() {
-    assert_eq!(MOPOKE.font, "Bitter", "Mopoke's body face is the warm slab Bitter");
-    assert_eq!(MOPOKE.mono, "IBM Plex Mono", "Mopoke keeps IBM Plex Mono for code");
+    assert_eq!(
+        MOPOKE.font, "Bitter",
+        "Mopoke's body face is the warm slab Bitter"
+    );
+    assert_eq!(
+        MOPOKE.mono, "IBM Plex Mono",
+        "Mopoke keeps IBM Plex Mono for code"
+    );
     assert_eq!(
         MOPOKE.bullets,
         ('\u{E670}', '\u{EF92}', '\u{E67D}'),
         "Mopoke's bullet triple descends in weight within one ornament register"
     );
     // Face-sharing is precedented, never a new asset: Magpie draws in Bitter too.
-    assert_eq!(MAGPIE.font, "Bitter", "Bitter is bundled + shared (Magpie's masthead face)");
+    assert_eq!(
+        MAGPIE.font, "Bitter",
+        "Bitter is bundled + shared (Magpie's masthead face)"
+    );
 }
 
 /// THE LAW ROUND's `Theme::highlight_treatment` — a NO-ABSENT-VARIANT
@@ -2114,7 +2520,11 @@ fn highlight_treatment_matches_selection_style_on_every_world_no_absent_case() {
                 crate::theme::SelectionStyle::Fill,
                 crate::theme::HighlightTreatment::ValueBand(c),
             ) => {
-                assert_eq!(c, band, "{}: ValueBand must carry the caller's own band color", t.name);
+                assert_eq!(
+                    c, band,
+                    "{}: ValueBand must carry the caller's own band color",
+                    t.name
+                );
             }
             (
                 crate::theme::SelectionStyle::InverseVideo,
@@ -2122,8 +2532,16 @@ fn highlight_treatment_matches_selection_style_on_every_world_no_absent_case() {
             ) => {
                 // A 1-bit world resolves the pair off its OWN ladder, not the
                 // caller's `band`: solid `base_content` fill + `base_300` glyphs.
-                assert_eq!(b, t.base_content, "{}: InverseFill band must be base_content", t.name);
-                assert_eq!(ink, t.base_300, "{}: InverseFill ink must be base_300", t.name);
+                assert_eq!(
+                    b, t.base_content,
+                    "{}: InverseFill band must be base_content",
+                    t.name
+                );
+                assert_eq!(
+                    ink, t.base_300,
+                    "{}: InverseFill ink must be base_300",
+                    t.name
+                );
             }
             (style, treatment) => panic!(
                 "{}: selection_style {style:?} produced the WRONG treatment {treatment:?} — \
@@ -2143,7 +2561,11 @@ fn lerp_interpolates_and_clamps() {
     let b = Srgb::rgb(100, 200, 40);
     assert_eq!(a.lerp(b, 0.0), a, "t=0 is exactly self");
     assert_eq!(a.lerp(b, 1.0), b, "t=1 is exactly other");
-    assert_eq!(a.lerp(b, 0.5), Srgb::rgb(50, 100, 20), "t=0.5 is the exact midpoint");
+    assert_eq!(
+        a.lerp(b, 0.5),
+        Srgb::rgb(50, 100, 20),
+        "t=0.5 is the exact midpoint"
+    );
     // Out-of-range t clamps rather than extrapolating past either endpoint.
     assert_eq!(a.lerp(b, -1.0), a, "t<0 clamps to self");
     assert_eq!(a.lerp(b, 2.0), b, "t>1 clamps to other");
@@ -2290,7 +2712,11 @@ fn placard_inks_read_on_dark_grounds_and_stay_below_muted() {
     fn rel_lum(c: Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -2369,7 +2795,11 @@ fn stipple_placard_density_clears_the_legibility_floor_over_its_own_ground() {
     fn rel_lum(c: Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -2483,7 +2913,10 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 facet_style: FacetStyle::Chips(ChipVariant::Bracket),
                 // ITEM 65 (Fable adjustment): both marks lifted — see
                 // `worlds::MANGROVE`'s own doc.
-                fold_afford: model::FoldAfford { chevron_lift: 0.60, tail_lift: 0.75 },
+                fold_afford: model::FoldAfford {
+                    chevron_lift: 0.60,
+                    tail_lift: 0.75,
+                },
                 ..RenderCaps::DEFAULT
             },
             // CHROME-VOICES FLIP (2026-07-16): the loud-end world's own loud
@@ -2507,7 +2940,10 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 facet_style: FacetStyle::Chips(ChipVariant::FilledActive),
                 // ITEM 65 (Fable adjustment): the tail alone is lifted — the
                 // chevron already read fine — see `worlds::FIRETAIL`'s own doc.
-                fold_afford: model::FoldAfford { chevron_lift: 0.0, tail_lift: 0.40 },
+                fold_afford: model::FoldAfford {
+                    chevron_lift: 0.0,
+                    tail_lift: 0.40,
+                },
                 ..RenderCaps::DEFAULT
             },
             // C2: the iconic dark-technical statement world anchors TopLeft.
@@ -2599,9 +3035,10 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // Brolga (the SEVENTEENTH world, the cool light pole) joins them —
             // a crisp rim off its pale sky-blue ground; deliberately NO page
             // frame (the DAWN round's 1px light-pole frame was user-rejected).
-            "Gumtree" | "Saltpan" | "Brolga" => {
-                RenderCaps { elevation: Elevation::Bordered, ..RenderCaps::DEFAULT }
-            }
+            "Gumtree" | "Saltpan" | "Brolga" => RenderCaps {
+                elevation: Elevation::Bordered,
+                ..RenderCaps::DEFAULT
+            },
             // ITEM 70 — Quokka alone assigns the non-default printed-card caps
             // (see `worlds::QUOKKA`'s own doc): a small rotated dot lattice
             // rolling off toward the left content side, and a crisp 45°
@@ -2809,7 +3246,11 @@ fn dialup_placard_inks_stay_on_the_ladder_below_full_ink() {
     fn rel_lum(c: Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -2893,7 +3334,11 @@ fn streaks_heatmap_levels_are_distinguishable_every_world() {
     fn rel_lum(c: Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -2911,9 +3356,19 @@ fn streaks_heatmap_levels_are_distinguishable_every_world() {
             // 1-BIT DEGRADATION: empty = ground token, every filled rung = full ink,
             // and both are pure (no forbidden intermediate grey). A written cell must
             // still read against the ground.
-            assert_eq!(colors[0], base_200(), "{}: 1-bit empty rung is the ground token", t.name);
+            assert_eq!(
+                colors[0],
+                base_200(),
+                "{}: 1-bit empty rung is the ground token",
+                t.name
+            );
             for c in &colors[1..] {
-                assert_eq!(*c, base_content(), "{}: 1-bit filled rung is full ink", t.name);
+                assert_eq!(
+                    *c,
+                    base_content(),
+                    "{}: 1-bit filled rung is full ink",
+                    t.name
+                );
             }
             assert!(
                 (rel_lum(colors[4]) - rel_lum(ground)).abs() > 0.5,
@@ -2933,13 +3388,18 @@ fn streaks_heatmap_levels_are_distinguishable_every_world() {
             assert!(
                 (y - rel_lum(ground)).abs() >= MIN_STEP,
                 "{}: filled level {i} (Y {:.4}) not distinguishable from base_300 ground (Y {:.4})",
-                t.name, y, rel_lum(ground)
+                t.name,
+                y,
+                rel_lum(ground)
             );
             // Distinguishable from — and climbing past — the previous rung.
             assert!(
                 (y - prev) * ink_dir >= MIN_STEP,
                 "{}: level {i} (Y {:.4}) is not a clear step up from level {} (Y {:.4})",
-                t.name, y, i - 1, prev
+                t.name,
+                y,
+                i - 1,
+                prev
             );
             prev = y;
             // NEVER THE ACCENT: every square rides the world's own ink ladder (a
@@ -2956,14 +3416,21 @@ fn streaks_heatmap_levels_are_distinguishable_every_world() {
             assert!(
                 s <= s_ink.max(s_empty) + 0.02,
                 "{}: heatmap level {i} (sat {:.2}) manufactures chroma beyond the ink ladder (max {:.2})",
-                t.name, s, s_ink.max(s_empty)
+                t.name,
+                s,
+                s_ink.max(s_empty)
             );
             // On an INK-CARET world the brightest rung IS the ink IS the accent
             // (`primary == base_content`; Wagtail's white, Cassowary's phosphor),
             // so "never literally primary" is structurally inapplicable — the
             // heatmap climbing to the full ink is the intended top level.
             if !t.ink_caret() {
-                assert_ne!(*c, primary(), "{}: heatmap level {i} must never be literally the accent", t.name);
+                assert_ne!(
+                    *c,
+                    primary(),
+                    "{}: heatmap level {i} must never be literally the accent",
+                    t.name
+                );
             }
         }
     }
@@ -3001,7 +3468,11 @@ fn wcag_contrast(a: Srgb, b: Srgb) -> f32 {
     fn rel_lum(c: Srgb) -> f32 {
         fn lin(u: u8) -> f32 {
             let s = u as f32 / 255.0;
-            if s <= 0.03928 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+            if s <= 0.03928 {
+                s / 12.92
+            } else {
+                ((s + 0.055) / 1.055).powf(2.4)
+            }
         }
         0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
     }
@@ -3063,7 +3534,9 @@ fn fold_tail_ink_clears_the_readable_floor_and_stays_quieter_than_heading_ink() 
             faint_c >= FOLD_TAIL_READABLE_FLOOR,
             "{}: the fold-tail ink (faint {:?} on base_100 {:?}) is only {faint_c:.2}:1, \
              below the readable floor {FOLD_TAIL_READABLE_FLOOR}:1",
-            t.name, t.faint, t.base_100
+            t.name,
+            t.faint,
+            t.base_100
         );
         if t.is_one_bit() {
             assert_eq!(
@@ -3128,7 +3601,10 @@ fn has_ambient_tick_composes_has_ambient_motion_or_waves_one_owner() {
         saw_a_flipped_waves_world,
         "at least one world (Bombora) must be a Waves world the widening actually reaches"
     );
-    assert!(BOMBORA.background.is_waves(), "Bombora ships Background::Waves (item 69/87)");
+    assert!(
+        BOMBORA.background.is_waves(),
+        "Bombora ships Background::Waves (item 69/87)"
+    );
     assert!(
         BOMBORA.has_ambient_tick() && !BOMBORA.has_ambient_motion(),
         "Bombora joins the shared tick WITHOUT joining the auto-page-on/move-hold gate \
@@ -3156,18 +3632,28 @@ fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
     assert!(active, "Bombora must join the shared tick gate (item 87)");
 
     // ambient_motion = false.
-    assert!(!crate::lava::lava_should_tick(active, false, false, true, false));
+    assert!(!crate::lava::lava_should_tick(
+        active, false, false, true, false
+    ));
     // Reduce Motion.
-    assert!(!crate::lava::lava_should_tick(active, true, true, true, false));
+    assert!(!crate::lava::lava_should_tick(
+        active, true, true, true, false
+    ));
     // Paused: window blurred / mid-move / mid-resize (the shared `paused` OR).
-    assert!(!crate::lava::lava_should_tick(active, true, false, true, true));
+    assert!(!crate::lava::lava_should_tick(
+        active, true, false, true, true
+    ));
     // Unfocused window.
-    assert!(!crate::lava::lava_should_tick(active, true, false, false, false));
+    assert!(!crate::lava::lava_should_tick(
+        active, true, false, false, false
+    ));
     // A non-Bombora active world never arms at all (Wagtail: 1-bit, no ambient
     // capability of any kind).
     let other = WAGTAIL.has_ambient_tick();
     assert!(!other, "Wagtail carries no ambient ground of any kind");
-    assert!(!crate::lava::lava_should_tick(other, true, false, true, false));
+    assert!(!crate::lava::lava_should_tick(
+        other, true, false, true, false
+    ));
 
     // Deterministic headless capture: `App::new_hermetic`'s / the capture
     // pipeline's `lava_phase` field starts (and, absent a live `about_to_wait`
@@ -3181,7 +3667,9 @@ fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
     // The genuinely NEW, non-vacuous case: every gate open, Bombora active —
     // the tick MUST arm (this is false for every OTHER world with no ambient
     // capability, and was unreachable for Bombora before this round).
-    assert!(crate::lava::lava_should_tick(active, true, false, true, false));
+    assert!(crate::lava::lava_should_tick(
+        active, true, false, true, false
+    ));
 }
 
 /// THE WORLD PIN, at its own seam (item 94): [`WorldPin`] is the EXPLICIT tool a
@@ -3239,7 +3727,11 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
     });
     std::panic::set_hook(quiet);
     assert!(out.is_err(), "the panic really happened (non-vacuous)");
-    assert_eq!(active_index(), before, "the pin restores while unwinding, not just on a clean exit");
+    assert_eq!(
+        active_index(),
+        before,
+        "the pin restores while unwinding, not just on a clean exit"
+    );
 }
 
 /// The process-global writer itself is the enforcement seam. A helper cannot
@@ -3342,8 +3834,7 @@ fn a_world_a_production_action_sets_survives_that_action() {
     let mut zoom = 1.0f32;
     let mut search = None;
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
-    let mut browse_to =
-        |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
         buffer: &mut buffer,
         shift_selecting: &mut shift,
@@ -3367,7 +3858,10 @@ fn a_world_a_production_action_sets_survives_that_action() {
         .and_then(|ov| ov.selected_value())
         .expect("the theme picker has a selected world")
         .to_string();
-    assert_ne!(previewed, THEMES[0].name, "the action genuinely previews another world");
+    assert_ne!(
+        previewed, THEMES[0].name,
+        "the action genuinely previews another world"
+    );
 
     let observed = active().name.to_string();
     set_active(original);

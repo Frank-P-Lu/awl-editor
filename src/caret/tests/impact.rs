@@ -61,17 +61,29 @@ fn type_impact_squashes_and_back_kicks_then_settles() {
         (a.pop_scale() - CARET_TYPE_IMPACT_SCALE).abs() < 1e-6,
         "a deliberate keystroke squashes to the full impact floor"
     );
-    assert!(a.vel.x < -1.0, "the back-kick recoils against forward typing (−x)");
+    assert!(
+        a.vel.x < -1.0,
+        "the back-kick recoils against forward typing (−x)"
+    );
     assert_eq!(a.vel.y, 0.0, "typing impact is horizontal only");
-    assert_eq!(a.pos, a.target, "impact rides the VISUAL caret; target untouched");
+    assert_eq!(
+        a.pos, a.target,
+        "impact rides the VISUAL caret; target untouched"
+    );
     // Run the live clock out: the spring AND the pop both settle back to rest.
     for _ in 0..600 {
         a.step(1.0 / 120.0);
         a.step_pop(1.0 / 120.0);
     }
     assert!(!a.is_animating(), "the back-kick decays to rest");
-    assert_eq!(a.pos, a.target, "settled caret is back on target (byte-identical)");
-    assert!((a.pop_scale() - 1.0).abs() < 1e-6, "the squash-pop settles to scale 1.0");
+    assert_eq!(
+        a.pos, a.target,
+        "settled caret is back on target (byte-identical)"
+    );
+    assert!(
+        (a.pop_scale() - 1.0).abs() < 1e-6,
+        "the squash-pop settles to scale 1.0"
+    );
 }
 
 #[test]
@@ -86,7 +98,11 @@ fn delete_squash_is_inward_only_no_velocity() {
         (a.pop_scale() - CARET_DELETE_SQUASH).abs() < 1e-6,
         "delete squashes to its floor"
     );
-    assert_eq!((a.vel.x, a.vel.y), (0.0, 0.0), "deletion is a pure squash, no kick");
+    assert_eq!(
+        (a.vel.x, a.vel.y),
+        (0.0, 0.0),
+        "deletion is a pure squash, no kick"
+    );
     assert_eq!(a.pos, a.target, "squash never moves the caret position");
 }
 
@@ -98,19 +114,32 @@ fn gulp_is_a_deeper_longer_pulse_than_a_char_delete() {
         CARET_GULP_SCALE < CARET_DELETE_SQUASH,
         "the gulp must dip deeper than a single-char delete squash"
     );
-    assert!(CARET_GULP_MS > CARET_POP_MS, "the gulp must run longer than the snappy pop");
+    assert!(
+        CARET_GULP_MS > CARET_POP_MS,
+        "the gulp must run longer than the snappy pop"
+    );
 
     let mut a = CaretAnim::new();
     a.set_target(100.0, 50.0);
     a.gulp();
-    assert!((a.pop_scale() - CARET_GULP_SCALE).abs() < 1e-6, "gulp squashes to its floor");
-    assert_eq!((a.vel.x, a.vel.y), (0.0, 0.0), "a gulp is a pure scale pulse, no kick");
+    assert!(
+        (a.pop_scale() - CARET_GULP_SCALE).abs() < 1e-6,
+        "gulp squashes to its floor"
+    );
+    assert_eq!(
+        (a.vel.x, a.vel.y),
+        (0.0, 0.0),
+        "a gulp is a pure scale pulse, no kick"
+    );
     // It settles back to rest like every flinch (byte-identical settled capture).
     let mut frames = 0;
     while a.step_pop(1.0 / 120.0) && frames < 1000 {
         frames += 1;
     }
-    assert!((a.pop_scale() - 1.0).abs() < 1e-6, "the gulp settles to scale 1.0");
+    assert!(
+        (a.pop_scale() - 1.0).abs() < 1e-6,
+        "the gulp settles to scale 1.0"
+    );
 }
 
 #[test]
@@ -127,14 +156,21 @@ fn line_land_is_a_pure_squash_no_velocity_kick() {
         (a.pop_scale() - CARET_LINE_LAND_SCALE).abs() < 1e-6,
         "line-land squashes to its floor"
     );
-    assert_eq!((a.vel.x, a.vel.y), (0.0, 0.0), "line-land is a pure squash, no kick");
+    assert_eq!(
+        (a.vel.x, a.vel.y),
+        (0.0, 0.0),
+        "line-land is a pure squash, no kick"
+    );
     assert_eq!(a.pos, a.target, "squash never moves the caret position");
     // It settles back to rest like every flinch (byte-identical settled capture).
     let mut frames = 0;
     while a.step_pop(1.0 / 120.0) && frames < 1000 {
         frames += 1;
     }
-    assert!((a.pop_scale() - 1.0).abs() < 1e-6, "line-land settles to scale 1.0");
+    assert!(
+        (a.pop_scale() - 1.0).abs() < 1e-6,
+        "line-land settles to scale 1.0"
+    );
 }
 
 #[test]
@@ -152,7 +188,10 @@ fn copy_pulse_is_the_gentlest_pure_squash_no_velocity_kick() {
             && CARET_COPY_PULSE_SCALE > CARET_POP_SCALE,
         "the copy pulse must read gentler than every other flinch/bounce"
     );
-    assert!(CARET_COPY_PULSE_SCALE < 1.0, "it must still be a visible dip");
+    assert!(
+        CARET_COPY_PULSE_SCALE < 1.0,
+        "it must still be a visible dip"
+    );
 
     let mut a = CaretAnim::new();
     a.set_target(100.0, 50.0);
@@ -161,14 +200,21 @@ fn copy_pulse_is_the_gentlest_pure_squash_no_velocity_kick() {
         (a.pop_scale() - CARET_COPY_PULSE_SCALE).abs() < 1e-6,
         "copy pulse squashes to its (gentle) floor"
     );
-    assert_eq!((a.vel.x, a.vel.y), (0.0, 0.0), "copy pulse is a pure squash, no kick");
+    assert_eq!(
+        (a.vel.x, a.vel.y),
+        (0.0, 0.0),
+        "copy pulse is a pure squash, no kick"
+    );
     assert_eq!(a.pos, a.target, "squash never moves the caret position");
     // It settles back to rest like every flinch (byte-identical settled capture).
     let mut frames = 0;
     while a.step_pop(1.0 / 120.0) && frames < 1000 {
         frames += 1;
     }
-    assert!((a.pop_scale() - 1.0).abs() < 1e-6, "copy pulse settles to scale 1.0");
+    assert!(
+        (a.pop_scale() - 1.0).abs() < 1e-6,
+        "copy pulse settles to scale 1.0"
+    );
 }
 
 #[test]
@@ -184,7 +230,10 @@ fn edit_flinch_is_velocity_damped_in_a_fast_burst() {
     rest.set_target(100.0, 50.0);
     rest.type_impact();
     let full_kick = rest.vel.x;
-    assert!((rest.pop_scale() - CARET_TYPE_IMPACT_SCALE).abs() < 1e-6, "rest = full squash");
+    assert!(
+        (rest.pop_scale() - CARET_TYPE_IMPACT_SCALE).abs() < 1e-6,
+        "rest = full squash"
+    );
     assert!(full_kick < -1.0, "rest = full back-kick");
 
     // Burst: the spring is already racing past the damp threshold. The flinch is

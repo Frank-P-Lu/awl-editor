@@ -4,12 +4,11 @@
 //! save, the save-feedback dirty/title/HUD-saved sync, and the local-history
 //! save-hook. Split out of the former `app/files.rs` monolith (item 56).
 
-use crate::app::*;
 use super::window_title;
+use crate::app::*;
 use std::path::Path;
 
 impl App {
-
     /// Set the window title from the active file + theme (kept in one place so
     /// open/switch/theme-cycle all agree). Wraps the pure [`window_title`] — the
     /// ONE owner of the actual string, also used by the initial window
@@ -37,7 +36,6 @@ impl App {
         }
     }
 
-
     /// NOTES VERBS round: push the held HUD's SAVED stat state into the pipeline —
     /// `Dirty` while the buffer has unsaved changes RIGHT NOW (`is_document_dirty`,
     /// the SAME check the window title's dirty-dot uses), else `Saved(secs)` from
@@ -61,7 +59,6 @@ impl App {
         gpu.pipeline.set_hud_saved(state);
     }
 
-
     /// CHECK FOR UPDATES round: push the About card's "checked … ago" figure —
     /// reads the LOCAL "last checked" marker (`updates::update_checked_state`,
     /// `Never` if no marker exists yet, `CheckedAgo(secs)` otherwise) against a
@@ -83,7 +80,6 @@ impl App {
         gpu.pipeline.set_update_checked(Some(state));
         gpu.pipeline.set_pending_crash(self.pending_crash.is_some());
     }
-
 
     pub(in crate::app) fn update_title(&mut self) {
         // SAVE-FEEDBACK round: keep `title_dirty` (the cache `sync_view`
@@ -115,7 +111,6 @@ impl App {
         }
     }
 
-
     /// ROBUST-AUTOSAVE flush: write a pending note save IMMEDIATELY, bypassing the
     /// debounce, so nothing typed in the last quiet window is lost when we switch
     /// away from / close the note. Called before opening another file (`load_path`),
@@ -123,12 +118,13 @@ impl App {
     /// quit. A truly empty note still writes nothing (no litter); a non-note buffer
     /// or an already-saved version is a no-op.
     pub(in crate::app) fn flush_note(&mut self) {
-        if self.active.buffer.is_unnamed_fresh() && self.autosave_saved_version != Some(self.active.buffer.version()) {
+        if self.active.buffer.is_unnamed_fresh()
+            && self.autosave_saved_version != Some(self.active.buffer.version())
+        {
             self.autosave_dirty_at = None;
             self.autosave_note();
         }
     }
-
 
     /// Auto-save the active UNNAMED FRESH DOCUMENT (live only, debounced). The
     /// buffer derives its filename from the first non-empty line on this — its
@@ -186,7 +182,6 @@ impl App {
         }
     }
 
-
     /// PASTE-IMAGE'S NO-PATH PRE-SAVE (`App::try_paste_image`, `app/apply.rs`): a
     /// path-less buffer — the bare scratch surface, or an unnamed fresh
     /// document — has no directory to hang an `assets/` folder off of. Give it
@@ -212,7 +207,6 @@ impl App {
         self.autosave_note();
     }
 
-
     /// SAVE-HOOK for AUTOMATIC LOCAL HISTORY: after a successful save (manual OR
     /// autosave — every save records), record a snapshot of the current buffer to
     /// the local history store (see [`crate::history::record`]). The store itself
@@ -233,14 +227,12 @@ impl App {
         }
     }
 
-
     /// The current on-disk STAT (mtime + byte length) of `path` via the FS trait,
     /// or `None` when the file doesn't exist. The clobber guard's stat — wasm-safe
     /// (the times are `crate::clock::SystemTime`).
     pub(in crate::app) fn disk_mtime_of(path: &Path) -> Option<crate::fs::Metadata> {
         crate::fs::active().metadata(path).ok()
     }
-
 
     /// CLOBBER-GUARD truth table: has `path` changed on disk since `last` (our
     /// last-known stat)? `(current, last)`:
@@ -267,7 +259,6 @@ impl App {
         }
     }
 
-
     /// The AUTOSAVE ENGINE's flush — the one door every trigger goes through
     /// (idle, window blur, file switch, quit). Config-gated (`autosave`, default
     /// ON). Routes by buffer kind: a NOTE keeps its own 400ms flow (untouched); a
@@ -289,7 +280,6 @@ impl App {
             self.stash_scratch_now();
         }
     }
-
 
     /// Quietly SAVE the open document NOW (the autosave engine's pathed-buffer
     /// arm): skip when the buffer version is already on disk; hold the write —
@@ -333,7 +323,6 @@ impl App {
             Err(e) => eprintln!("autosave failed ({}): {e}", path.display()),
         }
     }
-
 
     /// STASH the persistent SCRATCH buffer NOW (the autosave engine's no-path
     /// arm): write the whole text — EVEN empty, so an emptied scratch clears a

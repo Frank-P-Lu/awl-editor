@@ -45,8 +45,14 @@ fn block_caret_width_tracks_glyph_advance() {
         "proportional block must be wider on 'm' than 'i' (m={w_m}, i={w_i})"
     );
     // The block is EXACTLY the real glyph advance (no floor) on each glyph.
-    assert!((w_m - adv_m).abs() < 1e-3, "block 'm' == real advance ({w_m} vs {adv_m})");
-    assert!((w_i - adv_i).abs() < 1e-3, "block 'i' == real advance ({w_i} vs {adv_i})");
+    assert!(
+        (w_m - adv_m).abs() < 1e-3,
+        "block 'm' == real advance ({w_m} vs {adv_m})"
+    );
+    assert!(
+        (w_i - adv_i).abs() < 1e-3,
+        "block 'i' == real advance ({w_i} vs {adv_i})"
+    );
     // ...and the narrow glyph is thinner than the old fixed cell — proof the
     // floor that made the block too wide on thin glyphs is gone.
     assert!(
@@ -117,7 +123,11 @@ fn block_caret_full_cell_on_wrap_boundary_space() {
         p.sync_theme();
         p.set_view(&view(&long, 0, 0));
         let rows = p.visual_rows(0);
-        assert!(rows.len() >= 2, "{world}: long line should wrap ({} rows)", rows.len());
+        assert!(
+            rows.len() >= 2,
+            "{world}: long line should wrap ({} rows)",
+            rows.len()
+        );
         // The wrap-boundary SPACE: the char just before the second row's
         // start. It belongs to the FIRST row (pick_row's half-open span), at
         // the row's right edge, where its collapsed cell is the degenerate one.
@@ -320,11 +330,16 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
     let (tx, ty) = p.caret_target_xy();
 
     // A VERTICAL kick (same column, one row up->down) so the | always shows.
-    let from = Sample { x: tx, y: ty - p.metrics.line_height };
+    let from = Sample {
+        x: tx,
+        y: ty - p.metrics.line_height,
+    };
     let to = Sample { x: tx, y: ty };
     p.caret.kick_trail(from, to, false);
     p.caret.step_trail(0.03);
-    let (morph_bar_x, ..) = p.caret_trail_geometry().expect("morph line-start trail active");
+    let (morph_bar_x, ..) = p
+        .caret_trail_geometry()
+        .expect("morph line-start trail active");
 
     // The SAME anchor the real I-beam bar uses at the SAME insertion x.
     let want_bar = tx + IBEAM_W * p.metrics.zoom * 0.5;
@@ -341,11 +356,16 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
         "fixture must NOT be a line start"
     );
     let (tx2, ty2) = p.caret_target_xy();
-    let from2 = Sample { x: tx2, y: ty2 - p.metrics.line_height };
+    let from2 = Sample {
+        x: tx2,
+        y: ty2 - p.metrics.line_height,
+    };
     let to2 = Sample { x: tx2, y: ty2 };
     p.caret.kick_trail(from2, to2, false);
     p.caret.step_trail(0.03);
-    let (morph_cell_x, ..) = p.caret_trail_geometry().expect("morph cell-form trail active");
+    let (morph_cell_x, ..) = p
+        .caret_trail_geometry()
+        .expect("morph cell-form trail active");
     let want_cell = tx2 + p.caret_block_w() * 0.5;
     assert!(
         (morph_cell_x - want_cell).abs() < 1e-3,

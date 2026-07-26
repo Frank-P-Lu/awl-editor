@@ -47,7 +47,8 @@ impl OverlayState {
         let Some(sc) = self.facet_scheme() else {
             return;
         };
-        let next = (self.facet_lens as isize + delta).clamp(0, sc.strip.len() as isize - 1) as usize;
+        let next =
+            (self.facet_lens as isize + delta).clamp(0, sc.strip.len() as isize - 1) as usize;
         self.set_facet_lens(next);
     }
 

@@ -38,11 +38,21 @@ pub(super) struct Region {
 
 impl Region {
     pub(super) fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
-        Region { x: x as i64, y: y as i64, w: w as i64, h: h as i64 }
+        Region {
+            x: x as i64,
+            y: y as i64,
+            w: w as i64,
+            h: h as i64,
+        }
     }
     /// The whole canvas.
     pub(super) fn canvas(width: i64, height: i64) -> Self {
-        Region { x: 0, y: 0, w: width, h: height }
+        Region {
+            x: 0,
+            y: 0,
+            w: width,
+            h: height,
+        }
     }
 }
 
@@ -79,7 +89,11 @@ pub(super) fn diff_region(
     height: i64,
     region: Region,
 ) -> DiffReport {
-    assert_eq!(a.len(), b.len(), "diff_region: buffers must be the same size");
+    assert_eq!(
+        a.len(),
+        b.len(),
+        "diff_region: buffers must be the same size"
+    );
     let x0 = region.x.max(0);
     let y0 = region.y.max(0);
     let x1 = (region.x + region.w).min(width);
@@ -108,7 +122,11 @@ pub(super) fn diff_region(
             max_delta = max_delta.max(this_max);
         }
     }
-    DiffReport { differing, total, max_channel_delta: max_delta }
+    DiffReport {
+        differing,
+        total,
+        max_channel_delta: max_delta,
+    }
 }
 
 /// The floor a `DiffReport` must clear to count as "perceptibly different" —
@@ -128,8 +146,10 @@ pub(super) struct DistinguishFloor {
 }
 
 impl DistinguishFloor {
-    pub(super) const DEFAULT: DistinguishFloor =
-        DistinguishFloor { min_fraction: 0.01, min_max_delta: 12 };
+    pub(super) const DEFAULT: DistinguishFloor = DistinguishFloor {
+        min_fraction: 0.01,
+        min_max_delta: 12,
+    };
 }
 
 /// Assert that `region` (same coordinates in both buffers, both sized
@@ -148,7 +168,10 @@ pub(super) fn assert_perceptibly_different(
     label: &str,
 ) {
     let report = diff_region(a, b, width, height, region);
-    assert!(report.total > 0, "{label}: region is empty ({region:?}) — nothing to compare");
+    assert!(
+        report.total > 0,
+        "{label}: region is empty ({region:?}) — nothing to compare"
+    );
     let frac = report.differing_fraction();
     assert!(
         frac >= floor.min_fraction && report.max_channel_delta >= floor.min_max_delta,
@@ -176,7 +199,10 @@ pub(super) fn assert_identical(
     label: &str,
 ) {
     let report = diff_region(a, b, width, height, region);
-    assert!(report.total > 0, "{label}: region is empty ({region:?}) — nothing to compare");
+    assert!(
+        report.total > 0,
+        "{label}: region is empty ({region:?}) — nothing to compare"
+    );
     assert_eq!(
         report.differing, 0,
         "{label}: expected byte-identical pixels in {region:?}, but {} of {} pixels differ \
@@ -211,7 +237,10 @@ pub(super) fn dominant_ink_color(
     for y in y0..y1 {
         for x in x0..x1 {
             let p = pixels[(y * width + x) as usize];
-            let d = p[0].abs_diff(bg[0]).max(p[1].abs_diff(bg[1])).max(p[2].abs_diff(bg[2]));
+            let d = p[0]
+                .abs_diff(bg[0])
+                .max(p[1].abs_diff(bg[1]))
+                .max(p[2].abs_diff(bg[2]));
             if d > threshold {
                 *counts.entry(p).or_insert(0) += 1;
             }
@@ -268,7 +297,10 @@ pub(super) fn ink_column_bands(
                 continue;
             }
             let p = pixels[idx as usize];
-            let d = p[0].abs_diff(bg[0]).max(p[1].abs_diff(bg[1])).max(p[2].abs_diff(bg[2]));
+            let d = p[0]
+                .abs_diff(bg[0])
+                .max(p[1].abs_diff(bg[1]))
+                .max(p[2].abs_diff(bg[2]));
             if d > threshold {
                 ink = true;
                 break;
@@ -280,7 +312,11 @@ pub(super) fn ink_column_bands(
                 start = x;
             }
             Some(c) if c != ink => {
-                bands.push(ColBand { ink: c, x0: start, x1: x - 1 });
+                bands.push(ColBand {
+                    ink: c,
+                    x0: start,
+                    x1: x - 1,
+                });
                 cur = Some(ink);
                 start = x;
             }
@@ -289,7 +325,11 @@ pub(super) fn ink_column_bands(
         x += 1;
     }
     if let Some(c) = cur {
-        bands.push(ColBand { ink: c, x0: start, x1: x1 - 1 });
+        bands.push(ColBand {
+            ink: c,
+            x0: start,
+            x1: x1 - 1,
+        });
     }
     bands
 }
@@ -329,7 +369,10 @@ pub(super) fn ink_row_bands(
                     continue;
                 }
                 let p = pixels[idx as usize];
-                let d = p[0].abs_diff(bg[0]).max(p[1].abs_diff(bg[1])).max(p[2].abs_diff(bg[2]));
+                let d = p[0]
+                    .abs_diff(bg[0])
+                    .max(p[1].abs_diff(bg[1]))
+                    .max(p[2].abs_diff(bg[2]));
                 if d > threshold {
                     ink = true;
                     break;
@@ -342,7 +385,11 @@ pub(super) fn ink_row_bands(
                 start = y;
             }
             Some(c) if c != ink => {
-                bands.push(ColBand { ink: c, x0: start, x1: y - 1 });
+                bands.push(ColBand {
+                    ink: c,
+                    x0: start,
+                    x1: y - 1,
+                });
                 cur = Some(ink);
                 start = y;
             }
@@ -351,7 +398,11 @@ pub(super) fn ink_row_bands(
         y += 1;
     }
     if let Some(c) = cur {
-        bands.push(ColBand { ink: c, x0: start, x1: y1 - 1 });
+        bands.push(ColBand {
+            ink: c,
+            x0: start,
+            x1: y1 - 1,
+        });
     }
     bands
 }
@@ -404,7 +455,18 @@ mod tests {
         let a = vec![[0u8, 0, 0, 255]; (w * h) as usize];
         let b = a.clone();
         // A region hanging off every edge — must clamp, not panic or underflow.
-        let report = diff_region(&a, &b, w, h, Region { x: -2, y: -2, w: 100, h: 100 });
+        let report = diff_region(
+            &a,
+            &b,
+            w,
+            h,
+            Region {
+                x: -2,
+                y: -2,
+                w: 100,
+                h: 100,
+            },
+        );
         assert_eq!(report.total, 16);
         assert_eq!(report.differing, 0);
     }

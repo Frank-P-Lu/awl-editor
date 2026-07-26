@@ -67,7 +67,10 @@ fn code_only(text: &str) -> String {
 fn test_sources() -> Vec<(String, String)> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
     let mut out: Vec<(String, String)> = Vec::new();
-    for entry in std::fs::read_dir(&dir).expect("tests/ is readable").flatten() {
+    for entry in std::fs::read_dir(&dir)
+        .expect("tests/ is readable")
+        .flatten()
+    {
         let p = entry.path();
         if p.extension().is_some_and(|e| e == "rs") {
             let name = p.file_name().unwrap().to_string_lossy().into_owned();
@@ -158,7 +161,8 @@ fn the_owner_pins_the_config_variable_rather_than_removing_it() {
 
 /// A fresh, uniquely-named tempdir under the OS temp root.
 fn tmp_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("awl-spawn-config-law-{tag}-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("awl-spawn-config-law-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -182,7 +186,11 @@ fn capture_under_xdg(sandbox: &Path, xdg: &Path, doc: &Path, out: &Path) -> Opti
     if !output.status.success() && stderr.contains("no wgpu adapter for headless capture") {
         return None;
     }
-    assert!(output.status.success(), "capture failed: {}\n{stderr}", output.status);
+    assert!(
+        output.status.success(),
+        "capture failed: {}\n{stderr}",
+        output.status
+    );
     Some(std::fs::read(out).expect("capture PNG reads"))
 }
 

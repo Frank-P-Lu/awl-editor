@@ -81,7 +81,10 @@ impl App {
         self.active.buffer.take_list_continuation_generated();
         let outgoing = std::mem::replace(
             &mut self.active,
-            crate::buffers::Entry { buffer: Buffer::scratch(), extra: BufferExtra::default() },
+            crate::buffers::Entry {
+                buffer: Buffer::scratch(),
+                extra: BufferExtra::default(),
+            },
         );
         self.buffer_registry.park(key, outgoing);
     }

@@ -23,8 +23,23 @@
 //! reference trips the law.
 
 const WORLD_NAMES: &[&str] = &[
-    "Tawny", "Mopoke", "Currawong", "Potoroo", "Mulga", "Bombora", "Bowerbird", "Gumtree",
-    "Bilby", "Saltpan", "Quokka", "Mangrove", "Galah", "Magpie", "Wagtail", "Firetail", "Brolga",
+    "Tawny",
+    "Mopoke",
+    "Currawong",
+    "Potoroo",
+    "Mulga",
+    "Bombora",
+    "Bowerbird",
+    "Gumtree",
+    "Bilby",
+    "Saltpan",
+    "Quokka",
+    "Mangrove",
+    "Galah",
+    "Magpie",
+    "Wagtail",
+    "Firetail",
+    "Brolga",
     "Cassowary",
 ];
 
@@ -107,12 +122,10 @@ fn scan_file(text: &str) -> Vec<(usize, String)> {
 /// violations, skipping any `tests` subdirectory and any file literally named
 /// `tests.rs` — the exact exemption shape `println_audit.rs` uses, since
 /// that's where a real per-world identity check legitimately lives.
-fn scan_dir(
-    base: &std::path::Path,
-    dir: &std::path::Path,
-    out: &mut Vec<(String, usize, String)>,
-) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     let mut entries: Vec<_> = entries.flatten().collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
@@ -147,12 +160,21 @@ fn scan_dir(
         // picking which worlds to visit, not a per-theme render branch. Not a
         // `render_caps` law concern; exempt by name, same shape as
         // `println_audit.rs`'s per-file allowances.
-        let fname = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        let fname = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
         if fname == "framebench.rs" || fname == "perfbench.rs" {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else { continue };
-        let rel = path.strip_prefix(base).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let rel = path
+            .strip_prefix(base)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .replace('\\', "/");
         for (line, reason) in scan_file(&text) {
             out.push((rel.clone(), line, reason));
         }
@@ -161,8 +183,9 @@ fn scan_dir(
 
 #[test]
 fn render_never_reads_is_one_bit_or_hardcodes_a_world_name() {
-    let render_root =
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src").join("render");
+    let render_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("render");
     let mut hits = Vec::new();
     scan_dir(&render_root, &render_root, &mut hits);
     // `src/render.rs` itself (the GPU-core file, sibling to the `render/`

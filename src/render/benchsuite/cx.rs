@@ -89,7 +89,8 @@ impl<'a> Cx<'a> {
     /// `RedrawRequested` aggregate, GPU serialized by the blocking poll.
     pub(super) fn frame(&mut self) -> Result<()> {
         self.p.advance(DT);
-        self.p.prepare(self.device, self.queue, self.width, HEIGHT)?;
+        self.p
+            .prepare(self.device, self.queue, self.width, HEIGHT)?;
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {

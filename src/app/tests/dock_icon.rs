@@ -101,13 +101,18 @@ fn the_adopted_world_hands_over_its_own_committed_icon() {
         crate::app_icon::reset_adoptions_for_test();
         crate::app_icon::adopt(t);
         assert_eq!(crate::app_icon::adopted(), Some(t.name));
-        let embedded =
-            crate::app_icon::icns_for(t.name).unwrap_or_else(|| panic!("{} embeds an icon", t.name));
+        let embedded = crate::app_icon::icns_for(t.name)
+            .unwrap_or_else(|| panic!("{} embeds an icon", t.name));
         let on_disk = std::fs::read(
             PathBuf::from(crate::app_icon::WORLD_ICON_DIR).join(format!("{}.icns", t.name)),
         )
         .unwrap_or_else(|e| panic!("{}: {e}", t.name));
-        assert_eq!(embedded, on_disk.as_slice(), "{} adopts its own file", t.name);
+        assert_eq!(
+            embedded,
+            on_disk.as_slice(),
+            "{} adopts its own file",
+            t.name
+        );
     }
     crate::theme::set_active(restore);
 }

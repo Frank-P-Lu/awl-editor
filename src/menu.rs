@@ -130,13 +130,23 @@ struct Routed {
 /// two macOS App-menu conventions in [`APP_ITEMS`], which spell their labels
 /// out explicitly, and the small `ri`-built icon set below).
 const fn r(id: &'static str, command: &'static str) -> Routed {
-    Routed { id, command, label: command, icon: false }
+    Routed {
+        id,
+        command,
+        label: command,
+        icon: false,
+    }
 }
 
 /// Like [`r`], but flagged to carry an icon (`menu_icons::icon_for(id)`) — see
 /// that module's doc for the small, deliberately minimal set this is used for.
 const fn ri(id: &'static str, command: &'static str) -> Routed {
-    Routed { id, command, label: command, icon: true }
+    Routed {
+        id,
+        command,
+        label: command,
+        icon: true,
+    }
 }
 
 /// App menu's THREE routed items — About (an in-app card, see `about.rs`),
@@ -148,9 +158,24 @@ const fn ri(id: &'static str, command: &'static str) -> Routed {
 /// ("Settings…" is already unambiguous). All three CATALOG names ("About" /
 /// "Settings…" / "Quit") stay what the Cmd-P palette shows.
 const APP_ITEMS: &[Routed] = &[
-    Routed { id: "awl.about", command: "About", label: "About Awl", icon: false },
-    Routed { id: "awl.settings", command: "Settings…", label: "Settings…", icon: false },
-    Routed { id: "awl.quit", command: "Quit", label: "Quit Awl", icon: false },
+    Routed {
+        id: "awl.about",
+        command: "About",
+        label: "About Awl",
+        icon: false,
+    },
+    Routed {
+        id: "awl.settings",
+        command: "Settings…",
+        label: "Settings…",
+        icon: false,
+    },
+    Routed {
+        id: "awl.quit",
+        command: "Quit",
+        label: "Quit Awl",
+        icon: false,
+    },
 ];
 
 const FILE_ITEMS: &[Routed] = &[
@@ -222,7 +247,11 @@ pub enum PredefinedKind {
 /// command (resolved via [`resolve`]), a predefined item, or a separator.
 #[derive(Debug, PartialEq)]
 pub enum RosterItem {
-    Routed { id: &'static str, label: &'static str, icon: bool },
+    Routed {
+        id: &'static str,
+        label: &'static str,
+        icon: bool,
+    },
     Predefined(PredefinedKind),
     Separator,
 }
@@ -235,7 +264,11 @@ pub struct RosterMenu {
 }
 
 fn routed(item: &Routed) -> RosterItem {
-    RosterItem::Routed { id: item.id, label: item.label, icon: item.icon }
+    RosterItem::Routed {
+        id: item.id,
+        label: item.label,
+        icon: item.icon,
+    }
 }
 
 /// The menu bar structure for THIS COMPILED PLATFORM (`commands::Platform::current()`)
@@ -269,20 +302,26 @@ pub fn roster() -> Vec<RosterMenu> {
 pub fn roster_for(platform: commands::Platform) -> Vec<RosterMenu> {
     roster_all()
         .into_iter()
-        .map(|m| RosterMenu { title: m.title, items: filter_items_for_platform(m.items, platform) })
+        .map(|m| RosterMenu {
+            title: m.title,
+            items: filter_items_for_platform(m.items, platform),
+        })
         .filter(|m| !m.items.is_empty())
         .collect()
 }
 
 /// Filter one menu's ITEMS for `platform` (the per-item availability rules described
 /// in [`roster_for`]'s doc), then trim any now-dangling separator.
-fn filter_items_for_platform(items: Vec<RosterItem>, platform: commands::Platform) -> Vec<RosterItem> {
+fn filter_items_for_platform(
+    items: Vec<RosterItem>,
+    platform: commands::Platform,
+) -> Vec<RosterItem> {
     let kept: Vec<RosterItem> = items
         .into_iter()
         .filter(|item| match item {
-            RosterItem::Routed { id, .. } => {
-                resolve(id).map(|a| commands::action_available(&a, platform)).unwrap_or(true)
-            }
+            RosterItem::Routed { id, .. } => resolve(id)
+                .map(|a| commands::action_available(&a, platform))
+                .unwrap_or(true),
             RosterItem::Predefined(_) => platform == commands::Platform::Native,
             RosterItem::Separator => true, // dangling ones trimmed below
         })
@@ -400,7 +439,11 @@ fn roster_all() -> Vec<RosterMenu> {
 /// doesn't own (a predefined item, or a stray/foreign event) — a silent,
 /// harmless no-op at the `App::handle_menu_event` seam, never a panic.
 pub fn resolve(id: &str) -> Option<Action> {
-    SECTIONS.iter().flat_map(|s| s.iter()).find(|r| r.id == id).and_then(|r| commands::action_for_name(r.command))
+    SECTIONS
+        .iter()
+        .flat_map(|s| s.iter())
+        .find(|r| r.id == id)
+        .and_then(|r| commands::action_for_name(r.command))
 }
 
 /// The NATIVE chord for a routed command NAME, CONVENTION-RESOLVED AND
@@ -452,7 +495,13 @@ pub fn item_chord_for_id(id: &str) -> String {
 fn to_menu_item(id: &'static str, label: &'static str, icon: bool) -> Box<dyn muda::IsMenuItem> {
     if icon {
         if let Some(icon) = menu_icons::icon_for(id) {
-            return Box::new(muda::IconMenuItem::with_id(id, label, true, Some(icon), None));
+            return Box::new(muda::IconMenuItem::with_id(
+                id,
+                label,
+                true,
+                Some(icon),
+                None,
+            ));
         }
     }
     Box::new(MenuItem::with_id(id, label, true, None))
@@ -541,7 +590,10 @@ pub fn build_menu() -> Menu {
             Submenu::with_items(m.title, true, &refs).expect("submenu build")
         })
         .collect();
-    let refs: Vec<&dyn muda::IsMenuItem> = submenus.iter().map(|s| s as &dyn muda::IsMenuItem).collect();
+    let refs: Vec<&dyn muda::IsMenuItem> = submenus
+        .iter()
+        .map(|s| s as &dyn muda::IsMenuItem)
+        .collect();
     Menu::with_items(&refs).expect("root menu build")
 }
 
@@ -613,7 +665,11 @@ mod tests {
     /// table entry `resolve` happens to find first.
     #[test]
     fn every_routed_id_is_unique() {
-        let mut ids: Vec<&str> = SECTIONS.iter().flat_map(|s| s.iter()).map(|r| r.id).collect();
+        let mut ids: Vec<&str> = SECTIONS
+            .iter()
+            .flat_map(|s| s.iter())
+            .map(|r| r.id)
+            .collect();
         let before = ids.len();
         ids.sort_unstable();
         ids.dedup();
@@ -654,7 +710,12 @@ mod tests {
         for section in SECTIONS {
             for r in *section {
                 let want = commands::action_for_name(r.command);
-                assert_eq!(resolve(r.id), want, "resolve({:?}) must match the catalog", r.id);
+                assert_eq!(
+                    resolve(r.id),
+                    want,
+                    "resolve({:?}) must match the catalog",
+                    r.id
+                );
             }
         }
     }
@@ -682,7 +743,10 @@ mod tests {
                         let _ = item_chord_for_id(id);
                     }
                     RosterItem::Predefined(kind) => {
-                        assert!(!predefined_label(*kind).is_empty(), "predefined {kind:?} has no label");
+                        assert!(
+                            !predefined_label(*kind).is_empty(),
+                            "predefined {kind:?} has no label"
+                        );
                     }
                     RosterItem::Separator => {}
                 }
@@ -720,15 +784,27 @@ mod tests {
         assert_eq!(
             app.items,
             vec![
-                RosterItem::Routed { id: "awl.about", label: "About Awl", icon: false },
+                RosterItem::Routed {
+                    id: "awl.about",
+                    label: "About Awl",
+                    icon: false
+                },
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.settings", label: "Settings…", icon: false },
+                RosterItem::Routed {
+                    id: "awl.settings",
+                    label: "Settings…",
+                    icon: false
+                },
                 RosterItem::Separator,
                 RosterItem::Predefined(PredefinedKind::Hide),
                 RosterItem::Predefined(PredefinedKind::HideOthers),
                 RosterItem::Predefined(PredefinedKind::ShowAll),
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.quit", label: "Quit Awl", icon: false },
+                RosterItem::Routed {
+                    id: "awl.quit",
+                    label: "Quit Awl",
+                    icon: false
+                },
             ]
         );
     }
@@ -746,20 +822,55 @@ mod tests {
         assert_eq!(
             file.items,
             vec![
-                RosterItem::Routed { id: "awl.new_document", label: "New document", icon: true },
-                RosterItem::Routed { id: "awl.open", label: "Browse files…", icon: true },
-                RosterItem::Routed { id: "awl.switch_project", label: "Switch project…", icon: true },
-                RosterItem::Routed { id: "awl.recent_projects", label: "Recent projects…", icon: false },
+                RosterItem::Routed {
+                    id: "awl.new_document",
+                    label: "New document",
+                    icon: true
+                },
+                RosterItem::Routed {
+                    id: "awl.open",
+                    label: "Browse files…",
+                    icon: true
+                },
+                RosterItem::Routed {
+                    id: "awl.switch_project",
+                    label: "Switch project…",
+                    icon: true
+                },
+                RosterItem::Routed {
+                    id: "awl.recent_projects",
+                    label: "Recent projects…",
+                    icon: false
+                },
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.save", label: "Save", icon: true },
-                RosterItem::Routed { id: "awl.finish_buffer", label: "Finish file", icon: true },
+                RosterItem::Routed {
+                    id: "awl.save",
+                    label: "Save",
+                    icon: true
+                },
+                RosterItem::Routed {
+                    id: "awl.finish_buffer",
+                    label: "Finish file",
+                    icon: true
+                },
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.export_pdf", label: "Export as PDF…", icon: false },
-                RosterItem::Routed { id: "awl.export_word", label: "Export as Word…", icon: false },
-                RosterItem::Routed { id: "awl.export_html", label: "Export as HTML…", icon: false },
+                RosterItem::Routed {
+                    id: "awl.export_pdf",
+                    label: "Export as PDF…",
+                    icon: false
+                },
+                RosterItem::Routed {
+                    id: "awl.export_word",
+                    label: "Export as Word…",
+                    icon: false
+                },
+                RosterItem::Routed {
+                    id: "awl.export_html",
+                    label: "Export as HTML…",
+                    icon: false
+                },
             ]
         );
-
     }
 
     #[test]
@@ -789,11 +900,18 @@ mod tests {
                 _ => None,
             })
             .collect();
-        let mut table_ids: Vec<&str> = SECTIONS.iter().flat_map(|s| s.iter()).map(|r| r.id).collect();
+        let mut table_ids: Vec<&str> = SECTIONS
+            .iter()
+            .flat_map(|s| s.iter())
+            .map(|r| r.id)
+            .collect();
         let mut sorted_roster = roster_ids.clone();
         sorted_roster.sort_unstable();
         table_ids.sort_unstable();
-        assert_eq!(sorted_roster, table_ids, "roster() must place every routed table entry exactly once");
+        assert_eq!(
+            sorted_roster, table_ids,
+            "roster() must place every routed table entry exactly once"
+        );
     }
 
     /// Every routed item's LABEL matches its `commands::COMMANDS` display name
@@ -808,9 +926,16 @@ mod tests {
         for menu in roster() {
             for item in menu.items {
                 if let RosterItem::Routed { id, label, .. } = item {
-                    let r = SECTIONS.iter().flat_map(|s| s.iter()).find(|r| r.id == id).unwrap();
+                    let r = SECTIONS
+                        .iter()
+                        .flat_map(|s| s.iter())
+                        .find(|r| r.id == id)
+                        .unwrap();
                     if APP_NAME_SUFFIXED.contains(&id) {
-                        assert_ne!(label, r.command, "{id:?} is expected to differ from its bare catalog name");
+                        assert_ne!(
+                            label, r.command,
+                            "{id:?} is expected to differ from its bare catalog name"
+                        );
                     } else {
                         assert_eq!(label, r.command);
                     }
@@ -868,9 +993,17 @@ mod tests {
         assert_eq!(
             app.items,
             vec![
-                RosterItem::Routed { id: "awl.about", label: "About Awl", icon: false },
+                RosterItem::Routed {
+                    id: "awl.about",
+                    label: "About Awl",
+                    icon: false
+                },
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.settings", label: "Settings…", icon: false },
+                RosterItem::Routed {
+                    id: "awl.settings",
+                    label: "Settings…",
+                    icon: false
+                },
             ]
         );
     }
@@ -884,14 +1017,38 @@ mod tests {
         assert_eq!(
             file.items,
             vec![
-                RosterItem::Routed { id: "awl.new_document", label: "New document", icon: true },
-                RosterItem::Routed { id: "awl.open", label: "Browse files…", icon: true },
-                RosterItem::Routed { id: "awl.switch_project", label: "Switch project…", icon: true },
+                RosterItem::Routed {
+                    id: "awl.new_document",
+                    label: "New document",
+                    icon: true
+                },
+                RosterItem::Routed {
+                    id: "awl.open",
+                    label: "Browse files…",
+                    icon: true
+                },
+                RosterItem::Routed {
+                    id: "awl.switch_project",
+                    label: "Switch project…",
+                    icon: true
+                },
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.save", label: "Save", icon: true },
+                RosterItem::Routed {
+                    id: "awl.save",
+                    label: "Save",
+                    icon: true
+                },
                 RosterItem::Separator,
-                RosterItem::Routed { id: "awl.export_word", label: "Export as Word…", icon: false },
-                RosterItem::Routed { id: "awl.export_html", label: "Export as HTML…", icon: false },
+                RosterItem::Routed {
+                    id: "awl.export_word",
+                    label: "Export as Word…",
+                    icon: false
+                },
+                RosterItem::Routed {
+                    id: "awl.export_html",
+                    label: "Export as HTML…",
+                    icon: false
+                },
             ]
         );
     }
@@ -926,7 +1083,10 @@ mod tests {
     #[test]
     fn web_roster_drops_the_whole_window_menu() {
         let menus = roster_for(commands::Platform::Web);
-        assert!(menus.iter().all(|m| m.title != "Window"), "Window must vanish on web");
+        assert!(
+            menus.iter().all(|m| m.title != "Window"),
+            "Window must vanish on web"
+        );
         // Exactly four menus survive: Awl · File · Edit · View.
         let titles: Vec<&str> = menus.iter().map(|m| m.title).collect();
         assert_eq!(titles, vec!["Awl", "File", "Edit", "View"]);
@@ -937,10 +1097,21 @@ mod tests {
     #[test]
     fn web_roster_never_leaves_a_dangling_separator() {
         for menu in roster_for(commands::Platform::Web) {
-            assert!(!matches!(menu.items.first(), Some(RosterItem::Separator)), "{}: leading separator", menu.title);
-            assert!(!matches!(menu.items.last(), Some(RosterItem::Separator)), "{}: trailing separator", menu.title);
             assert!(
-                !menu.items.windows(2).any(|w| matches!(w, [RosterItem::Separator, RosterItem::Separator])),
+                !matches!(menu.items.first(), Some(RosterItem::Separator)),
+                "{}: leading separator",
+                menu.title
+            );
+            assert!(
+                !matches!(menu.items.last(), Some(RosterItem::Separator)),
+                "{}: trailing separator",
+                menu.title
+            );
+            assert!(
+                !menu
+                    .items
+                    .windows(2)
+                    .any(|w| matches!(w, [RosterItem::Separator, RosterItem::Separator])),
                 "{}: doubled separator",
                 menu.title
             );
@@ -955,7 +1126,10 @@ mod tests {
         for menu in roster_for(commands::Platform::Web) {
             for item in &menu.items {
                 if let RosterItem::Routed { id, .. } = item {
-                    assert!(resolve(id).is_some(), "web roster item {id:?} resolves to no Action");
+                    assert!(
+                        resolve(id).is_some(),
+                        "web roster item {id:?} resolves to no Action"
+                    );
                 }
             }
         }

@@ -9,7 +9,9 @@ use super::*;
 use std::ops::Range;
 
 fn has(spans: &[(Range<usize>, MdKind)], lo: usize, hi: usize, k: MdKind) -> bool {
-    spans.iter().any(|(r, kk)| r.start == lo && r.end == hi && *kk == k)
+    spans
+        .iter()
+        .any(|(r, kk)| r.start == lo && r.end == hi && *kk == k)
 }
 
 #[test]
@@ -17,28 +19,48 @@ fn parse_image_source_extracts_path_alt_and_hint() {
     // No hint: alt + path recovered, hint None.
     assert_eq!(
         parse_image_source("![a cat](cat.png)"),
-        Some(ImageRef { alt: "a cat".into(), path: "cat.png".into(), width_hint: None })
+        Some(ImageRef {
+            alt: "a cat".into(),
+            path: "cat.png".into(),
+            width_hint: None
+        })
     );
     // `|300` width hint parsed OUT of the alt (Obsidian convention).
     assert_eq!(
         parse_image_source("![a cat|300](cat.png)"),
-        Some(ImageRef { alt: "a cat".into(), path: "cat.png".into(), width_hint: Some(300) })
+        Some(ImageRef {
+            alt: "a cat".into(),
+            path: "cat.png".into(),
+            width_hint: Some(300)
+        })
     );
     // `|WxH` → the WIDTH is the hint (H rides the intrinsic aspect in v1).
     assert_eq!(
         parse_image_source("![cat|300x200](cat.png)"),
-        Some(ImageRef { alt: "cat".into(), path: "cat.png".into(), width_hint: Some(300) })
+        Some(ImageRef {
+            alt: "cat".into(),
+            path: "cat.png".into(),
+            width_hint: Some(300)
+        })
     );
     // A NON-numeric `|` suffix is NOT a hint — the alt (which legitimately
     // contains `|`) is preserved verbatim.
     assert_eq!(
         parse_image_source("![a | b](cat.png)"),
-        Some(ImageRef { alt: "a | b".into(), path: "cat.png".into(), width_hint: None })
+        Some(ImageRef {
+            alt: "a | b".into(),
+            path: "cat.png".into(),
+            width_hint: None
+        })
     );
     // A `(path "title")` — the path is the first whitespace token.
     assert_eq!(
         parse_image_source("![x](cat.png \"my title\")"),
-        Some(ImageRef { alt: "x".into(), path: "cat.png".into(), width_hint: None })
+        Some(ImageRef {
+            alt: "x".into(),
+            path: "cat.png".into(),
+            width_hint: None
+        })
     );
     // Not an image: None (never panics).
     assert_eq!(parse_image_source("just text"), None);
@@ -50,7 +72,11 @@ fn image_width_hint_edit_inserts_replaces_and_bails_cleanly() {
     // INSERT: a hint-less alt gains `|NNN` after the alt text, before `]`.
     let src = "![a cat](cat.png)";
     let (b0, b1, new_alt) = image_width_hint_edit(src, 300).unwrap();
-    assert_eq!(&src[b0..b1], "a cat", "byte range spans exactly the raw alt");
+    assert_eq!(
+        &src[b0..b1],
+        "a cat",
+        "byte range spans exactly the raw alt"
+    );
     assert_eq!(new_alt, "a cat|300");
     // Splicing the replacement into the range yields the Obsidian form.
     let spliced = format!("{}{}{}", &src[..b0], new_alt, &src[b1..]);
@@ -92,9 +118,10 @@ fn spans_emits_image_conceal_span_when_on_and_nothing_when_off() {
     let src = "![a cat|300](cat.png)";
     let on = spans(src);
     assert!(
-        on.iter().any(|(r, k)| *k == MdKind::ConcealMarkup(ConcealKind::Image)
-            && r.start == 0
-            && r.end == src.len()),
+        on.iter()
+            .any(|(r, k)| *k == MdKind::ConcealMarkup(ConcealKind::Image)
+                && r.start == 0
+                && r.end == src.len()),
         "images ON should emit one ConcealMarkup(Image) over the whole ref: {on:?}"
     );
     // OFF (native): NO image span at all — byte-identical to the pre-feature
@@ -102,7 +129,8 @@ fn spans_emits_image_conceal_span_when_on_and_nothing_when_off() {
     set_inline_images_on(false);
     let off = spans(src);
     assert!(
-        !off.iter().any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::Image)),
+        !off.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::Image)),
         "images OFF should emit no image span: {off:?}"
     );
     set_inline_images_on(prev);
@@ -113,8 +141,14 @@ fn heading_dims_hashes_and_styles_title() {
     let s = spans("# Title");
     // "# " (hash + space) is dim, WYSIWYG-concealable markup; "Title" is H1 content.
     let heading_markup = MdKind::ConcealMarkup(ConcealKind::Heading);
-    assert!(has(&s, 0, 2, heading_markup), "leading '# ' should be markup: {s:?}");
-    assert!(has(&s, 2, 7, MdKind::Heading(1)), "title should be h1: {s:?}");
+    assert!(
+        has(&s, 0, 2, heading_markup),
+        "leading '# ' should be markup: {s:?}"
+    );
+    assert!(
+        has(&s, 2, 7, MdKind::Heading(1)),
+        "title should be h1: {s:?}"
+    );
 }
 
 #[test]
@@ -132,7 +166,10 @@ fn atx_closing_hashes_dim() {
     let heading_markup = MdKind::ConcealMarkup(ConcealKind::Heading);
     assert!(has(&s, 0, 2, heading_markup), "leading '# ' dim: {s:?}");
     assert!(has(&s, 2, 7, MdKind::Heading(1)), "'Title' is h1: {s:?}");
-    assert!(has(&s, 7, 9, heading_markup), "trailing ' #' close dim: {s:?}");
+    assert!(
+        has(&s, 7, 9, heading_markup),
+        "trailing ' #' close dim: {s:?}"
+    );
 }
 
 #[test]
@@ -140,9 +177,30 @@ fn headings_extracts_level_text_and_line() {
     let doc = "# Title\n\nsome prose\n\n## Section A\n\nbody\n\n### Deep\n";
     let h = headings(doc);
     assert_eq!(h.len(), 3, "three headings: {h:?}");
-    assert_eq!(h[0], Heading { level: 1, text: "Title".into(), line: 0 });
-    assert_eq!(h[1], Heading { level: 2, text: "Section A".into(), line: 4 });
-    assert_eq!(h[2], Heading { level: 3, text: "Deep".into(), line: 8 });
+    assert_eq!(
+        h[0],
+        Heading {
+            level: 1,
+            text: "Title".into(),
+            line: 0
+        }
+    );
+    assert_eq!(
+        h[1],
+        Heading {
+            level: 2,
+            text: "Section A".into(),
+            line: 4
+        }
+    );
+    assert_eq!(
+        h[2],
+        Heading {
+            level: 3,
+            text: "Deep".into(),
+            line: 8
+        }
+    );
     // The picker label indents two spaces per level below the top.
     assert_eq!(h[0].label(), "Title");
     assert_eq!(h[1].label(), "  Section A");
@@ -196,9 +254,30 @@ fn headings_from_spans_core_matches_the_wrapper() {
     let via_core = headings_from_spans(doc, &spans(doc));
     assert_eq!(via_core, headings(doc));
     assert_eq!(via_core.len(), 3, "three headings: {via_core:?}");
-    assert_eq!(via_core[0], Heading { level: 1, text: "Title".into(), line: 0 });
-    assert_eq!(via_core[1], Heading { level: 2, text: "Section A".into(), line: 4 });
-    assert_eq!(via_core[2], Heading { level: 3, text: "Deep".into(), line: 8 });
+    assert_eq!(
+        via_core[0],
+        Heading {
+            level: 1,
+            text: "Title".into(),
+            line: 0
+        }
+    );
+    assert_eq!(
+        via_core[1],
+        Heading {
+            level: 2,
+            text: "Section A".into(),
+            line: 4
+        }
+    );
+    assert_eq!(
+        via_core[2],
+        Heading {
+            level: 3,
+            text: "Deep".into(),
+            line: 8
+        }
+    );
 }
 
 #[test]
@@ -217,7 +296,10 @@ fn bold_italic_triple_star() {
     // and the three stars at each end dim as Markup (outer 1 + inner 2).
     let s = spans("***x***");
     let emph_markup = MdKind::ConcealMarkup(ConcealKind::Emphasis);
-    assert!(has(&s, 3, 4, MdKind::BoldItalic), "inner x is bold+italic: {s:?}");
+    assert!(
+        has(&s, 3, 4, MdKind::BoldItalic),
+        "inner x is bold+italic: {s:?}"
+    );
     assert!(has(&s, 0, 1, emph_markup), "outer opening `*` dim: {s:?}");
     assert!(has(&s, 1, 3, emph_markup), "inner opening `**` dim: {s:?}");
     assert!(has(&s, 4, 6, emph_markup), "inner closing `**` dim: {s:?}");
@@ -252,11 +334,15 @@ fn link_markup_conceals_and_text_stays_content_ink() {
     let link = MdKind::ConcealMarkup(ConcealKind::Link);
     assert!(has(&s, 0, 1, link), "opening '[' conceals: {s:?}");
     assert!(has(&s, 4, 15, link), "'](url)' tail conceals: {s:?}");
-    assert!(has(&s, 1, 4, MdKind::LinkText), "link text stays content ink: {s:?}");
+    assert!(
+        has(&s, 1, 4, MdKind::LinkText),
+        "link text stays content ink: {s:?}"
+    );
     // The text bytes are NOT covered by any conceal span (so the conceal pass
     // never hides the visible text).
     assert!(
-        !s.iter().any(|(r, k)| *k == link && r.start <= 1 && r.end >= 4),
+        !s.iter()
+            .any(|(r, k)| *k == link && r.start <= 1 && r.end >= 4),
         "link text must not sit under a conceal span: {s:?}"
     );
 }
@@ -271,7 +357,8 @@ fn reference_link_falls_back_to_plain_markup_no_conceal() {
         "reference link is plain Markup: {s:?}"
     );
     assert!(
-        !s.iter().any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::Link)),
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::Link)),
         "no Link conceal span for a reference link: {s:?}"
     );
 }
@@ -299,7 +386,10 @@ fn blockquote_marker_conceals_text_quote() {
     let bq = MdKind::ConcealMarkup(ConcealKind::Blockquote);
     let s = spans("> quoted");
     assert!(has(&s, 0, 2, bq), "'> ' marker conceal span: {s:?}");
-    assert!(s.iter().any(|(_, k)| *k == MdKind::Quote), "quote text: {s:?}");
+    assert!(
+        s.iter().any(|(_, k)| *k == MdKind::Quote),
+        "quote text: {s:?}"
+    );
 }
 
 #[test]
@@ -340,7 +430,8 @@ fn nested_list_marker_dims_its_full_indent_prefix() {
         "'  - ' (indent + marker + space) is ONE dim span: {s:?}"
     );
     assert!(
-        !s.iter().any(|(r, k)| *k == MdKind::ListMarker && r.start == 8),
+        !s.iter()
+            .any(|(r, k)| *k == MdKind::ListMarker && r.start == 8),
         "the marker span no longer starts mid-indent (the old excluded-indent bug): {s:?}"
     );
 
@@ -369,19 +460,29 @@ fn nested_list_marker_dims_its_full_indent_prefix() {
 #[test]
 fn nested_list_marker_fix_is_content_independent() {
     let plain = spans("- top\n  - plain nested\n");
-    assert!(has(&plain, 6, 10, MdKind::ListMarker), "plain content: {plain:?}");
+    assert!(
+        has(&plain, 6, 10, MdKind::ListMarker),
+        "plain content: {plain:?}"
+    );
 
     let bold = spans("- top\n  - **bold** nested\n");
-    assert!(has(&bold, 6, 10, MdKind::ListMarker), "bold content: {bold:?}");
+    assert!(
+        has(&bold, 6, 10, MdKind::ListMarker),
+        "bold content: {bold:?}"
+    );
 
     let prev = inline_images_on();
     set_inline_images_on(true);
     let img = spans("- top\n  - ![caption|400](x.png)\n");
-    assert!(has(&img, 6, 10, MdKind::ListMarker), "image content: {img:?}");
+    assert!(
+        has(&img, 6, 10, MdKind::ListMarker),
+        "image content: {img:?}"
+    );
     // The image's own conceal span starts EXACTLY where the marker span ends —
     // no gap, no overlap.
     assert!(
-        img.iter().any(|(r, k)| *k == MdKind::ConcealMarkup(ConcealKind::Image) && r.start == 10),
+        img.iter()
+            .any(|(r, k)| *k == MdKind::ConcealMarkup(ConcealKind::Image) && r.start == 10),
         "the image span picks up right where the fixed marker span ends: {img:?}"
     );
     set_inline_images_on(prev);
@@ -413,7 +514,9 @@ fn nested_parent_item_content_stays_body_weight_item_41() {
     }
     // True if any re-weighting span OVERLAPS the half-open content range [lo, hi).
     fn content_reweighted(spans: &[(Range<usize>, MdKind)], lo: usize, hi: usize) -> bool {
-        spans.iter().any(|(r, k)| reweights(k) && r.start < hi && lo < r.end)
+        spans
+            .iter()
+            .any(|(r, k)| reweights(k) && r.start < hi && lo < r.end)
     }
 
     // Plain nested list: "parent" (bytes 2..8) OWNS the "  - child" nested item;
@@ -456,14 +559,27 @@ fn table_pipes_separator_and_header_spans() {
     let s = spans(doc);
     // Every literal `|` on a data row is a dim TablePipe span. Header row pipes
     // sit at bytes 0, 4, 8.
-    assert!(has(&s, 0, 1, MdKind::TablePipe), "leading header pipe: {s:?}");
-    assert!(has(&s, 4, 5, MdKind::TablePipe), "middle header pipe: {s:?}");
-    assert!(has(&s, 8, 9, MdKind::TablePipe), "trailing header pipe: {s:?}");
+    assert!(
+        has(&s, 0, 1, MdKind::TablePipe),
+        "leading header pipe: {s:?}"
+    );
+    assert!(
+        has(&s, 4, 5, MdKind::TablePipe),
+        "middle header pipe: {s:?}"
+    );
+    assert!(
+        has(&s, 8, 9, MdKind::TablePipe),
+        "trailing header pipe: {s:?}"
+    );
     // The separator row (`|---|---|`, bytes 10..19) is ONE dim TableSep span; its
     // pipes are NOT separately emitted as TablePipe.
-    assert!(has(&s, 10, 19, MdKind::TableSep), "separator row dim: {s:?}");
     assert!(
-        !s.iter().any(|(r, k)| *k == MdKind::TablePipe && r.start >= 10 && r.end <= 19),
+        has(&s, 10, 19, MdKind::TableSep),
+        "separator row dim: {s:?}"
+    );
+    assert!(
+        !s.iter()
+            .any(|(r, k)| *k == MdKind::TablePipe && r.start >= 10 && r.end <= 19),
         "no TablePipe inside the separator row: {s:?}"
     );
     // The header CELLS get the (no-op, full-ink) TableHeader tag; body cells do not.
@@ -481,7 +597,10 @@ fn aligned_separator_colons_dim_whole_row() {
     // dimmed whole (colons included).
     let doc = "| a | b |\n|:--|--:|\n| c | d |\n";
     let s = spans(doc);
-    assert!(has(&s, 10, 19, MdKind::TableSep), "aligned separator row dim: {s:?}");
+    assert!(
+        has(&s, 10, 19, MdKind::TableSep),
+        "aligned separator row dim: {s:?}"
+    );
 }
 
 #[test]
@@ -549,8 +668,16 @@ fn table_block_lines_finds_the_block_and_needs_a_separator() {
     }
     // Caret on prose (line 0) or the pipe-bearing-but-separator-less tail (line 5)
     // is None — a pipe run with no separator row is never a table.
-    assert_eq!(table_block_lines(&lines, 0), None, "prose line is not a table");
-    assert_eq!(table_block_lines(&lines, 5), None, "pipe prose w/o sep is not a table");
+    assert_eq!(
+        table_block_lines(&lines, 0),
+        None,
+        "prose line is not a table"
+    );
+    assert_eq!(
+        table_block_lines(&lines, 5),
+        None,
+        "pipe prose w/o sep is not a table"
+    );
 }
 
 #[test]
@@ -560,9 +687,10 @@ fn table_conceal_span_covers_the_whole_block() {
     let s = spans(text);
     let table_end = "| a | b |\n|---|---|\n| c | d |".len();
     assert!(
-        s.iter().any(|(r, k)| *k == MdKind::ConcealMarkup(ConcealKind::Table)
-            && r.start == 0
-            && r.end >= table_end),
+        s.iter()
+            .any(|(r, k)| *k == MdKind::ConcealMarkup(ConcealKind::Table)
+                && r.start == 0
+                && r.end >= table_end),
         "whole-table conceal span present: {s:?}"
     );
 }
@@ -572,7 +700,11 @@ fn table_column_layout_fits_keeps_max_content() {
     // Regime 1 (fits): max-content total (200 + 2*10 = 220) < avail => columns
     // keep their max-content widths, left-anchored, gaps applied.
     let (xs, ws) = table_column_layout(&[20.0, 20.0, 20.0], &[100.0, 60.0, 40.0], 10.0, 1000.0);
-    assert_eq!(ws, vec![100.0, 60.0, 40.0], "fitting keeps max-content widths");
+    assert_eq!(
+        ws,
+        vec![100.0, 60.0, 40.0],
+        "fitting keeps max-content widths"
+    );
     assert_eq!(xs[0], 0.0);
     assert!((xs[1] - 110.0).abs() < 1e-3, "col1 = 100 + gap 10");
     assert!((xs[2] - 180.0).abs() < 1e-3, "col2 = 110 + 60 + gap 10");
@@ -591,12 +723,21 @@ fn table_column_layout_squeeze_distributes_surplus_never_below_word_floor() {
     let maxs = [300.0, 40.0]; // phrase whole-phrase, token (min == max)
     let (_xs, ws) = table_column_layout(&mins, &maxs, 10.0, 200.0);
     // The token column (no max−min spread) never yields — stays at its width.
-    assert!((ws[1] - 40.0).abs() < 1e-3, "token column stays rigid: {ws:?}");
+    assert!(
+        (ws[1] - 40.0).abs() < 1e-3,
+        "token column stays rigid: {ws:?}"
+    );
     // The phrase column absorbs the squeeze but NEVER drops below its word floor.
-    assert!(ws[0] >= mins[0] - 1e-3, "phrase column keeps its word floor: {ws:?}");
+    assert!(
+        ws[0] >= mins[0] - 1e-3,
+        "phrase column keeps its word floor: {ws:?}"
+    );
     // The grid lands exactly at avail (200 = ws0 + ws1 + gap 10).
     let total = ws[0] + ws[1] + 10.0;
-    assert!((total - 200.0).abs() < 1e-3, "squeeze lands at avail: {total}");
+    assert!(
+        (total - 200.0).abs() < 1e-3,
+        "squeeze lands at avail: {total}"
+    );
 }
 
 #[test]
@@ -607,8 +748,14 @@ fn table_column_layout_overflow_holds_word_floors_and_pans() {
     let mins = [120.0, 120.0];
     let maxs = [200.0, 200.0];
     let (xs, ws) = table_column_layout(&mins, &maxs, 10.0, 150.0);
-    assert!((ws[0] - 120.0).abs() < 1e-3, "col0 holds its word floor: {ws:?}");
-    assert!((ws[1] - 120.0).abs() < 1e-3, "col1 holds its word floor: {ws:?}");
+    assert!(
+        (ws[0] - 120.0).abs() < 1e-3,
+        "col0 holds its word floor: {ws:?}"
+    );
+    assert!(
+        (ws[1] - 120.0).abs() < 1e-3,
+        "col1 holds its word floor: {ws:?}"
+    );
     // The laid grid EXCEEDS avail (250 total) — it grows into the margins / pans.
     let total = xs[1] + ws[1];
     assert!(total > 150.0, "overflow grid exceeds avail (pans): {total}");
@@ -617,13 +764,30 @@ fn table_column_layout_overflow_holds_word_floors_and_pans() {
 #[test]
 fn table_pan_clamp_and_max_stay_on_rails() {
     // Nothing to pan when the grid fits.
-    assert_eq!(table_pan_max(100.0, 200.0), 0.0, "fitting grid: no pan room");
-    assert_eq!(table_pan_clamp(50.0, 100.0, 200.0), 0.0, "clamp kills a stale pan");
+    assert_eq!(
+        table_pan_max(100.0, 200.0),
+        0.0,
+        "fitting grid: no pan room"
+    );
+    assert_eq!(
+        table_pan_clamp(50.0, 100.0, 200.0),
+        0.0,
+        "clamp kills a stale pan"
+    );
     // Overflow: pan room = content − view.
     assert!((table_pan_max(500.0, 200.0) - 300.0).abs() < 1e-3);
-    assert!((table_pan_clamp(1000.0, 500.0, 200.0) - 300.0).abs() < 1e-3, "clamped to max");
-    assert!((table_pan_clamp(-10.0, 500.0, 200.0)).abs() < 1e-3, "clamped to 0");
-    assert!((table_pan_clamp(120.0, 500.0, 200.0) - 120.0).abs() < 1e-3, "in-range passes");
+    assert!(
+        (table_pan_clamp(1000.0, 500.0, 200.0) - 300.0).abs() < 1e-3,
+        "clamped to max"
+    );
+    assert!(
+        (table_pan_clamp(-10.0, 500.0, 200.0)).abs() < 1e-3,
+        "clamped to 0"
+    );
+    assert!(
+        (table_pan_clamp(120.0, 500.0, 200.0) - 120.0).abs() < 1e-3,
+        "in-range passes"
+    );
 }
 
 #[test]
@@ -639,13 +803,32 @@ fn table_pan_bar_is_a_proportional_thumb_or_none() {
     let thick = 3.0;
     let at0 = table_pan_bar(content, view, 0.0, left, bottom, thick).unwrap();
     // width = view * (view/content) = 200 * 0.5 = 100.
-    assert!((at0[2] - 100.0).abs() < 1e-3, "thumb is the visible fraction: {at0:?}");
-    assert!((at0[0] - left).abs() < 1e-3, "pan 0 sits at the table left: {at0:?}");
-    assert!((at0[1] - (bottom - thick)).abs() < 1e-3, "bar hugs the bottom edge");
-    let full = table_pan_bar(content, view, table_pan_max(content, view), left, bottom, thick)
-        .unwrap();
+    assert!(
+        (at0[2] - 100.0).abs() < 1e-3,
+        "thumb is the visible fraction: {at0:?}"
+    );
+    assert!(
+        (at0[0] - left).abs() < 1e-3,
+        "pan 0 sits at the table left: {at0:?}"
+    );
+    assert!(
+        (at0[1] - (bottom - thick)).abs() < 1e-3,
+        "bar hugs the bottom edge"
+    );
+    let full = table_pan_bar(
+        content,
+        view,
+        table_pan_max(content, view),
+        left,
+        bottom,
+        thick,
+    )
+    .unwrap();
     // Right edge flush with the viewport right (left + view).
-    assert!((full[0] + full[2] - (left + view)).abs() < 1e-2, "full pan ends flush: {full:?}");
+    assert!(
+        (full[0] + full[2] - (left + view)).abs() < 1e-2,
+        "full pan ends flush: {full:?}"
+    );
 }
 
 #[test]
@@ -662,7 +845,10 @@ fn table_align_offset_honors_alignment_and_clamps_overflow() {
     // Over-wide cell (wider than its column): every alignment left-anchors at pad.
     for a in [ColAlign::Left, ColAlign::Right, ColAlign::Center] {
         let off = table_align_offset(a, col, 200.0, pad);
-        assert!((off - pad).abs() < 1e-3, "over-wide {a:?} clamps to pad: {off}");
+        assert!(
+            (off - pad).abs() < 1e-3,
+            "over-wide {a:?} clamps to pad: {off}"
+        );
     }
 }
 
@@ -671,9 +857,15 @@ fn ordered_list_markers_dim() {
     // `1. ` and `12) ` ordered markers (digit run + `.`/`)` + space) dim as the
     // ListMarker role, just like a bullet.
     let s = spans("1. item");
-    assert!(has(&s, 0, 3, MdKind::ListMarker), "'1. ' ordered marker: {s:?}");
+    assert!(
+        has(&s, 0, 3, MdKind::ListMarker),
+        "'1. ' ordered marker: {s:?}"
+    );
     let s = spans("12) item");
-    assert!(has(&s, 0, 4, MdKind::ListMarker), "'12) ' ordered marker: {s:?}");
+    assert!(
+        has(&s, 0, 4, MdKind::ListMarker),
+        "'12) ' ordered marker: {s:?}"
+    );
     // A bare number that is NOT a list (no `.`/`)`) must not be mis-marked.
     let s = spans("12 monkeys");
     assert!(
@@ -731,18 +923,25 @@ fn fenced_and_indented_code_block_body_is_code() {
         has(&s, 0, 16, MdKind::ConcealMarkup(ConcealKind::Fence)),
         "whole fenced block is the concealable Fence markup: {s:?}"
     );
-    assert!(has(&s, 4, 13, MdKind::Code { inline: false }), "fenced body is Code: {s:?}");
+    assert!(
+        has(&s, 4, 13, MdKind::Code { inline: false }),
+        "fenced body is Code: {s:?}"
+    );
     // An INDENTED (no-fence) code block: the body (range excludes the 4-space
     // indent) is Code, and the whole-block wrapper stays PLAIN (non-concealing)
     // `Markup` — no fence to hide behind a panel.
     let s = spans("    code\n");
-    assert!(has(&s, 4, 9, MdKind::Code { inline: false }), "indented body is Code: {s:?}");
+    assert!(
+        has(&s, 4, 9, MdKind::Code { inline: false }),
+        "indented body is Code: {s:?}"
+    );
     assert!(
         s.iter().any(|(_, k)| *k == MdKind::Markup),
         "an indented block's wrapper stays plain, non-concealing Markup: {s:?}"
     );
     assert!(
-        !s.iter().any(|(_, k)| matches!(k, MdKind::ConcealMarkup(ConcealKind::Fence))),
+        !s.iter()
+            .any(|(_, k)| matches!(k, MdKind::ConcealMarkup(ConcealKind::Fence))),
         "an indented block must never carry the Fence conceal kind: {s:?}"
     );
 }
@@ -758,11 +957,27 @@ fn rust_tagged_fence_highlights_body_and_dims_markers() {
     // The fenced body's comment + string literal carry the Alabaster ROLE spans
     // (in the fence's language), translated into DOCUMENT byte offsets.
     assert!(
-        has(&s, 8, 12, MdKind::CodeSyntax { role: SynKind::Comment, lang: Lang::Rust }),
+        has(
+            &s,
+            8,
+            12,
+            MdKind::CodeSyntax {
+                role: SynKind::Comment,
+                lang: Lang::Rust
+            }
+        ),
         "'// c' is a rust comment role span: {s:?}"
     );
     assert!(
-        has(&s, 19, 22, MdKind::CodeSyntax { role: SynKind::Str, lang: Lang::Rust }),
+        has(
+            &s,
+            19,
+            22,
+            MdKind::CodeSyntax {
+                role: SynKind::Str,
+                lang: Lang::Rust
+            }
+        ),
         "'\"x\"' is a rust string role span: {s:?}"
     );
     // The fence markers + the info string ("rust") stay dim, WYSIWYG-concealable
@@ -775,7 +990,8 @@ fn rust_tagged_fence_highlights_body_and_dims_markers() {
         "the info string 'rust' stays markup: {s:?}"
     );
     assert!(
-        !s.iter().any(|(r, k)| matches!(k, MdKind::CodeSyntax { .. }) && r.start < 8),
+        !s.iter()
+            .any(|(r, k)| matches!(k, MdKind::CodeSyntax { .. }) && r.start < 8),
         "no role span may touch the fence/info bytes before the body: {s:?}"
     );
 }
@@ -786,7 +1002,15 @@ fn sh_tagged_fence_maps_to_bash_and_highlights_comment() {
     // ```sh\n# hi\n``` — the `sh` info string maps to the Bash lexer.
     let s = spans("```sh\n# hi\n```");
     assert!(
-        has(&s, 6, 10, MdKind::CodeSyntax { role: SynKind::Comment, lang: Lang::Bash }),
+        has(
+            &s,
+            6,
+            10,
+            MdKind::CodeSyntax {
+                role: SynKind::Comment,
+                lang: Lang::Bash
+            }
+        ),
         "'# hi' is a bash comment role span: {s:?}"
     );
 }
@@ -801,11 +1025,27 @@ fn tilde_fence_highlights_body_same_as_backtick_fence() {
     let doc = "~~~rust\n// c\nlet s=\"x\";\n~~~";
     let s = spans(doc);
     assert!(
-        has(&s, 8, 12, MdKind::CodeSyntax { role: SynKind::Comment, lang: Lang::Rust }),
+        has(
+            &s,
+            8,
+            12,
+            MdKind::CodeSyntax {
+                role: SynKind::Comment,
+                lang: Lang::Rust
+            }
+        ),
         "'// c' is a rust comment role span under a tilde fence: {s:?}"
     );
     assert!(
-        has(&s, 19, 22, MdKind::CodeSyntax { role: SynKind::Str, lang: Lang::Rust }),
+        has(
+            &s,
+            19,
+            22,
+            MdKind::CodeSyntax {
+                role: SynKind::Str,
+                lang: Lang::Rust
+            }
+        ),
         "'\"x\"' is a rust string role span under a tilde fence: {s:?}"
     );
     assert!(
@@ -815,7 +1055,8 @@ fn tilde_fence_highlights_body_same_as_backtick_fence() {
         "the info string 'rust' stays markup under a tilde fence: {s:?}"
     );
     assert!(
-        !s.iter().any(|(r, k)| matches!(k, MdKind::CodeSyntax { .. }) && r.start < 8),
+        !s.iter()
+            .any(|(r, k)| matches!(k, MdKind::CodeSyntax { .. }) && r.start < 8),
         "no role span may touch the fence/info bytes before the body: {s:?}"
     );
 }
@@ -825,7 +1066,8 @@ fn unknown_and_no_lang_and_indented_fences_stay_plain_code() {
     // An UNKNOWN language: body stays plain mono Code, no role spans.
     let s = spans("```plaintext\n// c\n```");
     assert!(
-        !s.iter().any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
+        !s.iter()
+            .any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
         "an unknown-lang fence must not highlight: {s:?}"
     );
     assert!(
@@ -835,13 +1077,15 @@ fn unknown_and_no_lang_and_indented_fences_stay_plain_code() {
     // A NO-LANG bare fence: same — plain Code, no role spans.
     let s = spans("```\n// c\n```");
     assert!(
-        !s.iter().any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
+        !s.iter()
+            .any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
         "a no-lang fence must not highlight: {s:?}"
     );
     // An INDENTED code block: no info string at all, so no role spans.
     let s = spans("    // c\n");
     assert!(
-        !s.iter().any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
+        !s.iter()
+            .any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
         "an indented block must not highlight: {s:?}"
     );
 }
@@ -852,7 +1096,8 @@ fn non_fence_markdown_emits_no_code_syntax() {
     // syntax span, so a non-fence markdown buffer stays byte-identical.
     let s = spans("# Title\n\nsome **bold** and `inline` words\n");
     assert!(
-        !s.iter().any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
+        !s.iter()
+            .any(|(_, k)| matches!(k, MdKind::CodeSyntax { .. })),
         "non-fence markdown must not emit CodeSyntax: {s:?}"
     );
 }
@@ -868,7 +1113,10 @@ fn highlight_basic_pair_dims_markers_and_marks_content() {
     let hl_markup = MdKind::ConcealMarkup(ConcealKind::Highlight);
     assert!(has(&s, 0, 2, hl_markup), "opening == dim: {s:?}");
     assert!(has(&s, 8, 10, hl_markup), "closing == dim: {s:?}");
-    assert!(has(&s, 2, 8, MdKind::Highlight), "inner content highlighted: {s:?}");
+    assert!(
+        has(&s, 2, 8, MdKind::Highlight),
+        "inner content highlighted: {s:?}"
+    );
 }
 
 #[test]
@@ -899,7 +1147,10 @@ fn unclosed_highlight_stays_literal() {
     // An opening `==` with no matching close: no span at all (not even a dim
     // Markup for the stray delimiter) — it just reads as plain `=` characters.
     let s = spans("==never closed");
-    assert!(s.is_empty(), "an unclosed == must stay completely plain: {s:?}");
+    assert!(
+        s.is_empty(),
+        "an unclosed == must stay completely plain: {s:?}"
+    );
 }
 
 #[test]
@@ -907,8 +1158,14 @@ fn adjacent_four_equals_is_inert() {
     // A run of exactly 4 `=` is ambiguous (not a valid isolated `==` pair at
     // any offset within it) and is left as plain literal text — no highlight,
     // no markup, matching a `===`/`====` divider-typo staying inert too.
-    assert!(spans("before ==== after").is_empty(), "==== must not highlight");
-    assert!(spans("a === b").is_empty(), "=== (odd run) must not highlight either");
+    assert!(
+        spans("before ==== after").is_empty(),
+        "==== must not highlight"
+    );
+    assert!(
+        spans("a === b").is_empty(),
+        "=== (odd run) must not highlight either"
+    );
 }
 
 #[test]
@@ -917,7 +1174,10 @@ fn highlight_ignored_inside_inline_code() {
     // highlight scan structurally never sees it — `==x==` inside backticks
     // stays plain mono Code, no Highlight span.
     let s = spans("`==x==`");
-    assert!(has(&s, 1, 6, MdKind::Code { inline: true }), "inner text is plain Code: {s:?}");
+    assert!(
+        has(&s, 1, 6, MdKind::Code { inline: true }),
+        "inner text is plain Code: {s:?}"
+    );
     assert!(
         !s.iter().any(|(_, k)| *k == MdKind::Highlight),
         "inline code must never highlight: {s:?}"
@@ -960,7 +1220,8 @@ fn highlight_no_cross_line_guard_fires_directly() {
     let text = "==ab\ncd==ef==";
     push_highlight_spans(&mut out, text, &(0..text.len()));
     assert!(
-        !out.iter().any(|(r, k)| *k == MdKind::Highlight && text[r.clone()].contains('\n')),
+        !out.iter()
+            .any(|(r, k)| *k == MdKind::Highlight && text[r.clone()].contains('\n')),
         "no highlight span may contain a newline: {out:?}"
     );
     assert!(
@@ -993,7 +1254,10 @@ fn open_task_marks_box_not_text() {
     // the body text rides the DEFAULT ink (no span) so an open task stays present.
     let s = spans("- [ ] buy milk");
     assert!(has(&s, 0, 2, MdKind::ListMarker), "'- ' list marker: {s:?}");
-    assert!(has(&s, 2, 6, MdKind::Task(false)), "'[ ] ' open checkbox: {s:?}");
+    assert!(
+        has(&s, 2, 6, MdKind::Task(false)),
+        "'[ ] ' open checkbox: {s:?}"
+    );
     assert!(
         !s.iter().any(|(_, k)| *k == MdKind::TaskDone),
         "an OPEN task must not dim its body: {s:?}"
@@ -1005,7 +1269,10 @@ fn checked_task_dims_box_and_text() {
     // "- [x] done thing": the checkbox is a CHECKED task marker and the body
     // text dims (TaskDone) so the whole line recedes like a struck todo.
     let s = spans("- [x] done thing");
-    assert!(has(&s, 2, 6, MdKind::Task(true)), "'[x] ' checked checkbox: {s:?}");
+    assert!(
+        has(&s, 2, 6, MdKind::Task(true)),
+        "'[x] ' checked checkbox: {s:?}"
+    );
     assert!(has(&s, 6, 16, MdKind::TaskDone), "checked body dims: {s:?}");
 }
 
@@ -1013,7 +1280,10 @@ fn checked_task_dims_box_and_text() {
 fn task_done_does_not_leak_to_next_item() {
     // A checked item followed by an OPEN one: only the first item's body dims.
     let s = spans("- [x] closed\n- [ ] open");
-    assert!(s.iter().any(|(_, k)| *k == MdKind::TaskDone), "first dims: {s:?}");
+    assert!(
+        s.iter().any(|(_, k)| *k == MdKind::TaskDone),
+        "first dims: {s:?}"
+    );
     assert_eq!(
         s.iter().filter(|(_, k)| *k == MdKind::TaskDone).count(),
         1,
@@ -1073,16 +1343,40 @@ fn fence_line_lang_matches_the_syntax_highlighting_gate() {
     assert_eq!(fence_line_lang("   ```rust"), Some(Lang::Rust));
     // No language, an unrecognized language, or too little indent/run: no label.
     assert_eq!(fence_line_lang("```"), None, "bare fence: no label");
-    assert_eq!(fence_line_lang("```made-up-lang"), None, "unrecognized language: no label");
-    assert_eq!(fence_line_lang("not a fence"), None, "not a fence line at all: no label");
-    assert_eq!(fence_line_lang("``rust"), None, "only 2 backticks is not a fence");
-    assert_eq!(fence_line_lang("    ```rust"), None, "4-space indent is a CODE block, not a fence");
+    assert_eq!(
+        fence_line_lang("```made-up-lang"),
+        None,
+        "unrecognized language: no label"
+    );
+    assert_eq!(
+        fence_line_lang("not a fence"),
+        None,
+        "not a fence line at all: no label"
+    );
+    assert_eq!(
+        fence_line_lang("``rust"),
+        None,
+        "only 2 backticks is not a fence"
+    );
+    assert_eq!(
+        fence_line_lang("    ```rust"),
+        None,
+        "4-space indent is a CODE block, not a fence"
+    );
 
     // AGREEMENT LAW: for every recognized fence line, `fence_line_lang` agrees
     // with `Lang::from_info` on the raw info string alone — the label can never
     // name a language the body's own highlighting disagrees with.
-    for (line, info) in [("```rust", "rust"), ("```python extra", "python extra"), ("~~~toml", "toml")] {
-        assert_eq!(fence_line_lang(line), Lang::from_info(info), "label/highlight gate must agree: {line:?}");
+    for (line, info) in [
+        ("```rust", "rust"),
+        ("```python extra", "python extra"),
+        ("~~~toml", "toml"),
+    ] {
+        assert_eq!(
+            fence_line_lang(line),
+            Lang::from_info(info),
+            "label/highlight gate must agree: {line:?}"
+        );
     }
 }
 
@@ -1138,10 +1432,17 @@ fn heading_scale_has_three_sizes_then_flattens() {
     assert!(heading_scale(2) > heading_scale(3), "h2 > h3");
     assert!(heading_scale(3) > 1.0, "h3 still bigger than body");
     assert_eq!(heading_scale(4), heading_scale(3), "4+ hashes == h3");
-    assert_eq!(heading_scale(9), heading_scale(3), "deep counts clamp to h3");
+    assert_eq!(
+        heading_scale(9),
+        heading_scale(3),
+        "deep counts clamp to h3"
+    );
     // The label rung sits BELOW body (for the future gutter/stats, faint ink).
     assert_eq!(type_scale::LABEL, 0.8, "label rung is 0.8");
-    assert!(type_scale::LABEL < type_scale::BODY, "label reads smaller than body");
+    assert!(
+        type_scale::LABEL < type_scale::BODY,
+        "label reads smaller than body"
+    );
     // The ornament scale is PER-WORLD now (`theme::Theme::ornament_scale`), no
     // longer a single `type_scale` rung; its own tiers + row-coupling are asserted
     // in `theme::tests` and `render::tests` (see `every_world_has_an_ornament_scale`
@@ -1159,20 +1460,38 @@ fn heading_weight_gate_title_never_bolds_and_force_overrides_only_the_bit() {
     // No force (the shipping default): the world's bit decides, but ONLY for
     // level >= 2 — the TITLE (`#`) and a non-heading line (0) never bold.
     for level in 0u8..=9 {
-        assert!(!gate(None, false, level), "bit off => never bold (level {level})");
+        assert!(
+            !gate(None, false, level),
+            "bit off => never bold (level {level})"
+        );
     }
     assert!(!gate(None, true, 0), "level 0 (no heading) never bolds");
-    assert!(!gate(None, true, 1), "TITLE never bolds, even with the bit set");
+    assert!(
+        !gate(None, true, 1),
+        "TITLE never bolds, even with the bit set"
+    );
     for level in 2u8..=9 {
         assert!(gate(None, true, level), "bit on => level {level} bolds");
     }
     // The A/B gallery force replaces the BIT, never the level gate: `on` bolds
     // sections even on a bit-off world but STILL never the title; `off` kills
     // the bit everywhere.
-    assert!(gate(Some(true), false, 2), "force on overrides a bit-off world at ##");
-    assert!(!gate(Some(true), false, 1), "force on still never bolds the TITLE");
-    assert!(!gate(Some(true), true, 1), "force on + bit on still never bolds the TITLE");
-    assert!(!gate(Some(false), true, 2), "force off overrides a bit-on world");
+    assert!(
+        gate(Some(true), false, 2),
+        "force on overrides a bit-off world at ##"
+    );
+    assert!(
+        !gate(Some(true), false, 1),
+        "force on still never bolds the TITLE"
+    );
+    assert!(
+        !gate(Some(true), true, 1),
+        "force on + bit on still never bolds the TITLE"
+    );
+    assert!(
+        !gate(Some(false), true, 2),
+        "force off overrides a bit-on world"
+    );
     // And the public composition (env unset in the test process => no force)
     // agrees with the pure core's no-force arm.
     assert_eq!(
@@ -1206,17 +1525,31 @@ fn is_thematic_break_matches_commonmark_breaks_only() {
 fn strikethrough_basic_pair_conceals_markers_and_marks_content() {
     let s = spans("~~struck~~");
     let st_markup = MdKind::ConcealMarkup(ConcealKind::Strikethrough);
-    assert!(has(&s, 0, 2, st_markup), "opening ~~ dim + concealable: {s:?}");
-    assert!(has(&s, 8, 10, st_markup), "closing ~~ dim + concealable: {s:?}");
-    assert!(has(&s, 2, 8, MdKind::Strikethrough), "inner content struck: {s:?}");
+    assert!(
+        has(&s, 0, 2, st_markup),
+        "opening ~~ dim + concealable: {s:?}"
+    );
+    assert!(
+        has(&s, 8, 10, st_markup),
+        "closing ~~ dim + concealable: {s:?}"
+    );
+    assert!(
+        has(&s, 2, 8, MdKind::Strikethrough),
+        "inner content struck: {s:?}"
+    );
 }
 
 #[test]
 fn strikethrough_mid_sentence_pair() {
     let s = spans("keep ~~cut this~~ keep");
-    assert!(has(&s, 7, 15, MdKind::Strikethrough), "inner run struck: {s:?}");
+    assert!(
+        has(&s, 7, 15, MdKind::Strikethrough),
+        "inner run struck: {s:?}"
+    );
     assert_eq!(
-        s.iter().filter(|(_, k)| *k == MdKind::Strikethrough).count(),
+        s.iter()
+            .filter(|(_, k)| *k == MdKind::Strikethrough)
+            .count(),
         1,
         "exactly one struck span: {s:?}"
     );
@@ -1242,7 +1575,10 @@ fn single_tilde_never_strikes() {
 fn strikethrough_ignored_inside_inline_code() {
     // Inline code is literal: `~~x~~` inside backticks stays plain mono Code.
     let s = spans("`~~x~~`");
-    assert!(has(&s, 1, 6, MdKind::Code { inline: true }), "inner text is plain Code: {s:?}");
+    assert!(
+        has(&s, 1, 6, MdKind::Code { inline: true }),
+        "inner text is plain Code: {s:?}"
+    );
     assert!(
         !s.iter().any(|(_, k)| *k == MdKind::Strikethrough),
         "inline code must never strike: {s:?}"
@@ -1308,7 +1644,8 @@ fn tilde_run_of_three_is_a_fence_not_a_strike() {
         "a tilde fence must never strike: {s:?}"
     );
     assert!(
-        s.iter().any(|(_, k)| matches!(k, MdKind::Code { inline: false })),
+        s.iter()
+            .any(|(_, k)| matches!(k, MdKind::Code { inline: false })),
         "the tilde fence still parses as a code block: {s:?}"
     );
 }
@@ -1318,7 +1655,10 @@ fn strikethrough_tag_strings_for_sidecar() {
     // The sidecar `md_spans` gains the new tag VALUES in the existing field —
     // a data change, not a shape change (no schema bump).
     assert_eq!(MdKind::Strikethrough.tag(), "strikethrough");
-    assert_eq!(MdKind::ConcealMarkup(ConcealKind::Strikethrough).tag(), "markup");
+    assert_eq!(
+        MdKind::ConcealMarkup(ConcealKind::Strikethrough).tag(),
+        "markup"
+    );
     assert_eq!(ConcealKind::Strikethrough.tag(), "strikethrough");
 }
 
@@ -1352,10 +1692,8 @@ fn label_destination_range_isolates_just_the_parens_interior() {
         "#a-fragment"
     );
     assert_eq!(
-        &"](https://example.com/p?q=1)"[label_destination_range(
-            "](https://example.com/p?q=1)"
-        )
-        .unwrap()],
+        &"](https://example.com/p?q=1)"
+            [label_destination_range("](https://example.com/p?q=1)").unwrap()],
         "https://example.com/p?q=1"
     );
 
@@ -1393,12 +1731,18 @@ fn destination_ranges_excludes_addresses_but_never_label_or_alt_text() {
     // alt text) survives; only the ones INSIDE the two destinations above are
     // covered. Count total occurrences vs. how many a destination swallows.
     let total_wrold = text.matches("wrold").count();
-    assert_eq!(total_wrold, 4, "sanity: two labels + two in-destination words");
+    assert_eq!(
+        total_wrold, 4,
+        "sanity: two labels + two in-destination words"
+    );
     let covered = text
         .match_indices("wrold")
         .filter(|(i, w)| dests.iter().any(|r| r.start <= *i && i + w.len() <= r.end))
         .count();
-    assert_eq!(covered, 2, "exactly the two IN-DESTINATION words are covered: {dests:?}");
+    assert_eq!(
+        covered, 2,
+        "exactly the two IN-DESTINATION words are covered: {dests:?}"
+    );
 
     // A document with no link/image yields no destinations at all.
     let prose = "just some prose, no addresses here\n";

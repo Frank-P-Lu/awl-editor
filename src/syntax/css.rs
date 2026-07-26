@@ -271,7 +271,11 @@ mod tests {
     fn block_comment() {
         let t = "/* a comment */\nbody { color: red; }";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["/* a comment */"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["/* a comment */"],
+            "{s:?}"
+        );
     }
 
     #[test]

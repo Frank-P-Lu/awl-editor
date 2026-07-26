@@ -8,7 +8,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::capture::{self, CaptureOpts};
 use crate::config::{self, Config};
@@ -261,8 +261,9 @@ fn parse_steps(s: &str) -> Result<Vec<u32>> {
         .map(|p| p.trim())
         .filter(|p| !p.is_empty())
         .map(|p| {
-            p.parse::<u32>()
-                .map_err(|_| anyhow::anyhow!("bad --capture-timeline step {p:?} (want ms integers)"))
+            p.parse::<u32>().map_err(|_| {
+                anyhow::anyhow!("bad --capture-timeline step {p:?} (want ms integers)")
+            })
         })
         .collect::<Result<_>>()?;
     if steps.is_empty() {
@@ -635,9 +636,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // `--screenshot-frames N OUT.png`: the frame COUNT then the output path
                 // (the count is the flag's headline, mirroring the task's shape; OUT
                 // stays explicit like every other screenshot flag).
-                let n = args.next().ok_or_else(|| {
-                    anyhow::anyhow!("--screenshot-frames requires <N> <out.png>")
-                })?;
+                let n = args
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("--screenshot-frames requires <N> <out.png>"))?;
                 let n: u32 = n.parse().map_err(|e| {
                     anyhow::anyhow!("--screenshot-frames <N> must be an integer: {e}")
                 })?;
@@ -712,9 +713,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 opts.zoom = Some(parse_zoom(&v)?);
             }
             "--capture-size" => {
-                let v = args
-                    .next()
-                    .ok_or_else(|| anyhow::anyhow!("--capture-size requires WxH (e.g. 2400x1600)"))?;
+                let v = args.next().ok_or_else(|| {
+                    anyhow::anyhow!("--capture-size requires WxH (e.g. 2400x1600)")
+                })?;
                 capture_size = Some(parse_size(&v)?);
             }
             "--capture-dpi" => {
@@ -727,8 +728,10 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 let v = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("--scroll requires a line count"))?;
-                opts.scroll =
-                    Some(v.parse().map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?);
+                opts.scroll = Some(
+                    v.parse()
+                        .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
+                );
             }
             "--preedit" => {
                 let v = args
@@ -1037,7 +1040,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
             || workspace.is_some()
             || default_folder.is_some()
         {
-            bail!("--soak-gpu is isolated; file/capture/input/config/folder arguments do not apply");
+            bail!(
+                "--soak-gpu is isolated; file/capture/input/config/folder arguments do not apply"
+            );
         }
         return Ok(Mode::SoakGpu(crate::soak_gpu::SoakConfig {
             duration: soak_gpu_duration,
@@ -1048,7 +1053,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
         bail!("--soak-gpu-seconds requires --soak-gpu");
     }
     if bench_suite {
-        return Ok(Mode::BenchSuite { baseline: bench_baseline });
+        return Ok(Mode::BenchSuite {
+            baseline: bench_baseline,
+        });
     }
     if bench_baseline.is_some() {
         bail!("--bench-baseline requires --bench-suite");
@@ -1141,7 +1148,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
             bail!("--strict-replay requires --keys (there is no replay to be strict about)");
         }
         if kind != CaptureKind::Screenshot {
-            bail!("--strict-replay only applies to --screenshot (not motion/timeline/held captures)");
+            bail!(
+                "--strict-replay only applies to --screenshot (not motion/timeline/held captures)"
+            );
         }
     }
     // `--storyboard` drives its own input/document; refuse the flags it would
@@ -1153,7 +1162,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
             bail!("--storyboard drives its own steps; --keys does not apply");
         }
         if file.is_some() {
-            bail!("--storyboard takes its document from the storyboard file; drop the file argument");
+            bail!(
+                "--storyboard takes its document from the storyboard file; drop the file argument"
+            );
         }
         if wait_flag {
             bail!("--wait only applies to the windowed editor (no capture mode)");
@@ -1196,7 +1207,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // same sandbox, plus the document's parent-directory marker).
     #[cfg(not(target_arch = "wasm32"))]
     if strict_replay {
-        crate::scenario::install_hermetic_fs(file.as_deref(), config_arg.as_deref(), root.as_deref());
+        crate::scenario::install_hermetic_fs(
+            file.as_deref(),
+            config_arg.as_deref(),
+            root.as_deref(),
+        );
     }
     #[cfg(not(target_arch = "wasm32"))]
     if storyboard.is_some() {
@@ -1227,7 +1242,13 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // then active (`App::sync_page_measure` / the headless `--keys` Goto switch).
     let initial_page_class =
         page::PageClass::of_path(storyboard_file.as_deref().or(file.as_deref()));
-    config.apply_sticky_globals(theme_flag, page_flag, caret_flag, measure_flag, initial_page_class);
+    config.apply_sticky_globals(
+        theme_flag,
+        page_flag,
+        caret_flag,
+        measure_flag,
+        initial_page_class,
+    );
     // `--keys` only makes sense with a capture mode (it mutates the buffer for a
     // one-frame capture); refuse it for the windowed editor where live typing is
     // the input path.
@@ -1257,7 +1278,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // BEHIND the flag (the flag wins via `.or`) before the existing resolvers add the
     // built-in default. The Windowed path keeps the RAW flag + config so a live reload
     // can re-fold; capture modes fold here (one-shot, no reload).
-    let default_folder_resolved = resolve_default_folder(&default_folder.clone().or_else(|| config.default_folder.clone()));
+    let default_folder_resolved = resolve_default_folder(
+        &default_folder
+            .clone()
+            .or_else(|| config.default_folder.clone()),
+    );
     let workspace_folded = workspace.clone().or_else(|| config.workspace.clone());
     // Thread the capture canvas size + dpi onto the screenshot opts (timeline/held
     // carry them on their Mode variants). Absent flags -> None -> byte-stable default.
@@ -1316,9 +1341,24 @@ pub(crate) fn parse_args() -> Result<Mode> {
             frames: frames.unwrap(),
             step_ms: frame_step_ms.unwrap_or(capture::DEFAULT_FRAME_STEP_MS),
         },
-        Some(out) if motion_d => Mode::ScreenshotMotionDiagonal { out, file, keys, km },
-        Some(out) if motion_v => Mode::ScreenshotMotionVertical { out, file, keys, km },
-        Some(out) if motion => Mode::ScreenshotMotion { out, file, keys, km },
+        Some(out) if motion_d => Mode::ScreenshotMotionDiagonal {
+            out,
+            file,
+            keys,
+            km,
+        },
+        Some(out) if motion_v => Mode::ScreenshotMotionVertical {
+            out,
+            file,
+            keys,
+            km,
+        },
+        Some(out) if motion => Mode::ScreenshotMotion {
+            out,
+            file,
+            keys,
+            km,
+        },
         Some(out) => Mode::Screenshot {
             out,
             file,
@@ -1388,8 +1428,14 @@ mod tests {
     #[test]
     #[cfg(not(target_arch = "wasm32"))]
     fn parse_soak_duration_accepts_short_runs_and_rejects_non_positive() {
-        assert_eq!(parse_soak_seconds("0.25").unwrap(), std::time::Duration::from_millis(250));
-        assert_eq!(parse_soak_seconds("900").unwrap(), crate::soak_gpu::DEFAULT_DURATION);
+        assert_eq!(
+            parse_soak_seconds("0.25").unwrap(),
+            std::time::Duration::from_millis(250)
+        );
+        assert_eq!(
+            parse_soak_seconds("900").unwrap(),
+            crate::soak_gpu::DEFAULT_DURATION
+        );
         for bad in ["0", "-1", "NaN", "inf", "nope"] {
             assert!(parse_soak_seconds(bad).is_err(), "{bad}");
         }
@@ -1465,7 +1511,10 @@ mod tests {
         assert_eq!(clamp_zoom(f32::INFINITY), zmax, "+inf saturates high");
         assert_eq!(clamp_zoom(f32::NEG_INFINITY), zmin, "-inf saturates low");
         // A normal factor still step-rounds + clamps exactly as before.
-        assert!((clamp_zoom(1.234) - 1.2).abs() < 1e-5, "step rounding unchanged");
+        assert!(
+            (clamp_zoom(1.234) - 1.2).abs() < 1e-5,
+            "step rounding unchanged"
+        );
         assert_eq!(clamp_zoom(9.0), zmax);
         assert_eq!(clamp_zoom(0.0), zmin);
     }

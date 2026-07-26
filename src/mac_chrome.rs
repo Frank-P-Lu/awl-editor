@@ -23,9 +23,9 @@
 
 use std::path::PathBuf;
 
-use objc2::{AnyThread, MainThreadMarker};
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
+use objc2::{AnyThread, MainThreadMarker};
 use objc2_app_kit::{
     NSAboutPanelOptionApplicationName, NSAboutPanelOptionApplicationVersion,
     NSAboutPanelOptionCredits, NSApplication, NSBitmapFormat, NSBitmapImageRep,

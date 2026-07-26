@@ -42,8 +42,12 @@ fn values(zoom: f32) -> crate::settings::SettingsValues {
 /// this file's sibling for the un-faceted Zoom-row rail tests).
 fn editor_overlay() -> OverlayState {
     let vals = values(1.0);
-    let mut ov =
-        OverlayState::new(OverlayKind::Settings, crate::settings::visible_names(), Vec::new(), Vec::new());
+    let mut ov = OverlayState::new(
+        OverlayKind::Settings,
+        crate::settings::visible_names(),
+        Vec::new(),
+        Vec::new(),
+    );
     ov.set_secondaries(crate::settings::visible_value_cells(&vals));
     ov.set_range_cells(crate::settings::visible_range_cells(&vals));
     let idx = ov
@@ -108,7 +112,10 @@ fn every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster() {
     ];
 
     let n = editor_overlay().items.len();
-    assert!(n >= 3, "the Editor facet must carry a handful of rows for this sweep to be meaningful");
+    assert!(
+        n >= 3,
+        "the Editor facet must carry a handful of rows for this sweep to be meaningful"
+    );
 
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
@@ -219,9 +226,15 @@ fn the_zoom_rows_band_and_its_neighbours_never_bleed_into_one_another() {
         return;
     };
     let base = editor_overlay();
-    let zoom =
-        base.items.iter().position(|&i| base.rows[i].accept == "Zoom").expect("Zoom row present");
-    assert!(zoom > 0 && zoom + 1 < base.items.len(), "Zoom needs a neighbour on both sides to test adjacency");
+    let zoom = base
+        .items
+        .iter()
+        .position(|&i| base.rows[i].accept == "Zoom")
+        .expect("Zoom row present");
+    assert!(
+        zoom > 0 && zoom + 1 < base.items.len(),
+        "Zoom needs a neighbour on both sides to test adjacency"
+    );
 
     for world in ["Mopoke", "Saltpan", "Firetail"] {
         theme::set_active_by_name(world).unwrap();

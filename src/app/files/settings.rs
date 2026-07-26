@@ -11,7 +11,6 @@
 use crate::app::*;
 
 impl App {
-
     /// WRITE-ON-CHANGE for a STICKY PREFERENCE (theme/zoom/page_mode/caret_mode):
     /// persist the settled value to config.toml format-preservingly (reusing the
     /// rebind menu's surgical [`Config::write_pref`] — comments + `[keys]` + the
@@ -71,13 +70,11 @@ impl App {
         }
     }
 
-
     /// Persist the now-active THEME name (write-on-change after a theme commit/revert).
     pub(in crate::app) fn persist_theme(&mut self) {
         let name = crate::theme::active().name;
         self.persist_pref("theme", &format!("\"{name}\""));
     }
-
 
     /// Persist the now-active PAGE MODE (write-on-change after a page-mode toggle).
     pub(in crate::app) fn persist_page_mode(&mut self) {
@@ -85,14 +82,12 @@ impl App {
         self.persist_pref("page_mode", if on { "true" } else { "false" });
     }
 
-
     /// Persist the now-active SPELLCHECK on/off (write-on-change after "Toggle
     /// Spellcheck"). Mirrors `persist_page_mode` / the writing-nits persist call.
     pub(in crate::app) fn persist_spellcheck(&mut self) {
         let on = crate::spell::spellcheck_on();
         self.persist_pref("spellcheck", if on { "true" } else { "false" });
     }
-
 
     /// SETTINGS MENU toggle (Enter on a `SettingKind::Toggle` row): flip the sticky
     /// boolean `key`, apply it LIVE this frame, PERSIST the negated value, then
@@ -209,7 +204,6 @@ impl App {
         self.refresh_settings_overlay();
     }
 
-
     /// THE DATE-FORMAT CYCLE (Enter on the Settings menu's "Date format" row):
     /// step [`crate::dateformat::active_format`] to the NEXT of the five
     /// formats ([`crate::dateformat::DateFormat::cycle_next`], wrapping
@@ -231,7 +225,6 @@ impl App {
         }
     }
 
-
     /// "Insert Date" (`Effect::InsertDate`): insert TODAY'S date at the caret,
     /// formatted per the active [`crate::dateformat::DateFormat`], as ONE
     /// undoable edit (`Buffer::insert_text` — sealed on both sides, so it
@@ -246,7 +239,6 @@ impl App {
         let (y, m, d) = crate::dateformat::today_from_system_clock();
         self.active.buffer.insert_text(&fmt.format(y, m, d));
     }
-
 
     /// After a settings toggle, rebuild the STILL-OPEN settings menu's value cells in
     /// place (mirrors [`Self::refresh_rebind_overlay`]): re-gather the config/project
@@ -274,7 +266,6 @@ impl App {
             }
         }
     }
-
 
     /// SETTINGS MENU inline VALUE commit (Enter on a `SettingKind::Value` row): parse
     /// the typed `raw` for config `key`, CLAMP it to that setting's sane range, apply
@@ -316,7 +307,6 @@ impl App {
         self.refresh_settings_overlay();
     }
 
-
     /// ITEM 94 — SETTINGS MENU RANGE step (Left/Right on a rail row): the CORE
     /// already stepped the live scalar through the range spec and mirrored the new
     /// readout + thumb into the still-open menu, so this owns only the LIVE TAIL:
@@ -341,7 +331,6 @@ impl App {
         }
         self.refresh_settings_overlay();
     }
-
 
     /// ITEM 94 — THE ONE LIVE-APPLY DOOR for a range setting's POINTER path (a rail
     /// click, and every resolved step of a drag): apply `value` — already quantized
@@ -370,7 +359,6 @@ impl App {
         }
     }
 
-
     /// SETTINGS MENU path pick (the folder navigator opened from a `SettingKind::Path`
     /// row accepted a folder): write the NAMED config key `key` for `path`. For
     /// `project_root` this IS a genuine switch-project (re-index + the session's
@@ -393,7 +381,6 @@ impl App {
         self.refresh_settings_overlay();
     }
 
-
     /// The config key naming the sticky page-width pref for `class` — the ONE
     /// owner every persist/reset/resync call routes the class->key mapping
     /// through, so it can never drift between them.
@@ -403,7 +390,6 @@ impl App {
             crate::page::PageClass::Code => "page_width_code",
         }
     }
-
 
     /// Persist the now-active PAGE WIDTH / measure (write-on-change after a Page wider
     /// / Page narrower command, or a page-column drag release) to the key matching
@@ -416,7 +402,6 @@ impl App {
         let key = Self::page_width_key(self.active.buffer.page_class());
         self.persist_pref(key, &w.to_string());
     }
-
 
     /// "Reset page width" WRITE-ON-CHANGE: CLEAR the sticky override MATCHING the
     /// active buffer's KIND entirely (format-preserving removal,
@@ -442,7 +427,6 @@ impl App {
             crate::page::PageClass::Code => self.config.page_width_code = None,
         }
     }
-
 
     /// Re-apply the STICKY PAGE-WIDTH MEASURE for the ACTIVE buffer's KIND — the
     /// buffer OPEN/SWITCH half of the prose/code split (see
@@ -472,14 +456,12 @@ impl App {
         }
     }
 
-
     /// Persist the now-active CARET MODE (write-on-change after a caret-mode change).
     /// Phase 2 relies on this seam to remember the caret style across launches.
     pub(in crate::app) fn persist_caret_mode(&mut self) {
         let name = crate::config::caret_mode_name(crate::caret::mode());
         self.persist_pref("caret_mode", &format!("\"{name}\""));
     }
-
 
     /// Persist the now-active DATE FORMAT (write-on-change after the Date-format
     /// picker commits) — mirrors `persist_caret_mode`. The core already set the
@@ -490,7 +472,6 @@ impl App {
         let slug = crate::dateformat::active_format().config_name();
         self.persist_pref("date_format", &format!("\"{slug}\""));
     }
-
 
     /// Write the CURRENT zoom to config. The raw write alone — every caller reaches it
     /// through [`Self::settle_zoom_persist`], which owns the surrounding bookkeeping.
@@ -527,7 +508,6 @@ impl App {
         }
     }
 
-
     /// Live-reload after the config file is SAVED in the editor: re-read it, rebuild
     /// the keymap overrides, and re-fold default_folder/workspace (flag > config >
     /// default, so a CLI flag still wins). A bad chord keeps its default + prints a
@@ -551,11 +531,18 @@ impl App {
     pub(in crate::app) fn reload_config(&mut self) {
         let cfg = Config::load(self.config.path.clone());
         let mut keys_with_web_alt = cfg.keys.clone();
-        keys_with_web_alt.extend(crate::commands::web_alternate_keys(&cfg.keys, crate::convention::Convention::current(), crate::commands::Platform::current()));
+        keys_with_web_alt.extend(crate::commands::web_alternate_keys(
+            &cfg.keys,
+            crate::convention::Convention::current(),
+            crate::commands::Platform::current(),
+        ));
         self.keymap.apply_overrides(&keys_with_web_alt);
         self.keymap.apply_linux_keep(&cfg.effective_linux_keep());
         self.default_folder = crate::resolve_default_folder(
-            &self.cli_default_folder.clone().or_else(|| cfg.default_folder.clone()),
+            &self
+                .cli_default_folder
+                .clone()
+                .or_else(|| cfg.default_folder.clone()),
         );
         let workspace_opt = self.cli_workspace.clone().or_else(|| cfg.workspace.clone());
         self.workspace = Some(crate::resolve_workspace(&workspace_opt, &self.root));

@@ -45,8 +45,16 @@ fn picker_view(align: theme::CardAnchor) -> ViewState {
 /// (`preview_move` = preview + re-anchor), the exact call the keyboard nav path
 /// runs. Sets the selection directly so the crossing is order-independent.
 fn cross_to(ov: &mut OverlayState, name: &str) {
-    let ci = ov.rows.iter().position(|r| r.accept == name).expect("world in corpus");
-    let pos = ov.items.iter().position(|&i| i == ci).expect("world visible on the flat lens");
+    let ci = ov
+        .rows
+        .iter()
+        .position(|r| r.accept == name)
+        .expect("world in corpus");
+    let pos = ov
+        .items
+        .iter()
+        .position(|&i| i == ci)
+        .expect("world visible on the flat lens");
     ov.selected = pos;
     crate::actions::preview_move(ov);
 }
@@ -54,8 +62,16 @@ fn cross_to(ov: &mut OverlayState, name: &str) {
 /// A PASSIVE hover onto `name`: re-highlight + the BARE `preview_overlay` (no
 /// re-anchor) — exactly what `app/input/mouse.rs::overlay_hover` runs.
 fn hover_to(ov: &mut OverlayState, name: &str) {
-    let ci = ov.rows.iter().position(|r| r.accept == name).expect("world in corpus");
-    let pos = ov.items.iter().position(|&i| i == ci).expect("world visible on the flat lens");
+    let ci = ov
+        .rows
+        .iter()
+        .position(|r| r.accept == name)
+        .expect("world in corpus");
+    let pos = ov
+        .items
+        .iter()
+        .position(|&i| i == ci)
+        .expect("world visible on the flat lens");
     ov.selected = pos;
     crate::actions::preview_overlay(ov);
 }
@@ -102,16 +118,30 @@ fn assert_on_rail(rect: [f32; 4], anchor: theme::CardAnchor, world: &str) {
 fn deliberate_crossing_snaps_the_card_into_the_destination_rail() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping deliberate_crossing_snaps_the_card_into_the_destination_rail: no wgpu adapter");
+        eprintln!(
+            "skipping deliberate_crossing_snaps_the_card_into_the_destination_rail: no wgpu adapter"
+        );
         return;
     };
     set_card_anchor_test_override(None); // the world's OWN data drives the anchor
     let restore = theme::active().name;
 
     // GUARD the data this crossing spans (a world-data flip flags the test).
-    assert_eq!(anchor_of("Wagtail"), theme::CardAnchor::TopLeft, "Wagtail is the LEFT + Pane world");
-    assert_eq!(anchor_of("Tawny"), theme::CardAnchor::TopCenter, "Tawny is the CENTER + Pane world");
-    assert_eq!(anchor_of("Cassowary"), theme::CardAnchor::TopRight, "Cassowary is the RIGHT + Bars world");
+    assert_eq!(
+        anchor_of("Wagtail"),
+        theme::CardAnchor::TopLeft,
+        "Wagtail is the LEFT + Pane world"
+    );
+    assert_eq!(
+        anchor_of("Tawny"),
+        theme::CardAnchor::TopCenter,
+        "Tawny is the CENTER + Pane world"
+    );
+    assert_eq!(
+        anchor_of("Cassowary"),
+        theme::CardAnchor::TopRight,
+        "Cassowary is the RIGHT + Bars world"
+    );
 
     let names: Vec<String> = theme::THEMES.iter().map(|t| t.name.to_string()).collect();
     let mut ov = OverlayState::new_theme(names, theme::active_index());
@@ -127,22 +157,51 @@ fn deliberate_crossing_snaps_the_card_into_the_destination_rail() {
 
         // The world crossed COMPLETELY: it is the active world, its surface
         // treatment followed, AND the card re-anchored to its rail.
-        assert_eq!(theme::active().name, world, "the crossing applied {world} live");
+        assert_eq!(
+            theme::active().name,
+            world,
+            "the crossing applied {world} live"
+        );
         let want = anchor_of(world);
-        assert_eq!(ov.align, want, "{world}: the card re-anchored to its own rail");
+        assert_eq!(
+            ov.align, want,
+            "{world}: the card re-anchored to its own rail"
+        );
 
         // Surface treatment (Pane/Bars) crossed too — read live off the world.
-        let bars = matches!(crate::render::effective_list_style(), theme::ListStyle::Bars { .. });
-        let world_bars = matches!(
-            theme::THEMES.iter().find(|t| t.name == world).unwrap().render_caps.list_style,
+        let bars = matches!(
+            crate::render::effective_list_style(),
             theme::ListStyle::Bars { .. }
         );
-        assert_eq!(bars, world_bars, "{world}: the list surface (Pane/Bars) crossed with the world");
+        let world_bars = matches!(
+            theme::THEMES
+                .iter()
+                .find(|t| t.name == world)
+                .unwrap()
+                .render_caps
+                .list_style,
+            theme::ListStyle::Bars { .. }
+        );
+        assert_eq!(
+            bars, world_bars,
+            "{world}: the list surface (Pane/Bars) crossed with the world"
+        );
 
         // Interaction state survived the crossing.
-        assert_eq!(ov.query, query_snapshot, "{world}: the query survives the crossing");
-        assert_eq!(ov.rows.len(), corpus_len, "{world}: the corpus survives the crossing");
-        assert_eq!(ov.selected_value(), Some(world), "{world}: the selected world is the crossing target");
+        assert_eq!(
+            ov.query, query_snapshot,
+            "{world}: the query survives the crossing"
+        );
+        assert_eq!(
+            ov.rows.len(),
+            corpus_len,
+            "{world}: the corpus survives the crossing"
+        );
+        assert_eq!(
+            ov.selected_value(),
+            Some(world),
+            "{world}: the selected world is the crossing target"
+        );
 
         // PIXEL LAW: the drawn card's x-extents hug the destination rail.
         let rect = card_rect(&mut p, &picker_view(ov.align));
@@ -151,9 +210,18 @@ fn deliberate_crossing_snaps_the_card_into_the_destination_rail() {
     }
 
     // The sweep genuinely spanned all three rails (not one repeated placement).
-    assert!(rails.contains(&theme::CardAnchor::TopLeft), "spanned a LEFT rail");
-    assert!(rails.contains(&theme::CardAnchor::TopCenter), "spanned a CENTER rail");
-    assert!(rails.contains(&theme::CardAnchor::TopRight), "spanned a RIGHT rail");
+    assert!(
+        rails.contains(&theme::CardAnchor::TopLeft),
+        "spanned a LEFT rail"
+    );
+    assert!(
+        rails.contains(&theme::CardAnchor::TopCenter),
+        "spanned a CENTER rail"
+    );
+    assert!(
+        rails.contains(&theme::CardAnchor::TopRight),
+        "spanned a RIGHT rail"
+    );
 
     theme::set_active_by_name(restore).unwrap();
     set_card_anchor_test_override(None);
@@ -175,36 +243,58 @@ fn passive_hover_retints_but_does_not_relocate_the_card() {
     // Land the card DELIBERATELY on Cassowary's RIGHT rail (Bars).
     cross_to(&mut ov, "Cassowary");
     let anchored = ov.align;
-    assert_eq!(anchored, theme::CardAnchor::TopRight, "the deliberate move seated the RIGHT rail");
+    assert_eq!(
+        anchored,
+        theme::CardAnchor::TopRight,
+        "the deliberate move seated the RIGHT rail"
+    );
     let right_rect = card_rect(&mut p, &picker_view(ov.align));
 
     // Now PASSIVELY hover Wagtail — a LEFT + Pane world (a genuine crossing).
     hover_to(&mut ov, "Wagtail");
     // The world re-tinted: Wagtail is active, and its Pane surface crossed…
-    assert_eq!(theme::active().name, "Wagtail", "the hover re-tinted to Wagtail");
+    assert_eq!(
+        theme::active().name,
+        "Wagtail",
+        "the hover re-tinted to Wagtail"
+    );
     assert!(
-        matches!(crate::render::effective_list_style(), theme::ListStyle::Pane),
+        matches!(
+            crate::render::effective_list_style(),
+            theme::ListStyle::Pane
+        ),
         "the hover crossed the list surface to Wagtail's Pane"
     );
     // …but the card DID NOT re-anchor (no spatial chase under a hover).
-    assert_eq!(ov.align, anchored, "a passive hover must NOT re-anchor the card (item 52)");
+    assert_eq!(
+        ov.align, anchored,
+        "a passive hover must NOT re-anchor the card (item 52)"
+    );
     let hover_rect = card_rect(&mut p, &picker_view(ov.align));
     assert!(
         (hover_rect[0] - right_rect[0]).abs() < 0.5 && (hover_rect[2] - right_rect[2]).abs() < 0.5,
         "the card holds its RIGHT rail across a hover: anchored=({},{}) hovered=({},{})",
-        right_rect[0], right_rect[2], hover_rect[0], hover_rect[2]
+        right_rect[0],
+        right_rect[2],
+        hover_rect[0],
+        hover_rect[2]
     );
 
     // THE CONTRAST — a DELIBERATE move from here DOES snap the card to the new
     // world's rail (Wagtail's LEFT), proving the hover alone was the inert step.
     cross_to(&mut ov, "Wagtail");
-    assert_eq!(ov.align, theme::CardAnchor::TopLeft, "the deliberate move re-anchored to Wagtail's LEFT rail");
+    assert_eq!(
+        ov.align,
+        theme::CardAnchor::TopLeft,
+        "the deliberate move re-anchored to Wagtail's LEFT rail"
+    );
     let left_rect = card_rect(&mut p, &picker_view(ov.align));
     assert_on_rail(left_rect, theme::CardAnchor::TopLeft, "Wagtail");
     assert!(
         left_rect[0] < right_rect[0] - 1.0,
         "the re-anchored LEFT card sits well left of the earlier RIGHT one: left-x={}, right-x={}",
-        left_rect[0], right_rect[0]
+        left_rect[0],
+        right_rect[0]
     );
 
     theme::set_active_by_name(restore).unwrap();

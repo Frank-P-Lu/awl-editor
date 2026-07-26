@@ -32,7 +32,9 @@ impl App {
         // lands on the right glyph for mixed CJK + Latin lines. Falls back to the
         // fixed-pitch free function only if the pipeline is not yet up.
         match self.gpu.as_ref() {
-            Some(gpu) => gpu.pipeline.hit_test(px, py, self.active.extra.scroll_lines),
+            Some(gpu) => gpu
+                .pipeline
+                .hit_test(px, py, self.active.extra.scroll_lines),
             None => render::hit_test(
                 px,
                 py,
@@ -100,7 +102,11 @@ impl App {
             .last_click_time
             .map(|t| now.duration_since(t) < Duration::from_millis(MULTICLICK_MS))
             .unwrap_or(false);
-        self.click_count = if recent && near { (self.click_count % 3) + 1 } else { 1 };
+        self.click_count = if recent && near {
+            (self.click_count % 3) + 1
+        } else {
+            1
+        };
         self.last_click_time = Some(now);
         self.last_click_px = self.cursor_px;
         self.click_count
@@ -196,7 +202,9 @@ impl App {
                 // fresh spot rather than a same-spot repeat).
                 self.drag_granularity = DragGranularity::Char;
                 if self.active.buffer.anchor_char().is_none() {
-                    self.active.buffer.set_anchor(self.active.buffer.cursor_char());
+                    self.active
+                        .buffer
+                        .set_anchor(self.active.buffer.cursor_char());
                 }
                 self.active.buffer.set_cursor(idx);
                 self.active.extra.shift_selecting = true;
@@ -500,7 +508,12 @@ impl App {
             }
             // A row-click accept dispatches a plain `Newline` (not a catalog command),
             // so the ledger door is inert here; a direct gesture is the fast path.
-            self.apply(Action::Newline, false, event_loop, crate::stats::Door::Chord);
+            self.apply(
+                Action::Newline,
+                false,
+                event_loop,
+                crate::stats::Door::Chord,
+            );
         } else {
             // Off the rows. A click INSIDE the card (query line / foot hint) is
             // swallowed to keep the picker modal; a click OUTSIDE the card dismisses it.
@@ -593,7 +606,9 @@ impl App {
         // Read the three hit-tests, then drop the pipeline borrow so `self.apply` can
         // take `&mut self` below.
         let (item_hit, title_hit, over_surface) = {
-            let Some(gpu) = self.gpu.as_ref() else { return false };
+            let Some(gpu) = self.gpu.as_ref() else {
+                return false;
+            };
             (
                 gpu.pipeline.menubar_item_at(px, py),
                 gpu.pipeline.menubar_title_at(px, py),
@@ -605,13 +620,16 @@ impl App {
             crate::menubar::set_open(None);
             let action = {
                 let menus = crate::menu::roster();
-                menus.get(menu).and_then(|m| m.items.get(item)).and_then(|it| match it {
-                    crate::menu::RosterItem::Routed { id, .. } => crate::menu::resolve(id),
-                    // A Predefined item (Window ▸ Minimize/Zoom) has no catalog Action —
-                    // an inert no-op in the awl-rendered bar (a v1 scope trim; a real
-                    // winit minimize/maximize wiring is a follow-up).
-                    _ => None,
-                })
+                menus
+                    .get(menu)
+                    .and_then(|m| m.items.get(item))
+                    .and_then(|it| match it {
+                        crate::menu::RosterItem::Routed { id, .. } => crate::menu::resolve(id),
+                        // A Predefined item (Window ▸ Minimize/Zoom) has no catalog Action —
+                        // an inert no-op in the awl-rendered bar (a v1 scope trim; a real
+                        // winit minimize/maximize wiring is a follow-up).
+                        _ => None,
+                    })
             };
             if let Some(action) = action {
                 // MENU door (a slow discovery surface) — attributed to `Door::Menu` in
@@ -682,7 +700,12 @@ impl App {
         // is a direct, learned gesture — the FAST path, not a discovery browse — so the
         // ledger attributes it to `Door::Chord` (see `crate::stats::Door`), never
         // inflating the slow-door count the discoverability surfacing keys on.
-        let _ = self.apply(Action::OpenSpellSuggest, false, event_loop, crate::stats::Door::Chord);
+        let _ = self.apply(
+            Action::OpenSpellSuggest,
+            false,
+            event_loop,
+            crate::stats::Door::Chord,
+        );
         self.sync_view(true);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
@@ -784,7 +807,10 @@ impl App {
         // layout the `ImageQuadPipeline` draws (no parallel geometry). Only a hover
         // matters here (`.map(|(_, handle, _)| handle)`); the active-drag handle rides
         // `self.image_resizing`.
-        let image_hover = gpu.pipeline.image_handle_at(px, py).map(|(_, handle, _)| handle);
+        let image_hover = gpu
+            .pipeline
+            .image_handle_at(px, py)
+            .map(|(_, handle, _)| handle);
         // WEB/LINUX MENU BAR: a clickable title / dropdown item earns the pointing
         // hand; dead bar/dropdown space reads as the plain arrow (over the doc it
         // covers). Both `false` when the bar is hidden (default off on macOS).
@@ -795,7 +821,10 @@ impl App {
         // so a hover can never disagree with where a click would land. Only while no
         // overlay is open (the panel is its own floating card, never behind a scrim).
         let over_case_toggle = !overlay_open
-            && matches!(gpu.pipeline.panel_hit(px, py), Some(crate::render::PanelHit::CaseToggle));
+            && matches!(
+                gpu.pipeline.panel_hit(px, py),
+                Some(crate::render::PanelHit::CaseToggle)
+            );
         // FORMAT POPOVER: a clickable button earns the pointing hand, from the
         // popover's OWN hit-test (`popover_hit`) — the SAME geometry a click reads.
         // `None`/false when the popover is down.
@@ -826,7 +855,8 @@ impl App {
         };
         let desired = crate::cursor_shape::cursor_icon_for(ctx);
         let hidden = self.pointer_hide == crate::pointer_hide::PointerHide::Hidden;
-        if let Some(icon) = crate::cursor_shape::cursor_icon_change(self.cursor_icon, desired, hidden)
+        if let Some(icon) =
+            crate::cursor_shape::cursor_icon_change(self.cursor_icon, desired, hidden)
         {
             gpu.window.set_cursor(icon);
             self.cursor_icon = icon;
@@ -965,7 +995,8 @@ impl App {
         // shares the request_redraw path (left falls through to it below;
         // right redraws inside `on_right_press`). Other buttons return
         // without a frame, so they are not stamped.
-        if state == ElementState::Pressed && matches!(button, MouseButton::Left | MouseButton::Right)
+        if state == ElementState::Pressed
+            && matches!(button, MouseButton::Left | MouseButton::Right)
         {
             self.stamp_input();
             // HOLD-⌘ SHORTCUT PEEK: a mouse press (a ⌘-click is Follow link) interrupts
@@ -1042,17 +1073,29 @@ impl App {
                 // over an overlay / search panel).
                 if self.popover_open && self.overlay.is_none() && self.search.is_none() {
                     let (px, py) = self.cursor_px;
-                    let hit = self.gpu.as_ref().and_then(|g| g.pipeline.popover_hit(px, py));
+                    let hit = self
+                        .gpu
+                        .as_ref()
+                        .and_then(|g| g.pipeline.popover_hit(px, py));
                     if let Some(button) = hit {
                         // A direct, learned gesture — the FAST path, `Door::Chord`.
-                        let _ = self.apply(button.action(), false, event_loop, crate::stats::Door::Chord);
+                        let _ = self.apply(
+                            button.action(),
+                            false,
+                            event_loop,
+                            crate::stats::Door::Chord,
+                        );
                         self.sync_view(true);
                         if let Some(gpu) = self.gpu.as_ref() {
                             gpu.window.request_redraw();
                         }
                         return;
                     }
-                    if self.gpu.as_ref().is_some_and(|g| g.pipeline.over_popover(px, py)) {
+                    if self
+                        .gpu
+                        .as_ref()
+                        .is_some_and(|g| g.pipeline.over_popover(px, py))
+                    {
                         // In the card but off a button: swallow (keep the popover open).
                         return;
                     }
@@ -1270,5 +1313,4 @@ impl App {
             gpu.window.request_redraw();
         }
     }
-
 }

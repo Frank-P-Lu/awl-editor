@@ -47,7 +47,10 @@ mod tests {
             peak = peak.max(v);
         }
         assert!(peak > 1.0, "out_back must overshoot past 1.0 (peak {peak})");
-        assert!(peak < 1.2, "out_back's overshoot stays gentle (peak {peak})");
+        assert!(
+            peak < 1.2,
+            "out_back's overshoot stays gentle (peak {peak})"
+        );
         // Out-of-range input clamps to the settled endpoints.
         assert_eq!(out_back(-1.0), 0.0);
         assert_eq!(out_back(2.0), 1.0);

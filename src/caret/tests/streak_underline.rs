@@ -4,7 +4,7 @@
 //! pass).
 
 use super::super::*;
-use super::{drawn_streak_len};
+use super::drawn_streak_len;
 
 #[test]
 fn typing_hop_shows_no_underline() {
@@ -61,7 +61,10 @@ fn mashing_keys_shows_no_underline() {
         max_lag / adv
     );
     // ...yet no underline ever appeared.
-    assert!(min_s > 0.999, "mashing keys must not show the underline, min settle={min_s}");
+    assert!(
+        min_s > 0.999,
+        "mashing keys must not show the underline, min settle={min_s}"
+    );
 }
 
 #[test]
@@ -84,8 +87,14 @@ fn held_arrow_navigation_shows_underline() {
         min_s = min_s.min(a.settle_factor());
     }
     // The underline appeared (and on the horizontal axis).
-    assert!(min_s < 0.5, "held-arrow navigation must show the underline, min settle={min_s}");
-    assert!(!a.is_vertical_move(), "horizontal nav must use the horizontal axis");
+    assert!(
+        min_s < 0.5,
+        "held-arrow navigation must show the underline, min settle={min_s}"
+    );
+    assert!(
+        !a.is_vertical_move(),
+        "horizontal nav must use the horizontal axis"
+    );
 }
 
 #[test]
@@ -121,7 +130,10 @@ fn held_horizontal_motion_draws_continuous_streak_over_gap() {
     }
     assert!(sampled > 0);
     assert!(a.is_holding(), "a held burst must latch the holding state");
-    assert!(!a.is_vertical_move(), "held L/R must stay on the horizontal axis");
+    assert!(
+        !a.is_vertical_move(),
+        "held L/R must stay on the horizontal axis"
+    );
     assert!(
         min_streak > gap,
         "held L/R must draw a continuous streak over the gap ({gap}), min={min_streak}"
@@ -169,8 +181,14 @@ fn held_vertical_motion_does_not_strobe() {
         }
     }
     assert!(sampled > 0);
-    assert!(a.is_vertical_move(), "held down must latch the vertical axis");
-    assert!(!strobed_to_zero, "held U/D trail must not strobe to a zero-length streak");
+    assert!(
+        a.is_vertical_move(),
+        "held down must latch the vertical axis"
+    );
+    assert!(
+        !strobed_to_zero,
+        "held U/D trail must not strobe to a zero-length streak"
+    );
     assert!(
         min_streak > gap,
         "held U/D must keep a stable streak over the gap ({gap}), min={min_streak}"
@@ -205,7 +223,10 @@ fn lone_short_hop_draws_no_trail() {
         max_streak = max_streak.max(drawn_streak_len(&a, &m));
         frames += 1;
     }
-    assert!(!a.is_holding(), "a lone tap must not latch the holding state");
+    assert!(
+        !a.is_holding(),
+        "a lone tap must not latch the holding state"
+    );
     assert!(
         max_streak < gap,
         "a lone short hop must draw NO trail past the gap ({gap}), max={max_streak}"
@@ -221,9 +242,15 @@ fn move_axis_is_latched_per_move() {
     a.set_glyph_advance(crate::render::CHAR_WIDTH);
     a.set_target(100.0, 100.0); // prime
     a.set_target(100.0, 300.0); // straight down
-    assert!(a.is_vertical_move(), "a downward move must latch the vertical axis");
+    assert!(
+        a.is_vertical_move(),
+        "a downward move must latch the vertical axis"
+    );
     a.set_target(300.0, 300.0); // straight right
-    assert!(!a.is_vertical_move(), "a rightward move must latch the horizontal axis");
+    assert!(
+        !a.is_vertical_move(),
+        "a rightward move must latch the horizontal axis"
+    );
 }
 
 #[test]
@@ -259,7 +286,10 @@ fn edit_move_suppresses_underline_even_when_large() {
         a.step(1.0 / 120.0);
         min_s = min_s.min(a.settle_factor());
     }
-    assert!(min_s > 0.999, "an edit move must not streak even when large, min={min_s}");
+    assert!(
+        min_s > 0.999,
+        "an edit move must not streak even when large, min={min_s}"
+    );
 }
 
 #[test]
@@ -275,7 +305,10 @@ fn navigation_jump_still_shows_underline() {
         a.step(1.0 / 120.0);
         min_s = min_s.min(a.settle_factor());
     }
-    assert!(min_s < 0.2, "a navigation jump must still show the underline, min={min_s}");
+    assert!(
+        min_s < 0.2,
+        "a navigation jump must still show the underline, min={min_s}"
+    );
 }
 
 #[test]

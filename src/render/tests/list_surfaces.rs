@@ -52,10 +52,19 @@ fn bars(radius: f32, gap: f32, grow_px: f32) -> theme::ListStyle {
 fn parse_list_style_force_grammar() {
     assert_eq!(parse_list_style_force("pane"), Some(theme::ListStyle::Pane));
     // Bare `bars` → the default treatment (a real Bars value).
-    assert!(matches!(parse_list_style_force("bars"), Some(theme::ListStyle::Bars { .. })));
+    assert!(matches!(
+        parse_list_style_force("bars"),
+        Some(theme::ListStyle::Bars { .. })
+    ));
     // Parametric radius:gap:grow.
-    assert_eq!(parse_list_style_force("bars:0:6:10"), Some(bars(0.0, 6.0, 10.0)));
-    assert_eq!(parse_list_style_force("bars:14.5:8:12"), Some(bars(14.5, 8.0, 12.0)));
+    assert_eq!(
+        parse_list_style_force("bars:0:6:10"),
+        Some(bars(0.0, 6.0, 10.0))
+    );
+    assert_eq!(
+        parse_list_style_force("bars:14.5:8:12"),
+        Some(bars(14.5, 8.0, 12.0))
+    );
     // V6 P5 axis keywords fold into the SAME grammar word (any order, mixable
     // with the positional floats). A bare `bars` keeps the shipped-v5 defaults.
     assert_eq!(
@@ -118,18 +127,39 @@ fn parse_list_style_force_grammar() {
 
 #[test]
 fn parse_facet_style_force_grammar() {
-    assert_eq!(parse_facet_style_force("text"), Some(theme::FacetStyle::Text));
-    assert_eq!(parse_facet_style_force("BAND"), Some(theme::FacetStyle::Band));
+    assert_eq!(
+        parse_facet_style_force("text"),
+        Some(theme::FacetStyle::Text)
+    );
+    assert_eq!(
+        parse_facet_style_force("BAND"),
+        Some(theme::FacetStyle::Band)
+    );
     // V6 P5 round — `chips` is WIRED for real now (the two prior attempts left it
     // unrecognized, so a `-chips` shot silently came out as `text`). It parses.
     // The bare `chips` word == the landed baseline (`Hairline`); each suffix maps
     // to its treatment (CHIP-VARIATIONS PROBE).
     let chips = |v| Some(theme::FacetStyle::Chips(v));
-    assert_eq!(parse_facet_style_force("chips"), chips(theme::ChipVariant::Hairline));
-    assert_eq!(parse_facet_style_force("CHIPS"), chips(theme::ChipVariant::Hairline));
-    assert_eq!(parse_facet_style_force("chips:filled"), chips(theme::ChipVariant::FilledActive));
-    assert_eq!(parse_facet_style_force("chips:underline"), chips(theme::ChipVariant::Underline));
-    assert_eq!(parse_facet_style_force("chips:bracket"), chips(theme::ChipVariant::Bracket));
+    assert_eq!(
+        parse_facet_style_force("chips"),
+        chips(theme::ChipVariant::Hairline)
+    );
+    assert_eq!(
+        parse_facet_style_force("CHIPS"),
+        chips(theme::ChipVariant::Hairline)
+    );
+    assert_eq!(
+        parse_facet_style_force("chips:filled"),
+        chips(theme::ChipVariant::FilledActive)
+    );
+    assert_eq!(
+        parse_facet_style_force("chips:underline"),
+        chips(theme::ChipVariant::Underline)
+    );
+    assert_eq!(
+        parse_facet_style_force("chips:bracket"),
+        chips(theme::ChipVariant::Bracket)
+    );
     // The DROPPED variants (user's confirmed map) no longer parse — they fall to None.
     assert_eq!(parse_facet_style_force("chips:bold"), None);
     assert_eq!(parse_facet_style_force("chips:tinted"), None);
@@ -248,12 +278,24 @@ fn selected_bar_grows_wider_toward_the_open_margin_and_mirrors() {
     let mir = chrome::bar_rect_selected(cx, cw, top, bh, g, true);
 
     // Both selected bars are WIDER than the unselected one by exactly `g`.
-    assert!((def[2] - (unsel[2] + g)).abs() < 1e-3, "default grows width by g");
-    assert!((mir[2] - (unsel[2] + g)).abs() < 1e-3, "mirror grows width by g");
+    assert!(
+        (def[2] - (unsel[2] + g)).abs() < 1e-3,
+        "default grows width by g"
+    );
+    assert!(
+        (mir[2] - (unsel[2] + g)).abs() < 1e-3,
+        "mirror grows width by g"
+    );
 
     // DEFAULT: shares the unselected LEFT edge, juts further RIGHT.
-    assert!((def[0] - unsel[0]).abs() < 1e-3, "default keeps the left edge");
-    assert!(def[0] + def[2] > unsel[0] + unsel[2] + g - 1e-3, "default juts right");
+    assert!(
+        (def[0] - unsel[0]).abs() < 1e-3,
+        "default keeps the left edge"
+    );
+    assert!(
+        def[0] + def[2] > unsel[0] + unsel[2] + g - 1e-3,
+        "default juts right"
+    );
 
     // MIRROR: shares the unselected RIGHT edge, juts further LEFT.
     assert!(
@@ -274,7 +316,10 @@ fn selected_bar_grows_wider_toward_the_open_margin_and_mirrors() {
         "a large default grow juts past the card's right edge into the room: {big_def:?}"
     );
     let big_mir = chrome::bar_rect_selected(cx, cw, top, bh, 999.0, true);
-    assert!(big_mir[0] >= -1e-3, "a mirrored jut is floored at the canvas left edge: {big_mir:?}");
+    assert!(
+        big_mir[0] >= -1e-3,
+        "a mirrored jut is floored at the canvas left edge: {big_mir:?}"
+    );
     assert!(
         (big_mir[0] + big_mir[2] - (unsel[0] + unsel[2])).abs() < 1e-3,
         "a mirrored jut keeps the unselected RIGHT edge no matter how large: {big_mir:?}"
@@ -305,14 +350,22 @@ fn list_and_facet_default_are_inert_no_bars_no_chips_no_gap() {
         }
         p.set_view(&v);
         p.prepare(&device, &queue, 1200, 800).unwrap();
-        assert_eq!(p.overlay_row_gap(), 0.0, "Pane opens no row gap (faceted={faceted})");
+        assert_eq!(
+            p.overlay_row_gap(),
+            0.0,
+            "Pane opens no row gap (faceted={faceted})"
+        );
         assert_eq!(
             p.overlay_bars.instance_count(),
             0,
             "Pane draws ZERO bar surfaces (faceted={faceted})"
         );
         // The selected row still gets its single Pane band (unchanged).
-        assert_eq!(p.overlay_rows.instance_count(), 1, "Pane keeps its one selected band");
+        assert_eq!(
+            p.overlay_rows.instance_count(),
+            1,
+            "Pane keeps its one selected band"
+        );
     }
 }
 
@@ -415,10 +468,25 @@ fn bars_float_bounded_plates_pane_keeps_its_card() {
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     let plates = p.overlay_bars.instance_count() + p.overlay_rows.instance_count();
-    assert_eq!(p.panel_card.instance_count(), plates, "Bars paint one bounded scrim per plate");
-    assert_eq!(p.panel_shadow.instance_count(), 0, "Bars draw no card shadow (no elevation)");
-    assert_eq!(p.panel_border.instance_count(), 0, "Bars draw no card border (no elevation)");
-    assert!(p.overlay_bars.instance_count() > 0, "Bars draw a surface per row");
+    assert_eq!(
+        p.panel_card.instance_count(),
+        plates,
+        "Bars paint one bounded scrim per plate"
+    );
+    assert_eq!(
+        p.panel_shadow.instance_count(),
+        0,
+        "Bars draw no card shadow (no elevation)"
+    );
+    assert_eq!(
+        p.panel_border.instance_count(),
+        0,
+        "Bars draw no card border (no elevation)"
+    );
+    assert!(
+        p.overlay_bars.instance_count() > 0,
+        "Bars draw a surface per row"
+    );
 
     set_list_style_test_override(None);
     set_card_anchor_test_override(None);
@@ -483,7 +551,11 @@ fn bars_draw_a_findable_surface_per_row() {
     p.prepare(&device, &queue, w, h).unwrap();
 
     // Mechanism witness: one bar per UNSELECTED item row (7), one selected bar.
-    assert_eq!(p.overlay_bars.instance_count(), 7, "one bar per unselected item row");
+    assert_eq!(
+        p.overlay_bars.instance_count(),
+        7,
+        "one bar per unselected item row"
+    );
     assert_eq!(p.overlay_rows.instance_count(), 1, "one selected bar");
     assert!(p.overlay_row_gap() > 0.0, "Bars opens a positive row gap");
 
@@ -513,8 +585,24 @@ fn bars_draw_a_findable_surface_per_row() {
     let px = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
     let (wi, hi) = (w as i64, h as i64);
 
-    let sel = avg(&px, wi, hi, sx, (row_top(2) + bar_off + 2.0) as i64, 2, (bar_h - 4.0) as i64);
-    let unsel = avg(&px, wi, hi, sx, (row_top(0) + bar_off + 2.0) as i64, 2, (bar_h - 4.0) as i64);
+    let sel = avg(
+        &px,
+        wi,
+        hi,
+        sx,
+        (row_top(2) + bar_off + 2.0) as i64,
+        2,
+        (bar_h - 4.0) as i64,
+    );
+    let unsel = avg(
+        &px,
+        wi,
+        hi,
+        sx,
+        (row_top(0) + bar_off + 2.0) as i64,
+        2,
+        (bar_h - 4.0) as i64,
+    );
     // The gap between row 0 and row 1 shows the live page (no pane). Bar 0's
     // bottom is `row_top(0) + bar_off + bar_h`; the gap runs from
     // there for `gap` px.
@@ -588,7 +676,9 @@ fn bars_draw_a_findable_surface_per_row() {
 fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping spell_popup_floats_bare_on_bars_keeps_the_card_on_pane: no wgpu adapter");
+        eprintln!(
+            "skipping spell_popup_floats_bare_on_bars_keeps_the_card_on_pane: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -813,7 +903,10 @@ fn bars_query_caret_overlaps_the_query_text() {
             }
         }
     }
-    assert!(a_y0 <= a_y1, "amber query caret not found near the query line");
+    assert!(
+        a_y0 <= a_y1,
+        "amber query caret not found near the query line"
+    );
     // The query GLYPH band: pixels in the title text x-range (shifted by the same
     // rail-inset delta) that are notably brighter than the dark room ground.
     let ground = idx(700 + dx, 60); // empty room, above the first bar
@@ -830,7 +923,10 @@ fn bars_query_caret_overlaps_the_query_text() {
             }
         }
     }
-    assert!(t_y0 <= t_y1, "query text glyphs not found on the query line");
+    assert!(
+        t_y0 <= t_y1,
+        "query text glyphs not found on the query line"
+    );
 
     let a_mid = (a_y0 + a_y1) / 2;
     // OUTCOME: the caret's vertical centre must land INSIDE the query glyphs'
@@ -893,12 +989,17 @@ fn overlay_query_caret_places_at_begin_mid_end_char_index() {
                 }
             }
         }
-        assert!(!xs.is_empty(), "no amber caret pixels found for caret_char={caret_char}");
+        assert!(
+            !xs.is_empty(),
+            "no amber caret pixels found for caret_char={caret_char}"
+        );
         Some(xs.iter().sum::<i64>() / xs.len() as i64)
     };
 
     let Some(x_begin) = caret_mean_x(0) else {
-        eprintln!("skipping overlay_query_caret_places_at_begin_mid_end_char_index: no wgpu adapter");
+        eprintln!(
+            "skipping overlay_query_caret_places_at_begin_mid_end_char_index: no wgpu adapter"
+        );
         crate::render::set_card_anchor_test_override(None);
         theme::set_active(theme::DEFAULT_THEME);
         return;
@@ -930,13 +1031,17 @@ fn overlay_query_caret_places_at_begin_mid_end_char_index() {
 fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping poster_bars_centered_lists_preserve_page_and_distinguish_plates: no wgpu adapter");
+        eprintln!(
+            "skipping poster_bars_centered_lists_preserve_page_and_distinguish_plates: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
     use crate::overlay::OverlayKind;
     let doc = (0..42)
-        .map(|line| format!("Witness glyphs remain visible behind summoned list surface {line:02}."))
+        .map(|line| {
+            format!("Witness glyphs remain visible behind summoned list surface {line:02}.")
+        })
         .collect::<Vec<_>>()
         .join("\n");
 
@@ -944,7 +1049,10 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         assert!(
-            matches!(theme::active().render_caps.list_style, theme::ListStyle::Bars { .. }),
+            matches!(
+                theme::active().render_caps.list_style,
+                theme::ListStyle::Bars { .. }
+            ),
             "{world} must remain a shipped Bars world for this poster treatment law"
         );
 
@@ -1013,7 +1121,10 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
             let [cx, cy, cw, ch] = p.overlay_card_rect().expect("centered overlay card rect");
             let (wi, hi) = (w as i64, h as i64);
             let (x0, y0) = (cx.max(0.0) as i64, cy.max(0.0) as i64);
-            let (x1, y1) = (((cx + cw).min(w as f32)) as i64, ((cy + ch).min(h as f32)) as i64);
+            let (x1, y1) = (
+                ((cx + cw).min(w as f32)) as i64,
+                ((cy + ch).min(h as f32)) as i64,
+            );
             let mut source_glyphs = 0i64;
             let mut survived = 0i64;
             for yy in y0..y1 {
@@ -1053,11 +1164,21 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
             let bar_h = (probe.lh - gap).max(1.0);
             let sx = (cx + 14.0) as i64;
             let selected = avg(
-                &over, wi, hi, sx, (probe.band_top + gap * 0.5 + 2.0) as i64, 3,
+                &over,
+                wi,
+                hi,
+                sx,
+                (probe.band_top + gap * 0.5 + 2.0) as i64,
+                3,
                 (bar_h - 4.0).max(2.0) as i64,
             );
             let unselected = avg(
-                &over, wi, hi, sx, (probe.band_top - probe.lh + gap * 0.5 + 2.0) as i64, 3,
+                &over,
+                wi,
+                hi,
+                sx,
+                (probe.band_top - probe.lh + gap * 0.5 + 2.0) as i64,
+                3,
                 (bar_h - 4.0).max(2.0) as i64,
             );
             let distinction = redmean(selected, unselected);
@@ -1100,7 +1221,11 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
     v.overlay_active = true;
     v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
     v.overlay_selected = 1;
-    v.overlay_lens = vec![("All".into(), false), ("File".into(), true), ("Edit".into(), false)];
+    v.overlay_lens = vec![
+        ("All".into(), false),
+        ("File".into(), true),
+        ("Edit".into(), false),
+    ];
 
     let frame = |p: &mut TextPipeline, style: Option<theme::FacetStyle>| {
         set_facet_style_test_override(style);
@@ -1117,8 +1242,14 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
 
     // INSTANCE COUNT: the active-lens mark is actually painted in BOTH skins —
     // never the silent empty draw the chips shot masqueraded as.
-    assert!(text_marks > 0, "Text facet arm must draw the active-lens hairline (got 0)");
-    assert!(band_marks > 0, "Band facet arm must draw the active-lens pill (got 0)");
+    assert!(
+        text_marks > 0,
+        "Text facet arm must draw the active-lens hairline (got 0)"
+    );
+    assert!(
+        band_marks > 0,
+        "Band facet arm must draw the active-lens pill (got 0)"
+    );
 
     // PIXEL DELTA: the strip row (display line 1) must visibly change under Band.
     let rect = p.overlay_card_rect().expect("overlay card rect");
@@ -1127,7 +1258,12 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
     let lh = p.overlay_lh();
     let strip = pixeldiff::Region::new(card_x, text_top + lh, cw, lh);
     pixeldiff::assert_perceptibly_different(
-        &text, &band, w as i64, h as i64, strip, pixeldiff::DistinguishFloor::DEFAULT,
+        &text,
+        &band,
+        w as i64,
+        h as i64,
+        strip,
+        pixeldiff::DistinguishFloor::DEFAULT,
         "facet Band vs Text strip",
     );
 }
@@ -1425,12 +1561,18 @@ fn bar_hug_span_hugs_content_and_rags_by_length() {
         short.1 < full.1 - 100.0,
         "a short-text hug bar is much narrower than full width: {short:?} vs full {full:?}"
     );
-    assert!((short.0 - full.0).abs() < 1e-3, "the hug bar shares the full-width LEFT edge");
+    assert!(
+        (short.0 - full.0).abs() < 1e-3,
+        "the hug bar shares the full-width LEFT edge"
+    );
 
     // A LONGER primary (e.g. label + inline shortcut) → a wider bar (ragged:
     // widths track content), still short of full width.
     let longer = chrome::bar_hug_span(cx, cw, text_left, 200.0);
-    assert!(longer.1 > short.1 + 100.0, "a longer content widens its hug bar (ragged edges)");
+    assert!(
+        longer.1 > short.1 + 100.0,
+        "a longer content widens its hug bar (ragged edges)"
+    );
     assert!(
         longer.1 < full.1,
         "a mid-length content still hugs — never pinned to full width: {longer:?} vs {full:?}"
@@ -1460,31 +1602,59 @@ fn footer_plate_hugs_content_under_hug_bars() {
     let content_px = 240.0; // a footer narrower than the full card width
 
     let full = chrome::footer_plate_rect(
-        text_top, header_rows, header_gap, content_rows, lh, card_x, card_w, card_bottom, None,
+        text_top,
+        header_rows,
+        header_gap,
+        content_rows,
+        lh,
+        card_x,
+        card_w,
+        card_bottom,
+        None,
     );
     let hug = chrome::footer_plate_rect(
-        text_top, header_rows, header_gap, content_rows, lh, card_x, card_w, card_bottom,
+        text_top,
+        header_rows,
+        header_gap,
+        content_rows,
+        lh,
+        card_x,
+        card_w,
+        card_bottom,
         Some((text_left, content_px)),
     );
 
     // Full-width arm is the historical `card_w`-spanning plate, inset each side.
     let (fx, fw) = chrome::bar_full_span(card_x, card_w);
-    assert!((full[0] - fx).abs() < 1e-3 && (full[2] - fw).abs() < 1e-3, "None → full-width plate");
+    assert!(
+        (full[0] - fx).abs() < 1e-3 && (full[2] - fw).abs() < 1e-3,
+        "None → full-width plate"
+    );
 
     // Hug arm shares the full-width LEFT edge but is much narrower (out-of-family
     // full-width plate under ragged pills is gone).
-    assert!((hug[0] - full[0]).abs() < 1e-3, "the hug plate shares the full-width LEFT edge");
-    assert!(hug[2] < full[2] - 100.0, "the hug plate is much narrower than full width: {hug:?} vs {full:?}");
+    assert!(
+        (hug[0] - full[0]).abs() < 1e-3,
+        "the hug plate shares the full-width LEFT edge"
+    );
+    assert!(
+        hug[2] < full[2] - 100.0,
+        "the hug plate is much narrower than full width: {hug:?} vs {full:?}"
+    );
 
     // …yet still COVERS the footer glyphs + pad (legibility over a placard holds).
     assert!(
         hug[0] + hug[2] >= text_left + content_px - 1e-3,
         "the hug plate still covers the footer content (right edge {:.1} >= text end {:.1})",
-        hug[0] + hug[2], text_left + content_px,
+        hug[0] + hug[2],
+        text_left + content_px,
     );
 
     // Vertical span is hug-independent — only the horizontal changed.
-    assert!((hug[1] - full[1]).abs() < 1e-3 && (hug[3] - full[3]).abs() < 1e-3, "y-span is hug-independent");
+    assert!(
+        (hug[1] - full[1]).abs() < 1e-3 && (hug[3] - full[3]).abs() < 1e-3,
+        "y-span is hug-independent"
+    );
 }
 
 /// TEXT-HUGGING BARS (real pixels) — with SHORT candidate names and no right
@@ -1529,7 +1699,12 @@ fn hug_extent_leaves_room_to_the_right_where_full_width_fills_it() {
     // The RIGHT ~35% of the candidate area: full-width fills it, hug leaves room.
     let region = pixeldiff::Region::new(card_x + cw * 0.6, card_y, cw * 0.35, ch);
     pixeldiff::assert_perceptibly_different(
-        &full, &hug, w as i64, h as i64, region, pixeldiff::DistinguishFloor::DEFAULT,
+        &full,
+        &hug,
+        w as i64,
+        h as i64,
+        region,
+        pixeldiff::DistinguishFloor::DEFAULT,
         "hug vs full-width bars (ragged right edge)",
     );
 
@@ -1593,7 +1768,12 @@ fn hug_shortcut_rows_hug_inline_and_leave_room() {
     let (card_x, card_y, cw, ch) = (rect[0], rect[1], rect[2], rect[3]);
     let region = pixeldiff::Region::new(card_x + cw * 0.6, card_y, cw * 0.35, ch);
     pixeldiff::assert_perceptibly_different(
-        &full, &hug, w as i64, h as i64, region, pixeldiff::DistinguishFloor::DEFAULT,
+        &full,
+        &hug,
+        w as i64,
+        h as i64,
+        region,
+        pixeldiff::DistinguishFloor::DEFAULT,
         "hug shortcut rows leave room (not pinned full-width)",
     );
 
@@ -1684,7 +1864,12 @@ fn huglabel_hybrid_hugs_label_and_keeps_chord_in_the_right_column() {
     let (card_x, card_y, cw, ch) = (rect[0], rect[1], rect[2], rect[3]);
     let region = pixeldiff::Region::new(card_x + cw * 0.6, card_y, cw * 0.35, ch);
     pixeldiff::assert_perceptibly_different(
-        &full, &huglabel, w as i64, h as i64, region, pixeldiff::DistinguishFloor::DEFAULT,
+        &full,
+        &huglabel,
+        w as i64,
+        h as i64,
+        region,
+        pixeldiff::DistinguishFloor::DEFAULT,
         "HugLabel leaves room on the right (plate hugs the label, chord floats past it)",
     );
 
@@ -1813,7 +1998,10 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
     };
 
     let text = frame(&mut p, theme::FacetStyle::Text);
-    let chips = frame(&mut p, theme::FacetStyle::Chips(theme::ChipVariant::Hairline));
+    let chips = frame(
+        &mut p,
+        theme::FacetStyle::Chips(theme::ChipVariant::Hairline),
+    );
     let active_pills = p.overlay_lens_underline.instance_count();
     let ghost_pills = p.overlay_facet_ghost.instance_count();
     let ghost_stroke = p.overlay_facet_ghost.stroke();
@@ -1821,12 +2009,18 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
 
     // ONE pill per label: 1 active (filled) + 2 inactive (ghost stroke). This is
     // the assertion the two prior attempts never made — they rendered nothing.
-    assert_eq!(active_pills, 1, "Chips draws exactly ONE filled active pill (got {active_pills})");
+    assert_eq!(
+        active_pills, 1,
+        "Chips draws exactly ONE filled active pill (got {active_pills})"
+    );
     assert_eq!(
         ghost_pills, 2,
         "Chips draws ONE ghost pill per INACTIVE drawn facet (File active, Edit+View ghost) — got {ghost_pills}"
     );
-    assert!(ghost_stroke > 0.0, "the ghost pills are a hairline STROKE, not a fill (got {ghost_stroke})");
+    assert!(
+        ghost_stroke > 0.0,
+        "the ghost pills are a hairline STROKE, not a fill (got {ghost_stroke})"
+    );
 
     // PIXEL DELTA: the strip row (display line 1) changes visibly vs Text.
     let rect = p.overlay_card_rect().expect("overlay card rect");
@@ -1835,7 +2029,12 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
     let lh = p.overlay_lh();
     let strip = pixeldiff::Region::new(card_x, text_top + lh, cw, lh);
     pixeldiff::assert_perceptibly_different(
-        &text, &chips, w as i64, h as i64, strip, pixeldiff::DistinguishFloor::DEFAULT,
+        &text,
+        &chips,
+        w as i64,
+        h as i64,
+        strip,
+        pixeldiff::DistinguishFloor::DEFAULT,
         "facet Chips vs Text strip (per-label pills)",
     );
 
@@ -1882,7 +2081,11 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
     set_facet_style_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 
-    assert_eq!(pills.len(), 3, "File/Edit/View draw 3 pills (1 active + 2 ghost)");
+    assert_eq!(
+        pills.len(),
+        3,
+        "File/Edit/View draw 3 pills (1 active + 2 ghost)"
+    );
     pills.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap());
     for pair in pills.windows(2) {
         let gap = pair[1][0] - (pair[0][0] + pair[0][2]);
@@ -1915,7 +2118,9 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
 fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping faceted_section_header_sits_on_a_plate_on_every_bars_world: no wgpu adapter");
+        eprintln!(
+            "skipping faceted_section_header_sits_on_a_plate_on_every_bars_world: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -2039,7 +2244,9 @@ fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
 fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world: no wgpu adapter");
+        eprintln!(
+            "skipping faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -2142,7 +2349,15 @@ fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
             let [tx, ty, _tw, thh] = *t;
             // The tab plate's glyph-free LEFT PAD (the CHIP_HPAD before the first
             // glyph), vertical middle — pure surface, clear of the rounded corners.
-            let interior = avg(&px, wi, hi, (tx + 3.0) as i64, (ty + thh * 0.5 - 1.0) as i64, 2, 3);
+            let interior = avg(
+                &px,
+                wi,
+                hi,
+                (tx + 3.0) as i64,
+                (ty + thh * 0.5 - 1.0) as i64,
+                2,
+                3,
+            );
             let d_back = redmean(interior, back);
             assert!(
                 d_back >= 15.0,

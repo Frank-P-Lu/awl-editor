@@ -411,9 +411,7 @@ pub fn apply_to_view(
         })
         .collect();
     view.cursor_line = filter.line(view.cursor_line);
-    view.selection = view
-        .selection
-        .map(|(a, b)| (filter.pos(a), filter.pos(b)));
+    view.selection = view.selection.map(|(a, b)| (filter.pos(a), filter.pos(b)));
     view.search_matches = view
         .search_matches
         .iter()

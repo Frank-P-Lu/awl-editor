@@ -96,10 +96,10 @@ const INK_FLOOR: i32 = 3;
 /// to fill: at a fixed 1400px window a 60-char measure leaves 236px margins and
 /// a 100-char one leaves 16px slivers.
 const SWEEP: [(u32, u32, usize); 12] = [
-    (1600, 600, 86),  // VERIFIED DEFECT: right margin x=[1418,1600), 80px blank band.
-    (1400, 700, 86),  // VERIFIED DEFECT: left margin cell x=[53,80) y=[233,467), zero ink.
-    (1500, 500, 86),  // the shortest swept viewport — the sweep's smallest cells.
-    (1200, 800, 70),  // the canonical capture canvas at the default measure.
+    (1600, 600, 86), // VERIFIED DEFECT: right margin x=[1418,1600), 80px blank band.
+    (1400, 700, 86), // VERIFIED DEFECT: left margin cell x=[53,80) y=[233,467), zero ink.
+    (1500, 500, 86), // the shortest swept viewport — the sweep's smallest cells.
+    (1200, 800, 70), // the canonical capture canvas at the default measure.
     (1200, 800, 86),
     (2000, 1000, 86),
     (1920, 1080, 70),
@@ -155,14 +155,21 @@ pub(super) fn mark_field(
     col_w: f32,
 ) -> Vec<i32> {
     let inked = bg_desc_for(bg);
-    let bare = crate::background::BgDesc { density: 0.0, ..inked };
+    let bare = crate::background::BgDesc {
+        density: 0.0,
+        ..inked
+    };
     // `drift` is item 87's Waves-only phase slot — inert `0.0` for this static
     // ground, and structurally unable to touch Zigzag's `params` dials.
     let a = render_bg(device, queue, inked, w, h, col_left, col_w, 0.0);
     let b = render_bg(device, queue, bare, w, h, col_left, col_w, 0.0);
     a.iter()
         .zip(b.iter())
-        .map(|(p, q)| (0..3).map(|k| (p[k] as i32 - q[k] as i32).abs()).sum::<i32>())
+        .map(|(p, q)| {
+            (0..3)
+                .map(|k| (p[k] as i32 - q[k] as i32).abs())
+                .sum::<i32>()
+        })
         .collect()
 }
 
@@ -325,7 +332,9 @@ fn margins(w: u32, col_left: f32, col_w: f32) -> [(u32, u32); 2] {
 #[test]
 fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds() {
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
-        eprintln!("skipping zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds: no wgpu adapter");
+        eprintln!(
+            "skipping zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -414,7 +423,9 @@ fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds(
 #[test]
 fn zigzag_field_covers_every_margin_cell_in_the_outline_rail_regime_too() {
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
-        eprintln!("skipping zigzag_field_covers_every_margin_cell_in_the_outline_rail_regime_too: no wgpu adapter");
+        eprintln!(
+            "skipping zigzag_field_covers_every_margin_cell_in_the_outline_rail_regime_too: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -587,7 +598,9 @@ fn widest_blank_ry_lane(field: &[i32], w: u32, h: u32, angle: f32, core: i32) ->
 #[test]
 fn the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis: no wgpu adapter");
+        eprintln!(
+            "skipping the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -653,10 +666,15 @@ fn the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold() {
             bg.period_px()
         );
     }
-    assert!(seen >= 2, "expected both Zigzag worlds in the roster (saw {seen})");
+    assert!(
+        seen >= 2,
+        "expected both Zigzag worlds in the roster (saw {seen})"
+    );
 
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping the GPU half of the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold: no wgpu adapter");
+        eprintln!(
+            "skipping the GPU half of the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -733,7 +751,9 @@ const MAX_SUB_PITCH_VOID_FRAC: f32 = 0.08;
 #[test]
 fn zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane() {
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
-        eprintln!("skipping zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane: no wgpu adapter");
+        eprintln!(
+            "skipping zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -869,7 +889,10 @@ fn zigzag_margin_bands_stay_even_across_the_sweep() {
     crate::page::set_page_on(was_page_on);
     crate::page::set_measure(was_measure);
     theme::set_active_by_name(was_theme).unwrap();
-    eprintln!("zigzag widest blank margin band: {}px ({})", worst.0, worst.1);
+    eprintln!(
+        "zigzag widest blank margin band: {}px ({})",
+        worst.0, worst.1
+    );
     assert!(
         worst.0 <= MAX_BLANK_BAND_PX,
         "{} carries a {}px fully-blank horizontal band — past the {MAX_BLANK_BAND_PX}px \
@@ -900,7 +923,9 @@ fn zigzag_margin_bands_stay_even_across_the_sweep() {
 #[test]
 fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka: no wgpu adapter");
+        eprintln!(
+            "skipping zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -918,7 +943,10 @@ fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
         // Both margins, mid-cell scanlines: the rhythm is a property of the
         // field, not of one lucky x.
         let xs = [40u32, 175, 310, 890, 1025, 1160];
-        let n: Vec<usize> = xs.iter().map(|&x| row_crossings(&field, W, H, x, peak)).collect();
+        let n: Vec<usize> = xs
+            .iter()
+            .map(|&x| row_crossings(&field, W, H, x, peak))
+            .collect();
         let lo = *n.iter().min().unwrap();
         let hi = *n.iter().max().unwrap();
         assert!(
@@ -930,7 +958,8 @@ fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
     assert!(
         tightest[0] > tightest[1],
         "Quokka's field must read TIGHTER (more chevron rows per window: {} vs Gumtree's {})",
-        tightest[0], tightest[1]
+        tightest[0],
+        tightest[1]
     );
 }
 
@@ -979,7 +1008,9 @@ fn zigzag_row_count_scales_with_the_canvas_height() {
 #[test]
 fn zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds: no wgpu adapter");
+        eprintln!(
+            "skipping zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -1026,16 +1057,24 @@ fn zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds() {
 #[test]
 fn zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes: no wgpu adapter");
+        eprintln!(
+            "skipping zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
     for (name, bg) in zigzag_worlds() {
         let desc = bg_desc_for(bg);
-        for (w, h, cl, cw) in [(W, H, COL_LEFT, COL_W), (900u32, 1600u32, 200.0f32, 400.0f32)] {
+        for (w, h, cl, cw) in [
+            (W, H, COL_LEFT, COL_W),
+            (900u32, 1600u32, 200.0f32, 400.0f32),
+        ] {
             let a = render_bg(&device, &queue, desc, w, h, cl, cw, 0.0);
             let b = render_bg(&device, &queue, desc, w, h, cl, cw, 0.0);
-            assert_eq!(a, b, "{name}: two draws of the identical desc diverged at {w}x{h}");
+            assert_eq!(
+                a, b,
+                "{name}: two draws of the identical desc diverged at {w}x{h}"
+            );
         }
     }
 }
@@ -1129,7 +1168,10 @@ fn the_abutment_rule_forbids_a_blank_lane_at_every_dial_setting() {
             }
         }
     }
-    assert!(checked >= 1_000, "the dial sweep must be substantial (checked {checked})");
+    assert!(
+        checked >= 1_000,
+        "the dial sweep must be substantial (checked {checked})"
+    );
     assert!(
         first_cut_lanes * 3 >= checked,
         "item 89's first cut (pitch = period_px) must leave a blank lane across a large part \
@@ -1163,8 +1205,7 @@ fn the_first_cuts_pitch_rule_reopens_the_verified_blank_band_and_abutment_closes
         let mut widest = 0u32;
         let mut run = 0u32;
         for y in 0..h {
-            let any =
-                (x0..x1).any(|x| zigzag_coverage(x as f32, y as f32, bg, rule) >= core);
+            let any = (x0..x1).any(|x| zigzag_coverage(x as f32, y as f32, bg, rule) >= core);
             if any {
                 run = 0;
             } else {
@@ -1294,7 +1335,10 @@ fn authored_zigzag_row_pitch_stays_fine_grained_against_a_page_margin() {
             t.name
         );
     }
-    assert!(seen >= 2, "expected both Zigzag worlds in the roster (saw {seen})");
+    assert!(
+        seen >= 2,
+        "expected both Zigzag worlds in the roster (saw {seen})"
+    );
 }
 
 /// STRUCTURAL TRIPWIRE on the shader source itself, so neither half of the fix

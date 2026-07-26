@@ -84,7 +84,10 @@ fn faded(color: glyphon::Color, f: f32) -> glyphon::Color {
 /// Worked example (the spec's own): `H1, H2, H2, H3(idx 3)` → the chain of the H3 is
 /// `{2, 0}` — the nearest preceding H2 (idx 2) and the H1 (idx 0), never the earlier
 /// sibling H2 (idx 1).
-pub(in crate::render) fn ancestor_chain(headings: &[crate::markdown::Heading], idx: usize) -> Vec<usize> {
+pub(in crate::render) fn ancestor_chain(
+    headings: &[crate::markdown::Heading],
+    idx: usize,
+) -> Vec<usize> {
     let mut out = Vec::new();
     if idx >= headings.len() {
         return out;
@@ -127,7 +130,11 @@ fn first_top_level(headings: &[crate::markdown::Heading]) -> Option<usize> {
 /// half-row blank gap precedes it. Window-INDEPENDENT (a pure fact of the heading
 /// list); the render additionally suppresses a gap on the first VISIBLE row so the
 /// band never opens with a blank breath.
-fn group_gap_before(headings: &[crate::markdown::Heading], first_top: Option<usize>, i: usize) -> bool {
+fn group_gap_before(
+    headings: &[crate::markdown::Heading],
+    first_top: Option<usize>,
+    i: usize,
+) -> bool {
     is_top_level(headings[i].level) && first_top.is_some_and(|f| i > f)
 }
 
@@ -159,7 +166,11 @@ fn reveal_depth_on() -> bool {
 /// section. The caret's current section is the nearest top-level heading at or
 /// above `current`; `None` (caret above the first heading) shows only the
 /// top-level headings.
-fn reveal_shown_with(headings: &[crate::markdown::Heading], current: Option<usize>, reveal: bool) -> Vec<usize> {
+fn reveal_shown_with(
+    headings: &[crate::markdown::Heading],
+    current: Option<usize>,
+    reveal: bool,
+) -> Vec<usize> {
     if !reveal {
         return (0..headings.len()).collect();
     }
@@ -449,7 +460,12 @@ impl TextPipeline {
                 }
             })
             .collect();
-        Some(OutlineLayout { right_edge, avail, top, lines })
+        Some(OutlineLayout {
+            right_edge,
+            avail,
+            top,
+            lines,
+        })
     }
 
     /// Whether the margin OUTLINE is actually DRAWN this frame — THE one
@@ -486,7 +502,8 @@ impl TextPipeline {
         if row_h <= 0.0 {
             return Vec::new();
         }
-        let pad_x = crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
+        let pad_x =
+            crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
         let inset_y = row_h * crate::lava::FROST_PILL_INSET_Y_FRAC;
         let mut rects = Vec::new();
         // Each drawn row's own text band `[left, left+width]` at `y_top`, hugged with
@@ -573,8 +590,10 @@ impl TextPipeline {
             return Vec::new();
         }
         let r_row = crate::render::frost_seed_radius(row_h, self.metrics.zoom, self.dpi);
-        let skirt = crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
-        let pad_x = crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
+        let skirt =
+            crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
+        let pad_x =
+            crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
         let yc_off = row_h * 0.5;
         let mut seeds = Vec::new();
         for band in self.outline_ink_bands(height) {
@@ -882,7 +901,9 @@ impl TextPipeline {
             .set_wrap(&mut self.font_system, Wrap::None);
         let avail = layout.avail;
         for row in &mut layout.lines {
-            row.label = rowlayout::fit_primary_end_to_px(&row.label, avail, |s| self.measure_outline_label_px(s));
+            row.label = rowlayout::fit_primary_end_to_px(&row.label, avail, |s| {
+                self.measure_outline_label_px(s)
+            });
         }
     }
 
@@ -925,7 +946,10 @@ impl TextPipeline {
     /// draw. Test-only: the capture sidecar's `outline` block reports the FULL
     /// heading list + current + ancestors, not the followed slice.
     #[cfg(test)]
-    pub(in crate::render) fn outline_draw_report(&mut self, height: u32) -> Option<Vec<OutlineRow>> {
+    pub(in crate::render) fn outline_draw_report(
+        &mut self,
+        height: u32,
+    ) -> Option<Vec<OutlineRow>> {
         let mut layout = self.outline_layout(height)?;
         self.outline_pixel_fit(&mut layout);
         Some(layout.lines)
@@ -958,7 +982,11 @@ mod tests {
     use crate::markdown::Heading;
 
     fn h(level: u8, text: &str) -> Heading {
-        Heading { level, text: text.into(), line: 0 }
+        Heading {
+            level,
+            text: text.into(),
+            line: 0,
+        }
     }
 
     /// THE ANCESTOR CHAIN: a heading's ancestors are the nearest preceding heading at
@@ -970,23 +998,47 @@ mod tests {
         let hs = [h(1, "T"), h(2, "A"), h(2, "B"), h(3, "Deep")];
         let mut anc = ancestor_chain(&hs, 3);
         anc.sort_unstable();
-        assert_eq!(anc, vec![0, 2], "H3's ancestors = nearest preceding H2 (idx2) + the H1 (idx0)");
+        assert_eq!(
+            anc,
+            vec![0, 2],
+            "H3's ancestors = nearest preceding H2 (idx2) + the H1 (idx0)"
+        );
 
         // An H1 has NO ancestors.
-        assert_eq!(ancestor_chain(&hs, 0), Vec::<usize>::new(), "an H1 has no ancestors");
+        assert_eq!(
+            ancestor_chain(&hs, 0),
+            Vec::<usize>::new(),
+            "an H1 has no ancestors"
+        );
 
         // The second H2 (idx2): only the H1 above it (a sibling H2 is not an ancestor).
-        assert_eq!(ancestor_chain(&hs, 2), vec![0], "an H2's ancestor is the H1, never a sibling H2");
+        assert_eq!(
+            ancestor_chain(&hs, 2),
+            vec![0],
+            "an H2's ancestor is the H1, never a sibling H2"
+        );
 
         // Deep nest H1>H2>H3>H4: the H4 lifts the whole chain, nearest-first.
         let deep = [h(1, "1"), h(2, "2"), h(3, "3"), h(4, "4")];
-        assert_eq!(ancestor_chain(&deep, 3), vec![2, 1, 0], "a deep H4 lifts H3,H2,H1 nearest-first");
+        assert_eq!(
+            ancestor_chain(&deep, 3),
+            vec![2, 1, 0],
+            "a deep H4 lifts H3,H2,H1 nearest-first"
+        );
 
         // A shallower-than-the-first heading (e.g. the doc opens at H3, then H2):
         // the H3 has no shallower heading before it -> empty.
         let jump = [h(3, "deep first"), h(2, "later")];
-        assert_eq!(ancestor_chain(&jump, 0), Vec::<usize>::new(), "the first heading never has an ancestor");
-        assert_eq!(ancestor_chain(&jump, 1), Vec::<usize>::new(), "an H2 with only a deeper H3 before it has none");
+        assert_eq!(
+            ancestor_chain(&jump, 0),
+            Vec::<usize>::new(),
+            "the first heading never has an ancestor"
+        );
+        assert_eq!(
+            ancestor_chain(&jump, 1),
+            Vec::<usize>::new(),
+            "an H2 with only a deeper H3 before it has none"
+        );
     }
 
     /// THE INK RULE — two states: the CURRENT heading is `Content` (dark), every
@@ -994,9 +1046,21 @@ mod tests {
     /// the row indent, not ink — the user's "all faint, current dark" call).
     #[test]
     fn row_rung_is_two_state_current_content_else_faint() {
-        assert_eq!(row_rung(true), OutlineRung::Content, "the current heading is Content (dark)");
-        assert_eq!(row_rung(false), OutlineRung::Faint, "every other heading is Faint");
-        assert_ne!(row_rung(true), row_rung(false), "the current row reads above the rest");
+        assert_eq!(
+            row_rung(true),
+            OutlineRung::Content,
+            "the current heading is Content (dark)"
+        );
+        assert_eq!(
+            row_rung(false),
+            OutlineRung::Faint,
+            "every other heading is Faint"
+        );
+        assert_ne!(
+            row_rung(true),
+            row_rung(false),
+            "the current row reads above the rest"
+        );
     }
 
     /// ANCHOR TO COLUMN: the block's RIGHT edge lands exactly at `right_edge`
@@ -1010,12 +1074,19 @@ mod tests {
         let min_left = 16.0;
         let block_w = 120.0;
         let left = outline_block_left(right_edge, block_w, min_left);
-        assert!((left + block_w - right_edge).abs() < 1e-3, "the block's right edge hugs the column");
+        assert!(
+            (left + block_w - right_edge).abs() < 1e-3,
+            "the block's right edge hugs the column"
+        );
         assert!(left >= min_left);
         // A block wider than the available margin clamps at the left pad (the belt-and-
         // braces floor; the char budget hides this case first in practice).
         let fat = right_edge - min_left + 50.0;
-        assert_eq!(outline_block_left(right_edge, fat, min_left), min_left, "clamps at the margin pad");
+        assert_eq!(
+            outline_block_left(right_edge, fat, min_left),
+            min_left,
+            "clamps at the margin pad"
+        );
     }
 
     /// EDGE FADE step: [`faded`] scales ONLY the ALPHA channel (the whisper now that
@@ -1026,7 +1097,11 @@ mod tests {
         let c = glyphon::Color::rgba(120, 130, 140, 200);
         assert_eq!(faded(c, 1.0), c, "f=1 is a no-op");
         let half = faded(c, 0.5);
-        assert_eq!((half.r(), half.g(), half.b()), (120, 130, 140), "RGB unchanged");
+        assert_eq!(
+            (half.r(), half.g(), half.b()),
+            (120, 130, 140),
+            "RGB unchanged"
+        );
         assert_eq!(half.a(), 100, "alpha halved: round(200 * 0.5)");
         assert_eq!(faded(c, 0.0).a(), 0, "f=0 is fully transparent");
     }
@@ -1100,15 +1175,27 @@ mod tests {
         // A doc whose only top-level section is a lone H1: no gaps anywhere.
         let one = [h(1, "Only"), h(3, "sub"), h(3, "sub2")];
         let ft1 = first_top_level(&one);
-        let gaps1: Vec<bool> = (0..one.len()).map(|i| group_gap_before(&one, ft1, i)).collect();
-        assert_eq!(gaps1, vec![false, false, false], "a single top-level section has no gaps");
+        let gaps1: Vec<bool> = (0..one.len())
+            .map(|i| group_gap_before(&one, ft1, i))
+            .collect();
+        assert_eq!(
+            gaps1,
+            vec![false, false, false],
+            "a single top-level section has no gaps"
+        );
 
         // A doc that opens at H2 (no H1): the first H2 is the first top-level, later
         // H2s still open groups.
         let no_h1 = [h(2, "A"), h(3, "a"), h(2, "B")];
         let ftn = first_top_level(&no_h1);
         assert_eq!(ftn, Some(0));
-        let gapsn: Vec<bool> = (0..no_h1.len()).map(|i| group_gap_before(&no_h1, ftn, i)).collect();
-        assert_eq!(gapsn, vec![false, false, true], "the first H2 opens no group; the second does");
+        let gapsn: Vec<bool> = (0..no_h1.len())
+            .map(|i| group_gap_before(&no_h1, ftn, i))
+            .collect();
+        assert_eq!(
+            gapsn,
+            vec![false, false, true],
+            "the first H2 opens no group; the second does"
+        );
     }
 }

@@ -58,7 +58,11 @@ impl TextPipeline {
                 out.push(ThemeLine::Header(sect.to_uppercase()));
             }
             out.push(ThemeLine::Item(i));
-            prev = if sect.is_empty() { None } else { Some(sect.to_string()) };
+            prev = if sect.is_empty() {
+                None
+            } else {
+                Some(sect.to_string())
+            };
         }
         out
     }
@@ -126,8 +130,12 @@ impl TextPipeline {
         // Window over ITEMS via the shared owner (the pipeline owns the slide, so the
         // selected row is always in view regardless of the item-space scroll hint), then
         // re-hang the section headers for the items that survived.
-        let (item_top, item_visible) =
-            scroll_window(n_items, self.overlay_selected, self.overlay_scroll, item_cap);
+        let (item_top, item_visible) = scroll_window(
+            n_items,
+            self.overlay_selected,
+            self.overlay_scroll,
+            item_cap,
+        );
         let plan = window_plan(&full_plan, item_top, item_top + item_visible);
         let total_rows = header_rows + plan.len() + empty_rows + hint_rows;
         // Wider than the flat pickers so the whole lens strip (Time … All) fits on
@@ -330,11 +338,37 @@ impl TextPipeline {
             }
             _ => ink,
         };
-        self.shape_theme_spans(geom, ink, active_ink, muted, selected_ink, covered, &strip_s, &label_ranges, &sep_ranges, trailing, 1.0, elide);
+        self.shape_theme_spans(
+            geom,
+            ink,
+            active_ink,
+            muted,
+            selected_ink,
+            covered,
+            &strip_s,
+            &label_ranges,
+            &sep_ranges,
+            trailing,
+            1.0,
+            elide,
+        );
         let strip_w = self.theme_strip_px();
         if strip_w > geom.text_w {
             let scale = (geom.text_w / strip_w).max(0.5);
-            self.shape_theme_spans(geom, ink, active_ink, muted, selected_ink, covered, &strip_s, &label_ranges, &sep_ranges, trailing, scale, elide);
+            self.shape_theme_spans(
+                geom,
+                ink,
+                active_ink,
+                muted,
+                selected_ink,
+                covered,
+                &strip_s,
+                &label_ranges,
+                &sep_ranges,
+                trailing,
+                scale,
+                elide,
+            );
         }
 
         // Record the active-lens mark from the shaped strip glyphs (line 1). Line-1
@@ -667,7 +701,10 @@ impl TextPipeline {
             // makes text and band agree; the "\n" keeps the row's scale-invariant
             // baseline size.
             let strip_lh = self.overlay_strip_band(geom).1;
-            spans.push((&strip_s[0..1], mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh))));
+            spans.push((
+                &strip_s[0..1],
+                mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh)),
+            ));
             cursor += 1;
             for (r, c) in pushes {
                 debug_assert_eq!(r.start, cursor, "strip spans must tile the line");
@@ -683,7 +720,9 @@ impl TextPipeline {
                 // `panel_attrs` on every Body world, byte-identical today.
                 spans.push((
                     &strip_s[r],
-                    chrome_attrs().color(c).metrics(GlyphMetrics::new(fs, strip_lh)),
+                    chrome_attrs()
+                        .color(c)
+                        .metrics(GlyphMetrics::new(fs, strip_lh)),
                 ));
             }
         }
@@ -748,7 +787,8 @@ impl TextPipeline {
 
         self.panel_buffer
             .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));
-        self.panel_buffer.set_wrap(&mut self.font_system, Wrap::None);
+        self.panel_buffer
+            .set_wrap(&mut self.font_system, Wrap::None);
         let default_attrs = base.clone().color(ink);
         self.panel_buffer.set_rich_text(
             &mut self.font_system,
@@ -777,7 +817,7 @@ impl TextPipeline {
 
 #[cfg(test)]
 mod tests {
-    use super::{window_plan, ThemeLine};
+    use super::{ThemeLine, window_plan};
 
     /// A plan mirroring `theme_plan`: two sections (`A`: items 0,1,2 — `B`: items 3,4).
     fn sample_plan() -> Vec<ThemeLine> {
@@ -804,7 +844,10 @@ mod tests {
     /// The whole list fitting under the cap returns the plan verbatim (headers + rows).
     #[test]
     fn window_plan_returns_the_full_plan_when_it_fits() {
-        assert_eq!(shape(&window_plan(&sample_plan(), 0, 5)), shape(&sample_plan()));
+        assert_eq!(
+            shape(&window_plan(&sample_plan(), 0, 5)),
+            shape(&sample_plan())
+        );
     }
 
     /// A mid-list window keeps ONLY the in-range items and re-hangs the header of each

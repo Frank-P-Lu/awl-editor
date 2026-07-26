@@ -162,10 +162,19 @@ pub fn from_toml(src: &str) -> GrantStore {
     };
     for entry in arr {
         let Some(t) = entry.as_table() else { continue };
-        let Some(root) = t.get("root").and_then(|v| v.as_str()) else { continue };
-        let Some(bm) = t.get("bookmark").and_then(|v| v.as_str()) else { continue };
-        let Some(bytes) = hex_decode(bm) else { continue };
-        store.grants.push(Grant { root: PathBuf::from(root), bookmark: bytes });
+        let Some(root) = t.get("root").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let Some(bm) = t.get("bookmark").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let Some(bytes) = hex_decode(bm) else {
+            continue;
+        };
+        store.grants.push(Grant {
+            root: PathBuf::from(root),
+            bookmark: bytes,
+        });
     }
     store
 }
@@ -301,7 +310,9 @@ mod mac {
     /// `ensure_access`'s own `save`) rather than panicking or blocking launch.
     pub fn restore_all_grants() {
         let mut store = store_lock().lock().unwrap_or_else(|e| e.into_inner());
-        store.grants.retain(|g| start_accessing(&g.bookmark).is_some());
+        store
+            .grants
+            .retain(|g| start_accessing(&g.bookmark).is_some());
     }
 
     /// Run the standard OPEN panel restricted to FOLDERS ONLY, pre-navigated
@@ -400,7 +411,7 @@ pub use mac::{ensure_access, restore_all_grants};
 /// platform `mas` compiles for (not just macOS) so the fence logic can be
 /// exercised in a plain `cargo test --features mas` run even off a Mac.
 pub mod fence {
-    use super::{within_home, GrantStore};
+    use super::{GrantStore, within_home};
     use std::path::Path;
 
     /// What [`ensure_access_decision`] found for a given target, BEFORE any
@@ -438,8 +449,14 @@ mod tests {
     fn grant_store_round_trips_through_toml() {
         let store = GrantStore {
             grants: vec![
-                Grant { root: PathBuf::from("/Users/me/Documents/notes"), bookmark: vec![0, 1, 2, 253, 254, 255] },
-                Grant { root: PathBuf::from("/Volumes/External/code"), bookmark: vec![0xde, 0xad, 0xbe, 0xef] },
+                Grant {
+                    root: PathBuf::from("/Users/me/Documents/notes"),
+                    bookmark: vec![0, 1, 2, 253, 254, 255],
+                },
+                Grant {
+                    root: PathBuf::from("/Volumes/External/code"),
+                    bookmark: vec![0xde, 0xad, 0xbe, 0xef],
+                },
             ],
         };
         let text = to_toml(&store);
@@ -461,7 +478,10 @@ mod tests {
 
     #[test]
     fn from_toml_is_lenient_about_garbage() {
-        assert_eq!(from_toml("this is = = not valid toml [[["), GrantStore::default());
+        assert_eq!(
+            from_toml("this is = = not valid toml [[["),
+            GrantStore::default()
+        );
         // A well-formed table but a bad bookmark hex string: the entry is
         // dropped, not the whole load.
         let store = from_toml("[[grant]]\nroot = \"/a\"\nbookmark = \"zz\"\n");
@@ -477,7 +497,10 @@ mod tests {
         use std::sync::Arc;
         let fs = Arc::new(crate::fs::InMemoryFs::new());
         crate::fs::with_fs(fs, || {
-            assert_eq!(load(Path::new("/nonexistent/grants.toml")), GrantStore::default());
+            assert_eq!(
+                load(Path::new("/nonexistent/grants.toml")),
+                GrantStore::default()
+            );
         });
     }
 
@@ -487,7 +510,10 @@ mod tests {
         let fs = Arc::new(crate::fs::InMemoryFs::new().with_dir("/data"));
         crate::fs::with_fs(fs, || {
             let store = GrantStore {
-                grants: vec![Grant { root: PathBuf::from("/proj"), bookmark: vec![1, 2, 3] }],
+                grants: vec![Grant {
+                    root: PathBuf::from("/proj"),
+                    bookmark: vec![1, 2, 3],
+                }],
             };
             let p = PathBuf::from("/data/grants.toml");
             save(&p, &store).unwrap();
@@ -499,17 +525,35 @@ mod tests {
     fn granted_root_for_picks_the_most_specific_ancestor() {
         let store = GrantStore {
             grants: vec![
-                Grant { root: PathBuf::from("/Users/me"), bookmark: vec![1] },
-                Grant { root: PathBuf::from("/Users/me/code/proj"), bookmark: vec![2] },
+                Grant {
+                    root: PathBuf::from("/Users/me"),
+                    bookmark: vec![1],
+                },
+                Grant {
+                    root: PathBuf::from("/Users/me/code/proj"),
+                    bookmark: vec![2],
+                },
             ],
         };
-        let g = store.granted_root_for(Path::new("/Users/me/code/proj/src/main.rs")).unwrap();
-        assert_eq!(g.root, PathBuf::from("/Users/me/code/proj"), "the narrower, more specific grant wins");
+        let g = store
+            .granted_root_for(Path::new("/Users/me/code/proj/src/main.rs"))
+            .unwrap();
+        assert_eq!(
+            g.root,
+            PathBuf::from("/Users/me/code/proj"),
+            "the narrower, more specific grant wins"
+        );
         // A sibling outside the narrower grant still resolves the broader one.
-        let g = store.granted_root_for(Path::new("/Users/me/other/file.md")).unwrap();
+        let g = store
+            .granted_root_for(Path::new("/Users/me/other/file.md"))
+            .unwrap();
         assert_eq!(g.root, PathBuf::from("/Users/me"));
         // Nothing granted covers this path at all.
-        assert!(store.granted_root_for(Path::new("/Volumes/External/x")).is_none());
+        assert!(
+            store
+                .granted_root_for(Path::new("/Volumes/External/x"))
+                .is_none()
+        );
     }
 
     #[test]
@@ -519,8 +563,15 @@ mod tests {
         store.upsert(PathBuf::from("/b"), vec![9]);
         assert_eq!(store.grants.len(), 2);
         store.upsert(PathBuf::from("/a"), vec![9, 9]);
-        assert_eq!(store.grants.len(), 2, "re-granting an existing root replaces, never duplicates");
-        assert_eq!(store.granted_root_for(Path::new("/a")).unwrap().bookmark, vec![9, 9]);
+        assert_eq!(
+            store.grants.len(),
+            2,
+            "re-granting an existing root replaces, never duplicates"
+        );
+        assert_eq!(
+            store.granted_root_for(Path::new("/a")).unwrap().bookmark,
+            vec![9, 9]
+        );
     }
 
     // --- THE ZERO-GRANTS-FIRST-RUN LAW ------------------------------------

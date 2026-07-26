@@ -27,8 +27,16 @@ use crate::overlay::OverlayState;
 /// runs. Mirrors `reanchor_crossing_law::cross_to` (duplicated locally: that
 /// helper is private to its own test module).
 fn cross_to(ov: &mut OverlayState, name: &str) {
-    let ci = ov.rows.iter().position(|r| r.accept == name).expect("world in corpus");
-    let pos = ov.items.iter().position(|&i| i == ci).expect("world visible on the flat lens");
+    let ci = ov
+        .rows
+        .iter()
+        .position(|r| r.accept == name)
+        .expect("world in corpus");
+    let pos = ov
+        .items
+        .iter()
+        .position(|&i| i == ci)
+        .expect("world visible on the flat lens");
     ov.selected = pos;
     crate::actions::preview_move(ov);
 }
@@ -66,7 +74,12 @@ fn a_deliberate_world_crossing_can_move_a_stationary_pixels_hit_test_row() {
     // stationary pixel over Wagtail's card is guaranteed to fall well outside
     // Cassowary's on a 1200px canvas.
     let anchor_of = |name: &str| {
-        theme::THEMES.iter().find(|t| t.name == name).unwrap().render_caps.card_anchor
+        theme::THEMES
+            .iter()
+            .find(|t| t.name == name)
+            .unwrap()
+            .render_caps
+            .card_anchor
     };
     assert_eq!(anchor_of("Wagtail"), theme::CardAnchor::TopLeft);
     assert_eq!(anchor_of("Cassowary"), theme::CardAnchor::TopRight);
@@ -77,7 +90,11 @@ fn a_deliberate_world_crossing_can_move_a_stationary_pixels_hit_test_row() {
     p.set_size(WW, WH);
 
     cross_to(&mut ov, "Wagtail");
-    assert_eq!(ov.align, theme::CardAnchor::TopLeft, "keyboard nav re-anchored to Wagtail's rail");
+    assert_eq!(
+        ov.align,
+        theme::CardAnchor::TopLeft,
+        "keyboard nav re-anchored to Wagtail's rail"
+    );
     p.sync_theme();
     let v1 = picker_view(&ov);
     p.set_view(&v1);
@@ -85,13 +102,20 @@ fn a_deliberate_world_crossing_can_move_a_stationary_pixels_hit_test_row() {
     // A candidate row's midpoint, well inside Wagtail's own left-hugging card.
     let (px, py) = (cx1 + cw1 * 0.5, cy1 + ch1 * 0.5);
     let hit_before = p.overlay_row_at(px, py);
-    assert!(hit_before.is_some(), "the probe pixel must start ON a real candidate row");
+    assert!(
+        hit_before.is_some(),
+        "the probe pixel must start ON a real candidate row"
+    );
 
     // THE WORLD JUMP: a deliberate keyboard crossing to Cassowary — the picker's
     // own re-layout, exactly `actions::overlay_nav::preview_move` (Down/Up)
     // applies. The pointer's PHYSICAL position (px, py) never moves.
     cross_to(&mut ov, "Cassowary");
-    assert_eq!(ov.align, theme::CardAnchor::TopRight, "the crossing re-anchored to Cassowary's rail");
+    assert_eq!(
+        ov.align,
+        theme::CardAnchor::TopRight,
+        "the crossing re-anchored to Cassowary's rail"
+    );
     p.sync_theme();
     let v2 = picker_view(&ov);
     p.set_view(&v2);
@@ -110,7 +134,10 @@ fn a_deliberate_world_crossing_can_move_a_stationary_pixels_hit_test_row() {
         "a deliberate rail crossing must move what a stationary pixel hits — \
          the geometry hazard item 85's real-motion gate guards against"
     );
-    assert_eq!(hit_after, None, "Wagtail's row midpoint sits outside Cassowary's right-hugging card");
+    assert_eq!(
+        hit_after, None,
+        "Wagtail's row midpoint sits outside Cassowary's right-hugging card"
+    );
 
     theme::set_active_by_name(&restore).unwrap();
     crate::render::set_card_anchor_test_override(None);

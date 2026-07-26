@@ -131,7 +131,8 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
             // since `typedef` is plain and `struct` does the arming. C never places
             // two tag keywords adjacently, so the shared precedence is exact here.
             let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def) {
+            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
+            {
                 out.push((start..i, kind));
             }
             continue;
@@ -180,7 +181,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     super::scan_number(
         b,
         i,
-        super::NumOpts { radix: b"xXbB", radix_extra: b"", dot_dot_stops: false },
+        super::NumOpts {
+            radix: b"xXbB",
+            radix_extra: b"",
+            dot_dot_stops: false,
+        },
         is_ident_start,
     )
 }
@@ -270,7 +275,10 @@ mod tests {
         let t = "typedef struct Node Node;";
         let s = spans(t);
         assert!(at(t, &s, SynKind::Definition).contains(&"Node"), "{s:?}");
-        assert!(!has(&s, 8, 14, SynKind::Definition), "the `struct` keyword must stay plain: {s:?}");
+        assert!(
+            !has(&s, 8, 14, SynKind::Definition),
+            "the `struct` keyword must stay plain: {s:?}"
+        );
     }
 
     #[test]
@@ -278,8 +286,14 @@ mod tests {
         // The `struct` keyword stays default ink; only the NAME is a Definition.
         let t = "struct Foo {};";
         let s = spans(t);
-        assert!(!has(&s, 0, 6, SynKind::Definition), "the `struct` keyword must stay plain: {s:?}");
-        assert!(has(&s, 7, 10, SynKind::Definition), "`Foo` is the definition: {s:?}");
+        assert!(
+            !has(&s, 0, 6, SynKind::Definition),
+            "the `struct` keyword must stay plain: {s:?}"
+        );
+        assert!(
+            has(&s, 7, 10, SynKind::Definition),
+            "`Foo` is the definition: {s:?}"
+        );
     }
 
     #[test]
@@ -303,7 +317,11 @@ mod tests {
         // A compact end-to-end snippet asserting all four roles at once.
         let t = "// sum\nstruct Acc { int n; };\nint add(int a, int b) {\n    int total = a + b; // ok\n    return total;\n}\n#define MAX 100\n";
         let s = spans(t);
-        assert_eq!(at(t, &s, SynKind::Comment), vec!["// sum", "// ok"], "{s:?}");
+        assert_eq!(
+            at(t, &s, SynKind::Comment),
+            vec!["// sum", "// ok"],
+            "{s:?}"
+        );
         assert!(at(t, &s, SynKind::Definition).contains(&"Acc"), "{s:?}");
         assert!(at(t, &s, SynKind::Constant).contains(&"100"), "{s:?}");
     }

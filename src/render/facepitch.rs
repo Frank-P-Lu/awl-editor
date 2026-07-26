@@ -65,8 +65,8 @@ use std::sync::{Arc, OnceLock};
 
 use glyphon::cosmic_text::fontdb;
 use glyphon::cosmic_text::skrifa::{
-    instance::{LocationRef, Size},
     FontRef, MetadataProvider,
+    instance::{LocationRef, Size},
 };
 
 /// Whether a face's glyphs all share one advance width.
@@ -223,7 +223,9 @@ pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
     ROSTER.get_or_init(|| {
         let mut out = BTreeMap::new();
         for (bytes, declared) in crate::render::bundled_display_faces() {
-            let Some(family) = registered_family(bytes) else { continue };
+            let Some(family) = registered_family(bytes) else {
+                continue;
+            };
             out.entry(family).or_insert(FaceFacts {
                 declared,
                 measured: measure_pitch(bytes),
@@ -244,7 +246,11 @@ pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
 /// is not a bundled display face and answers `false`, exactly as the old name
 /// list did.
 pub fn family_is_mono(family: &str) -> bool {
-    roster().get(family).and_then(|f| f.measured).map(Pitch::is_mono).unwrap_or(false)
+    roster()
+        .get(family)
+        .and_then(|f| f.measured)
+        .map(Pitch::is_mono)
+        .unwrap_or(false)
 }
 
 /// THE RATIO the caret's proportional-fallback SYNTHETIC ink box (item 105)
@@ -253,5 +259,8 @@ pub fn family_is_mono(family: &str) -> bool {
 /// fallback face, an `AWL_FONT` override — never a bundled display face, exactly
 /// the same unknown-family shape [`family_is_mono`] answers `false` to).
 pub fn typical_letter_ratio(family: &str) -> f32 {
-    roster().get(family).map(|f| f.typical_letter_ratio).unwrap_or(DEFAULT_TYPICAL_LETTER_RATIO)
+    roster()
+        .get(family)
+        .map(|f| f.typical_letter_ratio)
+        .unwrap_or(DEFAULT_TYPICAL_LETTER_RATIO)
 }

@@ -135,9 +135,14 @@ pub fn report_problem_mailto(meta: &PanicMeta, crash_log_path: Option<&str>) -> 
     let mut body = String::new();
     body.push_str("What happened?\n\n\n");
     body.push_str("----\n");
-    body.push_str(&format!("awl v{} - {} {}\n", meta.version, meta.os, meta.arch));
+    body.push_str(&format!(
+        "awl v{} - {} {}\n",
+        meta.version, meta.os, meta.arch
+    ));
     if let Some(p) = crash_log_path {
-        body.push_str("\nA crash log was found from a previous session. Please attach this file:\n");
+        body.push_str(
+            "\nA crash log was found from a previous session. Please attach this file:\n",
+        );
         body.push_str(p);
         body.push('\n');
     }
@@ -193,7 +198,12 @@ pub fn log_file_name(secs: u64) -> String {
 /// document path is logged, not even a basename — v1's deliberate scope: the
 /// log identifies the BUILD and the CRASH, never what the user had open.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn format_log(meta: &PanicMeta, message: &str, location: Option<&str>, backtrace: &str) -> String {
+pub fn format_log(
+    meta: &PanicMeta,
+    message: &str,
+    location: Option<&str>,
+    backtrace: &str,
+) -> String {
     let mut out = String::new();
     out.push_str("awl crash report\n");
     out.push_str(&format!("version:  {}\n", meta.version));
@@ -377,8 +387,9 @@ pub fn install_hook() {
     let prev = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         let message = panic_message(info);
-        let location =
-            info.location().map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()));
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()));
         let backtrace = std::backtrace::Backtrace::force_capture();
         let meta = PanicMeta::current(Some(start.elapsed().as_secs()));
         let text = format_log(&meta, &message, location.as_deref(), &backtrace.to_string());
@@ -410,23 +421,45 @@ mod tests {
 
     #[test]
     fn mailto_composes_maintainer_subject_and_version_without_a_crash_log() {
-        let meta = PanicMeta { version: "1.2.3", os: "macos", arch: "aarch64", uptime_secs: None };
+        let meta = PanicMeta {
+            version: "1.2.3",
+            os: "macos",
+            arch: "aarch64",
+            uptime_secs: None,
+        };
         let url = report_problem_mailto(&meta, None);
-        assert!(url.starts_with(&format!("mailto:{MAINTAINER_EMAIL}?")), "{url}");
-        assert!(url.contains("subject=awl%20problem%20report%20%28v1.2.3%29"), "{url}");
+        assert!(
+            url.starts_with(&format!("mailto:{MAINTAINER_EMAIL}?")),
+            "{url}"
+        );
+        assert!(
+            url.contains("subject=awl%20problem%20report%20%28v1.2.3%29"),
+            "{url}"
+        );
         // No attach-this-file line when there's no crash log.
         assert!(!url.contains("attach"), "{url}");
         // The version/OS line is present in the (percent-encoded) body.
-        assert!(url.contains(&url_encode("awl v1.2.3 - macos aarch64")), "{url}");
+        assert!(
+            url.contains(&url_encode("awl v1.2.3 - macos aarch64")),
+            "{url}"
+        );
     }
 
     #[test]
     fn mailto_names_the_crash_log_path_when_one_exists_never_its_content() {
-        let meta = PanicMeta { version: "1.2.3", os: "macos", arch: "aarch64", uptime_secs: None };
+        let meta = PanicMeta {
+            version: "1.2.3",
+            os: "macos",
+            arch: "aarch64",
+            uptime_secs: None,
+        };
         let path = "/home/x/.local/share/awl/crashes/awl-crash-2026-01-01T00-00-00Z.log";
         let url = report_problem_mailto(&meta, Some(path));
         assert!(url.contains("attach"), "{url}");
-        assert!(url.contains(&url_encode(path)), "{url}: must name the log's own path");
+        assert!(
+            url.contains(&url_encode(path)),
+            "{url}: must name the log's own path"
+        );
     }
 
     // --- Native-only: format / prune / marker (real tempdirs, no data_root) --
@@ -462,8 +495,16 @@ mod tests {
         let sentinel = "SUPER-SECRET-DOCUMENT-CONTENT-4f9c2a";
         let _live_document_stand_in = format!("# My Diary\n\n{sentinel}\nDear diary, today...");
         let meta = PanicMeta::current(Some(42));
-        let log = format_log(&meta, "index out of bounds: the len is 3 but the index is 5", Some("src/x.rs:10:1"), "0: foo\n1: bar");
-        assert!(!log.contains(sentinel), "crash log must never contain document content");
+        let log = format_log(
+            &meta,
+            "index out of bounds: the len is 3 but the index is 5",
+            Some("src/x.rs:10:1"),
+            "0: foo\n1: bar",
+        );
+        assert!(
+            !log.contains(sentinel),
+            "crash log must never contain document content"
+        );
         assert!(log.contains("version:"));
         assert!(log.contains(meta.version));
         assert!(log.contains("uptime:   42s"));
@@ -483,11 +524,20 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn names_to_prune_keeps_only_the_newest_and_is_a_pure_name_sort() {
-        let names: Vec<String> = (0..25).map(|i| format!("awl-crash-2026-01-{i:02}T00-00-00Z.log")).collect();
+        let names: Vec<String> = (0..25)
+            .map(|i| format!("awl-crash-2026-01-{i:02}T00-00-00Z.log"))
+            .collect();
         let pruned = names_to_prune(&names, MAX_CRASH_LOGS);
         assert_eq!(pruned.len(), 5, "25 logs, keep 20 -> prune the oldest 5");
-        assert_eq!(pruned, names[..5].to_vec(), "prunes the OLDEST (lowest-sorting) names");
-        assert!(names_to_prune(&names, 100).is_empty(), "never prunes below the count on hand");
+        assert_eq!(
+            pruned,
+            names[..5].to_vec(),
+            "prunes the OLDEST (lowest-sorting) names"
+        );
+        assert!(
+            names_to_prune(&names, 100).is_empty(),
+            "never prunes below the count on hand"
+        );
         assert!(names_to_prune(&[], 5).is_empty());
     }
 
@@ -506,11 +556,20 @@ mod tests {
     fn prune_dir_deletes_down_to_the_newest_keep_real_files_on_disk() {
         let dir = tmp_dir("prune");
         for i in 0..5 {
-            write_log(&dir, &format!("awl-crash-2026-01-{:02}T00-00-00Z.log", i + 1), "x").unwrap();
+            write_log(
+                &dir,
+                &format!("awl-crash-2026-01-{:02}T00-00-00Z.log", i + 1),
+                "x",
+            )
+            .unwrap();
         }
         prune_dir(&dir, 2);
         let remaining = list_logs(&dir);
-        assert_eq!(remaining.len(), 2, "prune_dir must leave exactly `keep` files on real disk");
+        assert_eq!(
+            remaining.len(),
+            2,
+            "prune_dir must leave exactly `keep` files on real disk"
+        );
         assert_eq!(
             remaining,
             vec![
@@ -550,14 +609,20 @@ mod tests {
 
         write_log(&dir, "awl-crash-2026-01-01T00-00-00Z.log", "x").unwrap();
         let pending = pending_notice(&dir);
-        assert_eq!(pending.as_deref(), Some("awl-crash-2026-01-01T00-00-00Z.log"));
+        assert_eq!(
+            pending.as_deref(),
+            Some("awl-crash-2026-01-01T00-00-00Z.log")
+        );
         acknowledge(&dir, pending.as_deref().unwrap());
         // Same crash, already shown: quiet now.
         assert_eq!(pending_notice(&dir), None);
 
         // A NEWER crash lands: fires again.
         write_log(&dir, "awl-crash-2026-06-01T00-00-00Z.log", "y").unwrap();
-        assert_eq!(pending_notice(&dir).as_deref(), Some("awl-crash-2026-06-01T00-00-00Z.log"));
+        assert_eq!(
+            pending_notice(&dir).as_deref(),
+            Some("awl-crash-2026-06-01T00-00-00Z.log")
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 

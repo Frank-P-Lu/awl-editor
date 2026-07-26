@@ -4,8 +4,11 @@
 //! (2026-07 code-organization pass).
 
 use super::super::*;
+use super::{
+    SmokeKind, all_actions, browse_level, drive, drive_search, drive_shift, rich_markdown_buffer,
+    smoke_command_kind,
+};
 use crate::overlay::OverlayKind;
-use super::{browse_level, drive, drive_search, drive_shift, all_actions, smoke_command_kind, rich_markdown_buffer, SmokeKind};
 
 #[test]
 fn tab_without_a_search_is_a_plain_soft_tab_through_core() {
@@ -21,7 +24,10 @@ fn tab_without_a_search_is_a_plain_soft_tab_through_core() {
     let mut search = None;
     drive_search(&mut b, &mut search, &Action::InsertTab);
     assert!(search.is_none());
-    assert!(b.text().starts_with(' '), "Tab without a search inserts a soft tab");
+    assert!(
+        b.text().starts_with(' '),
+        "Tab without a search inserts a soft tab"
+    );
 }
 
 #[test]
@@ -37,9 +43,19 @@ fn cmd_r_opens_replace_revealed_with_focus_on_find_through_core() {
     let mut search = None;
     drive_search(&mut b, &mut search, &Action::OpenReplace);
     let st = search.as_ref().expect("Cmd-R opens the search panel");
-    assert!(st.is_replace_active(), "the replace row is revealed on open");
-    assert!(!st.is_editing_replacement(), "focus opens on the find field");
-    assert_eq!(b.text(), "alpha beta alpha", "opening never touches the document");
+    assert!(
+        st.is_replace_active(),
+        "the replace row is revealed on open"
+    );
+    assert!(
+        !st.is_editing_replacement(),
+        "focus opens on the find field"
+    );
+    assert_eq!(
+        b.text(),
+        "alpha beta alpha",
+        "opening never touches the document"
+    );
 }
 
 #[test]
@@ -125,8 +141,16 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     // Panel focus: ↑/↓ scroll the diff (never the version selection), PgDn pages.
     apply_core(&mut ctx, &Action::NextLine, false);
     apply_core(&mut ctx, &Action::NextLine, false);
-    assert_eq!(ctx.overlay.as_ref().unwrap().diff_scroll, 2, "arrow-scrolls the diff");
-    assert_eq!(ctx.overlay.as_ref().unwrap().selected, 1, "the version selection held");
+    assert_eq!(
+        ctx.overlay.as_ref().unwrap().diff_scroll,
+        2,
+        "arrow-scrolls the diff"
+    );
+    assert_eq!(
+        ctx.overlay.as_ref().unwrap().selected,
+        1,
+        "the version selection held"
+    );
     apply_core(&mut ctx, &Action::PageScrollDown, false);
     assert_eq!(
         ctx.overlay.as_ref().unwrap().diff_scroll,
@@ -136,14 +160,29 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     // Typing is swallowed under panel focus (a list affordance; the panel holds
     // the keys) — the query stays empty and the buffer is untouched.
     apply_core(&mut ctx, &Action::InsertChar('q'), false);
-    assert_eq!(ctx.overlay.as_ref().unwrap().query, "", "typing swallowed in panel focus");
+    assert_eq!(
+        ctx.overlay.as_ref().unwrap().query,
+        "",
+        "typing swallowed in panel focus"
+    );
     // Tab again returns focus to the LIST; ↑/↓ move the selection once more
     // (and the selection move re-tops the diff scroll).
     apply_core(&mut ctx, &Action::InsertTab, false);
-    assert!(!ctx.overlay.as_ref().unwrap().diff_focus, "Tab toggles back to the list");
+    assert!(
+        !ctx.overlay.as_ref().unwrap().diff_focus,
+        "Tab toggles back to the list"
+    );
     apply_core(&mut ctx, &Action::PreviousLine, false);
-    assert_eq!(ctx.overlay.as_ref().unwrap().selected, 0, "list focus moves versions again");
-    assert_eq!(ctx.overlay.as_ref().unwrap().diff_scroll, 0, "a new version tops the diff");
+    assert_eq!(
+        ctx.overlay.as_ref().unwrap().selected,
+        0,
+        "list focus moves versions again"
+    );
+    assert_eq!(
+        ctx.overlay.as_ref().unwrap().diff_scroll,
+        0,
+        "a new version tops the diff"
+    );
     assert_eq!(buffer.text(), "", "the whole flow never touches the buffer");
 }
 
@@ -186,12 +225,19 @@ fn history_picker_pgdn_scrolls_the_diff_from_list_focus_too() {
     apply_core(&mut ctx, &Action::PageScrollDown, false);
     {
         let ov = ctx.overlay.as_ref().unwrap();
-        assert_eq!(ov.diff_scroll, 20, "PgDn scrolls the DIFF, list focus or not");
+        assert_eq!(
+            ov.diff_scroll, 20,
+            "PgDn scrolls the DIFF, list focus or not"
+        );
         assert_eq!(ov.selected, 0, "the version selection never paged");
         assert!(!ov.diff_focus, "list focus retained");
     }
     apply_core(&mut ctx, &Action::PageScrollUp, false);
-    assert_eq!(ctx.overlay.as_ref().unwrap().diff_scroll, 0, "PgUp scrolls back (floored)");
+    assert_eq!(
+        ctx.overlay.as_ref().unwrap().diff_scroll,
+        0,
+        "PgUp scrolls back (floored)"
+    );
 }
 
 #[test]
@@ -200,7 +246,10 @@ fn history_picker_empty_state_enter_is_a_no_op_close() {
     let mut overlay = Some(OverlayState::new_history(Vec::new(), None, None));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.is_none(), "Enter closes even the empty-state picker");
+    assert!(
+        overlay.is_none(),
+        "Enter closes even the empty-state picker"
+    );
     assert_eq!(accept, None, "empty-state row restores nothing");
 }
 
@@ -219,18 +268,30 @@ fn about_opens_and_any_key_dismisses_it() {
 
     drive_shift(&mut b, &mut sel, &Action::About, false);
     assert!(crate::about::about_open(), "Action::About opens the card");
-    assert_eq!(b.cursor_char(), cursor0, "opening About never touches the buffer");
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "opening About never touches the buffer"
+    );
 
     // ANY key — a plain forward-char motion, not Esc — dismisses it and is
     // fully consumed: the motion must NOT actually move the cursor.
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, false);
     assert!(!crate::about::about_open(), "the next key closes the card");
-    assert_eq!(b.cursor_char(), cursor0, "the dismissing key is consumed, not applied");
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "the dismissing key is consumed, not applied"
+    );
 
     // Once closed, the SAME action now runs normally (proves the intercept
     // only fires while the card is actually open).
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, false);
-    assert_eq!(b.cursor_char(), cursor0 + 1, "ForwardChar works again once About is closed");
+    assert_eq!(
+        b.cursor_char(),
+        cursor0 + 1,
+        "ForwardChar works again once About is closed"
+    );
 
     crate::about::set_open(false);
 }
@@ -249,19 +310,37 @@ fn lifetime_stats_opens_and_any_key_dismisses_it() {
     let cursor0 = b.cursor_char();
 
     drive_shift(&mut b, &mut sel, &Action::LifetimeStats, false);
-    assert!(crate::lifetime::lifetime_open(), "Action::LifetimeStats opens the card");
-    assert_eq!(b.cursor_char(), cursor0, "opening the card never touches the buffer");
+    assert!(
+        crate::lifetime::lifetime_open(),
+        "Action::LifetimeStats opens the card"
+    );
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "opening the card never touches the buffer"
+    );
 
     // ANY key — a plain forward-char motion, not Esc — dismisses it and is
     // fully consumed: the motion must NOT actually move the cursor.
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, false);
-    assert!(!crate::lifetime::lifetime_open(), "the next key closes the card");
-    assert_eq!(b.cursor_char(), cursor0, "the dismissing key is consumed, not applied");
+    assert!(
+        !crate::lifetime::lifetime_open(),
+        "the next key closes the card"
+    );
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "the dismissing key is consumed, not applied"
+    );
 
     // Once closed, the SAME action now runs normally (proves the intercept only
     // fires while the card is actually open).
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, false);
-    assert_eq!(b.cursor_char(), cursor0 + 1, "ForwardChar works again once the card is closed");
+    assert_eq!(
+        b.cursor_char(),
+        cursor0 + 1,
+        "ForwardChar works again once the card is closed"
+    );
 
     crate::lifetime::set_open(false);
 }
@@ -281,19 +360,36 @@ fn streaks_card_arrows_flip_the_view_and_any_other_key_dismisses() {
     let cursor0 = b.cursor_char();
 
     drive_shift(&mut b, &mut sel, &Action::WritingStreaks, false);
-    assert!(crate::streaks::streaks_open(), "Action::WritingStreaks opens the card");
+    assert!(
+        crate::streaks::streaks_open(),
+        "Action::WritingStreaks opens the card"
+    );
     assert_eq!(
         crate::streaks::card_view(),
         crate::streaks::CardView::Heatmap,
         "a summon opens on the heatmap (the default page)"
     );
-    assert_eq!(b.cursor_char(), cursor0, "opening the card never touches the buffer");
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "opening the card never touches the buffer"
+    );
 
     // ← flips to the cumulative page — consumed, the card stays open.
     drive_shift(&mut b, &mut sel, &Action::BackwardChar, false);
-    assert!(crate::streaks::streaks_open(), "an arrow never dismisses the card");
-    assert_eq!(crate::streaks::card_view(), crate::streaks::CardView::Cumulative);
-    assert_eq!(b.cursor_char(), cursor0, "the arrow is consumed, not applied");
+    assert!(
+        crate::streaks::streaks_open(),
+        "an arrow never dismisses the card"
+    );
+    assert_eq!(
+        crate::streaks::card_view(),
+        crate::streaks::CardView::Cumulative
+    );
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "the arrow is consumed, not applied"
+    );
 
     // → flips back: the round trip lands on the heatmap, card still open, and
     // the ForwardChar that would have moved the caret is fully consumed.
@@ -304,15 +400,29 @@ fn streaks_card_arrows_flip_the_view_and_any_other_key_dismisses() {
         crate::streaks::CardView::Heatmap,
         "← then → returns to the heatmap (the round-trip law)"
     );
-    assert_eq!(b.cursor_char(), cursor0, "the flip consumes the motion entirely");
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "the flip consumes the motion entirely"
+    );
 
     // Leave it on the cumulative page, then dismiss with a NON-arrow key — the
     // any-key contract still holds for everything but ←/→.
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, false); // → cumulative again
-    assert_eq!(crate::streaks::card_view(), crate::streaks::CardView::Cumulative);
+    assert_eq!(
+        crate::streaks::card_view(),
+        crate::streaks::CardView::Cumulative
+    );
     drive_shift(&mut b, &mut sel, &Action::NextLine, false);
-    assert!(!crate::streaks::streaks_open(), "any non-arrow key dismisses the card");
-    assert_eq!(b.cursor_char(), cursor0, "the dismissing key is consumed, not applied");
+    assert!(
+        !crate::streaks::streaks_open(),
+        "any non-arrow key dismisses the card"
+    );
+    assert_eq!(
+        b.cursor_char(),
+        cursor0,
+        "the dismissing key is consumed, not applied"
+    );
 
     // Re-summon: the page reset to the heatmap (ephemeral per-summon, by design).
     drive_shift(&mut b, &mut sel, &Action::WritingStreaks, false);
@@ -340,16 +450,31 @@ fn shift_motion_sets_mark_extends_then_unshifted_motion_collapses() {
     // across a word motion, a line-edge, and a vertical move.
     drive_shift(&mut b, &mut sel, &Action::ForwardWord, true);
     assert_eq!(b.anchor_char(), Some(0));
-    assert_eq!(b.selection_range(), Some((0, 5)), "shift-word extends to 'alpha'");
+    assert_eq!(
+        b.selection_range(),
+        Some((0, 5)),
+        "shift-word extends to 'alpha'"
+    );
     drive_shift(&mut b, &mut sel, &Action::LineEnd, true);
-    assert_eq!(b.selection_range(), Some((0, 10)), "shift-C-e extends to line end");
+    assert_eq!(
+        b.selection_range(),
+        Some((0, 10)),
+        "shift-C-e extends to line end"
+    );
     drive_shift(&mut b, &mut sel, &Action::NextLine, true);
     let (_, head) = b.selection_range().unwrap();
     assert!(head > 10, "shift-C-n extends onto the next line");
-    assert_eq!(b.anchor_char(), Some(0), "the anchor never moves during the run");
+    assert_eq!(
+        b.anchor_char(),
+        Some(0),
+        "the anchor never moves during the run"
+    );
     // Shift RELEASED + a plain motion: the TRANSIENT selection collapses.
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, false);
-    assert!(!b.has_selection(), "unshifted motion collapses the shift-selection");
+    assert!(
+        !b.has_selection(),
+        "unshifted motion collapses the shift-selection"
+    );
     assert_eq!(b.anchor_char(), None);
     assert!(!sel, "the transient flag disarms");
 }
@@ -365,7 +490,11 @@ fn shift_selection_extends_backwards_too() {
     assert_eq!(b.anchor_char(), Some(7));
     assert_eq!(b.selection_range(), Some((4, 7)), "shift-M-b selects 'two'");
     drive_shift(&mut b, &mut sel, &Action::BufferStart, true);
-    assert_eq!(b.selection_range(), Some((0, 7)), "shift-M-< extends to the top");
+    assert_eq!(
+        b.selection_range(),
+        Some((0, 7)),
+        "shift-M-< extends to the top"
+    );
 }
 
 #[test]
@@ -379,12 +508,20 @@ fn c_space_sticky_mark_survives_unshifted_motion_until_cancel() {
     assert_eq!(b.anchor_char(), Some(0));
     assert!(!sel, "C-Space is the sticky mark, not a Shift-selection");
     drive_shift(&mut b, &mut sel, &Action::ForwardWord, false);
-    assert_eq!(b.selection_range(), Some((0, 3)), "a plain motion extends the mark");
+    assert_eq!(
+        b.selection_range(),
+        Some((0, 3)),
+        "a plain motion extends the mark"
+    );
     drive_shift(&mut b, &mut sel, &Action::ForwardWord, false);
     assert_eq!(b.selection_range(), Some((0, 7)), "…and keeps extending");
     // A SHIFTED motion mid-region keeps the existing anchor (no re-mark).
     drive_shift(&mut b, &mut sel, &Action::ForwardChar, true);
-    assert_eq!(b.anchor_char(), Some(0), "shift over a live mark keeps the anchor");
+    assert_eq!(
+        b.anchor_char(),
+        Some(0),
+        "shift over a live mark keeps the anchor"
+    );
     // Cancel (C-g / Esc) clears the region.
     drive_shift(&mut b, &mut sel, &Action::Cancel, false);
     assert!(!b.has_selection(), "Cancel clears the sticky region");
@@ -472,7 +609,10 @@ fn every_classified_motion_extends_shift_selection_and_no_mover_is_missing() {
                 cursor0,
                 "{action:?}: a mid-document motion must move the point"
             );
-            assert!(b.has_selection(), "{action:?}: shift-motion must leave a selection");
+            assert!(
+                b.has_selection(),
+                "{action:?}: shift-motion must leave a selection"
+            );
             assert!(sel, "{action:?}: the transient shift flag must arm");
             // The RUN extends: a second shifted motion keeps the same anchor.
             drive_shift(&mut b, &mut sel, &action, true);
@@ -574,7 +714,11 @@ fn every_catalog_command_dispatches_without_panicking() {
         config_keys: &[],
         config_linux_keep: &[],
         goto_headings: vec![("Heading One".to_string(), 0)],
-        spell_target: Some((vec!["speling".to_string(), "spieling".to_string()], (0, 0, 3), "speling".to_string())),
+        spell_target: Some((
+            vec!["speling".to_string(), "spieling".to_string()],
+            (0, 0, 3),
+            "speling".to_string(),
+        )),
         history_entries: vec![],
         history_now: None,
         history_session_start: None,
@@ -604,8 +748,7 @@ fn every_catalog_command_dispatches_without_panicking() {
         // `buffer`/`overlay` end before the coherence reads below.
         let eff = {
             let mut make_overlay = |kind: OverlayKind| crate::overlay::build(kind, &bctx);
-            let mut browse_to =
-                |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
+            let mut browse_to = |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
             let mut ctx = ActionCtx {
                 buffer: &mut buffer,
                 shift_selecting: &mut shift,

@@ -69,7 +69,11 @@ impl App {
             let (line, col) = self.active.buffer.cursor_line_col();
             buffers.push((
                 path,
-                crate::session::BufferPos { line, col, scroll: self.active.extra.scroll_lines },
+                crate::session::BufferPos {
+                    line,
+                    col,
+                    scroll: self.active.extra.scroll_lines,
+                },
             ));
         }
         for (_key, entry) in self.buffer_registry.iter() {
@@ -79,7 +83,11 @@ impl App {
             let (line, col) = entry.buffer.cursor_line_col();
             buffers.push((
                 path.to_path_buf(),
-                crate::session::BufferPos { line, col, scroll: entry.extra.scroll_lines },
+                crate::session::BufferPos {
+                    line,
+                    col,
+                    scroll: entry.extra.scroll_lines,
+                },
             ));
         }
         // Best-effort: `outer_position` can fail (e.g. some Wayland compositors
@@ -182,8 +190,10 @@ impl App {
                 caret_synced_version: buffer.version(),
                 ..Default::default()
             };
-            self.buffer_registry
-                .park(crate::buffers::BufferKey::path(path), crate::buffers::Entry { buffer, extra });
+            self.buffer_registry.park(
+                crate::buffers::BufferKey::path(path),
+                crate::buffers::Entry { buffer, extra },
+            );
         }
     }
 
@@ -220,7 +230,11 @@ mod tests {
                 .map(|(p, line, col, scroll)| {
                     (
                         PathBuf::from(p),
-                        crate::session::BufferPos { line: *line, col: *col, scroll: *scroll },
+                        crate::session::BufferPos {
+                            line: *line,
+                            col: *col,
+                            scroll: *scroll,
+                        },
                     )
                 })
                 .collect(),
@@ -237,7 +251,10 @@ mod tests {
         );
         crate::fs::with_fs(fake, || {
             let session_path = crate::session::session_path();
-            let s = state(Some("/n/a.md"), &[("/n/a.md", 1, 2, 3), ("/n/b.md", 0, 1, 0)]);
+            let s = state(
+                Some("/n/a.md"),
+                &[("/n/a.md", 1, 2, 3), ("/n/b.md", 0, 1, 0)],
+            );
             crate::session::save(&session_path, &s).unwrap();
 
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
@@ -247,10 +264,17 @@ mod tests {
                 Some(Path::new("/n/a.md")),
                 "session active file wins"
             );
-            assert_eq!(app.active.buffer.cursor_line_col(), (1, 2), "cursor restored");
+            assert_eq!(
+                app.active.buffer.cursor_line_col(),
+                (1, 2),
+                "cursor restored"
+            );
             assert_eq!(app.active.extra.scroll_lines, 3, "scroll restored");
             assert_eq!(app.buffer_registry.len(), 1, "the OTHER survivor is parked");
-            assert!(app.buffer_registry.contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md"))));
+            assert!(
+                app.buffer_registry
+                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
+            );
 
             // Switching to it finds the restored cursor/scroll, not a fresh 0,0.
             app.load_path(PathBuf::from("/n/b.md"));
@@ -290,8 +314,15 @@ mod tests {
                 (0, 0),
                 "the CLI-argument file opens at its own start, not the session's remembered cursor"
             );
-            assert_eq!(app.buffer_registry.len(), 1, "b.md still restores BEHIND the active file");
-            assert!(app.buffer_registry.contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md"))));
+            assert_eq!(
+                app.buffer_registry.len(),
+                1,
+                "b.md still restores BEHIND the active file"
+            );
+            assert!(
+                app.buffer_registry
+                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
+            );
         });
     }
 
@@ -300,7 +331,10 @@ mod tests {
         let fake = Arc::new(crate::fs::InMemoryFs::new().with_file("/n/keep.md", "x\n"));
         crate::fs::with_fs(fake, || {
             let session_path = crate::session::session_path();
-            let s = state(Some("/n/gone.md"), &[("/n/gone.md", 5, 5, 5), ("/n/keep.md", 0, 0, 0)]);
+            let s = state(
+                Some("/n/gone.md"),
+                &[("/n/gone.md", 5, 5, 5), ("/n/keep.md", 0, 0, 0)],
+            );
             crate::session::save(&session_path, &s).unwrap();
 
             let app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
@@ -308,16 +342,18 @@ mod tests {
             // "/n/gone.md" never existed: it must never become active, and must
             // never appear in the registry.
             assert_ne!(app.active.buffer.path(), Some(Path::new("/n/gone.md")));
-            assert!(!app
-                .buffer_registry
-                .contains(&crate::buffers::BufferKey::path(Path::new("/n/gone.md"))));
+            assert!(
+                !app.buffer_registry
+                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/gone.md")))
+            );
             // "keep.md" survives and gets parked (it wasn't the session's
             // `active`, which vanished, so it's just a background survivor —
             // and since the session named no SURVIVING active file, the
             // scratch-stash outcome for `self.active.buffer` stands).
-            assert!(app
-                .buffer_registry
-                .contains(&crate::buffers::BufferKey::path(Path::new("/n/keep.md"))));
+            assert!(
+                app.buffer_registry
+                    .contains(&crate::buffers::BufferKey::path(Path::new("/n/keep.md")))
+            );
         });
     }
 
@@ -330,10 +366,16 @@ mod tests {
         );
         crate::fs::with_fs(fake, || {
             let session_path = crate::session::session_path();
-            let s = state(Some("/n/a.md"), &[("/n/a.md", 1, 0, 0), ("/n/b.md", 0, 0, 0)]);
+            let s = state(
+                Some("/n/a.md"),
+                &[("/n/a.md", 1, 0, 0), ("/n/b.md", 0, 0, 0)],
+            );
             crate::session::save(&session_path, &s).unwrap();
 
-            let cfg = Config { session_restore: Some(false), ..Config::empty() };
+            let cfg = Config {
+                session_restore: Some(false),
+                ..Config::empty()
+            };
             let app = App::new(None, PathBuf::from("/n"), None, None, cfg);
 
             assert_eq!(
@@ -341,8 +383,15 @@ mod tests {
                 None,
                 "the kill-switch leaves the plain scratch buffer active"
             );
-            assert_eq!(app.buffer_registry.len(), 0, "nothing is parked when the switch is off");
-            assert_eq!(app.restored_window, None, "no window frame is restored either");
+            assert_eq!(
+                app.buffer_registry.len(),
+                0,
+                "nothing is parked when the switch is off"
+            );
+            assert_eq!(
+                app.restored_window, None,
+                "no window frame is restored either"
+            );
         });
     }
 
@@ -361,14 +410,20 @@ mod tests {
                 None,
                 Config::empty(),
             );
-            app.active.buffer.set_cursor(app.active.buffer.line_col_to_char(2, 1));
+            app.active
+                .buffer
+                .set_cursor(app.active.buffer.line_col_to_char(2, 1));
             app.active.extra.scroll_lines = 7;
             app.load_path(PathBuf::from("/n/b.md")); // a.md is now backgrounded
 
             app.session_flush();
 
             let saved = crate::session::load(&crate::session::session_path());
-            assert_eq!(saved.root, Some(PathBuf::from("/n")), "the ONE owner also carries the folder");
+            assert_eq!(
+                saved.root,
+                Some(PathBuf::from("/n")),
+                "the ONE owner also carries the folder"
+            );
             assert_eq!(saved.active, Some(PathBuf::from("/n/b.md")));
             let a_pos = saved
                 .buffers
@@ -376,7 +431,14 @@ mod tests {
                 .find(|(p, _)| p == Path::new("/n/a.md"))
                 .map(|(_, pos)| *pos)
                 .expect("a.md was flushed as a backgrounded buffer");
-            assert_eq!(a_pos, crate::session::BufferPos { line: 2, col: 1, scroll: 7 });
+            assert_eq!(
+                a_pos,
+                crate::session::BufferPos {
+                    line: 2,
+                    col: 1,
+                    scroll: 7
+                }
+            );
         });
     }
 
@@ -416,8 +478,16 @@ mod tests {
                 .with_file("/fb/two.md", "xxx\nyyy\n"),
         );
         crate::fs::with_fs(fake, || {
-            let mut app = App::new(Some(PathBuf::from("/fa/one.md")), PathBuf::from("/fa"), None, None, Config::empty());
-            app.active.buffer.set_cursor(app.active.buffer.line_col_to_char(2, 1));
+            let mut app = App::new(
+                Some(PathBuf::from("/fa/one.md")),
+                PathBuf::from("/fa"),
+                None,
+                None,
+                Config::empty(),
+            );
+            app.active
+                .buffer
+                .set_cursor(app.active.buffer.line_col_to_char(2, 1));
             app.active.extra.scroll_lines = 5;
 
             app.switch_project(PathBuf::from("/fb"));
@@ -429,18 +499,27 @@ mod tests {
             // reading `crate::session::remembered_root()` (tested standalone in
             // `main::run::tests`) — this test's job is the DOCUMENT/view half.
             let remembered_root = crate::session::remembered_root().unwrap();
-            assert_eq!(remembered_root, PathBuf::from("/fb"), "resumes the LAST active folder (FB)");
+            assert_eq!(
+                remembered_root,
+                PathBuf::from("/fb"),
+                "resumes the LAST active folder (FB)"
+            );
             let mut app2 = App::new(None, remembered_root, None, None, Config::empty());
             assert_eq!(app2.active.buffer.path(), Some(Path::new("/fb/two.md")));
-            assert!(app2
-                .buffer_registry
-                .contains(&crate::buffers::BufferKey::path(Path::new("/fa/one.md"))));
+            assert!(
+                app2.buffer_registry
+                    .contains(&crate::buffers::BufferKey::path(Path::new("/fa/one.md")))
+            );
 
             // Now actually flip BACK to FA (mirrors a Last-file / Goto back to
             // it) and confirm the FULL previous location — folder + buffer +
             // cursor/scroll — round-trips through the registry, not a fresh re-read.
             app2.load_path(PathBuf::from("/fa/one.md"));
-            assert_eq!(app2.active.buffer.cursor_line_col(), (2, 1), "A's cursor survived");
+            assert_eq!(
+                app2.active.buffer.cursor_line_col(),
+                (2, 1),
+                "A's cursor survived"
+            );
             assert_eq!(app2.active.extra.scroll_lines, 5, "A's scroll survived");
         });
     }

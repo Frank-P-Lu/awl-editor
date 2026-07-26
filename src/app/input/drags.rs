@@ -62,7 +62,10 @@ impl App {
     /// [`Self::end_range_drag`].
     pub(in crate::app) fn begin_range_drag(&mut self) -> bool {
         let (px, py) = self.cursor_px;
-        let Some((item, frac)) = self.gpu.as_ref().and_then(|g| g.pipeline.overlay_range_at(px, py))
+        let Some((item, frac)) = self
+            .gpu
+            .as_ref()
+            .and_then(|g| g.pipeline.overlay_range_at(px, py))
         else {
             return false;
         };
@@ -79,11 +82,19 @@ impl App {
         // The track's own px ends, snapshotted for the whole gesture (see the
         // struct's doc). Falls back to nothing when the rail vanished between the
         // hit-test and here (it cannot, but a missing scale must not scrub at 0).
-        let Some((x0, x1)) = self.gpu.as_ref().and_then(|g| g.pipeline.overlay_range_scale(item))
+        let Some((x0, x1)) = self
+            .gpu
+            .as_ref()
+            .and_then(|g| g.pipeline.overlay_range_scale(item))
         else {
             return false;
         };
-        self.range_drag = Some(RangeDrag { id: cell.id, item, x0, x1 });
+        self.range_drag = Some(RangeDrag {
+            id: cell.id,
+            item,
+            x0,
+            x1,
+        });
         self.apply_range_frac(frac);
         true
     }
@@ -105,7 +116,9 @@ impl App {
     /// one settle identically.
     fn apply_range_frac(&mut self, frac: f32) {
         let Some(drag) = self.range_drag else { return };
-        let Some(spec) = crate::settings::range_spec(drag.id) else { return };
+        let Some(spec) = crate::settings::range_spec(drag.id) else {
+            return;
+        };
         let value = spec.value_at_frac(frac);
         self.range_apply_live(drag.id, value);
         let (step, readout) = (spec.step_of(value), spec.format(value));
@@ -131,7 +144,9 @@ impl App {
     /// writes one line, not hundreds). Also refreshes the still-open menu from the
     /// live values, so the cell the drag mirrored and the config now agree.
     pub(in crate::app) fn end_range_drag(&mut self) {
-        let Some(drag) = self.range_drag.take() else { return };
+        let Some(drag) = self.range_drag.take() else {
+            return;
+        };
         if let Some(key) = crate::settings::value_key(drag.id) {
             self.range_persist(key);
         }
@@ -151,7 +166,10 @@ impl App {
     /// (`bump_click_count`), so a double-click on the edge is recognized exactly like
     /// a double-click anywhere else in the document. LIVE-ONLY gesture; the hover
     /// test + measure math + the reset action itself are unit-tested.
-    pub(in crate::app) fn begin_page_resize_if_hovering(&mut self, event_loop: &ActiveEventLoop) -> bool {
+    pub(in crate::app) fn begin_page_resize_if_hovering(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+    ) -> bool {
         let edge = self
             .gpu
             .as_ref()
@@ -168,7 +186,12 @@ impl App {
             // same path the palette command and a rebound `--keys` chord take. A direct
             // gesture is the fast path — `Door::Chord` for the ledger (Reset page width
             // has no native chord anyway, so it never surfaces as a candidate).
-            self.apply(crate::keymap::Action::PageReset, false, event_loop, crate::stats::Door::Chord);
+            self.apply(
+                crate::keymap::Action::PageReset,
+                false,
+                event_loop,
+                crate::stats::Door::Chord,
+            );
             return true;
         }
         self.page_resizing = true;
@@ -208,11 +231,15 @@ impl App {
     /// `PageWider`/`PageNarrower` command path (`set_size` reshapes at the new width).
     fn apply_page_resize(&mut self) {
         let anchor = self.page_resize_anchor;
-        let target = self.page_resize_edge.zip(anchor).and_then(|(edge, anchor_x)| {
-            self.gpu
-                .as_ref()
-                .map(|g| g.pipeline.page_resize_measure_at(self.cursor_px.0, edge, anchor_x))
-        });
+        let target = self
+            .page_resize_edge
+            .zip(anchor)
+            .and_then(|(edge, anchor_x)| {
+                self.gpu.as_ref().map(|g| {
+                    g.pipeline
+                        .page_resize_measure_at(self.cursor_px.0, edge, anchor_x)
+                })
+            });
         if let Some(target) = target {
             if target != crate::page::measure() {
                 crate::page::set_measure(target);
@@ -228,7 +255,8 @@ impl App {
             // is held (Butterick's line-length rule made visible) — live for the
             // whole gesture (press through every move); cleared on release.
             let (px, py) = self.cursor_px;
-            gpu.pipeline.set_page_drag_readout(Some((px, py, crate::page::measure())));
+            gpu.pipeline
+                .set_page_drag_readout(Some((px, py, crate::page::measure())));
             gpu.window.request_redraw();
         }
     }
@@ -265,7 +293,10 @@ impl App {
         // `geometry::image_handle_hit` live), mirroring `page_resize_hover` — no raw
         // geometry leaks to the app. Returns the hit image's byte range, the grabbed
         // edge/corner, and the press-time rect (the width math's anchors).
-        let hit = self.gpu.as_ref().and_then(|g| g.pipeline.image_handle_at(px, py));
+        let hit = self
+            .gpu
+            .as_ref()
+            .and_then(|g| g.pipeline.image_handle_at(px, py));
         let Some((range, handle, rect)) = hit else {
             return false;
         };
@@ -273,7 +304,12 @@ impl App {
         // so the single write-back on release is its own clean undo entry.
         self.active.buffer.seal_undo_group();
         // `width` is a placeholder; `apply_image_resize` below sets it from the pointer.
-        self.image_resizing = Some(ImageDrag { range, handle, rect, width: 0.0 });
+        self.image_resizing = Some(ImageDrag {
+            range,
+            handle,
+            rect,
+            width: 0.0,
+        });
         // The context flipped to "dragging an image" WITHOUT any mouse motion:
         // recompute the cursor shape now, not just on the next `CursorMoved`.
         self.sync_cursor_icon();
@@ -302,10 +338,10 @@ impl App {
             return;
         };
         let pointer = self.cursor_px;
-        let width = self
-            .gpu
-            .as_ref()
-            .map(|g| g.pipeline.image_resize_width_at(drag.handle, drag.rect, pointer));
+        let width = self.gpu.as_ref().map(|g| {
+            g.pipeline
+                .image_resize_width_at(drag.handle, drag.rect, pointer)
+        });
         let Some(width) = width else {
             return;
         };
@@ -342,5 +378,4 @@ impl App {
             gpu.window.request_redraw();
         }
     }
-
 }

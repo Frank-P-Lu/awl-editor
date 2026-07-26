@@ -343,7 +343,10 @@ impl Config {
     /// mirrors `parse_caret_mode`'s leniency (an unrecognized string is treated
     /// exactly like absent, never an error).
     pub fn keymap_flavor(&self) -> crate::keymap::KeymapFlavor {
-        self.keymap.as_deref().and_then(crate::keymap::KeymapFlavor::parse).unwrap_or_default()
+        self.keymap
+            .as_deref()
+            .and_then(crate::keymap::KeymapFlavor::parse)
+            .unwrap_or_default()
     }
 
     /// The EFFECTIVE `linux_keep_emacs` list — THE ONE COMPOSITION OWNER every
@@ -373,8 +376,10 @@ impl Config {
     /// `Convention::Mac`, same as the raw field — `KeymapState::linux_keeps`
     /// gates on convention regardless of what this returns.
     pub fn effective_linux_keep(&self) -> Vec<String> {
-        let mut keep: Vec<String> =
-            crate::keymap::linux_builtin_keep().iter().map(|s| s.to_string()).collect();
+        let mut keep: Vec<String> = crate::keymap::linux_builtin_keep()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         if self.keymap_flavor() == crate::keymap::KeymapFlavor::Emacs {
             for p in crate::keymap::linux_emacs_preset_keep() {
                 if !crate::keymap::linux_keeps_chord(&keep, &p) {
@@ -609,7 +614,10 @@ impl Config {
         // bad entry degrades exactly like a bad `[keys]` chord (reported +
         // skipped, never a crash) rather than silently emptying the whole list.
         if let Some(arr) = table.get("linux_keep_emacs").and_then(|v| v.as_array()) {
-            cfg.linux_keep_emacs = arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect();
+            cfg.linux_keep_emacs = arr
+                .iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect();
         }
         if let Some(keys) = table.get("keys").and_then(|v| v.as_table()) {
             for (name, val) in keys {

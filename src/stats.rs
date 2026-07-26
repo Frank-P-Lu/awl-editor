@@ -318,11 +318,17 @@ pub fn to_toml(stats: &Stats) -> String {
     let mut out = String::new();
     out.push_str(&format!("chars_typed = {}\n", stats.chars_typed));
     out.push_str(&format!("keystrokes = {}\n", stats.keystrokes));
-    out.push_str(&format!("active_writing_ms = {}\n", stats.active_writing_ms));
+    out.push_str(&format!(
+        "active_writing_ms = {}\n",
+        stats.active_writing_ms
+    ));
     // A plain decimal; `to_string` never emits exponent/`inf`/`NaN` for the
     // finite non-negative sums this ever holds, and the `toml` parser reads it
     // back as an f64 float.
-    out.push_str(&format!("caret_distance_px = {}\n", f64_toml(stats.caret_distance_px)));
+    out.push_str(&format!(
+        "caret_distance_px = {}\n",
+        f64_toml(stats.caret_distance_px)
+    ));
     out.push_str("files_touched = [\n");
     for p in &stats.files_touched {
         out.push_str("  ");
@@ -443,8 +449,11 @@ pub fn from_toml(src: &str) -> Stats {
                 let door = |k: &str| -> u64 {
                     row.get(k).and_then(|x| x.as_integer()).unwrap_or(0).max(0) as u64
                 };
-                let counts =
-                    DoorCounts { chord: door("chord"), palette: door("palette"), menu: door("menu") };
+                let counts = DoorCounts {
+                    chord: door("chord"),
+                    palette: door("palette"),
+                    menu: door("menu"),
+                };
                 if counts.total() > 0 {
                     stats.command_usage.insert(slug.clone(), counts);
                 }
@@ -464,7 +473,10 @@ mod tests {
             chars_typed: 1234,
             keystrokes: 5678,
             active_writing_ms: 987_654,
-            files_touched: vec![PathBuf::from("/home/me/a.md"), PathBuf::from("/home/me/b c.rs")],
+            files_touched: vec![
+                PathBuf::from("/home/me/a.md"),
+                PathBuf::from("/home/me/b c.rs"),
+            ],
             caret_distance_px: 42_195.5,
             per_world_ms: BTreeMap::new(),
             command_usage: BTreeMap::new(),
@@ -474,11 +486,20 @@ mod tests {
         // The usage ledger round-trips too (inline-table per slug).
         stats.command_usage.insert(
             "go_to_file".to_string(),
-            DoorCounts { chord: 12, palette: 3, menu: 1 },
+            DoorCounts {
+                chord: 12,
+                palette: 3,
+                menu: 1,
+            },
         );
-        stats
-            .command_usage
-            .insert("switch_theme".to_string(), DoorCounts { chord: 0, palette: 7, menu: 2 });
+        stats.command_usage.insert(
+            "switch_theme".to_string(),
+            DoorCounts {
+                chord: 0,
+                palette: 7,
+                menu: 2,
+            },
+        );
         assert_eq!(from_toml(&to_toml(&stats)), stats);
     }
 
@@ -486,7 +507,10 @@ mod tests {
     fn caret_distance_round_trips_as_a_float_even_when_whole() {
         // A whole-number distance must still read back as the same f64, not be
         // dropped by the parser treating a bare `123` as an integer.
-        let stats = Stats { caret_distance_px: 5000.0, ..Stats::default() };
+        let stats = Stats {
+            caret_distance_px: 5000.0,
+            ..Stats::default()
+        };
         let back = from_toml(&to_toml(&stats));
         assert_eq!(back.caret_distance_px, 5000.0);
     }
@@ -514,7 +538,11 @@ mod tests {
         crate::fs::with_fs(fake, || {
             let path = PathBuf::from("/data/stats.toml");
             assert_eq!(load(&path), Stats::default(), "missing file: empty stats");
-            let stats = Stats { chars_typed: 99, keystrokes: 100, ..Stats::default() };
+            let stats = Stats {
+                chars_typed: 99,
+                keystrokes: 100,
+                ..Stats::default()
+            };
             save(&path, &stats).unwrap();
             assert_eq!(load(&path), stats);
         });
@@ -541,7 +569,10 @@ mod tests {
         assert_eq!(stats.keystrokes, 1);
         assert_eq!(stats.chars_typed, 1);
         assert_eq!(stats.active_writing_ms, 0);
-        assert!(stats.per_world_ms.is_empty(), "no interval on the first keystroke");
+        assert!(
+            stats.per_world_ms.is_empty(),
+            "no interval on the first keystroke"
+        );
         // A 15s think-pause under Tawny then a 5-minute walk-away under Mopoke:
         // the first counts in full, the second caps.
         stats.record_keystroke(false, "Tawny", Some(1_000), 1_000 + 15_000);
@@ -569,10 +600,23 @@ mod tests {
     #[test]
     fn touch_file_dedupes_and_counts_distinct_paths() {
         let mut stats = Stats::default();
-        assert!(stats.touch_file(PathBuf::from("/a.md")), "first open is new");
-        assert!(stats.touch_file(PathBuf::from("/b.md")), "second distinct open is new");
-        assert!(!stats.touch_file(PathBuf::from("/a.md")), "a re-open is not new");
-        assert_eq!(stats.files_touched_count(), 2, "distinct count, not open count");
+        assert!(
+            stats.touch_file(PathBuf::from("/a.md")),
+            "first open is new"
+        );
+        assert!(
+            stats.touch_file(PathBuf::from("/b.md")),
+            "second distinct open is new"
+        );
+        assert!(
+            !stats.touch_file(PathBuf::from("/a.md")),
+            "a re-open is not new"
+        );
+        assert_eq!(
+            stats.files_touched_count(),
+            2,
+            "distinct count, not open count"
+        );
     }
 
     #[test]
@@ -583,7 +627,11 @@ mod tests {
         stats.record_command("go_to_file".into(), Door::Palette);
         stats.record_command("go_to_file".into(), Door::Menu);
         let c = stats.command_counts("go_to_file");
-        assert_eq!((c.chord, c.palette, c.menu), (2, 1, 1), "each door counts independently");
+        assert_eq!(
+            (c.chord, c.palette, c.menu),
+            (2, 1, 1),
+            "each door counts independently"
+        );
         assert_eq!(c.total(), 4);
         assert_eq!(c.slow(), 2, "slow = palette + menu, never chord");
         // A never-seen command reads all zeros.
@@ -597,7 +645,10 @@ mod tests {
         for _ in 0..100 {
             stats.record_command("save".into(), Door::Palette);
         }
-        assert!(!stats.is_graduated("save"), "slow-door use never graduates a command");
+        assert!(
+            !stats.is_graduated("save"),
+            "slow-door use never graduates a command"
+        );
         // Chord presses graduate exactly at GRADUATION_N.
         for i in 1..=GRADUATION_N {
             stats.record_command("save".into(), Door::Chord);
@@ -633,9 +684,8 @@ mod tests {
         stats.record_command("copy".into(), Door::Chord);
 
         // Injected catalog truth: only these three carry a native chord.
-        let has_chord = |slug: &str| {
-            matches!(slug, "go_to_file" | "save" | "switch_theme" | "copy")
-        };
+        let has_chord =
+            |slug: &str| matches!(slug, "go_to_file" | "save" | "switch_theme" | "copy");
         let ranked = stats.graduation_candidates(has_chord, 10);
         let slugs: Vec<&str> = ranked.iter().map(|(s, _)| s.as_str()).collect();
         assert_eq!(
