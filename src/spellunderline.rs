@@ -352,8 +352,8 @@ mod tests {
         let c = srgba_u8_to_linear([0xE0, 0x52, 0x52, 0xE0]);
         // Alpha is linear (0xE0/255 ~= 0.878).
         assert!((c[3] - 0.8784314).abs() < 1e-4);
-        for k in 0..3 {
-            assert!(c[k] >= 0.0 && c[k] <= 1.0);
+        for channel in c.iter().take(3) {
+            assert!(*channel >= 0.0 && *channel <= 1.0);
         }
     }
 

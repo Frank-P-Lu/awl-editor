@@ -1153,6 +1153,8 @@ const INK_BLESSED: &[Blessed] = &[
 /// small and reads as what it is: item 99 already rejected a per-pair table
 /// sized to the whole roster; this one is sized to the roster's own measured
 /// danger zone instead, which is not the same shape.
+// Each axis couples its metric, thresholds, exceptions, and direction as one fixed test table.
+#[allow(clippy::type_complexity)]
 fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
     [
         (

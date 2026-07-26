@@ -181,7 +181,7 @@ fn copy_pulse_is_the_gentlest_pure_squash_no_velocity_kick() {
     // understated": it must be the GENTLEST floor of the whole set (closest to
     // 1.0), since nothing was actually edited.
     assert!(
-        CARET_COPY_PULSE_SCALE > CARET_DELETE_SQUASH
+        std::hint::black_box(CARET_COPY_PULSE_SCALE) > CARET_DELETE_SQUASH
             && CARET_COPY_PULSE_SCALE > CARET_GULP_SCALE
             && CARET_COPY_PULSE_SCALE > CARET_LINE_LAND_SCALE
             && CARET_COPY_PULSE_SCALE > CARET_TYPE_IMPACT_SCALE
@@ -189,7 +189,7 @@ fn copy_pulse_is_the_gentlest_pure_squash_no_velocity_kick() {
         "the copy pulse must read gentler than every other flinch/bounce"
     );
     assert!(
-        CARET_COPY_PULSE_SCALE < 1.0,
+        std::hint::black_box(CARET_COPY_PULSE_SCALE) < 1.0,
         "it must still be a visible dip"
     );
 

@@ -451,7 +451,7 @@ mod tests {
         assert!(ctx.overlay.is_some());
         apply_core(&mut ctx, &Action::Cancel, false);
         assert!(ctx.overlay.is_none(), "Esc/Cancel closes the minibuffer");
-        drop(ctx);
+        let _ = ctx;
         assert_eq!(
             buffer.text(),
             "hello world",

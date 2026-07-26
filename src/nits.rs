@@ -240,6 +240,10 @@ pub fn document_nits(text: &str) -> Vec<(usize, usize, usize)> {
 mod tests {
     use super::*;
 
+    fn one_range(range: std::ops::Range<usize>) -> Vec<std::ops::Range<usize>> {
+        vec![range]
+    }
+
     // --- The toggle global. --------------------------------------------------
 
     #[test]
@@ -407,9 +411,9 @@ mod tests {
         let line = "x  y // a  b";
         // The comment ("// a  b") is cols/bytes [5, 12) — the lexer's Comment span.
         // The code-side double space (cols 1..3, "x  y") is NOT inside it.
-        assert!(!span_in_prose_ranges(line, 0, 1, 3, &[5..12]));
+        assert!(!span_in_prose_ranges(line, 0, 1, 3, &one_range(5..12)));
         // The comment's own double space (cols 9..11, "a  b") IS inside it.
-        assert!(span_in_prose_ranges(line, 0, 9, 11, &[5..12]));
+        assert!(span_in_prose_ranges(line, 0, 9, 11, &one_range(5..12)));
         // No prose ranges at all -> nothing is ever in scope.
         assert!(!span_in_prose_ranges(line, 0, 9, 11, &[]));
     }
@@ -420,7 +424,7 @@ mod tests {
         // The string prose range is bytes 0..4; a span [3,6) (closing quote through
         // the double space) straddles the boundary and must NOT be considered
         // fully inside.
-        assert!(!span_in_prose_ranges(line, 0, 3, 6, &[0..4]));
+        assert!(!span_in_prose_ranges(line, 0, 3, 6, &one_range(0..4)));
     }
 
     #[test]
@@ -430,9 +434,9 @@ mod tests {
         let line = "a  b";
         // Document byte range for this line is [10, 14); the interior double
         // space is document bytes [11, 13).
-        assert!(span_in_prose_ranges(line, 10, 1, 3, &[10..14]));
+        assert!(span_in_prose_ranges(line, 10, 1, 3, &one_range(10..14)));
         assert!(
-            !span_in_prose_ranges(line, 10, 1, 3, &[0..4]),
+            !span_in_prose_ranges(line, 10, 1, 3, &one_range(0..4)),
             "a range on a different line must not match"
         );
     }

@@ -285,9 +285,9 @@ fn assemble_xs_three_char_shared_cluster_splits_into_even_thirds() {
     ];
     let xs = assemble_glyph_xs("::>", &clusters, CHAR_WIDTH);
     assert_eq!(xs.len(), 4, "3 chars -> 4 boundaries");
-    for k in 0..=3 {
+    for (k, x) in xs.iter().enumerate().take(4) {
         assert!(
-            (xs[k] - k as f32 * w).abs() < 1e-3,
+            (*x - k as f32 * w).abs() < 1e-3,
             "column {k} must be an even third at {}",
             k as f32 * w
         );

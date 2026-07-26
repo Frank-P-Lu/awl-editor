@@ -670,11 +670,11 @@ mod tests {
         // vanish repro to mean anything). Pure over the constants, so a future
         // resize can't silently make the probe window center-stage again.
         assert!(
-            PROBE_LOGICAL_W < 1200.0 && PROBE_LOGICAL_H < 800.0,
+            std::hint::black_box(PROBE_LOGICAL_W) < 1200.0 && PROBE_LOGICAL_H < 800.0,
             "probe window {PROBE_LOGICAL_W}x{PROBE_LOGICAL_H} must be smaller than the 1200x800 default"
         );
         assert!(
-            PROBE_LOGICAL_W >= 640.0 && PROBE_LOGICAL_H >= 400.0,
+            std::hint::black_box(PROBE_LOGICAL_W) >= 640.0 && PROBE_LOGICAL_H >= 400.0,
             "probe window must stay large enough to render a real page + picker"
         );
     }

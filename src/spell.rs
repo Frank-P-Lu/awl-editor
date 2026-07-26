@@ -792,6 +792,10 @@ fn url_at(chars: &[char], i: usize) -> bool {
 mod tests {
     use super::*;
 
+    fn one_range(range: std::ops::Range<usize>) -> Vec<std::ops::Range<usize>> {
+        vec![range]
+    }
+
     /// A stub dictionary: only these exact lowercase words are "correct".
     fn stub<'a>(correct: &'a [&'a str]) -> impl Fn(&str) -> bool + 'a {
         move |w: &str| correct.iter().any(|c| c.eq_ignore_ascii_case(w))
@@ -1203,11 +1207,11 @@ mod tests {
         //           0123456789012345678
         let text = "alpha \"beta\" gamma";
         // Only the quoted region (bytes 6..12) is prose-checkable.
-        let ms = misspelled_spans_scoped(text, &none, &[6..12]);
+        let ms = misspelled_spans_scoped(text, &none, &one_range(6..12));
         assert_eq!(ms.len(), 1, "only the in-range word survives: {ms:?}");
         assert_eq!(cols(&ms[0]), (0, 7, 11)); // "beta"
         // A word STRADDLING a range boundary is not fully inside -> dropped.
-        let ms = misspelled_spans_scoped(text, &none, &[6..9]);
+        let ms = misspelled_spans_scoped(text, &none, &one_range(6..9));
         assert!(ms.is_empty(), "a straddling word must not squiggle");
         // No ranges -> nothing can squiggle.
         assert!(misspelled_spans_scoped(text, &none, &[]).is_empty());
@@ -1217,7 +1221,7 @@ mod tests {
     fn scoped_drops_identifier_shaped_words() {
         let none = stub(&[]);
         let text = "\"SelInstance WGSL px some_var word\"";
-        let ms = misspelled_spans_scoped(text, &none, &[0..text.len()]);
+        let ms = misspelled_spans_scoped(text, &none, &one_range(0..text.len()));
         // CamelCase, ALL-CAPS, <3 chars and snake_case all pass silently; only
         // the plain word squiggles. (The tokenizer splits `some_var` at the `_`,
         // so its halves are plain runs — `var` is dropped by nothing... but
@@ -1797,17 +1801,21 @@ fn recieve_stuff(definately: &str) -> &str {\n\
     /// candidate and only the scope/shape logic itself is under test).
     #[test]
     fn verifier_scoped_boundaries() {
+        fn one_range(range: std::ops::Range<usize>) -> Vec<std::ops::Range<usize>> {
+            vec![range]
+        }
+
         let none = |_: &str| false;
         // A word STRADDLING the prose-range boundary must not flag; one that
         // exactly fills a range must.
         let text = "abcde fghij";
         assert!(
-            misspelled_spans_scoped(text, none, &[0..8])
+            misspelled_spans_scoped(text, none, &one_range(0..8))
                 .iter()
                 .all(|m| m.start_col == 0),
             "straddling word (fghij over byte 8) must not flag"
         );
-        let ms = misspelled_spans_scoped(text, none, &[6..11]);
+        let ms = misspelled_spans_scoped(text, none, &one_range(6..11));
         assert_eq!(ms.len(), 1);
         assert_eq!((ms[0].start_col, ms[0].end_col), (6, 11));
         // Identifier shapes inside a fully-kept range never flag.
@@ -1815,7 +1823,7 @@ fn recieve_stuff(definately: &str) -> &str {\n\
         // 3+-char lowercase runs and DO reach the dictionary (the `_` arm of
         // `identifier_shaped` is unreachable post-tokenization).
         let t2 = "SelInstance WGSL px foo_bar someword";
-        let ms2 = misspelled_spans_scoped(t2, none, &[0..t2.len()]);
+        let ms2 = misspelled_spans_scoped(t2, none, &one_range(0..t2.len()));
         let l: Vec<String> = ms2
             .iter()
             .map(|m| {
@@ -1831,7 +1839,7 @@ fn recieve_stuff(definately: &str) -> &str {\n\
         );
         // Multi-byte safety: a kept range after a multi-byte char still maps.
         let t3 = "caf\u{e9} recieve";
-        let ms3 = misspelled_spans_scoped(t3, none, &[0..t3.len()]);
+        let ms3 = misspelled_spans_scoped(t3, none, &one_range(0..t3.len()));
         assert_eq!(ms3.len(), 2);
     }
 

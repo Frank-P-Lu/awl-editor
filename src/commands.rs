@@ -3419,15 +3419,15 @@ mod tests {
         // And concretely, on THIS platform (native): visible_action_of/visible_slug_of/
         // visible_name_of agree with visible() row-for-row.
         let corpus = visible();
-        for i in 0..corpus.len() {
+        for (i, command) in corpus.iter().enumerate() {
             assert_eq!(
                 visible_action_of(i),
-                corpus[i].action,
+                command.action,
                 "row {i}: visible_action_of drift"
             );
             assert_eq!(
                 visible_slug_of(i),
-                slug(corpus[i].name),
+                slug(command.name),
                 "row {i}: visible_slug_of drift"
             );
             assert_eq!(

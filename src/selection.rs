@@ -724,8 +724,8 @@ mod tests {
         // Alpha is linear (0x52/255 ~= 0.32).
         assert!((c[3] - 0.32156864).abs() < 1e-4);
         // Channels are in [0,1].
-        for k in 0..3 {
-            assert!(c[k] >= 0.0 && c[k] <= 1.0);
+        for channel in c.iter().take(3) {
+            assert!(*channel >= 0.0 && *channel <= 1.0);
         }
     }
 

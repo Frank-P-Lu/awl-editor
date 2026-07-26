@@ -17,7 +17,7 @@ use super::*;
 fn overlay_selected_band_is_a_stronger_value_step_never_a_hue() {
     let _g = crate::testlock::serial();
     assert!(
-        OVERLAY_SELROW_EXTRA_STEPS > 0,
+        std::hint::black_box(OVERLAY_SELROW_EXTRA_STEPS) > 0,
         "the round strengthens the band by default"
     );
     for world in ["Bowerbird", "Saltpan", "Firetail", "Tawny"] {
@@ -1714,7 +1714,7 @@ fn every_world_has_an_ornament_scale() {
     assert_eq!(ORNAMENT_SCALE_FLEURON, 1.8, "fleuron tier is 1.8");
     assert_eq!(ORNAMENT_SCALE_GEOMETRIC, 1.5, "geometric tier is 1.5");
     assert!(
-        ORNAMENT_SCALE_ORNATE > ORNAMENT_SCALE_FLEURON
+        std::hint::black_box(ORNAMENT_SCALE_ORNATE) > ORNAMENT_SCALE_FLEURON
             && ORNAMENT_SCALE_FLEURON > ORNAMENT_SCALE_GEOMETRIC,
         "the tiers descend ornate > fleuron > geometric"
     );
@@ -1767,7 +1767,8 @@ fn every_world_has_a_bullet_pair() {
     );
     assert_eq!(BULLET_SCALE_PLAIN, 1.0, "plain bullets keep body size");
     assert!(
-        BULLET_SCALE_ORNAMENT > 0.0 && BULLET_SCALE_ORNAMENT < BULLET_SCALE_PLAIN,
+        std::hint::black_box(BULLET_SCALE_ORNAMENT) > 0.0
+            && BULLET_SCALE_ORNAMENT < BULLET_SCALE_PLAIN,
         "ornament bullets shape smaller than the plain body-size bullets"
     );
     for t in THEMES.iter() {
@@ -1884,7 +1885,7 @@ fn every_world_has_a_list_indent_scale() {
         "the plain tier is byte-identical"
     );
     assert!(
-        LIST_INDENT_SCALE_WIDE > LIST_INDENT_SCALE_PLAIN,
+        std::hint::black_box(LIST_INDENT_SCALE_WIDE) > LIST_INDENT_SCALE_PLAIN,
         "the wide tier must actually widen the indent"
     );
     for t in THEMES.iter() {

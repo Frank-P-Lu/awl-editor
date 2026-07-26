@@ -286,11 +286,8 @@ fn collapse_others_root_unfold_reveals_the_whole_sibling_subtree_in_one_step() {
         "# Beta is the single stored root over its subtree"
     );
     let hidden = hidden_lines(&levels, &f);
-    for line in 3..=7 {
-        assert!(
-            !hidden[line],
-            "line {line} of # Beta's subtree is now visible"
-        );
+    for (line, is_hidden) in hidden.iter().enumerate().take(8).skip(3) {
+        assert!(!is_hidden, "line {line} of # Beta's subtree is now visible");
     }
     // Only # Gamma's section stays collapsed.
     assert_eq!(f, folds(&[8]));

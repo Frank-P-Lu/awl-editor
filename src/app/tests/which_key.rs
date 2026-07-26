@@ -64,7 +64,7 @@ fn whichkey_debounce_summons_exactly_at_its_pause_deadline_step() {
             flips += 1;
         }
         assert!(
-            !(prev_shown && !*shown),
+            !prev_shown || *shown,
             "the panel must never un-summon mid-run"
         );
         prev_shown = *shown;

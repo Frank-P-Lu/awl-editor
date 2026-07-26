@@ -106,7 +106,7 @@ fn blocked_recoil_leaves_buffer_and_cursor_untouched() {
         oracle: None,
     };
     apply_core(&mut ctx, &Action::ForwardChar, false);
-    drop(ctx);
+    let _ = ctx;
     assert_eq!(buffer.text(), before_text);
     assert_eq!(buffer.cursor_char(), before_cursor);
 }

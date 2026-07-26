@@ -478,7 +478,7 @@ pub(super) fn drive_effect_and_cursor(
         oracle: None,
     };
     let effect = apply_core(&mut ctx, action, false);
-    drop(ctx);
+    let _ = ctx;
     (effect, buffer.cursor_char())
 }
 

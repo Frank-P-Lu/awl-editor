@@ -600,12 +600,12 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
 #[test]
 fn caret_ink_pad_is_bounded_and_exceeds_the_morph_dilation() {
     assert!(
-        CARET_INK_PAD > CARET_MORPH_DILATE_PX,
+        std::hint::black_box(CARET_INK_PAD) > CARET_MORPH_DILATE_PX,
         "the ink pad must outrun the knockout/silhouette dilation: pad={CARET_INK_PAD} \
          dilate={CARET_MORPH_DILATE_PX}"
     );
     assert!(
-        CARET_INK_PAD > 0.0 && CARET_INK_PAD < CARET_BLOCK_H * 0.25,
+        std::hint::black_box(CARET_INK_PAD) > 0.0 && CARET_INK_PAD < CARET_BLOCK_H * 0.25,
         "the ink pad must stay a small margin, not a second cell height: {CARET_INK_PAD}"
     );
 }

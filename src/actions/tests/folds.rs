@@ -120,9 +120,9 @@ fn collapse_others_over_a_nested_sibling_stores_only_the_shallowest_roots() {
         "caret parked on the reopened heading"
     );
     let hidden = buffer.hidden_lines();
-    for line in 3..=7 {
+    for (line, is_hidden) in hidden.iter().enumerate().take(8).skip(3) {
         assert!(
-            !hidden[line],
+            !is_hidden,
             "# Beta's subtree line {line} is now fully visible"
         );
     }

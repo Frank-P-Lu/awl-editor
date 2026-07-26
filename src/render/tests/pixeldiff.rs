@@ -275,6 +275,8 @@ pub(super) struct ColBand {
 /// gap between them == not touching) — rather than inferring it from
 /// geometry. Real GPU pixels, the Wagtail lesson (CLAUDE.md's harness
 /// section): appearance is proven over bytes, never state.
+// Pixel-band probes keep their scan bounds and threshold explicit for readable laws.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn ink_column_bands(
     pixels: &[[u8; 4]],
     width: i64,
@@ -345,6 +347,8 @@ pub(super) fn ink_column_bands(
 /// blocks" (a vertical one) — the theme-QA round's heading-spacing law: a
 /// no-bold world's gap AROUND a heading must read measurably taller than the
 /// gap between two ordinary body paragraphs, at real pixels.
+// Pixel-band probes keep their scan bounds and threshold explicit for readable laws.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn ink_row_bands(
     pixels: &[[u8; 4]],
     width: i64,

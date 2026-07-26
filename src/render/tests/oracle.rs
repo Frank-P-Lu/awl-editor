@@ -110,8 +110,7 @@ fn oracle_vertical_sweep_capture_md_strictly_monotonic() {
     let mut non_descend: Vec<String> = Vec::new();
     let mut non_ascend: Vec<String> = Vec::new();
 
-    for line in 0..n {
-        let rows = &all_rows[line];
+    for (line, rows) in all_rows.iter().enumerate().take(n) {
         let char_count = rows.last().map(|r| r.end_col).unwrap_or(0);
         // goal_x spread: the left edge, each row's own start/end/mid x (the
         // wrap-boundary x's are the interesting ones), and a far-right x.

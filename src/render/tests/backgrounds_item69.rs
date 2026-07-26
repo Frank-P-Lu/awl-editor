@@ -74,6 +74,8 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
 /// (`0.0`) for every non-Waves ground (item 86's Zigzag callers pass `0.0`).
 /// Mirrors `dither.rs::render_background`, generalized with the column + drift
 /// params this file's laws (and the item 86 sibling module's) need.
+// Test rendering passes the real GPU and background controls explicitly to mirror production setup.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn render_bg(
     device: &wgpu::Device,
     queue: &wgpu::Queue,

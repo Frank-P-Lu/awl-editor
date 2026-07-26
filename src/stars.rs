@@ -831,7 +831,7 @@ mod tests {
         // MILD: the band itself stays narrow relative to the star (never a wide
         // scatter that would read as size noise rather than a subtle spread).
         assert!(
-            STAR_SIZE_SPREAD_FRAC <= 0.3,
+            std::hint::black_box(STAR_SIZE_SPREAD_FRAC) <= 0.3,
             "the size-spread fraction must stay mild, not a wide scatter"
         );
     }
