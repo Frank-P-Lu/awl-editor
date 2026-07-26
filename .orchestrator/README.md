@@ -187,6 +187,20 @@ These are orchestration rules, not live queue state:
 - **Durable worktrees only.** Never create a worktree under `/private/tmp`;
   use `.claude/worktrees/` or another durable path. Commit work in progress
   before any pause.
+- **One worktree per CONCURRENT AGENT, not per item (orchestrator error,
+  2026-07-26).** A worktree is a directory on disk with one checked-out branch;
+  two agents running at the same time in the same directory are two writers on
+  one working tree, and git offers them no protection whatsoever. Item 105's
+  round-3 bakeoff ran two architecture arms concurrently and the brief named a
+  single worktree for both: the second arm found the first arm's uncommitted
+  edits appear underneath it mid-task, on a branch it had never checked out.
+  It recovered well — stashed the stray work rather than destroying it, saved a
+  patch, and moved to a fresh isolated worktree — but that was the agent being
+  careful, not the protocol being right. When a phase fans out N agents that
+  WRITE, the brief gives each its own worktree path (or the `agent()` call uses
+  `isolation: 'worktree'`); a shared path is only ever safe for readers. The
+  failure is silent and looks like the other agent's bug, so it also costs a
+  round of misattributed diagnosis.
 - **Clean up after every landed wave.** Once a worktree is clean and its patch
   is merged (or patch-equivalent on main), remove the worktree and prune stale
   registrations. Leave dirty, unmerged, locked, or differently-owned
