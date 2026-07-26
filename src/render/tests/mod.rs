@@ -33,6 +33,7 @@ mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
 mod hybrid_band_snap;
+mod hover_slop_law;
 mod hud;
 mod images;
 mod list_surfaces;

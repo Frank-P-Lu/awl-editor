@@ -57,6 +57,63 @@ impl OraclePipeline {
         &self.pipeline
     }
 
+    /// ITEM 106 — forwards to the wrapped [`TextPipeline::resolve_overlay_hover`]
+    /// (hit-test + the real-motion/movement-slop gate), so the headless `--keys`
+    /// pointer-replay step (`main/run.rs::ReplaySession::apply_move`) shares the
+    /// IDENTICAL hover resolution the live `App::overlay_hover` uses against its
+    /// own `gpu.pipeline` — never a second, hand-rolled hit-test-then-hover_at
+    /// pair for the offscreen replay path.
+    pub fn resolve_overlay_hover(&self, overlay: &mut crate::overlay::OverlayState, px: f32, py: f32) -> bool {
+        self.pipeline.resolve_overlay_hover(overlay, px, py)
+    }
+
+    /// ITEM 106 — sync the OVERLAY-related view fields onto this oracle's
+    /// pipeline, so [`Self::resolve_overlay_hover`] hit-tests against the
+    /// CURRENT candidate-row geometry instead of the buffer-only view
+    /// [`Self::refresh`] carries. Rebuilt from the SAME `base_viewstate`
+    /// `refresh` uses (so the buffer text/cursor fields the wrap-motion
+    /// oracle depends on stay internally consistent — cheap, and moot
+    /// regardless: the very next scripted action's unconditional `refresh()`
+    /// fully re-derives them either way), with the flat/list-picker overlay
+    /// fields overlaid on top — `overlay_active`/`items`/`selected`/`scroll`/
+    /// `window_rows`/`title`, exactly what the NON-faceted `overlay_geometry`
+    /// path (every kind but Theme) reads for its row window. This pipeline
+    /// is never the one a `--screenshot` frame actually renders from (that is
+    /// a fresh pipeline built in `capture_with` after replay finishes), so
+    /// mutating it here for a pointer-replay step can't leak into the final
+    /// PNG. THEME-PICKER faceting (`overlay_lens`) and the spell popup's word
+    /// anchor are intentionally NOT threaded here — every flat/list picker
+    /// (the item 106 roster) is covered; a faceted pointer-replay law is
+    /// future work, not a silent gap in what this claims to verify.
+    pub fn sync_overlay(&mut self, buffer: &Buffer, zoom: f32, overlay: &crate::overlay::OverlayState) {
+        let (cl, cc) = buffer.cursor_line_col();
+        let z = render::clamp_zoom(self.cli_zoom.unwrap_or(zoom));
+        let mut v = base_viewstate(buffer, &self.project, (cl, cc), z, Vec::new(), false);
+        v.overlay_active = true;
+        v.overlay_items = overlay.item_strings();
+        v.overlay_selected = overlay.selected;
+        v.overlay_scroll = overlay.scroll;
+        v.overlay_window_rows = overlay.window_rows();
+        v.overlay_title = overlay.kind.title();
+        self.pipeline.set_size(self.width, self.height);
+        self.pipeline.set_view(&v);
+    }
+
+    /// TEST-ONLY geometry accessors, forwarded straight to the wrapped
+    /// pipeline's own public hit-test / card-rect queries — item 106's
+    /// `ReplaySession`-level law uses these to locate a REAL row's pixel
+    /// bounds (the same geometry `apply_move`/`resolve_overlay_hover`
+    /// consults) without reaching past `OraclePipeline`'s own encapsulation.
+    #[cfg(test)]
+    pub(crate) fn overlay_row_at(&self, px: f32, py: f32) -> Option<usize> {
+        self.pipeline.overlay_row_at(px, py)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn overlay_card_rect(&self) -> Option<[f32; 4]> {
+        self.pipeline.overlay_card_rect()
+    }
+
     /// FRESH LAYOUT ORACLE PER ACTION — the ONE freshness seam: re-shape from the
     /// CURRENT buffer / zoom / page-measure state, so the wrap geometry a motion
     /// is about to consult is never stale. The replay loop calls this before

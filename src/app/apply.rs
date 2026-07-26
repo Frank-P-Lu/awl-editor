@@ -694,6 +694,20 @@ impl App {
         let _ = make_overlay;
         let _ = browse_to;
         self.overlay = overlay;
+        // ITEM 106 — re-anchor the hover movement-slop gate to the pointer's
+        // CURRENT resting position after every action this seam applies (keyboard
+        // nav/type, a menu command, or a click routed back through `apply` from
+        // `overlay_click` — arming here from the pointer's real position is
+        // correct regardless of which input drove the action). Without this, a
+        // keyboard-only session's overlay hover memory stays stale (or `None`)
+        // through a whole run of arrow presses; the very next incidental
+        // `CursorMoved` — even the pointer's first-ever hover check, which
+        // `hover_at` always treats as real motion on a `None` baseline — would
+        // then silently steal the keyboard's selection out from under a
+        // motionless hand. See `OverlayState::arm_hover_baseline`'s doc.
+        if let Some(ov) = self.overlay.as_mut() {
+            ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
+        }
         // CURSOR SHAPE: the overlay just opened or closed WITHOUT any mouse motion (a
         // keyboard summon/accept/cancel, or a click routed back through `apply` from
         // `overlay_click`) — recompute now rather than waiting for the next
