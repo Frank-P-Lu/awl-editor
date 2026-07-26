@@ -754,10 +754,10 @@ fn toml_as_usize(v: &toml::Value) -> Option<usize> {
 /// Expand a leading `~/` to `$HOME` so hand-edited paths read naturally. Anything
 /// else passes through verbatim.
 pub(super) fn expand_tilde(s: &str) -> PathBuf {
-    if let Some(rest) = s.strip_prefix("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join(rest);
-        }
+    if let Some(rest) = s.strip_prefix("~/")
+        && let Some(home) = std::env::var_os("HOME")
+    {
+        return PathBuf::from(home).join(rest);
     }
     PathBuf::from(s)
 }

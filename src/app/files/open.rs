@@ -19,11 +19,11 @@ impl App {
         if path.as_os_str().is_empty() {
             return; // no resolvable config path (no HOME); nothing to open
         }
-        if !crate::fs::active().exists(&path) {
-            if let Err(e) = Config::write_default(&path) {
-                eprintln!("could not create config {}: {e}", path.display());
-                return;
-            }
+        if !crate::fs::active().exists(&path)
+            && let Err(e) = Config::write_default(&path)
+        {
+            eprintln!("could not create config {}: {e}", path.display());
+            return;
         }
         self.load_path(path);
     }

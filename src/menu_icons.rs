@@ -268,12 +268,11 @@ fn draw_for(id: &str) -> Option<(Vec<u8>, u32, u32)> {
 /// pass through [`safe_icon`] (the crash-class guard) before
 /// `muda::Icon::from_rgba` ever sees them.
 pub fn icon_for(id: &str) -> Option<Icon> {
-    if let Some(symbol) = symbol_for(id) {
-        if let Some((rgba, w, h)) = crate::mac_chrome::render_symbol_rgba(symbol) {
-            if let Some(icon) = safe_icon(rgba, w, h) {
-                return Some(icon);
-            }
-        }
+    if let Some(symbol) = symbol_for(id)
+        && let Some((rgba, w, h)) = crate::mac_chrome::render_symbol_rgba(symbol)
+        && let Some(icon) = safe_icon(rgba, w, h)
+    {
+        return Some(icon);
     }
     let (rgba, w, h) = draw_for(id)?;
     safe_icon(rgba, w, h)

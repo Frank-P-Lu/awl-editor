@@ -179,7 +179,7 @@ impl App {
         // which the frame loop finalizes. Non-debug (and no pending input) takes the
         // byte-identical plain `sync_theme_font`.
         let input_at = crate::debug::debug_on()
-            .then(|| self.theme_switch_at)
+            .then_some(self.theme_switch_at)
             .flatten();
         self.sync_theme_font_maybe_timed(input_at);
         self.sync_view(false);
@@ -1050,29 +1050,28 @@ impl App {
     /// PageScroll precedent). The scroll itself lives on the OVERLAY
     /// (`OverlayState::diff_scroll`), clamped at the next `sync_view`.
     fn page_scroll_intercept(&mut self, action: &Action) -> Option<bool> {
-        if let Some(ov) = self.overlay.as_mut() {
-            if ov.kind == crate::overlay::OverlayKind::History
-                && ov.selected_history_id().is_some()
-                && matches!(action, Action::PageScrollDown | Action::PageScrollUp)
-            {
-                let visible = if let Some(gpu) = self.gpu.as_ref() {
-                    let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
-                    render::visible_lines_z(gpu.config.height as f32, line_height)
-                } else {
-                    1
-                };
-                let page = visible.saturating_sub(2).max(1);
-                let ov = self.overlay.as_mut().unwrap();
-                ov.diff_scroll = match action {
-                    Action::PageScrollDown => ov.diff_scroll.saturating_add(page),
-                    _ => ov.diff_scroll.saturating_sub(page),
-                };
-                self.sync_view(false);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
-                return Some(false);
+        if let Some(ov) = self.overlay.as_mut()
+            && ov.kind == crate::overlay::OverlayKind::History
+            && ov.selected_history_id().is_some()
+            && matches!(action, Action::PageScrollDown | Action::PageScrollUp)
+        {
+            let visible = if let Some(gpu) = self.gpu.as_ref() {
+                let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
+                render::visible_lines_z(gpu.config.height as f32, line_height)
+            } else {
+                1
+            };
+            let page = visible.saturating_sub(2).max(1);
+            let ov = self.overlay.as_mut().unwrap();
+            ov.diff_scroll = match action {
+                Action::PageScrollDown => ov.diff_scroll.saturating_add(page),
+                _ => ov.diff_scroll.saturating_sub(page),
+            };
+            self.sync_view(false);
+            if let Some(gpu) = self.gpu.as_ref() {
+                gpu.window.request_redraw();
             }
+            return Some(false);
         }
         if self.overlay.is_none() {
             match action {

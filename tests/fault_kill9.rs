@@ -141,17 +141,17 @@ fn run_one_trial(tag: &str, count: u32, kill_after_writes: u32, delay_ms: u64) {
     // than the last one it told us it finished) — a stronger check than
     // "never torn" alone, since a stale/rolled-back file would pass
     // `assert_never_torn` but still indicate a real bug.
-    if let Some(last) = seen {
-        if let Ok(bytes) = std::fs::read(&target) {
-            let text = String::from_utf8(bytes).unwrap();
-            let landed = (0..count).find(|&i| payload(i) == text);
-            if let Some(landed) = landed {
-                assert!(
-                    landed + 1 >= last || landed == count - 1,
-                    "child reported iteration {last} complete via stdout, but disk shows only \
+    if let Some(last) = seen
+        && let Ok(bytes) = std::fs::read(&target)
+    {
+        let text = String::from_utf8(bytes).unwrap();
+        let landed = (0..count).find(|&i| payload(i) == text);
+        if let Some(landed) = landed {
+            assert!(
+                landed + 1 >= last || landed == count - 1,
+                "child reported iteration {last} complete via stdout, but disk shows only \
                      iteration {landed} — a write went BACKWARDS, not just torn"
-                );
-            }
+            );
         }
     }
     let _ = std::fs::remove_dir_all(&dir);

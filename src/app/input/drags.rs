@@ -71,10 +71,10 @@ impl App {
         };
         // Select the row the rail belongs to (a rail press is also a selection —
         // the same row Enter would then act on).
-        if let Some(ov) = self.overlay.as_mut() {
-            if item < ov.items.len() {
-                ov.selected = item;
-            }
+        if let Some(ov) = self.overlay.as_mut()
+            && item < ov.items.len()
+        {
+            ov.selected = item;
         }
         let Some(cell) = self.overlay.as_ref().and_then(|ov| ov.range_of_item(item)) else {
             return false;
@@ -240,15 +240,15 @@ impl App {
                         .page_resize_measure_at(self.cursor_px.0, edge, anchor_x)
                 })
             });
-        if let Some(target) = target {
-            if target != crate::page::measure() {
-                crate::page::set_measure(target);
-                if let Some(gpu) = self.gpu.as_mut() {
-                    let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
-                    gpu.pipeline.set_size(w, h);
-                }
-                self.sync_view(true);
+        if let Some(target) = target
+            && target != crate::page::measure()
+        {
+            crate::page::set_measure(target);
+            if let Some(gpu) = self.gpu.as_mut() {
+                let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
+                gpu.pipeline.set_size(w, h);
             }
+            self.sync_view(true);
         }
         if let Some(gpu) = self.gpu.as_mut() {
             // DRAG READOUT: a quiet muted char-count near the pointer while the edge

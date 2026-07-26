@@ -131,12 +131,12 @@ fn emit_list(out: &mut String, list: &List, images: &dyn ImageSource, indent: us
             None => out.push_str(&format!("{ipad}<li>")),
         }
         // A tight single-paragraph item renders inline; anything richer nests.
-        if item.blocks.len() == 1 {
-            if let Block::Paragraph(inlines) = &item.blocks[0] {
-                emit_inlines(out, inlines, images);
-                out.push_str("</li>\n");
-                continue;
-            }
+        if item.blocks.len() == 1
+            && let Block::Paragraph(inlines) = &item.blocks[0]
+        {
+            emit_inlines(out, inlines, images);
+            out.push_str("</li>\n");
+            continue;
         }
         out.push('\n');
         for b in &item.blocks {

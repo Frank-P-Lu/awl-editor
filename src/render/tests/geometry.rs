@@ -444,7 +444,7 @@ fn max_scroll_overscrolls_past_end_but_stays_bounded() {
     // ...and lets the last row reach ~the top: total - 1 (a small margin away
     // from the absolute top is allowed via OVERSCROLL_KEEP_ROWS).
     assert_eq!(m, total - OVERSCROLL_KEEP_ROWS);
-    assert!(m <= total - 1, "must not scroll the last row off the top");
+    assert!(m < total, "must not scroll the last row off the top");
 
     // BOUNDED: the overscroll past the old max is at most ONE screenful, never
     // an unbounded blank void.
@@ -578,7 +578,7 @@ fn pick_row_index_matches_pick_row() {
 fn col_in_row_hit_maps_x_to_column_on_that_row() {
     // Row B owns cols 6..12 with xs[c] == c. A click x within the row maps to
     // the right GLOBAL column (not a row-local one), snapping past midpoints.
-    let rows = vec![row(0.0, 0, 6, 12), row(LINE_HEIGHT, 6, 12, 12)];
+    let rows = [row(0.0, 0, 6, 12), row(LINE_HEIGHT, 6, 12, 12)];
     let b = &rows[1];
     // x just inside col 7's cell (7.2) -> col 7.
     assert_eq!(TextPipeline::col_in_row(b, 7.2), 7);

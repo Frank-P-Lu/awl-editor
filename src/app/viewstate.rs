@@ -600,10 +600,10 @@ impl App {
             .as_ref()
             .filter(|o| o.kind == crate::overlay::OverlayKind::History)?;
         let id = ov.selected_history_id()?.to_string();
-        if let Some((cached_id, transcript)) = &self.active.extra.history_preview {
-            if *cached_id == id {
-                return Some(transcript.clone());
-            }
+        if let Some((cached_id, transcript)) = &self.active.extra.history_preview
+            && *cached_id == id
+        {
+            return Some(transcript.clone());
         }
         let current = self.view_text();
         let ov = self
@@ -691,23 +691,23 @@ impl App {
         // flinches the visual caret (squash-pop + back-kick / inward squash / gulp /
         // landing / a gentle copy pulse — the last one ALSO brightens the selection
         // quad's own tint via the same `TextPipeline::copy_pulse` call).
-        if let Some(imp) = self.caret_impact.take() {
-            if let Some(gpu) = self.gpu.as_mut() {
-                match imp {
-                    CaretImpact::Type => gpu.pipeline.caret_type_impact(),
-                    CaretImpact::Delete => gpu.pipeline.caret_delete_squash(),
-                    CaretImpact::Gulp => gpu.pipeline.caret_gulp(),
-                    CaretImpact::Land => gpu.pipeline.caret_line_land(),
-                    CaretImpact::Copy => gpu.pipeline.copy_pulse(),
-                }
+        if let Some(imp) = self.caret_impact.take()
+            && let Some(gpu) = self.gpu.as_mut()
+        {
+            match imp {
+                CaretImpact::Type => gpu.pipeline.caret_type_impact(),
+                CaretImpact::Delete => gpu.pipeline.caret_delete_squash(),
+                CaretImpact::Gulp => gpu.pipeline.caret_gulp(),
+                CaretImpact::Land => gpu.pipeline.caret_line_land(),
+                CaretImpact::Copy => gpu.pipeline.copy_pulse(),
             }
         }
         // BLOCKED-ACTION RECOIL: a motion/scroll/undo/delete that couldn't proceed
         // bumps the visual caret away from the wall (every caret look).
-        if let Some(dir) = self.caret_recoil.take() {
-            if let Some(gpu) = self.gpu.as_mut() {
-                gpu.pipeline.caret_recoil(dir);
-            }
+        if let Some(dir) = self.caret_recoil.take()
+            && let Some(gpu) = self.gpu.as_mut()
+        {
+            gpu.pipeline.caret_recoil(dir);
         }
     }
 

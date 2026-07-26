@@ -217,7 +217,7 @@ impl TextPipeline {
                 // genuinely own `float_*` this frame (a real spell popup /
                 // caret preview / search card) — never clear it out from
                 // under them just because POPOVER has nothing to show.
-                if touch_float {}
+
                 self.popover_wash.prepare(device, queue, width, height, &[]);
                 self.popover_hl_wash
                     .prepare(device, queue, width, height, &[]);

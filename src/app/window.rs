@@ -189,10 +189,10 @@ impl App {
         if crate::probe::recording() {
             crate::probe::trace(format_args!("occluded={occluded}"));
         }
-        if occluded_change_wants_redraw(occluded) {
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+        if occluded_change_wants_redraw(occluded)
+            && let Some(gpu) = self.gpu.as_ref()
+        {
+            gpu.window.request_redraw();
         }
     }
 
@@ -237,10 +237,9 @@ impl App {
         self.pointer_hide = crate::pointer_hide::PointerHide::Visible;
         if let Some(visible) =
             crate::pointer_hide::os_visibility_change(prev_pointer_hide, self.pointer_hide)
+            && let Some(gpu) = self.gpu.as_ref()
         {
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.set_cursor_visible(visible);
-            }
+            gpu.window.set_cursor_visible(visible);
         }
     }
 
@@ -293,10 +292,8 @@ impl App {
             }
         }
         #[cfg(not(target_arch = "wasm32"))]
-        if reconfigured {
-            if let Some(soak) = self.soak.as_mut() {
-                soak.observe_resize();
-            }
+        if reconfigured && let Some(soak) = self.soak.as_mut() {
+            soak.observe_resize();
         }
         self.sync_view(true);
         if changed {
@@ -308,10 +305,8 @@ impl App {
                     .is_ok_and(|(_, presented)| presented);
             }
         }
-        if request_redraw {
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+        if request_redraw && let Some(gpu) = self.gpu.as_ref() {
+            gpu.window.request_redraw();
         }
     }
 
@@ -684,33 +679,34 @@ impl App {
         // present (`frame_presented`) so a skipped/occluded frame keeps the switch in
         // flight until a real present lands. Structurally off the headless path (armed
         // only behind `debug_on()`; a capture never arms `theme_settle`).
-        if crate::debug::debug_on() && frame_presented && self.theme_settle.is_some() {
-            if let Some((_, _done)) = presented {
-                let mut settle = self.theme_settle.take().expect("just checked is_some");
-                if let Some((prep_ms, present_ms)) =
-                    self.gpu.as_ref().and_then(|g| g.debug_frame_split)
-                {
-                    settle
-                        .phases
-                        .record(crate::themeswitch::SwitchPhase::Atlas, prep_ms);
-                    settle
-                        .phases
-                        .record(crate::themeswitch::SwitchPhase::Present, present_ms);
-                }
-                // The App clock is the one scheduling/animation time seam. Its
-                // timestamp gives this higher-level transaction a deterministic
-                // fake-clock test path, while `done` remains reserved for the
-                // per-frame GPU measurement above.
-                let settled_at = self.clock.now();
-                let total_ms = (settled_at - settle.input_at).as_secs_f32() * 1000.0;
-                self.theme_switches
-                    .insert(settled_at, total_ms, settle.phases);
-                if let Some(gpu) = self.gpu.as_mut() {
-                    gpu.pipeline
-                        .set_debug_theme_settle(self.theme_switches.report(settled_at));
-                    // Feed lands after this frame's prepare; one redraw draws the lines.
-                    gpu.window.request_redraw();
-                }
+        if crate::debug::debug_on()
+            && frame_presented
+            && self.theme_settle.is_some()
+            && let Some((_, _done)) = presented
+        {
+            let mut settle = self.theme_settle.take().expect("just checked is_some");
+            if let Some((prep_ms, present_ms)) = self.gpu.as_ref().and_then(|g| g.debug_frame_split)
+            {
+                settle
+                    .phases
+                    .record(crate::themeswitch::SwitchPhase::Atlas, prep_ms);
+                settle
+                    .phases
+                    .record(crate::themeswitch::SwitchPhase::Present, present_ms);
+            }
+            // The App clock is the one scheduling/animation time seam. Its
+            // timestamp gives this higher-level transaction a deterministic
+            // fake-clock test path, while `done` remains reserved for the
+            // per-frame GPU measurement above.
+            let settled_at = self.clock.now();
+            let total_ms = (settled_at - settle.input_at).as_secs_f32() * 1000.0;
+            self.theme_switches
+                .insert(settled_at, total_ms, settle.phases);
+            if let Some(gpu) = self.gpu.as_mut() {
+                gpu.pipeline
+                    .set_debug_theme_settle(self.theme_switches.report(settled_at));
+                // Feed lands after this frame's prepare; one redraw draws the lines.
+                gpu.window.request_redraw();
             }
         }
 
@@ -754,10 +750,8 @@ impl App {
         if crate::debug::debug_on() {
             let (next, request_stamp) = crate::debug::still_settle(self.debug_still, animating);
             self.debug_still = next;
-            if request_stamp {
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
+            if request_stamp && let Some(gpu) = self.gpu.as_ref() {
+                gpu.window.request_redraw();
             }
         }
     }

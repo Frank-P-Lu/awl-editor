@@ -284,18 +284,17 @@ pub fn trace(args: std::fmt::Arguments) {
     // since arm so present gaps read directly. Flushed per line so a force-quit
     // mid-repro keeps the tail. A poisoned lock or write error is swallowed —
     // diagnostics must never crash the editor.
-    if flight_active() {
-        if let Ok(mut guard) = FLIGHT_SINK.lock() {
-            if let Some(w) = guard.as_mut() {
-                use std::io::Write;
-                let ms = FLIGHT_START
-                    .get()
-                    .map(|s| s.elapsed().as_millis())
-                    .unwrap_or(0);
-                let _ = writeln!(w, "+{ms}ms {args}");
-                let _ = w.flush();
-            }
-        }
+    if flight_active()
+        && let Ok(mut guard) = FLIGHT_SINK.lock()
+        && let Some(w) = guard.as_mut()
+    {
+        use std::io::Write;
+        let ms = FLIGHT_START
+            .get()
+            .map(|s| s.elapsed().as_millis())
+            .unwrap_or(0);
+        let _ = writeln!(w, "+{ms}ms {args}");
+        let _ = w.flush();
     }
 }
 

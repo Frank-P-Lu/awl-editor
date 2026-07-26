@@ -108,15 +108,14 @@ impl App {
             .as_mut()
             .map(|sc| sc.add_user_word(word))
             .unwrap_or(false);
-        if newly {
-            if let Some(path) = self.user_dictionary_path() {
-                if let Err(e) = Self::append_word_to_dictionary_file(&path, word) {
-                    eprintln!(
-                        "could not add '{word}' to dictionary at {}: {e}",
-                        path.display()
-                    );
-                }
-            }
+        if newly
+            && let Some(path) = self.user_dictionary_path()
+            && let Err(e) = Self::append_word_to_dictionary_file(&path, word)
+        {
+            eprintln!(
+                "could not add '{word}' to dictionary at {}: {e}",
+                path.display()
+            );
         }
         self.active.extra.spell_checked_version = None;
         self.run_spellcheck_now();
@@ -139,10 +138,10 @@ impl App {
         {
             return Ok(()); // already on disk — keep the file duplicate-free
         }
-        if let Some(dir) = path.parent() {
-            if !dir.as_os_str().is_empty() {
-                let _ = fs.create_dir_all(dir);
-            }
+        if let Some(dir) = path.parent()
+            && !dir.as_os_str().is_empty()
+        {
+            let _ = fs.create_dir_all(dir);
         }
         let mut out = existing;
         if !out.is_empty() && !out.ends_with('\n') {

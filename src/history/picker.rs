@@ -215,11 +215,11 @@ pub(super) fn append_clock_when_shared(labels: &mut [String], ts: &[u64]) {
         .map(|l| seen.get(l.as_str()).copied().unwrap_or(0) > 1)
         .collect();
     for (i, l) in labels.iter_mut().enumerate() {
-        if shared[i] {
-            if let Some(t) = ts.get(i) {
-                l.push(' ');
-                l.push_str(&clock_hm(*t));
-            }
+        if shared[i]
+            && let Some(t) = ts.get(i)
+        {
+            l.push(' ');
+            l.push_str(&clock_hm(*t));
         }
     }
 }
@@ -390,7 +390,7 @@ pub(super) fn civil_date(secs: u64) -> String {
     // days since 1970-01-01 -> (year, month, day), UTC.
     let z = days + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as i64; // [0, 146096]
+    let doe = z - era * 146_097; // [0, 146096]
     let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365; // [0, 399]
     let y = yoe + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]

@@ -229,7 +229,7 @@ mod virtual_clock_tests {
         }
         // Both at t=400 < 500: neither deadline has passed.
         assert_eq!(a.now() >= stamp_a + window, b.now() >= stamp_b + window);
-        assert!(!(a.now() >= stamp_a + window));
+        assert!((a.now() < stamp_a + window));
         a.advance_ms(100);
         b.advance_ms(100);
         // Both at t=500 == deadline: both fire, regardless of their differing bases.

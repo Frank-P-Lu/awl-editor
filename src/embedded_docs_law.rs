@@ -128,10 +128,10 @@ fn scan_doc_md_tokens(text: &str, out: &mut Vec<String>) {
         let after = dot + 3;
         search_from = after;
         // Reject ".md" that is a prefix of a longer extension (".mdx", ".markdown").
-        if let Some(&nb) = bytes.get(after) {
-            if (nb as char).is_ascii_alphanumeric() {
-                continue;
-            }
+        if let Some(&nb) = bytes.get(after)
+            && (nb as char).is_ascii_alphanumeric()
+        {
+            continue;
         }
         // Walk left over path-token characters. STOP before crossing a `/` that
         // terminates a PREVIOUS `.md` (so an adjacent citation pair like
@@ -330,7 +330,8 @@ fn embed_owner_is_the_only_include_str_site() {
 #[test]
 fn test_fixtures_exist() {
     let root = repo_root();
-    for rel in ["tests/fixtures/doc-fixture.md"] {
+    {
+        let rel = "tests/fixtures/doc-fixture.md";
         let p = root.join(rel);
         assert!(p.exists(), "missing committed test fixture: {rel} ({p:?})");
     }

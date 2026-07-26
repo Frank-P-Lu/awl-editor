@@ -110,12 +110,12 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
             }
 
             // --- entity / character reference in text content ---
-            if c == b'&' {
-                if let Some(end) = scan_entity(b, i) {
-                    out.push((i..end, SynKind::Constant));
-                    i = end;
-                    continue;
-                }
+            if c == b'&'
+                && let Some(end) = scan_entity(b, i)
+            {
+                out.push((i..end, SynKind::Constant));
+                i = end;
+                continue;
             }
 
             i += 1;
@@ -129,12 +129,10 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
             i += 1;
             // A non-self-closed <script>/<style>: skip its raw-text body so the
             // embedded JS/CSS is never mis-lexed as HTML.
-            if !self_close {
-                if let Some(rng) = tag_name.clone() {
-                    let name = &text[rng];
-                    if name.eq_ignore_ascii_case("script") || name.eq_ignore_ascii_case("style") {
-                        i = find_raw_close(b, i, name.as_bytes());
-                    }
+            if !self_close && let Some(rng) = tag_name.clone() {
+                let name = &text[rng];
+                if name.eq_ignore_ascii_case("script") || name.eq_ignore_ascii_case("style") {
+                    i = find_raw_close(b, i, name.as_bytes());
                 }
             }
             tag_name = None;

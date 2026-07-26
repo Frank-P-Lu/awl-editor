@@ -286,10 +286,9 @@ impl TextPipeline {
                         )
                         && r.start >= start
                         && r.start < end
+                        && let Some(lang) = crate::markdown::fence_line_lang(text)
                     {
-                        if let Some(lang) = crate::markdown::fence_line_lang(text) {
-                            fence_langs.push((li, lang));
-                        }
+                        fence_langs.push((li, lang));
                     }
                 }
             }
@@ -1883,9 +1882,8 @@ impl TextPipeline {
         let fence_ranges: Vec<std::ops::Range<usize>> = self
             .md_spans
             .iter()
-            .filter_map(|(r, k)| {
-                matches!(k, MdKind::ConcealMarkup(ConcealKind::Fence)).then(|| r.clone())
-            })
+            .filter(|&(_r, k)| matches!(k, MdKind::ConcealMarkup(ConcealKind::Fence)))
+            .map(|(r, _k)| r.clone())
             .collect();
         if fence_ranges.is_empty() {
             self.fence_panel_cache.protos.borrow_mut().clear();

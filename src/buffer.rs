@@ -1022,28 +1022,28 @@ impl Buffer {
     /// never re-derives or renames it (the old LIVE-rename-to-title behavior is
     /// retired — Rename is now the one, explicit, generic verb for that).
     pub fn save(&mut self) -> anyhow::Result<()> {
-        if self.path.is_none() {
-            if let Some(dir) = self.note_dir.clone() {
-                let text = self.rope.to_string();
-                match first_nonempty_line(&text) {
-                    // A non-empty first line names the file. A single word counts
-                    // ("foo" -> foo.md). A first line with no alphanumeric content
-                    // (e.g. punctuation-only) yields no slug, so FALL BACK to the
-                    // "scratch" placeholder (scratch.md / scratch-2.md / …).
-                    Some(line) => {
-                        let stem = note_stem(line);
-                        crate::fs::active().create_dir_all(&dir)?;
-                        let path = unique_path(&dir, &stem, "md");
-                        self.path = Some(path);
-                        // ONE-SHOT: the name is derived exactly once — clear the
-                        // fresh-document marker so a later first-line edit never
-                        // re-triggers a rename.
-                        self.note_dir = None;
-                    }
-                    // A truly empty document (no non-whitespace anywhere) is
-                    // NEVER written — no litter.
-                    None => anyhow::bail!("empty note: nothing to save yet"),
+        if self.path.is_none()
+            && let Some(dir) = self.note_dir.clone()
+        {
+            let text = self.rope.to_string();
+            match first_nonempty_line(&text) {
+                // A non-empty first line names the file. A single word counts
+                // ("foo" -> foo.md). A first line with no alphanumeric content
+                // (e.g. punctuation-only) yields no slug, so FALL BACK to the
+                // "scratch" placeholder (scratch.md / scratch-2.md / …).
+                Some(line) => {
+                    let stem = note_stem(line);
+                    crate::fs::active().create_dir_all(&dir)?;
+                    let path = unique_path(&dir, &stem, "md");
+                    self.path = Some(path);
+                    // ONE-SHOT: the name is derived exactly once — clear the
+                    // fresh-document marker so a later first-line edit never
+                    // re-triggers a rename.
+                    self.note_dir = None;
                 }
+                // A truly empty document (no non-whitespace anywhere) is
+                // NEVER written — no litter.
+                None => anyhow::bail!("empty note: nothing to save yet"),
             }
         }
         match &self.path {

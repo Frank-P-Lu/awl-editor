@@ -572,11 +572,10 @@ impl OverlayState {
         if let Some(active_index) = crate::caret::CaretMode::ALL
             .iter()
             .position(|&m| m == active)
+            && let Some(pos) = s.items.iter().position(|&i| i == active_index)
         {
-            if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
-                s.selected = pos;
-                s.scroll_to_selected();
-            }
+            s.selected = pos;
+            s.scroll_to_selected();
         }
         s
     }
@@ -611,11 +610,10 @@ impl OverlayState {
         if let Some(active_index) = crate::spell::DictVariant::ALL
             .iter()
             .position(|&v| v == active)
+            && let Some(pos) = s.items.iter().position(|&i| i == active_index)
         {
-            if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
-                s.selected = pos;
-                s.scroll_to_selected();
-            }
+            s.selected = pos;
+            s.scroll_to_selected();
         }
         s
     }
@@ -651,11 +649,10 @@ impl OverlayState {
         if let Some(active_index) = crate::frontmatter::DEFAULT_CJK_PRIORITY
             .iter()
             .position(|&l| l == active)
+            && let Some(pos) = s.items.iter().position(|&i| i == active_index)
         {
-            if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
-                s.selected = pos;
-                s.scroll_to_selected();
-            }
+            s.selected = pos;
+            s.scroll_to_selected();
         }
         s
     }
@@ -697,11 +694,10 @@ impl OverlayState {
         if let Some(active_index) = crate::dateformat::DateFormat::ALL
             .iter()
             .position(|&f| f == active)
+            && let Some(pos) = s.items.iter().position(|&i| i == active_index)
         {
-            if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
-                s.selected = pos;
-                s.scroll_to_selected();
-            }
+            s.selected = pos;
+            s.scroll_to_selected();
         }
         s
     }
@@ -744,10 +740,10 @@ impl OverlayState {
         let mut recent = Vec::new();
         for root in recent_roots {
             let rp = std::path::Path::new(root);
-            if let Some(ci) = (1..corpus.len()).find(|&i| base.join(&corpus[i]) == rp) {
-                if !recent.contains(&ci) {
-                    recent.push(ci);
-                }
+            if let Some(ci) = (1..corpus.len()).find(|&i| base.join(&corpus[i]) == rp)
+                && !recent.contains(&ci)
+            {
+                recent.push(ci);
             }
         }
         let mut s = Self::new_marked(

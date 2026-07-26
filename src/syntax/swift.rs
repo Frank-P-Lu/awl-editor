@@ -73,13 +73,13 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
         }
 
         // --- string (plain / multiline / raw, with optional `#` delimiters) ---
-        if c == b'"' || c == b'#' {
-            if let Some(end) = string_at(b, i) {
-                out.push((i..end, SynKind::Str));
-                i = end;
-                expect_def = false;
-                continue;
-            }
+        if (c == b'"' || c == b'#')
+            && let Some(end) = string_at(b, i)
+        {
+            out.push((i..end, SynKind::Str));
+            i = end;
+            expect_def = false;
+            continue;
         }
 
         // --- number literal ---
@@ -146,10 +146,12 @@ fn string_at(b: &[u8], i: usize) -> Option<usize> {
         }
         if ch == b'"' {
             if triple {
-                if k + 2 < n && b[k + 1] == b'"' && b[k + 2] == b'"' {
-                    if let Some(end) = hashes_after(b, k + 3, hashes) {
-                        return Some(end);
-                    }
+                if k + 2 < n
+                    && b[k + 1] == b'"'
+                    && b[k + 2] == b'"'
+                    && let Some(end) = hashes_after(b, k + 3, hashes)
+                {
+                    return Some(end);
                 }
             } else if let Some(end) = hashes_after(b, k + 1, hashes) {
                 return Some(end);

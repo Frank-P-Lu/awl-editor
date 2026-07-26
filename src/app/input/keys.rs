@@ -532,10 +532,9 @@ impl App {
         self.pointer_hide = crate::pointer_hide::on_key(prev_pointer_hide);
         if let Some(visible) =
             crate::pointer_hide::os_visibility_change(prev_pointer_hide, self.pointer_hide)
+            && let Some(gpu) = self.gpu.as_ref()
         {
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.set_cursor_visible(visible);
-            }
+            gpu.window.set_cursor_visible(visible);
         }
         // SEARCH GUARD: when isearch is active, EVERY key (printable,
         // Backspace, Enter, Esc, C-s, C-r, M-c) is consumed by the search
@@ -573,12 +572,11 @@ impl App {
                     .as_mut()
                     .map(|o| o.capture_record(combo))
                     .unwrap_or(false);
-                if finished {
-                    if let Some((slug, binding)) =
+                if finished
+                    && let Some((slug, binding)) =
                         self.overlay.as_ref().and_then(|o| o.capture_target())
-                    {
-                        self.rebind_commit(slug, binding, false);
-                    }
+                {
+                    self.rebind_commit(slug, binding, false);
                 }
                 self.sync_view(true);
                 if let Some(gpu) = self.gpu.as_ref() {

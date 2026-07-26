@@ -108,7 +108,7 @@ fn is_image(rel: &str) -> bool {
 fn under_assets_dir(rel: &str) -> bool {
     let mut comps: Vec<&str> = rel.split('/').collect();
     comps.pop(); // drop the leaf file name — only ANCESTORS decide
-    comps.iter().any(|c| *c == "assets")
+    comps.contains(&"assets")
 }
 
 /// True when a root-relative path is a markdown document (`.md` / `.markdown`,

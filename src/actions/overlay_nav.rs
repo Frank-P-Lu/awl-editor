@@ -290,10 +290,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     // Enter/Delete), the menu OWNS the key at the chord level — handled before the
     // generic picker intercept. Returns Some(effect) when fully handled; None to
     // fall through to the shared list nav/filter below.
-    if ctx.overlay.as_ref().unwrap().kind == crate::overlay::OverlayKind::Keybindings {
-        if let Some(eff) = keybindings_intercept(ctx, action) {
-            return eff;
-        }
+    if ctx.overlay.as_ref().unwrap().kind == crate::overlay::OverlayKind::Keybindings
+        && let Some(eff) = keybindings_intercept(ctx, action)
+    {
+        return eff;
     }
     // DIFF-AS-PREVIEW — the HISTORY picker's diff-panel keys, before the generic
     // list nav so History can reassign them. Two layers:
@@ -365,7 +365,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             ctx.overlay.as_mut().unwrap().push(*c);
             // Typing to fuzzy-filter also PREVIEWS the new top/selected match.
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::DeleteBackward | Action::DeleteWordBackward => {
             // In the navigable explorers (Browse / MoveDest / Project),
@@ -381,11 +381,11 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             );
             if navigable && ov.query.is_empty() {
                 let bc = Breadcrumb::of(ov);
-                if let Some(parent) = ascend_target(ov) {
-                    if let Some(mut next) = (ctx.browse_to)(ov.kind, parent) {
-                        bc.apply(&mut next);
-                        *ctx.overlay = Some(next);
-                    }
+                if let Some(parent) = ascend_target(ov)
+                    && let Some(mut next) = (ctx.browse_to)(ov.kind, parent)
+                {
+                    bc.apply(&mut next);
+                    *ctx.overlay = Some(next);
                 }
                 return Effect::None;
             }
@@ -399,14 +399,14 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ctx.overlay.as_mut().unwrap().pop();
             }
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::NextLine => {
             ctx.overlay.as_mut().unwrap().move_sel(1);
             // LIVE PREVIEW: moving the selection in the Theme picker applies
             // that world immediately (no-op for the other overlay kinds).
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         // PgDn / PgUp (C-v / M-v / the named keys) PAGE the selection a card-ful
         // at a time (`move_sel` clamps), so a long picker — the rebind menu's full
@@ -414,12 +414,12 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         Action::PageScrollDown => {
             ctx.overlay.as_mut().unwrap().move_sel(OVERLAY_PAGE);
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::PageScrollUp => {
             ctx.overlay.as_mut().unwrap().move_sel(-OVERLAY_PAGE);
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         // JUMP-TO-ENDS: a modal picker OWNS Home/End (and the very-start/end pair
         // Cmd-↑/↓ + Ctrl-Home/End), which the document keymap resolves to
@@ -433,12 +433,12 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         Action::LineStart | Action::BufferStart => {
             ctx.overlay.as_mut().unwrap().select_first();
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::LineEnd | Action::BufferEnd => {
             ctx.overlay.as_mut().unwrap().select_last();
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::ForwardChar => {
             // ITEM 94 — A SELECTED RANGE ROW CLAIMS RIGHT: one authored step UP,
@@ -468,24 +468,24 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             // above; their descend rides Enter, ascend rides Backspace.) For a flat,
             // non-faceting picker Right is a down-move.
             if ov.kind == crate::overlay::OverlayKind::MoveDest {
-                if ov.selected_is_dir() {
-                    if let Some(name) = ov.selected_value().map(|s| s.to_string()) {
-                        let child = descend_target(ov, &name);
-                        if let Some(next) = (ctx.browse_to)(ov.kind, Some(child)) {
-                            *ctx.overlay = Some(next);
-                        }
+                if ov.selected_is_dir()
+                    && let Some(name) = ov.selected_value().map(|s| s.to_string())
+                {
+                    let child = descend_target(ov, &name);
+                    if let Some(next) = (ctx.browse_to)(ov.kind, Some(child)) {
+                        *ctx.overlay = Some(next);
                     }
                 }
                 return Effect::None;
             }
             ctx.overlay.as_mut().unwrap().move_sel(1);
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::PreviousLine => {
             ctx.overlay.as_mut().unwrap().move_sel(-1);
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::BackwardChar => {
             // ITEM 94 — A SELECTED RANGE ROW CLAIMS LEFT: one authored step DOWN
@@ -508,16 +508,16 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             // children), flooring at its root. (Browse + Project FACET, so they took
             // the lens-cycle branch above; their ascend rides Backspace.)
             if ov.kind == crate::overlay::OverlayKind::MoveDest {
-                if let Some(parent) = ascend_target(ov) {
-                    if let Some(next) = (ctx.browse_to)(ov.kind, parent) {
-                        *ctx.overlay = Some(next);
-                    }
+                if let Some(parent) = ascend_target(ov)
+                    && let Some(next) = (ctx.browse_to)(ov.kind, parent)
+                {
+                    *ctx.overlay = Some(next);
                 }
                 return Effect::None;
             }
             ctx.overlay.as_mut().unwrap().move_sel(-1);
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::Newline => {
             // Accept. For BROWSE / PROJECT (both faceted navigators), Enter on a
@@ -574,15 +574,15 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 // Settings menu's OWN accept, just above, stays open instead). An
                 // ordinary command row (not a setting) falls through to the RunAction
                 // path below.
-                if ov.kind == crate::overlay::OverlayKind::Command {
-                    if let Some(row) = ov.selected_setting_row() {
-                        return dispatch_settings_row(
-                            ctx,
-                            row,
-                            crate::overlay::OverlayKind::Command,
-                            true,
-                        );
-                    }
+                if ov.kind == crate::overlay::OverlayKind::Command
+                    && let Some(row) = ov.selected_setting_row()
+                {
+                    return dispatch_settings_row(
+                        ctx,
+                        row,
+                        crate::overlay::OverlayKind::Command,
+                        true,
+                    );
                 }
             }
             let ov = ctx.overlay.as_ref().unwrap();
@@ -837,7 +837,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 None => Effect::None,
             };
             dispose_after_accept(ctx);
-            return eff;
+            eff
         }
         // ITEM 10 — the query's own CHAR-index caret moves on WORD motion only
         // (plain L/R stay lens/descend/list, claimed above): Ctrl/Opt-Right
@@ -849,12 +849,12 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         Action::ForwardWord => {
             ctx.overlay.as_mut().unwrap().query_word_right();
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         Action::BackwardWord => {
             ctx.overlay.as_mut().unwrap().query_word_left();
             preview_move(ctx.overlay.as_mut().unwrap());
-            return Effect::None;
+            Effect::None
         }
         // NOTE (DIFF-AS-PREVIEW): Tab in the HISTORY picker is handled ABOVE (the
         // focus shift into the diff panel — the old Tab-TAKEOVER into a separate
@@ -897,11 +897,11 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 Effect::None
             };
             close_overlay(ctx);
-            return eff;
+            eff
         }
         // Any other action while the overlay is up is swallowed (the overlay
         // is modal); it never reaches the buffer.
-        _ => return Effect::None,
+        _ => Effect::None,
     }
 }
 
@@ -988,10 +988,10 @@ pub(crate) fn stamp_return_to(
     overlay: &mut Option<OverlayState>,
     parent: Option<crate::overlay::OverlayKind>,
 ) {
-    if let (Some(parent), Some(ov)) = (parent, overlay.as_mut()) {
-        if ov.return_to.is_none() {
-            ov.return_to = Some(parent);
-        }
+    if let (Some(parent), Some(ov)) = (parent, overlay.as_mut())
+        && ov.return_to.is_none()
+    {
+        ov.return_to = Some(parent);
     }
 }
 
@@ -1013,9 +1013,8 @@ fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f3
 /// The write half of [`range_ctx_value`]. The value written is ALWAYS one the spec
 /// produced (stepped/quantized), never a raw pointer/keyboard number.
 fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
-    match id {
-        crate::settings::SettingId::Zoom => *ctx.zoom = v,
-        _ => {}
+    if id == crate::settings::SettingId::Zoom {
+        *ctx.zoom = v
     }
 }
 
@@ -1255,10 +1254,10 @@ pub(super) fn ascend_target(ov: &OverlayState) -> Option<Option<String>> {
 /// to create at this level); else the CURRENT level. The caller mkdir's + moves.
 pub(super) fn move_dest_value(ov: &OverlayState) -> Option<String> {
     // A highlighted folder is the destination (descend-as-accept).
-    if let Some(name) = ov.selected_value() {
-        if ov.selected_is_dir() {
-            return Some(join_browse(ov.browse_dir.as_deref(), name));
-        }
+    if let Some(name) = ov.selected_value()
+        && ov.selected_is_dir()
+    {
+        return Some(join_browse(ov.browse_dir.as_deref(), name));
     }
     // No folder highlighted: a typed name becomes a NEW folder at this level.
     let q = ov.query.text().trim();

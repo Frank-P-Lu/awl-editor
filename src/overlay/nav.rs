@@ -605,10 +605,10 @@ impl OverlayState {
         // A REFINEMENT lens (a strip index past the flat `All` home) that filtered
         // the corpus to empty reads its own calm line — e.g. the Go-to Recent lens's
         // "no recent files yet" — distinct from a genuinely empty corpus.
-        if let Some(lens) = self.active_facet_id() {
-            if let Some(msg) = self.kind.empty_lens_message(lens) {
-                return msg.to_string();
-            }
+        if let Some(lens) = self.active_facet_id()
+            && let Some(msg) = self.kind.empty_lens_message(lens)
+        {
+            return msg.to_string();
         }
         self.kind.empty_corpus_message().to_string()
     }

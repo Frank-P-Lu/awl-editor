@@ -205,10 +205,10 @@ impl App {
             self.active.buffer.path(),
             self.active.buffer.is_unnamed_fresh(),
         );
-        if let Some(path) = path {
-            if let Some(content) = crate::history::load(&path, id) {
-                self.active.buffer.set_text(&content);
-            }
+        if let Some(path) = path
+            && let Some(content) = crate::history::load(&path, id)
+        {
+            self.active.buffer.set_text(&content);
         }
     }
 
@@ -327,10 +327,10 @@ impl App {
         // disrupts the rename that already succeeded on disk.
         let _ = crate::history::rename(&old, &dest);
         self.active.buffer.set_path(dest.clone());
-        if self.active.buffer.is_unnamed_fresh() {
-            if let Some(dir) = dest.parent() {
-                self.active.buffer.set_note_dir(dir.to_path_buf());
-            }
+        if self.active.buffer.is_unnamed_fresh()
+            && let Some(dir) = dest.parent()
+        {
+            self.active.buffer.set_note_dir(dir.to_path_buf());
         }
         self.update_title();
         self.rescan_file_index();

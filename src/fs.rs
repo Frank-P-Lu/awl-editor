@@ -267,10 +267,10 @@ impl FileSystem for InMemoryFs {
     fn write(&self, path: &Path, data: &[u8]) -> io::Result<()> {
         let now = crate::clock::system_now();
         let mut state = self.inner.write().unwrap();
-        if let Some(parent) = path.parent() {
-            if !parent.as_os_str().is_empty() {
-                InMemoryFs::insert_dirs(&mut state, parent);
-            }
+        if let Some(parent) = path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            InMemoryFs::insert_dirs(&mut state, parent);
         }
         state.files.insert(
             path.to_path_buf(),
@@ -294,10 +294,10 @@ impl FileSystem for InMemoryFs {
             .files
             .remove(from)
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))?;
-        if let Some(parent) = to.parent() {
-            if !parent.as_os_str().is_empty() {
-                InMemoryFs::insert_dirs(&mut state, parent);
-            }
+        if let Some(parent) = to.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            InMemoryFs::insert_dirs(&mut state, parent);
         }
         state.files.insert(to.to_path_buf(), file);
         Ok(())
@@ -776,10 +776,10 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     };
     fs.write(&tmp, data)?;
     #[cfg(not(target_arch = "wasm32"))]
-    if let Ok(ms) = std::env::var("AWL_FAULT_DELAY_MS") {
-        if let Ok(ms) = ms.parse::<u64>() {
-            std::thread::sleep(std::time::Duration::from_millis(ms));
-        }
+    if let Ok(ms) = std::env::var("AWL_FAULT_DELAY_MS")
+        && let Ok(ms) = ms.parse::<u64>()
+    {
+        std::thread::sleep(std::time::Duration::from_millis(ms));
     }
     fs.rename(&tmp, path)
 }

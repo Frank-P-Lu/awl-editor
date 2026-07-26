@@ -107,15 +107,14 @@ impl<'a> ChordResolver<'a> {
                     chord.spec
                 );
             }
-            if let Some(pfx) = &self.pending_prefix {
-                if matches!(action, Action::Cancel)
-                    && !is_explicit_cancel(&chord.key, chord.mods.state())
-                {
-                    bail!(
-                        "strict replay: chord {:?} does not complete the {pfx:?} prefix (unbound sequence)",
-                        chord.spec
-                    );
-                }
+            if let Some(pfx) = &self.pending_prefix
+                && matches!(action, Action::Cancel)
+                && !is_explicit_cancel(&chord.key, chord.mods.state())
+            {
+                bail!(
+                    "strict replay: chord {:?} does not complete the {pfx:?} prefix (unbound sequence)",
+                    chord.spec
+                );
             }
         }
         self.pending_prefix = matches!(action, Action::BeginPrefix).then(|| chord.spec.clone());
@@ -324,10 +323,10 @@ fn mac_glyph_token(key: &Key, mods: ModifiersState) -> String {
 fn mac_key_token(key: &Key) -> String {
     if let Key::Character(s) = key {
         let mut chars = s.chars();
-        if let (Some(c), None) = (chars.next(), chars.next()) {
-            if c.is_ascii_alphabetic() {
-                return c.to_ascii_uppercase().to_string();
-            }
+        if let (Some(c), None) = (chars.next(), chars.next())
+            && c.is_ascii_alphabetic()
+        {
+            return c.to_ascii_uppercase().to_string();
         }
     }
     key_token(key)

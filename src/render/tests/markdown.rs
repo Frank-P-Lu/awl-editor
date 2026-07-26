@@ -1173,8 +1173,8 @@ fn checked_task_body_recedes_from_open_task_body_real_pixels_item_29() {
 
     // The two task rows' body regions (same x/width; the long body text
     // dominates the dominant-ink mode over the short leading marker+checkbox).
-    let open_top = p.line_ornament_top(0) as f32;
-    let done_top = p.line_ornament_top(1) as f32;
+    let open_top = p.line_ornament_top(0);
+    let done_top = p.line_ornament_top(1);
     let region = |top: f32| Region::new(text_left as f32, top, 360.0, row_h as f32);
     let open_ink =
         pixeldiff::dominant_ink_color(&pixels, w as i64, h as i64, region(open_top), bg, 18)

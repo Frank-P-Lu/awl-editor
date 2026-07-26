@@ -248,20 +248,20 @@ impl OverlayState {
     /// REBIND MENU: in `ChooseMode`, move the KEY/CHORD selection (`delta` &lt; 0 → KEY,
     /// &gt; 0 → CHORD). Other phases ignore it.
     pub fn capture_move_mode(&mut self, delta: isize) {
-        if let Some(cap) = self.capture.as_mut() {
-            if cap.stage == CaptureStage::ChooseMode {
-                cap.mode_sel = if delta < 0 { 0 } else { 1 };
-            }
+        if let Some(cap) = self.capture.as_mut()
+            && cap.stage == CaptureStage::ChooseMode
+        {
+            cap.mode_sel = if delta < 0 { 0 } else { 1 };
         }
     }
 
     /// REBIND MENU: leave `ChooseMode` — lock in KEY vs CHORD and begin `Recording`.
     pub fn capture_begin_recording(&mut self) {
-        if let Some(cap) = self.capture.as_mut() {
-            if cap.stage == CaptureStage::ChooseMode {
-                cap.chord_mode = cap.mode_sel == 1;
-                cap.stage = CaptureStage::Recording;
-            }
+        if let Some(cap) = self.capture.as_mut()
+            && cap.stage == CaptureStage::ChooseMode
+        {
+            cap.chord_mode = cap.mode_sel == 1;
+            cap.stage = CaptureStage::Recording;
         }
     }
 
@@ -437,10 +437,10 @@ impl OverlayState {
     /// value it showed before editing (the core has no config to re-gather, so the
     /// stashed `orig` is the source of truth). A no-op when no value edit is active.
     pub fn value_edit_cancel(&mut self) {
-        if let Some(ve) = self.value_edit.take() {
-            if let Some(r) = self.rows.get_mut(ve.row) {
-                r.secondary = ve.orig;
-            }
+        if let Some(ve) = self.value_edit.take()
+            && let Some(r) = self.rows.get_mut(ve.row)
+        {
+            r.secondary = ve.orig;
         }
     }
 

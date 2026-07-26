@@ -105,18 +105,19 @@ impl TextPipeline {
     /// the shaped layout is already built, so collecting the clusters is a pure read.
     fn ensure_caret_line_glyphs(&self, line: usize) {
         let generation = self.row_geom.generation();
-        if let Some(rec) = self.caret_line_glyphs.borrow().as_ref() {
-            if rec.line == line && rec.generation == generation {
-                return;
-            }
+        if let Some(rec) = self.caret_line_glyphs.borrow().as_ref()
+            && rec.line == line
+            && rec.generation == generation
+        {
+            return;
         }
         let mut clusters: Vec<(usize, usize, CacheKey)> = Vec::new();
-        if let Some(bline) = self.buffer.lines.get(line) {
-            if let Some(layout) = bline.layout_opt() {
-                for lline in layout.iter() {
-                    for g in lline.glyphs.iter() {
-                        clusters.push((g.start, g.end, g.physical((0.0, 0.0), 1.0).cache_key));
-                    }
+        if let Some(bline) = self.buffer.lines.get(line)
+            && let Some(layout) = bline.layout_opt()
+        {
+            for lline in layout.iter() {
+                for g in lline.glyphs.iter() {
+                    clusters.push((g.start, g.end, g.physical((0.0, 0.0), 1.0).cache_key));
                 }
             }
         }
@@ -887,27 +888,26 @@ impl TextPipeline {
         // The cursor line's shaped LayoutLines (one per wrapped visual row, in wrap
         // order — the SAME order + count as `visual_rows`, so `rows[i]` pairs with
         // `layout[i]`), read straight from that line's own layout — no doc walk.
-        if let Some(bline) = self.buffer.lines.get(self.cursor_line) {
-            if let Some(layout) = bline.layout_opt() {
-                if !layout.is_empty() {
-                    let rows = self.visual_rows(self.cursor_line);
-                    let n = rows.len().min(layout.len());
-                    if n > 0 {
-                        let i = pick_row_index_aff(&rows[..n], col, self.caret_affinity);
-                        let r = &rows[i];
-                        let ll = &layout[i];
-                        let line_height = ll.line_height_opt.unwrap_or(self.metrics.line_height);
-                        let glyph_height = ll.max_ascent + ll.max_descent;
-                        let centering = (line_height - glyph_height) / 2.0;
-                        // `r.line_top` is buffer-relative (== `run.line_top`); this
-                        // reconstructs `run.line_y` exactly.
-                        let line_y = r.line_top + centering + ll.max_ascent;
-                        // This ascent is a property of the face the row is ACTUALLY
-                        // shaped in right now — `shaped_font`, not `doc_family()` —
-                        // so any ratio multiplied against it must read the same font.
-                        return (self.doc_top() + line_y, ll.max_ascent, self.shaped_font);
-                    }
-                }
+        if let Some(bline) = self.buffer.lines.get(self.cursor_line)
+            && let Some(layout) = bline.layout_opt()
+            && !layout.is_empty()
+        {
+            let rows = self.visual_rows(self.cursor_line);
+            let n = rows.len().min(layout.len());
+            if n > 0 {
+                let i = pick_row_index_aff(&rows[..n], col, self.caret_affinity);
+                let r = &rows[i];
+                let ll = &layout[i];
+                let line_height = ll.line_height_opt.unwrap_or(self.metrics.line_height);
+                let glyph_height = ll.max_ascent + ll.max_descent;
+                let centering = (line_height - glyph_height) / 2.0;
+                // `r.line_top` is buffer-relative (== `run.line_top`); this
+                // reconstructs `run.line_y` exactly.
+                let line_y = r.line_top + centering + ll.max_ascent;
+                // This ascent is a property of the face the row is ACTUALLY
+                // shaped in right now — `shaped_font`, not `doc_family()` —
+                // so any ratio multiplied against it must read the same font.
+                return (self.doc_top() + line_y, ll.max_ascent, self.shaped_font);
             }
         }
         // Fallback (a truly EMPTY line — no shaped run at all, so there is no row

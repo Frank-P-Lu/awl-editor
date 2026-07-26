@@ -639,7 +639,7 @@ fn scan_line<F: Fn(&str) -> bool>(
             let word: String = chars[start..i].iter().collect();
             // Trim a possible trailing apostrophe (e.g. from "dogs'") before the
             // dictionary lookup; intra-word apostrophes are kept.
-            let trimmed = word.trim_end_matches(|c| is_intraword_apostrophe(c));
+            let trimmed = word.trim_end_matches(is_intraword_apostrophe);
             if trimmed.is_empty() {
                 continue;
             }

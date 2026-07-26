@@ -1252,7 +1252,7 @@ pub(super) fn field_view_window(text: &str, caret_char: usize, cap: usize) -> (S
     let caret_char = caret_char.min(len);
     if len <= cap {
         let mut view: String = chars.into_iter().collect();
-        view.extend(std::iter::repeat(' ').take(cap - len));
+        view.extend(std::iter::repeat_n(' ', cap - len));
         return (view, caret_char);
     }
     // SCROLL: once the caret has advanced past the cap, slide the window's
@@ -1625,7 +1625,7 @@ mod field_view_window_tests {
         // (and the caret-visibility guarantee) both lean on.
         let texts: Vec<String> = vec![
             String::new(),
-            "a".repeat(1),
+            "a".to_string(),
             "a".repeat(7),
             "a".repeat(8),
             "a".repeat(9),

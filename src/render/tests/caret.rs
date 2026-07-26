@@ -990,10 +990,7 @@ fn caret_lookup_position_independent() {
     // before the cursor line grows 1:1 with the line index.
     const N: usize = 200;
     let line = "abcdefghij";
-    let text = std::iter::repeat(line)
-        .take(N)
-        .collect::<Vec<_>>()
-        .join("\n");
+    let text = std::iter::repeat_n(line, N).collect::<Vec<_>>().join("\n");
     let col = 3;
 
     let sample = |p: &mut TextPipeline, li: usize| {

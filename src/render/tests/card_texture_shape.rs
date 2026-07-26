@@ -104,7 +104,7 @@ fn narrowed_chamfer_never_exceeds_the_authored_cut_and_shrinks_on_a_small_card()
     // negative, never larger than the authored cut.
     let small = narrowed_chamfer_px(11.0, 20.0, 15.0);
     assert!(
-        small < 11.0 && small >= 0.0,
+        (0.0..11.0).contains(&small),
         "small-card chamfer {small} out of [0,11)"
     );
     // A short-but-ordinary query bar (Split Pane's upper surface, ~500x50)
@@ -275,7 +275,7 @@ fn quokka_selected_row_text_stays_legible_over_the_dot_texture() {
     let y1 = ((cy + ch).min(h as f32)) as i64;
     for y in y0..y1 {
         for x in x0..x1 {
-            if near_ink(px_at(&pixels, w as i64, x, y)) {
+            if near_ink(px_at(&pixels, w, x, y)) {
                 ink_pixels += 1;
             }
         }

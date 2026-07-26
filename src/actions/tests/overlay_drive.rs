@@ -828,7 +828,7 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
     // global, just promoted).
     assert_eq!(
         crate::settings::value_for(
-            &crate::settings::SETTINGS
+            crate::settings::SETTINGS
                 .iter()
                 .find(|r| r.name == "Ambiguous CJK reads as")
                 .unwrap(),

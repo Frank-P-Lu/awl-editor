@@ -74,10 +74,10 @@ pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> Pa
         if crate::fs::active().is_dir(f) {
             return f.clone();
         }
-        if let Some(p) = f.parent() {
-            if !p.as_os_str().is_empty() {
-                return p.to_path_buf();
-            }
+        if let Some(p) = f.parent()
+            && !p.as_os_str().is_empty()
+        {
+            return p.to_path_buf();
         }
     }
     crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."))
@@ -380,10 +380,10 @@ impl<'a> ReplaySession<'a> {
         // scrolled candidate window a keyboard nav step just produced,
         // exactly like the live GPU pipeline's `sync_view` does every frame.
         self.sync_oracle_overlay();
-        if let Some(pipeline) = self.oracle.as_deref() {
-            if let Some(ov) = self.overlay.as_mut() {
-                pipeline.resolve_overlay_hover(ov, px, py);
-            }
+        if let Some(pipeline) = self.oracle.as_deref()
+            && let Some(ov) = self.overlay.as_mut()
+        {
+            pipeline.resolve_overlay_hover(ov, px, py);
         }
     }
 
@@ -394,10 +394,10 @@ impl<'a> ReplaySession<'a> {
     /// accessors) BEFORE driving a move at it — private, but visible to
     /// `mod tests` like every other item in this file.
     fn sync_oracle_overlay(&mut self) {
-        if let Some(ov) = self.overlay.as_ref() {
-            if let Some(op) = self.oracle.as_deref_mut() {
-                op.sync_overlay(self.buffer, self.zoom, ov);
-            }
+        if let Some(ov) = self.overlay.as_ref()
+            && let Some(op) = self.oracle.as_deref_mut()
+        {
+            op.sync_overlay(self.buffer, self.zoom, ov);
         }
     }
 
@@ -659,19 +659,19 @@ impl<'a> ReplaySession<'a> {
                 });
             }
             // Strict refuses an Unsupported effect outright, naming the offender.
-            if self.mode == crate::replay::Mode::Strict {
-                if let crate::replay::EffectClass::Unsupported { .. } = classified.class {
-                    return Err(crate::replay::strict_error(&action, &classified));
-                }
+            if self.mode == crate::replay::Mode::Strict
+                && let crate::replay::EffectClass::Unsupported { .. } = classified.class
+            {
+                return Err(crate::replay::strict_error(&action, &classified));
             }
             // Permissive warns on either non-Applied crossing (`warn_line` is
             // `None` for Applied) — the ONE stderr seam, mirrored into `warnings`
             // so the exact printed line is testable.
-            if self.mode == crate::replay::Mode::Permissive {
-                if let Some(w) = crate::replay::warn_line(&action, &classified) {
-                    eprintln!("{w}");
-                    self.warnings.push(w);
-                }
+            if self.mode == crate::replay::Mode::Permissive
+                && let Some(w) = crate::replay::warn_line(&action, &classified)
+            {
+                eprintln!("{w}");
+                self.warnings.push(w);
             }
             // BREADCRUMB: stamp the overlay this action just opened (if any) with the
             // palette parent a preceding `RunAction` re-dispatch set — a no-op unless the
@@ -821,11 +821,10 @@ impl<'a> ReplaySession<'a> {
             // REBIND MENU reset: likewise reflected in the NOTICE only (intercept
             // already set it); no file mutation in the capture path.
             actions::Effect::RebindReset { slug } => {
-                if let Some(ov) = self.overlay.as_mut() {
-                    if ov.notice.is_empty() {
+                if let Some(ov) = self.overlay.as_mut()
+                    && ov.notice.is_empty() {
                         ov.notice = format!("reset {slug}");
                     }
-                }
             }
             // Quit / LastBuffer have nothing to do in the headless capture path.
             // Recoil and the edit flinches (TypeImpact / DeleteSquash / Gulp /
@@ -1208,10 +1207,9 @@ fn capture_screenshot(
             crate::overlay::OverlayKind::History => {
                 if let Some(path) =
                     crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())
+                    && let Some(content) = crate::history::load(&path, val)
                 {
-                    if let Some(content) = crate::history::load(&path, val) {
-                        buffer.set_text(&content);
-                    }
+                    buffer.set_text(&content);
                 }
             }
             _ => {}
@@ -1238,11 +1236,11 @@ fn capture_screenshot(
     // buffer cursor to its END so the caret renders at the cursor end of
     // the region. A --keys replay already left the cursor where it
     // belongs, so only do this for an EXPLICIT --sel (no replay).
-    if keys.is_empty() {
-        if let Some((_, (l1, c1))) = opts.selection {
-            let end = buffer.line_col_to_char(l1, c1);
-            buffer.set_cursor(end);
-        }
+    if keys.is_empty()
+        && let Some((_, (l1, c1))) = opts.selection
+    {
+        let end = buffer.line_col_to_char(l1, c1);
+        buffer.set_cursor(end);
     }
     // WHICH-KEY force (`--whichkey`): render the SETTLED summoned panel by
     // deriving the `C-x` continuation rows from the command catalog + this
@@ -4129,10 +4127,9 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         let s = &v["search"];
         assert_eq!(s["query"].as_str().unwrap(), "line", "typed query");
-        assert_eq!(s["active"].as_bool().unwrap(), true);
-        assert_eq!(
+        assert!(s["active"].as_bool().unwrap());
+        assert!(
             s["replace_active"].as_bool().unwrap(),
-            true,
             "Tab revealed the row"
         );
         assert_eq!(
@@ -4140,9 +4137,8 @@ mod tests {
             "row",
             "typed replacement"
         );
-        assert_eq!(
+        assert!(
             s["editing_replacement"].as_bool().unwrap(),
-            true,
             "focus is in the field"
         );
         assert_eq!(

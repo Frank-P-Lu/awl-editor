@@ -351,19 +351,19 @@ impl TextPipeline {
         // one entry whose giant glyphs could overflow the shared atlas. Tracked so the
         // graceful-degradation retry below can drop exactly it (see the prepare site).
         let mut placard_in_panel = false;
-        if let Some((px, py, _pw, _ph)) = placard {
-            if !bars {
-                areas.push(TextArea {
-                    buffer: &self.placard_buffer,
-                    left: px,
-                    top: py,
-                    scale: 1.0,
-                    bounds: canvas_bounds,
-                    default_color: ink,
-                    custom_glyphs: &[],
-                });
-                placard_in_panel = true;
-            }
+        if let Some((px, py, _pw, _ph)) = placard
+            && !bars
+        {
+            areas.push(TextArea {
+                buffer: &self.placard_buffer,
+                left: px,
+                top: py,
+                scale: 1.0,
+                bounds: canvas_bounds,
+                default_color: ink,
+                custom_glyphs: &[],
+            });
+            placard_in_panel = true;
         }
         // WILD-MENU SLANT PROBE (env-gated; `None` on every normal run, which
         // keeps the single verbatim `panel_area` push below — byte-identical):

@@ -609,7 +609,7 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
 fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_check() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     let corpus: Vec<String> = (0..40).map(|i| format!("row{i}")).collect();
-    let mut ov = crate::overlay::OverlayState::new(
+    let ov = crate::overlay::OverlayState::new(
         crate::overlay::OverlayKind::Goto,
         corpus,
         vec![],

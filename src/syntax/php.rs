@@ -66,13 +66,16 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
         }
 
         // --- heredoc / nowdoc: `<<<LABEL … LABEL` ---
-        if c == b'<' && i + 2 < n && b[i + 1] == b'<' && b[i + 2] == b'<' {
-            if let Some(end) = heredoc(b, i) {
-                out.push((i..end, SynKind::Str));
-                i = end;
-                expect_def = false;
-                continue;
-            }
+        if c == b'<'
+            && i + 2 < n
+            && b[i + 1] == b'<'
+            && b[i + 2] == b'<'
+            && let Some(end) = heredoc(b, i)
+        {
+            out.push((i..end, SynKind::Str));
+            i = end;
+            expect_def = false;
+            continue;
         }
 
         // --- string: '…' or "…" ---

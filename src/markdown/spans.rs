@@ -590,10 +590,10 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     // arms the body accumulator; its End (below) lexes the body and
                     // emits per-role `CodeSyntax` spans over the mono body. An
                     // indented / unknown-lang / no-lang block leaves `fence` None.
-                    if let CodeBlockKind::Fenced(info) = kind {
-                        if let Some(lang) = crate::syntax::Lang::from_info(&info) {
-                            fence = Some((lang, None, 0));
-                        }
+                    if let CodeBlockKind::Fenced(info) = kind
+                        && let Some(lang) = crate::syntax::Lang::from_info(&info)
+                    {
+                        fence = Some((lang, None, 0));
                     }
                 }
                 Tag::Link { .. } => {
@@ -655,14 +655,14 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     // Pushed AFTER the body `Code` spans so a role span WINS its bytes
                     // (mono face from `Code`, role color from `CodeSyntax`); the fence
                     // markers + info string keep the earlier dim `Markup`.
-                    if let Some((lang, Some(bs), be)) = fence.take() {
-                        if bs < be {
-                            for (r, role) in crate::syntax::spans(lang, &text[bs..be]) {
-                                body.push((
-                                    bs + r.start..bs + r.end,
-                                    MdKind::CodeSyntax { role, lang },
-                                ));
-                            }
+                    if let Some((lang, Some(bs), be)) = fence.take()
+                        && bs < be
+                    {
+                        for (r, role) in crate::syntax::spans(lang, &text[bs..be]) {
+                            body.push((
+                                bs + r.start..bs + r.end,
+                                MdKind::CodeSyntax { role, lang },
+                            ));
                         }
                     }
                 }
@@ -846,15 +846,15 @@ fn push_link_markers(out: &mut Vec<(Range<usize>, MdKind)>, text: &str, range: &
     let s = &text[range.clone()];
     // The `](` separating the visible text from the destination. Requires the
     // source to actually open with `[` (an inline link always does).
-    if s.starts_with('[') {
-        if let Some(rel) = s.find("](") {
-            let k = MdKind::ConcealMarkup(ConcealKind::Link);
-            // Opening `[`.
-            out.push((range.start..range.start + 1, k));
-            // The `](url…)` tail — closing bracket, parens, destination + title.
-            out.push((range.start + rel..range.end, k));
-            return;
-        }
+    if s.starts_with('[')
+        && let Some(rel) = s.find("](")
+    {
+        let k = MdKind::ConcealMarkup(ConcealKind::Link);
+        // Opening `[`.
+        out.push((range.start..range.start + 1, k));
+        // The `](url…)` tail — closing bracket, parens, destination + title.
+        out.push((range.start + rel..range.end, k));
+        return;
     }
     // Reference / malformed: dim the whole thing, no conceal (as before).
     out.push((range.clone(), MdKind::Markup));

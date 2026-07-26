@@ -476,7 +476,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
             // and the per-row section labels — null/empty for every other mode.
             let lens = o
                 .lens
-                .map(|l| json_string(l))
+                .map(json_string)
                 .unwrap_or_else(|| "null".into());
             let lens_strip = o
                 .lens_strip

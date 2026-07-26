@@ -320,10 +320,10 @@ impl App {
             // hard-freeze the shared phase to the settled frame so a later
             // resume restarts cleanly rather than from a stale mid-breath.
             self.lava_tick_at = None;
-            if crate::motion::reduced() || !self.config.ambient_motion_on() {
-                if let Some(gpu) = self.gpu.as_mut() {
-                    gpu.pipeline.freeze_lava();
-                }
+            if (crate::motion::reduced() || !self.config.ambient_motion_on())
+                && let Some(gpu) = self.gpu.as_mut()
+            {
+                gpu.pipeline.freeze_lava();
             }
         }
         // EVENT TOAST expiry: one live-only deadline, consumed once. This runs

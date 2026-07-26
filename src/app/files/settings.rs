@@ -257,13 +257,13 @@ impl App {
             self.zoom,
             crate::dateformat::today_from_system_clock(),
         );
-        if let Some(ov) = self.overlay.as_mut() {
-            if ov.kind == crate::overlay::OverlayKind::Settings {
-                ov.set_secondaries(crate::settings::visible_value_cells(&values));
-                // ITEM 94: the rail thumbs are refreshed from the SAME gathered
-                // values as the number beside them, in the same call.
-                ov.set_range_cells(crate::settings::visible_range_cells(&values));
-            }
+        if let Some(ov) = self.overlay.as_mut()
+            && ov.kind == crate::overlay::OverlayKind::Settings
+        {
+            ov.set_secondaries(crate::settings::visible_value_cells(&values));
+            // ITEM 94: the rail thumbs are refreshed from the SAME gathered
+            // values as the number beside them, in the same call.
+            ov.set_range_cells(crate::settings::visible_range_cells(&values));
         }
     }
 
@@ -353,9 +353,8 @@ impl App {
     /// debounce disarmed, the floating readout dropped). A whole drag therefore costs
     /// exactly one config write, with nothing trailing behind it.
     pub(in crate::app) fn range_persist(&mut self, key: &str) {
-        match key {
-            "zoom" => self.settle_zoom_persist(),
-            _ => {}
+        if key == "zoom" {
+            self.settle_zoom_persist()
         }
     }
 

@@ -932,59 +932,59 @@ pub(super) fn add_wysiwyg_conceal_spans(
         if lo >= hi {
             continue;
         }
-        if ck == ConcealKind::Image {
-            if let Some((dh, target_advance)) = image_force {
-                // FORCED TRAILING ROW (see this fn's doc comment). The forcing
-                // glyph carries a huge `letter_spacing`, so cosmic-text's
-                // `Wrap::WordOrGlyph` engine pushes it (and everything after)
-                // onto a new visual row — EXCEPT it must NOT be the markup's
-                // very first char (`!`). Unicode UAX14 rule LB13 ("do not break
-                // before `!`/`;`/`/`/`]`") forbids a line break immediately
-                // before `!`, so cosmic-text's word-breaker GLUES the preceding
-                // word (the caption's own last word) to a forcing `!` as ONE
-                // unbreakable unit — dragging that real, visible word onto the
-                // `dh`-tall trailing row and stranding IT instead (confirmed
-                // empirically: forcing on `!` reliably drops the caption's last
-                // word, regardless of margin). `[` (the markup's SECOND char,
-                // always present — every image ref is `![...]`) carries no such
-                // restriction, so `!` stays a plain (non-forcing) zero-width
-                // glyph and `[` becomes the forcing one instead.
-                let mut chars = line_text[(lo - line_doc_start)..].char_indices();
-                let bang_len = chars.next().map_or(1, |(_, c)| c.len_utf8());
-                let second_len = chars.next().map_or(0, |(_, c)| c.len_utf8());
-                let bang_end = (lo + bang_len).min(hi);
-                let force_end = (bang_end + second_len).min(hi);
-                // `!` (row 0, alongside the caption): the row's OWN natural
-                // height already stays correct with no override needed, but
-                // `hidden`'s paired `line_height` (the caller's row height)
-                // is harmless here regardless.
-                if bang_end > lo {
-                    al.add_span((lo - line_doc_start)..(bang_end - line_doc_start), &hidden);
-                }
-                // `[` onward (the trailing row): every glyph here MUST pair
-                // with `dh`, not `line_height` — they land on the FORCED row,
-                // whose height a smaller `line_height` value could otherwise
-                // win the MAX against if `dh` is unusually small (a tiny image).
-                let dh_hidden = hidden
-                    .clone()
-                    .metrics(GlyphMetrics::new(CONCEAL_ZERO_WIDTH_FONT_SIZE, dh));
-                if force_end > bang_end {
-                    let forcing = dh_hidden
-                        .clone()
-                        .letter_spacing(target_advance / CONCEAL_ZERO_WIDTH_FONT_SIZE);
-                    al.add_span(
-                        (bang_end - line_doc_start)..(force_end - line_doc_start),
-                        &forcing,
-                    );
-                }
-                if force_end < hi {
-                    al.add_span(
-                        (force_end - line_doc_start)..(hi - line_doc_start),
-                        &dh_hidden,
-                    );
-                }
-                continue;
+        if ck == ConcealKind::Image
+            && let Some((dh, target_advance)) = image_force
+        {
+            // FORCED TRAILING ROW (see this fn's doc comment). The forcing
+            // glyph carries a huge `letter_spacing`, so cosmic-text's
+            // `Wrap::WordOrGlyph` engine pushes it (and everything after)
+            // onto a new visual row — EXCEPT it must NOT be the markup's
+            // very first char (`!`). Unicode UAX14 rule LB13 ("do not break
+            // before `!`/`;`/`/`/`]`") forbids a line break immediately
+            // before `!`, so cosmic-text's word-breaker GLUES the preceding
+            // word (the caption's own last word) to a forcing `!` as ONE
+            // unbreakable unit — dragging that real, visible word onto the
+            // `dh`-tall trailing row and stranding IT instead (confirmed
+            // empirically: forcing on `!` reliably drops the caption's last
+            // word, regardless of margin). `[` (the markup's SECOND char,
+            // always present — every image ref is `![...]`) carries no such
+            // restriction, so `!` stays a plain (non-forcing) zero-width
+            // glyph and `[` becomes the forcing one instead.
+            let mut chars = line_text[(lo - line_doc_start)..].char_indices();
+            let bang_len = chars.next().map_or(1, |(_, c)| c.len_utf8());
+            let second_len = chars.next().map_or(0, |(_, c)| c.len_utf8());
+            let bang_end = (lo + bang_len).min(hi);
+            let force_end = (bang_end + second_len).min(hi);
+            // `!` (row 0, alongside the caption): the row's OWN natural
+            // height already stays correct with no override needed, but
+            // `hidden`'s paired `line_height` (the caller's row height)
+            // is harmless here regardless.
+            if bang_end > lo {
+                al.add_span((lo - line_doc_start)..(bang_end - line_doc_start), &hidden);
             }
+            // `[` onward (the trailing row): every glyph here MUST pair
+            // with `dh`, not `line_height` — they land on the FORCED row,
+            // whose height a smaller `line_height` value could otherwise
+            // win the MAX against if `dh` is unusually small (a tiny image).
+            let dh_hidden = hidden
+                .clone()
+                .metrics(GlyphMetrics::new(CONCEAL_ZERO_WIDTH_FONT_SIZE, dh));
+            if force_end > bang_end {
+                let forcing = dh_hidden
+                    .clone()
+                    .letter_spacing(target_advance / CONCEAL_ZERO_WIDTH_FONT_SIZE);
+                al.add_span(
+                    (bang_end - line_doc_start)..(force_end - line_doc_start),
+                    &forcing,
+                );
+            }
+            if force_end < hi {
+                al.add_span(
+                    (force_end - line_doc_start)..(hi - line_doc_start),
+                    &dh_hidden,
+                );
+            }
+            continue;
         }
         al.add_span((lo - line_doc_start)..(hi - line_doc_start), &hidden);
     }

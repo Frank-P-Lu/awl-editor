@@ -270,13 +270,9 @@ pub fn browse_level(
     recent_projects: &[String],
 ) -> Option<OverlayState> {
     if kind == OverlayKind::Project {
-        let dir = match rel
+        let dir = rel
             .clone()
-            .or_else(|| workspace.map(|w| w.to_string_lossy().to_string()))
-        {
-            Some(d) => d,
-            None => return None, // no workspace configured: nothing to open
-        };
+            .or_else(|| workspace.map(|w| w.to_string_lossy().to_string()))?;
         let folders: Vec<(String, bool)> = crate::index::list_dir_level(Path::new(&dir), None)
             .into_iter()
             .filter(|e| e.is_dir)

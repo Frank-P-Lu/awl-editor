@@ -66,10 +66,10 @@ impl OverlayState {
         let keep = self.selected_corpus_index();
         self.facet_lens = idx;
         self.refilter();
-        if let Some(ci) = keep {
-            if let Some(pos) = self.items.iter().position(|&i| i == ci) {
-                self.selected = pos;
-            }
+        if let Some(ci) = keep
+            && let Some(pos) = self.items.iter().position(|&i| i == ci)
+        {
+            self.selected = pos;
         }
         self.scroll_to_selected();
     }
@@ -80,10 +80,10 @@ impl OverlayState {
     /// "Recent projects…" opens Switch project on `recent`). A no-op when the picker
     /// doesn't facet or has no lens by that id.
     pub fn focus_facet_id(&mut self, id: &str) {
-        if let Some(sc) = self.facet_scheme() {
-            if let Some(idx) = sc.strip.iter().position(|f| f.id == id) {
-                self.set_facet_lens(idx);
-            }
+        if let Some(sc) = self.facet_scheme()
+            && let Some(idx) = sc.strip.iter().position(|f| f.id == id)
+        {
+            self.set_facet_lens(idx);
         }
     }
 }

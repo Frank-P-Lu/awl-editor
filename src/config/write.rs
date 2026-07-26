@@ -392,10 +392,10 @@ impl Config {
 fn find_top_level_key(lines: &[String], key: &str) -> Option<usize> {
     let first_header = lines.iter().position(|l| l.trim_start().starts_with('['));
     lines.iter().enumerate().position(|(i, l)| {
-        if let Some(h) = first_header {
-            if i >= h {
-                return false;
-            }
+        if let Some(h) = first_header
+            && i >= h
+        {
+            return false;
         }
         let t = l.trim_start();
         !t.starts_with('#')

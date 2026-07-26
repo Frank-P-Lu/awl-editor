@@ -69,11 +69,10 @@ impl App {
         let xy = gpu.pipeline.caret_doc_xy();
         let cur = self.active.buffer.cursor_line_col();
         if let (Some(prev_xy), Some(prev_cur)) = (self.stats_last_caret_xy, self.stats_last_cursor)
+            && cur != prev_cur
         {
-            if cur != prev_cur {
-                self.stats.record_caret_move(prev_xy, xy);
-                self.stats_dirty = true;
-            }
+            self.stats.record_caret_move(prev_xy, xy);
+            self.stats_dirty = true;
         }
         self.stats_last_caret_xy = Some(xy);
         self.stats_last_cursor = Some(cur);

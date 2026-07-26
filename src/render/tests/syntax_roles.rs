@@ -703,10 +703,11 @@ fn sweep_light_ladder() {
                             worst_ground = worst_ground.min(g);
                         }
                     }
-                    if ok && worst_ground >= GROUND_FLOOR {
-                        if best.map(|(b, _)| worst_ground > b).unwrap_or(true) {
-                            best = Some((worst_ground, (t_def, t_const, t_str, s)));
-                        }
+                    if ok
+                        && worst_ground >= GROUND_FLOOR
+                        && best.map(|(b, _)| worst_ground > b).unwrap_or(true)
+                    {
+                        best = Some((worst_ground, (t_def, t_const, t_str, s)));
                     }
                     s += 0.01;
                 }

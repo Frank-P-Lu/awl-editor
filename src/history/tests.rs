@@ -939,7 +939,7 @@ fn relative_label_reads_the_time_gap_humanly() {
     assert_eq!(relative_label(now, now - 30 * 1000), "just now");
     assert_eq!(relative_label(now, now - 2 * min), "2 min ago");
     assert_eq!(relative_label(now, now - 3 * hr), "3 hr ago");
-    assert_eq!(relative_label(now, now - 1 * day - hr), "yesterday");
+    assert_eq!(relative_label(now, now - day - hr), "yesterday");
     assert_eq!(relative_label(now, now - 4 * day), "4 days ago");
     // Older than a week -> a YYYY-MM-DD date (spot-check the epoch itself).
     assert_eq!(

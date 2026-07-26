@@ -912,10 +912,10 @@ impl TextPipeline {
         {
             let table_heights = self.compute_table_layout(text, &md_spans);
             for (li, th) in table_heights.iter().enumerate() {
-                if let (Some(h), Some(slot)) = (th, image_heights.get_mut(li)) {
-                    if slot.is_none() {
-                        *slot = Some(*h);
-                    }
+                if let (Some(h), Some(slot)) = (th, image_heights.get_mut(li))
+                    && slot.is_none()
+                {
+                    *slot = Some(*h);
                 }
             }
         }
@@ -1277,102 +1277,94 @@ impl TextPipeline {
             // extra `image_report` scan on an ordinary line) and NOT wasm-gated:
             // on wasm `image_report` is always empty (inline-image decode is
             // native-only), so it is a harmless no-op there.
-            if is_concealable {
-                if let Some(dh) = self
+            if is_concealable
+                && let Some(dh) = self
                     .image_report
                     .borrow()
                     .iter()
                     .find(|im| im.line == li)
                     .map(|im| im.display_h)
-                {
-                    let line_text = self.buffer.lines[li].text().to_string();
-                    // This line's own image span (its doc range minus `start`).
-                    if let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
-                        matches!(
-                            k,
-                            crate::markdown::MdKind::ConcealMarkup(
-                                crate::markdown::ConcealKind::Image
-                            )
-                        )
-                        .then(|| (r.start.max(start), r.end.min(start + tlen)))
-                        .filter(|(s, e)| s < e)
-                    }) {
-                        let local_range = (img_start - start)..(img_end - start);
-                        let mixed = super::spans::image_line_has_other_content(
-                            &line_text,
-                            local_range.clone(),
-                        );
-                        if mixed {
-                            // `heights[line]` is never touched for a mixed line
-                            // (bare/table rows own that slot exclusively now).
-                            if let Some(slot) = image_heights.get_mut(li) {
-                                *slot = None;
-                            }
-                            // SELECTION REVEAL (regression fix, item 16 follow-up):
-                            // this caret-move-only rescan re-derives `image_force`
-                            // on EVERY caret/selection tick (not just a reshape),
-                            // so it must widen the SAME `revealed_now` test
-                            // `compute_image_layout` now applies — caret line OR
-                            // active selection touching this image's own span
-                            // (`img_start..img_end`, via `selection_touches`, the
-                            // SAME predicate, never re-derived) — or it would
-                            // immediately re-force the row on the very next tick
-                            // and undo a selection-driven park.
-                            let revealed_now = li == cursor_line
-                                || selection_touches(
-                                    selection_touch.as_ref(),
-                                    &(img_start..img_end),
-                                );
-                            let want = if revealed_now {
-                                None
-                            } else {
-                                let prefix = &line_text[..local_range.start];
-                                let last_row_w = Self::measure_last_row_width(
-                                    &mut self.font_system,
-                                    prefix,
-                                    &attrs,
-                                    base_font_size,
-                                    wrap,
-                                );
-                                let remaining = (wrap - last_row_w).max(0.0);
-                                Some((dh, remaining + Self::IMAGE_FORCE_MARGIN_PX))
-                            };
-                            if let Some(slot) = image_force.get_mut(li) {
-                                *slot = want;
-                            }
+            {
+                let line_text = self.buffer.lines[li].text().to_string();
+                // This line's own image span (its doc range minus `start`).
+                if let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
+                    matches!(
+                        k,
+                        crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Image)
+                    )
+                    .then(|| (r.start.max(start), r.end.min(start + tlen)))
+                    .filter(|(s, e)| s < e)
+                }) {
+                    let local_range = (img_start - start)..(img_end - start);
+                    let mixed =
+                        super::spans::image_line_has_other_content(&line_text, local_range.clone());
+                    if mixed {
+                        // `heights[line]` is never touched for a mixed line
+                        // (bare/table rows own that slot exclusively now).
+                        if let Some(slot) = image_heights.get_mut(li) {
+                            *slot = None;
+                        }
+                        // SELECTION REVEAL (regression fix, item 16 follow-up):
+                        // this caret-move-only rescan re-derives `image_force`
+                        // on EVERY caret/selection tick (not just a reshape),
+                        // so it must widen the SAME `revealed_now` test
+                        // `compute_image_layout` now applies — caret line OR
+                        // active selection touching this image's own span
+                        // (`img_start..img_end`, via `selection_touches`, the
+                        // SAME predicate, never re-derived) — or it would
+                        // immediately re-force the row on the very next tick
+                        // and undo a selection-driven park.
+                        let revealed_now = li == cursor_line
+                            || selection_touches(selection_touch.as_ref(), &(img_start..img_end));
+                        let want = if revealed_now {
+                            None
                         } else {
-                            if let Some(slot) = image_heights.get_mut(li) {
-                                *slot = Some(dh);
-                            }
-                            if let Some(slot) = image_force.get_mut(li) {
-                                *slot = None;
-                            }
+                            let prefix = &line_text[..local_range.start];
+                            let last_row_w = Self::measure_last_row_width(
+                                &mut self.font_system,
+                                prefix,
+                                &attrs,
+                                base_font_size,
+                                wrap,
+                            );
+                            let remaining = (wrap - last_row_w).max(0.0);
+                            Some((dh, remaining + Self::IMAGE_FORCE_MARGIN_PX))
+                        };
+                        if let Some(slot) = image_force.get_mut(li) {
+                            *slot = want;
+                        }
+                    } else {
+                        if let Some(slot) = image_heights.get_mut(li) {
+                            *slot = Some(dh);
+                        }
+                        if let Some(slot) = image_force.get_mut(li) {
+                            *slot = None;
                         }
                     }
                 }
             }
-            if is_rule || is_bullet || is_concealable {
-                if let Some(line) = self.buffer.lines.get_mut(li) {
-                    let al = build_line_attrs(
-                        &attrs,
-                        base_fs,
-                        base_lh,
-                        md,
-                        line.text(),
-                        start,
-                        &md_spans,
-                        &syn_spans,
-                        doc_lang,
-                        &cjk_priority,
-                        &fonts,
-                        li != cursor_line,
-                        cursor_byte,
-                        image_heights.get(li).copied().flatten(),
-                        image_force.get(li).copied().flatten(),
-                        selection_touch.as_ref(),
-                    );
-                    changed |= line.set_attrs_list(al);
-                }
+            if (is_rule || is_bullet || is_concealable)
+                && let Some(line) = self.buffer.lines.get_mut(li)
+            {
+                let al = build_line_attrs(
+                    &attrs,
+                    base_fs,
+                    base_lh,
+                    md,
+                    line.text(),
+                    start,
+                    &md_spans,
+                    &syn_spans,
+                    doc_lang,
+                    &cjk_priority,
+                    &fonts,
+                    li != cursor_line,
+                    cursor_byte,
+                    image_heights.get(li).copied().flatten(),
+                    image_force.get(li).copied().flatten(),
+                    selection_touch.as_ref(),
+                );
+                changed |= line.set_attrs_list(al);
             }
             start += tlen + 1;
         }
@@ -1521,10 +1513,8 @@ impl TextPipeline {
             let in_table = blocks
                 .iter()
                 .any(|(_, r)| r.start <= start && start < r.end);
-            if in_table {
-                if let Some(slot) = self.image_heights.get_mut(li) {
-                    *slot = table_heights.get(li).copied().flatten();
-                }
+            if in_table && let Some(slot) = self.image_heights.get_mut(li) {
+                *slot = table_heights.get(li).copied().flatten();
             }
             start += l.len() + 1;
         }

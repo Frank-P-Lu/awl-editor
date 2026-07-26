@@ -233,10 +233,10 @@ fn hex_decode(s: &str) -> Option<Vec<u8>> {
 /// tests assert against this directly with an injected `$HOME`.
 pub fn within_home(path: &Path) -> bool {
     for var in ["XDG_DATA_HOME", "XDG_CONFIG_HOME", "HOME"] {
-        if let Some(v) = std::env::var_os(var) {
-            if path.starts_with(PathBuf::from(v)) {
-                return true;
-            }
+        if let Some(v) = std::env::var_os(var)
+            && path.starts_with(PathBuf::from(v))
+        {
+            return true;
         }
     }
     false

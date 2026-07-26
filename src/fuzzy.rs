@@ -66,10 +66,10 @@ pub fn score(query: &str, candidate: &str) -> Option<i64> {
             // Base reward for a matched char.
             score += 10;
             // Contiguity bonus: adjacent to the previous match.
-            if let Some(p) = prev_match {
-                if ci == p + 1 {
-                    score += 15;
-                }
+            if let Some(p) = prev_match
+                && ci == p + 1
+            {
+                score += 15;
             }
             // Boundary bonus: at index 0, or right after a separator / word
             // boundary in the ORIGINAL candidate (so capital-camel and path

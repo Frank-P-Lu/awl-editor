@@ -77,10 +77,10 @@ pub fn image_refs(text: &str) -> Vec<ImageRef> {
     let opts = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES;
     let mut out = Vec::new();
     for (ev, range) in Parser::new_ext(text, opts).into_offset_iter() {
-        if let Event::Start(Tag::Image { .. }) = ev {
-            if let Some(img) = text.get(range).and_then(parse_image_source) {
-                out.push(img);
-            }
+        if let Event::Start(Tag::Image { .. }) = ev
+            && let Some(img) = text.get(range).and_then(parse_image_source)
+        {
+            out.push(img);
         }
     }
     out
@@ -112,10 +112,11 @@ pub fn split_alt_hint(alt: &str) -> (String, Option<u32>) {
         None => (t, None),
     };
     let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
-    if digits(w) && h.map(digits).unwrap_or(true) {
-        if let Ok(n) = w.parse::<u32>() {
-            return (head.trim_end().to_string(), Some(n));
-        }
+    if digits(w)
+        && h.map(digits).unwrap_or(true)
+        && let Ok(n) = w.parse::<u32>()
+    {
+        return (head.trim_end().to_string(), Some(n));
     }
     (alt.to_string(), None)
 }
@@ -259,20 +260,20 @@ pub fn link_at_full(text: &str, byte: usize) -> Option<LinkAt> {
     let target = byte - body_offset;
     let opts = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES;
     for (ev, range) in Parser::new_ext(body, opts).into_offset_iter() {
-        if let Event::Start(Tag::Link { dest_url, .. }) = ev {
-            if range.contains(&target) {
-                let src = &body[range.clone()];
-                let link_text = src
-                    .strip_prefix('[')
-                    .and_then(|rest| rest.find(']').map(|i| rest[..i].to_string()))
-                    .unwrap_or_default();
-                return Some(LinkAt {
-                    start: range.start + body_offset,
-                    end: range.end + body_offset,
-                    link_text,
-                    url: dest_url.to_string(),
-                });
-            }
+        if let Event::Start(Tag::Link { dest_url, .. }) = ev
+            && range.contains(&target)
+        {
+            let src = &body[range.clone()];
+            let link_text = src
+                .strip_prefix('[')
+                .and_then(|rest| rest.find(']').map(|i| rest[..i].to_string()))
+                .unwrap_or_default();
+            return Some(LinkAt {
+                start: range.start + body_offset,
+                end: range.end + body_offset,
+                link_text,
+                url: dest_url.to_string(),
+            });
         }
     }
     None

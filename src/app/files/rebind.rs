@@ -65,16 +65,15 @@ impl App {
     /// binding is merged into the command's existing slots (cap 2, newest first),
     /// written to `config.toml`, and the keymap re-applied immediately.
     pub(in crate::app) fn rebind_commit(&mut self, slug: String, binding: String, confirmed: bool) {
-        if !confirmed {
-            if let Some(other) =
+        if !confirmed
+            && let Some(other) =
                 crate::commands::binding_conflict(&binding, &slug, &self.config.keys)
-            {
-                if let Some(ov) = self.overlay.as_mut() {
-                    ov.capture_into_confirm(other.to_string());
-                    ov.notice = format!("'{binding}' already bound to {other}");
-                }
-                return;
+        {
+            if let Some(ov) = self.overlay.as_mut() {
+                ov.capture_into_confirm(other.to_string());
+                ov.notice = format!("'{binding}' already bound to {other}");
             }
+            return;
         }
         let existing: Vec<String> = self
             .config
@@ -100,10 +99,10 @@ impl App {
     /// `[keys]` entry, persist, and live-reload so its built-in default applies again.
     pub(in crate::app) fn rebind_reset(&mut self, slug: String) {
         let path = self.config.path.clone();
-        if !path.as_os_str().is_empty() {
-            if let Err(e) = Config::write_binding(&path, &slug, None) {
-                eprintln!("rebind: could not reset {}: {e}", path.display());
-            }
+        if !path.as_os_str().is_empty()
+            && let Err(e) = Config::write_binding(&path, &slug, None)
+        {
+            eprintln!("rebind: could not reset {}: {e}", path.display());
         }
         self.reload_config();
         self.refresh_rebind_overlay(format!("reset {slug} to default"));
@@ -115,12 +114,12 @@ impl App {
     pub(in crate::app) fn refresh_rebind_overlay(&mut self, notice: String) {
         let keys = self.config.keys.clone();
         let keep = self.config.effective_linux_keep();
-        if let Some(ov) = self.overlay.as_mut() {
-            if ov.kind == crate::overlay::OverlayKind::Keybindings {
-                ov.capture = None;
-                ov.set_secondaries(crate::commands::effective_bindings(&keys, &keep));
-                ov.notice = notice;
-            }
+        if let Some(ov) = self.overlay.as_mut()
+            && ov.kind == crate::overlay::OverlayKind::Keybindings
+        {
+            ov.capture = None;
+            ov.set_secondaries(crate::commands::effective_bindings(&keys, &keep));
+            ov.notice = notice;
         }
     }
 

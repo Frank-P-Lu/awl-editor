@@ -88,10 +88,11 @@ pub fn intercept(
                     } else {
                         return step(search, buffer, Direction::Forward);
                     }
-                } else if c.eq_ignore_ascii_case(&'r') && !alt {
-                    if let Some(st) = search.as_mut() {
-                        st.focus_replacement();
-                    }
+                } else if c.eq_ignore_ascii_case(&'r')
+                    && !alt
+                    && let Some(st) = search.as_mut()
+                {
+                    st.focus_replacement();
                 }
                 return None;
             }
@@ -288,16 +289,16 @@ fn toggle_case_and_jump(search: &mut Option<SearchState>, buffer: &mut Buffer) {
 /// document caret lands on it. No-op (cursor unchanged) when there is no
 /// current match — we don't jump on a no-match query.
 fn jump_to_current(search: &Option<SearchState>, buffer: &mut Buffer) {
-    if let Some(st) = search.as_ref() {
-        if let Some(m) = st.current_match() {
-            buffer.set_cursor(m.start);
-            // REVEALED PLACEMENT (folds): a match on a collapsed line must not leave
-            // the caret logically inside a hidden row — route through the ONE
-            // placement owner so the found line reveals. Shared by the live panel and
-            // the headless `--keys` replay (both call `intercept`), so search-next /
-            // previous can never drift on reveal. A cheap no-op unless folded.
-            buffer.reveal_placement();
-        }
+    if let Some(st) = search.as_ref()
+        && let Some(m) = st.current_match()
+    {
+        buffer.set_cursor(m.start);
+        // REVEALED PLACEMENT (folds): a match on a collapsed line must not leave
+        // the caret logically inside a hidden row — route through the ONE
+        // placement owner so the found line reveals. Shared by the live panel and
+        // the headless `--keys` replay (both call `intercept`), so search-next /
+        // previous can never drift on reveal. A cheap no-op unless folded.
+        buffer.reveal_placement();
     }
 }
 

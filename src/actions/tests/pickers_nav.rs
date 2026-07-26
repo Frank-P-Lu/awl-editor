@@ -1706,7 +1706,7 @@ fn theme_arrows_move_the_selection_and_preview() {
     // LEFT moves back UP to the first world (and previews it).
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value().as_deref(),
+        overlay.as_ref().unwrap().selected_value(),
         Some(first.as_str())
     );
     assert_eq!(crate::theme::active().name, first);

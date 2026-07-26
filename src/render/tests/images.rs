@@ -1100,7 +1100,7 @@ fn mixed_list_image_forcing_measures_in_the_real_world_font_under_page_mode() {
     let restore = || {
         crate::page::set_page_on(prev_page);
         crate::page::set_measure(prev_measure);
-        crate::theme::set_active_by_name(&prev_theme);
+        crate::theme::set_active_by_name(prev_theme);
         crate::markdown::set_inline_images_on(prev);
     };
     let Some(mut p) = headless_pipeline() else {

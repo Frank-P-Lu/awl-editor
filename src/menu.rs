@@ -493,16 +493,14 @@ pub fn item_chord_for_id(id: &str) -> String {
 /// icon).
 #[cfg(target_os = "macos")]
 fn to_menu_item(id: &'static str, label: &'static str, icon: bool) -> Box<dyn muda::IsMenuItem> {
-    if icon {
-        if let Some(icon) = menu_icons::icon_for(id) {
-            return Box::new(muda::IconMenuItem::with_id(
-                id,
-                label,
-                true,
-                Some(icon),
-                None,
-            ));
-        }
+    if icon && let Some(icon) = menu_icons::icon_for(id) {
+        return Box::new(muda::IconMenuItem::with_id(
+            id,
+            label,
+            true,
+            Some(icon),
+            None,
+        ));
     }
     Box::new(MenuItem::with_id(id, label, true, None))
 }

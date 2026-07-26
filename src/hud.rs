@@ -73,7 +73,7 @@ pub fn group_thousands(n: u64) -> String {
     let bytes = digits.as_bytes();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
     for (i, b) in bytes.iter().enumerate() {
-        if i > 0 && (bytes.len() - i) % 3 == 0 {
+        if i > 0 && (bytes.len() - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(*b as char);
@@ -238,7 +238,7 @@ mod tests {
             "47h 12m"
         );
         // The minutes are zero-padded in the hour form.
-        assert_eq!(writing_time_readout((1 * 3600 + 4 * 60) * 1000), "1h 04m");
+        assert_eq!(writing_time_readout((3600 + 4 * 60) * 1000), "1h 04m");
     }
 
     #[test]

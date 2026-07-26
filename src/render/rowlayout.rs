@@ -572,7 +572,7 @@ mod tests {
                 if let Plan::Split { primary } = plan {
                     let widest = widest_secondary.unwrap_or(0);
                     assert!(
-                        primary + GAP_CHARS + widest + 1 <= total,
+                        primary + GAP_CHARS + widest < total,
                         "{kind:?}@{total}: split overlaps (primary {primary} + gap + secondary {widest} > {total})"
                     );
                     assert!(

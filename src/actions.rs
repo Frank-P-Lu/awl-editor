@@ -1205,27 +1205,27 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // BLOCKED (couldn't proceed) and, if so, arm a caret bump away from the wall.
     // Mutually exclusive with the real effects (a blocked action never sets one), so
     // we only test when `effect` is still `None`.
-    if effect == Effect::None {
-        if let Some(dir) = recoil_for(
+    if effect == Effect::None
+        && let Some(dir) = recoil_for(
             action,
             ctx,
             cursor_before,
             version_before,
             could_undo,
             could_redo,
-        ) {
-            effect = Effect::Recoil(dir);
-        }
+        )
+    {
+        effect = Effect::Recoil(dir);
     }
     // DELETION SQUASH + TYPING IMPACT (PHASE 2) — if the action produced no other
     // effect AND it was a SUCCESSFUL edit (the content version actually bumped), arm
     // the caret FLINCH for the edit. Mutually exclusive with the blocked-action recoil
     // above (a no-op delete recoils away from the wall; a REAL delete squashes inward),
     // so we only test when `effect` is still `None`.
-    if effect == Effect::None {
-        if let Some(imp) = impact_for(action, version_before, ctx) {
-            effect = imp;
-        }
+    if effect == Effect::None
+        && let Some(imp) = impact_for(action, version_before, ctx)
+    {
+        effect = imp;
     }
     // COPY PULSE — a successful M-w/Cmd-C copy of a NON-EMPTY selection: arm the
     // caret kick + selection-tint brighten/decay. Never touches buffer content, so
@@ -1235,10 +1235,10 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // construction (`Action::CopyRegion` never recoils or flinches), so gating on
     // `effect == Effect::None` here is a formality that keeps the same shape as
     // the recoil/impact cascade above.
-    if effect == Effect::None {
-        if let Some(e) = copy_pulse_for(action, had_selection_before) {
-            effect = e;
-        }
+    if effect == Effect::None
+        && let Some(e) = copy_pulse_for(action, had_selection_before)
+    {
+        effect = e;
     }
     effect
 }

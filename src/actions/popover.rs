@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn heading_button_reflects_the_level_and_lights() {
         let off = plan("Title\n", Some(0), 3, true).unwrap();
-        assert_eq!(off.buttons.last().is_some(), true);
+        assert!(off.buttons.last().is_some());
         let h = off
             .buttons
             .iter()

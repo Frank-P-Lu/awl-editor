@@ -196,10 +196,10 @@ pub fn resolve_font_id(
     detected: Option<Script>,
     cjk_priority: &[Lang],
 ) -> FontId {
-    if let Some(dl) = doc_lang {
-        if let Some(id) = dl.font_id_for_script(detected) {
-            return id;
-        }
+    if let Some(dl) = doc_lang
+        && let Some(id) = dl.font_id_for_script(detected)
+    {
+        return id;
     }
     let Some(s) = detected else {
         return FontId::Latin;

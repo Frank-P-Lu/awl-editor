@@ -2000,11 +2000,11 @@ fn empty_state_copy_is_calm_and_context_aware() {
     // The lens-scoped lines: Go-to Recent is the warm invitation; every other
     // refinement lens with no members reads the catch-all; `All` opts out (None).
     assert_eq!(
-        OverlayKind::Goto.empty_lens_message("recent").as_deref(),
+        OverlayKind::Goto.empty_lens_message("recent"),
         Some("no recent files yet"),
     );
     assert_eq!(
-        OverlayKind::Goto.empty_lens_message("folder").as_deref(),
+        OverlayKind::Goto.empty_lens_message("folder"),
         Some("nothing here")
     );
     assert_eq!(OverlayKind::Goto.empty_lens_message("all"), None);
@@ -2976,7 +2976,7 @@ fn goto_heading_rows_keep_their_line_across_refilter() {
         ov.push(c);
     }
     assert!(
-        ov.items.iter().any(|&ci| ci == details_ci),
+        ov.items.contains(&details_ci),
         "the Details row survives the query"
     );
     assert_eq!(
@@ -3016,10 +3016,7 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     for c in "keym".chars() {
         ov.push(c);
     }
-    assert!(
-        ov.items.iter().any(|&i| i == ci),
-        "the Keymap row survives the query"
-    );
+    assert!(ov.items.contains(&ci), "the Keymap row survives the query");
     assert_eq!(
         ov.rows[ci].secondary, value_before,
         "the value traveled with its OWN row"
@@ -3064,7 +3061,7 @@ fn history_rows_keep_id_and_ts_across_lens_switch_and_query() {
         ov.push(c);
     }
     assert!(
-        ov.items.iter().any(|&i| i == a_ci),
+        ov.items.contains(&a_ci),
         "row a survives the lens switch + query"
     );
     assert_eq!(

@@ -779,7 +779,7 @@ pub fn image_resize_width(
 /// you move onto a wrapped continuation. Past the logical end-of-line (col ==
 /// last row's end_col with no following row) the LAST row is used. `rows` is
 /// never empty (see [`TextPipeline::visual_rows`]).
-pub(super) fn pick_row<'r>(rows: &'r [VisualRow], col: usize) -> &'r VisualRow {
+pub(super) fn pick_row(rows: &[VisualRow], col: usize) -> &VisualRow {
     &rows[pick_row_index(rows, col)]
 }
 
@@ -790,11 +790,11 @@ pub(super) fn pick_row<'r>(rows: &'r [VisualRow], col: usize) -> &'r VisualRow {
 /// visual-row end (right after C-e / End / Cmd-Right) renders on that row's right
 /// edge, not the lower row's left. At any NON-boundary column exactly one row owns
 /// `col`, so affinity is inert and this is identical to `pick_row`.
-pub(super) fn pick_row_aff<'r>(
-    rows: &'r [VisualRow],
+pub(super) fn pick_row_aff(
+    rows: &[VisualRow],
     col: usize,
     affinity: crate::caret::Affinity,
-) -> &'r VisualRow {
+) -> &VisualRow {
     &rows[pick_row_index_aff(rows, col, affinity)]
 }
 

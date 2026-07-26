@@ -269,7 +269,7 @@ impl Buffer {
     pub fn apply_format(&mut self, new_text: &str, anchor: Option<usize>, cursor: usize) {
         self.clear_kill_flag();
         self.goal_col = None;
-        if new_text == self.rope.to_string() {
+        if new_text == self.rope {
             return; // nothing changed — keep the timeline meaningful
         }
         let before = self.cursor;
@@ -423,7 +423,7 @@ impl Buffer {
         self.anchor = None;
         let (line, _) = self.cursor_line_col();
         let line_end_no_nl = self.line_start(line) + self.line_len(line);
-        let killed: String;
+
         let end;
         if self.cursor < line_end_no_nl {
             // Kill to end of line (not including newline).
@@ -436,7 +436,7 @@ impl Buffer {
             self.last_was_kill = true;
             return;
         }
-        killed = self.rope.slice(self.cursor..end).to_string();
+        let killed: String = self.rope.slice(self.cursor..end).to_string();
         if self.last_was_kill {
             self.kill.push_str(&killed);
         } else {

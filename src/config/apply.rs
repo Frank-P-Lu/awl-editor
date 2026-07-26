@@ -37,15 +37,11 @@ impl Config {
         measure_flag: bool,
         initial_class: crate::page::PageClass,
     ) {
-        if !theme_flag {
-            if let Some(name) = self.theme.as_deref() {
-                crate::theme::set_active_by_name(name);
-            }
+        if !theme_flag && let Some(name) = self.theme.as_deref() {
+            crate::theme::set_active_by_name(name);
         }
-        if !page_flag {
-            if let Some(on) = self.page_mode {
-                crate::page::set_page_on(on);
-            }
+        if !page_flag && let Some(on) = self.page_mode {
+            crate::page::set_page_on(on);
         }
         // AUTO-PAGE-ON for an AMBIENT-GROUND world (lava OR twinkling stars —
         // `Theme::has_ambient_motion`, the one gate): both grounds live ENTIRELY
@@ -63,10 +59,8 @@ impl Config {
         if !measure_flag {
             crate::page::set_measure(self.measure_for(initial_class));
         }
-        if !caret_flag {
-            if let Some(m) = self.caret_mode.as_deref().and_then(parse_caret_mode) {
-                crate::caret::set_mode(m);
-            }
+        if !caret_flag && let Some(m) = self.caret_mode.as_deref().and_then(parse_caret_mode) {
+            crate::caret::set_mode(m);
         }
         // WRITING NITS has no CLI flag (it is a quiet, always-available hint), so the
         // remembered value applies unconditionally when present; absent = the built-in

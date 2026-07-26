@@ -432,10 +432,10 @@ pub fn from_toml(src: &str) -> Stats {
     }
     if let Some(t) = table.get("per_world").and_then(|v| v.as_table()) {
         for (world, v) in t {
-            if let Some(ms) = v.as_integer() {
-                if ms > 0 {
-                    stats.per_world_ms.insert(world.clone(), ms as u64);
-                }
+            if let Some(ms) = v.as_integer()
+                && ms > 0
+            {
+                stats.per_world_ms.insert(world.clone(), ms as u64);
             }
         }
     }

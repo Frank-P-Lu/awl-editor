@@ -429,10 +429,10 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        if self.gutter_visible() {
-            if let Some(r) = self.gutter_carve_rect(height) {
-                ink_zones.push(r);
-            }
+        if self.gutter_visible()
+            && let Some(r) = self.gutter_carve_rect(height)
+        {
+            ink_zones.push(r);
         }
         let phase = self.stars_render_phase();
         let gap = crate::stars::STAR_MARGIN_GAP_PX;
@@ -1773,10 +1773,10 @@ impl TextPipeline {
             let shaped = self.shape_table_grid(&tm.grid_rows, tm.ncols, avail, gap, pad);
             for (gr, (dl, _)) in tm.grid_rows.iter().enumerate() {
                 let h = shaped.row_heights[gr];
-                if h > m.line_height + 0.5 {
-                    if let Some(slot) = heights.get_mut(*dl) {
-                        *slot = Some(h);
-                    }
+                if h > m.line_height + 0.5
+                    && let Some(slot) = heights.get_mut(*dl)
+                {
+                    *slot = Some(h);
                 }
             }
             cache_entries.push((tm.range.start, shaped));
@@ -2345,20 +2345,20 @@ impl TextPipeline {
             // this table is panned (`pan > 0`). Value-step tint (the rule pipeline's
             // own faint colour), never amber. A default capture never sets a pan, so
             // no bar draws — byte-identical. The hover/idle FADE is live-only.
-            if pan > 0.0 {
-                if let Some((last_dl, _)) = meta.grid_rows.last() {
-                    let last_gr = s.row_heights.len().saturating_sub(1);
-                    let bottom = self.line_ornament_top(*last_dl) + s.row_heights[last_gr];
-                    if let Some(bar) = crate::markdown::table_pan_bar(
-                        content_w,
-                        view_w,
-                        pan,
-                        text_left,
-                        bottom,
-                        pan_bar_thick,
-                    ) {
-                        rule_rects.push(bar);
-                    }
+            if pan > 0.0
+                && let Some((last_dl, _)) = meta.grid_rows.last()
+            {
+                let last_gr = s.row_heights.len().saturating_sub(1);
+                let bottom = self.line_ornament_top(*last_dl) + s.row_heights[last_gr];
+                if let Some(bar) = crate::markdown::table_pan_bar(
+                    content_w,
+                    view_w,
+                    pan,
+                    text_left,
+                    bottom,
+                    pan_bar_thick,
+                ) {
+                    rule_rects.push(bar);
                 }
             }
         }

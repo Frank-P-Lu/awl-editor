@@ -141,12 +141,12 @@ impl RowGeom {
             tops.push(run.line_top);
             heights.push(run.line_height);
             doc_h = doc_h.max(run.line_top + run.line_height);
-            if let Some(seen) = line_seen.get_mut(run.line_i) {
-                if !*seen {
-                    *seen = true;
-                    line_tops[run.line_i] = run.line_top;
-                    line_baselines[run.line_i] = run.line_y;
-                }
+            if let Some(seen) = line_seen.get_mut(run.line_i)
+                && !*seen
+            {
+                *seen = true;
+                line_tops[run.line_i] = run.line_top;
+                line_baselines[run.line_i] = run.line_y;
             }
         }
         self.doc_height.set(doc_h);

@@ -640,29 +640,30 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
             }
         }
         // both anchors — must be partners in the backbone
-        if i < no && j < nn {
-            if let (Some(a), Some(b)) = (old_role[i], new_role[j]) {
-                if a.oi == b.oi && a.ni == b.ni {
-                    match a.role {
-                        Role::Same => blocks.push(Block::Fold(1)),
-                        Role::Edit => {
-                            let segs = seg_diff(&old_ps[i], &new_ps[j], p.gran);
-                            if seg_density(&segs, p.gran) > p.coalesce {
-                                blocks.push(Block::Rewritten {
-                                    old: old_ps[i].clone(),
-                                    new: new_ps[j].clone(),
-                                });
-                            } else {
-                                blocks.push(Block::Modified(segs));
-                            }
-                        }
-                        Role::Move => {}
+        if i < no
+            && j < nn
+            && let (Some(a), Some(b)) = (old_role[i], new_role[j])
+            && a.oi == b.oi
+            && a.ni == b.ni
+        {
+            match a.role {
+                Role::Same => blocks.push(Block::Fold(1)),
+                Role::Edit => {
+                    let segs = seg_diff(&old_ps[i], &new_ps[j], p.gran);
+                    if seg_density(&segs, p.gran) > p.coalesce {
+                        blocks.push(Block::Rewritten {
+                            old: old_ps[i].clone(),
+                            new: new_ps[j].clone(),
+                        });
+                    } else {
+                        blocks.push(Block::Modified(segs));
                     }
-                    i += 1;
-                    j += 1;
-                    continue;
                 }
+                Role::Move => {}
             }
+            i += 1;
+            j += 1;
+            continue;
         }
         // safety fall-through (shouldn't trigger): advance the laggard
         if i < no {
@@ -679,11 +680,11 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
 fn merge_folds(blocks: Vec<Block>) -> Vec<Block> {
     let mut out: Vec<Block> = Vec::new();
     for b in blocks {
-        if let Block::Fold(n) = b {
-            if let Some(Block::Fold(m)) = out.last_mut() {
-                *m += n;
-                continue;
-            }
+        if let Block::Fold(n) = b
+            && let Some(Block::Fold(m)) = out.last_mut()
+        {
+            *m += n;
+            continue;
         }
         out.push(b);
     }

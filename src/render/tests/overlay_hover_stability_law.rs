@@ -139,6 +139,6 @@ fn a_deliberate_world_crossing_can_move_a_stationary_pixels_hit_test_row() {
         "Wagtail's row midpoint sits outside Cassowary's right-hugging card"
     );
 
-    theme::set_active_by_name(&restore).unwrap();
+    theme::set_active_by_name(restore).unwrap();
     crate::render::set_card_anchor_test_override(None);
 }

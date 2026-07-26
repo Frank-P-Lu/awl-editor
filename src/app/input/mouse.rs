@@ -154,13 +154,11 @@ impl App {
         // Checked FIRST: the chevron's narrow left-margin lane never overlaps the
         // tail's own hit region (past the heading text, to the right), so order is
         // only for clarity, not correctness.
-        if !shift {
-            if let Some(h) = self.fold_chevron_at_pointer() {
-                self.active.buffer.seal_undo_group();
-                self.active.buffer.toggle_fold_at_line(h);
-                self.active.buffer.clear_mark();
-                return;
-            }
+        if !shift && let Some(h) = self.fold_chevron_at_pointer() {
+            self.active.buffer.seal_undo_group();
+            self.active.buffer.toggle_fold_at_line(h);
+            self.active.buffer.clear_mark();
+            return;
         }
         // CLICK-TO-EXPAND (item 47c): a plain click on a collapsed heading's "… N lines"
         // tail (past the heading text) OPENS that fold and parks the caret on the
@@ -169,13 +167,11 @@ impl App {
         // section. A shift-click is left to extend a selection as usual; a click on
         // the heading TEXT (not the affordance) falls through to the normal caret
         // placement below.
-        if !shift {
-            if let Some(h) = self.fold_affordance_at_pointer() {
-                self.active.buffer.seal_undo_group();
-                self.active.buffer.unfold_at(h);
-                self.active.buffer.clear_mark();
-                return;
-            }
+        if !shift && let Some(h) = self.fold_affordance_at_pointer() {
+            self.active.buffer.seal_undo_group();
+            self.active.buffer.unfold_at(h);
+            self.active.buffer.clear_mark();
+            return;
         }
         let click_count = self.bump_click_count();
         // A click is a non-edit gesture: seal the open undo group so text typed
@@ -483,10 +479,10 @@ impl App {
         if let Some(idx) = row_hit {
             // ON a row: ACCEPT through the shared apply path — byte-for-byte the same
             // as Enter on the highlighted row (open / run / commit / descend / replace).
-            if let Some(ov) = self.overlay.as_mut() {
-                if idx < ov.items.len() {
-                    ov.selected = idx;
-                }
+            if let Some(ov) = self.overlay.as_mut()
+                && idx < ov.items.len()
+            {
+                ov.selected = idx;
             }
             // ITEM 94 — A RANGE ROW'S LABEL SELECTS WITHOUT CHANGING. Every other
             // kind treats a row click as Enter; a range row must not, because its
@@ -898,10 +894,9 @@ impl App {
         self.pointer_hide = crate::pointer_hide::on_mouse_move(prev_pointer_hide);
         if let Some(visible) =
             crate::pointer_hide::os_visibility_change(prev_pointer_hide, self.pointer_hide)
+            && let Some(gpu) = self.gpu.as_ref()
         {
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.set_cursor_visible(visible);
-            }
+            gpu.window.set_cursor_visible(visible);
         }
         // A summoned picker OWNS the pointer (it is modal, the doc receding
         // behind it): a hover moves + previews the row under the cursor, exactly
@@ -1220,11 +1215,11 @@ impl App {
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.cursor_px;
                 let scroll = self.active.extra.scroll_lines;
-                if let Some(gpu) = self.gpu.as_mut() {
-                    if gpu.pipeline.try_table_pan(px, py, scroll, dx) {
-                        gpu.window.request_redraw();
-                        return;
-                    }
+                if let Some(gpu) = self.gpu.as_mut()
+                    && gpu.pipeline.try_table_pan(px, py, scroll, dx)
+                {
+                    gpu.window.request_redraw();
+                    return;
                 }
             }
         }
@@ -1267,7 +1262,7 @@ impl App {
                         })
                         .unwrap_or(false);
                 if diff_wheel {
-                    let delta = -(lines.round() as f32) as isize; // wheel up = toward the top
+                    let delta = -lines.round() as isize; // wheel up = toward the top
                     if let Some(ov) = self.overlay.as_mut() {
                         ov.diff_scroll = if delta >= 0 {
                             ov.diff_scroll.saturating_add(delta as usize)

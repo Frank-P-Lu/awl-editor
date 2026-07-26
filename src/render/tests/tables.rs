@@ -289,13 +289,13 @@ fn wide_table_wraps_and_reserves_a_tall_row_while_a_short_row_does_not() {
     // tallest reserved row (a proportionally-squeezed header column may itself
     // wrap a little — that is correct wrap-not-clip too — but never as tall).
     for (li, h) in heights.iter().enumerate() {
-        if li != 2 {
-            if let Some(other) = h {
-                assert!(
-                    wide > *other,
-                    "the long row (got {wide}) is tallest (line {li}: {other})"
-                );
-            }
+        if li != 2
+            && let Some(other) = h
+        {
+            assert!(
+                wide > *other,
+                "the long row (got {wide}) is tallest (line {li}: {other})"
+            );
         }
     }
     // The separator (doc line 1) is never a grid row → never a reservation.

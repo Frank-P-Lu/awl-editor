@@ -91,26 +91,28 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
         }
 
         // --- here-document opener: `<<~TAG` / `<<-TAG` / `<<"TAG"` ---
-        if c == b'<' && i + 1 < n && b[i + 1] == b'<' {
-            if let Some((tag, after)) = heredoc_opener(b, i) {
-                if pending.is_none() {
-                    pending = Some(tag);
-                }
-                i = after;
-                prev = b[i - 1];
-                continue;
+        if c == b'<'
+            && i + 1 < n
+            && b[i + 1] == b'<'
+            && let Some((tag, after)) = heredoc_opener(b, i)
+        {
+            if pending.is_none() {
+                pending = Some(tag);
             }
+            i = after;
+            prev = b[i - 1];
+            continue;
         }
 
         // --- percent literal: `%w[..]`, `%q{..}`, `%(..)`, … ---
-        if c == b'%' {
-            if let Some(end) = percent_literal(b, i, prev) {
-                out.push((i..end, SynKind::Str));
-                i = end;
-                expect = Expect::No;
-                prev = b[end - 1];
-                continue;
-            }
+        if c == b'%'
+            && let Some(end) = percent_literal(b, i, prev)
+        {
+            out.push((i..end, SynKind::Str));
+            i = end;
+            expect = Expect::No;
+            prev = b[end - 1];
+            continue;
         }
 
         // --- string / command literal ---
@@ -124,14 +126,15 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
         }
 
         // --- character literal: `?a`, `?\n`, `?\u{41}` ---
-        if c == b'?' && !is_value_prev(prev) {
-            if let Some(end) = char_literal(b, i) {
-                out.push((i..end, SynKind::Str));
-                i = end;
-                expect = Expect::No;
-                prev = b[end - 1];
-                continue;
-            }
+        if c == b'?'
+            && !is_value_prev(prev)
+            && let Some(end) = char_literal(b, i)
+        {
+            out.push((i..end, SynKind::Str));
+            i = end;
+            expect = Expect::No;
+            prev = b[end - 1];
+            continue;
         }
 
         // --- number literal ---

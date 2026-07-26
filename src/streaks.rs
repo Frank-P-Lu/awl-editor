@@ -687,7 +687,7 @@ mod tests {
         assert_eq!(a, b, "the synthetic year is byte-stable");
         for lvl in 0..LEVELS as u8 {
             assert!(
-                a.cells.iter().any(|&c| c == lvl),
+                a.cells.contains(&lvl),
                 "level {lvl} appears in the synthetic year"
             );
         }

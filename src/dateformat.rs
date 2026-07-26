@@ -30,9 +30,10 @@ use std::sync::atomic::{AtomicU8, Ordering};
 /// The FIVE date-insert formats, in CYCLE order (also the settings row's
 /// stepping order and [`ALL`]'s iteration order — one owner). No free-form
 /// pattern strings: this is the whole closed set.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum DateFormat {
     /// `22/07/26` — DD/MM/YY. THE DEFAULT.
+    #[default]
     DdMmYy,
     /// `07/22/26` — MM/DD/YY.
     MmDdYy,
@@ -42,12 +43,6 @@ pub enum DateFormat {
     YyyyMmDd,
     /// `22 July 2026` — D Month YYYY (day unpadded, full English month name).
     DMonthYyyy,
-}
-
-impl Default for DateFormat {
-    fn default() -> Self {
-        DateFormat::DdMmYy
-    }
 }
 
 /// The full English month name table `[Jan..Dec]`, indexed `month - 1`. The

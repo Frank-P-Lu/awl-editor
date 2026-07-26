@@ -1075,12 +1075,11 @@ impl KeymapState {
         // key — NOT a C-x chord — so it never disturbs the prefix bindings. 'p' is
         // free under Super (undo=z, zoom ==/+/-/0, clipboard=c/x/v), so no
         // collision. Plain (no Shift) — Cmd-Shift-P is Switch project, above.
-        if native {
-            if let Key::Character(s) = logical {
-                if matches!(s.chars().next(), Some('p') | Some('P')) {
-                    return Action::OpenCommandPalette;
-                }
-            }
+        if native
+            && let Key::Character(s) = logical
+            && matches!(s.chars().next(), Some('p') | Some('P'))
+        {
+            return Action::OpenCommandPalette;
         }
 
         // Cmd-. (Super+'.', no Shift): CANCEL — the HIG's ancient cancel synonym
@@ -1089,12 +1088,12 @@ impl KeymapState {
         // hand reaches for without thinking (P4). `!shift` keeps it distinct
         // from plain Cmd-Shift-., which is unbound (item 77 retired the old
         // "Show hidden files" toggle that used to live there).
-        if native && !shift {
-            if let Key::Character(s) = logical {
-                if s.chars().next() == Some('.') {
-                    return Action::Cancel;
-                }
-            }
+        if native
+            && !shift
+            && let Key::Character(s) = logical
+            && s.starts_with('.')
+        {
+            return Action::Cancel;
         }
 
         // Option-Cmd-I (Super+Alt+'i'): SUMMON the held STATS HUD while the key is
@@ -1108,22 +1107,22 @@ impl KeymapState {
         // HOLD-ONLY: it is deliberately NOT a palette command (a discrete
         // selection could not be released to dismiss it), so this is its sole
         // summon. See `hud.rs`.
-        if native && alt {
-            if let Key::Character(s) = logical {
-                if matches!(s.chars().next(), Some('i') | Some('I')) {
-                    return Action::ShowStatsHud;
-                }
-            }
+        if native
+            && alt
+            && let Key::Character(s) = logical
+            && matches!(s.chars().next(), Some('i') | Some('I'))
+        {
+            return Action::ShowStatsHud;
         }
 
         // Cmd-Option-F is a legacy uncatalogued alias for the catalogued Cmd-R
         // Find-and-replace door.
-        if native && alt {
-            if let Key::Character(s) = logical {
-                if matches!(s.chars().next(), Some('f') | Some('F')) {
-                    return Action::OpenReplace;
-                }
-            }
+        if native
+            && alt
+            && let Key::Character(s) = logical
+            && matches!(s.chars().next(), Some('f') | Some('F'))
+        {
+            return Action::OpenReplace;
         }
 
         // Cmd-G / Cmd-Shift-G: FIND NEXT / PREVIOUS — the deeper macOS idiom
@@ -1138,16 +1137,16 @@ impl KeymapState {
         // step, like its Cmd-F/Shift-Cmd-F arm). 'g' is free under Super (the
         // used set is z, =/+/-/0, p, o, c/x/v, f, r, a, b, e, ';', w, ,), so no
         // collision. Case-folded.
-        if native && !alt {
-            if let Key::Character(s) = logical {
-                if matches!(s.chars().next(), Some('g') | Some('G')) {
-                    return if shift {
-                        Action::SearchBackward
-                    } else {
-                        Action::SearchForward
-                    };
-                }
-            }
+        if native
+            && !alt
+            && let Key::Character(s) = logical
+            && matches!(s.chars().next(), Some('g') | Some('G'))
+        {
+            return if shift {
+                Action::SearchBackward
+            } else {
+                Action::SearchForward
+            };
         }
 
         match logical {
@@ -1166,10 +1165,10 @@ impl KeymapState {
     ) -> Action {
         // C-Space sets the mark (start a selection). Space without ctrl is a
         // self-inserting space (handled below).
-        if let NamedKey::Space = named {
-            if ctrl {
-                return Action::SetMark;
-            }
+        if let NamedKey::Space = named
+            && ctrl
+        {
+            return Action::SetMark;
         }
         // Plain arrows and convention-independent Ctrl-arrow word aliases are input
         // policy. Catalogued Option/Cmd arrow defaults have already resolved through

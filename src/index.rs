@@ -257,18 +257,17 @@ fn git_ls(root: &Path, args: &[&str]) -> Vec<String> {
         .arg(root)
         .args(args)
         .output()
+        && o.status.success()
     {
-        if o.status.success() {
-            for line in String::from_utf8_lossy(&o.stdout).lines() {
-                let rel = line.trim();
-                if rel.is_empty() {
-                    continue;
-                }
-                if rel.split('/').any(is_junk_dir) {
-                    continue;
-                }
-                files.push(rel.to_string());
+        for line in String::from_utf8_lossy(&o.stdout).lines() {
+            let rel = line.trim();
+            if rel.is_empty() {
+                continue;
             }
+            if rel.split('/').any(is_junk_dir) {
+                continue;
+            }
+            files.push(rel.to_string());
         }
     }
     files
@@ -300,10 +299,11 @@ fn walk_collect(
                 continue;
             }
             walk_collect(root, &path, out, keep);
-        } else if entry.is_file && keep(&name) {
-            if let Ok(rel) = path.strip_prefix(root) {
-                out.push(rel.to_string_lossy().replace('\\', "/"));
-            }
+        } else if entry.is_file
+            && keep(&name)
+            && let Ok(rel) = path.strip_prefix(root)
+        {
+            out.push(rel.to_string_lossy().replace('\\', "/"));
         }
     }
 }

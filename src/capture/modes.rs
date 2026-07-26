@@ -329,13 +329,12 @@ pub(super) fn settled_viewstate(
         && !search_active
         && !vstate.overlay_active
         && (opts.force_popover || std::env::var_os("AWL_POPOVER").is_some())
+        && let Some(((l0, c0), (l1, c1))) = vstate.selection
     {
-        if let Some(((l0, c0), (l1, c1))) = vstate.selection {
-            let a = buffer.line_col_to_char(l0, c0);
-            let c = buffer.line_col_to_char(l1, c1);
-            vstate.popover =
-                crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
-        }
+        let a = buffer.line_col_to_char(l0, c0);
+        let c = buffer.line_col_to_char(l1, c1);
+        vstate.popover =
+            crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
     }
     // CRISP-BACKDROP exception: the THEME / CARET / HISTORY pickers keep the doc
     // crisp (no frosted blur) — the theme/caret cards preview live document state,
@@ -368,7 +367,7 @@ pub(super) fn settled_viewstate(
         .overlay
         .as_ref()
         .filter(|o| {
-            crate::overlay::OverlayKind::from_mode(o.mode).map_or(true, |k| k.draws_title_prefix())
+            crate::overlay::OverlayKind::from_mode(o.mode).is_none_or(|k| k.draws_title_prefix())
         })
         .map(|o| o.title)
         .unwrap_or("");
@@ -567,7 +566,7 @@ pub(super) fn settled_viewstate(
             // minimal-adjust — so a `--keys` capture with typewriter on verifies the
             // centered scroll deterministically.
             if !crate::typewriter::typewriter_on() {
-                follow_scroll(&pipeline, sc_line, sc_col, height as f32)
+                follow_scroll(pipeline, sc_line, sc_col, height as f32)
             } else {
                 // Typewriter scroll CENTERS the cursor row (the pin), clamped so the
                 // document tail can't be pulled past its bottom.

@@ -144,17 +144,15 @@ pub(crate) fn record_at(
         .map(|e| e.content == content)
         .unwrap_or(false)
     {
-        if pinned {
-            if let Some(first) = entries.first_mut() {
-                let rename = name.is_some() && first.name != name;
-                if !first.pinned || rename {
-                    first.pinned = true;
-                    if rename {
-                        first.name = name;
-                    }
-                    prune_ladder(&mut entries, now_ms);
-                    write_log(path, &entries);
+        if pinned && let Some(first) = entries.first_mut() {
+            let rename = name.is_some() && first.name != name;
+            if !first.pinned || rename {
+                first.pinned = true;
+                if rename {
+                    first.name = name;
                 }
+                prune_ladder(&mut entries, now_ms);
+                write_log(path, &entries);
             }
         }
         return;
@@ -162,10 +160,10 @@ pub(crate) fn record_at(
     // A strictly-increasing millis stamp doubles as the snapshot id; bump past the
     // newest so two saves in the same millisecond still get distinct ids.
     let mut ts = now_ms;
-    if let Some(first) = entries.first() {
-        if ts <= first.ts {
-            ts = first.ts + 1;
-        }
+    if let Some(first) = entries.first()
+        && ts <= first.ts
+    {
+        ts = first.ts + 1;
     }
     entries.insert(
         0,
@@ -188,12 +186,12 @@ pub(crate) fn record_at(
 /// For a loose file it reads the awl log. Empty when there is no history.
 /// (Read-back API — consumed by the timeline picker via [`timeline_rows`].)
 pub fn list(path: &Path) -> Vec<Snapshot> {
-    if is_git_managed(path) {
-        if let Some(v) = git_list(path) {
-            return v;
-        }
-        // git unavailable: fall back to any awl snapshots.
+    if is_git_managed(path)
+        && let Some(v) = git_list(path)
+    {
+        return v;
     }
+    // git unavailable: fall back to any awl snapshots.
     read_log(path)
         .into_iter()
         .map(|e| Snapshot {
@@ -213,12 +211,12 @@ pub fn list(path: &Path) -> Vec<Snapshot> {
 /// captured, so a restore is just replacing the buffer text (undoable via the
 /// existing undo — the timeline's Enter → `Buffer::set_text`). (Read-back API.)
 pub fn load(path: &Path, id: &str) -> Option<String> {
-    if is_git_managed(path) {
-        if let Some(c) = git_show(path, id) {
-            return Some(c);
-        }
-        // git unavailable: fall through to the awl log.
+    if is_git_managed(path)
+        && let Some(c) = git_show(path, id)
+    {
+        return Some(c);
     }
+    // git unavailable: fall through to the awl log.
     read_log(path)
         .into_iter()
         .find(|e| e.ts.to_string() == id)
@@ -406,14 +404,13 @@ pub(super) fn decode_name(token: &str) -> String {
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' {
-            if let Some(hex) = bytes.get(i + 1..i + 3) {
-                if let Ok(b) = u8::from_str_radix(std::str::from_utf8(hex).unwrap_or(""), 16) {
-                    out.push(b);
-                    i += 3;
-                    continue;
-                }
-            }
+        if bytes[i] == b'%'
+            && let Some(hex) = bytes.get(i + 1..i + 3)
+            && let Ok(b) = u8::from_str_radix(std::str::from_utf8(hex).unwrap_or(""), 16)
+        {
+            out.push(b);
+            i += 3;
+            continue;
         }
         out.push(bytes[i]);
         i += 1;

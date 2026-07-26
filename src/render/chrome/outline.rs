@@ -176,7 +176,7 @@ fn reveal_shown_with(
     }
     // The nearest top-level heading AT or ABOVE a heading index — its "section".
     let section_of = |i: usize| (0..=i).rev().find(|&j| is_top_level(headings[j].level));
-    let cur_section = current.and_then(|c| section_of(c));
+    let cur_section = current.and_then(&section_of);
     (0..headings.len())
         .filter(|&i| is_top_level(headings[i].level) || section_of(i) == cur_section)
         .collect()

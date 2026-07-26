@@ -1796,10 +1796,11 @@ impl App {
                         Action::Cancel
                     };
                     let _ = self.apply(action, false, event_loop, crate::stats::Door::Chord);
-                    if !open && self.overlay.is_none() {
-                        if let Some(s) = self.soak.as_mut() {
-                            s.observe_overlay_cycle();
-                        }
+                    if !open
+                        && self.overlay.is_none()
+                        && let Some(s) = self.soak.as_mut()
+                    {
+                        s.observe_overlay_cycle();
                     }
                 }
                 crate::soak_gpu::Stimulus::Inject(kind) => {
@@ -2227,10 +2228,10 @@ impl ApplicationHandler<AwlEvent> for App {
         // probe step. A no-op under a plain launch or the automated `--live-script`
         // probe (which reports via its own explicit `latency` step instead).
         #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::flight_active() {
-            if let Some(dist) = crate::probe::latency_distribution() {
-                crate::probe::trace(format_args!("movement-latency distribution: {dist}"));
-            }
+        if crate::probe::flight_active()
+            && let Some(dist) = crate::probe::latency_distribution()
+        {
+            crate::probe::trace(format_args!("movement-latency distribution: {dist}"));
         }
     }
 

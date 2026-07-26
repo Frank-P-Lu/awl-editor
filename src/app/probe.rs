@@ -128,12 +128,10 @@ impl App {
                     // means the compositor was handed frames it never showed.
                     let mirror_path = path.with_extension("mirror.png");
                     self.probe_shot_mirror(&mirror_path, "companion mirror");
-                    return;
                 }
                 Err(reason) => {
                     // Fall through to the frame mirror, naming why on the line.
                     self.probe_shot_mirror(path, &reason);
-                    return;
                 }
             }
         }
