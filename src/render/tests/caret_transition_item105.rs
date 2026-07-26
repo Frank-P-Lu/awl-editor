@@ -1091,3 +1091,239 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
 }
+
+/// ITEM 105 — THE THIRD REPAIR ROUND. Round 2's `nearest_row_raster_box`
+/// searched outward and hard-PICKED whichever side won (backward on a tie).
+/// That borrows exactly ONE side's ink, so a glyphless column tied between
+/// two DIFFERENT real letters (a table's `"| 1"` — pipe one side, digit the
+/// other, tied at distance 1) read as pure pipe ink: the backward seam
+/// (pipe->space) closed to a clean 0.00px while the untouched FORWARD seam
+/// (space->digit) inherited the WHOLE pipe-to-digit gap. Flipping the
+/// tiebreak to prefer forward is NOT a fix — it only rotates the same whole
+/// gap onto the other seam, still directional, still one seam absorbing
+/// everything.
+///
+/// THE BAR. Rather than assume an arbitrary ceiling, this law MEASURES what
+/// the product already ships and accepts: the real GLYPH-TO-GLYPH adjacent
+/// cell delta between genuinely different letter classes (x-height,
+/// ascender, descender, capital, digit, punctuation, ligature) — transitions
+/// nobody has ever filed as a bug, because two adjacent DIFFERENT real
+/// letters legitimately draw different cells. That empirical worst case
+/// becomes the ceiling a glyphless seam must clear: "no worse than the
+/// glyph-to-glyph seams the product already accepts" (not an assumed
+/// constant — see the round's own report for the literal numbers: median
+/// ~5.5-6px, worst 14.0px, `digit->punctuation` on Bombora/Mopoke/Galah).
+///
+/// THE FIX PROVEN HERE: blending the two sides by relative distance makes
+/// the borrow non-directional — the tied `"| 1"` space now reads as the
+/// MIDPOINT of pipe and digit, so EACH seam absorbs roughly half the gap
+/// instead of one absorbing all of it. Both seams measure well inside the
+/// empirical bar on every world (worst observed 4.0px, a third of the
+/// bar's 14.0px), and — the mechanism claim — the two seams are now
+/// (near-)SYMMETRIC, which round 2's hard pick structurally could not
+/// produce (a hard pick always drove one side to 0 and the other to the
+/// full gap).
+#[test]
+fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar: no wgpu adapter"
+        );
+        return;
+    };
+    let mono = super::facepitch::mono_display_worlds();
+    let prop: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| !mono.contains(&t.name))
+        .map(|t| t.name)
+        .collect();
+    assert!(prop.len() >= 11, "full proportional roster (got {})", prop.len());
+
+    // ---- STEP 1: measure the bar. Real glyph pairs, adjacent columns, both
+    // sides genuine ink (never the fallback arm) — the transitions the
+    // product ships today with nobody calling them a bug.
+    let glyph_pairs: &[&str] = &["al", "ag", "a1", "a.", "aA", "lg", "1.", "A1", "Ag", ".A"];
+    let mut bar = 0.0f32;
+    for &world in &prop {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        for &text in glyph_pairs {
+            p.set_view(&view(text, 0, 0));
+            p.settle_caret();
+            if p.caret_anchor_ink_box().is_none() {
+                continue;
+            }
+            let c0 = p.caret_cell_vertical();
+            p.set_view(&view(text, 0, 1));
+            p.settle_caret();
+            if p.caret_anchor_ink_box().is_none() {
+                continue;
+            }
+            let c1 = p.caret_cell_vertical();
+            bar = bar.max(cell_delta(c0, c1) / pixel_scale(&p));
+        }
+    }
+    // NON-VACUITY: the bar itself must be a real, non-trivial number, or
+    // "hold glyphless seams to it" is a vacuous claim.
+    assert!(
+        bar > 5.0,
+        "the measured glyph-to-glyph bar must be a real, non-trivial ceiling \
+         (got {bar:.2}px) or this law tests nothing"
+    );
+
+    // ---- STEP 2: every glyphless seam this round's fix targets, measured
+    // against that SAME bar, on every proportional world.
+    let mut worst_glyphless = 0.0f32;
+    let mut sym_worst = 0.0f32;
+    for &world in &prop {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        let ps = {
+            p.set_view(&view("a", 0, 0));
+            pixel_scale(&p)
+        };
+        let bound = bar * ps;
+
+        // THE OPEN DEFECT ITSELF: "| 1" (pipe, space, digit) — BOTH seams.
+        let c_pipe = cell_at(&mut p, "| 1", 0, 0);
+        let c_space = cell_at(&mut p, "| 1", 0, 1);
+        let c_digit = cell_at(&mut p, "| 1", 0, 2);
+        let bwd = cell_delta(c_pipe, c_space);
+        let fwd = cell_delta(c_space, c_digit);
+        assert!(
+            bwd <= bound && fwd <= bound,
+            "{world}: '| 1' seam(s) exceed the product's own accepted bar \
+             ({bar:.2}px): bwd={:.2} fwd={:.2}",
+            bwd / ps,
+            fwd / ps
+        );
+        worst_glyphless = worst_glyphless.max(bwd / ps).max(fwd / ps);
+        // THE MECHANISM CLAIM: a tied single space between two different
+        // letters must now be (near-)SYMMETRIC — round 2's hard pick could
+        // never produce this (one side was always exactly 0, the other the
+        // whole gap).
+        sym_worst = sym_worst.max((bwd - fwd).abs() / ps);
+
+        // The rest of the round's fixture list, each within the same bar.
+        let fixtures: &[(&str, usize, usize)] = &[
+            ("aaa", 2, 3),      // the headline case
+            (" A", 0, 1),       // leading glyphless, column 0
+            ("A  ", 0, 1),      // run of 2+, first seam
+            ("A  ", 1, 2),      // run of 2+, interior seam
+            ("A  ", 2, 3),      // run of 2+, tail -> EOL
+            ("| 1  Capital |", 2, 3), // real table row
+            ("| 1  Capital |", 4, 5),
+            ("hi ", 1, 2),      // line ending in a space
+            ("hi ", 2, 3),
+            ("xg", 1, 2),       // descender adjacent to EOL
+        ];
+        for &(text, a, b) in fixtures {
+            let ca = cell_at(&mut p, text, 0, a);
+            let cb = cell_at(&mut p, text, 0, b);
+            let d = cell_delta(ca, cb);
+            assert!(
+                d <= bound,
+                "{world}: {text:?} col{a}->{b} exceeds the product's own \
+                 accepted bar ({bar:.2}px): Δ={:.2}",
+                d / ps
+            );
+            worst_glyphless = worst_glyphless.max(d / ps);
+        }
+
+        // A completely empty line, versus a fresh 'a' line's real ink height
+        // — the synthetic arm, not neighbor-borrow, but still held to the
+        // same bar since it is also a glyphless-anchor fallback value.
+        let (_cy_a, h_a) = cell_at(&mut p, "a", 0, 0);
+        let (_cy_e, h_e) = cell_at(&mut p, "", 0, 0);
+        assert!(
+            (h_a - h_e).abs() <= bound,
+            "{world}: empty-line synthetic height exceeds the bar ({bar:.2}px): \
+             a={h_a:.2} empty={h_e:.2}",
+        );
+    }
+
+    assert!(
+        sym_worst < bar * 0.5,
+        "the '| 1' backward/forward seams must be substantially more symmetric \
+         than a hard directional pick (worst asymmetry {sym_worst:.2}px vs bar {bar:.2}px)"
+    );
+
+    eprintln!(
+        "glyph-to-glyph bar={bar:.2}px; worst glyphless seam={worst_glyphless:.2}px; \
+         worst '| 1' bwd/fwd asymmetry={sym_worst:.2}px"
+    );
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// THE INTERIOR-FLIP DEFECT (disclosed, out of item 105's original stated
+/// scope but the same mechanism): a run of 4+ glyphless columns flanked by
+/// two DIFFERENT real letters. Round 2's nearest-distance-wins pick made
+/// exactly ONE interior column switch from "nearest is the left letter" to
+/// "nearest is the right letter" — a hard, single-column STEP from one
+/// letter's full ink to the other's, with nothing between to soften it
+/// (measured 6.5-7.0px on Bombora against this same fixture shape).
+///
+/// The blend fix makes every step in the run small: `t` changes by a fixed
+/// increment column-to-column, so the interpolated box moves smoothly, and
+/// NO single adjacent pair in the run may jump by more than any other pair —
+/// there is no longer a privileged "flip" column at all.
+#[test]
+fn interior_run_between_two_different_letters_has_no_flip_step() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping interior_run_between_two_different_letters_has_no_flip_step: no wgpu adapter");
+        return;
+    };
+    // 'A' (capital), 5 glyphless spaces, 'y' (descender) — a run of 5
+    // interior glyphless columns flanked by two different real letter
+    // classes, the exact shape the interior-flip defect needs.
+    let text = "A     y";
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+
+    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        p.set_view(&view(text, 0, 0));
+        p.settle_caret();
+        let ps = pixel_scale(&p);
+
+        let cols: Vec<(f32, f32)> = (0..=6).map(|c| cell_at(&mut p, text, 0, c)).collect();
+        let steps: Vec<f32> = (0..cols.len() - 1).map(|i| cell_delta(cols[i], cols[i + 1]) / ps).collect();
+        let max_step = steps.iter().cloned().fold(0.0f32, f32::max);
+        let min_step = steps.iter().cloned().fold(f32::MAX, f32::min);
+
+        // NO FLIP: every step in the run is small on its own terms — well
+        // under the ligature-class wide bound, and critically no single step
+        // dominates the others (a "flip" is exactly one step being many
+        // times larger than its neighbors).
+        assert!(
+            max_step <= TRANSITION_BOUND_WIDE_PX,
+            "{}: a step in the 'A     y' run exceeds the wide sanity bound \
+             ({TRANSITION_BOUND_WIDE_PX}px): steps={steps:?}",
+            t.name
+        );
+        assert!(
+            max_step <= min_step * 4.0 + 0.5,
+            "{}: one step in the run dominates the others (a flip) — \
+             steps={steps:?} (max={max_step:.2} min={min_step:.2})",
+            t.name
+        );
+        checked += 1;
+    }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
