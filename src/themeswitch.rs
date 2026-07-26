@@ -13,12 +13,12 @@
 //!   * `font X · reshape Y · rowgeom Z · atlas W · present P` — each WORK phase's own
 //!     duration (ms), for that `theme worst` transaction, in wall-clock order:
 //!       - `font`    — adopt the new world's effective face + rewrap the document to it
-//!                    (`sync_theme_font`'s pre-shape reconfigure; cosmic-text loads the
-//!                    face lazily, so its file-load cost is amortized into `reshape`/`atlas`).
+//!         (`sync_theme_font`'s pre-shape reconfigure; cosmic-text loads the
+//!         face lazily, so its file-load cost is amortized into `reshape`/`atlas`).
 //!       - `reshape` — re-lay every line's attrs + shape the whole document in the new face.
 //!       - `rowgeom` — recompute the variable-row visual-geometry cache.
 //!       - `atlas`   — the settled frame's `prepare` span (rasterize + upload the new
-//!                    face's glyphs into the atlas; on a switch frame this dominates prepare).
+//!         face's glyphs into the atlas; on a switch frame this dominates prepare).
 //!       - `present` — that frame's encode + submit + present (the reshaped doc reaches screen).
 //!
 //! THE PURE / LIVE SPLIT (mirrors `debug.rs`'s readout functions). This module reads
