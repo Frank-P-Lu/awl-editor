@@ -386,6 +386,11 @@ each expected nested sidecar value, so a keystroke journey that rendered the
 wrong Settings facet or failed to summon its surface cannot produce a green
 dashboard merely because a PNG exists.
 
+Clicking a screenshot opens its full-resolution asset in an offline modal
+lightbox. `←`/`→` walk the currently visible filtered set; `Escape`, the close
+control, or the backdrop dismiss it and return focus to the invoking card.
+Modified clicks retain the image link's ordinary new-tab behavior.
+
 The world half derives its roster from `awl --list-worlds`. The smaller
 important-screen roster lives in `scripts/review/scenes.tsv`: one typed row per
 fixture/theme/canvas/key sequence/capture mode/state expectation, so adding or

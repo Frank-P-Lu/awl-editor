@@ -228,8 +228,23 @@ const html = `<!doctype html>
   .shot[hidden] { display:none; }
   .summary { margin:0 0 28px; padding:12px 14px; color:var(--muted); background:var(--panel); border:1px solid var(--line); border-radius:8px; }
   .summary strong { color:var(--ink); }
+  dialog.lightbox { width:100vw; max-width:none; height:100vh; max-height:none; margin:0; padding:0; border:0; background:transparent; color:var(--ink); overflow:hidden; }
+  dialog.lightbox::backdrop { background:rgb(4 5 4 / .92); backdrop-filter:blur(8px); }
+  .lightbox-shell { position:relative; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:14px; width:100%; height:100%; padding:22px; }
+  .lightbox figure { min-width:0; max-width:100%; max-height:100%; margin:0; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .lightbox img { display:block; max-width:100%; max-height:calc(100vh - 86px); object-fit:contain; border-radius:5px; box-shadow:0 20px 70px rgb(0 0 0 / .5); }
+  .lightbox figcaption { display:flex; gap:12px; width:100%; justify-content:center; color:var(--muted); }
+  .lightbox figcaption strong { color:var(--ink); }
+  .lightbox button { color:var(--ink); background:rgb(27 29 25 / .88); border:1px solid #4a5045; border-radius:999px; width:44px; height:44px; padding:0; font-size:22px; cursor:pointer; }
+  .lightbox button:hover, .lightbox button:focus-visible { border-color:var(--accent); outline:none; }
+  .lightbox-close { position:absolute; z-index:1; top:18px; right:18px; }
+  .lightbox-position { font:12px/1.4 ui-monospace,SFMono-Regular,monospace; }
   .provenance { color:${dirty ? "#ffb36b" : "var(--muted)"}; }
-  @media (max-width:650px) { header,main{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr} }
+  @media (max-width:650px) {
+    header,main{padding-left:12px;padding-right:12px}.grid{grid-template-columns:1fr}
+    .lightbox-shell{grid-template-columns:1fr;padding:58px 10px 10px}.lightbox-prev,.lightbox-next{position:absolute;bottom:12px}.lightbox-prev{left:12px}.lightbox-next{right:12px}
+    .lightbox img{max-height:calc(100vh - 130px)}.lightbox figcaption{padding:0 48px}
+  }
 </style>
 </head>
 <body>
@@ -255,10 +270,31 @@ const html = `<!doctype html>
   <section id="journeys"><h2>Important screens</h2><div class="grid">${sceneCards}</div></section>
   <section id="icons"><h2>Shipped app icons</h2><div class="grid">${iconCards}</div></section>
 </main>
+<dialog class="lightbox" id="lightbox" aria-modal="true" aria-labelledby="lightbox-title">
+  <div class="lightbox-shell">
+    <button class="lightbox-close" type="button" aria-label="Close preview">×</button>
+    <button class="lightbox-prev" type="button" aria-label="Previous image">←</button>
+    <figure>
+      <img id="lightbox-image" alt="">
+      <figcaption>
+        <strong id="lightbox-title"></strong>
+        <span class="lightbox-position" id="lightbox-position" aria-live="polite"></span>
+      </figcaption>
+    </figure>
+    <button class="lightbox-next" type="button" aria-label="Next image">→</button>
+  </div>
+</dialog>
 <script>
   const world = document.querySelector("#world");
   const mode = document.querySelector("#mode");
   const surface = document.querySelector("#surface");
+  const lightbox = document.querySelector("#lightbox");
+  const lightboxImage = document.querySelector("#lightbox-image");
+  const lightboxTitle = document.querySelector("#lightbox-title");
+  const lightboxPosition = document.querySelector("#lightbox-position");
+  let lightboxLinks = [];
+  let lightboxIndex = 0;
+  let lightboxInvoker = null;
   const apply = () => {
     for (const shot of document.querySelectorAll(".shot")) {
       const worldMatch = !world.value || shot.dataset.world === world.value;
@@ -267,6 +303,55 @@ const html = `<!doctype html>
       shot.hidden = !(worldMatch && modeMatch && surfaceMatch);
     }
   };
+  const visibleImageLinks = () =>
+    [...document.querySelectorAll(".shot:not([hidden]) .image-link")];
+  const updateLightbox = () => {
+    const link = lightboxLinks[lightboxIndex];
+    const card = link.closest(".shot");
+    const thumbnail = link.querySelector("img");
+    lightboxImage.src = link.getAttribute("href");
+    lightboxImage.alt = thumbnail.alt;
+    lightboxTitle.textContent = card.querySelector("h3").textContent;
+    lightboxPosition.textContent = (lightboxIndex + 1) + " of " + lightboxLinks.length;
+    const only = lightboxLinks.length < 2;
+    document.querySelector(".lightbox-prev").disabled = only;
+    document.querySelector(".lightbox-next").disabled = only;
+  };
+  const stepLightbox = (delta) => {
+    lightboxIndex = (lightboxIndex + delta + lightboxLinks.length) % lightboxLinks.length;
+    updateLightbox();
+  };
+  const closeLightbox = () => {
+    if (lightbox.open) lightbox.close();
+  };
+  for (const link of document.querySelectorAll(".image-link")) {
+    link.addEventListener("click", (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      lightboxLinks = visibleImageLinks();
+      lightboxIndex = lightboxLinks.indexOf(link);
+      lightboxInvoker = link;
+      updateLightbox();
+      lightbox.showModal();
+      document.querySelector(".lightbox-close").focus();
+    });
+  }
+  document.querySelector(".lightbox-close").addEventListener("click", closeLightbox);
+  document.querySelector(".lightbox-prev").addEventListener("click", () => stepLightbox(-1));
+  document.querySelector(".lightbox-next").addEventListener("click", () => stepLightbox(1));
+  lightbox.addEventListener("click", (event) => {
+    if (event.target === lightbox || event.target.classList.contains("lightbox-shell")) closeLightbox();
+  });
+  lightbox.addEventListener("cancel", (event) => { event.preventDefault(); closeLightbox(); });
+  lightbox.addEventListener("close", () => {
+    lightboxImage.removeAttribute("src");
+    lightboxInvoker?.focus();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (!lightbox.open) return;
+    if (event.key === "ArrowLeft") { event.preventDefault(); stepLightbox(-1); }
+    if (event.key === "ArrowRight") { event.preventDefault(); stepLightbox(1); }
+  });
   world.addEventListener("change", apply);
   mode.addEventListener("change", apply);
   surface.addEventListener("change", apply);
@@ -276,6 +361,13 @@ const html = `<!doctype html>
 </html>`;
 
 if (/https?:\/\//i.test(html)) throw new Error("dashboard contains an external URL");
+const inlineScript = html.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+if (!inlineScript) throw new Error("dashboard contains no interaction script");
+try {
+  new Function(inlineScript);
+} catch (error) {
+  throw new Error(`dashboard interaction script does not parse: ${error.message}`);
+}
 fs.writeFileSync(path.join(out, "index.html"), html);
 
 const expectedCards = worlds.length * 2 + scenes.length + 2;
@@ -283,4 +375,16 @@ const actualCards = (html.match(/<article class="shot"/g) ?? []).length;
 if (actualCards !== expectedCards) throw new Error(`DOM card count ${actualCards} != manifest count ${expectedCards}`);
 const domIds = [...html.matchAll(/<article class="shot"[^>]+id="([^"]+)"/g)].map((match) => match[1]);
 if (new Set(domIds).size !== domIds.length) throw new Error("dashboard contains duplicate card ids");
+for (const hook of [
+  '<dialog class="lightbox" id="lightbox" aria-modal="true"',
+  'aria-label="Close preview"',
+  'aria-label="Previous image"',
+  'aria-label="Next image"',
+  'event.key === "ArrowLeft"',
+  'event.key === "ArrowRight"',
+  'lightbox.addEventListener("cancel"',
+  'lightboxInvoker?.focus()',
+]) {
+  if (!html.includes(hook)) throw new Error(`dashboard lightbox is missing required hook: ${hook}`);
+}
 console.log(`dashboard: ${path.join(out, "index.html")} (${actualCards} cards)`);
