@@ -99,12 +99,19 @@ pub(in crate::render) const CARD_CONTENT_MIN_W: f32 = 160.0;
 /// the real header line's metrics by exactly this, so the band/glyphs/caret
 /// all move together — no alignment class to regress). LIVE-ONLY: whether
 /// `1.3` finally reads right needs a human eye.
-const OVERLAY_QUERY_BEAT: f32 = 1.3;
+// The strip's real shaped line consumes this beat on faceted cards, so raising
+// this one shared value opens the title → facet relationship as well as the
+// facet → candidate relationship.  It is deliberately not a Commands-only
+// spacer: every overlay has one vertical composition grammar.
+const OVERLAY_QUERY_BEAT: f32 = 1.55;
 
 /// The foot HINT row height (item 5), as a fraction of the overlay row height —
 /// a compact footer that hugs the card's bottom edge instead of floating a full
 /// row high. A single dial the gallery A/Bs; see [`TextPipeline::overlay_hint_h`].
-const OVERLAY_HINT_ROW: f32 = 0.62;
+// A little taller than the old compact strip: its label is centred lower in its
+// assigned line, leaving a visible pause after the last candidate before the
+// instruction without adding a second footer row.
+const OVERLAY_HINT_ROW: f32 = 0.70;
 
 /// The comfortable BREATH kept below the compact foot-hint before the card's
 /// bottom pad (C2 footer-tuning). The card counts each hint row as a full `lh`
@@ -112,7 +119,8 @@ const OVERLAY_HINT_ROW: f32 = 0.62;
 /// difference LESS this breath, so the footer reads calm, never cramped against
 /// the edge. ONE token, applied identically to every `OverlayKind` through
 /// [`TextPipeline::overlay_footer_reclaim`].
-const OVERLAY_FOOTER_PAD: f32 = 5.0;
+// Keep the instruction's air ABOVE it, not as an empty chin below it.
+const OVERLAY_FOOTER_PAD: f32 = 2.0;
 
 /// PURE horizontal-placement policy for the summoned card: given the window
 /// width `ww`, the card's WIDE desired width, return its `(left, width)`.
