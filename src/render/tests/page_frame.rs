@@ -38,6 +38,28 @@ fn parse_page_frame_force_rejects_garbage() {
     }
 }
 
+#[test]
+fn page_frame_vertical_bounds_cover_short_tall_scrolled_and_menu_bar_cases() {
+    use crate::render::layers::page_frame_vertical_bounds;
+
+    let cases = [
+        ("empty", 16.0, 0.0, 0.0, 359.0, 16.0, 359.0),
+        ("one line", 16.0, 32.0, 0.0, 359.0, 16.0, 359.0),
+        ("short", 16.0, 64.0, 0.0, 359.0, 16.0, 359.0),
+        ("tall", 16.0, 3200.0, 0.0, 359.0, 16.0, 359.0),
+        ("scrolled", -624.0, 3200.0, 0.0, 359.0, 0.0, 359.0),
+        ("scrolled below menu", -600.0, 3200.0, 24.0, 359.0, 24.0, 359.0),
+    ];
+    for (name, doc_top, doc_height, menu_bottom, canvas_bottom, want_top, want_bottom) in cases {
+        assert_eq!(
+            page_frame_vertical_bounds(doc_top, doc_height, menu_bottom, canvas_bottom),
+            (want_top, want_bottom),
+            "{name} frame bounds"
+        );
+    }
+    assert_ne!(16.0 + 32.0, 359.0, "sanity: old one-line bottom must fail");
+}
+
 /// A `(Device, Queue, TextPipeline)` triple, or `None` on a GPU-less machine
 /// — the same accepted per-file duplication every real-pixel test module
 /// carries (see `distinguishability.rs`'s own doc note).
@@ -83,8 +105,10 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
     let _g = crate::testlock::serial();
     let was_page_on = crate::page::page_on();
     let was_measure = crate::page::measure();
+    let was_menu_bar_on = crate::menubar::menu_bar_on();
     crate::page::set_measure(24);
     crate::page::set_page_on(true);
+    crate::menubar::set_menu_bar_on(false);
 
     theme::set_active_by_name("Wagtail").unwrap();
     p.sync_theme();
@@ -133,10 +157,12 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
         white,
         "the frame's TOP edge band must be the pure ladder white at ({mid_x}, {top_band_y})"
     );
+    let bottom_band_y = 359;
+    assert_eq!(at(mid_x, bottom_band_y), white, "short document frame reaches canvas bottom");
     // IN-BOUNDS: every sampled band coordinate is strictly on-canvas (the
     // samples above would have panicked on an out-of-range index otherwise —
     // assert it explicitly so the law reads).
-    for (x, y) in [(left_band_x, mid_y), (right_band_x, mid_y), (mid_x, top_band_y)] {
+    for (x, y) in [(left_band_x, mid_y), (right_band_x, mid_y), (mid_x, top_band_y), (mid_x, bottom_band_y)] {
         assert!(
             (0..500).contains(&x) && (0..360).contains(&y),
             "frame sample ({x}, {y}) fell off the canvas — the frame must draw in-bounds"
@@ -159,19 +185,62 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
         "the page just INSIDE the frame stays the flat pure-black ground"
     );
 
-    // THE ABSENT HALF: a default-caps world (PageFrame::None) uploads zero
-    // frame rects through the very same prepare path.
-    theme::set_active(theme::DEFAULT_THEME);
-    p.sync_theme();
+    crate::page::set_page_on(false);
     p.set_view(&v);
     p.prepare(&device, &queue, 500, 360).unwrap();
+    let off_mid_x = (p.column_left() + p.column_width() * 0.5) as i64;
+    let (texture, tview) = offscreen(&device, 500, 360);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame page-off encoder") });
+    p.render(&mut encoder, &tview).unwrap();
+    queue.submit(Some(encoder.finish()));
+    let off_pixels = read_pixels(&device, &queue, &texture, 500, 360);
     assert_eq!(
-        p.page_frame_pipeline.instance_count(),
-        0,
-        "a PageFrame::None world must upload ZERO frame rects (byte-identity for the \
-         unassigned roster)"
+        off_pixels[(359 * 500 + off_mid_x) as usize], white,
+        "page-off short document closes its frame at the canvas bottom"
     );
+
+    crate::page::set_page_on(true);
+    let tall = (0..100).map(|_| "line").collect::<Vec<_>>().join("\n");
+    let mut scrolled = view(&tall, 0, 0);
+    scrolled.scroll_lines = 40;
+    p.set_view(&scrolled);
+    p.prepare(&device, &queue, 500, 360).unwrap();
+    let scroll_left_band = (p.column_left() - weight * 0.5).floor() as i64;
+    let (texture, tview) = offscreen(&device, 500, 360);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame scrolled encoder") });
+    p.render(&mut encoder, &tview).unwrap();
+    queue.submit(Some(encoder.finish()));
+    let scrolled_pixels = read_pixels(&device, &queue, &texture, 500, 360);
+    assert_eq!(scrolled_pixels[(4 * 500 + scroll_left_band) as usize], white);
+    assert_eq!(scrolled_pixels[(359 * 500 + scroll_left_band) as usize], white);
+
+    crate::menubar::set_menu_bar_on(true);
+    p.set_view(&scrolled);
+    p.prepare(&device, &queue, 500, 360).unwrap();
+    let reserve = p.menubar_reserve() as i64;
+    let menu_left_band = (p.column_left() - weight * 0.5).floor() as i64;
+    let (texture, tview) = offscreen(&device, 500, 360);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("awl page-frame menu-bar encoder") });
+    p.render(&mut encoder, &tview).unwrap();
+    queue.submit(Some(encoder.finish()));
+    let menu_pixels = read_pixels(&device, &queue, &texture, 500, 360);
+    assert_eq!(menu_pixels[((reserve + 4) * 500 + menu_left_band) as usize], white);
+    assert_ne!(menu_pixels[((reserve - 1) * 500 + menu_left_band) as usize], white);
+    crate::menubar::set_menu_bar_on(false);
+
+    for world in theme::THEMES.iter() {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        p.set_view(&v);
+        p.prepare(&device, &queue, 500, 360).unwrap();
+        let expected = match world.render_caps.page_frame {
+            theme::PageFrame::None => 0,
+            theme::PageFrame::Line { .. } => 4,
+        };
+        assert_eq!(p.page_frame_pipeline.instance_count(), expected, "{}: state follows capability", world.name);
+    }
 
     crate::page::set_page_on(was_page_on);
     crate::page::set_measure(was_measure);
+    crate::menubar::set_menu_bar_on(was_menu_bar_on);
 }
