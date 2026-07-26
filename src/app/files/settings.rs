@@ -103,8 +103,8 @@ impl App {
     ///   * CONFIG-ONLY (autosave / history / session_restore) — no global;
     ///     persisting the flipped value into `self.config` is enough (they are read
     ///     live from the config on demand).
-    ///    Persistence rides the ONE `persist_pref` owner (its mirror-match now covers
-    ///    every key here), so there is no bespoke per-toggle writer to drift.
+    ///     Persistence rides the ONE `persist_pref` owner (its mirror-match now covers
+    ///     every key here), so there is no bespoke per-toggle writer to drift.
     pub(in crate::app) fn setting_toggle(&mut self, key: &str) {
         // KEYMAP is NOT a plain bool config key (its value is "native"/"emacs", not
         // "true"/"false"), so it can't ride the generic bool mechanism below —

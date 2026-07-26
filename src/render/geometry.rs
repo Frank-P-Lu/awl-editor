@@ -728,15 +728,15 @@ fn diagonal_width(gx: f32, gy: f32, w: f32, h: f32) -> f32 {
 ///     converted to a width through the fixed aspect (`w/h`).
 ///   * corners — the diagonal projection ([`diagonal_width`]) of the pointer's growth
 ///     from the anchored corner drives.
-///    Clamped to `[min, wrap]` and ADDITIONALLY to the width whose IMPLIED height
-///    (at the rect's own fixed aspect) hits `max_h` — the SAME
-///    [`super::spans::IMAGE_MAX_VIEWPORT_FRAC`]-scaled viewport ceiling
-///    [`super::spans::image_display_size`] enforces on the undragged fit-to-column
-///    size, so a drag can never grow an image past the height cap either. Never
-///    below [`MIN_IMAGE_W`] and never past the writing-column `wrap` width (the
-///    fit-to-column ceiling). A non-positive `max_h` disables that half of the
-///    clamp (matches [`super::spans::image_display_size`]'s own escape hatch).
-///    Pure, so the px→width mapping is unit-testable without a GPU.
+///     Clamped to `[min, wrap]` and ADDITIONALLY to the width whose IMPLIED height
+///     (at the rect's own fixed aspect) hits `max_h` — the SAME
+///     [`super::spans::IMAGE_MAX_VIEWPORT_FRAC`]-scaled viewport ceiling
+///     [`super::spans::image_display_size`] enforces on the undragged fit-to-column
+///     size, so a drag can never grow an image past the height cap either. Never
+///     below [`MIN_IMAGE_W`] and never past the writing-column `wrap` width (the
+///     fit-to-column ceiling). A non-positive `max_h` disables that half of the
+///     clamp (matches [`super::spans::image_display_size`]'s own escape hatch).
+///     Pure, so the px→width mapping is unit-testable without a GPU.
 pub fn image_resize_width(
     handle: ImageHandle,
     rect: [f32; 4],
@@ -928,15 +928,15 @@ pub(super) fn visual_row_from_run(
 ///   * `M = N` — Monaspace Xenon's AAT/`morx` "texture-healing" ligatures
 ///     (`=> != -> >= <= == ::`) emit one glyph PER source char but stamp EVERY
 ///     one with the SAME (start,end) span (unsuppressable by OpenType features).
-///    Either way the fix is one rule: gather the whole GROUP of consecutive glyphs
-///    that share a span, take its COMBINED advance `A = (max right x) − (min left
+///     Either way the fix is one rule: gather the whole GROUP of consecutive glyphs
+///     that share a span, take its COMBINED advance `A = (max right x) − (min left
 /// x)` across all `M` glyphs, and distribute the `(end − start)` source chars
-///    EVENLY over it — char `i` sits at `group_left + (i − start) · A / (end −
+///     EVENLY over it — char `i` sits at `group_left + (i − start) · A / (end −
 /// start)`. Splitting one glyph's advance fairly across its chars (`M<N`) and
-///    summing several glyphs' advances into a uniform grid (`M=N`) fall out of the
-///    same formula. Taking only the FIRST glyph's advance (the old behavior)
-///    collapsed a texture-healed `=>` to a half-pitch interior column, mismapping
-///    the caret / selection / click on every Monaspace code line with an operator.
+///     summing several glyphs' advances into a uniform grid (`M=N`) fall out of the
+///     same formula. Taking only the FIRST glyph's advance (the old behavior)
+///     collapsed a texture-healed `=>` to a half-pitch interior column, mismapping
+///     the caret / selection / click on every Monaspace code line with an operator.
 pub(super) fn assemble_glyph_xs(
     line_text: &str,
     clusters: &[(usize, usize, f32, f32)],

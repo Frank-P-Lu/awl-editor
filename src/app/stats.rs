@@ -30,7 +30,7 @@ impl App {
     /// Bumps `keystrokes` (+ `chars_typed` when printable) and folds the capped
     /// active-writing interval (see [`crate::stats::active_delta`]) into the total
     /// + the active world's bucket, stamping the current keystroke as the next
-    ///interval's `last`. A no-op when the odometer is off.
+    ///   interval's `last`. A no-op when the odometer is off.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn stats_note_keystroke(&mut self, printable: bool) {
         if !self.config.stats_on() {

@@ -112,10 +112,10 @@ impl App {
 
     /// Push `file` to the FRONT of the persisted RECENTLY-OPENED FILES MRU (deduped
     /// + capped, [`crate::recent_files::push`]) and save it ATOMICALLY. A save error
-    ///is reported + swallowed (a lost MRU entry is never worth crashing a file
-    ///open). Native/live only — the headless capture never constructs an `App`, so
-    ///`recent-files.toml` is never touched from a capture. The FILE sibling of
-    ///[`Self::push_recent_project`].
+    ///   is reported + swallowed (a lost MRU entry is never worth crashing a file
+    ///   open). Native/live only — the headless capture never constructs an `App`, so
+    ///   `recent-files.toml` is never touched from a capture. The FILE sibling of
+    ///   [`Self::push_recent_project`].
     pub(in crate::app) fn push_recent_file(&mut self, file: PathBuf) {
         let list = std::mem::take(&mut self.recent_files);
         self.recent_files = crate::recent_files::push(list, file);

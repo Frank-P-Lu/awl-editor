@@ -346,14 +346,14 @@ pub enum TitleStyle {
 /// deliberate object, not a floating dialog) AND opens the right side of the
 /// canvas for a [`TitleStyle::Placard`] wordmark — the board's "menu top-left
 /// + wordmark bottom-corner = balanced asymmetry". Only the card's X changes;
-///its width / row geometry / the placard's own canvas-corner anchor are
-///untouched, so every downstream reader (the selected-row band, the pointer
-///hit-test, the query caret) composes it for free through the ONE owner
-///[`crate::render::TextPipeline::overlay_card_x`]. The GLOBAL DEFAULT is
-///`TopLeft` (this round's flip); `TopCenter` stays reachable as a one-line
-///data revert (and the `AWL_OVERLAY_ANCHOR_FORCE` dev probe A/Bs the two).
-///The contextual SPELL popup is NOT a takeover card and ignores this — it
-///stays anchored at its misspelled word.
+///   its width / row geometry / the placard's own canvas-corner anchor are
+///   untouched, so every downstream reader (the selected-row band, the pointer
+///   hit-test, the query caret) composes it for free through the ONE owner
+///   [`crate::render::TextPipeline::overlay_card_x`]. The GLOBAL DEFAULT is
+///   `TopLeft` (this round's flip); `TopCenter` stays reachable as a one-line
+///   data revert (and the `AWL_OVERLAY_ANCHOR_FORCE` dev probe A/Bs the two).
+///   The contextual SPELL popup is NOT a takeover card and ignores this — it
+///   stays anchored at its misspelled word.
 ///
 /// `Inset` is the FIRETAIL-MAXIMALIST-SHOWCASE round's STATEMENT dial: the
 /// card's left edge sits `x_frac` of the free horizontal span in from the

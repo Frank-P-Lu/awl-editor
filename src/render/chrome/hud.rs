@@ -550,16 +550,16 @@ impl TextPipeline {
     /// words written today, or + the window's running total on the cumulative
     /// page). A two-dot PAGE INDICATOR between body and stats — quads only, size
     /// + tint encoding (size survives the 1-bit ramp) — is the calm hint that
-    ///←/→ has somewhere to go. Reuses the shared float-card pipeline
-    ///(`hud_shadow`/`hud_border`/`hud_card`) for the raised card, the
-    ///`streak_cells` pipeline for every square/bar/dot tint
-    ///(`theme::heatmap_colors`, the one owner — NO amber, the caret's alone),
-    ///and the `hud_buffer`/`hud_renderer` for the stats text. The view is the
-    ///pushed live year OR the fixed synthetic [`crate::streaks::placeholder`]
-    ///in a capture (the SAME `streaks_effective_view` owner the sidecar reads),
-    ///so a `--streaks` capture is deterministic + byte-stable. Called ONLY from
-    ///`prepare_hud` while the card is open; every other state parks
-    ///`streak_cells` empty there.
+    ///   ←/→ has somewhere to go. Reuses the shared float-card pipeline
+    ///   (`hud_shadow`/`hud_border`/`hud_card`) for the raised card, the
+    ///   `streak_cells` pipeline for every square/bar/dot tint
+    ///   (`theme::heatmap_colors`, the one owner — NO amber, the caret's alone),
+    ///   and the `hud_buffer`/`hud_renderer` for the stats text. The view is the
+    ///   pushed live year OR the fixed synthetic [`crate::streaks::placeholder`]
+    ///   in a capture (the SAME `streaks_effective_view` owner the sidecar reads),
+    ///   so a `--streaks` capture is deterministic + byte-stable. Called ONLY from
+    ///   `prepare_hud` while the card is open; every other state parks
+    ///   `streak_cells` empty there.
     pub(in crate::render) fn prepare_streaks_card(
         &mut self,
         device: &wgpu::Device,

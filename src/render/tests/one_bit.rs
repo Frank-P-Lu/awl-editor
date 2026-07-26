@@ -933,8 +933,8 @@ fn wagtail_picker_selected_band_rides_the_one_fill_pipeline_like_every_world() {
 ///      floor, so a regression back to the invert (or a half-covered band, the
 ///      pre-alignment bug where the row's glyph tops fell on the black card and
 ///      only their bottoms reached the white) fails the assertion.
-///    Also proves the highlight FOLLOWS the selection: after moving down, the old
-///    row loses its white band and the new row picks it up.
+///      Also proves the highlight FOLLOWS the selection: after moving down, the old
+///      row loses its white band and the new row picks it up.
 #[test]
 fn wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {

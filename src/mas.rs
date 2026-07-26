@@ -18,13 +18,13 @@
 //!     `$XDG_DATA_HOME/awl` else `$HOME/.local/share/awl`.
 //!   - `config::config_path()` — `$AWL_CONFIG` else `$XDG_CONFIG_HOME/awl/…`
 //!     else `$HOME/.config/awl/config.toml`.
-//!    Neither touches a hard-coded absolute path or any sandbox-unaware API —
-//!    so under App Sandbox both land INSIDE the container automatically, with
-//!    ZERO grant machinery involved and ZERO code change needed for the
-//!    scratch-first launch story (no-path buffer, autosave, local history, the
-//!    config file). [`within_home`] below is the SAME set of env reads, in the
-//!    SAME precedence, as a portable predicate — the zero-grants law tests
-//!    assert against it directly.
+//!     Neither touches a hard-coded absolute path or any sandbox-unaware API —
+//!     so under App Sandbox both land INSIDE the container automatically, with
+//!     ZERO grant machinery involved and ZERO code change needed for the
+//!     scratch-first launch story (no-path buffer, autosave, local history, the
+//!     config file). [`within_home`] below is the SAME set of env reads, in the
+//!     SAME precedence, as a portable predicate — the zero-grants law tests
+//!     assert against it directly.
 //!
 //! **What this module ADDS, then:** only the machinery for the moment awl
 //! reaches OUTSIDE that automatic safety — opening a file / switching a
@@ -47,10 +47,10 @@
 //!   - `mac::ensure_access` / `mac::restore_all_grants` (`cfg(target_os =
 //!     "macos")` on top of `cfg(feature = "mas")`) — the actual `NSOpenPanel`
 //!     + security-scoped-bookmark AppKit calls, LIVE-ONLY (a real modal panel
-//!    is OS UI the headless harness cannot drive — mirrors `mac_chrome.rs`'s
-//!    own documented boundary) and so NOT unit-tested; [`fence`] carries the
-//!    one piece of that logic worth testing on its own (which root a path
-//!    resolves under), with the panel itself injected/mocked out.
+//!       is OS UI the headless harness cannot drive — mirrors `mac_chrome.rs`'s
+//!       own documented boundary) and so NOT unit-tested; [`fence`] carries the
+//!       one piece of that logic worth testing on its own (which root a path
+//!       resolves under), with the panel itself injected/mocked out.
 //!
 //! **Daemon compiled out:** under `mas`, `crate::daemon` (the single-instance
 //! Unix-socket daemon) does not exist — Launch Services already prevents a
@@ -303,11 +303,11 @@ mod mac {
 
     /// Called ONCE at native macOS launch (see `App::run`'s wiring): resolve
     /// + start accessing every persisted grant, so a relaunch's FIRST touch
-    ///of a previously-granted root needs no panel. A grant whose bookmark no
-    ///longer resolves (revoked in System Settings, the folder moved/deleted)
-    ///is silently dropped from the LIVE cache (never from disk here — the
-    ///next successful re-grant of that root will overwrite it via
-    ///`ensure_access`'s own `save`) rather than panicking or blocking launch.
+    ///   of a previously-granted root needs no panel. A grant whose bookmark no
+    ///   longer resolves (revoked in System Settings, the folder moved/deleted)
+    ///   is silently dropped from the LIVE cache (never from disk here — the
+    ///   next successful re-grant of that root will overwrite it via
+    ///   `ensure_access`'s own `save`) rather than panicking or blocking launch.
     pub fn restore_all_grants() {
         let mut store = store_lock().lock().unwrap_or_else(|e| e.into_inner());
         store

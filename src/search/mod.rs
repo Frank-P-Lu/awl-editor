@@ -204,8 +204,8 @@ impl SearchState {
     ///     [`StepOutcome::RecoiledAtBoundary`] so the caller bumps the caret.
     ///   * A SECOND same-direction step at the boundary → wrap to the far end and
     ///     clear the arm ([`StepOutcome::Wrapped`]).
-    ///    A DIRECTION CHANGE disarms the wrap (and steps normally that way); a query
-    ///    edit disarms it via `recompute`. No matches → [`StepOutcome::NoMatches`].
+    ///     A DIRECTION CHANGE disarms the wrap (and steps normally that way); a query
+    ///     edit disarms it via `recompute`. No matches → [`StepOutcome::NoMatches`].
     pub fn step(&mut self, dir: Direction) -> StepOutcome {
         let len = self.matches.len();
         if len == 0 {

@@ -608,15 +608,15 @@ impl TextPipeline {
     ///        theme-picker scrub that the original fix's one empty-buffer law
     ///        could not see, because an empty buffer never takes the real-row
     ///        branch at all).
-    ///      THIS is the item-105 fix: before it, this whole case (real ligature ink
-    ///      included) fell to the LINE-CELL arm below — a fixed row-box-centred
-    ///      height with NO baseline/ascent reference at all — so a proportional
-    ///      world's caret visibly jumped top/bottom/centre the instant it left a
-    ///      real glyph for the very next column. Feeding all three references
-    ///      through the identical `baseline - top + height/2` / `height + 2*pad`
-    ///      formula means they can no longer structurally disagree at that seam —
-    ///      only WHICH box (or which font) feeds the shared formula differs, never
-    ///      the formula itself.
+    ///        THIS is the item-105 fix: before it, this whole case (real ligature ink
+    ///        included) fell to the LINE-CELL arm below — a fixed row-box-centred
+    ///        height with NO baseline/ascent reference at all — so a proportional
+    ///        world's caret visibly jumped top/bottom/centre the instant it left a
+    ///        real glyph for the very next column. Feeding all three references
+    ///        through the identical `baseline - top + height/2` / `height + 2*pad`
+    ///        formula means they can no longer structurally disagree at that seam —
+    ///        only WHICH box (or which font) feeds the shared formula differs, never
+    ///        the formula itself.
     /// * **LINE CELL (mono only).** The historical geometry, byte-identical:
     ///   `caret_block_h` row-scaled, centred on the spring anchor, with the
     ///   DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded in
@@ -1248,11 +1248,11 @@ impl TextPipeline {
     ///     dimension — trailing back opposite the travel.
     ///   * VERTICAL motion: stretches into a tall lozenge — height grows with
     ///     vertical speed — trailing back along the jump.
-    ///    CENTRE-anchored (the comet body trails through the caret's vertical centre,
-    ///    like Block/Morph) and the origin-side tail is inset by the shared streak GAP
-    ///    so it stops short of where the move started. The underdamped spring supplies
-    ///    the overshoot/wobble on landing for free; the edit flinches (typing impact /
-    ///    deletion squash / blocked recoil) ride the same spring.
+    ///     CENTRE-anchored (the comet body trails through the caret's vertical centre,
+    ///     like Block/Morph) and the origin-side tail is inset by the shared streak GAP
+    ///     so it stops short of where the move started. The underdamped spring supplies
+    ///     the overshoot/wobble on landing for free; the edit flinches (typing impact /
+    ///     deletion squash / blocked recoil) ride the same spring.
     pub(super) fn caret_ibeam_geometry(&self) -> (f32, f32, f32, f32, f32) {
         let m = &self.metrics;
         let s = self.caret.settle_factor();

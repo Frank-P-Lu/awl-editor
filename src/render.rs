@@ -781,21 +781,21 @@ pub const FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
 /// see `theme::CJK_MINCHO`/`CJK_GOTHIC`): Noto Serif JP + Noto Sans JP, the
 /// Google-Fonts JP-scoped builds (OFL, github.com/google/fonts, ofl/notoserifjp
 /// + ofl/notosansjp), each instanced from the upstream variable font at wght=400
-///then subset to JIS X 0208 (levels 1+2 — kana + the ~6,355 Jōyō/JIS kanji +
-///JP punctuation, ~6,879 codepoints) via `fonttools`/`pyftsubset`. Subsetting
-///keeps the bundle honest with `PHILOSOPHY.md`'s "every MB earns its place":
-///unsubset the pair is ~7.7 MB + ~5.5 MB (~13.2 MB); the JIS subset is ~3.5 MB
+///   then subset to JIS X 0208 (levels 1+2 — kana + the ~6,355 Jōyō/JIS kanji +
+///   JP punctuation, ~6,879 codepoints) via `fonttools`/`pyftsubset`. Subsetting
+///   keeps the bundle honest with `PHILOSOPHY.md`'s "every MB earns its place":
+///   unsubset the pair is ~7.7 MB + ~5.5 MB (~13.2 MB); the JIS subset is ~3.5 MB
 /// + ~2.5 MB (~6.0 MB) — see CLAUDE.md's Japanese-bundle-round report for the
-///exact built-binary delta. Registered under their own family names ("Noto
-///Serif JP" / "Noto Sans JP", verified through fontdb) exactly like
-///`FONT_THEME_FACES`, but named ONLY via the CJK per-run `AttrsList` spans
-///(`spans::add_cjk_spans`) — never a `Theme::font` — so no world's Latin
-///display face is touched. `theme::CJK_MINCHO`/`CJK_GOTHIC` list these FIRST,
-///ahead of the system Hiragino/Noto-CJK candidates, so a Japanese run resolves
-///to the bundled face on every machine (no system-font dependency); the
-///Hiragino/system entries stay as trailing candidates until the user's
-///gallery/jp-compare eyeball-call — see the seam comment on those lists for
-///the follow-up (bundled-only + `resolve_cjk` simplification).
+///   exact built-binary delta. Registered under their own family names ("Noto
+///   Serif JP" / "Noto Sans JP", verified through fontdb) exactly like
+///   `FONT_THEME_FACES`, but named ONLY via the CJK per-run `AttrsList` spans
+///   (`spans::add_cjk_spans`) — never a `Theme::font` — so no world's Latin
+///   display face is touched. `theme::CJK_MINCHO`/`CJK_GOTHIC` list these FIRST,
+///   ahead of the system Hiragino/Noto-CJK candidates, so a Japanese run resolves
+///   to the bundled face on every machine (no system-font dependency); the
+///   Hiragino/system entries stay as trailing candidates until the user's
+///   gallery/jp-compare eyeball-call — see the seam comment on those lists for
+///   the follow-up (bundled-only + `resolve_cjk` simplification).
 pub const FONT_CJK_FACES: &[&[u8]] = &[
     // Noto Serif JP — mincho companion for the serif worlds (registers as
     // "Noto Serif JP"). OFL, github.com/google/fonts/tree/main/ofl/notoserifjp.
@@ -920,8 +920,8 @@ pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
 
 /// BUNDLED per-script CJK COMPANION faces — the "CJK companions" round (the user
 /// + his boyfriend's picks; the OFL pool for zh/ko outside the Noto floor is
-///thin, so this round adds the one worthwhile KO companion and DECLINES the
-///proposed ZH one). ONE face landed:
+///   thin, so this round adds the one worthwhile KO companion and DECLINES the
+///   proposed ZH one). ONE face landed:
 ///  - Gowun Batang (github.com/yangheeryu/Gowun-Batang, Google Fonts) — a
 ///    genuinely lovely Korean BATANG (serif / 明朝-equivalent), OFL 1.1. It
 ///    closes the i18n/Chinese round's LOGGED v1 gap ("no comparable bundled
@@ -2446,10 +2446,10 @@ pub(crate) const BAR_OUTLINE_STROKE_PX: f32 = 1.5;
 ///     - extent:   `full` | `hug` | `huglabel`|`hybrid`  ([`theme::BarExtent`] —
 ///       `huglabel`/`hybrid` is the FLIP-ROUND label-hug + bare right-chord arm)
 ///     - coverage: `all`  | `selected` ([`theme::BarCoverage`])
-///      So `"bars:0:12:0:hug:selected"`, `"bars:hug"`, `"bars:selected"`
-///      all parse; floats and keywords may appear in any order. More than 3 floats,
-///      an unrecognized token, or a negative/non-finite float → `None` (falls
-///      through to the world's own `render_caps.list_style`).
+///       So `"bars:0:12:0:hug:selected"`, `"bars:hug"`, `"bars:selected"`
+///       all parse; floats and keywords may appear in any order. More than 3 floats,
+///       an unrecognized token, or a negative/non-finite float → `None` (falls
+///       through to the world's own `render_caps.list_style`).
 fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
     let low = s.trim().to_ascii_lowercase();
     if low == "pane" {
@@ -3244,8 +3244,8 @@ pub struct TextPipeline {
     /// outright (a translucent-white-quad-plus-inset-black-punch fallback
     /// this round upgrades away from — see `worlds.rs::WAGTAIL`'s doc comment
     /// + THEMES.md's 1-bit section for the full history). Idle (zero
-    ///instances) on every other world — a non-Wagtail capture is
-    ///byte-identical.
+    ///   instances) on every other world — a non-Wagtail capture is
+    ///   byte-identical.
     pub selection_invert: SelectionPipeline,
     /// TRUE 1-BIT WORLDS ONLY (`Theme::render_caps.caret_block_style ==
     /// CaretBlockStyle::InverseVideo`), THE 1-BIT CARET ROUND:

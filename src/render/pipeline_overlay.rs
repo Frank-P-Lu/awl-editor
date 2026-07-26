@@ -31,15 +31,15 @@ impl TextPipeline {
 
     /// LIVE-APP-ONLY: arm the motion-juice animators (overlay entrance spring
     /// + selection-band slide — the FIRETAIL-MAXIMALIST-SHOWCASE round's
-    ///[`theme::MotionJuice`] capability). Called exactly once, from the live
-    ///App's GPU init (`app/gpu.rs`); every headless capture / bench / test
-    ///pipeline never calls it, so those paths render the settled state
-    ///STRUCTURALLY (the determinism law's "live-only animation renders its
-    ///settled state in capture", enforced by construction rather than by a
-    ///per-frame check). Arming alone changes nothing: the animators also
-    ///require a non-CALM effective [`theme::MotionJuice`] (no world ships
-    ///one — the `AWL_MOTION_FORCE` probe is the only current door) and fold
-    ///to nothing under Reduce Motion.
+    ///   [`theme::MotionJuice`] capability). Called exactly once, from the live
+    ///   App's GPU init (`app/gpu.rs`); every headless capture / bench / test
+    ///   pipeline never calls it, so those paths render the settled state
+    ///   STRUCTURALLY (the determinism law's "live-only animation renders its
+    ///   settled state in capture", enforced by construction rather than by a
+    ///   per-frame check). Arming alone changes nothing: the animators also
+    ///   require a non-CALM effective [`theme::MotionJuice`] (no world ships
+    ///   one — the `AWL_MOTION_FORCE` probe is the only current door) and fold
+    ///   to nothing under Reduce Motion.
     pub fn arm_live_juice(&mut self) {
         self.juice_live = true;
     }

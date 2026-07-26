@@ -255,7 +255,7 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 ///   * `MoveDest` walks the ACTIVE root (`active_root`), listing FOLDERS only —
 ///     a document moves to a folder inside the SAME active folder it lives in.
 ///   * `Browse` walks the active root (`active_root`), listing files + folders.
-///    `rel` is the root-relative level for the latter two (`None` = the root).
+///     `rel` is the root-relative level for the latter two (`None` = the root).
 ///
 /// `recent_projects` is the persisted recent-PROJECTS MRU (absolute paths,
 /// newest-first) — passed straight through to [`OverlayState::new_project`] so the

@@ -58,7 +58,7 @@ impl TextPipeline {
     ///     (↵ Return, ⇥ Tab) to match ⌘/⌥, informational muted ink, NOT clickable
     ///     buttons (the button-free principle; PHILOSOPHY §2). The case hint shows
     ///     the MAC-REACHABLE ⌘⌥c chord (bare ⌥c composes to 'ç' on macOS).
-    ///    The labels are padded to one width so the two value columns line up.
+    ///     The labels are padded to one width so the two value columns line up.
     pub(in crate::render) fn panel_shape_text(&mut self, width: u32) -> PanelShape {
         let m = self.metrics;
         // Calm visual hierarchy via per-run color: muted labels + hit counter, full-ink
@@ -323,8 +323,8 @@ impl TextPipeline {
     ///     it never dismisses the search or moves the doc cursor beneath the card);
     ///   * OFF the card, or the panel is down → `None` (the caller lets the press
     ///     fall through to the document).
-    ///    The caret args to `panel_layout` do not affect the card rect / text origin,
-    ///    so pass zeros. Reads `self.window_w`, exactly like `overlay_geometry`.
+    ///     The caret args to `panel_layout` do not affect the card rect / text origin,
+    ///     so pass zeros. Reads `self.window_w`, exactly like `overlay_geometry`.
     pub fn panel_hit(&self, px: f32, py: f32) -> Option<PanelHit> {
         if !self.search_active {
             return None;

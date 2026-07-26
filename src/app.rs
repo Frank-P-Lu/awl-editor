@@ -2338,16 +2338,16 @@ fn hud_mods_broken(summon: ModifiersState, now: ModifiersState) -> bool {
 ///   * Shift+Cmd-Up/Down (macOS) and Shift+Ctrl-Home/End (Linux) reach the SAME
 ///     actions through a `Key::Named` navigation key — a genuine GUI
 ///     select-intent Shift the platform text fields all honor — and MUST extend.
-///    So the ONE discriminator is the key's shape: a named navigation key extends,
-///    a printable glyph whose Shift is needed just to type it does not. Every OTHER
-///    action keeps Shift's normal select-extend meaning regardless of key. Pure, so
-///    it's unit-testable without a window/event loop. THE ONE OWNER of the rule:
-///    both the live key dispatch (`app/input/keys.rs`, passing the resolved logical
-///    key) and the headless `--keys` replay
-///    (`main/run.rs::ReplaySession::apply_chord`, passing the chord's key) derive
-///    their `apply_core` shift flag through this fn, so an `S-` chord in a spec
-///    signals select-intent exactly as a live held Shift does — never a parallel
-///    copy of the rule.
+///     So the ONE discriminator is the key's shape: a named navigation key extends,
+///     a printable glyph whose Shift is needed just to type it does not. Every OTHER
+///     action keeps Shift's normal select-extend meaning regardless of key. Pure, so
+///     it's unit-testable without a window/event loop. THE ONE OWNER of the rule:
+///     both the live key dispatch (`app/input/keys.rs`, passing the resolved logical
+///     key) and the headless `--keys` replay
+///     (`main/run.rs::ReplaySession::apply_chord`, passing the chord's key) derive
+///     their `apply_core` shift flag through this fn, so an `S-` chord in a spec
+///     signals select-intent exactly as a live held Shift does — never a parallel
+///     copy of the rule.
 pub(crate) fn motion_honors_shift_select(action: &Action, key: &Key) -> bool {
     match action {
         Action::BufferStart | Action::BufferEnd => matches!(key, Key::Named(_)),
