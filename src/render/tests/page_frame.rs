@@ -96,15 +96,15 @@ fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeli
 /// draw — the byte-identity guarantee for the fifteen None worlds).
 #[test]
 fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_none() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let _page = crate::page::PagePin::snapshot();
     let Some((device, queue, mut p)) = headless_dqp(500.0, 360.0) else {
         eprintln!(
             "skipping wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_none: no wgpu adapter"
         );
         return;
     };
-    let _g = crate::testlock::serial();
-    let was_page_on = crate::page::page_on();
-    let was_measure = crate::page::measure();
     let was_menu_bar_on = crate::menubar::menu_bar_on();
     crate::page::set_measure(24);
     crate::page::set_page_on(true);
@@ -264,7 +264,5 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
         );
     }
 
-    crate::page::set_page_on(was_page_on);
-    crate::page::set_measure(was_measure);
     crate::menubar::set_menu_bar_on(was_menu_bar_on);
 }
