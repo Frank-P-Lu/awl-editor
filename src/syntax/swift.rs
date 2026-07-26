@@ -192,11 +192,11 @@ fn scan_number(b: &[u8], i: usize) -> usize {
         j += 1;
         while j < n {
             let c = b[j];
-            if c.is_ascii_alphanumeric() || c == b'_' {
-                j += 1;
-            } else if c == b'.' && j + 1 < n && b[j + 1] != b'.' && b[j + 1].is_ascii_hexdigit() {
-                j += 1;
-            } else if (c == b'+' || c == b'-') && j > 0 && matches!(b[j - 1], b'p' | b'P') {
+            if c.is_ascii_alphanumeric()
+                || c == b'_'
+                || (c == b'.' && j + 1 < n && b[j + 1] != b'.' && b[j + 1].is_ascii_hexdigit())
+                || ((c == b'+' || c == b'-') && j > 0 && matches!(b[j - 1], b'p' | b'P'))
+            {
                 j += 1;
             } else {
                 break;

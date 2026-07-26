@@ -1487,7 +1487,10 @@ mod tests {
     /// FROST is the shipped headed-doc default, active unless the dev knob is off.
     #[test]
     fn frost_is_the_shipped_default() {
-        assert!(FROST_RAIL_DEFAULT, "the user's pick — frost ships");
+        assert!(
+            std::hint::black_box(FROST_RAIL_DEFAULT),
+            "the user's pick — frost ships"
+        );
         // No `AWL_LAVA_FROST` set in the test env → frost is on.
         assert!(frost_on(), "frost is on by default (no gallery knob)");
     }

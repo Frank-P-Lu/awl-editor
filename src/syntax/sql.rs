@@ -230,9 +230,7 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     }
     while j < n {
         let c = b[j];
-        if c.is_ascii_digit() {
-            j += 1;
-        } else if c == b'.' && j + 1 < n && b[j + 1].is_ascii_digit() {
+        if c.is_ascii_digit() || (c == b'.' && j + 1 < n && b[j + 1].is_ascii_digit()) {
             j += 1;
         } else if (c == b'e' || c == b'E')
             && j + 1 < n

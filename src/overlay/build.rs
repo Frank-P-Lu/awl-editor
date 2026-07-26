@@ -42,6 +42,8 @@ pub struct BuildCtx<'a> {
     /// `None` when the cursor isn't on a flagged word (or spell-check is off), so
     /// the summon no-ops. The word text builds the "Add '<word>' to dictionary" row
     /// label + rides the add-row accept effect ([`OverlayState::new_spell`]).
+    // This public builder field mirrors the spell seam's suggestions, byte span, and source word.
+    #[allow(clippy::type_complexity)]
     pub spell_target: Option<(Vec<String>, (usize, usize, usize), String)>,
     /// The HISTORY TIMELINE rows for the current file — [`crate::history::TimelineRow`]
     /// (when / which / counts / id), newest-first — resolved by the caller (via

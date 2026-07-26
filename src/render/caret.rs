@@ -1486,6 +1486,8 @@ impl TextPipeline {
     /// `trail_alpha`. Decoupled from position — it spans the latched OLD→NEW caret
     /// points, not `pos`/`target`. Shared by `prepare` (to draw it) and
     /// `caret_cosmetic_report` (to report it), so the JSON matches the drawn quad.
+    // The raw quad tuple feeds the shared renderer/report seam without a duplicate carrier type.
+    #[allow(clippy::type_complexity)]
     pub(super) fn caret_trail_geometry(&self) -> Option<(f32, f32, f32, f32, f32, f32, f32, f32)> {
         if !self.caret.trail_active() {
             return None;
@@ -1541,6 +1543,8 @@ impl TextPipeline {
     /// capture assert, straight from JSON, that the streak SWEEPS from the old position
     /// toward the caret over the first ~55ms while pos stays pinned, then fades; that a
     /// 1-char hop shows none; a held-down run stays present + steady; a held-right none.
+    // The report tuple is the compact sidecar schema for the settled cosmetic trail.
+    #[allow(clippy::type_complexity)]
     pub fn caret_cosmetic_report(
         &self,
     ) -> (bool, f32, bool, bool, f32, f32, (f32, f32), (f32, f32)) {

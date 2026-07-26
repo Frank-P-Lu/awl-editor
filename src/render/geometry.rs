@@ -2073,7 +2073,7 @@ mod tests {
             (column_width_for(1200.0, CW, false, 80) - (1200.0 - 2.0 * NONPAGE_INSET)).abs() < 1e-3
         );
         // The plain inset is a touch wider than the page collapse floor.
-        assert!(NONPAGE_INSET > PAGE_MIN_PAD);
+        assert!(std::hint::black_box(NONPAGE_INSET) > PAGE_MIN_PAD);
     }
 
     // === ADAPTIVE-COLUMN PLACEMENT (the outline width-pressure round) ======

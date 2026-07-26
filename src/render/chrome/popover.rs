@@ -552,6 +552,8 @@ impl TextPipeline {
     /// Headless report for the sidecar `popover` block: `(card_rect, rows)` where
     /// each row is `(label, active, [x0, x1])`, or `None` when the popover is down.
     /// Reads the same stashed geometry the buttons draw + the hit-test reads.
+    // The compact tuple is the established sidecar schema for popover geometry and rows.
+    #[allow(clippy::type_complexity)]
     pub fn popover_report(&self) -> Option<([f32; 4], Vec<(String, bool, [f32; 2])>)> {
         let g = self.popover_geom.as_ref()?;
         let rows = g

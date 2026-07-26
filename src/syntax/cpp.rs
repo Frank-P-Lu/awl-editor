@@ -245,9 +245,7 @@ fn scan_number(b: &[u8], i: usize) -> usize {
     }
     while j < n {
         let c = b[j];
-        if c.is_ascii_alphanumeric() || c == b'_' || c == b'\'' {
-            j += 1;
-        } else if c == b'.' {
+        if c.is_ascii_alphanumeric() || c == b'_' || c == b'\'' || c == b'.' {
             j += 1;
         } else if matches!(c, b'+' | b'-') && matches!(b[j - 1], b'e' | b'E' | b'p' | b'P') {
             // Signed exponent (`1e-9`, `0x1p+4`).

@@ -185,6 +185,8 @@ impl TextPipeline {
     /// of `on` (they are pure text/caret/fold facts the render will consume) — only
     /// the on-screen drawing is gated on `on`, which stays OFF by default so a
     /// plain `--screenshot` reports `on: false` and is byte-identical.
+    // This compact tuple is the established outline sidecar schema.
+    #[allow(clippy::type_complexity)]
     pub fn outline_report(&self) -> (bool, Vec<(&str, u8, usize)>, Option<usize>, Vec<usize>) {
         let on = crate::outline::outline_on();
         let headings = self

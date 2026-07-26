@@ -545,6 +545,8 @@ impl App {
         // below, and ONLY when the spell binding actually fired (suggestion
         // generation isn't free). `None` when spell-check is off or the cursor isn't
         // on a flagged word, so the summon becomes a calm no-op.
+        // The spell overlay contract carries suggestions, byte span, and source word together.
+        #[allow(clippy::type_complexity)]
         let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
             if matches!(action, Action::OpenSpellSuggest) {
                 self.spell.as_ref().and_then(|sc| {

@@ -111,11 +111,11 @@ fn gulp_is_a_deeper_longer_pulse_than_a_char_delete() {
     // Kill-line GULP: a deeper squash (past the single-char delete) over the
     // longer CARET_GULP_MS — a bigger, satisfying swallow.
     assert!(
-        CARET_GULP_SCALE < CARET_DELETE_SQUASH,
+        std::hint::black_box(CARET_GULP_SCALE) < CARET_DELETE_SQUASH,
         "the gulp must dip deeper than a single-char delete squash"
     );
     assert!(
-        CARET_GULP_MS > CARET_POP_MS,
+        std::hint::black_box(CARET_GULP_MS) > CARET_POP_MS,
         "the gulp must run longer than the snappy pop"
     );
 

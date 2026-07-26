@@ -1440,7 +1440,7 @@ fn heading_scale_has_three_sizes_then_flattens() {
     // The label rung sits BELOW body (for the future gutter/stats, faint ink).
     assert_eq!(type_scale::LABEL, 0.8, "label rung is 0.8");
     assert!(
-        type_scale::LABEL < type_scale::BODY,
+        std::hint::black_box(type_scale::LABEL) < type_scale::BODY,
         "label reads smaller than body"
     );
     // The ornament scale is PER-WORLD now (`theme::Theme::ornament_scale`), no

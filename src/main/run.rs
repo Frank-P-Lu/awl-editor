@@ -512,6 +512,8 @@ impl<'a> ReplaySession<'a> {
             // SPELL picker target: the misspelled word the cursor is on (or adjacent to)
             // + its corrections, resolved before the builder and ONLY when the spell
             // binding fired. None when the cursor isn't on a flagged word (no-op summon).
+            // The replay mirrors the spell overlay contract exactly: suggestions, byte span, source word.
+            #[allow(clippy::type_complexity)]
             let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
                 if matches!(action, Action::OpenSpellSuggest) {
                     self.spell.as_ref().and_then(|sc| {
@@ -631,7 +633,7 @@ impl<'a> ReplaySession<'a> {
                 oracle: self.oracle.as_deref().map(|op| op.as_oracle()),
             };
             let effect = actions::apply_core(&mut ctx, &action, shift);
-            drop(ctx);
+            let _ = ctx;
             // STRICT REPLAY TRUTHFULNESS: consult the ONE classification
             // (`crate::replay::classify`, a no-wildcard match over `Effect`) BEFORE
             // the apply arms below run. Strict ABORTS on an Unsupported effect,

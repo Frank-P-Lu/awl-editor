@@ -269,7 +269,7 @@ impl TextPipeline {
     /// unless a two-shape overlap exists this frame). Pure over its inputs (no
     /// GPU, no clock); `&self` only.
     // Living-band geometry keeps the physical card and phase inputs explicit at this pure seam.
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub(in crate::render) fn living_band_rects(
         &self,
         force: livingband::MotionForce,
