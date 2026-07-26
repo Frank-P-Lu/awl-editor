@@ -271,11 +271,11 @@ pub struct OverlayState {
     ///     opens an overlay — the palette closes then re-dispatches, and the resulting
     ///     overlay is stamped by `overlay_nav::stamp_return_to` at the palette
     ///     re-dispatch seam (live App + headless replay both).
-    /// SINGLE-LEVEL only — the re-summoned parent is built FRESH (no breadcrumb of its
-    /// own), so there is no N-deep stack and no A→B→A loop. `None` for a normal
-    /// top-level summon (⌘O / ⌘T / a menu click / the vast majority), which closes to
-    /// the buffer exactly as before. A NAVIGATING accept (open a file, switch project,
-    /// restore a version) IGNORES this and closes the whole stack (`close_to_buffer`).
+    ///    SINGLE-LEVEL only — the re-summoned parent is built FRESH (no breadcrumb of its
+    ///    own), so there is no N-deep stack and no A→B→A loop. `None` for a normal
+    ///    top-level summon (⌘O / ⌘T / a menu click / the vast majority), which closes to
+    ///    the buffer exactly as before. A NAVIGATING accept (open a file, switch project,
+    ///    restore a version) IGNORES this and closes the whole stack (`close_to_buffer`).
     pub return_to: Option<OverlayKind>,
     /// SETTINGS VALUE-EDIT sub-state: `Some` while a [`crate::settings::SettingKind::Value`]
     /// row is being edited inline (page widths / zoom), driving the modal intercept +

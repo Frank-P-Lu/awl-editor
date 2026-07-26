@@ -617,15 +617,15 @@ fn ambient_json(pipeline: &TextPipeline) -> String {
 /// no concealable markup, or every concealable span sits revealed under the
 /// caret). Additive: `md_spans` itself is unchanged. Pure function of the text
 /// + cursor position + the `wysiwyg` global.
-/// DATE FORMAT block: `{ format, example }` — the active
-/// [`crate::dateformat::DateFormat`]'s persisted slug (`caret_mode`/
-/// `dictionary`-style, `crate::dateformat::DateFormat::config_name`) plus
-/// that same format rendered against the FIXED
-/// [`crate::dateformat::CAPTURE_PLACEHOLDER_YMD`] — a headless capture has no
-/// clock, so `example` is always the SAME placeholder-date string for a
-/// given format, keeping the block byte-stable across runs/machines. Always
-/// present, unconditional (no gating): a default `--screenshot` reports
-/// `{ "format": "ddmmyy", "example": "07/03/09" }`.
+///DATE FORMAT block: `{ format, example }` — the active
+///[`crate::dateformat::DateFormat`]'s persisted slug (`caret_mode`/
+///`dictionary`-style, `crate::dateformat::DateFormat::config_name`) plus
+///that same format rendered against the FIXED
+///[`crate::dateformat::CAPTURE_PLACEHOLDER_YMD`] — a headless capture has no
+///clock, so `example` is always the SAME placeholder-date string for a
+///given format, keeping the block byte-stable across runs/machines. Always
+///present, unconditional (no gating): a default `--screenshot` reports
+///`{ "format": "ddmmyy", "example": "07/03/09" }`.
 fn date_format_json() -> String {
     let fmt = crate::dateformat::active_format();
     let (y, m, d) = crate::dateformat::CAPTURE_PLACEHOLDER_YMD;
@@ -1130,8 +1130,8 @@ fn caret_preview_json(pipeline: &TextPipeline) -> String {
 /// PAGE-MODE GUTTER block: the quiet stacked orientation label in the LEFT margin.
 /// `visible` is true EXACTLY when the gutter is drawn (page mode on + a buffer name
 /// + a wide-enough margin); `name`/`project` are the two stacked rungs (filename
-/// muted over project faint). Hidden => `visible:false` with empty strings, so a
-/// non-page capture keeps a stable shape.
+///muted over project faint). Hidden => `visible:false` with empty strings, so a
+///non-page capture keeps a stable shape.
 fn gutter_json(pipeline: &TextPipeline) -> String {
     let (gutter_visible, gutter_name, gutter_project) = match pipeline.gutter_report() {
         Some((name, project)) => (true, name, project),

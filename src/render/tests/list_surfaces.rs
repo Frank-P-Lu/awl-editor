@@ -27,8 +27,8 @@
 //!   2. THE MODEL-LEVEL INERT LAW
 //!      (`list_and_facet_default_are_inert_no_bars_no_chips_no_gap`): the
 //!      default draws ZERO bar surfaces and opens ZERO row gap.
-//! Together these pin "the Persona capabilities cost nothing when off" without
-//! the false byte-identity-vs-`main` claim the beat retired.
+//!    Together these pin "the Persona capabilities cost nothing when off" without
+//!    the false byte-identity-vs-`main` claim the beat retired.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
@@ -1290,8 +1290,8 @@ fn facet_band_draws_and_differs_from_text_in_the_strip() {
 ///     clip against (the board bug). Faceting kinds are
 ///     driven through the `geom.theme` card path too (an active lens strip),
 ///     since the board bug lived on the FACETED card, not the flat one.
-/// A new `OverlayKind` fails to compile here until it declares which regime it
-/// is — the structural guard against a future per-kind card special case.
+///    A new `OverlayKind` fails to compile here until it declares which regime it
+///    is — the structural guard against a future per-kind card special case.
 #[test]
 fn bars_float_bounded_plates_for_every_overlay_kind() {
     let (w, h) = (1200u32, 800u32);

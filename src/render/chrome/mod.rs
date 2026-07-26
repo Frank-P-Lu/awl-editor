@@ -872,14 +872,14 @@ pub(super) fn overlay_row_top(
 ///     glyph sits HIGH) and the lens STRIP (line 1) is inflated by `header_gap`,
 ///     so the strip labels centre LOW; the clear band is the strip box's TOP
 ///     half, starting at the query box bottom (`text_top + lh`).
-/// The band is [`SPLIT_GAP_FRAC`] of the query beat tall — glyph-free by the
-/// half-leading CENTRING bound: an inflated line box (`line_height + header_gap`)
-/// centres its glyph run, so the glyph's far edge clears the band's near edge as
-/// long as the run's own font height stays under `line_height + header_gap·(1 -
+///    The band is [`SPLIT_GAP_FRAC`] of the query beat tall — glyph-free by the
+///    half-leading CENTRING bound: an inflated line box (`line_height + header_gap`)
+///    centres its glyph run, so the glyph's far edge clears the band's near edge as
+///    long as the run's own font height stays under `line_height + header_gap·(1 -
 /// 2·frac)` (comfortably true for every body face at `frac = 0.4`: the query /
-/// strip shape at the overlay body size, whose ascent+descent sits well under the
-/// row pitch). Pixel-law-tested per world. THE ONE owner the fill
-/// ([`TextPipeline::overlay_pane_fills`]) and the split-outcome law both read.
+///    strip shape at the overlay body size, whose ascent+descent sits well under the
+///    row pitch). Pixel-law-tested per world. THE ONE owner the fill
+///    ([`TextPipeline::overlay_pane_fills`]) and the split-outcome law both read.
 ///
 /// ITEM 83 (FACETED branch only) — the query TEXT itself never moves (it stays
 /// pinned to `text_top`, exactly as documented above), but the UPPER SURFACE's

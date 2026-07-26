@@ -164,13 +164,13 @@ pub(crate) const DEFAULT_TYPICAL_LETTER_RATIO: f32 = 0.62;
 ///   * cap-height alone reintroduces the bug's ORIGINAL direction for an
 ///     ORDINARY x-height letter (`a`/`m`/`e`) — the literal case the user's
 ///     `aaa` fixture reports — hanging empty accent space above it again.
-/// The MEAN of the two is the balance point: still strictly font-measured (no
-/// hand-tuned per-world offset), and it halves the worst-case residual against
-/// EITHER class rather than zeroing one at the other's expense. `Size::unscaled()`
-/// keeps every quantity in font design units, so the ratio is a pure per-font
-/// constant independent of the font size a row happens to be shaped at — the
-/// caller multiplies it by that ROW's own (already size/zoom/DPI-scaled)
-/// `max_ascent` to get a real pixel height.
+///    The MEAN of the two is the balance point: still strictly font-measured (no
+///    hand-tuned per-world offset), and it halves the worst-case residual against
+///    EITHER class rather than zeroing one at the other's expense. `Size::unscaled()`
+///    keeps every quantity in font design units, so the ratio is a pure per-font
+///    constant independent of the font size a row happens to be shaped at — the
+///    caller multiplies it by that ROW's own (already size/zoom/DPI-scaled)
+///    `max_ascent` to get a real pixel height.
 ///
 /// Falls back to [`DEFAULT_TYPICAL_LETTER_RATIO`] when the file won't parse or
 /// the face declares NEITHER metric (some symbol/geometric faces don't); a

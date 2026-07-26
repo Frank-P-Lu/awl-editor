@@ -9,7 +9,7 @@
 //! priority highest-first:
 //! 1. over the draggable PAGE-COLUMN EDGE, or while actively dragging it ->
 //!    `ColResize` (↔).
-//! 1b. while actively drag-SELECTING text (the primary button is down inside the
+//!    1b. while actively drag-SELECTING text (the primary button is down inside the
 //!    writing column) -> `Text` (I-beam), pinned for the WHOLE gesture — even a
 //!    moment where the pointer strays outside the exact column bounds (past the
 //!    last line, into a margin) mid-drag, so the icon never flickers to the
@@ -27,7 +27,7 @@
 //! 4. over any OTHER part of a summoned OVERLAY (its scrim, foot hint, empty
 //!    gaps) -> `Default` (the plain ARROW — macOS menus/lists use the arrow for
 //!    dead space; the hand is reserved for an actual clickable row).
-//! 4b. over the awl-rendered WEB/LINUX MENU BAR: a clickable TITLE / dropdown ITEM ->
+//!    4b. over the awl-rendered WEB/LINUX MENU BAR: a clickable TITLE / dropdown ITEM ->
 //!    `Pointer` (hand); dead bar/dropdown space -> `Default` (arrow, over the doc it covers).
 //! 5. over the TEXT AREA (the writing column, no overlay open) -> `Text` (I-beam).
 //! 6. everywhere else (margins, the overlay scrim, the gutter) -> `Default`.
@@ -173,7 +173,7 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 ///    ([`image_handle_icon`]: ↔ side, ↕ top/bottom, ⤡/⤢ corner) tracks that gesture
 ///    (the two active drags are mutually exclusive; the page-edge drag is arbitrarily
 ///    ordered first);
-/// 2b. an ACTIVE text-SELECTION drag wins next — the I-beam is pinned for the
+///    2b. an ACTIVE text-SELECTION drag wins next — the I-beam is pinned for the
 ///    whole gesture (mutually exclusive with the other two active drags: a
 ///    page-edge or image drag can't start while a text selection is being
 ///    dragged, and vice versa), so it never flickers to the arrow/hand and
@@ -184,7 +184,7 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 ///    the other hands (the menu + a summoned overlay are mutually exclusive, so the
 ///    relative order among the hands never matters, only that a clickable menu
 ///    surface earns the hand);
-/// 3b. hovering ANY clickable overlay ROW *or* a clickable LENS-STRIP facet gets
+///    3b. hovering ANY clickable overlay ROW *or* a clickable LENS-STRIP facet gets
 ///    the pointing HAND — the clickable-affordance signal, sitting ABOVE the
 ///    generic overlay→arrow rule (but still under an in-progress resize drag);
 ///    the two never geometrically overlap (the strip sits on its own line above
@@ -193,10 +193,10 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 ///    a text field, ranked above the generic overlay→arrow but below a row;
 /// 5. any other part of a summoned overlay wins next — its scrim visually
 ///    covers everything beneath it, the page edge + images included → the plain arrow;
-/// 5b. dead menu-bar space (the bar strip / an open dropdown's card, off any clickable
+///    5b. dead menu-bar space (the bar strip / an open dropdown's card, off any clickable
 ///    title/item) → the plain arrow, ranked ABOVE the page edge + text it covers, so the
 ///    bar reads as chrome not the document beneath it;
-/// 5c. hovering the find/replace panel's `Aa` CASE-TOGGLE cell gets the pointing HAND —
+///    5c. hovering the find/replace panel's `Aa` CASE-TOGGLE cell gets the pointing HAND —
 ///    a clickable-affordance signal like a picker row, ranked ABOVE the page edge + text
 ///    the floating panel covers (the panel is not an overlay, so this is the only arm
 ///    that surfaces its clickability);
@@ -207,7 +207,7 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 /// 8. hovering a clickable MARGIN-OUTLINE row gets the pointing HAND — the same
 ///    click-to-jump affordance signal as a picker row, below the page edge (the
 ///    outline lives just inside the column, so the edge grab wins where they meet);
-/// 8b. hovering a REVEALED FOLD CHEVRON gets the pointing HAND too — item 81's
+///    8b. hovering a REVEALED FOLD CHEVRON gets the pointing HAND too — item 81's
 ///    click-to-toggle affordance, ranked with the outline row (the two never
 ///    geometrically overlap: the chevron sits in the leading pad, the outline
 ///    further left still, so which one is set never matters, only that either is);

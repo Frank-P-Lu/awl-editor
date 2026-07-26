@@ -222,8 +222,8 @@ impl Stats {
 
     /// The world you have lived in most (the largest `per_world_ms` bucket), name
     /// + its millis; `None` when nothing has accrued yet. A tie resolves to the
-    /// alphabetically-first name (`BTreeMap` iteration order) — deterministic.
-    /// (Consumed by the HUD DISPLAY phase; exercised by this module's tests.)
+    ///alphabetically-first name (`BTreeMap` iteration order) — deterministic.
+    ///(Consumed by the HUD DISPLAY phase; exercised by this module's tests.)
     #[allow(dead_code)]
     pub fn most_used_world(&self) -> Option<(&str, u64)> {
         self.per_world_ms

@@ -8,8 +8,8 @@
 //!     union is deliberate: a repo's `.env` is usually gitignored but is exactly
 //!     the file you want to jump to.
 //!   * NON-git root -> a recursive walk, skipping those same junk dirs.
-//! Either way the returned paths are ROOT-RELATIVE (forward-slashed), so they
-//! render compactly and match the way a developer thinks about a tree.
+//!    Either way the returned paths are ROOT-RELATIVE (forward-slashed), so they
+//!    render compactly and match the way a developer thinks about a tree.
 
 use crate::clock::SystemTime;
 use crate::facets::{Facet, FacetItem, FacetScheme};

@@ -12,13 +12,13 @@
 //!   * S     — ~500 words, a markdown note.
 //!   * M     — ~2,000 words, a markdown essay with light inline styling.
 //!   * L     — ~50,000 words, a novel with chapter headings (the tier the
-//!             legacy fixtures never had).
+//!            legacy fixtures never had).
 //!   * XPARA — pathological: ONE enormous unbroken paragraph (a single logical
-//!             line that wraps into hundreds of visual rows).
+//!            line that wraps into hundreds of visual rows).
 //!   * XMD   — pathological: heavy markdown (headings at every level, lists,
-//!             task lists, quotes, fenced code, tables, highlights, rules).
+//!            task lists, quotes, fenced code, tables, highlights, rules).
 //!   * CODE  — a large generated `.rs` document (shapes in the world's mono
-//!             face and exercises the four Alabaster syntax roles).
+//!            face and exercises the four Alabaster syntax roles).
 //!
 //! The vocabulary deliberately includes a few dictionary-missing words
 //! ("quokka", "teh", …) so the spell-squiggle pipeline carries a real,

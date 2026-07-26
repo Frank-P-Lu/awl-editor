@@ -34,9 +34,9 @@
 //!     velocity-kick recoil).
 //!   * [`preview`] — the caret-style picker's looping live preview.
 //!   * [`pipeline`] — the wgpu render pipeline that draws the caret quad.
-//! Each submodule is inherent `impl CaretAnim` blocks (or its own type) carved out
-//! VERBATIM and re-exported here, so behaviour — and the capture output — is
-//! byte-identical.
+//!    Each submodule is inherent `impl CaretAnim` blocks (or its own type) carved out
+//!    VERBATIM and re-exported here, so behaviour — and the capture output — is
+//!    byte-identical.
 
 mod juice;
 mod morph;

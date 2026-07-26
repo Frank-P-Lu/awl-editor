@@ -416,7 +416,7 @@ impl App {
     ///   * INSIDE the card but off a row (query line / foot hint) → SWALLOWED (the
     ///     picker stays modal; it never falls through to `on_press`, which would place
     ///     the document cursor beneath the card).
-    /// Always consumes the click while an overlay is open.
+    ///    Always consumes the click while an overlay is open.
     ///
     /// ITEM 85 — THE ONE EXPLICIT ACTIVATION RULE: only `WindowEvent::MouseButton`
     /// `ElementState::Pressed` reaches this door (see `on_mouse_input`'s match arms

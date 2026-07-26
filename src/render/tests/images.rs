@@ -1702,11 +1702,11 @@ fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_
 ///   3. far enough past that the image's bottom has cleared the margin too —
 ///      correctly gone (the "disappears only once its bottom has passed
 ///      above the viewport" half of the law).
-/// Scrolling back to state 1 then re-asserts BYTE-IDENTICAL geometry (no
-/// jump, no drift, no stale placeholder) — the "restores the same
-/// pixels/row geometry" half. The caret/selection are never touched across
-/// any of the four frames (scroll is the only axis moved), so cursor/
-/// selection displacement is structurally excluded, not merely asserted.
+///    Scrolling back to state 1 then re-asserts BYTE-IDENTICAL geometry (no
+///    jump, no drift, no stale placeholder) — the "restores the same
+///    pixels/row geometry" half. The caret/selection are never touched across
+///    any of the four frames (scroll is the only axis moved), so cursor/
+///    selection displacement is structurally excluded, not merely asserted.
 ///
 /// MUTATION CHECK: reverting `prepare_images`'/`image_hit_rects`' cull back to
 /// `line_ornament_visible` (top-only) makes state 2 read 0 quads / 0 hit

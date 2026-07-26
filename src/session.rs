@@ -3,7 +3,7 @@
 //! the native window frame), so a plain relaunch reopens the workspace
 //! roughly as it was left. This module is the PURE data model + (de)serializer
 //! + clamp math; the App-side wiring (when to capture / restore, how it folds
-//! into `App::new` and the buffer registry) lives in `app/session.rs`.
+//!into `App::new` and the buffer registry) lives in `app/session.rs`.
 //!
 //! **Where it lives:** beside the scratch stash
 //! (`fs::data_root()/session.toml`), NOT inside `config.toml` — the config

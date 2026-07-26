@@ -157,9 +157,9 @@ struct ReplayResult {
     accept: Option<(crate::overlay::OverlayKind, String)>,
     /// How many buffers are open at the end of the replay (the active `buffer`
     /// + everything the MULTI-BUFFER REGISTRY still has backgrounded) — feeds
-    /// the sidecar `buffers.open` count. Stays `1` for any replay that never
-    /// drives a Goto accept, so a plain `--screenshot` (no `--keys`, or keys
-    /// that never open a second file) is unaffected.
+    ///the sidecar `buffers.open` count. Stays `1` for any replay that never
+    ///drives a Goto accept, so a plain `--screenshot` (no `--keys`, or keys
+    ///that never open a second file) is unaffected.
     buffers_open: usize,
     /// STRICT REPLAY TRUTHFULNESS: every INTERCEPTED external handoff the
     /// replay observed + recorded without performing (URL open, mailto, Trash,

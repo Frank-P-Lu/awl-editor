@@ -1039,10 +1039,10 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
 ///   - NARROWEST cells (below the card's fill-regime point): the placard FOLDS —
 ///     `overlay_shape_placard` returns `None` (ZERO placard pixels) and the
 ///     inline `title › ` prefix RETURNS (the world behaves as `InlinePrefix`).
-/// The fold reads the SAME geometry the card WIDTH fallback reads
-/// (`overlay_card_fill_regime` over `CARD_MAX_W`), so the two can never drift and
-/// no clipped wordmark ever survives at any width. The query row (line 0 of the
-/// shaped `panel_buffer`) is the end-to-end witness of which state fired.
+///    The fold reads the SAME geometry the card WIDTH fallback reads
+///    (`overlay_card_fill_regime` over `CARD_MAX_W`), so the two can never drift and
+///    no clipped wordmark ever survives at any width. The query row (line 0 of the
+///    shaped `panel_buffer`) is the end-to-end witness of which state fired.
 #[test]
 fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
     let _g = crate::testlock::serial();
@@ -1295,8 +1295,8 @@ fn mangrove_stipple_placard_paints_only_ladder_ink_pixels_at_real_density() {
 ///  3. REAL LETTERFORMS — a floor of HIGH-COVERAGE pixels (α ≥ 0.6 along the
 ///     ink's dominant channel) proves stroke BODIES painted, not a 1%-alpha
 ///     smear that would still count as "changed".
-/// Determinism rides for free: coverage is pure shaping, the Bayer cut is pure
-/// position, and the whole thing is a byte diff of two headless frames.
+///    Determinism rides for free: coverage is pure shaping, the Bayer cut is pure
+///    position, and the whole thing is a byte diff of two headless frames.
 #[test]
 fn every_shipping_placard_world_paints_visible_wordmark_ink_pixels() {
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {

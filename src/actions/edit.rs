@@ -181,12 +181,12 @@ pub(super) enum SmartNewline {
 ///    item's checkbox continues UNCHECKED, never carrying `[x]` forward);
 ///  * an ordered list (`N.`/`N)` + space) — continued with the number INCREMENTED;
 ///  * else bare indentation — preserved on a plain Enter.
-/// An EMPTY blockquote unconditionally ends the block (`EndBlockquote`); an EMPTY
-/// list item (bullet / numbered / task) is `EmptyListItem` — its caller decides
-/// preserve-vs-end by provenance (item 78, generalizing item 63); bare indentation
-/// is only ever carried, never ended. Returns `None` when there's nothing to
-/// continue (plain prose, or the caret sits inside the marker), so the caller does
-/// an ordinary newline.
+///    An EMPTY blockquote unconditionally ends the block (`EndBlockquote`); an EMPTY
+///    list item (bullet / numbered / task) is `EmptyListItem` — its caller decides
+///    preserve-vs-end by provenance (item 78, generalizing item 63); bare indentation
+///    is only ever carried, never ended. Returns `None` when there's nothing to
+///    continue (plain prose, or the caret sits inside the marker), so the caller does
+///    an ordinary newline.
 pub(super) fn smart_newline_for(line: &str, col: usize) -> Option<SmartNewline> {
     let chars: Vec<char> = line.chars().collect();
     // Leading indentation (spaces / tabs) — shared by every branch below.

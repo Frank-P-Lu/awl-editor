@@ -14,8 +14,8 @@
 //!      never a regex) and resolved against THAT doc's own directory ([`resolve_ref`],
 //!      the path-only mirror of the renderer's `resolve_image_path`).
 //!   3. ORPHAN = a candidate no resolved reference lands on.
-//! The scan is a PURE function of `(root, corpus)` over the [`crate::fs`] seam, so it
-//! is fully testable against an [`crate::fs::InMemoryFs`] with no real disk.
+//!    The scan is a PURE function of `(root, corpus)` over the [`crate::fs`] seam, so it
+//!    is fully testable against an [`crate::fs::InMemoryFs`] with no real disk.
 //!
 //! **Recoverability is the safety net.** An orphan is never deleted with `rm` — the
 //! picker's Enter moves it to the macOS TRASH ([`TrashCan::trash`], the NSFileManager

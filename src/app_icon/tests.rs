@@ -1265,9 +1265,9 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///         not adversarial) pushed `Ibis vs Galah` from rank 5 to rank 6 on
 ///         `ink`, past `K = 6`, and it vanished from the failure list even
 ///         though its own measured value never moved.
-///     Both are the same defect from two directions — a fixed rank count is
-///     a window with edges, and either a crafted pair or ordinary growth can
-///     land or push something past the edge.
+///        Both are the same defect from two directions — a fixed rank count is
+///        a window with edges, and either a crafted pair or ordinary growth can
+///        land or push something past the edge.
 ///
 ///     THE FIX: stop counting ranks. Every pair below a fixed VALUE
 ///     threshold (`danger` in `axes()`) is checked, however many pairs that
@@ -1557,8 +1557,8 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
 /// item 102's own verification scenario exactly — `Ibis`, Galah's 32px icon
 /// blended 30% toward Bilby's, channel-and-alpha lerp, `(g, b) -> round(0.7g
 /// + 0.3b)` — inserted as if it were a genuine 19th world: `Ibis` paired
-/// against all 18 real worlds, merged into the full 153-pair set (171
-/// pairs total).
+///against all 18 real worlds, merged into the full 153-pair set (171
+///pairs total).
 ///
 /// Under item 99's OLD single-champion ratchet this passed in total
 /// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or

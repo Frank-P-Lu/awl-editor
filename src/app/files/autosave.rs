@@ -243,7 +243,7 @@ impl App {
     ///     which a bare mtime compare would silently overwrite.
     ///   * `(Some, None)`  → true — the file APPEARED externally since we looked.
     ///   * `(None, Some)`  → true — the file was DELETED externally.
-    /// Pure over the stat, so the four arms are unit-testable.
+    ///    Pure over the stat, so the four arms are unit-testable.
     pub(in crate::app) fn disk_changed(path: &Path, last: Option<crate::fs::Metadata>) -> bool {
         match (Self::disk_mtime_of(path), last) {
             (None, None) => false,

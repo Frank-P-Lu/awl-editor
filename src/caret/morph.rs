@@ -68,8 +68,8 @@ impl CaretAnim {
     ///     same-row (horizontal) move runs a centred sweep THROUGH the line centre
     ///     (not an underline under the text), exactly like the centre-to-centre
     ///     vertical / diagonal trail. Only the X moves to the glyph-cell centre.
-    /// Pure (takes the zoomed metric scalars, no GPU), so the renderer and the unit
-    /// tests share it.
+    ///    Pure (takes the zoomed metric scalars, no GPU), so the renderer and the unit
+    ///    tests share it.
     pub fn motion_geometry(
         &self,
         block_w: f32,
