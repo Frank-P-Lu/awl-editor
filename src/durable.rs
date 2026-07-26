@@ -391,14 +391,8 @@ mod tests {
     // `crate::fs::write_atomic`'s temp-sibling-then-rename dance: a plain
     // `write` call chained straight off `active()`, a local `fs` handle's
     // own bare `write` call, or the raw `std::fs` free-function `write`,
-    // unmediated by the `FileSystem` trait. (Spelled out as ASSEMBLED
-    // fragments in [`bare_write_needles`] rather than as one literal string
-    // constant, quite deliberately: this very file's OWN doc prose above
-    // and the law test's failure message below both need to name these
-    // shapes in plain English for a human reader, and a literal needle
-    // sitting in durable.rs's source text would make the scanner catch
-    // ITSELF — the same self-reference dodge `app.rs`'s own
-    // `real_fs_app_new_calls_are_all_accounted_for` uses for its needle.)
+    // unmediated by the `FileSystem` trait. The needles are assembled so this
+    // source scanner cannot catch its own literal patterns (as in `app.rs`).
     // Every occurrence of these three needles across the whole crate is
     // counted per file below (source-scan pattern, mirroring `app.rs`'s own
     // law test). Adding a NEW bare write anywhere — including a new file —
@@ -538,9 +532,13 @@ mod tests {
             let Ok(text) = std::fs::read_to_string(&path) else {
                 continue;
             };
+            // The history corrupt-recovery fixture deliberately has this
+            // method call rustfmt-split across lines: formatting must not hide
+            // a bare durable write from the audit.
+            let compact: String = text.split_whitespace().collect();
             let n: usize = needles
                 .iter()
-                .map(|needle| text.matches(needle.as_str()).count())
+                .map(|needle| compact.matches(needle.as_str()).count())
                 .sum();
             if n == 0 {
                 continue;
