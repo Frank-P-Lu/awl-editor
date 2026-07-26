@@ -55,6 +55,7 @@ mod overlay_right_hug_law;
 mod page_frame;
 mod pixeldiff;
 mod popover;
+mod potoroo_pane;
 mod range_rail;
 mod reanchor_crossing_law;
 mod selection_clip_law;

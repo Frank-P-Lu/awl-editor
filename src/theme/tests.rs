@@ -3057,9 +3057,11 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // ITEM 86 — Bowerbird's item-71 woven `JaggedWave` card texture
             // was RETIRED (summoned cards returned to plain flat); it now
             // rides the plain default alongside its neighbors here.
-            "Tawny" | "Mopoke" | "Potoroo" | "Bombora" | "Mulga" | "Bowerbird" => {
-                RenderCaps::DEFAULT
-            }
+            "Potoroo" => RenderCaps {
+                elevation: Elevation::Recessed,
+                ..RenderCaps::DEFAULT
+            },
+            "Tawny" | "Mopoke" | "Bombora" | "Mulga" | "Bowerbird" => RenderCaps::DEFAULT,
             // CASSOWARY (the NERV-terminal statement world): the loud NERV console
             // overlay — a bold Archivo-Black wordmark placard (Auto corner derives
             // bottom-LEFT off the ITEM-45 RIGHT card), BORDERED elevation, the poster

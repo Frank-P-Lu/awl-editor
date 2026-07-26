@@ -2102,15 +2102,16 @@ pub(crate) fn resolve_overlay_anchor(frozen: Option<theme::CardAnchor>) -> theme
 }
 
 /// DEV-ONLY probe for the PALETTE-COMPOSITION round's CARD-EDGE A/B — lets the
-/// gallery force a LIGHT world's summoned card to draw the [`theme::Elevation::Bordered`]
-/// rim WITHOUT flipping any world's data (the "make a light-world border
-/// reachable, default OFF everywhere" ask). `AWL_OVERLAY_ELEVATION_FORCE`:
-/// `"bordered"`/`"border"`/`"on"` → [`theme::Elevation::Bordered`];
-/// `"flat"`/`"off"` → [`theme::Elevation::Flat`]. Malformed → `None` (the
+/// gallery force a world's summoned card to choose an elevation WITHOUT flipping
+/// any world's data. `AWL_OVERLAY_ELEVATION_FORCE`: `"bordered"`/`"border"`/`"on"`
+/// → [`theme::Elevation::Bordered`]; `"recessed"`/`"recess"` →
+/// [`theme::Elevation::Recessed`]; `"flat"`/`"off"` → [`theme::Elevation::Flat`].
+/// Malformed → `None` (the
 /// world's own `render_caps.elevation`). Total no-op unset.
 fn parse_overlay_elevation_force(s: &str) -> Option<theme::Elevation> {
     match s.trim().to_ascii_lowercase().as_str() {
         "bordered" | "border" | "on" => Some(theme::Elevation::Bordered),
+        "recessed" | "recess" => Some(theme::Elevation::Recessed),
         "flat" | "off" => Some(theme::Elevation::Flat),
         _ => None,
     }
@@ -2129,7 +2130,8 @@ fn awl_overlay_elevation_force() -> &'static Option<theme::Elevation> {
 /// The EFFECTIVE summoned-card [`theme::Elevation`] for this frame: the
 /// `AWL_OVERLAY_ELEVATION_FORCE` dev probe if set, else the active world's own
 /// `render_caps.elevation` — so an unset run renders exactly the assigned data
-/// (`Bordered` on Currawong/Mangrove/Firetail/Wagtail; `Flat` elsewhere).
+/// (`Recessed` on Potoroo, `Bordered` on Currawong/Mangrove/Firetail/Wagtail;
+/// `Flat` elsewhere).
 /// Read by `prepare_panel_card_elevation`.
 pub(crate) fn effective_card_elevation() -> theme::Elevation {
     match awl_overlay_elevation_force() {

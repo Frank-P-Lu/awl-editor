@@ -194,6 +194,13 @@ fn parse_overlay_elevation_force_grammar() {
             "{s:?}"
         );
     }
+    for s in ["recessed", "Recess"] {
+        assert_eq!(
+            parse_overlay_elevation_force(s),
+            Some(theme::Elevation::Recessed),
+            "{s:?}"
+        );
+    }
     for bad in ["", "raised", "shadow"] {
         assert_eq!(
             parse_overlay_elevation_force(bad),

@@ -7,7 +7,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::color::Srgb;
-use super::model::{Background, ImageReveal, Lens, Theme};
+use super::model::{Background, Elevation, ImageReveal, Lens, Theme};
 use super::worlds::{DEFAULT_THEME, THEMES};
 
 /// The active theme index. A process-global so every render call site reads the
@@ -481,6 +481,18 @@ fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
     let (la, lb) = (rel_lum(a), rel_lum(b));
     let (hi, lo) = if la >= lb { (la, lb) } else { (lb, la) };
     (hi + 0.05) / (lo + 0.05)
+}
+
+/// The opaque face for a centered Pane-family command surface. The value step
+/// belongs to [`Elevation`], so every consumer reads one authored decision:
+/// ordinary and rimmed cards remain `base_300`; a recessed card uses `base_200`
+/// to separate from a Frame that already reaches the focused rung. This is value
+/// only — no extra ink, outline, or accent.
+pub fn pane_surface(elevation: Elevation) -> Srgb {
+    match elevation {
+        Elevation::Flat | Elevation::Bordered => base_300(),
+        Elevation::Recessed => base_200(),
+    }
 }
 
 /// The minimum contrast the selected picker row's INK must clear against its

@@ -712,15 +712,15 @@ impl TextPipeline {
         height: u32,
         rects: &[[f32; 4]],
     ) {
-        // The card's edge (the rim; no shadow — see `FloatElevation`'s doc)
-        // rides the EFFECTIVE elevation — the world's own `render_caps.elevation`,
-        // or the `AWL_OVERLAY_ELEVATION_FORCE` dev probe (the PALETTE-COMPOSITION
-        // round's light-world-border A/B; no world's data flips). Composes with
-        // the anchor + header gap + SPLIT surfaces freely — the rim traces each
-        // fill rect, wherever they sit.
-        let elevation = if !rects.is_empty()
-            && crate::render::effective_card_elevation() == theme::Elevation::Bordered
-        {
+        // The card face and (where wanted) its rim come from the SAME effective
+        // elevation decision. `Recessed` is a value-only Pane repair: `base_200`
+        // face, no border. It composes with the anchor + header gap + split
+        // surfaces freely, so every summoned Pane-family surface carries the same
+        // figure/ground answer.
+        let card_elevation = crate::render::effective_card_elevation();
+        self.panel_card
+            .set_color(theme::pane_surface(card_elevation).rgba_bytes());
+        let elevation = if !rects.is_empty() && card_elevation == theme::Elevation::Bordered {
             FloatElevation::Rimmed
         } else {
             FloatElevation::Flat

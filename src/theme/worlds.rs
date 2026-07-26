@@ -186,7 +186,13 @@ pub const POTOROO: Theme = Theme {
         temperature: Some("Warm"),
     },
     role_overrides: RoleOverrides::NONE,
-    render_caps: RenderCaps::DEFAULT,
+    // The striped rust Frame reaches the ordinary focused card rung; recess the
+    // Pane-family surface one existing value step so its perimeter is findable
+    // without a rim or a second accent. The Room remains untouched.
+    render_caps: RenderCaps {
+        elevation: Elevation::Recessed,
+        ..RenderCaps::DEFAULT
+    },
 };
 
 /// Bilby — FIRST LIGHT: the palest, warmest-horizon light world (sunrise-gold
