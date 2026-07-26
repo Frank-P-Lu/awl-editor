@@ -34,7 +34,7 @@ impl App {
         match self.gpu.as_ref() {
             Some(gpu) => gpu
                 .pipeline
-                .hit_test(px, py, self.active.extra.scroll_lines),
+                .hit_test_scroll(px, py, self.active.extra.scroll),
             None => render::hit_test(
                 px,
                 py,
@@ -979,10 +979,10 @@ impl App {
     pub(in crate::app) fn update_fold_hover(&mut self) {
         let over_col = self.active.buffer.is_markdown() && self.pointer_over_writing_column();
         let (px, py) = self.cursor_px;
-        let scroll = self.active.extra.scroll_lines;
+        let scroll = self.active.extra.scroll;
         let Some(gpu) = self.gpu.as_mut() else { return };
         let line = if over_col {
-            Some(gpu.pipeline.hit_test(px, py, scroll).0)
+            Some(gpu.pipeline.hit_test_scroll(px, py, scroll).0)
         } else {
             None
         };

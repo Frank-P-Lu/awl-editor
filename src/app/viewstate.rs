@@ -465,34 +465,34 @@ impl App {
             // screen by construction, and the off-screen fallback deliberately holds
             // the viewport centre rather than yanking to the caret.
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
-            self.active.extra.scroll_lines =
-                pipeline.zoom_anchor_scroll(anchor.line, anchor.col, anchor.screen_y, height);
             self.active.extra.scroll =
-                crate::render::ScrollPos::at_row(self.active.extra.scroll_lines);
+                pipeline.zoom_anchor_scroll_pos(anchor.line, anchor.col, anchor.screen_y, height);
+            self.active.extra.scroll_lines = self.active.extra.scroll.row;
         } else if follow {
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
             // Affinity-aware so cursor-follow tracks the row the caret VISUALLY sits
             // on at a shared boundary (Upstream → the upper row).
             let cursor_row =
                 pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
-            self.active.extra.scroll_lines =
+            self.active.extra.scroll =
                 match follow_scroll_strategy(crate::typewriter::typewriter_on(), self.dragging) {
                     // Variable-row-height aware: scroll minimally so the cursor's row
                     // (taller on a heading) is fully visible, summing real row heights.
-                    FollowScroll::ShowRow => pipeline.scroll_to_show_row(
+                    FollowScroll::ShowRow => pipeline.scroll_to_show_row_pos(
                         cursor_row,
-                        self.active.extra.scroll_lines,
+                        self.active.extra.scroll,
                         height,
                     ),
                     // TYPEWRITER: center the cursor's row (variable-height aware too).
-                    FollowScroll::CenterRow => pipeline.scroll_to_center_row(cursor_row, height),
+                    FollowScroll::CenterRow => crate::render::ScrollPos::at_row(
+                        pipeline.scroll_to_center_row(cursor_row, height),
+                    ),
                     // A primary-button press is live: defer the recenter (leave the
                     // scroll exactly where it is) rather than move the view under a
                     // stationary pointer — see `follow_scroll_strategy`.
-                    FollowScroll::Deferred => self.active.extra.scroll_lines,
+                    FollowScroll::Deferred => self.active.extra.scroll,
                 };
-            self.active.extra.scroll =
-                crate::render::ScrollPos::at_row(self.active.extra.scroll_lines);
+            self.active.extra.scroll_lines = self.active.extra.scroll.row;
         }
         // Always keep scroll within document bounds (pixel-accurate "does it fit").
         let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);

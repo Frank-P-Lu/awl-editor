@@ -1385,6 +1385,34 @@ impl TextPipeline {
         s
     }
 
+    /// Minimal semantic reveal of a caret's AFFINITY-resolved row box.  A row
+    /// taller than the viewport pins to its top; using the caret rect here would
+    /// incorrectly reveal only the middle of an inline image row.
+    pub fn scroll_to_show_row_pos(&self, row: usize, scroll: ScrollPos, height: f32) -> ScrollPos {
+        let avail = (height - TEXT_TOP - self.menubar_reserve()).max(1.0);
+        let row_top = self.row_top_px(row);
+        let row_bottom = row_top + self.row_height_px(row);
+        let current = self.scroll_top_px(scroll);
+        let target = if self.row_height_px(row) >= avail || row_top < current {
+            row_top
+        } else if row_bottom > current + avail {
+            row_bottom - avail
+        } else {
+            return scroll;
+        };
+        let anchor = self
+            .row_geom
+            .nearest_row(&self.buffer, &self.metrics, target);
+        self.scroll_by_px(
+            ScrollPos {
+                row: anchor,
+                px_q: ((target - self.row_top_px(anchor)) * ScrollPos::SUBPX as f32).round() as i32,
+            },
+            0.0,
+            height,
+        )
+    }
+
     /// TYPEWRITER cursor-follow: the scroll (in visual rows) that CENTERS visual
     /// `row` vertically in the text viewport — used while TYPEWRITER SCROLL is on so
     /// the caret row rests at the eye line. Picks the
@@ -1436,8 +1464,13 @@ impl TextPipeline {
     /// still. `doc_top(scroll) = TEXT_TOP + menubar − row_top(scroll)`, and the row's
     /// screen top is `doc_top + row_top(row)`.
     pub fn char_screen_top(&self, line: usize, col: usize, scroll: usize) -> f32 {
+        self.char_screen_top_scroll(line, col, ScrollPos::at_row(scroll))
+    }
+
+    /// Pixel-precise screen position used by live zoom anchoring.
+    pub fn char_screen_top_scroll(&self, line: usize, col: usize, scroll: ScrollPos) -> f32 {
         let row = self.visual_row_of(line, col);
-        TEXT_TOP + self.menubar_reserve() - self.row_top_px(scroll) + self.row_top_px(row)
+        TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(scroll) + self.row_top_px(row)
     }
 
     /// THE ONE OWNER of the zoom-anchored scroll decision. Given a document anchor
@@ -1472,6 +1505,33 @@ impl TextPipeline {
             .row_geom
             .nearest_row(&self.buffer, &self.metrics, target_top);
         scroll.min(self.max_scroll_rows(height))
+    }
+
+    /// Semantic version of [`Self::zoom_anchor_scroll`].  The anchor's row top
+    /// is retained at the captured screen y even when that means landing inside a
+    /// tall image/table row after rewrap.
+    pub fn zoom_anchor_scroll_pos(
+        &self,
+        line: usize,
+        col: usize,
+        anchor_py: f32,
+        height: f32,
+    ) -> ScrollPos {
+        let row = self.visual_row_of(line, col);
+        let target_top =
+            zoom_anchor_target_top(self.row_top_px(row), anchor_py, self.menubar_reserve());
+        let anchor = self
+            .row_geom
+            .nearest_row(&self.buffer, &self.metrics, target_top);
+        self.scroll_by_px(
+            ScrollPos {
+                row: anchor,
+                px_q: ((target_top - self.row_top_px(anchor)) * ScrollPos::SUBPX as f32).round()
+                    as i32,
+            },
+            0.0,
+            height,
+        )
     }
 
     /// Real shaped-glyph X boundaries for a logical `line`, in pixels RELATIVE to
@@ -1926,12 +1986,17 @@ impl TextPipeline {
     /// the next gap (natural caret placement). Accounts for scroll + zoom; the
     /// caller clamps (line, col) to the buffer.
     pub fn hit_test(&self, px: f32, py: f32, scroll_lines: usize) -> (usize, usize) {
+        self.hit_test_scroll(px, py, ScrollPos::at_row(scroll_lines))
+    }
+
+    /// Pixel-precise companion to [`Self::hit_test`].  Live document pointer
+    /// paths use this; the row API remains for headless compatibility callers.
+    pub fn hit_test_scroll(&self, px: f32, py: f32, scroll: ScrollPos) -> (usize, usize) {
         // Absolute pixel y of the click, in the same buffer-top frame as
         // `run.line_top` (so wrapped rows compare correctly). Recompute doc_top for
         // the requested `scroll_lines` (which may differ from self.scroll_lines
         // mid-drag within a frame).
-        let doc_top =
-            TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(ScrollPos::at_row(scroll_lines));
+        let doc_top = TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(scroll);
         let want_top = (py - doc_top).max(0.0); // y relative to buffer top
         let target_x = (px - self.text_left()).max(0.0);
 

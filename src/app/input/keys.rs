@@ -198,7 +198,7 @@ impl App {
         let (px, py) = self.cursor_px;
         let (line, col) = gpu
             .pipeline
-            .hit_test(px, py, self.active.extra.scroll_lines);
+            .hit_test_scroll(px, py, self.active.extra.scroll);
         self.zoom_anchor = Some(ZoomAnchor {
             line,
             col,
@@ -218,7 +218,7 @@ impl App {
         let (cl, cc) = self.active.buffer.cursor_line_col();
         let caret_y = gpu
             .pipeline
-            .char_screen_top(cl, cc, self.active.extra.scroll_lines);
+            .char_screen_top_scroll(cl, cc, self.active.extra.scroll);
         self.zoom_anchor = Some(if caret_y >= top && caret_y < height {
             ZoomAnchor {
                 line: cl,
@@ -231,7 +231,7 @@ impl App {
             let cy = (top + height) * 0.5;
             let (line, col) = gpu
                 .pipeline
-                .hit_test(cx, cy, self.active.extra.scroll_lines);
+                .hit_test_scroll(cx, cy, self.active.extra.scroll);
             ZoomAnchor {
                 line,
                 col,
