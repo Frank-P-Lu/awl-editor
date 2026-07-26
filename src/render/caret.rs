@@ -382,57 +382,95 @@ impl TextPipeline {
         })
     }
 
-    /// [`Self::raster_box_at`] SEARCHED OUTWARD from `col` in both directions —
-    /// item 105's SECOND repair round. Bounded to the caret's OWN VISUAL ROW
-    /// ([`Self::visual_rows`]'s `[start_col, end_col)` span for whichever row
-    /// `col` sits on, resolved the SAME way [`Self::caret_row_metrics`] resolves
-    /// its own row — [`pick_row_index_aff`]), never the whole logical line, so a
-    /// giant blank paragraph costs O(row width), never O(doc).
+    /// [`Self::raster_box_at`] searched outward from `col` in BOTH directions
+    /// and BLENDED — item 105's THIRD repair round (the second round's
+    /// nearest-distance-wins pick bred a same-class defect of its own; see
+    /// below). Bounded to the caret's OWN VISUAL ROW ([`Self::visual_rows`]'s
+    /// `[start_col, end_col)` span for whichever row `col` sits on, resolved
+    /// the SAME way [`Self::caret_row_metrics`] resolves its own row —
+    /// [`pick_row_index_aff`]), never the whole logical line, so a giant blank
+    /// paragraph costs O(row width), never O(doc).
     ///
-    /// The FIRST repair round (12c2fb4 / fdbc0da) tried only `col - 1`, a single
-    /// backward hop. That closed the literal reported shape (`aaa`'s final `a`
-    /// → EOL — one glyphless column right after real ink) but left two adjacent
-    /// shapes wide open, found auditing that round:
-    ///   * a glyphless anchor at column 0 (leading whitespace before a capital,
-    ///     `" A"`) has no `col - 1` to borrow from at all — the mirror
-    ///     direction of every fixture the first round's tests covered;
-    ///   * a RUN of 2+ glyphless columns (a mid-line double space, a markdown
-    ///     hard-break's canonical two trailing spaces) loses the borrowed ink
-    ///     one hop in: the second glyphless column's own `col - 1` is itself
-    ///     glyphless, so a single backward hop fails and it falls straight to
-    ///     the synthetic guess — jumping against its OWN immediate neighbor,
-    ///     which DID find real ink one column earlier.
+    /// The FIRST repair round (12c2fb4 / fdbc0da) tried only `col - 1`, a
+    /// single backward hop: it closed the literal reported shape (`aaa`'s
+    /// final `a` → EOL) but had no `col - 1` at column 0 (`" A"`), and lost the
+    /// borrowed ink one hop into a run of 2+ glyphless columns (`"A  "`) —
+    /// see that round's own docstring, superseded below.
     ///
-    /// Searching outward by distance (nearer wins; backward preferred on a tie,
-    /// matching the first round's own direction) closes both: ANY column that
-    /// directly touches a real letter finds that letter at distance 1 no matter
-    /// which side it sits on, so every seam this item's own docstring names
-    /// ("two adjacent columns, one glyph-anchored, one not") closes to
-    /// (near-)zero for every letter class, not just the one reported shape. A
-    /// run flanked by two DIFFERENT letters at both ends can still show one
-    /// interior flip, where the nearest-distance winner switches sides — that
-    /// flip sits between two columns NEITHER of which is glyph-anchored,
-    /// outside this item's own stated scope, and is unavoidable short of
-    /// interpolating between two different real glyphs' ink.
+    /// The SECOND repair round (b0ca2cf) searched outward, nearest distance
+    /// wins, backward preferred on an exact tie — closing both shapes above.
+    /// But "nearest wins" is a HARD PICK: it borrows exactly ONE side's ink,
+    /// never the other, so a single glyphless column with a DIFFERENT real
+    /// letter on each side (a table's `"| 1"` — pipe one side, digit the
+    /// other, tied at distance 1, backward wins by the tiebreak) reads as pure
+    /// pipe ink. The BACKWARD seam (pipe -> space) then measures a clean
+    /// 0.00px, because both columns share literally the same box — but the
+    /// FORWARD seam (space -> digit) inherits the WHOLE pipe-to-digit gap
+    /// undiminished, because nothing on the space's side moved toward the
+    /// digit at all. Flipping the tiebreak to prefer forward does not fix
+    /// this — it only rotates the same whole gap onto the other seam. And on
+    /// a run of 4+ glyphless columns flanked by two DIFFERENT letters, the
+    /// nearest-wins pick is not just directional but DISCONTINUOUS: the
+    /// interior column where "nearest" switches sides is a hard step from one
+    /// letter's full ink to the other's, with no columns in between softening
+    /// it — the "interior flip" this round's own probe found worse than
+    /// b0ca2cf disclosed (measured 7.0px on Bombora, against the 6.5px the
+    /// build itself reported).
+    ///
+    /// This round makes the borrow NON-DIRECTIONAL: when a real box exists on
+    /// BOTH sides, the returned box is the LINEAR INTERPOLATION of the two,
+    /// weighted by which side `col` sits nearer to
+    /// (`t = back_distance / (back_distance + fwd_distance)`, `0` = literally
+    /// on top of the backward neighbor's own ink, `1` = literally on top of
+    /// the forward one). A single glyphless column tied between two different
+    /// letters (`t = 0.5`) now reads as the MIDPOINT of the two — so instead
+    /// of one seam absorbing the whole gap and the other absorbing none, EACH
+    /// seam absorbs roughly HALF of it, and a run of several glyphless
+    /// columns sweeps smoothly from one letter's ink to the other's with no
+    /// interior step at all (proven at
+    /// `render/tests/caret_transition_item105.rs`'s
+    /// `interior_run_between_two_different_letters_has_no_flip_step`). When a
+    /// real box exists on only ONE side (column 0, or the tail of a run with
+    /// nothing real beyond it), the blend degenerates to that single box
+    /// exactly as the second round already returned — the two literal-
+    /// adjacency laws (`aaa`->EOL, `run_of_glyphless_columns_stays_bounded`)
+    /// stay byte-identical, proven by this round's own non-regression checks.
     fn nearest_row_raster_box(&mut self, line: usize, col: usize) -> Option<InkBox> {
         let rows = self.visual_rows(line);
         let row = rows.get(pick_row_index_aff(&rows, col, self.caret_affinity))?;
         let (start, end) = (row.start_col, row.end_col);
         let max_back = col.saturating_sub(start);
         let max_fwd = end.saturating_sub(col + 1);
-        for d in 1..=max_back.max(max_fwd) {
-            if d <= max_back {
-                if let Some(b) = self.raster_box_at(line, col - d) {
-                    return Some(b);
-                }
-            }
-            if d <= max_fwd {
-                if let Some(b) = self.raster_box_at(line, col + d) {
-                    return Some(b);
-                }
+
+        let mut back: Option<(usize, InkBox)> = None;
+        for d in 1..=max_back {
+            if let Some(b) = self.raster_box_at(line, col - d) {
+                back = Some((d, b));
+                break;
             }
         }
-        None
+        let mut fwd: Option<(usize, InkBox)> = None;
+        for d in 1..=max_fwd {
+            if let Some(b) = self.raster_box_at(line, col + d) {
+                fwd = Some((d, b));
+                break;
+            }
+        }
+
+        match (back, fwd) {
+            (Some((db, bb)), Some((df, fb))) => {
+                let t = db as f32 / (db + df) as f32;
+                Some(InkBox {
+                    left: bb.left + (fb.left - bb.left) * t,
+                    top: bb.top + (fb.top - bb.top) * t,
+                    width: bb.width + (fb.width - bb.width) * t,
+                    height: bb.height + (fb.height - bb.height) * t,
+                })
+            }
+            (Some((_, bb)), None) => Some(bb),
+            (None, Some((_, fb))) => Some(fb),
+            (None, None) => None,
+        }
     }
 
     /// The BLOCK caret's INK-ALIGNED box at the caret's ANCHOR cell this frame —
@@ -518,31 +556,30 @@ impl TextPipeline {
     ///        raster box directly — a ligature agrees with a plain glyph beside
     ///        it on the same row exactly like the ink-box arm does;
     ///     2. otherwise, a truly GLYPHLESS anchor (space / end-of-line — no
-    ///        raster of its own) BORROWS the NEAREST column's own real
-    ///        [`InkBox`] when the caret's own VISUAL ROW has one
-    ///        ([`Self::nearest_row_raster_box`] — searched OUTWARD in both
-    ///        directions, nearest distance wins) — a SECOND repair round's fix:
-    ///        the first round (`raster_box_at(col - 1)`, a single backward hop)
-    ///        closed the literal reported shape (`aaa`'s final `a` → EOL) but
-    ///        left two adjacent shapes open — a glyphless anchor at COLUMN 0
-    ///        (leading whitespace before a capital, `" A"`, has no `col - 1` at
-    ///        all) and a RUN of 2+ glyphless columns (a double space, a
-    ///        markdown hard-break's two trailing spaces — the second glyphless
-    ///        column's own `col - 1` is itself glyphless, so a single hop
-    ///        loses the borrowed ink one column into the run and jumps against
-    ///        its very neighbor, which DID find it). Searching outward instead
-    ///        of one fixed hop means any column immediately touching a real
-    ///        letter always finds THAT letter at distance 1 regardless of
-    ///        which side it sits on, so the seam this item exists to close —
-    ///        every adjacent pair where ONE side is glyph-anchored — closes to
-    ///        (near-)zero for every letter class alike, not just the single
-    ///        reported one. (A run flanked by two DIFFERENT letters at both
-    ///        ends can still show one interior flip, where the search's
-    ///        nearest-distance winner switches sides — that flip sits between
-    ///        two columns NEITHER of which is glyph-anchored, outside this
-    ///        item's own stated scope of "one glyph-anchored, one not", and is
-    ///        unavoidable without interpolating between two different real
-    ///        glyphs);
+    ///        raster of its own) BORROWS the caret's own VISUAL ROW's nearby
+    ///        real [`InkBox`]es ([`Self::nearest_row_raster_box`] — searched
+    ///        OUTWARD in both directions, blended when both sides have real
+    ///        ink) — the THIRD repair round's fix, superseding the second
+    ///        round's hard "nearest wins" pick: that pick borrowed exactly ONE
+    ///        side's ink, so a single glyphless column tied between two
+    ///        DIFFERENT letters (a table's `"| 1"`) read as pure ink from
+    ///        whichever side the tiebreak favoured — one seam closed to
+    ///        0.00px while the OTHER inherited the WHOLE gap between the two
+    ///        letters undiminished (backward/forward is a directional
+    ///        symptom, not a fix — flipping the tiebreak only rotates which
+    ///        seam absorbs the full gap), and a run of 4+ columns flanked by
+    ///        two different letters showed a hard INTERIOR FLIP where
+    ///        "nearest" switched sides with nothing between to soften it.
+    ///        Blending by relative distance (`t = back_dist / (back_dist +
+    ///        fwd_dist)`) makes the borrow non-directional: a column tied
+    ///        between two different letters reads as their MIDPOINT (each
+    ///        seam absorbs roughly half the gap instead of one absorbing all
+    ///        of it), and a run sweeps smoothly from one letter's ink to the
+    ///        other's with no interior step. When only ONE side has real ink
+    ///        (column 0; the tail of a run with nothing real beyond it), the
+    ///        blend degenerates to that one box exactly as before — the
+    ///        literal-adjacency fixtures (`aaa`->EOL, `" A"`, `"A  "`) stay
+    ///        byte-identical;
     ///     3. only when NONE of the above has a real box — the caret's own
     ///        visual row has no rasterizable ink at ANY column (an empty line,
     ///        or a row of pure whitespace with nothing real anywhere on it) —
