@@ -227,14 +227,18 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
     // pipeline metrics exactly like the live app's monitor scale.
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
-        // The four Bars poster worlds carry their real `list_style`/`facet_style`
-        // (Firetail's Monaspace Xenon + Chips facet); the three calm worlds keep
-        // Pane/Text. The `set_list_style_test_override` below forces BOTH styles
-        // on every world regardless, so the pitch clause covers Pane AND Bars
-        // uniformly — but a poster world also exercises its real face + facet skin.
-        for world in [
-            "Currawong", "Saltpan", "Wagtail", "Firetail", "Galah", "Magpie", "Mangrove",
-        ] {
+        // ITEM 104 — THE FULL ROSTER, not a hand-picked subset: e10b9fa's original
+        // seven (four Bars poster worlds + three calm ones) left eleven worlds
+        // unswept, Mopoke (the live Settings "every second row" witness,
+        // 2026-07-26) among them — Pane/RenderCaps::DEFAULT, never exercised by
+        // the original list. `crate::theme::world_names()` is the SAME ordered
+        // roster `THEMES` derives from (law-pinned:
+        // `world_names_mirrors_themes_order_exactly`), so a new world is swept
+        // for free. The `set_list_style_test_override` below still forces BOTH
+        // Pane and Bars on every world regardless of its own `list_style`, so the
+        // pitch clause covers both uniformly — but each world also exercises its
+        // own real face + facet skin.
+        for world in crate::theme::world_names() {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         for faceted in [false, true] {

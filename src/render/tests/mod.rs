@@ -54,6 +54,7 @@ mod page_frame;
 mod folds;
 mod pixeldiff;
 mod selection_clip_law;
+mod settings_row_reach_law;
 mod stars;
 mod syntax_ligatures;
 mod waves_drift_item87;
