@@ -140,6 +140,19 @@ pub const CARET_H: f32 = 28.0;
 pub const CARET_BLOCK_H: f32 = CARET_H * 0.80; // ~22.4 px
 pub const CARET_DESCENDER_PAD: f32 = 1.5;
 pub const CARET_INK_PAD: f32 = 3.0;
+/// The smallest *visible body* a proportional glyph-hugging caret may resolve
+/// to, at zoom 1.0.  A comma's real raster is only a few pixels in either
+/// direction; faithfully using that box made the point of presence read as a
+/// second punctuation mark rather than a caret.  These are floors, not a cell
+/// replacement: ordinary letters still use their own ink width/height.
+///
+/// Width, height, and area are deliberately separate constraints.  Brackets
+/// need width, dashes need height, and a comma needs all three.  The area arm
+/// enlarges proportionally, preserving the glyph's small, responsive character
+/// instead of turning every punctuation mark into the same rectangle.
+pub const CARET_VISUAL_BODY_MIN_W: f32 = 6.5;
+pub const CARET_VISUAL_BODY_MIN_H: f32 = 12.0;
+pub const CARET_VISUAL_BODY_MIN_AREA: f32 = 96.0;
 pub const CARET_STREAK_H: f32 = 2.8;
 pub const CARET_STREAK_MIN_LEN: f32 = 10.0;
 pub const CARET_STREAK_MAX_LEN: f32 = 64.0;

@@ -22,6 +22,7 @@ mod caret;
 mod caret_block;
 mod caret_ink_box;
 mod caret_transition_item105;
+mod caret_visual_body;
 mod chrome_overlay;
 mod chrome_panels;
 mod cjk;

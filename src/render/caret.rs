@@ -50,6 +50,28 @@ impl InkBox {
     }
 }
 
+/// Apply the shared minimum resting *visual body* to a proportional caret's
+/// real glyph box.  The input height already includes the normal even ink pad;
+/// this is therefore a floor on the OUTER silhouette the user sees, not a
+/// second glyph-padding policy.  Keeping this a pure owner lets Block and the
+/// folded-Morph block use precisely the same dimensions, while Morph's normal
+/// glyph silhouette can ask whether it needs that same supporting body.
+pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
+    let mut w = ink.width.max(CARET_VISUAL_BODY_MIN_W * px);
+    let mut h = (ink.height + 2.0 * CARET_INK_PAD * px).max(CARET_VISUAL_BODY_MIN_H * px);
+    let min_area = CARET_VISUAL_BODY_MIN_AREA * px * px;
+    let area = w * h;
+    if area < min_area {
+        // Area is the third independent contribution.  Scale both axes so a
+        // short-wide dash and a tall-thin bracket retain their glyph-aware
+        // proportions instead of receiving a character-class special case.
+        let grow = (min_area / area).sqrt();
+        w *= grow;
+        h *= grow;
+    }
+    (w, h)
+}
+
 impl TextPipeline {
     /// Populate [`Self::caret_line_glyphs`] with `line`'s shaped glyph clusters if the
     /// cached record is stale (a different line, or a newer shaped-geometry
@@ -456,7 +478,7 @@ impl TextPipeline {
         if let Some(ink) = self.caret_anchor_ink_box() {
             let baseline = self.caret_baseline_y();
             let cy = baseline - ink.top + ink.height * 0.5;
-            let h = ink.height + 2.0 * CARET_INK_PAD * px;
+            let (_w, h) = caret_visual_body_dims(ink, px);
             return (cy, h);
         }
         // Gated on `doc_family()` (the LIVE effective face the ACTIVE theme wants
@@ -487,7 +509,10 @@ impl TextPipeline {
                 .or_else(|| self.nearest_row_raster_box(self.cursor_line, col))
                 .unwrap_or_else(|| self.caret_synthetic_ink_box(row_ascent, ascent_font));
             let cy = baseline - ink.top + ink.height * 0.5;
-            let h = ink.height + 2.0 * CARET_INK_PAD * px;
+            // A glyphless column borrows or synthesizes the SAME visual body
+            // as the ink it joins.  Otherwise a comma's new floor would reopen
+            // item 105's glyph -> EOL seam the instant the caret stepped off it.
+            let (_w, h) = caret_visual_body_dims(ink, px);
             return (cy, h);
         }
         let cy = self.caret.pos.y;
@@ -854,7 +879,15 @@ impl TextPipeline {
         // `None` leaves `block_w` and the shift untouched, so mono / ligature /
         // glyphless anchors are byte-identical to before.
         let (block_w, ink_shift) = match self.caret_anchor_ink_box() {
-            Some(ink) => (ink.width, ink.left * s),
+            Some(ink) => {
+                let px = m.caret_h / CARET_H;
+                let (body_w, _body_h) = caret_visual_body_dims(ink, px);
+                // Grow equally about the glyph ink centre.  The pen-relative
+                // offset is still the raster's real bearing, so the floor does
+                // not make a kerned punctuation glyph drift into its neighbour.
+                let centered_shift = ink.left + (ink.width - body_w) * 0.5;
+                (body_w, centered_shift * s)
+            }
             None => (block_w, 0.0),
         };
         let (cell_cy, block_h) = self.caret_cell_vertical();

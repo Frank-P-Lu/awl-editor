@@ -553,6 +553,24 @@ impl TextPipeline {
                 .prepare(queue, width, height, cx, cy, cw, ch, ccorner);
             self.caret_glyph_pipeline.clear();
         } else if paint_silhouette {
+            // A normal Morph rests on the glyph silhouette alone.  Tiny
+            // punctuation therefore gets the SAME shared visual-body floor as
+            // Block beneath its recoloured ink; ordinary letters remain the
+            // exact existing silhouette.  This is geometry-gated, never a
+            // punctuation-character or world identity branch.
+            let needs_visual_body = self
+                .caret_anchor_ink_box()
+                .map(|ink| {
+                    let px = self.metrics.caret_h / CARET_H;
+                    let (w, h) = super::caret::caret_visual_body_dims(ink, px);
+                    w > ink.width + f32::EPSILON
+                        || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
+                })
+                .unwrap_or(false);
+            if needs_visual_body {
+                self.prepare_caret_block(device, queue, width, height);
+            }
+            // Settled on a glyph: the accent silhouette recolours the letter.
             let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
             self.caret_glyph_pipeline.prepare(
                 device,
@@ -567,7 +585,9 @@ impl TextPipeline {
                 1.0,
                 CARET_MORPH_DILATE_PX * self.metrics.zoom,
             );
-            self.caret_pipeline.prepare_empty();
+            if !needs_visual_body {
+                self.caret_pipeline.prepare_empty();
+            }
         } else if paint_space_bar {
             let (cx, cy, cw, ch, ccorner) = if crate::caret::morph_line_start(self.cursor_col) {
                 self.caret_linestart_bar_geometry()
