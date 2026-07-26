@@ -16,18 +16,19 @@ use crate::fuzzy::{self, Tier};
 /// `hover_at`, which is the sole place `OverlayState::selected` is ever
 /// mutated by pointer input (see the scout roster at the top of this file's
 /// history: every `OverlayKind` shares this ONE gate, never a per-picker
-/// fudge). Mirrors `app::DRAG_ARM_SLOP_PX` — the identical "content
-/// relocating under a stationary pointer must not read as motion" hazard
-/// (there, a text-selection drag arming under a WYSIWYG reveal reflow; here,
-/// a picker's candidate rows scrolling under a resting hand) — same 4.0px
-/// physical budget, so awl does not grow two independently-tuned
-/// pointer-jitter constants for what is structurally one problem. `nav`
-/// stays private to `overlay` (not `pub(crate)`): the constant has exactly
-/// one consumer, [`OverlayState::hover_at`], and no other module ever needs
-/// to read the raw number. `pub(super)` only so `overlay::tests` can pin its
-/// boundary law to the REAL value instead of a duplicated magic number —
-/// still invisible past `overlay`'s own module tree.
-pub(super) const HOVER_MOVE_SLOP_PX: f32 = 4.0;
+/// fudge). IS `app::DRAG_ARM_SLOP_PX` — the identical "content relocating
+/// under a stationary pointer must not read as motion" hazard (there, a
+/// text-selection drag arming under a WYSIWYG reveal reflow; here, a
+/// picker's candidate rows scrolling under a resting hand), so this is a
+/// RE-EXPORT of that ONE constant rather than a second declaration of the
+/// same 4.0px physical budget — awl does not grow two independently-tuned
+/// pointer-jitter constants that could drift apart under a future retune of
+/// either. `pub(super)` (not `pub(crate)`) so `overlay::tests` can pin its
+/// boundary law to the REAL value instead of a duplicated magic number,
+/// while the re-export itself stays invisible past `overlay`'s own module
+/// tree — `app::DRAG_ARM_SLOP_PX` remains the one name anything outside
+/// `overlay` would ever reach for.
+pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
 
 impl OverlayState {
     /// Re-rank `rows` against the current query into `items`, clamping the

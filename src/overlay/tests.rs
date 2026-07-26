@@ -1772,6 +1772,29 @@ fn hover_at_movement_slop_boundary_law() {
         slop + 1.0
     );
     assert_eq!(over.selected, 5, "the real move wins outright — no debounce, no dead zone");
+
+    // DIAGONAL travel: the gate is a squared-distance circle, not an x-axis-only
+    // check — every case above moves along dy=0, which would pass even a buggy
+    // per-axis (Chebyshev/Manhattan) gate instead of the intended Euclidean one.
+    // dx = dy = slop/sqrt(2) sits exactly ON the circle (dx^2+dy^2 == slop^2),
+    // so a hair under/over it must land on the same side as the axis-aligned
+    // boundary above.
+    let leg = slop / std::f32::consts::SQRT_2;
+    let mut diag_under = deep(10);
+    assert!(diag_under.hover_at(0.0, 0.0, Some(1)));
+    assert!(
+        !diag_under.hover_at(leg - 0.01, leg - 0.01, Some(5)),
+        "a diagonal move a hair under the slop circle must NOT take over"
+    );
+    assert_eq!(diag_under.selected, 1);
+
+    let mut diag_over = deep(10);
+    assert!(diag_over.hover_at(0.0, 0.0, Some(1)));
+    assert!(
+        diag_over.hover_at(leg + 0.01, leg + 0.01, Some(5)),
+        "a diagonal move a hair past the slop circle MUST take over"
+    );
+    assert_eq!(diag_over.selected, 5);
 }
 
 /// ITEM 106 — THE KEYBOARD-BASELINE STAMP LAW: a PURE keyboard session (the
@@ -1890,13 +1913,18 @@ fn keyboard_nav_survives_a_pointer_parked_over_any_row_relative_to_the_destinati
 }
 
 /// ITEM 106 — NO-WILDCARD SURFACE SWEEP: `hover_at`/`arm_hover_baseline`
-/// never branch on `self.kind` at all — proven by a compile-time EXHAUSTIVE
-/// match over every `OverlayKind` variant (not merely iterating
-/// `OverlayKind::ALL`, which is hand-kept in lockstep and does not itself
-/// guard against a forgotten new picker kind), driving the identical
-/// keyboard-scrolls-then-stationary-pointer script against each and asserting
-/// the same outcome. A new `OverlayKind` variant fails this file to compile
-/// until it is added to the match below.
+/// never branch on `self.kind` at all — the `match` below is a compile-time
+/// EXHAUSTIVE (no `_` arm) check over every `OverlayKind` variant, so a new
+/// variant fails THIS FILE to compile until a match arm is added for it,
+/// forcing a developer to consciously touch this law rather than have a new
+/// kind silently inherit an untested code path. The `for` loop that actually
+/// DRIVES the keyboard-scrolls-then-stationary-pointer script per kind still
+/// iterates [`OverlayKind::ALL`], which — as its own doc says — is a SEPARATE
+/// hand-kept roster the match does not itself force into lockstep: a variant
+/// added to the enum and to this match but forgotten in `ALL` still compiles
+/// clean and is silently never driven by the loop below. The match is a
+/// nudge at the enum-variant seam, not a substitute guard for `ALL`'s own
+/// maintenance discipline.
 #[test]
 fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
     fn sweep_this_kind(kind: OverlayKind) {

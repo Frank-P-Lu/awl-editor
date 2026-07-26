@@ -373,6 +373,22 @@ impl App {
             // 52) — unlike passive `overlay_hover`, which keeps the bare preview.
             crate::actions::preview_move(ov);
         }
+        // ITEM 106: the wheel drives `move_sel` exactly like a keyboard press (it
+        // is one of the "deliberate crossing" input classes, same as ↑/↓), so it
+        // must re-anchor `hover_at`'s movement-slop gate to the pointer's CURRENT
+        // resting position too — mirroring `App::apply`'s stamp after every
+        // keyboard-driven action. This function bypasses `App::apply` entirely
+        // (the wheel is dispatched straight from `on_mouse_wheel`), so without an
+        // explicit stamp here a cold-start session (overlay opened by keyboard,
+        // pointer never yet hovered a row, `last_hover_px` still `None`) would
+        // leave a wheel-scrolled selection exposed to `hover_at`'s cold-start
+        // rule: `None` reads ANY next pointer report — even an incidental
+        // redraw-duplicate `CursorMoved` at the pointer's unmoved position — as
+        // unconditional real motion, silently overriding the wheel's selection
+        // with whatever row now sits under the stationary pointer.
+        if let Some(ov) = self.overlay.as_mut() {
+            ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
+        }
         if kind == crate::overlay::OverlayKind::Theme {
             // Wheel preview: colors now, font reshape on settle (see overlay_hover).
             self.retint_theme_preview(prev);
