@@ -1006,6 +1006,7 @@ pub(crate) fn stamp_return_to(
 fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f32> {
     Some(match id {
         crate::settings::SettingId::Zoom => *ctx.zoom,
+        crate::settings::SettingId::ScrollSensitivity => crate::settings::scroll_sensitivity(),
         _ => return None,
     })
 }
@@ -1015,6 +1016,8 @@ fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f3
 fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
     if id == crate::settings::SettingId::Zoom {
         *ctx.zoom = v
+    } else if id == crate::settings::SettingId::ScrollSensitivity {
+        crate::settings::set_scroll_sensitivity(v);
     }
 }
 

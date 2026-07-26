@@ -1298,6 +1298,10 @@ impl App {
         // wedge the view. (Theme / page / caret are process-globals already restored
         // in `main` before `App::new`; zoom is per-instance so it lands here.)
         let zoom = render::clamp_zoom(config.zoom.unwrap_or(INITIAL_ZOOM));
+        let scroll_sensitivity = config
+            .scroll_sensitivity
+            .unwrap_or(crate::range::SCROLL_SENSITIVITY.default);
+        crate::settings::set_scroll_sensitivity(scroll_sensitivity);
         // THE ONE TIME OWNER: the shipped `RealClock` (a pure `Instant::now()`
         // pass-through). Built before the literal so the session-timer origin
         // reads it (a `clock.now()` BORROW), then the box is moved into the
@@ -1359,9 +1363,7 @@ impl App {
             peek_arm: crate::peek::PeekArm::default(),
             peek_armed_at: None,
             zoom,
-            scroll_sensitivity: config
-                .scroll_sensitivity
-                .unwrap_or(crate::range::SCROLL_SENSITIVITY.default),
+            scroll_sensitivity,
             dpi: 1.0,
             cursor_px: (0.0, 0.0),
             dragging: false,

@@ -38,6 +38,20 @@
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::Path;
 
+/// Live smooth-scroll multiplier. It mirrors Config/App so the shared action core
+/// can drive a Range row without growing a second layout/input context parameter.
+static SCROLL_SENSITIVITY_BITS: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(1.0f32.to_bits());
+
+pub fn scroll_sensitivity() -> f32 {
+    f32::from_bits(SCROLL_SENSITIVITY_BITS.load(std::sync::atomic::Ordering::Relaxed))
+}
+
+pub fn set_scroll_sensitivity(value: f32) {
+    let value = crate::range::SCROLL_SENSITIVITY.quantize(value);
+    SCROLL_SENSITIVITY_BITS.store(value.to_bits(), std::sync::atomic::Ordering::Relaxed);
+}
+
 /// How a setting is EDITED (drives what Enter does). Carried as DATA on each
 /// [`SettingRow`], never a code path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -521,7 +535,9 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         // SAME owner the rail, the sidecar and the exact-entry parse read, so the
         // cell and the thumb can never disagree about the value.
         SettingId::Zoom => crate::range::ZOOM.format(values.zoom),
-        SettingId::ScrollSensitivity => crate::range::SCROLL_SENSITIVITY.format(values.scroll_sensitivity),
+        SettingId::ScrollSensitivity => {
+            crate::range::SCROLL_SENSITIVITY.format(values.scroll_sensitivity)
+        }
         // DATE FORMAT: the active process-global format, rendered against the
         // caller-gathered TODAY (real live clock / the fixed headless
         // placeholder — see `SettingsValues::today_ymd`'s doc) — "what you see

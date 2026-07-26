@@ -303,7 +303,11 @@ impl App {
             "scroll_sensitivity" => {
                 if let Some(s) = crate::range::SCROLL_SENSITIVITY.parse(raw) {
                     self.scroll_sensitivity = s;
-                    self.persist_pref("scroll_sensitivity", &crate::range::SCROLL_SENSITIVITY.persist_value(s));
+                    crate::settings::set_scroll_sensitivity(s);
+                    self.persist_pref(
+                        "scroll_sensitivity",
+                        &crate::range::SCROLL_SENSITIVITY.persist_value(s),
+                    );
                 }
             }
             _ => {}
@@ -330,8 +334,11 @@ impl App {
         if key == "zoom" {
             self.zoom_reflow.queue();
         } else if key == "scroll_sensitivity" {
-            self.scroll_sensitivity = self.config.scroll_sensitivity
+            self.scroll_sensitivity = self
+                .config
+                .scroll_sensitivity
                 .unwrap_or(crate::range::SCROLL_SENSITIVITY.default);
+            crate::settings::set_scroll_sensitivity(self.scroll_sensitivity);
         }
         self.range_persist(key);
         self.sync_view(true);
@@ -353,6 +360,7 @@ impl App {
             self.set_zoom(value);
         } else if id == crate::settings::SettingId::ScrollSensitivity {
             self.scroll_sensitivity = crate::range::SCROLL_SENSITIVITY.quantize(value);
+            crate::settings::set_scroll_sensitivity(self.scroll_sensitivity);
         }
     }
 
@@ -366,7 +374,11 @@ impl App {
         if key == "zoom" {
             self.settle_zoom_persist()
         } else if key == "scroll_sensitivity" {
-            self.persist_pref(key, &crate::range::SCROLL_SENSITIVITY.persist_value(self.scroll_sensitivity));
+            self.scroll_sensitivity = crate::settings::scroll_sensitivity();
+            self.persist_pref(
+                key,
+                &crate::range::SCROLL_SENSITIVITY.persist_value(self.scroll_sensitivity),
+            );
         }
     }
 

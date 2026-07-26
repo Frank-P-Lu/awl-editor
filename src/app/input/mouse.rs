@@ -1226,7 +1226,10 @@ impl App {
                 MouseScrollDelta::LineDelta(x, y) => {
                     (x * WHEEL_PIXELS_PER_LINE, y * WHEEL_PIXELS_PER_LINE)
                 }
-                MouseScrollDelta::PixelDelta(p) => (p.x as f32, p.y as f32),
+                MouseScrollDelta::PixelDelta(p) => (
+                    p.x as f32 * self.scroll_sensitivity,
+                    p.y as f32 * self.scroll_sensitivity,
+                ),
             };
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.cursor_px;
