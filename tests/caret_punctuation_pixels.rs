@@ -5,6 +5,7 @@
 //! faces (serif/slab/sans/display/one-bit-adjacent) at both caret looks, two
 //! DPI/zoom products, every punctuation class, and letter/space/EOL controls.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 mod common;
@@ -93,6 +94,18 @@ fn footprint(
     (minx, miny, maxx, maxy, n)
 }
 
+fn distinct_rgb(image: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> usize {
+    let (w, _, pixels) = image;
+    let mut colors = BTreeSet::new();
+    for y in rect.1..=rect.3 {
+        for x in rect.0..=rect.2 {
+            let i = ((y * *w + x) * 4) as usize;
+            colors.insert([pixels[i], pixels[i + 1], pixels[i + 2]]);
+        }
+    }
+    colors.len()
+}
+
 #[test]
 fn proportional_punctuation_has_a_real_pixel_body() {
     let dir = temp();
@@ -149,8 +162,9 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                     capture.run(&out, Some(mode), &"Right ".repeat(c));
                     let band_top = top.saturating_sub(8);
                     let band_bottom = top + lh + 8;
+                    let rendered = rgba(&out);
                     let (left, outer_top, right, outer_bottom, area) =
-                        footprint(&rgba(&out), &refimg, band_top, band_bottom);
+                        footprint(&rendered, &refimg, band_top, band_bottom);
                     let w = right - left + 1;
                     let h = outer_bottom - outer_top + 1;
                     let scale = dpi * zoom;
@@ -169,6 +183,10 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                     assert!(
                         outer_top > band_top && outer_bottom + 1 < band_bottom,
                         "{world} {ch:?} {mode}: caret clipped by row band"
+                    );
+                    assert!(
+                        distinct_rgb(&rendered, (left, outer_top, right, outer_bottom)) >= 3,
+                        "{world} {ch:?} {mode}: covered punctuation swallowed into uniform body"
                     );
                     assert!(
                         area as f32 >= 96.0 * scale * scale * 0.25,
