@@ -3248,10 +3248,22 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
 /// actually performs it, before ACTIVE changes.
 #[test]
 fn an_unguarded_world_leak_fails_at_the_runtime_choke_point_before_it_writes() {
-    assert!(!crate::testlock::currently_held());
-    let before = active_index();
-    let leaked = std::panic::catch_unwind(|| set_active(before + 1));
-    assert!(leaked.is_err(), "a deliberately unguarded writer must fail");
+    // Every ACTIVE observation owns the same serialization window as its
+    // writers. The writer below is deliberately on a fresh, unguarded thread;
+    // it receives the already-observed index rather than reading ACTIVE itself.
+    let before = {
+        let _g = crate::testlock::serial();
+        active_index()
+    };
+    let leaked = std::thread::spawn(move || {
+        assert!(!crate::testlock::currently_held());
+        std::panic::catch_unwind(|| set_active(before + 1)).is_err()
+    })
+    .join()
+    .unwrap();
+
+    assert!(leaked, "a deliberately unguarded writer must fail");
+    let _g = crate::testlock::serial();
     assert_eq!(
         active_index(),
         before,
@@ -3259,39 +3271,49 @@ fn an_unguarded_world_leak_fails_at_the_runtime_choke_point_before_it_writes() {
     );
 }
 
-/// The choke-point probe above is itself an unguarded ACTIVE reader. Prove the
-/// resulting false-corruption report deterministically: a compliant writer owns
-/// the serial window and changes the world after the probe's first read but
-/// before its post-rejection read. The rejected write changes nothing, yet the
-/// probe observes the compliant writer's in-flight world and blames its own
-/// rejected call. Keep the writer's restore before this law asserts, so the
-/// evidence test cannot dirty the process global even when it fails.
+/// The choke-point probe keeps every ACTIVE read inside `serial()`, even while
+/// its writer thread remains deliberately unguarded. A compliant writer changes
+/// and restores the world in its own window before the probe observes the
+/// rejected write's result; the probe therefore cannot mistake that in-flight
+/// change for corruption caused by its rejected call.
 #[test]
-fn unguarded_choke_point_probe_races_a_compliant_writer_window() {
-    let _writer_window = crate::testlock::serial();
-    let before = active_index();
+fn unguarded_choke_point_probe_serializes_its_active_reads() {
+    let before = {
+        let _g = crate::testlock::serial();
+        active_index()
+    };
     let (read_tx, read_rx) = std::sync::mpsc::channel();
     let (changed_tx, changed_rx) = std::sync::mpsc::channel();
 
     let probe = std::thread::spawn(move || {
         assert!(!crate::testlock::currently_held());
-        let probe_before = active_index();
+        let probe_before = {
+            let _g = crate::testlock::serial();
+            active_index()
+        };
         read_tx.send(probe_before).unwrap();
         changed_rx.recv().unwrap();
         let rejected = std::panic::catch_unwind(|| set_active(probe_before + 2));
-        (rejected.is_err(), active_index())
+        let observed = {
+            let _g = crate::testlock::serial();
+            active_index()
+        };
+        (rejected.is_err(), observed)
     });
 
     assert_eq!(read_rx.recv().unwrap(), before);
-    set_active(before + 1);
+    {
+        let _writer_window = crate::testlock::serial();
+        set_active(before + 1);
+        set_active(before);
+    }
     changed_tx.send(()).unwrap();
     let (rejected, observed) = probe.join().unwrap();
-    set_active(before);
 
     assert!(rejected, "the deliberately unguarded write is rejected");
     assert_eq!(
         observed, before,
-        "the current unguarded probe can mistake a compliant writer's in-flight world for corruption"
+        "a probe whose observations serialize with writers sees no mutation from its rejected call"
     );
 }
 
