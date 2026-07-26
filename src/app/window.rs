@@ -20,6 +20,20 @@ impl App {
         self.debug_still = crate::debug::DebugStill::Active;
     }
 
+    /// Apply the Debug-off transition if any live diagnostic has been populated.
+    /// The predicate lives beside the reset it authorizes so the frame loop and its
+    /// law share one decision: a history-only theme transaction is sufficient.
+    pub(super) fn clear_debug_session_if_populated(&mut self) -> bool {
+        let populated = self.input_stamp.is_some()
+            || self.last_latency_ms.is_some()
+            || self.frame_costs.last().is_some()
+            || !self.theme_switches.is_empty();
+        if populated {
+            self.clear_debug_session_when_off();
+        }
+        populated
+    }
+
     fn handle_gpu_fault(&mut self, event_loop: &ActiveEventLoop, fault: gpu::GpuFault) {
         eprintln!("gpu {:?}: {}", fault.kind, fault.message);
         match gpu_fault_action(self.gpu_lifecycle, fault.kind) {
@@ -534,15 +548,10 @@ impl App {
                 gpu.pipeline
                     .set_debug_theme_settle(self.theme_switches.report(self.clock.now()));
             }
-        } else if self.input_stamp.is_some()
-            || self.last_latency_ms.is_some()
-            || self.frame_costs.last().is_some()
-            || !self.theme_switches.is_empty()
-        {
+        } else if self.clear_debug_session_if_populated() {
             // Panel just turned off: forget the measurements so the next
             // enable starts fresh (placeholders, then live numbers), and
             // re-feed the pipeline defaults (still-form placeholders).
-            self.clear_debug_session_when_off();
             if let Some(gpu) = self.gpu.as_mut() {
                 gpu.pipeline.set_debug_perf(None, None, None, true, None);
                 gpu.pipeline.set_debug_autosave(None);
@@ -596,7 +605,7 @@ impl App {
         // earlier frame and THIS present carried it to the screen — so this is the
         // settled present. Fold in the atlas (prepare) + first-present phases from the
         // split `Gpu::redraw` just recorded, compute the felt input→settled total, and
-        // feed the panel; a stamp redraw then draws the two new lines. Gated on a real
+        // feed the panel; a stamp redraw then draws the three new lines. Gated on a real
         // present (`frame_presented`) so a skipped/occluded frame keeps the switch in
         // flight until a real present lands. Structurally off the headless path (armed
         // only behind `debug_on()`; a capture never arms `theme_settle`).

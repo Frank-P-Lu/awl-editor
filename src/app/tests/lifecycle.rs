@@ -16,7 +16,10 @@ fn debug_off_clears_theme_transaction_history_without_a_frame_sample() {
     assert!(!app.theme_switches.is_empty(), "precondition: transaction recorded");
 
     crate::debug::set_debug_on(false);
-    app.clear_debug_session_when_off();
+    assert!(
+        app.clear_debug_session_if_populated(),
+        "the production Debug-off predicate recognizes history-only state"
+    );
     assert!(app.theme_switches.is_empty(), "Debug off clears the transaction window");
     crate::debug::set_debug_on(false);
 }
