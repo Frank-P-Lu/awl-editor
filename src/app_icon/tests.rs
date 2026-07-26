@@ -919,6 +919,22 @@ fn all_real_pairs() -> Vec<Pair> {
 /// re-run, far too little to absorb a pair actually moving closer together.
 const RATCHET_SLACK: f64 = 0.02;
 
+/// Item 102 round 3: the per-pair ratchet above has no memory across pairs —
+/// every blessed pair on an axis can erode together, each individually
+/// staying just under its own [`RATCHET_SLACK`], and `check_pair_axes` would
+/// report zero failures (found by round 2's own independent verification,
+/// reproduced by `coordinated_erosion_across_the_blessed_list_is_caught`).
+/// Independent antialiasing jitter on unrelated pairs points in unrelated
+/// directions, so averaged across an axis's whole blessed list it cancels
+/// toward zero; a SHARED-CAUSE shift (a gamma/hinting/antialiasing change in
+/// the exporter, applied once and re-run over the whole roster) moves every
+/// pair the same direction, so it does not cancel. Half of `RATCHET_SLACK`
+/// is tight enough to catch a coordinated shift while staying well clear of
+/// real per-pair jitter's mean (measured near zero on the shipped roster,
+/// see `small_sizes_keep_every_pair_of_worlds_apart`, which exercises this
+/// on all 27 real blessed entries every run).
+const SYSTEMIC_DRIFT_SLACK: f64 = RATCHET_SLACK / 2.0;
+
 type Read = fn(&Pair) -> f64;
 
 /// One pair already accepted into an axis's DANGER ZONE (below that axis's
@@ -1158,14 +1174,62 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     synthetic worlds (random grounds and inks, no screening against
 ///     `THEMES`) against the real 18-world roster tripped the guard on 2/30
 ///     (~7%) — real, named, single-pair collisions a maintainer would need
-///     to look at once and either fix the palette or bless. That is the
-///     bounded tradeoff of any real crowding guard on a roster whose ground
-///     palette already clusters this tightly; the fix is not to loosen the
-///     guard until it stops noticing, it is to keep the trip rate low enough
-///     that re-blessing stays a judgment call instead of routine paperwork —
-///     which a per-rank design could not promise, since its own trip
-///     surface grew with unrelated pairs jostling for a fixed number of
-///     slots rather than with actual new crowding.
+///     to look at once and either fix the palette or bless.
+///
+///     THIS COST COMPOUNDS WITH BATCH SIZE, MEASURED SEPARATELY: worlds ship
+///     in waves, not one at a time (item 92 landed all 18 in one commit), and
+///     the ~7% figure above is a per-world rate, not a per-wave one. Sweeping
+///     batches of 1/3/7 uncurated synthetic worlds together (same
+///     construction, three independent seeds, 30 trials each) trips the
+///     guard on roughly 3-10% of batch=1 waves (consistent with the ~7%
+///     single-world figure), 10-13% of batch=3 waves, and 40-57% of batch=7
+///     waves — because a batch adds pairs against the shipped roster AND
+///     against every other new world in the same wave, so the trip
+///     probability compounds with wave size roughly like any one of N
+///     independent coin flips landing heads. A maintainer landing several
+///     worlds in one PR should expect to see one or more "add this Blessed
+///     entry" prompts close to half the time, not the rare event the
+///     per-world figure alone suggests. That is still the bounded, honest
+///     tradeoff of any real crowding guard on a roster whose ground palette
+///     already clusters this tightly: the fix is not to loosen the guard
+///     until it stops noticing (a rubber stamp is not a law), it is that a
+///     maintainer shipping a wave of new worlds should cross-check the wave
+///     against `THEMES` BEFORE committing, the same discipline
+///     `ordinary_new_world_passes_the_danger_zone_guard` already demonstrates
+///     for one world at a time — this guard cannot make that discipline
+///     optional, only tell a maintainer who skipped it.
+///
+///     A DIFFERENT SHAPE OF SILENT FAILURE, ALSO CLOSED (item 102 round 3):
+///     the per-pair ratchet above has no memory ACROSS pairs — every one of
+///     an axis's blessed pairs can erode together, each individually staying
+///     under its own [`RATCHET_SLACK`], and the per-pair loop alone reports
+///     nothing (found by round 2's own independent verification). A
+///     SYSTEMIC-DRIFT check catches this: the MEAN erosion across an axis's
+///     blessed list is checked against [`SYSTEMIC_DRIFT_SLACK`] (half of
+///     `RATCHET_SLACK`) — independent per-pair jitter cancels toward zero
+///     when averaged, a shared-cause shift (the whole exporter re-rendering
+///     slightly differently) does not. See
+///     `coordinated_erosion_across_the_blessed_list_is_caught`. A SEPARATE
+///     check catches the list's other failure direction — a `Blessed` row
+///     whose pair no longer exists (a world renamed) or has widened back out
+///     of the zone, which would otherwise sit inert forever with nothing
+///     prompting its removal; see `stale_blessed_entry_for_a_renamed_world_is_flagged`
+///     and `stale_blessed_entry_for_a_widened_pair_is_flagged`.
+///
+///     A LIMIT LEFT DELIBERATELY OPEN: neither check verifies that a
+///     `Blessed.baseline` was HONEST at the moment it was entered — a
+///     baseline typed in lower than the pair's true measured value at
+///     blessing time silently widens that one pair's erosion corridor
+///     forever, and nothing here (or practically anywhere in a
+///     source-committed threshold) can distinguish an honest baseline from a
+///     generous one after the fact, because the ratchet's whole point is to
+///     tolerate the measured value moving below the committed number by a
+///     bounded amount. This is a review/trust surface, not a code defect:
+///     item 99 already accepted that a re-blessing edit is read by a human
+///     before merge, the same trust any threshold committed to source code
+///     carries. Bounded, not fixed: a `git blame` on `axes()` names who
+///     entered which baseline and when, which is the actual audit trail this
+///     design relies on.
 ///
 /// The stricter 20% tier the two hand-picked pairs used to carry is GONE, not
 /// weakened: its premise (same face ⇒ at risk) is false by measurement above,
@@ -1234,6 +1298,10 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
         // this function's caller for the two ways a fixed-rank design broke.
         let mut in_zone: Vec<&Pair> = pairs.iter().filter(|p| read(p) < danger).collect();
         in_zone.sort_by(|x, y| read(x).total_cmp(&read(y)));
+        // Erosion fraction of every matched blessed pair still in the zone —
+        // fed into the systemic-drift check below, once the per-pair loop is
+        // done. Positive == crowding (closer than baseline).
+        let mut erosions: Vec<f64> = Vec::new();
         for p in in_zone {
             let v = read(p);
             match blessed.iter().find(|b| b.matches(p)) {
@@ -1263,6 +1331,63 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
                             show(v),
                             RATCHET_SLACK * 100.0,
                             show(ratchet),
+                        ));
+                    }
+                    erosions.push((b.baseline - v) / b.baseline);
+                }
+            }
+        }
+
+        // SYSTEMIC DRIFT (item 102 round 3): no single pair breached its own
+        // ratchet, but if the whole blessed list moved the same direction at
+        // once, that is a shared-cause shift (see SYSTEMIC_DRIFT_SLACK's
+        // doc), not independent per-pair noise — and the per-pair loop above
+        // has no way to notice it, by construction.
+        if !erosions.is_empty() {
+            let mean_erosion = erosions.iter().sum::<f64>() / erosions.len() as f64;
+            if mean_erosion > SYSTEMIC_DRIFT_SLACK {
+                failures.push(format!(
+                    "{name}'s {} blessed pairs eroded together by a mean of {:.2}% — more \
+                     than half of {name}'s {:.0}% per-pair ratchet slack, even though no \
+                     single pair crossed its own ratchet. That shape is a coordinated shift \
+                     (every pair moving the same direction at once — a shared-cause \
+                     re-export, not independent antialiasing jitter on one pair), which the \
+                     per-pair ratchet alone cannot see. Either back out whatever changed the \
+                     exporter, or re-bless {name}'s whole list with today's measured values \
+                     and say why they moved together.",
+                    erosions.len(),
+                    mean_erosion * 100.0,
+                    RATCHET_SLACK * 100.0,
+                ));
+            }
+        }
+
+        // STALE ENTRIES (item 102 round 3): a `Blessed` row the per-pair loop
+        // above never visits — because its pair no longer exists (a world
+        // renamed) or has widened back out of the danger zone — sits inert
+        // forever with nothing prompting its removal. Checked against the
+        // FULL pair set, not `in_zone`, since a widened-out pair is by
+        // definition no longer in `in_zone`.
+        for b in blessed {
+            match pairs.iter().find(|p| b.matches(p)) {
+                None => failures.push(format!(
+                    "{name}'s blessed list names {} vs {} but no such pair exists in the \
+                     roster any more (a world renamed?) — remove the stale `Blessed` entry \
+                     from {name}'s list in `axes()`.",
+                    b.a, b.b
+                )),
+                Some(p) => {
+                    let v = read(p);
+                    if v >= danger {
+                        failures.push(format!(
+                            "{name}'s blessed list still carries {} vs {} (baseline {}) but \
+                             it now measures {} — outside the danger zone (>= {}) — remove \
+                             the stale `Blessed` entry from {name}'s list in `axes()`.",
+                            b.a,
+                            b.b,
+                            show(b.baseline),
+                            show(v),
+                            show(danger),
                         ));
                     }
                 }
@@ -1579,6 +1704,129 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
             failures.join("\n\n")
         );
     }
+}
+
+/// NON-VACUITY (item 102 round 3 — closing the coordinated-erosion gap):
+/// EVERY blessed pair on EVERY axis erodes together, each individually
+/// staying just under its own [`RATCHET_SLACK`], and the failure list must
+/// still be non-empty. This reproduces round 2's own independent
+/// verification exactly, against the real shipped `all_real_pairs`,
+/// `DIFFERING_BLESSED`/`MEAN_BLESSED`/`INK_BLESSED`, and `check_pair_axes` —
+/// no reimplementation. Under the per-pair-only ratchet this passed in
+/// total silence: all 27 blessed axis-entries individually stayed above
+/// their own ratchet, so `check_pair_axes` returned zero failures despite a
+/// real, coordinated 1.9% narrowing of the entire blessed population.
+#[test]
+fn coordinated_erosion_across_the_blessed_list_is_caught() {
+    let _g = crate::testlock::serial();
+    let mut pairs = all_real_pairs();
+
+    // Just inside RATCHET_SLACK (2%): no single pair's own ratchet trips.
+    const COORDINATED_EROSION: f64 = 0.019;
+    for b in DIFFERING_BLESSED {
+        let p = pairs
+            .iter_mut()
+            .find(|p| b.matches(p))
+            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
+        p.differing = b.baseline * (1.0 - COORDINATED_EROSION);
+    }
+    for b in MEAN_BLESSED {
+        let p = pairs
+            .iter_mut()
+            .find(|p| b.matches(p))
+            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
+        p.mean = b.baseline * (1.0 - COORDINATED_EROSION);
+    }
+    for b in INK_BLESSED {
+        let p = pairs
+            .iter_mut()
+            .find(|p| b.matches(p))
+            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
+        p.ink = b.baseline * (1.0 - COORDINATED_EROSION);
+    }
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        !failures.is_empty(),
+        "all 27 blessed axis-entries eroded together by 1.9% (just inside RATCHET_SLACK) and \
+         check_pair_axes reported no failures — the systemic-drift guard is not catching \
+         coordinated erosion across the blessed list"
+    );
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+        assert!(
+            failures.iter().any(|f| f.contains(axis) && f.contains("eroded together")),
+            "expected a systemic-drift failure mentioning {axis:?}; got:\n\n{}",
+            failures.join("\n\n")
+        );
+    }
+}
+
+/// NON-VACUITY (item 102 round 3 — closing the stale-entry gap): a
+/// `Blessed` entry whose pair no longer exists in the roster (the shape a
+/// world rename takes) must be flagged, not sit inert forever. Simulated by
+/// dropping Currawong/Cassowary — blessed on all three axes — from the real
+/// pair set, exactly as a rename would.
+#[test]
+fn stale_blessed_entry_for_a_renamed_world_is_flagged() {
+    let _g = crate::testlock::serial();
+    let probe = Blessed { a: "Currawong", b: "Cassowary", baseline: 0.0 };
+    let pairs: Vec<Pair> = all_real_pairs().into_iter().filter(|p| !probe.matches(p)).collect();
+
+    let failures = check_pair_axes(&pairs);
+    for axis in ["differing pixels", "mean channel distance", "differing INK pixels"] {
+        assert!(
+            failures.iter().any(|f| {
+                f.contains(axis)
+                    && f.contains("Currawong")
+                    && f.contains("Cassowary")
+                    && f.contains("no such pair exists")
+            }),
+            "removing Currawong vs Cassowary (blessed on every axis) should flag a stale \
+             `Blessed` entry on {axis:?}; got:\n\n{}",
+            failures.join("\n\n")
+        );
+    }
+}
+
+/// NON-VACUITY (item 102 round 3 — closing the stale-entry gap, the other
+/// direction): a `Blessed` entry whose pair widened back OUT of the danger
+/// zone — crowding resolved by unrelated palette work, not by review — must
+/// also be flagged, not sit inert. Mutates Currawong/Cassowary's `differing`
+/// value alone, well past the 35% danger threshold, leaving its `mean`/`ink`
+/// entries (still genuinely in zone) undisturbed.
+#[test]
+fn stale_blessed_entry_for_a_widened_pair_is_flagged() {
+    let _g = crate::testlock::serial();
+    let mut pairs = all_real_pairs();
+    let p = pairs
+        .iter_mut()
+        .find(|p| (p.a == "Currawong" && p.b == "Cassowary") || (p.a == "Cassowary" && p.b == "Currawong"))
+        .expect("Currawong vs Cassowary is a real pair");
+    p.differing = 0.50; // well clear of `differing`'s 35% danger threshold
+
+    let failures = check_pair_axes(&pairs);
+    assert!(
+        failures.iter().any(|f| {
+            f.contains("differing pixels")
+                && f.contains("Currawong")
+                && f.contains("Cassowary")
+                && f.contains("outside the danger zone")
+        }),
+        "Currawong vs Cassowary widening past `differing`'s danger threshold should flag its \
+         now-stale `Blessed` entry; got:\n\n{}",
+        failures.join("\n\n")
+    );
+    // Its `mean`/`ink` entries are untouched and still genuinely in zone —
+    // this must not, as a side effect, also complain about them.
+    assert!(
+        !failures.iter().any(|f| {
+            (f.contains("mean channel distance") || f.contains("differing INK pixels"))
+                && f.contains("Currawong")
+                && f.contains("Cassowary")
+        }),
+        "only the widened axis should flag; got:\n\n{}",
+        failures.join("\n\n")
+    );
 }
 
 // ------------------------------------------------------------ the packer ---
