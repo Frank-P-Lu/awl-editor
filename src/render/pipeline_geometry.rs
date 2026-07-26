@@ -95,11 +95,11 @@ impl TextPipeline {
         // preview re-tints for free.
         self.image_scrim_pipeline
             .set_color(theme::image_reveal_scrim().rgba_bytes());
-        // WYSIWYG table header-separator hairline: re-tint from `muted` (O(1);
-        // geometry is theme-independent, so the picker preview re-tints for free).
+        // WYSIWYG table header separator re-tints from `muted`.
         self.table_rule_pipeline
             .set_color(theme::muted().rgba_bytes());
-        self.panel_card.set_color(theme::base_300().rgba_bytes());
+        self.panel_card
+            .set_color(theme::pane_surface(effective_card_elevation()).rgba_bytes());
         // Centered-overlay elevation companions: same shadow/border tokens as
         // every other summoned card (re-tinted for free on a theme-picker preview).
         self.panel_shadow.set_color(float_shadow_srgba());

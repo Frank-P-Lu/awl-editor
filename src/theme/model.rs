@@ -174,13 +174,10 @@ pub enum Backdrop {
 }
 
 /// Whether a summoned card's elevation reads as the ordinary FLAT `base_300`
-/// fill (the default — depth is carried by the surface-ramp value step
-/// alone, and the blur/scrim backdrop supplies the card's contrast), steps
+/// fill (depth is carried by the ramp and backdrop), steps
 /// back to `base_200` without edge ink (`Recessed`, for a chromatic ground
-/// that otherwise meets `base_300`), or additionally draws the crisp raised
-/// BORDER rim the float panels already carry (`set_float_quads`'s `elevated`
-/// arm, border ink =
-/// `surface_selected()`). Wagtail's original motivation: its surface ramp
+/// that otherwise meets `base_300`), or draws the float panel's raised BORDER
+/// (`surface_selected()`). Wagtail's original motivation: its surface ramp
 /// COLLAPSES (`base_200 == base_300`, both pure black) and its backdrop blur
 /// is disabled, so a flat fill was an invisible card — `surface_selected()`
 /// detects that collapsed ramp and returns the ink pole (pure white there).

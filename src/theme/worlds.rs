@@ -173,12 +173,9 @@ pub const POTOROO: Theme = Theme {
     },
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
-    // All-mono burrow → plain geometric bullets (restraint is its character).
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
-    // Dark burnt-orange room → Dusk (warm dark); Monaspace mono → Humble / Technical; rust hue → Warm.
-    // Curated: a headliner on ALL four — Dusk / Humble / Technical / Warm are each its clearest exemplar.
     tags: ThemeTags {
         time: Some("Dusk"),
         register: Some("Humble"),
@@ -186,9 +183,6 @@ pub const POTOROO: Theme = Theme {
         temperature: Some("Warm"),
     },
     role_overrides: RoleOverrides::NONE,
-    // The striped rust Frame reaches the ordinary focused card rung; recess the
-    // Pane-family surface one existing value step so its perimeter is findable
-    // without a rim or a second accent. The Room remains untouched.
     render_caps: RenderCaps {
         elevation: Elevation::Recessed,
         ..RenderCaps::DEFAULT

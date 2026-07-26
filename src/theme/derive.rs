@@ -483,11 +483,7 @@ fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
     (hi + 0.05) / (lo + 0.05)
 }
 
-/// The opaque face for a centered Pane-family command surface. The value step
-/// belongs to [`Elevation`], so every consumer reads one authored decision:
-/// ordinary and rimmed cards remain `base_300`; a recessed card uses `base_200`
-/// to separate from a Frame that already reaches the focused rung. This is value
-/// only — no extra ink, outline, or accent.
+/// The Pane face: ordinary/rimmed `base_300`, or value-only recessed `base_200`.
 pub fn pane_surface(elevation: Elevation) -> Srgb {
     match elevation {
         Elevation::Flat | Elevation::Bordered => base_300(),
@@ -495,26 +491,18 @@ pub fn pane_surface(elevation: Elevation) -> Srgb {
     }
 }
 
-/// The minimum contrast the selected picker row's INK must clear against its
-/// own value band ([`overlay_selected_band`]) — the taste floor enforced for
-/// EVERY world by `render::tests::distinguishability::
-/// selected_row_text_clears_contrast_floor_on_every_world`. 3:1 is the WCAG
-/// large-text / UI-component floor; below it the glyphs wash into the fill (the
-/// Bombora-under-Bars exhibit: light ink on a mid sage band = 2.53:1).
+/// Minimum selected-row ink contrast against [`overlay_selected_band`].
+/// Bombora-under-Bars was the 2.53:1 failure behind this 3:1 floor.
 pub(super) const SELECTED_ROW_INK_CONTRAST_FLOOR: f32 = 3.0;
 
-/// THE ONE owner of the selected picker row's INK on a `ValueBand` world — the
-/// [`super::HighlightTreatment::InverseFill`] lesson (a selected row that erases
-/// its own text is the bug) applied to the ORDINARY-fill worlds. The row keeps
-/// the world's `base_content` ink UNLESS the selected-row value `band` washes it
-/// out (contrast below [`SELECTED_ROW_INK_CONTRAST_FLOOR`]), in which case the
+/// Selected-row ink owner for ordinary `ValueBand` worlds.
+/// Keep `base_content` unless `band` falls below the contrast floor, then
 /// ink FLIPS to whichever ladder POLE (`base_100` ground vs `base_content` ink)
 /// reads harder against the fill. Derived purely from the fill's own luminance,
 /// never a per-world hand value: on a DARK world the light `base_content` fails
 /// against a mid band and the dark ground wins; on a LIGHT world the reverse.
 /// Bombora under Bars was the exhibit — light ink (236,232,242) on a mid sage
-/// band (132,152,144) = 2.53:1. Wagtail's 1-bit worlds resolve their pair
-/// through `InverseFill` instead and never reach here.
+/// band (132,152,144) = 2.53:1. Wagtail resolves through `InverseFill`.
 pub fn selected_row_ink(band: Srgb) -> Srgb {
     let content = base_content();
     if contrast_ratio(band, content) >= SELECTED_ROW_INK_CONTRAST_FLOOR {

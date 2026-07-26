@@ -139,18 +139,13 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let table_rule_pipeline =
             SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
-        // The opaque base-300 panel card (alpha == 0xFF -> overwrites the doc text
-        // it covers). Reuses the rounded-quad selection pipeline at full alpha.
-        let panel_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
-        // Centered-overlay elevation companions (see the field doc): the SAME
-        // shadow/border tokens the shared float-panel primitive uses, drawn only
-        // on a one-bit world.
+        // Opaque Pane face; elevation owns its value from construction onward.
+        let panel_card = SelectionPipeline::new(device, format, initial_pane_face());
+        // Centered-overlay elevation companions; drawn only on a one-bit world.
         let panel_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
         let panel_border =
             SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        // The FROSTED-BACKDROP blur behind a full-takeover overlay (replacing the old
-        // neutral grey scrim). Pipelines + sampler now; the offscreen textures are
-        // sized lazily on the first overlay-open `prepare` (see `blur::BlurBackdrop`).
+        // Frosted takeover backdrop; offscreen textures size lazily on first use.
         let blur = blur::BlurBackdrop::new(device, format);
         // Second text renderer for the panel string, sharing the atlas + viewport.
         let panel_renderer =
@@ -619,4 +614,8 @@ impl TextPipeline {
         me.set_text(HELLO_TEXT);
         me
     }
+}
+
+fn initial_pane_face() -> [u8; 4] {
+    theme::pane_surface(effective_card_elevation()).rgba_bytes()
 }

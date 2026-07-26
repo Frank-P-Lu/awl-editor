@@ -2839,8 +2839,11 @@ fn stipple_placard_density_clears_the_legibility_floor_over_its_own_ground() {
     set_active(DEFAULT_THEME);
 }
 
-/// THE PERSONALITY ASSIGNMENT TABLE (2026-07-15, the user's decided picks) —
-/// the conscious successor of the machinery round's all-InlinePrefix
+/// THE PERSONALITY ASSIGNMENT TABLE — successor to the all-InlinePrefix
+/// capability gate. Potoroo alone recesses both split Pane surfaces so they
+/// separate from its striped Frame without a rim or accent. The assignment
+/// remains data alongside the established personality roster, and a new world
+/// still fails the exhaustive match until consciously placed.
 /// byte-identity gate. Every world's `render_caps` must be EXACTLY its
 /// decided value: the four placard worlds (Galah/Magpie the Ghost reference
 /// look, Mangrove the stipple — the Bayer dither is its own language,
@@ -2849,10 +2852,7 @@ fn stipple_placard_density_clears_the_legibility_floor_over_its_own_ground() {
 /// elevation borders (Currawong's OLED rim, the two lava worlds' edge over
 /// motion, the six LIGHT worlds' pale-ground rim — composition round item 6),
 /// the Wagtail page frame (2px, its ladder white), Wagtail's
-/// user-confirmed NO-placard silence — and, just as deliberately, DEFAULT
-/// for every world not named (byte-identity for the quiet roster). A NEW
-/// world fails the `expected()` match until it decides its personality here
-/// — the no-wildcard discipline applied to the roster.
+/// user-confirmed NO-placard silence, and deliberate defaults elsewhere.
 #[test]
 fn personality_assignments_are_exactly_the_decided_table() {
     use model::{
@@ -3057,10 +3057,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // ITEM 86 — Bowerbird's item-71 woven `JaggedWave` card texture
             // was RETIRED (summoned cards returned to plain flat); it now
             // rides the plain default alongside its neighbors here.
-            "Potoroo" => RenderCaps {
-                elevation: Elevation::Recessed,
-                ..RenderCaps::DEFAULT
-            },
+            "Potoroo" => expected_potoroo_caps(),
             "Tawny" | "Mopoke" | "Bombora" | "Mulga" | "Bowerbird" => RenderCaps::DEFAULT,
             // CASSOWARY (the NERV-terminal statement world): the loud NERV console
             // overlay — a bold Archivo-Black wordmark placard (Auto corner derives
@@ -3111,17 +3108,16 @@ fn personality_assignments_are_exactly_the_decided_table() {
     // corner DERIVES from the card anchor (complementary) with per-world overrides.
 }
 
+fn expected_potoroo_caps() -> model::RenderCaps {
+    model::RenderCaps {
+        elevation: model::Elevation::Recessed,
+        ..model::RenderCaps::DEFAULT
+    }
+}
+
 /// THE PAGE-FRAME THEME LAW: the frame can never invent a color — its ink is
-/// derived in ONE owner (`page_frame_ink` = the world's own `base_content`,
-/// the full-ink ladder rung) for EVERY world, assigned or not; an assigned
-/// frame's weight is a real positive width. The AMBER GUARD binds here BY
-/// IDENTITY, the same way the comment tiers' does (role-tint law (e)): the
-/// frame ink IS an existing ink rung — definitionally the ink, never the
-/// accent, even on a warm-inked world whose ink shares the caret's general
-/// warmth (Mopoke) — so the assertable half is that it is never LITERALLY
-/// `primary` (the WYSIWYG value-step law's own shape). The frame's PIXEL
-/// half — actually drawn, in bounds, pure ink, absent on every None world —
-/// is `render::tests::page_frame`.
+/// `page_frame_ink` is always the world's `base_content`; assigned weights are
+/// positive. The pixel half lives in `render::tests::page_frame`.
 #[test]
 fn page_frame_ink_is_the_ladder_and_assigned_weights_are_real() {
     let _g = crate::testlock::serial();

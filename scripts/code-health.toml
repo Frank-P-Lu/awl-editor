@@ -939,7 +939,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
 line = 2857
-message = "this function has too many lines (154/100)"
+message = "this function has too many lines (153/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 # Add structural exceptions only for intentional URL/unbreakable/rustfmt-skip/generated/architectural cases.
