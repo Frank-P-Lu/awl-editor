@@ -58,7 +58,7 @@ while IFS=$'\t' read -r id label theme canvas measure keys fixture capture_mode 
   esac
 done < "$ROOT/scripts/review/scenes.tsv"
 
-echo "==> current shipped icon sheets (no pack, no committed-asset writes)"
+echo "==> current shipped icon review sheets (no pack, no committed-asset writes)"
 "$BIN" --icon-manifest > "$SCRATCH/icon-manifest.json"
 cp "$SCRATCH/icon-manifest.json" "$OUT/assets/icons/manifest.json"
 node scripts/icons/build.mjs \

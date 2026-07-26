@@ -316,6 +316,39 @@ function shippedPage(manifest, tuning, surface, faceOf) {
   };
 }
 
+/** The shipped assignment for one world, bounded for the review dashboard. */
+function shippedWorldPage(manifest, tuning, world, faceOf) {
+  const shown = [256, 128, 64, 44, 32, 24];
+  if (!tuning.presets[world.cursor]) {
+    throw new Error(`${world.name} declares cursor ${world.cursor}, which is not one of the three presets`);
+  }
+  const geom = geometry(tuning, world.cursor, world.font);
+  const block = (surface) => {
+    const s = SURFACES[surface];
+    let row = `<div class="grid" style="grid-template-columns:repeat(${shown.length},auto);justify-content:start">`;
+    row += shown.map((size) => `<div class="hdr">${size}px</div>`).join("");
+    row += shown.map((size) => `<div>${tile(world, faceOf(world.font), geom, size)}</div>`).join("");
+    row += `</div>`;
+    return `<div style="background:${s.page};color:${s.text};padding:24px 28px">
+<p class="cap" style="color:${s.dim};margin:0 0 16px">${surface} Dock surface</p>
+<div class="strip" style="background:${s.strip}">${row}</div></div>`;
+  };
+  return {
+    file: `shipped-world-${world.name}.html`,
+    surface: "dark",
+    shots: [{ out: `gallery/shipped-world-${world.name}.png`, full: true }],
+    html: page({
+      title: `awl app icon — shipped — ${world.name}`,
+      surface: "dark",
+      body: `<div style="padding:32px 32px 0"><h1>${esc(world.name)} — shipped icon</h1>
+<p class="sub">${esc(world.font)} &middot; ${esc(
+        tuning.presets[world.cursor].label
+      )} from <code>Theme::icon_cursor</code> &middot; native size ladder</p></div>
+${block("dark")}${block("light")}`,
+    }),
+  };
+}
+
 /** One world, all three presets, big and small, on both surfaces at once. */
 function worldPage(manifest, tuning, world, faceOf) {
   const presets = Object.keys(tuning.presets);
@@ -384,6 +417,7 @@ function main() {
   for (const size of SIZES) pages.push(tilesPage(manifest, tuning, size, faceOf));
   for (const surface of ["dark", "light"]) pages.push(overviewPage(manifest, tuning, surface, faceOf));
   for (const surface of ["dark", "light"]) pages.push(shippedPage(manifest, tuning, surface, faceOf));
+  for (const world of manifest.worlds) pages.push(shippedWorldPage(manifest, tuning, world, faceOf));
   for (const preset of Object.keys(tuning.presets)) {
     for (const surface of ["dark", "light"]) {
       pages.push(sizesPage(manifest, tuning, preset, surface, faceOf));

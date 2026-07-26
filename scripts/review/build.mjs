@@ -88,7 +88,8 @@ if (roomNames.join("\n") !== frameNames.join("\n")) throw new Error("Room and Fr
 const capturedWorlds = roomNames.map((name) => name.slice(0, -4));
 if (capturedWorlds.length === 0) throw new Error("world roster is empty");
 const iconManifestPath = requireFile("assets/icons/manifest.json");
-const iconWorlds = readSidecar(iconManifestPath).worlds?.map((world) => world.name);
+const iconManifest = readSidecar(iconManifestPath);
+const iconWorlds = iconManifest.worlds?.map((world) => world.name);
 if (
   !iconWorlds ||
   JSON.stringify([...iconWorlds].sort()) !== JSON.stringify([...capturedWorlds].sort())
@@ -129,6 +130,9 @@ for (const scene of scenes) {
 }
 for (const name of ["shipped-light.png", "shipped-dark.png"]) {
   requireFile(`assets/icons/gallery/${name}`);
+}
+for (const world of iconManifest.worlds) {
+  requireFile(`assets/icons/gallery/shipped-world-${world.name}.png`);
 }
 const card = ({ id, label, image, json, theme, mode, surface, description, meta = "" }) => `
   <article class="shot" data-world="${esc(theme)}" data-mode="${esc(mode)}" data-surface="${esc(surface)}" id="${esc(id)}">
@@ -178,19 +182,19 @@ const sceneCards = scenes
   )
   .join("\n");
 
-const iconCards = ["light", "dark"]
-  .map((mode) =>
+const iconCards = iconManifest.worlds
+  .map((world) =>
     card({
-      id: `icons-${mode}`,
-      label: `Shipped icons · ${mode} surface`,
-      image: `assets/icons/gallery/shipped-${mode}.png`,
+      id: `icons-${world.name}`,
+      label: `${world.name} · shipped icon`,
+      image: `assets/icons/gallery/shipped-world-${world.name}.png`,
       json: "",
-      theme: mode,
-      mode,
+      theme: world.name,
+      mode: world.dark ? "dark" : "light",
       surface: "icons",
       description:
-        "Every world at its assigned cursor silhouette, rendered natively down the Dock/app-switcher ladder.",
-      meta: "theme-derived offline icon pipeline",
+        "Its assigned cursor silhouette, rendered natively down the Dock/app-switcher ladder on both surfaces.",
+      meta: `${world.font} · ${world.cursor} · theme-derived offline icon pipeline`,
     }),
   )
   .join("\n");
@@ -370,7 +374,7 @@ try {
 }
 fs.writeFileSync(path.join(out, "index.html"), html);
 
-const expectedCards = worlds.length * 2 + scenes.length + 2;
+const expectedCards = worlds.length * 3 + scenes.length;
 const actualCards = (html.match(/<article class="shot"/g) ?? []).length;
 if (actualCards !== expectedCards) throw new Error(`DOM card count ${actualCards} != manifest count ${expectedCards}`);
 const domIds = [...html.matchAll(/<article class="shot"[^>]+id="([^"]+)"/g)].map((match) => match[1]);

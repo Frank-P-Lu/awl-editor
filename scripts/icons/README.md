@@ -82,6 +82,9 @@ present locally. The script never downloads a browser — point
 `assets/macos/candidates/`
 
 - `gallery/shipped-{dark,light}.png` — WHAT SHIPS: each world at the one preset its world literal assigns, down the sizes a Dock and an app switcher draw
+- `gallery/shipped-world-<World>.png` — the same shipped assignment as one
+  bounded review sheet per world, at 256 / 128 / 64 / 44 / 32 / 24 on both
+  light and dark Dock surfaces
 - `gallery/overview-{dark,light}.png` — all 54 candidates at 128px
 - `gallery/sizes-<preset>-{dark,light}.png` — every world down the size roster,
   each size rendered natively rather than scaled from the master

@@ -391,6 +391,12 @@ lightbox. `←`/`→` walk the currently visible filtered set; `Escape`, the clo
 control, or the backdrop dismiss it and return focus to the invoking card.
 Modified clicks retain the image link's ordinary new-tab behavior.
 
+The icon section uses one bounded card per world. Each card shows that world's
+actual `Theme::icon_cursor` assignment rendered natively at
+256/128/64/44/32/24 on both light and dark Dock surfaces. The icon exporter
+retains the two full-roster shipped strips for dedicated overview work, but
+they are not the dashboard's primary review unit.
+
 The world half derives its roster from `awl --list-worlds`. The smaller
 important-screen roster lives in `scripts/review/scenes.tsv`: one typed row per
 fixture/theme/canvas/key sequence/capture mode/state expectation, so adding or
