@@ -33,14 +33,15 @@
 //! old `theme::TEST_LOCK` / `fs::TEST_LOCK` / `page::test_lock` /
 //! `about`+`lifetime` composite / caret / debug / hud / … family.
 //!
-//! THEME CLEANLINESS is checked, not silently imposed. An outermost [`serial`]
-//! guard snapshots the active world and fails (after restoring it) if its test
-//! window exits dirty. This is deliberately not the retired ambient
-//! `WorldPin-on-serial`: a clean window performs no write, and production code
-//! that owns a persistent global write takes [`product`] instead. A nested
-//! product acquire under a test guard remains inside the test's checked window,
-//! so it cannot punch a hole through the law. `theme::set_active` independently
-//! asserts this lock at the runtime writer choke point.
+//! WORLD + PAGE CLEANLINESS are checked, not silently imposed. An outermost
+//! [`serial`] guard snapshots the active world and page inputs and fails (after
+//! restoring them) if its test window exits dirty. This is deliberately not the
+//! retired ambient `WorldPin-on-serial`: a clean window performs no write, and
+//! production code that owns a persistent global write takes [`product`] instead.
+//! A nested product acquire under a test guard remains inside the test's checked
+//! window, so it cannot punch a hole through the law. `theme::set_active` and the
+//! page setters independently acquire this lock at their runtime writer choke
+//! points.
 
 use std::cell::Cell;
 use std::sync::{Mutex, MutexGuard};
@@ -63,12 +64,14 @@ thread_local! {
 pub(crate) struct SerialGuard {
     inner: Option<MutexGuard<'static, ()>>,
     world_at_entry: Option<usize>,
+    page_at_entry: Option<(bool, usize)>,
 }
 
 impl Drop for SerialGuard {
     fn drop(&mut self) {
         if self.inner.is_some() {
             let mut world_leak = None;
+            let mut page_leak = None;
             if let Some(before) = self.world_at_entry {
                 let after = crate::theme::active_index();
                 if after != before {
@@ -80,6 +83,20 @@ impl Drop for SerialGuard {
                     }
                 }
             }
+            if let Some((on_before, measure_before)) = self.page_at_entry {
+                let on_after = crate::page::page_on();
+                let measure_after = crate::page::measure();
+                if (on_after, measure_after) != (on_before, measure_before) {
+                    // As with worlds, restore before reporting. In particular,
+                    // a capture test that returns early or unwinds after shaping
+                    // at a custom measure must not poison its next reader.
+                    crate::page::set_page_on(on_before);
+                    crate::page::set_measure(measure_before);
+                    if !std::thread::panicking() {
+                        page_leak = Some(((on_before, measure_before), (on_after, measure_after)));
+                    }
+                }
+            }
             HELD.with(|h| h.set(false));
             if let Some((before, after)) = world_leak {
                 panic!(
@@ -88,6 +105,12 @@ impl Drop for SerialGuard {
                     crate::theme::THEMES[before].name,
                     after,
                     crate::theme::THEMES[after].name
+                );
+            }
+            if let Some(((on_before, measure_before), (on_after, measure_after))) = page_leak {
+                panic!(
+                    "test left page inputs dirty: entered at page_on={} measure={} and exited at page_on={} measure={}",
+                    on_before, measure_before, on_after, measure_after
                 );
             }
         }
@@ -118,13 +141,14 @@ pub(crate) fn product_requests() -> usize {
 
 fn acquire(check_world: bool) -> SerialGuard {
     if HELD.with(|h| h.get()) {
-        return SerialGuard { inner: None, world_at_entry: None };
+        return SerialGuard { inner: None, world_at_entry: None, page_at_entry: None };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
     HELD.with(|h| h.set(true));
     SerialGuard {
         inner: Some(guard),
         world_at_entry: check_world.then(crate::theme::active_index),
+        page_at_entry: check_world.then(|| (crate::page::page_on(), crate::page::measure())),
     }
 }
 
@@ -243,6 +267,43 @@ mod tests {
         );
         let _g = serial();
         assert_eq!(crate::theme::active_index(), before);
+    }
+
+    #[test]
+    fn page_signature_distinguishes_the_retired_eighty_measure_from_prose_default() {
+        let _g = serial();
+        let _page = crate::page::PagePin::snapshot();
+        crate::page::set_page_on(true);
+        crate::page::set_measure(crate::page::DEFAULT_MEASURE);
+        let prose_default = (crate::page::page_on(), crate::page::measure());
+        crate::page::set_measure(80);
+        let retired_eighty = (crate::page::page_on(), crate::page::measure());
+        assert_eq!(prose_default, (true, crate::page::DEFAULT_MEASURE));
+        assert_eq!(retired_eighty, (true, 80));
+        assert_ne!(
+            prose_default, retired_eighty,
+            "the victim must distinguish the predecessor's 80 from the prose default"
+        );
+    }
+
+    #[test]
+    fn a_deliberately_dirty_page_window_fails_and_restores_before_the_next_reader() {
+        let before = {
+            let _g = serial();
+            (crate::page::page_on(), crate::page::measure())
+        };
+        let leaked = std::panic::catch_unwind(|| {
+            let _g = serial();
+            crate::page::set_page_on(!before.0);
+            crate::page::set_measure(before.1 + 1);
+        });
+        assert!(leaked.is_err(), "a checked window must reject dirty page inputs");
+        let _g = serial();
+        assert_eq!(
+            (crate::page::page_on(), crate::page::measure()),
+            before,
+            "the failed page window restores before its next reader enters"
+        );
     }
 
     #[test]

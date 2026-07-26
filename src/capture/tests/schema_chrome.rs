@@ -14,13 +14,17 @@ use crate::buffer::Buffer;
 /// column geometry is byte-for-byte unchanged (left=120, width=960 at 1200).
 #[test]
 fn retina_capture_centers_page_column_symmetrically() {
+    // Pin before the adapter/pipeline path: both runs below deliberately shape
+    // at different page inputs, and every return (including no adapter / GPU
+    // error unwinds) must hand the caller exactly its incoming inputs back.
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    crate::page::set_page_on(true);
+    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
     if !adapter_available() {
         eprintln!("skipping retina_capture_centers_page_column_symmetrically: no wgpu adapter");
         return;
     }
-    // Page globals are process-wide; serialize with every other page/render test.
-    let _g = crate::testlock::serial();
-
     let dir = std::env::temp_dir().join(format!("awl_capture_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let buf = Buffer::from_str("the quick brown fox jumps over the lazy dog\nsecond line of prose here\nand a third line to fill the page");
@@ -51,18 +55,16 @@ fn retina_capture_centers_page_column_symmetrically() {
     );
 
     // --- DEFAULT run: no size/dpi flags -> unchanged 1200/dpi-1 geometry. ---
-    crate::page::set_measure(80);
+    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
     let def_png = dir.join("default.png");
     capture_with(&def_png, &buf, &CaptureOpts::default()).expect("default capture");
     let djson = std::fs::read_to_string(def_png.with_extension("json")).unwrap();
     let dleft = num_after(&djson, "\"column\":", "\"left\"");
     let dwidth = num_after(&djson, "\"column\":", "\"width\"");
-    // Responsive column: the 80-char measure (~1152px) very nearly fills the 1200px
-    // capture, so the margin collapses from the generous band to the small leftover
-    // (~24px each) and the column sits at its target measure — centered + symmetric.
+    // The standard prose measure is a visibly centered 70-character column.
     assert!(
-        (dleft - 24.0).abs() <= 0.5 && (dwidth - 1152.0).abs() <= 0.5,
-        "default column geometry: left ~24, width ~1152 (measure binds), got left {dleft} width {dwidth}"
+        (dleft - 96.0).abs() <= 0.5 && (dwidth - 1008.0).abs() <= 0.5,
+        "default column geometry: left ~96, width ~1008 (prose measure binds), got left {dleft} width {dwidth}"
     );
     // The no-flag sidecar must NOT carry a dpi key (byte-stable canvas block).
     let canvas_block = &djson[djson.find("\"canvas\":").unwrap()..djson.find("\"font\":").unwrap()];
@@ -94,6 +96,7 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
         return;
     }
     let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
     let dir = std::env::temp_dir().join(format!("awl_gutter_narrow_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 
@@ -142,8 +145,6 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
         "the project must keep showing alongside an eliding filename"
     );
 
-    crate::page::set_page_on(false);
-    crate::page::set_measure(80);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -388,7 +389,7 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
         return;
     }
     let _g = crate::testlock::serial();
-    let measure0 = crate::page::measure();
+    let _page = crate::page::PagePin::snapshot();
     let dir = std::env::temp_dir().join(format!("awl_pageclass_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
 
@@ -422,7 +423,6 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
         "and the PROSE default measure"
     );
 
-    crate::page::set_measure(measure0);
     let _ = std::fs::remove_dir_all(&dir);
 }
 

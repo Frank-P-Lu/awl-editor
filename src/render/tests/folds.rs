@@ -136,6 +136,13 @@ fn fold_tail_count_tracks_the_hidden_extent() {
 // BASELINE already sits (always the first row's — see `fold_tail_marks`'s doc).
 #[test]
 fn fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps() {
+    // Acquire and pin BEFORE pipeline creation. Construction reads the page
+    // globals to choose wrap geometry, so locking only after `headless_pipeline`
+    // leaves a predecessor's sticky custom measure observable here.
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    crate::page::set_page_on(true);
+    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
     let Some(mut p) = headless_pipeline() else {
         eprintln!("no GPU adapter; skipping fold-tail wrap regression law");
         return;
@@ -152,7 +159,6 @@ fn fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps() {
     // different `outline::` tests (each independently correctly-guarded), this
     // test still fails ~1/25 runs with the exact reported signature
     // (`ceiling=844.80005`, i.e. a `measure(40)` mid-flight read).
-    let _g = crate::testlock::serial();
     // A single H1 line long enough to wrap at the default 1200px canvas (H1's
     // scaled-up glyphs make even a fairly ordinary sentence wrap).
     let doc = "# A rather long section heading that keeps going for quite a while indeed so it wraps here\nbody one\nbody two\n";
@@ -194,6 +200,37 @@ fn fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps() {
         "the tail must NOT land at the old flattened (cumulative-across-wrapped-rows) x: \
          left={left} buggy_flattened_left={buggy_left}"
     );
+}
+
+/// Item 103's concrete predecessor/victim order. The retina schema capture
+/// once exited at exactly `(page_on=true, measure=80)`; this calls the fold
+/// victim immediately after installing that signature. The victim's pin must
+/// set the prose default before it constructs its pipeline and restore the
+/// predecessor signature when it leaves.
+#[test]
+fn retina_measure_predecessor_cannot_contaminate_fold_tail_victim() {
+    // This is an intentional product-style predecessor: it models the legacy
+    // retina writer's sticky exit, while the nested victim still owns its own
+    // PagePin. Use the existing reentrant product door, never a second mutex.
+    let _predecessor = crate::testlock::product();
+    let _incoming = crate::page::PagePin::snapshot();
+    for pair in 0..40 {
+        crate::page::set_page_on(true);
+        crate::page::set_measure(80);
+        assert_eq!(
+            (crate::page::page_on(), crate::page::measure()),
+            (true, 80),
+            "pair {pair}: the predecessor really installs the retired signature"
+        );
+
+        fold_tail_hangs_after_the_first_visual_row_when_the_heading_wraps();
+
+        assert_eq!(
+            (crate::page::page_on(), crate::page::measure()),
+            (true, 80),
+            "pair {pair}: the victim restores its predecessor exactly; its own pipeline used the pinned prose default"
+        );
+    }
 }
 
 // ITEM 47b (item 65 taste correction) — the expand CHEVRON is a SUMMONED
