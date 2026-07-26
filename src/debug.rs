@@ -413,6 +413,36 @@ mod tests {
     }
 
     #[test]
+    fn theme_transaction_peak_survives_more_than_cost_window_cheap_frames() {
+        // Integration law: the two diagnostic windows have deliberately different
+        // owners and eviction axes. A settled theme transaction remains readable by
+        // wall time even after enough cheap redraws to roll the frame worst away.
+        let t0 = crate::clock::Instant::now();
+        let mut switches = crate::themeswitch::SwitchHistory::default();
+        let mut phases = crate::themeswitch::SwitchPhases::default();
+        phases.record(crate::themeswitch::SwitchPhase::Reshape, 39.0);
+        phases.record(crate::themeswitch::SwitchPhase::Present, 3.0);
+        switches.insert(t0, 42.0, phases);
+
+        let mut frames = CostRing::default();
+        frames.push(42.0);
+        for _ in 0..COST_WINDOW {
+            frames.push(1.0);
+        }
+        assert_eq!(frames.worst(), Some(1.0), "frame ring rolled independently");
+
+        let report = switches
+            .report(t0 + std::time::Duration::from_secs(1))
+            .expect("transaction remains within its five-second window");
+        assert_eq!(report.worst.total_ms(), 42.0);
+        assert_eq!(
+            report.worst.phases().get(crate::themeswitch::SwitchPhase::Reshape),
+            Some(39.0),
+            "worst breakdown belongs to the worst transaction, not the latest frame"
+        );
+    }
+
+    #[test]
     fn stillness_settles_to_exactly_one_stamp_then_quiet() {
         // An interacting frame ends still => queue exactly ONE stamp redraw.
         let (s, stamp) = still_settle(DebugStill::Active, false);

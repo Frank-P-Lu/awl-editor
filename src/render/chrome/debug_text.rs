@@ -64,17 +64,16 @@ impl TextPipeline {
         self.debug_autosave = state;
     }
 
-    /// Feed the debug panel the latest SETTLED theme switch — `(felt_total_ms,
-    /// per-phase breakdown)` (see `crate::themeswitch`) — for the two settle lines.
+    /// Feed the debug panel the live theme-switch window report — latest and recent
+    /// worst transaction, with the worst transaction's phase breakdown.
     /// Fed ONLY by the live loop, behind `debug_on()` + a real settled present, so the
     /// value is structurally off the headless deterministic path. `None` (the
     /// constructor default AND the only value a capture ever holds) draws NO settle
-    /// lines — the readout is absent, keeping a `--debug` capture byte-identical. Once
-    /// fed, the last switch's numbers persist across subsequent debug frames (a settled
-    /// readout you can read off a live run) until the next switch overwrites them.
+    /// lines — the readout is absent, keeping a `--debug` capture byte-identical. The
+    /// live loop refreshes this on naturally occurring redraws, so expiry needs no tick.
     pub fn set_debug_theme_settle(
         &mut self,
-        settle: Option<(f32, crate::themeswitch::SwitchPhases)>,
+        settle: Option<crate::themeswitch::SwitchReport>,
     ) {
         self.debug_theme_settle = settle;
     }

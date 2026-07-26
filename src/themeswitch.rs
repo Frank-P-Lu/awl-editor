@@ -113,25 +113,106 @@ impl SwitchPhases {
     }
 }
 
-/// The debug-panel LINES for a settled theme switch: the felt-latency headline plus
-/// the per-phase breakdown, or an EMPTY vec when no switch has been measured.
+use std::collections::VecDeque;
+use std::time::Duration;
+
+use crate::clock::Instant;
+
+/// The wall-clock diagnostic window. Unlike [`crate::debug::COST_WINDOW`], this is
+/// time rather than a number of frames: a hundred cheap caret frames must not erase
+/// the switch hitch that prompted the investigation.
+pub const SWITCH_WINDOW: Duration = Duration::from_secs(5);
+
+/// One completed input-to-settled-present theme transaction.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CompletedSwitch {
+    total_ms: f32,
+    phases: SwitchPhases,
+}
+
+impl CompletedSwitch {
+    pub fn new(total_ms: f32, phases: SwitchPhases) -> Self {
+        Self { total_ms, phases }
+    }
+
+    pub fn total_ms(self) -> f32 {
+        self.total_ms
+    }
+
+    pub fn phases(self) -> SwitchPhases {
+        self.phases
+    }
+}
+
+/// The two facts the panel needs: the most recently completed transaction and the
+/// slowest completed transaction still inside the wall-clock window.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SwitchReport {
+    pub latest: CompletedSwitch,
+    pub worst: CompletedSwitch,
+}
+
+/// Bounded, timestamped switch history. It is deliberately separate from
+/// [`crate::debug::CostRing`]: a switch is an interaction transaction across event
+/// turns, not a frame. Call [`Self::report`] on redraws that already occur; it never
+/// schedules work or owns a tick.
+#[derive(Debug, Default)]
+pub struct SwitchHistory {
+    entries: VecDeque<(Instant, CompletedSwitch)>,
+}
+
+impl SwitchHistory {
+    pub fn insert(&mut self, completed_at: Instant, total_ms: f32, phases: SwitchPhases) {
+        self.entries
+            .push_back((completed_at, CompletedSwitch::new(total_ms, phases)));
+        self.evict(completed_at);
+    }
+
+    /// Return the live report at `now`, evicting transactions whose age is strictly
+    /// greater than five seconds. Exactly five seconds remains readable.
+    pub fn report(&mut self, now: Instant) -> Option<SwitchReport> {
+        self.evict(now);
+        let latest = self.entries.back().map(|(_, entry)| *entry)?;
+        let worst = self
+            .entries
+            .iter()
+            .map(|(_, entry)| *entry)
+            .max_by(|a, b| a.total_ms.total_cmp(&b.total_ms))?;
+        Some(SwitchReport { latest, worst })
+    }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+
+    fn evict(&mut self, now: Instant) {
+        while self.entries.front().is_some_and(|(at, _)| {
+            now.checked_duration_since(*at)
+                .is_some_and(|age| age > SWITCH_WINDOW)
+        }) {
+            self.entries.pop_front();
+        }
+    }
+}
+
+/// The debug-panel LINES for completed theme switches: the latest transaction, the
+/// recent worst transaction, then that worst transaction's phase breakdown. Returns
+/// an EMPTY vec when no switch remains in the diagnostic window.
 ///
 /// `None` is the ONLY value the headless capture ever holds (the live App never
 /// feeds a switch on the deterministic path), so an empty vec is what keeps the
 /// readout STRUCTURALLY ABSENT from a `--debug` screenshot — no data, no lines, a
 /// byte-identical capture. The determinism law rests on this: it is asserted
 /// directly in the tests.
-pub fn settle_lines(measured: Option<(f32, SwitchPhases)>) -> Vec<String> {
-    let Some((total_ms, phases)) = measured else {
+pub fn settle_lines(measured: Option<SwitchReport>) -> Vec<String> {
+    let Some(report) = measured else {
         return Vec::new();
     };
-    vec![settled_readout(total_ms), breakdown_readout(&phases)]
-}
-
-/// The HEADLINE settle line: the felt latency from the triggering input to the
-/// settled present, in whole-tenths of a millisecond.
-pub fn settled_readout(total_ms: f32) -> String {
-    format!("theme settled {total_ms:.1} ms")
+    vec![
+        format!("theme latest {:.1} ms", report.latest.total_ms()),
+        format!("theme worst {:.1} ms", report.worst.total_ms()),
+        breakdown_readout(&report.worst.phases()),
+    ]
 }
 
 /// The once-per-switch PHASE BREAKDOWN line: each phase's own duration in
@@ -172,13 +253,6 @@ mod tests {
         // Recording again overwrites (a phase is measured once per switch).
         p.record(SwitchPhase::Reshape, 4.1);
         assert_eq!(p.get(SwitchPhase::Reshape), Some(4.1));
-    }
-
-    #[test]
-    fn settled_readout_formats_one_decimal_ms() {
-        assert_eq!(settled_readout(12.44), "theme settled 12.4 ms");
-        assert_eq!(settled_readout(0.0), "theme settled 0.0 ms");
-        assert_eq!(settled_readout(155.25), "theme settled 155.2 ms");
     }
 
     #[test]
@@ -229,11 +303,105 @@ mod tests {
         p.record(SwitchPhase::Atlas, 2.0);
         p.record(SwitchPhase::Present, 0.6);
         assert_eq!(
-            settle_lines(Some((155.2, p))),
+            settle_lines(Some(SwitchReport {
+                latest: CompletedSwitch::new(12.0, p),
+                worst: CompletedSwitch::new(155.2, p),
+            })),
             vec![
-                "theme settled 155.2 ms".to_string(),
+                "theme latest 12.0 ms".to_string(),
+                "theme worst 155.2 ms".to_string(),
                 "font 0.2 · reshape 6.8 · rowgeom 0.9 · atlas 2.0 · present 0.6".to_string(),
             ]
         );
+    }
+
+    fn fake_clock() -> crate::clock::VirtualClock {
+        crate::clock::VirtualClock::new()
+    }
+
+    fn switch(ms: f32) -> SwitchPhases {
+        let mut phases = SwitchPhases::default();
+        phases.record(SwitchPhase::Reshape, ms - 1.0);
+        phases.record(SwitchPhase::Present, 1.0);
+        phases
+    }
+
+    #[test]
+    fn fake_clock_insertion_reports_latest_and_worst() {
+        let clock = fake_clock();
+        let t0 = crate::clock::Clock::now(&clock);
+        let mut history = SwitchHistory::default();
+        history.insert(t0, 42.0, switch(42.0));
+        let report = history.report(t0).expect("inserted transaction survives");
+        assert_eq!(report.latest.total_ms(), 42.0);
+        assert_eq!(report.worst.total_ms(), 42.0);
+    }
+
+    #[test]
+    fn fake_clock_rolling_max_keeps_the_worst_transactions_breakdown() {
+        let clock = fake_clock();
+        let t0 = crate::clock::Clock::now(&clock);
+        let mut history = SwitchHistory::default();
+        history.insert(t0, 42.0, switch(42.0));
+        clock.advance_ms(1);
+        let t1 = crate::clock::Clock::now(&clock);
+        history.insert(t1, 9.0, switch(9.0));
+        let report = history.report(t1).unwrap();
+        assert_eq!(report.latest.total_ms(), 9.0);
+        assert_eq!(report.worst.total_ms(), 42.0);
+        assert_eq!(report.worst.phases().get(SwitchPhase::Reshape), Some(41.0));
+    }
+
+    #[test]
+    fn fake_clock_exact_five_second_boundary_survives_then_expires() {
+        let clock = fake_clock();
+        let t0 = crate::clock::Clock::now(&clock);
+        let mut history = SwitchHistory::default();
+        history.insert(t0, 42.0, switch(42.0));
+        clock.advance(SWITCH_WINDOW);
+        assert!(
+            history.report(crate::clock::Clock::now(&clock)).is_some(),
+            "five seconds exactly stays"
+        );
+        clock.advance(Duration::from_nanos(1));
+        assert!(history.report(crate::clock::Clock::now(&clock)).is_none());
+    }
+
+    #[test]
+    fn fake_clock_newer_cheaper_switch_does_not_erase_peak() {
+        let clock = fake_clock();
+        let t0 = crate::clock::Clock::now(&clock);
+        let mut history = SwitchHistory::default();
+        history.insert(t0, 42.0, switch(42.0));
+        clock.advance(Duration::from_secs(1));
+        let t1 = crate::clock::Clock::now(&clock);
+        history.insert(t1, 4.0, switch(4.0));
+        let report = history.report(t1).unwrap();
+        assert_eq!(report.latest.total_ms(), 4.0);
+        assert_eq!(report.worst.total_ms(), 42.0);
+    }
+
+    #[test]
+    fn fake_clock_newer_worse_switch_replaces_peak() {
+        let clock = fake_clock();
+        let t0 = crate::clock::Clock::now(&clock);
+        let mut history = SwitchHistory::default();
+        history.insert(t0, 4.0, switch(4.0));
+        clock.advance(Duration::from_secs(1));
+        let t1 = crate::clock::Clock::now(&clock);
+        history.insert(t1, 42.0, switch(42.0));
+        let report = history.report(t1).unwrap();
+        assert_eq!(report.latest.total_ms(), 42.0);
+        assert_eq!(report.worst.total_ms(), 42.0);
+    }
+
+    #[test]
+    fn explicit_debug_off_clear_forgets_the_session() {
+        let clock = fake_clock();
+        let t0 = crate::clock::Clock::now(&clock);
+        let mut history = SwitchHistory::default();
+        history.insert(t0, 42.0, switch(42.0));
+        history.clear();
+        assert!(history.report(t0).is_none());
     }
 }

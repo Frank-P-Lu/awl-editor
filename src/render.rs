@@ -3993,12 +3993,12 @@ pub struct TextPipeline {
     /// live-App-only) — both render the fixed `"autosave —"` placeholder.
     debug_autosave: Option<crate::debug::AutosaveState>,
     /// THE THEME-SWITCH SETTLE readout (`crate::themeswitch`), fed by the live loop
-    /// once a switch has SETTLED on screen: `(felt_total_ms, per-phase breakdown)`.
+    /// once a switch has SETTLED on screen: its latest and trailing-window worst.
     /// `None` is the constructor default AND the ONLY value a headless capture ever
     /// holds — the live App feeds a switch only behind `debug_on()` + a real present,
     /// structurally off the deterministic path — so a `--debug` capture draws NO settle
     /// lines and stays byte-identical (see `crate::themeswitch::settle_lines`).
-    debug_theme_settle: Option<(f32, crate::themeswitch::SwitchPhases)>,
+    debug_theme_settle: Option<crate::themeswitch::SwitchReport>,
     /// --- summoned navigation overlay view state (copied in set_view) ---
     overlay_active: bool,
     /// ITEM 45 → ITEM 52 — mirror of [`ViewState::overlay_align`]: the overlay's

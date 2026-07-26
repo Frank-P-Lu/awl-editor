@@ -576,6 +576,10 @@ pub struct App {
     /// (the pane-off editor does zero timing work); the settle-stamp frame's own
     /// cost is measured and DISCARDED (panel bookkeeping, not user workload).
     frame_costs: crate::debug::CostRing,
+    /// DEBUG panel: completed theme transactions in the trailing wall-clock window.
+    /// This deliberately does not share the frame-cost ring: a switch spans input,
+    /// event turns, reshape, atlas, and settled present.
+    theme_switches: crate::themeswitch::SwitchHistory,
     /// DEBUG panel key→px: `Instant` stamped when an input (key press / mouse
     /// press / scroll) reached `window_event` while the panel is on. Only the
     /// FIRST un-rendered input per frame stamps (`get_or_insert`), so under
@@ -1307,6 +1311,7 @@ impl App {
             gpu_pending: std::rc::Rc::new(std::cell::RefCell::new(None)),
             last_frame: None,
             frame_costs: crate::debug::CostRing::default(),
+            theme_switches: crate::themeswitch::SwitchHistory::default(),
             input_stamp: None,
             last_latency_ms: None,
             redraw_count: 0,

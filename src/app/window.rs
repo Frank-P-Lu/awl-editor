@@ -517,6 +517,11 @@ impl App {
                     since_secs,
                 );
                 gpu.pipeline.set_debug_autosave(Some(autosave));
+                // Transaction diagnostics age on the App clock, not on frame count.
+                // This redraw already happened for real work; checking here never
+                // arms a timer or turns the Debug panel into a hot loop.
+                gpu.pipeline
+                    .set_debug_theme_settle(self.theme_switches.report(self.clock.now()));
             }
         } else if self.input_stamp.is_some()
             || self.last_latency_ms.is_some()
@@ -528,10 +533,12 @@ impl App {
             self.input_stamp = None;
             self.last_latency_ms = None;
             self.frame_costs.clear();
+            self.theme_switches.clear();
             self.debug_still = crate::debug::DebugStill::Active;
             if let Some(gpu) = self.gpu.as_mut() {
                 gpu.pipeline.set_debug_perf(None, None, None, true, None);
                 gpu.pipeline.set_debug_autosave(None);
+                gpu.pipeline.set_debug_theme_settle(None);
             }
         }
         // A STATIC open overlay must NOT busy-loop: an idle menu is a frozen
@@ -586,7 +593,7 @@ impl App {
         // flight until a real present lands. Structurally off the headless path (armed
         // only behind `debug_on()`; a capture never arms `theme_settle`).
         if crate::debug::debug_on() && frame_presented && self.theme_settle.is_some() {
-            if let Some((_, done)) = presented {
+            if let Some((_, _done)) = presented {
                 let mut settle = self.theme_settle.take().expect("just checked is_some");
                 if let Some((prep_ms, present_ms)) =
                     self.gpu.as_ref().and_then(|g| g.debug_frame_split)
@@ -598,10 +605,17 @@ impl App {
                         .phases
                         .record(crate::themeswitch::SwitchPhase::Present, present_ms);
                 }
-                let total_ms = (done - settle.input_at).as_secs_f32() * 1000.0;
+                // The App clock is the one scheduling/animation time seam. Its
+                // timestamp gives this higher-level transaction a deterministic
+                // fake-clock test path, while `done` remains reserved for the
+                // per-frame GPU measurement above.
+                let settled_at = self.clock.now();
+                let total_ms = (settled_at - settle.input_at).as_secs_f32() * 1000.0;
+                self.theme_switches
+                    .insert(settled_at, total_ms, settle.phases);
                 if let Some(gpu) = self.gpu.as_mut() {
                     gpu.pipeline
-                        .set_debug_theme_settle(Some((total_ms, settle.phases)));
+                        .set_debug_theme_settle(self.theme_switches.report(settled_at));
                     // Feed lands after this frame's prepare; one redraw draws the lines.
                     gpu.window.request_redraw();
                 }
