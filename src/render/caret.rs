@@ -361,8 +361,8 @@ impl TextPipeline {
     /// [`Self::caret_anchor_raster_box`] widened to an ARBITRARY column on the
     /// cursor line (item 105's transition repair) — the same ungated raw raster
     /// read, just not pinned to the caret's own anchor column. The one other
-    /// caller is [`Self::caret_cell_vertical`]'s fallback arm, which borrows the
-    /// column immediately BEFORE a glyphless anchor's own ink when one exists.
+    /// caller is [`Self::nearest_row_raster_box`], which searches outward from
+    /// a glyphless anchor for a column that has real ink.
     fn raster_box_at(&mut self, line: usize, col: usize) -> Option<InkBox> {
         let key = self.cursor_glyph_key_at(line, col)?;
         let Self {
@@ -380,6 +380,59 @@ impl TextPipeline {
             width: img.placement.width as f32,
             height: img.placement.height as f32,
         })
+    }
+
+    /// [`Self::raster_box_at`] SEARCHED OUTWARD from `col` in both directions —
+    /// item 105's SECOND repair round. Bounded to the caret's OWN VISUAL ROW
+    /// ([`Self::visual_rows`]'s `[start_col, end_col)` span for whichever row
+    /// `col` sits on, resolved the SAME way [`Self::caret_row_metrics`] resolves
+    /// its own row — [`pick_row_index_aff`]), never the whole logical line, so a
+    /// giant blank paragraph costs O(row width), never O(doc).
+    ///
+    /// The FIRST repair round (12c2fb4 / fdbc0da) tried only `col - 1`, a single
+    /// backward hop. That closed the literal reported shape (`aaa`'s final `a`
+    /// → EOL — one glyphless column right after real ink) but left two adjacent
+    /// shapes wide open, found auditing that round:
+    ///   * a glyphless anchor at column 0 (leading whitespace before a capital,
+    ///     `" A"`) has no `col - 1` to borrow from at all — the mirror
+    ///     direction of every fixture the first round's tests covered;
+    ///   * a RUN of 2+ glyphless columns (a mid-line double space, a markdown
+    ///     hard-break's canonical two trailing spaces) loses the borrowed ink
+    ///     one hop in: the second glyphless column's own `col - 1` is itself
+    ///     glyphless, so a single backward hop fails and it falls straight to
+    ///     the synthetic guess — jumping against its OWN immediate neighbor,
+    ///     which DID find real ink one column earlier.
+    ///
+    /// Searching outward by distance (nearer wins; backward preferred on a tie,
+    /// matching the first round's own direction) closes both: ANY column that
+    /// directly touches a real letter finds that letter at distance 1 no matter
+    /// which side it sits on, so every seam this item's own docstring names
+    /// ("two adjacent columns, one glyph-anchored, one not") closes to
+    /// (near-)zero for every letter class, not just the one reported shape. A
+    /// run flanked by two DIFFERENT letters at both ends can still show one
+    /// interior flip, where the nearest-distance winner switches sides — that
+    /// flip sits between two columns NEITHER of which is glyph-anchored,
+    /// outside this item's own stated scope, and is unavoidable short of
+    /// interpolating between two different real glyphs' ink.
+    fn nearest_row_raster_box(&mut self, line: usize, col: usize) -> Option<InkBox> {
+        let rows = self.visual_rows(line);
+        let row = rows.get(pick_row_index_aff(&rows, col, self.caret_affinity))?;
+        let (start, end) = (row.start_col, row.end_col);
+        let max_back = col.saturating_sub(start);
+        let max_fwd = end.saturating_sub(col + 1);
+        for d in 1..=max_back.max(max_fwd) {
+            if d <= max_back {
+                if let Some(b) = self.raster_box_at(line, col - d) {
+                    return Some(b);
+                }
+            }
+            if d <= max_fwd {
+                if let Some(b) = self.raster_box_at(line, col + d) {
+                    return Some(b);
+                }
+            }
+        }
+        None
     }
 
     /// The BLOCK caret's INK-ALIGNED box at the caret's ANCHOR cell this frame —
@@ -465,23 +518,35 @@ impl TextPipeline {
     ///        raster box directly — a ligature agrees with a plain glyph beside
     ///        it on the same row exactly like the ink-box arm does;
     ///     2. otherwise, a truly GLYPHLESS anchor (space / end-of-line — no
-    ///        raster of its own) BORROWS the immediately PRECEDING column's own
-    ///        real [`InkBox`] when that column has one (`raster_box_at(col-1)`)
-    ///        — the repair round's fix: a glyphless cell beside a real letter is
-    ///        drawn with THAT letter's exact ink, not an approximation of it, so
-    ///        the seam this whole item exists to close is not merely bounded but
-    ///        closed to (near-)zero for the literal reported shape (`aaa`'s
-    ///        final `a` → EOL) and every OTHER letter class alike — a capital,
-    ///        an ascender, a digit, a punctuation mark beside end-of-line all
-    ///        inherit their own true height instead of a one-size-fits-all
-    ///        "typical letter" guess. This is what "one glyph-anchored, one not"
-    ///        (this file's own docstring) actually calls for: the second column
-    ///        isn't glyph-anchored on ITS OWN cell, but it is one column removed
-    ///        from a real glyph, so it borrows that glyph's ink rather than
-    ///        guessing;
-    ///     3. only when NEITHER of the above has a real box (an empty line, or
-    ///        a glyphless anchor at column 0 with nothing before it) does the
-    ///        arm fall to a SYNTHETIC typical-letter box
+    ///        raster of its own) BORROWS the NEAREST column's own real
+    ///        [`InkBox`] when the caret's own VISUAL ROW has one
+    ///        ([`Self::nearest_row_raster_box`] — searched OUTWARD in both
+    ///        directions, nearest distance wins) — a SECOND repair round's fix:
+    ///        the first round (`raster_box_at(col - 1)`, a single backward hop)
+    ///        closed the literal reported shape (`aaa`'s final `a` → EOL) but
+    ///        left two adjacent shapes open — a glyphless anchor at COLUMN 0
+    ///        (leading whitespace before a capital, `" A"`, has no `col - 1` at
+    ///        all) and a RUN of 2+ glyphless columns (a double space, a
+    ///        markdown hard-break's two trailing spaces — the second glyphless
+    ///        column's own `col - 1` is itself glyphless, so a single hop
+    ///        loses the borrowed ink one column into the run and jumps against
+    ///        its very neighbor, which DID find it). Searching outward instead
+    ///        of one fixed hop means any column immediately touching a real
+    ///        letter always finds THAT letter at distance 1 regardless of
+    ///        which side it sits on, so the seam this item exists to close —
+    ///        every adjacent pair where ONE side is glyph-anchored — closes to
+    ///        (near-)zero for every letter class alike, not just the single
+    ///        reported one. (A run flanked by two DIFFERENT letters at both
+    ///        ends can still show one interior flip, where the search's
+    ///        nearest-distance winner switches sides — that flip sits between
+    ///        two columns NEITHER of which is glyph-anchored, outside this
+    ///        item's own stated scope of "one glyph-anchored, one not", and is
+    ///        unavoidable without interpolating between two different real
+    ///        glyphs);
+    ///     3. only when NONE of the above has a real box — the caret's own
+    ///        visual row has no rasterizable ink at ANY column (an empty line,
+    ///        or a row of pure whitespace with nothing real anywhere on it) —
+    ///        does the arm fall to a SYNTHETIC typical-letter box
     ///        ([`Self::caret_synthetic_ink_box`]): the row's own real
     ///        `max_ascent` times a typical-letter/ascent ratio
     ///        (`facepitch::typical_letter_ratio`, read off the shipped font
@@ -558,7 +623,7 @@ impl TextPipeline {
             let col = self.caret_anchor_col();
             let ink = self
                 .caret_anchor_raster_box()
-                .or_else(|| (col > 0).then(|| self.raster_box_at(self.cursor_line, col - 1)).flatten())
+                .or_else(|| self.nearest_row_raster_box(self.cursor_line, col))
                 .unwrap_or_else(|| self.caret_synthetic_ink_box(row_ascent, ascent_font));
             let cy = baseline - ink.top + ink.height * 0.5;
             let h = ink.height + 2.0 * CARET_INK_PAD * px;

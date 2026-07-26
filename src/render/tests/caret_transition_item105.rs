@@ -485,6 +485,165 @@ fn wrap_boundary_transition_is_bounded_on_a_proportional_world() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
+/// LEADING WHITESPACE BEFORE A CAPITAL — the SECOND repair round (found
+/// auditing the first one, `12c2fb4`/`fdbc0da`). That round's neighbor-borrow
+/// tried only `raster_box_at(col - 1)`, a single BACKWARD hop, so a glyphless
+/// anchor at COLUMN 0 (no `col - 1` to borrow from at all) fell straight to
+/// the synthetic guess even though a real letter sits one column FORWARD.
+/// `" A"` is the literal mirror-direction shape of every fixture the first
+/// round shipped (all real-glyph -> glyphless, never glyphless -> real-glyph):
+/// any line beginning with a leading space or indentation before a
+/// capitalized word reproduces this directly. The second round's
+/// `TextPipeline::nearest_row_raster_box` searches OUTWARD (both
+/// directions), so column 0 now finds the capital ONE column forward and the
+/// seam closes.
+#[test]
+fn leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping leading_glyphless_column_at_col_zero_closes_against_the_next_real_glyph: no wgpu adapter"
+        );
+        return;
+    };
+    let text = " A";
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+
+    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+
+        // col 0: the leading space — glyphless, and (the point of this
+        // fixture) has no `col - 1` at all to borrow from.
+        let (cy0, h0) = cell_at(&mut p, text, 0, 0);
+        assert!(
+            p.caret_anchor_ink_box().is_none(),
+            "{}: a leading space must not itself anchor a real ink box",
+            t.name
+        );
+
+        let (cy_a, h_a) = cell_at(&mut p, text, 0, 1); // col 1: the capital 'A'
+        assert!(
+            p.caret_anchor_ink_box().is_some(),
+            "{}: 'A' must anchor a real ink box",
+            t.name
+        );
+
+        // NON-VACUITY: the OLD (pre-105) fallback must genuinely have differed
+        // from the real 'A' ink, or this fixture proves nothing.
+        p.set_view(&view(text, 0, 0));
+        p.settle_caret();
+        let old_d = cell_delta((cy_a, h_a), old_fallback_cell(&p));
+        let floor = NONVACUITY_ANY_DELTA_MIN_PX * pixel_scale(&p);
+        assert!(
+            old_d > floor,
+            "{}: fixture must reproduce SOME pre-105 discontinuity (old Δ={old_d:.2} \
+             vs floor {floor:.2}) or this law is vacuous",
+            t.name
+        );
+
+        // THE LAW: col 0 (leading space) and col 1 ('A') stay bounded — the
+        // outward search finds col 1's own real ink from col 0, so this
+        // closes to (near-)zero exactly like the mirror (real-glyph ->
+        // glyphless) direction already does.
+        assert_bounded(&p, &format!("{} leading-space->A", t.name), cy0, h0, cy_a, h_a);
+        checked += 1;
+    }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// A RUN OF 2+ CONSECUTIVE GLYPHLESS COLUMNS — the SECOND repair round (found
+/// auditing the first one). The first round's neighbor-borrow was a SINGLE
+/// backward hop: the second glyphless column in any run has a `col - 1` that
+/// is ITSELF glyphless, so the hop fails and that column falls straight to
+/// the synthetic guess — jumping against its own immediate neighbor, which
+/// DID borrow real ink one column earlier. `"A  "` (capital, two trailing
+/// spaces, then EOL) is the canonical shape: a markdown hard-break's own two
+/// trailing spaces, or an ordinary mid-paragraph double space, reproduce this
+/// directly. Every adjacent pair across the run — 'A'->space1,
+/// space1->space2, space2->EOL — must stay bounded; and since the second
+/// round's fix searches OUTWARD rather than stopping at one hop, space1,
+/// space2, and EOL all resolve to the exact SAME borrowed 'A' ink, so they
+/// read identically to each other (near-zero, not merely bounded) — proof
+/// the fix reaches ACROSS the whole run instead of degrading one column in.
+#[test]
+fn run_of_glyphless_columns_stays_bounded_end_to_end() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping run_of_glyphless_columns_stays_bounded_end_to_end: no wgpu adapter");
+        return;
+    };
+    let text = "A  "; // capital, two trailing spaces, EOL at col 3
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+
+    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+
+        let (cy_a, h_a) = cell_at(&mut p, text, 0, 0); // 'A' — real ink
+        assert!(p.caret_anchor_ink_box().is_some(), "{}: 'A' must anchor a real ink box", t.name);
+
+        let (cy_s1, h_s1) = cell_at(&mut p, text, 0, 1); // first trailing space
+        assert!(p.caret_anchor_ink_box().is_none(), "{}: space 1 must be glyphless", t.name);
+
+        let (cy_s2, h_s2) = cell_at(&mut p, text, 0, 2); // second trailing space
+        assert!(p.caret_anchor_ink_box().is_none(), "{}: space 2 must be glyphless", t.name);
+
+        let (cy_eol, h_eol) = cell_at(&mut p, text, 0, 3); // literal EOL
+
+        // NON-VACUITY: the OLD (pre-105) fallback must genuinely have differed
+        // from 'A''s real ink at the FAR end of the run (space 2, two hops
+        // deep — the exact column the first repair round's single hop could
+        // never reach), or this fixture proves nothing about the run's far
+        // column.
+        p.set_view(&view(text, 0, 2));
+        p.settle_caret();
+        let old_d = cell_delta((cy_a, h_a), old_fallback_cell(&p));
+        let floor = NONVACUITY_ANY_DELTA_MIN_PX * pixel_scale(&p);
+        assert!(
+            old_d > floor,
+            "{}: fixture must reproduce SOME pre-105 discontinuity at the far \
+             end of the run (old Δ={old_d:.2} vs floor {floor:.2}) or this law is vacuous",
+            t.name
+        );
+
+        // THE LAW: every adjacent pair across the run stays bounded.
+        assert_bounded(&p, &format!("{} A->space1", t.name), cy_a, h_a, cy_s1, h_s1);
+        assert_bounded(&p, &format!("{} space1->space2", t.name), cy_s1, h_s1, cy_s2, h_s2);
+        assert_bounded(&p, &format!("{} space2->EOL", t.name), cy_s2, h_s2, cy_eol, h_eol);
+
+        // THE MECHANISM CLAIM: space1, space2, and EOL all borrow the SAME
+        // real 'A' ink via the outward search (same baseline, same box), so
+        // they read (near-)identically to one another — not merely "within
+        // bound".
+        let tight = 0.05 * pixel_scale(&p);
+        assert!(
+            (h_s1 - h_s2).abs() < tight && (h_s2 - h_eol).abs() < tight,
+            "{}: every glyphless column in the run must borrow the SAME real ink \
+             (h_s1={h_s1:.3} h_s2={h_s2:.3} h_eol={h_eol:.3})",
+            t.name
+        );
+        checked += 1;
+    }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
 /// AN EMPTY LINE'S synthetic cell stays a REASONABLE, bounded size — never the
 /// item-91-original "large empty accent cap" (a fixed ~22px cell regardless of
 /// the font) and never degenerate (zero/negative). Compared against the SAME
@@ -840,12 +999,20 @@ fn caret_fallback_geometry_tracks_the_live_theme_not_the_lagging_shaped_font() {
 /// the reshape catches up, so some residual is inherent to the design, not a
 /// bug. What the fix buys is INTERNAL consistency (one font's ascent times
 /// THAT SAME font's ratio, never a cross-font product) and a real, measured
-/// drop in the worst-case residual: swept over every mono-source ×
-/// proportional-destination pair on a genuinely shaped row (`"a  "`, caret on
-/// the second space — no adjacent real neighbor, so this isolates the
-/// synthetic-box path from the repair round's neighbor-borrow), the worst
-/// case drops from 5.19px (the mixed-font formula) to 2.76px (Mangrove →
-/// Bombora) — roughly half, and comfortably under this test's bound.
+/// drop in the worst-case residual, swept over every mono-source ×
+/// proportional-destination pair on a genuinely shaped row.
+///
+/// FIXTURE (updated by item 105's SECOND repair round): a real letter ANYWHERE
+/// on the caret's row is no longer safe here — that round widened the
+/// neighbor-borrow from one fixed hop to an OUTWARD search across the WHOLE
+/// row (`TextPipeline::nearest_row_raster_box`), so a row containing any real
+/// ink at all (the original `"a  "`) now legitimately borrows it instead of
+/// taking the synthetic path this law means to isolate. An ALL-WHITESPACE row
+/// (`"   "`) has a genuinely shaped `LayoutLine` (unlike a truly empty line,
+/// which takes a different, already-covered fallback) but literally zero
+/// rasterizable ink at ANY column, so the outward search finds nothing no
+/// matter how far it reaches — the fixture that stays synthetic-only under
+/// BOTH the first AND second repair rounds' neighbor-borrow reach.
 #[test]
 fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     let _t = crate::testlock::serial();
@@ -856,12 +1023,14 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
         eprintln!("skipping caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent: no wgpu adapter");
         return;
     };
-    // Bound: comfortably above the fixed formula's measured worst (2.76px),
-    // comfortably below the mixed-font formula's measured worst (5.19px) —
-    // proven non-vacuous by the assert below over the SAME sweep.
+    // Bound: comfortably above the fixed formula's measured worst, comfortably
+    // below the mixed-font formula's measured worst (5.19px) — proven
+    // non-vacuous by the assert below over the SAME sweep.
     const WORST_CASE_BOUND_PX: f32 = 3.5;
 
-    let text = "a  "; // caret lands on the SECOND space: no adjacent real ink.
+    let text = "   "; // all whitespace: a shaped row with NO real ink anywhere,
+    // so the outward neighbor-borrow search (however far it reaches) always
+    // comes up empty and every column takes the synthetic path.
     let mono = super::facepitch::mono_display_worlds();
     let prop: Vec<&'static str> = theme::THEMES
         .iter()
