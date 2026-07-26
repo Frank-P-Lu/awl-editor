@@ -49,6 +49,16 @@
 //! So: a new mono face is handled correctly by construction, a mis-declared one
 //! fails the suite, and a world pointed at an unregistered family fails the
 //! suite — the caret's look can no longer change by omission.
+//!
+//! ITEM 105 widened the same per-face measurement pass with a second fact:
+//! [`typical_letter_ratio`], each face's own typical-letter / ascent ratio (the
+//! mean of its x-height and cap-height). The caret's
+//! GLYPHLESS fallback (`caret::TextPipeline::caret_cell_vertical`'s line-cell
+//! arm — a space, end-of-line, an empty line) needs a "how tall is a typical
+//! letter here" quantity to size a SYNTHETIC ink box in the same baseline-
+//! relative convention the real ink-box arm uses, and this is that quantity,
+//! read off the same bytes `measure_pitch` already parses rather than a
+//! hand-tuned constant.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock};
@@ -128,6 +138,62 @@ pub fn registered_family(bytes: &[u8]) -> Option<String> {
     db.face(id)?.families.first().map(|(name, _)| name.clone())
 }
 
+/// The TYPICAL-LETTER RATIO used when no bundled/measured face is known for a
+/// family (a system fallback face, an `AWL_FONT` override, or a bundled face
+/// whose own `OS/2`/`post` tables carry neither x-height nor cap-height). Not
+/// load-bearing precision — this is a FALLBACK for the case the real
+/// measurement below cannot answer, and the value only ever feeds
+/// [`super::caret::TextPipeline::caret_cell_vertical`]'s GLYPHLESS synthetic
+/// box (item 105), never a real glyph's own ink.
+pub(crate) const DEFAULT_TYPICAL_LETTER_RATIO: f32 = 0.62;
+
+/// MEASURE one font file's own TYPICAL-LETTER-TO-ASCENT ratio (item 105): how
+/// tall a "generic" letter's ink sits relative to the font's own ascent, read
+/// straight from the face's `OS/2`/`hhea` tables through the SAME skrifa
+/// `metrics()` call every other per-face fact here uses.
+///
+/// Deliberately NOT the bare x-height. A glyphless anchor (space / end-of-line
+/// / an empty line / a ligature) has no letter of its own, so ANY single fixed
+/// reference is an approximation — but the two obvious single choices both
+/// under-serve one of the two glyph classes the caret's own ink-box arm treats
+/// as routinely different heights:
+///   * x-height alone reproduces item 91's ORIGINAL bug in miniature at the
+///     seam for an ASCENDER neighbour (`l`/`h`/`b`/`d`) — x-height sits well
+///     below a real ascender's ink top, so the fallback would visibly SHRINK
+///     leaving a tall letter for end-of-line;
+///   * cap-height alone reintroduces the bug's ORIGINAL direction for an
+///     ORDINARY x-height letter (`a`/`m`/`e`) — the literal case the user's
+///     `aaa` fixture reports — hanging empty accent space above it again.
+/// The MEAN of the two is the balance point: still strictly font-measured (no
+/// hand-tuned per-world offset), and it halves the worst-case residual against
+/// EITHER class rather than zeroing one at the other's expense. `Size::unscaled()`
+/// keeps every quantity in font design units, so the ratio is a pure per-font
+/// constant independent of the font size a row happens to be shaped at — the
+/// caller multiplies it by that ROW's own (already size/zoom/DPI-scaled)
+/// `max_ascent` to get a real pixel height.
+///
+/// Falls back to [`DEFAULT_TYPICAL_LETTER_RATIO`] when the file won't parse or
+/// the face declares NEITHER metric (some symbol/geometric faces don't); a
+/// face with only one of the two uses that one alone rather than discarding a
+/// real measurement.
+fn measure_typical_letter_ratio(bytes: &[u8]) -> f32 {
+    let Ok(font) = FontRef::new(bytes) else {
+        return DEFAULT_TYPICAL_LETTER_RATIO;
+    };
+    let m = font.metrics(Size::unscaled(), LocationRef::default());
+    if m.ascent <= 0.0 {
+        return DEFAULT_TYPICAL_LETTER_RATIO;
+    }
+    let xh = m.x_height.filter(|v| *v > 0.0);
+    let ch = m.cap_height.filter(|v| *v > 0.0);
+    let px = match (xh, ch) {
+        (Some(xh), Some(ch)) => (xh + ch) * 0.5,
+        (Some(v), None) | (None, Some(v)) => v,
+        (None, None) => return DEFAULT_TYPICAL_LETTER_RATIO,
+    };
+    (px / m.ascent).clamp(0.2, 0.95)
+}
+
 /// One bundled display face, as the roster knows it.
 #[derive(Clone, Copy, Debug)]
 pub struct FaceFacts {
@@ -139,20 +205,30 @@ pub struct FaceFacts {
     pub declared: Pitch,
     /// What its own advance widths SAY it is — `None` if it could not be read.
     pub measured: Option<Pitch>,
+    /// This face's own typical-letter / ascent ratio ([`measure_typical_letter_ratio`]) —
+    /// read alongside the pitch measurement so a face's bytes are parsed once
+    /// for both facts, not twice.
+    pub typical_letter_ratio: f32,
 }
 
-/// THE ROSTER: every bundled display family → its declared and measured pitch.
+/// THE ROSTER: every bundled display family → its declared pitch, measured
+/// pitch, and measured x-height ratio.
 ///
 /// Built once (a few TTF header parses; no system font enumeration) and then
-/// read per frame by [`family_is_mono`]. Keyed by the REGISTERED family name, so
-/// a lookup with a `Theme::font` string hits directly.
+/// read per frame by [`family_is_mono`] / [`typical_letter_ratio`]. Keyed by the
+/// REGISTERED family name, so a lookup with a `Theme::font` string hits
+/// directly.
 pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
     static ROSTER: OnceLock<BTreeMap<String, FaceFacts>> = OnceLock::new();
     ROSTER.get_or_init(|| {
         let mut out = BTreeMap::new();
         for (bytes, declared) in crate::render::bundled_display_faces() {
             let Some(family) = registered_family(bytes) else { continue };
-            out.entry(family).or_insert(FaceFacts { declared, measured: measure_pitch(bytes) });
+            out.entry(family).or_insert(FaceFacts {
+                declared,
+                measured: measure_pitch(bytes),
+                typical_letter_ratio: measure_typical_letter_ratio(bytes),
+            });
         }
         out
     })
@@ -169,4 +245,13 @@ pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
 /// list did.
 pub fn family_is_mono(family: &str) -> bool {
     roster().get(family).and_then(|f| f.measured).map(Pitch::is_mono).unwrap_or(false)
+}
+
+/// THE RATIO the caret's proportional-fallback SYNTHETIC ink box (item 105)
+/// rides: `family`'s own measured x-height/ascent, or
+/// [`DEFAULT_TYPICAL_LETTER_RATIO`] for a family this roster does not know (a system
+/// fallback face, an `AWL_FONT` override — never a bundled display face, exactly
+/// the same unknown-family shape [`family_is_mono`] answers `false` to).
+pub fn typical_letter_ratio(family: &str) -> f32 {
+    roster().get(family).map(|f| f.typical_letter_ratio).unwrap_or(DEFAULT_TYPICAL_LETTER_RATIO)
 }

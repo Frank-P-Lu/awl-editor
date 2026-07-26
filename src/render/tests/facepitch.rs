@@ -271,3 +271,57 @@ fn the_mono_display_worlds_are_these_seven() {
         );
     }
 }
+
+/// ITEM 105 — every bundled display face's `typical_letter_ratio` is a REAL,
+/// SANE measurement, not the fallback default sneaking in for a face that
+/// really does declare `x_height`/`cap_height`: within `measure_typical_letter_ratio`'s
+/// own clamp range, and for the roster's proportional faces specifically —
+/// where the caret's synthetic ink box actually matters, since a mono world
+/// never reads this ratio at all — the CLAMP alone is too weak a check (a
+/// clamp bound is trivially satisfiable by the fallback constant too), so this
+/// also asserts a real SPREAD across the roster: different faces' own
+/// x-height/cap-height proportions differ, so a roster of all-fallback values
+/// (every face silently failing to measure) would collapse to one repeated
+/// number and fail the spread check.
+#[test]
+fn every_proportional_face_measures_a_sane_typical_letter_ratio() {
+    let _t = crate::testlock::serial();
+    let mono = mono_display_worlds();
+    let mut ratios: Vec<f32> = Vec::new();
+    let mut checked = 0usize;
+    for (name, font, _) in WORLD_FACES {
+        if mono.contains(name) {
+            continue; // the caret never reads this ratio on a mono world
+        }
+        let ratio = facepitch::typical_letter_ratio(font);
+        assert!(
+            (0.2..=0.95).contains(&ratio),
+            "{name} ({font}): typical_letter_ratio out of the measured clamp range: {ratio}"
+        );
+        ratios.push(ratio);
+        checked += 1;
+    }
+    assert!(checked >= 11, "every proportional-display world is swept (got {checked})");
+
+    let (min, max) = (
+        ratios.iter().cloned().fold(f32::MAX, f32::min),
+        ratios.iter().cloned().fold(f32::MIN, f32::max),
+    );
+    assert!(
+        max - min > 0.02,
+        "the roster's own faces must measure genuinely DIFFERENT ratios, not \
+         one repeated fallback value: min={min} max={max}"
+    );
+}
+
+/// An UNKNOWN family (never bundled — a system fallback face, an `AWL_FONT`
+/// override) answers the documented fallback constant, exactly the same
+/// "unknown family" shape `family_is_mono` already has.
+#[test]
+fn unknown_family_falls_back_to_the_documented_typical_letter_ratio() {
+    let ratio = facepitch::typical_letter_ratio("Not A Real Bundled Family");
+    assert!(
+        (ratio - facepitch::DEFAULT_TYPICAL_LETTER_RATIO).abs() < 1e-6,
+        "an unknown family must answer the documented fallback constant, got {ratio}"
+    );
+}

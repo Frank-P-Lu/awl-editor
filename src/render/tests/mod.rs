@@ -19,6 +19,7 @@ mod build_integrity;
 mod caret;
 mod caret_block;
 mod caret_ink_box;
+mod caret_transition_item105;
 mod card_texture_shape;
 mod chrome_overlay;
 mod chrome_panels;

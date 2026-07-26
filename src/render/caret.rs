@@ -355,7 +355,16 @@ impl TextPipeline {
     /// `render::tests::caret_ink_box`'s grep-law fails if `layers.rs` reads a
     /// raster box or a line-cell height of its own.
     pub(super) fn caret_anchor_raster_box(&mut self) -> Option<InkBox> {
-        let key = self.cursor_glyph_key_at(self.cursor_line, self.caret_anchor_col())?;
+        self.raster_box_at(self.cursor_line, self.caret_anchor_col())
+    }
+
+    /// [`Self::caret_anchor_raster_box`] widened to an ARBITRARY column on the
+    /// cursor line (item 105's transition repair) — the same ungated raw raster
+    /// read, just not pinned to the caret's own anchor column. The one other
+    /// caller is [`Self::nearest_row_raster_box`], which searches outward from
+    /// a glyphless anchor for a column that has real ink.
+    fn raster_box_at(&mut self, line: usize, col: usize) -> Option<InkBox> {
+        let key = self.cursor_glyph_key_at(line, col)?;
         let Self {
             swash_cache,
             font_system,
@@ -371,6 +380,97 @@ impl TextPipeline {
             width: img.placement.width as f32,
             height: img.placement.height as f32,
         })
+    }
+
+    /// [`Self::raster_box_at`] searched outward from `col` in BOTH directions
+    /// and BLENDED — item 105's THIRD repair round (the second round's
+    /// nearest-distance-wins pick bred a same-class defect of its own; see
+    /// below). Bounded to the caret's OWN VISUAL ROW ([`Self::visual_rows`]'s
+    /// `[start_col, end_col)` span for whichever row `col` sits on, resolved
+    /// the SAME way [`Self::caret_row_metrics`] resolves its own row —
+    /// [`pick_row_index_aff`]), never the whole logical line, so a giant blank
+    /// paragraph costs O(row width), never O(doc).
+    ///
+    /// The FIRST repair round (12c2fb4 / fdbc0da) tried only `col - 1`, a
+    /// single backward hop: it closed the literal reported shape (`aaa`'s
+    /// final `a` → EOL) but had no `col - 1` at column 0 (`" A"`), and lost the
+    /// borrowed ink one hop into a run of 2+ glyphless columns (`"A  "`) —
+    /// see that round's own docstring, superseded below.
+    ///
+    /// The SECOND repair round (b0ca2cf) searched outward, nearest distance
+    /// wins, backward preferred on an exact tie — closing both shapes above.
+    /// But "nearest wins" is a HARD PICK: it borrows exactly ONE side's ink,
+    /// never the other, so a single glyphless column with a DIFFERENT real
+    /// letter on each side (a table's `"| 1"` — pipe one side, digit the
+    /// other, tied at distance 1, backward wins by the tiebreak) reads as pure
+    /// pipe ink. The BACKWARD seam (pipe -> space) then measures a clean
+    /// 0.00px, because both columns share literally the same box — but the
+    /// FORWARD seam (space -> digit) inherits the WHOLE pipe-to-digit gap
+    /// undiminished, because nothing on the space's side moved toward the
+    /// digit at all. Flipping the tiebreak to prefer forward does not fix
+    /// this — it only rotates the same whole gap onto the other seam. And on
+    /// a run of 4+ glyphless columns flanked by two DIFFERENT letters, the
+    /// nearest-wins pick is not just directional but DISCONTINUOUS: the
+    /// interior column where "nearest" switches sides is a hard step from one
+    /// letter's full ink to the other's, with no columns in between softening
+    /// it — the "interior flip" this round's own probe found worse than
+    /// b0ca2cf disclosed (measured 7.0px on Bombora, against the 6.5px the
+    /// build itself reported).
+    ///
+    /// This round makes the borrow NON-DIRECTIONAL: when a real box exists on
+    /// BOTH sides, the returned box is the LINEAR INTERPOLATION of the two,
+    /// weighted by which side `col` sits nearer to
+    /// (`t = back_distance / (back_distance + fwd_distance)`, `0` = literally
+    /// on top of the backward neighbor's own ink, `1` = literally on top of
+    /// the forward one). A single glyphless column tied between two different
+    /// letters (`t = 0.5`) now reads as the MIDPOINT of the two — so instead
+    /// of one seam absorbing the whole gap and the other absorbing none, EACH
+    /// seam absorbs roughly HALF of it, and a run of several glyphless
+    /// columns sweeps smoothly from one letter's ink to the other's with no
+    /// interior step at all (proven at
+    /// `render/tests/caret_transition_item105.rs`'s
+    /// `interior_run_between_two_different_letters_has_no_flip_step`). When a
+    /// real box exists on only ONE side (column 0, or the tail of a run with
+    /// nothing real beyond it), the blend degenerates to that single box
+    /// exactly as the second round already returned — the two literal-
+    /// adjacency laws (`aaa`->EOL, `run_of_glyphless_columns_stays_bounded`)
+    /// stay byte-identical, proven by this round's own non-regression checks.
+    fn nearest_row_raster_box(&mut self, line: usize, col: usize) -> Option<InkBox> {
+        let rows = self.visual_rows(line);
+        let row = rows.get(pick_row_index_aff(&rows, col, self.caret_affinity))?;
+        let (start, end) = (row.start_col, row.end_col);
+        let max_back = col.saturating_sub(start);
+        let max_fwd = end.saturating_sub(col + 1);
+
+        let mut back: Option<(usize, InkBox)> = None;
+        for d in 1..=max_back {
+            if let Some(b) = self.raster_box_at(line, col - d) {
+                back = Some((d, b));
+                break;
+            }
+        }
+        let mut fwd: Option<(usize, InkBox)> = None;
+        for d in 1..=max_fwd {
+            if let Some(b) = self.raster_box_at(line, col + d) {
+                fwd = Some((d, b));
+                break;
+            }
+        }
+
+        match (back, fwd) {
+            (Some((db, bb)), Some((df, fb))) => {
+                let t = db as f32 / (db + df) as f32;
+                Some(InkBox {
+                    left: bb.left + (fb.left - bb.left) * t,
+                    top: bb.top + (fb.top - bb.top) * t,
+                    width: bb.width + (fb.width - bb.width) * t,
+                    height: bb.height + (fb.height - bb.height) * t,
+                })
+            }
+            (Some((_, bb)), None) => Some(bb),
+            (None, Some((_, fb))) => Some(fb),
+            (None, None) => None,
+        }
     }
 
     /// The BLOCK caret's INK-ALIGNED box at the caret's ANCHOR cell this frame —
@@ -431,30 +531,99 @@ impl TextPipeline {
     /// ([`Self::ibeam_bar_dims`] — an insertion bar marks a boundary between glyphs,
     /// so it has no glyph of its own to hug).
     ///
-    /// Two arms, gated by the ONE ink funnel ([`Self::caret_anchor_ink_box`]):
+    /// Three arms, gated by the ONE ink funnel ([`Self::caret_anchor_ink_box`])
+    /// plus [`crate::caret::font_is_mono`] and the ungated raw raster read
+    /// ([`Self::caret_anchor_raster_box`]):
     ///
     /// * **INK BOX (item 91 — a proportional world, one glyph, real ink).** The
     ///   caret spans the anchored glyph's own full raster box grown by
     ///   [`CARET_INK_PAD`] top and bottom. This is the fix for the reported vertical
-    ///   misalignment: the line-cell arm below is a FIXED fraction of the row height
-    ///   (`CARET_BLOCK_H == CARET_H * 0.8`) centred on the line box, so its top sat
-    ///   at the same y for every letter while the ink's top moves with the letter —
-    ///   8–9px of empty accent above an `a`/`m`/`g`/`y`, ~3px above an `l`. Sizing to
-    ///   the box makes the margin a small letter-INDEPENDENT pad instead, and covers
-    ///   DESCENDERS through the very same box (`height - top` is already below the
-    ///   baseline, so `g`/`y` need no separate rule).
-    /// * **LINE CELL (mono / a ligature cluster / no ink).** The historical geometry,
-    ///   byte-identical: `caret_block_h` row-scaled, centred on the spring anchor,
-    ///   with the DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded
-    ///   in here rather than at the draw site — a mono world keeps its uniform grid
-    ///   (a fixed top, a bottom that drops only for a dipper) and a ligature keeps
-    ///   its fair cell split.
+    ///   misalignment: a FIXED fraction of the row height centred on the line box
+    ///   put every letter's top at the same y while the ink's top moves with the
+    ///   letter — 8–9px of empty accent above an `a`/`m`/`g`/`y`, ~3px above an
+    ///   `l`. Sizing to the box makes the margin a small letter-INDEPENDENT pad
+    ///   instead, and covers DESCENDERS through the very same box (`height - top`
+    ///   is already below the baseline, so `g`/`y` need no separate rule).
+    /// * **PROPORTIONAL FALLBACK, real or synthetic ink (item 105, widened by
+    ///   item 105's repair round).** Reached whenever the ink funnel says no to
+    ///   a SINGLE-glyph box but the world is NOT mono. THE SAME baseline-relative
+    ///   formula as the arm above, fed one of THREE boxes, tried in order:
+    ///     1. a LIGATURE cluster (`caret_anchor_ink_box` gates it out only
+    ///        because one cluster's ink can't be fairly SPLIT across its chars
+    ///        horizontally — the vertical ink is exactly as trustworthy as a
+    ///        single glyph's) still has a real [`InkBox`]
+    ///        ([`Self::caret_anchor_raster_box`], ungated), so it uses that
+    ///        raster box directly — a ligature agrees with a plain glyph beside
+    ///        it on the same row exactly like the ink-box arm does;
+    ///     2. otherwise, a truly GLYPHLESS anchor (space / end-of-line — no
+    ///        raster of its own) BORROWS the caret's own VISUAL ROW's nearby
+    ///        real [`InkBox`]es ([`Self::nearest_row_raster_box`] — searched
+    ///        OUTWARD in both directions, blended when both sides have real
+    ///        ink) — the THIRD repair round's fix, superseding the second
+    ///        round's hard "nearest wins" pick: that pick borrowed exactly ONE
+    ///        side's ink, so a single glyphless column tied between two
+    ///        DIFFERENT letters (a table's `"| 1"`) read as pure ink from
+    ///        whichever side the tiebreak favoured — one seam closed to
+    ///        0.00px while the OTHER inherited the WHOLE gap between the two
+    ///        letters undiminished (backward/forward is a directional
+    ///        symptom, not a fix — flipping the tiebreak only rotates which
+    ///        seam absorbs the full gap), and a run of 4+ columns flanked by
+    ///        two different letters showed a hard INTERIOR FLIP where
+    ///        "nearest" switched sides with nothing between to soften it.
+    ///        Blending by relative distance (`t = back_dist / (back_dist +
+    ///        fwd_dist)`) makes the borrow non-directional: a column tied
+    ///        between two different letters reads as their MIDPOINT (each
+    ///        seam absorbs roughly half the gap instead of one absorbing all
+    ///        of it), and a run sweeps smoothly from one letter's ink to the
+    ///        other's with no interior step. When only ONE side has real ink
+    ///        (column 0; the tail of a run with nothing real beyond it), the
+    ///        blend degenerates to that one box exactly as before — the
+    ///        literal-adjacency fixtures (`aaa`->EOL, `" A"`, `"A  "`) stay
+    ///        byte-identical;
+    ///     3. only when NONE of the above has a real box — the caret's own
+    ///        visual row has no rasterizable ink at ANY column (an empty line,
+    ///        or a row of pure whitespace with nothing real anywhere on it) —
+    ///        does the arm fall to a SYNTHETIC typical-letter box
+    ///        ([`Self::caret_synthetic_ink_box`]): the row's own real
+    ///        `max_ascent` times a typical-letter/ascent ratio
+    ///        (`facepitch::typical_letter_ratio`, read off the shipped font
+    ///        file), KEYED ON WHICHEVER FONT ACTUALLY PRODUCED THAT ASCENT
+    ///        (`caret_row_metrics`'s third element) — a real shaped row's
+    ///        `max_ascent` is a property of `shaped_font` (the face ACTUALLY on
+    ///        screen right now, possibly still lagging the live theme mid
+    ///        preview), while the metrics-only empty-line approximation is
+    ///        theme-independent by construction and reads `doc_family()` for
+    ///        the ratio — so the two quantities multiplied together always
+    ///        describe the SAME font, never a source-ascent/destination-ratio
+    ///        Frankenstein number (found auditing this repair round: mixing
+    ///        `shaped_font`'s real row metrics with `doc_family()`'s ratio
+    ///        produced a measurable few-px pop on ordinary text during a
+    ///        theme-picker scrub that the original fix's one empty-buffer law
+    ///        could not see, because an empty buffer never takes the real-row
+    ///        branch at all).
+    ///   THIS is the item-105 fix: before it, this whole case (real ligature ink
+    ///   included) fell to the LINE-CELL arm below — a fixed row-box-centred
+    ///   height with NO baseline/ascent reference at all — so a proportional
+    ///   world's caret visibly jumped top/bottom/centre the instant it left a
+    ///   real glyph for the very next column. Feeding all three references
+    ///   through the identical `baseline - top + height/2` / `height + 2*pad`
+    ///   formula means they can no longer structurally disagree at that seam —
+    ///   only WHICH box (or which font) feeds the shared formula differs, never
+    ///   the formula itself.
+    /// * **LINE CELL (mono only).** The historical geometry, byte-identical:
+    ///   `caret_block_h` row-scaled, centred on the spring anchor, with the
+    ///   DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded in
+    ///   here rather than at the draw site. Item 97's uniform mono grid never
+    ///   reads ANY ink box, real or synthetic — every column on a mono row shares
+    ///   one `caret.pos.y`/`caret_block_h`, so the cell stays column-independent
+    ///   by construction, exactly as before item 105.
     ///
-    /// The extension used to live in `layers.rs::prepare_caret_block`, applied to the
-    /// already motion-blended rect and re-scaled by the settle factor. Folding it
-    /// into the REST endpoint here is algebraically identical at rest (settle 1 — the
-    /// deterministic capture) and lets `motion_geometry` blend it out with everything
-    /// else mid-glide, so the travelling streak has exactly one thickness rule.
+    /// The descender extension used to live in `layers.rs::prepare_caret_block`,
+    /// applied to the already motion-blended rect and re-scaled by the settle
+    /// factor. Folding it into the REST endpoint here is algebraically identical
+    /// at rest (settle 1 — the deterministic capture) and lets `motion_geometry`
+    /// blend it out with everything else mid-glide, so the travelling streak has
+    /// exactly one thickness rule.
     pub(super) fn caret_cell_vertical(&mut self) -> (f32, f32) {
         let m = self.metrics;
         // Pixel scale (zoom × dpi), the same factor `CARET_DESCENDER_PAD` rides.
@@ -466,8 +635,39 @@ impl TextPipeline {
             let h = ink.height + 2.0 * CARET_INK_PAD * px;
             return (cy, h);
         }
-        // LINE-CELL arm: the generic row-scaled cell, plus the descender-aware BOTTOM
-        // drop so a dipping glyph stays inside the block on a mono / ligature anchor.
+        // Gated on `doc_family()` (the LIVE effective face the ACTIVE theme wants
+        // for this buffer kind), deliberately NOT `shaped_font` (the face the
+        // document is ACTUALLY shaped in right now) — unlike the ink-box arm
+        // above and the raster-box read just below, this decision has no real
+        // on-screen glyph to align with (a synthetic box has nothing to match),
+        // so it should track whatever the theme-preview's O(1) COLOR retint
+        // already committed to, not wait on the separately-deferred font
+        // RESHAPE. `sync_theme_colors` (the picker's per-arrow preview step)
+        // updates the active theme and every baked colour instantly but leaves
+        // `shaped_font` stale until the reshape catches up; before item 105 nothing
+        // color-only-visible read font identity at a GLYPHLESS anchor (the old
+        // fallback was one constant formula regardless of font), so this split
+        // introduced the first font-identity dependency at that seam. Reading
+        // `shaped_font` here would leave the caret's OWN geometry stale exactly
+        // where the picker's preview law (`render::tests::distinguishability`)
+        // proves color retint must fully re-ground the surface.
+        if !crate::caret::font_is_mono(self.doc_family()) {
+            // PROPORTIONAL FALLBACK (item 105): the SAME baseline-relative formula
+            // as the ink-box arm, fed (in order) a real ligature raster box, a
+            // borrowed NEIGHBOR raster box, or a synthetic typical-letter box —
+            // see the doc above.
+            let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
+            let col = self.caret_anchor_col();
+            let ink = self
+                .caret_anchor_raster_box()
+                .or_else(|| self.nearest_row_raster_box(self.cursor_line, col))
+                .unwrap_or_else(|| self.caret_synthetic_ink_box(row_ascent, ascent_font));
+            let cy = baseline - ink.top + ink.height * 0.5;
+            let h = ink.height + 2.0 * CARET_INK_PAD * px;
+            return (cy, h);
+        }
+        // LINE-CELL arm (MONO only): the generic row-scaled cell, plus the
+        // descender-aware BOTTOM drop so a dipping glyph stays inside the block.
         let cy = self.caret.pos.y;
         let h = m.caret_block_h * self.cursor_scale();
         let descender = self
@@ -483,6 +683,53 @@ impl TextPipeline {
         let extend = (desc_bottom - (cy + h * 0.5)).max(0.0);
         // `h += extend; cy += extend/2` drops the bottom while the top is invariant.
         (cy + extend * 0.5, h + extend)
+    }
+
+    /// The FALLBACK arm's SYNTHETIC ink box (item 105) for a truly GLYPHLESS
+    /// PROPORTIONAL anchor (space / end-of-line / an empty line — nothing
+    /// [`Self::caret_anchor_raster_box`] can measure): a typical lowercase
+    /// letter's placement, expressed in the SAME `top`/`height`-above-baseline
+    /// convention a real [`InkBox`] uses, so [`Self::caret_cell_vertical`] can
+    /// feed it through the identical formula the real ink-box arm reads.
+    ///
+    /// `top == height` (zero descent) by construction: a typical non-descending
+    /// letter's ink sits ON the baseline with nothing below it, exactly like a
+    /// real non-dipping glyph's box. There is deliberately no synthetic
+    /// descender — a glyphless anchor has no letter to dip, so nothing to extend
+    /// for; a REAL dipping ligature already carries its own descent inside its
+    /// raster box in the caller above, untouched by this function.
+    ///
+    /// `row_max_ascent` is the SAME per-row value [`Self::caret_row_metrics`]
+    /// pairs with the baseline this box is fed against — already reshaped for a
+    /// heading / zoom / DPI row, so this needs no separate font-size lookup —
+    /// scaled by `ratio_font`'s OWN measured typical-letter/ascent ratio
+    /// ([`facepitch::typical_letter_ratio`] — the MEAN of the face's x-height and
+    /// cap-height, not bare x-height: a pure x-height reference reproduces item
+    /// 91's bug in miniature against an ASCENDER neighbour, so the mean is the
+    /// balance point between the two glyph classes the ink-box arm already
+    /// treats as different heights): a real per-font quantity read off the
+    /// shipped face file, not a hand-tuned per-world offset.
+    ///
+    /// `ratio_font` is [`Self::caret_row_metrics`]'s own third element —
+    /// WHICHEVER font actually produced `row_max_ascent` — never independently
+    /// re-derived here. A real shaped row's `max_ascent` is a property of
+    /// `shaped_font` (the face the row is ACTUALLY laid out in this frame); the
+    /// metrics-only empty-line approximation is theme-independent and pairs
+    /// with `doc_family()` instead (see the caller's doc). Reading anything
+    /// else here (e.g. unconditionally `doc_family()`) would multiply one
+    /// font's ascent by a DIFFERENT font's ratio whenever the two diverge — the
+    /// theme-picker preview lag (`sync_theme_colors` without a reshape yet) is
+    /// the one live case that does, and the mixed number it produces pops a few
+    /// px on ordinary text mid-scrub even though neither factor alone is wrong.
+    fn caret_synthetic_ink_box(&self, row_max_ascent: f32, ratio_font: &str) -> InkBox {
+        let ratio = facepitch::typical_letter_ratio(ratio_font);
+        let top = (row_max_ascent * ratio).max(1.0);
+        InkBox {
+            left: 0.0,
+            top,
+            width: 0.0,
+            height: top,
+        }
     }
 
     /// The [`CacheKey`] of the glyph the caret's ANCHOR cell INHABITS right now,
@@ -583,14 +830,54 @@ impl TextPipeline {
     /// `line_y = line_top + (line_height - (max_ascent + max_descent))/2 + max_ascent`
     /// — so the value is byte-identical to reading `run.line_y` off the whole-doc walk.
     pub(super) fn caret_baseline_y(&self) -> f32 {
+        self.caret_row_metrics().0
+    }
+
+    /// `(baseline_y, row max_ascent, ascent_font)` for the caret's ANCHOR row —
+    /// the shared core [`Self::caret_baseline_y`] delegates to (`.0`), widened by
+    /// item 105 so the fallback (glyphless) arm of [`Self::caret_cell_vertical`]
+    /// can build its SYNTHETIC ink box off the exact same row lookup the real
+    /// ink-box arm's baseline comes from. A baseline and "how tall is this row's
+    /// ascent" can never disagree about which row they describe, because they
+    /// are read in the same pass here.
+    ///
+    /// `ascent_font` (added in item 105's repair round) is WHICHEVER font
+    /// actually produced `max_ascent`: the real-layout branch reads a shaped
+    /// [`cosmic_text::LayoutLine`], a property of `shaped_font` (the face
+    /// ACTUALLY on screen this frame, which may still be lagging the live
+    /// theme mid theme-picker-preview — `sync_theme_colors` retints instantly
+    /// but defers the reshape); the empty-line fallback branch below derives its
+    /// ascent purely from `self.metrics` (zoom/DPI only, theme-INDEPENDENT —
+    /// `Metrics::with_dpi` never reads the active theme), so it pairs with the
+    /// LIVE `doc_family()` instead, matching the arm-selection gate one call up.
+    /// [`Self::caret_synthetic_ink_box`] must multiply `max_ascent` by ITS OWN
+    /// font's ratio, never a different font's — seam found auditing this repair
+    /// round: keying the ratio unconditionally on `doc_family()` while the real
+    /// branch's ascent stays keyed on `shaped_font` produces a mixed-font number
+    /// on ordinary (non-empty) text during a live preview scrub.
+    ///
+    /// ITEM 105 ALSO FIXED the row lookup itself: the pre-105 version re-derived
+    /// row ownership with a HAND-ROLLED predicate (`col >= start_col && col <
+    /// end_col`, plus an upstream special case) that — unlike every OTHER
+    /// caret/geometry consumer of a column-to-row lookup — never handled the
+    /// column sitting AT OR PAST every row's `end_col`: the true END-OF-LINE
+    /// column on an UNWRAPPED line. There it fell through to the crude
+    /// `font_size * 0.8` ascent GUESS below, while the on-glyph ink-box arm one
+    /// column to the left reads the row's REAL `max_ascent` — two different
+    /// ascent sources for the SAME physical row, which is exactly the kind of
+    /// seam this item exists to close (confirmed empirically: the guess reads
+    /// ~30% low against Literata's real row ascent, a residual big enough to
+    /// still show at the very transition item 105 targets). [`pick_row_index_aff`]
+    /// is the SAME canonical column→row resolver [`Self::visual_row_top_aff`] and
+    /// [`Self::col_x_and_advance_aff`] already ride (its second pass — "no strict
+    /// container, use the LAST row the column trails" — is exactly the
+    /// end-of-line case the hand-rolled loop lacked), so reusing it here makes
+    /// the caret's row ownership one decision instead of three independently
+    /// almost-identical ones.
+    fn caret_row_metrics(&self) -> (f32, f32, &'static str) {
         // Anchor column (the cursor column in Block/I-beam; one back in Morph — at a
         // soft-wrap boundary that is the PREVIOUS visual row).
         let col = self.caret_anchor_col();
-        // At a SHARED wrap boundary an `Upstream` caret sits on the UPPER visual row:
-        // match that row (its `end_col == col`) instead of the lower row the default
-        // `col < end_col` picks, so the block's descender-aware BOTTOM extension
-        // measures against the row the caret actually renders on.
-        let upstream = self.caret_affinity == crate::caret::Affinity::Upstream;
         // The cursor line's shaped LayoutLines (one per wrapped visual row, in wrap
         // order — the SAME order + count as `visual_rows`, so `rows[i]` pairs with
         // `layout[i]`), read straight from that line's own layout — no doc walk.
@@ -599,32 +886,42 @@ impl TextPipeline {
                 if !layout.is_empty() {
                     let rows = self.visual_rows(self.cursor_line);
                     let n = rows.len().min(layout.len());
-                    for i in 0..n {
+                    if n > 0 {
+                        let i = pick_row_index_aff(&rows[..n], col, self.caret_affinity);
                         let r = &rows[i];
-                        // Same predicate as the old run-column match: upstream owns the
-                        // trailing edge, otherwise the [start_col, end_col) container.
-                        let owns_upstream = upstream && r.end_col == col && r.start_col < col;
-                        if owns_upstream || (col >= r.start_col && col < r.end_col) {
-                            let ll = &layout[i];
-                            let line_height = ll.line_height_opt.unwrap_or(self.metrics.line_height);
-                            let glyph_height = ll.max_ascent + ll.max_descent;
-                            let centering = (line_height - glyph_height) / 2.0;
-                            // `r.line_top` is buffer-relative (== `run.line_top`); this
-                            // reconstructs `run.line_y` exactly.
-                            let line_y = r.line_top + centering + ll.max_ascent;
-                            return self.doc_top() + line_y;
-                        }
+                        let ll = &layout[i];
+                        let line_height = ll.line_height_opt.unwrap_or(self.metrics.line_height);
+                        let glyph_height = ll.max_ascent + ll.max_descent;
+                        let centering = (line_height - glyph_height) / 2.0;
+                        // `r.line_top` is buffer-relative (== `run.line_top`); this
+                        // reconstructs `run.line_y` exactly.
+                        let line_y = r.line_top + centering + ll.max_ascent;
+                        // This ascent is a property of the face the row is ACTUALLY
+                        // shaped in right now — `shaped_font`, not `doc_family()` —
+                        // so any ratio multiplied against it must read the same font.
+                        return (self.doc_top() + line_y, ll.max_ascent, self.shaped_font);
                     }
                 }
             }
         }
-        // Fallback (no run owns the column — glyphless/empty line): approximate the
-        // baseline from the row top + an ascent proportion. The morph caret never
-        // paints a silhouette here (it falls back to the slim space bar), so this
-        // only keeps the value finite.
+        // Fallback (a truly EMPTY line — no shaped run at all, so there is no row
+        // to look up): approximate the baseline from the row top + an ascent
+        // proportion. The morph caret never paints a silhouette here (it falls
+        // back to the slim space bar), so this only keeps the value finite. The
+        // paired ascent approximation mirrors the SAME `0.8 * font_size` term the
+        // baseline itself uses, so the two stay mutually consistent even in this
+        // no-run corner. `self.metrics` is zoom/DPI-derived only (theme-
+        // independent — see `set_view`'s `Metrics::with_dpi`), so this ascent
+        // describes no particular shaped font; pair it with the LIVE
+        // `doc_family()`, matching the arm-selection gate above.
         let m = &self.metrics;
         let line_top = self.visual_row_top_aff(self.cursor_line, col, self.caret_affinity);
-        line_top + (m.line_height - m.font_size) * 0.5 + m.font_size * 0.8
+        let ascent = m.font_size * 0.8;
+        (
+            line_top + (m.line_height - m.font_size) * 0.5 + ascent,
+            ascent,
+            self.doc_family(),
+        )
     }
 
     /// Geometry for the MORPH caret this frame: the two glyph placement boxes
