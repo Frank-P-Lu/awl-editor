@@ -3,6 +3,9 @@
 //! roster; the spawned PNG law in `tests/caret_punctuation_pixels.rs` checks the
 //! resulting pixels.
 
+use super::super::caret_body::{
+    CARET_VISUAL_BODY_MIN_AREA, CARET_VISUAL_BODY_MIN_H, CARET_VISUAL_BODY_MIN_W,
+};
 use super::super::*;
 use super::{headless_pipeline, view};
 use crate::caret::CaretMode;

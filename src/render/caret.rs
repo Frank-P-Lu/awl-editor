@@ -2,6 +2,7 @@
 //! reports. Methods remain on [`super::TextPipeline`] because they read its shaped
 //! font, layout, and buffer state.
 
+pub(super) use super::caret_body::{InkBox, caret_visual_body_dims};
 use super::*;
 
 mod motion;
@@ -34,42 +35,6 @@ pub(super) struct CaretLineGlyphs {
     /// the exact glyph objects `layout_runs()` would have yielded for this line, so
     /// the key/span lookups are byte-identical to the old whole-doc walk.
     clusters: Vec<(usize, usize, CacheKey)>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub(super) struct InkBox {
-    pub left: f32,
-    pub top: f32,
-    pub width: f32,
-    pub height: f32,
-}
-
-impl InkBox {
-    pub fn descent(self) -> f32 {
-        (self.height - self.top).max(0.0)
-    }
-}
-
-/// Apply the shared minimum resting *visual body* to a proportional caret's
-/// real glyph box.  The input height already includes the normal even ink pad;
-/// this is therefore a floor on the OUTER silhouette the user sees, not a
-/// second glyph-padding policy.  Keeping this a pure owner lets Block and the
-/// folded-Morph block use precisely the same dimensions, while Morph's normal
-/// glyph silhouette can ask whether it needs that same supporting body.
-pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
-    let mut w = ink.width.max(CARET_VISUAL_BODY_MIN_W * px);
-    let mut h = (ink.height + 2.0 * CARET_INK_PAD * px).max(CARET_VISUAL_BODY_MIN_H * px);
-    let min_area = CARET_VISUAL_BODY_MIN_AREA * px * px;
-    let area = w * h;
-    if area < min_area {
-        // Area is the third independent contribution.  Scale both axes so a
-        // short-wide dash and a tall-thin bracket retain their glyph-aware
-        // proportions instead of receiving a character-class special case.
-        let grow = (min_area / area).sqrt();
-        w *= grow;
-        h *= grow;
-    }
-    (w, h)
 }
 
 impl TextPipeline {
@@ -527,20 +492,6 @@ impl TextPipeline {
         let desc_bottom = self.caret_baseline_y() + descender + CARET_DESCENDER_PAD * px;
         let extend = (desc_bottom - (cy + h * 0.5)).max(0.0);
         (cy + extend * 0.5, h + extend)
-    }
-
-    /// Whether a settled proportional Morph needs the shared supporting body.
-    /// Kept beside `caret_visual_body_dims` so draw layers never inspect ink or
-    /// duplicate vertical geometry policy.
-    pub(super) fn caret_needs_visual_body(&mut self) -> bool {
-        self.caret_anchor_ink_box()
-            .map(|ink| {
-                let px = self.metrics.caret_h / CARET_H;
-                let (w, h) = caret_visual_body_dims(ink, px);
-                w > ink.width + f32::EPSILON
-                    || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
-            })
-            .unwrap_or(false)
     }
 
     /// The FALLBACK arm's SYNTHETIC ink box (item 105) for a truly GLYPHLESS

@@ -5,7 +5,7 @@
 //! faces (serif/slab/sans/display/one-bit-adjacent) at both caret looks, two
 //! DPI/zoom products, every punctuation class, and letter/space/EOL controls.
 
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod common;
@@ -94,16 +94,88 @@ fn footprint(
     (minx, miny, maxx, maxy, n)
 }
 
-fn distinct_rgb(image: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> usize {
+fn dominant_rgb(image: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> [u8; 3] {
     let (w, _, pixels) = image;
-    let mut colors = BTreeSet::new();
+    let mut colors = BTreeMap::new();
     for y in rect.1..=rect.3 {
         for x in rect.0..=rect.2 {
             let i = ((y * *w + x) * 4) as usize;
-            colors.insert([pixels[i], pixels[i + 1], pixels[i + 2]]);
+            *colors
+                .entry([pixels[i], pixels[i + 1], pixels[i + 2]])
+                .or_insert(0usize) += 1;
         }
     }
-    colors.len()
+    colors
+        .into_iter()
+        .max_by_key(|(_, count)| *count)
+        .unwrap()
+        .0
+}
+
+fn glyph_mask(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> Vec<usize> {
+    let (w, _, pixels) = reference;
+    // The outer top-left is inside the padded body bbox but outside the glyph; it
+    // is the real page colour for this exact capture, so patterned worlds and
+    // antialiasing cannot turn an unrelated palette count into a passing oracle.
+    let page = [
+        pixels[((rect.1 * *w + rect.0) * 4) as usize],
+        pixels[((rect.1 * *w + rect.0) * 4) as usize + 1],
+        pixels[((rect.1 * *w + rect.0) * 4) as usize + 2],
+    ];
+    let mut mask = Vec::new();
+    for y in rect.1..=rect.3 {
+        for x in rect.0..=rect.2 {
+            let i = ((y * *w + x) * 4) as usize;
+            if pixels[i..i + 3] != page {
+                mask.push(i);
+            }
+        }
+    }
+    mask
+}
+
+fn glyph_contribution_pixels(
+    rendered: &(u32, u32, Vec<u8>),
+    rect: (u32, u32, u32, u32),
+    mask: &[usize],
+) -> usize {
+    let body = dominant_rgb(rendered, rect);
+    mask.iter()
+        .filter(|&&i| rendered.2[i..i + 3] != body)
+        .count()
+}
+
+fn assert_punctuation_glyph_contribution(
+    reference: &(u32, u32, Vec<u8>),
+    rendered: &(u32, u32, Vec<u8>),
+    rect: (u32, u32, u32, u32),
+    world: &str,
+    ch: char,
+    mode: &str,
+) {
+    let mask = glyph_mask(reference, rect);
+    assert!(
+        mask.len() >= 2,
+        "{world} {ch:?} {mode}: fixture must contain punctuation ink"
+    );
+    assert!(
+        glyph_contribution_pixels(rendered, rect, &mask) >= 2,
+        "{world} {ch:?} {mode}: covered punctuation swallowed into uniform body"
+    );
+    if world == "Mopoke" && ch == ',' && mode == "block" {
+        // Mutation proof: the oracle rejects the exact regression it names,
+        // rather than merely observing palette variation.
+        let mut erased = rendered.clone();
+        let body = dominant_rgb(&erased, rect);
+        for &i in &mask {
+            erased.2[i..i + 3].copy_from_slice(&body);
+        }
+        assert_eq!(
+            glyph_contribution_pixels(&erased, rect, &mask),
+            0,
+            "mutation proof must erase the glyph/knockout contribution"
+        );
+    }
 }
 
 #[test]
@@ -184,9 +256,9 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                         outer_top > band_top && outer_bottom + 1 < band_bottom,
                         "{world} {ch:?} {mode}: caret clipped by row band"
                     );
-                    assert!(
-                        distinct_rgb(&rendered, (left, outer_top, right, outer_bottom)) >= 3,
-                        "{world} {ch:?} {mode}: covered punctuation swallowed into uniform body"
+                    let rect = (left, outer_top, right, outer_bottom);
+                    assert_punctuation_glyph_contribution(
+                        &refimg, &rendered, rect, world, ch, mode,
                     );
                     assert!(
                         area as f32 >= 96.0 * scale * scale * 0.25,
