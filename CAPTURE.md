@@ -409,6 +409,25 @@ at release preparation.
 
 ## Determinism guarantees
 
+## Periodic missing-law coverage audit
+
+Before a risky implementation wave and before release preparation, run
+`scripts/coverage.sh`. It pins `cargo-llvm-cov` and its branch-capable nightly
+toolchain, runs the native unit and
+headless-test seams once, and writes ignored `coverage/` artifacts: an HTML
+report, LLVM JSON, commit/tool/config provenance, and a short changed-code
+triage. It is deliberately manual: ordinary push CI neither pays its
+instrumentation cost nor uploads its reports, and there is no repository-wide
+coverage percentage target.
+
+The report observes executed Rust paths, not product truth. Treat an uncovered
+changed line or branch as a reading list: write a law only when it names a real
+behavior contract. A covered wrapper does not prove rendered pixels, GPU or
+compositor behavior, timing, or human feel; those retain their capture,
+live-probe, pixel-arithmetic, or human-confirmation gates. The only exclusions
+are named in `coverage/provenance.txt`: the native process entry point and the
+direct AppKit/window-server boundary, which the headless harness cannot execute.
+
 A capture is **byte-stable across runs on the same machine** for the same input
 file. The render is pinned so nothing varies frame to frame:
 
