@@ -306,6 +306,12 @@ mod tests {
         }
     }
 
+    #[test]
+    fn d_month_yyyy_keeps_an_invalid_month_visible_instead_of_panicking() {
+        assert_eq!(DateFormat::DMonthYyyy.format(2026, 0, 7), "7 ? 2026");
+        assert_eq!(DateFormat::DMonthYyyy.format(2026, 13, 7), "7 ? 2026");
+    }
+
 
     // ── cycle order / round-trip ──────────────────────────────────────────
 
