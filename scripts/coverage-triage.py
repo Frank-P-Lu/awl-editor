@@ -43,7 +43,8 @@ def main() -> None:
             rel = str(pathlib.Path(name).resolve().relative_to(root))
         except ValueError:
             continue
-        for line, count, _ in item.get("segments", []):
+        for segment in item.get("segments", []):
+            line, count = segment[0], segment[2]
             if line in changed.get(rel, set()) and count == 0:
                 rows.append((rel, line, "line"))
         for branch in item.get("branches", []):
