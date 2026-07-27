@@ -245,12 +245,17 @@ fn scroll(cx: &mut Cx) -> Result<CellOut> {
         cx.sync_frame()?; // rewind to the top, untimed
         let mut prev_px = cx.p.scroll_top_px(cx.p.scroll);
         for i in 1..=steps {
-            cx.view.scroll =
-                crate::render::ScrollPos::at_row((i * PAGE).min(rows.saturating_sub(1)));
+            cx.view.scroll = crate::render::ScrollPos {
+                row: (i * PAGE).min(rows.saturating_sub(1)),
+                // The semantic-scroll bench must exercise a real intra-row
+                // position, not accidentally benchmark its row-only ancestor.
+                px_q: crate::render::ScrollPos::SUBPX / 2,
+            };
             let t0 = Instant::now();
             cx.sync_frame()?;
             samples.push(ms(t0));
             let px = cx.p.scroll_top_px(cx.p.scroll);
+            ensure!(cx.p.scroll.px_q != 0, "scroll bench must exercise px_q");
             ensure!(
                 px > prev_px,
                 "every scroll step must advance the resolved viewport offset \
