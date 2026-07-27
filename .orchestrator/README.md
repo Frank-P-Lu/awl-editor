@@ -20,8 +20,9 @@ to edit the board, merge or push main, or resolve user gates.
    human session and merge gates.
 3. **Reread before dispatch.** Check `queue.md` at HEAD immediately before
    starting work.
-4. **Land through gates.** Merge to local main only after the required suite,
-   then mark `✅ LANDED @ <sha>` in the same session.
+4. **Land through gates.** Mark `✅ LANDED @ <sha>` only after the integration
+   tier is green on the exact combined-main candidate. Worker and verifier
+   phases do not pre-pay or repeat that full matrix.
 5. **Record routing.** The landing note gets one compact phase line, for example
    `Routing: plan=Sol high; build=Terra medium; verify=Terra medium`. Git and the
    item narrative remain the outcome and repair record; do not add a scorecard.
@@ -47,8 +48,8 @@ to edit the board, merge or push main, or resolve user gates.
 
 - Run disjoint work concurrently in isolated worktrees. Keep roughly three to
   four active workstreams; sequence genuine file clashes.
-- Integrate branches into main one at a time through the full native and wasm
-  gates, plus both keymap conventions when relevant.
+- Integrate branches into main one at a time. Run the full integration tier once
+  on each exact combined-main candidate; do not require workers to run it first.
 - If integration fails, remove only that integration from main, preserve
   unrelated work, flag the item, and continue independent work.
 - Park user-only decisions in the queue with the exact question, options, and a
@@ -77,6 +78,45 @@ workflow scripts.
 
 The orchestrator owns `queue.md`, local-main integration, pushes, remote CI,
 and user gates. Workers commit and report from their worktrees.
+
+## Verification tiers
+
+Verification is cumulative, not repetitive. Use the cheapest tier that can
+falsify the current claim, preserve its exact commit and command evidence, and
+promote once. A later phase reuses green evidence when the tested code and
+inputs are unchanged; it does not rerun a gate merely because ownership moved
+to another agent.
+
+1. **Fast loop — while implementing.** Run rustfmt, the narrowest affected
+   Clippy target or code-health arm, and targeted unit tests. Compile only the
+   affected target/feature when compilation is needed. This tier is expected to
+   run repeatedly and therefore stays small.
+2. **Item verification — before a worker returns.** Run the affected subsystem,
+   named regression and mutation laws, and the smallest real capture or target
+   compile that proves the item. Independent verification attacks the changed
+   axis and checks the worker's evidence; it does not repeat unrelated native,
+   convention, wasm, gallery, or release gates. A queue item's broad `Verify`
+   roster describes evidence that must exist by landing, not a command list for
+   every worker phase.
+3. **Integration — the local landing oracle.** After one branch is combined
+   with current local `main`, run code health, the full native suite under both
+   conventions, required integration binaries, wasm smoke, and the item's
+   required deterministic captures. Run this matrix once for that exact
+   combined commit. On failure, repair the candidate and rerun only the failed
+   or invalidated slice first; rerun the full matrix once after the repair is
+   green, then land. A base change invalidates only evidence whose inputs
+   changed.
+4. **Push train — remote platform oracle.** After two or three locally landed
+   items, push once and let CI own Linux, macOS, wasm, packaging, and live probes
+   configured there. Do not reproduce remote-only probes locally unless
+   diagnosing a failure. Release, pre-tag, serious correctness, and explicit
+   queue requirements may add gates, but the brief must name why.
+
+Record commands and the tested commit in the worker handoff, not in a permanent
+scorecard. Never claim a tier that did not run, hide a failure by selecting a
+smaller tier, or reuse evidence across a relevant code/config/toolchain change.
+Formatting-only, docs-only, queue-only, and other non-product changes use only
+the applicable arms; they do not trigger native/wasm/capture work by ritual.
 
 ## Push trains and remote CI
 
@@ -152,7 +192,8 @@ it adds its own delegation; use `max` for deeper single-agent reasoning.
 Choose tiers by failure cost and evidence, not task size or prestige. Give each
 worker one bounded brief; avoid duplicate scouts and inherited unrelated
 context. When weekly usage is more than about ten percentage points ahead of
-the reset cycle, conserve compute per task without reducing independent
-throughput: keep the production default, reserve deep tiers for qualifying
-risk, and route clear repeatable work cheaply. Defer only optional work
-deliberately moved beyond the reset.
+the reset cycle, reduce active concurrency, stop optional dispatch, keep the
+production default only where failure cost warrants it, reserve deep tiers for
+qualifying risk, and route clear repeatable work cheaply. Finish near-complete
+work before starting another stream; defer optional work deliberately beyond
+the reset rather than spending the reserve by inertia.
