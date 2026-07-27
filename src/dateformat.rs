@@ -142,6 +142,10 @@ impl DateFormat {
             DateFormat::Iso => format!("{year:04}-{month:02}-{day:02}"),
             DateFormat::YyyyMmDd => format!("{year:04}/{month:02}/{day:02}"),
             DateFormat::DMonthYyyy => {
+                // Keep the real fallback as explicit source control flow: the
+                // periodic missing-law report must be able to identify this
+                // invalid-month contract as an uncovered branch body.
+                #[allow(clippy::manual_unwrap_or)]
                 let name = match MONTH_NAMES.get(month.wrapping_sub(1) as usize).copied() {
                     Some(name) => name,
                     None => "?",
@@ -311,7 +315,6 @@ mod tests {
         assert_eq!(DateFormat::DMonthYyyy.format(2026, 0, 7), "7 ? 2026");
         assert_eq!(DateFormat::DMonthYyyy.format(2026, 13, 7), "7 ? 2026");
     }
-
 
     // ── cycle order / round-trip ──────────────────────────────────────────
 
