@@ -3,9 +3,9 @@
 //! quad/placeholder tests (real device+queue) -- split out of the former
 //! monolithic `render::tests` (2026-07 code-organization pass).
 
-use super::super::LINE_HEIGHT;
 #[cfg(not(target_arch = "wasm32"))]
 use super::super::*;
+use super::super::{LINE_HEIGHT, ScrollPos};
 use super::{headless_pipeline, view};
 
 /// The pure fit-to-column display-size math: never wider than the column,
