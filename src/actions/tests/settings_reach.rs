@@ -8,7 +8,7 @@
 //! This sweeps the axis the earlier probes (all keyed to the Editor facet,
 //! n=0..8 Downs from a fresh summon) did NOT cover: EVERY Settings facet (not
 //! just Editor), BOTH directions, BOTH starting parities (even/odd start
-//! index), a FILTERED list, a WINDOW-SCROLLED list (the 30-row `All` home
+//! index), a FILTERED list, a WINDOW-SCROLLED list (the full `All` home
 //! exceeds `window_rows()`), and the Zoom RANGE row's enter/exit adjacency —
 //! through the exact `apply_core` seam the live keymap resolves into
 //! (`Action::NextLine`/`PreviousLine`/`ForwardChar`/`BackwardChar`), so a
