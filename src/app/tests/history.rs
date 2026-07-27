@@ -110,12 +110,13 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     // A shorter previewed version clamped the scroll while the picker was
     // open; the close-without-accept restores the saved scroll EXACTLY
     // ("Esc = back to now") and puts the preview down.
-    app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(42));
-    app.active.extra.scroll = crate::render::ScrollPos::at_row(3);
+    let before = crate::render::ScrollPos { row: 42, px_q: 17 };
+    app.active.extra.history_scroll_before = Some(before);
+    app.active.extra.scroll = crate::render::ScrollPos { row: 3, px_q: 29 };
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(false);
     assert_eq!(
-        app.active.extra.scroll.row, 42,
+        app.active.extra.scroll, before,
         "Esc restores the pre-open scroll"
     );
     assert!(app.active.extra.history_scroll_before.is_none());
@@ -125,12 +126,13 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     );
     // A real ACCEPT keeps the current viewport (the restored version owns
     // it) — the saved scroll is discarded, the preview still dropped.
-    app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(42));
-    app.active.extra.scroll = crate::render::ScrollPos::at_row(3);
+    app.active.extra.history_scroll_before = Some(before);
+    let accepted = crate::render::ScrollPos { row: 3, px_q: 29 };
+    app.active.extra.scroll = accepted;
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(true);
     assert_eq!(
-        app.active.extra.scroll.row, 3,
+        app.active.extra.scroll, accepted,
         "an accept never yanks the viewport"
     );
     assert!(app.active.extra.history_scroll_before.is_none());

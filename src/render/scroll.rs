@@ -27,6 +27,13 @@ impl TextPipeline {
         self.row_top_px(scroll.row) + scroll.px()
     }
 
+    /// Settled paint/hit-test coordinate. Semantic 1/64px packets accumulate in
+    /// [`ScrollPos`], but glyph geometry only moves when they cross a whole logical
+    /// pixel so fractional wheel packets never select a fresh raster position.
+    pub fn rendered_scroll_top_px(&self, scroll: ScrollPos) -> f32 {
+        self.scroll_top_px(scroll).round()
+    }
+
     /// Document viewport after fixed text and menu insets.
     pub fn viewport_avail_px(&self, height: f32) -> f32 {
         (height - TEXT_TOP - self.menubar_reserve()).max(1.0)
@@ -36,12 +43,27 @@ impl TextPipeline {
         (self.row_top_px(row) * ScrollPos::SUBPX as f32).round() as i64
     }
 
+    fn row_span_q(&self, row: usize) -> i64 {
+        let total = self.total_visual_rows();
+        if row + 1 < total {
+            (self.row_top_q(row + 1) - self.row_top_q(row)).max(1)
+        } else {
+            ((self.total_doc_height() * ScrollPos::SUBPX as f32).round() as i64
+                - self.row_top_q(row))
+            .max(1)
+        }
+    }
+
+    fn max_scroll_q(&self, height: f32) -> i64 {
+        ((self.total_doc_height() - self.viewport_avail_px(height)).max(0.0)
+            * ScrollPos::SUBPX as f32)
+            .round() as i64
+    }
+
     /// Resolve a fixed-point document coordinate to its canonical containing
     /// row plus a nonnegative offset strictly within that row.
     fn scroll_pos_at_q(&self, target_q: i64, height: f32) -> ScrollPos {
-        let max_q = ((self.total_doc_height() - self.viewport_avail_px(height)).max(0.0)
-            * ScrollPos::SUBPX as f32)
-            .round() as i64;
+        let max_q = self.max_scroll_q(height);
         let target_q = target_q.clamp(0, max_q);
         let row = self
             .row_geom
@@ -52,11 +74,58 @@ impl TextPipeline {
         }
     }
 
+    /// Canonicalize by walking adjacent row spans. This is deliberately separate
+    /// from the absolute-coordinate resolver: wheel packets retain their current
+    /// row/remainder and carry locally across real variable-height boundaries.
+    fn canonicalize_incremental(
+        &self,
+        start_row: usize,
+        mut offset_q: i64,
+        height: f32,
+    ) -> ScrollPos {
+        let total = self.total_visual_rows();
+        if total == 0 {
+            return ScrollPos::default();
+        }
+        let mut row = start_row.min(total - 1);
+
+        while offset_q < 0 && row > 0 {
+            row -= 1;
+            offset_q += self.row_span_q(row);
+        }
+        if offset_q < 0 {
+            return ScrollPos::default();
+        }
+        while row + 1 < total {
+            let span_q = self.row_span_q(row);
+            if offset_q < span_q {
+                break;
+            }
+            offset_q -= span_q;
+            row += 1;
+        }
+
+        let max_q = self.max_scroll_q(height);
+        if self.row_top_q(row).saturating_add(offset_q) > max_q {
+            while row > 0 && self.row_top_q(row) > max_q {
+                row -= 1;
+            }
+            while row + 1 < total && self.row_top_q(row + 1) <= max_q {
+                row += 1;
+            }
+            offset_q = max_q - self.row_top_q(row);
+        }
+        ScrollPos {
+            row,
+            px_q: offset_q as i32,
+        }
+    }
+
     /// Incrementally carry a fixed-point offset across variable-height rows.
     pub fn scroll_by_px(&self, pos: ScrollPos, delta_px: f32, height: f32) -> ScrollPos {
-        let current_q = self.row_top_q(pos.row) + i64::from(pos.px_q);
+        let pos = self.canonicalize_incremental(pos.row, i64::from(pos.px_q), height);
         let delta_q = (delta_px * ScrollPos::SUBPX as f32).round() as i64;
-        self.scroll_pos_at_q(current_q.saturating_add(delta_q), height)
+        self.canonicalize_incremental(pos.row, i64::from(pos.px_q).saturating_add(delta_q), height)
     }
 
     /// Minimally reveal an affinity-resolved row box, normalizing even when the
@@ -104,12 +173,13 @@ impl TextPipeline {
     /// Pixel-precise screen top of the visual row containing `(line, col)`.
     pub fn char_screen_top_scroll(&self, line: usize, col: usize, scroll: ScrollPos) -> f32 {
         let row = self.visual_row_of(line, col);
-        TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(scroll) + self.row_top_px(row)
+        TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(scroll)
+            + self.row_top_px(row)
     }
 
     /// Advance- and wrap-aware pixel-to-text hit test at a semantic scroll.
     pub fn hit_test_scroll(&self, px: f32, py: f32, scroll: ScrollPos) -> (usize, usize) {
-        let doc_top = TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(scroll);
+        let doc_top = TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(scroll);
         let want_top = (py - doc_top).max(0.0);
         let target_x = (px - self.text_left()).max(0.0);
         let mut first_run = true;

@@ -446,15 +446,17 @@ fn typewriter_centers_the_cursor_row() {
     let row = p.visual_row_of(25, 0);
     // Typewriter OFF (minimal-adjust): only nudge enough to reveal the row near
     // the viewport BOTTOM — a SMALL scroll from the top.
-    let minimal = p.scroll_to_show_row(row, 0, 800.0);
+    let start = ScrollPos { row: 0, px_q: 17 };
+    let minimal = p.scroll_to_show_row_pos(row, start, 800.0);
     // Typewriter ON: CENTER the row — scroll much further down.
-    let centered = p.scroll_to_center_row(row, 800.0);
+    let centered = p.scroll_to_center_row_pos(row, 800.0);
     assert!(
-        centered > minimal,
-        "centering must scroll further than the minimal-adjust (centered={centered}, minimal={minimal})"
+        p.scroll_top_px(centered) > p.scroll_top_px(minimal),
+        "centering must scroll further than minimal-adjust \
+         (centered={centered:?}, minimal={minimal:?})"
     );
     assert!(
-        centered <= max,
+        centered.row <= max,
         "centered scroll must stay within max_scroll"
     );
 
@@ -462,7 +464,7 @@ fn typewriter_centers_the_cursor_row() {
     // row height of the viewport's vertical center (closest integer-row centering).
     let avail = 800.0 - TEXT_TOP;
     let viewport_center = TEXT_TOP + avail / 2.0;
-    let doc_top = TEXT_TOP - p.row_top_px(centered);
+    let doc_top = TEXT_TOP - p.rendered_scroll_top_px(centered);
     let row_center = doc_top + p.row_top_px(row) + p.row_height_px(row) / 2.0;
     assert!(
         (row_center - viewport_center).abs() <= p.row_height_px(row),
@@ -471,9 +473,15 @@ fn typewriter_centers_the_cursor_row() {
 
     // Near the document TOP there is no content above to center against, so
     // centering pins at row 0 — matching the minimal-adjust there exactly.
-    assert_eq!(p.scroll_to_center_row(0, 800.0), 0);
-    assert_eq!(p.scroll_to_center_row(p.visual_row_of(1, 0), 800.0), 0);
-    assert_eq!(p.scroll_to_show_row(0, 0, 800.0), 0);
+    assert_eq!(p.scroll_to_center_row_pos(0, 800.0), ScrollPos::default());
+    assert_eq!(
+        p.scroll_to_center_row_pos(p.visual_row_of(1, 0), 800.0),
+        ScrollPos::default()
+    );
+    assert_eq!(
+        p.scroll_to_show_row_pos(0, start, 800.0),
+        ScrollPos::default()
+    );
 }
 
 #[test]
@@ -499,20 +507,24 @@ fn typewriter_pin_clamps_at_document_edges() {
     let max = p.max_scroll_rows(800.0);
     assert!(max > 0, "a doc taller than the viewport must be scrollable");
 
-    // The pin the caller actually applies: center, then clamp to max_scroll.
-    let pin = |row: usize| p.scroll_to_center_row(row, 800.0).min(max);
+    // The production owner centers and clamps in semantic fixed-point space.
+    let pin = |row: usize| p.scroll_to_center_row_pos(row, 800.0);
 
     // TOP: the first row pins at 0 (no content above to center against) — the
     // caret rides near the top edge naturally.
-    assert_eq!(pin(0), 0, "a caret at row 0 pins to the document top");
+    assert_eq!(
+        pin(0),
+        ScrollPos::default(),
+        "a caret at row 0 pins to the document top"
+    );
 
     // BODY: a mid-document caret centers strictly inside (0, max), and the pin
     // never exceeds max_scroll.
     let mid_row = p.visual_row_of(30, 0);
     let mid = pin(mid_row);
     assert!(
-        mid > 0 && mid < max,
-        "a body caret centers between the edges (pin={mid}, max={max})"
+        p.scroll_top_px(mid) > 0.0 && mid.row < max,
+        "a body caret centers between the edges (pin={mid:?}, max={max})"
     );
 
     // The pin is MONOTONIC + BOUNDED across the whole document: moving the caret
@@ -522,19 +534,20 @@ fn typewriter_pin_clamps_at_document_edges() {
     let last = total - 1;
     let last_pin = pin(last);
     assert!(
-        last_pin <= max,
+        last_pin.row <= max,
         "the last row's pin stays within max_scroll"
     );
     assert!(
-        last_pin >= mid,
-        "moving toward the bottom scrolls further down, never up (last={last_pin}, mid={mid})"
+        p.scroll_top_px(last_pin) >= p.scroll_top_px(mid),
+        "moving toward the bottom scrolls further down, never up (last={last_pin:?}, mid={mid:?})"
     );
-    let mut prev = 0usize;
+    let mut prev = 0.0f32;
     for row in 0..total {
         let s = pin(row);
-        assert!(s >= prev, "pin is monotonic non-decreasing in the row");
-        assert!(s <= max, "pin never exceeds max_scroll at row {row}");
-        prev = s;
+        let top = p.scroll_top_px(s);
+        assert!(top >= prev, "pin is monotonic non-decreasing in the row");
+        assert!(s.row <= max, "pin never exceeds max_scroll at row {row}");
+        prev = top;
     }
 }
 
@@ -563,14 +576,20 @@ fn variable_height_scroll_reaches_the_last_row() {
     // (bounded by the pixel-accurate max).
     let max = p.max_scroll_rows(800.0);
     assert!(max > 0, "a doc taller than the viewport must be scrollable");
-    let follow = p.scroll_to_show_row(last, 0, 800.0);
-    assert!(follow > 0, "cursor-follow to the last row must scroll down");
-    assert!(follow <= max, "follow scroll must stay within max_scroll");
+    let follow = p.scroll_to_show_row_pos(last, ScrollPos { row: 0, px_q: 17 }, 800.0);
+    assert!(
+        p.scroll_top_px(follow) > 0.0,
+        "cursor-follow to the last row must scroll down"
+    );
+    assert!(
+        follow.row <= max,
+        "follow scroll must stay within max_scroll"
+    );
     // At that scroll the last row's bottom fits inside the text viewport.
-    let bottom = p.row_top_px(follow) + (p.total_doc_height() - p.row_top_px(last));
+    let bottom = p.scroll_top_px(follow) + (p.total_doc_height() - p.row_top_px(last));
     let _ = bottom; // (sanity: row_top monotonic)
     assert!(
-        p.total_doc_height() - p.row_top_px(follow) <= 800.0 - TEXT_TOP + 0.5,
+        p.total_doc_height() - p.scroll_top_px(follow) <= 800.0 - TEXT_TOP + 0.5,
         "from the follow scroll, the remaining document must fit the viewport"
     );
 }

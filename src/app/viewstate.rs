@@ -205,7 +205,7 @@ impl App {
             // motion) — the pipeline reads it to render the caret on the row it
             // visually belongs to at a shared soft-wrap boundary.
             caret_affinity: self.active.buffer.affinity(),
-            scroll: diff_scroll.map_or(self.active.extra.scroll, crate::render::ScrollPos::at_row),
+            scroll: scroll::resolved_scroll(diff_scroll, self.active.extra.scroll),
             zoom: self.zoom,
             selection: self.active.buffer.selection_line_col(),
             preedit: self.preedit.clone(),

@@ -1286,7 +1286,7 @@ impl TextPipeline {
     /// reserve ([`Self::menubar_reserve`], `0.0` unless the awl bar is shown) insets
     /// the whole document below the bar.
     pub(super) fn doc_top(&self) -> f32 {
-        TEXT_TOP + self.menubar_reserve() - self.scroll_top_px(self.scroll)
+        TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(self.scroll)
     }
 
     /// Buffer-relative top y (px) of visual row `row` (clamped to the last row).
@@ -1326,118 +1326,6 @@ impl TextPipeline {
             return 0;
         }
         total.saturating_sub(OVERSCROLL_KEEP_ROWS)
-    }
-
-    /// Minimal new scroll (in visual rows) so visual `row` is fully visible given the
-    /// current `scroll` and viewport `height`. Scrolls UP to `row` if it's above the
-    /// view; otherwise advances the top row until `row`'s bottom fits within the text
-    /// viewport. Variable-height aware (sums real row heights), so cursor-follow
-    /// lands correctly even when the cursor sits on — or just past — a tall heading.
-    #[cfg(test)]
-    pub fn scroll_to_show_row(&self, row: usize, scroll: usize, height: f32) -> usize {
-        if row < scroll {
-            return row;
-        }
-        let avail = self.viewport_avail_px(height);
-        let bottom = self.row_top_px(row) + self.row_height_px(row);
-        let mut s = scroll;
-        while s < row && bottom - self.row_top_px(s) > avail {
-            s += 1;
-        }
-        s
-    }
-
-    /// TYPEWRITER cursor-follow: the scroll (in visual rows) that CENTERS visual
-    /// `row` vertically in the text viewport — used while TYPEWRITER SCROLL is on so
-    /// the caret row rests at the eye line. Picks the
-    /// scroll row whose top puts `row`'s vertical CENTER nearest the viewport center,
-    /// clamping at the document top (row 0) when centering would scroll above it.
-    /// Variable-row-height aware (reads each row's real top + height, so a tall
-    /// heading still lands centered); unlike [`Self::scroll_to_show_row`] it takes no
-    /// current scroll — centering is ABSOLUTE, always re-derived from `row`. The
-    /// caller still clamps the result to [`Self::max_scroll_rows`] so the document
-    /// tail can't be pulled past its bottom. When focus is Off the minimal-adjust
-    /// `scroll_to_show_row` is used instead, so default scrolling is byte-identical.
-    #[cfg(test)]
-    pub fn scroll_to_center_row(&self, row: usize, height: f32) -> usize {
-        let total = self.total_visual_rows();
-        if total == 0 {
-            return 0;
-        }
-        let avail = self.viewport_avail_px(height);
-        // Buffer-relative top the viewport would need so `row`'s center sits at the
-        // viewport's vertical center. Negative means `row` is near the document top
-        // and can't be centered (no content above it), so we pin at the top.
-        let target_top = self.row_top_px(row) + self.row_height_px(row) / 2.0 - avail / 2.0;
-        if target_top <= 0.0 {
-            return 0;
-        }
-        // `row_top_px` is monotonic in the scroll row, so walk up to the last row
-        // whose top is still at/below the target, then pick whichever of it or its
-        // successor lands nearer the target (closest integer-row centering).
-        let mut s = 0usize;
-        while s + 1 < total && self.row_top_px(s + 1) <= target_top {
-            s += 1;
-        }
-        if s + 1 < total {
-            let below = self.row_top_px(s);
-            let above = self.row_top_px(s + 1);
-            if (above - target_top).abs() < (target_top - below).abs() {
-                s += 1;
-            }
-        }
-        // Never scroll the cursor's own row off the top (a degenerate sub-row-height
-        // viewport could otherwise pick s > row).
-        s.min(row)
-    }
-
-    /// Screen-space TOP y (px) of the visual row that holds char `(line, col)`,
-    /// given a `scroll` offset — i.e. where that char's row currently draws. Reads
-    /// the CURRENT metrics (`self.metrics`, so the current zoom), so a caller records
-    /// the ZOOM ANCHOR by calling this BEFORE the deferred zoom reshape: the caret's
-    /// (or hit-tested char's) on-screen top is the point the anchored zoom then holds
-    /// still. `doc_top(scroll) = TEXT_TOP + menubar − row_top(scroll)`, and the row's
-    /// screen top is `doc_top + row_top(row)`.
-    #[cfg(test)]
-    pub fn char_screen_top(&self, line: usize, col: usize, scroll: usize) -> f32 {
-        self.char_screen_top_scroll(line, col, ScrollPos::at_row(scroll))
-    }
-
-    /// THE ONE OWNER of the zoom-anchored scroll decision. Given a document anchor
-    /// `(line, col)`, the screen y it should stay at (`anchor_py`), and the viewport
-    /// `height` — all evaluated at the CURRENT (POST-reshape) zoom — return the
-    /// integer visual-row scroll that keeps that document point at `anchor_py`,
-    /// clamped to the valid range so the anchor YIELDS at the document ends. Both
-    /// zoom paths route here (the wheel with the POINTER's char + y, the keyboard with
-    /// the CARET's char + y, or the viewport-centre char when the caret is off-screen);
-    /// there is NO parallel scroll math.
-    ///
-    /// WHY POST-reshape, not a linear scale of the old geometry: awl's page COLUMN is
-    /// zoom-invariant in pixels (`page_column_advance` divides the zoom back out), but
-    /// the glyph ADVANCES inside it are zoomed, so a larger zoom fits fewer chars per
-    /// line and the soft-WRAP points move — the visual-row table is NOT a scalar
-    /// multiple of the old one. So the anchor is captured as a stable `(line, col)`
-    /// CHAR (which survives re-wrapping) plus its old screen y, and re-solved here
-    /// against the freshly reshaped row geometry. Exact for the caret (its row top IS
-    /// the anchor); the pointer keeps its char's row top under the cursor to sub-row
-    /// tolerance (integer-row scroll quantisation dominates the residual).
-    #[cfg(test)]
-    pub fn zoom_anchor_scroll(
-        &self,
-        line: usize,
-        col: usize,
-        anchor_py: f32,
-        height: f32,
-    ) -> usize {
-        let row = self.visual_row_of(line, col);
-        let anchor_top = self.row_top_px(row);
-        let target_top = zoom_anchor_target_top(anchor_top, anchor_py, self.menubar_reserve());
-        let scroll = self.row_geom.containing_row_q(
-            &self.buffer,
-            &self.metrics,
-            (target_top * ScrollPos::SUBPX as f32).round() as i64,
-        );
-        scroll.min(self.max_scroll_rows(height))
     }
 
     /// Real shaped-glyph X boundaries for a logical `line`, in pixels RELATIVE to

@@ -1614,11 +1614,11 @@ fn image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump() {
     // (c) DIRECTION-SENSITIVE no-jump: with the tail image row ABOVE the viewport
     // (scroll one row below it), scrolling UP so it enters the viewport top must
     // push the line BELOW it down by the image's REAL height — a lurch of the
-    // estimated line height instead is exactly the reported jump. `char_screen_top`
-    // is the one owner of a char's on-screen row top at a given scroll.
+    // estimated line height instead is exactly the reported jump.
     let below_line = last_img_line + 1; // the prose after the last image
-    let top_above = p.char_screen_top(below_line, 0, tail_img_row + 1);
-    let top_entering = p.char_screen_top(below_line, 0, tail_img_row);
+    let at = |row| ScrollPos { row, px_q: 17 };
+    let top_above = p.char_screen_top_scroll(below_line, 0, at(tail_img_row + 1));
+    let top_entering = p.char_screen_top_scroll(below_line, 0, at(tail_img_row));
     let pushed_down = top_entering - top_above;
     assert!(
         (pushed_down - real_dh).abs() < 2.0,
@@ -1689,8 +1689,8 @@ fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_
 /// ITEM 82, END-TO-END — a TALL inline image (viewport-fraction capped, well
 /// past the flat ornament-cull margin) stays LAID OUT + DRAWN through the
 /// exact scroll boundary where its top has scrolled off but its bottom is
-/// still on-screen — a real `prepare()` GPU pass witnessing actual image
-/// shaping (decode + quad placement), not just the row-height table
+/// still on-screen — a real `prepare()` GPU pass witnessing actual image shaping
+/// (decode + quad placement), not just the row-height table
 /// `image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump` checks.
 /// Places the viewport (`scroll_lines`, the one LIVE-REPORTED scroll unit —
 /// see `ViewState::scroll_lines`'s field doc) through three states:
