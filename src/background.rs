@@ -1,7 +1,3 @@
-//! Page-mode margin background. A vertex-generated fullscreen triangle leaves the
-//! writing column transparent and paints the themed surround. The only animated input
-//! is Waves drift; it is zero for other worlds and deterministic captures.
-
 /// Uniform globals. MUST match `Globals` in `shaders/background.wgsl`.
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -12,15 +8,10 @@ struct Globals {
     from: [f32; 4],
     to: [f32; 4],
     dir: [f32; 2],
-    /// Procedural ground discriminant: 0=gradient, 1=dots, 2=starfield,
-    /// 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag (see
-    /// `Background::shader_id`).
     shader: u32,
     /// Waves phase drift. Its dedicated std140 slot keeps Zigzag's parameter slots intact.
     drift: f32,
-    /// Mark/band tint (linear rgb) + its max coverage in `a`.
     pat: [f32; 4],
-    /// Per-ground parameters. Slots are reused because only one ground is active.
     params: [f32; 4],
 }
 
@@ -30,31 +21,15 @@ struct Globals {
 /// here, in [`BackgroundPipeline`]).
 #[derive(Clone, Copy)]
 pub struct BgDesc {
-    /// Gradient START endpoint (sRGB rgba bytes).
     pub from: [u8; 4],
-    /// Gradient END endpoint (sRGB rgba bytes).
     pub to: [u8; 4],
-    /// Gradient direction in UV space (for Stripes: derived from the angle).
     pub dir: (f32, f32),
-    /// Ground discriminant (`Background::shader_id`).
     pub shader: u32,
-    /// Mark/band tint (sRGB rgb bytes; inert for a plain gradient).
     pub tint: [u8; 3],
-    /// Proximity-scaling flag (Dots only).
     pub edge: bool,
-    /// Stripe/Bands angle, or Zigzag's own chevron travel angle, in radians
-    /// (0 for every other ground).
     pub angle: f32,
-    /// Zigzag's chevron repeat wavelength ALONG its travel — and (item 89)
-    /// the row-to-row spacing ACROSS it, the field tiling on a square lattice
-    /// in the travel frame — device px (item 86; `0.0` for every other
-    /// ground).
     pub period_px: f32,
-    /// Zigzag's chevron peak excursion across its travel, device px (item 86;
-    /// `0.0` for every other ground).
     pub amplitude_px: f32,
-    /// Zigzag's extra coverage multiplier `[0,1]` (item 86; `0.0` for every
-    /// other ground).
     pub density: f32,
 }
 
@@ -64,12 +39,9 @@ pub struct BackgroundPipeline {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     globals_buf: wgpu::Buffer,
-    /// Linear-space gradient endpoints + direction, re-tinted on a theme switch.
     from: [f32; 4],
     to: [f32; 4],
     dir: [f32; 2],
-    /// Procedural margin ground + its linear mark/band tint (re-set on a theme
-    /// switch), plus the per-ground params (edge flag / stripe angle).
     shader: u32,
     pat: [f32; 4],
     params: [f32; 4],
@@ -210,8 +182,6 @@ impl BackgroundPipeline {
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
-                    // Straight-alpha over-blend: the margins composite onto the
-                    // base_100 clear, the page (alpha 0) leaves it untouched.
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
                             src_factor: wgpu::BlendFactor::SrcAlpha,
@@ -251,8 +221,6 @@ impl BackgroundPipeline {
         }
     }
 
-    /// Re-tint the gradient + ground to a new world (a live theme switch). The
-    /// next `prepare` uploads it.
     pub fn set_gradient(&mut self, desc: BgDesc) {
         self.from = srgba_u8_to_linear(desc.from);
         self.to = srgba_u8_to_linear(desc.to);
@@ -262,13 +230,6 @@ impl BackgroundPipeline {
         self.params = ground_params(&desc);
     }
 
-    /// Upload the per-frame globals: the viewport + the page column rect (in
-    /// physical pixels). When page mode is OFF the caller passes `col_w == width`
-    /// so the column covers the whole canvas and the margins vanish. `drift`
-    /// (item 87) is the WAVES phase-drift, in radians — the caller
-    /// (`TextPipeline::prepare_background_layer`) passes `0.0` for every
-    /// non-Waves ground, so this is the ONLY per-frame input that can vary this
-    /// pipeline's output at all, and only for `Background::Waves`.
     pub fn prepare(
         &mut self,
         queue: &wgpu::Queue,
@@ -352,8 +313,8 @@ mod bytemuck_lite {
     /// Marker for types safe to reinterpret as bytes.
     ///
     /// # Safety
-    /// Implementors must be `#[repr(C)]`, contain no padding, and consist only
-    /// of plain-old-data fields (here: f32 arrays/scalars).
+    /// Implementors must have a stable layout with no padding and only
+    /// plain-old-data fields.
     pub unsafe trait Pod: Copy + 'static {}
 
     pub fn bytes_of<T: Pod>(t: &T) -> &[u8] {
@@ -369,22 +330,11 @@ unsafe impl bytemuck_lite::Pod for Globals {}
 mod waves_drift_tests {
     use super::*;
 
-    /// LAW: the settled/headless-capture phase (`0.0`) drives ZERO drift — the
-    /// static composition at rest is byte-identical to the pre-item-87 shape.
-    /// A theme crossing INTO Bombora starts here (the shared clock's own
-    /// frozen phase), never a random jump.
     #[test]
     fn drift_is_zero_at_the_settled_phase() {
         assert_eq!(waves_drift_radians(0.0), 0.0);
     }
 
-    /// LAW: `WAVE_DRIFT_CYCLES` is an INTEGER multiple of the shared ambient
-    /// clock's own loop (the twinkling-stars' "integer cycles per ambient
-    /// loop" precedent, THEMES.md), so the drift's sin() argument advances by
-    /// an exact multiple of TAU across one full clock loop — both boundary
-    /// curves land back at their starting shape with no visible pop.
-    /// NON-VACUOUS: a non-integer `WAVE_DRIFT_CYCLES` (e.g. 1.3) fails this
-    /// exact assertion (verified by hand before picking the integer).
     #[test]
     fn drift_wraps_seamlessly_at_the_shared_clocks_loop_endpoint() {
         let h = 900.0;
@@ -402,9 +352,6 @@ mod waves_drift_tests {
         }
     }
 
-    /// LAW: the two boundary curves never cross, at ANY drift phase (the
-    /// item-69 non-overlap guarantee survives item 87's drift — the wobble
-    /// amplitude is unaffected by drift, only a crest's x-position moves).
     #[test]
     fn boundaries_never_cross_at_any_drift_phase() {
         let h = 900.0;
@@ -421,18 +368,6 @@ mod waves_drift_tests {
         }
     }
 
-    /// LAW (the "not one sheet" proof): a SAME-SIGN drift on both boundaries
-    /// would be an EXACT rigid horizontal translation of the whole field —
-    /// `b1` and `b2` would both reconcile with their static (undrifted) shape
-    /// under the identical coordinate shift `d/WAVE_FREQ`. This item's
-    /// OPPOSITE-sign implementation shifts `b1` by `+drift` and `b2` by
-    /// `-drift`: `b1` alone IS exactly that rigid shift of itself (phase is
-    /// purely additive), but `b2` requires the OPPOSITE shift — so no SINGLE
-    /// translation reconciles both curves simultaneously. NON-VACUOUS: with a
-    /// same-sign drift (`waves_boundaries`'s `b2` using `+ drift` instead of
-    /// `- drift`) this second assertion fails, because then `b2` WOULD match
-    /// `b1`'s shift too (verified by hand against a same-sign variant before
-    /// committing to the opposite-sign design).
     #[test]
     fn drift_is_not_a_rigid_one_sheet_translation() {
         let h = 900.0;
@@ -451,9 +386,6 @@ mod waves_drift_tests {
         );
     }
 
-    /// LAW: nonzero drift moves the boundaries relative to the STATIC (drift
-    /// 0) shape — a non-vacuous witness that the drift term actually reaches
-    /// the math (as opposed to a wiring bug that always uploads 0.0).
     #[test]
     fn nonzero_drift_actually_moves_the_boundaries() {
         let h = 900.0;

@@ -1,12 +1,5 @@
-//! Text shaping, incremental reshaping, IME composition, and layout queries.
-
 use super::*;
 
-/// Pre-resolved per-script `(family, weight)` faces for ONE reshape — see
-/// [`TextPipeline::resolve_script_fonts`]. `None` for a script with NEITHER a
-/// bundled nor an installed system candidate (the documented degenerate case:
-/// no span is added for that script and shaping falls through to
-/// cosmic-text's neutral platform fallback).
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
     pub ja: Option<(&'static str, glyphon::Weight)>,
@@ -49,9 +42,6 @@ impl ScriptFontReports {
 }
 
 impl ScriptFonts {
-    /// The resolved face for `id`, or `None` when `id` is [`theme::FontId::Latin`]
-    /// (never overridden — the base doc attrs already shape in it) or when that
-    /// script's ladder resolved to nothing on this machine.
     pub(super) fn get(&self, id: theme::FontId) -> Option<(&'static str, glyphon::Weight)> {
         match id {
             theme::FontId::Latin => None,
@@ -156,13 +146,6 @@ impl TextPipeline {
         self.resolve_font_id_in(&theme::active(), id)
     }
 
-    /// [`Self::resolve_font_id`] against an EXPLICIT world rather than a fresh
-    /// read of the process-global `theme::active()` — the seam that lets a
-    /// multi-script resolution take ONE snapshot and answer every script from
-    /// it. Private: the two doors are `resolve_font_id` (one id, one read, so
-    /// inherently atomic) and [`Self::resolve_script_fonts`] (all four, one
-    /// read); nothing else may walk the ladder, so no caller can reintroduce
-    /// the torn multi-read that flaked queue item 98.
     fn resolve_font_id_in(
         &self,
         world: &theme::Theme,
@@ -243,10 +226,6 @@ impl TextPipeline {
         }
     }
 
-    /// i18n: the document's OWN frontmatter `lang:` tag (`None` for an
-    /// untagged or non-markdown document) — the sidecar's top-level `doc_lang`
-    /// field. A pure function of the currently-shaped text, re-derived on
-    /// every reshape (see [`Self::set_text_incremental`]).
     pub fn doc_lang_report(&self) -> Option<crate::frontmatter::Lang> {
         self.doc_lang
     }
@@ -267,13 +246,6 @@ impl TextPipeline {
             .sum()
     }
 
-    /// Re-apply the per-theme CJK family spans to EVERY buffer line in place.
-    /// Used after a whole-buffer `Buffer::set_text` (which only carries the single
-    /// Latin doc family) — the full-reshape path (`set_text_full`) and the live
-    /// theme-switch reshape (`sync_theme`) — so CJK runs pick up the world's
-    /// mincho/gothic face. No-op when [`Self::resolve_cjk`] is `None`. Must run
-    /// BEFORE the following `shape_until_scroll`, since `set_attrs_list` resets a
-    /// line's cached shaping.
     pub(super) fn apply_cjk_spans_all(&mut self) {
         let Some(cjk) = self.resolve_cjk() else {
             return;
@@ -307,9 +279,6 @@ impl TextPipeline {
         // face) so a later theme switch reshapes iff that face actually changes.
         // `syn_lang` is set upstream (in `set_view`) before this runs.
         self.shaped_font = self.doc_family();
-        // A full reshape bakes every per-span color under the active world; record
-        // it so a later same-face theme switch can detect the palette change and
-        // re-bake (see `shaped_theme` / `sync_theme_font`).
         self.shaped_theme = theme::active_index();
         self.set_text_incremental(text);
         // Grow the buffer's shaping HEIGHT so the WHOLE new document shapes (every
@@ -342,9 +311,6 @@ impl TextPipeline {
         let attrs = self.doc_attrs();
         self.buffer
             .set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
-        // `Buffer::set_text` shaped every line in the single Latin doc family;
-        // overlay the per-theme CJK family spans so Japanese resolves to the
-        // world's mincho/gothic face (before the shape below re-lays the lines).
         self.apply_cjk_spans_all();
         // Wrap at the PAGE-MODE column width (recomputed from the current zoom /
         // measure), not the buffer's stale size — a zoom or measure change alters
@@ -399,10 +365,6 @@ impl TextPipeline {
         (md_spans, syn_spans)
     }
 
-    /// INLINE IMAGES: resolve a doc-relative image path against the open
-    /// document's directory ([`Self::image_base_dir`], set from
-    /// [`ViewState::doc_dir`]). An ABSOLUTE path is used verbatim; a relative one
-    /// with no base dir (a scratch/no-path buffer) resolves against the cwd.
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn resolve_image_path(&self, path: &str) -> std::path::PathBuf {
         let p = std::path::Path::new(path);
@@ -415,13 +377,6 @@ impl TextPipeline {
         }
     }
 
-    /// True when logical line `li` is an inline-image reference (`![alt](path)`) —
-    /// i.e. it carries a `ConcealMarkup(Image)` span. The ONE owner of "is this an
-    /// image line" for the caret-scale + focus-recolor paths (the pure
-    /// [`super::spans::line_has_image_span`] over `self.md_spans`), so a WRAPPED
-    /// TABLE row — which also reserves an `image_heights` slot but follows the pure
-    /// heading model — is never mistaken for one. `false` for every line when
-    /// there are no md spans (non-markdown / images-off).
     pub(super) fn line_is_inline_image(&self, li: usize) -> bool {
         if self.md_spans.is_empty() {
             return false;
@@ -486,11 +441,6 @@ impl TextPipeline {
             // OWN natural wrap still had a row left, stranding the image mid-text
             // again — the very bug this round fixed).
             let doc_attrs = self.doc_attrs();
-            // Collect the pure per-image facts (no `&mut self` needed) FIRST — the
-            // forcing measurement below needs `&mut self.font_system`, so it can't
-            // run interleaved with a borrow of `md_spans`/`text` inside the SAME
-            // loop as a method call on `&mut self` (the existing `self.resolve_
-            // image_path`/`self.image_preview` reads here are all `&self`, fine).
             struct Found {
                 r: std::ops::Range<usize>,
                 img: crate::markdown::ImageRef,
@@ -519,13 +469,6 @@ impl TextPipeline {
                     .ok()
                     .and_then(|rd| rd.with_guessed_format().ok())
                     .and_then(|rd| rd.into_dimensions().ok());
-                // DRAG-RESIZE live preview: while THIS image is being dragged, its
-                // fit-to-column width is overridden by the live preview width (the
-                // buffer's `|NNN` hint is only written on release), re-fitting the
-                // height from the intrinsic aspect. Feeding the preview width as the
-                // effective `width_hint` reuses `image_display_size`'s exact
-                // fit/clamp math, so a preview looks byte-identical to the committed
-                // hint it will become.
                 let effective_hint = match self.image_preview {
                     Some((ps, pe, pw)) if ps == r.start && pe == r.end => {
                         Some(pw.round().max(1.0) as u32)
@@ -545,14 +488,6 @@ impl TextPipeline {
                         true,
                     ),
                 };
-                // ITEM 5 REWORK — "list item with text AND an image": a BARE image
-                // line (`- ![alt](p)`, list marker aside) reserves exactly `dh` —
-                // the image IS the row, unchanged since images-v1 (`heights[line]`
-                // below). A MIXED line (`- caption text ![alt](p)`) does NOT touch
-                // `heights[line]` at all any more — see [`Self::image_force`]'s
-                // field doc for the forced-trailing-row mechanism that replaces the
-                // prior round's `base_lh + 2*dh` whole-row inflation (which centred
-                // the caption away from its own marker — the reported bug).
                 let line_start = text[..r.start].rfind('\n').map(|i| i + 1).unwrap_or(0);
                 let line_end = text[r.end..]
                     .find('\n')
@@ -571,11 +506,6 @@ impl TextPipeline {
                 let revealed_now =
                     line == cursor_line || super::spans::selection_touches(selection_touch, r);
                 if mixed {
-                    // REVEALED MIXED LINE (caret on it): reserves nothing at all —
-                    // the ordinary un-scaled row model, exactly like plain prose —
-                    // and the draw side parks the image for that one frame. Same
-                    // "reflow while actively editing is accepted" trade already
-                    // priced into fence/rule conceal elsewhere (docs/markdown.md).
                     if !revealed_now {
                         found.push(Found {
                             r: r.clone(),
@@ -691,15 +621,6 @@ impl TextPipeline {
         buf.layout_runs().last().map(|r| r.line_w).unwrap_or(0.0)
     }
 
-    /// ITEM 5 REWORK: the absolute screen y (px) at which THIS line's image quad
-    /// draws/hit-tests. A BARE image line (or any line without a current
-    /// [`Self::image_force`] entry) is byte-identical to before: the row top
-    /// ([`Self::line_ornament_top`], offset `0.0` — the image IS the row). A MIXED
-    /// OFF-CURSOR line instead reads its LAST visual row's own top — where the
-    /// forcing glyph actually landed (real cosmic-text layout, see
-    /// [`Self::image_force`]'s field doc) — so the quad sits directly below the
-    /// (untouched, base-height) marker+caption row, never overlapping it, with NO
-    /// separate offset arithmetic to keep in sync with the layout.
     pub(super) fn image_draw_top(&self, line: usize) -> f32 {
         if self.image_force.get(line).copied().flatten().is_some() {
             let rows = self.visual_rows(line);
@@ -710,14 +631,6 @@ impl TextPipeline {
         self.line_ornament_top(line)
     }
 
-    /// ITEM 5 REWORK: true when logical `line` currently has a well-defined image
-    /// draw position — a BARE line's `image_heights` reservation OR a MIXED
-    /// off-cursor line's [`Self::image_force`] entry. `false` for a REVEALED MIXED
-    /// line (both tables are `None` while the caret is on it — see
-    /// `compute_image_layout`'s doc comment), the caller's
-    /// (`layers::prepare_images` / `Self::image_hit_rects`) signal to skip
-    /// drawing/arming the image for that one frame rather than draw it at an
-    /// undefined position.
     pub(super) fn image_row_reserved(&self, line: usize) -> bool {
         self.image_heights.get(line).copied().flatten().is_some()
             || self.image_force.get(line).copied().flatten().is_some()
@@ -734,13 +647,6 @@ impl TextPipeline {
         self.image_cache.decode_count()
     }
 
-    /// INLINE-IMAGE DRAG-RESIZE (v2, live app only): set (or clear with `None`) the
-    /// live-preview width override — `(byte_start, byte_end, display_w)` keyed by the
-    /// dragged image's `![alt](path)` document byte range. Marks the override dirty so
-    /// the next `set_view` forces the reshape that re-runs `compute_image_layout` and
-    /// re-fits that image live (the buffer is untouched until the drag's release
-    /// write-back). A no-op when the override is unchanged, so a redundant set costs
-    /// nothing. Never reached headlessly (no MouseInput in a capture).
     pub fn set_image_preview(&mut self, preview: Option<(usize, usize, f32)>) {
         if self.image_preview != preview {
             self.image_preview = preview;
@@ -776,19 +682,12 @@ impl TextPipeline {
         let wrap = self.text_wrap_width();
         let mut out = Vec::new();
         for im in report.iter() {
-            // ITEM 5 REWORK: a REVEALED MIXED line has no reservation this frame
-            // (`compute_image_layout`'s doc comment) — no well-defined position
-            // to arm a handle at, so it's skipped like `im.missing`.
             if im.missing || (im.revealed && !self.image_row_reserved(im.line)) {
                 continue;
             }
             let dw = im.display_w.max(1.0);
             let dh = im.display_h.max(1.0);
             let top = self.image_draw_top(im.line);
-            // ITEM 82: the same tall-row box cull `prepare_images` uses (never the
-            // top-only `line_ornament_visible`) — a resize handle must stay armed
-            // for exactly as long as the image itself stays drawn, all the way
-            // through the "bottom still on-screen, top scrolled off" band.
             if !self.row_box_visible(top, dh) {
                 continue;
             }
@@ -798,14 +697,6 @@ impl TextPipeline {
         out
     }
 
-    /// INLINE-IMAGE DRAG-RESIZE (v2, live app only): if `(pointer_x, pointer_y)` is
-    /// over a DRAWN image's resize EDGE/CORNER, the hit image's document byte `range`,
-    /// the grabbed [`ImageHandle`](super::geometry::ImageHandle), and its PRESS-TIME
-    /// on-screen `rect` `[left, top, w, h]` (the anchors the drag math reads).
-    /// Encapsulates [`Self::image_hit_rects`] + the pure
-    /// [`super::geometry::image_handle_hit`] so no raw geometry leaks to the app — the
-    /// same shape as `page_resize_hover`. `None` when the pointer is over no border /
-    /// the feature is off.
     pub fn image_handle_at(
         &self,
         pointer_x: f32,
@@ -828,16 +719,7 @@ impl TextPipeline {
         // face on each changed line below via the per-run script ladder
         // (`build_line_attrs` -> `add_script_spans`).
         let fonts = self.resolve_script_fonts();
-        // i18n: the document's OWN frontmatter `lang:` tag, re-derived here
-        // (the one place fresh `text` is in hand) and cached in `self.doc_lang`
-        // for the caret-driven passes below (`restyle_all_lines` /
-        // `refresh_rule_conceal`) that only ever run on UNCHANGED text, so the
-        // cached value is always current for them.
         self.doc_lang = crate::frontmatter::detect(text).and_then(|fm| fm.lang);
-        // Parse the whole document into its markdown + syntax styling spans (both in
-        // document byte coords, gated per buffer kind). Pulled into [`parse_doc_spans`]
-        // so this stays the diff/splice orchestrator; an empty list makes the per-line
-        // pass below a byte-identical no-op.
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
         // Split into lines WITHOUT the line terminators (cosmic-text stores the
         // ending separately). `str::lines()` drops a single trailing newline, which
@@ -846,23 +728,13 @@ impl TextPipeline {
         // BEFORE `compute_image_layout` below (reordered this round) so its
         // selection-touch extent can feed the image reveal decision.
         let new_lines: Vec<&str> = text.split('\n').collect();
-        // Prefix-sum each line's FIRST byte offset in the document (each line is
-        // its text + one `\n`), so the markdown span pass can map a document-byte
-        // span into a line's local byte range.
         let mut line_starts: Vec<usize> = Vec::with_capacity(new_lines.len());
         let mut acc = 0usize;
         for l in &new_lines {
             line_starts.push(acc);
             acc += l.len() + 1;
         }
-        // REVEAL-ON-CURSOR: a markdown horizontal-rule line conceals its raw `---`
-        // (transparent ink, fleuron alone) UNLESS the caret is on it, in which case
-        // the dashes reveal for editing. `conceal_rule` is keyed off the line index
-        // vs `self.cursor_line` (read here so the closure stays a plain capture).
         let cursor_line = self.cursor_line;
-        // WYSIWYG fence conceal is BLOCK-scoped: it needs the caret's own line's
-        // first document byte (not just its line index) to test containment in a
-        // fenced block's whole byte range. `line_starts` is already built above.
         let cursor_byte = line_starts.get(cursor_line).copied().unwrap_or(0);
         // SELECTION REVEAL: the byte extent of every line the active selection
         // touches (`None` with no selection), computed ONCE from the freshly-
@@ -876,25 +748,9 @@ impl TextPipeline {
             |i| line_starts.get(i).copied().unwrap_or(0),
             |i| new_lines.get(i).map_or(0, |l| l.len()),
         );
-        // INLINE IMAGES: per-line reserved display heights (+ the sidecar/draw
-        // report), read from the just-parsed `ConcealMarkup(Image)` spans and each
-        // image's header dimensions. All-`None` (no tall rows) when the feature is
-        // off / non-markdown / wasm, so the render below stays byte-identical.
         let mut image_heights =
             self.compute_image_layout(text, &md_spans, selection_touch.as_ref());
-        // ITEM 5 REWORK: the forced-trailing-row table `compute_image_layout` just
-        // populated on `self` (see `Self::image_force`'s field doc) — pulled out to
-        // a local so the `line_attrs` closure below can capture it without also
-        // entangling a borrow of `self` (which the loop that calls it mutates
-        // elsewhere, e.g. `self.buffer.lines[..]`). A small per-line `Vec`, cloned
-        // once per reshape — the same cost class as `image_heights` itself.
         let image_force = self.image_force.clone();
-        // WRAP-NOT-CLIP TABLES: a too-wide GFM table wraps its cells and each grown
-        // row RESERVES a tall document row here (the SAME `image_heights` slot the
-        // images use, since a line is never both an image ref and a table row), so
-        // the off-cursor grid never overlaps the following content. `None` for every
-        // line that isn't a wrapped table row → byte-identical for a fitting table
-        // and every non-table doc.
         {
             let table_heights = self.compute_table_layout(text, &md_spans);
             for (li, th) in table_heights.iter().enumerate() {
@@ -938,14 +794,9 @@ impl TextPipeline {
                 selection_touch.as_ref(),
             )
         };
-        // `split('\n')` on "a\n" yields ["a", ""] — exactly the trailing-empty-line
-        // shape cosmic-text wants. On "" it yields [""], one empty line. Good.
 
-        // Diff against the live buffer to find the changed middle band.
         let (prefix, old_end, new_end) = self.unchanged_band(&new_lines);
 
-        // Rebuild changed lines, reusing existing BufferLine slots where they line
-        // up so an in-place edit (same line count) only resets the edited line.
         let mut replacement: Vec<glyphon::cosmic_text::BufferLine> =
             Vec::with_capacity(new_end - prefix);
         for (k, &lt) in new_lines[prefix..new_end].iter().enumerate() {
@@ -992,39 +843,20 @@ impl TextPipeline {
         // freshly-parsed `self.md_spans` (below) always reflects the whole doc, so
         // the sidecar + focus compositing stay accurate.
         self.buffer.lines.splice(prefix..old_end, replacement);
-        // PERSISTENT MARGIN OUTLINE: distill the document's headings from the SAME
-        // freshly-parsed markdown spans (no second pulldown parse) — before the move
-        // below, while both `text` and `md_spans` are in hand. Empty for a
-        // non-markdown buffer (the outline is a markdown/notes surface), so a
-        // `.rs`/`.txt` buffer keeps an empty list. Recompute the CURRENT heading
-        // (nearest at/above the caret) off the fresh list; the render phase gates its
-        // re-upload on `last_outline_current` crossing.
         self.outline_headings = if md {
             crate::markdown::headings_from_spans(text, &md_spans)
         } else {
             Vec::new()
         };
         self.last_outline_current = self.outline_current();
-        // Store the fresh whole-document span list (used by focus compositing and
-        // the capture sidecar). Moved out of the closure now that it is done.
         self.md_spans = md_spans;
         self.syn_spans = syn_spans;
-        // Stash the per-line image heights so the caret-driven restyle passes
-        // (`restyle_all_lines` / `refresh_rule_conceal`), which run on UNCHANGED
-        // text, keep the same tall rows without re-reading image headers.
         self.image_heights = image_heights;
 
         self.finalize_buffer_lines(&attrs);
     }
 
-    /// Diff the freshly split `new_lines` against the live buffer: the common
-    /// unchanged prefix + suffix bound the changed middle band — `[prefix, old_end)`
-    /// in the old buffer, `[prefix, new_end)` in the new text — whose lines outside
-    /// the band keep their cached shaping (we never even visit them).
     pub(super) fn unchanged_band(&self, new_lines: &[&str]) -> (usize, usize, usize) {
-        // Find the common UNCHANGED prefix of lines (the typical edit touches a
-        // line in the middle/end, so everything above it is identical and keeps
-        // its cached shaping untouched — we don't even visit those).
         let old_len = self.buffer.lines.len();
         let new_len = new_lines.len();
         let mut prefix = 0usize;
@@ -1034,8 +866,6 @@ impl TextPipeline {
         {
             prefix += 1;
         }
-        // Find the common UNCHANGED suffix (below the edit), not overlapping the
-        // prefix. Lines here are byte-identical and keep their cached shaping.
         let mut suffix = 0usize;
         while suffix < old_len.saturating_sub(prefix)
             && suffix < new_len.saturating_sub(prefix)
@@ -1043,23 +873,15 @@ impl TextPipeline {
         {
             suffix += 1;
         }
-        // The changed middle band is [prefix, old_len-suffix) in the old buffer and
-        // [prefix, new_len-suffix) in the new text. Replace exactly that band; the
-        // prefix and suffix `BufferLine`s (with their cached shaping) are reused.
         let old_end = old_len - suffix;
         let new_end = new_len - suffix;
         (prefix, old_end, new_end)
     }
 
-    /// Enforce cosmic-text's BufferLine invariants after a splice: the last line
-    /// must end `None`, the buffer must never be empty, then flag a redraw.
     pub(super) fn finalize_buffer_lines(&mut self, attrs: &Attrs<'static>) {
-        // cosmic-text requires the LAST line to carry `LineEnding::None`. Our lines
-        // all got `Lf`; fix up the final one (a no-op reset when it's already None).
         if let Some(last) = self.buffer.lines.last_mut() {
             last.set_ending(glyphon::cosmic_text::LineEnding::None);
         }
-        // Defensive: never leave the buffer with zero lines (cosmic-text invariant).
         if self.buffer.lines.is_empty() {
             self.buffer
                 .lines
@@ -1090,23 +912,13 @@ impl TextPipeline {
         let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
-        // INLINE IMAGES: reuse the per-line heights computed at the last reshape so
-        // an image line keeps its tall row through a zoom/DPI restyle. NOTE (logged
-        // scope trim): the row is NOT re-fit to the zoomed column here (no image
-        // header is re-read on a pure restyle) — it re-fits on the next text
-        // edit/reshape, exactly like the caret-driven conceal path below.
         let image_heights = std::mem::take(&mut self.image_heights);
         // ITEM 5 REWORK: same "reuse the last reshape's table" treatment as
         // `image_heights` above — a zoom/DPI restyle doesn't re-measure the
         // forcing `letter_spacing` (no text/wrap change), it just re-applies it.
         let image_force = std::mem::take(&mut self.image_force);
-        // REVEAL-ON-CURSOR: conceal every hr line's `---` EXCEPT the caret's (mirrors
-        // the incremental path so a zoom/DPI restyle keeps the same conceal/reveal).
-        // `cursor_byte` additionally drives the WYSIWYG fence conceal's BLOCK scope.
         let cursor_line = self.cursor_line;
         let cursor_byte = self.line_doc_byte_start(cursor_line);
-        // SELECTION REVEAL: same extent `set_text_incremental` computes, from
-        // the CURRENT `self.buffer.lines` (valid here, unlike mid-splice).
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
@@ -1196,8 +1008,6 @@ impl TextPipeline {
         self.last_conceal_selection = self.selection;
         let cursor_line = self.cursor_line;
         let cursor_byte = self.line_doc_byte_start(cursor_line);
-        // SELECTION REVEAL: same extent `set_text_incremental`/`restyle_all_lines`
-        // compute (see `selection_touch_bytes`), from the CURRENT `self.buffer.lines`.
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| self.line_doc_byte_start(i),
@@ -1218,12 +1028,7 @@ impl TextPipeline {
         let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
-        // INLINE IMAGES: keep the image line's tall row when the caret enters/leaves
-        // it (a pure conceal toggle must NOT collapse the reserved height).
         let mut image_heights = std::mem::take(&mut self.image_heights);
-        // ITEM 5 REWORK: the forced-trailing-row table (see `Self::image_force`'s
-        // field doc) is JUST as cursor-dependent as `image_heights` used to be for
-        // a mixed line — re-derived below alongside it.
         let mut image_force = std::mem::take(&mut self.image_force);
         let wrap = self.text_wrap_width();
         let base_font_size = self.metrics.font_size;
@@ -1234,35 +1039,13 @@ impl TextPipeline {
             let is_rule = md_spans.iter().any(|(r, k)| {
                 *k == crate::markdown::MdKind::Rule && r.start < start + tlen + 1 && r.end > start
             });
-            // A bullet line also toggles its conceal on caret move (reveal the raw `-`
-            // when the caret lands on it, re-hide it under the glyph when it leaves) —
-            // the SAME reveal-on-cursor upkeep the hr lines get, via the shared
-            // [`crate::markdown::list_item`] detection.
             let is_bullet = crate::markdown::list_item(self.buffer.lines[li].text())
                 .is_some_and(|it| !it.ordered);
-            // A WYSIWYG-concealable line (heading/emphasis/code/highlight, or a
-            // fenced block's marker lines) toggles too — any `ConcealMarkup` span
-            // touching this line means its reveal state may depend on the caret.
             let is_concealable = md_spans.iter().any(|(r, k)| {
                 matches!(k, crate::markdown::MdKind::ConcealMarkup(_))
                     && r.start < start + tlen + 1
                     && r.end > start
             });
-            // ITEM 5 REWORK: a MIXED image line's forced-trailing-row entry is
-            // CURSOR-DEPENDENT (unlike a bare line's — the caption model
-            // deliberately holds THAT one fixed, see `Self::image_force`'s field
-            // doc for why a revealed mixed line reserves nothing at all). A pure
-            // cursor move (no text change, so `compute_image_layout` itself never
-            // re-runs) must still re-derive that decision here — otherwise
-            // entering/leaving the line via arrow keys would leave the STALE
-            // reservation from whichever cursor position last triggered a full
-            // reshape. `dh` is read back from the already-populated `image_report`
-            // (no re-decode: the image + its display size are unchanged by a
-            // cursor move). Gated on `is_concealable` (an image line always
-            // carries its own `ConcealMarkup(Image)` span, so this never runs the
-            // extra `image_report` scan on an ordinary line) and NOT wasm-gated:
-            // on wasm `image_report` is always empty (inline-image decode is
-            // native-only), so it is a harmless no-op there.
             if is_concealable
                 && let Some(dh) = self
                     .image_report
@@ -1272,7 +1055,6 @@ impl TextPipeline {
                     .map(|im| im.display_h)
             {
                 let line_text = self.buffer.lines[li].text().to_string();
-                // This line's own image span (its doc range minus `start`).
                 if let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
                     matches!(
                         k,
@@ -1285,8 +1067,6 @@ impl TextPipeline {
                     let mixed =
                         super::spans::image_line_has_other_content(&line_text, local_range.clone());
                     if mixed {
-                        // `heights[line]` is never touched for a mixed line
-                        // (bare/table rows own that slot exclusively now).
                         if let Some(slot) = image_heights.get_mut(li) {
                             *slot = None;
                         }
@@ -1370,24 +1150,15 @@ impl TextPipeline {
             // Before this round every toggle here was COLOR-only, so the stale
             // memo was harmless; it is not anymore.
             self.row_geom.invalidate();
-            // A crossed hr boundary reset those lines' shaping; re-shape so they lay
-            // out with the new conceal/reveal before the next `prepare`.
             self.buffer.shape_until_scroll(&mut self.font_system, false);
             self.buffer.set_redraw(true);
         }
     }
 
-    /// Compose the document `text` with any active preedit spliced in at the cursor
-    /// (the string actually handed to the shaper) and the preedit's char count (by
-    /// which the effective cursor column is advanced so the caret sits at the
-    /// preedit's end). With no preedit the composed text is `text` verbatim.
     pub(super) fn compose(&self, text: &str) -> (String, usize) {
         if self.preedit.is_empty() {
             return (text.to_string(), 0);
         }
-        // Find the cursor's absolute char index in `text`, then its byte offset,
-        // and splice the preedit there. Preedit strings carry no newlines (IME
-        // composition is a single run), so it stays on the cursor line.
         let insert_char = line_col_to_char_index(text, self.cursor_line, self.cursor_col);
         let byte_at = text
             .char_indices()
@@ -1430,7 +1201,6 @@ impl TextPipeline {
             self.set_text(&composed);
             self.shaped_key = Some(composed);
         }
-        // Caret lands after the preedit on the same logical line, shaped or not.
         self.cursor_col += preedit_chars;
     }
 
@@ -1536,10 +1306,6 @@ impl TextPipeline {
         // far more than realistic prose wrap — plus a fixed floor so a tiny doc
         // still shapes comfortably.
         let rows = (logical.saturating_mul(8)).max(64) as f32;
-        // The extra height reserved beyond plain text: bare/table image rows
-        // (`image_heights`) and mixed lines' forced trailing image row
-        // (`image_force`'s `dh`). Zero for a doc with no inline images/tables, so
-        // the budget stays byte-identical to the pre-item-42 uniform estimate there.
         let reserved: f32 = self
             .image_heights
             .iter()
@@ -1549,11 +1315,6 @@ impl TextPipeline {
         TEXT_TOP + rows * self.metrics.line_height + reserved + self.metrics.line_height
     }
 
-    /// True when the buffer has at least one heading LINE (a leading-`#` run that
-    /// scales) — the only thing that introduces a non-uniform (larger) row, and so
-    /// the only reason a zoom/DPI change needs a full attrs rebuild
-    /// ([`Self::restyle_all_lines`]). Scans line text (cheap; awl docs are small)
-    /// rather than the pulldown spans, so an in-progress `#foo` still counts.
     pub(super) fn has_heading_lines(&self) -> bool {
         if !self.md_enabled {
             return false;
@@ -1627,7 +1388,6 @@ pub(super) fn font_features(
 ) -> glyphon::cosmic_text::FontFeatures {
     use glyphon::cosmic_text::{FeatureTag, FontFeatures};
     let mut ff = FontFeatures::new();
-    // DISCRETIONARY off in EVERY context (the quaint st/ct) — the universal rule.
     ff.disable(FeatureTag::DISCRETIONARY_LIGATURES);
     if !is_code {
         // PROSE: standard + contextual ligatures ON (fi/fl collision-fixers).

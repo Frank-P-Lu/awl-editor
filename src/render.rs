@@ -1,8 +1,3 @@
-//! Shared text-rendering core used by BOTH the windowed app and the headless
-//! capture path. The same function lays out the buffer, draws a caret, and
-//! applies a vertical scroll offset, so windowed and headless produce matching
-//! pixels for the same buffer + cursor + scroll.
-
 use glyphon::{
     Attrs, Buffer as GlyphBuffer, Cache, CacheKey, Family, FontSystem, Metrics as GlyphMetrics,
     Resolution, Shaping, SwashCache, SwashContent, TextArea, TextAtlas, TextBounds, TextRenderer,
@@ -26,46 +21,30 @@ mod caret;
 /// [`FONT_THEME_FACES`] declares it alongside each face's bytes.
 pub(crate) mod facepitch;
 
-/// Bayer dither math shared with the background and one-bit highlight shaders.
-/// Exposes the theme capability value without duplicating it.
 pub(crate) mod dither;
 
-/// Pure line-attribute assembly for markdown, syntax, CJK, and headings.
 mod spans;
 use spans::*;
 
-/// Cached scroll/pixel geometry for variable-height rows.
 mod rowgeom;
 
-/// Document chrome: panels, overlays, gutter, and corner readouts.
 mod chrome;
 #[cfg(test)]
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
 
-/// Picker-row column budgets: primary text yields last; optional secondary text first.
 mod rowlayout;
-/// Shared rail arithmetic for drawing, hit testing, and pointer scrubbing.
 pub use rowlayout::rail_frac_at;
 
-/// Cached backdrop blur for eligible full overlays.
 mod blur;
 
-/// Spatial queries and pure geometry helpers for the writing column and visual rows.
 mod geometry;
 use geometry::*;
 pub use geometry::{ImageHandle, ResizeEdge, hit_test, visible_lines_z};
 
-/// Text shaping, incremental reshaping, IME composition, and layout queries.
 mod text;
 pub use text::ScriptFontReports;
 
-/// STATE REPORTS — the read-only capture-sidecar reports over the shaped state
-/// (`md_report` / `wysiwyg_report` / `outline_report` / `syn_report` /
-/// `syn_lang_report`), each a pure function of the settled frame sharing its ONE
-/// deriving rule with the renderer. Inherent methods ON [`TextPipeline`]. (Carved
-/// out of the old `focus.rs` when focus mode was removed; the surviving per-line
-/// re-lay helper `line_doc_byte_start` re-homed into `text.rs`.)
 mod reports;
 
 /// LAYER GEOMETRY — the rect / squiggle builders that turn document + view state
@@ -75,10 +54,6 @@ mod reports;
 /// buffer / cursor / selection state, carved out verbatim. Byte-identical.
 mod rects;
 
-/// ARM B "LIVING SELECTION BAND" choreography PROBES (the P5-cursor motion spec).
-/// Pure phase math (morph stretch + two-shape crossing) plus the `AWL_LIVING_BAND`
-/// override/phase-pin knob. Ships ON by default (calm MORPH voice); SETTLES to a
-/// byte-identical single band in every capture / under Reduce Motion.
 pub(crate) mod livingband;
 
 /// INLINE IMAGES — the decode + GPU-upload cache (native-only, PNG). Keyed by
@@ -93,10 +68,6 @@ mod image_cache;
 /// pipelines, carved out verbatim. Byte-identical.
 mod layers;
 
-/// PERF MICRO-BENCHMARK — a hidden `--bench-perf` harness timing the five traced
-/// hot paths (motion oracle, ornament marks, rule conceal, theme reshape). A child
-/// of `render` so it can reach the `pub(super)` hot methods + private fields it
-/// times directly, with no public shims. Dev-only; never on the render path.
 pub mod perfbench;
 
 /// FRAME PROFILER — a hidden `--bench-frame` harness timing the EXACT live
@@ -111,24 +82,8 @@ pub mod perfbench;
 /// render path.
 pub mod framebench;
 
-/// UNIFIED BENCH SUITE — the hidden `--bench-suite` matrix runner: corpus
-/// tiers (S/M/L/pathological/CODE, generated deterministically from a fixed
-/// seed) x interaction scenarios (cold open, typing, scroll, search, palette,
-/// zoom, theme, resize), every cell witnessed (reshape counts / row deltas /
-/// match counts / changed pixels are `ensure!`s, not notes), reported as a
-/// table + a machine-keyed `bench.json`, and diffable against
-/// `benches/baseline.json` (`scripts/bench.sh`). A child of `render` for the
-/// same private-seam reason as [`perfbench`]/[`framebench`]. Dev-only; never
-/// on the render path.
 pub mod benchsuite;
 
-/// CARET LOOKUP WITNESS — the hidden `--bench-caret` harness (item 57): places the
-/// caret at the document TOP / MIDDLE / TAIL on a long fixture and records, per
-/// position, the prefix runs a whole-doc walk would touch, the target-line-local
-/// glyph count the fixed lookup actually visits (proven nonzero), and the median
-/// per-frame caret-glyph-lookup cost — witnessing that the cost is independent of
-/// document position. A child of `render` for the same private-seam reason as
-/// [`perfbench`]. Dev-only; never on the render path.
 pub mod caretbench;
 
 /// The render-relevant editor SNAPSHOT — the [`ViewState`] struct + its canonical
@@ -139,60 +94,23 @@ mod viewstate_def;
 pub use viewstate_def::{FoldTail, ViewState};
 
 mod pipeline_draw;
-/// PIPELINE IMPL — the giant `impl TextPipeline` from `render.rs`, split by
-/// frame-pipeline STAGE into three physical homes (each an `impl TextPipeline`
-/// block on the same type, carved out VERBATIM — the capture output is
-/// byte-identical). `pipeline_geometry` = reconfigure-from-input setters
-/// (theme / view / size, no draw); `pipeline_overlay` = the `advance(dt)`
-/// animation surface (overlay motion, lava field, juice, preview);
-/// `pipeline_draw` = construction (`new`); `pipeline_prepare` = per-frame buffer
-/// preparation + blur state; `pipeline_layers` = render-pass composition and
-/// ordered layer emission.
 mod pipeline_geometry;
 mod pipeline_layers;
 mod pipeline_overlay;
 mod pipeline_prepare;
 
-/// Fixed look-and-feel constants. Keeping these in one spot makes the headless
-/// capture deterministic and keeps windowed/headless visually identical.
 pub const FONT_SIZE: f32 = 24.0;
 pub const LINE_HEIGHT: f32 = 32.0;
 pub const TEXT_LEFT: f32 = 16.0;
-/// NON-PAGE (plain) writing-column side inset, in px. The plain edge-to-edge
-/// surface insets its column this far on EACH side so a tad more ground shows at
-/// the margins — a calmer frame than glyphs near the window edge. Deliberately
-/// SEPARATE from [`TEXT_LEFT`] (which also serves as the page-mode collapse floor
-/// [`geometry::PAGE_MIN_PAD`]); only the `!page_on` branches of
-/// [`geometry::column_left_for`] / [`geometry::column_width_for`] read it, so page
-/// mode and the collapse floor stay exactly as before. A gentle default that
-/// widens the ground without eating much width on a narrow window.
 pub const NONPAGE_INSET: f32 = 32.0;
-/// PAGE MODE: horizontal inset of the TEXT inside the page column, in MULTIPLES of
-/// the glyph advance (so it scales with zoom/DPI). The lighter page surface spans
-/// the full column; the writing starts this far in on each side, giving the page a
-/// calm inner margin instead of glyphs flush against the column edge.
 pub const PAGE_TEXT_PAD_CHARS: f32 = 3.0;
 pub const TEXT_TOP: f32 = 16.0;
-/// PAGE MODE: the GENEROUS margin ALWAYS kept on EACH side of the centered writing
-/// column, so the page FLOATS clear of the window edges with a real, visible border
-/// on BOTH sides (the gradient margin band is always present) instead of hugging the
-/// left edge when the measure ≈ the window width. Taken as the LARGER of a fixed
-/// pixel floor and a fraction of the window width: the floor guarantees a visible
-/// band on small windows, the fraction keeps the inset proportional on very wide
-/// ones. BOTH are tunable by eye; at the 1200px capture width the fraction (10%)
-/// dominates the 64px floor, giving ~120px margins (column ~960px).
 pub const PAGE_MIN_MARGIN_PX: f32 = 64.0;
 pub const PAGE_MIN_MARGIN_FRAC: f32 = 0.10;
 
-/// The effective page-mode side margin (px) for a given window width: the larger of
-/// the fixed [`PAGE_MIN_MARGIN_PX`] floor and [`PAGE_MIN_MARGIN_FRAC`] of the window.
-/// The page column is capped so AT LEAST this margin is left on each side.
 pub fn page_min_margin(window_w: f32) -> f32 {
     PAGE_MIN_MARGIN_PX.max(window_w * PAGE_MIN_MARGIN_FRAC)
 }
-/// Approximate advance width of one monospace glyph at FONT_SIZE. Used only to
-/// place the caret horizontally; cosmic-text's exact advance is ~0.6*em for the
-/// default monospace, this is tuned to look right and is deterministic.
 pub const CHAR_WIDTH: f32 = 14.4;
 /// Caret cell metrics in pixels (at zoom 1.0). `CARET_W` is the default cell
 /// advance used to place the glyph cell and as the MINIMUM block width at
@@ -200,86 +118,20 @@ pub const CHAR_WIDTH: f32 = 14.4;
 /// resting square covers, and that selection/preedit share).
 pub const CARET_W: f32 = CHAR_WIDTH;
 pub const CARET_H: f32 = 28.0;
-/// Height (px, at zoom 1.0) of the RESTING "roundish square" that sits ON the
-/// glyph. It covers most of the line's glyph height — a touch shorter than the
-/// full cell box (CARET_H) so the soft rounded block hugs the letter without
-/// bleeding into the line above/below.
 pub const CARET_BLOCK_H: f32 = CARET_H * 0.80; // ~22.4 px
-/// Extra px the BLOCK caret drops its bottom edge BEYOND a dipping glyph's measured
-/// descender, so the antialiased ink of `g`/`y`/`p`/`q`/`j` is fully inside the
-/// block (the rasterized descender depth can sit ~1px shy of the visible ink edge).
-/// Applied ONLY when the glyph actually dips; scaled by the pixel scale (zoom × dpi)
-/// at the draw site, so it's ~1 logical px on a retina display.
 pub const CARET_DESCENDER_PAD: f32 = 1.5;
-/// ITEM 91 — the CELL caret's INK PAD (px, at zoom 1.0): how far the settled
-/// Block / folded-Morph quad grows BEYOND the anchored glyph's own full raster ink
-/// box, top and bottom alike, once the caret sizes itself to that box rather than
-/// to the generic line cell (`CARET_BLOCK_H`). ONE number for every letter and
-/// every world — the whole point is that the pad is letter-INDEPENDENT while the
-/// box under it is not, so an `a`, an `l` and a `g` each get the same small,
-/// even margin instead of the 8–9px of empty caret that used to hang above every
-/// non-ascender.
-///
-/// Sized deliberately ABOVE [`CARET_MORPH_DILATE_PX`] (the morph silhouette's own
-/// fattening) so that on a world whose block KNOCKS THE GLYPH OUT of the cell
-/// (`CaretBlockStyle::Filled` — the CRT phosphor cursor) the lit cell always keeps
-/// a visible rim around the punched letter instead of being eaten by its own
-/// knockout. Scaled by the pixel scale (zoom × dpi) at the geometry site, exactly
-/// like [`CARET_DESCENDER_PAD`].
 pub const CARET_INK_PAD: f32 = 3.0;
-/// Thickness (px, at zoom 1.0) of the MOTION trailing-underline streak: the thin
-/// bar the block collapses to once it drops to the baseline. A touch thicker and
-/// cleaner than the spell squiggle stroke (1.8) so the amber streak reads as
-/// distinct from a red squiggle.
 pub const CARET_STREAK_H: f32 = 2.8;
-/// Minimum streak LENGTH (px, at zoom 1.0) once the caret has fully dropped to
-/// the line: even a slow glide shows a short underline streak, not a dot. The
-/// streak then grows with the spring's horizontal speed (see CARET_STREAK_*).
 pub const CARET_STREAK_MIN_LEN: f32 = 10.0;
-/// Maximum streak LENGTH (px, at zoom 1.0). The velocity-driven length is clamped
-/// here so a very fast cross-screen glide stays a tasteful comet streak, not a
-/// full-width bar.
 pub const CARET_STREAK_MAX_LEN: f32 = 64.0;
-/// Horizontal speed (px/s, at zoom 1.0) at which the streak reaches its MAX
-/// length. Above this the streak is clamped; below it the extra length scales
-/// linearly from the MIN. (Lower => streak grows long sooner; higher => only the
-/// fastest glides reach full length.)
 pub const CARET_STREAK_VEL_FULL: f32 = 2600.0;
 
-/// MOTION-TRAIL vertical anchor drop (px, at zoom 1.0). The caret spring anchor
-/// `pos.y` is the geometric LINE-BOX centre, which sits a touch ABOVE the text's
-/// optical centre — the middle of the lowercase x-height mass — because of the line
-/// leading + the glyphs' visual weight toward the baseline. So the in-motion trail,
-/// anchored at `pos.y`, reads slightly HIGH (above the letters). This drops the
-/// TRAIL's vertical centre down by this many px to run through the x-height middle
-/// (≈ baseline - x_height/2). Applied SCALED BY `motion` (= 1 - settle) so the
-/// RESTING block/bar is UNCHANGED and only the moving trail shifts; shared by every
-/// mode that draws a trail (Block, Morph's fast-motion deferral, I-beam) so they
-/// stay aligned. Zoom-scaled into `Metrics::caret_trail_drop`. Tunable by eye: at
-/// FONT_SIZE 24 / LINE_HEIGHT 32 the x-height middle is ~2-3px below the line-box
-/// centre, so a few px lands the trail squarely on the letters.
 pub const CARET_TRAIL_TEXT_CENTER_DROP: f32 = 3.0;
 
-/// Width (px, at zoom 1.0) of the SLIM accent bar the MORPH caret draws when the
-/// cursor sits on a glyphless cell (a space / end-of-line / empty line / emoji),
-/// where there is no letterform to recolour. A thin I-beam in the accent — clearly
-/// smaller than the old full-cell block, but still eye-catching. Scales with zoom.
 pub const CARET_SPACE_BAR_W: f32 = 3.0;
 
-/// --- I-BEAM caret (prototype) tunables (px / unitless, at zoom 1.0) ----------
-/// Width of the resting thin vertical bar at the insertion point. Crisp + narrow
-/// so the mark stays perfectly readable (the N++ rule) — clearly an insertion bar,
-/// not a block.
 pub const IBEAM_W: f32 = 2.6;
 
-/// Settle-factor threshold above which the MORPH caret paints the glyph silhouette
-/// and below which it DEFERS to the trailing-underline streak (the block pipeline's
-/// in-motion form). During fast travel (held arrows / a big jump) the spring lags,
-/// `settle_factor()` falls toward 0, and the streak shows; once motion settles
-/// (`settle_factor()` near 1 — including a single arrow tap, which barely dips) the
-/// silhouette paints with its glyph cross-fade as it lands. Tuned high enough that
-/// only sustained/fast motion shows the streak, low enough that the handoff lands
-/// while the streak has nearly re-formed (so there's no visible pop).
 pub const CARET_MORPH_SETTLE_SHOW: f32 = 0.65;
 
 /// Hard, uniform dilation radius (px at zoom 1.0) applied to the MORPH glyph
@@ -334,25 +186,13 @@ pub struct Metrics {
     pub char_width: f32,
     pub caret_w: f32,
     pub caret_h: f32,
-    /// Zoomed resting-square height, motion-streak thickness, and the streak
-    /// length clamps + velocity scale. The renderer reads these to build the morph;
-    /// everything scales with zoom so the caret looks identical at any zoom.
     pub caret_block_h: f32,
     pub caret_streak_h: f32,
     pub caret_streak_min_len: f32,
     pub caret_streak_max_len: f32,
     pub caret_streak_vel_full: f32,
-    /// Zoomed inset of the streak's TAIL (origin-side end) along the travel vector,
-    /// so the trail stops short of where the move started while its head stays on
-    /// the caret. See [`crate::caret::CARET_STREAK_GAP`].
     pub caret_streak_gap: f32,
-    /// Zoomed downward drop of the in-motion TRAIL's vertical anchor from the
-    /// line-box centre (`pos.y`) to the text optical centre (the x-height middle).
-    /// See [`CARET_TRAIL_TEXT_CENTER_DROP`].
     pub caret_trail_drop: f32,
-    /// Zoomed CONSTANT length of the HELD trailing streak — the steady length a
-    /// continuous auto-repeat drag draws (no per-repeat pulse). See
-    /// [`crate::caret::HELD_STREAK_LEN`].
     pub caret_held_len: f32,
 }
 
@@ -361,23 +201,8 @@ impl Metrics {
         Self::with_dpi(zoom, 1.0)
     }
 
-    /// Like [`Metrics::new`] but folds the display's DPI `scale_factor` into every
-    /// PIXEL metric. `window_w` and the mouse position are PHYSICAL pixels, but the
-    /// base glyph constants (`FONT_SIZE`, `CHAR_WIDTH`, `LINE_HEIGHT`, the caret
-    /// dims) are tuned for the capture's 1:1, 1200-px canvas. On a HiDPI display the
-    /// physical surface is `scale_factor`x larger, so without this the text shapes at
-    /// half its intended size and the page column fills only ~1/scale of the window
-    /// (under-filled column, over-wide margins). Multiplying the pixel metrics by
-    /// `dpi` makes `measure * char_width` track the physical width again, restoring
-    /// the capture's proportions (≈10% margin, 80% column) at any real window size.
-    ///
-    /// `dpi` is the DISPLAY scale and is NOT clamped (only the user `zoom` is): the
-    /// two are independent — zoom is a user preference within [min,max], dpi is a
-    /// fixed property of the monitor. The capture path never sets it, so it stays
-    /// `1.0` there and every existing geometry/scroll test is byte-identical.
     pub fn with_dpi(zoom: f32, dpi: f32) -> Self {
         let zoom = clamp_zoom(zoom);
-        // The combined pixel scale: user zoom (clamped) times display DPI (raw).
         let s = zoom * dpi;
         Self {
             zoom,
@@ -390,8 +215,6 @@ impl Metrics {
             caret_streak_h: CARET_STREAK_H * s,
             caret_streak_min_len: CARET_STREAK_MIN_LEN * s,
             caret_streak_max_len: CARET_STREAK_MAX_LEN * s,
-            // A speed in px/s; the pixel scale applies to pixel speeds too, so the
-            // full-length threshold scales with it to keep the feel constant.
             caret_streak_vel_full: CARET_STREAK_VEL_FULL * s,
             caret_streak_gap: crate::caret::CARET_STREAK_GAP * s,
             caret_trail_drop: CARET_TRAIL_TEXT_CENTER_DROP * s,
@@ -399,7 +222,6 @@ impl Metrics {
         }
     }
 
-    /// Glyphon metrics for this zoom.
     fn glyph_metrics(&self) -> GlyphMetrics {
         GlyphMetrics::new(self.font_size, self.line_height)
     }
@@ -424,12 +246,6 @@ impl Metrics {
 /// `Family::Monospace`).
 pub const FONT_DATA: &[u8] = include_bytes!("../assets/fonts/IBMPlexMono-Light.ttf");
 
-/// [`FONT_DATA`]'s declared [`facepitch::Pitch`] — it is a MONOSPACE, and the
-/// display face of Tawny. Declared here rather than inside [`FONT_THEME_FACES`]
-/// only because this face is loaded separately (it doubles as the registered
-/// `Family::Monospace` fallback, and `AWL_FONT` can swap the loaded bytes);
-/// `render::bundled_display_faces` splices the pair back into the one roster the
-/// pitch laws sweep, so it is no less swept than its fourteen neighbours.
 pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 
 /// Bundled SYMBOL / ORNAMENT face (a hand-merged subset built from CLEAN OFL
@@ -506,73 +322,42 @@ pub const FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
         include_bytes!("../assets/fonts/ZillaSlab-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // JetBrains Mono — Mangrove's + Wagtail's crisp coding face (registers as
-    // "JetBrains Mono"); a real fixed pitch.
     (
         include_bytes!("../assets/fonts/JetBrainsMono.ttf"),
         facepitch::Pitch::Mono,
     ),
-    // Figtree — Galah's friendly humanist sans (registers as "Figtree").
     (
         include_bytes!("../assets/fonts/Figtree-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // iA Writer Quattro S — a DUOSPACED writing face (registers as
-    // "iA Writer Quattro S"); bundled + bold-paired, currently unassigned to a
-    // world (Mopoke moved to Bitter, queue item 30). SIL OFL, github.com/iaolo/iA-Fonts.
-    // Near a grid is not on one: it declares (and measures) PROPORTIONAL, which
-    // is the caret look it has always had.
     (
         include_bytes!("../assets/fonts/iAWriterQuattroS-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // Monaspace Xenon — Potoroo's/Firetail's slab-serif monospace (registers as
-    // "Monaspace Xenon"). SIL OFL, github.com/githubnext/monaspace.
     (
         include_bytes!("../assets/fonts/MonaspaceXenon-Regular.ttf"),
         facepitch::Pitch::Mono,
     ),
-    // Fraunces 9pt — Saltpan's warm old-style serif at the text optical size
-    // (registers as "Fraunces 9pt"). SIL OFL, github.com/undercasetype/Fraunces.
     (
         include_bytes!("../assets/fonts/Fraunces9pt-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // EB Garamond — Bombora's classic Garamond serif (registers as
-    // "EB Garamond"). SIL OFL, github.com/octaviopardo/EBGaramond12.
     (
         include_bytes!("../assets/fonts/EBGaramond-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // Fira Sans — a humanist sans (registers as "Fira Sans"), Latin-subset.
-    // SIL OFL, github.com/google/fonts/tree/main/ofl/firasans. Registered for
-    // addressability; not yet assigned to any world (wiring follows).
     (
         include_bytes!("../assets/fonts/FiraSans-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // Iosevka — a narrow MONOSPACE (registers as "Iosevka", isFixedPitch),
-    // Latin-subset. SIL OFL, github.com/be5invis/Iosevka. The display + code face
-    // of Currawong and Cassowary — the face the retired name list forgot.
     (
         include_bytes!("../assets/fonts/Iosevka-Regular.ttf"),
         facepitch::Pitch::Mono,
     ),
-    // Bitter — a slab serif for reading (registers as "Bitter"), instanced at
-    // wght=400 then Latin-subset. SIL OFL, github.com/google/fonts/tree/main/
-    // ofl/bitter. The shared body face of Magpie (stark-paper masthead) and
-    // Mopoke (warm cosy dark, queue item 30) — precedented face-sharing.
     (
         include_bytes!("../assets/fonts/Bitter-Regular.ttf"),
         facepitch::Pitch::Proportional,
     ),
-    // Sour Gummy — Quokka's printed-card display face (item 70, registers as
-    // "Sour Gummy"), instanced from the OFL variable master
-    // (google/fonts ofl/sourgummy) at `wght=400 wdth=100`, Latin+punctuation
-    // subset. SIL OFL 1.1, github.com/eifetx/Sour-Gummy-Fonts. See
-    // `assets/fonts/LICENSES.md` for the full provenance + the documented
-    // 21-codepoint upstream gap, and [`FONT_SOURGUMMY_HEAVY_CANDIDATE`] for
-    // the bundled 900 A/B candidate.
     (
         include_bytes!("../assets/fonts/SourGummy-Regular.ttf"),
         facepitch::Pitch::Proportional,
@@ -642,11 +427,6 @@ pub const FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/EBGaramond-Bold.ttf"),
     include_bytes!("../assets/fonts/FiraSans-Bold.ttf"),
     include_bytes!("../assets/fonts/Bitter-Bold.ttf"),
-    // Sour Gummy — the item-70 real 700 companion (registers under the SAME
-    // family "Sour Gummy", subfamily "Bold"), so `**bold**`/Quokka's headings
-    // resolve here with `weight_diff == 0`. See
-    // [`FONT_SOURGUMMY_HEAVY_CANDIDATE`]'s doc for the bundled 900 sibling
-    // and the `AWL_SOURGUMMY_HEAVY_FORCE` A/B knob.
     include_bytes!("../assets/fonts/SourGummy-Bold.ttf"),
     // Mono display faces — the mono-bolds round. Same-family 700 companions so a
     // `**bold**` span in a mono-display world keeps its grid instead of falling
@@ -675,27 +455,6 @@ pub const FONT_THEME_BOLD_FACES: &[&[u8]] = &[
 pub const FONT_ORNAMENT_FACES: &[&[u8]] =
     &[include_bytes!("../assets/fonts/Junicode-Ornaments.ttf")];
 
-/// BUNDLED CHROME-VOICE faces — the CHROME-VOICES round's two curated overlay
-/// CHROME faces (see [`crate::theme::ChromeFace`]'s doc for the closed surface
-/// set: placard wordmark / inline title prefix / lens-strip labels — never a
-/// list row, query line, or the writing column). A world names one on its
-/// `render_caps.chrome_face` as DATA; unnamed worlds keep their body face, so
-/// these change ZERO document shaping — registered here only for
-/// addressability by `Family::Name` (mirrors the CJK/ornament registration).
-///  - Archivo Black (registers as "Archivo Black") — the LOUD voice, Firetail's
-///    pick. A single heavy display weight; its `OS/2.usWeightClass` is 400 (NOT
-///    a 900-class register — verified in-file), so a plain `Weight::NORMAL`
-///    request matches with `weight_diff == 0` (NO `mono_safe_weight` exception,
-///    the opposite corner of the IBM-Plex-Light trap). SIL OFL 1.1,
-///    github.com/Omnibus-Type/ArchivoBlack (via google/fonts ofl/archivoblack),
-///    subset to Latin + typographic/code punctuation via `pyftsubset`.
-///  - Abril Fatface (registers as "Abril Fatface") — the REFINED voice, a
-///    high-contrast Didone display Regular (usWeightClass 400). Reserved Font
-///    Names "Abril" and "Abril Fatface" (embedded, preserved). SIL OFL 1.1,
-///    TypeTogether (via google/fonts ofl/abrilfatface), same Latin subset.
-///
-/// See `assets/fonts/LICENSES.md` for the per-face copyright + Reserved-Font-
-/// Name rows (taken from each file's own `name` table — never fabricated).
 pub const FONT_CHROME_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/ArchivoBlack-Regular.ttf"),
     include_bytes!("../assets/fonts/AbrilFatface-Regular.ttf"),
@@ -745,8 +504,6 @@ pub const FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
 ///   gallery/jp-compare eyeball-call — see the seam comment on those lists for
 ///   the follow-up (bundled-only + `resolve_cjk` simplification).
 pub const FONT_CJK_FACES: &[&[u8]] = &[
-    // Noto Serif JP — mincho companion for the serif worlds (registers as
-    // "Noto Serif JP"). OFL, github.com/google/fonts/tree/main/ofl/notoserifjp.
     include_bytes!("../assets/fonts/NotoSerifJP-Regular.ttf"),
     // Noto Sans JP — gothic companion for the sans/mono worlds (registers as
     // "Noto Sans JP"). OFL, github.com/google/fonts/tree/main/ofl/notosansjp.
@@ -793,14 +550,8 @@ pub const FONT_CJK_FACES: &[&[u8]] = &[
 /// the per-run CJK `AttrsList` spans — never a `Theme::font` — so no world's
 /// Latin display face is touched.
 pub const FONT_JA_VARIETY_FACES: &[&[u8]] = &[
-    // Shippori Mincho — bookish literary mincho (registers as "Shippori
-    // Mincho"). OFL, github.com/google/fonts/tree/main/ofl/shipporimincho.
     include_bytes!("../assets/fonts/ShipporiMincho-Regular.ttf"),
-    // Zen Maru Gothic — rounded warm gothic (registers as "Zen Maru Gothic").
-    // OFL, github.com/google/fonts/tree/main/ofl/zenmarugothic.
     include_bytes!("../assets/fonts/ZenMaruGothic-Regular.ttf"),
-    // Klee One — kaisho textbook / brush face (registers as "Klee One").
-    // OFL, github.com/google/fonts/tree/main/ofl/kleeone.
     include_bytes!("../assets/fonts/KleeOne-Regular.ttf"),
 ];
 
@@ -852,17 +603,9 @@ pub const FONT_JA_VARIETY_FACES: &[&[u8]] = &[
 /// has no candidate face in v1 (those worlds keep the plain [`theme::
 /// CJK_ZH_HANS_SERIF`] Noto Serif SC floor, no characterful override).
 pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
-    // Noto Serif SC — zh-Hans mincho companion (registers as "Noto Serif SC").
-    // OFL, github.com/google/fonts/tree/main/ofl/notoserifsc.
     include_bytes!("../assets/fonts/NotoSerifSC-Regular.ttf"),
-    // Noto Sans SC — zh-Hans gothic companion (registers as "Noto Sans SC").
-    // OFL, github.com/google/fonts/tree/main/ofl/notosanssc.
     include_bytes!("../assets/fonts/NotoSansSC-Regular.ttf"),
-    // Noto Sans KR — the Korean rider (registers as "Noto Sans KR").
-    // OFL, github.com/google/fonts/tree/main/ofl/notosanskr.
     include_bytes!("../assets/fonts/NotoSansKR-Regular.ttf"),
-    // LXGW WenKai — the Klee-worlds' characterful zh-Hans override (registers
-    // as "LXGW WenKai"). OFL, github.com/lxgw/LxgwWenKai.
     include_bytes!("../assets/fonts/LXGWWenKai-Regular.ttf"),
 ];
 
@@ -919,12 +662,8 @@ pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
 /// [`theme::CJK_ZH_HANS_SANS`] Noto Sans SC zh-Hans floor. Bundling it for a
 /// FUTURE rounded-zh-Hant round (a Big5 subset + a per-world zh-Hant split) is
 /// BANKED, not attempted here.
-pub const FONT_CJK_COMPANION_FACES: &[&[u8]] = &[
-    // Gowun Batang — the serif worlds' characterful Korean companion (registers
-    // as "Gowun Batang"). OFL, github.com/yangheeryu/Gowun-Batang / Google Fonts
-    // (static Regular, subset to the KS X 1001 set the Noto Sans KR floor uses).
-    include_bytes!("../assets/fonts/GowunBatang-Regular.ttf"),
-];
+pub const FONT_CJK_COMPANION_FACES: &[&[u8]] =
+    &[include_bytes!("../assets/fonts/GowunBatang-Regular.ttf")];
 
 /// Thickness (px, at zoom 1.0) of the underline drawn beneath an active IME
 /// preedit (composition) string. The underline reuses the selection quad
@@ -932,28 +671,10 @@ pub const FONT_CJK_COMPANION_FACES: &[&[u8]] = &[
 /// rather than a full cell, so the composing text reads as distinct/provisional.
 pub const PREEDIT_UNDERLINE_H: f32 = 2.5;
 
-/// Squiggle wave parameters at zoom 1.0 (px). All three are multiplied by the
-/// zoom factor, so the shape stays correct at any zoom.
-///
-/// SPELL-SQUIGGLE round (user report, "too thin at default zoom" — "the
-/// 200%-zoom look is right for default zoom"): the pre-round values (amp 1.6,
-/// period 6.0, thickness 1.8) read exactly the way the user wants ONLY at 2x
-/// zoom, since every one of the three scales with `m.zoom` identically. Rather
-/// than fatten thickness alone (which would change the wave's proportions,
-/// not just its size), all three are doubled here — zoom 1.0 now renders
-/// BYTE-IDENTICAL pixels to what the OLD constants produced at zoom 2.0 (see
-/// `spell_squiggle_thickness_law` in `render/tests/nits.rs`), and zoom stays
-/// exactly as scale-aware as before (still a flat per-constant multiply).
 pub const SPELL_AMP: f32 = 3.2;
 pub const SPELL_PERIOD: f32 = 12.0;
 pub const SPELL_THICKNESS: f32 = 3.6;
 
-/// Stroke thickness (px, at zoom 1.0) of a WRITING-NIT underline — the quiet
-/// mechanical-typo hint. Finer than the spell squiggle (`SPELL_THICKNESS`) so a
-/// STRAIGHT muted line reads as a calm "tidy this", visually distinct from the
-/// wavy error-red squiggle. Zoom-scaled by the caller. The nit underline reuses
-/// the spell squiggle pipeline with amplitude 0 (flat), tinted the muted neutral
-/// ink by [`nit_underline_srgba`].
 pub const NIT_THICKNESS: f32 = 1.3;
 
 /// WYSIWYG inline-code PILL inset (px at zoom 1.0): a minimal overhang beyond
@@ -964,31 +685,14 @@ pub const NIT_THICKNESS: f32 = 1.3;
 pub const CODE_PILL_INSET_X: f32 = 3.0;
 pub const CODE_PILL_INSET_Y: f32 = 1.0;
 
-/// WYSIWYG fenced-code PANEL inset (px at zoom 1.0): a minimal overhang of the
-/// value-step background beyond the text column on both sides, so the panel
-/// reads as a distinct surface rather than being clipped exactly to the glyph
-/// edges. Taste default — flagged for live review.
 pub const FENCE_PANEL_INSET_X: f32 = 8.0;
 
-/// TABLE GRID cell inner padding (px at zoom 1.0): the horizontal breathing space
-/// on each side of a cell's text inside its column box (so a column's natural
-/// width is `max shaped cell width + 2·this`). Taste default — flagged for live
-/// review (`prepare_table_grid` in `render/layers.rs`).
 pub const TABLE_CELL_PAD_X: f32 = 8.0;
 
-/// TABLE GRID inter-column GAP (px at zoom 1.0): the whitespace between adjacent
-/// column boxes. Calm-minimal — figure/ground by value, no drawn column rules.
 pub const TABLE_COL_GAP: f32 = 12.0;
 
-/// TABLE GRID header-separator RULE thickness (px at zoom 1.0): the one faint
-/// hairline under the header row (the grid's only drawn line — no box borders).
 pub const TABLE_RULE_THICKNESS: f32 = 1.0;
 
-/// TABLE horizontal-PAN indicator bar thickness (px at zoom 1.0): the THIN dim
-/// bar that appears at an overflowing table's bottom edge while it pans, a
-/// scrollbar-thumb hint (value-step tint, never amber). Reuses the header-rule
-/// pipeline (`table_pan_bar` places it). Taste default — flagged for live review;
-/// the transient fade-on-idle is a live-only concern.
 pub const TABLE_PAN_BAR_THICKNESS: f32 = 2.0;
 
 /// COPY PULSE (the M-w/Cmd-C in-world confirmation — "obvious and understated"):
@@ -1002,20 +706,8 @@ pub const COPY_PULSE_LIFT_L: f32 = 0.18;
 /// alpha and clamped) — the pulse also nudges the wash a touch more opaque,
 /// decaying alongside the lightness. TASTE TUNABLE.
 pub const COPY_PULSE_LIFT_ALPHA: f32 = 55.0;
-/// Duration (ms) of the copy-pulse's brighten-then-decay ease-out — per the
-/// spec's own "~150-250ms ease-out". Drives [`TextPipeline::step_copy_pulse`];
-/// paired with the caret's own (shorter) [`crate::caret::CARET_COPY_PULSE_MS`]
-/// kick. TASTE TUNABLE.
 pub const COPY_PULSE_MS: f32 = 220.0;
 
-/// MOTION-JUICE feel constants (the FIRETAIL-MAXIMALIST-SHOWCASE round's
-/// [`theme::MotionJuice`] capability) — ALL THREE are TASTE TUNABLE and
-/// flagged for live human confirmation (the harness cannot judge feel over
-/// real time). The entrance: the summoned card starts `DROP_PX` above its
-/// resting place and springs down over `ENTRANCE_MS` with a small overshoot
-/// (`ease::out_back`). The band slide: the selected-row band eases between
-/// rows over `BAND_SLIDE_MS` with the same spring. Durations sit in the
-/// copy-pulse's own "obvious and understated" neighborhood (~200ms).
 pub const OVERLAY_ENTRANCE_MS: f32 = 200.0;
 pub const OVERLAY_ENTRANCE_DROP_PX: f32 = 14.0;
 pub const OVERLAY_BAND_SLIDE_MS: f32 = 110.0;
@@ -1045,8 +737,6 @@ fn copy_pulse_peak_srgba() -> [u8; 4] {
     theme::Srgb::rgba(lifted.r, lifted.g, lifted.b, a).rgba_bytes()
 }
 
-/// Skeleton fallback text (kept so the no-arg windowed path is never blank in a
-/// degenerate state; real buffers replace it).
 pub const HELLO_TEXT: &str = "awl - hello";
 
 /// One rendered GFM table's deterministic geometry, stashed by
@@ -1111,8 +801,6 @@ pub struct ImageReport {
     pub range: (usize, usize),
     pub line: usize,
     pub path: String,
-    /// The alt text (hint stripped) — the missing-file placeholder's caption
-    /// alongside the filename. Not serialized in the sidecar (no schema change).
     #[cfg(not(target_arch = "wasm32"))]
     pub alt: String,
     pub width_hint: Option<u32>,
@@ -1122,12 +810,6 @@ pub struct ImageReport {
     pub revealed: bool,
 }
 
-/// "Scroll past end" headroom, in VISUAL ROWS. At the maximum scroll we keep at
-/// least this many of the document's last rows on screen: 1 lets the last row
-/// rise to the very TOP of the viewport, a larger value keeps a few rows of
-/// trailing context. This bounds the overscroll to ~one screenful, so you can
-/// lift the last line off the bottom edge while writing — without ever scrolling
-/// into an infinite blank void. Tunable.
 pub const OVERSCROLL_KEEP_ROWS: usize = 1;
 
 /// The glyphon `Attrs` for the SUMMONED overlays / search panel / gutter —
@@ -1160,26 +842,14 @@ pub const OVERSCROLL_KEEP_ROWS: usize = 1;
 /// surprising to untangle.
 fn float_shadow_srgba() -> [u8; 4] {
     if theme::active().render_caps.decorative_wash == theme::DecorativeWash::Off {
-        // A translucent ink-over-canvas shadow would composite a forbidden
-        // grey on a true 1-bit world — OFF, leaving the crisp white BORDER
-        // (`surface_selected`'s one-bit override) alone to carry elevation.
         return [0, 0, 0, 0];
     }
     let c = theme::base_content();
     theme::Srgb::rgba(c.r, c.g, c.b, 0x26).rgba_bytes()
 }
 
-/// The WRITING-NIT underline tone: the active world's MUTED ink (the de-emphasized
-/// neutral rung of the ink ladder — the same tone markdown markup + code comments
-/// recede to) at a QUIET alpha, so the straight underline reads as a calm "tidy
-/// this" hint. Deliberately NOT the amber accent (DESIGN §3 — amber is the caret's
-/// alone) and NOT the error red the spell squiggle uses — a low-key neutral,
-/// distinct from a spelling error. Kept as a free helper so `new` + `sync_theme`
-/// agree on the tint.
 fn nit_underline_srgba() -> [u8; 4] {
     if theme::active().render_caps.decorative_wash == theme::DecorativeWash::Off {
-        // Same reasoning as `float_shadow_srgba`: any non-0/255 alpha over
-        // this world's pure-black ground composites a forbidden grey — OFF.
         return [0, 0, 0, 0];
     }
     let c = theme::muted();
@@ -1196,13 +866,10 @@ fn nit_underline_srgba() -> [u8; 4] {
 /// ligatures are uncontroversial and always on (see [`text::font_features`]).
 static CODE_LIGATURES_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
-/// True when code-buffer programming ligatures are active (read each reshape).
 pub(crate) fn code_ligatures_on() -> bool {
     CODE_LIGATURES_ON.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Set code-buffer programming ligatures on/off — the config sticky-pref launch-
-/// apply + the settings-menu live toggle (mirrors `markdown::set_wysiwyg_on`).
 pub(crate) fn set_code_ligatures_on(on: bool) {
     CODE_LIGATURES_ON.store(on, std::sync::atomic::Ordering::Relaxed);
 }
@@ -1221,14 +888,6 @@ fn panel_attrs() -> Attrs<'static> {
         .font_features(ff)
 }
 
-/// The overlay CHROME face's attrs — the FIRETAIL-MAXIMALIST-SHOWCASE round's
-/// ONE seam between [`effective_chrome_face`] and the three chrome spans that
-/// read it (placard wordmark / inline title prefix / lens-strip labels; see
-/// [`theme::ChromeFace`]'s doc for the closed surface set). `Body` (every
-/// world today) returns [`panel_attrs`] VERBATIM — byte-identical shaping —
-/// so the capability is structurally inert until a world (or the
-/// `AWL_CHROME_FACE_FORCE` probe) names a face. List rows, the query text,
-/// and the document never call this — they stay on `panel_attrs`/`doc_attrs`.
 fn chrome_attrs() -> Attrs<'static> {
     match effective_chrome_face() {
         theme::ChromeFace::Body => panel_attrs(),
@@ -1242,21 +901,11 @@ fn chrome_attrs() -> Attrs<'static> {
     }
 }
 
-/// Which corner a quiet single-line label ([`TextPipeline::prepare_corner_label`])
-/// anchors to: the bottom-right (right-aligned to the writing column) word-count
-/// readout, the top-right DEBUG panel (right-aligned to the canvas edge, clear of the
-/// top-left margin the outline now owns), or the bottom-center calm notice.
 #[derive(Clone, Copy)]
 enum CornerAnchor {
-    /// Right-aligned to the CANVAS's right edge (not the writing column): the stacked
-    /// DEBUG panel, moved out of the top-left corner the persistent margin outline
-    /// took over. A small 8px inset from the right + top edges.
     TopRight,
     BottomRight,
     BottomCenter,
-    /// Anchored AT a physical-px POINT (the pointer position) rather than a canvas
-    /// corner — the page-width DRAG READOUT floats near the cursor instead of
-    /// docking to an edge. See [`TextPipeline::prepare_page_drag_readout`].
     AtPoint(f32, f32),
 }
 
@@ -1288,16 +937,6 @@ fn mono_safe_weight(font: &str) -> glyphon::Weight {
 /// case-insensitive on the family name.
 const BAD_FALLBACK_FAMILIES: &[&str] = &["GB18030 Bitmap"];
 
-/// The `AWL_FONT` override path, read from the environment ONCE and memoized
-/// (a `OnceLock`, not a per-call `std::env::var_os`). Environment variables are
-/// process-global state shared across every thread; `build_font_system` runs
-/// once per test's `TextPipeline` (i.e. potentially hundreds of times across
-/// the suite), so a per-call `env::var` re-exposes the classic "concurrent
-/// `env::set_var` vs `env::var`" hazard (real UB on some platforms — recent
-/// Rust marks `set_var` `unsafe` for exactly this) on EVERY call instead of
-/// just the first. Caching narrows that window to (at most) the very first
-/// call in the process, matching how a real launched app only reads this once
-/// at startup anyway. See [`awl_cjk_force`] for the identical pattern.
 fn awl_font_override() -> &'static Option<std::path::PathBuf> {
     static ONCE: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| std::env::var_os("AWL_FONT").map(std::path::PathBuf::from))
@@ -1437,10 +1076,6 @@ fn build_font_system() -> FontSystem {
             ));
     }
 
-    // Register the bundled ORNAMENT faces (Junicode — see FONT_ORNAMENT_FACES) so
-    // they are addressable by their own family names. Assigned per world via
-    // `Theme::ornament_face` and named only through the per-run family span on the
-    // section-break fleuron / About end-mark, so this changes zero display shaping.
     for &face_bytes in FONT_ORNAMENT_FACES {
         font_system
             .db_mut()
@@ -1463,22 +1098,12 @@ fn build_font_system() -> FontSystem {
             ));
     }
 
-    // Register the item-70 bundled Sour Gummy 900 HEAVY CANDIDATE (see its own
-    // doc). Always loaded (so it stays addressable for the A/B knob below);
-    // `apply_sourgummy_heavy_force` runs after every registration and prunes
-    // the 700 file instead when the dev knob asks for it.
     font_system
         .db_mut()
         .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
             std::sync::Arc::new(FONT_SOURGUMMY_HEAVY_CANDIDATE.to_vec()),
         ));
 
-    // Register the bundled SYMBOL / ORNAMENT face under its private family name
-    // (`SYMBOL_FAMILY`). It is never a display face — the renderer names it only
-    // through per-run `AttrsList` family spans over the specific symbol codepoints
-    // (`spans::add_symbol_spans`), so the modifier glyphs + ornaments resolve here
-    // (not to a flaky platform fallback / tofu) in every world, leaving each
-    // theme's display face untouched.
     font_system
         .db_mut()
         .load_font_source(glyphon::cosmic_text::fontdb::Source::Binary(
@@ -1498,17 +1123,8 @@ fn build_font_system() -> FontSystem {
     font_system
 }
 
-/// The bundled JP family names ([`FONT_CJK_FACES`]) — the "bundled" side of the
-/// [`apply_cjk_force`] A/B switch. Re-exported from `theme` (the i18n round's
-/// [`theme::FontId`] resolver's single "is this an embedded face" table) so
-/// there is exactly ONE list of bundled CJK family names, not two.
 use theme::EMBEDDED_CJK_FAMILIES as BUNDLED_CJK_FAMILIES;
 
-/// The system CJK family names ([`theme::CJK_MINCHO`]/[`theme::CJK_GOTHIC`]'s
-/// trailing JP candidates, extended by the Chinese round with [`theme::
-/// CJK_ZH_HANS_SERIF`]/[`_SANS`]/[`theme::CJK_ZH_HANT`]/[`theme::CJK_KO`]'s own
-/// trailing system candidates) — the "system" side of the [`apply_cjk_force`]
-/// A/B switch, now covering all four CJK-family scripts, not just ja.
 const SYSTEM_CJK_FAMILIES: &[&str] = &[
     "Hiragino Mincho ProN",
     "Hiragino Kaku Gothic ProN",
@@ -1522,18 +1138,6 @@ const SYSTEM_CJK_FAMILIES: &[&str] = &[
     "Noto Sans CJK KR",
 ];
 
-/// The bundled CHARACTERFUL (non-floor) CJK families — the per-world overrides
-/// layered ABOVE a plain Noto floor. The Chinese round's zh-Hans WenKai
-/// override for the Klee worlds (Mopoke, Quokka), the Phase 2 "JP face
-/// variety" round's three per-world JAPANESE picks ([`FONT_JA_VARIETY_FACES`]:
-/// Shippori Mincho, Zen Maru Gothic, Klee One), and the "CJK companions"
-/// round's Korean serif pick (Gowun Batang — [`FONT_CJK_COMPANION_FACES`], the
-/// serif worlds' `ko` override), each of which sits ABOVE the plain Noto floor
-/// in its world's [`theme::Theme::cjk`]/`ko` ladder. The THIRD side of the
-/// [`apply_cjk_force`] knob (`AWL_CJK_FORCE=floor`): pruning these forces every
-/// world that names one down to its plain Noto floor, for the
-/// `gallery/zh-worlds/` + `gallery/jp-worlds/` + `gallery/ko-worlds/`
-/// "floor" vs "characterful" A/B captures.
 const CHARACTERFUL_CJK_FAMILIES: &[&str] = &[
     "LXGW WenKai",
     "Shippori Mincho",
@@ -1542,11 +1146,6 @@ const CHARACTERFUL_CJK_FAMILIES: &[&str] = &[
     "Gowun Batang",
 ];
 
-/// The `AWL_CJK_FORCE` dev knob, read ONCE and memoized — see
-/// [`awl_font_override`]'s doc for why this must not be a per-call
-/// `std::env::var`: `apply_cjk_force` runs inside `build_font_system`, once per
-/// `TextPipeline` (every test in the suite), so an unmemoized read re-exposes
-/// the env-var thread-safety hazard on every single call.
 fn awl_cjk_force() -> &'static Option<String> {
     static ONCE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| std::env::var("AWL_CJK_FORCE").ok())
@@ -1594,9 +1193,6 @@ fn apply_cjk_force(font_system: &mut FontSystem) {
     }
 }
 
-/// The `AWL_SOURGUMMY_HEAVY_FORCE` dev knob, read ONCE and memoized — mirrors
-/// [`awl_cjk_force`]'s doc exactly (this fn runs inside `build_font_system`
-/// too, once per `TextPipeline`).
 fn awl_sourgummy_heavy_force() -> &'static Option<String> {
     static ONCE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| std::env::var("AWL_SOURGUMMY_HEAVY_FORCE").ok())
@@ -1635,24 +1231,6 @@ fn apply_sourgummy_heavy_force(font_system: &mut FontSystem) {
     }
 }
 
-/// DEV-ONLY probe override for the OVERLAY-PERSONALITY-AS-DATA round's
-/// `gallery/overlay-personality/` captures (mirrors [`awl_cjk_force`]/
-/// [`apply_cjk_force`]'s shape exactly): `AWL_OVERLAY_STYLE_FORCE` forces a
-/// [`theme::TitleStyle`] at runtime for EVERY world, so the gallery can shoot
-/// a placard-styled card without any world actually shipping one yet. Total
-/// no-op unset (every normal run, every default capture); no config key, no
-/// CLI flag, undocumented in CAPTURE.md — same "not a product feature"
-/// footing as `AWL_CJK_FORCE`.
-///
-/// Grammar: `"inline"` forces [`theme::TitleStyle::InlinePrefix`];
-/// `"placard:<corner>:<scale>:<ink>"` forces a [`theme::TitleStyle::Placard`]
-/// — `<corner>` one of `TL`/`TR`/`BL`/`BR` (case-insensitive), `<scale>` a
-/// plain float, `<ink>` one of `faint`/`ghost`/`stipple`/`muted`/`bold`
-/// (case-insensitive; the last two are the FIRETAIL-MAXIMALIST-SHOWCASE
-/// round's smooth dial-up rungs), e.g. `"placard:BL:3.0:ghost"` or the
-/// dial-up probe `"placard:BL:4.0:bold"`. A malformed value parses to `None`
-/// (falls through to the active world's own `render_caps.title_style` —
-/// never a crash).
 fn parse_overlay_style_force(s: &str) -> Option<theme::TitleStyle> {
     let s = s.trim();
     if s.eq_ignore_ascii_case("inline") {
@@ -1684,10 +1262,6 @@ fn parse_overlay_style_force(s: &str) -> Option<theme::TitleStyle> {
     Some(theme::TitleStyle::Placard { corner, scale, ink })
 }
 
-/// The `AWL_OVERLAY_STYLE_FORCE` dev knob, read ONCE and memoized — mirrors
-/// [`awl_cjk_force`]'s own doc for why an unmemoized `std::env::var` read is
-/// the hazard to avoid on a call site that can run every frame an overlay is
-/// open (`overlay_shape_placard`).
 fn awl_overlay_style_force() -> &'static Option<theme::TitleStyle> {
     static ONCE: std::sync::OnceLock<Option<theme::TitleStyle>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -1697,20 +1271,6 @@ fn awl_overlay_style_force() -> &'static Option<theme::TitleStyle> {
     })
 }
 
-/// DEV-ONLY probe for the PAGE-FRAME taste A/Bs (`gallery/personality-assigned/`'s
-/// Wagtail 1px-vs-2px shots) — the personality-assignment round GRADUATED the
-/// old `AWL_PAGE_BORDER` color+weight probe into the real
-/// [`theme::PageFrame`] capability, and this force knob is what SURVIVES of
-/// it, reshaped to the `AWL_OVERLAY_STYLE_FORCE` idiom exactly: it forces
-/// the CAPABILITY (weight only — the ink is always the one-owner
-/// `theme::page_frame_ink()` ladder derivation now, never a free hex color,
-/// which is precisely what graduation retired). Total no-op unset; no config
-/// key, no CLI flag, undocumented in CAPTURE.md.
-///
-/// Grammar: `"none"` forces [`theme::PageFrame::None`]; a plain positive
-/// float (e.g. `"1"`, `"2.5"`) forces [`theme::PageFrame::Line`] at that
-/// weight on the ACTIVE world. Malformed → `None` (falls through to the
-/// world's own `render_caps.page_frame` — never a crash).
 fn parse_page_frame_force(s: &str) -> Option<theme::PageFrame> {
     let s = s.trim();
     if s.eq_ignore_ascii_case("none") {
@@ -1724,8 +1284,6 @@ fn parse_page_frame_force(s: &str) -> Option<theme::PageFrame> {
     }
 }
 
-/// The `AWL_PAGE_FRAME_FORCE` dev knob, read ONCE and memoized — the same
-/// env-read hazard note as [`awl_overlay_style_force`].
 fn awl_page_frame_force() -> &'static Option<theme::PageFrame> {
     static ONCE: std::sync::OnceLock<Option<theme::PageFrame>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -1735,10 +1293,6 @@ fn awl_page_frame_force() -> &'static Option<theme::PageFrame> {
     })
 }
 
-/// The EFFECTIVE [`theme::PageFrame`] for this frame: the
-/// `AWL_PAGE_FRAME_FORCE` dev probe if set, else the active world's own
-/// `render_caps.page_frame` — so an unset-env run renders exactly the
-/// assigned data (Wagtail's 2px line; `None` everywhere else).
 pub(crate) fn effective_page_frame() -> theme::PageFrame {
     match awl_page_frame_force() {
         Some(frame) => *frame,
@@ -1746,54 +1300,17 @@ pub(crate) fn effective_page_frame() -> theme::PageFrame {
     }
 }
 
-/// THE ORGANIC FROST SEED HALO RADIUS (device px) for a margin-ink row of physical
-/// height `row_h`: the glyph-derived core (a fraction of the ZOOMED line box, so it
-/// tracks the actual glyph size) PLUS the authored skirt ([`crate::lava::FROST_FEATHER_PX`],
-/// zoom/DPI-scaled). Because the skirt is a fixed LOGICAL px while `row_h` scales
-/// with zoom, the halo's reach RELATIVE to the row pitch shifts with zoom — so
-/// nearby rows join into a larger island at small zoom and separate at large zoom,
-/// naturally, through the continuous field (never a mode switch). ONE owner so the
-/// outline and gutter seeds share the exact halo. See `docs/render.md`.
 pub(crate) fn frost_seed_radius(row_h: f32, zoom: f32, dpi: f32) -> f32 {
     row_h * crate::lava::FROST_SEED_RADIUS_FRAC
         + crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, zoom, dpi)
 }
 
-/// THE PUNCTUATION-AWARE, BOUNDED PER-RUN RADIUS (item 61): a run's own halo
-/// radius, given the row's radius ceiling `r_row` ([`frost_seed_radius`]) and
-/// the run's MEASURED ink width `run_ink_w` (device px, before any end
-/// padding). Three ceilings, the tightest wins:
-///  - `r_row` — the row-height radius (unchanged for ordinary text; also the
-///    floor a punctuation-derived bound can never exceed).
-///  - the run's OWN ink half-width (× [`crate::lava::FROST_RUN_INK_RADIUS_FRAC`])
-///    plus `skirt` — so a short/punctuation run's halo is DERIVED FROM ITS OWN
-///    ADVANCE GEOMETRY rather than the row's, never dwarfing a narrow glyph
-///    into a disproportionate round bump.
-///  - `skirt` × [`crate::lava::FROST_END_RADIUS_SKIRTS`] — the BOUNDED END-PAD
-///    ceiling, independent of row height, so a long single-run label's
-///    end-of-ink overshoot never grows past a fixed skirt multiple no matter
-///    how tall the margin type is.
-///    A normal multi-word run's ink half-width and the end-pad ceiling both sit
-///    at or above `r_row` in practice, so `min()` is a no-op there — row/nearby-run
-///    merging is byte-identical to before this round for ordinary text.
 pub(crate) fn frost_run_radius(r_row: f32, run_ink_w: f32, skirt: f32) -> f32 {
     let ink_bound = run_ink_w * crate::lava::FROST_RUN_INK_RADIUS_FRAC + skirt;
     let end_cap = skirt * crate::lava::FROST_END_RADIUS_SKIRTS;
     r_row.min(ink_bound).min(end_cap)
 }
 
-/// Push FROST SEEDS `[x0, x1, yc, r]` for one drawn text run spanning
-/// `[left, left+width]` (device px) at row centre `yc`, ROW-HEIGHT radius
-/// ceiling `r_row`, zoom/DPI-scaled `skirt` ([`crate::lava::FROST_FEATHER_PX`]),
-/// given its fitted `label`. PER-GLYPH ([`crate::lava::FROST_SEED_PER_GLYPH`])
-/// scatters one point seed per non-space glyph cell evenly across the MEASURED
-/// run — the ideal bumpy hug; the NAMED DEGRADATION ARM emits one capsule seed
-/// per whitespace-delimited WORD RUN (far fewer per-pixel seeds), both anchored
-/// to the SAME measured extent so word gaps fall where the ink's do. EACH
-/// emitted seed's radius is the PUNCTUATION-AWARE, BOUNDED [`frost_run_radius`]
-/// derived from that seed's OWN measured ink width, not a blanket per-row
-/// value — see that function's own doc. ONE owner shared by the outline +
-/// gutter seed builders, so both worlds and both surfaces seed identically.
 pub(crate) fn push_text_seeds(
     seeds: &mut Vec<[f32; 4]>,
     left: f32,
@@ -1808,7 +1325,6 @@ pub(crate) fn push_text_seeds(
     if n == 0 || width <= 0.0 {
         return;
     }
-    // Average glyph advance across the MEASURED run (the actual zoomed extent).
     let cw = width / n as f32;
     if crate::lava::FROST_SEED_PER_GLYPH {
         for (i, &c) in chars.iter().enumerate() {
@@ -1837,12 +1353,6 @@ pub(crate) fn push_text_seeds(
     }
 }
 
-/// TEST-ONLY escape hatch: force the EFFECTIVE title style without touching
-/// the env var — which, like `AWL_CJK_FORCE`, is memoized after first read
-/// and so cannot safely change mid-process (many tests share one binary).
-/// Guarded by [`crate::testlock::serial`] at the CALL SITE, mirroring every
-/// other `cfg(test)` global writer this codebase already serializes (the
-/// `page` measure setters, `fs::FsGuard`, …). `None` clears the override.
 #[cfg(test)]
 static PLACARD_TEST_OVERRIDE: std::sync::Mutex<Option<theme::TitleStyle>> =
     std::sync::Mutex::new(None);
@@ -1854,11 +1364,6 @@ pub(crate) fn set_title_style_test_override(style: Option<theme::TitleStyle>) {
         .unwrap_or_else(|e| e.into_inner()) = style;
 }
 
-/// The EFFECTIVE [`theme::TitleStyle`] for this frame: a `cfg(test)` override
-/// if a test set one, else the `AWL_OVERLAY_STYLE_FORCE` dev probe if set,
-/// else the active world's own `render_caps.title_style` — today
-/// `InlinePrefix` on every one of the 15 worlds (see that field's own doc),
-/// so an unset-env, non-test run is BYTE-IDENTICAL to before this round.
 pub(crate) fn effective_title_style() -> theme::TitleStyle {
     #[cfg(test)]
     {
@@ -1875,14 +1380,6 @@ pub(crate) fn effective_title_style() -> theme::TitleStyle {
     }
 }
 
-/// THE ONE PURE OWNER of a placard's COMPLEMENTARY corner (COMPOSITION-C2): a
-/// [`theme::PlacardCorner::Auto`] wordmark derives its canvas corner from the
-/// card's own [`theme::CardAnchor`] so the poster lands OPPOSITE the command
-/// surface — never under the card, always a balanced diagonal. Card top-left →
-/// poster bottom-RIGHT; a right-shifted card (`Inset` past centre) → bottom-LEFT;
-/// a top-centred card → bottom-right by default. An explicit corner in the
-/// world's data (Firetail's `BL`) is passed through UNCHANGED — this only
-/// resolves `Auto`. Read by [`TextPipeline::overlay_shape_placard`].
 pub(crate) fn derived_placard_corner(
     corner: theme::PlacardCorner,
     anchor: theme::CardAnchor,
@@ -1892,17 +1389,9 @@ pub(crate) fn derived_placard_corner(
         return corner;
     }
     match anchor {
-        // The card hugs the LEFT → the wordmark takes the opposite bottom corner.
         CardAnchor::TopLeft => PlacardCorner::BR,
-        // The card hugs the RIGHT → the wordmark takes the opposite bottom-LEFT
-        // corner (the mirror of `TopLeft`).
         CardAnchor::TopRight => PlacardCorner::BL,
-        // A centred card leaves both bottom corners free; bottom-right is the
-        // calm default (a world dials bottom-left by shipping an explicit `BL`).
         CardAnchor::TopCenter => PlacardCorner::BR,
-        // A right-shifted statement card → the wordmark drops to bottom-LEFT
-        // (the `Inset` half-and-past composition); a left-of-centre inset keeps
-        // the diagonal to bottom-right.
         CardAnchor::Inset { x_frac } => {
             if x_frac >= 0.5 {
                 PlacardCorner::BL
@@ -1913,18 +1402,6 @@ pub(crate) fn derived_placard_corner(
     }
 }
 
-/// DEV-ONLY probe for the PALETTE-COMPOSITION round's overlay-ANCHOR A/B
-/// (`gallery/palette-composition/`'s top-left-vs-top-center card shots) —
-/// mirrors [`awl_overlay_style_force`]'s idiom exactly. `AWL_OVERLAY_ANCHOR_FORCE`
-/// forces the [`theme::CardAnchor`] the summoned card uses for EVERY world, so
-/// the gallery can shoot both placements without flipping any world's data.
-/// Grammar: `"tl"`/`"topleft"`/`"left"` → [`theme::CardAnchor::TopLeft`];
-/// `"center"`/`"topcenter"`/`"tc"` → [`theme::CardAnchor::TopCenter`];
-/// `"inset:<frac>"` (a float in `[0, 1]`, e.g. `"inset:0.85"`) →
-/// [`theme::CardAnchor::Inset`] — the FIRETAIL-MAXIMALIST-SHOWCASE round's
-/// statement-placement dial (see that variant's own doc). Malformed
-/// → `None` (falls through to the active world's own `render_caps.card_anchor`).
-/// Total no-op unset; no config key, no CLI flag.
 fn parse_overlay_anchor_force(s: &str) -> Option<theme::CardAnchor> {
     let s = s.trim();
     if let Some(rest) = s
@@ -1941,15 +1418,11 @@ fn parse_overlay_anchor_force(s: &str) -> Option<theme::CardAnchor> {
     match s.to_ascii_lowercase().as_str() {
         "tl" | "topleft" | "left" => Some(theme::CardAnchor::TopLeft),
         "tc" | "topcenter" | "center" | "centre" => Some(theme::CardAnchor::TopCenter),
-        // RIGHT-ANCHOR MIRROR (PER-ITEM LIST SURFACES round) — the first-class
-        // anchor value: right-anchored card + mirrored selected-bar growth.
         "tr" | "topright" | "right" | "mirror" => Some(theme::CardAnchor::TopRight),
         _ => None,
     }
 }
 
-/// The `AWL_OVERLAY_ANCHOR_FORCE` dev knob, read ONCE and memoized — same
-/// env-read hazard note as [`awl_overlay_style_force`].
 fn awl_overlay_anchor_force() -> &'static Option<theme::CardAnchor> {
     static ONCE: std::sync::OnceLock<Option<theme::CardAnchor>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -1959,18 +1432,6 @@ fn awl_overlay_anchor_force() -> &'static Option<theme::CardAnchor> {
     })
 }
 
-/// ITEM 45 (overlay ALIGNMENT as personality data) — the CLEAN capture knob for
-/// the round's three-value alignment AXIS: `AWL_OVERLAY_ALIGN=left|center|right`,
-/// mirroring the `AWL_STARS_PHASE` idiom (env override > world data, read once,
-/// memoized, no config key / CLI flag). It forces the EFFECTIVE overlay alignment
-/// for EVERY world so the audition gallery can shoot a right-aligned variant
-/// WITHOUT mutating any world's `render_caps.card_anchor`. Grammar (case-
-/// insensitive): `left`→[`theme::CardAnchor::TopLeft`], `center`/`centre`→
-/// [`theme::CardAnchor::TopCenter`], `right`→[`theme::CardAnchor::TopRight`]
-/// (right-anchor + mirrored bar growth); malformed → `None` (falls through). It is
-/// the alignment-axis-native sibling of the older `AWL_OVERLAY_ANCHOR_FORCE`
-/// (which also reaches `Inset`); this one speaks the round's own `left|center|right`
-/// vocabulary and takes precedence when both are set.
 fn parse_overlay_align(s: &str) -> Option<theme::CardAnchor> {
     match s.trim().to_ascii_lowercase().as_str() {
         "left" | "l" => Some(theme::CardAnchor::TopLeft),
@@ -1980,8 +1441,6 @@ fn parse_overlay_align(s: &str) -> Option<theme::CardAnchor> {
     }
 }
 
-/// The `AWL_OVERLAY_ALIGN` capture knob, read ONCE and memoized — same env-read
-/// hazard footing as [`awl_overlay_anchor_force`].
 fn awl_overlay_align_force() -> &'static Option<theme::CardAnchor> {
     static ONCE: std::sync::OnceLock<Option<theme::CardAnchor>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -1991,9 +1450,6 @@ fn awl_overlay_align_force() -> &'static Option<theme::CardAnchor> {
     })
 }
 
-/// TEST-ONLY escape hatch: force the EFFECTIVE card anchor without touching the
-/// memoized env var (mirrors [`set_title_style_test_override`]). Guarded by
-/// [`crate::testlock::serial`] at the call site. `None` clears the override.
 #[cfg(test)]
 static CARD_ANCHOR_TEST_OVERRIDE: std::sync::Mutex<Option<theme::CardAnchor>> =
     std::sync::Mutex::new(None);
@@ -2005,16 +1461,6 @@ pub(crate) fn set_card_anchor_test_override(anchor: Option<theme::CardAnchor>) {
         .unwrap_or_else(|e| e.into_inner()) = anchor;
 }
 
-/// The EFFECTIVE [`theme::CardAnchor`] the summon-time freeze RESOLVES against: a
-/// `cfg(test)` override if set, else the `AWL_OVERLAY_ALIGN` alignment knob (item
-/// 45), else the older `AWL_OVERLAY_ANCHOR_FORCE` dev probe, else the active
-/// world's own `render_caps.card_anchor`. ITEM 45 (overlay alignment as personality
-/// data): this is read ONCE, at overlay SUMMON, by [`crate::overlay::OverlayState`]
-/// (which freezes the result into its `align` field); the RENDER path never calls
-/// it directly — it reads the frozen value through [`resolve_overlay_anchor`], so an
-/// OPEN overlay never relocates when a theme-preview crossing changes which world
-/// is active. The alignment-is-data grep-law (`render::tests::overlay_align_law`)
-/// pins that: `effective_card_anchor(` / `render_caps.card_anchor` appear only here.
 pub(crate) fn effective_card_anchor() -> theme::CardAnchor {
     #[cfg(test)]
     {
@@ -2034,26 +1480,10 @@ pub(crate) fn effective_card_anchor() -> theme::CardAnchor {
     }
 }
 
-/// ITEM 45 — THE ONE consumer-side owner of an open overlay's EFFECTIVE alignment:
-/// the value FROZEN at summon (`frozen`, threaded from
-/// [`crate::overlay::OverlayState::align`] through `ViewState::overlay_align`) when
-/// present, falling back to the live [`effective_card_anchor`] only when NO overlay
-/// froze one (a closed overlay — the geometry is inert then — or a legacy test that
-/// drives the placement policy through the `set_card_anchor_test_override` seam
-/// alone). Every render-path anchor reader (the card box, the selected-bar growth
-/// mirror, the placard-corner derivation) routes through THIS, so they compose ONE
-/// frozen alignment and none of them re-reads the live world mid-preview — the
-/// HARD RULE ("an open overlay never relocates"). Keeping the sole `effective_
-/// card_anchor` fallback in this module is what lets the grep-law ban a live read
-/// from every `chrome/` consumer.
 pub(crate) fn resolve_overlay_anchor(frozen: Option<theme::CardAnchor>) -> theme::CardAnchor {
     frozen.unwrap_or_else(effective_card_anchor)
 }
 
-/// DEV-ONLY probe for the PALETTE-COMPOSITION round's CARD-EDGE A/B — lets the
-/// gallery force a LIGHT world's summoned card to draw a border without changing
-/// world data. `AWL_OVERLAY_ELEVATION_FORCE`: `"bordered"`/`"border"`/`"on"` or
-/// `"flat"`/`"off"`. Malformed is `None`; unset uses the world's elevation.
 fn parse_overlay_elevation_force(s: &str) -> Option<theme::Elevation> {
     match s.trim().to_ascii_lowercase().as_str() {
         "bordered" | "border" | "on" => Some(theme::Elevation::Bordered),
@@ -2062,7 +1492,6 @@ fn parse_overlay_elevation_force(s: &str) -> Option<theme::Elevation> {
     }
 }
 
-/// The `AWL_OVERLAY_ELEVATION_FORCE` dev knob, read ONCE and memoized.
 fn awl_overlay_elevation_force() -> &'static Option<theme::Elevation> {
     static ONCE: std::sync::OnceLock<Option<theme::Elevation>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2072,7 +1501,6 @@ fn awl_overlay_elevation_force() -> &'static Option<theme::Elevation> {
     })
 }
 
-/// Effective summoned-card elevation: test seam, gallery probe, then world data.
 pub(crate) fn effective_card_elevation() -> theme::Elevation {
     #[cfg(test)]
     if let Some(elevation) = tests::potoroo_pane::elevation_override() {
@@ -2084,15 +1512,7 @@ pub(crate) fn effective_card_elevation() -> theme::Elevation {
     }
 }
 
-/// DEV-ONLY probe for the PALETTE-COMPOSITION round's SELECTED-ROW A/B —
-/// `AWL_OVERLAY_SELROW_FORCE` selects the picker's selected-row band VALUE:
-/// `"new"`/`"strong"` → the strengthened [`theme::overlay_selected_band`] (one
-/// more ramp step, the round's calm default); `"old"`/`"weak"` → the historical
-/// shared [`theme::surface_selected`] band. Malformed → `None` (the default:
-/// the strengthened band). Value-only either way — never a hue. Total no-op
-/// unset (renders the strengthened band, same as the memoized `None` path).
 fn parse_overlay_selrow_force(s: &str) -> Option<bool> {
-    // `Some(true)` = strengthened (new); `Some(false)` = the old shared band.
     match s.trim().to_ascii_lowercase().as_str() {
         "new" | "strong" | "on" => Some(true),
         "old" | "weak" | "off" => Some(false),
@@ -2100,7 +1520,6 @@ fn parse_overlay_selrow_force(s: &str) -> Option<bool> {
     }
 }
 
-/// The `AWL_OVERLAY_SELROW_FORCE` dev knob, read ONCE and memoized.
 fn awl_overlay_selrow_force() -> &'static Option<bool> {
     static ONCE: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2110,13 +1529,6 @@ fn awl_overlay_selrow_force() -> &'static Option<bool> {
     })
 }
 
-/// The EFFECTIVE picker selected-row VALUE band for this frame: the
-/// strengthened [`theme::overlay_selected_band`] (the round's calm default),
-/// unless `AWL_OVERLAY_SELROW_FORCE=old` forces the historical shared
-/// [`theme::surface_selected`] band. Value-only, never a hue (DESIGN §3/§5).
-/// Read by `overlay_draw_card`. REVERT: to ship the old band permanently,
-/// change this default arm to `theme::surface_selected()` (or set
-/// `OVERLAY_SELROW_EXTRA_STEPS = 0` in `theme::derive`).
 pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
     match awl_overlay_selrow_force() {
         Some(false) => theme::surface_selected(),
@@ -2124,23 +1536,6 @@ pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
     }
 }
 
-// --- THE FIRETAIL-MAXIMALIST-SHOWCASE round's dev probes ---------------------
-//
-// Five dials, ALL landing inert (every world byte-identical by default); each
-// is reachable through an `AWL_*` env probe in the established
-// `AWL_OVERLAY_STYLE_FORCE` idiom — read once, memoized, malformed → `None`
-// (the world's own data), total no-op unset, no config key, no CLI flag.
-// The placard dial-up + Inset anchor extend the two existing probes above;
-// the three NEW probes live here: chrome face, motion juice, menu slant.
-
-/// The `AWL_CHROME_FACE_FORCE` dev knob, read ONCE and memoized — forces the
-/// overlay CHROME face ([`theme::ChromeFace`]) to the named registered family
-/// for EVERY world, so the audition gallery can shoot a candidate face
-/// without any world shipping one. The value is a raw family NAME (e.g.
-/// `"Archivo Black"`); it is leaked to `&'static str` once (a memoized probe
-/// leaks at most one small string per process). An UNREGISTERED family
-/// degrades through cosmic-text's ordinary fallback (never a crash) — pair
-/// with `AWL_CHROME_FACE_FILE` to register an uncommitted candidate file.
 fn awl_chrome_face_force() -> &'static Option<theme::ChromeFace> {
     static ONCE: std::sync::OnceLock<Option<theme::ChromeFace>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2156,9 +1551,6 @@ fn awl_chrome_face_force() -> &'static Option<theme::ChromeFace> {
     })
 }
 
-/// TEST-ONLY escape hatch: force the EFFECTIVE chrome face without touching
-/// the memoized env var (mirrors [`set_title_style_test_override`]). Guarded
-/// by [`crate::testlock::serial`] at the call site. `None` clears it.
 #[cfg(test)]
 static CHROME_FACE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::ChromeFace>> =
     std::sync::Mutex::new(None);
@@ -2170,11 +1562,6 @@ pub(crate) fn set_chrome_face_test_override(face: Option<theme::ChromeFace>) {
         .unwrap_or_else(|e| e.into_inner()) = face;
 }
 
-/// The EFFECTIVE [`theme::ChromeFace`] for this frame: a `cfg(test)` override
-/// if set, else the `AWL_CHROME_FACE_FORCE` dev probe if set, else the active
-/// world's own `render_caps.chrome_face` — `Body` on every world today, so an
-/// unset-env, non-test run is BYTE-IDENTICAL to before this round. Read only
-/// by [`chrome_attrs`] (the one seam the chrome spans shape through).
 pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
     #[cfg(test)]
     {
@@ -2191,14 +1578,6 @@ pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
     }
 }
 
-/// DEV-ONLY probe for the MOTION-JUICE dial (`AWL_MOTION_FORCE`) — forces the
-/// [`theme::MotionJuice`] bundle for EVERY world so the user can FEEL the
-/// entrance spring / band slide live without any world shipping them (a
-/// capture cannot show time; this probe is for the live A/B, and is inert in
-/// any headless run anyway — the animators are armed only by the live App).
-/// Grammar: `"off"`/`"calm"` → [`theme::MotionJuice::CALM`]; `"spring"` →
-/// entrance only; `"slide"` → band only; `"spring:slide"`/`"full"`/`"on"` →
-/// both. Malformed → `None` (the world's own `render_caps.motion`).
 fn parse_motion_force(s: &str) -> Option<theme::MotionJuice> {
     let (mut entrance, mut band) = (theme::OverlayEntrance::Instant, theme::BandResponse::Snap);
     match s.trim().to_ascii_lowercase().as_str() {
@@ -2214,7 +1593,6 @@ fn parse_motion_force(s: &str) -> Option<theme::MotionJuice> {
     Some(theme::MotionJuice { entrance, band })
 }
 
-/// The `AWL_MOTION_FORCE` dev knob, read ONCE and memoized.
 fn awl_motion_force() -> &'static Option<theme::MotionJuice> {
     static ONCE: std::sync::OnceLock<Option<theme::MotionJuice>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2224,8 +1602,6 @@ fn awl_motion_force() -> &'static Option<theme::MotionJuice> {
     })
 }
 
-/// TEST-ONLY escape hatch for the motion-juice bundle (mirrors
-/// [`set_title_style_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<theme::MotionJuice>> =
     std::sync::Mutex::new(None);
@@ -2237,11 +1613,6 @@ pub(crate) fn set_motion_test_override(m: Option<theme::MotionJuice>) {
         .unwrap_or_else(|e| e.into_inner()) = m;
 }
 
-/// The EFFECTIVE [`theme::MotionJuice`] for this frame: test override → env
-/// probe → the active world's own `render_caps.motion` (CALM on every world
-/// today). NOTE this is only HALF the gate — the animators additionally
-/// require [`TextPipeline::arm_live_juice`] (live-App-only) and fold to
-/// nothing under [`crate::motion::reduced`]; see `step_overlay_juice`.
 pub(crate) fn effective_motion_juice() -> theme::MotionJuice {
     #[cfg(test)]
     {
@@ -2274,9 +1645,6 @@ pub(crate) struct SlantProbe {
     pub italic: bool,
 }
 
-/// `AWL_OVERLAY_SLANT_FORCE` grammar: `"<px>"` (a positive float — the
-/// per-row stair step) or `"<px>:italic"`. Malformed / non-positive → `None`
-/// (no slant — the shipped layout, byte-identical).
 fn parse_overlay_slant_force(s: &str) -> Option<SlantProbe> {
     let s = s.trim();
     let (px_s, italic) = match s.split_once(':') {
@@ -2295,7 +1663,6 @@ fn parse_overlay_slant_force(s: &str) -> Option<SlantProbe> {
     }
 }
 
-/// The `AWL_OVERLAY_SLANT_FORCE` dev knob, read ONCE and memoized.
 fn awl_overlay_slant_force() -> &'static Option<SlantProbe> {
     static ONCE: std::sync::OnceLock<Option<SlantProbe>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2305,8 +1672,6 @@ fn awl_overlay_slant_force() -> &'static Option<SlantProbe> {
     })
 }
 
-/// TEST-ONLY escape hatch for the slant probe (mirrors
-/// [`set_title_style_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static SLANT_TEST_OVERRIDE: std::sync::Mutex<Option<SlantProbe>> = std::sync::Mutex::new(None);
 
@@ -2317,10 +1682,6 @@ pub(crate) fn set_slant_test_override(s: Option<SlantProbe>) {
         .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
-/// The EFFECTIVE slant probe for this frame — `None` (the shipped layout) on
-/// every run without the env probe / test override. There is deliberately NO
-/// `RenderCaps` fallthrough arm: the wild menu is PROBE-GATED (ships only on
-/// a later gallery win), so the data space doesn't exist yet.
 pub(crate) fn overlay_slant() -> Option<SlantProbe> {
     #[cfg(test)]
     {
@@ -2334,11 +1695,6 @@ pub(crate) fn overlay_slant() -> Option<SlantProbe> {
     *awl_overlay_slant_force()
 }
 
-/// The slant probe's per-DISPLAY-ROW x offset (row 0 = no shift, each deeper
-/// row one `px_per_row` step further right) and its WIDTH TAX — the maximum
-/// offset across `n_rows`, which the shapers subtract from the effective row
-/// span so rowlayout's elision math sees the true available width. One owner
-/// for both numbers so the draw offset and the width reduction can't drift.
 pub(crate) fn slant_offset(slant: &SlantProbe, row: usize) -> f32 {
     slant.px_per_row * row as f32
 }
@@ -2347,37 +1703,11 @@ pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
     slant.px_per_row * n_rows.saturating_sub(1) as f32
 }
 
-// --- THE PER-ITEM LIST SURFACES round's dev probes ---------------------------
-//
-// Three capabilities land INERT (every world byte-identical by default): the
-// LIST STYLE (Pane | Bars), the RIGHT-ANCHOR MIRROR (a first-class value on the
-// EXISTING `AWL_OVERLAY_ANCHOR_FORCE` axis — `tr`, above), and the FACET STYLE
-// (Text | Band). Each rides the established `AWL_*_FORCE` idiom: read
-// once, memoized, malformed → `None` (the world's own data), total no-op unset.
-
-/// The bar-treatment defaults the bare `"bars"` grammar expands to (device px):
-/// a gentle P4/Velvet midpoint the gallery then A/Bs via the parametric form.
-/// REFIT (2026-07-16): the gap widened `6 → 10` — the user read the old cracks
-/// between saturated slabs as accidental, not intentional air; with the pane
-/// dropped and the bars quieted, a fuller gap makes each bar read as a placed
-/// surface floating on the room.
-///
-/// REFIT-2 (2026-07-16, designer pixel pass): the selected bar's grow widened
-/// `6 → 24` — a 6px jut read as misalignment, not a deliberate Persona ledge;
-/// ≥20px commits it to an obvious, intentional lead toward the open margin.
 const BARS_DEFAULT_RADIUS: f32 = 6.0;
 const BARS_DEFAULT_GAP: f32 = 10.0;
 const BARS_DEFAULT_GROW: f32 = 24.0;
-/// V6 P5 round — the DEFAULT bar axes a bare `bars` expands to: the shipped v5
-/// look (full-width, every row, solid fill), so `AWL_OVERLAY_LIST_FORCE=bars`
-/// stays byte-identical to before this round. The three variants are opt-in
-/// keywords on the same grammar word.
 const BARS_DEFAULT_EXTENT: theme::BarExtent = theme::BarExtent::FullWidth;
 const BARS_DEFAULT_COVERAGE: theme::BarCoverage = theme::BarCoverage::All;
-/// V6 P5 round — the hairline STROKE width (px) a ghost CHIP pill draws,
-/// uploaded into the facet-ghost pipeline's `stroke` uniform. (The bar-fill
-/// `Outline` axis that also used it was dropped in the V7 taste-gate; the
-/// ghost-chip skin still strokes its inactive pills.)
 pub(crate) const BAR_OUTLINE_STROKE_PX: f32 = 1.5;
 
 /// `AWL_OVERLAY_LIST_FORCE` grammar (V6 P5 round — the three ORTHOGONAL bar axes
@@ -2421,7 +1751,6 @@ fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
                 "all" => coverage = theme::BarCoverage::All,
                 "selected" => coverage = theme::BarCoverage::SelectedOnly,
                 _ => {
-                    // Positional float: radius, then gap, then grow.
                     let v: f32 = tok.parse().ok()?;
                     if !v.is_finite() || v < 0.0 {
                         return None;
@@ -2446,24 +1775,13 @@ fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
     })
 }
 
-/// The three states an `AWL_*_FORCE` dev knob can be in. The `Retired` arm is
-/// the one the facet-chips GALLERY TRAP lived in: the killed `chips` skin word
-/// parsed to `None` and SILENTLY fell back to the world default, so a shot named
-/// `…-chips.png` came out byte-identical to `…-text.png` with no signal that the
-/// variant never rendered. [`read_forced_knob`] turns that arm LOUD.
 #[derive(Debug)]
 enum ForcedKnob<T> {
-    /// Var unset — the world's own default, silent (byte-identical unset run).
     Unset,
-    /// Var set to a recognized value.
     Parsed(T),
-    /// Var SET but the value is retired/typo'd — falls back to the world default,
-    /// but noisily (a re-shoot of a killed variant must not masquerade as real).
     Retired,
 }
 
-/// Pure classifier for a force knob (testable without touching `std::env`): map
-/// the raw var value through `parse`, distinguishing UNSET from SET-BUT-BAD.
 fn classify_forced_knob<T>(raw: Option<&str>, parse: impl Fn(&str) -> Option<T>) -> ForcedKnob<T> {
     match raw {
         None => ForcedKnob::Unset,
@@ -2494,7 +1812,6 @@ fn read_forced_knob<T>(var: &str, grammar: &str, parse: impl Fn(&str) -> Option<
     }
 }
 
-/// The `AWL_OVERLAY_LIST_FORCE` dev knob, read ONCE and memoized.
 fn awl_list_style_force() -> &'static Option<theme::ListStyle> {
     static ONCE: std::sync::OnceLock<Option<theme::ListStyle>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2506,8 +1823,6 @@ fn awl_list_style_force() -> &'static Option<theme::ListStyle> {
     })
 }
 
-/// TEST-ONLY escape hatch for the list style (mirrors
-/// [`set_title_style_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static LIST_STYLE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::ListStyle>> =
     std::sync::Mutex::new(None);
@@ -2523,12 +1838,6 @@ pub(crate) fn set_list_style_test_override(s: Option<theme::ListStyle>) {
         .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
-/// The EFFECTIVE [`theme::ListStyle`] for this frame: a `cfg(test)` override if
-/// set, else the `AWL_OVERLAY_LIST_FORCE` dev probe if set, else the active
-/// world's own `render_caps.list_style` — `Pane` on every world today, so an
-/// unset-env, non-test run is BYTE-IDENTICAL to before this round. THE ONE
-/// owner every list-surface reader consults ([`TextPipeline::overlay_row_gap`],
-/// the bar draw, the card-height math).
 pub(crate) fn effective_list_style() -> theme::ListStyle {
     #[cfg(test)]
     {
@@ -2549,17 +1858,6 @@ pub(crate) fn effective_list_style() -> theme::ListStyle {
     }
 }
 
-/// `AWL_FACET_STYLE_FORCE` grammar: `"text"` / `"band"` / `"chips"`. V6 P5 round
-/// WIRES `chips` for real (the two prior attempts left this word unrecognized,
-/// so a `-chips` shot silently came out as `text` — the gallery trap). Malformed
-/// → `None` (the world's own `render_caps.facet_style`); a SET-but-unrecognized
-/// value is reported to stderr by [`read_forced_knob`] before it falls back.
-///
-/// CHIP-VARIATIONS PROBE → CONFIRMED MAP (2026-07-17) — the `chips` word takes an
-/// OPTIONAL `:<variant>` suffix selecting one of the four surviving
-/// [`theme::ChipVariant`] treatments; bare `chips` == `chips:hairline` (the landed
-/// baseline). An unknown suffix → `None` (loud fallback via [`read_forced_knob`]).
-/// `tinted`/`bold` were DROPPED with their variants (user's confirmed map).
 fn parse_facet_style_force(s: &str) -> Option<theme::FacetStyle> {
     let low = s.trim().to_ascii_lowercase();
     match low.as_str() {
@@ -2579,7 +1877,6 @@ fn parse_facet_style_force(s: &str) -> Option<theme::FacetStyle> {
     Some(theme::FacetStyle::Chips(v))
 }
 
-/// The `AWL_FACET_STYLE_FORCE` dev knob, read ONCE and memoized.
 fn awl_facet_style_force() -> &'static Option<theme::FacetStyle> {
     static ONCE: std::sync::OnceLock<Option<theme::FacetStyle>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2591,8 +1888,6 @@ fn awl_facet_style_force() -> &'static Option<theme::FacetStyle> {
     })
 }
 
-/// TEST-ONLY escape hatch for the facet style (mirrors
-/// [`set_title_style_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static FACET_STYLE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::FacetStyle>> =
     std::sync::Mutex::new(None);
@@ -2604,12 +1899,6 @@ pub(crate) fn set_facet_style_test_override(s: Option<theme::FacetStyle>) {
         .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
-/// The EFFECTIVE [`theme::FacetStyle`] for this frame: a `cfg(test)` override if
-/// set, else the `AWL_FACET_STYLE_FORCE` dev probe if set, else the active
-/// world's own `render_caps.facet_style` — `Text` on every world today, so an
-/// unset-env, non-test run is BYTE-IDENTICAL to before this round. Read only by
-/// the faceted strip renderer ([`TextPipeline::overlay_shape_theme`] + the
-/// facet-chip draw).
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {
     #[cfg(test)]
     {
@@ -2626,10 +1915,6 @@ pub(crate) fn effective_facet_style() -> theme::FacetStyle {
     }
 }
 
-/// `AWL_PANE_SPLIT_FORCE` grammar (SPLIT-PANE COMPOSITION round): `"unified"` /
-/// `"split"`, the gallery A/B for the two-surface takeover card. Malformed → the
-/// world's own `render_caps.pane_split` (a SET-but-unrecognized value is reported
-/// to stderr by [`read_forced_knob`] before it falls back).
 fn parse_pane_split_force(s: &str) -> Option<theme::PaneSplit> {
     match s.trim().to_ascii_lowercase().as_str() {
         "unified" => Some(theme::PaneSplit::Unified),
@@ -2638,7 +1923,6 @@ fn parse_pane_split_force(s: &str) -> Option<theme::PaneSplit> {
     }
 }
 
-/// The `AWL_PANE_SPLIT_FORCE` dev knob, read ONCE and memoized.
 fn awl_pane_split_force() -> &'static Option<theme::PaneSplit> {
     static ONCE: std::sync::OnceLock<Option<theme::PaneSplit>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2650,8 +1934,6 @@ fn awl_pane_split_force() -> &'static Option<theme::PaneSplit> {
     })
 }
 
-/// TEST-ONLY escape hatch for the pane-split composition (mirrors
-/// [`set_list_style_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static PANE_SPLIT_TEST_OVERRIDE: std::sync::Mutex<Option<theme::PaneSplit>> =
     std::sync::Mutex::new(None);
@@ -2663,13 +1945,6 @@ pub(crate) fn set_pane_split_test_override(s: Option<theme::PaneSplit>) {
         .unwrap_or_else(|e| e.into_inner()) = s;
 }
 
-/// The EFFECTIVE [`theme::PaneSplit`] for this frame: a `cfg(test)` override if
-/// set, else the `AWL_PANE_SPLIT_FORCE` dev probe if set, else the active world's
-/// own `render_caps.pane_split` — `Split` on every Pane world except Cassowary's
-/// `Unified`. THE ONE owner the summoned takeover card's Card arm consults
-/// ([`TextPipeline::overlay_draw_card`]) to decide between the two-surface split
-/// and the historical single room — never a per-world code branch (the
-/// `theme_caps_law` grep-law bans a world name in `src/render/`).
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     #[cfg(test)]
     {
@@ -2724,8 +1999,6 @@ pub(crate) struct TypeDensity {
 }
 
 impl TypeDensity {
-    /// The shipped default: the historical [`chrome::OVERLAY_UI_SCALE`] with zero
-    /// extra leading, so an unset probe is byte-identical.
     pub(crate) fn shipped() -> Self {
         TypeDensity {
             scale: chrome::OVERLAY_UI_SCALE,
@@ -2734,11 +2007,6 @@ impl TypeDensity {
     }
 }
 
-/// `AWL_OVERLAY_DENSITY_FORCE` grammar: `"<scale>"` (a positive finite float — a
-/// tight `0.78` timetable, an airy `1.0` table-of-contents) or
-/// `"<scale>:<leading>"` (leading = non-negative device px added per row).
-/// Malformed / non-positive scale / negative leading → `None` (the shipped
-/// density, byte-identical).
 fn parse_overlay_density_force(s: &str) -> Option<TypeDensity> {
     let s = s.trim();
     let (scale_s, leading) = match s.split_once(':') {
@@ -2759,7 +2027,6 @@ fn parse_overlay_density_force(s: &str) -> Option<TypeDensity> {
     }
 }
 
-/// The `AWL_OVERLAY_DENSITY_FORCE` dev knob, read ONCE and memoized.
 fn awl_overlay_density_force() -> &'static Option<TypeDensity> {
     static ONCE: std::sync::OnceLock<Option<TypeDensity>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2771,8 +2038,6 @@ fn awl_overlay_density_force() -> &'static Option<TypeDensity> {
     })
 }
 
-/// TEST-ONLY escape hatch for the overlay density (mirrors
-/// [`set_slant_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static DENSITY_TEST_OVERRIDE: std::sync::Mutex<Option<TypeDensity>> = std::sync::Mutex::new(None);
 
@@ -2783,9 +2048,6 @@ pub(crate) fn set_overlay_density_test_override(d: Option<TypeDensity>) {
         .unwrap_or_else(|e| e.into_inner()) = d;
 }
 
-/// The EFFECTIVE overlay type density for this frame: a `cfg(test)` override if
-/// set, else the `AWL_OVERLAY_DENSITY_FORCE` dev probe if set, else the shipped
-/// [`TypeDensity::shipped`] — so an unset, non-test run is BYTE-IDENTICAL.
 pub(crate) fn effective_overlay_density() -> TypeDensity {
     #[cfg(test)]
     {
@@ -2802,35 +2064,20 @@ pub(crate) fn effective_overlay_density() -> TypeDensity {
     }
 }
 
-/// The EFFECTIVE overlay UI SCALE this frame — the density probe's `scale`,
-/// [`chrome::overlay::OVERLAY_UI_SCALE`] by default. The ONE reader every row +
-/// strip metric consults so shaping and geometry can never drift on the size.
 pub(crate) fn effective_overlay_scale() -> f32 {
     effective_overlay_density().scale
 }
 
-/// The EFFECTIVE extra overlay LEADING this frame (device px) — the density
-/// probe's `leading`, `0.0` by default (byte-identical). Added into the row
-/// line-height alongside the row gap.
 pub(crate) fn effective_overlay_leading() -> f32 {
     effective_overlay_density().leading
 }
 
-/// THE OVERLAY MOTION frame-dump PROBE's parsed shape (choreographies 3+4): a
-/// pinned ENTRANCE phase (the slant fan-in progress) and BAND phase (the
-/// selected-bar grow-pop progress), each in `[0, 1]` (`0` = start, `1` =
-/// settled). PROBE-ONLY — the mid-animation still the `--screenshot` path can
-/// witness (the overlay's `--screenshot-motion`). Unset, the live animators run
-/// off `overlay_enter_t` / `overlay_band_t` and every capture stays settled.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct OverlayMotionProbe {
     pub enter: f32,
     pub band: f32,
 }
 
-/// `AWL_OVERLAY_MOTION_FORCE` grammar: `"<enter>"` (band = same phase) or
-/// `"<enter>:<band>"`, each a finite float CLAMPED to `[0, 1]`. Empty /
-/// non-numeric → `None` (the settled state, byte-identical).
 fn parse_overlay_motion_force(s: &str) -> Option<OverlayMotionProbe> {
     let s = s.trim();
     let (enter_s, band_s) = match s.split_once(':') {
@@ -2857,7 +2104,6 @@ fn parse_overlay_motion_force(s: &str) -> Option<OverlayMotionProbe> {
     })
 }
 
-/// The `AWL_OVERLAY_MOTION_FORCE` dev knob, read ONCE and memoized.
 fn awl_overlay_motion_force() -> &'static Option<OverlayMotionProbe> {
     static ONCE: std::sync::OnceLock<Option<OverlayMotionProbe>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| {
@@ -2869,8 +2115,6 @@ fn awl_overlay_motion_force() -> &'static Option<OverlayMotionProbe> {
     })
 }
 
-/// TEST-ONLY escape hatch for the overlay motion frame-dump probe (mirrors
-/// [`set_slant_test_override`]; `serial()`-guarded at call sites).
 #[cfg(test)]
 static OVERLAY_MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<OverlayMotionProbe>> =
     std::sync::Mutex::new(None);
@@ -2882,10 +2126,6 @@ pub(crate) fn set_overlay_motion_test_override(m: Option<OverlayMotionProbe>) {
         .unwrap_or_else(|e| e.into_inner()) = m;
 }
 
-/// The EFFECTIVE overlay motion frame-dump phase this frame, or `None` (the
-/// live/settled path): a `cfg(test)` override if set, else the
-/// `AWL_OVERLAY_MOTION_FORCE` dev probe. `None` on every ordinary run, so the
-/// animators read their live timers and captures stay settled.
 pub(crate) fn overlay_motion_probe() -> Option<OverlayMotionProbe> {
     #[cfg(test)]
     {
@@ -2922,11 +2162,6 @@ fn prune_bad_fallback_faces(font_system: &mut FontSystem) {
     }
 }
 
-/// Convert a (line, col) position into an absolute char index into `text`,
-/// counting `\n` as the line separator (each newline is one char). `col` is
-/// clamped to the line's length and `line` to the last line, so an out-of-range
-/// position maps to the nearest valid char index. Pure + unit-tested; used to
-/// find where an IME preedit should be spliced into the shaped text.
 fn line_col_to_char_index(text: &str, line: usize, col: usize) -> usize {
     let mut cur_line = 0usize;
     let mut col_in_line = 0usize;
@@ -2936,7 +2171,6 @@ fn line_col_to_char_index(text: &str, line: usize, col: usize) -> usize {
             return idx;
         }
         if c == '\n' {
-            // Reached end of the target line before hitting `col` => clamp here.
             if cur_line == line {
                 return idx;
             }
@@ -2950,7 +2184,6 @@ fn line_col_to_char_index(text: &str, line: usize, col: usize) -> usize {
     idx
 }
 
-/// Linear interpolate two sRGB inks per channel (`t` in `[0,1]`).
 fn lerp_srgb(a: theme::Srgb, b: theme::Srgb, t: f32) -> theme::Srgb {
     let t = t.clamp(0.0, 1.0);
     let mix = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
@@ -2967,25 +2200,16 @@ fn lerp_srgb(a: theme::Srgb, b: theme::Srgb, t: f32) -> theme::Srgb {
 /// hands back a clone rather than re-walking every shaped run of the document.
 #[derive(Clone)]
 struct VisualRow {
-    /// Top y of this row RELATIVE to the buffer top (cosmic-text `run.line_top`).
-    /// Absolute pixel y = `doc_top() + line_top`. Wrap-aware: a wrapped row sits
-    /// one row-height below the row above it, NOT at `logical_line * line_height`.
     line_top: f32,
     /// This row's HEIGHT in px (cosmic-text `run.line_height`). Uniform for body
     /// text, LARGER for a heading row. Caret / selection / squiggle centering use
     /// it so overlays grow with a heading instead of floating in a base-height cell.
     line_height: f32,
-    /// Char-column span of this row on the logical line: `[start_col, end_col]`.
     start_col: usize,
     end_col: usize,
-    /// Per-char x boundaries (relative to TEXT_LEFT) for the whole logical line,
-    /// indexed by GLOBAL char column (so `xs[col]` is valid for this row's cols).
     xs: Vec<f32>,
 }
 
-/// Char-column index of the char starting at byte offset `byte` within `text`.
-/// At `byte == text.len()` returns the char count (end of line). For a byte that
-/// is not a char boundary, returns the column of the char that contains it.
 fn byte_col(text: &str, byte: usize) -> usize {
     if byte >= text.len() {
         return text.chars().count();
@@ -2996,16 +2220,12 @@ fn byte_col(text: &str, byte: usize) -> usize {
 mod scroll;
 pub use scroll::ScrollPos;
 
-/// Everything needed to lay out and draw text + caret onto a wgpu render pass.
-/// Created once, reused every frame. Format must match the target texture's
-/// format (surface format for windowed, offscreen format for headless).
 pub struct TextPipeline {
     pub font_system: FontSystem,
     pub swash_cache: SwashCache,
     pub viewport: Viewport,
     pub atlas: TextAtlas,
     pub renderer: TextRenderer,
-    /// The document text buffer.
     pub buffer: GlyphBuffer,
     /// The GPU quad pipeline that draws the caret underline/dot (no glow/trail).
     /// This is the classic BLOCK caret; left untouched by the Morph work.
@@ -3028,27 +2248,9 @@ pub struct TextPipeline {
     /// INHABITED glyph at the anchor column), keyed by its `CacheKey` so it is
     /// only re-rasterized when the glyph / font / zoom (hence the key) changes.
     caret_mask_to: Option<GlyphMask>,
-    /// Cached rasterized mask of the glyph the caret is LEAVING (the previous
-    /// cursor glyph), for the shape cross-fade during a glide.
     caret_mask_from: Option<GlyphMask>,
-    /// The `CacheKey` of the glyph the caret was INHABITING at the START of the
-    /// current move (the "from" glyph, read at the caret's ANCHOR column — for
-    /// Morph that is one char BACK of the insertion point, see
-    /// [`Self::caret_anchor_col`]). Latched in `set_view` before the cursor
-    /// advances so the morph can cross-fade from it to the newly-inhabited glyph.
     caret_from_key: Option<CacheKey>,
-    /// The EFFECTIVE caret LOOK this frame, latched ONCE per `set_view` from the
-    /// process-global [`crate::caret::mode`]. The caret ANCHOR geometry
-    /// ([`Self::caret_anchor_col`] and everything built on it — the spring target,
-    /// the silhouette masks, the resting cell width) reads THIS field rather than
-    /// the global, so a frame's geometry is self-consistent even if the global
-    /// flips mid-frame (and unit tests reading geometry between `set_view`s can't
-    /// race a concurrent mode/theme write). The live app re-reads the global every
-    /// `set_view` (every prepared frame), so a mode switch re-anchors on the very
-    /// next frame.
     caret_look: CaretMode,
-    /// PAGE MODE: the per-world margin GRADIENT drawn first (under everything).
-    /// Punches a hole for the page column so the flat base_100 clear shows there.
     pub background_pipeline: BackgroundPipeline,
     /// THE LAVA-LAMP GROUND ([`Background::Lava`]): a slow 2D metaball field
     /// painted MARGINS-ONLY, drawn right AFTER `background_pipeline` and BEFORE the
@@ -3057,16 +2259,7 @@ pub struct TextPipeline {
     /// driven by the live App's slow ~10 fps tick (never `advance()`'s hot loop);
     /// [`Self::lava_phase`] holds it. See [`crate::lava`].
     pub lava_pipeline: crate::lava::LavaPipeline,
-    /// The lava lamp's current animation PHASE (in cycles), advanced ONLY by the
-    /// live App's slow ambient tick (`App::about_to_wait`) via [`Self::advance_lava`].
-    /// The construction default is [`crate::lava::LAVA_FROZEN_PHASE`] (0.0), and a
-    /// headless capture never ticks, so a capture always renders the fixed t=0
-    /// phase — deterministic. Reduce Motion / the dev gallery knob override it at
-    /// read time (see [`Self::lava_render_phase`]).
     lava_phase: f32,
-    /// Last-settled viewport used for lava metaball geometry. Live resize keeps
-    /// this fixed while the page mask follows the current window, then snaps it
-    /// once the resize debounce settles.
     lava_field_viewport: [f32; 2],
     /// THE ORGANIC FROST SEED FIELD (proto-cache): the visible margin glyphs' halo
     /// seeds `[x0, x1, yc, r]` (the outline entries + the gutter), summed by the
@@ -3079,10 +2272,6 @@ pub struct TextPipeline {
     /// face, and the drawn outline/gutter text (see [`Self::frost_seed_key`]).
     /// `None` clears the cache (a non-frost frame).
     frost_seed_key: Option<u64>,
-    /// How many times the frost seed field has been rebuilt this pipeline's life —
-    /// the bench witness (`--bench-frost`) asserts ZERO across warm steady frames
-    /// and EXACTLY ONE after a margin-text or zoom change, so a bench that reshaped
-    /// nothing can't pass as measuring the work.
     pub frost_seed_rebuilds: u64,
     // (frost seed count is exposed via `TextPipeline::frost_seed_count`.)
     /// TWINKLING STARS (`theme::AmbientStyle::Stars`, the TWINKLING-STARS
@@ -3142,17 +2331,7 @@ pub struct TextPipeline {
     /// `sync_theme_colors`. Every world carries it (no opt-out); empty for prose /
     /// non-highlight buffers (byte-identical).
     pub wash_highlight_pipeline: SelectionPipeline,
-    /// WYSIWYG: the quiet value-step (opaque `base_200`) PANEL behind a fenced
-    /// code block — always present once WYSIWYG is on, drawn BEFORE the syntax
-    /// washes so a fence body's comment/string wash composites over the panel
-    /// exactly as it does over the bare ground. Geometry from
-    /// [`rects::FencePanelCache`]; empty (zero instances) with WYSIWYG off or for
-    /// a fence-less buffer. Re-tinted in `sync_theme_colors`.
     pub fence_panel_pipeline: SelectionPipeline,
-    /// WYSIWYG: the quiet value-step (opaque `base_200`) PILL behind an INLINE
-    /// code span (`MdKind::Code { inline: true }`), a small overhang beyond the
-    /// span's own glyph box. Sibling of `fence_panel_pipeline` (same tint,
-    /// different geometry source — see [`rects::WashCache::code_pill_protos`]).
     pub code_pill_pipeline: SelectionPipeline,
     /// The GPU quad pipeline that draws translucent selection highlights.
     pub selection_pipeline: SelectionPipeline,
@@ -3204,67 +2383,13 @@ pub struct TextPipeline {
     /// `selection_invert` never calls `set_corner` and so stays a plain
     /// rectangle, exactly right for a selection range.
     pub caret_invert: SelectionPipeline,
-    /// ORNAMENT renderer for the markdown section-break marks: one quiet, DIM,
-    /// column-CENTERED glyph per thematic break (the theme's PER-SYNTAX
-    /// [`theme::Ornaments`] set — `---`/`***`/`___` each draw a different glyph,
-    /// replacing the old thin rule line). All glyphs live in the bundled
-    /// [`SYMBOL_FAMILY`] face. Parks off-screen / uploads no areas for a
-    /// non-markdown buffer, so a default capture stays byte-identical. The break
-    /// buffers are shaped fresh per frame (one per distinct syntax present — at most
-    /// three).
     pub ornament_renderer: TextRenderer,
-    /// WYSIWYG TABLE GRID: the cell text of every off-cursor GFM table, placed by
-    /// PIXEL column (not space-padding — a proportional face can't align that way)
-    /// via one [`TextArea`] per cell, the [`prepare_ornaments`](Self::prepare_ornaments)
-    /// pattern applied to a rectangular block. Parks (uploads no areas) for a
-    /// non-table buffer, with WYSIWYG off, or for a table the caret is inside
-    /// (the source reveals instead) — so a default capture stays byte-identical.
     pub table_renderer: TextRenderer,
-    /// WYSIWYG TABLE GRID: the ONE faint header-separator hairline under each
-    /// drawn table (its only drawn line — calm-minimal, no box borders). A reused
-    /// [`SelectionPipeline`] tinted `muted`, drawn on the ground before text like
-    /// the fence panel. Empty (no instances) whenever the grid parks.
     pub table_rule_pipeline: SelectionPipeline,
-    /// The OPAQUE BASE_300 card behind the top-right search panel; ALSO the flat
-    /// centered-overlay card (go-to / command palette / theme / keybindings / …),
-    /// paired with `panel_shadow`/`panel_border` below.
     pub panel_card: SelectionPipeline,
-    /// CENTERED-OVERLAY elevation companions to `panel_card` — the SAME
-    /// raised-border shape [`set_float_quads`] draws for every other summoned
-    /// card (search / spell / caret-preview / HUD / which-key / menu dropdown),
-    /// but drawn ONLY when `Theme::render_caps.elevation == Elevation::Bordered`
-    /// (a true 1-bit world). `panel_shadow` is always parked empty — the
-    /// drop-shadow quad was RETIRED outright (dark-depth Option C; see
-    /// [`float_shadow_srgba`]'s doc), kept as a field only pending a fuller
-    /// pipeline-removal cleanup.
-    /// Every OTHER world's centered overlay stays the exact pre-existing flat
-    /// `panel_card` fill with these two parked empty — byte-identical to before
-    /// this pair existed. On a one-bit world the blur/scrim backdrop that used to
-    /// give the flat card its contrast is disabled outright (`backdrop_blur`'s
-    /// one-bit short-circuit), collapsing `base_300 == base_100`, so the card
-    /// would otherwise be a literally invisible black rect on black — the crisp
-    /// white BORDER (`theme::surface_selected()`'s one-bit override) is the
-    /// documented answer (`theme::worlds::WAGTAIL`'s "Elevation" note), the SAME
-    /// mechanism the menu-bar dropdown already carries; this closes the gap for
-    /// every other summoned card (`OverlayKind`'s whole family). Kept as
-    /// DEDICATED pipeline instances (never the shared `float_*` trio) because
-    /// those are already spoken for by the caret-style preview panel / spell
-    /// popup, which can be summoned in the SAME frame as a centered overlay
-    /// (the caret-style picker's own demo preview sits below its picker card) —
-    /// sharing an instance would let one clobber the other's rect.
     pub panel_shadow: SelectionPipeline,
     pub panel_border: SelectionPipeline,
-    /// FROSTED-BACKDROP blur behind a full-takeover overlay (the REPLACEMENT for the
-    /// old neutral grey scrim). When a blur-eligible overlay opens, the document is
-    /// rendered ONCE to this module's offscreen texture, blurred at quarter-res, and
-    /// composited behind the overlay card — a cached, hue-preserving defocus (see
-    /// [`blur`]). The THEME / CARET pickers (`overlay_crisp`) and the search SPLIT
-    /// panel skip it entirely (the doc stays crisp/bright there).
     pub blur: blur::BlurBackdrop,
-    /// Whether the blur backdrop must be RECOMPUTED this frame (the doc / size / theme
-    /// behind the overlay changed since the cached blur was built), vs. just
-    /// re-composited from the cached quarter texture. Set by [`Self::prepare`] from a
-    /// signature compare so an idle overlay-open frame re-blurs nothing (DESIGN §6).
     blur_recompute: bool,
     /// The signature the cached blur was built for (`None` = no cache). Compared in
     /// `prepare` against the live doc/size/theme signature to decide `blur_recompute`.
@@ -3283,63 +2408,19 @@ pub struct TextPipeline {
     /// in `panel_renderer` exactly as before (this renderer parks empty), so
     /// every non-Bars world is byte-identical. Shares the atlas + viewport.
     pub placard_renderer: TextRenderer,
-    /// Single-line glyph buffer holding the composed panel string. Reshaped from
-    /// scratch each frame (tiny).
     pub panel_buffer: GlyphBuffer,
-    /// PALETTE/picker RIGHT column: a SECOND panel buffer, one line per name row,
-    /// laid out with cosmic-text `Align::Right` at the card text width and rendered
-    /// as a second `TextArea` at the same origin as `panel_buffer`. So each row's
-    /// chord (command palette) or "last edited" time (go-to picker) sits FLUSH at
-    /// the card's right text edge regardless of the proportional name width — a
-    /// clean right column, replacing the old char-count space padding (which went
-    /// ragged on proportional faces).
     pub panel_bind_buffer: GlyphBuffer,
-    /// THE OVERLAY-PERSONALITY-AS-DATA round: the large corner-anchored
-    /// wordmark buffer for a [`theme::TitleStyle::Placard`] world — shaped
-    /// and uploaded as a THIRD `TextArea` at the same panel origin, drawn
-    /// FIRST (behind the name/chord columns) so rows/text always composite
-    /// over it (legibility first). Empty text on every `InlinePrefix` world
-    /// (every world today), so its `TextArea` is simply omitted — see
-    /// `render/chrome/overlay_shape.rs::overlay_shape_placard`.
     pub placard_buffer: GlyphBuffer,
-    /// The ONE amber element in the panel: the caret block at the query end.
     pub panel_caret: CaretPipeline,
-    /// The LIVE preview caret quad, drawn on the sample line inside the caret-style
-    /// picker's floating preview PANEL — a separate instance so it never disturbs the
-    /// document caret. Empty (parked) unless the caret-style picker is open.
     pub caret_preview_pipeline: CaretPipeline,
-    /// The glyph-silhouette (Morph) pipeline for the caret-style picker's PREVIEW
-    /// demo — a separate instance from the document's `caret_glyph_pipeline` (never
-    /// the SAME one: both may prepare + draw in the same frame, since a crisp caret
-    /// picker leaves the live document visible behind it, and sharing one pipeline
-    /// would have each stomp the other's bound masks / instance count). Parked empty
-    /// unless the demo is settled on an inhabited glyph in Morph mode this frame.
     pub caret_preview_glyph_pipeline: CaretGlyphPipeline,
-    /// FLOATING PANEL PRIMITIVE — a crisp raised border edge + the opaque card of a
-    /// small summoned card with NO scrim, distinct from the full-width overlay.
-    /// Uploaded by `prepare_float_panel`; its first use is the caret-style preview
-    /// panel, and future summoned micro-panels (spell / thesaurus / which-key)
-    /// reuse the same helper. Empty when unsummoned. `float_shadow` is always
-    /// parked empty too — the drop-shadow quad was RETIRED outright (dark-depth
-    /// Option C; see [`float_shadow_srgba`]'s doc), kept as a field only pending a
-    /// fuller pipeline-removal cleanup.
     pub float_shadow: SelectionPipeline,
     pub float_border: SelectionPipeline,
     pub float_card: SelectionPipeline,
-    /// The single resolved owner for this frame's shared float trio.
     pub(in crate::render) float_panel_model: Option<chrome::FloatPanelModel>,
-    /// DIFF-AS-PREVIEW panel dressing — its OWN elevation trio (the established
-    /// per-surface pattern: popover/hud/which-key each own theirs), because the
-    /// `float_*` trio belongs to the spell/caret panels and `panel_*` to the very
-    /// picker card floating over this panel the SAME frame. Border rides
-    /// `set_float_quads`' one shape; the card is the opaque fill the transcript
-    /// draws on; `diffpanel_shadow` is always parked empty (no drop shadow — dark-
-    /// depth Option C). All parked empty unless a History diff preview is up.
     pub diffpanel_shadow: SelectionPipeline,
     pub diffpanel_border: SelectionPipeline,
     pub diffpanel_card: SelectionPipeline,
-    /// Text renderer + buffer for the caret-preview panel's sample line (drawn on the
-    /// float card). Parked off-screen unless the caret-style picker is open.
     pub preview_renderer: TextRenderer,
     pub preview_buffer: GlyphBuffer,
     /// The GPU quad pipeline that draws the wavy spell-check underlines.
@@ -3365,9 +2446,7 @@ pub struct TextPipeline {
     /// Geometry from [`rects`]' link-underline bucket (`link_underlines`); empty
     /// for a link-less buffer.
     pub link_underline_pipeline: SpellUnderlinePipeline,
-    /// Spring + shape-morph animation state for the caret.
     pub caret: CaretAnim,
-    /// Last view state applied (for caret placement + scroll during draw).
     cursor_line: usize,
     cursor_col: usize,
     /// The caret's wrap AFFINITY latched from the last `set_view` — the caret's own
@@ -3375,42 +2454,19 @@ pub struct TextPipeline {
     /// shared soft-wrap boundary (see [`crate::caret::Affinity`]). `Downstream` for
     /// any caret not parked at a visual-row end, so ordinary placement is unchanged.
     caret_affinity: crate::caret::Affinity,
-    /// The semantic document scroll; all document geometry resolves this fact.
     scroll: ScrollPos,
-    /// Current zoom-derived metrics (single source of truth for layout).
     metrics: Metrics,
-    /// The display's DPI `scale_factor` folded into [`Self::metrics`] (1.0 for the
-    /// headless capture, the real monitor scale for the live window). Stored so a
-    /// per-frame `set_view` can rebuild the metrics as `with_dpi(zoom, dpi)` without
-    /// the caller threading it through every `ViewState`. See [`Metrics::with_dpi`].
     dpi: f32,
     /// Last window/canvas WIDTH in physical pixels (from `set_size`). PAGE MODE
     /// centers the column within this, so the column left/width are derived from
     /// it rather than from the buffer's (column-derived) wrap width.
     window_w: f32,
-    /// Last window/canvas HEIGHT in physical pixels (from `set_size`). Only read by
-    /// the DEBUG panel's `viewport WxH` line (and so the sidecar can report the panel
-    /// text without re-threading the canvas dims); layout never uses it.
     window_h: f32,
     /// Active selection endpoints (ordered), or `None`.
     selection: Option<((usize, usize), (usize, usize))>,
-    /// COLLAPSED-HEADING TAILS mirrored from the view (see [`ViewState::fold_tails`]):
-    /// each VISIBLE folded heading's FILTERED row + hidden line count. The ornament
-    /// pass hangs a quiet "… N lines" glyph on that row (and, when the caret is on it
-    /// or it is hovered, a small expand CHEVRON). Empty unless something is folded.
     fold_tails: Vec<FoldTail>,
-    /// The FILTERED document row the pointer is hovering, or `None`. LIVE only — set
-    /// by `set_hover_line` from the app's pointer, never carried on the view — so a
-    /// headless capture (no pointer) leaves it `None` and only the caret-on-heading
-    /// chevron reveal fires there. Drives the fold-tail chevron's HOVER reveal.
     hover_line: Option<usize>,
-    /// Active IME composition string (empty = none). When non-empty it is
-    /// spliced into the shaped buffer at the cursor so it renders with real
-    /// (Advanced-shaped) glyphs, the caret is moved to its end, and an underline
-    /// is drawn beneath it. Never written to the editor's ropey buffer.
     preedit: String,
-    /// Misspelled word spans for the current text (from the spell engine). Each
-    /// is turned into a wavy underline via the advance-aware layout in `prepare`.
     misspelled: Vec<Misspelling>,
     /// Version counter for [`Self::misspelled`]: bumped by `sync_view_fields`
     /// whenever the incoming spell list actually DIFFERS from the mirrored one.
@@ -3477,15 +2533,7 @@ pub struct TextPipeline {
     /// than O(the whole prefix before the caret). Interior-mutable so the `&self`
     /// lookups (`cursor_glyph_key_at`) can lazily fill it. See [`caret::CaretLineGlyphs`].
     caret_line_glyphs: std::cell::RefCell<Option<caret::CaretLineGlyphs>>,
-    /// CACHED ORNAMENT LINE LISTS (rule lines + bullet lines), keyed by the reshape
-    /// version, so the per-frame ornament pass filters a cached set to the visible
-    /// rows instead of re-scanning every line × md_span. See [`rects::OrnamentCache`].
     ornament_cache: rects::OrnamentCache,
-    /// The deterministic per-table geometry the LAST [`Self::prepare_table_grid`]
-    /// laid out (row/col counts, measured column widths, reveal state) — the source
-    /// for the capture `tables` sidecar block. Interior-mutable so the frame's
-    /// prepare pass (`&mut self`) fills it and the read-only sidecar reads it back;
-    /// cleared + refilled every prepare, empty for a non-table / WYSIWYG-off frame.
     table_report: std::cell::RefCell<Vec<TableReport>>,
     /// LIVE-ONLY horizontal table PAN (the reading gesture the user asked for after
     /// revising the no-scroll call): `(block start byte, pan offset px)` for the
@@ -3511,9 +2559,6 @@ pub struct TextPipeline {
     /// the selection-only entries are render-only, verified by pixel/instance-count
     /// arithmetic rather than the sidecar (the state-vs-appearance tripwire).
     xray: Vec<XrayRow>,
-    /// INLINE IMAGES: the directory a relative image path resolves against (the
-    /// open doc's parent dir), copied from [`ViewState::doc_dir`] in
-    /// [`Self::sync_view_fields`]. `None` = resolve relative paths against cwd.
     image_base_dir: Option<std::path::PathBuf>,
     /// Per LOGICAL LINE, the display HEIGHT (px) to RESERVE a tall row on that
     /// line, or `None` for an ordinary line. Two producers share this slot (a line
@@ -3559,39 +2604,15 @@ pub struct TextPipeline {
     /// `images` sidecar block and the GPU draw. Interior-mutable so the reshape
     /// fills it and the read-only sidecar reads it back.
     image_report: std::cell::RefCell<Vec<ImageReport>>,
-    /// INLINE-IMAGE DRAG-RESIZE (v2, live-app only): while a drag is in flight, an
-    /// override of the target image's fit-to-column DISPLAY WIDTH by its document
-    /// byte range — `(start, end, display_w)`. `compute_image_layout` consults it and
-    /// re-fits that ONE image at the preview width (its height rides the intrinsic
-    /// aspect) WITHOUT touching the buffer, so the image resizes live; the release
-    /// clears it and writes the `|NNN` hint back as one undoable edit. `None` (no
-    /// drag) is byte-identical, and the headless capture never sets it (no MouseInput).
     image_preview: Option<(usize, usize, f32)>,
-    /// Set when [`Self::set_image_preview`] changed the override, so the next
-    /// `set_view` forces the reshape that re-runs `compute_image_layout` (the text +
-    /// zoom are unchanged during a drag, so nothing else would trigger it). Consumed
-    /// (taken) in `set_view`, mirroring the `render_flag_changed` force latches.
     image_preview_dirty: bool,
     /// INLINE IMAGES: the textured-quad pipeline that draws each visible, off-cursor
     /// image (one instanced quad per image) fit-to-column in its reserved tall row,
     /// after the washes + before selection. Empty (nothing drawn) when the feature
     /// is off / no visible images / on wasm, so a default capture is byte-identical.
     pub image_pipeline: crate::image_pipeline::ImageQuadPipeline,
-    /// INLINE IMAGES: the calm rounded MISSING-file PLACEHOLDER quad (opaque
-    /// `base_200`, the fence-panel tint family — NO amber/red, a missing image is a
-    /// calm state), one per visible missing image. Re-tinted in `sync_theme_colors`.
     pub image_placeholder_pipeline: SelectionPipeline,
-    /// INLINE IMAGES: the CAPTION SCRIM — one soft band of the world's OWN GROUND
-    /// (`base_100` at part-alpha, [`theme::image_reveal_scrim`]) behind the revealed
-    /// source of a caret-on image line, drawn OVER the dimmed image and UNDER the
-    /// centred source so the caption reads over any image pixels. Ground-over-ground
-    /// off the image (invisible), so it only lifts value where the text overlaps the
-    /// image. Empty (parked) unless a real image line is revealed with WYSIWYG on, so
-    /// a default capture is byte-identical. Re-tinted in `sync_theme_colors`.
     pub image_scrim_pipeline: SelectionPipeline,
-    /// INLINE IMAGES: the placeholder's centered LABEL text (filename + alt) in the
-    /// muted ink, drawn over `image_placeholder_pipeline`'s quad. Parks off-screen
-    /// (no areas) when nothing is missing, so a default capture stays byte-identical.
     pub image_placeholder_renderer: TextRenderer,
     /// INLINE IMAGES: the decode + GPU-upload cache (native-only), keyed by canonical
     /// path + mtime. Decodes O(visible) and downscales to the display width; pruned
@@ -3605,9 +2626,6 @@ pub struct TextPipeline {
     /// measured 22 ms of a squiggle-dense doc's 28 ms frame). See
     /// [`rects::UnderlineCache`].
     squiggle_cache: rects::UnderlineCache,
-    /// CACHED NIT-UNDERLINE PROTOS — same shape as `squiggle_cache` for the
-    /// writing-nit bands, whose spans (pure per-line text scans) + row geometry
-    /// were likewise rebuilt from scratch every frame. See [`rects::UnderlineCache`].
     nit_cache: rects::UnderlineCache,
     /// CACHED SYNTAX-WASH PROTOS — the scroll-independent comment/string wash
     /// quads, keyed on (row-geometry generation, reshape count) exactly like the
@@ -3615,9 +2633,6 @@ pub struct TextPipeline {
     /// keep it warm; the per-frame wash pass is O(visible) offset + cull. See
     /// [`rects::WashCache`].
     wash_cache: rects::WashCache,
-    /// CACHED FENCE-PANEL PROTOS — the scroll-independent row bands behind every
-    /// fenced code block, keyed exactly like `wash_cache`. See
-    /// [`rects::FencePanelCache`].
     fence_panel_cache: rects::FencePanelCache,
     /// CACHED SHAPED TABLE-GRID GEOMETRY — the ONE shape site
     /// ([`layers::TableGridCache`]) both [`Self::compute_table_layout`] (which
@@ -3640,7 +2655,6 @@ pub struct TextPipeline {
     /// instrumentation counter (cursor-only / scroll-only / selection-only updates
     /// do NOT increment it); used by tests to prove non-typing events don't reshape.
     pub reshape_count: u64,
-    /// --- search panel view state (copied from ViewState in set_view) ---
     search_active: bool,
     search_matches: Vec<((usize, usize), (usize, usize))>,
     search_query: String,
@@ -3649,8 +2663,6 @@ pub struct TextPipeline {
     search_replace_active: bool,
     search_replacement: String,
     search_editing_replacement: bool,
-    /// ITEM 10 — the two fields' CHAR-index carets (copied from ViewState in
-    /// `set_view`), for the mid-string glyph-scan caret placement.
     search_query_caret: usize,
     search_replacement_caret: usize,
     /// The selected-ROW highlight quad behind the overlay's chosen candidate
@@ -3664,19 +2676,7 @@ pub struct TextPipeline {
     /// row (retired), whose gamma-limited flip of the antialiased row text read
     /// as a faint grey — see [`theme::HighlightTreatment::InverseFill`].
     pub overlay_rows: SelectionPipeline,
-    /// PER-ITEM LIST SURFACES round: the UNSELECTED bar surfaces drawn behind
-    /// each candidate row under [`theme::ListStyle::Bars`] (the SELECTED bar
-    /// rides `overlay_rows`, one value step brighter + optionally wider). One
-    /// quieter value-step fill, one shared per-frame corner radius (the world's
-    /// `radius`). Parked empty (zero instances → byte-identical) on every
-    /// `Pane` world and whenever no overlay is up. Drawn BETWEEN `panel_card`
-    /// and `overlay_rows` so the card is behind the bars and the selected bar
-    /// is on top.
     pub overlay_bars: SelectionPipeline,
-    /// THEME PICKER only: the thin UNDERLINE quad under the ACTIVE lens label in the
-    /// faceted strip — content-INK, never amber (DESIGN §3): the active lens is marked
-    /// by VALUE + this hairline. A reused `SelectionPipeline`; parked empty for every
-    /// other overlay, so a non-theme card draws byte-identically.
     pub overlay_lens_underline: SelectionPipeline,
     /// V6 P5 round — the faceted strip's INACTIVE ghost pills under
     /// [`theme::FacetStyle::Chips`]: one hairline STROKE pill per non-active
@@ -3685,24 +2685,8 @@ pub struct TextPipeline {
     /// under-the-text z-slot; parked empty for `Text`/`Band` and every non-theme
     /// card, so those render byte-identically.
     pub overlay_facet_ghost: SelectionPipeline,
-    /// ARM B LIVING-BAND PROBE only (`AWL_LIVING_BAND=twoshape…`): the
-    /// CROSSING quad the two-shape choreography fills at the world's brightest
-    /// value step where the leading band and its chasing echo overlap — colour
-    /// where they cross, by VALUE (never a hue). Parked EMPTY (zero instances →
-    /// byte-identical) on every ordinary run and every non-two-shape probe, so a
-    /// default capture never sees it. Drawn just ABOVE `overlay_rows`.
     pub overlay_cross: SelectionPipeline,
-    /// ITEM 94 — a SETTINGS RANGE row's quiet TRACK: one hairline quad per drawn
-    /// range row, in the faintest ink rung (`theme::faint()` — furniture, not
-    /// figure). Parked empty (zero instances → byte-identical) for every other
-    /// card and whenever no overlay is up. Drawn just above the selected-row band
-    /// so a selected rail reads ON its highlight.
     pub overlay_range_track: SelectionPipeline,
-    /// ITEM 94 — the same row's FILLED portion + THUMB, one value step more
-    /// present than the track (`theme::muted()`, flipped through the ONE
-    /// `theme::selected_row_secondary_ink` owner when the selected row's band
-    /// would wash it out — the same mechanism the value TEXT beside it uses).
-    /// Never the amber accent: the caret is the only accent (DESIGN §3).
     pub overlay_range_thumb: SelectionPipeline,
     /// THE STIPPLE PLACARD (`theme::PlacardInk::Stipple`): the corner wordmark
     /// rendered as a Bayer-matrix stipple of individual full-ink pixels
@@ -3721,9 +2705,6 @@ pub struct TextPipeline {
     /// placard's first-in-batch upload gives it); parked empty on every
     /// non-stipple world and whenever no overlay is up.
     pub placard_stipple: SelectionPipeline,
-    /// THEME PICKER only: the underline rect `[x, y, w, h]` computed during shaping
-    /// (from the shaped strip glyphs, so it lands exactly under the active label at any
-    /// world face), consumed by `overlay_draw_card`. `None` when no theme picker is up.
     overlay_theme_underline: Option<[f32; 4]>,
     /// V6 P5 round — the INACTIVE ghost-pill rects `[x, y, w, h]` recorded during
     /// theme-strip shaping under [`theme::FacetStyle::Chips`] (one per non-active
@@ -3732,68 +2713,20 @@ pub struct TextPipeline {
     /// into `overlay_facet_ghost`. EMPTY under `Text`/`Band` and off the theme
     /// picker, so they render byte-identically.
     overlay_theme_facet_ghosts: Vec<[f32; 4]>,
-    /// ITEM 46 — the lens-strip TAB plate rects `[x, y, w, h]`, one per DRAWN tab
-    /// label, recorded during theme-strip shaping ONLY on a [`theme::ListStyle::Bars`]
-    /// world (from the SAME shaped glyph spans the active/ghost facet pills read, so
-    /// plate and mark can't disagree). Consumed by `overlay_draw_card` into the quiet
-    /// `overlay_bars` so no tab floats BARE over the blurred backdrop — the wave-2
-    /// "floating commands" class, strip edition (item 35 plated the chords). EMPTY on
-    /// a `Pane` world and off the theme picker, so they render byte-identically.
     overlay_strip_tab_plates: Vec<[f32; 4]>,
-    /// Whether the LAST overlay shaping granted the dim right column (chords /
-    /// descriptions / times / diffs). Written by `overlay_shape_text` from the
-    /// [`rowlayout`] verdict — `false` when the column YIELDED to keep the names
-    /// whole. A test/debug witness of the no-overlap law; not read by the draw path
-    /// (which threads the verdict through directly).
     overlay_right_shown: bool,
-    /// Renderer + buffer for the QUIET word-count / reading-time readout, drawn DIM
-    /// in the bottom-RIGHT for markdown buffers only. Its own glyph buffer so it
-    /// composes independently of the panel text.
     pub wordcount_renderer: TextRenderer,
     pub wordcount_buffer: GlyphBuffer,
-    /// Renderer + buffer for the CALM NOTICE (bottom-center, LABEL size, muted
-    /// ink — today the autosave clobber guard's "held" line). Its own glyph
-    /// buffer so it composes independently; parked off-screen when the notice is
-    /// empty, so a default capture stays byte-identical. Live-only content.
     pub notice_renderer: TextRenderer,
     pub notice_buffer: GlyphBuffer,
-    /// Renderer + buffer for the PAGE-WIDTH DRAG READOUT — a quiet muted char-count
-    /// (e.g. "68") floating near the pointer while a page-column edge drag is in
-    /// progress (Butterick's line-length rule made visible). Its own glyph buffer
-    /// so it composes independently; parked off-screen while `page_drag_readout` is
-    /// `None`, which is the ONLY state a headless capture ever sees (it is set only
-    /// by the live App's real mouse-drag handlers), so a default capture — and
-    /// every `--keys` replay — stays byte-identical.
     pub page_drag_renderer: TextRenderer,
     pub page_drag_buffer: GlyphBuffer,
-    /// Renderer + buffer for the ZOOM READOUT — a quiet muted percentage (e.g.
-    /// "120%") floating near the pointer while a zoom gesture is IN FLIGHT (the
-    /// sticky-zoom debounce window). Its own glyph buffer so it composes
-    /// independently; parked off-screen while `zoom_readout` is `None` (and no
-    /// `AWL_ZOOM_READOUT` probe), which is the ONLY state a headless capture ever
-    /// sees by default (it is set only by the live App's zoom debounce), so a
-    /// default capture — and every `--keys` replay — stays byte-identical.
     pub zoom_readout_renderer: TextRenderer,
     pub zoom_readout_buffer: GlyphBuffer,
-    /// Renderer + buffer for the opt-in DEBUG panel, drawn DIM in the top-LEFT
-    /// corner ONLY when [`crate::debug::debug_on`]. Its own glyph buffer so it
-    /// composes independently of the wordcount text. Parked off-screen when the
-    /// panel is off, so a default capture stays byte-identical.
     pub debug_renderer: TextRenderer,
     pub debug_buffer: GlyphBuffer,
-    /// Renderer + buffer for the page-mode ORIENTATION GUTTER — a quiet stacked
-    /// label in the BOTTOM-LEFT margin: the filename (LABEL × muted) over the project
-    /// (LABEL × faint). Its own glyph buffer so it composes independently of the
-    /// panel text; parked off-screen edge-to-edge or with no name, so a
-    /// non-page capture stays byte-identical.
     pub gutter_renderer: TextRenderer,
     pub gutter_buffer: GlyphBuffer,
-    /// Renderer + buffer for the PERSISTENT MARGIN OUTLINE — a quiet
-    /// table-of-contents in the TOP-LEFT margin (page mode only): one dim line per
-    /// heading (LABEL size), the CURRENT section a value rung brighter. Its own glyph
-    /// buffer so it composes independently of the gutter/panel text; parked
-    /// off-screen when the outline is OFF / not page mode / not markdown / heading-free
-    /// / the margin is too narrow, so a default (off) capture stays byte-identical.
     pub outline_renderer: TextRenderer,
     pub outline_buffer: GlyphBuffer,
     /// WEB/LINUX MENU BAR (`menubar.rs` + `render/chrome/menubar.rs`): the slim
@@ -3816,17 +2749,6 @@ pub struct TextPipeline {
     pub menubar_hi: SelectionPipeline,
     pub menubar_renderer: TextRenderer,
     pub menubar_buffer: GlyphBuffer,
-    /// WEB/LINUX MENU BAR dropdown (open when `crate::menubar::open_menu()` is `Some`):
-    /// the anchored float card + its item rows. Its OWN float-elevation pipelines
-    /// (not the shared `float_*`, which the overlay/search own) so the two can never
-    /// race the same quads — the dropdown draws in the chrome tail, over everything.
-    ///   * `menu_drop_shadow`/`_border`/`_card` — the card elevation (raised border ->
-    ///     `base_300` card, no drop shadow — dark-depth Option C), the same tokens the
-    ///     HUD/which-key floats use. `menu_drop_shadow` is always parked empty.
-    ///   * `menu_drop_sep` — the thin `muted` hairline drawn across each separator row.
-    ///   * `menu_drop_renderer`/`_buffer` — the item LABELS (left-aligned).
-    ///   * `menu_chord_renderer`/`_buffer` — the item native CHORDS (right-aligned,
-    ///     the secondary column, dim), like the gutter's right-aligned label.
     pub menu_drop_shadow: SelectionPipeline,
     pub menu_drop_border: SelectionPipeline,
     pub menu_drop_card: SelectionPipeline,
@@ -3847,126 +2769,30 @@ pub struct TextPipeline {
     /// Which roster menu the stored `menu_drop_rect`/`menu_drop_rows` belong to, so a
     /// stale frame's geometry can't be attributed to the wrong menu. `None` closed.
     pub menu_drop_menu: Option<usize>,
-    /// HELD STATS HUD: the calm CARD the stats sit on — a `base_300` surface risen one
-    /// value step forward over the FROSTED-BLUR backdrop (the same hue-preserving frost
-    /// the palette recedes behind; depth by value, DESIGN §5), so the figures read on
-    /// a clean ground instead of clashing with the prose beneath. On the SAME float-panel
-    /// elevation the palette + which-key use (raised `hud_border` -> opaque card, no
-    /// drop shadow — dark-depth Option C), so its summoned card carries the crisp edge
-    /// every other float has. Sized to the stacked block + padding, centered; empty
-    /// when the HUD is released. `hud_shadow` is always parked empty.
     pub hud_shadow: SelectionPipeline,
     pub hud_border: SelectionPipeline,
     pub hud_card: SelectionPipeline,
-    /// WRITING-STREAKS HEATMAP: the calendar squares of the summoned Writing
-    /// streaks card, drawn ON the `hud_card` ground (between the card and its
-    /// text). Uses PER-INSTANCE colors (`SelectionPipeline::prepare_multicolor`)
-    /// so each square carries its own intensity tint off the world's value ladder
-    /// (`theme::heatmap_colors`). Empty (0 instances) whenever the card is closed,
-    /// so a default render is byte-identical.
     pub streak_cells: SelectionPipeline,
-    /// HELD STATS HUD: renderer + buffer for the centered stacked stats text (the big
-    /// figures in CONTENT ink at BODY size over their captions in FAINT ink at LABEL
-    /// size). Its own glyph buffer so it composes independently of the other chrome;
-    /// parked off-screen when the HUD is released.
     pub hud_renderer: TextRenderer,
     pub hud_buffer: GlyphBuffer,
-    /// LIFETIME ODOMETER snapshot for the held HUD's odometer rows (characters,
-    /// writing time, files touched, caret travel, most-lived-in world). The live
-    /// App pushes `Some` every `sync_view` (`App::stats_sync_hud`); the headless
-    /// capture never calls that seam, so this stays `None` and every odometer row
-    /// renders the fixed placeholder — the determinism boundary that keeps a
-    /// `--hud` capture byte-stable. Set via [`Self::set_hud_stats`].
     hud_stats: Option<crate::hud::HudStats>,
-    /// WRITING-STREAKS view snapshot: the live App pushes `Some` every `sync_view`
-    /// (`App::streaks_sync_card`) from its persisted `streaks.toml`; the headless
-    /// capture never calls that seam, so this stays `None` and the card renders the
-    /// fixed synthetic [`crate::streaks::placeholder`] year + streak numbers — the
-    /// determinism boundary keeping a `--streaks` capture byte-stable. Set via
-    /// [`Self::set_streaks`].
     streaks_view: Option<crate::streaks::StreaksView>,
-    /// NOTES VERBS round: the held HUD's SAVED stat state (dirty, or clean +
-    /// elapsed seconds since the last successful write). The live App pushes
-    /// `Some` every `sync_view` (`App::sync_hud_saved`); the headless capture
-    /// never calls that seam, so this stays `None` and the row renders the fixed
-    /// placeholder — the same determinism boundary `hud_stats` uses. Set via
-    /// [`Self::set_hud_saved`].
     hud_saved: Option<crate::hud::HudSaved>,
-    /// CHECK FOR UPDATES round: the About card's "checked … ago" figure — the
-    /// LOCAL marker's `Never`/`CheckedAgo(secs)` state. The live App pushes
-    /// `Some` every `sync_view` (`App::sync_update_checked`); the headless
-    /// capture never calls that seam, so this stays `None` and the About card
-    /// (if open in a capture) renders the fixed dash placeholder via
-    /// [`crate::updates::checked_line`] — the same determinism boundary
-    /// `hud_saved` uses. Set via [`Self::set_update_checked`].
     hud_update_checked: Option<crate::updates::UpdateChecked>,
-    /// PASSIVE CRASH RECOVERY: true while a native crash marker awaits explicit
-    /// acknowledgement through Report a Problem. False in ordinary captures.
     hud_pending_crash: bool,
-    /// HOLD-⌘ SHORTCUT PEEK rows: the personalized shortcut list the summoned peek card
-    /// shows (the live ledger's graduation candidates, resolved to chord+name). The live
-    /// App pushes them every `sync_view` (`App::sync_discoverability`); a headless
-    /// capture never does, so this stays EMPTY and the card renders the curated
-    /// [`crate::peek::starter_rows`] fallback — the determinism boundary keeping a
-    /// `--peek` capture byte-stable. Set via [`Self::set_peek_rows`].
     peek_rows: Vec<crate::peek::PeekRow>,
-    /// KEYBINDINGS TIPS FOOTER lines: the "your top 3" band the Keybindings overlay draws
-    /// below its list (each a `"⌘O  Go to file"` one-liner from the ledger's top-3
-    /// graduation candidates). The live App pushes them ONLY while the Keybindings
-    /// overlay is open (`App::sync_discoverability`), empty otherwise; a headless capture
-    /// never does, so this stays empty and the footer is hidden — a Keybindings capture
-    /// is byte-identical. Set via [`Self::set_keybindings_tips`].
     keybindings_tips: Vec<String>,
-    /// WHICH-KEY PANEL: the summoned "what can follow this prefix?" hint card
-    /// (bottom-left), on its own float-panel elevation (raised border -> `base_300`
-    /// card, no drop shadow — dark-depth Option C) + text renderer, so it composes
-    /// independently of the shared float quads (which the caret preview / spell
-    /// panels own). Parked (nothing drawn) unless `whichkey_rows` is `Some` — the App
-    /// summons it on a prefix pause (`app.rs`) and the headless `--whichkey` capture
-    /// forces it. See `crate::whichkey`. `wk_shadow` is always parked empty.
     pub wk_shadow: SelectionPipeline,
     pub wk_border: SelectionPipeline,
     pub wk_card: SelectionPipeline,
     pub wk_renderer: TextRenderer,
     pub wk_buffer: GlyphBuffer,
-    /// The which-key `(key, command-name)` rows to show, or `None` when the panel is
-    /// down. Set by [`Self::set_whichkey`]; a settled/idle frame leaves it `None`, so a
-    /// default capture is byte-identical.
     whichkey_rows: Option<Vec<(String, String)>>,
-    /// THE FORMAT POPOVER (`crate::popover`) — active-button wash + button-label
-    /// text renderer, drawn in `draw_chrome_tail` (over the document, like the
-    /// which-key panel). Its float-ELEVATION trio is no longer its own: the
-    /// overlay/chrome polish round moved it onto the SAME shared
-    /// `float_shadow`/`float_border`/`float_card` quads the caret-preview panel
-    /// and the spell popup already rode (`TextPipeline::prepare_float_panel`,
-    /// `chrome/popover.rs`'s module doc) — the popover, the preview panel, the
-    /// search panel, and the spell popup are structurally mutually exclusive
-    /// (`ViewState::popover`'s own gate requires no overlay AND no search), so one
-    /// buffer trio safely serves all four instead of the popover carrying a
-    /// redundant one that only ever drew ONE thing at a time. Parked (nothing
-    /// drawn) unless [`Self::popover_model`] is `Some` — set from
-    /// [`ViewState::popover`], so a popover-down frame is byte-identical.
-    /// The value-step wash quad behind each LIT (active-toggle) button — a
-    /// `base_content` value ladder step, NEVER amber (DESIGN §3; the caret keeps
-    /// the one accent). ALSO carries the `C` button's ALWAYS-ON inline-code demo
-    /// pill: the doc pill's own `base_200` tint IS this pipeline's tint (one
-    /// derivation), so the pill rides here rather than a third quad pipeline.
     pub popover_wash: SelectionPipeline,
-    /// SELF-DEMONSTRATING `A` button: the real `==highlight==` wash pill behind
-    /// its letter — tinted by THE doc wash's own derivation
-    /// (`spans::highlight_wash_rgba_bytes`) + the one-bit dither density, both
-    /// re-fed at the same two sites the doc pipeline reads (construction +
-    /// `sync_theme_colors`).
     pub popover_hl_wash: SelectionPipeline,
-    /// SELF-DEMONSTRATING `S` button: a real strike line through its letter,
-    /// positioned by THE ONE strike-line owner (`spans::strike_line_band`) and
-    /// tinted THE strike ink (`spans::strike_srgba_bytes`) — the same fn pair
-    /// the document's `~~strike~~` quads read, so the demo IS the effect.
     pub popover_strike: SpellUnderlinePipeline,
     pub popover_renderer: TextRenderer,
     pub popover_buffer: GlyphBuffer,
-    /// The format popover's model this frame (mirrored from [`ViewState::popover`]),
-    /// or `None` when down. Drives the button row + the sidecar `popover` block.
     popover_model: Option<crate::popover::PopoverModel>,
     /// The popover's laid-out geometry (card rect + per-button pixel spans),
     /// computed in `prepare_popover` and read by the pure `&self` hit-test
@@ -3974,8 +2800,6 @@ pub struct TextPipeline {
     /// from, so a click can never disagree with where a button is painted. `None`
     /// when the popover is down.
     popover_geom: Option<crate::render::chrome::PopoverGeom>,
-    /// The CALM NOTICE text mirrored from [`ViewState::notice`]; empty parks the
-    /// label off-screen (nothing drawn). Live-only content by construction.
     notice: String,
     /// MOTION-JUICE ARMING (the FIRETAIL-MAXIMALIST-SHOWCASE round's
     /// determinism gate): `false` by default and in EVERY headless capture /
@@ -3985,11 +2809,6 @@ pub struct TextPipeline {
     /// is the only state it can ever render), regardless of the world's own
     /// `render_caps.motion` or the `AWL_MOTION_FORCE` probe.
     juice_live: bool,
-    /// Overlay ENTRANCE progress: `1.0` = settled (the permanent value when
-    /// juice is unarmed/CALM/reduced — offset exactly `0.0`); kicked to `0.0`
-    /// by [`Self::sync_view_fields`]'s open-flip detection when the active
-    /// world's `MotionJuice::entrance` is `SpringIn` (live only). Stepped by
-    /// [`Self::step_overlay_juice`].
     overlay_enter_t: f32,
     /// Selection-BAND slide state: the row-top the band is easing FROM and
     /// the ease progress (`1.0` = settled on target). `band_last` memoizes
@@ -3998,93 +2817,27 @@ pub struct TextPipeline {
     overlay_band_from: f32,
     overlay_band_t: f32,
     overlay_band_last: Option<f32>,
-    /// LIVE-ONLY: the pointer position (physical px) + the current measure (chars)
-    /// while a page-width edge drag is in progress, or `None` when not dragging —
-    /// the default, and the ONLY state a headless capture/replay ever constructs
-    /// (mouse motion isn't `--keys`-drivable), so a default capture stays
-    /// byte-identical. Set (and cleared on release) by the live App's drag
-    /// handlers via [`Self::set_page_drag_readout`]; deliberately NOT part of
-    /// [`ViewState`] — mirrors the debug perf fields, which are also fed straight
-    /// by the live loop rather than riding the deterministic view snapshot.
     page_drag_readout: Option<(f32, f32, usize)>,
-    /// LIVE-ONLY: the pointer position (physical px) + the zoom factor while a zoom
-    /// gesture (Cmd-± / Cmd-scroll) is IN FLIGHT (the sticky-zoom debounce window),
-    /// or `None` when the zoom has settled — the default, and the ONLY state a
-    /// headless capture/replay ever constructs (zoom mirrors through `apply_core`,
-    /// never the live-App-only `App::mark_zoom_dirty`), so a default capture stays
-    /// byte-identical. Set (and cleared on settle) by the live App's zoom debounce
-    /// via [`Self::set_zoom_readout`]; deliberately NOT part of [`ViewState`] —
-    /// mirrors `page_drag_readout`, fed straight by the live loop rather than the
-    /// deterministic view snapshot. A capture-only `AWL_ZOOM_READOUT` env probe
-    /// synthesizes it at canvas-center for the gallery (see
-    /// [`Self::prepare_zoom_readout`]).
     zoom_readout: Option<(f32, f32, f32)>,
-    /// Latest completed frame's cost + the worst over the last 120 drawn frames
-    /// (ms), fed by the live loop for the debug panel's frame line, or `None` when
-    /// there is no clock (the headless capture) or before the first measured frame
-    /// — both render the fixed still-form placeholder.
     debug_frame_cost: Option<(f32, f32)>,
-    /// Latest key→px latency (ms): first un-rendered input's dispatch receipt →
-    /// present-return on the frame it caused. `None` (no input yet / capture)
-    /// renders the fixed placeholder.
     debug_latency_ms: Option<f32>,
-    /// Monotonic count of frames drawn since launch, or `None` (capture) for the
-    /// fixed placeholder. Frozen-while-idle is the health signal.
     debug_redraws: Option<u64>,
-    /// Whether the panel draws the SETTLED (`still ·`) form. Defaults TRUE —
-    /// settled is the ground state, so the capture constructor never touches it
-    /// and gets the still form for free; the live loop flips it per frame.
     debug_still: bool,
-    /// The current monitor's frame budget (ms/vsync), adaptive per display via
-    /// winit. `None` (capture — no monitor queried) folds to the 60 Hz fallback,
-    /// though the still/placeholder forms never show it.
     debug_budget_ms: Option<f32>,
     /// Latest queried GPU memory (bytes) the live loop feeds in for the debug panel's
     /// `gpu <n> MB` line, or `None` when there is no query (non-macOS backend, or the
     /// clockless headless capture) — both render the fixed `gpu —` placeholder.
     debug_gpu_bytes: Option<u64>,
-    /// The AUTOSAVE ENGINE's state for the debug panel's `autosave …` line, fed by
-    /// the live loop from `App::autosave_flush`'s one door (see
-    /// `crate::debug::autosave_state`). `None` is the constructor default AND the
-    /// only value a headless capture ever sees (the engine is structurally
-    /// live-App-only) — both render the fixed `"autosave —"` placeholder.
     debug_autosave: Option<crate::debug::AutosaveState>,
-    /// THE THEME-SWITCH SETTLE readout (`crate::themeswitch`), fed by the live loop
-    /// once a switch has SETTLED on screen: its latest and trailing-window worst.
-    /// `None` is the constructor default AND the ONLY value a headless capture ever
-    /// holds — the live App feeds a switch only behind `debug_on()` + a real present,
-    /// structurally off the deterministic path — so a `--debug` capture draws NO settle
-    /// lines and stays byte-identical (see `crate::themeswitch::settle_lines`).
     debug_theme_settle: Option<crate::themeswitch::SwitchReport>,
-    /// --- summoned navigation overlay view state (copied in set_view) ---
     overlay_active: bool,
-    /// ITEM 45 → ITEM 52 — mirror of [`ViewState::overlay_align`]: the overlay's
-    /// alignment (`Some` while an overlay is open, `None` when closed), read through the
-    /// ONE owner [`crate::render::resolve_overlay_anchor`] by every render-path anchor
-    /// reader. The render path NEVER reads the live world anchor (the alignment-is-data
-    /// grep-law): a passive theme-preview crossing (hover) leaves this value put, so the
-    /// open card holds its rail. A DELIBERATE crossing (keyboard nav / wheel) re-stamps
-    /// it upstream via [`crate::overlay::OverlayState::reanchor`], so the theme picker's
-    /// card SNAPS into the destination world's rail — choosing a world drops you inside it.
     overlay_align: Option<theme::CardAnchor>,
-    /// Mirror of [`ViewState::overlay_crisp`]: the THEME / CARET pickers keep the doc
-    /// crisp (no blur backdrop). Drives both the render path and [`Self::dims_doc`].
     overlay_crisp: bool,
     overlay_query: String,
-    /// ITEM 10 — mirror of [`ViewState::overlay_query_caret`]: the query's
-    /// CHAR-index caret, for the mid-string glyph-scan caret placement.
     overlay_query_caret: usize,
-    /// Mirror of [`ViewState::overlay_title`]: this picker's quiet input-line prefix.
     overlay_title: &'static str,
-    /// Mirror of [`ViewState::overlay_row_path_splits`] (item 66): does the open
-    /// overlay's FLAT row content carry a genuine path/URL, earning the
-    /// muted-directory/content-filename figure/ground split? Read by
-    /// `shape_overlay_names` so a picker whose rows use `/` for something else
-    /// (the date picker's `DD/MM/YY` separator) renders every glyph one ink.
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,
-    /// Mirror of [`ViewState::overlay_empty`]: the shared empty-state message drawn
-    /// when the overlay has no candidate rows, or `None` when it has rows.
     overlay_empty: Option<String>,
     overlay_bindings: Vec<String>,
     /// ITEM 94 — mirror of [`ViewState::overlay_ranges`]: the per-row RAIL FRACTION
@@ -4094,83 +2847,25 @@ pub struct TextPipeline {
     /// pointer hit-test go through.
     overlay_ranges: Vec<Option<f32>>,
     overlay_times: Vec<String>,
-    /// Mirror of [`ViewState::overlay_git`]: the dim `"git"` secondary-column tag per
-    /// row (Project / Browse pickers; empty for a git-free listing / other kinds).
     overlay_git: Vec<String>,
     overlay_selected: usize,
-    /// Mirror of [`ViewState::overlay_scroll`]: the top visible row of the list window.
     overlay_scroll: usize,
-    /// Mirror of [`ViewState::overlay_window_rows`]: the per-kind visible-row cap the
-    /// flat + faceted geometry window against.
     overlay_window_rows: usize,
     overlay_hint: String,
-    /// Mirror of [`ViewState::overlay_lens`]: the theme picker's lens strip (label +
-    /// active flag). NON-EMPTY only for the theme picker; its presence is the pipeline's
-    /// signal to render the faceted layout (strip + section headers, no scroll).
     overlay_lens: Vec<(String, bool)>,
-    /// Mirror of [`ViewState::overlay_sections`]: the section label per `overlay_items`
-    /// row (the faint group header). Empty for non-theme / All-lens.
     overlay_sections: Vec<String>,
-    /// Mirror of [`ViewState::overlay_spell`]: the misspelled word's `(line,
-    /// start_col, end_col)` span when the open overlay is the SPELL picker, else
-    /// `None`. `Some` renders the overlay as a small floating panel anchored at the
-    /// word (no blur, no scrim) instead of the centered takeover card.
     overlay_spell: Option<(usize, usize, usize)>,
-    /// DIFF-AS-PREVIEW: mirrors [`ViewState::diff_panel`] / [`ViewState::diff_panel_focus`].
     diff_panel: bool,
     diff_panel_focus: bool,
-    /// The widest SHAPED suggestion-row width (logical px) for the open SPELL panel,
-    /// measured whenever the overlay syncs (0.0 when the panel is closed / empty). The
-    /// float panel sizes its card to fit THIS — the longest correction — plus padding,
-    /// with a calm min, so short misspelled words no longer make a narrow card the
-    /// longer suggestions overflow. Measured with a `&mut FontSystem` in
-    /// [`Self::measure_spell_content_w`]; read by the `&self` `spell_overlay_geometry`.
     overlay_spell_w: f32,
-    /// ITEM 51 — the RIGHT-ANCHORED takeover card's measured CONTENT width (device
-    /// px, INCLUDING the card's `2 * hpad` side padding), measured whenever a
-    /// right-anchored (`CardAnchor::mirrors_growth`) picker syncs; `0.0` for a
-    /// left/center card, the spell popup, or a closed overlay. A right-anchored
-    /// card shrinks to hug THIS (clamped to a floor and the wide cap) instead of
-    /// sprawling to the fixed `CARD_MAX_W` and leaving a dead middle between the
-    /// left-aligned labels and the remote right edge — so the whole content group
-    /// hugs the right window edge as ONE compact block. Measured with a `&mut
-    /// FontSystem` in [`Self::measure_overlay_content_w`]; read by the `&self`
-    /// [`Self::overlay_desired_w`]. Left/center cards keep `0.0` → byte-identical.
     overlay_content_w: f32,
-    /// CARET-STYLE PICKER preview look (mirrored from the view): `Some(look)` while
-    /// that picker is open, `None` otherwise. The preview caret loops in this look
-    /// while `Some`; going `None` halts it (idle). See [`crate::caret::CaretDemo`].
     caret_preview: Option<CaretMode>,
-    /// The CHOREOGRAPHED caret-style preview demo (a throwaway buffer driven by a
-    /// scripted `apply_core` timeline) + its wrapped caret spring, performed on the
-    /// sample line inside the floating preview PANEL below the picker. Stepped via
-    /// `advance` only while `caret_preview` is `Some`, so it costs nothing when the
-    /// picker is closed (DESIGN §6).
     caret_demo: crate::caret::CaretDemo,
-    /// Cached rasterized masks for the caret-style picker's PREVIEW-demo MORPH
-    /// silhouette — the same to/from pair as `caret_mask_to`/`caret_mask_from`
-    /// above, but rasterized from the throwaway `preview_buffer`'s glyphs instead of
-    /// the document's, so the picker demo's glyph masks can never collide with the
-    /// live document's own (both may be prepared + drawn in the SAME frame).
     caret_preview_mask_to: Option<GlyphMask>,
     caret_preview_mask_from: Option<GlyphMask>,
-    /// The preview demo's latched "from" `CacheKey` — the glyph the preview caret
-    /// was inhabiting just before its most recent anchor change — mirroring
-    /// `caret_from_key`'s document-side latch, but derived from the PRIOR frame's
-    /// resolved `caret_preview_mask_to` (the anchor's glyph key one frame ago) since
-    /// the throwaway demo buffer has no `set_view`-style seam to latch it in before
-    /// the move: see `emit_preview_caret`. `None` until the anchor has changed at
-    /// least once (or while it hasn't moved since the last resolve).
     caret_preview_from_key: Option<CacheKey>,
-    /// PAGE-MODE GUTTER label state, mirrored from the view: the buffer display name
-    /// (top, muted) and the project name (below, faint). Empty `gutter_name` hides
-    /// the gutter.
     gutter_name: String,
     gutter_project: String,
-    /// MARKDOWN STYLING: true only when the active buffer is a markdown document
-    /// (`.md`/`.markdown`, decided by [`ViewState::is_markdown`]). When false the
-    /// markdown span pass is a complete no-op, so a `.rs`/`.txt`/scratch buffer
-    /// renders byte-identically to before this feature.
     md_enabled: bool,
     /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
     /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so
@@ -4182,66 +2877,13 @@ pub struct TextPipeline {
     /// path that gap needed. A no-op on every ordinary frame (the value is unchanged).
     wysiwyg_latched: bool,
     inline_images_latched: bool,
-    /// MARKDOWN STYLING: the styled spans for the currently-shaped text, in
-    /// DOCUMENT byte coordinates, recomputed (cheaply, deterministically) on every
-    /// reshape from [`crate::markdown::spans`]. Empty when `md_enabled` is false.
-    /// Laid as the BASE per-span layer under the CJK family spans (the markup
-    /// recedes to the dim ink; the content gains weight/style/family/color).
-    /// Reported verbatim in the capture sidecar.
     md_spans: Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
-    /// PERSISTENT MARGIN OUTLINE: the document's headings distilled from the SAME
-    /// `md_spans` parse (via [`crate::markdown::headings_from_spans`], no second
-    /// pulldown parse), stashed each reshape in [`Self::set_view`]. Empty for a
-    /// non-markdown buffer (gated on `md_enabled`) or a heading-free document. The
-    /// render (a later phase) reads this + `outline_current` to draw the margin
-    /// table-of-contents; the capture sidecar reports it via
-    /// [`Self::outline_report`]. Pure text-derived data — capture-safe.
-    ///
-    /// **item 65 DESCENDANT SUPPRESSION (structural, not a filter applied here):**
-    /// `md_spans` — and so this list — is parsed from `view.text`, which
-    /// [`crate::fold::apply_to_view`] has ALREADY fold-filtered (hidden lines
-    /// dropped) before [`Self::set_view`] ever reshapes. A heading buried inside a
-    /// collapsed ancestor's section is not merely hidden from the outline — its LINE
-    /// does not exist in the text this parse runs over, so it never becomes a
-    /// `Heading` here at all. A folded heading's OWN line is never hidden (see
-    /// `fold::section_range`'s doc), so it always survives into this list — PARENT
-    /// RETENTION is the same structural fact from the other side. `.line` on each
-    /// entry is therefore a FOLD-FILTERED line number (matching every other
-    /// filtered-space coordinate the shaped buffer carries), not a raw full-document
-    /// line — this is the space [`Self::fold_tails`] also reports in, which is what
-    /// lets `render::chrome::outline`'s collapsed-parent marker compare the two
-    /// directly with no remap.
     outline_headings: Vec<crate::markdown::Heading>,
-    /// PERSISTENT MARGIN OUTLINE: the last CURRENT-heading index the outline
-    /// resolved (the nearest heading at/above the caret line — see
-    /// [`Self::outline_current`]), tracked so the render phase can gate a re-upload
-    /// on the current crossing to a NEW heading (or the list changing), the same
-    /// 0%-idle-CPU pattern as `last_conceal_cursor_line`. `None` = the caret sits
-    /// above the first heading (or there are none).
     last_outline_current: Option<usize>,
-    /// SYNTAX HIGHLIGHTING: the active code language, or `None` for a non-code
-    /// buffer (then the syntax span pass is a complete no-op and the render is
-    /// byte-identical). Copied from [`ViewState::syn_lang`] in `set_view`.
     syn_lang: Option<crate::syntax::Lang>,
-    /// SYNTAX HIGHLIGHTING: the styled spans for the currently-shaped text, in
-    /// DOCUMENT byte coordinates, recomputed (cheaply, deterministically) on every
-    /// reshape from [`crate::syntax::spans`]. Empty when `syn_lang` is `None`. Laid
-    /// as the BASE per-span layer under the CJK family spans — the SAME seam
-    /// markdown uses — via [`add_syn_line_spans`]. Reported verbatim in the capture
-    /// sidecar's `syn_spans` block.
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
-    /// i18n: the document's OWN frontmatter `lang:` tag, re-derived from the
-    /// text on every reshape ([`crate::frontmatter::detect`] — a cheap scan of
-    /// just the leading block, no whole-doc cost). `None` for an untagged (or
-    /// non-markdown) document. Render resolution ladder step (a).
     doc_lang: Option<crate::frontmatter::Lang>,
-    /// i18n: the Han-ambiguity tiebreak ladder, copied from [`ViewState::cjk_priority`]
-    /// in `set_view`. Render resolution ladder step (c).
     cjk_priority: Vec<crate::frontmatter::Lang>,
-    /// LINE ENDINGS: the active buffer's on-disk ending ([`crate::buffer::Eol`]),
-    /// copied from [`ViewState::eol`] in `sync_view_fields`. Read by the held stats
-    /// HUD's LINE ENDINGS row + the sidecar's `hud.eol` field — a pure buffer fact,
-    /// so it is deterministic + capture-safe.
     eol: crate::buffer::Eol,
     /// COPY PULSE: progress of the selection-tint brighten/decay pulse played on a
     /// successful M-w/Cmd-C copy — `1.0` = settled/off (no boost, the selection
@@ -4365,8 +3007,6 @@ impl crate::actions::LayoutOracle for TextPipeline {
         if line == 0 {
             return (line, col); // top visual row of the first line: nowhere up
         }
-        // Top of this logical line: cross into the PREVIOUS logical line's LAST
-        // visual row (its bottom wrapped row).
         let prev = self.line_rows_local(line - 1);
         (line - 1, col_on_row(&prev, prev.len() - 1, goal_x))
     }
@@ -4391,7 +3031,6 @@ impl crate::actions::LayoutOracle for TextPipeline {
         if line >= last_line {
             return (line, col); // bottom visual row of the last line: nowhere down
         }
-        // Bottom of this logical line: cross into the NEXT logical line's FIRST row.
         let next = self.line_rows_local(line + 1);
         (line + 1, col_on_row(&next, 0, goal_x))
     }

@@ -1,34 +1,9 @@
-//! Overlay query filtering, navigation, and row-display accessors.
-
 use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
 use crate::fuzzy::{self, Tier};
 
-/// ITEM 106 — Physical-px SLOP a pointer must travel PAST its last known
-/// resting position before [`OverlayState::hover_at`] may re-hit-test/
-/// re-select. The ONE owner of the hover movement threshold: every
-/// hover-selection path — live `CursorMoved` (`App::overlay_hover`,
-/// `app/input/mouse.rs`) and the headless pointer-replay step
-/// (`ReplaySession::apply_move`, `main/run.rs`) — funnels through
-/// `hover_at`, which is the sole place `OverlayState::selected` is ever
-/// mutated by pointer input (see the scout roster at the top of this file's
-/// history: every `OverlayKind` shares this ONE gate, never a per-picker
-/// fudge). IS `app::DRAG_ARM_SLOP_PX` — the identical "content relocating
-/// under a stationary pointer must not read as motion" hazard (there, a
-/// text-selection drag arming under a WYSIWYG reveal reflow; here, a
-/// picker's candidate rows scrolling under a resting hand), so this is a
-/// RE-EXPORT of that ONE constant rather than a second declaration of the
-/// same 4.0px physical budget — awl does not grow two independently-tuned
-/// pointer-jitter constants that could drift apart under a future retune of
-/// either. `pub(super)` (not `pub(crate)`) so `overlay::tests` can pin its
-/// boundary law to the REAL value instead of a duplicated magic number,
-/// while the re-export itself stays invisible past `overlay`'s own module
-/// tree — `app::DRAG_ARM_SLOP_PX` remains the one name anything outside
-/// `overlay` would ever reach for.
 pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
 
 impl OverlayState {
-    /// Re-rank `rows` against the current query into `items`, clamping the
-    /// selection. Called after every query edit.
     pub fn refilter(&mut self) {
         let accepts = self.accepts();
         let mut scored = fuzzy::rank(self.query.text(), &accepts, |i| {
@@ -102,19 +77,6 @@ impl OverlayState {
                 Some(RowMeta::CommandHidden)
             )
         });
-        // FILE VISIBILITY (item 77 — file pickers only, gated on the ONE sticky
-        // process global `crate::file_visibility::all_on`): Text (the default)
-        // drops any corpus entry whose basename / ancestor component starts with
-        // `.` (except `.env*`) AND any BROWSE row already marked unsupported
-        // (`OverlayRow::secondary` carries the type label — see
-        // `overlay::build::browse_level`); All reveals both. The full corpus is
-        // untouched — this is purely what's SHOWN — so flipping the setting and
-        // re-running `refilter` reveals/re-hides them with no filesystem re-read.
-        // A no-op for non-file pickers (theme/command/…).
-        // The Project explorer's synthetic "." accept-this-folder row is EXEMPT — it is
-        // the "pick THIS folder" affordance, not a dotfile — so it survives the filter.
-        // Go-to HEADING rows are likewise exempt (a heading title is prose, not a
-        // dotfile path).
         if !crate::file_visibility::all_on() && self.kind.hides_dotfiles() {
             ranked.retain(|&i| {
                 self.rows[i].accept == "."
@@ -130,27 +92,12 @@ impl OverlayState {
                 ranked.retain(|&i| self.rows[i].is_dir || self.rows[i].secondary.is_empty());
             }
         }
-        // HEADINGS-LENS GATE (Go-to only): a REFINEMENT lens other than Headings
-        // (Recent / This folder) still lists files only — the appended document-
-        // heading rows are dropped there. The flat `All` home (`facet_lens == 0`)
-        // is the UNIFIED DEFAULT (item 11): it keeps heading rows IN, mixed with
-        // file rows and ranked together by the same fuzzy score, so one query can
-        // reach either kind. The Headings lens re-admits them exclusively via its
-        // own bucket ([`crate::index::goto_bucket`]). A no-op for every other kind
-        // (no row ever carries `RowMeta::GotoHeading`) and for a Go-to over a
-        // buffer with no headings.
         if self.kind == OverlayKind::Goto
             && self.facet_lens != 0
             && self.active_facet_id() != Some("headings")
         {
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. }));
         }
-        // FACETING picker under a real lens (strip index != 0, the All home): GROUP the
-        // (fuzzy-matched) items into the lens's sections, in section order, preserving
-        // the fuzzy rank WITHIN each section. `item_sections` records each row's section
-        // (the faint header). The flat All home (and every non-faceting kind) keeps the
-        // plain ranked list. GENERIC: the picker's own scheme supplies the sections +
-        // the per-item bucketing — no picker-specific code here.
         let scheme = self.facet_scheme();
         if let Some(sc) = scheme.filter(|_| self.facet_lens != 0) {
             let mut items = Vec::with_capacity(ranked.len());
@@ -158,18 +105,11 @@ impl OverlayState {
             for sect in sc.strip[self.facet_lens].sections {
                 for &ci in &ranked {
                     let row = &self.rows[ci];
-                    // OPT-OUT faceting: an item with `None` on this lens yields `None`
-                    // here, matching no section, so it is omitted from the lens (still
-                    // reachable under All). Only `Some(section)` items are placed. The
-                    // bucket sees the accept string PLUS the universal dir/git flags
-                    // (the file pickers' Folders / Files / Git lenses key off them).
                     let fi = crate::facets::FacetItem {
                         accept: &row.accept,
                         is_dir: row.is_dir,
                         is_git: row.git,
-                        // Command palette's Recent lens: reuse the recency tier vec.
                         recent: self.recent.contains(&ci),
-                        // Go-to's Headings lens: this row is an appended doc heading.
                         heading: matches!(row.meta, RowMeta::GotoHeading { .. }),
                         // History's Session / Today lenses: the per-row stamp + the
                         // picker-global reference clocks (all `None` headless → inert).
@@ -196,21 +136,13 @@ impl OverlayState {
             self.selected = self.items.len().saturating_sub(1);
         }
         self.scroll_to_selected();
-        // DIFF-AS-PREVIEW: the row set changed under the highlight — whatever
-        // version is now selected gets a fresh transcript, scrolled to its top.
         self.diff_scroll = 0;
     }
 
-    /// THEME picker: the SECTION label for each filtered row, in the same order as
-    /// [`Self::item_strings`] — the faint group header a row sits under (empty under
-    /// All / for non-theme kinds). Surfaced to the render pipeline + sidecar so the
-    /// grouping is drawable AND agent-verifiable.
     pub fn item_sections(&self) -> Vec<String> {
         self.item_sections.clone()
     }
 
-    /// Insert a char at the query's caret and refilter. A query edit re-ranks the
-    /// list, so the selection + scroll reset to the TOP (the best match).
     pub fn push(&mut self, c: char) {
         self.query.insert(c);
         self.selected = 0;
@@ -218,7 +150,6 @@ impl OverlayState {
         self.refilter();
     }
 
-    /// Backspace the query (deletes the char BEFORE its caret) and refilter.
     pub fn pop(&mut self) {
         self.query.delete_back();
         self.selected = 0;
@@ -226,12 +157,6 @@ impl OverlayState {
         self.refilter();
     }
 
-    /// ⌥⌫ (M-Backspace / DeleteWordBackward): remove the trailing WORD from the
-    /// query — one whitespace/punct run + one word — then refilter. Routes through
-    /// [`TextBox::delete_word_back`], the SAME word-DELETE boundary rule the
-    /// document buffer's own word-delete uses (`crate::buffer::
-    /// word_delete_backward_boundary`), so ⌥⌫ means the same thing in the palette
-    /// as in the text. A NO-OP on an empty query (nothing to remove).
     pub fn pop_word(&mut self) {
         self.query.delete_word_back();
         self.selected = 0;
@@ -239,17 +164,10 @@ impl OverlayState {
         self.refilter();
     }
 
-    /// ITEM 10 — word MOTION right (Ctrl/Opt-Right while typing a filter):
-    /// moves the query's caret WITHOUT editing the text or refiltering — plain
-    /// L/R stay lens/descend/list (`actions/overlay_nav.rs`'s own gate); only
-    /// word-motion reaches the caret at all, since arrows are claimed. Shares
-    /// [`crate::buffer::word_forward_boundary`] with the document's own M-f —
-    /// the DISTINCT rule from `pop_word`'s word-DELETE boundary above.
     pub fn query_word_right(&mut self) {
         self.query.word_right();
     }
 
-    /// ITEM 10 — word MOTION left, the mirror of [`Self::query_word_right`].
     pub fn query_word_left(&mut self) {
         self.query.word_left();
     }
@@ -281,10 +199,6 @@ impl OverlayState {
         }
     }
 
-    /// Move the selection by `delta` rows, clamped to the visible item range, then
-    /// scroll the window to keep the new selection visible (the keyboard ↑/↓ + PgUp/Dn
-    /// path). The WHEEL rides this too, so a wheel notch advances the list exactly like
-    /// an arrow press.
     pub fn move_sel(&mut self, delta: isize) {
         if self.items.is_empty() {
             self.selected = 0;
@@ -301,7 +215,6 @@ impl OverlayState {
         }
         self.selected = s as usize;
         self.scroll_to_selected();
-        // DIFF-AS-PREVIEW: a selection move means a NEW transcript — top it out.
         self.diff_scroll = 0;
     }
 
@@ -335,8 +248,6 @@ impl OverlayState {
         let last = (self.scroll + window).min(self.items.len());
         if target >= self.scroll && target < last && target != self.selected {
             self.selected = target;
-            // DIFF-AS-PREVIEW: hovering a different version previews ITS diff,
-            // fresh from the top (the same reset every selection move takes).
             self.diff_scroll = 0;
             true
         } else {
@@ -354,8 +265,7 @@ impl OverlayState {
     /// synthesized duplicate at the IDENTICAL coordinates (a redraw-triggered
     /// spurious event), must not read that RELAYOUT as a pointer gesture.
     ///
-    /// ITEM 106 — THE MOVEMENT-SLOP WIDENING: exact-pixel equality closed the
-    /// zero-travel case (item 85's own hazard) but left a stationary hand's
+    /// Ignore stationary-pointer layout changes until travel exceeds the shared slop.
     /// ordinary hardware jitter — or the case that actually bites, a list WINDOW
     /// SCROLLING under a genuinely resting pointer, so the ROW under an unmoved
     /// pixel changes on its own — free to steal a keyboard-driven selection the
@@ -443,15 +353,10 @@ impl OverlayState {
         }
     }
 
-    /// The corpus index currently highlighted (into `rows`), or `None` when no item
-    /// matches.
     pub fn selected_corpus_index(&self) -> Option<usize> {
         self.items.get(self.selected).copied()
     }
 
-    /// The document LINE the highlighted HEADING row jumps to (Go-to's Headings lens),
-    /// or `None` when no item matches / the row carries no line. Read only when the
-    /// highlighted row IS a heading ([`Self::selected_is_heading`]).
     pub fn selected_line(&self) -> Option<usize> {
         let i = self.selected_corpus_index()?;
         match self.rows.get(i)?.meta {
@@ -460,9 +365,6 @@ impl OverlayState {
         }
     }
 
-    /// True when the highlighted Go-to row is a document HEADING (the Headings lens),
-    /// so the accept JUMPS to [`Self::selected_line`] instead of opening a file. `false`
-    /// for an ordinary file row and every non-Go-to picker.
     pub fn selected_is_heading(&self) -> bool {
         self.selected_corpus_index()
             .map(|i| {
@@ -474,20 +376,12 @@ impl OverlayState {
             .unwrap_or(false)
     }
 
-    /// True when the highlighted Spell row is the appended "Add '<word>' to
-    /// dictionary" affordance (`RowMeta::SpellAdd`), so the accept ADDS the word to
-    /// the personal dictionary instead of replacing it with a suggestion. `false`
-    /// for a suggestion row and every non-Spell picker. The word to add is
-    /// [`Self::add_word`].
     pub fn selected_is_add_to_dictionary(&self) -> bool {
         self.selected_corpus_index()
             .map(|i| matches!(self.rows.get(i).map(|r| &r.meta), Some(RowMeta::SpellAdd)))
             .unwrap_or(false)
     }
 
-    /// The RESTORE id of the highlighted history row (History only), or `None` when
-    /// no item matches / this isn't a history picker / an empty history (no rows to
-    /// restore). Enter maps this to a restore.
     pub fn selected_history_id(&self) -> Option<&str> {
         let i = self.selected_corpus_index()?;
         match &self.rows.get(i)?.meta {
@@ -496,9 +390,6 @@ impl OverlayState {
         }
     }
 
-    /// The caret LOOK the highlighted row selects (Caret picker only), or `None`
-    /// when no item matches or this isn't a caret picker. Maps the highlighted row's
-    /// label back to its [`crate::caret::CaretMode`] via [`CaretMode::from_label`].
     pub fn selected_caret_mode(&self) -> Option<crate::caret::CaretMode> {
         if self.kind != OverlayKind::Caret {
             return None;
@@ -507,47 +398,26 @@ impl OverlayState {
             .and_then(crate::caret::CaretMode::from_label)
     }
 
-    /// The RAW corpus string currently highlighted (the accept value), or `None`
-    /// when no item matches.
     pub fn selected_value(&self) -> Option<&str> {
         self.selected_corpus_index()
             .map(|i| self.rows[i].accept.as_str())
     }
 
-    /// True when the highlighted entry is a directory (Browse: Enter descends).
     pub fn selected_is_dir(&self) -> bool {
         self.selected_corpus_index()
             .map(|i| self.rows[i].is_dir)
             .unwrap_or(false)
     }
 
-    /// The DISPLAY string for corpus entry `i`: the raw value plus a trailing
-    /// `/` for a directory. A git repo is marked NOT here but by a dim `"git"` tag
-    /// in the row's SECONDARY (right) column (see [`Self::item_git_tags`]), so the
-    /// primary cell stays the clean folder name; the accept value is always the raw
-    /// corpus string.
     fn display_of(&self, i: usize) -> String {
         let row = &self.rows[i];
-        // ASSET CLEANER: the corpus holds the root-relative PATH (the accept/trash key
-        // + fuzzy corpus, so typing a folder narrows), but the primary cell shows just
-        // the leaf FILE NAME — its parent dir rides the secondary column. Every other
-        // picker displays its raw corpus value.
         if self.kind == OverlayKind::Assets {
             let rel = &row.accept;
             return rel.rsplit('/').next().unwrap_or(rel).to_string();
         }
-        // THE UNION ROUND: a settings row (appended to the Command palette's
-        // corpus by `attach_settings_rows`) draws the `§ ` marker glyph before its
-        // name — `crate::overlay::row_split` recognizes the SAME prefix constant
-        // and mutes it, exactly like a file row's directory prefix.
         if matches!(row.meta, RowMeta::CommandSetting { .. }) {
             return format!("{}{}", OverlayKind::SETTINGS_MARKER_PREFIX, row.accept);
         }
-        // ITEM 11's UNIFIED LIST: a Go-to HEADING row (appended after the file rows
-        // by `attach_headings`) draws the `❡ ` marker glyph before its (already
-        // depth-indented) title — the mirror-image of the settings marker above —
-        // so it reads apart from a file row at a glance once the default `All` list
-        // mixes both kinds together.
         if matches!(row.meta, RowMeta::GotoHeading { .. }) {
             return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);
         }
@@ -558,9 +428,6 @@ impl OverlayState {
         s
     }
 
-    /// The filtered DISPLAY strings, top-to-bottom (for rendering AND the
-    /// sidecar). Directories carry a trailing `/`; a git repo's marker rides the
-    /// SECONDARY column ([`Self::item_git_tags`]), not the name.
     pub fn item_strings(&self) -> Vec<String> {
         self.items.iter().map(|&i| self.display_of(i)).collect()
     }
@@ -598,9 +465,6 @@ impl OverlayState {
         if !self.query.is_empty() {
             return "no matches".to_string();
         }
-        // A REFINEMENT lens (a strip index past the flat `All` home) that filtered
-        // the corpus to empty reads its own calm line — e.g. the Go-to Recent lens's
-        // "no recent files yet" — distinct from a genuinely empty corpus.
         if let Some(lens) = self.active_facet_id()
             && let Some(msg) = self.kind.empty_lens_message(lens)
         {
@@ -609,11 +473,6 @@ impl OverlayState {
         self.kind.empty_corpus_message().to_string()
     }
 
-    /// The empty-state message to DRAW, or `None` when the picker has rows. `Some`
-    /// exactly when `items` is empty — the render path then draws one dim,
-    /// non-selectable message row (styled like the foot hint), and since `items` is
-    /// empty every accept (`selected_value`/`selected_corpus_index`) already returns
-    /// `None`, so Enter on the empty state is a calm no-op with no extra guard.
     pub fn empty_notice(&self) -> Option<String> {
         if self.items.is_empty() {
             Some(self.empty_message())
@@ -622,11 +481,6 @@ impl OverlayState {
         }
     }
 
-    /// The filtered SECONDARY-column labels, in the same row order as
-    /// [`item_strings`] (Command palette chords, look/variant descriptions,
-    /// setting values, changed-counts, … — empty for a kind that draws no
-    /// secondary column). Lets the render + sidecar show each row's secondary
-    /// cell without re-deriving it.
     pub fn item_bindings(&self) -> Vec<String> {
         self.items
             .iter()
@@ -657,16 +511,10 @@ impl OverlayState {
             .collect()
     }
 
-    /// ITEM 94 — the RANGE CELL of the row at `items` index `i` (the index a
-    /// pointer hit-test returns), or `None` when that row carries no rail. The one
-    /// door the pointer path resolves "did this click land on a range row?" through.
     pub fn range_of_item(&self, i: usize) -> Option<RangeCell> {
         self.rows.get(*self.items.get(i)?)?.range
     }
 
-    /// ITEM 94 — the HIGHLIGHTED row's range cell, or `None` when the selection is
-    /// not a range row. The keyboard step's gate: Left/Right only claim the key
-    /// when this is `Some` (otherwise the faceting lens keeps them, exactly as before).
     pub fn selected_range(&self) -> Option<RangeCell> {
         self.rows.get(self.selected_corpus_index()?)?.range
     }

@@ -1,28 +1,15 @@
-//! Pointer input dispatch and document, overlay, and chrome hit testing.
-
 use super::wheel::*;
 use crate::app::*;
 
 impl App {
-    /// Is the pointer on the page surface that owns direct document gestures?
-    /// Reuses the renderer's column geometry: page margins (including the gutter
-    /// and right readout) are orientation chrome, not clamped aliases for the first
-    /// / last character on a row.
     fn pointer_over_writing_column(&self) -> bool {
         self.gpu
             .as_ref()
             .is_some_and(|gpu| gpu.pipeline.over_writing_column(self.cursor_px.0))
     }
 
-    /// Map the current mouse pixel position to a VISIBLE (fold-filtered) `(line, col)`,
-    /// accounting for scroll + zoom. `line` indexes the SHAPED buffer, which is the
-    /// fold-filtered document when a section is collapsed — the caller remaps it to a
-    /// FULL-document line before touching the rope.
     fn hit_test_line_col(&self) -> (usize, usize) {
         let (px, py) = self.cursor_px;
-        // Advance-aware hit test: walk the REAL shaped glyph advances so a click
-        // lands on the right glyph for mixed CJK + Latin lines. Falls back to the
-        // fixed-pitch free function only if the pipeline is not yet up.
         match self.gpu.as_ref() {
             Some(gpu) => gpu
                 .pipeline
@@ -37,25 +24,12 @@ impl App {
         }
     }
 
-    /// Map the current mouse pixel position to a buffer char index, accounting for
-    /// scroll + zoom + FOLDS, then clamp to the document. The hit-test line is in the
-    /// FILTERED document (the render shapes the folded text), so it is remapped to its
-    /// FULL-document line before resolving the char — otherwise a click below a
-    /// collapsed section would land on the wrong rope line. The identity remap when
-    /// nothing is folded, so an unfolded click is byte-identical.
     pub(in crate::app) fn hit_test_char(&self) -> usize {
         let (line, col) = self.hit_test_line_col();
         let full = self.active.buffer.visible_line_to_full(line);
         self.active.buffer.line_col_to_char(full, col)
     }
 
-    /// CLICK-TO-EXPAND (item 47c): if the current pointer lands on a collapsed
-    /// heading's "… N lines" tail (past the heading text), the FULL-document heading
-    /// line to expand; else `None`. Cheap no-op unless a section is folded. The fold
-    /// CHEVRON (item 65) lives in the LEFT margin — since item 81 its OWN separate hit
-    /// region ([`Self::fold_chevron_at_pointer`]) is a second, generous click target
-    /// (both directions); this tail-region hit test is unchanged. See
-    /// [`crate::buffer::Buffer::fold_tail_hit`].
     fn fold_affordance_at_pointer(&self) -> Option<usize> {
         if !self.active.buffer.has_folds() {
             return None;
@@ -171,11 +145,6 @@ impl App {
         self.active.buffer.seal_undo_group();
         let idx = self.hit_test_char();
         self.dragging = true;
-        // Fresh gesture: neither armed nor traveled yet. `drag_press_px` anchors
-        // the slop measurement `on_cursor_moved` runs on every subsequent move —
-        // reset on EVERY press (including a repeated same-spot multi-click), so
-        // each gesture measures its own travel from its own press point. See
-        // `exceeds_drag_slop` / the phantom-selection-click fix.
         self.drag_press_px = self.cursor_px;
         self.drag_armed = false;
         match click_count {
@@ -198,7 +167,6 @@ impl App {
                 self.active.extra.shift_selecting = true;
             }
             1 => {
-                // Single click: place the cursor, clear any selection.
                 self.drag_granularity = DragGranularity::Char;
                 self.active.buffer.set_cursor(idx);
                 self.active.buffer.clear_mark();
@@ -206,13 +174,11 @@ impl App {
                 self.active.extra.shift_selecting = false;
             }
             2 => {
-                // Double click: select the word under the cursor.
                 self.drag_granularity = DragGranularity::Word;
                 let (s, e) = self.active.buffer.word_bounds(idx);
                 self.active.buffer.select_range(s, e);
             }
             _ => {
-                // Triple click: select the whole line.
                 self.drag_granularity = DragGranularity::Line;
                 let (s, e) = self.active.buffer.line_bounds(idx);
                 self.active.buffer.select_range(s, e);
@@ -286,13 +252,6 @@ impl App {
         }
     }
 
-    /// A pointer HOVER over an open picker: hit-test the row under the cursor and move
-    /// the selection onto it — the mouse twin of an arrow-key move. It applies the SAME
-    /// live preview a keyboard move does (`actions::preview_overlay`: the Theme picker
-    /// re-tints to the hovered world, the Caret picker swaps the look; every flat picker
-    /// is inert), so hovering previews exactly like arrowing. A calm no-op when the
-    /// pointer is off the rows or already on the highlighted one. Uniform across EVERY
-    /// picker kind — the row geometry comes from the one `overlay_row_at` hit-test.
     pub(in crate::app) fn overlay_hover(&mut self) {
         let (px, py) = self.cursor_px;
         // ITEM 85/106 — `TextPipeline::resolve_overlay_hover` hit-tests THEN runs
@@ -318,10 +277,6 @@ impl App {
             }
             None => return,
         };
-        // LIVE PREVIEW, identical to the keyboard nav path. Snapshot the OUTGOING
-        // world BEFORE `preview_overlay` switches the active theme, so
-        // `retint_theme_preview` can detect a heavyweight-pipeline crossing (lava
-        // OR one-bit).
         let prev = crate::theme::active();
         if let Some(ov) = self.overlay.as_ref() {
             // BARE preview — NOT `preview_move`: a passive HOVER re-tints the world but
@@ -344,12 +299,6 @@ impl App {
         }
     }
 
-    /// The mouse WHEEL while a picker is OPEN: it OWNS the wheel (the doc behind it does
-    /// NOT scroll), advancing the SELECTION like ↑/↓ — wheel DOWN moves the highlight
-    /// down, wheel UP moves it up — and the scroll window follows (`move_sel`). `lines` is
-    /// the wheel delta in rows (positive = wheel up); a fractional notch rounds. Applies
-    /// the same LIVE PREVIEW the keyboard nav does, so wheeling the Theme picker previews
-    /// each world exactly like arrowing.
     pub(in crate::app) fn overlay_wheel(&mut self, lines: f32) {
         let delta = -(lines.round() as isize); // wheel DOWN (lines < 0) advances (↓)
         if delta == 0 {
@@ -364,9 +313,6 @@ impl App {
         };
         let prev = crate::theme::active();
         if let Some(ov) = self.overlay.as_mut() {
-            // The WHEEL is a DELIBERATE selection crossing (it moves `selected` like
-            // ↑/↓), so it RE-ANCHORS the card into the destination world's rail (item
-            // 52) — unlike passive `overlay_hover`, which keeps the bare preview.
             crate::actions::preview_move(ov);
         }
         // ITEM 106: the wheel drives `move_sel` exactly like a keyboard press (it
@@ -386,7 +332,6 @@ impl App {
             ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
         }
         if kind == crate::overlay::OverlayKind::Theme {
-            // Wheel preview: colors now, font reshape on settle (see overlay_hover).
             self.retint_theme_preview(prev);
         }
         self.sync_view(false);
@@ -447,7 +392,6 @@ impl App {
             if let Some(ov) = self.overlay.as_ref() {
                 crate::actions::preview_overlay(ov);
             }
-            // Lens-click preview: colors now, font reshape on settle (see overlay_hover).
             self.retint_theme_preview(prev);
             self.sync_view(false);
             if let Some(gpu) = self.gpu.as_ref() {
@@ -456,10 +400,6 @@ impl App {
             return;
         }
 
-        // ITEM 94 — THE RANGE ROW'S RAIL is a DIRECT pointer control, checked before
-        // the ordinary row accept: a press on it (within the generous band around the
-        // visually small thumb) selects the row, sets the nearest authored step
-        // immediately, and arms the scrub — the release persists once.
         if self.begin_range_drag() {
             self.sync_view(true);
             if let Some(gpu) = self.gpu.as_ref() {
@@ -494,8 +434,6 @@ impl App {
                 }
                 return;
             }
-            // A row-click accept dispatches a plain `Newline` (not a catalog command),
-            // so the ledger door is inert here; a direct gesture is the fast path.
             self.apply(
                 Action::Newline,
                 false,
@@ -503,8 +441,6 @@ impl App {
                 crate::stats::Door::Chord,
             );
         } else {
-            // Off the rows. A click INSIDE the card (query line / foot hint) is
-            // swallowed to keep the picker modal; a click OUTSIDE the card dismisses it.
             let inside = card
                 .map(|[x, y, w, h]| px >= x && px <= x + w && py >= y && py <= y + h)
                 .unwrap_or(false);
@@ -536,10 +472,6 @@ impl App {
         let (px, py) = self.cursor_px;
         let hit = self.gpu.as_ref().and_then(|g| g.pipeline.panel_hit(px, py));
         match hit {
-            // A press on the `Aa` cell toggles case sensitivity + re-anchors the
-            // caret on the recomputed current match — the CLICK driver for the
-            // affordance whose only keyboard door is ⌘⌥C (bare ⌥c composes to 'ç'
-            // on macOS). Recompute needs the haystack, so read it before borrowing.
             Some(crate::render::PanelHit::CaseToggle) => {
                 let hay = self.active.buffer.text();
                 let target = self.search.as_mut().map(|st| {
@@ -560,9 +492,7 @@ impl App {
                     st.focus_replacement();
                 }
             }
-            // In the card but off an editable row: swallow (a calm no-op).
             Some(crate::render::PanelHit::Elsewhere) => {}
-            // Off the panel: let the press fall through to the document.
             None => return false,
         }
         self.sync_view(true);
@@ -591,8 +521,6 @@ impl App {
             return false;
         }
         let (px, py) = self.cursor_px;
-        // Read the three hit-tests, then drop the pipeline borrow so `self.apply` can
-        // take `&mut self` below.
         let (item_hit, title_hit, over_surface) = {
             let Some(gpu) = self.gpu.as_ref() else {
                 return false;
@@ -603,7 +531,6 @@ impl App {
                 gpu.pipeline.over_menu_surface(px, py),
             )
         };
-        // 1. A clickable dropdown ITEM: resolve its catalog Action + fire it, then close.
         if let Some((menu, item)) = item_hit {
             crate::menubar::set_open(None);
             let action = {
@@ -613,15 +540,10 @@ impl App {
                     .and_then(|m| m.items.get(item))
                     .and_then(|it| match it {
                         crate::menu::RosterItem::Routed { id, .. } => crate::menu::resolve(id),
-                        // A Predefined item (Window ▸ Minimize/Zoom) has no catalog Action —
-                        // an inert no-op in the awl-rendered bar (a v1 scope trim; a real
-                        // winit minimize/maximize wiring is a follow-up).
                         _ => None,
                     })
             };
             if let Some(action) = action {
-                // MENU door (a slow discovery surface) — attributed to `Door::Menu` in
-                // the usage ledger, exactly like the macOS NSMenu handler.
                 let exited = self.apply(action, false, event_loop, crate::stats::Door::Menu);
                 if exited {
                     return true;
@@ -630,7 +552,6 @@ impl App {
             self.sync_view(true);
             return true;
         }
-        // 2. A TITLE: toggle its dropdown; close any conflicting summoned surface.
         if let Some(i) = title_hit {
             crate::menubar::toggle_open(i);
             self.overlay = None;
@@ -638,7 +559,6 @@ impl App {
             self.sync_view(true);
             return true;
         }
-        // 3. A click AWAY while a dropdown is open: close it.
         if crate::menubar::open_menu().is_some() {
             crate::menubar::set_open(None);
             self.sync_view(true);
@@ -648,21 +568,11 @@ impl App {
         over_surface
     }
 
-    /// Handle a SECONDARY-button (right-click) press: hit-test + place the cursor at
-    /// the word under the pointer exactly like a single left-click (no drag, no
-    /// selection), then summon the EXISTING spell-suggestion picker for that word.
-    /// Misspelled → suggestions; otherwise `OpenSpellSuggest` no-ops (calm). Zero new
-    /// spell logic — it reuses the same `suggest_at` path Cmd-`;` uses.
     pub(in crate::app) fn on_right_press(
         &mut self,
         event_loop: &ActiveEventLoop,
         over_writing_column: bool,
     ) {
-        // RE-TARGET: a right press ALWAYS dismisses any open overlay FIRST (through the
-        // same `Action::Cancel` Esc uses, so a Theme/Caret preview reverts), then hit-tests
-        // the word now under the pointer and opens ITS suggestions. So right-clicking a
-        // SECOND misspelling while the first spell menu is open swaps the menu to the new
-        // word instead of being swallowed by the modal overlay.
         if self.overlay.is_some() {
             let _ = self.apply(Action::Cancel, false, event_loop, crate::stats::Door::Chord);
         }
@@ -700,8 +610,6 @@ impl App {
         }
     }
 
-    /// Handle mouse motion while the button is held: extend the selection to the
-    /// current pixel position, by the drag's granularity (char/word/line).
     pub(in crate::app) fn on_drag(&mut self) {
         if !self.dragging {
             return;
@@ -710,8 +618,6 @@ impl App {
         match self.drag_granularity {
             DragGranularity::Char => self.active.buffer.set_cursor(idx),
             DragGranularity::Word => {
-                // Extend by whole words: keep the original anchor word, move the
-                // cursor to the far edge of the word under the pointer.
                 let anchor = self.active.buffer.anchor_char().unwrap_or(idx);
                 let (ws, we) = self.active.buffer.word_bounds(idx);
                 if idx >= anchor {
@@ -777,8 +683,6 @@ impl App {
         // facet can never disagree with a clickable one. `None` for a non-faceting
         // picker (no strip drawn) or off the strip row.
         let over_clickable_lens = overlay_open && gpu.pipeline.overlay_lens_at(px, py).is_some();
-        // The overlay's editable query-filter line reads as a text field (I-beam) —
-        // same `overlay_geometry` the field renders from, via `over_overlay_query`.
         let over_query_input = overlay_open && gpu.pipeline.over_overlay_query(px, py);
         // A clickable MARGIN-OUTLINE row reads as click-to-jump (the pointing hand),
         // reusing the outline's OWN row geometry (`outline_hit_line`, which folds in
@@ -789,19 +693,10 @@ impl App {
                 .pipeline
                 .outline_hit_line(px, py, gpu.config.height)
                 .is_some();
-        // An inline image's resize EDGE/CORNER reads as that handle's own glyph (↔
-        // side, ↕ top/bottom, ⤡/⤢ corner), exactly like the page edge — reuses the
-        // SAME `image_handle_at` hit-test the press path uses, over the SAME images
-        // layout the `ImageQuadPipeline` draws (no parallel geometry). Only a hover
-        // matters here (`.map(|(_, handle, _)| handle)`); the active-drag handle rides
-        // `self.image_resizing`.
         let image_hover = gpu
             .pipeline
             .image_handle_at(px, py)
             .map(|(_, handle, _)| handle);
-        // WEB/LINUX MENU BAR: a clickable title / dropdown item earns the pointing
-        // hand; dead bar/dropdown space reads as the plain arrow (over the doc it
-        // covers). Both `false` when the bar is hidden (default off on macOS).
         let over_menu_hand = gpu.pipeline.menubar_hand_at(px, py);
         let over_menu_bar = gpu.pipeline.over_menu_surface(px, py);
         // The summoned find/replace panel's `Aa` case-toggle cell reads as click-to-
@@ -813,9 +708,6 @@ impl App {
                 gpu.pipeline.panel_hit(px, py),
                 Some(crate::render::PanelHit::CaseToggle)
             );
-        // FORMAT POPOVER: a clickable button earns the pointing hand, from the
-        // popover's OWN hit-test (`popover_hit`) — the SAME geometry a click reads.
-        // `None`/false when the popover is down.
         let over_popover_button = self.popover_open && gpu.pipeline.popover_hit(px, py).is_some();
         // item 81: a REVEALED fold chevron (any foldable heading, expanded OR
         // collapsed) reads as click-to-toggle (the pointing hand) — reuses the SAME
@@ -851,8 +743,6 @@ impl App {
         }
     }
 
-    /// Pixel-native document scroll. The caller has already converted the native
-    /// event through the applicable pixel or discrete-notch policy.
     fn wheel_scroll_px(&mut self, pixels: f32) {
         if let Some(gpu) = self.gpu.as_ref() {
             self.active.extra.scroll = gpu.pipeline.scroll_by_px(
@@ -869,12 +759,6 @@ impl App {
     /// cursor shape once for the move regardless of which branch fired.
     pub(in crate::app) fn on_cursor_moved(&mut self, position: winit::dpi::PhysicalPosition<f64>) {
         self.cursor_px = (position.x as f32, position.y as f32);
-        // POINTER AUTO-HIDE: ANY mouse motion snaps back to Visible instantly —
-        // cancels a pending typing-hide countdown and un-hides an already-hidden
-        // pointer in the same move (`pointer_hide::on_mouse_move` is always
-        // `-> Visible`). `os_visibility_change` decides whether that crossed the
-        // hidden/visible boundary, so `set_cursor_visible` is only ever called on
-        // an actual change.
         let prev_pointer_hide = self.pointer_hide;
         self.pointer_hide = crate::pointer_hide::on_mouse_move(prev_pointer_hide);
         if let Some(visible) =
@@ -883,11 +767,6 @@ impl App {
         {
             gpu.window.set_cursor_visible(visible);
         }
-        // A summoned picker OWNS the pointer (it is modal, the doc receding
-        // behind it): a hover moves + previews the row under the cursor, exactly
-        // like an arrow move. A live PAGE-WIDTH resize drag owns the pointer next
-        // (the grabbed column edge tracks it, re-wrapping live); otherwise a live
-        // text selection extends.
         if self.range_drag.is_some() {
             // ITEM 94 — a live SETTINGS RAIL SCRUB owns the pointer outright (it is
             // a grabbed control): the value tracks the pointer through the range
@@ -899,8 +778,6 @@ impl App {
         } else if self.page_resizing {
             self.on_page_resize_drag();
         } else if self.image_resizing.is_some() {
-            // A live INLINE-IMAGE drag-resize owns the pointer: the image's width
-            // tracks it (previewed live in pipeline state, no buffer edit yet).
             self.on_image_resize_drag();
         } else if self.dragging {
             // THE PHANTOM-SELECTION-CLICK FIX: only extend the selection once the
@@ -922,15 +799,7 @@ impl App {
                 }
             }
         }
-        // FOLD CHEVRON HOVER (item 47b, widened by item 81, LIVE only): reveal a
-        // heading's fold chevron — expanded or collapsed alike — while the pointer
-        // rests on its row. Cheap no-op on a non-markdown buffer; only redraws when
-        // the hovered row actually changes.
         self.update_fold_hover();
-        // CONTEXT-AWARE CURSOR SHAPE: recompute on every move regardless of which
-        // branch above fired (a text-selection drag still reads as "over text",
-        // an overlay hover still reads as the plain arrow, …) — one decision, not
-        // a per-branch special case. See `cursor_shape.rs`.
         self.sync_cursor_icon();
     }
 
@@ -962,32 +831,16 @@ impl App {
         }
     }
 
-    /// `WindowEvent::MouseInput`: the left/right press+release surface — input
-    /// stamping, the summoned-about-card dismiss, right-click spell suggestions,
-    /// and the left-button press/drag/resize/release state machine.
-    ///
-    /// This remains one dispatch seam because press and release share the drag,
-    /// selection, popover, and redraw state machines. Splitting those halves would
-    /// duplicate the state transition table and make a release capable of missing
-    /// the arm established by its press. Narrow gesture mechanisms still live in
-    /// their own helpers and modules.
     pub(in crate::app) fn on_mouse_input(
         &mut self,
         event_loop: &ActiveEventLoop,
         state: ElementState,
         button: MouseButton,
     ) {
-        // DEBUG key→px: a mouse press is input awaiting pixels too — it
-        // shares the request_redraw path (left falls through to it below;
-        // right redraws inside `on_right_press`). Other buttons return
-        // without a frame, so they are not stamped.
         if state == ElementState::Pressed
             && matches!(button, MouseButton::Left | MouseButton::Right)
         {
             self.stamp_input();
-            // HOLD-⌘ SHORTCUT PEEK: a mouse press (a ⌘-click is Follow link) interrupts
-            // the hold — cancel a pending peek / close an open one. Inert unless a peek
-            // is pending/open.
             self.feed_peek(crate::peek::PeekStimulus::Interrupt);
         }
         // SUMMONED ABOUT / LIFETIME STATS CARDS: like `apply_core`'s own
@@ -1006,11 +859,6 @@ impl App {
             }
             return;
         }
-        // RIGHT-CLICK → spell suggestions: hit-test + place the cursor at the
-        // word under the pointer (same hit_test as a left-click), then fire the
-        // EXISTING spell-suggestion picker. On a misspelled word it lists
-        // corrections; elsewhere it's a calm no-op. Reuses suggest_at /
-        // OpenSpellSuggest wholesale — no new spell logic.
         if button == MouseButton::Right {
             if state == ElementState::Pressed {
                 let over_writing_column = self.pointer_over_writing_column();
@@ -1023,11 +871,6 @@ impl App {
         }
         match state {
             ElementState::Pressed => {
-                // WEB/LINUX MENU BAR owns a press on its strip / open dropdown FIRST — a
-                // title toggles its menu, an item fires its Action (through the SAME
-                // apply seam), a click-away closes it — before the overlay/search/
-                // document chain, since the bar draws OVER them. Returns true when it
-                // claimed the press (then repaint + swallow). Inert when the bar is off.
                 if self.menubar_press(event_loop) {
                     self.sync_cursor_icon();
                     if let Some(gpu) = self.gpu.as_ref() {
@@ -1064,7 +907,6 @@ impl App {
                         .as_ref()
                         .and_then(|g| g.pipeline.popover_hit(px, py));
                     if let Some(button) = hit {
-                        // A direct, learned gesture — the FAST path, `Door::Chord`.
                         let _ = self.apply(
                             button.action(),
                             false,
@@ -1082,10 +924,8 @@ impl App {
                         .as_ref()
                         .is_some_and(|g| g.pipeline.over_popover(px, py))
                     {
-                        // In the card but off a button: swallow (keep the popover open).
                         return;
                     }
-                    // Off the card: dismiss, then let the press become a normal gesture.
                     self.popover_open = false;
                 }
                 // A summoned picker OWNS the click (modal): a click ON a row
@@ -1103,14 +943,8 @@ impl App {
                     // through to a document press. A press OFF the panel returns
                     // false and continues to the page-resize / doc-click path.
                 } else if self.begin_image_resize_if_hovering() {
-                    // A press ON an inline image's resize EDGE/CORNER begins a DIRECT
-                    // drag-resize (its width tracks the pointer, previewed live)
-                    // instead of a text selection — checked AHEAD of the page-column
-                    // edge + the document press, since a handle sits inside the column.
                 } else if !self.begin_page_resize_if_hovering(event_loop) {
-                    // A press on a persistent MARGIN OUTLINE row jumps the caret to
-                    // that heading (click-to-jump) instead of a document press; a press
-                    // anywhere else is a normal click / selection start.
+                    // Outline activation and document presses are separate gestures.
                     if !self.outline_click() {
                         let shift = self.mods.state().contains(ModifiersState::SHIFT);
                         // The SAME column-membership geometry that gives the gutter
@@ -1122,45 +956,24 @@ impl App {
                         self.on_press(shift, over_writing_column);
                         if over_writing_column {
                             self.sync_view(true);
-                            // The context flipped to "drag-selecting text" WITHOUT
-                            // any mouse motion (`on_press` just set `self.dragging`):
-                            // recompute the cursor shape now (pins the I-beam for the
-                            // gesture), not just on the next `CursorMoved`. Mirrors
-                            // `begin_page_resize_if_hovering` / `begin_image_resize_if_hovering`.
                             self.sync_cursor_icon();
                         }
                     }
                 }
             }
             ElementState::Released if self.range_drag.is_some() => {
-                // ITEM 94: the settled rail value persists here — ONCE per gesture.
                 self.end_range_drag();
             }
             ElementState::Released if self.image_resizing.is_some() => {
-                // Commit the settled image width: write the `|NNN` hint back as ONE
-                // undoable edit (mutually exclusive with a page-resize / selection).
                 self.end_image_resize();
             }
             ElementState::Released if self.page_resizing => {
-                // Commit + persist the settled page width (sticky).
                 self.end_page_resize();
             }
             ElementState::Released => {
                 self.dragging = false;
                 self.drag_armed = false;
-                // The context flipped OFF "drag-selecting text" WITHOUT any mouse
-                // motion: recompute the cursor shape now (usually resumes the
-                // plain I-beam over text, or the arrow/hand off it) rather than
-                // waiting for the next `CursorMoved`. Mirrors `end_page_resize` /
-                // `end_image_resize`. Placed here (before the `has_selection`
-                // branch below) since it depends only on the flag just cleared.
                 self.sync_cursor_icon();
-                // A plain click (press + release with no drag) leaves the
-                // press-time anchor lingering at the cursor. Collapse it so
-                // a subsequent bare motion (C-p, C-n, …) just moves the
-                // cursor and does NOT extend a phantom selection. A real
-                // drag (or double/triple-click) leaves cursor != anchor,
-                // i.e. has_selection(), so its mark is preserved.
                 if !self.active.buffer.has_selection() {
                     self.active.buffer.clear_mark();
                 }
@@ -1185,13 +998,10 @@ impl App {
         }
     }
 
-    /// `WindowEvent::MouseWheel`: picker, zoom, table-pan, or document scroll.
     pub(in crate::app) fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
-        // DEBUG key→px: every wheel path ends in request_redraw.
         self.stamp_input();
         // Zoom modifier: Cmd/Super only. (Ctrl must NOT zoom on mac.)
         let zoom_mod = scroll_zoom_intent(self.mods.state());
-        // A clearly horizontal gesture over an overflowing table pans its grid.
         if !zoom_mod && self.overlay.is_none() {
             let (dx, dy) = match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
@@ -1212,7 +1022,6 @@ impl App {
                 }
             }
         }
-        // Pickers stay row-based; the document arm consumes raw pixels.
         let lines = match delta {
             MouseScrollDelta::LineDelta(_, y) => y * WHEEL_LINES_PER_NOTCH,
             MouseScrollDelta::PixelDelta(p) => {
@@ -1220,15 +1029,6 @@ impl App {
             }
         };
         if self.overlay.is_some() {
-            // A summoned picker OWNS the wheel (it is modal): wheel drives the
-            // LIST (advance the selection/scroll window, like ↑/↓); the document
-            // behind it does NOT scroll. Symmetric with the click/hover consume.
-            //
-            // DIFF-AS-PREVIEW exception: while the HISTORY picker's diff preview
-            // is up, a wheel with the pointer OVER THE PAGE (outside the card
-            // rect) scrolls THE DIFF instead of the list — the page is the diff's
-            // reading surface, and the trackpad is how you read it. Over the card
-            // the wheel keeps driving the version list exactly as before.
             if lines.abs() >= 1.0 {
                 let diff_wheel = self
                     .overlay
@@ -1262,7 +1062,6 @@ impl App {
                 }
             }
         } else if zoom_mod {
-            // Cmd/Super + wheel: zoom in/out (wheel up = zoom in).
             if lines.abs() >= 1.0 {
                 let dir = lines.signum();
                 let before = self.zoom;
@@ -1276,22 +1075,12 @@ impl App {
                 if self.zoom != before {
                     self.arm_zoom_anchor_pointer();
                 }
-                // HOLD-⌘ SHORTCUT PEEK: a Cmd-scroll holds the arming modifier bare, so
-                // the peek may have armed (or already opened) before the wheel moved.
-                // The user is zooming to READ the text — put the frosted card down at
-                // once. `set_zoom` armed the sticky-zoom debounce, so `zoom_in_flight`
-                // is now true and `on_modifiers_changed`'s gate keeps it from re-arming
-                // until the zoom settles.
                 self.feed_peek(crate::peek::PeekStimulus::Interrupt);
             }
         } else if let MouseScrollDelta::PixelDelta(p) = delta {
-            // Document trackpad gestures remain pixel-native; positive wheel y
-            // moves content down, hence the negative viewport offset.
             self.wheel_scroll_px(pixel_wheel_document_px(p.y as f32, self.scroll_sensitivity));
             self.sync_view(false);
         } else if let MouseScrollDelta::LineDelta(_, y) = delta {
-            // Free scroll: wheel up moves content down (scroll up), so a
-            // positive wheel y DECREASES the top scroll line.
             self.wheel_scroll_px(line_wheel_document_px(y, self.zoom, self.dpi));
             self.sync_view(false);
         }

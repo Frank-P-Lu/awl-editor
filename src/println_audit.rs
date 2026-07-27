@@ -1,11 +1,3 @@
-//! Structural audit for production `println!`/`eprintln!` sites. User-facing
-//! failures use notices; remaining output is intentional CLI or diagnostics.
-
-/// The audited, CURRENT expected count of print-macro call sites per file
-/// (relative to `src/`), for every file NOT under a `tests/` directory and NOT
-/// literally named `tests.rs` (see the scanner below for the cfg(test) skip).
-/// Each row's reason is the file's fate (c) unless noted — (a)/(b) fates left
-/// no residual print behind, so they don't appear here at all.
 const EXPECTED: &[(&str, usize)] = &[
     // Startup / rare live-only failure paths, largely before or around a
     // usable window (spell dictionary / clipboard / render-state init, the
@@ -29,9 +21,6 @@ const EXPECTED: &[(&str, usize)] = &[
     // (`ProbeEvent::Latency`) — the movement-latency distribution report,
     // mirroring the existing per-shot line's fate (c) exactly.
     ("app/probe.rs", 7),
-    // "follow link: could not open …" — a rare OS-handoff failure
-    // (C-c C-o). Flagged as a future notice-routing candidate, not fixed
-    // this round (out of the reported bug's scope).
     ("app/apply.rs", 1),
     // Best-effort background bookkeeping failures (config/credits/guide
     // write, a sticky-pref/rebind write, the recent-files/projects MRU
@@ -61,8 +50,6 @@ const EXPECTED: &[(&str, usize)] = &[
     // GPU/render-pipeline errors (`prepare`/`render`) retain a stderr
     // diagnostic while App-owned recovery also paints the calm notice.
     ("app/gpu.rs", 2),
-    // Classified callback/device/surface failures are logged once at the
-    // App recovery seam as well as being routed through the visible notice.
     ("app/window.rs", 1),
     ("app/session.rs", 1),
     ("app/stats.rs", 1),
@@ -70,25 +57,15 @@ const EXPECTED: &[(&str, usize)] = &[
     // write of `streaks.toml` must never disrupt the editor — it warns and moves on,
     // mirroring `app/stats.rs`'s own `stats save failed` line).
     ("app/streaks.rs", 1),
-    // `--bench-typing`'s tabular CLI output.
     ("bench.rs", 4),
-    // "buffer registry over cap" — an edge-case warning (every backgrounded
-    // buffer is dirty), not part of this round's reported bug.
     ("buffers.rs", 1),
     // Headless capture harness diagnostics ("spell-check disabled for
     // capture: …") — CLI/test-harness output, not live-app chatter.
     ("capture/animated.rs", 2),
     ("capture/modes.rs", 1),
     ("capture/oracle.rs", 1),
-    // Config TOML parse error — startup, before a window exists.
     ("config/model.rs", 1),
-    // `[keys]`/`linux_keep_emacs` config-authoring diagnostics (an unknown
-    // action name / an unparseable chord, incl. the emacs-keep-list parse)
-    // — reachable both at startup (legitimately a stderr diagnostic) and
-    // via a LIVE Settings-buffer reload; the live half is a logged gap, not
-    // fixed this round.
     ("keymap.rs", 4),
-    // `--help` + other CLI-only output.
     ("main.rs", 2),
     // `--help`'s big usage dump, plus `--list-worlds` (item 68): a
     // machine-readable roster dump for `scripts/capture-worlds.sh` and any
@@ -115,7 +92,6 @@ const EXPECTED: &[(&str, usize)] = &[
     // ffmpeg exit, a non-UTF-8 output path) — CLI product + diagnostics by
     // design; the raw frames are always retained, so each note is advisory.
     ("main/story.rs", 5),
-    // `--print-menu-roster`'s hidden-flag CLI output (`scripts/smoke-menus.sh`).
     ("menu.rs", 1),
     // `AWL_FONT` + `AWL_CHROME_FACE_FILE` dev-only env var override
     // diagnostics (the second is the Firetail-showcase round's audition-font
@@ -126,16 +102,9 @@ const EXPECTED: &[(&str, usize)] = &[
     // names itself + the grammar before falling back to the world default, so a
     // stale gallery re-shoot can't silently duplicate the default.
     ("render.rs", 3),
-    // `--bench-frame` / `--bench-theme-burst` / `--bench-zoom-burst` /
-    // `--bench-frost`'s tabular CLI output.
     ("render/framebench.rs", 39),
     ("render/perfbench.rs", 8),
-    // `--bench-caret`'s tabular CLI output (item 57): the header + column ruler,
-    // the per-position rows, and the machine-readable verdict line — the same
-    // CLI-harness class as the bench entries above.
     ("render/caretbench.rs", 6),
-    // `--bench-suite`'s tabular CLI output + the baseline diff report — the
-    // same CLI-harness class as the four bench entries above.
     ("render/benchsuite/mod.rs", 12),
     ("render/benchsuite/report.rs", 9),
     // `--soak-gpu`'s bounded native-probe report is CLI product: result,
@@ -171,20 +140,11 @@ fn needle_count(line: &str) -> usize {
     n
 }
 
-/// Scan `path`'s text, skipping every `#[cfg(test)]`/`#[cfg(all(test…`-gated
-/// item via a brace-balanced skip (approximate — good enough for this crate's
-/// consistent style, mirroring `durable.rs::scan_dir_for_bare_writes`'s own
-/// "not a real parser, just a disciplined heuristic" scope), and sum the
-/// needle count over every line OUTSIDE a skipped region.
 fn scan_file(text: &str) -> usize {
     #[derive(Clone, Copy, PartialEq)]
     enum State {
         Normal,
-        /// Saw a `#[cfg(test)...]` attribute line; waiting to see whether the
-        /// following item opens a brace block (skip until balanced) or is a
-        /// bare `mod tests;` declaration (skip just that one line).
         AfterCfgTest,
-        /// Inside a skipped brace-delimited item, at net depth `.0` (always > 0).
         InSkippedBlock(i32),
     }
     let mut state = State::Normal;
@@ -253,18 +213,9 @@ fn scan_dir(
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
-        // A file literally named `tests.rs` (an inline test submodule split
-        // out of its parent, e.g. `src/buffer/tests.rs`) is test-only too.
         if path.file_name().and_then(|n| n.to_str()) == Some("tests.rs") {
             continue;
         }
-        // This module's OWN doc comments/table quote `println!(`/`eprintln!(`
-        // by name (the audit table, the fate descriptions) — self-matches
-        // that aren't real call sites. Skip it, mirroring `durable.rs`'s own
-        // "the scanner walks this very file too" self-match note (there
-        // solved by assembling needles from fragments instead; skipping is
-        // simpler here since this file has no real print-macro calls of its
-        // own to guard).
         if path.file_name().and_then(|n| n.to_str()) == Some("println_audit.rs") {
             continue;
         }

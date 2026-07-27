@@ -1,12 +1,6 @@
-//! Keyboard, IME, search, and held-surface input handling.
-
 use crate::app::*;
 
 impl App {
-    /// Dismiss the HELD stats HUD when its trigger key is RELEASED. The press
-    /// recorded the logical key in `hud_key`; lifting the SAME key clears the HUD —
-    /// this is the whole live "hold to peek" half (the press half rides the normal
-    /// keymap → `apply_core` path). Any other release is a no-op.
     pub(in crate::app) fn on_key_release(&mut self, released: &Key) {
         if self.hud_key.as_ref() == Some(released) {
             self.clear_hud();
@@ -57,11 +51,7 @@ impl App {
         self.peek_arm = after;
         use crate::peek::PeekArm::*;
         match after {
-            // Idle → Pending: the convention's bare arming modifier went down alone —
-            // start the hold timer (consumed by the single `WaitUntil` in
-            // `about_to_wait`; no card yet).
             Pending => self.peek_armed_at = Some(self.clock.now()),
-            // Pending → Open: the hold completed — summon the card + redraw.
             Open => {
                 self.peek_armed_at = None;
                 crate::peek::set_open(true);
@@ -87,13 +77,6 @@ impl App {
         }
     }
 
-    /// WHICH-KEY prefix sync, run right after every `keymap.resolve`. Reads the
-    /// keymap's post-resolve prefix state: MID-PREFIX (a `C-x` was just pressed,
-    /// awaiting its second key) ARMS the pause timer by stamping `prefix_pending_at`;
-    /// any other outcome (the prefix resolved to a command, or aborted via `Esc`/`C-g`)
-    /// DISMISSES the panel + disarms. The timer itself (the ~500ms wake) lives in
-    /// `about_to_wait` and only fires while `prefix_pending_at` is `Some` — so the
-    /// summon costs nothing until a prefix actually hangs (DESIGN §6).
     pub(in crate::app) fn sync_whichkey_prefix(&mut self) {
         let transition = crate::whichkey::on_key(
             self.keymap.in_prefix(),
@@ -101,8 +84,6 @@ impl App {
             self.whichkey_shown,
         );
         match transition {
-            // Freshly mid-prefix: (re-)arm the pause. The panel is not shown yet — it
-            // appears only once the pause elapses in `about_to_wait`.
             crate::whichkey::PrefixTransition::Arm => {
                 self.prefix_pending_at = Some(self.clock.now());
             }
@@ -113,10 +94,6 @@ impl App {
         }
     }
 
-    /// Summon the which-key panel NOW (the pause elapsed with the prefix still pending):
-    /// derive the pending prefix's continuation rows from the command CATALOG (config
-    /// overrides folded in, so the panel can't drift) and push them into the pipeline,
-    /// then redraw. Marks `whichkey_shown` so the pause timer stops re-arming.
     pub(in crate::app) fn summon_whichkey(&mut self) {
         self.whichkey_shown = true;
         let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(&self.config.keys)
@@ -171,8 +148,6 @@ impl App {
         }
     }
 
-    /// Set the zoom factor (clamped) and reset glyph metrics on next sync. The
-    /// wheel-zoom path; also arms the debounced STICKY-ZOOM write.
     pub(in crate::app) fn set_zoom(&mut self, z: f32) {
         let clamped = render::clamp_zoom(z);
         if clamped != self.zoom {
@@ -219,7 +194,6 @@ impl App {
                 screen_y: caret_y,
             }
         } else {
-            // Caret off-screen: anchor whatever sits at the viewport centre.
             let cx = (gpu.config.width as f32) * 0.5;
             let cy = (top + height) * 0.5;
             let (line, col) = gpu
@@ -233,10 +207,6 @@ impl App {
         });
     }
 
-    /// Arm the DEBOUNCED sticky-zoom write: stamp "now" so `about_to_wait` persists
-    /// the settled zoom after `ZOOM_PERSIST_DEBOUNCE` of quiet (one write per rapid
-    /// Cmd-=/Cmd-- run, not one-per-step). Kicks a redraw so the loop reaches
-    /// `about_to_wait` to schedule the flush even if nothing else is animating.
     pub(in crate::app) fn mark_zoom_dirty(&mut self) {
         self.zoom_persist_at = Some(self.clock.now());
         self.zoom_reflow.queue();
@@ -284,11 +254,6 @@ impl App {
         self.range_drag.is_some()
     }
 
-    /// C-v / M-v: move the cursor by (roughly) one screenful of lines, Emacs
-    /// style. `dir` is +1 (down) or -1 (up). The subsequent cursor-follow sync
-    /// scrolls the viewport to keep the cursor visible. Returns whether the cursor
-    /// actually moved — `false` means the page was BLOCKED (already at the top /
-    /// bottom), which the caller turns into a caret recoil.
     pub(in crate::app) fn scroll_page(&mut self, dir: isize) -> bool {
         let cursor_before = self.active.buffer.cursor_line_col();
         let visible = if let Some(gpu) = self.gpu.as_ref() {
@@ -297,15 +262,7 @@ impl App {
         } else {
             1
         };
-        // A "screenful" is now ~one viewport of VISUAL rows (leave a couple of
-        // rows of overlap for context). Move the cursor one logical line at a
-        // time, but stop once its VISUAL row has advanced by about a screenful —
-        // so paging through a wrapped doc advances by what's on screen, not by a
-        // screenful of LOGICAL lines (which would overshoot far past the viewport).
         let target_rows = visible.saturating_sub(2).max(1);
-        // The cursor's visual row before paging; the loop stops once we've moved
-        // ~target_rows visual rows away. Falls back to a logical-line page (the
-        // old behavior) when the pipeline isn't up yet.
         let start_row = match self.gpu.as_ref() {
             Some(gpu) => {
                 let (l, c) = self.active.buffer.cursor_line_col();
@@ -323,7 +280,6 @@ impl App {
                 self.active.buffer.previous_line();
             }
             let after = self.active.buffer.cursor_line_col();
-            // Reached a buffer boundary (cursor didn't move): stop.
             if after == before {
                 break;
             }
@@ -357,13 +313,9 @@ impl App {
                 self.preedit.clear();
             }
             Ime::Preedit(text, _cursor) => {
-                // The provisional composition string; shown underlined at the
-                // caret. Empty => composition ended/cleared.
                 self.preedit = text;
             }
             Ime::Commit(text) => {
-                // Finalize: the preedit is replaced by the committed text, which
-                // is the only part that actually enters the buffer.
                 self.preedit.clear();
                 for c in text.chars() {
                     self.active.buffer.insert_char(c);
@@ -388,14 +340,6 @@ impl App {
         // closes. Feeding `ArmBroken` while Idle is inert, so ordinary typing (no
         // arming modifier) never churns.
         let convention = crate::convention::Convention::current();
-        // ZOOM-SUPPRESSION GATE: the bare arming modifier is ALSO the start of the
-        // Cmd-scroll / Cmd-± zoom gesture, where the user holds ⌘ precisely to change
-        // what they're looking at — the frosted peek card would obscure exactly the
-        // text being resized. So while a zoom is IN FLIGHT ([`peek::peek_allowed`] over
-        // `zoom_in_flight`, backed by the sticky-zoom debounce) a bare-modifier hold
-        // does NOT arm; it re-arms only once the zoom settles. A modifier change that
-        // WOULD have armed is downgraded to `ArmBroken`, which also puts down a card
-        // that was already up.
         let stim = if crate::peek::is_bare_arming_modifier(m.state(), convention)
             && crate::peek::peek_allowed(self.zoom_in_flight())
         {
@@ -406,8 +350,6 @@ impl App {
         self.feed_peek(stim);
     }
 
-    /// `WindowEvent::Ime`: hand the composition-lifecycle event to `handle_ime`
-    /// then re-sync + redraw.
     pub(in crate::app) fn on_ime(&mut self, ime: Ime) {
         self.handle_ime(ime);
         self.sync_view(true);
@@ -426,27 +368,14 @@ impl App {
         event: winit::event::KeyEvent,
     ) {
         if event.state != ElementState::Pressed {
-            // KEY RELEASE: the only release awl acts on is lifting the HELD
-            // stats-HUD key — a true hold, dismissed the instant it lifts. The
-            // press recorded the trigger key in `hud_key`; releasing the SAME
-            // logical key clears the HUD and re-syncs so it vanishes. Every
-            // other release stays a no-op.
             if event.state == ElementState::Released {
                 self.on_key_release(&event.logical_key);
             }
             return;
         }
-        // While composing (a non-empty preedit), the IME owns these keys:
-        // they are delivered separately as Ime::Preedit/Commit, so do NOT
-        // also route them through the keymap (which would insert raw
-        // romaji or move the cursor mid-composition). This guard runs
-        // BEFORE the search guard on purpose: the IME wins over search,
-        // and because C-s is swallowed here, a search cannot start
-        // mid-composition.
         if !self.preedit.is_empty() {
             return;
         }
-        // Ignore lone modifier presses.
         if let Key::Named(n) = &event.logical_key {
             use winit::keyboard::NamedKey::*;
             if matches!(n, Control | Shift | Alt | Super | Hyper | Meta) {
@@ -578,10 +507,6 @@ impl App {
                 return;
             }
         }
-        // Held arrow / motion keys arrive as OS AUTO-REPEAT events
-        // (`repeat`). Record it for the next `sync_view` so a held
-        // navigation move builds a continuous lagging caret trail, while a
-        // discrete tap (`repeat == false`) stays gap-suppressed.
         self.caret_held = repeat;
         // macOS OPTION DEAD-KEY FIX (LIVE path only): Option composes a
         // letter into a glyph (Option-f -> 'ƒ'), so the raw `logical_key` is the
@@ -608,11 +533,6 @@ impl App {
         // counts real presses only; config-gated + native-only inside.
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_note_keystroke(matches!(action, Action::InsertChar(_)));
-        // WHICH-KEY prefix tracking: read the keymap's post-resolve prefix state.
-        // Pressing `C-x` (BeginPrefix) leaves it MID-PREFIX → arm the pause timer
-        // (record when, so `about_to_wait` can summon the panel after the pause);
-        // any other key resolves/aborts the prefix → dismiss the panel + disarm.
-        // Cheap no-op on the common (no-prefix) key.
         self.sync_whichkey_prefix();
         // HELD stats HUD: remember the trigger key AND the modifiers held at
         // summon, so its RELEASE dismisses the HUD — either the key lifting
@@ -634,8 +554,6 @@ impl App {
         // shape; the headless `--keys` replay derives its flag through the same fn.
         let shift = self.mods.state().contains(ModifiersState::SHIFT)
             && motion_honors_shift_select(&action, &logical);
-        // CHORD door: a keyboard chord is the FAST, learned path the usage ledger
-        // graduates on (see `crate::stats::Door`).
         let defer_zoom_sync =
             matches!(action, Action::ZoomIn | Action::ZoomOut | Action::ZoomReset);
         let exited = self.apply(action, shift, event_loop, crate::stats::Door::Chord);

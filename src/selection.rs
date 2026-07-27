@@ -1,7 +1,5 @@
 //! GPU selection-highlight quads, drawn beneath text and caret.
 
-/// Rounded-corner radius (px) of a selection rectangle. A small radius softens
-/// the block so it reads as a highlight rather than a hard inverse-video bar.
 const CORNER_RADIUS: f32 = 2.5;
 
 /// Per-quad instance: a rectangle center + half-size in pixels, plus the shared
@@ -20,18 +18,7 @@ struct SelInstance {
 struct Globals {
     viewport: [f32; 2],
     corner: f32,
-    /// DITHER MODE — see `shaders/selection.wgsl`'s `fs_main`: `0.0` is the
-    /// original soft alpha-blended fill (every non-one-bit consumer,
-    /// byte-identical to before this field existed); `> 0.0` is THE ONE
-    /// WAGTAIL HIGHLIGHT TEXTURE's density (e.g. `0.25`). Unused by an
-    /// `fs_invert`-built pipeline.
     dither: f32,
-    /// OUTLINE / STROKE MODE (V6 P5 round) — see `shaders/selection.wgsl`'s
-    /// `fs_main`: `0.0` is the original SOLID fill (byte-identical, every
-    /// shipping consumer); `> 0.0` draws only a hollow RING that many px wide
-    /// just inside the rounded-rect edge (the `FacetStyle::Chips` inactive ghost
-    /// pills; the V6 bar-fill `Outline` axis that also used it was dropped in the
-    /// V7 taste-gate).
     stroke: f32,
     /// DITHER CELL (CHUNK round) — see `shaders/selection.wgsl`'s `Globals`:
     /// the edge, in PHYSICAL pixels, of ONE Bayer cell the dither branch snaps
@@ -41,16 +28,9 @@ struct Globals {
     /// ONE WAGTAIL HIGHLIGHT TEXTURE's three consumers raise it to ~2 logical
     /// px via [`Self::set_dither_cell`]. Unused by an `fs_invert` pipeline.
     cell: f32,
-    /// CHAMFER (item 70) — see `shaders/selection.wgsl`'s `sd_card_rect`:
-    /// `0.0` (construction default) is the ORIGINAL rounded-rect silhouette,
-    /// byte-identical for every world/pipeline but Quokka's card family.
     chamfer: f32,
-    /// HALFTONE density ceiling (item 70) — see `shaders/selection.wgsl`'s
-    /// `fs_main`: `0.0` (construction default) draws no dot texture.
     halftone: f32,
-    /// HALFTONE lattice rotation, radians (item 70).
     halftone_angle: f32,
-    /// HALFTONE lattice pitch, PHYSICAL px (item 70).
     halftone_cell: f32,
     /// Std140 tail padding so `dot_color` (a vec4, 16-byte aligned) lands on
     /// a 16-byte boundary — MUST match the equal-sized `_pad2: vec2<f32>` in
@@ -67,10 +47,6 @@ struct Globals {
     dot_color: [f32; 4],
 }
 
-/// The selection render pipeline: an instanced quad draw, BEFORE the caret +
-/// text are drawn (the ordinary alpha-blended fill / dither modes) OR, for a
-/// pipeline built via [`Self::new_invert`], AFTER text (the true
-/// inverse-video 1-bit selection — see that constructor's doc).
 pub struct SelectionPipeline {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
@@ -78,28 +54,12 @@ pub struct SelectionPipeline {
     instance_buf: wgpu::Buffer,
     instance_cap: usize,
     instance_count: u32,
-    /// Linear-space RGBA matching the requested sRGB selection color. Ignored
-    /// (always pure white — see [`Self::new_invert`]'s doc) on an invert
-    /// pipeline.
     color: [f32; 4],
     /// DITHER MODE density uploaded into `Globals::dither` each `prepare`
     /// (`0.0` = off, the pre-round behavior). Meaningless on an invert
     /// pipeline, where `fs_invert` never reads the field.
     dither: f32,
-    /// Rounded-rect corner radius (px) uploaded into `Globals::corner`.
-    /// `CORNER_RADIUS` for the ordinary fill. An invert pipeline
-    /// (`new_invert`) starts at `0.0` — a hard RECTANGLE, the right shape
-    /// for a selection range — but [`Self::set_corner`] lets a CARET invert
-    /// instance raise it per frame to its own animated radius: `fs_invert`
-    /// still can't blend a soft AA edge (see that entry point's own doc),
-    /// but it CAN hard-discard outside a rounded-rect SDF, so the caret
-    /// keeps a rounded (if aliased) silhouette instead of a hard square.
     corner: f32,
-    /// OUTLINE / STROKE width (px) uploaded into `Globals::stroke`. `0.0` (the
-    /// construction default) is the SOLID fill every shipping consumer draws —
-    /// byte-identical. [`Self::set_stroke`] raises it for the V6 `BarFill::
-    /// Outline` bars and the `FacetStyle::Chips` ghost pills, turning the quad
-    /// into a hairline ring. Meaningless on an `fs_invert` pipeline.
     stroke: f32,
     /// DITHER CELL edge (PHYSICAL px) uploaded into `Globals::cell` each
     /// `prepare` — the CHUNK round's Bayer-quantization block size. `1.0` (the
@@ -115,14 +75,8 @@ pub struct SelectionPipeline {
     /// silhouette — byte-identical for every pipeline that never calls
     /// [`Self::set_chamfer`] (every world but Quokka's card family).
     chamfer: f32,
-    /// HALFTONE density ceiling `[0,1]` uploaded into `Globals::halftone`
-    /// (item 70). `0.0` (construction default) draws no dot texture.
     halftone: f32,
-    /// HALFTONE lattice rotation (radians) uploaded into
-    /// `Globals::halftone_angle` (item 70).
     halftone_angle: f32,
-    /// HALFTONE lattice pitch (PHYSICAL px) uploaded into
-    /// `Globals::halftone_cell` (item 70).
     halftone_cell: f32,
     /// HALFTONE dot ink (LINEAR RGBA) uploaded into `Globals::dot_color`
     /// (item 70) — set via [`Self::set_halftone`], always a theme-ladder
@@ -132,10 +86,6 @@ pub struct SelectionPipeline {
     dot_color: [f32; 4],
 }
 
-/// The ORIGINAL straight-alpha over-blend (`fs_main`'s non-dither path and
-/// dither path both use this blend state — the dither branch's own hard
-/// on/off is inside the shader, not the blend equation) so a translucent
-/// highlight composites softly onto the dark background.
 fn ordinary_blend() -> wgpu::BlendState {
     wgpu::BlendState {
         color: wgpu::BlendComponent {
@@ -273,19 +223,16 @@ impl SelectionPipeline {
             array_stride: std::mem::size_of::<SelInstance>() as u64,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
-                // center: vec2
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
                 },
-                // half: vec2
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x2,
                     offset: 8,
                     shader_location: 1,
                 },
-                // color: vec4
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x4,
                     offset: 16,
@@ -351,8 +298,6 @@ impl SelectionPipeline {
         }
     }
 
-    /// Re-tint to a new sRGBA color (for a live theme switch). The next
-    /// `prepare` uploads it into the instance buffer.
     pub fn set_color(&mut self, srgba: [u8; 4]) {
         self.color = srgba_u8_to_linear(srgba);
     }
@@ -481,8 +426,6 @@ impl SelectionPipeline {
         self.stroke
     }
 
-    /// Build instances from per-line rectangles (`[x, y, w, h]` top-left, px)
-    /// and upload them + globals. An empty slice draws nothing.
     pub fn prepare(
         &mut self,
         device: &wgpu::Device,
@@ -641,8 +584,6 @@ impl SelectionPipeline {
         }
     }
 
-    /// Record the selection draw into an already-open render pass (after clear,
-    /// before the caret + text).
     pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
         if self.instance_count == 0 {
             return;
@@ -654,9 +595,6 @@ impl SelectionPipeline {
     }
 }
 
-/// Linear-interpolate two linear-space RGBA colors by `t` ∈ `[0, 1]` (`0` = `a`,
-/// `1` = `b`) — the copy-pulse's per-channel blend. Pure; no clamping (callers
-/// already clamp `t`).
 fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
     [
         a[0] + (b[0] - a[0]) * t,
@@ -681,9 +619,6 @@ fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
     [ch(c[0]), ch(c[1]), ch(c[2]), c[3] as f32 / 255.0]
 }
 
-// ---------------------------------------------------------------------------
-// Minimal local Pod/bytemuck shim (same approach as caret.rs, no extra crate).
-// ---------------------------------------------------------------------------
 mod bytemuck_lite {
     /// Marker for types safe to reinterpret as bytes.
     ///
@@ -713,17 +648,12 @@ mod tests {
     #[test]
     fn srgba_linear_alpha_passthrough() {
         let c = srgba_u8_to_linear([0x3A, 0x6F, 0xD8, 0x52]);
-        // Alpha is linear (0x52/255 ~= 0.32).
         assert!((c[3] - 0.32156864).abs() < 1e-4);
-        // Channels are in [0,1].
         for channel in c.iter().take(3) {
             assert!(*channel >= 0.0 && *channel <= 1.0);
         }
     }
 
-    /// COPY PULSE pure decay math: `lerp4` at `t=0` is exactly `a` (the pulse's
-    /// peak), at `t=1` exactly `b` (the settled base), and linear in between —
-    /// the arithmetic `prepare_pulsed` blends the base color toward the peak with.
     #[test]
     fn lerp4_interpolates_linearly_between_endpoints() {
         let a = [0.0, 0.2, 1.0, 0.5];
@@ -775,9 +705,6 @@ mod tests {
         );
         let rects =
             |n: usize| -> Vec<[f32; 4]> { (0..n).map(|i| [i as f32, 0.0, 10.0, 10.0]).collect() };
-        // Grow past the initial cap (64) at 65 → cap becomes 128. With the old bug
-        // the buffer was sized to 65; the next frame at 100 (≤ 128 ⇒ NO regrow)
-        // wrote 100 instances into a 65-slot buffer and panicked.
         pipe.prepare(&device, &queue, 800, 600, &rects(65));
         pipe.prepare(&device, &queue, 800, 600, &rects(100));
         assert_eq!(pipe.instance_count(), 100);

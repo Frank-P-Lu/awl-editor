@@ -22,51 +22,15 @@ use motion::*;
 use overlay_nav::*;
 use rebind::*;
 
-// Mouse and keyboard picker navigation share these preview helpers.
 pub(crate) use overlay_nav::{preview_move, preview_overlay};
 
-// The palette/menu re-dispatch BREADCRUMB stamp is shared by both re-dispatch seams
-// — the live `App::apply` `RunAction` handler and the headless `replay_keys` worklist
-// — so an overlay opened by a palette-chosen command returns to the palette on a pop.
+// Shared by live and replay re-dispatch so overlay pops restore the palette.
 pub(crate) use overlay_nav::stamp_return_to;
 
-/// A read-only LAYOUT ORACLE: the wrap-aware visual-row geometry that visual-line
-/// motion needs, answered by whoever owns the SHAPED text — the GPU
-/// [`crate::render::TextPipeline`] (live, in `app.rs`) and an offscreen-shaped
-/// pipeline (headless, in `capture.rs`).
-///
-/// `apply_core` stays renderer-agnostic by asking THIS trait instead of reaching
-/// into the pipeline directly, so the motion logic remains UNIFIED in `apply_core`
-/// and shared by the live window and the `--keys` replay (awl's "both flows call
-/// apply_core" principle). The pipeline keeps the GEOMETRY (it owns `visual_rows` /
-/// `pick_row` / the per-char `xs`); the oracle returns MOTION-READY results.
-///
-/// All columns are CHAR columns and all `goal_x` / returned x values are pixels
-/// RELATIVE TO THE TEXT'S LEFT EDGE (the same space the pipeline's `xs` live in),
-/// so a goal-x read by [`Self::visual_x_of`] feeds straight back into
-/// [`Self::visual_line_up`] / [`Self::visual_line_down`].
-///
-/// When the oracle is ABSENT (the pure `apply_core` unit tests, which own no
-/// pipeline), motion falls back to the buffer's LOGICAL lines — so on a
-/// non-wrapped document (and in those tests) behavior is identical to before.
-/// Visual-line motion is the FLAT DEFAULT (no logical/visual toggle): every
-/// caller that has a pipeline supplies an oracle, and `apply_core`'s vertical /
-/// line-edge / kill-line motions consult it.
-/// The caret's wrap `affinity` threads through EVERY positional query so a caret
-/// parked at a SHARED soft-wrap boundary (see [`crate::caret::Affinity`]) is read
-/// on the visual row it VISUALLY sits on. `Downstream` (the default for any caret
-/// not just parked at a line end) reproduces the historical lower-row bias
-/// EXACTLY — so every ordinary motion is byte-identical; only a motion issued
-/// FROM an `Upstream` caret (immediately after C-e / End / Cmd-Right) resolves the
-/// boundary to the UPPER row, keeping the follow-up motion coherent with the
-/// render (C-a → that row's start, Up/Down → its neighbour, a repeat C-e → a no-op).
+/// Renderer-owned visual-row geometry for shared motion. Columns are chars and x
+/// values are pixels relative to text left; affinity resolves soft-wrap boundaries.
 pub trait LayoutOracle {
-    /// The cursor's pixel x on its own visual row (for the sticky goal-x).
     fn visual_x_of(&self, line: usize, col: usize, affinity: crate::caret::Affinity) -> f32;
-    /// One visual row UP from (`line`, `col`), landing the caret nearest `goal_x`.
-    /// At the TOP visual row of the current logical line this crosses into the
-    /// PREVIOUS logical line's LAST visual row; at the very top of the document it
-    /// stays put.
     fn visual_line_up(
         &self,
         line: usize,
@@ -74,9 +38,6 @@ pub trait LayoutOracle {
         goal_x: f32,
         affinity: crate::caret::Affinity,
     ) -> (usize, usize);
-    /// One visual row DOWN from (`line`, `col`), landing nearest `goal_x`. At the
-    /// BOTTOM visual row of the current logical line this crosses into the NEXT
-    /// logical line's FIRST visual row; at the very bottom it stays put.
     fn visual_line_down(
         &self,
         line: usize,
@@ -84,14 +45,12 @@ pub trait LayoutOracle {
         goal_x: f32,
         affinity: crate::caret::Affinity,
     ) -> (usize, usize);
-    /// The start (first column) of the current VISUAL row.
     fn visual_line_start(
         &self,
         line: usize,
         col: usize,
         affinity: crate::caret::Affinity,
     ) -> (usize, usize);
-    /// The end (last column) of the current VISUAL row.
     fn visual_line_end(
         &self,
         line: usize,
@@ -100,17 +59,10 @@ pub trait LayoutOracle {
     ) -> (usize, usize);
 }
 
-/// Everything `apply_core` may mutate, gathered so the one seam can serve both
-/// the windowed `App` (which owns these as fields) and a headless replay (which
-/// owns them as locals). Borrowed mutably as a group to keep the signature
-/// short and the call sites symmetric.
 pub struct ActionCtx<'a> {
     pub buffer: &'a mut Buffer,
-    /// Transient Shift-selection flag (Shift+motion GUI selection).
     pub shift_selecting: &'a mut bool,
-    /// Zoom factor (ZoomIn/Out/Reset mutate this in place).
     pub zoom: &'a mut f32,
-    /// Active incremental search, started by SearchForward/Backward.
     pub search: &'a mut Option<SearchState>,
     /// How many logical lines one PageScrollDown/PageScrollUp moves. The windowed
     /// app passes a screenful computed from the live viewport; headless passes a
@@ -127,12 +79,6 @@ pub struct ActionCtx<'a> {
     /// filesystem itself (and headless replay must stay deterministic), so the
     /// caller injects this; `OpenGoto`/`OpenProject` invoke it.
     pub make_overlay: &'a mut dyn FnMut(crate::overlay::OverlayKind) -> Option<OverlayState>,
-    /// Browse rebuild hook: build a fresh navigator overlay of the given KIND
-    /// (`Browse` for C-x j, `MoveDest` for C-x m) listing the children of a given
-    /// root-relative directory (`None` = the root). The kind selects the root and
-    /// the filter (MoveDest is rooted at the notes root and lists folders only).
-    /// The core can't read the filesystem, so open/descend/ascend delegate here.
-    /// Returns `None` if the directory can't be listed (the overlay stays put).
     pub browse_to:
         &'a mut dyn FnMut(crate::overlay::OverlayKind, Option<String>) -> Option<OverlayState>,
     /// The visual-line motion LAYOUT ORACLE (the SHAPED text's wrap geometry),
@@ -153,40 +99,16 @@ pub struct ActionCtx<'a> {
 /// exhaustiveness. This replaces the former cluster of `&mut` out-params.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Effect {
-    /// Nothing deferred: the buffer/overlay/search mutations already applied are
-    /// the whole story.
     None,
-    /// `Quit` (Cmd-Q): the caller exits the event loop, or stops the replay.
     Quit,
-    /// C-x b: flip to the previously-opened file. The 2-deep history lives on the
-    /// caller; the core just signals the toggle.
     LastBuffer,
     /// Cmd-N: swap in a fresh, unnamed document buffer IN THE ACTIVE FOLDER
     /// (item 76 retired the old separate-notes-root jump). The buffer-swap is
     /// caller-level (the core never touches the filesystem/window).
     NewDocument,
-    /// Settings: open the config file into the buffer for editing — creating the
-    /// commented default first if it is missing. The path + filesystem live on the
-    /// caller. Now the SETTINGS MENU's "Edit config as text" ACTION row (the raw
-    /// escape hatch), not the friendly default — [`OpenSettingsMenu`] is that.
     OpenSettings,
-    /// Credits: open the embedded `CREDITS.md` into the buffer (create/refresh the
-    /// on-disk view first, so it behaves as an ordinary pathed buffer rather than
-    /// colliding with the scratch stash — see `App::open_credits`). The caller owns
-    /// the filesystem write; the core only flips the flag.
     OpenCredits,
-    /// Guide: open the embedded `GUIDE.md` into the buffer (create/refresh the
-    /// on-disk view first, so it behaves as an ordinary pathed buffer rather than
-    /// colliding with the scratch stash — see `App::open_guide`). The caller owns
-    /// the filesystem write; the core only flips the flag.
     OpenGuide,
-    /// The COMMAND PALETTE accepted (Enter on a command). The palette CLOSED itself
-    /// first; the caller re-dispatches this catalog `Action` through its NORMAL
-    /// apply path AFTER the close — so an overlay-opening command (Go to file) opens
-    /// its overlay into the now-empty slot, and terminal commands run uniformly.
-    /// Re-dispatching at the caller (not recursing in the core) is required because
-    /// `App::apply` specially handles some actions the core no-ops (e.g.
-    /// ToggleCaretMode).
     RunAction(Action),
     /// An overlay ACCEPTED (Enter on a selected item, or a Theme cancel-revert):
     /// the chosen value — a root-relative path for Goto/Browse, an absolute dir for
@@ -223,9 +145,9 @@ pub enum Effect {
         binding: String,
         confirmed: bool,
     },
-    /// REBIND MENU reset (Delete on a command): REMOVE `slug` from `[keys]` so its
-    /// default applies again (the caller persists + live-reloads). The overlay stays open.
-    RebindReset { slug: String },
+    RebindReset {
+        slug: String,
+    },
     /// A discrete action was REQUESTED but could NOT PROCEED (a motion into a wall,
     /// a page that can't page further, an exhausted undo/redo, a delete with nothing
     /// to remove). The caller bumps the VISUAL caret in `dir` — away from the wall —
@@ -235,20 +157,8 @@ pub enum Effect {
     /// replay simply ignores it (no clock/animation). Mutually exclusive with the
     /// real effects: a recoil only arms when the action produced no other effect.
     Recoil(crate::caret::RecoilDir),
-    /// PHASE 2 — TYPING IMPACT: a character was SUCCESSFULLY inserted. The caller
-    /// flinches the VISUAL caret (a squash-pop + a velocity back-kick against the type
-    /// direction) in every caret look via [`crate::caret::CaretAnim::type_impact`]; the
-    /// spring settles it back to the SAME rest, so a settled capture is byte-identical
-    /// and the headless replay ignores it (no clock). The buffer is already mutated.
     TypeImpact,
-    /// PHASE 2 — DELETION SQUASH: a backspace / C-d SUCCESSFULLY removed a character.
-    /// The caller squashes the caret INWARD (it swallows what it ate) via
-    /// [`crate::caret::CaretAnim::delete_squash`]. Live-only, byte-identical settled.
     DeleteSquash,
-    /// PHASE 2 — KILL-LINE GULP: a C-k SUCCESSFULLY killed (part of) a line. The caller
-    /// pulses a BIGGER caret gulp via [`crate::caret::CaretAnim::gulp`]. Live-only,
-    /// byte-identical settled. Like the squash, mutually exclusive with the recoil (a
-    /// no-op kill changes nothing → no gulp; only a real edit flinches).
     Gulp,
     /// PHASE 3 — ENTER JUICE / LINE LANDING: Enter SUCCESSFULLY inserted a newline
     /// (including the markdown smart-Enter continue/end-block edits). The caller
@@ -275,7 +185,9 @@ pub enum Effect {
     /// the store), so a settled frame stays byte-identical; the naming
     /// minibuffer's open/type/cancel flow itself IS core-driven and fully
     /// `--keys`-drivable (see `overlay_nav`'s `keep_edit` block).
-    KeepVersion { name: Option<String> },
+    KeepVersion {
+        name: Option<String>,
+    },
     /// C-c C-o (follow-link-at-point): the caret sat inside a markdown link, whose
     /// destination URL is carried here for the caller to open in the OS default
     /// browser (a user-initiated handoff — the app never fetches it, so the
@@ -357,7 +269,9 @@ pub enum Effect {
     /// core leaves the overlay open (the menu stays up); the `key` is the config key
     /// from [`crate::settings::toggle_key`]. Headless replay reflects nothing (the
     /// capture path has no live global setter / config write) — a no-op there.
-    SettingToggle { key: String },
+    SettingToggle {
+        key: String,
+    },
     /// SETTINGS MENU: Enter COMMITTED an inline VALUE edit (page widths / zoom). The
     /// core built + committed the typed `value` for config `key`; it can't parse-clamp-
     /// apply-persist (no config path / GPU / zoom owner), so it signals the raw typed
@@ -366,27 +280,17 @@ pub enum Effect {
     /// / `set_zoom`), persist the NAMED key, and refresh the still-open menu's cell
     /// (`App::setting_value_commit`). The core already cleared the value-edit sub-state
     /// (the menu stays open). Headless replay reflects nothing (no live setter / config).
-    SettingValueCommit { key: String, value: String },
-    /// SETTINGS MENU: a PATH row's folder NAVIGATOR accepted a folder. The core routed
-    /// the pick back (the navigator's Enter, when it carried a `setting_path_key`); the
-    /// caller writes the named `key` to config format-preservingly and — for
-    /// `project_root` — additionally re-scopes the active project
-    /// (`App::setting_path_pick`), then the menu is already re-summoned via the
-    /// `return_to` breadcrumb. Headless replay reflects nothing (live-App-only).
-    SettingPathPick { key: String, path: String },
-    /// ITEM 94 — SETTINGS MENU: a RANGE row's value moved by exactly one authored
-    /// STEP (Left/Right on the selected row). UNLIKE the effects above, the value
-    /// change ALREADY HAPPENED IN THE CORE — `apply_core` read the live scalar
-    /// (`ActionCtx::zoom`), stepped it through the ONE range spec, wrote it back,
-    /// and mirrored the new readout + thumb into the still-open menu's own row —
-    /// so a headless `--keys` replay observes the new value exactly as live does.
-    ///
-    /// What the CALLER still owns is the live-App tail: re-metric/reflow for the
-    /// new value and the DISCRETE sticky-setting PERSIST of the named `key`
-    /// (`App::setting_range_step`) — the same "one write per discrete commit" path
-    /// a Toggle takes. Skipping it headlessly diverges nothing observable (the
-    /// capture path is structurally free of config writes).
-    SettingRangeStep { key: String },
+    SettingValueCommit {
+        key: String,
+        value: String,
+    },
+    SettingPathPick {
+        key: String,
+        path: String,
+    },
+    SettingRangeStep {
+        key: String,
+    },
     /// ASSET CLEANER: Enter on an orphan row REQUESTED that its file (root-relative
     /// `rel`) be moved to the OS Trash. The pure core can't reach the Trash / the
     /// filesystem (no root, no [`crate::assets::TrashCan`]), so it signals `rel` back
@@ -398,7 +302,9 @@ pub enum Effect {
     /// and the sidecar never claims a file was trashed that wasn't). A trash FAILURE
     /// leaves the row + shows a calm notice. LIVE-APP-ONLY; a default `--screenshot`
     /// never reaches it (the command is summon-by-name).
-    TrashAsset { rel: String },
+    TrashAsset {
+        rel: String,
+    },
     /// SAVE-FEEDBACK round: manual save (`Action::Save`) on the TRUE scratch
     /// surface — no path, never named as a note — cannot be performed by the
     /// core alone (converting it into a real document needs the ACTIVE
@@ -414,19 +320,10 @@ pub enum Effect {
     /// preference could make this notice-only instead ("nothing to save yet —
     /// start a note first") rather than silently promoting scratch to a note.
     ConvertScratchAndSave,
-    /// Manual save (`Action::Save` / `C-x C-s`) on an ALREADY-pathed (or
-    /// already-note) buffer FINISHED — the core already ran the SAME
-    /// `Buffer::save` call every save path uses, so `ok`/`message` report the
-    /// OUTCOME for the caller's own calm bottom-center NOTICE (`App::notice`):
-    /// success shows a brief "saved" that fades per the existing notice
-    /// behavior, a failure names the error — replacing the round's own bug,
-    /// where both fates only ever reached a terminal `eprintln!` (invisible on
-    /// a GUI launch, and printed to the wrong place from a terminal one).
-    /// Autosave stays SILENT — only this explicit user action is acknowledged.
-    /// Headless replay is a no-op (the write already happened inside the core;
-    /// notices are live-only and history snapshotting on save is a live-App-only
-    /// concern — see `App::snapshot_after_save`'s call site).
-    SaveDone { ok: bool, message: String },
+    SaveDone {
+        ok: bool,
+        message: String,
+    },
     /// NOTES VERBS round: the RENAME minibuffer committed (Enter while the Rename
     /// overlay's `rename_edit` sub-state was active) — the core already CLOSED the
     /// overlay; `new_name` is the typed filename for the caller to act on. The pure
@@ -439,7 +336,9 @@ pub enum Effect {
     /// the sidecar via the overlay's live prompt while typing; the actual disk rename
     /// is live-App-only, mirroring `move_current_file`'s own precedent), so a settled
     /// capture never mutates the filesystem.
-    RenameNoteCommit { new_name: String },
+    RenameNoteCommit {
+        new_name: String,
+    },
     /// NOTES VERBS round: DUPLICATE the current file (`Action::DuplicateNote`) — the
     /// pure core can't reach the filesystem, so it signals the request for the caller
     /// to copy the CURRENT buffer content to an auto-named sibling (the same
@@ -449,17 +348,6 @@ pub enum Effect {
     /// pathless buffer (scratch / an unnamed note) is a calm no-op — there is nothing
     /// to duplicate yet. See [`crate::app::App::duplicate_current_file`].
     DuplicateNote,
-    /// Palette "Insert Date" (`Action::InsertDate`): insert TODAY'S date at the
-    /// caret, formatted per the active [`crate::dateformat::DateFormat`]. The
-    /// pure core can reach neither the wall clock nor `Config`, so it only
-    /// signals this; the caller performs the ONE undoable text insert —
-    /// `App::insert_date` (live: the real clock via
-    /// [`crate::dateformat::today_from_system_clock`]) and the headless
-    /// `--keys` replay (a FIXED placeholder date,
-    /// [`crate::dateformat::CAPTURE_PLACEHOLDER_YMD`], so a capture stays
-    /// deterministic) both apply through the SAME [`crate::buffer::Buffer::insert_text`]
-    /// seam, reading the SAME format process-global
-    /// ([`crate::dateformat::active_format`]).
     InsertDate,
 }
 
@@ -485,16 +373,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     #[cfg(test)]
     let _test_guard = crate::testlock::product();
 
-    // PLATFORM-SCOPED COMMANDS: the DISPATCH gate. Hiding a command from the palette
-    // / rebind menu / menu bar (`commands::visible`) is not enough on its own — a
-    // still-configured keymap CHORD (native or emacs; e.g. Cmd-Q for Quit) reaches
-    // `apply_core` directly, bypassing every picker, and a stray `Effect::RunAction`
-    // re-dispatch could in principle name a hidden action too. This is the BELT: any
-    // action unavailable on `commands::Platform::current()` (`commands::action_available`)
-    // is a calm, total no-op RIGHT HERE, before it can touch the buffer, open an
-    // overlay, or signal an effect the caller would act on. Native is a single `==`
-    // branch that always returns available (nothing is ever gated on the desktop
-    // build); web is a small bounded scan of the ~60-entry catalog, no allocation.
     if !crate::commands::action_available(action, crate::commands::Platform::current()) {
         return Effect::None;
     }
@@ -549,11 +427,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // headless mirror from before the seam existed) was retired with it:
     // same behavior must be same code, not an aligned copy.
 
-    // Selection-on-motion, two distinct modes:
-    //   * Shift+motion = TRANSIENT (GUI style): extends only while Shift is
-    //     held; the next unshifted motion collapses the selection.
-    //   * C-Space mark = STICKY (Emacs style): every motion extends the region
-    //     until C-g / an edit clears it.
     if action.is_motion() {
         if shift {
             if ctx.buffer.anchor_char().is_none() {
@@ -561,7 +434,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             }
             *ctx.shift_selecting = true;
         } else if *ctx.shift_selecting {
-            // Shift released, then moved: drop the transient selection.
             ctx.buffer.clear_mark();
             *ctx.shift_selecting = false;
         }
@@ -576,22 +448,12 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     let version_before = ctx.buffer.version();
     let could_undo = ctx.buffer.can_undo();
     let could_redo = ctx.buffer.can_redo();
-    // COPY PULSE snapshot: whether a NON-EMPTY selection existed BEFORE dispatch.
-    // `Buffer::copy_region` unconditionally clears the mark (even on a no-op copy
-    // with nothing selected), so reading `has_selection()` AFTER the call would
-    // always read false — this has to be taken here, alongside the other
-    // pre-action snapshots. See `copy_pulse_for`.
     let had_selection_before = ctx.buffer.has_selection();
 
     let mut effect = Effect::None;
     match action {
         Action::ForwardChar => ctx.buffer.forward_char(),
         Action::BackwardChar => ctx.buffer.backward_char(),
-        // The motions with a VISUAL-ROW analogue route through `vertical_motion` /
-        // `line_edge_motion`, which follow the SHAPED visual rows via the layout
-        // oracle (the FLAT DEFAULT — no logical/visual toggle). With no oracle (the
-        // pure unit tests) they fall back to the buffer's LOGICAL lines, so on a
-        // NON-wrapped document visual == logical and behavior is unchanged.
         Action::NextLine => vertical_motion(ctx, true),
         Action::PreviousLine => vertical_motion(ctx, false),
         Action::LineStart => line_edge_motion(ctx, false),
@@ -696,10 +558,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         // only ever models the OPEN.
         Action::SearchForward => start_search(ctx, Direction::Forward),
         Action::SearchBackward => start_search(ctx, Direction::Backward),
-        // Cmd-R (or the legacy Cmd-Option-F): open the SAME isearch panel with the
-        // labeled REPLACE row revealed — but focus stays on the FIND field so you
-        // type the needle first (Cmd-R again / Tab moves into the replacement,
-        // consumed by the search guard once the panel is open).
         Action::OpenReplace => {
             start_search(ctx, Direction::Forward);
             if let Some(st) = ctx.search.as_mut() {
@@ -751,21 +609,9 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::PageReset => {
             crate::page::set_measure(ctx.buffer.page_class().default_measure());
         }
-        // Toggling the DEBUG panel is a pure render concern (no buffer change), like
-        // the caret / page toggles. The windowed `App::apply` intercepts this
-        // to ALSO keep the redraw loop hot (so the live frametime line updates); the
-        // headless replay path just flips the process-global so a `--debug` (or
-        // palette-run) capture renders (and records in its sidecar) the toggled state — the
-        // frametime line drawn as a fixed placeholder since the capture has no clock.
         Action::ToggleDebug => {
             crate::debug::toggle();
         }
-        // Toggling the persistent MARGIN OUTLINE is a pure render concern (no buffer
-        // change), exactly like the debug / page toggles: flip the
-        // process-global here so a `--keys "Cmd-S-o"` capture renders (and records in
-        // its sidecar) the toggled state; the live `App::apply` intercepts this to
-        // ALSO persist the sticky pref + request a redraw. ON by default (flipped
-        // 2026-07-09), so a default capture reports `outline.on: true`.
         Action::ToggleOutline => {
             crate::outline::toggle();
         }
@@ -780,39 +626,15 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::CollapseOtherSections => {
             ctx.buffer.collapse_other_sections();
         }
-        // Toggling the awl-RENDERED MENU BAR is a pure render concern (no buffer
-        // change), exactly like the outline / debug / page toggles: flip the
-        // process-global here so a `--keys "..."` capture renders (and records in its
-        // sidecar `menubar` block) the toggled state; the live `App::apply` intercepts
-        // this to ALSO persist the sticky pref + request a redraw. Default OFF on
-        // macOS (the native bar is the door), ON on web/Linux, so a default macOS
-        // capture reports `menubar.shown: false`.
         Action::ToggleMenuBar => {
             crate::menubar::toggle();
         }
-        // Toggling TYPEWRITER SCROLL is a pure SCROLL concern (no buffer change),
-        // like the outline toggle: flip the process-global here so a
-        // `--keys` capture with typewriter on renders (and its sidecar `scroll_lines`
-        // reports) the pinned centered scroll; the live `App::apply` intercepts this
-        // to ALSO persist the sticky pref + re-pin the caret row. OFF by default, so a
-        // default capture keeps the cursor-follow scroll.
         Action::ToggleTypewriter => {
             crate::typewriter::toggle();
         }
-        // Summon the held STATS HUD. This is a HELD key, not a toggle: the press
-        // SETS the process-global true, and the live window clears it on the matching
-        // key RELEASE (`App::on_key_release`). A headless `--keys "Cmd-M-i"` (Option-
-        // Cmd-I) replay has
-        // no release, so it leaves the HUD held for the single captured frame — the
-        // settled-state render of an in-motion peek, like the other render globals.
-        // Render-only (no buffer change); `App::apply` keeps the redraw loop hot.
         Action::ShowStatsHud => {
             crate::hud::set_held(true);
         }
-        // OPEN the summoned About card (name/version/world/end-mark). Stays
-        // open until this same function's top-of-function intercept consumes
-        // the next key (or the live App's mouse-press handler closes it on a
-        // click — `app/input/mouse.rs`). Render-only (no buffer change).
         Action::About => {
             // Reentrant no-op: `_test_guard` at the top of this function already
             // holds this same process-wide lock for the WHOLE call, so this
@@ -823,10 +645,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             let _g = crate::testlock::serial();
             crate::about::set_open(true);
         }
-        // OPEN the summoned Lifetime stats card (the personal odometer). Stays
-        // open until this same function's top-of-function intercept consumes the
-        // next key (or the live App's mouse-press handler closes it on a click —
-        // `app/input/mouse.rs`). Render-only (no buffer change). See `lifetime.rs`.
         Action::LifetimeStats => {
             // Reentrant no-op under the same whole-function `_test_guard` above —
             // see the comment on the `Action::About` arm.
@@ -834,10 +652,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             let _g = crate::testlock::serial();
             crate::lifetime::set_open(true);
         }
-        // OPEN the summoned Writing streaks card (the year-calendar heatmap). Stays
-        // open until this same function's top-of-function intercept consumes the
-        // next key (or the live App's mouse-press handler closes it on a click).
-        // Render-only (no buffer change). See `streaks.rs`.
         Action::WritingStreaks => {
             #[cfg(test)]
             let _g = crate::testlock::serial();
@@ -861,15 +675,9 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         // so Cmd-Z stays meaningful). Pure `markdown` core + the buffer's atomic
         // replace seam, so `--keys "..."` drives it and the result is assertable.
         Action::AlignTable => align_table_at_cursor(ctx),
-        // "Report a Problem": the core has no fs / OS-handoff access, so it
-        // just signals the request; the live App composes the mailto: URL
-        // (pulling in the newest crash log's path if one exists) and opens it.
         Action::ReportProblem => {
             effect = Effect::ReportProblem;
         }
-        // "Download file" (web-only): the core has no `web_sys` / DOM handoff
-        // seam, so it just signals the request; the live App builds the Blob +
-        // object URL and clicks the synthetic download anchor.
         Action::DownloadFile => {
             effect = Effect::DownloadFile;
         }
@@ -880,18 +688,11 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::CheckForUpdates => {
             effect = Effect::CheckForUpdates;
         }
-        // MARKDOWN FORMATTING COMMANDS: pure toggle transforms (block prefix / inline
-        // wrapper) applied as ONE undoable edit through `Buffer::apply_format`. Each is
-        // a TOGGLE (apply when absent on the target, strip when present) and markdown-
-        // only (a calm no-op on a `.rs`/`.txt` buffer); the pure transforms live in
-        // `actions::format`, so `--keys` drives them and the sidecar reflects the result.
         Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
         Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
         Action::ToggleNumberedList => apply_block_format(ctx, format::BlockKind::Numbered),
         Action::ToggleTaskList => apply_block_format(ctx, format::BlockKind::Task),
         Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
-        // The format popover's `H` button — a LEVEL CYCLE (off→H1→H2→H3→off), not the
-        // single `# ` toggle above; markdown-only, one undoable edit.
         Action::HeadingCycle => format::apply_heading_cycle(ctx),
         Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
         Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
@@ -899,9 +700,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
         Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
         Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
-        // EXPORT (markdown-only, like the format toggles): signal the requested
-        // format for the live App to render + write. A non-markdown buffer is a
-        // calm no-op (`Effect::None`).
         Action::ExportWord => {
             if ctx.buffer.is_markdown() {
                 effect = Effect::Export(crate::export::Format::Docx);
@@ -919,37 +717,16 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
                 effect = Effect::Export(crate::export::Format::Pdf);
             }
         }
-        // LINKS V2 — Cmd-K: summon the URL minibuffer (`link::open_insert_link`
-        // decides WRAP / EDIT / INSERT from buffer state — see `Action::InsertLink`'s
-        // own doc). Markdown-only, calm no-op elsewhere. The actual edit lands on
-        // Enter, inside the modal intercept (`overlay_nav::overlay_intercept`).
         Action::InsertLink => open_insert_link(ctx),
-        // INSERT DATE: the core can't read a clock or `Config`, so it only
-        // signals the request — the caller (`App::insert_date` live, the
-        // headless replay's own arm) performs the actual ONE-undoable-edit
-        // insert. See `Effect::InsertDate`'s own doc.
         Action::InsertDate => {
             effect = Effect::InsertDate;
         }
-        // Summon the navigation overlay. The caller's `make_overlay` builds the
-        // candidate list (file index for Goto, workspace children for Project);
-        // if it returns None (no active project), the open is a quiet no-op.
         Action::OpenGoto => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Goto);
         }
-        // Summon the navigable PROJECT explorer at the workspace dir (browse_dir
-        // = None tells the hook to start at the `--workspace` directory). Unlike
-        // the other kinds this walks by ABSOLUTE path via `browse_to`, so it can
-        // climb above the workspace and descend into any subtree.
         Action::OpenProject => {
             *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::Project, None);
         }
-        // "Recent projects…" (palette + File menu): open the SWITCH-PROJECT navigator
-        // pre-lensed onto its RECENT lens — the fold that retired the standalone
-        // RecentProjects picker. Same door as `OpenProject` (the navigator needs a
-        // directory LEVEL, so it builds via `browse_to`, not `make_overlay`), then the
-        // lens is focused to `recent` so it opens showing the recent-projects MRU. No
-        // workspace yields None → a quiet no-op, exactly like `OpenProject`.
         Action::OpenRecentProjects => {
             let mut ov = (ctx.browse_to)(crate::overlay::OverlayKind::Project, None);
             if let Some(o) = ov.as_mut() {
@@ -957,23 +734,12 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             }
             *ctx.overlay = ov;
         }
-        // Summon the THEME PICKER (all worlds, fuzzy-filterable, live preview).
-        // The caller's `make_overlay` builds it with the world names + the active
-        // index (remembered for revert-on-cancel). It opens highlighting the
-        // current world, so the open frame previews exactly the active theme.
         Action::OpenThemeMenu => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Theme);
         }
-        // Summon the CARET-STYLE PICKER (the three looks + descriptions, with a live
-        // animated preview). The caller's `make_overlay` builds it with the looks +
-        // the active one (remembered for revert-on-cancel); it opens highlighting the
-        // current look, so the open frame previews exactly the active caret style.
         Action::OpenCaretMenu => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Caret);
         }
-        // Summon the DICTIONARY PICKER (the three bundled variants + descriptions,
-        // NO live preview — see `overlay/`'s Dictionary doc). Opens highlighting
-        // the currently-active variant.
         Action::OpenDictionaryMenu => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Dictionary);
         }
@@ -987,22 +753,12 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::ToggleSpellcheck => {
             crate::spell::toggle();
         }
-        // Toggling WRITING NITS is a pure render concern (no buffer change), exactly
-        // like the spellcheck toggle: flip the process-global here so a `--keys`
-        // capture renders (and its sidecar reflects) the toggled state — every nit
-        // proto rebuilds from `nits::nits_on()` each frame — and the live `App::apply`
-        // intercepts this to ALSO persist the sticky pref + repaint. ON by default.
         Action::ToggleWritingNits => {
             crate::nits::toggle();
         }
-        // Cmd-P: summon the COMMAND PALETTE (the named-command fuzzy list). The
-        // caller's `make_overlay` builds it from `commands::COMMANDS`.
         Action::OpenCommandPalette => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Command);
         }
-        // Cmd-P → "Keybindings…": summon the GAME-STYLE REBIND MENU (the command
-        // catalog in capture mode). Built by `make_overlay` from `commands::COMMANDS`,
-        // exactly like the palette but opened to rebind rather than run.
         Action::OpenKeybindings => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Keybindings);
         }
@@ -1020,10 +776,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
             }
             *ctx.overlay = ov;
         }
-        // Cmd-`;`: summon the SPELL-SUGGESTION picker for the misspelled word at the
-        // cursor. The caller's `make_overlay` resolves the word the cursor is on (or
-        // adjacent to) + its corrections; if the cursor isn't on a flagged word it
-        // returns None, so the open is a calm no-op. Enter then replaces the word.
         Action::OpenSpellSuggest => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Spell);
         }
@@ -1043,14 +795,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::OpenAssetClean => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Assets);
         }
-        // "Keep version…": THE CONSCIOUS MARK — summon the NAMED-SAVE-POINT
-        // minibuffer (an optional name for the kept version, the Rename/InsertLink
-        // precedent: a single editable row whose modal `keep_edit` sub-state owns
-        // every key). Enter commits `Effect::KeepVersion { name }` — a blank Enter
-        // is the plain keep, so today's zero-friction path is one extra Enter; Esc
-        // cancels with nothing recorded. Opened unconditionally, mirroring the old
-        // always-fire arm: the store's own gates (git-managed / history-off / no
-        // history key yet) still decide at commit, exactly as they always did.
         Action::KeepVersion => {
             *ctx.overlay = Some(OverlayState::new_keep_name());
         }
@@ -1064,31 +808,18 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::CompareVersion => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::History);
         }
-        // Summon the one-level browse navigator at the ROOT level (browse_dir =
-        // None). Descend/ascend then rebuild it via `browse_to`.
         Action::OpenBrowse => {
             *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::Browse, None);
         }
-        // C-x b: signal the last-buffer toggle; the caller owns the 2-deep history.
         Action::LastBuffer => {
             effect = Effect::LastBuffer;
         }
-        // Cmd-N: signal a new fresh document; the caller swaps in a fresh
-        // unnamed buffer IN THE ACTIVE FOLDER (filesystem/window are
-        // caller-level; item 76 retired the old separate-root jump).
         Action::NewDocument => {
             effect = Effect::NewDocument;
         }
-        // C-x m: summon the MOVE-DESTINATION picker (Browse navigator over the
-        // ACTIVE folder, folders only). The accepted folder is acted on by the caller.
         Action::MoveFile => {
             *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::MoveDest, None);
         }
-        // NOTES VERBS round: summon the RENAME minibuffer, pre-filled with the
-        // current filename — pure buffer-state gate (a path is a `Buffer` field,
-        // no fs needed), so this stays headless-drivable. A pathless buffer
-        // (scratch / an unnamed note) is a calm no-op: there's nothing to rename
-        // yet, and opening a dead-end prompt would be worse than declining.
         Action::OpenRenameNote => {
             if let Some(path) = ctx.buffer.path() {
                 let name = path
@@ -1098,32 +829,18 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
                 *ctx.overlay = Some(OverlayState::new_rename(name));
             }
         }
-        // NOTES VERBS round: the pure core can't reach the filesystem — signal the
-        // request for the caller to copy + open the sibling.
         Action::DuplicateNote => {
             effect = Effect::DuplicateNote;
         }
-        // Settings: signal the caller to open the config file into the buffer (it
-        // owns the path + the create-default-if-missing step). Like NewDocument, the
-        // core only flips the flag; the filesystem/window work is caller-level.
         Action::OpenSettings => {
             effect = Effect::OpenSettings;
         }
-        // Credits: signal the caller to open the embedded CREDITS.md into the
-        // buffer (it owns the on-disk refresh + filesystem write). Like
-        // OpenSettings, the core only flips the flag.
         Action::OpenCredits => {
             effect = Effect::OpenCredits;
         }
-        // Guide: signal the caller to open the embedded GUIDE.md into the
-        // buffer (it owns the on-disk refresh + filesystem write). Like
-        // OpenCredits, the core only flips the flag.
         Action::OpenGuide => {
             effect = Effect::OpenGuide;
         }
-        // Settings menu: summon the faceted settings overlay (the friendly default).
-        // Built by `make_overlay` from the settings corpus + the gathered value
-        // cells; it always summons (a non-empty static table).
         Action::OpenSettingsMenu => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Settings);
         }
@@ -1167,7 +884,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     if !action.is_edit() && !matches!(action, Action::Undo | Action::Redo) {
         ctx.buffer.seal_undo_group();
     }
-    // Keep the flag honest: no selection => not shift-selecting.
     if !ctx.buffer.has_selection() {
         *ctx.shift_selecting = false;
     }
@@ -1199,11 +915,6 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     {
         effect = Effect::Recoil(dir);
     }
-    // DELETION SQUASH + TYPING IMPACT (PHASE 2) — if the action produced no other
-    // effect AND it was a SUCCESSFUL edit (the content version actually bumped), arm
-    // the caret FLINCH for the edit. Mutually exclusive with the blocked-action recoil
-    // above (a no-op delete recoils away from the wall; a REAL delete squashes inward),
-    // so we only test when `effect` is still `None`.
     if effect == Effect::None
         && let Some(imp) = impact_for(action, version_before, ctx)
     {

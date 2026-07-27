@@ -1,11 +1,3 @@
-//! Spell checking, suggestions, and bundled Hunspell dictionaries. Tokenization
-//! stays pure and markdown-aware; dictionary changes parse only on commit.
-
-/// The bundled dictionary PAIRS (LibreOffice Hunspell), `include_str!`'d into
-/// the binary so spell-check works with no external files and the headless
-/// capture stays self-contained + deterministic. en_US is the historical
-/// default (~49.5k stems); en_GB / en_AU are the same LibreOffice dictionary
-/// family (license + READMEs alongside them in `assets/dict/`).
 const AFF_US: &str = include_str!("../assets/dict/en_US.aff");
 const DIC_US: &str = include_str!("../assets/dict/en_US.dic");
 const AFF_GB: &str = include_str!("../assets/dict/en_GB.aff");
@@ -13,15 +5,8 @@ const DIC_GB: &str = include_str!("../assets/dict/en_GB.dic");
 const AFF_AU: &str = include_str!("../assets/dict/en_AU.aff");
 const DIC_AU: &str = include_str!("../assets/dict/en_AU.dic");
 
-/// Which bundled Hunspell dictionary variant is active. A process-global
-/// selectable enum, mirroring [`crate::caret::CaretMode`] exactly: [`ALL`](Self::ALL)
-/// drives the picker corpus, [`label`](Self::label)/[`from_label`](Self::from_label)
-/// round-trip the picker's display name, and [`active_variant`]/[`set_active_variant`]
-/// are the process-global pair the live App AND the headless capture both read (so a
-/// `--config` with `dictionary = "en_AU"` produces a capture using that dictionary
-/// with no flags, exactly like `theme`/`caret_mode`).
+/// Active bundled Hunspell variant, shared by live mode and capture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-// The language prefix keeps persisted dictionary identifiers self-explanatory.
 #[allow(clippy::enum_variant_names)]
 pub enum DictVariant {
     EnUs,
@@ -30,8 +15,6 @@ pub enum DictVariant {
 }
 
 impl DictVariant {
-    /// Every selectable dictionary, in picker order. The DICTIONARY PICKER lists
-    /// these three with their [`label`](Self::label)/[`description`](Self::description).
     pub const ALL: [DictVariant; 3] = [DictVariant::EnUs, DictVariant::EnGb, DictVariant::EnAu];
 
     fn as_u8(self) -> u8 {
@@ -42,9 +25,6 @@ impl DictVariant {
         }
     }
 
-    /// The picker ROW title — the human name shown in the dictionary menu (and
-    /// matched back via [`from_label`](Self::from_label)). The lower-case wire form
-    /// (the config `dictionary = "…"` value) is [`crate::config::dictionary_name`].
     pub fn label(self) -> &'static str {
         match self {
             DictVariant::EnUs => "English (US)",
@@ -53,9 +33,6 @@ impl DictVariant {
         }
     }
 
-    /// One quiet line describing the variant, drawn dim beside the name in the
-    /// dictionary picker (the same right-column shape as the caret-style picker's
-    /// descriptions).
     pub fn description(self) -> &'static str {
         match self {
             DictVariant::EnUs => "Hunspell en_US — American spelling",
@@ -64,16 +41,12 @@ impl DictVariant {
         }
     }
 
-    /// Resolve a picker ROW title ([`label`](Self::label)) back to its variant —
-    /// the inverse, used by the dictionary picker's commit path. Case-insensitive;
-    /// `None` for an unknown label.
     pub fn from_label(s: &str) -> Option<DictVariant> {
         Self::ALL
             .into_iter()
             .find(|v| v.label().eq_ignore_ascii_case(s))
     }
 
-    /// The bundled `(aff, dic)` source pair for this variant.
     fn files(self) -> (&'static str, &'static str) {
         match self {
             DictVariant::EnUs => (AFF_US, DIC_US),
@@ -83,14 +56,8 @@ impl DictVariant {
     }
 }
 
-/// The user's explicit dictionary-variant override. A process-global like the
-/// active theme / caret mode; 0/1/2 map directly to [`DictVariant::ALL`] order
-/// (unlike caret's "0 = auto" scheme, there is no font-derived default here —
-/// absent config is simply `EnUs`, matching the sticky-pref contract).
 static ACTIVE_VARIANT: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
 
-/// The EFFECTIVE dictionary variant: the explicit override the picker / config /
-/// `apply_sticky_globals` set, else [`DictVariant::EnUs`] (the built-in default).
 pub fn active_variant() -> DictVariant {
     match ACTIVE_VARIANT.load(std::sync::atomic::Ordering::Relaxed) {
         1 => DictVariant::EnGb,
@@ -99,8 +66,6 @@ pub fn active_variant() -> DictVariant {
     }
 }
 
-/// Set the explicit dictionary-variant override (the picker's commit path, and
-/// `apply_sticky_globals` restoring a remembered `dictionary` pref at launch).
 pub fn set_active_variant(v: DictVariant) {
     ACTIVE_VARIANT.store(v.as_u8(), std::sync::atomic::Ordering::Relaxed);
 }
@@ -113,20 +78,14 @@ pub fn set_active_variant(v: DictVariant) {
 /// duplicated gating at any call site (render, capture, the right-click seam).
 static SPELLCHECK_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
-/// True when spell-check is active (read by [`SpellChecker::misspellings_for`] /
-/// [`SpellChecker::suggest_at`] before doing any work).
 pub fn spellcheck_on() -> bool {
     SPELLCHECK_ON.load(std::sync::atomic::Ordering::Relaxed)
 }
 
-/// Set spell-check on/off explicitly (a config sticky-pref restore / the
-/// "Toggle spellcheck" palette command's live flip).
 pub fn set_spellcheck_on(on: bool) {
     SPELLCHECK_ON.store(on, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// Flip spell-check and return the now-active state (the "Toggle spellcheck"
-/// palette command). Mirrors [`crate::nits::toggle`] / [`crate::page::toggle`].
 pub fn toggle() -> bool {
     let next = !spellcheck_on();
     SPELLCHECK_ON.store(next, std::sync::atomic::Ordering::Relaxed);
@@ -187,12 +146,6 @@ impl SpellVerdict {
     }
 }
 
-/// Build the KEYED verdict list for `misspellings` (a [`SpellChecker::misspellings_for`]
-/// result) against the SAME `text` it was computed from — pairs each span with
-/// the exact word it covers RIGHT NOW, the key [`SpellVerdict::still_valid`]
-/// checks on a later read (typically against a NEWER text, after further
-/// edits). Calling this with the text the spans came from always produces
-/// verdicts that start out valid by construction.
 pub fn keyed(text: &str, misspellings: Vec<Misspelling>) -> Vec<SpellVerdict> {
     misspellings
         .into_iter()
@@ -230,10 +183,6 @@ pub fn visible(cache: &[SpellVerdict], text: &str) -> Vec<Misspelling> {
 /// owns the file write; this struct owns only the in-memory set).
 pub struct SpellChecker {
     dict: spellbook::Dictionary,
-    /// The user's personal-dictionary words, LOWERCASED for case-insensitive
-    /// matching (mirroring the all-lowercase fallback [`Self::check`] already
-    /// applies to the bundled dictionary). Empty until [`Self::set_user_words`]
-    /// loads the file.
     user_words: std::collections::HashSet<String>,
 }
 
@@ -258,14 +207,6 @@ impl SpellChecker {
         })
     }
 
-    /// True if `word` is spelled correctly. Hunspell's `check` is already case
-    /// aware (it honors capitalized / all-caps forms of dictionary stems and the
-    /// dictionary's own proper-noun entries), so we pass the raw word; if the
-    /// exact-case form is rejected we additionally accept an all-lowercase match
-    /// so a sentence-initial capital of a lowercase-only stem (e.g. "Definately"
-    /// vs "definitely") is judged on the stem, not the capitalization. FINALLY the
-    /// USER dictionary is consulted (case-insensitively) — a word the user added
-    /// via "Add to dictionary" is correct in every casing, forever, across runs.
     pub fn check(&self, word: &str) -> bool {
         if self.dict.check(word) {
             return true;
@@ -293,10 +234,6 @@ impl SpellChecker {
             .collect();
     }
 
-    /// ADD one word to the in-memory user dictionary ("Add to dictionary"), so the
-    /// squiggle clears THIS frame. Returns `true` when the word was newly added
-    /// (`false` = already known — the caller then skips the disk append, keeping
-    /// the file free of duplicates). Trimmed + lowercased like [`Self::set_user_words`].
     pub fn add_user_word(&mut self, word: &str) -> bool {
         let w = word.trim().to_lowercase();
         if w.is_empty() {
@@ -305,15 +242,11 @@ impl SpellChecker {
         self.user_words.insert(w)
     }
 
-    /// The number of user-dictionary words currently loaded — a cheap test hook
-    /// (no non-test caller in the shipping binary).
     #[cfg(test)]
     pub fn user_word_count(&self) -> usize {
         self.user_words.len()
     }
 
-    /// Detect all misspelled words in `text`. Thin wrapper over the pure
-    /// [`misspelled_spans`] using this dictionary as the predicate.
     pub fn misspellings(&self, text: &str) -> Vec<Misspelling> {
         misspelled_spans(text, |w| self.check(w))
     }
@@ -377,23 +310,12 @@ impl SpellChecker {
         }
     }
 
-    /// Ordered correction candidates for `word`, best first (Hunspell's own
-    /// ranking). Empty when the engine has no suggestion. A thin wrapper over
-    /// spellbook's `suggest`, owning the output vec so callers needn't manage one.
     pub fn suggest(&self, word: &str) -> Vec<String> {
         let mut out = Vec::new();
         self.dict.suggest(word, &mut out);
         out
     }
 
-    /// Resolve the misspelling the cursor at `(line, col)` is ON or ADJACENT to and
-    /// pair it with its correction candidates — the data the summoned spell picker
-    /// lists. GATED FIRST on the GLOBAL [`spellcheck_on`] toggle — OFF returns
-    /// `None` unconditionally, so `Cmd-;` / a right-click degrades to the same
-    /// calm no-op the binding already promises for a correct word. `None` also
-    /// when the cursor is not on a flagged word. The returned span is in CHAR
-    /// columns on the logical line, so the caller can map it to a buffer char
-    /// range for the replace-the-word edit.
     pub fn suggest_at(
         &self,
         text: &str,
@@ -431,10 +353,6 @@ impl SpellChecker {
     }
 }
 
-/// A misspelled word the cursor sits on, with its ordered correction candidates.
-/// Produced by [`SpellChecker::suggest_at`] for the summoned spell picker: the
-/// `misspelling` span locates the word to replace, `word` is its current text, and
-/// `suggestions` (possibly empty) are what the picker lists.
 #[derive(Clone, Debug)]
 pub struct SuggestionTarget {
     pub misspelling: Misspelling,
@@ -446,12 +364,6 @@ pub struct SuggestionTarget {
     pub suggestions: Vec<String>,
 }
 
-/// Parse the USER (personal) DICTIONARY file text into a word list: one word per
-/// line, each TRIMMED, with blank lines and `#`-prefixed comment lines dropped.
-/// Pure (no I/O) so the format is unit-testable; the App reads the file through
-/// the [`crate::fs`] seam and feeds the text here (then [`SpellChecker::set_user_words`]
-/// lowercases each for matching). Whitespace-only and comment lines are ignored so
-/// a hand-edited file can carry a header comment without adding a bogus "word".
 pub fn parse_dictionary(text: &str) -> Vec<String> {
     text.lines()
         .map(|l| l.trim())
@@ -493,41 +405,20 @@ fn is_latin_letter(c: char) -> bool {
     if !c.is_alphabetic() {
         return false;
     }
-    // Accept the Latin-script blocks (Basic Latin handled above, plus Latin-1
-    // supplement / extended and IPA) so accented Latin words (café, naïve) are
-    // checked; everything else (CJK, Cyrillic, Greek, ...) is skipped.
     matches!(c as u32,
         0x00C0..=0x024F   // Latin-1 Supplement + Latin Extended-A/B
         | 0x1E00..=0x1EFF // Latin Extended Additional
     )
 }
 
-/// True for an apostrophe that may sit INSIDE a word (don't, it's). Both the
-/// ASCII `'` and the typographic right single quote are accepted; the dictionary
-/// stores apostrophe words with `'`.
 fn is_intraword_apostrophe(c: char) -> bool {
     c == '\'' || c == '\u{2019}'
 }
 
-/// Tokenize `text` and return the MISSPELLED words as `(line, start_col,
-/// end_col)` char spans, skipping markdown code + URLs. `check(word)` returns
-/// true for a correctly spelled word. Pure (no I/O, no dictionary) so the
-/// markdown heuristics + tokenization are unit-testable with a stub predicate.
-///
-/// Skipping rules (heuristic, good enough for v1):
-///   * Fenced code blocks: a line whose trimmed text starts with ``` toggles a
-///     "in code fence" state; lines inside are not checked (nor is the fence).
-///   * Inline code: a backtic-delimited run `like this` on a line is skipped.
-///   * URLs: a whitespace-delimited token starting http:// https:// or www. is
-///     skipped wholesale (so `.../teh` is not flagged).
-///   * Tokens containing a digit, or any non-Latin letter, are skipped.
 pub fn misspelled_spans<F: Fn(&str) -> bool>(text: &str, check: F) -> Vec<Misspelling> {
     let mut out = Vec::new();
     let mut in_fence = false;
 
-    // `text.split('\n')` yields one entry per logical line and is consistent
-    // with how the buffer numbers lines (each '\n' ends a line). A trailing
-    // newline yields a final empty line, which is harmless (no words).
     for (line_no, line) in text.split('\n').enumerate() {
         // Fenced code block toggle: a line that is just ``` (optionally with an
         // info string / indentation) flips the state. The fence line itself is
@@ -544,15 +435,12 @@ pub fn misspelled_spans<F: Fn(&str) -> bool>(text: &str, check: F) -> Vec<Misspe
     out
 }
 
-/// Scan a single (non-fence) line: skip inline-code and URL regions, then emit
-/// misspelled word spans for the rest. Columns are CHAR indices into the line.
 fn scan_line<F: Fn(&str) -> bool>(
     line: &str,
     line_no: usize,
     check: &F,
     out: &mut Vec<Misspelling>,
 ) {
-    // Work in (char_index, char) units so emitted columns are char columns.
     let chars: Vec<char> = line.chars().collect();
     let n = chars.len();
     let mut i = 0usize;
@@ -560,20 +448,17 @@ fn scan_line<F: Fn(&str) -> bool>(
     while i < n {
         let c = chars[i];
 
-        // --- Inline code: skip from an opening backtick to its closing one. ---
         if c == '`' {
             i += 1;
             while i < n && chars[i] != '`' {
                 i += 1;
             }
-            // Consume the closing backtick if present.
             if i < n {
                 i += 1;
             }
             continue;
         }
 
-        // --- URL: skip a whole whitespace-delimited token that looks like one.
         if c.is_ascii_alphabetic() && url_at(&chars, i) {
             while i < n && !chars[i].is_whitespace() {
                 i += 1;
@@ -581,11 +466,8 @@ fn scan_line<F: Fn(&str) -> bool>(
             continue;
         }
 
-        // --- Word: a run of Latin letters with intra-word apostrophes. --------
         if is_latin_letter(c) {
             let start = i;
-            // Track whether the run held any non-Latin letter or digit; if so we
-            // skip it (mixed-script / alphanumeric token).
             let mut skip = false;
             while i < n {
                 let ch = chars[i];
@@ -593,12 +475,9 @@ fn scan_line<F: Fn(&str) -> bool>(
                     i += 1;
                 } else if is_intraword_apostrophe(ch) && i + 1 < n && is_latin_letter(chars[i + 1])
                 {
-                    // Apostrophe only counts as intra-word when a letter follows
-                    // (so a trailing quote in `dogs'` ends the word cleanly).
+                    // Keep the apostrophe in the word; the following letter advances next.
                     i += 1;
                 } else if ch.is_alphanumeric() {
-                    // A digit or non-Latin letter glued to the run: consume the
-                    // rest of the alnum run and mark it un-checkable.
                     skip = true;
                     i += 1;
                 } else {
@@ -609,8 +488,6 @@ fn scan_line<F: Fn(&str) -> bool>(
                 continue;
             }
             let word: String = chars[start..i].iter().collect();
-            // Trim a possible trailing apostrophe (e.g. from "dogs'") before the
-            // dictionary lookup; intra-word apostrophes are kept.
             let trimmed = word.trim_end_matches(is_intraword_apostrophe);
             if trimmed.is_empty() {
                 continue;
@@ -652,7 +529,6 @@ pub fn misspelled_spans_scoped<F: Fn(&str) -> bool>(
         prose_ranges.windows(2).all(|w| w[0].start <= w[1].start),
         "prose_ranges must be sorted by start"
     );
-    // Line starts from one running walk; per-line text for char->byte cols.
     let lines: Vec<&str> = text.split('\n').collect();
     let mut line_starts: Vec<usize> = Vec::with_capacity(lines.len());
     let mut acc = 0usize;
@@ -666,7 +542,6 @@ pub fn misspelled_spans_scoped<F: Fn(&str) -> bool>(
         let Some(line) = lines.get(m.line) else {
             continue;
         };
-        // Char col -> line-local byte offset (chars can be multi-byte).
         let byte_at = |col: usize| {
             line.char_indices()
                 .nth(col)
@@ -675,9 +550,6 @@ pub fn misspelled_spans_scoped<F: Fn(&str) -> bool>(
         };
         let lo = line_starts[m.line] + byte_at(m.start_col);
         let hi = line_starts[m.line] + byte_at(m.end_col);
-        // Two-pointer: drop ranges that end before this word can fit. Words are
-        // disjoint + ascending, so a range too short for THIS word is too short
-        // for every later one.
         while ri < prose_ranges.len() && prose_ranges[ri].end < hi {
             ri += 1;
         }
@@ -736,8 +608,6 @@ fn identifier_shaped(word: &str) -> bool {
     word.chars().skip(1).any(|c| c.is_uppercase())
 }
 
-/// Does a URL scheme/prefix begin at char index `i`? Matches `http://`,
-/// `https://`, or `www.` case-insensitively against the char slice.
 fn url_at(chars: &[char], i: usize) -> bool {
     const PREFIXES: &[&str] = &["https://", "http://", "www."];
     for p in PREFIXES {
@@ -766,7 +636,6 @@ mod tests {
         vec![range]
     }
 
-    /// A stub dictionary: only these exact lowercase words are "correct".
     fn stub<'a>(correct: &'a [&'a str]) -> impl Fn(&str) -> bool + 'a {
         move |w: &str| correct.iter().any(|c| c.eq_ignore_ascii_case(w))
     }
@@ -792,10 +661,8 @@ mod tests {
     #[test]
     fn columns_are_char_indices_after_punctuation() {
         let good = stub(&["a", "test"]);
-        // "a, tset." -> "tset"? here we test column math with punctuation.
         let ms = misspelled_spans("a, tset.", &good);
         assert_eq!(ms.len(), 1);
-        // "tset" starts at char col 3 (a=0, ,=1, space=2, t=3) and is 4 chars.
         assert_eq!(cols(&ms[0]), (0, 3, 7));
     }
 
@@ -803,7 +670,6 @@ mod tests {
     fn intraword_apostrophe_kept_as_one_word() {
         let good = stub(&["don't", "it's"]);
         assert!(misspelled_spans("don't it's", &good).is_empty());
-        // A bad contraction is flagged as a single span including the apostrophe.
         let bad = stub(&["it's"]);
         let ms = misspelled_spans("dont", &bad);
         assert_eq!(ms.len(), 1);
@@ -812,17 +678,14 @@ mod tests {
 
     #[test]
     fn trailing_apostrophe_trimmed() {
-        // "dogs'" (possessive) should check the stem "dogs", not "dogs'".
         let good = stub(&["dogs"]);
         let ms = misspelled_spans("dogs' bones", &good);
-        // "bones" is not in the stub -> flagged; "dogs'" is trimmed to "dogs".
         assert_eq!(ms.iter().filter(|m| m.start_col == 0).count(), 0);
     }
 
     #[test]
     fn digits_make_a_token_unchecked() {
         let none = stub(&[]); // nothing is correct
-        // tokens with digits are skipped entirely, so no flags despite empty dict
         assert!(misspelled_spans("abc123 x2 v8", &none).is_empty());
     }
 
@@ -831,10 +694,8 @@ mod tests {
         let none = stub(&[]);
         // Japanese should never be flagged (non-Latin script).
         assert!(misspelled_spans("日本語のテスト", &none).is_empty());
-        // Mixed: only the Latin word "bad" is considered.
         let ms = misspelled_spans("日本 bad", &none);
         assert_eq!(ms.len(), 1);
-        // "bad" starts after "日本 " -> char col 3.
         assert_eq!(ms[0].start_col, 3);
     }
 
@@ -843,7 +704,6 @@ mod tests {
         let none = stub(&[]);
         // The word inside backticks must NOT be flagged.
         let ms = misspelled_spans("use `wgpu` here", &none);
-        // "use" and "here" are flagged (empty dict); "wgpu" is NOT.
         assert!(ms.iter().all(|m| {
             let w_start = m.start_col;
             w_start != 5 // wgpu would start at col 5
@@ -856,8 +716,6 @@ mod tests {
         let none = stub(&[]);
         let text = "before\n```\nnonsenseword\n```\nafter";
         let ms = misspelled_spans(text, &none);
-        // Only "before" (line 0) and "after" (line 4) are checked; the fenced
-        // line 2 "nonsenseword" is skipped.
         let lines: Vec<usize> = ms.iter().map(|m| m.line).collect();
         assert!(lines.contains(&0));
         assert!(lines.contains(&4));
@@ -869,7 +727,6 @@ mod tests {
         let none = stub(&[]);
         // The misspelling embedded in the URL ("teh") must NOT be flagged.
         let ms = misspelled_spans("see https://example.com/teh ok", &none);
-        // "see" and "ok" are flagged; nothing from the URL.
         assert_eq!(ms.len(), 2);
         let words: Vec<usize> = ms.iter().map(|m| m.start_col).collect();
         assert_eq!(words, vec![0, 28]); // "see"@0, "ok"@28
@@ -882,11 +739,8 @@ mod tests {
         assert!(ms.is_empty(), "www. URL must be skipped");
     }
 
-    // --- USER (personal) dictionary (item 39: "Add to dictionary"). ---------
-
     #[test]
     fn parse_dictionary_takes_one_word_per_line_dropping_blanks_and_comments() {
-        // Hand-editable file shape: trimmed words, blank + `#`-comment lines out.
         let text = "# my words\nwrold\n\n  spacey  \n# another comment\nzorp\n";
         assert_eq!(parse_dictionary(text), vec!["wrold", "spacey", "zorp"]);
         assert!(
@@ -899,12 +753,10 @@ mod tests {
     #[test]
     fn user_dictionary_word_is_never_flagged_case_insensitively() {
         let mut sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // A word the bundled dictionary rejects (a made-up name/anagram).
         assert!(
             !sc.check("wrold"),
             "precondition: 'wrold' is misspelled by the base dict"
         );
-        // Loading it via the on-disk-shaped list clears it — in EVERY casing.
         sc.set_user_words(parse_dictionary("wrold\n"));
         assert_eq!(sc.user_word_count(), 1);
         for w in ["wrold", "Wrold", "WROLD"] {
@@ -913,7 +765,6 @@ mod tests {
                 "{w:?} is correct once added (case-insensitive)"
             );
         }
-        // A DIFFERENT misspelling is still flagged — the add is scoped to the word.
         assert!(!sc.check("teh"), "an unrelated typo still flags");
     }
 
@@ -954,12 +805,9 @@ mod tests {
         );
     }
 
-    // --- Real dictionary smoke tests (parse + known good/bad words). --------
-
     #[test]
     fn real_dictionary_parses_and_checks_known_words() {
         let sc = SpellChecker::new(DictVariant::EnUs).expect("bundled en_US dictionary must parse");
-        // Known-good words.
         for w in [
             "sentence",
             "misspelled",
@@ -974,7 +822,6 @@ mod tests {
         ] {
             assert!(sc.check(w), "{w:?} should be correct");
         }
-        // Known-bad words (the fixture's deliberate misspellings).
         for w in ["sentance", "mispelled", "tpyo", "definately", "recieve"] {
             assert!(!sc.check(w), "{w:?} should be flagged");
         }
@@ -983,10 +830,8 @@ mod tests {
     #[test]
     fn real_dictionary_handles_capitalization() {
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // Sentence-initial capital of a lowercase stem is accepted.
         assert!(sc.check("Hello"));
         assert!(sc.check("The"));
-        // ...but a genuinely misspelled capitalized word is still flagged.
         assert!(!sc.check("Definately"));
     }
 
@@ -1049,9 +894,6 @@ mod tests {
     #[test]
     fn real_dictionary_mixed_japanese_and_english_only_flags_the_english_word() {
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // A Japanese sentence with one embedded, genuinely misspelled English
-        // word: only that Latin word is ever a candidate — the JP text around it
-        // is invisible to the tokenizer.
         let text = "今日は良い天気です recieve 頑張りましょう。";
         let ms = sc.misspellings(text);
         let words: Vec<String> = ms
@@ -1068,15 +910,12 @@ mod tests {
             vec!["recieve"],
             "only the embedded English typo flags: {words:?}"
         );
-        // A correctly-spelled English word embedded the same way flags nothing.
         let clean = "今日は良い天気です hello 頑張りましょう。";
         assert!(
             sc.misspellings(clean).is_empty(),
             "a correct embedded English word is silent"
         );
     }
-
-    // --- Dictionary VARIANTS (en_US / en_GB / en_AU). ------------------------
 
     /// All three bundled dictionaries parse and answer a shared known-good word.
     /// "Never fabricate dictionary content" is enforced upstream (the files are
@@ -1094,10 +933,6 @@ mod tests {
         }
     }
 
-    /// The whole point of shipping en_GB/en_AU: British/Australian spellings
-    /// ("colour", "organise") are WRONG in en_US but correct in the other two —
-    /// proves the three dictionaries are genuinely distinct, not the same file
-    /// three times over.
     #[test]
     fn variants_disagree_on_british_spelling() {
         let us = SpellChecker::new(DictVariant::EnUs).unwrap();
@@ -1112,12 +947,6 @@ mod tests {
         assert!(us.check("color"), "en_US should accept its own spelling");
     }
 
-    /// MEASURE + REPORT the one-time parse cost per dictionary (queue item ask):
-    /// printed via `eprintln!` (visible with `cargo test -- --nocapture`), not
-    /// asserted against a hard budget — a parse is a discrete picker-commit
-    /// event, not a per-frame render cost, so there is no fps-style regression
-    /// gate here (see `spell.rs`'s module doc + the dictionary picker's
-    /// no-live-preview design).
     #[test]
     fn parse_cost_per_dictionary_variant() {
         for v in DictVariant::ALL {
@@ -1136,8 +965,6 @@ mod tests {
         }
     }
 
-    /// `label`/`from_label` round-trip for every variant (mirrors
-    /// `caret::CaretMode`'s `from_label` test), case-insensitively.
     #[test]
     fn dict_variant_label_round_trips() {
         for v in DictVariant::ALL {
@@ -1152,8 +979,6 @@ mod tests {
 
     #[test]
     fn active_variant_defaults_to_en_us_and_round_trips_through_the_global() {
-        // Serialize against the process-global; restore it so other tests (and a
-        // re-run of this one) see the documented default.
         let _g = crate::testlock::serial();
         let saved = active_variant();
         set_active_variant(DictVariant::EnUs);
@@ -1169,21 +994,15 @@ mod tests {
         set_active_variant(saved);
     }
 
-    // --- Scoped detection (code buffers spell-check comments + strings only). --
-
     #[test]
     fn scoped_keeps_only_words_fully_inside_prose_ranges() {
         let none = stub(&[]); // empty dict: every word flags — the SCOPE decides
-        //           0123456789012345678
         let text = "alpha \"beta\" gamma";
-        // Only the quoted region (bytes 6..12) is prose-checkable.
         let ms = misspelled_spans_scoped(text, &none, &one_range(6..12));
         assert_eq!(ms.len(), 1, "only the in-range word survives: {ms:?}");
         assert_eq!(cols(&ms[0]), (0, 7, 11)); // "beta"
-        // A word STRADDLING a range boundary is not fully inside -> dropped.
         let ms = misspelled_spans_scoped(text, &none, &one_range(6..9));
         assert!(ms.is_empty(), "a straddling word must not squiggle");
-        // No ranges -> nothing can squiggle.
         assert!(misspelled_spans_scoped(text, &none, &[]).is_empty());
     }
 
@@ -1192,11 +1011,6 @@ mod tests {
         let none = stub(&[]);
         let text = "\"SelInstance WGSL px some_var word\"";
         let ms = misspelled_spans_scoped(text, &none, &one_range(0..text.len()));
-        // CamelCase, ALL-CAPS, <3 chars and snake_case all pass silently; only
-        // the plain word squiggles. (The tokenizer splits `some_var` at the `_`,
-        // so its halves are plain runs — `var` is dropped by nothing... but
-        // `some` and `var` are lowercase words and DO flag; the shape filter is
-        // about casing/length, not underscores post-split.)
         let words: Vec<String> = ms
             .iter()
             .map(|m| {
@@ -1251,7 +1065,6 @@ mod tests {
             ms.iter().any(|m| m.line == 3),
             "the body's own misspelling still lands at its correct (shifted) line: {ms:?}"
         );
-        // A document with NO frontmatter is unaffected (byte-identical).
         let plain = "This sentance has a typo.\n";
         assert_eq!(sc.misspellings_for(plain, None), sc.misspellings(plain));
     }
@@ -1297,27 +1110,20 @@ mod tests {
         let text = "fn zzxqv() { let s = \"definately a typo\"; }\n// This sentance explains.\n";
         let line0 = text.split('\n').next().unwrap();
         let ident_col = line0.find("zzxqv").unwrap() + 1; // inside the identifier (ASCII)
-        // The identifier has no squiggle in a code buffer, so suggest offers no
-        // correction — even though it IS a nonsense word to the dictionary.
         assert!(
             sc.suggest_at(text, 0, ident_col, Some(crate::syntax::Lang::Rust))
                 .is_none(),
             "a bare code identifier has no squiggle, so suggest is a no-op there"
         );
-        // Scope is the difference: UNSCOPED (a prose buffer) the same word IS a
-        // targetable misspelling — proving suggest isn't silent because it's
-        // spelled right.
         assert!(
             sc.suggest_at(text, 0, ident_col, None).is_some(),
             "unscoped, the same identifier is a normal misspelling"
         );
-        // A real prose typo inside a STRING still resolves a suggestion.
         let str_col = line0.find("definately").unwrap() + 1;
         let t = sc
             .suggest_at(text, 0, str_col, Some(crate::syntax::Lang::Rust))
             .expect("a prose typo in a string still suggests");
         assert!(t.suggestions.iter().any(|w| w == "definitely"));
-        // A real prose typo inside a COMMENT still resolves a suggestion.
         let line1 = text.split('\n').nth(1).unwrap();
         let com_col = line1.find("sentance").unwrap() + 1;
         let t = sc
@@ -1338,15 +1144,12 @@ mod tests {
         let saved = spellcheck_on();
         set_spellcheck_on(true);
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // "notalang" would itself misspell if scanned; "sentance" is the body typo.
         let text = "---\nlang: notalang\n---\nThis sentance has a typo.\n";
-        // The frontmatter value has no squiggle, so suggest is a no-op on it.
         let fm_col = "lang: ".chars().count() + 1; // inside "notalang" on line 1
         assert!(
             sc.suggest_at(text, 1, fm_col, None).is_none(),
             "a typo inside a frontmatter block has no squiggle, so suggest is silent"
         );
-        // The BODY's own typo (line 3, shifted past the block) still resolves.
         let body_col = "This ".chars().count() + 1; // inside "sentance" on line 3
         let t = sc
             .suggest_at(text, 3, body_col, None)
@@ -1355,11 +1158,8 @@ mod tests {
         set_spellcheck_on(saved);
     }
 
-    // --- STRING PROSE GATE (scoped code-string spans). ----------------------
-
     #[test]
     fn looks_like_prose_string_needs_two_word_shaped_tokens() {
-        // DEFAULT-TO-SKIP: empty, or a single code-vocabulary token.
         assert!(!looks_like_prose_string(""));
         assert!(!looks_like_prose_string("struct"));
         assert!(!looks_like_prose_string("en_AU"));
@@ -1375,7 +1175,6 @@ mod tests {
             !looks_like_prose_string(".foo-bar"),
             "a CSS selector is one token"
         );
-        // PROSE: two or more space-separated word-shaped tokens.
         assert!(looks_like_prose_string("hello world"));
         assert!(
             looks_like_prose_string("Item {name} not found"),
@@ -1385,12 +1184,6 @@ mod tests {
 
     #[test]
     fn string_prose_gate_silences_single_token_code_strings() {
-        // ACCEPTANCE CASE (queue item): `syntax::rust::DEF_KEYWORDS`/`CONST_WORDS`
-        // are each an ARRAY OF SEPARATE single-token string literals — the exact
-        // shape of the reported Currawong-screenshot bug ("struct"/"const"
-        // squiggled). None of these bare code-vocabulary tokens are English
-        // dictionary words, so before the string-prose gate they all flagged;
-        // afterward NONE do, because each lone-token string is skipped wholesale.
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "const DEF_KEYWORDS: &[&str] = &[\n    \
                     \"fn\", \"struct\", \"enum\", \"trait\", \"type\", \"union\", \
@@ -1405,9 +1198,6 @@ mod tests {
 
     #[test]
     fn string_prose_gate_keeps_the_real_rust_lexer_silent() {
-        // Belt-and-suspenders on the REAL file: scan `syntax/rust.rs`'s own source
-        // as a Rust buffer and confirm none of its DEF_KEYWORDS/CONST_WORDS bare
-        // tokens ever appear among the reported misspellings.
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = include_str!("syntax/rust.rs");
         let ms = sc.misspellings_for(text, Some(crate::syntax::Lang::Rust));
@@ -1434,8 +1224,6 @@ mod tests {
 
     #[test]
     fn misspellings_for_still_checks_multi_word_prose_strings_in_code() {
-        // The gate is a PROSE filter, not an off switch for strings wholesale: a
-        // genuine English phrase inside a string still checks word-by-word.
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "fn f() { let msg = \"this has a typo teh\"; }\n";
         let ms = sc.misspellings_for(text, Some(crate::syntax::Lang::Rust));
@@ -1455,8 +1243,6 @@ mod tests {
             "a genuine multi-word prose string still checks: {words:?}"
         );
     }
-
-    // --- GLOBAL SPELLCHECK TOGGLE. -------------------------------------------
 
     #[test]
     fn spellcheck_defaults_on_and_toggle_flips_it() {
@@ -1523,37 +1309,27 @@ mod tests {
         set_spellcheck_on(saved);
     }
 
-    // --- Suggestions + cursor-targeting. ------------------------------------
-
     #[test]
     fn misspelling_at_targets_word_under_or_adjacent_to_cursor() {
         let good = stub(&["the", "quick"]);
-        // "the wrld here" — "wrld" spans cols 4..8 (w=4,r=5,l=6,d=7).
         let text = "the wrld here";
-        // ON the word (col inside the span).
         let m = misspelling_at(text, 0, 5, &good).expect("cursor in word");
         assert_eq!((m.start_col, m.end_col), (4, 8));
-        // ADJACENT on the left edge (caret just before 'w').
         assert!(misspelling_at(text, 0, 4, &good).is_some());
-        // ADJACENT on the right edge (caret just after 'd').
         assert!(misspelling_at(text, 0, 8, &good).is_some());
-        // NOT on a flagged word: col 1 sits inside the correctly-spelled "the".
         assert!(misspelling_at(text, 0, 1, &good).is_none());
-        // A line with no misspelling at all -> None.
         assert!(misspelling_at("the quick", 0, 2, &good).is_none());
     }
 
     #[test]
     fn real_dictionary_suggests_corrections() {
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // A classic typo should suggest the intended word near the top.
         let s = sc.suggest("teh");
         assert!(!s.is_empty(), "engine should offer a correction for 'teh'");
         assert!(
             s.iter().any(|w| w == "the"),
             "'the' should be among the suggestions for 'teh': {s:?}"
         );
-        // "recieve" -> "receive".
         let s = sc.suggest("recieve");
         assert!(
             s.iter().any(|w| w == "receive"),
@@ -1564,7 +1340,6 @@ mod tests {
     #[test]
     fn suggest_at_resolves_word_and_suggestions() {
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // Cursor inside the misspelling "recieve" (line 0, any col in the span).
         let text = "Please recieve this.";
         let t = sc
             .suggest_at(text, 0, 9, None)
@@ -1572,7 +1347,6 @@ mod tests {
         assert_eq!(t.word, "recieve");
         assert_eq!((t.misspelling.start_col, t.misspelling.end_col), (7, 14));
         assert!(t.suggestions.iter().any(|w| w == "receive"));
-        // A cursor on a CORRECT word yields nothing (calm no-op for the binding).
         assert!(
             sc.suggest_at(text, 0, 2, None).is_none(),
             "'Please' is correct"
@@ -1585,7 +1359,6 @@ mod tests {
 
     #[test]
     fn word_at_extracts_the_exact_span_text() {
-        // Line 1 is "hi helo there": "helo" starts at char col 3, ends at 7.
         let m = Misspelling {
             line: 1,
             start_col: 3,
@@ -1663,7 +1436,6 @@ mod tests {
         .unwrap();
         assert!(verdict.still_valid(old_text));
 
-        // In-place fix: "helo" -> "hell" (still 4 chars, SAME span).
         let new_text = "hell wrld";
         assert_ne!(word_at(new_text, &verdict.span), verdict.word);
         assert!(
@@ -1671,8 +1443,6 @@ mod tests {
             "a verdict keyed to the OLD word must not validate against the NEW text at the same span"
         );
 
-        // Length-changing fix: "helo" -> "hello" (span 0..4 now covers only
-        // "hell", the first 4 chars of the corrected word) — still invalid.
         let new_text2 = "hello wrld";
         assert!(!verdict.still_valid(new_text2));
     }
@@ -1690,16 +1460,12 @@ mod tests {
         assert_eq!(stale.len(), 1);
         assert!(stale[0].still_valid(text_a));
 
-        // The word is corrected in place at the SAME span.
         let text_b = "hello world"; // now fully correct
         assert!(
             !stale[0].still_valid(text_b),
             "the STALE verdict (keyed to the old misspelling) must not paint on the corrected text"
         );
 
-        // A FRESH rescan against text_b finds nothing wrong (the word is now
-        // correct) — the eager half: the very next check already reflects
-        // reality, with no verdict left over that could flash.
         let fresh = keyed(text_b, misspelled_spans(text_b, &good));
         assert!(
             fresh.is_empty(),
@@ -1766,9 +1532,6 @@ fn recieve_stuff(definately: &str) -> &str {\n\
         assert_eq!(sc.misspellings_for(prose, None), sc.misspellings(prose));
     }
 
-    /// Boundary + shape-filter adversaria on the pure scoped fn (a stub dict
-    /// that rejects everything, so every tokenized word is a squiggle
-    /// candidate and only the scope/shape logic itself is under test).
     #[test]
     fn verifier_scoped_boundaries() {
         fn one_range(range: std::ops::Range<usize>) -> Vec<std::ops::Range<usize>> {
@@ -1813,11 +1576,6 @@ fn recieve_stuff(definately: &str) -> &str {\n\
         assert_eq!(ms3.len(), 2);
     }
 
-    /// REAL-DICT corpus probe: scoped-scan this repo's own comment-heavy code
-    /// files and report every word that would squiggle live (snake_case
-    /// halves like "rects"/"protos" are the suspected residue class). Asserts
-    /// the scope STRICTLY SHRINKS the flagged set vs. the unscoped scan on
-    /// every file, and that nothing shape-filtered leaks through.
     #[test]
     fn verifier_real_dict_code_corpus() {
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();

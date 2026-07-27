@@ -21,18 +21,7 @@ impl TextPipeline {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(width);
-        // THE PLACARD RENDERER: shaped BEFORE the name/chord columns so its
-        // upload (below) can be the FIRST `TextArea` — drawn behind the rows,
-        // never over them (legibility first). `None` on every `InlinePrefix`
-        // world — see `overlay_shape_placard`'s own doc.
         let placard = self.overlay_shape_placard(&geom);
-        // THE STIPPLE PLACARD (`PlacardInk::Stipple` — Mangrove's assignment):
-        // the SAME shaped wordmark renders as Bayer-stippled pixel runs
-        // through the `placard_stipple` pipeline instead of an ordinary
-        // antialiased text area — so the TextArea upload is withheld and the
-        // coverage runs go to the quad pipeline (drawn in the same
-        // behind-the-rows slot, `draw_overlay_card`). Every other ink keeps
-        // the text path byte-identically, and the stipple pipeline parks.
         let stipple = matches!(
             crate::render::effective_title_style(),
             theme::TitleStyle::Placard {
@@ -41,23 +30,11 @@ impl TextPipeline {
             }
         );
         let (placard, stipple_rects) = match placard {
-            // The (w, h) extent lives in the shaped buffer itself; the
-            // rasterizer only needs the draw origin.
             Some((x, y, _w, _h)) if stipple => (None, self.placard_stipple_rects((x, y))),
             other => (other, Vec::new()),
         };
         self.placard_stipple
             .prepare(device, queue, width, height, &stipple_rects);
-        // The SELECTED row's own glyphs recolor to a solid contrasting ink on a
-        // true 1-bit world (`HighlightTreatment::InverseFill`) — black on the
-        // white band — so they land crisp instead of the gamma-grey a
-        // framebuffer invert of the antialiased row text produced (see that
-        // variant's doc). On an ordinary (`ValueBand`) world the row normally
-        // keeps its content ink (`None`, byte-identical), but when the value band
-        // washes that ink out (`theme::selected_row_ink` — the InverseFill lesson
-        // for fill worlds; Bombora-under-Bars was the 2.53:1 exhibit) the ONE
-        // derive owner flips it to the reading pole and the shaper recolors the
-        // selected row to match. Read from the SAME band `overlay_draw_card` fills.
         let sel_band = crate::render::effective_overlay_selrow_band();
         let selected_ink = match theme::active().highlight_treatment(sel_band) {
             theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink.to_glyphon()),
@@ -66,11 +43,6 @@ impl TextPipeline {
                 (flipped != theme::base_content()).then(|| flipped.to_glyphon())
             }
         };
-        // ARM B — INK RIDES THE BAND, NOT THE STATE: when the living-band probe
-        // is flying (env-gated → `None` on every ordinary run, byte-identical),
-        // the rows the MOVING band currently covers take the on-band ink and the
-        // target row keeps its off-band ink until the band arrives. `None`
-        // recovers the old state-tied flip (the settled selected row).
         let living_covered = self.living_covered_rows(&geom);
         let has_right = self.overlay_shape_text(
             &geom,
@@ -111,7 +83,6 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        // Quads: flat card, selected-row band, theme-lens underline → zero instances.
         self.panel_card.prepare(device, queue, width, height, &[]);
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);
@@ -152,11 +123,7 @@ impl TextPipeline {
                 &mut self.swash_cache,
             )
             .map_err(|e| anyhow::anyhow!("glyphon placard park failed: {e:?}"))?;
-        // The amber query caret: parked (nothing drawn).
         self.panel_caret.prepare_empty();
-        // The overlay TEXT renderer: shape an EMPTY buffer off-screen and prepare
-        // the renderer from it, so its last-open glyph buffer can never linger and
-        // draw. Mirrors `prepare_hud` / `park_preview_text` exactly.
         let m = self.metrics;
         let ink = theme::base_content().to_glyphon();
         self.panel_buffer
@@ -226,11 +193,6 @@ impl TextPipeline {
         );
     }
 
-    /// Upload the shaped overlay text areas: the OPTIONAL placard wordmark FIRST
-    /// (drawn behind everything else that follows in this same batch), then the
-    /// name column at the panel origin, plus (when present) the right-aligned
-    /// chord column whose own right edge lands at `text_left + text_w` = the
-    /// card's right text edge → chords flush.
     #[allow(clippy::too_many_arguments)]
     fn overlay_upload_text(
         &mut self,
@@ -246,8 +208,6 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         let text_left = geom.text_left;
         let text_top = geom.text_top;
-        // Clip the rows to the card's TEXT column so a row elided a hair long is cut at
-        // the card's right text edge rather than spilling into the backdrop.
         let bounds = TextBounds {
             left: text_left.max(0.0) as i32,
             top: 0,
@@ -329,12 +289,6 @@ impl TextPipeline {
                 }
             }
         }
-        // The placard wordmark is FIRST in the panel batch under `Pane` (drawn
-        // behind everything that follows), clipped to the WHOLE CANVAS — a
-        // screen-corner watermark that bleeds OVER the scrim behind the card
-        // (never the tighter card/text rect), per `overlay_shape_placard`'s doc.
-        // Under `Bars` it was uploaded to `placard_renderer` above instead, so it
-        // is withheld here.
         let mut areas: Vec<TextArea> = Vec::new();
         // Whether the placard rides THIS (Pane) panel batch as the FIRST area — the
         // one entry whose giant glyphs could overflow the shared atlas. Tracked so the
@@ -354,21 +308,9 @@ impl TextPipeline {
             });
             placard_in_panel = true;
         }
-        // WILD-MENU SLANT PROBE (env-gated; `None` on every normal run, which
-        // keeps the single verbatim `panel_area` push below — byte-identical):
-        // the SAME shaped buffer uploads as one area per candidate DISPLAY
-        // row, each clipped to its own row band and shifted right by its
-        // stair offset — a pure DRAW-TIME row-origin transform (the shaping,
-        // rowlayout elision, geometry, and hit-tests all read the settled
-        // layout; the shaper already paid the width tax so a shifted row
-        // still clips inside the card's right text edge). The header
-        // (query/strip) and tail (hint/footer/empty) slices stay unshifted.
         let slant = crate::render::overlay_slant();
         match slant {
             None => {
-                // The right-aligned label column shares the panel origin; its own right
-                // edge lands at `text_left + text_w` = the card's right text edge →
-                // chords flush.
                 areas.push(panel_area);
             }
             Some(_) => {
@@ -386,7 +328,6 @@ impl TextPipeline {
                     right: bounds.right,
                     bottom: (bottom.min(height as f32)) as i32,
                 };
-                // Header slice (query + strip lines), unshifted.
                 areas.push(TextArea {
                     buffer: &self.panel_buffer,
                     left: text_left,
@@ -396,10 +337,6 @@ impl TextPipeline {
                     default_color: ink,
                     custom_glyphs: &[],
                 });
-                // One shifted slice per candidate display row. The per-row DRAW
-                // offset rides the ONE `overlay_slant_dx` owner (the fan-in
-                // progress folded in — motion choreography 3), so the text and the
-                // bar plates below cascade by the same amount every frame.
                 for k in 0..n_lines {
                     let row_top = first_top + k as f32 * lh;
                     areas.push(TextArea {
@@ -412,7 +349,6 @@ impl TextPipeline {
                         custom_glyphs: &[],
                     });
                 }
-                // Tail slice (empty message / hint / footer), unshifted.
                 let tail_top = first_top + n_lines as f32 * lh;
                 areas.push(TextArea {
                     buffer: &self.panel_buffer,
@@ -426,12 +362,6 @@ impl TextPipeline {
             }
         }
         if has_right {
-            // The right column's labels lead with `header_rows` EMPTY lines, so
-            // uploading its buffer at `overlay_secondary_top` (text_top + the
-            // header gap) lands label N on candidate row N — the SAME band
-            // `overlay_row_top` draws. Before this it uploaded flush at
-            // `text_top`, missing the gap the primary + band both fold in, so
-            // every chord rode a half-row high (the composition-round bug).
             areas.push(TextArea {
                 buffer: &self.panel_bind_buffer,
                 left: text_left,
@@ -484,19 +414,6 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// Place the one amber caret: at the query's OWN CHAR-index caret (item 10) —
-    /// a MID-STRING position (reached via word-motion; plain L/R stay
-    /// lens/descend/list) reads the glyph the caret's byte offset shaped to; the
-    /// END position (every field's ONLY position before item 10) has no glyph
-    /// starting there, so it falls back to the first shaped row's WIDTH, exactly
-    /// the pre-item-10 placement — proportional-face-correct either way (not a
-    /// fixed `char_width` assumption); the ultimate fallback (no shaped run at
-    /// all) stays the hardcoded-pitch estimate.
-    ///
-    /// The contextual SPELL panel has NO query line to edit, so its caret is PARKED
-    /// (nothing drawn) — the suggestions are picked by click / arrows + Enter, not by
-    /// typing a query, so a blinking amber block would be noise (and amber stays the
-    /// document caret's alone, DESIGN §3).
     fn overlay_place_caret(
         &mut self,
         queue: &wgpu::Queue,
@@ -510,10 +427,6 @@ impl TextPipeline {
         }
         let m = self.metrics;
         let sigil = "› ";
-        // The prefix byte-length actually SHAPED before the query text on line 0
-        // — the title prefix ("<title> › ") when drawn, else the bare sigil —
-        // mirroring `overlay_shape_text`'s own span choice exactly, so the target
-        // byte this scans for lands on the SAME line-relative offset the shaper used.
         let title_prefix = self.overlay_title_prefix(geom);
         let prefix_len = if title_prefix.is_empty() {
             sigil.len()
@@ -539,23 +452,8 @@ impl TextPipeline {
                     m.char_width
                         * (sigil.chars().count() + self.overlay_query.chars().count()) as f32
                 });
-        // The query caret rides the UI row: scaled a hair short of the smaller row
-        // height, centered on the query line's own (UI-height) band.
         let caret_h = m.caret_h * 0.8 * OVERLAY_UI_SCALE;
         let caret_cx = caret_x + m.caret_w * 0.5;
-        // The caret rides the QUERY line through the SAME layout the query TEXT
-        // does — its first shaped run's own `line_height`, NOT the bare
-        // `overlay_lh()`. The FLAT pickers inflate the query line's height by
-        // `header_gap` to open the beat before the candidates (`shape_overlay_names`),
-        // and cosmic-text HALF-LEADS the glyphs — it centres them in that taller
-        // line rather than pinning them to the top. So the query text drops by
-        // `header_gap * 0.5`; a caret pinned to `overlay_lh() * 0.5` floated a full
-        // half-beat ABOVE it (the full-bleed caret bug — visible on `Bars`, where
-        // no card frames the mismatch, and present-but-masked on `Pane`). Reading
-        // the run's real `line_height` reproduces the known-good faceted offset
-        // (the caret centre lands a constant ~1/3-row above the baseline) in BOTH
-        // paths, since the faceted query line is NOT inflated (its beat rides the
-        // strip). Fallback to `overlay_lh()` only if shaping yielded no run.
         let query_line_height = self
             .panel_buffer
             .layout_runs()

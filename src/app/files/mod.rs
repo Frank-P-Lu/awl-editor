@@ -23,6 +23,7 @@
 //!  - [`settings`] — the sticky-preference writes + Settings-menu doors +
 //!    page-width pair + config reload (dictionary persistence peeled to
 //!    [`dictionary`], the rebind-menu capture peeled to [`rebind`]).
+//!
 //! This file keeps only the PURE, testable-without-an-`App` leftover
 //! (`window_title`) plus the module wiring; `#[cfg(test)] mod tests` (the
 //! former files.rs's own test module) lives in [`tests`].

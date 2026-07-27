@@ -1,12 +1,7 @@
-//! File opening, buffer switching, project changes, and related navigation.
-
 use super::active::BufferExtra;
 use crate::app::*;
 
 impl App {
-    /// Settings command: open the config file into the buffer for editing AS TEXT,
-    /// creating the commented default first if it does not exist. The palette runs
-    /// this; you then edit + Cmd-S to save, which live-reloads (see `reload_config`).
     pub(in crate::app) fn open_settings(&mut self) {
         let path = self.config.path.clone();
         if path.as_os_str().is_empty() {
@@ -44,13 +39,6 @@ impl App {
         self.load_path(path);
     }
 
-    /// Guide command: open the embedded `GUIDE.md` into the buffer, exactly like
-    /// Credits opens `CREDITS.md` (same on-disk-refresh-then-load pattern, same
-    /// reasoning for why it is NOT left path-less — see `open_credits`'s doc
-    /// above and `guide.rs`'s module doc). Rendered through `guide::render`
-    /// (the CONVENTION-TRUTHFUL SURFACES round's chord-token substitution) at
-    /// OPEN TIME for the live convention/platform, so the doc always names the
-    /// chord that actually fires under THIS session.
     pub(in crate::app) fn open_guide(&mut self) {
         let path = crate::fs::data_root().join("guide.md");
         let fs = crate::fs::active();
@@ -128,9 +116,6 @@ impl App {
         self.load_path(path);
     }
 
-    /// C-x b last-buffer toggle: flip between the current and previously-opened
-    /// file (a tiny 2-deep history). No-op until a second file has been opened.
-    /// The two paths simply swap, so repeated C-x b ping-pongs between them.
     pub(in crate::app) fn last_buffer_toggle(&mut self) {
         let Some(prev) = self.prev_file.clone() else {
             return; // nothing opened before; toggle is a quiet no-op
@@ -168,10 +153,6 @@ impl App {
         if !crate::mas::ensure_access(&path) {
             return;
         }
-        // ROBUST AUTOSAVE: before we drop the current buffer, flush any pending
-        // note write so nothing typed in the last debounce window is lost — and
-        // flush the LEAVING document / scratch through the autosave engine
-        // (locked decision: save on file switch).
         self.flush_note();
         self.autosave_flush();
         // WRITING STREAKS: sample the LEAVING buffer's word-delta BEFORE it is
@@ -204,8 +185,6 @@ impl App {
         {
             return;
         }
-        // The file we are leaving becomes the last-buffer target — captured
-        // BEFORE `park_active_buffer` below moves the slot away.
         self.prev_file = self.active.buffer.path().map(|p| p.to_path_buf());
         self.park_active_buffer();
         let key = crate::buffers::BufferKey::path(&path);
@@ -214,25 +193,12 @@ impl App {
         // and spell-cache state all survive the round trip (a whole-slot
         // activation — see `activate_from_registry`).
         if !self.activate_from_registry(&key) {
-            // First time open this session: read fresh from disk — build a
-            // COMPLETE entry and install it in ONE move (item 56: no
-            // half-moved slot).
             self.active = crate::buffers::Entry {
                 buffer: Buffer::from_file(&path),
                 extra: BufferExtra::default(),
             };
-            // AUTOSAVE bookkeeping for the ARRIVING file: its buffer IS the
-            // on-disk content, so it starts saved; the current mtime is the
-            // clobber guard's baseline. Stamped BEFORE the i18n write-back
-            // below, so a stamped tag correctly reads as a PENDING edit
-            // (buffer.version() past doc_saved_version) rather than being
-            // mistaken for already-on-disk content — autosave picks it up
-            // on the next idle/blur/switch/quit exactly like any other edit.
             self.active.extra.disk_mtime = Self::disk_mtime_of(&path);
             self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-            // A brand-new buffer starts at version 0; match the synced
-            // version so the next sync_view doesn't read the delta as an
-            // edit and streak the caret.
             self.active.extra.caret_synced_version = self.active.buffer.version();
             // i18n WRITE-BACK-ONCE: an untagged CJK document gets a `lang:`
             // frontmatter tag stamped in as one normal undoable edit (never
@@ -256,14 +222,8 @@ impl App {
         // recency tier. After the already-active early-return above, so re-selecting
         // the current file is a no-op that never re-orders the MRU.
         self.push_recent_file(path.clone());
-        // LIFETIME STATS: record this open into the distinct-files set (deduped),
-        // beside the recent-files MRU push — the same door. Native-only + config-
-        // gated inside; a re-open of an already-seen path is inert.
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_touch_file(path);
-        // LIFETIME STATS: the buffer just swapped — drop the caret-travel anchor
-        // so the new document's first caret sample re-anchors rather than counting
-        // the cross-document coordinate jump as travel.
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_reset_caret_anchor();
         // WRITING STREAKS: the buffer just swapped — drop the word-delta anchor so
@@ -271,9 +231,6 @@ impl App {
         // freshly written) on its first flush.
         #[cfg(not(target_arch = "wasm32"))]
         self.streaks_reset_baseline();
-        // LIFETIME STATS: flush on the file-SWITCH trigger (the same door the
-        // autosave flush above rides), so the just-recorded touch + any pending
-        // keystroke/caret increments survive the switch (native only; gated).
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
         self.search = None;
@@ -338,10 +295,6 @@ impl App {
         self.active.buffer.replace_char_range(0, 0, &block);
     }
 
-    /// Jump the cursor to the START of the 0-based `line`. Clears any selection,
-    /// then re-syncs the view so the target scrolls into view. Callers pass the
-    /// line directly: Go-to's HEADINGS lens (`Effect::JumpToLine`) and a click on
-    /// a persistent margin-outline row.
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {
         let idx = self.active.buffer.line_col_to_char(line, 0);
         self.active.buffer.clear_mark();
@@ -407,18 +360,7 @@ impl App {
         true
     }
 
-    /// Cmd-N: a fresh, unnamed DOCUMENT in the CURRENT active folder (item 76 —
-    /// no root jump: New document used to jump to a separate "notes root"; now
-    /// it lands wherever you already are). The user starts typing immediately;
-    /// the filename is derived (slugified first line) ONCE, on the first
-    /// material save — see [`Self::autosave_note`] / `Buffer::save`. The file
-    /// we are leaving becomes the last-buffer (C-x b) target.
     pub(in crate::app) fn new_document(&mut self) {
-        // The active folder may not exist yet on a fresh machine; create it
-        // lazily so the buffer's first save has somewhere to land (best-effort
-        // — a MAS sandbox build against an ungranted external root simply has
-        // this attempt fail silently; the folder is already granted by
-        // construction, since it's the folder we are already working in).
         let _ = crate::fs::active().create_dir_all(&self.root);
         self.start_fresh_document();
     }

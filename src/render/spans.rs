@@ -1,16 +1,5 @@
-//! Pure `AttrsList` construction for markdown, syntax, CJK, headings, symbols, and
-//! conceal. [`build_line_attrs`] is the shared layer-ordering recipe.
-
 use super::*;
 
-/// True for scalar values that should shape in the per-theme CJK (Japanese)
-/// fallback face rather than the world's Latin display face. Covers the Japanese
-/// core (Hiragana, Katakana + phonetic extensions, CJK Unified Ideographs + Ext A,
-/// compatibility ideographs) plus the shared CJK symbols/punctuation and
-/// full-/half-width forms that read as Japanese in running text. This is a
-/// deliberately broad "is this a CJK glyph" test, not a precise script split — it
-/// only decides which family a run is *offered* to first; cosmic-text still does
-/// the real per-glyph resolution.
 pub(super) fn is_cjk(c: char) -> bool {
     matches!(c as u32,
         0x3000..=0x303F   // CJK symbols & punctuation (、。「」…)
@@ -24,11 +13,6 @@ pub(super) fn is_cjk(c: char) -> bool {
     )
 }
 
-/// Maximal contiguous byte ranges of [`is_cjk`] scalar values within `text`.
-/// Used to lay per-theme CJK family spans over a shaped line so Japanese resolves
-/// to the world-matching mincho/gothic face (see [`add_cjk_spans`]). Byte indices
-/// are valid `char` boundaries (from `char_indices`), so the ranges are safe to
-/// hand to `AttrsList::add_span`.
 pub(super) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
     let mut runs = Vec::new();
     let mut start: Option<usize> = None;
@@ -136,9 +120,6 @@ pub(super) fn is_symbol(c: char) -> bool {
     )
 }
 
-/// Maximal contiguous byte ranges of [`is_symbol`] scalar values within `text`,
-/// mirroring [`cjk_runs`]. Byte indices are valid `char` boundaries (from
-/// `char_indices`), so the ranges are safe to hand to `AttrsList::add_span`.
 pub(super) fn symbol_runs(text: &str) -> Vec<std::ops::Range<usize>> {
     let mut runs = Vec::new();
     let mut start: Option<usize> = None;
@@ -188,15 +169,6 @@ pub(super) fn push_symbol_split<'a>(
     }
 }
 
-/// Lay [`SYMBOL_FAMILY`] family spans over `al` for every [`is_symbol`] run in
-/// `text`, mirroring [`add_cjk_spans`]. The span inherits `base` (the doc/colored
-/// attrs — color, metrics, etc.) but overrides the family to the bundled symbol
-/// face so the modifier glyphs + ornaments shape from it instead of the display
-/// face's tofu/fallback. Applied LAST in [`build_line_attrs`] so symbol runs win
-/// the family on exactly those codepoints, leaving every other glyph in the
-/// world's display face. The bundled face is Regular/400, so no weight trap (unlike
-/// the CJK face); a default-weight name matches. No-op when `text` has no symbols,
-/// keeping symbol-free lines byte-identical.
 pub(super) fn add_symbol_spans(al: &mut glyphon::cosmic_text::AttrsList, text: &str, base: &Attrs) {
     let runs = symbol_runs(text);
     if runs.is_empty() {
@@ -208,20 +180,8 @@ pub(super) fn add_symbol_spans(al: &mut glyphon::cosmic_text::AttrsList, text: &
     }
 }
 
-/// TASTE FLAG: does blockquote BODY text ([`crate::markdown::MdKind::Quote`]) step
-/// one ink rung down to `muted` (`true` — the calm, set-apart voice, the DEFAULT
-/// and the pre-flag behaviour) or ride the full content ink (`false` — a louder
-/// quote)? Default `true`; the dev-only `AWL_QUOTE_FULL_INK` env var flips it to
-/// full ink for the pull-quote round's A/B review capture WITHOUT a rebuild (a
-/// total no-op unless set, mirroring `render::apply_cjk_force` /
-/// `chrome::outline`'s `AWL_OUTLINE_REVEAL`). Cached once (this is called per span
-/// per line — hot), so determinism holds: a default capture (env unset) is
-/// byte-identical to before the flag existed.
 const QUOTE_TEXT_DIM: bool = true;
 
-/// Whether blockquote body text dims — the [`QUOTE_TEXT_DIM`] const AND the absence
-/// of the dev-only `AWL_QUOTE_FULL_INK` override (set → full ink). Read once via a
-/// `OnceLock` so the per-span hot path never re-reads the environment.
 fn quote_text_dim() -> bool {
     static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *V.get_or_init(|| QUOTE_TEXT_DIM && std::env::var_os("AWL_QUOTE_FULL_INK").is_none())
@@ -249,56 +209,24 @@ pub(super) fn md_attrs(base: &Attrs<'static>, kind: crate::markdown::MdKind) -> 
     let mut a = base.clone();
     let mut natural: Option<glyphon::Color> = None;
     match kind {
-        // Syntax + quiet text recede to the dim ink. A CHECKED checkbox + a checked
-        // task's body join them: a completed todo recedes as one (figure/ground by
-        // value), while an OPEN checkbox stays present below.
         MdKind::Markup
         | MdKind::ConcealMarkup(_)
         | MdKind::ListMarker
         | MdKind::Rule
         | MdKind::Task(true)
         | MdKind::TaskDone
-        // A table's `|` pipes + its `|---|` separator row are structural markup:
-        // they recede to the dim ink like every other syntax character (awl shows
-        // the table as styled SOURCE, never a drawn grid).
         | MdKind::TablePipe
         | MdKind::TableSep => {
             natural = Some(dim);
         }
-        MdKind::TableHeader => {
-            // No-op transform (like `Heading`/`Highlight`): a header cell rides the
-            // buffer's full CONTENT ink — figure/ground by value, no accent, amber is
-            // the caret's alone (DESIGN §3). Body cells get the same full ink with no
-            // span, so this only exists to tag the header in the sidecar.
-        }
-        MdKind::Task(false) => {
-            // An OPEN checkbox rides the buffer's FULL default ink so the empty box
-            // reads as a present, actionable marker — one value step above the dim
-            // `- ` bullet before it. No accent (amber is the caret's alone).
-        }
+        MdKind::TableHeader => {}
+        MdKind::Task(false) => {}
         MdKind::Quote => {
-            // Blockquote BODY text. A TASTE FLAG ([`quote_text_dim`]) decides whether
-            // it steps one ink rung down to `muted` (the calmer, set-apart voice —
-            // the DEFAULT + the pre-flag behaviour, byte-identical) or rides the full
-            // content ink (a louder quote). Never amber (DESIGN §3). The dim path is
-            // the historical default; the full-ink path exists for the A/B capture.
             if quote_text_dim() {
                 natural = Some(dim);
             }
         }
         MdKind::Heading(level) => {
-            // SIZE comes per-LINE upstream ([`scaled_base_attrs`], already in `base`,
-            // the Ladder-J rungs); WEIGHT is the per-world ONE BIT
-            // ([`crate::theme::Theme::heading_bold`]) composed through THE one owner
-            // [`crate::markdown::heading_weight_bold`] — SECTION (`##`) and SUBHEAD
-            // (`###`+) shape at real `Weight::BOLD` where the world's bit grants it
-            // (the same bundled same-family 700 request the `MdKind::Bold` arm below
-            // makes — a real weight change, never synthetic), while the TITLE (`#`)
-            // NEVER bolds, on any world (it spends pure size, 1.6x). We still
-            // deliberately do NOT set COLOR: DESIGN.md §3 — `primary` (amber) is the
-            // caret and ONLY the caret; figure/ground stays VALUE + size + (per-world)
-            // weight, never the accent. Data through the one renderer — no world is
-            // named here (`theme_caps_law`).
             if crate::markdown::heading_weight_bold(th.heading_bold, level) {
                 a = a.weight(glyphon::Weight::BOLD);
             }
@@ -321,7 +249,9 @@ pub(super) fn md_attrs(base: &Attrs<'static>, kind: crate::markdown::MdKind) -> 
         MdKind::BoldItalic => {
             // Same as `Bold` above (real bundled 700 on every world, proportional AND
             // mono) plus glyphon's synthesized slant (no bundled italic face).
-            a = a.weight(glyphon::Weight::BOLD).style(glyphon::Style::Italic);
+            a = a
+                .weight(glyphon::Weight::BOLD)
+                .style(glyphon::Style::Italic);
         }
         MdKind::Code { .. } => {
             a = a.family(Family::Monospace);
@@ -346,11 +276,6 @@ pub(super) fn md_attrs(base: &Attrs<'static>, kind: crate::markdown::MdKind) -> 
             natural = Some(role_style_for(&theme::active(), role).fg.to_glyphon());
         }
         MdKind::LinkText => {
-            // Link TEXT reads in the buffer's full CONTENT ink. It sits OVER the
-            // whole-range dim `Markup` span (brackets + url), so it must set content
-            // EXPLICITLY to lift back off that dim — the link then reads by its muted
-            // []()-markup, not by spending the accent. DESIGN §3: `primary` (amber) is
-            // the caret and ONLY the caret.
             natural = Some(th.base_content.to_glyphon());
         }
         MdKind::Highlight => {
@@ -364,12 +289,6 @@ pub(super) fn md_attrs(base: &Attrs<'static>, kind: crate::markdown::MdKind) -> 
             // comment wash so it POPS), never a text color change. Never amber (DESIGN §3).
         }
         MdKind::Strikethrough => {
-            // `~~struck~~` content RECEDES to the strike ink — [`strike_ink`], THE
-            // one owner the drawn strike LINE shares (`rects.rs`'s strike bucket +
-            // the format popover's `S` button), so text and line can never disagree
-            // on the register. The same muted rung the writer's-diff deletions
-            // recede to (their blockquoted form), never amber (DESIGN §3). The
-            // LINE itself is a quad (`strike_lines`), not a text transform.
             natural = Some(strike_ink(&th).to_glyphon());
         }
     }
@@ -424,12 +343,6 @@ pub(super) fn add_line_spans<K: Copy>(
     }
 }
 
-/// The fully-transparent ink used to CONCEAL a markdown horizontal-rule line's raw
-/// `---`/`***`/`___` glyphs (see [`add_rule_conceal_span`]). Alpha 0, so the dashes
-/// still SHAPE (the row keeps its height and the byte offsets stay editable) but draw
-/// invisibly — leaving the centered `hr_ornament` fleuron as the only mark a reader
-/// sees. An hr line is pure MARKUP with no content, so when the caret is elsewhere we
-/// "show the content" by showing nothing but the fine-press break.
 pub(super) const RULE_CONCEAL_COLOR: glyphon::Color = glyphon::Color::rgba(0, 0, 0, 0);
 
 /// WYSIWYG v1.1 — TRUE ZERO-WIDTH conceal (the live-review headline fix). v1
@@ -466,35 +379,11 @@ pub(super) const RULE_CONCEAL_COLOR: glyphon::Color = glyphon::Color::rgba(0, 0,
 /// byte column.
 const CONCEAL_ZERO_WIDTH_FONT_SIZE: f32 = 0.01;
 
-/// INLINE IMAGES: the number of body line-heights of row to reserve for an image
-/// whose file is MISSING/unreadable (no intrinsic dimensions to fit-to-column).
-/// A modest placeholder box; the placeholder GLYPH (a broken-image mark) is the
-/// next phase — this only reserves the row so the layout is complete. TUNABLE.
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) const IMAGE_MISSING_ROW_LINES: f32 = 3.0;
 
-/// INLINE IMAGES — the fraction of the window's HEIGHT an image's DISPLAY size may
-/// occupy at most. Guards the "retina screenshot as a full-bleed wall" case: a
-/// paste stamps no width (fit-to-column governs its display width), but a very
-/// TALL native image can still fit the column width while towering over the whole
-/// viewport. Applied on top of (never instead of) the fit-to-column width — see
-/// [`image_display_size`]. RENDER-ONLY: the cap shrinks the DRAWN size, never the
-/// file on disk or the `|NNN` hint written by a user's own drag-resize gesture.
-///
-/// TASTE TUNABLE (flagged for live review): the fraction itself.
 pub(super) const IMAGE_MAX_VIEWPORT_FRAC: f32 = 0.65;
 
-/// INLINE IMAGES — the pure fit-to-column, viewport-capped display size (px) for
-/// one image. `display_w = min(desired, wrap_width)` where `desired` is the
-/// `|NNN` width HINT if present, else the image's intrinsic width; `display_h`
-/// preserves the intrinsic aspect (`display_w * intrinsic_h / intrinsic_w`). Never
-/// wider than the text column (so an image always fits) and never zero (a 1px
-/// floor). Then, if the resulting height exceeds `max_h` (the caller's
-/// [`IMAGE_MAX_VIEWPORT_FRAC`]-scaled window height), BOTH dimensions shrink
-/// proportionally so the height lands exactly at `max_h` — the aspect never
-/// distorts, only the whole image scales down. A non-positive `max_h` (e.g. the
-/// window height isn't known yet) disables the cap outright. Pure + total, so a
-/// headless capture reserves the identical row a live frame does.
 #[cfg(not(target_arch = "wasm32"))]
 pub(super) fn image_display_size(
     intrinsic_w: u32,
@@ -516,16 +405,6 @@ pub(super) fn image_display_size(
     }
 }
 
-/// REVEAL-ON-CURSOR concealment for a markdown horizontal rule: overlay the
-/// [`RULE_CONCEAL_COLOR`] (transparent) ink over any `Rule` span's bytes that fall on
-/// THIS line, hiding the literal `---` glyphs so the line reads as a clean centered
-/// fleuron (the ornament layer draws it on the SAME rows — see
-/// [`super::TextPipeline::rule_lines`]). Applied LAST in [`build_line_attrs`] so the
-/// transparent ink wins over the `Rule` span's dim markup color. The caller gates
-/// this on `conceal_rule` (true only when the caret is on a DIFFERENT line); when the
-/// caret IS on the hr line the dashes are left in their dim markup color — REVEALED,
-/// fully editable, and the fleuron yields to them. No-op when no `Rule` span
-/// intersects the line (non-hr / non-markdown), keeping those lines byte-identical.
 pub(super) fn add_rule_conceal_span(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
@@ -547,19 +426,6 @@ pub(super) fn add_rule_conceal_span(
     }
 }
 
-/// REVEAL-ON-CURSOR concealment for an unordered-list BULLET, mirroring
-/// [`add_rule_conceal_span`]: overlay the transparent [`RULE_CONCEAL_COLOR`] ink over
-/// the single raw marker CHARACTER (`-`/`*`/`+`) of a bullet line, so the line reads
-/// with its depth-derived glyph (the active world's own [`crate::theme::Theme::bullets`]
-/// pair, drawn as an ornament on the SAME row — see
-/// [`super::TextPipeline::bullet_marks`]) instead of the raw dash. The marker's
-/// trailing space is left alone, so the concealed dash keeps its cell and the content
-/// stays put — the glyph simply draws where the dash was. Detected per-line via the
-/// SHARED [`crate::markdown::list_item`] (only UNORDERED items conceal; an ordered
-/// `1.` keeps its number). The caller gates this on the caret being on a DIFFERENT
-/// line (the same gate as the rule conceal); when the caret IS on the line the raw
-/// marker reveals (dim, editable) and no glyph is drawn. No-op for non-list lines,
-/// keeping them byte-identical.
 pub(super) fn add_bullet_conceal_span(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
@@ -571,38 +437,10 @@ pub(super) fn add_bullet_conceal_span(
     if it.ordered {
         return;
     }
-    // The marker char sits at byte `it.indent` (the indent is spaces); conceal just it.
     let hidden = base.clone().color(RULE_CONCEAL_COLOR);
     al.add_span(it.indent..it.indent + 1, &hidden);
 }
 
-/// PER-LEVEL LIST INDENT (item 15, the other half of bullet-level readability):
-/// widens a nested list item's LEADING-SPACE run (bytes `0..it.indent`) by the
-/// active world's own [`crate::theme::Theme::list_indent_scale`], so each
-/// nesting level reads with a touch more breathing room than its literal typed
-/// two-spaces-per-level alone gives it. PURE ADVANCE: the leading run is always
-/// plain spaces (`markdown::list_item` only counts `b' '` bytes into `indent`),
-/// which carry no ink, so inflating their metrics FONT SIZE only widens the
-/// blank gap before the marker — never draws a visible glyph — and the paired
-/// line-height half is pinned to `row_lh` (the line's own real row height,
-/// exactly [`CONCEAL_ZERO_WIDTH_FONT_SIZE`]'s established discipline, scaled UP
-/// instead of down) so a wide-indent line never grows its own row. A no-op at
-/// depth 0 (`it.indent == 0`, nothing to widen — every world's top-level items
-/// stay byte-identical) and at `list_indent_scale == 1.0` (the geometric/
-/// technical worlds' tier — also byte-identical). Because the indent BYTE
-/// COUNT already grows linearly with depth (`markdown::LIST_INDENT` per level),
-/// scaling the whole leading run by one constant factor makes the EXTRA width
-/// grow linearly with depth for free — no per-depth multiplier needed.
-///
-/// Detected via the SAME shared [`crate::markdown::list_item`] scan as the
-/// bullet conceal above, but — unlike that reveal-on-cursor gate — applied
-/// UNCONDITIONALLY (ordered AND unordered items alike, caret on the line or
-/// not): indent is a permanent LAYOUT choice, not a WYSIWYG reveal toggle,
-/// mirroring how a heading's SIZE never un-scales on cursor entry (only its
-/// `#` markup conceals/reveals). Called LAST in [`build_line_attrs`] so it
-/// wins over the leading `Markup` dim-ink span [`add_md_line_spans`] already
-/// painted there — invisible either way, since spaces carry no ink regardless
-/// of color/weight/family.
 pub(super) fn add_list_indent_span(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
@@ -726,30 +564,13 @@ pub(super) fn wysiwyg_reveals(
         | ConcealKind::Emphasis
         | ConcealKind::Code
         | ConcealKind::Highlight
-        // A `~~strike~~` pair's tilde markers hide off their own line exactly
-        // like an emphasis run's `**` — the drawn strike LINE is the affordance.
         | ConcealKind::Strikethrough
         | ConcealKind::Image
-        // A link's `[`/`](url)` plumbing hides off its own line, leaving the
-        // content-ink link TEXT (its separate `LinkText` span) visible; the whole
-        // source reveals when the caret lands on the line.
         | ConcealKind::Link
-        // A blockquote's leading `>` marker(s) hide off their own line — the
-        // block's affordance off-caret is the margin-hung pull-quote mark; the
-        // raw markers reveal when the caret lands on that line.
         | ConcealKind::Blockquote => !conceal_off_cursor || selected,
     }
 }
 
-/// True when a `ConcealMarkup(Image)` span overlaps the document byte range
-/// `[line_doc_start, line_end)` — i.e. this logical line is an inline-image
-/// reference (`![alt](path)`). Used to distinguish a real IMAGE line from a
-/// WRAPPED TABLE row: both reserve a tall `image_heights` slot, but on the caret's
-/// line an image follows the CAPTION model (the source reveals body-size, so the
-/// caret must be sized to the BODY glyphs — `cursor_scale` returns `1.0` — not the
-/// tall row), while a table row keeps the pure heading model. Read by
-/// [`super::TextPipeline::line_is_inline_image`] (the caret-scale gate), the one
-/// owner of "is this an image line".
 pub(super) fn line_has_image_span(
     md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
     line_doc_start: usize,
@@ -763,17 +584,6 @@ pub(super) fn line_has_image_span(
     })
 }
 
-/// INLINE IMAGES (item 5a, "list item with text and an image"): true when
-/// `line_text` carries REAL content besides its own list marker (if any) and the
-/// image markup at `image_local` (BYTE range relative to `line_text`'s own start,
-/// not the document) — i.e. `- caption text ![alt](p)` is "mixed", a bare
-/// `- ![alt](p)` (or plain `![alt](p)`) is not. The list marker's own bytes
-/// (`crate::markdown::list_item`'s `content` offset — the marker conceals to its
-/// own bullet glyph regardless, see `add_bullet_conceal_span`) are excluded from
-/// the scan alongside the image span itself; ANY other non-whitespace byte makes
-/// it mixed. Pure — read by [`super::TextPipeline::compute_image_layout`] to
-/// decide the row-height RESERVATION (see its doc comment for the "own row below
-/// the text row" strategy this drives).
 pub(super) fn image_line_has_other_content(
     line_text: &str,
     image_local: std::ops::Range<usize>,
@@ -786,11 +596,6 @@ pub(super) fn image_line_has_other_content(
         .any(|i| !(b[i].is_ascii_whitespace() || i >= image_local.start && i < image_local.end))
 }
 
-/// True when a `Code`/`CodeSyntax` span (a fenced-block BODY byte) overlaps the
-/// document byte range `[line_doc_start, line_end)` — i.e. this line is a fence
-/// BODY line, not a marker line. Shared by [`add_wysiwyg_conceal_spans`]'s
-/// `Fence` arm and [`super::TextPipeline::wysiwyg_report`] so both agree on
-/// exactly which of a fenced block's lines are marker-concealable.
 pub(super) fn line_has_code_span(
     md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
     line_doc_start: usize,
@@ -900,10 +705,6 @@ pub(super) fn add_wysiwyg_conceal_spans(
             continue;
         }
         if ck == ConcealKind::Fence && line_has_code_span(md_spans, line_doc_start, line_end) {
-            // Never conceal a BODY line — only a fence's own marker lines (open,
-            // close, info string) have no `Code`/`CodeSyntax` span of their own;
-            // a body line's entire text is covered by one, so skip it wholesale
-            // rather than painting transparent ink over the body's own coloring.
             continue;
         }
         let lo = r.start.max(line_doc_start);
@@ -914,30 +715,11 @@ pub(super) fn add_wysiwyg_conceal_spans(
         if ck == ConcealKind::Image
             && let Some((dh, target_advance)) = image_force
         {
-            // FORCED TRAILING ROW (see this fn's doc comment). The forcing
-            // glyph carries a huge `letter_spacing`, so cosmic-text's
-            // `Wrap::WordOrGlyph` engine pushes it (and everything after)
-            // onto a new visual row — EXCEPT it must NOT be the markup's
-            // very first char (`!`). Unicode UAX14 rule LB13 ("do not break
-            // before `!`/`;`/`/`/`]`") forbids a line break immediately
-            // before `!`, so cosmic-text's word-breaker GLUES the preceding
-            // word (the caption's own last word) to a forcing `!` as ONE
-            // unbreakable unit — dragging that real, visible word onto the
-            // `dh`-tall trailing row and stranding IT instead (confirmed
-            // empirically: forcing on `!` reliably drops the caption's last
-            // word, regardless of margin). `[` (the markup's SECOND char,
-            // always present — every image ref is `![...]`) carries no such
-            // restriction, so `!` stays a plain (non-forcing) zero-width
-            // glyph and `[` becomes the forcing one instead.
             let mut chars = line_text[(lo - line_doc_start)..].char_indices();
             let bang_len = chars.next().map_or(1, |(_, c)| c.len_utf8());
             let second_len = chars.next().map_or(0, |(_, c)| c.len_utf8());
             let bang_end = (lo + bang_len).min(hi);
             let force_end = (bang_end + second_len).min(hi);
-            // `!` (row 0, alongside the caption): the row's OWN natural
-            // height already stays correct with no override needed, but
-            // `hidden`'s paired `line_height` (the caller's row height)
-            // is harmless here regardless.
             if bang_end > lo {
                 al.add_span((lo - line_doc_start)..(bang_end - line_doc_start), &hidden);
             }
@@ -1013,125 +795,22 @@ pub(super) fn cell_inline_attrs(
     al
 }
 
-/// SYNTAX HIGHLIGHTING: apply THE role style ([`role_style_for`], the one owner)
-/// to one span's attrs. The structural code (keywords, operators, identifiers,
-/// punctuation) keeps the FULL ink; only the roles take a style — quiet,
-/// desaturated per-world tints, never a loud hue and NEVER amber (DESIGN.md §3:
-/// `primary` is the caret alone). The role's optional background WASH is drawn by
-/// the wash pipelines (see `rects.rs::wash_rects`), not through attrs.
 pub(super) fn syn_attrs(base: &Attrs<'static>, kind: crate::syntax::SynKind) -> Attrs<'static> {
     base.clone()
         .color(role_style_for(&theme::active(), kind).fg.to_glyphon())
 }
 
-// --- THE ROLE STYLE PROVIDER — one owner of role tint + wash -----------------
-//
-// The tonsky follow-up to Alabaster's four-role model: each world derives four
-// QUIET, LOW-SATURATION role tints from its OWN palette, plus low-alpha
-// background WASHES for the prose regions (comments everywhere, strings on the
-// dark worlds). No per-theme syntax palette: [`role_style_for`] is a pure
-// function of the theme's existing tokens (+ its optional
-// [`theme::RoleOverrides`] escape hatch), so a new world inherits lawful role
-// styles for free and the law test sweeps every world automatically.
-
-/// Fixed role HUE ANCHORS (degrees). Strings lean GREEN, definitions BLUE,
-/// constants VIOLET, the comment wash WARM YELLOW — min pairwise distance 70°,
-/// and ≥ 38° from every world's `primary` hue (the amber guard's 30° floor).
 const HUE_STR: f32 = 140.0;
 const HUE_DEF: f32 = 220.0;
 const HUE_CONST: f32 = 290.0;
 const HUE_COMMENT_WASH: f32 = 50.0;
 
-/// Foreground tint SATURATION per mode — both quiet (law cap 0.50): a dark
-/// world's light ink is barely tinted (pale pastels); a light world's dark ink
-/// needs a touch more saturation to read a hue at all. `S_FG_DARK` was raised
-/// from the original 0.32 (see `T_DARK` below — the two moved together to fix
-/// the imperceptible-Definition bug); it stays a comfortable 0.04 under the law
-/// cap.
-///
-/// `S_FG_LIGHT` moved THREE times across two retunes. Round 1 (see `T_LIGHT`'s
-/// history below) went UP toward the 0.50 cap then back DOWN to `0.28`: redmean
-/// alone rewards MORE saturation (more hue-driven RGB spread), but the eye
-/// resolves LUMINANCE, and the fixed hue anchors here (blue 220°, violet 290°)
-/// carry very little of the Rec.709 luminance weight (`0.7152` sits on G, only
-/// `0.0722` on B) — so *more* saturation at a light world's necessarily-dark
-/// lightness actively pulls the tint AWAY from grey and DOWN in relative
-/// luminance.
-///
-/// Round 2 (the ground-contrast retune — see law (i) and `T_LIGHT` below) landed
-/// on `0.18`: round 1 fixed ink-luminance separation by pushing `T_LIGHT`'s
-/// rungs UP toward `muted` — which, on the light worlds, is itself already most
-/// of the way toward the pale `base_100` ground. That satisfied "distinct from
-/// the ink" while quietly failing "readable on the page" (a live taste-gate
-/// verdict on Saltpan: "too hard to read" — the roles read as washed-out
-/// pastels). Lowering both `T_LIGHT` (back toward the ink) and `S_FG_LIGHT`
-/// (less chroma competing with the now-smaller lightness excursion) restores
-/// ground contrast while `sweep_light_ladder`'s grid search (now searching
-/// jointly for the luminance floor AND the ground-contrast floor) still clears
-/// every law with margin.
 const S_FG_DARK: f32 = 0.46;
 const S_FG_LIGHT: f32 = 0.18;
 
-/// The PRESENCE t-ladder: each role's LIGHTNESS rides the world's OWN ink ladder,
-/// `L = lerp(L(base_content), L(muted), t)` — `[Definition, Constant, Str]`, most
-/// present (closest to full ink) first. Ordering preserved in both modes.
-///
-/// Dark's `Definition` rung was originally `0.12` (paired with `S_FG_DARK =
-/// 0.32`): on every dark world that put Def's fg redmean distance from
-/// `base_content` at 36–65 — under the perceptibility floor the role-style law
-/// now enforces (`role_style_laws_hold_for_every_world`, law (g), floor 70) and,
-/// per a live Currawong screenshot, visually indistinguishable from plain ink
-/// (measured ≈43, barely over the *pairwise* law floor of 40 but perceptually
-/// nil). Raised to `0.26` (+ `S_FG_DARK` to `0.46`) — measured worst case across
-/// the 8 dark worlds is now redmean 86 vs `base_content` (Bowerbird) and 59 vs
-/// `Constant` (Bombora), both comfortably clear of their floors, while the
-/// 0.26 vs 0.28 gap to `Constant` keeps monotone presence ordering intact (the
-/// ordering is an exact `t`-proportional relationship, not a numeric coin-flip,
-/// so a 0.02 gap is as safe as a 0.16 one) and saturation stays 0.46 — under the
-/// law's 0.50 cap with room to spare.
-///
-/// Light's rungs went through TWO retunes, both instances of the SAME class of
-/// bug caught by measurement before a screenshot forced it.
-///
-/// Round 1 rungs were `[0.55, 0.75, 0.95]` (the user's own words: "function
-/// colour way too close to everything else on a lot of themes; Saltpan
-/// especially bad"). The pairwise redmean law (a) and the vs-ink floor (g) both
-/// PASSED at those rungs (Saltpan Definition redmean 148 vs `base_content`,
-/// comfortably over the 70 floor) — because almost all of that distance sat in
-/// the BLUE channel, which the eye barely weighs (sparse S-cones; the classic
-/// "dark blue link reads as black" problem). A dedicated relative-luminance
-/// measurement (`measure_role_luminance`, an ignored scratch test) found the
-/// true worst case: light `Definition` bought only 0.027–0.042
-/// relative-luminance separation from `base_content` — a tenth of what `Str`
-/// (green, luminance-heavy) got for free. Raised to `[0.84, 0.90, 0.94]` (+
-/// `S_FG_LIGHT` up to `0.28`) via `sweep_light_ladder`'s grid search, maximizing
-/// worst-case light `Definition` ΔY subject to laws (a)/(g) alone.
-///
-/// Round 2 (THIS retune) found the bug in round 1's own fix: a live taste-gate
-/// verdict on Saltpan ("too hard to read") traced to round 1's cure creating a
-/// NEW failure mode — pushing `t` up toward `muted` raises ink-luminance
-/// separation, but on a light world `muted` is already most of the way toward
-/// the pale `base_100` ground, so the SAME move that satisfies "distinct from
-/// ink" (law h) actively fails "readable on the page" — no test measured
-/// contrast against the GROUND, only against the ink. Law (i) below closes that
-/// gap (a WCAG contrast-ratio floor vs `base_100`), and `sweep_light_ladder` now
-/// searches `(t_def, t_const, t_str, s)` for the point that clears BOTH the
-/// ink-luminance floor (h) and the ground-contrast floor (i) simultaneously —
-/// LOWER `t` (back toward the ink, away from the washed-out ground) with LOWER
-/// saturation (less chroma fighting the now-smaller lightness excursion) is the
-/// answer both times pastel-camouflage shows up. Landed at `[0.76, 0.78, 0.80]`
-/// (+ `S_FG_LIGHT` down to `0.18`): worst-case ground contrast 4.84:1 (Quokka
-/// `Str`) and worst-case ink ΔY 0.056 (Gumtree `Definition`/`Constant`) — both
-/// clear their floors with margin across all six light worlds. Monotone
-/// ordering is preserved by construction (`t_def < t_const < t_str`).
 const T_DARK: [f32; 3] = [0.26, 0.28, 0.44];
 const T_LIGHT: [f32; 3] = [0.76, 0.78, 0.80];
 
-/// WASH quad color params (rgba — computed quad colors, NOT theme tokens): dark
-/// worlds wash with `hsl(anchor, 0.62, 0.66)` at alpha 0x2A (~16%); light worlds
-/// with `hsl(50, 0.55, 0.50)` at 0x2E (~18%, comment wash only). Law-tested on
-/// the COMPOSITED result over `base_100`: ΔL in [0.03, 0.12] — a wash is
-/// structurally a whisper, incapable of reading as the accent.
 const WASH_S_DARK: f32 = 0.62;
 const WASH_L_DARK: f32 = 0.66;
 const WASH_ALPHA_DARK: u8 = 0x2A;
@@ -1139,35 +818,6 @@ const WASH_S_LIGHT: f32 = 0.55;
 const WASH_L_LIGHT: f32 = 0.50;
 const WASH_ALPHA_LIGHT: u8 = 0x2E;
 
-/// HIGHLIGHT wash (`==marked==`) params — a DEDICATED wash, DECOUPLED from the
-/// warm comment wash above (a deliberate, narrow break of the "one warm-wash
-/// owner": a highlighter and a comment wash are DIFFERENT intents). The comment
-/// wash is a subtle prose-warmth whisper (a low-alpha `hsl(50°)` cream); a
-/// highlighter must POP ("look here"). The old shared-with-comment cream read
-/// MUDDY on the cool pale light grounds (Gumtree pale-green, Bilby pale-cyan) —
-/// a faint warm-over-cool blend with almost no hue contrast. The first fix was a
-/// clean, cool VIOLET at higher saturation + alpha — but a FIXED foreign 280°
-/// read as an imported, un-native color, the same on every world.
-///
-/// THE PER-WORLD FIX (this round): the highlight HUE is now DERIVED from each
-/// world's OWN accent — `hue(primary) + HIGHLIGHT_HUE_OFFSET_FROM_PRIMARY` — a
-/// SPLIT-COMPLEMENTARY of the caret's hue, so the highlighter reads as belonging
-/// to the world (it harmonizes with the world's one warm accent) while the fixed
-/// 165° rotation structurally GUARANTEES the amber guard (the highlight sits
-/// exactly 165° off `primary` on every world — ≫ DESIGN §3's 30° floor, so the
-/// caret's amber stays its own). The offset was chosen by a 14-world sweep (see
-/// the retired `probe_highlight_hues` scratch analysis / the law test): among the
-/// offsets that keep the absolute composited pop ≥ 70 AND out-pop the comment
-/// wash on every world, 165° MAXIMIZES the worst-case separation from each
-/// world's GROUND hue (min 20.8° — so no world's highlight muddies against its
-/// own page) while giving the strongest out-pop margin over the comment whisper
-/// (≥ 23.8 redmean). Saturation/lightness/alpha (the PRESENCE the violet round
-/// added) are UNCHANGED and still split per light/dark class — only the hue
-/// became per-world. Law-tested (`highlight_wash_laws_hold_for_every_world`) on
-/// the COMPOSITED result over each world's `base_100`: distinct from the comment
-/// wash, ≥ 30° off `primary` (amber guard), pops (redmean floor + out-pops the
-/// comment whisper), a calm ΔL ceiling, AND per-world variation (≥ 8 distinct
-/// hues across the 14 worlds — proof the hue is no longer a single fixed value).
 const HIGHLIGHT_HUE_OFFSET_FROM_PRIMARY: f32 = 165.0;
 const HIGHLIGHT_S_DARK: f32 = 0.58;
 const HIGHLIGHT_L_DARK: f32 = 0.64;
@@ -1176,38 +826,12 @@ const HIGHLIGHT_S_LIGHT: f32 = 0.50;
 const HIGHLIGHT_L_LIGHT: f32 = 0.58;
 const HIGHLIGHT_ALPHA_LIGHT: u8 = 0x4D;
 
-/// The style ONE Alabaster role renders with in a given world: the quiet
-/// foreground TINT plus an optional low-alpha background WASH (an rgba quad
-/// color the wash pipelines composite behind the span's glyphs).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct RoleStyle {
     pub fg: theme::Srgb,
     pub wash: Option<theme::Srgb>,
 }
 
-/// THE role style provider — the single place a syntax role's foreground tint +
-/// optional wash are derived (what `syn_role_color` grew into). A PURE function
-/// of the passed theme (`base_content` / `muted` lightness, `dark` mode, plus its
-/// [`theme::RoleOverrides`]), NOT of the process-global active theme, so the law
-/// test can sweep all fourteen worlds lock-free. Consumers: [`syn_attrs`] (code
-/// buffers), [`md_attrs`]'s `CodeSyntax` arm (markdown fences inherit
-/// automatically), and the wash geometry/tint plumbing — no second copy.
-///
-/// The derivation:
-/// - `Definition` / `Constant` / `Str` foregrounds: `hsl(anchor, S_mode,
-///   lerp(L(base_content), L(muted), t))` — hue from the fixed anchors, presence
-///   from the world's own ink ladder. Never washed (`Str` excepted below) —
-///   single-token washes read as confetti.
-/// - `Comment` (PROSE tier — tonsky inverted): fg is `base_content` EXACTLY
-///   (comments are the prose in the code — FULL ink) + the warm comment wash on
-///   every world.
-/// - `CommentCode` (commented-out code): fg is `muted` EXACTLY, no wash —
-///   today's grey.
-/// - `Str` additionally carries the green wash on DARK worlds only (wash-first
-///   on dark, fg-tint-first on light, per the essay).
-///
-/// A world's `role_overrides` may pin any fg, pin a wash, or disable a wash; the
-/// law test validates the EFFECTIVE style, so overrides cannot break the laws.
 pub(super) fn role_style_for(th: &theme::Theme, kind: crate::syntax::SynKind) -> RoleStyle {
     use crate::syntax::SynKind;
     let ov = th.role_overrides;
@@ -1241,7 +865,6 @@ pub(super) fn role_style_for(th: &theme::Theme, kind: crate::syntax::SynKind) ->
             fg: th.base_content,
             wash: with_override(Some(derived_wash(HUE_COMMENT_WASH)), ov.comment_wash),
         },
-        // Commented-OUT code recedes to the muted grey it always had — no wash.
         SynKind::CommentCode => RoleStyle {
             fg: th.muted,
             wash: None,
@@ -1270,10 +893,6 @@ pub(super) fn role_style_for(th: &theme::Theme, kind: crate::syntax::SynKind) ->
     }
 }
 
-/// The ACTIVE world's wash quad rgba for a role, for the two fixed-tint wash
-/// pipelines (`render.rs` construction + `sync_theme_colors` re-tint). A role /
-/// world with NO wash yields fully-transparent bytes (the pipeline also uploads
-/// zero instances then, so nothing draws either way).
 pub(super) fn wash_rgba_bytes(kind: crate::syntax::SynKind) -> [u8; 4] {
     role_style_for(&theme::active(), kind)
         .wash
@@ -1343,9 +962,6 @@ pub(super) fn highlight_wash(th: &theme::Theme) -> theme::Srgb {
     theme::Srgb::rgba(c.r, c.g, c.b, alpha)
 }
 
-/// The ACTIVE world's `==highlight==` wash quad rgba, for the fixed-tint highlight
-/// wash pipeline (`render.rs` construction + `sync_theme_colors` re-tint) — the
-/// sibling of [`wash_rgba_bytes`] for the dedicated highlight bucket.
 pub(super) fn highlight_wash_rgba_bytes() -> [u8; 4] {
     highlight_wash(&theme::active()).rgba_bytes()
 }
@@ -1367,22 +983,6 @@ pub(super) fn wagtail_dither_density() -> f32 {
     }
 }
 
-/// THE ONE WAGTAIL HIGHLIGHT TEXTURE's CHUNK cell edge, in PHYSICAL pixels —
-/// the block size the dither branch quantizes to before its Bayer lookup so the
-/// stipple reads as DELIBERATE dithered pixels, not fine per-pixel noise
-/// (CHUNK round). Retina-aware: the base coarseness is
-/// [`dither::WAGTAIL_HIGHLIGHT_STIPPLE_CELL_LOGICAL`] LOGICAL px, scaled by the
-/// display `dpi` (so ~2 logical px is 2 physical px in the capture / on a 1×
-/// screen and ~4 physical px on a 2× Retina panel — the same APPARENT
-/// coarseness either way). `1.0` (a no-op cell — the fine per-pixel stipple)
-/// off a one-bit world, so the three consumers this feeds stay byte-identical
-/// there; the density gate and the cell share the SAME world check, one owner.
-/// Fed into `SelectionPipeline::set_dither_cell` at the SAME call sites
-/// [`wagtail_dither_density`] feeds `set_dither` (construction + every re-tint)
-/// PLUS a live DPI change (`set_dpi`), since the physical cell tracks the
-/// display scale. The `AWL_STIPPLE_CELL` dev knob overrides the logical base
-/// purely to shoot the round's candidate-coarseness gallery (see that reader's
-/// doc); unset it is the shipped 2-logical-px choice.
 pub(super) fn wagtail_stipple_cell_px(dpi: f32) -> f32 {
     if wagtail_dither_density() <= 0.0 {
         return 1.0;
@@ -1392,15 +992,6 @@ pub(super) fn wagtail_stipple_cell_px(dpi: f32) -> f32 {
     (logical * dpi.max(1.0)).round().max(1.0)
 }
 
-/// DEV-ONLY escape hatch for the CHUNK round's candidate-coarseness gallery
-/// (`--theme Wagtail` with an `==highlight==` fixture at a few logical cell
-/// sizes for the user's eyeball-call): `AWL_STIPPLE_CELL=<f32>` overrides the
-/// logical Bayer-cell edge [`wagtail_stipple_cell_px`] scales by DPI. Read ONCE
-/// and memoized — same env-var thread-safety footing as `AWL_CJK_FORCE` /
-/// `AWL_OVERLAY_ANCHOR_FORCE` (an unmemoized `std::env::var` per re-tint would
-/// re-expose the hazard on every theme switch). A total no-op unless set (no
-/// config key, no CLI flag, undocumented in CAPTURE.md) — it changes nothing
-/// about normal/headless determinism, and the capture path never sets it.
 fn stipple_cell_logical_override() -> Option<f32> {
     static ONCE: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
     *ONCE.get_or_init(|| {
@@ -1428,41 +1019,10 @@ pub(super) fn search_match_rgba_bytes() -> [u8; 4] {
     }
 }
 
-// --- THE STRIKE-LINE OWNER — one owner of strike geometry + ink --------------
-//
-// "The strike-line geometry over a text run" lives HERE and only here: the
-// thickness, the vertical position as a fraction of the run's text band, and
-// the ink derivation. Two consumers, both routing through these fns so they can
-// never drift: (1) the DOCUMENT renderer's `~~strike~~` quads
-// (`rects.rs::strike_lines`, one thin band per visual-row segment of every
-// `MdKind::Strikethrough` span), and (2) the format POPOVER's
-// self-demonstrating `S` button (`chrome/popover.rs`), which draws the same
-// line through its own glyph ink band. The struck TEXT's color rides
-// [`strike_ink`] too (`md_attrs`' `Strikethrough` arm), so text and line share
-// one register by construction.
-
-/// Strike-line stroke thickness (px at zoom 1.0). A hair heavier than the
-/// writing-nit hint ([`super::NIT_THICKNESS`], 1.3) is NOT wanted — a strike is
-/// content styling, not an annotation, and the muted ink already carries the
-/// receding register; the same fine weight reads as one family of quiet lines.
 pub(in crate::render) const STRIKE_THICKNESS: f32 = 1.3;
 
-/// Vertical position of the strike line's CENTER, as a fraction of the text
-/// band's height from its top. 0.5 — the middle of the band. For the document
-/// this is the caret-height glyph cell (`row_band_for`), whose middle crosses
-/// lowercase letters just above their waist; for the popover's `S` it is the
-/// measured cap-height ink band, whose middle bisects the glyph. Both read as
-/// the conventional struck-through look.
 pub(in crate::render) const STRIKE_V_FRAC: f32 = 0.5;
 
-/// THE LINE-BAND PRIMITIVE — "a thin flat line over a fraction of a text band"
-/// (thickness + antialiasing feather, centered at `v_frac` of `height` from
-/// `top`), the ONE owner both [`strike_line_band`] (mid-run, `STRIKE_V_FRAC`)
-/// and [`link_underline_band`] (near the baseline, `LINK_UNDERLINE_V_FRAC`)
-/// route through — a strike-through and an underline are the SAME primitive,
-/// differing only in vertical placement (same behavior => same code). Pure +
-/// total; every caller hands the result straight to a
-/// [`crate::spellunderline::Squiggle`] with `amp: 0.0` (a flat line).
 fn line_band(top: f32, height: f32, zoom: f32, v_frac: f32, thickness: f32) -> (f32, f32, f32) {
     let stroke = thickness * zoom;
     let band_h = stroke + 2.0;
@@ -1470,34 +1030,14 @@ fn line_band(top: f32, height: f32, zoom: f32, v_frac: f32, thickness: f32) -> (
     (center - band_h * 0.5, band_h, stroke)
 }
 
-/// THE strike-line geometry over a text band: given the band's `top`/`height`
-/// (the run's glyph cell — caret band in the document, measured ink band in the
-/// popover) and the current `zoom`, the line's `(band_top, band_h, stroke)` — a
-/// quad band centered at `STRIKE_V_FRAC` of the text band, just tall enough for
-/// the stroke plus a 2px antialiasing feather (the same `thickness + 2.0`
-/// envelope the nit underline uses), and the zoom-scaled stroke thickness
-/// itself. Pure + total; both call sites hand these straight to a
-/// [`crate::spellunderline::Squiggle`] with `amp: 0.0` (a flat line).
 pub(in crate::render) fn strike_line_band(top: f32, height: f32, zoom: f32) -> (f32, f32, f32) {
     line_band(top, height, zoom, STRIKE_V_FRAC, STRIKE_THICKNESS)
 }
 
-/// Link-underline stroke thickness (px at zoom 1.0) — the SAME fine weight as
-/// [`STRIKE_THICKNESS`] (one family of quiet lines; the underline is a quiet
-/// affordance, not an annotation).
 pub(in crate::render) const LINK_UNDERLINE_THICKNESS: f32 = STRIKE_THICKNESS;
 
-/// Vertical position of the link underline's CENTER, as a fraction of the
-/// text band's height from its top — near the BASELINE (unlike the strike's
-/// mid-run `STRIKE_V_FRAC`), so it reads as an underline under the link text
-/// rather than a line through it. `0.92` sits just under the caret-height
-/// glyph cell's bottom (inside it, never spilling into the next row).
 pub(in crate::render) const LINK_UNDERLINE_V_FRAC: f32 = 0.92;
 
-/// THE link-underline geometry over a text band — [`line_band`] at
-/// [`LINK_UNDERLINE_V_FRAC`]/[`LINK_UNDERLINE_THICKNESS`], the SAME primitive
-/// [`strike_line_band`] rides, just a different vertical band: "a line under a
-/// run" and "a line through a run" are one mechanism, not two.
 pub(in crate::render) fn link_underline_band(top: f32, height: f32, zoom: f32) -> (f32, f32, f32) {
     line_band(
         top,
@@ -1508,46 +1048,22 @@ pub(in crate::render) fn link_underline_band(top: f32, height: f32, zoom: f32) -
     )
 }
 
-/// THE strike ink — the world's `muted` rung EXACTLY: the receding markup ink
-/// every dim syntax character already rides, so struck text (and its line)
-/// recede to a register the world is guaranteed to render legibly, with zero
-/// saturation risk toward the caret's amber (DESIGN §3 — `muted` is an ink-
-/// ladder rung, not a hue). On a 1-bit world this is an authored pure
-/// black/white token, so the strike stays lawful there by construction. Shared
-/// by `md_attrs` (the struck TEXT) and [`strike_srgba_bytes`] (the LINE
-/// pipelines) — one derivation, two surfaces.
 pub(in crate::render) fn strike_ink(th: &theme::Theme) -> theme::Srgb {
     th.muted
 }
 
-/// The ACTIVE world's strike-line rgba for the two strike pipelines (document +
-/// popover), fed at construction and every `sync_theme_colors` re-tint — the
-/// sibling of [`highlight_wash_rgba_bytes`] for the strike stroke.
 pub(in crate::render) fn strike_srgba_bytes() -> [u8; 4] {
     strike_ink(&theme::active()).rgba_bytes()
 }
 
-/// THE link-underline ink — the SAME world `muted` rung [`strike_ink`] uses (a
-/// quiet, value-only affordance under the link's full-content-ink TEXT, never
-/// the caret's amber — DESIGN §3: the link TEXT stays full content ink per the
-/// 2026-07-22 decision, so only the underline itself carries the muted tint).
 pub(in crate::render) fn link_underline_ink(th: &theme::Theme) -> theme::Srgb {
     strike_ink(th)
 }
 
-/// The ACTIVE world's link-underline rgba, fed to the underline pipeline at
-/// construction and every `sync_theme_colors` re-tint — the sibling of
-/// [`strike_srgba_bytes`] for the link-underline stroke.
 pub(in crate::render) fn link_underline_srgba_bytes() -> [u8; 4] {
     link_underline_ink(&theme::active()).rgba_bytes()
 }
 
-/// SYNTAX HIGHLIGHTING: lay the syntax spans that intersect ONE buffer line over
-/// `al`, mirroring [`add_md_line_spans`] (markdown and syntax never both apply, so
-/// this composes on the SAME per-span seam as a parallel base layer). Maps each
-/// document-byte span into this line's local byte range and adds it with
-/// [`syn_attrs`]. No-op when `syn_spans` is empty (non-code buffers), keeping their
-/// render byte-identical.
 pub(super) fn add_syn_line_spans(
     al: &mut glyphon::cosmic_text::AttrsList,
     line_text: &str,
@@ -1577,34 +1093,12 @@ pub(super) fn md_line_scale(line_text: &str, md: bool) -> f32 {
     if level > 0 {
         return crate::markdown::heading_scale(level);
     }
-    // A THEMATIC BREAK (`---`/`***`/`___`) grows its row to fit the bigger centered
-    // ornament fleuron (drawn by `prepare_ornaments`), exactly the heading-row
-    // machinery above — the tall row centers the glyph. The scale is the ACTIVE
-    // world's per-world `ornament_scale` (the SAME value `prepare_ornaments` shapes
-    // the glyph at), UNIFORM per break line regardless of caret, so the row never
-    // reflows on cursor move (the raw `---` reveals in place when the caret lands, at
-    // the same scaled size). A theme switch that changes the scale re-fits the row via
-    // `restyle_all_lines`, like the heading sizes. `md` was already folded into
-    // `level` above (non-markdown never reaches this branch's `is_thematic_break`
-    // check either — a `false` `md` yields `level == 0` for every line, but a
-    // non-heading, non-markdown line still needs this same early-out, so `md` is
-    // re-checked here rather than threading a second bool out of the shared scan).
     if md && crate::markdown::is_thematic_break(line_text) {
         return crate::theme::active().ornament_scale;
     }
     1.0
 }
 
-/// The heading LEVEL implied by a line's LEADING `#` run — 0 (not a heading) /
-/// 1 (`#`) / 2 (`##`) / 3+ (`###` and deeper, unclamped — every consumer's own
-/// `_ =>` arm treats 3+ uniformly). The SHARED scan [`md_line_scale`] (the SIZE
-/// half) and `build_line_attrs`'s row-lead computation (the SPACING half, see
-/// [`crate::markdown::heading_row_lead`]) both key off this ONE function, so
-/// the two can never read a different level for the same line. Keyed off the
-/// raw hash COUNT, NOT a fully-valid ATX heading, so a line grows the instant
-/// you type `#` — before the space and title (and even for `#foo`). Only the
-/// LEADING run counts (after optional indent), so a `#` mid-prose is ignored.
-/// `md` gates it: a non-markdown buffer is always level `0`.
 pub(super) fn md_line_heading_level(line_text: &str, md: bool) -> u8 {
     if !md {
         return 0;
@@ -1768,13 +1262,6 @@ pub(super) fn build_line_attrs(
         add_rule_conceal_span(&mut al, line_text, line_doc_start, &lb, md_spans);
         add_bullet_conceal_span(&mut al, line_text, &lb);
     }
-    // WYSIWYG: heading/emphasis/inline-code/highlight markup (line-scoped, same
-    // gate as above) + a fenced block's marker lines (block-scoped, `cursor_byte`).
-    // A total no-op when `wysiwyg_on()` is false. `base_line_height * scale` is
-    // this LINE's own effective row height (matches what `scaled_base_attrs`
-    // used to build `lb`), so the zero-width conceal spans below never shrink
-    // the row — see `add_wysiwyg_conceal_spans`'s doc comment. `selection_touch`
-    // extends the caret-only reveal to every selected line (see this fn's doc).
     add_wysiwyg_conceal_spans(
         &mut al,
         line_text,
@@ -1787,9 +1274,6 @@ pub(super) fn build_line_attrs(
         image_force,
         selection_touch,
     );
-    // PER-LEVEL LIST INDENT (item 15): UNCONDITIONAL (not gated on
-    // `conceal_off_cursor` — a permanent layout choice, not a reveal toggle),
-    // applied LAST so it always wins over the leading `Markup` span above.
     add_list_indent_span(&mut al, line_text, &lb, base_font_size, row_lh);
     al
 }

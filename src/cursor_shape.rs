@@ -1,67 +1,20 @@
-//! Context-aware OS cursor selection and change caching. This is live-only;
-//! captures have no OS pointer.
-
 use crate::render::ImageHandle;
 use winit::window::CursorIcon;
 
-/// The hover-context inputs the priority decision reads. Each flag is computed
-/// by the live `App` from the SAME hit-test geometry the rest of the mouse
-/// handling already uses (`TextPipeline::page_resize_hover`,
-/// `TextPipeline::over_writing_column`, `self.overlay.is_some()`,
-/// `self.page_resizing`) — this struct never invents its own geometry
-/// (merge-don't-align: one set of hit regions, read from here and from the
-/// click/drag handlers alike).
+/// Hover inputs derived from the app's shared hit-test geometry.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CursorContext {
-    /// A page-column-edge WIDTH DRAG is in progress right now (button held on
-    /// the divider, tracking the pointer).
     pub dragging_edge: bool,
-    /// A TEXT-SELECTION drag is in progress right now (the primary button went
-    /// down inside the writing column and hasn't released yet — `App::dragging`).
-    /// Pins the I-BEAM for the WHOLE gesture, not just while the pointer sits
-    /// precisely over a glyph: `over_text` alone is a pure x/y hit-test against
-    /// the column bounds, so dragging past the last line, below the document, or
-    /// out over a margin/outline row mid-selection used to fall through to
-    /// whatever THAT position would show at rest (`Default`, or — worse — the
-    /// outline's pointing HAND) even though the user is still actively selecting
-    /// text. The gesture in progress always wins, exactly like `dragging_edge` /
-    /// `image_drag`.
     pub dragging_text: bool,
     /// A summoned overlay (palette / picker / the spell-suggest panel) is
     /// open — its scrim covers the document, so the pointer is never "over
     /// text" while this is set, regardless of where it geometrically sits.
     pub overlay_open: bool,
-    /// The pointer is hovering (not yet dragging) a draggable page-column edge.
     pub over_edge: bool,
-    /// The pointer is over the writing column's document text.
     pub over_text: bool,
-    /// The pointer is over a CLICKABLE ROW of the currently-summoned overlay —
-    /// ANY faceting/list picker (Command-P / go-to / browse / theme / history /
-    /// keybindings / spell / …), computed from the SAME `overlay_row_at`
-    /// hit-test the pickers use for a click. A clickable row earns the pointing
-    /// hand as a clickable-affordance signal. Only ever set while `overlay_open`.
     pub over_clickable_overlay_row: bool,
-    /// The pointer is over a CLICKABLE LENS-STRIP facet label of the currently-
-    /// summoned FACETING picker (Theme / Go-to / Browse / Project / Command /
-    /// History / Settings — any picker with a lens strip), computed from the
-    /// SAME `overlay_lens_at` hit-test the strip's click handling uses
-    /// (`overlay_click`). A clickable facet earns the pointing hand, exactly
-    /// like a clickable row — the strip is a second clickable-affordance
-    /// surface, not a new priority tier. Only ever set while `overlay_open`;
-    /// `None`/`false` for a non-faceting picker (no strip drawn, so nothing to
-    /// hit) or a picker whose strip is off-screen.
     pub over_clickable_lens: bool,
-    /// The pointer is over the overlay's editable QUERY-INPUT line (the filter
-    /// field at the top of a flat/nav/theme picker; the spell panel has none).
-    /// It is a text field, so it reads as the I-beam. Only ever set while
-    /// `overlay_open`.
     pub over_query_input: bool,
-    /// The pointer is over a CLICKABLE ROW of the persistent MARGIN OUTLINE (the
-    /// opt-in left-margin table-of-contents — NOT an overlay). A row you can click
-    /// to jump the caret to that heading earns the pointing hand, exactly like a
-    /// picker row. Computed from the outline's OWN row geometry
-    /// (`TextPipeline::outline_hit_line`), only ever set while no overlay is open
-    /// (an open overlay's scrim covers the outline).
     pub over_outline_row: bool,
     /// The pointer is over a CLICKABLE menu-bar TITLE or an open-dropdown ITEM (the
     /// awl-rendered WEB/LINUX menu bar — NOT an overlay). A title/item you can click to
@@ -73,20 +26,7 @@ pub struct CursorContext {
     /// (never the document I-beam beneath the bar). Ranked ABOVE `over_edge`/`over_text`
     /// (the bar covers them). Computed from `TextPipeline::over_menu_surface`.
     pub over_menu_bar: bool,
-    /// The pointer is over the summoned find/replace panel's `Aa` CASE-TOGGLE cell
-    /// (the clickable indicator on the find row) — a press there flips
-    /// case-sensitivity (`PanelHit::CaseToggle`), so it earns the pointing HAND, the
-    /// same clickable-affordance signal as a picker row. The find panel is NOT an
-    /// overlay (its own floating card), so this is only ever set while no overlay is
-    /// open and the panel is up; computed from the SAME `TextPipeline::panel_hit`
-    /// the click path uses (no parallel geometry).
     pub over_case_toggle: bool,
-    /// An inline-image DRAG-RESIZE is in progress right now (button held on one of an
-    /// image's edges/corners, its width tracking the pointer) — `Some(handle)` names
-    /// the grabbed edge/corner, whose glyph ([`image_handle_icon`]) tracks the gesture.
-    /// The image analogue of `dragging_edge`: an active resize regardless of what sits
-    /// beneath (a page-edge drag is the one thing that outranks it; the two are
-    /// mutually exclusive). `None` when no image drag is in progress.
     pub image_drag: Option<ImageHandle>,
     /// The pointer is hovering (not yet dragging) one of an inline image's resize
     /// EDGES/CORNERS — `Some(handle)` names which, whose glyph ([`image_handle_icon`])
@@ -260,8 +200,6 @@ mod tests {
         }
     }
 
-    /// A context with an active image-resize drag on `handle`, the analogue of
-    /// `dragging_edge`.
     fn ctx_image_drag(
         handle: ImageHandle,
         dragging_edge: bool,
@@ -288,8 +226,6 @@ mod tests {
         }
     }
 
-    /// A context hovering (not dragging) an image's resize `handle` — the analogue
-    /// of `over_edge`.
     fn ctx_image_handle(
         handle: ImageHandle,
         overlay_open: bool,
@@ -339,8 +275,6 @@ mod tests {
         }
     }
 
-    /// A context with the clickable-overlay-row flag set, over the (implied open)
-    /// overlay — an overlay is always open when a row is hovered.
     fn ctx_row(dragging_edge: bool, over_edge: bool, over_text: bool) -> CursorContext {
         CursorContext {
             dragging_edge,
@@ -362,8 +296,6 @@ mod tests {
         }
     }
 
-    /// A context with the clickable-LENS flag set, over the (implied open) overlay's
-    /// facet strip — the analogue of [`ctx_row`] for the strip surface.
     fn ctx_lens(dragging_edge: bool, over_edge: bool, over_text: bool) -> CursorContext {
         CursorContext {
             dragging_edge,
@@ -385,8 +317,6 @@ mod tests {
         }
     }
 
-    /// A context with the query-input flag set, over the (implied open) overlay's
-    /// editable filter line.
     fn ctx_query(dragging_edge: bool, over_edge: bool, over_text: bool) -> CursorContext {
         CursorContext {
             dragging_edge,
@@ -407,8 +337,6 @@ mod tests {
             over_fold_chevron: false,
         }
     }
-
-    // --- cursor_icon_for: the base four mapping cases, nothing else set -----
 
     #[test]
     fn nothing_hovered_is_the_plain_arrow() {
@@ -450,8 +378,6 @@ mod tests {
         );
     }
 
-    // --- a TEXT-SELECTION drag pins the I-beam for the whole gesture --------
-
     #[test]
     fn dragging_text_alone_is_the_i_beam() {
         let mut c = ctx(false, false, false, false);
@@ -474,9 +400,6 @@ mod tests {
 
     #[test]
     fn an_active_edge_drag_still_beats_dragging_text() {
-        // The two are mutually exclusive in practice (one gesture at a time),
-        // but the stated priority holds regardless: the resize glyph for the
-        // gesture literally in progress wins.
         let mut c = ctx(true, false, false, false);
         c.dragging_text = true;
         assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
@@ -497,9 +420,6 @@ mod tests {
         c.over_popover_button = true;
         assert_eq!(cursor_icon_for(c), CursorIcon::Text);
     }
-
-    // --- the priority order, exhaustively (each stated relation + the ------
-    // --- full four-way combination) -----------------------------------------
 
     #[test]
     fn edge_hover_beats_text() {
@@ -571,13 +491,8 @@ mod tests {
         );
     }
 
-    // --- the clickable-overlay-row pointing HAND (generalized to EVERY picker) --
-
     #[test]
     fn any_clickable_overlay_row_is_the_pointing_hand() {
-        // Generalized from spell-only: a hovered row of ANY summoned picker
-        // (Command-P / go-to / browse / theme / history / spell / …) reads as
-        // clickable -- the flag is computed uniformly from `overlay_row_at`.
         assert_eq!(
             cursor_icon_for(ctx_row(false, false, false)),
             CursorIcon::Pointer
@@ -586,8 +501,6 @@ mod tests {
 
     #[test]
     fn a_non_row_overlay_region_is_the_arrow_never_the_hand() {
-        // overlay_open with NEITHER the row nor query flag set (the scrim, a foot
-        // hint, an empty gap): the plain arrow -- the hand is scoped to a real row.
         assert_eq!(
             cursor_icon_for(ctx(false, true, false, false)),
             CursorIcon::Default
@@ -596,8 +509,6 @@ mod tests {
 
     #[test]
     fn clickable_row_beats_the_generic_overlay_arrow() {
-        // overlay_open AND the row flag set: the hand wins over the generic
-        // overlay->arrow rule it sits above.
         assert_eq!(
             cursor_icon_for(ctx_row(false, false, false)),
             CursorIcon::Pointer
@@ -616,8 +527,6 @@ mod tests {
 
     #[test]
     fn an_active_edge_drag_still_beats_the_clickable_row_hand() {
-        // A page-resize drag in progress is the one higher-priority case: it
-        // tracks the literal gesture even over a clickable row.
         assert_eq!(
             cursor_icon_for(ctx_row(true, false, false)),
             CursorIcon::ColResize
@@ -631,10 +540,6 @@ mod tests {
             CursorIcon::ColResize
         );
     }
-
-    // --- the clickable LENS-STRIP facet also earns the pointing HAND ------------
-    // (extends the Batch-3 cursor pass to the strip — the missing surface: rows
-    // already got the hand, the strip did not).
 
     #[test]
     fn a_clickable_lens_facet_is_the_pointing_hand() {
@@ -704,12 +609,8 @@ mod tests {
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
     }
 
-    // --- the overlay QUERY-INPUT line reads as an editable text field (I-beam) --
-
     #[test]
     fn the_overlay_query_input_line_is_the_i_beam() {
-        // The editable filter field at the top of a picker: a text field, so the
-        // I-beam, not the arrow -- even though an overlay is open.
         assert_eq!(
             cursor_icon_for(ctx_query(false, false, false)),
             CursorIcon::Text
@@ -718,8 +619,6 @@ mod tests {
 
     #[test]
     fn query_input_beats_the_generic_overlay_arrow() {
-        // Ranked above the generic overlay->arrow rule (it is a real editable
-        // region), below a clickable row.
         assert_eq!(
             cursor_icon_for(ctx_query(false, false, false)),
             CursorIcon::Text
@@ -751,12 +650,8 @@ mod tests {
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
     }
 
-    // --- the margin-OUTLINE row pointing HAND (persistent chrome, not an overlay) --
-
     #[test]
     fn a_margin_outline_row_is_the_pointing_hand() {
-        // A hovered clickable outline row reads as click-to-jump — the pointing hand,
-        // exactly like a picker row, though the outline is margin chrome not an overlay.
         assert_eq!(
             cursor_icon_for(ctx_outline(false, false, false)),
             CursorIcon::Pointer
@@ -765,8 +660,6 @@ mod tests {
 
     #[test]
     fn a_margin_outline_row_beats_the_plain_text_beneath_it() {
-        // The outline sits in the left margin, but its band can overlap where the
-        // column starts; a row still wins the hand over plain text.
         assert_eq!(
             cursor_icon_for(ctx_outline(false, false, true)),
             CursorIcon::Pointer
@@ -785,7 +678,6 @@ mod tests {
 
     // --- the WEB/LINUX MENU BAR: title/item = hand, dead bar space = arrow --------
 
-    /// A context over a clickable menu-bar title / dropdown item (the pointing hand).
     fn ctx_menu_hand(over_edge: bool, over_text: bool) -> CursorContext {
         CursorContext {
             dragging_edge: false,
@@ -807,8 +699,6 @@ mod tests {
         }
     }
 
-    /// A context over the menu bar's dead space (strip / dropdown card, no clickable
-    /// title or item under the pointer) — the plain arrow.
     fn ctx_menu_bar(over_edge: bool, over_text: bool) -> CursorContext {
         CursorContext {
             dragging_edge: false,
@@ -840,8 +730,6 @@ mod tests {
 
     #[test]
     fn a_menu_title_hand_beats_the_text_and_edge_beneath_the_bar() {
-        // The bar reserves space over the document; a clickable title still wins the
-        // hand over the would-be edge/text under it.
         assert_eq!(
             cursor_icon_for(ctx_menu_hand(true, true)),
             CursorIcon::Pointer
@@ -850,8 +738,6 @@ mod tests {
 
     #[test]
     fn dead_menu_bar_space_is_the_plain_arrow_never_the_i_beam() {
-        // Over the bar strip / dropdown card but off any clickable title/item: the
-        // plain arrow, NOT the document I-beam that `over_text` would otherwise give.
         assert_eq!(
             cursor_icon_for(ctx_menu_bar(false, true)),
             CursorIcon::Default
@@ -866,10 +752,6 @@ mod tests {
         );
     }
 
-    // --- the find/replace panel's Aa CASE-TOGGLE cell earns the pointing HAND -------
-
-    /// A context over the find panel's `Aa` case-toggle cell (no overlay — the panel
-    /// is its own floating card, mutually exclusive with a summoned overlay).
     fn ctx_case_toggle(over_edge: bool, over_text: bool) -> CursorContext {
         CursorContext {
             dragging_edge: false,
@@ -911,7 +793,6 @@ mod tests {
 
     #[test]
     fn an_active_page_edge_drag_still_beats_the_case_toggle_hand() {
-        // A page-resize drag in progress is a higher-priority literal gesture.
         let mut c = ctx_case_toggle(false, false);
         c.dragging_edge = true;
         assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
@@ -919,8 +800,6 @@ mod tests {
 
     #[test]
     fn the_page_edge_still_beats_a_margin_outline_row() {
-        // The outline hugs just inside the column edge; where the two meet, the
-        // page-resize edge (hover or drag) wins — the outline is below it in priority.
         assert_eq!(
             cursor_icon_for(ctx_outline(false, true, false)),
             CursorIcon::ColResize
@@ -938,8 +817,6 @@ mod tests {
             CursorIcon::ColResize
         );
     }
-
-    // --- item 81: a REVEALED fold chevron earns the pointing HAND, either direction
 
     /// A context with the fold-chevron flag set (no overlay — its scrim would cover
     /// the chevron, so the two never co-occur).
@@ -966,8 +843,6 @@ mod tests {
 
     #[test]
     fn a_revealed_fold_chevron_is_the_pointing_hand() {
-        // Whichever direction the heading currently faces (expanded or collapsed),
-        // the SAME hit-test feeds this flag, so there is only one hand decision.
         assert_eq!(
             cursor_icon_for(ctx_fold_chevron(false, false, false)),
             CursorIcon::Pointer
@@ -976,8 +851,6 @@ mod tests {
 
     #[test]
     fn the_fold_chevron_hand_beats_the_plain_text_beneath_it() {
-        // The chevron sits inside the writing column's own leading pad, which also
-        // reads `over_text` true — the hand still wins over the I-beam.
         assert_eq!(
             cursor_icon_for(ctx_fold_chevron(false, false, true)),
             CursorIcon::Pointer
@@ -999,8 +872,6 @@ mod tests {
             CursorIcon::ColResize
         );
     }
-
-    // --- the inline-image resize handles (hover + drag): one glyph per edge/corner
 
     #[test]
     fn image_handle_icon_maps_each_edge_and_corner_to_its_glyph() {
@@ -1033,7 +904,6 @@ mod tests {
 
     #[test]
     fn hovering_each_image_handle_reads_as_that_handles_glyph() {
-        // A hover over each edge/corner surfaces its own glyph through cursor_icon_for.
         for (h, want) in [
             (ImageHandle::Left, CursorIcon::ColResize),
             (ImageHandle::Right, CursorIcon::ColResize),
@@ -1068,8 +938,6 @@ mod tests {
 
     #[test]
     fn an_image_handle_hover_beats_plain_text_beneath_it() {
-        // The handle sits on the image's border, inside the writing column; the
-        // resize affordance still wins over the plain-text I-beam under it.
         assert_eq!(
             cursor_icon_for(ctx_image_handle(
                 ImageHandle::BottomRight,
@@ -1093,8 +961,6 @@ mod tests {
 
     #[test]
     fn a_page_edge_hover_beats_an_image_handle_hover() {
-        // Both are resize affordances; where they meet (an image near the column
-        // edge), the page edge is ranked higher, so it wins.
         assert_eq!(
             cursor_icon_for(ctx_image_handle(ImageHandle::Right, false, true, false)),
             CursorIcon::ColResize
@@ -1103,8 +969,6 @@ mod tests {
 
     #[test]
     fn an_active_page_edge_drag_still_beats_an_active_image_drag() {
-        // The two active drags are mutually exclusive in practice, but the priority
-        // is stated: were both set, the page-edge drag is ordered first.
         assert_eq!(
             cursor_icon_for(ctx_image_drag(ImageHandle::BottomRight, true, false, false)),
             CursorIcon::ColResize
@@ -1113,8 +977,6 @@ mod tests {
 
     #[test]
     fn an_active_image_drag_beats_an_open_overlay() {
-        // Like a page-edge drag, an in-progress image resize tracks the literal
-        // gesture even if a summoned overlay appears mid-drag.
         assert_eq!(
             cursor_icon_for(ctx_image_drag(ImageHandle::Top, false, true, false)),
             CursorIcon::RowResize
@@ -1141,9 +1003,6 @@ mod tests {
 
     #[test]
     fn icon_change_is_suppressed_while_the_os_pointer_is_hidden() {
-        // Typing hid the pointer; the context changed underneath it (e.g. a
-        // click landed and moved the caret under a different hover region) --
-        // no OS call fires, since nothing is visible to update.
         assert_eq!(
             cursor_icon_change(CursorIcon::Default, CursorIcon::Text, true),
             None

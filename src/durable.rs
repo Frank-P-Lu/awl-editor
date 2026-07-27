@@ -254,8 +254,6 @@ mod tests {
         });
     }
 
-    // --- load_toml_store: the three outcomes ------------------------------
-
     #[derive(Debug, Default, PartialEq)]
     struct Toy {
         n: i64,
@@ -275,14 +273,12 @@ mod tests {
         crate::fs::with_fs(fake.clone(), || {
             let path = PathBuf::from("/data/toy.toml");
             assert_eq!(load_toml_store(&path, parse_toy), Toy::default());
-            // Nothing preserved: the directory doesn't even exist.
             assert!(fake.read_dir(Path::new("/data")).is_err());
         });
     }
 
     #[test]
     fn load_toml_store_valid_toml_missing_field_is_lenient_default_no_backup() {
-        // Legitimate "old store, new field" case — NOT corruption.
         let fake =
             Arc::new(crate::fs::InMemoryFs::new().with_file("/data/toy.toml", "other = 3\n"));
         crate::fs::with_fs(fake.clone(), || {
@@ -457,12 +453,6 @@ mod tests {
             // run; a torn write costs one re-run of a deterministic scenario,
             // never user data.
             ("main/story.rs", 1),
-            // ONE production site (`build_sandbox`: seeding the hermetic
-            // in-memory sandbox INSTANCE before it becomes the active backend
-            // — `write_atomic` routes through `fs::active()`, which at seed
-            // time is still the real disk, so the direct instance write is
-            // the only correct call; nothing durable, nothing on disk) + four
-            // test seeds/asserts in its own `#[cfg(test)]` module.
             ("scenario.rs", 5),
         ];
         let expected_map: std::collections::BTreeMap<String, usize> =

@@ -16,39 +16,12 @@ pub fn set_scroll_sensitivity(value: f32) {
 /// [`SettingRow`], never a code path.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SettingKind {
-    /// A sticky BOOLEAN — Enter flips it (page_mode / wysiwyg / autosave / …).
     Toggle,
-    /// Opens a SUB-PICKER via the `return_to` breadcrumb (theme / caret / dictionary).
     Picker,
-    /// A NUMBER edited INLINE (page widths / zoom): Enter opens a small typed-edit
-    /// sub-state on the Settings overlay ([`crate::overlay::ValueEdit`]) — digits
-    /// (plus `.`/`%` for zoom) build the value in the row's own cell, Enter commits
-    /// (clamped + persisted via the named config key), Esc cancels. See
-    /// [`value_key`] / [`clamp_page_width`] / [`parse_zoom`].
     Value,
-    /// ITEM 94 — a NUMBER on a RAIL: a bounded, stepped value with a quiet drawn
-    /// track + thumb in its own value cell, driven by keyboard AND pointer through
-    /// ONE authored [`crate::range::RangeSpec`] ([`range_spec`]).
-    ///
-    /// * Left/Right (while the row is selected) move exactly ONE authored step,
-    ///   with ordinary key repeat for longer travel — applied in the shared core
-    ///   (`actions::overlay_nav`), so `--keys` drives it exactly like the live app.
-    /// * A click on the RAIL sets the nearest step; a drag on it scrubs live
-    ///   through the SAME setter and persists ONCE on release. A click on the
-    ///   LABEL selects without changing anything.
-    /// * Enter still opens the ordinary inline numeric edit ([`SettingKind::Value`]'s
-    ///   exact-entry path, parsed + clamped by the same spec).
-    ///
-    /// A `Range` row persists under [`value_key`] exactly like a `Value` row —
-    /// the two kinds differ in their AFFORDANCE, not their storage.
     Range,
-    /// A filesystem PATH (default_folder / workspace / project_root): Enter routes to the
-    /// existing folder NAVIGATOR (the Project picker) with a `return_to = Settings`
-    /// breadcrumb; the chosen folder writes the named key ([`path_key`]) and returns.
     Path,
-    /// Opens ANOTHER overlay (the Keybindings rebind menu).
     Submenu,
-    /// Fires an `Effect` (Edit config as text → `Effect::OpenSettings`).
     Action,
 }
 
@@ -110,7 +83,6 @@ pub struct SettingRow {
 /// The 31-setting corpus, in stable display order (grouped by category). The ONE
 /// owner — the FacetScheme bucket + the value readout both key off this table.
 pub static SETTINGS: &[SettingRow] = &[
-    // Editor —
     SettingRow {
         id: SettingId::CaretStyle,
         name: "Caret style",
@@ -147,9 +119,6 @@ pub static SETTINGS: &[SettingRow] = &[
         category: "Editor",
         kind: SettingKind::Value,
     },
-    // ZOOM (item 94): the first RANGE row — 50 %–300 % in 10-point steps on a
-    // linear percentage rail ([`crate::range::ZOOM`]). Its clamp, step and
-    // exact-entry parsing are unchanged; the row gained the rail affordance.
     SettingRow {
         id: SettingId::Zoom,
         name: "Zoom",
@@ -162,18 +131,12 @@ pub static SETTINGS: &[SettingRow] = &[
         category: "Editor",
         kind: SettingKind::Range,
     },
-    // DATE FORMAT: a PICKER (promoted from the blind 5-way Enter-cycle) — Enter
-    // opens the Date-format picker (`OverlayKind::Date`, via `sub_overlay`), which
-    // lists all five formats EACH rendered with today's date (pick by sight, what
-    // you see is what inserts), exactly like Caret/Theme/Dictionary. The row's own
-    // value cell still shows TODAY in the active format, the picker's entry point.
     SettingRow {
         id: SettingId::DateFormat,
         name: "Date format",
         category: "Editor",
         kind: SettingKind::Picker,
     },
-    // Appearance —
     SettingRow {
         id: SettingId::Theme,
         name: "Theme",
@@ -216,7 +179,6 @@ pub static SETTINGS: &[SettingRow] = &[
         category: "Appearance",
         kind: SettingKind::Toggle,
     },
-    // Writing —
     SettingRow {
         id: SettingId::Spellcheck,
         name: "Spellcheck",
@@ -241,7 +203,6 @@ pub static SETTINGS: &[SettingRow] = &[
         category: "Writing",
         kind: SettingKind::Picker,
     },
-    // Files & Projects —
     SettingRow {
         id: SettingId::DefaultFolder,
         name: "Default folder",
@@ -260,10 +221,6 @@ pub static SETTINGS: &[SettingRow] = &[
         category: "Files",
         kind: SettingKind::Path,
     },
-    // ITEM 77: Text (default) lists decodable text only, non-hidden; All also
-    // reveals hidden entries + unsupported/binary files (still refused on
-    // open — see `crate::openable`). Replaces the old standalone "Show
-    // hidden files" toggle/chord.
     SettingRow {
         id: SettingId::FileVisibility,
         name: "File visibility",
@@ -288,21 +245,18 @@ pub static SETTINGS: &[SettingRow] = &[
         category: "Files",
         kind: SettingKind::Toggle,
     },
-    // Keybindings —
     SettingRow {
         id: SettingId::Keymap,
         name: "Keymap",
         category: "Keybindings",
         kind: SettingKind::Toggle,
     },
-    // The whole rebind flow, opened as a sub-menu.
     SettingRow {
         id: SettingId::Keybindings,
         name: "Keybindings",
         category: "Keybindings",
         kind: SettingKind::Submenu,
     },
-    // Advanced —
     SettingRow {
         id: SettingId::ReportProblem,
         name: "Report a Problem",
@@ -317,11 +271,6 @@ pub static SETTINGS: &[SettingRow] = &[
     },
 ];
 
-/// The [`SettingRow`] for a given [`SettingId`] — the one way to go from the
-/// typed identity back to the full row (name/category/kind). Panics on a
-/// `SettingId` absent from [`SETTINGS`], which the no-wildcard roster law
-/// ([`tests::every_setting_id_maps_1_to_1_to_the_registry`]) makes unreachable
-/// by construction: every variant has exactly one row.
 pub fn row_of(id: SettingId) -> SettingRow {
     *SETTINGS
         .iter()
@@ -329,11 +278,6 @@ pub fn row_of(id: SettingId) -> SettingRow {
         .expect("every SettingId has a row — see every_setting_id_maps_1_to_1_to_the_registry")
 }
 
-/// The settings menu's lens STRIP: **All** (the flat corpus home, strip index 0,
-/// no sections — the "All is home" convention) then one lens PER CATEGORY, each
-/// grouping its own rows. The just-shipped UI polish DROPS the drawn "All" label,
-/// but "All" stays the underlying flat home here (the facets convention +
-/// `every_scheme_lands_on_all_home` law).
 static SETTINGS_FACET_STRIP: [Facet; 7] = [
     Facet {
         label: "All",
@@ -387,8 +331,6 @@ fn settings_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
     (category_of(item.accept) == Some(*section)).then_some(*section)
 }
 
-/// The settings menu's registered [`FacetScheme`], handed back by
-/// [`crate::facets::scheme`] for [`crate::overlay::OverlayKind::Settings`].
 pub static SETTINGS_FACETS: FacetScheme = FacetScheme {
     strip: &SETTINGS_FACET_STRIP,
     bucket: settings_bucket,
@@ -413,11 +355,6 @@ pub struct SettingsValues {
     pub autosave: bool,
     pub history: bool,
     pub session_restore: bool,
-    /// The KEYMAP FLAVOR's config NAME (`"native"`/`"emacs"`) — see
-    /// `crate::keymap::KeymapFlavor::config_name`. Gathered (not read live inside
-    /// `value_for`, unlike most process-globals) because the flavor lives on
-    /// `Config` alone, with no process-global mirror — mirrors `autosave`/
-    /// `history`/`session_restore` above.
     pub keymap: String,
     /// TODAY as a UTC civil `(year, month, day)`, for the "Date format" row's
     /// live preview ("what you see is what inserts") — gathered like
@@ -469,7 +406,6 @@ impl SettingsValues {
     }
 }
 
-/// A boolean setting's calm value word.
 fn on_off(b: bool) -> &'static str {
     if b { "on" } else { "off" }
 }
@@ -484,7 +420,6 @@ fn on_off(b: bool) -> &'static str {
 /// drift the way a `_ => String::new()` fallthrough once allowed.
 pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
     match row.id {
-        // Editor —
         SettingId::CaretStyle => crate::caret::mode().label().to_string(),
         SettingId::PageMode => on_off(crate::page::page_on()).to_string(),
         SettingId::TypewriterScroll => on_off(crate::typewriter::typewriter_on()).to_string(),
@@ -506,7 +441,6 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
             let (y, m, d) = values.today_ymd;
             crate::dateformat::active_format().format(y, m, d)
         }
-        // Appearance —
         SettingId::Theme => crate::theme::active().name.to_string(),
         SettingId::Wysiwyg => on_off(crate::markdown::wysiwyg_on()).to_string(),
         SettingId::FormatPopover => on_off(crate::popover::popover_on()).to_string(),
@@ -523,7 +457,6 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         // `--config` at every launch, live and headless alike.)
         SettingId::Outline => on_off(crate::outline::outline_on()).to_string(),
         SettingId::MenuBar => on_off(crate::menubar::menu_bar_on()).to_string(),
-        // Writing —
         SettingId::Spellcheck => on_off(crate::spell::spellcheck_on()).to_string(),
         SettingId::Dictionary => crate::spell::active_variant().label().to_string(),
         SettingId::WritingNits => on_off(crate::nits::nits_on()).to_string(),
@@ -534,19 +467,14 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
             .first()
             .map(|l| l.label().to_string())
             .unwrap_or_else(|| "—".to_string()),
-        // Files & Projects —
         SettingId::DefaultFolder => values.default_folder.clone(),
         SettingId::ProjectsFolder => values.workspace.clone(),
         SettingId::ProjectRoot => values.project_root.clone(),
-        // FILE VISIBILITY (item 77): reads the live process global, like
-        // Outline/Menu bar above — "Text" / "All".
         SettingId::FileVisibility => crate::file_visibility::label().to_string(),
         SettingId::Autosave => on_off(values.autosave).to_string(),
         SettingId::LocalHistory => on_off(values.history).to_string(),
         SettingId::SessionRestore => on_off(values.session_restore).to_string(),
-        // Keybindings —
         SettingId::Keymap => values.keymap.clone(),
-        // Keybindings / Advanced — affordances, no value cell.
         SettingId::Keybindings | SettingId::ReportProblem | SettingId::EditConfigAsText => {
             String::new()
         }
@@ -561,37 +489,26 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
 /// all still see the exact same key.
 pub fn toggle_key(id: SettingId) -> Option<&'static str> {
     Some(match id {
-        // Editor —
         SettingId::PageMode => "page_mode",
         SettingId::TypewriterScroll => "typewriter_scroll",
         SettingId::ReduceMotion => "reduce_motion",
-        // (DATE FORMAT was a Toggle-cycle here; it is now a Picker opening
-        // `OverlayKind::Date` — see `sub_overlay` — so it no longer has a
-        // toggle key.)
-        // Appearance —
         SettingId::Wysiwyg => "wysiwyg",
         SettingId::FormatPopover => "popover",
         SettingId::InlineImages => "inline_images",
         SettingId::CodeLigatures => "code_ligatures",
         SettingId::Outline => "outline",
         SettingId::MenuBar => "menu_bar",
-        // Writing —
         SettingId::Spellcheck => "spellcheck",
         SettingId::WritingNits => "writing_nits",
-        // Files & Projects —
         SettingId::FileVisibility => "file_visibility",
         SettingId::Autosave => "autosave",
         SettingId::LocalHistory => "history",
         SettingId::SessionRestore => "session_restore",
-        // Keybindings — NOT a plain bool config key (native/emacs), so
-        // `App::setting_toggle` special-cases it (see `App::toggle_keymap_flavor`)
-        // rather than the generic bool mechanism this table otherwise feeds.
         SettingId::Keymap => "keymap",
         _ => return None,
     })
 }
 
-/// The one `SettingId` → authored range-spec map.
 pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
     Some(match id {
         SettingId::Zoom => &crate::range::ZOOM,
@@ -600,7 +517,6 @@ pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
     })
 }
 
-/// Current value of a range setting from the gathered settings snapshot.
 pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
     Some(match id {
         SettingId::Zoom => values.zoom,
@@ -609,7 +525,6 @@ pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
     })
 }
 
-/// Typed range identity plus the discrete step rendered by its rail.
 pub fn range_cell(row: &SettingRow, values: &SettingsValues) -> Option<crate::overlay::RangeCell> {
     let spec = range_spec(row.id)?;
     let v = range_value(row.id, values)?;
@@ -619,7 +534,6 @@ pub fn range_cell(row: &SettingRow, values: &SettingsValues) -> Option<crate::ov
     })
 }
 
-/// Range cells parallel to [`visible_rows`]; empty when none are ranges.
 pub fn visible_range_cells(values: &SettingsValues) -> Vec<Option<crate::overlay::RangeCell>> {
     let cells: Vec<Option<crate::overlay::RangeCell>> = visible_rows()
         .iter()
@@ -631,7 +545,6 @@ pub fn visible_range_cells(values: &SettingsValues) -> Vec<Option<crate::overlay
     cells
 }
 
-/// Config key edited and persisted by a value or range row.
 pub fn value_key(id: SettingId) -> Option<&'static str> {
     Some(match id {
         SettingId::PageWidthProse => "page_width_prose",
@@ -656,14 +569,9 @@ pub fn path_key(id: SettingId) -> Option<&'static str> {
     })
 }
 
-/// The sane column-width band a `page_width_*` inline edit is clamped to (chars).
-/// A hand-typed extreme (`5`, `9000`) snaps into range rather than wrapping the
-/// document to a sliver or an unreachable width.
 pub const PAGE_WIDTH_MIN: usize = 20;
 pub const PAGE_WIDTH_MAX: usize = 200;
 
-/// Clamp a typed page-width (chars) into the sane [`PAGE_WIDTH_MIN`]..=[`PAGE_WIDTH_MAX`]
-/// band — the pure, testable half of the `page_width_*` inline-edit commit.
 pub fn clamp_page_width(n: usize) -> usize {
     n.clamp(PAGE_WIDTH_MIN, PAGE_WIDTH_MAX)
 }
@@ -698,21 +606,11 @@ pub fn sub_overlay(id: SettingId) -> Option<crate::overlay::OverlayKind> {
     })
 }
 
-/// The setting display NAMES in table order — UNFILTERED (every row, every
-/// platform), the raw catalog baseline; the settings overlay itself is built from
-/// [`visible_names`], the platform-filtered sibling. Test-only: kept for tests that
-/// deliberately want to enumerate every row.
 #[cfg(test)]
 pub fn names() -> Vec<String> {
     SETTINGS.iter().map(|r| r.name.to_string()).collect()
 }
 
-/// The setting VALUE cells in table order (parallel to [`names`]) — the overlay's
-/// SECONDARY column, read via [`value_for`] against the gathered `values`. UNFILTERED,
-/// like [`names`]; see [`visible_value_cells`] for the platform-filtered sibling.
-/// Test-only, like [`names`]: production code (`App::refresh_settings_overlay`)
-/// reads [`visible_value_cells`] instead, so a refresh stays index-coherent with
-/// `ov.rows` (built from [`visible_names`]) even on a platform that hides a row.
 #[cfg(test)]
 pub fn value_cells(values: &SettingsValues) -> Vec<String> {
     SETTINGS.iter().map(|r| value_for(r, values)).collect()
@@ -739,7 +637,6 @@ fn row_available_on(_row: &SettingRow, _platform: crate::commands::Platform) -> 
     true
 }
 
-/// The catalog rows available on `platform`, in table order.
 fn visible_rows_on(platform: crate::commands::Platform) -> Vec<&'static SettingRow> {
     SETTINGS
         .iter()
@@ -755,31 +652,6 @@ pub fn visible_rows() -> Vec<&'static SettingRow> {
     visible_rows_on(crate::commands::Platform::current())
 }
 
-// ── ONE PALETTE DOOR PER DESTINATION (the union-round follow-up fix) ───────────
-//
-// The palette-settings union (see `overlay::build`'s `OverlayKind::Command` arm)
-// made a settings row fuzzy-findable straight from Cmd-P — but several rows share
-// their EXACT destination with an existing catalog command ("Theme" the Picker row
-// and "Switch theme…" the command both open `OverlayKind::Theme`; "Page mode" the
-// Toggle row and "Toggle page mode" the command both flip `page::PAGE_ON`), so
-// typing "theme" showed both with no way to tell them apart — the user-reported
-// bug this table fixes. A settings row named in [`COVERED_BY`] is EXCLUDED from
-// the palette union whenever its covering command is available on the current
-// platform (the command is the one advertised door — chords, menu presence); the
-// row stays FULLY FUNCTIONAL inside the Settings menu itself ([`visible_rows`] is
-// untouched — this only trims the PALETTE corpus). If a covering command is
-// platform-hidden (none of today's ten are, but a future one could be), the row
-// REAPPEARS in the palette rather than the door vanishing outright.
-
-/// Settings row name → its covering catalog command name, for every row that
-/// shares its exact destination with an existing command (the same `OverlayKind`
-/// via [`sub_overlay`], or the same process-global via [`toggle_key`]). A row
-/// absent from this table has no command twin and stays palette-visible
-/// unconditionally (Reduce motion, Autosave, the page widths, the folders, …).
-/// Both directions are law-tested: every entry names a real row and a real
-/// command ([`crate::settings::tests`]), and the two genuinely share a
-/// destination (`covered_by_picker_rows_open_the_same_overlay_as_their_command`,
-/// `covered_by_toggle_rows_flip_the_same_global_as_their_command`).
 pub static COVERED_BY: &[(SettingId, &str)] = &[
     (SettingId::Theme, "Switch theme…"),
     (SettingId::CaretStyle, "Caret style…"),
@@ -820,9 +692,6 @@ pub fn row_visible_in_palette(covering: Option<&str>, platform: crate::commands:
     }
 }
 
-/// The settings rows that belong in the Cmd-P PALETTE union on `platform` —
-/// [`visible_rows_on`] minus every row whose covering command
-/// ([`covered_by`]) is available there.
 fn palette_rows_on(platform: crate::commands::Platform) -> Vec<&'static SettingRow> {
     visible_rows_on(platform)
         .into_iter()
@@ -830,27 +699,15 @@ fn palette_rows_on(platform: crate::commands::Platform) -> Vec<&'static SettingR
         .collect()
 }
 
-/// The settings rows that belong in the Cmd-P PALETTE union on THIS COMPILED
-/// PLATFORM — replaces a bare [`visible_rows`] at the palette's
-/// `attach_settings_rows` call site ([`crate::overlay::build`]'s `Command` arm).
-/// The Settings MENU itself keeps reading [`visible_rows`] unfiltered — a covered
-/// row stays fully reachable there.
 pub fn palette_rows() -> Vec<&'static SettingRow> {
     palette_rows_on(crate::commands::Platform::current())
 }
 
-/// The display NAMES for [`palette_rows`], parallel. Test-only (item 55):
-/// [`crate::overlay::state::OverlayState::attach_settings_rows`] now takes
-/// [`palette_rows`] directly (rows, not names — the typed identity rides
-/// `SettingRow::id`), so this survives only for `.len()`-only test sites that
-/// want the count without the rows.
 #[cfg(test)]
 pub fn palette_names() -> Vec<String> {
     palette_rows().iter().map(|r| r.name.to_string()).collect()
 }
 
-/// The VALUE cells for [`palette_rows`], parallel — replaces a bare
-/// [`visible_value_cells`] at the palette's `attach_settings_rows` call site.
 pub fn palette_value_cells(values: &SettingsValues) -> Vec<String> {
     palette_rows()
         .iter()
@@ -858,14 +715,10 @@ pub fn palette_value_cells(values: &SettingsValues) -> Vec<String> {
         .collect()
 }
 
-/// The display NAMES for [`visible_rows`], in corpus order — replaces a bare
-/// [`names`] at the Settings overlay's build site.
 pub fn visible_names() -> Vec<String> {
     visible_rows().iter().map(|r| r.name.to_string()).collect()
 }
 
-/// The VALUE cells for [`visible_rows`], parallel to [`visible_names`] — replaces a
-/// bare [`value_cells`] at the Settings overlay's build site.
 pub fn visible_value_cells(values: &SettingsValues) -> Vec<String> {
     visible_rows()
         .iter()
@@ -917,7 +770,6 @@ mod tests {
                 r.category
             );
         }
-        // Every refinement lens buckets at least one real setting.
         for section in &lens_sections {
             assert!(
                 SETTINGS.iter().any(|r| r.category == *section),
@@ -926,7 +778,6 @@ mod tests {
         }
     }
 
-    /// The FacetScheme buckets each row under its own category and nowhere else.
     #[test]
     fn settings_bucket_routes_each_lens() {
         for (idx, lens) in SETTINGS_FACET_STRIP.iter().enumerate().skip(1) {
@@ -999,9 +850,6 @@ mod tests {
         }
     }
 
-    /// INTERACTION LAW: every PICKER / SUBMENU row opens a sub-overlay (so Enter can
-    /// swap to it with a `return_to` breadcrumb) and every other row opens NONE — the
-    /// row kind and [`sub_overlay`] stay in lockstep.
     #[test]
     fn pickers_and_submenus_open_a_sub_overlay_and_nothing_else_does() {
         for r in SETTINGS {
@@ -1021,18 +869,10 @@ mod tests {
         }
     }
 
-    /// INTERACTION LAW: every VALUE row resolves a config key (so Enter can edit +
-    /// persist it) and every non-value row resolves NONE; same for PATH rows via
-    /// [`path_key`]. The `SettingKind` discriminant and the two key maps stay in
-    /// lockstep — a new Value/Path row fails until its key is added, and vice versa.
     #[test]
     fn value_and_path_keys_track_their_kinds() {
         for r in SETTINGS {
-            // NO WILDCARD (item 94): a new `SettingKind` fails to compile here until
-            // it declares whether it edits a VALUE key or a PATH key.
             match r.kind {
-                // ITEM 94: a RANGE row persists under the SAME `value_key` a `Value`
-                // row does — the rail is an affordance, not a second storage.
                 SettingKind::Value | SettingKind::Range => {
                     assert!(value_key(r.id).is_some(), "value {:?} has no key", r.name);
                     assert!(
@@ -1145,9 +985,6 @@ mod tests {
                     "{:?}: the cell is the spec's step",
                     r.name
                 );
-                // The READOUT and the RAIL are the same number, read the same instant:
-                // the drawn cell text is exactly what the spec formats for the step
-                // the thumb sits on.
                 assert_eq!(
                     value_for(r, &values),
                     spec.format(spec.value_of_step(cell.step)),
@@ -1163,9 +1000,6 @@ mod tests {
         }
     }
 
-    /// ITEM 94 + 90 — the Settings menu's rail column: every authored Range row
-    /// (Zoom and Scroll sensitivity) carries a cell parallel to the visible names;
-    /// a corpus with NO range row hands the renderer an EMPTY vec.
     #[test]
     fn visible_range_cells_are_parallel_to_the_visible_rows() {
         let _g = crate::testlock::serial();
@@ -1194,9 +1028,6 @@ mod tests {
         );
     }
 
-    /// ITEM 94 — ZOOM's authored spec IS the item's decided design: 50 %–300 %, a
-    /// 10-percentage-point step, a LINEAR percentage rail. Pinned so a future edit
-    /// to the band is a deliberate act, not a drift.
     #[test]
     fn the_zoom_range_is_the_authored_fifty_to_three_hundred_percent_linear_rail() {
         let _g = crate::testlock::serial();
@@ -1208,12 +1039,9 @@ mod tests {
         assert_eq!(spec.map, crate::range::RailMap::Linear);
         assert_eq!(spec.unit, crate::range::Unit::Percent);
         assert_eq!(spec.step_count(), 26, "50%..300% in 10-point steps");
-        // The readout's percentage form, and its exact-entry parse, are the spec's.
         assert_eq!(spec.format(0.5), "50%");
         assert_eq!(spec.format(3.0), "300%");
         assert_eq!(parse_zoom("140%"), Some(spec.value_of_step(14)));
-        // The RAIL's ends are the band's ends, and 100% sits where a LINEAR map puts
-        // it (not mid-rail — that would be the logarithmic reading).
         assert_eq!(spec.frac_of(0.5), 0.0);
         assert!((spec.frac_of(3.0) - 1.0).abs() < 1e-5);
         assert!((spec.frac_of(1.0) - 0.2).abs() < 1e-5);
@@ -1242,7 +1070,6 @@ mod tests {
             if k < spec.max_step() {
                 assert_eq!(spec.stepped(v, 1), spec.value_of_step(k + 1));
             }
-            // The rail can only ever resolve to a grid value.
             let f = spec.frac_of_step(k);
             assert_eq!(
                 spec.value_at_frac(f).to_bits(),
@@ -1252,8 +1079,6 @@ mod tests {
         }
     }
 
-    /// The probe values every range law reads: an off-default zoom, so a law that
-    /// accidentally hard-codes 100 % fails.
     fn probe_values() -> SettingsValues {
         SettingsValues {
             page_width_prose: 70,
@@ -1287,7 +1112,6 @@ mod tests {
             "a huge width clamps down"
         );
 
-        // Percent readout form and bare factor both land on the same factor.
         assert_eq!(parse_zoom("80%"), Some(0.8));
         assert_eq!(parse_zoom("1.5"), Some(1.5));
         assert_eq!(
@@ -1295,14 +1119,12 @@ mod tests {
             Some(crate::render::clamp_zoom(1.25)),
             "an integer-ish value reads as a percent"
         );
-        // Out of range clamps through render::clamp_zoom (0.5..3.0).
         assert_eq!(parse_zoom("5000%"), Some(crate::range::ZOOM.max));
         assert_eq!(
             parse_zoom("10%"),
             Some(crate::range::ZOOM.min),
             "10% -> 0.1 clamps up to the floor"
         );
-        // Non-numeric is rejected (a calm no-op commit).
         assert_eq!(parse_zoom("oops"), None);
         assert_eq!(parse_zoom(""), None);
     }
@@ -1332,19 +1154,12 @@ mod tests {
         crate::outline::set_outline_on(false);
         assert_eq!(value_for(&find("Outline"), &values), "off");
         crate::outline::set_outline_on(outline0);
-        // The theme cell reflects the live active world (whatever it is here).
         assert_eq!(
             value_for(&find("Theme"), &values),
             crate::theme::active().name
         );
     }
 
-    /// "Date format" is now a `Picker`-kind row (promoted from the blind
-    /// Toggle-cycle) opening [`crate::overlay::OverlayKind::Date`] via
-    /// `sub_overlay`, mirroring "Ambiguous CJK reads as"/"Caret style". It is NO
-    /// longer a `toggle_key` row. Its value cell still combines the ACTIVE
-    /// process-global format with the caller-gathered `today_ymd` — the entry
-    /// point's preview, "what you see is what inserts" — exercised across formats.
     #[test]
     fn date_format_row_is_a_picker_and_previews_today() {
         let _g = crate::testlock::serial();
@@ -1389,14 +1204,9 @@ mod tests {
         ));
         assert_eq!(value_for(&row, &SettingsValues::default()), "Korean");
 
-        // Cleanup for other tests.
         crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
     }
 
-    // ── PLATFORM-SCOPED ROWS (RESOLVED — the web-config round) ──────────────────
-
-    /// On `Native`, `visible_rows`/`visible_names` are byte-identical to the full
-    /// table — nothing hidden.
     #[test]
     fn visible_rows_native_is_the_full_table() {
         assert_eq!(
@@ -1437,11 +1247,6 @@ mod tests {
         }
     }
 
-    // ── ONE PALETTE DOOR PER DESTINATION ────────────────────────────────────────
-
-    /// Both directions of the table law: every `COVERED_BY` entry names a REAL
-    /// settings row and a REAL catalog command — a typo'd/renamed name on either
-    /// side fails here instead of silently building a dead exclusion.
     #[test]
     fn every_covered_by_pair_names_a_real_row_and_a_real_command() {
         for (row_id, cmd_name) in COVERED_BY {
@@ -1458,8 +1263,6 @@ mod tests {
         }
     }
 
-    /// Every `COVERED_BY` entry pairing a Picker/Submenu row genuinely shares its
-    /// destination with its command: both open the identical `OverlayKind`.
     #[test]
     fn covered_by_picker_rows_open_the_same_overlay_as_their_command() {
         use crate::keymap::Action;
@@ -1491,9 +1294,6 @@ mod tests {
         }
     }
 
-    /// Every `COVERED_BY` entry pairing a Toggle row genuinely shares its
-    /// destination with its command: firing the command's real toggle flips the
-    /// EXACT global the row's `value_for` reads back.
     #[test]
     fn covered_by_toggle_rows_flip_the_same_global_as_their_command() {
         use crate::keymap::Action;
@@ -1536,10 +1336,6 @@ mod tests {
         }
     }
 
-    /// THE DEDUPE LAW: on both platforms, no covered row's name appears in the
-    /// palette union AT ALL when its covering command is available there — the
-    /// literal fix for the reported bug (typing "theme" showed both "Theme" and
-    /// "Switch theme…", with no way to tell them apart).
     #[test]
     fn covered_rows_are_excluded_from_the_palette_on_both_platforms() {
         use crate::commands::Platform;
@@ -1579,9 +1375,6 @@ mod tests {
     #[test]
     fn covered_row_reappears_in_the_palette_if_its_command_is_platform_hidden() {
         use crate::commands::Platform;
-        // "Version history…" is native_only: true — a real, currently-uncovered
-        // command that happens to be exactly what this case needs: available on
-        // Native, unavailable on Web.
         let stand_in = "Version history…";
         assert!(crate::commands::available_by_name(
             stand_in,
@@ -1597,7 +1390,6 @@ mod tests {
             row_visible_in_palette(Some(stand_in), Platform::Web),
             "covered + command platform-hidden -> the row REAPPEARS, door never lost"
         );
-        // An uncovered row is unconditionally visible on both.
         assert!(row_visible_in_palette(None, Platform::Native));
         assert!(row_visible_in_palette(None, Platform::Web));
     }
@@ -1645,14 +1437,7 @@ mod tests {
         }
     }
 
-    // ── ITEM 55: TYPED SETTINGS IDENTITY ────────────────────────────────────────
-
     impl SettingId {
-        /// NO-WILDCARD EXHAUSTIVENESS WITNESS: a future `SettingId` variant
-        /// fails to compile here until it's named — the compile-time half of
-        /// the 1:1 roster law. Pairs with the RUNTIME half,
-        /// [`every_setting_id_maps_1_to_1_to_the_registry`], which checks every
-        /// variant actually names exactly one [`SETTINGS`] row.
         #[allow(dead_code)]
         fn witness(self) {
             match self {
@@ -1691,14 +1476,6 @@ mod tests {
         }
     }
 
-    /// THE 1:1 ROSTER LAW (runtime half — pairs with the compile-time
-    /// `SettingId::witness` no-wildcard match): every `SettingId` variant names
-    /// exactly one [`SETTINGS`] row, every row's `id` is unique (no two rows
-    /// share an identity), and [`row_of`] round-trips each row's own id back to
-    /// itself. Enforcement: a `SETTINGS` row added without an `id:` field fails
-    /// to compile (the field is required); a `SettingId` variant added without
-    /// updating `witness` fails to compile; an id reused across two rows, or a
-    /// variant with zero rows, fails HERE.
     #[test]
     fn every_setting_id_maps_1_to_1_to_the_registry() {
         let roster: &[SettingId] = &[
@@ -1837,11 +1614,6 @@ mod tests {
         }
     }
 
-    /// Action ids are exactly `{ReportProblem, EditConfigAsText}` — the Action
-    /// dispatch arm in `actions::overlay_nav::dispatch_settings_row` matches
-    /// only these two; a third `SettingKind::Action` row would silently
-    /// resolve to `Effect::None` there until this test (and that match) grow
-    /// to cover it.
     #[test]
     fn action_kind_rows_are_exactly_report_problem_and_edit_config_as_text() {
         let action_ids: std::collections::HashSet<SettingId> = SETTINGS
@@ -1858,10 +1630,6 @@ mod tests {
         );
     }
 
-    /// OLD-CONFIG ROUND-TRIP (item 55): the typed lookups still emit the EXACT
-    /// legacy wire strings `Config::write_pref`/`Config::load` read and write —
-    /// an existing `config.toml` round-trips unchanged even though the
-    /// resolvers' ARGUMENT type changed from `&str` to `SettingId`.
     #[test]
     fn typed_ids_still_emit_the_legacy_wire_keys() {
         assert_eq!(toggle_key(SettingId::PageMode), Some("page_mode"));
@@ -1901,10 +1669,5 @@ mod tests {
         assert_eq!(path_key(SettingId::DefaultFolder), Some("default_folder"));
         assert_eq!(path_key(SettingId::ProjectsFolder), Some("workspace"));
         assert_eq!(path_key(SettingId::ProjectRoot), Some("project_root"));
-
-        // Pair with `Config`'s own legacy-key round-trip over an on-disk
-        // fixture (see `config::tests`) — this half proves the KEY STRINGS
-        // this module emits are unchanged; that half proves `Config::load`
-        // still parses them.
     }
 }

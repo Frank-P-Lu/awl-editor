@@ -1,31 +1,21 @@
-//! Active-theme accessors and palette derivation. Concrete data is in `worlds`.
-
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::color::Srgb;
 use super::model::{Background, Elevation, ImageReveal, Lens, Theme};
 use super::worlds::{DEFAULT_THEME, THEMES};
 
-/// The active theme index. A process-global so every render call site reads the
-/// same world without threading a `&Theme` through the whole pipeline. The
-/// windowed app cycles it (`C-x t`); `--theme NAME` pins it for a capture.
 static ACTIVE: AtomicUsize = AtomicUsize::new(DEFAULT_THEME);
 
-/// The currently active [`Theme`].
 pub fn active() -> Theme {
     THEMES[ACTIVE.load(Ordering::Relaxed) % THEMES.len()]
 }
 
-/// Index of the active theme within [`THEMES`].
 pub fn active_index() -> usize {
     ACTIVE.load(Ordering::Relaxed) % THEMES.len()
 }
 
-/// Set the active theme by index (wrapping). Returns the now-active [`Theme`].
 pub fn set_active(index: usize) -> Theme {
-    // ACTIVE is process-global. Under test, every writer must sit inside the
-    // one serialization window; checking here (the runtime choke point) catches
-    // transitive/helper writes that a source scan cannot see.
+    // Tests must serialize process-global theme writes.
     #[cfg(test)]
     assert!(
         crate::testlock::currently_held(),
@@ -37,9 +27,6 @@ pub fn set_active(index: usize) -> Theme {
     THEMES[i]
 }
 
-/// Advance to the next world (`step > 0`) or a previous one (`step < 0`), with
-/// wrap-around, and return the now-active [`Theme`]. `C-x t` passes +1, `C-x T`
-/// passes -1.
 pub fn cycle(step: isize) -> Theme {
     let n = THEMES.len() as isize;
     let cur = active_index() as isize;
@@ -47,8 +34,6 @@ pub fn cycle(step: isize) -> Theme {
     set_active(next as usize)
 }
 
-/// Set the active theme by case-insensitive name (e.g. "potoroo"). Returns the
-/// theme on success, `None` if no world matches. Used by `--theme NAME`.
 pub fn set_active_by_name(name: &str) -> Option<Theme> {
     let idx = THEMES
         .iter()
@@ -56,38 +41,12 @@ pub fn set_active_by_name(name: &str) -> Option<Theme> {
     Some(set_active(idx))
 }
 
-/// AN EXPLICIT RESTORE for the active-world global — the tool a test that
-/// renders a NAMED world reaches for (item 94).
-///
-/// [`ACTIVE`] is process-GLOBAL, and a test that swaps worlds and forgets to put
-/// the old one back leaves every LATER test rendering in a world its author
-/// never chose. That is not hypothetical: `capture::tests::pickers_faceted`
-/// ended on `set_active_by_name("Tawny")` and never restored, which is what made
-/// `render::tests::range_rail`'s thumb law pass or fail depending on test ORDER
-/// — the classic unrestored-global leak, and a standing flake suspect anywhere
-/// else the world is read.
-///
-/// A `WorldPin` snapshots the active index at construction and stores it back on
-/// DROP, whatever happened in between (any number of [`set_active`] /
-/// [`set_active_by_name`] / [`cycle`] calls — the pin does not care HOW the
-/// global moved, only that it goes home), including on the UNWIND path, so a law
-/// that fails mid-sweep still hands the next test a clean world.
-///
-/// DELIBERATELY OPT-IN, never ambient. Attaching a pin to the standing
-/// serialization guard (`crate::testlock::serial`) was tried and reverted: that
-/// guard is also taken, under `cfg(test)`, by PRODUCTION writers — `apply_core`
-/// holds it for a whole action, and the theme picker's live preview sets the
-/// world INSIDE that window — so an ambient restore reverted the world the
-/// PRODUCT had just set the instant the action returned. A test that swaps
-/// worlds says so by holding a pin; nothing restores the world behind an
-/// action's back.
 #[must_use = "a WorldPin restores the active world when it drops; binding it to `_` drops it immediately"]
 pub struct WorldPin {
     prev: usize,
 }
 
 impl WorldPin {
-    /// Pin the CURRENT world: the active index is restored when this drops.
     pub fn snapshot() -> Self {
         #[cfg(test)]
         assert!(
@@ -99,16 +58,12 @@ impl WorldPin {
         }
     }
 
-    /// Pin the current world and switch to `name` (case-insensitive) in one
-    /// move — `None` (having changed nothing) if no world matches. The form a
-    /// test that renders one specific world wants.
     pub fn world(name: &str) -> Option<Self> {
         let pin = WorldPin::snapshot();
         set_active_by_name(name)?;
         Some(pin)
     }
 
-    /// The index this pin will restore to.
     pub fn restores_to(&self) -> usize {
         self.prev % THEMES.len()
     }
@@ -126,62 +81,37 @@ impl Drop for WorldPin {
     }
 }
 
-// --- Active-theme token accessors (read by the render call sites) ----------
-//
-// These replace the old fixed `const` tokens: each returns the matching field
-// of the ACTIVE theme, so flipping the active world reskins everything. They
-// keep the DaisyUI names the rest of the code already uses.
-
-/// App background / clear plane of the active theme.
 pub fn base_100() -> Srgb {
     active().base_100
 }
-/// Raised surface of the active theme.
 pub fn base_200() -> Srgb {
     active().base_200
 }
-/// Focused plane / border (panel card) of the active theme.
 pub fn base_300() -> Srgb {
     active().base_300
 }
-/// Default ink of the active theme.
 pub fn base_content() -> Srgb {
     active().base_content
 }
-/// MUTED ink of the active theme (the de-emphasized rung of the ink ladder).
 pub fn muted() -> Srgb {
     active().muted
 }
-/// FAINT ink of the active theme (the faintest rung — UI metadata/labels).
-/// Reserved for the upcoming gutter/stats pass; see the crate `#![allow(dead_code)]`.
 pub fn faint() -> Srgb {
     active().faint
 }
-/// Accent / caret hue of the active theme.
 pub fn primary() -> Srgb {
     active().primary
 }
-/// Ink-on-accent of the active theme.
 pub fn primary_content() -> Srgb {
     active().primary_content
 }
-/// Signal/error color of the active theme.
 pub fn error() -> Srgb {
     active().error
 }
-/// Selection wash of the active theme.
 pub fn selection() -> Srgb {
     active().selection
 }
 
-/// ITEM 65 taste correction — the fold-section CHEVRON's own ink: `muted`
-/// lifted toward `base_content` by the active theme's own [`super::model::
-/// FoldAfford::chevron_lift`] dial ([`super::model::FoldAfford::DEFAULT`]'s
-/// `0.0` makes this `muted()` verbatim on every non-lava world — see
-/// [`FoldAfford`]'s own doc for why the dial, and why chevron/tail are two
-/// independent dials rather than one). The ONE consumer
-/// (`render/layers.rs`'s fold-affordance draw); no per-world branch lives
-/// here, only the dial does.
 pub fn fold_afford_chevron_ink() -> Srgb {
     let t = active();
     t.muted.lerp(
@@ -190,9 +120,6 @@ pub fn fold_afford_chevron_ink() -> Srgb {
     )
 }
 
-/// ITEM 65 taste correction — the fold-section "… N lines" TAIL's own ink:
-/// `faint` lifted toward `base_content` by [`super::model::FoldAfford::
-/// tail_lift`] — the [`fold_afford_chevron_ink`] sibling; see its doc.
 pub fn fold_afford_tail_ink() -> Srgb {
     let t = active();
     t.faint.lerp(
@@ -201,73 +128,14 @@ pub fn fold_afford_tail_ink() -> Srgb {
     )
 }
 
-/// ITEM 70's PRINTED-CARD texture ink — the ONE owner of
-/// [`super::model::CardTexture::HalftoneDots`]'s color, so the cap can carry
-/// only geometry/intensity, never a raw color (see the variant's own doc). A
-/// subtle print-fleck reading: `muted` (the theme's own established
-/// low-contrast ink rung — the SAME rung a fold chevron or a quiet hint
-/// already draws in) blended a quarter of the way toward the card's own
-/// `base_300` surface step, so the texture never competes with
-/// `base_content` text at full coverage. The one consumer:
-/// `render::chrome::mod::prepare_panel_card_elevation`'s `set_halftone`
-/// (Quokka) call. (Item 71 briefly shared this owner with a second variant,
-/// `JaggedWave`/`set_wave` — Bowerbird's own woven card texture — retired by
-/// item 86; see `theme::model::CardTexture`'s doc.)
 pub fn card_texture_ink() -> Srgb {
     let t = active();
     t.muted.lerp(t.base_300, 0.25)
 }
 
-/// How far a DARK world's `Faint` placard rung steps up the ink ladder, from
-/// `faint` toward `muted` — the personality-assignment round's DARK-GROUND
-/// CONTRAST correction (the probe gallery's light-world Ghost was
-/// gallery-validated, but the same formulas were near-invisible on the dark
-/// grounds — Bombora's Ghost vanished; the user's taste note demanded the
-/// wordmark "clearly READ" there while staying a receding ghost). ONE global
-/// constant per rung, never a per-world hand value. Blending toward `muted`
-/// — the next rung UP the same ladder — rather than all the way toward
-/// `base_content` makes the "legible ghost, not a competing headline"
-/// ceiling hold BY CONSTRUCTION (a `faint`→`muted` lerp can never outshine
-/// `muted`, the very ink the card's own rows read in; the first
-/// toward-`base_content` draft overshot it on Potoroo). Floor + ordering +
-/// ceiling are law-tested by `theme::tests::
-/// placard_inks_read_on_dark_grounds_and_stay_below_muted`.
 const PLACARD_DARK_LIFT_FAINT: f32 = 0.75;
-/// The `Ghost` sibling of [`PLACARD_DARK_LIFT_FAINT`]: a shorter step up the
-/// same ladder, so `Ghost` stays the quieter rung on dark grounds exactly as
-/// it is on light ones (presence ordering is law-tested).
 const PLACARD_DARK_LIFT_GHOST: f32 = 0.45;
 
-/// THE ONE owner of a [`super::model::PlacardInk`] rung's color — always a
-/// pure blend of tokens already on the active world's own ink ladder, never
-/// a free color (see [`super::model::PlacardInk`]'s own doc for why the enum
-/// has no raw-`Srgb` variant to smuggle one in through), and MODE-AWARE
-/// since the personality-assignment round:
-///
-/// - **LIGHT grounds** keep the gallery-validated originals: `Faint` is the
-///   [`faint`] rung verbatim; `Ghost` steps HALFWAY further from `faint`
-///   toward `base_300` — barely-there, the P3R watermark read.
-/// - **DARK grounds** step the OTHER way — from `faint` UP toward [`muted`]
-///   — because on a dark world `faint` already sits close to the ground and
-///   the light formulas rendered near-invisible (the user's dark-ground
-///   taste note; Bombora's Ghost was the exhibit). One formula off the
-///   ladder ([`PLACARD_DARK_LIFT_FAINT`]/[`_GHOST`]), never a per-world
-///   constant; the result recedes behind the rows BY CONSTRUCTION (a
-///   `faint`→`muted` blend cannot outshine `muted`, the rows' own ink).
-///
-/// `Stipple` draws INDIVIDUAL PIXELS in the full-ink `base_content` rung
-/// (perceived tone is carried by DENSITY instead — see
-/// [`placard_stipple_density`], its partner owner), so this returns
-/// `base_content` for it: the pixel color half of the stipple pair.
-///
-/// The FIRETAIL-MAXIMALIST-SHOWCASE round's DIAL-UP rungs sit ABOVE `Faint`
-/// on the same ladder, mode-INDEPENDENT (they name absolute ladder positions,
-/// not ground-relative corrections — `muted` already carries each world's own
-/// contrast): `Muted` is the [`muted`] rung verbatim (the rows' own ink);
-/// `Bold` steps [`PLACARD_BOLD_LIFT`] further from `muted` toward
-/// [`base_content`] — a clear statement that stays under full ink BY
-/// CONSTRUCTION (a `muted`→`base_content` lerp at < 1.0 can never reach the
-/// rows' brightest ink). Still never a free color, still never dithered.
 pub fn placard_ink(ink: super::model::PlacardInk) -> Srgb {
     let t = active();
     match ink {
@@ -281,17 +149,8 @@ pub fn placard_ink(ink: super::model::PlacardInk) -> Srgb {
     }
 }
 
-/// How far the `Bold` dial-up rung steps from `muted` toward `base_content`
-/// — one global constant, never a per-world hand value (the same discipline
-/// as [`PLACARD_DARK_LIFT_FAINT`]). Halfway reads as a clear statement while
-/// structurally staying below the full-ink rows (law-tested by
-/// `theme::tests::dialup_placard_inks_stay_on_the_ladder_below_full_ink`).
 const PLACARD_BOLD_LIFT: f32 = 0.5;
 
-/// Gamma-correct Rec.709 relative luminance — the same recipe the law tests
-/// use (`theme::tests`' `rel_lum`, `render::tests::syntax_roles`'
-/// `rel_luminance`), needed at RUNTIME here because the stipple density is a
-/// perceptual-tone formula, not a channel blend.
 fn rel_lum(c: Srgb) -> f32 {
     fn lin(u: u8) -> f32 {
         let s = u as f32 / 255.0;
@@ -304,26 +163,9 @@ fn rel_lum(c: Srgb) -> f32 {
     0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
 }
 
-/// WRITING-STREAKS HEATMAP: the [`crate::streaks::LEVELS`] intensity fills a
-/// calendar square can take, DERIVED from the active world's own value ladder —
-/// never a per-world hand palette, never amber (the caret's alone; the near-
-/// neutral base tokens keep every square well clear of `primary`'s hue). The
-/// ramp rides FROM `base_200` (level 0, the EMPTY-day well — a quiet rung just
-/// off the card's own `base_300` ground) UP TO `base_content` (level 4, a peak
-/// writing day at full ink), so it reads correctly on light AND dark grounds
-/// (the ink always climbs away from the ground, whichever direction that is).
-/// The interior stops are spaced so each filled rung is perceptibly brighter
-/// than the last. THE ONE owner of the square tint; the pixels (`render/chrome/
-/// hud.rs`) and the [`tests::streaks_heatmap_levels_are_distinguishable_every_
-/// world`] law both read it, so they can never drift.
 pub fn heatmap_colors() -> [Srgb; crate::streaks::LEVELS] {
     let empty = base_200();
     let ink = base_content();
-    // 1-BIT DEGRADATION (Wagtail): the ladder collapses to two values and no
-    // intermediate grey is permitted (the pixel law). The heatmap becomes BINARY
-    // — an empty day is the ground token; ANY writing day is full ink — a legible
-    // white-on-black contribution grid. (`is_one_bit` is read HERE in the theme
-    // layer, where it pins Wagtail's identity; the render layer never reads it.)
     if active().is_one_bit() {
         let mut out = [empty; crate::streaks::LEVELS];
         for c in out.iter_mut().skip(1) {
@@ -331,8 +173,6 @@ pub fn heatmap_colors() -> [Srgb; crate::streaks::LEVELS] {
         }
         return out;
     }
-    // t=0 is the empty well; the four filled rungs climb toward full ink with a
-    // slight ease so the low rungs stay quiet while the top rungs separate.
     let stops = [0.0_f32, 0.34, 0.56, 0.78, 1.0];
     let mut out = [empty; crate::streaks::LEVELS];
     for (i, t) in stops.iter().enumerate() {
@@ -341,28 +181,9 @@ pub fn heatmap_colors() -> [Srgb; crate::streaks::LEVELS] {
     out
 }
 
-/// The floor/ceiling a stipple placard's DENSITY may occupy — below the floor
-/// too few pixels survive to read as letterforms at all (the legibility floor
-/// the dark-ground taste note demands, asserted over Mangrove's lava ground by
-/// `theme::tests::stipple_placard_density_clears_the_legibility_floor_over_
-/// its_own_ground`); above the ceiling the mark stops being a ghost and
-/// reads as solid text.
 const PLACARD_STIPPLE_DENSITY_FLOOR: f32 = 0.12;
 const PLACARD_STIPPLE_DENSITY_CEILING: f32 = 0.55;
 
-/// THE ONE owner of the stipple placard's DENSITY — the fraction of wordmark
-/// pixels that draw (each in the pure [`placard_ink`]`(Stipple)` ink =
-/// `base_content`, fully opaque; the Bayer matrix decides WHICH — see
-/// `render::dither`). Derived, never authored per world: the density is
-/// chosen so the stipple's MEAN tone over the ground matches the world's own
-/// strengthened `Faint` placard rung —
-/// `density = (Y(faint_rung) - Y(ground)) / (Y(ink) - Y(ground))` in
-/// relative luminance — i.e. "reads at roughly Faint tone from reading
-/// distance", the same ladder-derived loudness every other placard ink
-/// speaks, clamped to the floor/ceiling band above. (Mangrove, the first
-/// assignment, lands ≈0.24 — the same neighborhood as Wagtail's 0.25
-/// highlight stipple, a reassuring convergence of two independent
-/// derivations.)
 pub fn placard_stipple_density() -> f32 {
     let ground = rel_lum(base_100());
     let ink = rel_lum(base_content());
@@ -379,61 +200,17 @@ pub fn placard_stipple_density() -> f32 {
     )
 }
 
-/// THE ONE owner of the PAGE-FRAME ink ([`super::model::PageFrame`], the
-/// writing-column frame capability): the world's own `base_content` — the
-/// full-ink ladder rung, never a free color and never the amber accent. The
-/// "dark-line page-frame" idea (retired; decision recorded in THEMES.md) IS
-/// full ink (a dark line on a
-/// light world; on Wagtail, the first assignment, this is its ladder's pure
-/// white). Weight lives on the capability; ink derivation lives here, so a
-/// frame can never invent a color (law-tested).
 pub fn page_frame_ink() -> Srgb {
     base_content()
 }
 
-/// SELECTED-ROW value BAND for the summoned pickers (command palette / go-to /
-/// theme / keybindings). The overlay card is `base_300`; the selected row reads as
-/// a rung further up the SURFACE ladder — `base_300` stepped [`SELECTED_BAND_STEPS`]
-/// more increments in the SAME direction the ramp already moves (`base_200` ->
-/// `base_300`, i.e. toward the ink). Derived per-world from each theme's own surface ramp, so it brightens
-/// on a dark world and darkens on a light one — figure/ground by VALUE, not hue
-/// (DESIGN §5). NOT the amber accent (§3), NOT the translucent text-`selection`
-/// token — a solid, opaque band so the row reads as a forward surface step.
-/// How many EXTRA surface-ramp increments the selected-row band sits past
-/// `base_300` — the ramp's own `base_200 -> base_300` delta is one increment, and
-/// this many MORE are added on top. At 1 the band was only ~10-12/255 above the
-/// card on tight-ramp worlds (default Tawny), too faint to read as selected (a live
-/// web-build report). 2 roughly doubles the value step for a clearly-visible-but-
-/// still-calm band, saturating gracefully at the gamut edge. TASTE DEFAULT — tunable,
-/// flagged for review. Figure/ground by VALUE only (DESIGN §5): a larger value merely
-/// deepens the value step in the ramp's own direction, never a hue and never the amber
-/// accent. (Also nudges the HUD/word-count borders that share this owner one step.)
 pub(super) const SELECTED_BAND_STEPS: i32 = 2;
 
-/// EXTRA surface-ramp increments the PICKER'S selected ROW sits past the shared
-/// [`surface_selected`] band — the PALETTE-COMPOSITION round's "clearer-but-calm
-/// selected row", strengthened by VALUE ALONE (never a hue, never the amber
-/// accent — DESIGN §3/§5; the distinguishability sweep is the law that polices
-/// it). The shared `surface_selected` (steps `2`) still drives the HUD /
-/// word-count / menu-drop borders untouched; ONLY the overlay's selected-row
-/// band ([`overlay_selected_band`]) climbs this one further increment, so the
-/// row it marks reads a touch more present without the borders moving with it.
-/// TASTE DEFAULT — `1` is the calm pick; the gallery A/Bs it against the old
-/// band (steps `2`) via `AWL_OVERLAY_SELROW_FORCE`, and the revert to the old
-/// band is one line at the `overlay_draw_card` call site (or `0` here).
 pub(super) const OVERLAY_SELROW_EXTRA_STEPS: i32 = 1;
 
-/// The shared selected/border band: `base_300` stepped `SELECTED_BAND_STEPS`
-/// ramp increments past itself. Split from [`surface_selected`] so the overlay
-/// row's stronger band ([`overlay_selected_band`]) reuses the SAME step math
-/// with one more increment — one owner, no drift, both value-only.
 fn surface_step_band(extra_steps: i32) -> Srgb {
     let a = active();
     if a.base_200 == a.base_300 {
-        // A COLLAPSED surface ramp (Wagtail's 1-bit ladder) — see
-        // `surface_selected`'s own doc; the ink pole is the only rung left.
-        // (Wagtail's overlay row uses `SelectionStyle::InverseVideo`, so this
-        // band color is never actually drawn there either way.)
         return a.base_content;
     }
     let steps = SELECTED_BAND_STEPS + extra_steps;
@@ -448,38 +225,20 @@ fn surface_step_band(extra_steps: i32) -> Srgb {
     )
 }
 
-/// ARM B LIVING-BAND PROBE — the BRIGHTEST value step the two-shape
-/// choreography fills WHERE its leading band and chasing echo cross
-/// ([`crate::render::livingband`]). ONE ladder step past the selected-row band
-/// (which the leading band already wears), on the SAME surface ramp — so the
-/// crossing reads exactly one calm step brighter than the lead (echo `+0`, lead
-/// `+1`, crossing `+2` past `surface_selected`: a clean monotone value climb),
-/// colour where they cross by VALUE only, never a hue / never amber (DESIGN §3).
-/// Consumed only when `AWL_LIVING_BAND=twoshape…` is set; inert on
-/// every ordinary run.
 pub fn overlay_band_overlap() -> Srgb {
     surface_step_band(OVERLAY_SELROW_EXTRA_STEPS + 1)
 }
 
-/// The PICKER'S selected-row VALUE band — [`surface_selected`] climbed
-/// [`OVERLAY_SELROW_EXTRA_STEPS`] further up the SAME surface ramp (value only,
-/// never a hue). The `overlay_draw_card` band reads this; the shared borders
-/// keep `surface_selected`. See [`OVERLAY_SELROW_EXTRA_STEPS`] for the A/B.
 pub fn overlay_selected_band() -> Srgb {
     surface_step_band(OVERLAY_SELROW_EXTRA_STEPS)
 }
 
-/// WCAG relative-contrast ratio `(L_hi + 0.05) / (L_lo + 0.05)` between two
-/// opaque colors, on the same gamma-correct [`rel_lum`] the law tests use.
-/// Needed at RUNTIME to pick the selected-row ink that actually reads on its
-/// own value band.
 fn contrast_ratio(a: Srgb, b: Srgb) -> f32 {
     let (la, lb) = (rel_lum(a), rel_lum(b));
     let (hi, lo) = if la >= lb { (la, lb) } else { (lb, la) };
     (hi + 0.05) / (lo + 0.05)
 }
 
-/// The Pane face: ordinary/rimmed `base_300`, or value-only recessed `base_200`.
 pub fn pane_surface(elevation: Elevation) -> Srgb {
     match elevation {
         Elevation::Flat | Elevation::Bordered => base_300(),
@@ -487,18 +246,8 @@ pub fn pane_surface(elevation: Elevation) -> Srgb {
     }
 }
 
-/// Minimum selected-row ink contrast against [`overlay_selected_band`].
-/// Bombora-under-Bars was the 2.53:1 failure behind this 3:1 floor.
 pub(super) const SELECTED_ROW_INK_CONTRAST_FLOOR: f32 = 3.0;
 
-/// Selected-row ink owner for ordinary `ValueBand` worlds.
-/// Keep `base_content` unless `band` falls below the contrast floor, then
-/// ink FLIPS to whichever ladder POLE (`base_100` ground vs `base_content` ink)
-/// reads harder against the fill. Derived purely from the fill's own luminance,
-/// never a per-world hand value: on a DARK world the light `base_content` fails
-/// against a mid band and the dark ground wins; on a LIGHT world the reverse.
-/// Bombora under Bars was the exhibit — light ink (236,232,242) on a mid sage
-/// band (132,152,144) = 2.53:1. Wagtail resolves through `InverseFill`.
 pub fn selected_row_ink(band: Srgb) -> Srgb {
     let content = base_content();
     if contrast_ratio(band, content) >= SELECTED_ROW_INK_CONTRAST_FLOOR {
@@ -512,20 +261,6 @@ pub fn selected_row_ink(band: Srgb) -> Srgb {
     }
 }
 
-/// SIBLING of [`selected_row_ink`] for the picker row's SECONDARY (right-column)
-/// cell — the dim key-chord / time / git hints that ride `muted` on an ordinary
-/// row. The selected-row value band can wash `muted` out exactly as it washes
-/// `base_content`: Potoroo's saturated gold band drove its muted hints to an 8.8
-/// luminance delta — invisible (the Wagtail invisible-row class, SECONDARY
-/// edition — the primary flip landed but the secondary column never followed).
-/// The cell KEEPS `muted` UNLESS the band drops it below
-/// [`SELECTED_ROW_INK_CONTRAST_FLOOR`], in which case the ink FLIPS to whichever
-/// ladder POLE (`base_100` ground vs `base_content` ink) reads harder against
-/// the fill — the SAME reading-pole derive the primary uses, one register
-/// quieter by construction (it starts from `muted`, not `base_content`). Returns
-/// `muted` unchanged on every world whose band already clears the floor
-/// (byte-identical). Derived purely from the fill's own luminance, never a
-/// per-world hand value.
 pub fn selected_row_secondary_ink(band: Srgb) -> Srgb {
     let dim = muted();
     if contrast_ratio(band, dim) >= SELECTED_ROW_INK_CONTRAST_FLOOR {
@@ -540,109 +275,38 @@ pub fn selected_row_secondary_ink(band: Srgb) -> Srgb {
     }
 }
 
-/// PER-ITEM LIST SURFACES round — the UNSELECTED bar's fill under
-/// [`super::ListStyle::Bars`]. A WHISPER: the `base_200` code-fence-wash
-/// register — one gentle value step off the GROUND (`base_100`), near-invisible
-/// rhythm rather than a slab. The user's verdict on the first cut (unselected ==
-/// `surface_step_band(-1)`, a saturated rung one step below the card) was "a
-/// picket fence where every row shouts": with no card behind the bars (the Bars
-/// treatment drops the pane — see `overlay_draw_card`), the ground IS the scrim,
-/// and the unselected bar should barely lift off it so the SELECTED bar's strong
-/// `overlay_selected_band` pop has somewhere to go. Value only — never a hue,
-/// never the amber accent (DESIGN §3/§5). On a collapsed 1-bit ramp `base_200 ==
-/// base_100` (invisible), but Wagtail ships `Pane` + draws its selected row via
-/// `InverseFill`, so this fill is inert there anyway.
 pub fn overlay_bar_unselected() -> Srgb {
     base_200()
 }
 
-/// PER-ITEM LIST SURFACES round — the bounded ground SCRIM beneath each
-/// [`super::ListStyle::Bars`] plate. It is the world's own `base_100` ground,
-/// inflated only a few pixels past the plate so the current page remains visible
-/// between and around a summoned list. The plate itself supplies the value step;
-/// the scrim simply prevents document glyphs from colliding with its edge. Value
-/// only, never a hue (DESIGN §3/§5).
 pub fn overlay_bars_scrim() -> Srgb {
     base_100()
 }
 
 pub fn surface_selected() -> Srgb {
-    // The shared band: `base_300` stepped `SELECTED_BAND_STEPS` further up the
-    // surface ramp, in the SAME direction `base_200 -> base_300` carries (toward
-    // the ink on dark worlds, toward the ground on light). A COLLAPSED ramp
-    // (Wagtail's 1-bit ladder: base_200 == base_300 == pure black) has no
-    // direction to move in — `surface_step_band` returns the ink pole
-    // (`base_content`, pure white on Wagtail: "a white 1px border on a black
-    // card is 1-bit-legal") so every float/HUD/whichkey/menu-drop border AND
-    // the picker's selected-row band stays visible. Keyed on the RAMP SHAPE, not
-    // `Elevation::Bordered`: Currawong/Mangrove/Firetail carry `Bordered` as
-    // functional elevation yet keep their ordinary ramp-step band (returning
-    // white there would fill the selected row the same value as its own text —
-    // the Wagtail invisible-row bug class).
     surface_step_band(0)
 }
 
-/// Alpha of the dim DOC SCRIM (`overlay_scrim`) — a translucent veil of the canvas
-/// plane laid over the document while a FULL-takeover overlay is up. ~0.5 pulls the
-/// doc HALF a step back toward the background so the overlay reads as the clear
-/// figure, without spending a hue (DESIGN §5).
 const OVERLAY_SCRIM_ALPHA: u8 = 0x80;
 
-/// Translucent DIM SCRIM laid over the document when a FULL-takeover overlay is up
-/// (command palette, go-to, theme picker, keybindings, spell picker, …): the canvas
-/// plane (`base_100`) at part alpha, so the doc recedes a value behind the card and
-/// the overlay is the clear figure (DESIGN §5 — "a full takeover dims the document
-/// back a value"). A SPLIT surface (the search panel) does NOT use it; the doc
-/// stays bright there (a peek, not a takeover). It is a value step toward the
-/// background, never a new hue — so amber stays the caret's alone (§3).
 pub fn overlay_scrim() -> Srgb {
     let b = active().base_100;
     Srgb::rgba(b.r, b.g, b.b, OVERLAY_SCRIM_ALPHA)
 }
 
-/// Alpha of the INLINE-IMAGE CAPTION SCRIM (`image_reveal_scrim`) — the soft band of
-/// the world's own GROUND laid behind a revealed image's source text so the caption
-/// reads over the dimmed image. A touch more opaque than the doc scrim (~0.72): the
-/// scrim is the SAME ground the doc sits on, so ground-over-ground is INVISIBLE where
-/// the caption clears the image, and this alpha only bites where the text overlaps the
-/// image pixels. TASTE TUNABLE — flagged for live review, judged over a dark + a light
-/// world (the `render/layers.rs` `IMAGE_REVEAL_DIM_ALPHA` is its partner lever).
 const IMAGE_REVEAL_SCRIM_ALPHA: u8 = 0xB8;
 
-/// Translucent CAPTION SCRIM behind a revealed inline image's source text: the canvas
-/// plane (`base_100`) at part alpha, so the centred caption reads over the dimmed
-/// image. A value step toward the ground, never a new hue — so amber stays the
-/// caret's alone (DESIGN §3). Re-tinted per world (geometry is theme-independent).
 pub fn image_reveal_scrim() -> Srgb {
     let b = active().base_100;
     if active().render_caps.image_reveal == ImageReveal::Opaque {
-        // A translucent veil over an image would composite a forbidden grey
-        // on a true 1-bit world — opaque ground instead (the reveal fully
-        // occludes the image rather than dimming it). Unaudited beyond this:
-        // images are already PHILOSOPHY.md's own logged palette exception, so
-        // this narrow follow-on trade is consistent with that existing call,
-        // not a new one.
         return Srgb::rgba(b.r, b.g, b.b, 0xFF);
     }
     Srgb::rgba(b.r, b.g, b.b, IMAGE_REVEAL_SCRIM_ALPHA)
 }
-/// PAGE MODE margin GROUND of the active theme — the tagged [`Background`]
-/// carrying its gradient endpoints + direction and any mark tint / band / angle /
-/// proximity flag. Read by the background pipeline (render.rs) and the capture
-/// sidecar (capture.rs).
 pub fn background() -> Background {
     active().background
 }
 
-/// The section a world (by case-sensitive NAME) sits in under `lens` — a THEME-AXIS
-/// coordinate. `None` when the world OPTS OUT of the axis, for an unknown name (never
-/// panics), or for [`Lens::All`] (which does not group).
-///
-/// The runtime lens strip that once GROUPED the theme picker by these axes was
-/// retired (user decision, 2026-07-15 — the theme picker is now a flat browsable
-/// list, see [`crate::facets`]'s module doc); the [`Lens`] axes + per-world
-/// [`super::model::ThemeTags`] survive purely as the BUILD-TIME coverage ruler asserted by
-/// [`tests::axis_coverage_ruler`]. `tag_for` is that ruler's name-keyed accessor.
 pub fn tag_for(name: &str, lens: Lens) -> Option<&'static str> {
     THEMES
         .iter()

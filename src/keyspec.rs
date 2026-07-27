@@ -1,25 +1,11 @@
-//! Parse and resolve space-separated `--keys` chords. Replay interleaves search
-//! interception with normal keymap resolution, matching live dispatch.
-
 use anyhow::{Result, bail};
 use winit::event::Modifiers;
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
 use crate::keymap::{Action, KeymapState};
 
-/// One parsed `--keys` CHORD — the raw token exactly as the spec spelled it
-/// (kept so a strict refusal can name the offender verbatim) plus the winit
-/// key + modifiers every downstream seam consumes. This is the replay's
-/// CURRENCY: chords stay UNRESOLVED until the replay loop feeds them through
-/// [`ChordResolver`] one press at a time, mirroring the live window's
-/// per-press `KeymapState::resolve` — which is what lets the SEARCH GUARD
-/// (`crate::search::keys::intercept`) consume a chord BEFORE the keymap ever
-/// sees it, the live guard's exact position. A pre-resolved `Action` stream
-/// could not express "the open panel ate this key" (`M-c` would drop as
-/// unbound, `C-x` would falsely arm the prefix).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Chord {
-    /// The raw token as written in the spec (`"C-s"`, `"Cmd-S-f"`, `"h"`).
     pub spec: String,
     pub key: Key,
     pub mods: Modifiers,
@@ -59,8 +45,6 @@ pub fn parse_chords(spec: &str) -> Result<Vec<Chord>> {
 pub struct ChordResolver<'a> {
     km: &'a mut KeymapState,
     strict: bool,
-    /// The chord that ARMED a still-pending prefix (`C-x`), for the strict
-    /// dangling-sequence error's wording. `None` outside a prefix.
     pending_prefix: Option<String>,
 }
 
@@ -73,9 +57,6 @@ impl<'a> ChordResolver<'a> {
         }
     }
 
-    /// Resolve one chord through the persistent keymap. `Ok(Some(action))` is
-    /// work for the apply seam; `Ok(None)` is a dropped `Ignore`/`BeginPrefix`;
-    /// `Err` is a strict refusal naming the offending chord.
     pub fn resolve(&mut self, chord: &Chord) -> Result<Option<Action>> {
         let action = self.km.resolve(&chord.key, &chord.mods);
         if self.strict {
@@ -100,11 +81,6 @@ impl<'a> ChordResolver<'a> {
     }
 }
 
-/// Parse a whole `--keys` spec straight into the resolved `Action` stream with
-/// the DEFAULT keymap — [`parse_chords`] + [`ChordResolver`] composed. Retained
-/// as the unit-test surface (this module's own resolution tests and the pinned
-/// sibling below); the real replay resolves inside its own loop so the search
-/// guard can intercept first.
 #[allow(dead_code)]
 pub fn parse_keys(spec: &str) -> Result<Vec<Action>> {
     parse_keys_through(spec, KeymapState::new())
@@ -135,10 +111,6 @@ fn parse_keys_through(spec: &str, km: KeymapState) -> Result<Vec<Action>> {
     parse_keys_mode(spec, km, false)
 }
 
-/// The one spec→actions loop the test doors share: [`parse_chords`] then a
-/// [`ChordResolver`] driven chord-by-chord — the SAME two primitives the real
-/// replay loop composes (with its search guard between them), so a resolution
-/// asserted here is the resolution a replay performs.
 fn parse_keys_mode(spec: &str, mut km: KeymapState, strict: bool) -> Result<Vec<Action>> {
     let chords = parse_chords(spec)?;
     let mut resolver = ChordResolver::new(&mut km, strict);
@@ -151,9 +123,6 @@ fn parse_keys_mode(spec: &str, mut km: KeymapState, strict: bool) -> Result<Vec<
     Ok(actions)
 }
 
-/// Is this chord an EXPLICIT cancel (`Esc` / `C-g`)? Mid-prefix, the keymap
-/// resolves EVERY unbound second key to a quiet `Cancel`; strict parsing only
-/// forgives the ones a scenario can honestly MEAN as "cancel the prefix".
 fn is_explicit_cancel(key: &Key, mods: ModifiersState) -> bool {
     match key {
         Key::Named(NamedKey::Escape) => true,
@@ -180,10 +149,6 @@ const WORD_MODS: &[(&str, ModifiersState)] = &[
     ("shift-", ModifiersState::SHIFT),
 ];
 
-/// Parse a single chord (e.g. `C-x`, `M->`, `Cmd-S`, `Left`, `a`) into a winit key
-/// event. Modifier prefixes — terse (`C-`) or word-form (`Cmd-`) — are stripped
-/// greedily and order-independently (they are just bitflags); the remainder is the
-/// key token.
 pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
     let mut rest = chord;
     let mut state = ModifiersState::empty();
@@ -195,8 +160,6 @@ pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
     // Super+`S` rather than as the literal letters. A bare "-" (or a 1-char
     // remainder) is never consumed as a prefix, so the literal key always survives.
     loop {
-        // Word-form modifiers (case-insensitive). Each `pfx` includes its trailing
-        // '-'; `len() > pfx.len()` guarantees at least one key char remains after it.
         if let Some((pfx, flag)) = WORD_MODS.iter().find(|(pfx, _)| {
             rest.len() > pfx.len()
                 && rest
@@ -233,12 +196,6 @@ pub fn parse_chord(chord: &str) -> Result<(Key, Modifiers)> {
     Ok((key, Modifiers::from(state)))
 }
 
-/// Format a `(Key, ModifiersState)` back into a CANONICAL terse chord string —
-/// the inverse of [`parse_chord`], used by the REBIND MENU to turn a captured key
-/// press into a config-storable, displayable spec (`"C-t"`, `"M-f"`, `"s-S-z"`,
-/// `"Left"`). Modifiers emit in a FIXED order (`C- M- S- s-`) so two presses of the
-/// same combo always produce the same string; a single ASCII letter is lower-cased
-/// (the keymap folds case via `canon_key`), every other char passes through.
 pub fn format_chord(key: &Key, mods: ModifiersState) -> String {
     let mut s = String::new();
     if mods.contains(ModifiersState::CONTROL) {
@@ -275,8 +232,6 @@ pub fn mac_glyph_chord(spec: &str) -> String {
     out.join(" ")
 }
 
-/// One chord as mac glyphs: the modifier glyphs (⌘ ⇧ ⌥ ⌃, in that order) then the
-/// key glyph. Helper for [`mac_glyph_chord`].
 fn mac_glyph_token(key: &Key, mods: ModifiersState) -> String {
     let mut s = String::new();
     if mods.contains(ModifiersState::SUPER) {
@@ -295,9 +250,6 @@ fn mac_glyph_token(key: &Key, mods: ModifiersState) -> String {
     s
 }
 
-/// The key glyph for the mac-glyph form: a single ASCII letter UPPER-cased (so
-/// `⌘S` not `⌘s`); everything else reuses [`key_token`] (named keys keep their
-/// spelling, symbol keys their glyph).
 fn mac_key_token(key: &Key) -> String {
     if let Key::Character(s) = key {
         let mut chars = s.chars();
@@ -310,9 +262,6 @@ fn mac_key_token(key: &Key) -> String {
     key_token(key)
 }
 
-/// The bare key TOKEN for [`format_chord`] (no modifiers): a named key maps back to
-/// its canonical spelling (`Left`, `Enter`, `Esc`, …), and a character key is its
-/// glyph (single ASCII letters lower-cased so `C-T` and `C-t` agree).
 fn key_token(key: &Key) -> String {
     match key {
         Key::Named(named) => match named {
@@ -441,12 +390,6 @@ fn linux_glyph_token(key: &Key, mods: ModifiersState) -> String {
     s
 }
 
-/// Canonicalise a CHORD SPEC (one chord or a `C-x <key>` sequence) into the stable
-/// terse form [`format_chord`] emits, or `None` if any token fails to parse. Two
-/// specs that mean the same chord (`"Cmd-S"` / `"s-s"`, `"C-x C-f"`) canonicalise
-/// to the SAME string, so the rebind menu can compare bindings for CONFLICTS and
-/// store a normalized value. Whitespace-separated tokens are canonicalised
-/// individually and re-joined with a single space.
 pub fn canonical_binding(spec: &str) -> Option<String> {
     let mut out: Vec<String> = Vec::new();
     for tok in spec.split_whitespace() {
@@ -466,20 +409,13 @@ fn parse_key_token(tok: &str, chord: &str) -> Result<Key> {
     if let Some(named) = named_key(tok) {
         return Ok(Key::Named(named));
     }
-    // A single printable char is a self-insert / literal. Pass it through
-    // verbatim (no case folding) so `Z` stays `Z` and shifted glyphs like `<`
-    // `>` keep working in the keymap's Meta arms.
     if tok.chars().count() != 1 {
         bail!("unrecognized key {tok:?} in chord {chord:?} (not a named key or single char)");
     }
     Ok(Key::Character(SmolStr::new(tok)))
 }
 
-/// Named-key table (case-insensitive on the token). Returns `None` for tokens
-/// that are not named keys, so the caller falls through to single-char handling.
 fn named_key(tok: &str) -> Option<NamedKey> {
-    // Case-insensitive compare without allocating for the common (already-cased)
-    // tokens: only fold when the raw token misses.
     let lower = tok.to_ascii_lowercase();
     Some(match lower.as_str() {
         "left" => NamedKey::ArrowLeft,
@@ -488,9 +424,6 @@ fn named_key(tok: &str) -> Option<NamedKey> {
         "down" => NamedKey::ArrowDown,
         "home" => NamedKey::Home,
         "end" => NamedKey::End,
-        // PgUp/PgDn — the card-ful jump through a summoned picker. Named so
-        // `--keys "PageDown"` exercises the same overlay paging the live NamedKey
-        // does (the harness stays real); several spellings for muscle memory.
         "pageup" | "pgup" => NamedKey::PageUp,
         "pagedown" | "pgdn" | "pagedn" => NamedKey::PageDown,
         "enter" | "return" | "ret" => NamedKey::Enter,
@@ -539,8 +472,6 @@ mod tests {
 
     #[test]
     fn native_save_and_c_x_retired() {
-        // Cmd-S is the save door now; the emacs C-x C-s default is retired (the second
-        // key of the bare, defaultless prefix cancels).
         assert_eq!(parse_keys("s-s").unwrap(), vec![Action::Save]);
         assert_eq!(parse_keys("C-x C-s").unwrap(), vec![Action::Cancel]);
     }
@@ -555,14 +486,12 @@ mod tests {
 
     #[test]
     fn native_buffer_end() {
-        // Cmd-Down is the buffer-end door now; the emacs M-> default self-inserts '>'.
         assert_eq!(parse_keys("s-Down").unwrap(), vec![Action::BufferEnd]);
         assert_eq!(parse_keys("M->").unwrap(), vec![Action::InsertChar('>')]);
     }
 
     #[test]
     fn native_buffer_start() {
-        // Cmd-Up is the buffer-start door now; the emacs M-< default self-inserts '<'.
         assert_eq!(parse_keys("s-Up").unwrap(), vec![Action::BufferStart]);
         assert_eq!(parse_keys("M-<").unwrap(), vec![Action::InsertChar('<')]);
     }
@@ -584,8 +513,6 @@ mod tests {
             vec![Action::ToggleDebug],
             "default C-j is not ToggleDebug"
         );
-        // An empty config makes parse_keys_with identical to parse_keys, including a
-        // C-x prefix sequence.
         let empty = Config::empty();
         for spec in ["C-n C-n", "C-x C-s", "a b"] {
             assert_eq!(
@@ -613,7 +540,6 @@ mod tests {
                 "{word:?} should parse like {terse:?}"
             );
         }
-        // Case-insensitive on the word, and "Cmd--" is Super + the literal '-' key.
         assert_eq!(
             parse_chord("CMD-=").unwrap().1.state(),
             ModifiersState::SUPER
@@ -640,9 +566,7 @@ mod tests {
                 "{spec:?} → {formatted:?}"
             );
         }
-        // A shifted/upper letter folds to lower-case; the modifier order is fixed.
         assert_eq!(format_chord(&ch_key("T"), ModifiersState::CONTROL), "C-t");
-        // Modifiers emit in the FIXED order C- M- S- s- (so Cmd-Shift-Z → "S-s-z").
         assert_eq!(
             format_chord(&ch_key("z"), ModifiersState::SUPER | ModifiersState::SHIFT),
             "S-s-z"
@@ -651,8 +575,6 @@ mod tests {
 
     #[test]
     fn mac_glyph_chord_renders_modifier_glyphs() {
-        // The NATIVE slot's display form: mac modifier glyphs concatenated, no dashes,
-        // the key upper-cased. Cmd→⌘ Shift→⇧ Option/Meta→⌥ Ctrl→⌃.
         assert_eq!(mac_glyph_chord("Cmd-S-o"), "⌘⇧O");
         assert_eq!(mac_glyph_chord("Cmd-F"), "⌘F");
         assert_eq!(mac_glyph_chord("Cmd-M-f"), "⌘⌥F"); // Replace: Cmd-Option-F
@@ -661,7 +583,6 @@ mod tests {
         assert_eq!(mac_glyph_chord("Cmd-;"), "⌘;");
         assert_eq!(mac_glyph_chord("Cmd-="), "⌘=");
         assert_eq!(mac_glyph_chord("C-t"), "⌃T"); // a Ctrl chord → the ⌃ glyph
-        // The terse `s-` super form glyphifies identically to the word form.
         assert_eq!(mac_glyph_chord("s-s"), mac_glyph_chord("Cmd-S"));
         // An unparseable token passes through verbatim (never panics).
         assert_eq!(mac_glyph_chord("C-frobnicate"), "C-frobnicate");
@@ -670,8 +591,6 @@ mod tests {
     #[test]
     fn translate_native_for_linux_swaps_super_for_control_only() {
         assert_eq!(translate_native_for_linux("Cmd-S"), "C-s");
-        // `format_chord`'s FIXED modifier order is C- M- S- s-, so Control sorts
-        // before Shift regardless of the input's own order.
         assert_eq!(translate_native_for_linux("Cmd-S-p"), "C-S-p");
         assert_eq!(translate_native_for_linux("Cmd-,"), "C-,");
         // ALT/SHIFT-only chords (no Super) pass through unchanged — the naive
@@ -687,7 +606,6 @@ mod tests {
         assert_eq!(linux_glyph_chord("S-C-p"), "Ctrl+Shift+P");
         assert_eq!(linux_glyph_chord("C-,"), "Ctrl+,");
         assert_eq!(linux_glyph_chord("M-Right"), "Alt+Right");
-        // Fixed modifier order Ctrl, Alt, Shift, Super regardless of input order.
         assert_eq!(
             linux_glyph_chord(&format_chord(
                 &ch_key("z"),
@@ -701,8 +619,6 @@ mod tests {
 
     #[test]
     fn canonical_binding_unifies_equivalent_specs() {
-        // The word-form and terse spellings of one chord canonicalise identically,
-        // and a `C-x <key>` sequence canonicalises token-by-token.
         assert_eq!(canonical_binding("Cmd-S"), canonical_binding("s-s"));
         assert_eq!(canonical_binding("C-x C-f").as_deref(), Some("C-x C-f"));
         assert_eq!(canonical_binding("Ctrl-t").as_deref(), Some("C-t"));
@@ -730,9 +646,6 @@ mod tests {
 
     #[test]
     fn pageup_pagedown_tokens_parse_and_page_the_picker() {
-        // `--keys "PageUp"/"PageDown"` (several spellings) parse to the NamedKey the
-        // live overlay reads, so the harness can exercise the card-ful picker paging
-        // (the harness stays real).
         for tok in ["PageUp", "pageup", "PgUp"] {
             let chords = parse_chords(tok).unwrap();
             assert_eq!(
@@ -749,7 +662,6 @@ mod tests {
                 "{tok} -> PageDown"
             );
         }
-        // Round-trips through the canonical token spelling.
         assert_eq!(super::key_token(&Key::Named(NamedKey::PageUp)), "PageUp");
         assert_eq!(
             super::key_token(&Key::Named(NamedKey::PageDown)),
@@ -759,8 +671,6 @@ mod tests {
 
     #[test]
     fn text_chords_spell_each_char_as_its_keys_token() {
-        // A storyboard `type` step's text becomes the same chords a --keys spec
-        // would spell: bare printables verbatim, whitespace via the NAMED keys.
         let chords = text_chords("Hi w,\n\t").unwrap();
         let specs: Vec<&str> = chords.iter().map(|c| c.spec.as_str()).collect();
         assert_eq!(specs, vec!["H", "i", "Space", "w", ",", "Enter", "Tab"]);
@@ -773,7 +683,6 @@ mod tests {
         // chords DO honor an explicit `S-` as select-intent; see
         // `main/run.rs::ReplaySession::apply_chord`.)
         assert!(chords.iter().all(|c| c.mods.state().is_empty()));
-        // And the chars resolve through the REAL keymap to self-inserts.
         let mut km = KeymapState::new_with_convention(crate::convention::Convention::Mac);
         let mut resolver = ChordResolver::new(&mut km, true);
         assert_eq!(
@@ -785,8 +694,6 @@ mod tests {
             Some(Action::InsertChar(' '))
         );
     }
-
-    // ── STRICT REPLAY TRUTHFULNESS: the strict parse door ──
 
     /// Strict parse pinned to Mac, mirroring the permissive shadow above (these
     /// tests document MAC-native defaults; Linux displacement is law-tested in
@@ -801,22 +708,16 @@ mod tests {
 
     #[test]
     fn strict_rejects_an_unbound_chord_naming_it() {
-        // Cmd-L is deliberately unbound (see keymap.rs's own "Cmd-L stays
-        // unbound" test): permissive drops it silently, strict names it.
         assert_eq!(parse_keys("s-l").unwrap(), Vec::<Action>::new());
         let err = parse_keys_strict("s-l").unwrap_err().to_string();
         assert!(err.contains("\"s-l\""), "names the exact chord: {err}");
         assert!(err.contains("unbound"), "says why: {err}");
-        // The offender is named even mid-spec, after bound chords.
         let err = parse_keys_strict("C-n s-l C-p").unwrap_err().to_string();
         assert!(err.contains("\"s-l\""), "mid-spec offender named: {err}");
     }
 
     #[test]
     fn strict_rejects_a_dangling_prefix_sequence_naming_both_chords() {
-        // The C-x defaults are retired, so `C-x C-s` resolves to a quiet Cancel
-        // permissively (pinned above in `native_save_and_c_x_retired`); strict
-        // refuses it, naming the failed second key AND the prefix it dangled off.
         let err = parse_keys_strict("C-x C-s").unwrap_err().to_string();
         assert!(err.contains("\"C-s\""), "names the dangling chord: {err}");
         assert!(err.contains("\"C-x\""), "names the prefix: {err}");
@@ -824,8 +725,6 @@ mod tests {
 
     #[test]
     fn strict_allows_an_explicit_prefix_cancel() {
-        // Esc / C-g mid-prefix MEAN "cancel the prefix" — a scenario can say
-        // that honestly, so strict resolves them exactly like permissive.
         for spec in ["C-x Esc", "C-x C-g"] {
             assert_eq!(
                 parse_keys_strict(spec).unwrap(),
@@ -866,9 +765,7 @@ mod tests {
             parse_keys("Left Right").unwrap(),
             vec![Action::BackwardChar, Action::ForwardChar]
         );
-        // Alt+Right is word motion.
         assert_eq!(parse_keys("M-Right").unwrap(), vec![Action::ForwardWord]);
-        // Enter / Tab / Backspace / Delete named keys.
         assert_eq!(
             parse_keys("Enter Tab Backspace Delete").unwrap(),
             vec![
@@ -882,7 +779,6 @@ mod tests {
 
     #[test]
     fn c_space_sets_mark_then_motion() {
-        // C-Space is a NAMED key (Space) + Ctrl in the keymap.
         assert_eq!(
             parse_keys("C-Space C-f").unwrap(),
             vec![Action::SetMark, Action::ForwardChar]
@@ -891,7 +787,6 @@ mod tests {
 
     #[test]
     fn shifted_literal_self_inserts() {
-        // A bare '<' with no modifier is a literal self-insert.
         assert_eq!(parse_keys("<").unwrap(), vec![Action::InsertChar('<')]);
     }
 
@@ -902,8 +797,6 @@ mod tests {
 
     #[test]
     fn save_and_quit_via_native() {
-        // Save/Quit are native chords now (Cmd-S / Cmd-Q); the C-x prefix defaults are
-        // retired, so the old `C-x C-s C-x C-c` sequence cancels twice.
         assert_eq!(
             parse_keys("s-s s-q").unwrap(),
             vec![Action::Save, Action::Quit]

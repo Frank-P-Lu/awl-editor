@@ -25,9 +25,7 @@ fn socket_dir_override() -> &'static Mutex<Option<PathBuf>> {
     DIR.get_or_init(|| Mutex::new(None))
 }
 
-/// Test-only seam (mirrors `fs::with_fs`'s test-injection pattern): point the
-/// socket at a throwaway temp dir instead of the real `$XDG_DATA_HOME/awl`, so
-/// tests never touch (or race on) the real machine's socket file.
+/// Test-only socket-directory override.
 #[cfg(test)]
 pub(crate) fn set_socket_dir_for_test(dir: Option<PathBuf>) {
     *socket_dir_override()
@@ -42,23 +40,13 @@ pub fn socket_path() -> PathBuf {
 
 // --- wire protocol (pure) ---------------------------------------------------
 
-/// A parsed client request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpenRequest {
     pub path: PathBuf,
     pub wait: bool,
 }
 
-/// Serialize an `open` request line (newline-terminated). `path` should already
-/// be the CLIENT-side canonicalized, absolute path (see `crate::buffers`'s
-/// `BufferKey` normalization, which this mirrors) — the server cannot recover
-/// the client's cwd, so a relative spelling must never be sent.
-///
-/// KEPT DUMB (documented limitation): a path containing the literal substring
-/// `" wait"` at its very end would misparse as a wait request without one.
-/// Real filenames essentially never end in the four characters `" wait"`, and
-/// the alternative (a length-prefixed or JSON framing) is more machinery than
-/// this v1 protocol is worth.
+/// Serialize an absolute client path. A trailing `" wait"` denotes the wait flag.
 pub fn format_open(path: &Path, wait: bool) -> String {
     if wait {
         format!("open {} wait\n", path.display())
@@ -100,11 +88,8 @@ pub fn format_done(path: &Path) -> String {
 
 // --- stale-socket detection --------------------------------------------
 
-/// Outcome of [`bind_or_connect`]'s truth table.
 pub enum BindOutcome {
-    /// Nobody was listening at `path`: we bound it and are now THE instance.
     Instance(UnixListener),
-    /// A live instance answered; here is a connected stream to send a request on.
     Handoff(UnixStream),
 }
 
@@ -152,7 +137,6 @@ impl Waiter {
         Waiter { path, stream }
     }
 
-    /// Send the completion notice and close the connection.
     pub fn notify_done(self) {
         let mut s = self.stream;
         let _ = s.write_all(format_done(&self.path).as_bytes());
@@ -228,14 +212,7 @@ pub fn spawn_accept_thread<E: Send + 'static>(
     });
 }
 
-// --- client: the startup singleton dance ------------------------------------
-
-/// Outcome of the startup singleton dance ([`startup`]).
 pub enum StartupOutcome {
-    /// Handed the request off to a live instance (or, for a bare no-file
-    /// launch with one already running, decided there is nothing useful to
-    /// send — see `startup`'s doc) — the caller returns immediately, no
-    /// window ever created.
     HandedOff,
     /// Nobody was running: we bound the socket and ARE the instance now. The
     /// caller proceeds to build its window as normal, later handing this
@@ -361,9 +338,6 @@ mod tests {
     fn bind_or_connect_hands_off_to_a_real_listener() {
         let path = temp_socket_path("live");
         let _ = std::fs::remove_file(&path);
-        // A REAL listener occupies the address (simulating another running
-        // instance) — kept alive for the whole test so `accept` could succeed,
-        // though `bind_or_connect` itself only needs to CONNECT, not accept.
         let _live = UnixListener::bind(&path).expect("bind the 'other instance'");
         match bind_or_connect(&path).expect("connect should succeed against a live listener") {
             BindOutcome::Handoff(_s) => {}
@@ -396,8 +370,6 @@ mod tests {
         let _ = std::fs::remove_file(&path);
     }
 
-    // --- client canonicalization -------------------------------------------
-
     #[test]
     fn startup_handoff_canonicalizes_a_relative_file_against_the_clients_cwd() {
         // A relative launch argument must be sent to the server as its
@@ -410,8 +382,6 @@ mod tests {
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
 
-        // The "other instance": accept one connection, read its request line,
-        // reply ok, and hand the parsed path back over a channel.
         let (tx, rx) = std::sync::mpsc::channel();
         let server = std::thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
@@ -423,11 +393,6 @@ mod tests {
             tx.send(req).unwrap();
         });
 
-        // The client hands off a RELATIVE path ("a.txt") reached with the
-        // process's real cwd swapped to `dir` for the duration of this call
-        // (matches how a real second `awl a.txt` process's cwd IS `dir`).
-        // `CwdGuard` serializes against every other cwd-mutating test AND
-        // restores the original cwd on drop even if an assertion below panics.
         let _cwd = crate::fs::CwdGuard::enter(&dir);
         let outcome = match bind_or_connect(&sock).unwrap() {
             BindOutcome::Handoff(mut stream) => {
@@ -471,8 +436,6 @@ mod tests {
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
 
-        // A tiny stand-in for `EventLoopProxy<DaemonEvent>::send_event`: forward
-        // events over an mpsc channel instead of into a (nonexistent) event loop.
         let (tx, rx) = std::sync::mpsc::channel::<DaemonEvent>();
         std::thread::spawn(move || {
             for conn in listener.incoming() {
@@ -550,7 +513,6 @@ mod tests {
                 path: req.path,
                 stream: s,
             };
-            // Simulate a quit/eviction: drop the waiter WITHOUT notifying.
             drop(waiter);
         });
 

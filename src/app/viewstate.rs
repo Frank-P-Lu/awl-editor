@@ -1,22 +1,11 @@
-//! Build and publish render snapshots, including IME-candidate anchoring.
-
 use super::*;
 mod scroll;
 
 impl App {
-    /// Build the render snapshot from the current buffer + scroll + zoom +
-    /// selection and push it into the pipeline. When `follow` is true (cursor
-    /// moved / text edited), the scroll is clamped so the cursor stays on
-    /// screen; when false (free wheel scroll), the scroll is left untouched so
-    /// the viewport moves independently of the cursor.
     pub(super) fn sync_view(&mut self, follow: bool) {
         if self.gpu.is_none() {
             return;
         }
-        // Any real view sync applies `self.zoom`, so it also consumes a queued
-        // zoom reflow. Usually RedrawRequested took the gate immediately before
-        // calling us; this second clear covers an unrelated input that needs a
-        // sync before that redraw arrives.
         self.zoom_reflow.clear();
         let height = self.gpu.as_ref().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
@@ -114,18 +103,7 @@ impl App {
         // into a DIFFERENT text, so arrowing the rows must never scroll-chase it.
         let follow = follow && preview.is_none();
 
-        // Did this sync follow a text EDIT? A bumped buffer version since the last
-        // sync means the cursor moved because of typing/delete/paste/newline (vs.
-        // pure navigation), so the caret slides as a plain block with no underline
-        // however far it jumped (Enter, a wide glyph, a paste). Captured once per
-        // sync so the re-push below reuses the same value.
         let version = self.active.buffer.version();
-        // A delete-word edit DID bump the version, but its caret should still
-        // streak like the equivalent navigation move (M-b): the removed word
-        // collapses while the caret glides left across the gap, as ONE concurrent
-        // motion. So when `caret_edit_streaks` was set for this sync, treat the
-        // move as navigation (not an edit) for the underline-suppression test only.
-        // One-shot: reset it so the next sync goes back to the default.
         let streak_override = std::mem::take(&mut self.caret_edit_streaks);
         let is_edit_move = version != self.active.extra.caret_synced_version && !streak_override;
         self.active.extra.caret_synced_version = version;
@@ -134,11 +112,6 @@ impl App {
         // non-keyboard sync (IME/wheel) doesn't inherit a stale held flag.
         let held = std::mem::take(&mut self.caret_held);
 
-        // FORMAT POPOVER: recompute the lit/label model from the LIVE selection
-        // each sync (so it reflects a format apply the instant it lands), gated on
-        // the mouse-summoned flag + the config toggle + an actual selection + no
-        // modal surface (overlay / search) owning the screen. A pure fn of the
-        // buffer state (`actions::popover::plan`); `None` parks every popover quad.
         let popover = if self.popover_open
             && crate::popover::popover_on()
             && self.overlay.is_none()
@@ -155,10 +128,6 @@ impl App {
             None
         };
 
-        // Map the active isearch state (if any) into render-facing fields: each
-        // match CHAR range -> ((l,c),(l,c)) so highlight quads reuse the
-        // selection-rect geometry; the current match is shown only by the real
-        // amber caret (already moved onto it by handle_search_key).
         let (
             search_matches,
             search_current,
@@ -189,11 +158,6 @@ impl App {
             crate::spell::visible(&self.active.extra.spell_cache, &text)
         };
 
-        // Build the snapshot once and push it so the pipeline shapes the CURRENT
-        // text/zoom. The scroll offset is counted in VISUAL ROWS; row geometry
-        // (and thus the cursor's visual row + the document's total rows) does not
-        // depend on the scroll value, so we can read those AFTER this first push
-        // and only need to re-push if cursor-follow moves the scroll.
         let mut view = ViewState {
             text,
             cursor_line,
@@ -209,9 +173,6 @@ impl App {
             misspelled,
             is_edit_move,
             held,
-            // DRAG-BAR: while a live text-selection drag is in progress the caret
-            // melts to the thin insertion bar (see `ViewState::selecting_drag`),
-            // returning to the configured look on release.
             selecting_drag: self.dragging,
             search_matches,
             search_current,
@@ -228,10 +189,6 @@ impl App {
             // straight through — read verbatim every frame, so a live theme-preview
             // crossing never recomputes it and the open card holds its placement.
             overlay_align: self.overlay.as_ref().map(|o| o.align),
-            // CRISP-BACKDROP exception: the THEME / CARET-STYLE / HISTORY pickers keep
-            // the doc crisp behind them (live theme colours / caret preview / the
-            // history version preview — the document IS the preview); every other
-            // full overlay gets the frosted-blur backdrop.
             overlay_crisp: self
                 .overlay
                 .as_ref()
@@ -249,9 +206,6 @@ impl App {
                 .as_ref()
                 .map(|o| o.query.text().to_string())
                 .unwrap_or_default(),
-            // ITEM 10 — TEXTBOX MODEL: the picker query's CHAR-index caret, so the
-            // render path can place a mid-string caret (glyph-scan) instead of always
-            // pinning it to the query's end.
             overlay_query_caret: self.overlay.as_ref().map(|o| o.query.caret()).unwrap_or(0),
             overlay_title: self
                 .overlay
@@ -259,8 +213,6 @@ impl App {
                 .filter(|o| o.kind.draws_title_prefix())
                 .map(|o| o.kind.title())
                 .unwrap_or(""),
-            // ITEM 66: the open overlay's path/URL-figure/ground gate (`false`, inert,
-            // when no overlay is open).
             overlay_row_path_splits: self
                 .overlay
                 .as_ref()
@@ -279,9 +231,6 @@ impl App {
                 .as_ref()
                 .map(|o| o.item_bindings())
                 .unwrap_or_default(),
-            // ITEM 94: the per-row rail fraction (empty unless a visible row is a
-            // range row) — derived through the range spec from each row's own
-            // quantized step, so the thumb and the number beside it are one truth.
             overlay_ranges: self
                 .overlay
                 .as_ref()
@@ -308,8 +257,6 @@ impl App {
                 .as_ref()
                 .map(|o| o.foot_hint())
                 .unwrap_or_default(),
-            // FACETED PICKERS (theme / go-to / browse): the lens strip + per-row
-            // section labels (empty for every non-faceting kind, which renders flat).
             overlay_lens: self
                 .overlay
                 .as_ref()
@@ -320,29 +267,14 @@ impl App {
                 .as_ref()
                 .map(|o| o.item_sections())
                 .unwrap_or_default(),
-            // CARET-STYLE PICKER preview: while that picker is open, the look its
-            // highlighted row selects (drives the live animated preview box). `None`
-            // for every other state, so the preview loop runs ONLY while it is open.
             caret_preview: self
                 .overlay
                 .as_ref()
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
                 .and_then(|o| o.selected_caret_mode()),
-            // PAGE-MODE GUTTER: the buffer's display name (saved file name, or the
-            // derived scratch/slug name for an unsaved note) over the project name.
-            // (While the History picker's diff preview is up, the card itself names
-            // the compared version — the gutter keeps its ordinary identity.)
             gutter_name: self.active.buffer.display_name(),
             gutter_project: self.project.name.clone(),
-            // MARKDOWN STYLING gate: a buffer is "markdown" only once it has a
-            // `.md`/`.markdown` path. An unnamed scratch / `.rs` / `.txt` buffer is
-            // left untouched (no markup dimming of `#` comments etc.).
             is_markdown: self.active.buffer.is_markdown(),
-            // INLINE IMAGES: the directory a relative `![alt](img.png)` path
-            // resolves against — the open document's own parent dir (`Buffer::path`,
-            // the sole authoritative path — item 56). `None` for a no-path
-            // scratch/note buffer (a relative image path then resolves against
-            // the process cwd).
             doc_dir: self
                 .active
                 .buffer
@@ -350,39 +282,18 @@ impl App {
                 .and_then(|p| p.parent())
                 .map(|d| d.to_path_buf()),
             syn_lang: self.active.buffer.syntax_lang(),
-            // SPELL contextual panel: when the open overlay is the spell picker, its
-            // target word span turns the overlay into a small floating panel anchored
-            // at the word (no blur). `None` for every other overlay / no overlay.
             overlay_spell: self
                 .overlay
                 .as_ref()
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
-            // CALM NOTICE (live-only: today the autosave clobber guard). Empty
-            // draws nothing — parked off-screen, like the empty word count.
             notice: self.notice.clone().unwrap_or_default(),
-            // i18n: the Han-ambiguity tiebreak ladder, from the loaded config
-            // (or the built-in default when absent/all-unrecognized).
             cjk_priority: self.config.cjk_priority_or_default(),
-            // LINE ENDINGS: the active buffer's on-disk ending, for the held stats
-            // HUD's LINE ENDINGS row (a pure buffer fact, not re-derivable from text).
             eol: self.active.buffer.eol(),
-            // FORMAT POPOVER: the mouse-summoned format toolbar's model (computed
-            // above), or `None` when down.
             popover,
-            // DIFF-AS-PREVIEW: dress the page column as a CARD (border + elevation
-            // + clipped content) while the History picker's diff preview is up;
-            // the panel border strengthens one value step when Tab moved the
-            // focus into it.
             diff_panel: preview.is_some(),
             diff_panel_focus: self.overlay.as_ref().map(|o| o.diff_focus).unwrap_or(false),
-            // FOLDS: filled just below (with the buffer's fold set), after which the
-            // hidden lines are dropped from `text` + coordinates remapped. Kept as
-            // the conscious render decision this exhaustive site forces.
             folds: Vec::new(),
-            // COLLAPSED-HEADING TAILS: filled just below by `apply_to_view` from the
-            // buffer's fold set (the "… N lines" glyph rides each folded heading's own
-            // row). Empty here / when nothing is folded.
             fold_tails: Vec::new(),
         };
         // HISTORY PREVIEW geometry safety: the pushed text is a DIFFERENT (possibly
@@ -442,11 +353,6 @@ impl App {
             gpu.pipeline.set_view(&view);
         }
 
-        // Cursor-follow keeps the visual row visible, or centered in typewriter mode;
-        // while typewriter is off the minimal-adjust behavior is kept exactly
-        // (only nudge the scroll enough to reveal the row). For a non-wrapped doc the
-        // cursor's visual row == its logical line, so the off path is identical to the
-        // previous logical-line cursor-follow.
         let prev_scroll = self.active.extra.scroll;
         if let Some(anchor) = self.zoom_anchor.take() {
             // ZOOM ANCHOR wins this sync: this `set_view` just reshaped to the newly
@@ -465,8 +371,6 @@ impl App {
                 pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
             self.active.extra.scroll =
                 match follow_scroll_strategy(crate::typewriter::typewriter_on(), self.dragging) {
-                    // Variable-row-height aware: scroll minimally so the cursor's row
-                    // (taller on a heading) is fully visible, summing real row heights.
                     FollowScroll::ShowRow => pipeline.scroll_to_show_row_pos(
                         cursor_row,
                         self.active.extra.scroll,
@@ -475,19 +379,11 @@ impl App {
                     FollowScroll::CenterRow => {
                         pipeline.scroll_to_center_row_pos(cursor_row, height)
                     }
-                    // A primary-button press is live: defer the recenter (leave the
-                    // scroll exactly where it is) rather than move the view under a
-                    // stationary pointer — see `follow_scroll_strategy`.
                     FollowScroll::Deferred => self.active.extra.scroll,
                 };
         }
-        // Always keep scroll within document bounds (pixel-accurate "does it fit").
         let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);
         match diff_scroll {
-            // DIFF-AS-PREVIEW: clamp the OVERLAY's diff scroll against the shaped
-            // transcript and write the clamp back (state stays honest for the
-            // sidecar + the next key). `self.active.extra.scroll_lines` is untouched — the
-            // document's own viewport survives the whole preview.
             Some(ds) => {
                 let clamped = ds.min(max);
                 if let Some(ov) = self.overlay.as_mut() {
@@ -503,12 +399,8 @@ impl App {
                 debug_assert!(self.active.extra.scroll.px_q >= 0);
             }
         }
-        // Keep the OS candidate window anchored to the (advance-aware) caret.
         self.update_ime_cursor_area();
 
-        // Apply the one-shot caret IMPULSE queued by `apply` for this sync (edit
-        // flinch / blocked-action recoil), AFTER the spring target is set above so it
-        // rides on top and self-settles back to rest.
         self.apply_caret_impulses();
 
         // LIFETIME STATS: accumulate the caret's DOCUMENT-space travel now that the
@@ -530,15 +422,9 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.streaks_sync_card();
 
-        // NOTES VERBS round: push the SAVED stat's live state (dirty, or clean +
-        // elapsed seconds since the last successful write) — live-only, mirroring
-        // `stats_sync_hud` exactly.
         #[cfg(not(target_arch = "wasm32"))]
         self.sync_hud_saved();
 
-        // CHECK FOR UPDATES round: push the About card's "checked … ago" figure
-        // (the LOCAL marker's elapsed time) — live-only, mirroring
-        // `sync_hud_saved` exactly.
         #[cfg(not(target_arch = "wasm32"))]
         self.sync_update_checked();
 
@@ -611,10 +497,6 @@ impl App {
         Some(transcript)
     }
 
-    /// Map the active isearch state (if any) into the render-facing snapshot fields:
-    /// each match CHAR range -> ((l,c),(l,c)) so highlight quads reuse the
-    /// selection-rect geometry; the current match is shown only by the real amber
-    /// caret (already moved onto it by `handle_search_key`). `None` search -> empty.
     #[allow(clippy::type_complexity)]
     fn search_view_fields(
         &self,
@@ -650,8 +532,6 @@ impl App {
                 st.is_replace_active(),
                 st.replacement().to_string(),
                 st.is_editing_replacement(),
-                // ITEM 10 — the two fields' CHAR-index carets, so the panel can
-                // place a mid-string caret (glyph-scan) instead of always the end.
                 st.query_caret(),
                 st.replacement_caret(),
             )
@@ -671,17 +551,7 @@ impl App {
         }
     }
 
-    /// Apply the one-shot caret IMPULSE `apply` queued for this sync — the edit
-    /// FLINCH (a successful typed char / delete / kill-line / Enter / copy) OR the
-    /// blocked-action RECOIL — fired in EVERY caret look AFTER `sync_view` set the
-    /// spring target, so it rides on top and the spring self-settles it back to
-    /// rest. One-shot: cleared on consume. The caller already requested a redraw;
-    /// the breathe loop plays it out.
     fn apply_caret_impulses(&mut self) {
-        // Edit FLINCH: a SUCCESSFUL typed char / delete / kill-line / Enter / copy
-        // flinches the visual caret (squash-pop + back-kick / inward squash / gulp /
-        // landing / a gentle copy pulse — the last one ALSO brightens the selection
-        // quad's own tint via the same `TextPipeline::copy_pulse` call).
         if let Some(imp) = self.caret_impact.take()
             && let Some(gpu) = self.gpu.as_mut()
         {
@@ -702,9 +572,6 @@ impl App {
         }
     }
 
-    /// Tell winit where the composition caret is (in physical pixels) so the
-    /// platform IME floats its candidate list by the caret. Reads the pipeline's
-    /// real caret rect (which already accounts for any active preedit end).
     pub(super) fn update_ime_cursor_area(&self) {
         let Some(gpu) = self.gpu.as_ref() else {
             return;
@@ -737,10 +604,7 @@ impl App {
 /// `dragging` flips back to `false`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum FollowScroll {
-    /// Typewriter scroll off: nudge minimally so the cursor's row stays visible
-    /// (the byte-identical default cursor-follow).
     ShowRow,
-    /// Typewriter scroll wants the caret row centered — the pin, applied normally.
     CenterRow,
     /// Centering would apply, but a primary-button press is live right now: defer
     /// it — leave the scroll exactly where it is. The view must never move under a
@@ -764,8 +628,6 @@ mod follow_scroll_tests {
 
     #[test]
     fn typewriter_off_always_shows_row_regardless_of_dragging() {
-        // Centering door closed: the drag/press state can't matter — always the
-        // minimal-adjust cursor-follow (byte-identical default).
         assert_eq!(follow_scroll_strategy(false, false), FollowScroll::ShowRow);
         assert_eq!(follow_scroll_strategy(false, true), FollowScroll::ShowRow);
     }

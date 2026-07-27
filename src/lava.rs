@@ -931,13 +931,8 @@ unsafe impl bytemuck_lite::Pod for Globals {}
 mod tests {
     use super::*;
 
-    // --- The pure metaball FIELD ------------------------------------------------
-
     #[test]
     fn field_is_strongest_at_a_blob_center_and_decays_with_distance() {
-        // ONE blob at UV (0.5, 0.5), r=0.1 of height, weight 1.0, phase 0 (no
-        // animation offset for a single blob at index 0 with amp*sin(0)=0... amp_y
-        // adds sin(0)=0, so index-0 center is exactly its base at phase 0).
         let blobs = [[0.5f32, 0.5, 0.1, 1.0]];
         let vp = (1000.0, 800.0);
         let center = animated_center(0, 0.5, 0.5, 0.1, vp, 0.0);
@@ -959,8 +954,6 @@ mod tests {
 
     #[test]
     fn two_near_blobs_sum_higher_than_one_between_them() {
-        // The metaball "merge": the field between two nearby blobs exceeds either
-        // blob's own field there (why they neck + split).
         let one = [[0.40f32, 0.5, 0.1, 1.0]];
         let two = [[0.40f32, 0.5, 0.1, 1.0], [0.46, 0.5, 0.1, 1.0]];
         let vp = (1000.0, 800.0);
@@ -975,8 +968,6 @@ mod tests {
 
     #[test]
     fn animation_moves_a_blob_between_distinct_phases_but_is_bounded() {
-        // A blob at a non-zero index actually bobs across phases, and stays within
-        // its authored amplitude (never wandering into the column).
         let base_cy = 0.5;
         let vp = (1000.0, 800.0);
         let a = animated_center(2, 0.05, base_cy, 0.05, vp, 0.0);
@@ -991,13 +982,9 @@ mod tests {
         }
     }
 
-    // --- ONE viewport-space backdrop, page-width invariant --------------------
-
     #[test]
     fn backdrop_layout_has_no_page_geometry_input() {
         let vp = (1200.0, 800.0);
-        // BACKDROP_BLOBS has no column argument at all: page geometry can only
-        // reach `column_mask`, never the underlying centers/radii/field.
         assert_eq!(BACKDROP_BLOBS.len(), MAX_BLOBS);
         for b in BACKDROP_BLOBS {
             assert!((0.0..=1.0).contains(&b[0]));
@@ -1021,8 +1008,6 @@ mod tests {
         );
         assert!(column_mask(px.0, 300.0, 900.0, MARGIN_GAP_PX) > 0.0);
         assert_eq!(column_mask(px.0, 200.0, 1000.0, MARGIN_GAP_PX), 0.0);
-        // The raw field is deliberately not recomputed from either column: the
-        // wider page hides this pixel; the narrower page reveals the SAME value.
         assert_eq!(field, metaball_field(px, vp, &BACKDROP_BLOBS, 0.0));
     }
 
@@ -1036,12 +1021,9 @@ mod tests {
         assert_eq!(column_mask(px.0, 300.0, 900.0, MARGIN_GAP_PX), 0.0);
     }
 
-    // --- The MARGINS-ONLY column mask ------------------------------------------
-
     #[test]
     fn column_mask_is_zero_inside_the_column_and_full_in_the_margin() {
         let (col_left, col_right, gap) = (300.0, 900.0, 28.0);
-        // Deep inside the column: masked out entirely (transparent → page clear).
         assert_eq!(column_mask(600.0, col_left, col_right, gap), 0.0);
         assert_eq!(
             column_mask(col_left, col_left, col_right, gap),
@@ -1053,24 +1035,14 @@ mod tests {
             0.0,
             "0 AT the far edge"
         );
-        // A full gap into the left margin: full strength.
         assert!((column_mask(col_left - gap, col_left, col_right, gap) - 1.0).abs() < 1e-4);
         assert!((column_mask(col_right + gap, col_left, col_right, gap) - 1.0).abs() < 1e-4);
-        // Deep in the margin: full strength.
         assert_eq!(column_mask(20.0, col_left, col_right, gap), 1.0);
     }
 
-    /// THE OUTLINE-RAIL CARVE at the mask seam: `rail_carved = false` is the
-    /// exact identity (byte-for-byte the plain column mask — every pre-carve
-    /// frame is untouched); `rail_carved = true` zeroes the ENTIRE left margin
-    /// (the rail) while the right margin stays byte-identical to the uncarved
-    /// mask — the lamp moves over, it doesn't dim. Phase never enters the mask
-    /// (a pure function of x), so the carve is phase-independent by
-    /// construction.
     #[test]
     fn rail_carve_flattens_the_left_margin_and_keeps_the_right_byte_identical() {
         let (col_left, col_right, gap) = (300.0, 900.0, MARGIN_GAP_PX);
-        // OFF is the identity with the plain column mask, everywhere.
         for x in [
             0.0, 20.0, 150.0, 272.0, 285.0, 300.0, 600.0, 900.0, 914.0, 928.0, 1100.0,
         ] {
@@ -1080,8 +1052,6 @@ mod tests {
                 "rail off is the plain column mask at x={x}"
             );
         }
-        // ON: every pixel of the LEFT margin — including the deep margin where
-        // the uncarved mask is FULL strength — is a no-lava zone.
         for x in [0.0, 5.0, 20.0, 150.0, 271.9, 285.0, 299.0] {
             assert_eq!(
                 lava_mask(x, col_left, col_right, gap, true),
@@ -1089,11 +1059,8 @@ mod tests {
                 "the rail band holds no lava at x={x}"
             );
         }
-        // Witness the carve does real work: the uncarved mask WOULD paint there.
         assert_eq!(column_mask(150.0, col_left, col_right, gap), 1.0);
-        // The column itself stays clear (unchanged) ...
         assert_eq!(lava_mask(600.0, col_left, col_right, gap, true), 0.0);
-        // ... and the RIGHT margin (edge, feather, deep) is byte-identical.
         for x in [900.0, 910.0, 914.0, 928.0, 1000.0, 1199.0] {
             assert_eq!(
                 lava_mask(x, col_left, col_right, gap, true),
@@ -1103,28 +1070,18 @@ mod tests {
         }
     }
 
-    /// The carved distance also owns the Glow treatment's `could_glow` gate in
-    /// the shader: with the rail carved, every left-margin AND left-edge pixel
-    /// sits far below the glow bleed window (`dist_outside <= -(column width)`),
-    /// so no under-glass bleed can tint the page beside a flat rail; the right
-    /// edge's distance is byte-identical to the uncarved one.
     #[test]
     fn rail_carve_moves_the_glow_distance_off_the_left_edge() {
         let (col_left, col_right) = (300.0, 900.0);
-        // Just inside the LEFT edge (the old glow window, x a shade past
-        // col_left): carved distance is nearly the full column width away —
-        // structurally outside any bleed window.
         for x in [301.0, 330.0, 355.0] {
             let carved = rail_dist_outside(x, col_left, col_right, true);
             assert!(
                 carved < -100.0,
                 "left-edge glow is structurally unreachable when carved: x={x} dist={carved}"
             );
-            // The uncarved distance sat within a plausible bleed window there.
             let plain = rail_dist_outside(x, col_left, col_right, false);
             assert!(plain > -60.0 && plain < 0.0, "uncarved x={x} dist={plain}");
         }
-        // Just inside the RIGHT edge: identical either way (the right glow stays).
         for x in [850.0, 875.0, 899.0] {
             assert_eq!(
                 rail_dist_outside(x, col_left, col_right, true),
@@ -1134,20 +1091,10 @@ mod tests {
         }
     }
 
-    /// THE GUTTER LOCAL CORNER CARVE at the mask seam (the shader mirror,
-    /// `lava_mask_2d` / `gutter_corner_dist_outside`): a bounded bottom-left rect
-    /// is carved to zero INSIDE its bounds, while OUTSIDE (the upper-left margin
-    /// and the right margin) the lamp is byte-for-byte the un-carved mask — the
-    /// whole point, so an ordinary (gutter-only) doc keeps BOTH margins. Unlike
-    /// the outline's full carve, the left margin ABOVE the corner band is
-    /// untouched.
     #[test]
     fn gutter_corner_carve_zeroes_only_its_bounds_and_keeps_both_margins() {
         let (col_left, col_right, gap) = (300.0, 900.0, MARGIN_GAP_PX);
-        // A bottom-left corner rect: x in [0, 260], y in [820, 1000] (a bottom
-        // band a shade shy of the column, the gutter's own box).
         let rect = [0.0, 820.0, 260.0, 1000.0];
-        // `None` is the exact 1-D identity everywhere (no gutter → nothing new).
         for &(x, y) in &[
             (20.0, 900.0),
             (150.0, 400.0),
@@ -1160,8 +1107,6 @@ mod tests {
                 "gutter None is the plain column mask at ({x},{y})"
             );
         }
-        // INSIDE the corner rect (well past the feathered faces): the mask is 0,
-        // even where the un-carved left margin is FULL strength.
         for &(x, y) in &[(20.0, 970.0), (120.0, 900.0), (200.0, 860.0)] {
             assert_eq!(column_mask(x, col_left, col_right, gap), 1.0);
             assert_eq!(
@@ -1170,8 +1115,6 @@ mod tests {
                 "the gutter corner band holds no lava at ({x},{y})"
             );
         }
-        // ABOVE the band in the LEFT margin: the lamp is untouched (both margins
-        // reclaimed — the corner carve is LOCAL, not the whole margin).
         for &(x, y) in &[(20.0, 200.0), (150.0, 400.0), (120.0, 600.0)] {
             assert_eq!(
                 lava_mask_2d(x, y, col_left, col_right, gap, false, Some(rect)),
@@ -1179,7 +1122,6 @@ mod tests {
                 "the left margin above the gutter band keeps its lamp at ({x},{y})"
             );
         }
-        // The RIGHT margin, at every y, is byte-identical to the un-carved mask.
         for &(x, y) in &[(950.0, 900.0), (1000.0, 970.0), (1100.0, 500.0)] {
             assert_eq!(
                 lava_mask_2d(x, y, col_left, col_right, gap, false, Some(rect)),
@@ -1189,20 +1131,12 @@ mod tests {
         }
     }
 
-    /// The gutter corner distance is a true box "outside distance": <= 0 strictly
-    /// inside, positive just outside each face, and it feathers the carve over
-    /// `gap` px at the top/right faces (the canvas-corner left/bottom faces sit
-    /// off-screen). Mirrors `shaders/lava.wgsl`'s `rect_dist_outside`.
     #[test]
     fn gutter_corner_dist_outside_is_a_box_signed_distance() {
         let rect = [0.0, 820.0, 260.0, 1000.0];
-        // Deep interior: negative.
         assert!(gutter_corner_dist_outside(120.0, 900.0, rect) < 0.0);
-        // Just outside the RIGHT face by 10px → +10 (top-face term is negative).
         assert!((gutter_corner_dist_outside(270.0, 900.0, rect) - 10.0).abs() < 1e-4);
-        // Just outside the TOP face by 20px → +20 (right-face term is negative).
         assert!((gutter_corner_dist_outside(120.0, 800.0, rect) - 20.0).abs() < 1e-4);
-        // A full gap past the top face → the mask has ramped to full lamp.
         let (col_left, col_right, gap) = (300.0, 900.0, MARGIN_GAP_PX);
         let above = 820.0 - gap - 1.0;
         assert!(
@@ -1233,15 +1167,12 @@ mod tests {
         );
     }
 
-    // --- The CADENCE gate -------------------------------------------------------
-
     #[test]
     fn lava_ticks_only_when_active_ambient_on_not_reduced_and_focused() {
         assert!(
             lava_should_tick(true, true, false, true, false),
             "all conditions met → tick"
         );
-        // Each single negation kills the tick (0% idle preserved).
         assert!(
             !lava_should_tick(false, true, false, true, false),
             "non-lava world never ticks"
@@ -1266,9 +1197,6 @@ mod tests {
 
     #[test]
     fn any_transient_live_interaction_pauses_the_lamp() {
-        // The OR-composition the live App feeds `lava_should_tick`'s `paused`
-        // term (previously inline in `about_to_wait`, untested in isolation):
-        // each transient interaction alone must hold the lamp.
         assert!(
             !lava_paused(false, false, false),
             "truly idle: the lamp may drift"
@@ -1285,7 +1213,6 @@ mod tests {
             lava_paused(false, false, true),
             "a blur-eligible overlay (frost) holds it"
         );
-        // And composed pauses (a corner drag streams resize AND move) hold too.
         assert!(lava_paused(true, true, false));
     }
 
@@ -1319,24 +1246,16 @@ mod tests {
         assert!(!dither_for_blur(false, true), "blur never invents dither");
     }
 
-    // --- Phase resolution / determinism ----------------------------------------
-
     #[test]
     fn env_override_wins_then_reduced_freeze_then_stored() {
-        // Env override wins outright (the gallery knob), regardless of reduced.
         assert_eq!(lava_phase_for(0.7, false, Some(0.35)), 0.35);
         assert_eq!(lava_phase_for(0.7, true, Some(0.35)), 0.35);
-        // No env, reduced → frozen (the accessibility freeze).
         assert_eq!(lava_phase_for(0.7, true, None), LAVA_FROZEN_PHASE);
-        // No env, not reduced → the App-driven stored phase.
         assert_eq!(lava_phase_for(0.7, false, None), 0.7);
     }
 
     #[test]
     fn capture_default_phase_is_frozen_t0() {
-        // A headless capture never ticks (stored stays the construction default
-        // 0.0) and never sets reduced() and never sets the env knob, so the
-        // resolved phase is the fixed t=0 — deterministic across machines.
         assert_eq!(lava_phase_for(LAVA_FROZEN_PHASE, false, None), 0.0);
         assert_eq!(LAVA_FROZEN_PHASE, 0.0);
     }
@@ -1348,13 +1267,11 @@ mod tests {
             p > 0.0 && p < LAVA_LOOP_CYCLES,
             "one second advances within a cycle: {p}"
         );
-        // Wrapping: a phase already near the two-cycle endpoint wraps cleanly.
         let w = advance_phase(1.999, 1.0);
         assert!(
             (0.0..LAVA_LOOP_CYCLES).contains(&w),
             "wrapped into the two-cycle interval: {w}"
         );
-        // Monotone within a cycle.
         assert!(advance_phase(0.1, 0.5) > 0.1);
     }
 
@@ -1371,15 +1288,11 @@ mod tests {
                 );
             }
         }
-        // One cycle is deliberately NOT the full loop: horizontal sway is at
-        // half-frequency, so at least one blob must still be elsewhere there.
         let b = BACKDROP_BLOBS[1];
         let at_zero = animated_center(1, b[0], b[1], b[2], vp, 0.0);
         let at_one = animated_center(1, b[0], b[1], b[2], vp, 1.0);
         assert!((at_zero.0 - at_one.0).abs() > 1e-4);
 
-        // Centers are the field's only phase-varying input, but prove the
-        // composed metaball result too so the law names the visible outcome.
         for px in [
             (24.0, 40.0),
             (160.0, 400.0),
@@ -1410,8 +1323,6 @@ mod tests {
         assert!((ordinary - 0.4 - LAVA_TICK_SECONDS * LAVA_SPEED).abs() < 1e-6);
     }
 
-    // --- The dev gallery knob ---------------------------------------------------
-
     #[test]
     fn parse_spec_reads_palette_phase_edge_and_dither() {
         let (bg, phase) = parse_spec("deepsea:0.35:glow:dither").unwrap();
@@ -1423,7 +1334,6 @@ mod tests {
             }
             _ => panic!("expected a Lava background"),
         }
-        // Defaults: no edge/dither tokens → glow, undithered.
         let (bg2, _) = parse_spec("warm:0.0").unwrap();
         match bg2 {
             Background::Lava { edge, dithered, .. } => {
@@ -1432,7 +1342,6 @@ mod tests {
             }
             _ => panic!("expected a Lava background"),
         }
-        // Hard edge.
         let (bg3, _) = parse_spec("warm:0.5:hard").unwrap();
         assert!(matches!(
             bg3,
@@ -1441,27 +1350,20 @@ mod tests {
                 ..
             }
         ));
-        // Garbage → None (leniently ignored; no lava forced).
         assert!(parse_spec("nope:0.0").is_none());
         assert!(parse_spec("warm:notanumber").is_none());
         assert!(parse_spec("warm:0.0:bogus").is_none());
     }
 
-    // --- FROST pill mirror (the shader-mirror laws, `shaders/lava.wgsl`) --------
-
-    /// FROST is the shipped headed-doc default, active unless the dev knob is off.
     #[test]
     fn frost_is_the_shipped_default() {
         assert!(
             std::hint::black_box(FROST_RAIL_DEFAULT),
             "the user's pick — frost ships"
         );
-        // No `AWL_LAVA_FROST` set in the test env → frost is on.
         assert!(frost_on(), "frost is on by default (no gallery knob)");
     }
 
-    /// THE FROST DPI LAW: a 2× surface must receive 2× physical blur taps,
-    /// feather, and pill padding at the same zoom, preserving the 1× logical feel.
     #[test]
     fn frost_dimensions_scale_with_zoom_and_device_dpi() {
         for zoom in [0.8_f32, 1.0, 1.25] {
@@ -1477,10 +1379,6 @@ mod tests {
         }
     }
 
-    /// THE FROST BLUR: [`frost_field`] averages the SMOOTH field over a 3×3 tap
-    /// cross, so a blob center softens (peak drops below the raw peak) while a
-    /// point on bare ground stays ~0 — a genuine blur of the field, never the
-    /// dither.
     #[test]
     fn frost_field_softens_the_smooth_field() {
         let blobs = [[0.5f32, 0.5, 0.1, 1.0]];
@@ -1493,19 +1391,13 @@ mod tests {
             soft > 0.0 && soft < raw,
             "blurred peak sits below the raw peak: {soft} < {raw}"
         );
-        // Far from any blob: the blurred field is still negligible (no invented light).
         let far = frost_field((cpx.0 + 400.0, cpx.1), vp, &blobs, 0.0, FROST_BLUR_PX);
         assert!(far < 0.01, "bare ground stays dark under the blur: {far}");
     }
 
-    /// THE SEED HALO BUMP: [`frost_seed_bump`] is 1 on the ink run, decays
-    /// smoothly to 0 by a radius, and is symmetric about the run — the soft halo
-    /// each glyph seeds.
     #[test]
     fn frost_seed_bump_is_one_on_the_ink_and_decays_to_zero_by_a_radius() {
-        // A run [100, 300] at yc=230, radius 40.
         let seed = [100.0f32, 300.0, 230.0, 40.0];
-        // On the run, at the row centre → full core bump.
         assert!(
             (frost_seed_bump(200.0, 230.0, seed) - 1.0).abs() < 1e-6,
             "1 on the ink"
@@ -1514,7 +1406,6 @@ mod tests {
             (frost_seed_bump(100.0, 230.0, seed) - 1.0).abs() < 1e-6,
             "1 at the run's left end"
         );
-        // Past a radius beyond the end / above the row → 0 (compact support).
         assert_eq!(
             frost_seed_bump(300.0 + 41.0, 230.0, seed),
             0.0,
@@ -1525,7 +1416,6 @@ mod tests {
             0.0,
             "0 past a radius up"
         );
-        // Monotone decay stepping out past the right end.
         let mut prev = 1.0;
         for k in 0..=42 {
             let x = 300.0 + k as f32;
@@ -1536,7 +1426,6 @@ mod tests {
             );
             prev = b;
         }
-        // Vertically symmetric about the row centre.
         assert!(
             (frost_seed_bump(200.0, 230.0 - 20.0, seed)
                 - frost_seed_bump(200.0, 230.0 + 20.0, seed))
@@ -1546,22 +1435,14 @@ mod tests {
         );
     }
 
-    /// THE ORGANIC MERGE: two seeds spaced within reach SUM above [`FROST_ISO`] in
-    /// the GAP between them (one island), while the same seeds pushed far apart
-    /// leave the gap below iso (two islands) — the metaball neck, with NO union/max
-    /// and NO per-row rule. The transition is purely the continuous summed field.
     #[test]
     fn frost_coverage_merges_nearby_seeds_and_splits_far_ones() {
         let r = 40.0f32;
-        // Two point-seeds (x0==x1) on the same row, 50px apart (< 2r) → the
-        // midpoint's summed field clears iso: ONE island.
         let near = [[100.0f32, 100.0, 200.0, r], [150.0, 150.0, 200.0, r]];
         assert!(
             frost_coverage(125.0, 200.0, &near) > 0.5,
             "nearby seeds bridge into one island"
         );
-        // The same seeds 140px apart (> 2r + skirt) → the midpoint falls below iso:
-        // TWO islands, yet each seed's own core still frosts.
         let far = [[100.0f32, 100.0, 200.0, r], [240.0, 240.0, 200.0, r]];
         assert!(
             frost_coverage(170.0, 200.0, &far) < 0.5,
@@ -1571,8 +1452,6 @@ mod tests {
             frost_coverage(100.0, 200.0, &far) > 0.5,
             "each far seed still frosts its own core"
         );
-        // MERGE IN ANY DIRECTION: two seeds stacked vertically within reach also
-        // bridge (no per-row separation).
         let stacked = [[100.0f32, 200.0, 200.0, r], [100.0, 200.0, 250.0, r]];
         assert!(
             frost_coverage(150.0, 225.0, &stacked) > 0.5,
@@ -1580,9 +1459,6 @@ mod tests {
         );
     }
 
-    /// FROST GATING: [`frost_coverage`] frosts a pixel over a seed's ink, stays
-    /// live far from every seed, and an EMPTY seed list is a total no-op (0
-    /// everywhere) — the inert path a non-frost frame uploads.
     #[test]
     fn frost_coverage_frosts_the_ink_and_empty_is_inert() {
         let a = [10.0f32, 40.0, 20.0, 40.0];
@@ -1600,7 +1476,6 @@ mod tests {
             0.0,
             "far from every seed the lamp is live"
         );
-        // No seeds → inert everywhere (the non-frost frame).
         assert_eq!(
             frost_coverage(25.0, 20.0, &[]),
             0.0,
@@ -1608,10 +1483,6 @@ mod tests {
         );
     }
 
-    /// THE FROST PIXEL: below the field threshold it is EXACTLY the flat ground
-    /// (the pill is pure ground where no blob reaches); with a blob present it
-    /// dims toward the ground and never brightens past the phase-free worst bound
-    /// `mix(blob_hi, ground, dim)` — the value the contrast law leans on.
     #[test]
     fn frost_pixel_dims_toward_ground_and_stays_bounded() {
         let ground = Srgb {
@@ -1632,17 +1503,14 @@ mod tests {
             b: 0x2c,
             a: 0xff,
         };
-        // Field below the edge band → pure ground.
         let dark = frost_pixel(0.0, ground, lo, hi, FROST_DIM);
         assert_eq!(
             (dark.r, dark.g, dark.b),
             (ground.r, ground.g, ground.b),
             "no blob → flat ground"
         );
-        // A saturated field → the brightest the pill reaches, dimmed toward ground.
         let bright = frost_pixel(1.0, ground, lo, hi, FROST_DIM);
         let lerp = |a: u8, b: u8, t: f32| (a as f32 + (b as f32 - a as f32) * t).round() as i32;
-        // The worst bound: mix(blob_hi, ground, dim), per channel.
         let bound = (
             lerp(hi.r, ground.r, FROST_DIM),
             lerp(hi.g, ground.g, FROST_DIM),
@@ -1653,16 +1521,9 @@ mod tests {
             bound,
             "saturated frost == the worst bound"
         );
-        // And the worst bound is genuinely dimmer than the raw blob_hi (the dim works).
         assert!(
             (bright.r as i32) < hi.r as i32,
             "the value dim pulls the pill back toward ground"
         );
     }
-
-    // The theme-preview CROSSING classification (and its no-wildcard roster law)
-    // was RETIRED 2026-07-18 — the bracket now arms unconditionally on every
-    // preview step, so there is no per-pair decision left to pin. The behaviour it
-    // used to gate is now verified at the App state machine: see
-    // `crate::app::tests::every_preview_step_brackets_and_teardown_waits_for_the_reshape_present`.
 }

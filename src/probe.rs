@@ -633,17 +633,9 @@ mod tests {
         }
     }
 
-    // The window constants are native-only (the probe drives a real NSWindow);
-    // the wasm test target must not reference them.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn probe_window_is_smaller_than_the_center_stage_default() {
-        // The "small + cornered" contract: the probe window must be strictly
-        // smaller than the 1200x800 default the normal editor opens at (so it
-        // never reads as the main window), yet comfortably above any degenerate
-        // floor (it still has to render a real page + the theme picker for the
-        // vanish repro to mean anything). Pure over the constants, so a future
-        // resize can't silently make the probe window center-stage again.
         assert!(
             std::hint::black_box(PROBE_LOGICAL_W) < 1200.0 && PROBE_LOGICAL_H < 800.0,
             "probe window {PROBE_LOGICAL_W}x{PROBE_LOGICAL_H} must be smaller than the 1200x800 default"
@@ -654,11 +646,6 @@ mod tests {
         );
     }
 
-    /// THE FLIGHT RECORDER LAW: arming (env-free, via `arm_flight`) flips
-    /// `flight_active`/`recording`, and a `trace` line lands in the file with the
-    /// `+<ms>` stamp — the black box the user enables for the live vanish repro.
-    /// Global-state + fs, so it takes the process-wide `serial()` guard and disarms
-    /// on the way out (the flag must not leak into a sibling test's `recording()`).
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn flight_recorder_arms_and_appends_a_stamped_line() {
@@ -691,7 +678,6 @@ mod tests {
                 .all(|l| l.starts_with("+") && l.contains("ms ")),
             "every line carries the +<ms> stamp:\n{body}"
         );
-        // Disarm + clean up so the process global never leaks past this test.
         FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut s) = FLIGHT_SINK.lock() {
             *s = None;
@@ -728,18 +714,10 @@ mod tests {
         assert_eq!(steps.last(), Some(&Step::Quit), "still terminates");
     }
 
-    /// ITEM 85 — the MOVEMENT-LATENCY pairing: `mark_movement_input` arms the clock,
-    /// `note_presented_frame` closes it out against a "presented" frame and records
-    /// the sample, and `latency_distribution` reports it. Global state (like the
-    /// flight recorder above), so this takes `serial()` and disarms everything on
-    /// the way out. Native-only, same as the flight-recorder law test above: every
-    /// symbol under test (`LATENCY_PENDING`, `arm_flight`, `recording`, …) is itself
-    /// `#[cfg(not(target_arch = "wasm32"))]`.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
         let _g = crate::testlock::serial();
-        // Clean slate: a sibling test's leftover mark/sample must never leak in.
         if let Ok(mut p) = LATENCY_PENDING.lock() {
             *p = None;
         }
@@ -756,8 +734,6 @@ mod tests {
             "the flight recorder alone is enough to arm `recording()`"
         );
 
-        // A `note` with nothing pending is a harmless no-op (an ordinary frame,
-        // unrelated to any picker movement).
         note_presented_frame();
         assert!(latency_distribution().is_none(), "nothing sampled yet");
 
@@ -788,15 +764,12 @@ mod tests {
             "the sample traced into the black box:\n{body}"
         );
 
-        // A SECOND `note` with nothing pending (already closed out above) must not
-        // fabricate a phantom sample.
         note_presented_frame();
         assert!(
             latency_distribution().unwrap().starts_with("n=1"),
             "a no-op note must not add a sample"
         );
 
-        // Disarm everything so no global leaks into a sibling test.
         FLIGHT_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
         if let Ok(mut s) = FLIGHT_SINK.lock() {
             *s = None;
@@ -811,9 +784,6 @@ mod tests {
         assert!(!recording(), "disarmed again — no leak into sibling tests");
     }
 
-    /// Outside recording (no probe, no flight recorder) both doors are cheap no-ops
-    /// — a plain launch must never even arm the clock. Native-only: same reason as
-    /// the pairing test above — the symbols under test don't exist on wasm.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn movement_latency_is_a_no_op_outside_recording() {

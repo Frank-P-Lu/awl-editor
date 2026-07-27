@@ -1,5 +1,3 @@
-//! Window lifecycle and redraw handlers; input lives in `app/input/`.
-
 use super::*;
 
 impl App {
@@ -14,9 +12,6 @@ impl App {
         self.debug_still = crate::debug::DebugStill::Active;
     }
 
-    /// Apply the Debug-off transition if any live diagnostic has been populated.
-    /// The predicate lives beside the reset it authorizes so the frame loop and its
-    /// law share one decision: a history-only theme transaction is sufficient.
     pub(super) fn clear_debug_session_if_populated(&mut self) -> bool {
         let populated = self.input_stamp.is_some()
             || self.last_latency_ms.is_some()
@@ -195,10 +190,6 @@ impl App {
         if crate::probe::flight_active() {
             crate::probe::trace(format_args!("focus lost (ambient tick pauses)"));
         }
-        // AMBIENT LAVA TICK: the window lost focus — PAUSE the lava drift (hold the
-        // current phase, stop scheduling frames) so a backgrounded window costs 0%
-        // CPU. `about_to_wait`'s gate reads `self.focused`; clearing the stamp means
-        // a later regain re-arms fresh rather than firing a huge catch-up dt.
         self.focused = false;
         self.lava_tick_at = None;
         // ROBUST AUTOSAVE: the window lost focus (the user switched away);
@@ -207,16 +198,10 @@ impl App {
         // stash on the same trigger (locked decision: save on blur).
         self.flush_note();
         self.autosave_flush();
-        // SESSION RESTORE: persist the open-file set / active buffer /
-        // cursor+scroll / window frame on the SAME blur trigger the
-        // autosave engine uses (native only; kill-switch gated inside).
         #[cfg(not(target_arch = "wasm32"))]
         self.session_flush();
-        // LIFETIME STATS: persist the odometer on the SAME blur trigger (native
-        // only; config-gated + dirty-gated inside).
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
-        // WRITING STREAKS: sample the day-delta on the SAME blur trigger.
         #[cfg(not(target_arch = "wasm32"))]
         self.streaks_flush();
         // HOLD-⌘ SHORTCUT PEEK: the window losing focus breaks the hold — cancel a
@@ -333,11 +318,6 @@ impl App {
     /// structural guarantee) and its `Moved` events stay byte-identical to
     /// before the move machinery existed.
     pub(super) fn on_moved(&mut self, _position: winit::dpi::PhysicalPosition<i32>) {
-        // Gated on the AMBIENT capability (`Theme::has_ambient_motion` — lava
-        // OR twinkling stars, the one gate): both push the same ~10 fps async
-        // ambient presents this hold exists to keep out of the window-server's
-        // move transaction. A static world presents nothing around a move, so
-        // it takes this arm as a TOTAL no-op, byte-identical as ever.
         if crate::theme::active().has_ambient_motion() {
             #[cfg(not(target_arch = "wasm32"))]
             if crate::probe::recording() {
@@ -403,9 +383,6 @@ impl App {
                 .settle_lava_field_viewport(gpu.config.width, gpu.config.height);
         }
         self.sync_present_txn();
-        // Route through `on_redraw_requested`'s own control-flow decision
-        // instead of leaving a now-elapsed `WaitUntil` in place (which would
-        // busy-spin `about_to_wait` until the next real input).
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
         }
@@ -458,8 +435,6 @@ impl App {
             ));
         }
         self.crossing_settle_at = None;
-        // Hand off to the event-ordered teardown: hold the bracket ON until the
-        // post-reshape present completes (see `finish_crossing_teardown`).
         self.crossing_teardown_pending = true;
         self.sync_present_txn(); // no-op transition: was ON via the debounce, stays ON via the hold.
         if let Some(gpu) = self.gpu.as_ref() {
@@ -489,10 +464,6 @@ impl App {
         }
     }
 
-    /// `WindowEvent::ScaleFactorChanged`: the window moved to a monitor with a
-    /// different DPI. Refold the new scale into the metrics; a paired `Resized`
-    /// (physical size change) follows to re-wrap the column. Both keep the page
-    /// proportioned.
     pub(super) fn on_scale_factor_changed(&mut self, scale_factor: f64) {
         let sf = scale_factor as f32;
         self.dpi = sf;
@@ -528,23 +499,14 @@ impl App {
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
         }
-        // Consume a wheel/key zoom burst at the present boundary: every input
-        // already updated `self.zoom`; one sync now reflows directly to the
-        // latest requested level. Put it before the frame clock to preserve the
-        // pre-coalescing spring timing (input-side sync used to finish before
-        // RedrawRequested began) while key→px still measures through present.
         if self.zoom_reflow.take() {
             self.sync_view(true);
         }
         let now = self.clock.now();
         let dt = match self.last_frame {
             Some(prev) => (now - prev).as_secs_f32(),
-            // First animated frame: assume one 60fps tick so the very
-            // first step is sane rather than a huge dt.
             None => 1.0 / 60.0,
         };
-        // Monotonic frames-drawn count (a single add, always — so toggling
-        // debug on mid-hot-loop shows a climbing count immediately).
         self.redraw_count += 1;
         // DEBUG panel feed — the ONLY timing work, and all of it gated on
         // the panel being on (the pane never creates the work it measures;
@@ -555,17 +517,10 @@ impl App {
         // cost isn't knowable until it presents).
         let mut is_stamp = false;
         if crate::debug::debug_on() {
-            // Classify this redraw: a pending un-rendered input wins over a
-            // queued stamp; any redraw out of stillness is activity. Only a
-            // quiet StampQueued redraw IS the settle-stamp frame, which
-            // draws the still-prefixed readout.
             self.debug_still =
                 crate::debug::still_wake(self.debug_still, self.input_stamp.is_some());
             is_stamp = self.debug_still == crate::debug::DebugStill::StampQueued;
             if let Some(gpu) = self.gpu.as_mut() {
-                // ADAPTIVE budget: one vsync of the monitor this window is
-                // on (16.6 at 60 Hz, 8.3 at 120 Hz; 60 Hz fallback when
-                // winit can't name a rate).
                 let budget = crate::debug::budget_ms(
                     gpu.window
                         .current_monitor()
@@ -606,9 +561,7 @@ impl App {
                     .set_debug_theme_settle(self.theme_switches.report(self.clock.now()));
             }
         } else if self.clear_debug_session_if_populated() {
-            // Panel just turned off: forget the measurements so the next
-            // enable starts fresh (placeholders, then live numbers), and
-            // re-feed the pipeline defaults (still-form placeholders).
+            // Clear GPU diagnostics only when a live pipeline exists.
             if let Some(gpu) = self.gpu.as_mut() {
                 gpu.pipeline.set_debug_perf(None, None, None, true, None);
                 gpu.pipeline.set_debug_autosave(None);
@@ -630,9 +583,6 @@ impl App {
             // animation through the SAME entry point.
             let still = gpu.pipeline.advance(dt);
             let presented = gpu.redraw();
-            // Once the spring settles the caret is fully static (the I-beam no
-            // longer breathes) and there is nothing else animating, so the loop
-            // idles at 0% CPU until the next input requests a redraw.
             (still, presented)
         } else {
             return;
@@ -696,17 +646,10 @@ impl App {
             if let Some(gpu) = self.gpu.as_mut() {
                 gpu.pipeline
                     .set_debug_theme_settle(self.theme_switches.report(settled_at));
-                // Feed lands after this frame's prepare; one redraw draws the lines.
                 gpu.window.request_redraw();
             }
         }
 
-        // EVENT-ORDERED PREVIEW-BRACKET TEARDOWN (phase 2): a frame just presented
-        // while a teardown was pending — that frame is the reshaped one, and it
-        // landed INSIDE the present transaction. Disarm the bracket now, strictly
-        // AFTER the bracketed present, instead of racing it on a timer. Gated on an
-        // actual present (`frame_presented`) so a skipped/occluded frame keeps the
-        // bracket held until a real present carries the reshape through.
         if frame_presented && self.crossing_teardown_pending {
             self.finish_crossing_teardown();
         }
@@ -729,7 +672,6 @@ impl App {
                 gpu.window.request_redraw();
             }
         } else {
-            // Settled: stop driving frames and idle until next input.
             event_loop.set_control_flow(ControlFlow::Wait);
         }
         // DEBUG settle-stamp: the first redraw that ends SETTLED while the

@@ -20,22 +20,16 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Whether the debug panel is drawn. DEFAULT OFF: the calm room shows no debug
-/// chrome until you ask for it (palette / `C-x r` / `--debug`).
 static DEBUG_ON: AtomicBool = AtomicBool::new(false);
 
-/// True when the debug panel is enabled.
 pub fn debug_on() -> bool {
     DEBUG_ON.load(Ordering::Relaxed)
 }
 
-/// Set the panel on/off explicitly (the `--debug` flag, a config/setting write).
 pub fn set_debug_on(on: bool) {
     DEBUG_ON.store(on, Ordering::Relaxed);
 }
 
-/// Flip the panel and return the now-active state (the `C-x r` chord + palette
-/// "Toggle debug").
 pub fn toggle() -> bool {
     let next = !debug_on();
     DEBUG_ON.store(next, Ordering::Relaxed);
@@ -46,18 +40,6 @@ pub fn toggle() -> bool {
 /// rate (headless, an unknown display, wasm): one 60 Hz vsync.
 pub const FALLBACK_REFRESH_MILLIHERTZ: u32 = 60_000;
 
-/// One vsync's worth of milliseconds for the CURRENT monitor — the adaptive
-/// frame budget the sidecar's machine-readable `budget_ms` field reports
-/// (`DebugPerfReport`/`debug_json`), so the agent can triage a frame's cost
-/// against it without parsing prose. Pure: takes winit's
-/// `refresh_rate_millihertz()` (`None` → the 60 Hz fallback), so it is
-/// unit-testable without a window.
-///
-/// DROPPED FROM THE DRAWN LINE (overlay/chrome polish round): the panel's
-/// `frame …` line used to suffix `· budget 16.6` / `· over` — a second number
-/// competing with the frame cost it was meant to contextualize hurt
-/// readability more than it helped triage. The raw budget stays reachable in
-/// the sidecar for anyone who wants the comparison.
 pub fn budget_ms(refresh_millihertz: Option<u32>) -> f32 {
     1_000_000.0
         / refresh_millihertz
@@ -115,11 +97,6 @@ pub fn activity_readout(count: Option<u64>) -> String {
     }
 }
 
-/// How many drawn frames the worst-recent window covers (~2 s of continuous
-/// interaction). With sparse frames percentiles are noise and averages are
-/// lies; a rolling max is the one number that catches the keystroke that
-/// hitched. It survives stillness (no frames are pushed while idle), so the
-/// damage stays readable after the fact.
 pub const COST_WINDOW: usize = 120;
 
 /// Ring of the last [`COST_WINDOW`] drawn frames' costs (ms). Pure bookkeeping
@@ -130,9 +107,7 @@ pub const COST_WINDOW: usize = 120;
 #[derive(Debug, Clone)]
 pub struct CostRing {
     buf: [f32; COST_WINDOW],
-    /// Filled entries (saturates at [`COST_WINDOW`]).
     len: usize,
-    /// Next write slot (wraps).
     at: usize,
 }
 
@@ -147,15 +122,12 @@ impl Default for CostRing {
 }
 
 impl CostRing {
-    /// Record a completed frame's cost, evicting the oldest past the window.
     pub fn push(&mut self, cost_ms: f32) {
         self.buf[self.at] = cost_ms;
         self.at = (self.at + 1) % COST_WINDOW;
         self.len = (self.len + 1).min(COST_WINDOW);
     }
 
-    /// The most recently pushed cost (the previous completed frame), or `None`
-    /// before any frame was measured.
     pub fn last(&self) -> Option<f32> {
         if self.len == 0 {
             return None;
@@ -163,7 +135,6 @@ impl CostRing {
         Some(self.buf[(self.at + COST_WINDOW - 1) % COST_WINDOW])
     }
 
-    /// The max over the window, or `None` when empty.
     pub fn worst(&self) -> Option<f32> {
         self.buf[..self.len]
             .iter()
@@ -171,26 +142,12 @@ impl CostRing {
             .fold(None, |w, c| Some(w.map_or(c, |w: f32| w.max(c))))
     }
 
-    /// Forget everything (debug toggled off; the next enable starts fresh).
     pub fn clear(&mut self) {
         self.len = 0;
         self.at = 0;
     }
 }
 
-/// The STILLNESS state machine: how the panel earns its settled (`still ·`)
-/// form with exactly ONE extra frame and then goes fully quiet.
-///
-/// * `Active` — frames are happening anyway (input, spring, resize); the panel
-///   rides them showing the interacting form.
-/// * `StampQueued` — the app just settled (spring done, no pending input) with
-///   the panel on: exactly one more redraw was requested, and THAT frame (the
-///   stamp) draws the still-prefixed readout carrying the final true numbers.
-/// * `Still` — the stamp has been drawn; nothing runs until a real event. No
-///   clock ticks, no frames are scheduled, CPU is 0% (DESIGN §6).
-///
-/// The transitions are PURE functions (unit-testable without a window):
-/// [`still_wake`] at the top of a redraw, [`still_settle`] at its end.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DebugStill {
     Active,
@@ -198,12 +155,6 @@ pub enum DebugStill {
     Still,
 }
 
-/// The frame-TOP transition: classify the redraw that just began. A pending
-/// un-rendered input wins over a queued stamp (this frame is activity, and the
-/// settle will re-queue a fresh stamp); any redraw arriving OUT of stillness
-/// (resize, an eager spell-rescan repaint, which-key summon) is activity too — it
-/// re-enters `Active` and re-settles to a fresh stamp. Only a `StampQueued`
-/// redraw with NO pending input is the stamp frame itself.
 pub fn still_wake(state: DebugStill, pending_input: bool) -> DebugStill {
     match state {
         DebugStill::StampQueued if !pending_input => DebugStill::StampQueued,
@@ -335,9 +286,6 @@ mod tests {
 
     #[test]
     fn frame_readout_interacting_shows_cost_and_worst_only() {
-        // No budget suffix, no `over` flag — just the previous frame's cost and
-        // the rolling worst (the readability round dropped the budget line;
-        // the raw number still rides the sidecar's `budget_ms` field).
         assert_eq!(
             frame_readout(Some((1.4, 3.2)), false),
             "frame 1.4 ms · worst 3.2"
@@ -350,7 +298,6 @@ mod tests {
 
     #[test]
     fn frame_readout_still_names_the_win_state() {
-        // The settled form: prefixed `still ·`, same ink, words only.
         assert_eq!(
             frame_readout(Some((1.4, 3.2)), true),
             "still · frame 1.4 ms · worst 3.2"
@@ -359,11 +306,9 @@ mod tests {
 
     #[test]
     fn budget_adapts_to_the_monitor_refresh() {
-        // 60 Hz => one 16.6̅ ms vsync; 120 Hz => 8.3̅; unknown => the 60 Hz fallback.
         assert!((budget_ms(Some(60_000)) - 16.6667).abs() < 0.01);
         assert!((budget_ms(Some(120_000)) - 8.3333).abs() < 0.01);
         assert!((budget_ms(None) - 16.6667).abs() < 0.01);
-        // A degenerate 0 mHz report cannot divide by zero.
         assert!(budget_ms(Some(0)).is_finite());
     }
 
@@ -390,8 +335,6 @@ mod tests {
         r.push(2.0);
         assert_eq!(r.last(), Some(2.0));
         assert_eq!(r.worst(), Some(3.2));
-        // The worst survives until it falls out of the 120-frame window: the
-        // spike was push #2, so it stays while total pushes <= 121…
         for _ in 0..(COST_WINDOW - 2) {
             r.push(1.0);
         }
@@ -400,12 +343,10 @@ mod tests {
             Some(3.2),
             "at 121 total pushes the spike is still the worst"
         );
-        // …and the 122nd push slides the window past it (2.0, push #3, remains).
         r.push(1.0);
         assert_eq!(r.worst(), Some(2.0), "the spike ages out of the window");
         r.push(1.0);
         assert_eq!(r.worst(), Some(1.0), "then the 2.0 ages out too");
-        // …and clear() forgets everything for a fresh enable.
         r.clear();
         assert_eq!(r.last(), None);
         assert_eq!(r.worst(), None);
@@ -413,9 +354,6 @@ mod tests {
 
     #[test]
     fn theme_transaction_peak_survives_more_than_cost_window_cheap_frames() {
-        // Integration law: the two diagnostic windows have deliberately different
-        // owners and eviction axes. A settled theme transaction remains readable by
-        // wall time even after enough cheap redraws to roll the frame worst away.
         let t0 = crate::clock::Instant::now();
         let mut switches = crate::themeswitch::SwitchHistory::default();
         let mut phases = crate::themeswitch::SwitchPhases::default();
@@ -446,17 +384,13 @@ mod tests {
 
     #[test]
     fn stillness_settles_to_exactly_one_stamp_then_quiet() {
-        // An interacting frame ends still => queue exactly ONE stamp redraw.
         let (s, stamp) = still_settle(DebugStill::Active, false);
         assert_eq!(s, DebugStill::StampQueued);
         assert!(stamp, "settling queues the one stamp frame");
-        // The stamp frame identifies itself at its top (no pending input)…
         assert_eq!(still_wake(s, false), DebugStill::StampQueued);
-        // …and ends into Still, requesting NOTHING (fully quiet).
         let (s, stamp) = still_settle(DebugStill::StampQueued, false);
         assert_eq!(s, DebugStill::Still);
         assert!(!stamp, "the stamp frame schedules no further frames");
-        // Still + no events => nothing ever runs; a defensive settle stays put.
         assert_eq!(
             still_settle(DebugStill::Still, false),
             (DebugStill::Still, false)
@@ -465,17 +399,12 @@ mod tests {
 
     #[test]
     fn stillness_input_wins_and_activity_reenters() {
-        // Input landing while a stamp is queued wins: the frame is activity and
-        // the settle re-queues a FRESH stamp afterwards.
         assert_eq!(
             still_wake(DebugStill::StampQueued, true),
             DebugStill::Active
         );
-        // Any redraw arriving out of stillness (resize, debounce repaint) is
-        // activity too — it re-enters Active and re-settles to a fresh stamp.
         assert_eq!(still_wake(DebugStill::Still, false), DebugStill::Active);
         assert_eq!(still_wake(DebugStill::Still, true), DebugStill::Active);
-        // While the spring animates the loop stays hot: no stamp is queued.
         assert_eq!(
             still_settle(DebugStill::Active, true),
             (DebugStill::Active, false)
@@ -497,16 +426,13 @@ mod tests {
     fn gpu_readout_reports_whole_mebibytes() {
         assert_eq!(gpu_readout(Some(142 * 1024 * 1024)), "gpu 142 MB");
         assert_eq!(gpu_readout(Some(0)), "gpu 0 MB");
-        // Sub-MiB rounds down to 0 (whole mebibytes only).
         assert_eq!(gpu_readout(Some(1023 * 1024)), "gpu 0 MB");
     }
 
     #[test]
     fn autosave_state_precedence_off_beats_held_beats_saved() {
-        // Disabled wins regardless of held/since.
         assert_eq!(autosave_state(false, false, None), AutosaveState::Off);
         assert_eq!(autosave_state(false, true, Some(4)), AutosaveState::Off);
-        // Enabled + held: the clobber guard is currently blocking a write.
         assert_eq!(autosave_state(true, true, Some(9)), AutosaveState::Held);
         assert_eq!(autosave_state(true, true, None), AutosaveState::Held);
         // Enabled + not held: reports the last-write age (or None = never yet).

@@ -4,26 +4,13 @@
 
 use super::*;
 
-/// The WHICH-KEY panel's quiet header — the prefix it teaches the continuations of.
-/// awl arms the pause timer only for `C-x`, so this is that prefix's label.
 const PREFIX_HEADER: &str = "C-x";
 
-/// The breath (in mean glyph widths) a left-margin surface keeps between its RIGHT
-/// edge and the writing column's LEFT edge — shared by the bottom [`gutter`] and the
-/// top [`outline`] so BOTH hug the column by the exact same amount and move with it.
 pub(in crate::render) const MARGIN_COLUMN_GAP_CHARS: f32 = 1.5;
 
-/// DIFF-AS-PREVIEW panel: the card's inset from the canvas TOP (px). Sits above
-/// the document's `TEXT_TOP` (16px), so the transcript's title row starts 8px
-/// inside the card.
 const DIFF_PANEL_TOP: f32 = 8.0;
-/// DIFF-AS-PREVIEW panel: the card's reserve above the canvas BOTTOM (px) — room
-/// for the raised rim (1px, 2px focused) to read as a clean edge, not a bleed off
-/// the canvas bottom. (No shadow tail: the panel is RIMMED, not Shadowed — see
-/// `prepare_diff_panel`.)
 const DIFF_PANEL_BOTTOM: f32 = 14.0;
 
-/// Optional card halftone, resolved at the themed overlay-card call site.
 #[derive(Clone, Copy)]
 pub(in crate::render) struct CardHalftone {
     pub density: f32,
@@ -32,57 +19,19 @@ pub(in crate::render) struct CardHalftone {
     pub ink: [u8; 4],
 }
 
-/// Cap a chamfer at 40% of the card's smaller dimension to preserve text room.
 pub(in crate::render) fn narrowed_chamfer_px(cut_px: f32, card_w: f32, card_h: f32) -> f32 {
     let cap = card_w.min(card_h).max(0.0) * 0.40;
     cut_px.min(cap).max(0.0)
 }
 
-/// The `AWL_CARD_CAPS_FORCE` dev knob, read ONCE and memoized — see
-/// [`TextPipeline::card_shape_texture`]'s doc. Mirrors [`awl_cjk_force`]'s
-/// exact shape (env-var thread-safety footing: this runs on every card
-/// draw, not just once at startup).
 fn awl_card_caps_force() -> &'static Option<String> {
     static ONCE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     ONCE.get_or_init(|| std::env::var("AWL_CARD_CAPS_FORCE").ok())
 }
 
-/// How much of the float trio draws around a summoned card's opaque fill — the
-/// ONE elevation vocabulary every [`set_float_quads`] caller names explicitly
-/// (no bare bool a new panel can pass without thinking).
-///
-/// DARK-DEPTH OPTION C (decided 2026-07-22): this used to be a THREE-way
-/// choice (`Shadowed` / `Rimmed` / `Flat`) — `Shadowed` drew a translucent
-/// `base_content`-ink drop-shadow quad behind+below the card, `Rimmed` drew
-/// only the raised border. The drop-shadow tone was ALWAYS the world's own
-/// ink (near-white on a dark world), so on Currawong/Mangrove/etc. the
-/// "shadow" measurably BRIGHTENED the ground into a pale slab (+0.12..0.25
-/// luminance) instead of receding it — the exact bug the popover (see
-/// `popover.rs`) and the diff panel (`prepare_diff_panel` below) had already
-/// dodged by hand-picking `Rimmed`. DESIGN §5 says the quiet part out loud —
-/// "no drop-shadows… a thin value step does the work" — so the shadow quad is
-/// now RETIRED OUTRIGHT, for every world, not just the dark ones (a world
-/// that wants a stronger edge already carries `RenderCaps::elevation ==
-/// Elevation::Bordered`, a data knob, not a shadow). That collapses the old
-/// `Shadowed` and `Rimmed` arms into one identical shape, so they're merged:
-/// `Rimmed` is now the ONLY "elevated" style, drawn by every large summoned
-/// panel that used to ask for `Shadowed` (overlay cards, which-key, HUD,
-/// menus, the caret/spell float) as well as the popover / diff panel that
-/// already asked for it. `set_float_quads` still takes a `shadow` pipeline
-/// (the fields aren't deleted this round — a further cleanup is logged, not
-/// blocking) but never uploads an instance to it, for any elevation, on any
-/// world.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(in crate::render) enum FloatElevation {
-    /// Raised border + card, no shadow — every "elevated" summoned float
-    /// (overlay cards, which-key, HUD, menus, the caret/spell float, the
-    /// format popover, the diff panel). A thin `surface_selected` (muted
-    /// surface-ramp step, never full ink/white) rim + the `base_300` card's
-    /// own value step over `base_100` carry the depth (DESIGN §5).
     Rimmed,
-    /// Card fill alone — a caller whose OWN backdrop (blur/scrim) already
-    /// carries the card's contrast, so only a TRUE 1-BIT world (where that
-    /// backdrop is disabled outright) needs the crisp border to read at all.
     Flat,
 }
 
@@ -99,19 +48,6 @@ pub(in crate::render) struct FloatPanelModel {
     texture: Option<CardHalftone>,
 }
 
-/// Upload the FLOAT-PANEL elevation quads (raised `border` -> opaque `card`) for
-/// `rect`, or PARK both empty when `rect` is `None`. Shared by the reusable
-/// [`TextPipeline::prepare_float_panel`] (the caret-preview / spell panels), the
-/// which-key panel, and the centered-overlay card (`overlay.rs`) — each passes
-/// ITS OWN pipelines, so summoned micro-panels never race the same quads. `card`
-/// is drawn last (on top of its border), matching the painter's-order draw in
-/// `render.rs`. `elevation` picks how much draws ([`FloatElevation`]); the quads
-/// a shape omits are prepared EMPTY, never left stale from a previous frame.
-///
-/// `shadow` is ALWAYS parked empty here, unconditionally, for every `rect` and
-/// every `elevation` — see [`FloatElevation`]'s doc for why (the dark-depth
-/// Option C round retired the drop-shadow quad outright rather than gating it
-/// dark-world-only).
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads(
     shadow: &mut SelectionPipeline,
@@ -126,8 +62,6 @@ fn set_float_quads(
     chamfer_px: f32,
     texture: Option<CardHalftone>,
 ) {
-    // A single-rect float delegates to the multi-rect owner (SPLIT-PANE round);
-    // `None` parks both border/card empty (an empty slice).
     let one = rect.map(|r| [r]);
     set_float_quads_rects(
         shadow,
@@ -144,21 +78,6 @@ fn set_float_quads(
     );
 }
 
-/// THE ONE FLOAT-QUAD OWNER — upload a raised `border` -> opaque `card` pair for
-/// EACH rect in `rects` (or park both empty when `rects` is empty). Generalizes
-/// [`set_float_quads`] to MORE than one surface for the SPLIT-PANE composition:
-/// a split Pane card passes its TWO fill rects (upper query surface + lower
-/// result room), so each surface gets its own opaque fill AND — under a
-/// [`FloatElevation`] that draws a rim — its own crisp 1px raised edge (the
-/// 1-bit world's card would be an invisible black-on-black rect without it). A
-/// unified card / spell popup passes ONE rect, byte-identical to the historical
-/// single-quad path. `shadow` is always parked (dark-depth Option C).
-///
-/// `chamfer_px` (item 70) is the ONE silhouette every surface in this trio
-/// shares — `0.0` (every caller but the two `ListBacking::Card` sites in
-/// `overlay_rows.rs`) is the ORIGINAL rounded-rect corner, byte-identical.
-/// `texture` (item 70) is the halftone dot recipe, applied ONLY to `card`
-/// (the fill) — `None` everywhere but Quokka's card fill.
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads_rects(
     shadow: &mut SelectionPipeline,
@@ -173,9 +92,6 @@ fn set_float_quads_rects(
     chamfer_px: f32,
     texture: Option<CardHalftone>,
 ) {
-    // THE ONE SILHOUETTE (item 70): fill/border/shadow all share the SAME
-    // chamfer, so their eight-edge boundaries trace identically even though
-    // only `card` ever carries a texture.
     shadow.set_chamfer(chamfer_px);
     border.set_chamfer(chamfer_px);
     card.set_chamfer(chamfer_px);
@@ -183,12 +99,7 @@ fn set_float_quads_rects(
         Some(t) => card.set_halftone(t.density, t.angle_rad, t.cell_px, t.ink),
         None => card.set_halftone(0.0, 0.0, 1.0, [0; 4]),
     }
-    // RETIRED (dark-depth Option C, 2026-07-22): the shadow quad never
-    // uploads an instance any more — see `FloatElevation`'s doc. Parked once,
-    // up front, regardless of `rects`/`elevation`.
     shadow.prepare(device, queue, width, height, &[]);
-    // Crisp raised BORDER edge per surface: a slightly larger surface-step rect
-    // whose 1px rim peeks past the card. Empty under `Flat` (no rim).
     let borders: Vec<[f32; 4]> = if elevation != FloatElevation::Flat {
         rects
             .iter()
@@ -213,10 +124,6 @@ struct GutterLayout {
     project: String,
 }
 
-/// The search panel's shaped-text outcome carried from `panel_shape_text` to the
-/// layout/upload/caret steps: the no-match flag + ink/error colors the card draws
-/// with, and the FOCUSED field's reserved-caret-cell offsets (byte + char prefix +
-/// row) handed to `panel_layout` so the amber caret tracks the real shaped advance.
 pub(in crate::render) struct PanelShape {
     no_match: bool,
     ink: glyphon::Color,
@@ -226,17 +133,6 @@ pub(in crate::render) struct PanelShape {
     pub(in crate::render) caret_row: f32,
 }
 
-/// Where a pointer landed when hit-tested against the summoned find/replace panel
-/// (`TextPipeline::panel_hit`): on the `Aa` CASE-TOGGLE cell (flip case
-/// sensitivity), on the FIND row off that cell (focus the query), on the REPLACE
-/// row (focus the replacement), or `Elsewhere` inside the card (the key-hint line
-/// / inter-row gaps — the caller swallows it as a calm no-op). A pointer OFF the
-/// card returns `None`, so the caller lets the press fall through to the document.
-/// Row 0 = find (with the `Aa` cell at its right edge), row 1 = replace (present
-/// only once the replace field is revealed) — read from the SAME `panel_layout`
-/// the fields draw from, so a click can never disagree with where a field is
-/// painted. The `App::panel_click` match is no-wildcard, so a new affordance
-/// cannot ship without a wired click arm.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PanelHit {
     CaseToggle,
@@ -255,19 +151,8 @@ pub enum PanelHit {
 /// index 0) is not drawn as a label, so the strip is just the facets, gap-separated.
 const STRIP_GAP: &str = "  ";
 
-/// The WIDER inter-label gap the strip uses ONLY under [`theme::FacetStyle::Chips`]
-/// (V7 taste-gate). The default 2-space [`STRIP_GAP`] (~9px) is too tight to host a
-/// pill's `CHIP_HPAD` on both labels AND a readable gap between them — the pills
-/// abutted (measured: -3px, a segmented control). Four spaces (~18px) leaves each
-/// pill its full pad and ~6px of breathing room between chips, so they read as
-/// discrete pills. `Text`/`Band` keep [`STRIP_GAP`] — byte-identical.
 const CHIP_STRIP_GAP: &str = "    ";
 
-/// The inter-label separator string for the current facet style — the ONE owner
-/// both the strip SHAPER ([`TextPipeline::overlay_shape_theme`]) and the strip
-/// HIT-TEST ([`TextPipeline::overlay_lens_at`]) read, so the two can never disagree
-/// on where a label sits. Wider under [`theme::FacetStyle::Chips`] (see
-/// [`CHIP_STRIP_GAP`]); [`STRIP_GAP`] otherwise.
 pub(super) fn strip_gap() -> &'static str {
     match crate::render::effective_facet_style() {
         theme::FacetStyle::Chips(_) => CHIP_STRIP_GAP,
@@ -281,9 +166,7 @@ pub(super) fn strip_gap() -> &'static str {
 /// parallel `overlay_sections`, so the render + hit-test share one line sequence.
 #[derive(Clone)]
 pub(super) enum ThemeLine {
-    /// A faint section header (already uppercased for display).
     Header(String),
-    /// A world row; the payload is its index into `overlay_items`.
     Item(usize),
 }
 
@@ -293,30 +176,14 @@ pub(super) struct OverlayGeom {
     n_items: usize,
     hint: String,
     hint_rows: usize,
-    /// KEYBINDINGS TIPS FOOTER (`peek.rs` / discoverability round): the quiet "your top 3"
-    /// band drawn BELOW the hint, one faint line each (`"⌘O  Go to file"`). Populated ONLY
-    /// for the Keybindings overlay when the App pushed tips (`keybindings_tips`); EMPTY for
-    /// every other picker and in a headless capture (the App never pushes there), so the
-    /// footer is hidden and a Keybindings capture is byte-identical. Chrome like the hint
-    /// line, not selectable rows.
     footer: Vec<String>,
     /// Display rows the footer occupies: `0` when empty, else `footer.len() + 1` (a blank
     /// separator line between the hint and the band). The card grows by exactly this, so
     /// the hit-test / selected-row band (which only span the candidate rows above) are
     /// untouched.
     footer_rows: usize,
-    /// FACETED card: `true` when this card takes the faceted (lens-strip +
-    /// section-header) layout branch — the Switch-theme picker AND every other
-    /// picker once a lens strip is populated (the Cmd-P command palette, Settings,
-    /// Browse, …; `overlay_geometry` routes to `theme_overlay_geometry` whenever
-    /// `overlay_lens` is non-empty, not just for the literal Theme kind). `false`
-    /// for the flat pickers. (The field name predates the faceted UNION; it now
-    /// means "faceted layout", not "the Theme kind".)
     theme: bool,
-    /// FACETED card: the lens strip (label + active flag), drawn on display line 1.
     strip: Vec<(String, bool)>,
-    /// FACETED card: the candidate-area display sequence (section headers + item
-    /// rows), starting at display line 2 (below the query line 0 + strip line 1).
     plan: Vec<ThemeLine>,
     /// Rows occupied ABOVE the candidate list: `1` for the query line the flat/nav
     /// pickers show at the top (`› query`), `0` for the contextual SPELL panel (no
@@ -334,44 +201,18 @@ pub(super) struct OverlayGeom {
     /// it in through [`overlay_row_top`], so they can't drift; the shaper realizes
     /// it by inflating the last header line's height by exactly this.
     header_gap: f32,
-    /// EMPTY STATE: `Some(message)` when the picker has NO candidate rows (an empty
-    /// corpus, or a query that filtered everything out) — the shaper then draws ONE
-    /// dim, non-selectable message row (styled like the foot hint) in the candidate
-    /// area, and the card grows one row to hold it. `None` whenever there ARE rows.
-    /// Sourced from [`crate::overlay::OverlayState::empty_notice`], the one owner
-    /// shared with the sidecar `overlay.empty` field.
     empty: Option<String>,
     card_x: f32,
-    // `pub(super)`: the caret-style preview (in the sibling `caret` module) reads the
-    // card rect + text origin to place its preview box just below the card.
     pub(super) card_y: f32,
     card_w: f32,
     pub(super) card_h: f32,
     pub(super) text_left: f32,
     text_top: f32,
     text_w: f32,
-    /// item 4 (NARROW FOLD): `true` when the card sits in its NARROWEST (fill)
-    /// regime — the window is too tight to seat the card's desired width at even
-    /// the floor inset ([`overlay::overlay_card_fill_regime`], the SAME owner the
-    /// width fallback reads). A [`theme::TitleStyle::Placard`] title then FOLDS to
-    /// `InlinePrefix`: the placard shaper returns `None` and the inline `title › `
-    /// prefix comes back, so no partial/clipped poster wordmark ever shows below
-    /// the card's own fallback point. `false` for the contextual spell popup (no
-    /// title, never a placard). BOTH placard readers ([`TextPipeline::overlay_shape_placard`]
-    /// and [`TextPipeline::overlay_title_prefix`]) consult THIS, so the wordmark
-    /// and the inline prefix can never both fire or both vanish.
     card_narrow: bool,
 }
 
 impl OverlayGeom {
-    /// The INERT base — every field at its no-op value, so each of the three
-    /// geometry sites ([`TextPipeline::overlay_geometry`], its spell-popup arm, and
-    /// [`TextPipeline::theme_overlay_geometry`]) assembles by overriding only the
-    /// fields it owns and finishing with `..OverlayGeom::base()`, instead of
-    /// hand-listing all 22 fields (three of which — the `theme`/`strip`/`plan`
-    /// faceted-only trio — every flat card had to spell out as `false`/empty). A new
-    /// field lands here ONCE with an inert default; the three sites inherit it unless
-    /// they mean to set it. Mirrors the `ViewState::base()` convention.
     fn base() -> Self {
         OverlayGeom {
             visible: 0,
@@ -406,12 +247,7 @@ impl OverlayGeom {
 // owner, the sidecar report structs — plus the hit-test unit sweep.
 mod overlay;
 mod panel;
-// The shipped overlay UI scale, re-exported so the OVERLAY-EXPLORATION density
-// probe's default ([`crate::render::TypeDensity::shipped`]) can name it without
-// hand-copying the magic number (it stays the ONE owner in `overlay`).
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
-// Re-export the card horizontal-box policy + its tokens so the width-sweep law
-// can reach them without naming the private `overlay` submodule (test-only).
 #[cfg(test)]
 pub(in crate::render) use overlay::{
     CARD_EDGE_INSET_FLOOR, CARD_MAX_W, CARD_MAX_W_FACETED, overlay_card_box_policy,
@@ -423,8 +259,6 @@ pub(in crate::render) use overlay::{
 mod overlay_draw;
 mod overlay_rows;
 mod overlay_shape;
-// Test-only re-export so `render::tests` can name the pure placard-size quantizer
-// without traversing the private `overlay_shape` submodule (the AtlasFull ladder law).
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;
 mod gutter;
@@ -441,16 +275,12 @@ mod popover;
 mod preview;
 mod readout;
 mod whichkey;
-/// The popover's inner vertical pad token — re-exported to the crate so the
-/// card-fits law asserts `card_bottom − glyph_bottom == POPOVER_VPAD`.
 #[cfg(test)]
 pub(crate) use popover::VPAD as POPOVER_VPAD;
 #[allow(unused_imports)] // PopoverButtonGeom named only inside the popover module
 pub(in crate::render) use popover::{PopoverButtonGeom, PopoverGeom};
 
 impl TextPipeline {
-    // ===== FLOATING PANEL PRIMITIVE + CARET-STYLE PREVIEW PANEL ============
-
     /// Claim a small, summoned, transient FLOATING PANEL. The shared trio is
     /// uploaded by [`Self::flush_float_panel`] once at the end of chrome
     /// preparation; callers never park it directly.
@@ -520,13 +350,10 @@ impl TextPipeline {
         });
     }
 
-    /// Begin the one shared float-panel decision for a frame.
     pub(super) fn begin_float_panel_frame(&mut self) {
         self.float_panel_model = None;
     }
 
-    /// Materialize the shared float-panel decision exactly once. With no claimant,
-    /// the entire trio parks together.
     pub(super) fn flush_float_panel(
         &mut self,
         device: &wgpu::Device,
@@ -550,29 +377,6 @@ impl TextPipeline {
         );
     }
 
-    /// DIFF-AS-PREVIEW — the PAGE COLUMN dressed as a CARD while the History
-    /// picker's writer's-diff preview is up. "Visually it looks like a card, but
-    /// it's actually a panel" (the user's spec): the transcript renders in the
-    /// page column with the full measure + the existing row/scroll machinery, and
-    /// THIS gives that column the summoned-card visual language — a crisp raised
-    /// border rim over an opaque `base_300` card face — via the ONE quad-shape
-    /// owner [`set_float_quads`] on the panel's own dedicated pipelines. Parked
-    /// (all three empty) on every ordinary frame, so a default capture is
-    /// byte-identical.
-    ///
-    /// RIMMED, NOT SHADOWED (the chin-round decision, mirroring the popover): a
-    /// large panel's ink-alpha drop-shadow slab composites LIGHTER than a dark
-    /// page — a bright bar hanging below the card that out-masses it (DESIGN §8,
-    /// depth by value, not drop-shadows). So this rides the ONE elevation owner's
-    /// [`FloatElevation::Rimmed`] arm — shadow pipeline PARKED, the depth reads
-    /// from the rim + card alone (the SAME vocabulary the format popover names).
-    ///
-    /// FOCUS CUE: `Rimmed` draws a default 1px rim at the pipeline's stored tint;
-    /// this panel then REFINES that rim in place — its own value
-    /// (`surface_selected`), stepped up one value step to content ink AND widened
-    /// one px (1 → 2) when Tab moved keyboard focus INTO the panel
-    /// (`diff_panel_focus`). The value-free half (the width bump) still reads on a
-    /// one-bit world where the ink ladder collapses. Never amber (DESIGN §3).
     pub(super) fn prepare_diff_panel(
         &mut self,
         device: &wgpu::Device,
@@ -650,19 +454,6 @@ impl TextPipeline {
             .map(|[_, y, _, h]| (y + 2.0, y + h - 2.0))
     }
 
-    /// The CENTERED-OVERLAY family's card elevation (go-to / command / theme /
-    /// keybindings / settings / … — every [`crate::overlay::OverlayKind`] except the
-    /// contextual [`Spell`](crate::overlay::OverlayKind::Spell) popup, which rides
-    /// [`Self::prepare_float_panel`] instead): the SAME shadow/border shape drawn on
-    /// its OWN dedicated `panel_shadow`/`panel_border` pipelines (never the shared
-    /// `float_*` trio — those already belong to the caret-style preview panel, which
-    /// can be summoned the SAME frame). `elevated` is `true` ONLY on a true 1-bit
-    /// world (`Theme::is_one_bit`): every other world keeps the exact pre-existing
-    /// flat `panel_card` fill with the border/shadow parked empty, so an ordinary
-    /// world's capture is byte-identical to before this fn existed. See the
-    /// `panel_shadow`/`panel_border` field doc (`render.rs`) for the "why" — the
-    /// blur/scrim backdrop these cards used to lean on for contrast is disabled
-    /// outright on a one-bit world, collapsing `base_300 == base_100`.
     pub(super) fn prepare_panel_card_elevation(
         &mut self,
         device: &wgpu::Device,
@@ -671,11 +462,6 @@ impl TextPipeline {
         height: u32,
         rects: &[[f32; 4]],
     ) {
-        // The card face and (where wanted) its rim come from the SAME effective
-        // elevation decision. `Recessed` is a value-only Pane repair: `base_200`
-        // face, no border. It composes with the anchor + header gap + split
-        // surfaces freely, so every summoned Pane-family surface carries the same
-        // figure/ground answer.
         let card_elevation = crate::render::effective_card_elevation();
         self.panel_card
             .set_color(theme::pane_surface(card_elevation).rgba_bytes());
@@ -700,18 +486,6 @@ impl TextPipeline {
         );
     }
 
-    /// ITEM 70's ONE RESOLVER — the active world's `render_caps.card_shape`/
-    /// `card_texture` (`RenderCaps::DEFAULT` on every world but Quokka),
-    /// converted from the AUTHORED logical dials into the PHYSICAL px this
-    /// frame's `SelectionPipeline` calls want: the chamfer scales by DPI
-    /// then narrows to the smallest of `rects` ([`narrowed_chamfer_px`]);
-    /// the dot texture's own geometry (cell size) scales by DPI and its ink
-    /// is derived fresh from the theme ladder ([`theme::card_texture_ink`]),
-    /// never cached, so a live theme switch re-derives it for free. Read by
-    /// BOTH `prepare_panel_card_elevation` (the plain Pane picker) and
-    /// `overlay_draw_card`'s SPELL-popup arm (Quokka's "small card popup") —
-    /// the ONE owner so the two `ListBacking::Card` call sites can never
-    /// disagree on the card's own silhouette/texture.
     pub(super) fn card_shape_texture(&self, rects: &[[f32; 4]]) -> (f32, Option<CardHalftone>) {
         let mut caps = theme::active().render_caps;
         // DEV-ONLY GALLERY PROBE (mirrors `AWL_CJK_FORCE`'s "total no-op unless
@@ -764,14 +538,6 @@ impl TextPipeline {
     }
 }
 
-/// The `CacheKey` of the glyph starting at char index `idx` of `text`, as shaped
-/// into `buf` (the throwaway, single-line, `Wrap::None` PREVIEW buffer) — the
-/// picker-preview sibling of [`TextPipeline::cursor_glyph_key_at`]: the SAME
-/// shaped-glyph-cluster walk (byte range containing the target byte ->
-/// `glyph.physical((0,0),1.0).cache_key`), just over the demo buffer instead of
-/// the document, and with no per-line filtering since the sample is always one
-/// line. `None` past the end of the text (nothing to silhouette) or at a byte
-/// with no covering glyph run (a space, or an as-yet-unshaped buffer).
 fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<CacheKey> {
     let byte = text
         .char_indices()
@@ -791,12 +557,6 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
     None
 }
 
-/// FORWARD (row → y): the top Y (device px) of overlay DISPLAY row `row` — the
-/// `row`-th candidate line, sitting `header_rows` lines below the card's inner
-/// text origin `text_top` (past the query/strip lines). The ONE owner of the
-/// overlay row↔Y formula: the selected-row highlight band in `overlay_draw_card`
-/// draws from this, and [`overlay_row_of`] (its exact inverse, y → row)
-/// references it, so a highlighted row and a clickable row can never drift.
 pub(super) fn overlay_row_top(
     text_top: f32,
     header_rows: usize,
@@ -804,11 +564,6 @@ pub(super) fn overlay_row_top(
     row: usize,
     line_height: f32,
 ) -> f32 {
-    // The candidate area sits `header_rows` lines below `text_top`, PLUS the
-    // PALETTE-COMPOSITION round's `header_gap` — a slab of negative space after
-    // the query/facet header that reads as the divider (no drawn rule). The gap
-    // is realized in the SHAPED buffer by inflating the last header line's
-    // height by the same `header_gap`, so this formula and the pixels agree.
     text_top + header_rows as f32 * line_height + header_gap + row as f32 * line_height
 }
 
@@ -867,74 +622,25 @@ pub(super) fn overlay_split_bounds(
     }
     let gap = header_gap * SPLIT_GAP_FRAC;
     if header_rows == 1 {
-        // FLAT: the query line 0 is inflated, its glyph centred LOW; hug the gap
-        // to the first candidate box top (`text_top + lh + header_gap`) so the
-        // clear band is the query box's inflated tail, well below the glyph.
         let lower_top = text_top + line_height + header_gap;
         Some((lower_top - gap, lower_top))
     } else {
-        // FACETED: the query line 0 is plain `lh` (glyph HIGH) and the strip
-        // (line 1) is inflated (labels centred LOW); hug the gap to the query box
-        // bottom PLUS a symmetric breathing margin (ITEM 83), so the clear band
-        // still starts well above the strip labels but the upper surface itself
-        // reads centred around the (unmoved) query glyphs.
         let breathe = header_gap * FACETED_BREATHE_FRAC;
         let upper_bottom = text_top + line_height + breathe;
         Some((upper_bottom, upper_bottom + gap))
     }
 }
 
-/// ITEM 83 — the FACETED upper-surface breathing margin, as a fraction of the
-/// query beat (`header_gap`). [`overlay_split_bounds`]'s own centring-bound doc
-/// already proves `header_gap · (1 - 2 · SPLIT_GAP_FRAC)` — `0.2` at the shipped
-/// `SPLIT_GAP_FRAC = 0.4` — sits glyph-free above the strip's own labels; this
-/// spends that FULL proven-safe slack as symmetric breathing below the query box
-/// instead, which is what gets the query nearest to true optical centre inside
-/// its historical `pad` (12px) top margin without touching the strip's own box.
-/// A LITERAL `0.2` (not `1.0 - 2.0 * SPLIT_GAP_FRAC`) so a future `SPLIT_GAP_FRAC`
-/// retune doesn't silently widen this past the bound it was proven against.
 const FACETED_BREATHE_FRAC: f32 = 0.2;
 
-/// SPLIT-PANE COMPOSITION — the visible-background gap between a split Pane
-/// card's two surfaces, as a fraction of the query BEAT (`header_gap`). `0.4`
-/// leaves a clear breath either side of the band within the beat's own negative
-/// space (see [`overlay_split_bounds`]'s centring bound) — a real strip of
-/// ground, never so wide it eats the beat's calm. A single dial the gallery A/Bs.
 const SPLIT_GAP_FRAC: f32 = 0.4;
 
-/// PER-ITEM LIST SURFACES round — the horizontal inset (device px) an
-/// UNSELECTED bar holds from the summoned card's left/right edges under
-/// [`theme::ListStyle::Bars`], so each bar reads as a surface WITHIN the card
-/// rather than edge-to-edge. The SELECTED bar extends past this inset by its
-/// `grow_px` (toward the open margin, mirrored under `TopRight`) so it reads
-/// WIDER as well as brighter. A single dial the gallery A/Bs.
 pub(super) const BAR_SIDE_INSET: f32 = 8.0;
 
-/// PER-ITEM LIST SURFACES round — the extra left/right breathing room (device
-/// px) the ROW TEXT holds INSIDE a bar's edge under [`theme::ListStyle::Bars`],
-/// on top of [`BAR_SIDE_INSET`]. The default `Pane` text pad (12) put the glyph
-/// only ~4px inside the bar's left edge — the user's "bar text needs real left
-/// padding" note. Under Bars the text column insets `BAR_SIDE_INSET +
-/// BAR_TEXT_PAD` from the layout bound, so text sits a comfortable
-/// [`BAR_TEXT_PAD`] inside the bar (both edges — the secondary chord column
-/// mirrors it). The ONE owner both geometry builders read via
-/// [`TextPipeline::overlay_text_hpad`].
 pub(super) const BAR_TEXT_PAD: f32 = 13.0;
 
-/// V7 TASTE-GATE ([`theme::BarExtent::HugText`]) — the FIXED GAP text between a
-/// row's LABEL and its trailing inline SHORTCUT when a hug-bar row carries one.
-/// Composed into the row's own name line (not the right-aligned column) so the
-/// shortcut trails the label and the bar hugs `label + gap + shortcut + pad`;
-/// EVERY row then hugs its own content and the rag derives from length alone.
 pub(super) const INLINE_SHORTCUT_GAP: &str = "   ";
 
-/// Whether this frame composes a row's SHORTCUT chord INLINE (trailing its
-/// label on the label's own shaped line) instead of into the separate
-/// right-aligned column — the ONE reader the shapers consult. True ONLY under
-/// [`theme::BarExtent::HugText`] (see [`theme::BarExtent::inline_shortcut`]);
-/// the [`theme::BarExtent::HugLabel`] HYBRID and full-width bars both leave the
-/// chord in the right column (bare, outside any plate). Any non-Bars style →
-/// `false`, byte-identical.
 pub(super) fn bars_inline_shortcut() -> bool {
     matches!(
         crate::render::effective_list_style(),
@@ -942,22 +648,6 @@ pub(super) fn bars_inline_shortcut() -> bool {
     )
 }
 
-/// Whether the SELECTED row's SECONDARY (right-column) chord sits ON the
-/// selected-row value band — the ONE reader [`TextPipeline::shape_overlay_right`]
-/// consults to decide whether the band-contrast ink FLIP
-/// ([`theme::selected_row_secondary_ink`]) applies. TRUE for EVERY Bars extent
-/// and [`theme::ListStyle::Pane`]: the chord always sits on a plate now — Pane's
-/// band IS the row, FULL-WIDTH bars span the card (chord included), and under the
-/// HugLabel poster HYBRID item 35's per-row CHORD PLATE puts the selected chord on
-/// the selected band too (`overlay_rows.rs`). The ink flips to contrast that band.
-///
-/// This retires the old HugLabel exception (`!extent.hugs()`): that exception
-/// existed BECAUSE the hug plate left the selected chord bare over the GROUND,
-/// where flipping the ink drove it invisible (the slant-on-bars regression —
-/// Firetail's selected `⌘O` washed to a background 13.5 maxlum). Now the chord
-/// rides its own band plate, so the flip is correct again. `HugText` composes its
-/// chord INLINE and never reaches this path (`bars_inline_shortcut`), so it is
-/// inert here regardless.
 pub(super) fn selected_secondary_on_band() -> bool {
     match crate::render::effective_list_style() {
         theme::ListStyle::Bars { .. } => true,
@@ -965,10 +655,6 @@ pub(super) fn selected_secondary_on_band() -> bool {
     }
 }
 
-/// PURE geometry — the FULL-WIDTH bar span `(x, w)` inside a card
-/// `[card_x, card_x+card_w]`, inset [`BAR_SIDE_INSET`] each side. The shipped v5
-/// bar ([`theme::BarExtent::FullWidth`]); the ONE owner every full-width bar
-/// (selected + unselected) reads.
 pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {
     (
         card_x + BAR_SIDE_INSET,
@@ -976,16 +662,6 @@ pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {
     )
 }
 
-/// PURE geometry (V6 P5 [`theme::BarExtent::HugText`]) — the TEXT-HUGGING bar
-/// span `(x, w)` for one row: the bar's left edge is the shared
-/// [`BAR_SIDE_INSET`], its right edge hugs the row's own content text
-/// (`primary_px`, measured from the shaped name line) plus a symmetric
-/// [`BAR_TEXT_PAD`], so `text_left` sits `BAR_TEXT_PAD` inside BOTH edges — the
-/// P5 main-menu ragged-right look. V7 TASTE-GATE: EVERY row hugs — a row that
-/// carries a shortcut composes it INLINE into its own name line (label + gap +
-/// shortcut), so `primary_px` already spans that content and the bar hugs the
-/// whole thing; there is no full-width special case. The right edge is clamped to
-/// the full-width edge so a very long primary can never jut past the card.
 pub(super) fn bar_hug_span(
     card_x: f32,
     card_w: f32,
@@ -998,19 +674,12 @@ pub(super) fn bar_hug_span(
     (x, (right - x).max(1.0))
 }
 
-/// PURE geometry — grow a bar's `(x, w)` by `grow` px toward the OPEN margin
-/// (RIGHT by default, LEFT when `mirror`, floored at the canvas edge) — the
-/// SELECTED-bar lead. The ONE owner both the full-width and hug-extent selected
-/// bars read, so the grow direction can't drift between extents.
 pub(super) fn grow_span(x: f32, w: f32, grow: f32, mirror: bool) -> (f32, f32) {
     let g = grow.max(0.0);
     if mirror {
-        // Grow LEFT: the RIGHT edge stays put; the left edge slides `g` left,
-        // floored at the canvas edge.
         let left = (x - g).max(0.0);
         (left, x + w - left)
     } else {
-        // Grow RIGHT: the LEFT edge stays put; the right edge juts `g` into the room.
         (x, w + g)
     }
 }
@@ -1034,37 +703,12 @@ pub(super) fn slant_bar_span(x: f32, w: f32, hug: bool, dx: f32) -> (f32, f32) {
     }
 }
 
-/// PURE geometry — the FULL-WIDTH UNSELECTED bar rect `[x, y, w, h]` for a
-/// candidate row whose pitch-cell top is `top`. A thin `[x, top, w, h]` wrapper
-/// over [`bar_full_span`] (the shipping renderer composes `bar_full_span` +
-/// `grow_span` directly now that the extent axis exists); kept as the law
-/// suite's stable full-width fixture.
 #[cfg(test)]
 pub(super) fn bar_rect_unselected(card_x: f32, card_w: f32, top: f32, bar_h: f32) -> [f32; 4] {
     let (x, w) = bar_full_span(card_x, card_w);
     [x, top, w, bar_h]
 }
 
-/// PURE geometry — the SELECTED bar rect: inset like the others
-/// ([`bar_rect_unselected`]) but grown `grow_px` WIDER toward the open margin —
-/// RIGHT by default, mirrored LEFT under a right-anchored (`TopRight`) card. On
-/// the default (left) anchor the selected bar shares the unselected LEFT edge
-/// and juts `grow_px` further RIGHT; mirrored it shares the RIGHT edge and juts
-/// `grow_px` further LEFT. Text alignment is never touched (rowlayout owns it) —
-/// only the surface grows. ONE owner for the renderer + the law.
-///
-/// DESIGNER PIXEL-PASS FIX (2026-07-16): the jut runs INTO THE ROOM, past the
-/// card's own edge — the old `card_x + card_w` clamp capped every jut at
-/// `BAR_SIDE_INSET` (~8px) no matter how large `grow_px` was, so the selected
-/// bar read as MISALIGNED, not as a deliberate Persona ledge. With the pane
-/// dropped there is no card box to stay within — the bar juts into the open
-/// margin/room and the framebuffer clips it at the canvas edge. Only the LEADING
-/// edge is floored at `0.0` so a mirrored jut never runs off the left side.
-///
-/// A `[x, top, w, h]` wrapper over [`bar_full_span`] + [`grow_span`] (the two
-/// pure owners the shipping renderer now composes directly, for both the
-/// full-width and hug extents); kept as the law suite's stable full-width
-/// selected-bar fixture.
 #[cfg(test)]
 pub(super) fn bar_rect_selected(
     card_x: f32,
@@ -1079,31 +723,6 @@ pub(super) fn bar_rect_selected(
     [x, top, w.max(1.0), bar_h]
 }
 
-/// PURE geometry — the FOOTER-PLATE rect `[x, y, w, h]` under
-/// [`theme::ListStyle::Bars`]: an opaque value band spanning the hint + footer
-/// zone (from the first hint row's top DOWN to the card bottom), inset like the
-/// bars ([`BAR_SIDE_INSET`]). THE FOOTER-OVER-POSTER GUARANTEE (the taste-gate
-/// finding): with the pane dropped, a giant corner PLACARD (`TitleStyle::Placard`
-/// — Firetail's wordmark) bleeds UP behind the dim foot-hint row, so the muted
-/// hint glyphs drowned in the poster letters (contrast collapse, DESIGN §5's
-/// legibility floor). This plate draws in the SAME z-slot as the bars (over the
-/// placard, under the overlay text — see `draw_overlay_card`) at the whisper
-/// [`theme::overlay_bar_unselected`] value, so it HIDES the poster exactly where
-/// the footer sits and restores the hint's designed ground (the same near-ground
-/// value the query line already reads on). Value only, never amber. `content_rows`
-/// is the number of drawn display rows ABOVE the hint (the flat window's
-/// `visible + empty` or the theme plan's line count); the y is the ONE
-/// [`overlay_row_top`] owner every other row reads, so plate and hint can't drift.
-///
-/// V8 — `hug` gates the HORIZONTAL span exactly like the ROWS do
-/// ([`theme::BarExtent::HugText`]): under a hugging list style the footer plate
-/// HUGS its own content (`Some((text_left, footer_content_px))` → the shared
-/// [`bar_hug_span`] rule) instead of a lone full-width plate stretched under
-/// ragged hugging rows (the "all rows hug" taste-gate finding — a single wide bar
-/// under the pills read as out of family). Full-width bars pass `None` and keep
-/// the byte-identical `card_w`-spanning plate. The footer-over-poster guarantee
-/// survives either way: the plate still covers exactly the footer glyphs (plus
-/// [`BAR_TEXT_PAD`]), so a placard behind it can't bleed into the footer text.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn footer_plate_rect(
     text_top: f32,
@@ -1141,29 +760,10 @@ pub(super) fn overlay_secondary_top(text_top: f32, header_gap: f32) -> f32 {
     text_top + header_gap
 }
 
-/// The device-px vertical CENTER of the overlay QUERY (input) line — the row the
-/// amber caret and the query glyphs share. `line_height` is the query line's
-/// ACTUAL shaped height (its first layout run's `line_height`), NOT the bare
-/// [`TextPipeline::overlay_lh`]: the FLAT pickers inflate the query line by
-/// `header_gap` to open the beat before the candidates, and cosmic-text
-/// HALF-LEADS the glyphs (centres them in that taller line), so the query text
-/// sits `header_gap * 0.5` LOWER than the top. Centering the caret on the same
-/// inflated height keeps it on the glyphs; passing the un-inflated `overlay_lh()`
-/// floated the caret a half-beat ABOVE the text (the full-bleed caret bug). The
-/// faceted pickers leave the query line plain (their beat rides the lens strip),
-/// so their run height already equals `overlay_lh()` — byte-identical there. ONE
-/// owner, read by [`TextPipeline::overlay_place_caret`] and the y-agreement
-/// probe, so the caret can never compute its own y and drift from the text.
 pub(super) fn overlay_query_center(text_top: f32, line_height: f32) -> f32 {
     text_top + line_height * 0.5
 }
 
-/// ITEM 10 — the BYTE offset of CHAR index `caret_char` within `text`
-/// (`caret_char` may equal `text.chars().count()`, yielding `text.len()`), the
-/// ONE conversion the panel's ([`TextPipeline::panel_shape_text`]) and the
-/// overlay's ([`TextPipeline::overlay_place_caret`]) mid-string caret math both
-/// route through, so a caret placed on multibyte text (CJK / combining / emoji)
-/// never mistakes a byte offset for a char index.
 pub(super) fn field_caret_byte(text: &str, caret_char: usize) -> usize {
     if caret_char == 0 {
         return 0;
@@ -1214,29 +814,11 @@ pub(super) fn field_view_window(text: &str, caret_char: usize, cap: usize) -> (S
         view.extend(std::iter::repeat_n(' ', cap - len));
         return (view, caret_char);
     }
-    // SCROLL: once the caret has advanced past the cap, slide the window's
-    // start along with it one char per caret step, so the caret always lands
-    // at the window's own trailing edge — visible, never hidden past it.
     let start = caret_char.saturating_sub(cap);
     let view: String = chars[start..start + cap].iter().collect();
     (view, caret_char - start)
 }
 
-/// The ONE bounded scroll-WINDOW owner shared by EVERY summoned picker — the flat
-/// pickers (over `items`), the contextual spell popup (over its suggestion rows), AND
-/// the faceted/grouped path (over the DISPLAY plan, headers + rows counted together).
-/// Given the total unit count `len`, the unit index of the SELECTED row `sel`, a
-/// preferred window-top `scroll_hint`, and the `max` cap, returns `(top, count)` — the
-/// window `[top, top+count)` capped at `max`, slid the MINIMUM needed to keep `sel`
-/// visible, and clamped so the final page shows no blank tail.
-///
-/// The FLAT/spell paths pass ITEM indices (no headers), so the drawn ROW cap is `max`;
-/// the GROUPED path passes DISPLAY-LINE indices (a header takes a line too), so its
-/// drawn-LINE cap is `max` — the header-interleaved list can never grow the card past
-/// its budget. The slide is a no-op for the flat/spell paths (their `scroll_hint`
-/// already keeps `sel` visible via [`crate::overlay::OverlayState::scroll_to_selected`]),
-/// so those stay byte-identical; it is what keeps the SELECTED row on screen for the
-/// grouped path, where headers push `sel`'s line past a naive `scroll_hint` window.
 pub(super) fn scroll_window(
     len: usize,
     sel: usize,
@@ -1258,12 +840,6 @@ pub(super) fn scroll_window(
     (top, count)
 }
 
-/// INVERSE (y → row) of [`overlay_row_top`]: map a pointer's `py` to the 0-based
-/// overlay row BELOW the header (the `vis`/`k` the callers then window or index),
-/// or `None` when `py` is above the first candidate row. Shared by BOTH hit paths
-/// — the flat/nav window mapping in [`overlay_row_index`] and the theme picker's
-/// display-line mapping in [`TextPipeline::overlay_row_at`] — so neither can grow
-/// its own row math again.
 pub(super) fn overlay_row_of(
     text_top: f32,
     header_rows: usize,
@@ -1274,9 +850,6 @@ pub(super) fn overlay_row_of(
     if line_height <= 0.0 {
         return None;
     }
-    // Candidate row 0's top is `overlay_row_top(.., 0, ..)` — the exact inverse of
-    // the forward formula (header_gap folded in), so it snaps to the same band
-    // the highlight draws.
     let first_top = overlay_row_top(text_top, header_rows, header_gap, 0, line_height);
     if py < first_top {
         return None;
@@ -1323,80 +896,29 @@ pub(super) fn overlay_row_index(
     (idx < n_items).then_some(idx)
 }
 
-/// The held stats HUD's machine-readable figures for the capture sidecar (see
-/// [`TextPipeline::hud_report`]). Each field mirrors a rendered WRITER figure so the
-/// sidecar agrees with the pixels: `held` is the summoned state, `words` is
-/// `Some((words, reading_min))` for a markdown buffer (else `None`, the stat omitted),
-/// and `percent` is the cursor's %-through-doc. The former clock/filesystem fields
-/// (file-created date, session time) were dropped along with their HUD rows.
 pub struct HudReport {
     pub held: bool,
     pub words: Option<(usize, usize)>,
     pub percent: u32,
-    /// i18n: the document's own frontmatter `lang:` tag (`None` for an
-    /// untagged or non-markdown document) — the LANGUAGE stat row, omitted
-    /// from the panel exactly when this is `None`.
     pub lang: Option<crate::frontmatter::Lang>,
-    /// LINE ENDINGS: the active buffer's on-disk ending ([`crate::buffer::Eol`]) —
-    /// the LINE ENDINGS stat row (`"LF"`/`"CRLF"`). Unlike the dropped clock/fs
-    /// fields this is a PURE function of the buffer, so it is ALWAYS shown (never a
-    /// placeholder) and asserted in a headless capture's `hud.eol`.
     pub eol: crate::buffer::Eol,
-    /// NOTES VERBS round: the SAVED stat, already phrased by the ONE owner
-    /// ([`crate::hud::saved_readout`]) the pixels use — `"unsaved changes"`,
-    /// a calm relative-time phrase (`"just now"`/`"Ns ago"`/…), or the fixed
-    /// placeholder `"—"` in a headless capture (no live clock).
     pub saved: String,
 }
 
-/// The summoned LIFETIME STATS card's machine-readable figures for the capture
-/// sidecar (see [`TextPipeline::lifetime_report`]). The personal ODOMETER split
-/// out of the held HUD: each field is already formatted by
-/// [`crate::hud::odometer_rows`] (the SAME owner the pixels use, so the sidecar can
-/// never claim a figure the card doesn't show). LIVE-ONLY: every one is the fixed
-/// `"—"` placeholder in a headless capture (no persisted store), so a `--lifetime`
-/// capture is deterministic and byte-stable across machines. `open` mirrors
-/// [`crate::lifetime::lifetime_open`] (OFF by default → a default capture is
-/// byte-identical).
 pub struct LifetimeReport {
     pub open: bool,
-    /// CHARACTERS (lifetime printable characters written).
     pub chars: String,
-    /// TIME WRITING (honest active-writing time).
     pub writing: String,
-    /// FILES TOUCHED (distinct files ever opened).
     pub files: String,
-    /// CARET TRAVEL (caret pixel distance as a fun metric distance).
     pub caret_travel: String,
-    /// YOUR WORLD (the most-lived-in theme world).
     pub world: String,
 }
 
-/// The HOLD-⌘ SHORTCUT PEEK's machine-readable state for the capture sidecar (see
-/// [`TextPipeline::peek_report`]). `open` mirrors [`crate::peek::peek_open`] (OFF by
-/// default → a default capture is byte-identical); `rows` is exactly what the card
-/// shows THIS frame — the pushed personalized rows, or the curated STARTER SIX when
-/// empty (a fresh-install ledger OR a capture, since the live App never runs there) via
-/// the SAME [`crate::peek::rows_or_starter`] owner the pixels use, so the sidecar can
-/// never claim a row the card doesn't draw.
 pub struct PeekReport {
     pub open: bool,
     pub rows: Vec<crate::peek::PeekRow>,
 }
 
-/// The summoned WRITING STREAKS card's machine-readable state for the capture
-/// sidecar (see [`TextPipeline::streaks_report`]). `open` mirrors
-/// [`crate::streaks::streaks_open`] (OFF by default → a default capture is
-/// byte-identical); the figures are the LIVE year the App pushed OR the fixed
-/// synthetic [`crate::streaks::placeholder`] in a headless capture (no persisted
-/// store), via the SAME `streaks_effective_view` owner the pixels use — so the
-/// sidecar can never claim a figure the card doesn't show, and a `--streaks`
-/// capture is deterministic + byte-stable across machines. `view` is which PAGE
-/// is showing (`"heatmap"`, the default on every summon, or `"cumulative"` —
-/// flipped with ←/→ while the card is open, `crate::streaks::card_view`);
-/// `total_words` is the cumulative window's final running total (the figure the
-/// progress chart tops out at); `cells` is the row-major (`col*7 + row`)
-/// intensity-bucket grid.
 pub struct StreaksReport {
     pub open: bool,
     pub view: &'static str,
@@ -1406,11 +928,6 @@ pub struct StreaksReport {
     pub cells: Vec<u8>,
 }
 
-/// The DEBUG panel's machine-readable perf state — the raw values behind the
-/// drawn lines, mirrored into the capture sidecar's `debug` block so the agent
-/// triages numbers, not prose. All clocked fields are `None` in a capture (no
-/// clock ever runs there) and `still` defaults true (a capture IS the settled
-/// state), keeping the block byte-stable. See [`TextPipeline::debug_perf_report`].
 pub struct DebugPerfReport {
     pub frame_ms: Option<f32>,
     pub worst_ms: Option<f32>,
@@ -1418,10 +935,6 @@ pub struct DebugPerfReport {
     pub key_px_ms: Option<f32>,
     pub redraws: Option<u64>,
     pub still: bool,
-    /// The AUTOSAVE ENGINE's state (see `crate::debug::AutosaveState`), fed by the
-    /// live loop from `App::autosave_flush`'s one door. `None` in every capture
-    /// (the engine is structurally live-App-only), mirroring the other clocked
-    /// fields' placeholder convention.
     pub autosave: Option<crate::debug::AutosaveState>,
 }
 
@@ -1431,27 +944,21 @@ mod window_tests {
 
     #[test]
     fn caps_the_window_at_max_and_shows_all_when_it_fits() {
-        // A list that fits under the cap shows entirely, top at the hint (clamped).
         assert_eq!(scroll_window(5, 0, 0, 12), (0, 5));
         assert_eq!(scroll_window(12, 3, 0, 12), (0, 12));
-        // A longer list caps the drawn count at `max`.
         assert_eq!(scroll_window(100, 0, 0, 12), (0, 12));
         assert_eq!(scroll_window(100, 5, 5, 12).1, 12);
     }
 
     #[test]
     fn slides_the_minimum_to_keep_the_selection_visible() {
-        // Selection ABOVE the hint window pulls the top up to it.
         assert_eq!(scroll_window(100, 2, 20, 12), (2, 12));
-        // Selection BELOW the hint window pushes the top down so `sel` is the last row.
         assert_eq!(scroll_window(100, 40, 0, 12), (40 + 1 - 12, 12));
-        // Selection already inside the hint window leaves the top exactly at the hint.
         assert_eq!(scroll_window(100, 25, 20, 12), (20, 12));
     }
 
     #[test]
     fn selection_is_always_within_the_returned_window() {
-        // The invariant the grouped path leans on: for any hint, `sel` lands inside.
         for len in [1usize, 3, 12, 13, 50, 200] {
             for sel in [0usize, 1, len / 2, len.saturating_sub(1)] {
                 if sel >= len {
@@ -1473,14 +980,10 @@ mod window_tests {
 
     #[test]
     fn matches_the_prior_inline_flat_math_when_the_hint_already_keeps_sel_visible() {
-        // The flat/spell paths previously computed `top = hint.min(n - visible)` inline,
-        // relying on `scroll_to_selected` to keep `sel` in `[hint, hint+max)`. Under that
-        // precondition the shared owner is byte-identical (the slide is inert).
         for n in [0usize, 4, 12, 30] {
             for max in [8usize, 12] {
                 let visible = n.min(max);
                 for sel in 0..n {
-                    // A hint that already satisfies the precondition (min-scroll form).
                     let hint = sel.saturating_sub(max - 1).min(n.saturating_sub(visible));
                     let expected = (hint.min(n.saturating_sub(visible)), visible);
                     assert_eq!(
@@ -1505,8 +1008,6 @@ mod field_view_window_tests {
 
     #[test]
     fn short_text_is_right_padded_to_the_full_cap() {
-        // "cat" reserves the SAME width as an empty field — a short query must not
-        // narrow the card either, only a long one must not widen it.
         let (view, caret) = field_view_window("cat", 3, 8);
         assert_eq!(view, "cat     "); // 3 + 5 spaces = 8
         assert_eq!(view.chars().count(), 8);
@@ -1536,7 +1037,6 @@ mod field_view_window_tests {
 
     #[test]
     fn long_text_caret_at_the_end_scrolls_to_the_trailing_cap_chars() {
-        // The common case: typing/pasting appends at the end.
         let text = "abcdefghijklmnopqrstuvwxyz01"; // 28 chars
         let (view, caret) = field_view_window(text, 28, 8);
         assert_eq!(view, "uvwxyz01", "the last 8 chars");
@@ -1545,7 +1045,6 @@ mod field_view_window_tests {
 
     #[test]
     fn long_text_caret_at_the_start_shows_the_leading_cap_chars_unscrolled() {
-        // Home (caret 0) on an overflowing field shows the BEGINNING, not the end.
         let text = "abcdefghijklmnopqrstuvwxyz01";
         let (view, caret) = field_view_window(text, 0, 8);
         assert_eq!(view, "abcdefgh");
@@ -1554,8 +1053,6 @@ mod field_view_window_tests {
 
     #[test]
     fn scrolling_by_one_char_slides_the_window_by_one_char() {
-        // Backspace/insert stepping through the scrolled region moves the window's
-        // start in lockstep with the caret — no jump, no stall.
         let text = "0123456789"; // 10 chars, cap 4 -> scrolls once caret > 4
         assert_eq!(field_view_window(text, 4, 4), ("0123".to_string(), 4));
         assert_eq!(field_view_window(text, 5, 4), ("1234".to_string(), 4));
@@ -1565,7 +1062,6 @@ mod field_view_window_tests {
 
     #[test]
     fn multibyte_text_windows_by_char_not_byte() {
-        // CJK is multibyte in UTF-8 but ONE caret step each (item 10's discipline).
         let text = "日本語のテキスト検索ですよ"; // 13 chars
         let (view, caret) = field_view_window(text, 13, 6);
         assert_eq!(view.chars().count(), 6);
@@ -1578,10 +1074,6 @@ mod field_view_window_tests {
 
     #[test]
     fn the_view_is_always_exactly_cap_chars_and_the_caret_is_always_inside_it() {
-        // ITEM 80's INVARIANT, swept over every len/caret/cap combination: the
-        // returned view NEVER narrows or widens past `cap`, and the caret NEVER
-        // lands outside it — the property `panel_layout`'s fixed card geometry
-        // (and the caret-visibility guarantee) both lean on.
         let texts: Vec<String> = vec![
             String::new(),
             "a".to_string(),
@@ -1614,18 +1106,6 @@ mod field_view_window_tests {
         assert_eq!(field_view_window("anything", 3, 0), (String::new(), 0));
     }
 
-    /// ITEM 80 — THE ONE CLIPPING-RULE LAW: every [`crate::textbox::TextField`]
-    /// that PROMISES a fixed exterior geometry (today: the find/replace panel's
-    /// two VALUE fields — `panel_shape_text`'s `query`/`replacement`, whose card
-    /// must never widen as you type/paste, see
-    /// `capture::tests::panels::find_replace_panel_card_width_is_invariant_across_
-    /// short_long_short_queries`) routes through `field_view_window` — never a
-    /// second, field-specific clipping scheme. A NO-WILDCARD match over
-    /// [`crate::textbox::TextField::ALL`], mirroring `textbox.rs`'s own
-    /// `all_seven_fields_have_a_home_no_wildcard`: a future field that starts
-    /// promising fixed geometry (a new summoned card) must flip its arm to
-    /// `true` HERE and pass the contract sweep below, or the match fails to
-    /// compile on an 8th field — it can never dodge this law silently.
     #[test]
     fn every_fixed_geometry_textfield_routes_through_the_one_clipping_rule() {
         use crate::textbox::TextField;
@@ -1633,14 +1113,6 @@ mod field_view_window_tests {
             let promises_fixed_geometry = match f {
                 TextField::FindQuery => true,
                 TextField::ReplaceText => true,
-                // None of these promise fixed exterior geometry today: the
-                // picker's query elides ITS ROW via `rowlayout` instead of
-                // scrolling (a different, already-tested rule), and
-                // Rename/InsertLink/KeepVersion/SettingsValue are single-shot
-                // minibuffers with no "the card must never resize" contract.
-                // A future item that adds that promise to one of these flips
-                // it to `true` HERE — the no-wildcard match forces the
-                // decision to be conscious, never a silent gap.
                 TextField::PickerQuery => false,
                 TextField::Rename => false,
                 TextField::InsertLink => false,
@@ -1650,10 +1122,6 @@ mod field_view_window_tests {
             if !promises_fixed_geometry {
                 continue;
             }
-            // The shared rule's own contract, swept at a representative set of
-            // caps/texts/carets for THIS field: the returned view is always
-            // EXACTLY `cap` chars (never narrower for a short value, never
-            // wider for a long one) and the caret always lands inside it.
             for cap in [1usize, 8, 28] {
                 for (text, caret) in [
                     ("", 0usize),
@@ -1684,24 +1152,18 @@ mod field_view_window_tests {
 mod hit_tests {
     use super::{overlay_row_index, overlay_row_of, overlay_row_top};
 
-    // A representative overlay card geometry (card_x=420, card_w=360, text_top=64,
-    // line_height=24) with a WINDOW of 5 visible rows out of 8, scrolled so the top
-    // visible row is corpus index 2 (top_idx=2). Row R (0-based visible) spans y in
-    // [text_top + (1+R)*lh, text_top + (2+R)*lh) → the first row starts at 88.
     const CARD_X: f32 = 420.0;
     const CARD_W: f32 = 360.0;
     const TEXT_TOP: f32 = 64.0;
     const LH: f32 = 24.0;
 
     fn hit(px: f32, py: f32, visible: usize, top_idx: usize, n: usize) -> Option<usize> {
-        // The flat/nav pickers: one header row (the query line), no header gap.
         overlay_row_index(
             CARD_X, CARD_W, TEXT_TOP, LH, 1, 0.0, visible, top_idx, n, px, py,
         )
     }
 
     fn hit_spell(px: f32, py: f32, visible: usize, top_idx: usize, n: usize) -> Option<usize> {
-        // The contextual spell panel: NO query line, so rows start at `text_top`.
         overlay_row_index(
             CARD_X, CARD_W, TEXT_TOP, LH, 0, 0.0, visible, top_idx, n, px, py,
         )
@@ -1709,24 +1171,20 @@ mod hit_tests {
 
     #[test]
     fn pointer_maps_to_the_row_under_it() {
-        // First candidate row (visible 0 → items index top_idx) begins at y=88.
         assert_eq!(hit(500.0, 88.0, 5, 2, 8), Some(2)); // top of row 0
         assert_eq!(hit(500.0, 100.0, 5, 2, 8), Some(2)); // mid row 0
         assert_eq!(hit(500.0, 112.0, 5, 2, 8), Some(3)); // row 1
-        // Last visible row (visible 4 → items index 6) spans [184, 208).
         assert_eq!(hit(500.0, 200.0, 5, 2, 8), Some(6));
     }
 
     #[test]
     fn query_row_and_above_are_not_rows() {
-        // The query line occupies [text_top, text_top+lh) = [64, 88): no candidate.
         assert_eq!(hit(500.0, 70.0, 5, 2, 8), None);
         assert_eq!(hit(500.0, 0.0, 5, 2, 8), None);
     }
 
     #[test]
     fn below_the_last_visible_row_is_none() {
-        // Past the 5th visible row (which ends at 208) — e.g. the foot hint — is None.
         assert_eq!(hit(500.0, 210.0, 5, 2, 8), None);
     }
 
@@ -1734,7 +1192,6 @@ mod hit_tests {
     fn off_the_card_horizontally_is_none() {
         assert_eq!(hit(419.0, 100.0, 5, 2, 8), None); // left of card
         assert_eq!(hit(781.0, 100.0, 5, 2, 8), None); // right of card
-        // On the card edges is in-bounds.
         assert_eq!(hit(420.0, 100.0, 5, 2, 8), Some(2));
         assert_eq!(hit(780.0, 100.0, 5, 2, 8), Some(2));
     }
@@ -1746,9 +1203,6 @@ mod hit_tests {
 
     #[test]
     fn spell_panel_rows_start_at_the_top_no_query_line() {
-        // With header_rows=0 (the contextual spell panel), candidate row 0 begins at
-        // `text_top` itself — one line higher than the query-line pickers. Row R spans
-        // y in [text_top + R*lh, text_top + (R+1)*lh) → row 0 is [64, 88).
         assert_eq!(hit_spell(500.0, 64.0, 4, 0, 4), Some(0)); // top of row 0
         assert_eq!(hit_spell(500.0, 70.0, 4, 0, 4), Some(0)); // still row 0 (query line for the others)
         assert_eq!(hit_spell(500.0, 88.0, 4, 0, 4), Some(1)); // row 1
@@ -1757,26 +1211,17 @@ mod hit_tests {
 
     #[test]
     fn a_visible_row_past_the_corpus_end_clamps_to_none() {
-        // visible claims 5 rows but items only run 2..=4 (n=5) from top_idx=2; the 4th
-        // visible row (y≥160) would be items index 5 ≥ n=5, so it hits nothing.
         assert_eq!(hit(500.0, 88.0, 5, 2, 5), Some(2)); // vis 0 → idx 2
         assert_eq!(hit(500.0, 150.0, 5, 2, 5), Some(4)); // vis 2 → idx 4 (last valid)
         assert_eq!(hit(500.0, 160.0, 5, 2, 5), None); // vis 3 → idx 5 ≥ 5
     }
 
-    // The THEME PICKER's own hit path (previously an untested inline formula in
-    // `overlay_row_at`) now resolves through the SAME inverse the flat pickers use:
-    // `overlay_row_of` maps `py` to a 0-based DISPLAY row `k` below the header, which
-    // the theme branch then reads out of its interleaved plan. `header_rows == 2` for
-    // the theme picker (the query line + the lens strip).
     fn theme_row(py: f32) -> Option<usize> {
         overlay_row_of(TEXT_TOP, 2, 0.0, LH, py)
     }
 
     #[test]
     fn theme_picker_maps_pointer_to_a_display_row_below_the_header() {
-        // Header = 2 lines (query + strip): [64, 88) query, [88, 112) strip. Display
-        // row 0 begins at text_top + 2*lh = 112.
         assert_eq!(theme_row(70.0), None); // the query line
         assert_eq!(theme_row(100.0), None); // the lens strip
         assert_eq!(theme_row(63.0), None); // above the card text
@@ -1799,7 +1244,6 @@ mod hit_tests {
                 for r in 0usize..8 {
                     let top = overlay_row_top(TEXT_TOP, header_rows, gap, r, LH);
                     assert_eq!(overlay_row_of(TEXT_TOP, header_rows, gap, LH, top), Some(r));
-                    // A hair inside the band (never the next row's top) still resolves `r`.
                     assert_eq!(
                         overlay_row_of(TEXT_TOP, header_rows, gap, LH, top + LH * 0.5),
                         Some(r)

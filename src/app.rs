@@ -1,17 +1,13 @@
-//! Windowed editor runtime.
-
+use crate::clock::Instant;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-// `crate::clock` supplies a wasm-safe monotonic clock.
-use crate::clock::Instant;
 
 #[cfg(test)]
 mod crossing;
 #[cfg(test)]
 mod present_txn;
 
-// Native uses arboard; wasm mirrors copy best-effort through the browser API.
 #[cfg(not(target_arch = "wasm32"))]
 use arboard::Clipboard;
 #[cfg(target_arch = "wasm32")]
@@ -35,42 +31,22 @@ mod web_clipboard {
             let clipboard = window.navigator().clipboard();
             let promise = clipboard.write_text(&text);
             wasm_bindgen_futures::spawn_local(async move {
-                // Fire-and-forget: a rejected promise (permission denied,
-                // insecure context, lost focus) is swallowed here — the
-                // internal kill-ring already holds the value, so nothing
-                // user-visible is lost even if this silently fails.
                 let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
             });
-            // Optimistic Ok: the write itself is async/best-effort, but the
-            // caller (`App::sync_kill_to_clipboard`) only uses this return to
-            // update its own dedup cache (`clipboard_last_written`) — marking
-            // it written now is harmless even on a silent async failure,
-            // since the internal kill-ring stays the source of truth either way.
             Ok(())
         }
 
         pub fn get_text(&mut self) -> Result<String, &'static str> {
-            // See the module doc: readText is deliberately not wired (the
-            // lost-transient-activation / "prompt storm" risk this round's
-            // spec explicitly calls out as a reason to ship copy-out only).
             Err("clipboard read unavailable on web (see WEB.md)")
         }
     }
 }
 
-/// Quiet period after the last edit before a quick note is auto-saved (debounce),
-/// so a note is written calmly as you pause typing rather than on every keystroke.
 const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(400);
 
-/// Quiet period after the last edit before the open DOCUMENT is autosaved (the
-/// config-gated `autosave` engine, default ON): ~1s of idle writes the file
-/// atomically, via the same single-`WaitUntil` pattern the other debounces use
-/// (no hot loop). Blur / file switch / quit flush immediately instead.
+/// Idle delay before atomic document autosave; blur, switch, and quit flush.
 const AUTOSAVE_IDLE: Duration = Duration::from_secs(1);
 
-/// How long a completed file EVENT stays in the calm bottom-center readout.
-/// Toasts are armed only by the live App (once a GPU/window exists), and expire
-/// through one `WaitUntil`; captures never own this clock.
 const TOAST_LIFETIME: Duration = Duration::from_millis(2500);
 const CLOBBER_NOTICE: &str = "changed on disk outside awl — ⌘S keeps yours · reopen for theirs";
 
@@ -81,48 +57,16 @@ enum NoticeKind {
     Sticky,
 }
 
-/// Quiet period after the last zoom step before the STICKY ZOOM is persisted to
-/// config (debounce). Cmd-=/Cmd-- fire one step per press, so a write-per-step would
-/// hammer the disk; instead `about_to_wait` writes the SETTLED zoom once you pause.
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
-/// Quiet period after the last theme-picker PREVIEW step before the deferred FONT
-/// reshape applies (debounce). Arrowing through the picker re-colors instantly
-/// (`sync_theme_colors`, O(1) pipeline re-tints) but the font half of a switch is a
-/// full-document reshape + a new-face atlas rasterization — the theme-burst profile
-/// (`--bench-theme-burst`) measured it dominating every preview step. Deferring it
-/// until the selection rests turns a 10-world arrow burst into 10 cheap recolors +
-/// ONE reshape; a paused hover still shows the true face well inside a beat. Commit
-/// (Enter), revert (Esc/C-g), and the headless capture all stay SYNCHRONOUS.
-///
-/// The shipped value, in milliseconds — **0** (item 37b's live latency probe
-/// traced the felt theme-switch freeze to this debounce: 162-176ms settle at
-/// 150ms vs 29-32ms at 0, with the reshape itself sub-frame-cheap, so the
-/// coalescing bought nothing but the wait). Overridable at startup by the
-/// `AWL_THEME_FONT_DEBOUNCE_MS` env knob as a recoverable escape hatch — see
-/// [`theme_font_debounce`], the only consumer; production code never reads
-/// this const directly.
 const THEME_FONT_DEBOUNCE_DEFAULT_MS: u64 = 0;
 
-/// Pure parse for the `AWL_THEME_FONT_DEBOUNCE_MS` override: unset, empty, or
-/// unparseable all fall back to [`THEME_FONT_DEBOUNCE_DEFAULT_MS`]; any valid
-/// `u64` — including `0`, which removes the debounce's coalescing entirely — wins.
-/// Split out from [`theme_font_debounce`] so the branches are unit-testable
-/// without touching the real process environment.
 fn parse_theme_font_debounce_ms(raw: Option<&str>) -> u64 {
     raw.filter(|s| !s.is_empty())
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(THEME_FONT_DEBOUNCE_DEFAULT_MS)
 }
 
-/// [`THEME_FONT_DEBOUNCE_DEFAULT_MS`] (0 — immediate), overridden by the
-/// `AWL_THEME_FONT_DEBOUNCE_MS` env knob — a recoverable escape hatch:
-/// `AWL_THEME_FONT_DEBOUNCE_MS=150` restores the old coalescing debounce if a
-/// slower machine or a future regression ever needs it back. Read ONCE and
-/// memoized (mirrors `convention::awl_convention_force` /
-/// `lava::env_override`'s `OnceLock` precedent — this is read on every
-/// `about_to_wait`, so an unmemoized `std::env::var` would re-expose the same
-/// env-var thread-safety hazard those precedents' docs warn about).
 fn theme_font_debounce() -> Duration {
     static ONCE: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
     let ms = *ONCE.get_or_init(|| {
@@ -211,19 +155,9 @@ use crate::config::Config;
 use crate::keymap::{Action, KeymapState};
 use crate::render::{self, TextPipeline, ViewState};
 
-/// Max interval between clicks to count as a multi-click (double/triple).
 const MULTICLICK_MS: u64 = 400;
-/// The LIVE app's FIRST-RUN launch zoom factor (the user wanted text ~2 steps
-/// smaller out of the box). This is only the default for a fresh install with no
-/// remembered zoom: `App::new` overrides it with the config's persisted `zoom` when
-/// present (sticky preferences), so the editor relaunches at whatever zoom you last
-/// left it. `Cmd-0` (`ZoomReset`) still snaps to the natural 1.0 base. The headless
-/// capture geometry (which builds its own pipeline at the `--zoom` default of 1.0)
-/// stays fixed and all existing geometry/scroll tests are unchanged.
 const INITIAL_ZOOM: f32 = 0.8;
-/// Lines scrolled per mouse-wheel notch (LineDelta of 1.0).
 const WHEEL_LINES_PER_NOTCH: f32 = 3.0;
-/// Pixels of trackpad scroll that equal one line (PixelDelta accumulation).
 const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// Physical-px SLOP a text-selection drag must travel past the press position
 /// before it arms (extends the selection) — the phantom-selection-click fix. Below
@@ -242,7 +176,6 @@ const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// apart under a future retune of either.
 pub(crate) const DRAG_ARM_SLOP_PX: f32 = 4.0;
 
-/// What kind of unit the current drag is selecting by (set on press).
 #[derive(Clone, Copy, PartialEq)]
 enum DragGranularity {
     Char,
@@ -250,14 +183,6 @@ enum DragGranularity {
     Line,
 }
 
-/// Which edit FLINCH the next `sync_view` fires on the visual caret: a typed char
-/// squash-pops + back-kicks (PHASE 2), a delete squashes inward (PHASE 2), a
-/// kill-line gulps (PHASE 2), Enter lands a caret-level touchdown squash (PHASE 3),
-/// a successful copy pulses gently (the COPY PULSE round — also brightens the
-/// selection quad's tint, so `Copy`'s pipeline call does a touch more than the
-/// other arms; see `TextPipeline::copy_pulse`). Armed from the matching
-/// [`actions::Effect`] (`TypeImpact` / `DeleteSquash` / `Gulp` / `LineLand` /
-/// `CopyPulse`).
 #[derive(Clone, Copy)]
 enum CaretImpact {
     Type,
@@ -267,11 +192,6 @@ enum CaretImpact {
     Copy,
 }
 
-/// A one-bit latest-wins gate for expensive zoom layout. Winit may deliver many
-/// wheel/key events before the redraw they request; every event updates
-/// `App::zoom`, while this gate makes the redraw consume exactly one reflow at
-/// the newest value. This is deliberately present-opportunity coalescing, not a
-/// time debounce: the very next redraw still paints the requested zoom.
 #[derive(Default)]
 struct ZoomReflow {
     pending: bool,
@@ -419,16 +339,11 @@ struct Gpu {
     debug_frame_split: Option<(f32, f32)>,
 }
 
-/// LIVE-ONLY (DEBUG): a theme-switch settle in flight — armed when the reshape was
-/// timed (`App::theme_settle`), consumed on the frame that presents it. Carries the
-/// triggering input's `Instant` (for the felt total) and the reshape-side phases
-/// already recorded; the frame loop folds in the atlas + present phases at finalize.
 struct ThemeSettleInFlight {
     input_at: Instant,
     phases: crate::themeswitch::SwitchPhases,
 }
 
-/// Buffer/config management: file open, notes, sticky prefs, rebind writes.
 mod files;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod gpu;
@@ -439,43 +354,16 @@ mod input;
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
 mod startup;
-/// View snapshot: build the `ViewState` and push it into the pipeline.
 mod viewstate;
-/// Window-lifecycle + redraw arms lifted out of `window_event`: focus-lost
-/// flush, resize / DPI refold, and the redraw-request frame loop.
 mod window;
-/// The virtual-clock frame loop's headless control-flow sink, re-exported so the
-/// capture harness (`crate::capture::frames`) + the scheduling law can step the
-/// real `about_to_wait_impl` body off-window. `Scheduler` stays crate-internal too
-/// (the trait the body is generic over; `ActiveEventLoop` is the live impl).
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) use schedule::RecordingScheduler;
-/// The apply bridge: resolve an `Action` + live-only side effects.
 mod apply;
-/// The single-instance DAEMON's App-side wiring (native only): react to a
-/// posted `DaemonEvent`, finish a buffer for C-x #, tear down on quit.
 mod daemon;
-/// The native macOS MENU BAR's App-side wiring (`cfg(target_os = "macos")`
-/// only): resolve a fired menu item's id and re-dispatch it through the SAME
-/// `App::apply` seam a keypress uses. `crate::menu` owns the pure roster +
-/// muda construction; see its module doc for the full design.
 mod menu;
-/// The LIVE PROBE HARNESS's App-side wiring (native only): scripted chords
-/// through the real dispatch tail + compositor-side window shots. See
-/// `crate::probe`'s module doc.
 mod probe;
-/// SESSION RESTORE's App-side wiring (native only): capture + apply the
-/// persisted open-file set / active buffer / cursor+scroll / window frame.
 mod session;
-/// LIFETIME STATS' App-side wiring (native only): the tracking hooks
-/// (keystrokes/chars/active-time/per-world on the keyboard-input path, caret
-/// travel on view sync, files-touched on open) + the flush on the autosave
-/// triggers. `crate::stats` owns the pure store + injected-clock helpers.
 mod stats;
-/// WRITING STREAKS' App-side wiring (native only): the per-buffer word-delta
-/// sampling on the autosave flush triggers, the local-calendar-day read, and the
-/// live year-view push. `crate::streaks` owns the pure store + calendar/intensity
-/// arithmetic + the (de)serializer.
 mod streaks;
 
 pub struct App {
@@ -493,16 +381,7 @@ pub struct App {
     active: crate::buffers::Entry<files::BufferExtra>,
     keymap: KeymapState,
     mods: Modifiers,
-    /// WHICH-KEY: when a multi-key PREFIX (`C-x`) is pending its second key, the
-    /// instant it was pressed — the pause-timer anchor. `Some` ONLY while a prefix
-    /// awaits resolution; cleared the instant the chord completes or aborts. Drives the
-    /// single `WaitUntil` deadline in `about_to_wait` (armed only while pending → idle
-    /// stays 0% CPU, DESIGN §6). See `crate::whichkey`.
     prefix_pending_at: Option<Instant>,
-    /// WHICH-KEY: whether the continuation panel is currently SUMMONED (the pause
-    /// elapsed with the prefix still pending). Once true the pause timer stops arming
-    /// (no ongoing tick); reset to false — and the panel put down — the instant the
-    /// prefix resolves/aborts.
     whichkey_shown: bool,
     gpu: Option<Gpu>,
     recovery_window: Option<Arc<Window>>,
@@ -529,8 +408,6 @@ pub struct App {
     /// because the future and the App share it on the (single) wasm main thread.
     #[cfg(target_arch = "wasm32")]
     gpu_pending: std::rc::Rc<std::cell::RefCell<Option<Result<Gpu, String>>>>,
-    /// Timestamp of the previous animated frame, for real-time spring dt. `None`
-    /// while idle; set on the first animating redraw and cleared once settled.
     last_frame: Option<Instant>,
     /// THE ONE TIME OWNER for scheduling + animation (see `crate::clock::Clock`).
     /// Every debounce/settle deadline, the frame `dt`, the ambient tick, toast
@@ -540,37 +417,11 @@ pub struct App {
     /// `Box<dyn>` so a deterministic clock can slot in behind the same field.
     /// The `app::clock_law` grep-test fences the module against a raw read.
     clock: Box<dyn crate::clock::Clock>,
-    /// DEBUG panel: ring of the last 120 drawn frames' costs (ms) — `last()` is
-    /// the previous completed frame (the one-frame-lag line 1 value), `worst()`
-    /// the rolling max that survives stillness. Fed ONLY while the panel is on
-    /// (the pane-off editor does zero timing work); the settle-stamp frame's own
-    /// cost is measured and DISCARDED (panel bookkeeping, not user workload).
     frame_costs: crate::debug::CostRing,
-    /// DEBUG panel: completed theme transactions in the trailing wall-clock window.
-    /// This deliberately does not share the frame-cost ring: a switch spans input,
-    /// event turns, reshape, atlas, and settled present.
     theme_switches: crate::themeswitch::SwitchHistory,
-    /// DEBUG panel key→px: `Instant` stamped when an input (key press / mouse
-    /// press / scroll) reached `window_event` while the panel is on. Only the
-    /// FIRST un-rendered input per frame stamps (`get_or_insert`), so under
-    /// coalescing the measured latency is the worst case; taken (→
-    /// `last_latency_ms`) when the frame it caused actually PRESENTS. `None`
-    /// while the panel is off or no input is awaiting pixels.
     input_stamp: Option<Instant>,
-    /// DEBUG panel key→px: the most recent measured input→present-return latency
-    /// (ms), shown until the next input-driven frame updates it. `None` before
-    /// any input (the fixed placeholder).
     last_latency_ms: Option<f32>,
-    /// DEBUG panel: monotonic count of frames drawn since launch. Incremented
-    /// unconditionally (a single add — counting even while the panel is off means
-    /// toggling debug on mid-hot-loop shows a climbing count immediately). Its
-    /// whole diagnostic value is being FROZEN while idle: a climb without input
-    /// is a hot-loop bug made visible.
     redraw_count: u64,
-    /// DEBUG panel stillness: the settle-stamp state machine (`debug::DebugStill`)
-    /// — Active while frames happen anyway, StampQueued for the ONE extra redraw
-    /// that draws the `still ·` readout after the app settles, Still while fully
-    /// quiet (no frames scheduled, 0% CPU). Pure transitions live in `debug.rs`.
     debug_still: crate::debug::DebugStill,
     /// POINTER AUTO-HIDE state ("games do this" / the macOS-native
     /// `NSCursor.setHiddenUntilMouseMoves` convention): `Visible` (resting),
@@ -582,17 +433,7 @@ pub struct App {
     /// headless capture never touches this (no window, no OS pointer to
     /// hide).
     pointer_hide: crate::pointer_hide::PointerHide,
-    /// The logical key currently HOLDING the stats HUD open (`Action::ShowStatsHud`
-    /// pressed), or `None` when released. The press records it; the matching key
-    /// RELEASE clears the HUD (`hud::set_held(false)`), as does releasing a summoning
-    /// modifier (`hud_mods`). So the HUD is a true HOLD — summoned while down, dismissed
-    /// the instant the chord lifts. See `on_key_release` / `hud_release_on_mods`.
     hud_key: Option<Key>,
-    /// The MODIFIER state held when the stats HUD was summoned, so dropping ANY of those
-    /// modifiers also dismisses it. macOS does NOT deliver a key-UP for a character key
-    /// while Cmd is held (and the user often lifts Cmd first), so the key-release path
-    /// alone leaves the HUD stuck-on; watching `ModifiersChanged` for a released
-    /// summoning modifier closes that gap. See `hud_release_on_mods`.
     hud_mods: ModifiersState,
     /// HOLD-⌘ SHORTCUT PEEK arm state (`crate::peek::PeekArm`): the pure hold/cancel
     /// machine. Fed stimuli from the raw input handlers (`ModifiersChanged` → the
@@ -602,15 +443,7 @@ pub struct App {
     /// the single `WaitUntil` in `about_to_wait`. LIVE-ONLY — a headless capture never
     /// constructs an `App`, so the peek is summoned there only by the `--peek` flag.
     peek_arm: crate::peek::PeekArm,
-    /// When the convention's bare arming modifier went down alone (the `Idle → Pending`
-    /// edge), or `None` when not pending — the single `WaitUntil` deadline base: the
-    /// peek opens once `peek_armed_at + HOLD_PEEK_MS` elapses with the hold unbroken.
-    /// Armed only while `peek_arm == Pending`, so the app idles at 0% CPU once it
-    /// resolves (the which-key pause pattern).
     peek_armed_at: Option<Instant>,
-    /// Current zoom factor. Single source of truth for the LIVE app; pushed into the
-    /// pipeline via the view snapshot. Launches at [`INITIAL_ZOOM`]; headless capture
-    /// builds its own pipeline at the fixed `--zoom` default of 1.0).
     zoom: f32,
     scroll_sensitivity: f32,
     /// The window's display DPI `scale_factor` (1.0 on a 1:1 screen, 2.0 on a 2x
@@ -620,14 +453,8 @@ pub struct App {
     /// keep the live page proportioned like the capture. Updated on creation and on
     /// `ScaleFactorChanged` (a monitor move). The headless capture never sets it.
     dpi: f32,
-    /// Last known cursor position in PHYSICAL pixels (for wheel-zoom anchoring
-    /// and hit-testing on press). Updated on every CursorMoved.
     cursor_px: (f32, f32),
-    /// True while the primary mouse button is held (a drag is in progress).
     dragging: bool,
-    /// Pixel position of the CURRENT press (`cursor_px` at the moment `on_press`
-    /// ran) — the drag-arm anchor `drag_armed` measures pointer travel against.
-    /// Physical px, like `cursor_px`. See `App::exceeds_drag_slop` (`app/input/mouse.rs`).
     drag_press_px: (f32, f32),
     /// True once the pointer has traveled past the drag-arm SLOP threshold since
     /// the current press (`App::exceeds_drag_slop`) — sticky for the rest of the
@@ -641,62 +468,23 @@ pub struct App {
     /// arms), never a drag. Reset to `false` on every fresh press. See `on_press` /
     /// `on_cursor_moved` in `app/input/mouse.rs`.
     drag_armed: bool,
-    /// True while a DIRECT page-width resize drag is in progress (a press that landed
-    /// on a page-column edge; the grabbed rendered edge drives the measure LIVE,
-    /// and the release commits + persists it). Mutually exclusive with a text
-    /// selection `dragging` — a press near a boundary starts this instead.
     page_resizing: bool,
-    /// The page edge that armed the active width drag. Captured at press time so
-    /// adaptive outline-rail reflow cannot switch the gesture's geometry mid-drag.
     page_resize_edge: Option<crate::render::ResizeEdge>,
-    /// The OPPOSITE column edge's position (physical px) at the moment the width drag
-    /// armed — the STABLE reference the live measure is computed against for the whole
-    /// gesture. Held fixed so the grabbed edge tracks the pointer 1:1 and the measure
-    /// stays monotone: reading the CURRENT (adaptively-shifted) edge each frame fed the
-    /// rail-hide shift back into the measure and snapped it 105↔119 across the boundary
-    /// (the drag-snap oscillation bug). See `geometry::page_resize_measure_anchored`.
     page_resize_anchor: Option<f32>,
-    /// INLINE-IMAGE DRAG-RESIZE (v2, live app only): `Some` while a press that landed
-    /// on an image's bottom-right resize handle is being dragged — the pointer's
-    /// distance past the image's left edge drives its DISPLAY WIDTH live (a pipeline
-    /// preview, not a buffer edit), and the release writes the `|NNN` hint back as ONE
-    /// undoable edit. Mutually exclusive with `page_resizing` AND a text-selection
-    /// `dragging` — the press begins exactly one of the three. See `app/input/`.
     image_resizing: Option<crate::app::input::ImageDrag>,
-    /// ITEM 94 — SETTINGS RANGE SCRUB (live app only): `Some` while a press that
-    /// landed on a range row's RAIL is being dragged. Carries the setting's typed
-    /// identity plus the track's px scale SNAPSHOTTED AT PRESS, so the scrub keeps
-    /// resolving against a stable rail even as the value text beside it changes
-    /// width (`"80%"` -> `"100%"`) — the page-drag anchor lesson. Every resolved
-    /// step applies LIVE; the RELEASE persists exactly once. Mutually exclusive with
-    /// the other pointer owners (a summoned picker owns the pointer outright).
     range_drag: Option<crate::app::input::RangeDrag>,
     /// The CACHED last icon actually handed to `Window::set_cursor` — the invariant
     /// `cursor_shape::cursor_icon_change` leans on (this always equals the OS's real
     /// last-set icon), so the context-aware cursor (`sync_cursor_icon`) only ever
     /// calls `set_cursor` on an actual change, never every move. See `cursor_shape.rs`.
     cursor_icon: CursorIcon,
-    /// Selection granularity of the active drag (char/word/line).
     drag_granularity: DragGranularity,
-    /// For double/triple-click detection: time + position of the last press and
-    /// the running click count.
     last_click_time: Option<Instant>,
     last_click_px: (f32, f32),
     click_count: u32,
-    /// Accumulated trackpad pixel scroll not yet converted to a whole line.
     scroll_px_accum: f32,
-    /// The in-progress IME composition (romaji->kana->kanji) string. Empty when
-    /// not composing. Shown as an underlined overlay at the caret WITHOUT being
-    /// inserted into the ropey buffer; a Commit finalizes it into the buffer.
     preedit: String,
-    /// True between Ime::Enabled and Ime::Disabled (the IME is active). Used to
-    /// know composition is possible; the actual suppression of raw key insertion
-    /// keys off a non-empty `preedit`.
     ime_enabled: bool,
-    /// Active incremental search, modeled like the IME `preedit`: a transient
-    /// surface owned by `App` (NOT in the keymap, NOT in the rope). `None` =
-    /// editing normally; `Some` = isearch active, and every key is routed to
-    /// `handle_search_key` instead of the keymap.
     search: Option<crate::search::SearchState>,
     /// THE FORMAT POPOVER (`crate::popover`): `true` while the reveal-on-select
     /// format toolbar is summoned. Set ONLY by a MOUSE selection gesture (a
@@ -716,27 +504,8 @@ pub struct App {
     /// the PER-BUFFER verdict cache, live in `files::BufferExtra` instead, see
     /// `self.active.extra`).
     spell: Option<crate::spell::SpellChecker>,
-    /// Set by `apply` for the ONE next `sync_view` when an edit should still
-    /// streak its caret glide (delete-word-backward), so the removed span and the
-    /// caret motion read as a single concurrent move instead of "text vanishes,
-    /// then a bare block slides". Consumed (and reset) by the next `sync_view`.
-    /// Defaults false: a normal edit (typing/Backspace/paste) keeps the plain
-    /// no-underline slide.
     caret_edit_streaks: bool,
-    /// Set from `winit`'s `KeyEvent.repeat` for the ONE next `sync_view`: true when
-    /// the keypress that triggered this sync is an OS AUTO-REPEAT (a HELD arrow /
-    /// motion key) rather than a discrete tap. Held navigation builds a continuous
-    /// lagging caret trail; a lone tap stays gap-suppressed. Consumed (and reset)
-    /// by the next `sync_view`, so non-keyboard syncs (IME, wheel) read `false`.
     caret_held: bool,
-    /// Edit FLINCH requested by `apply` for the ONE next `sync_view`: a SUCCESSFUL
-    /// typed char ([`CaretImpact::Type`]) squash-pops + back-kicks, a delete
-    /// ([`CaretImpact::Delete`]) squashes the caret inward, a kill-line
-    /// ([`CaretImpact::Gulp`]) pulses a bigger gulp, Enter ([`CaretImpact::Land`])
-    /// lands a caret-level touchdown squash (PHASE 3). Consumed by the next
-    /// `sync_view` AFTER it sets the spring target, so the flinch rides on top and
-    /// the spring self-settles it back to rest. Fires in EVERY caret look (all
-    /// juice on the caret). `None` = no edit flinch this sync.
     caret_impact: Option<CaretImpact>,
     /// BLOCKED-ACTION RECOIL bump requested by `apply` for the ONE next `sync_view`:
     /// a motion into a wall / a page that can't page / an exhausted undo-redo / a
@@ -745,31 +514,12 @@ pub struct App {
     /// edit flinch (a blocked edit recoils away from the wall; a successful edit
     /// flinches). Consumed by the next `sync_view`. `None` = no recoil.
     caret_recoil: Option<crate::caret::RecoilDir>,
-    /// OS clipboard bridge. None when arboard cannot init (headless / no
-    /// display / no Wayland seat); editor then runs on the internal kill-ring
-    /// only, exactly like `spell` degrades to None.
     clipboard: Option<Clipboard>,
-    /// The exact text WE last wrote to (sync_kill_to_clipboard) or read from
-    /// (refresh_kill_from_clipboard) the OS clipboard. Used to (a) skip
-    /// redundant mirror writes and (b) detect an external copy on yank without
-    /// mistaking our own write for an external change. None until first sync.
     clipboard_last_written: Option<String>,
-    /// The ACTIVE project root. Exactly one at a time; it scopes the go-to file
-    /// index so typing ".env" finds THIS repo's env.
     root: PathBuf,
-    /// Resolved active project (name / branch / dirty) for the quiet status
-    /// strip. Recomputed whenever the root changes.
     project: crate::project::Project,
-    /// The active root's file index (corpus the go-to overlay matches against).
-    /// Rebuilt on a root switch.
     file_index: Vec<String>,
-    /// Optional workspace parent whose children are the switch-project
-    /// candidates (stored for the next phase).
     workspace: Option<PathBuf>,
-    /// The persisted RECENT PROJECT ROOTS (newest-first, capped, deduped — see
-    /// [`crate::recents`]). Loaded once at launch (native only; empty on wasm /
-    /// headless), pushed-to-front + saved on every switch-project
-    /// ([`App::switch_project`]), and offered by the Recent Projects picker.
     recent_projects: Vec<PathBuf>,
     /// The persisted RECENTLY-OPENED FILES MRU (ABSOLUTE paths, most-recent FIRST,
     /// capped + deduped — see [`crate::recent_files`]). Loaded once at launch,
@@ -779,13 +529,7 @@ pub struct App {
     /// files in this MRU, in this order). Live/native only; the headless capture
     /// never constructs an `App`, so it never reads or writes this store.
     recent_files: Vec<PathBuf>,
-    /// The PREVIOUSLY-opened absolute file path, for the C-x b last-buffer toggle
-    /// (a tiny 2-deep history: the current `file` + this one). `None` until a
-    /// second file has been opened. Toggling swaps `file` <-> `prev_file`.
     prev_file: Option<PathBuf>,
-    /// The SUMMONED navigation overlay (go-to / switch-project). `None` when not
-    /// showing. Lives here AND is threaded through `apply_core` so `--keys` can
-    /// drive it identically.
     overlay: Option<crate::overlay::OverlayState>,
     /// The DEFAULT FOLDER: the fallback active folder used ONLY when a launch has
     /// nothing else to go on — no explicit `--root`/file/dir argument AND no
@@ -798,8 +542,6 @@ pub struct App {
     /// write fires after `AUTOSAVE_DEBOUNCE` of quiet in `about_to_wait` (live
     /// only — headless never schedules this). `None` = nothing pending.
     autosave_dirty_at: Option<Instant>,
-    /// Buffer version the note was last auto-saved at, so an unchanged buffer is
-    /// not re-written. `None` until the first save.
     autosave_saved_version: Option<u64>,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
@@ -816,20 +558,7 @@ pub struct App {
     /// `crate::debug::autosave_state` at redraw time (gated on `debug_on()`, like
     /// every other clock read the panel takes) — never read otherwise.
     autosave_last_ok: Option<Instant>,
-    /// NOTES VERBS round: when the LAST successful write of ANY kind landed —
-    /// manual save (`finish_manual_save`), the scratch→note conversion
-    /// (`convert_scratch_and_save`), a note's own debounced autosave
-    /// (`autosave_note`), OR the document autosave engine (`autosave_doc_now` /
-    /// `stash_scratch_now`) — stamped alongside each of those on SUCCESS,
-    /// deliberately a SEPARATE field from `autosave_last_ok` (that one is scoped
-    /// to the autosave engine's own debug-panel line and would otherwise
-    /// conflate "the engine wrote" with "anything wrote"). Feeds the held HUD's
-    /// SAVED stat (`App::sync_hud_saved`) — `None` before the first successful
-    /// write this session.
     last_saved_ok: Option<Instant>,
-    /// A CALM NOTICE for the bottom of the canvas. Completed file events are
-    /// live-only TOASTS; conditions needing a decision (failures and the external
-    /// edit guard) are STICKY until resolved. `None` draws nothing.
     notice: Option<String>,
     notice_kind: NoticeKind,
     notice_expires_at: Option<Instant>,
@@ -858,15 +587,7 @@ pub struct App {
     /// rapid Cmd-=/Cmd-- run persists the SETTLED value once instead of per step.
     /// `None` = nothing pending (live only — headless never schedules this).
     zoom_persist_at: Option<Instant>,
-    /// Latest-wins zoom layout gate. Wheel/Cmd-zoom input updates `zoom`
-    /// immediately, but the expensive document reflow is consumed once at the
-    /// next present opportunity. Any intervening ordinary `sync_view` clears it
-    /// because that sync necessarily applies the newest zoom already.
     zoom_reflow: ZoomReflow,
-    /// Pending ZOOM ANCHOR (see [`ZoomAnchor`]): the document point + screen y the
-    /// next reflow should hold fixed, so a keyboard ⌘± zooms around the CARET (not
-    /// the viewport top) and the wheel zooms around the POINTER. `None` = plain
-    /// top-anchored scroll. Consumed once by `sync_view`.
     zoom_anchor: Option<ZoomAnchor>,
     /// When the theme-picker live PREVIEW last landed on a world whose display face
     /// differs from the shaped one, and the deferred FONT reshape is pending; the
@@ -886,11 +607,6 @@ pub struct App {
     /// Off the headless path — the deterministic replay never routes through the live
     /// retint seams, so a capture never stamps it.
     theme_switch_at: Option<Instant>,
-    /// LIVE-ONLY (DEBUG settle readout): a theme-switch settle whose reshape was just
-    /// timed and whose SETTLED present is still pending. Armed by the retint seams
-    /// (behind `debug_on()`), finalized on the next real present by the frame loop, which
-    /// folds in the atlas + present phases and feeds the panel. `None` = nothing in
-    /// flight. Structurally live-App-only (see `ThemeSettleInFlight`).
     theme_settle: Option<ThemeSettleInFlight>,
     /// AMBIENT LAVA TICK — the lava-lamp ground's slow ~10 fps drift clock
     /// (`crate::lava`). `Some(when)` = the last tick instant, driving the single
@@ -904,10 +620,6 @@ pub struct App {
     /// not ticking (live only — a headless capture never constructs this, so it can
     /// never advance the phase; a capture is always the frozen t=0 phase).
     lava_tick_at: Option<Instant>,
-    /// Whether the window currently HAS focus — tracked so the ambient lava tick
-    /// PAUSES on blur (`WindowEvent::Focused`). Starts `true` (a window is focused
-    /// on creation); only the live App reads it (the ambient-tick gate), so a
-    /// headless capture is unaffected.
     focused: bool,
     /// LIVE-RESIZE settle state (all platforms; macOS additionally synchronizes
     /// the Core Animation transaction): when the last genuine
@@ -930,11 +642,6 @@ pub struct App {
     /// not currently resizing (live only; a headless capture never resizes a
     /// real window, so this is structurally unreachable there).
     resize_settle_at: Option<Instant>,
-    /// A stream of `Moved` events means the window-server is actively moving
-    /// the window. Hold ambient lava presents until this debounce settles.
-    /// Only ever stamped on a lava world (`App::on_moved`'s gate) — a non-lava
-    /// world takes the whole move machinery as a structural no-op (zero
-    /// redraws scheduled by a move).
     move_settle_at: Option<Instant>,
     /// A THEME-PREVIEW step just crossed the lava boundary (a ticking lava world
     /// THE PREVIEW-SETTLE debounce: stamped by `App::retint_theme_preview` on
@@ -977,15 +684,8 @@ pub struct App {
     /// Replacing the GPU/layer invalidates the shadow even when the desired bit
     /// is unchanged; `sync_present_txn` then reapplies it exactly once.
     present_sync_valid: bool,
-    /// The loaded persistent config (keybinding overrides + folder defaults + the
-    /// Settings-open path). Re-loaded when the config file is SAVED in the editor,
-    /// which live-reapplies the keymap + folders.
     config: Config,
-    /// The RAW `--default-folder` flag (None = unset), remembered so a live config
-    /// reload re-folds precedence (flag > config > default) without the flag ever
-    /// losing.
     cli_default_folder: Option<PathBuf>,
-    /// The RAW `--workspace` flag (None = unset), remembered for the same reason.
     cli_workspace: Option<PathBuf>,
     /// MULTI-BUFFER REGISTRY: every OTHER currently-open buffer (backgrounded —
     /// not the active `self.active.buffer`), keyed by stable identity. Opening a path
@@ -1009,14 +709,8 @@ pub struct App {
     /// there (tripwire: `headless_replay_never_touches_the_stats_file`).
     #[cfg(not(target_arch = "wasm32"))]
     stats: crate::stats::Stats,
-    /// Monotonic base for the active-writing clock: `stats_origin.elapsed()` gives
-    /// the millis a keystroke is stamped at (fed as `now_ms` into the injected-
-    /// clock [`crate::stats::active_delta`] rule).
     #[cfg(not(target_arch = "wasm32"))]
     stats_origin: Instant,
-    /// The previous keystroke's stamp (millis since `stats_origin`), the `last`
-    /// side of the active-writing interval. `None` until the first keystroke this
-    /// session, so that first press banks no interval.
     #[cfg(not(target_arch = "wasm32"))]
     stats_last_input_ms: Option<u64>,
     /// The caret's last-sampled DOCUMENT-space position (scroll-independent), for
@@ -1025,18 +719,12 @@ pub struct App {
     /// scroll or a reshape never fakes distance). `None` until the first sample.
     #[cfg(not(target_arch = "wasm32"))]
     stats_last_caret_xy: Option<(f32, f32)>,
-    /// The caret's last-sampled logical (line, col) — the gate that decides
-    /// whether a `stats_last_caret_xy` change is a real move (counted) or mere
-    /// re-layout/scroll (anchor refreshed, no distance added).
     #[cfg(not(target_arch = "wasm32"))]
     stats_last_cursor: Option<(usize, usize)>,
     /// Whether the odometer has unsaved increments since the last flush, so a
     /// flush with nothing new skips the atomic write.
     #[cfg(not(target_arch = "wasm32"))]
     stats_dirty: bool,
-    /// WRITING STREAKS: the persisted daily-net-words record (native-only, LOCAL/
-    /// PRIVATE — beside `stats.toml`). Loaded once at launch, sampled + persisted on
-    /// the SAME autosave flush triggers as the odometer.
     #[cfg(not(target_arch = "wasm32"))]
     streaks: crate::streaks::Streaks,
     /// The active buffer's word count at the last streaks sample — the `last` side
@@ -1197,10 +885,6 @@ impl App {
             },
         };
         let initial_version = buffer.version();
-        // CLOBBER-GUARD baselines: the launch file's current on-disk mtime (its
-        // content just became the buffer), and — for a no-file launch — the
-        // stash's mtime (present even when the stash was empty, so the first
-        // stash write isn't mistaken for an external edit).
         let disk_mtime = file.as_deref().and_then(Self::disk_mtime_of);
         let scratch_mtime = if file.is_none() {
             Self::disk_mtime_of(&stash)
@@ -1209,10 +893,6 @@ impl App {
         };
         let project = crate::project::Project::resolve(&root);
         let file_index = crate::index::build_index(&root);
-        // PRECEDENCE flag > config > default. Fold the config folder values in BEHIND
-        // the raw CLI flags (the flag wins via `.or`), then the existing resolvers add
-        // the built-in default (`~/notes`; the root's PARENT for the workspace), so
-        // C-x n / C-x p work out of the box with the configured folders, no flags.
         let default_folder = crate::resolve_default_folder(
             &cli_default_folder
                 .clone()
@@ -1225,21 +905,7 @@ impl App {
         // fresh install (missing file) and works on wasm (WebFs) too. Only ever
         // reached on the live `App` — the headless capture never constructs one.
         let recent_projects = crate::recents::load(&crate::recents::recents_path());
-        // Load the persisted RECENTLY-OPENED FILES MRU (the go-to Recent lens's
-        // source). Same `FileSystem` seam + degrade-to-empty leniency as the
-        // recent-projects load above; only ever reached on the live `App`.
         let recent_files = crate::recent_files::load();
-        // Build the keymap with the config `[keys]` rebinds AND the EFFECTIVE
-        // `linux_keep_emacs` list applied over the defaults — `effective_linux_keep`
-        // widens to the whole keymap-flavor preset under `keymap = "emacs"`, else is
-        // the raw list unchanged (see `Config::effective_linux_keep`'s doc).
-        //
-        // CONVENTION-TRUTHFUL SURFACES ROUND: on `Platform::Web`, every browser-
-        // reserved command's web-alternate chord (`commands::web_alternate_keys`)
-        // is merged in BEHIND the user's own `[keys]` — config still trumps
-        // everything, since `web_alternate_keys` itself skips any command the
-        // user has already rebound. A no-op `vec![]` on `Platform::Native`, so a
-        // native build's keymap is unaffected byte-for-byte.
         let mut keys_with_web_alt = config.keys.clone();
         keys_with_web_alt.extend(crate::commands::web_alternate_keys(
             &config.keys,
@@ -1267,8 +933,6 @@ impl App {
             buffer,
             extra: files::BufferExtra {
                 caret_synced_version: initial_version,
-                // The just-loaded buffer IS the on-disk content (and a just-
-                // restored scratch IS the stash), so neither starts "unsaved".
                 doc_saved_version: Some(initial_version),
                 disk_mtime,
                 scratch_saved_version: Some(initial_version),
@@ -1405,8 +1069,6 @@ impl App {
             stats_last_cursor: None,
             #[cfg(not(target_arch = "wasm32"))]
             stats_dirty: false,
-            // WRITING STREAKS: load the persisted record (empty on a fresh install),
-            // beside the odometer. The baseline anchors on the first flush.
             #[cfg(not(target_arch = "wasm32"))]
             streaks: crate::streaks::load(&crate::streaks::streaks_path()),
             #[cfg(not(target_arch = "wasm32"))]
@@ -1430,9 +1092,6 @@ impl App {
         if app.active.buffer.path().is_some() {
             app.write_back_lang_tag_once();
         }
-        // ITEM 77: surface the launch-argument refusal (see above) now that
-        // `app` exists to carry it — a calm sticky notice, same wording every
-        // other door reports.
         if let Some(msg) = file_refusal {
             app.set_sticky_notice(msg);
         }
@@ -1455,9 +1114,6 @@ impl App {
         if app.active.buffer.path().is_none() {
             app.streaks_anchor_now();
         }
-        // A previous crash is passive state, not a startup interruption: retain
-        // the marker for About + Settings, and acknowledge it only when the user
-        // chooses Report a Problem.
         #[cfg(not(target_arch = "wasm32"))]
         {
             let dir = crate::crashlog::crashes_dir();
@@ -1682,12 +1338,6 @@ impl App {
         if self.soak.is_none() {
             return;
         }
-        // Report EXACTLY ONCE. `event_loop.exit()` is a request, not an instant
-        // teardown: winit still drains the redraw requests this driver queues
-        // each tick and calls `about_to_wait` again before it stops. Without
-        // this guard those extra ticks re-hit the `finished` branch and reprint
-        // the identical report (item 53 added the every-tick redraw that made
-        // the backlog visible). `soak_passed` is set the moment we report.
         if self.soak_passed.is_some() {
             return;
         }
@@ -1763,15 +1413,6 @@ impl App {
                     }
                 }
                 crate::soak_gpu::Stimulus::Inject(kind) => {
-                    // LIMITATION (acceptable): `soak_recovery_pending` is a
-                    // single slot, so two injections landing before a present
-                    // observes the first recovery would drop the earlier
-                    // timing. The schedule cannot reach that state — each fault
-                    // kind is injected EXACTLY ONCE (`Controller::injected` is a
-                    // one-shot latch per kind) and the batch loop above STOPS on
-                    // any `Inject`, so at most one injection is issued per tick
-                    // and the next present clears the slot before the following
-                    // kind can fire. A queue would be dead generality here.
                     self.soak_recovery_pending = Some(kind);
                     if let Some(gpu) = self.gpu.as_mut() {
                         match kind {
@@ -1809,12 +1450,6 @@ impl App {
         }
     }
 
-    /// DEBUG key→px: stamp the receipt of an input that will request a redraw —
-    /// key presses AND mouse press/scroll, which share the `request_redraw` path.
-    /// `get_or_insert` keeps only the FIRST un-rendered input per frame, so under
-    /// coalescing the measured latency is the worst case. Gated on the panel
-    /// being on (zero clock reads otherwise); the span closes at present-return
-    /// in `RedrawRequested`. Wasm-safe (`crate::clock::Instant`).
     fn stamp_input(&mut self) {
         if crate::debug::debug_on() {
             let now = self.clock.now();
@@ -1832,15 +1467,8 @@ impl App {
 /// matching arm — the exhaustiveness check is the whole point.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) enum AwlEvent {
-    /// A posted [`crate::daemon::DaemonEvent`] (see `crate::daemon`'s module
-    /// doc) — absent under `mas` (the daemon module compiles out entirely
-    /// there; see `src/mas.rs`'s module doc).
     #[cfg(not(feature = "mas"))]
     Daemon(crate::daemon::DaemonEvent),
-    /// A fired native macOS menu-bar item's raw muda id string (see
-    /// `crate::menu`'s module doc) — resolved to an `Action` and re-dispatched
-    /// through the SAME `App::apply` seam a keypress uses
-    /// (`App::handle_menu_event`, `app/menu.rs`).
     #[cfg(target_os = "macos")]
     Menu(String),
     /// A live-probe step posted by the `--live-script` driver thread (see
@@ -1992,8 +1620,6 @@ impl ApplicationHandler<AwlEvent> for App {
         let attrs = Window::default_attributes()
             .with_min_inner_size(LogicalSize::new(min_w, min_h))
             .with_title(title);
-        // On the WEB, render INTO the page's <canvas id="awl-canvas"> (placed by
-        // index.html) instead of letting winit mint a detached, un-appended canvas.
         #[cfg(target_arch = "wasm32")]
         let attrs = {
             use wasm_bindgen::JsCast;
@@ -2011,7 +1637,6 @@ impl ApplicationHandler<AwlEvent> for App {
         // only type raw ASCII. Safe to call unconditionally; platforms without an
         // IME simply never emit the events.
         window.set_ime_allowed(true);
-        // The display handle taken BY VALUE so the wasm future can own it 'static.
         let display_handle = event_loop.owned_display_handle();
 
         // NATIVE: the main thread is free to block on GPU init (pollster), so the
@@ -2042,14 +1667,6 @@ impl ApplicationHandler<AwlEvent> for App {
                     // pre-baked flat gray `menu_icons.rs` draws — must run AFTER
                     // `install` has handed the real NSMenu tree to AppKit.
                     crate::mac_chrome::mark_menu_icons_as_templates();
-                    // THE DOCK ICON, once, from a SETTLED state: the sticky theme
-                    // has already been restored (`Config::apply_sticky_globals`
-                    // runs in `main/args.rs`, long before the event loop), so
-                    // `theme::active()` here is the world the user actually
-                    // relaunched into — and its pre-rendered image replaces the
-                    // bundle's canonical icon on the running app's tile. The only
-                    // other adopter is the theme picker's COMMIT (`app/apply.rs`);
-                    // a hover preview cannot reach either. See `app_icon`.
                     crate::app_icon::adopt(&crate::theme::active());
                 }
             }
@@ -2109,8 +1726,6 @@ impl ApplicationHandler<AwlEvent> for App {
         // after init lands here with `gpu` still `None` but the slot full.
         #[cfg(target_arch = "wasm32")]
         if self.gpu.is_none() {
-            // Take into a local FIRST so the `RefCell` borrow is dropped before
-            // `on_gpu_ready` re-borrows `self`.
             let pending = self.gpu_pending.borrow_mut().take();
             if let Some(result) = pending {
                 match result {
@@ -2130,12 +1745,6 @@ impl ApplicationHandler<AwlEvent> for App {
         if self.gpu.is_none() {
             return;
         }
-        // A thin dispatcher: each substantial arm's body lives in a focused
-        // method (`app/input/` for the input arms, `app/window.rs` for the
-        // window-lifecycle + redraw arms). The ORDER and early-returns are
-        // winit-sensitive; each delegate reproduces its arm verbatim, so the
-        // `return`s that were arm-level are now method-level (nothing runs after
-        // the match, so the two are behaviourally identical).
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(true) => self.on_focus_gained(),
@@ -2171,21 +1780,12 @@ impl ApplicationHandler<AwlEvent> for App {
         // right above it (native only; kill-switch gated inside).
         #[cfg(not(target_arch = "wasm32"))]
         self.session_flush();
-        // LIFETIME STATS: the final odometer flush, mirroring the session flush
-        // right above it (native only; config + dirty gated inside).
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
-        // WRITING STREAKS: the final day-delta flush, beside the odometer's.
         #[cfg(not(target_arch = "wasm32"))]
         self.streaks_flush();
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
         self.daemon_shutdown();
-        // ITEM 85 — final MOVEMENT-LATENCY distribution into the flight recorder's
-        // black box (if armed), mirroring the odometer/streaks final flush right
-        // above: whatever the user's session sampled from real theme-picker
-        // navigation is worth one closing line, even without an explicit `latency`
-        // probe step. A no-op under a plain launch or the automated `--live-script`
-        // probe (which reports via its own explicit `latency` step instead).
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::flight_active()
             && let Some(dist) = crate::probe::latency_distribution()
@@ -2251,9 +1851,6 @@ fn notice_expired(kind: NoticeKind, deadline: Option<Instant>, now: Instant) -> 
     kind == NoticeKind::Toast && deadline.is_some_and(|d| now >= d)
 }
 
-/// Does this modifier set request wheel-zoom? Cmd/Super only (NOT Ctrl), so a
-/// Ctrl+scroll falls through to normal free scrolling. Pure, so it's unit-testable
-/// without a window/event loop.
 fn scroll_zoom_intent(mods: ModifiersState) -> bool {
     mods.contains(ModifiersState::SUPER)
 }
@@ -2314,11 +1911,6 @@ pub(crate) fn motion_honors_shift_select(action: &Action, key: &Key) -> bool {
     }
 }
 
-/// The UN-composed logical key for a key event — undoing macOS Option dead-key
-/// composition (Option-f -> 'ƒ') so Meta chords resolve. On the desktop backends
-/// this defers to winit's `KeyEventExtModifierSupplement::key_without_modifiers`;
-/// the web backend has no such composition layer (and doesn't expose the trait),
-/// so on wasm the plain logical key already IS the un-composed key.
 #[cfg(not(target_arch = "wasm32"))]
 fn key_without_modifiers(event: &winit::event::KeyEvent) -> Key {
     event.key_without_modifiers()
@@ -2476,9 +2068,6 @@ pub fn run(
     {
         app.soak = soak.map(crate::soak_gpu::Controller::new);
     }
-    // NATIVE MACOS MENU BAR: stash a proxy clone now (before the daemon's own
-    // clone below is potentially moved away) so `resumed()` can install the
-    // menu bar once the window/NSApp exists — see `App::menu_proxy`'s doc.
     #[cfg(target_os = "macos")]
     {
         if app.soak.is_none() {
@@ -2527,9 +2116,6 @@ pub fn run(
         }
     }
 
-    // WASM: the browser event loop is the page's own; winit can't BLOCK on it, so
-    // `spawn_app` hands the App to requestAnimationFrame and returns immediately
-    // (control goes back to JS). The app then lives for the page's lifetime.
     #[cfg(target_arch = "wasm32")]
     {
         use winit::platform::web::EventLoopExtWebSys;

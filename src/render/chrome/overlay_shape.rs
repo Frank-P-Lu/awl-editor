@@ -1,22 +1,7 @@
-//! Overlay name/right-column shaping and the row no-overlap arbiter.
-
 use super::*;
 
-/// Breathing inset (px) between the anchor rect's own edge and a
-/// [`theme::TitleStyle::Placard`] wordmark's glyph box — mirrors the card's
-/// own `pad` (12.0, `overlay_geometry`) so the wordmark sits inside the same
-/// margin every other element does.
 const PLACARD_INSET: f32 = 12.0;
 
-/// PROPORTIONAL PLACARD SIZING (flip-round spec, user "yeah sounds good") — the
-/// reference canvas SHORT side the wordmark fraction is calibrated against (the
-/// capture's 1200×800 canvas → 800). The wordmark HEIGHT is
-/// `clamp(floor, scale · PLACARD_HEIGHT_PER_SCALE · window_short_side, ceiling)`
-/// — WINDOW-scaled (chrome is Frame, like the page column), never ZOOM-scaled
-/// (the old `metrics.font_size · TITLE · scale` rode zoom). At this reference
-/// short side the fraction reproduces exactly today's `FONT_SIZE · TITLE · scale`
-/// look, so every default-zoom capture (window 1200×800, zoom = dpi = 1) is
-/// byte-identical to before the round.
 const PLACARD_REFERENCE_SHORT_SIDE: f32 = crate::capture::CANVAS_HEIGHT as f32;
 
 /// PROPORTIONAL PLACARD SIZING — the FROZEN calibration anchor: the value of the
@@ -28,28 +13,11 @@ const PLACARD_REFERENCE_SHORT_SIDE: f32 = crate::capture::CANVAS_HEIGHT as f32;
 /// document reads the live rung.
 const PLACARD_CALIBRATION_TITLE: f32 = 1.8;
 
-/// PROPORTIONAL PLACARD SIZING — the wordmark height as a fraction of the window
-/// short side PER UNIT of a world's `scale` dial, chosen so that at the reference
-/// short side ([`PLACARD_REFERENCE_SHORT_SIDE`]) the height equals the old
-/// `FONT_SIZE · TITLE · scale` (TITLE as calibrated —
-/// [`PLACARD_CALIBRATION_TITLE`]). Derivation: `FONT_SIZE · TITLE / REFERENCE` =
-/// `24 · 1.8 / 800` = `0.054`. So Firetail (`scale` 4.5) reproduces at `24.3%` of
-/// the short side, the `scale` 3.0 posters at `16.2%` — the board's "~20%" band.
 const PLACARD_HEIGHT_PER_SCALE: f32 =
     crate::render::FONT_SIZE * PLACARD_CALIBRATION_TITLE / PLACARD_REFERENCE_SHORT_SIDE;
 
-/// PROPORTIONAL PLACARD SIZING — the clamp FLOOR (px): a wordmark never shapes
-/// smaller than this however small the window (below the card's narrow-fallback
-/// point it FOLDS to InlinePrefix entirely — see `OverlayGeom::card_narrow` — so
-/// this floor only bites in the mid band above the fold). Comfortably below every
-/// shipped world's reference height (`scale` 3.0 → 129.6, 4.5 → 194.4), so the
-/// clamp is inert at the reference canvas.
 const PLACARD_MIN_HEIGHT: f32 = 56.0;
 
-/// PROPORTIONAL PLACARD SIZING — the clamp CEILING (px): a wordmark never shapes
-/// larger than this however large the window (a 4K/5K short side would otherwise
-/// drive a `scale` 4.5 poster past ~500 px). Comfortably above every shipped
-/// world's reference height, so the clamp is inert at the reference canvas.
 const PLACARD_MAX_HEIGHT: f32 = 512.0;
 
 /// PLACARD ATLAS-SAFETY (AtlasFull fix, 2026-07-17) — the geometric step the
@@ -93,28 +61,8 @@ pub(in crate::render) fn snap_placard_size(target: f32, anchor: f32, round_down:
     anchor * (k * PLACARD_SIZE_STEP.ln()).exp()
 }
 
-/// The glyph-coverage cut for a STIPPLE placard ([`theme::PlacardInk::Stipple`]):
-/// a rasterized wordmark pixel joins the stipple's candidate set iff its swash
-/// coverage clears this (≥ 50%). A HARD threshold, deliberately — the stipple's
-/// whole contract is "individual full-ink pixels or nothing" (Bayer-legal by
-/// construction, like the Wagtail highlight stipple), so the glyph's
-/// antialiased fringe is CUT rather than half-drawn.
 const STIPPLE_COVERAGE_THRESHOLD: u8 = 0x80;
 
-/// Pure corner placement: the wordmark's `(x, y)` top-left, given its own
-/// shaped `(w, h)` and the ANCHOR rect `(x, y, w, h)` (the full canvas — see
-/// `overlay_shape_placard`). Each axis clamps BOTH bounds, symmetrically: the
-/// anchored edge sits one `inset` in from its anchor edge; the OPPOSITE bound
-/// clamps first (a too-wide/too-tall mark degrades to hugging the far edge
-/// flush, dropping that side's inset); the anchored bound clamps last (never
-/// past the anchor's own origin, so a mark wider than the whole anchor pins
-/// to the near edge rather than reporting a negative origin). The audit-found
-/// minimum-window overflow lived in the OLD asymmetry here: `TR`/`BR`
-/// carried the `.max(ax)` guard while `BL`/`TL` had no `.min(...)` — a
-/// LEFT-anchored mark's RIGHT bound was unprotected, and every shipped
-/// placard is BL. (In practice `overlay_shape_placard`'s fit-to-canvas
-/// shrink keeps `w` inside the anchor, so these clamps are the float-noise
-/// backstop, not the primary mechanism.)
 fn placard_origin(
     corner: theme::PlacardCorner,
     anchor: (f32, f32, f32, f32),
@@ -123,8 +71,6 @@ fn placard_origin(
     inset: f32,
 ) -> (f32, f32) {
     let (ax, ay, aw, ah) = anchor;
-    // `Auto` is resolved to a concrete corner by `derived_placard_corner` before
-    // this pure placer runs; the arms below fall it back to LEFT/BOTTOM defensively.
     let x = match corner {
         theme::PlacardCorner::TL | theme::PlacardCorner::BL | theme::PlacardCorner::Auto => {
             (ax + inset).min((ax + aw - w).max(ax))
@@ -142,9 +88,6 @@ fn placard_origin(
     (x, y)
 }
 
-/// The widest laid-out run (px) of a just-shaped buffer — the wordmark's
-/// natural width. Shared by [`TextPipeline::overlay_shape_placard`]'s two
-/// measure points (natural, then post-shrink) so they can never disagree.
 fn widest_run(buffer: &GlyphBuffer) -> f32 {
     let mut w = 0.0f32;
     for run in buffer.layout_runs() {
@@ -153,18 +96,6 @@ fn widest_run(buffer: &GlyphBuffer) -> f32 {
     w
 }
 
-/// Build the RIGHT-column text lines for [`TextPipeline::shape_overlay_right`]:
-/// one `\n`-prefixed line per candidate DISPLAY line, so label N lands on the
-/// display row N of the candidate area. The FIRST line carries `header_rows`
-/// leading newlines — the empties for the query line (every picker) plus the
-/// lens STRIP above the candidate area on a faceted card (`header_rows == 2`)
-/// — every later line carries one; an empty (`""`) label yields an empty,
-/// non-binding line, which is how a faceted picker's section-HEADER row gets no
-/// chord. ONE owner shared by the flat ([`TextPipeline::overlay_shape_text`])
-/// and faceted ([`TextPipeline::shape_faceted`]) paths so their two alignments
-/// can never drift (`same behavior ⇒ same code`); the flat path passes
-/// `header_rows == 1`, reproducing the historical single leading `\n`
-/// byte-for-byte.
 fn right_bind_lines<'a>(header_rows: usize, labels: impl Iterator<Item = &'a str>) -> Vec<String> {
     labels
         .enumerate()
@@ -239,40 +170,14 @@ impl TextPipeline {
             theme::TitleStyle::Placard { corner, scale, ink } => (corner, scale, ink),
             theme::TitleStyle::InlinePrefix => return None,
         };
-        // item 4 (NARROW FOLD): below the card's narrow-fallback regime the poster
-        // FOLDS to `InlinePrefix` — no partial/clipped wordmark at any width. The
-        // ONE owner (`OverlayGeom::card_narrow`, computed via
-        // `overlay_card_fill_regime` from the SAME geometry the card width fallback
-        // reads) is shared with the inline-prefix reader (`overlay_title_prefix`),
-        // so exactly one of the poster wordmark / inline `title › ` prefix ever
-        // fires. Zero placard pixels in the narrowest cells (the width-sweep law).
         if geom.card_narrow {
             return None;
         }
-        // Resolve an `Auto` corner COMPLEMENTARY to the card anchor (the ONE pure
-        // owner) so the wordmark lands opposite the command surface, never under it.
-        // ITEM 45: the placard corner is derived complementary to the FROZEN card
-        // anchor (via the ONE owner), so a poster world previewed under a picker
-        // opened on a differently-aligned world still lands opposite the frozen card.
         let corner = crate::render::derived_placard_corner(
             corner,
             crate::render::resolve_overlay_anchor(self.overlay_align),
         );
-        // PROPORTIONAL PLACARD SIZING (flip-round spec): the wordmark tracks the
-        // WINDOW short side (chrome is Frame — the page-column philosophy), NEVER
-        // the zoom-scaled `metrics.font_size` the old formula rode. `scale` stays
-        // the per-world LOUDNESS dial; the fraction is calibrated
-        // ([`PLACARD_HEIGHT_PER_SCALE`]) so that at the 1200×800 reference canvas
-        // (zoom = dpi = 1) this equals the old `metrics.font_size · TITLE · scale`
-        // exactly → every default capture is byte-identical. Clamped floor..ceiling
-        // so a tiny window never shrinks it to nothing (it FOLDS first, above) and a
-        // 4K/5K window never blows it up. `line_height = font_size · 1.1` below, so
-        // this drives the whole box.
         let short_side = self.window_w.min(self.window_h);
-        // The world's REFERENCE-canvas height (short side == PLACARD_REFERENCE_SHORT_SIDE):
-        // the anchor the size ladder is pinned to, so the reference canvas is an exact
-        // fixed point (byte-identical there) and both this main size and the shrink-to-fit
-        // size below land on the SAME ladder (see `snap_placard_size`).
         let reference_size = scale * PLACARD_HEIGHT_PER_SCALE * PLACARD_REFERENCE_SHORT_SIDE;
         // ATLAS-SAFETY: snap the continuous window-tracked size to the ladder BEFORE the
         // clamp, so a live resize sweep produces a BOUNDED set of distinct giant sizes
@@ -283,8 +188,6 @@ impl TextPipeline {
             false,
         )
         .clamp(PLACARD_MIN_HEIGHT, PLACARD_MAX_HEIGHT);
-        // A generous plain leading — no body text ever sits inside a
-        // single-line wordmark box to match against.
         let mut line_height = font_size * 1.1;
         let metrics = GlyphMetrics::new(font_size, line_height);
         self.placard_buffer
@@ -295,11 +198,6 @@ impl TextPipeline {
             .set_wrap(&mut self.font_system, Wrap::None);
         let text = self.overlay_title.to_uppercase();
         let color = theme::placard_ink(ink).to_glyphon();
-        // The wordmark is CHROME (the frame around the list, never the list),
-        // so it shapes in the world's chrome face — `chrome_attrs` is
-        // `panel_attrs` verbatim on every `ChromeFace::Body` world (all of
-        // them today), and swaps only under a `Named` face / the
-        // `AWL_CHROME_FACE_FORCE` audition probe.
         self.placard_buffer.set_text(
             &mut self.font_system,
             &text,
@@ -313,13 +211,6 @@ impl TextPipeline {
         if w <= 0.0 {
             return None;
         }
-        // ANCHOR TO THE FULL CANVAS corners (a dim screen-corner watermark),
-        // NOT the centered card rect. DECISION: the TOP corners respect the
-        // menubar reserve (`0.0` unless the web/Linux bar is shown) so a shown
-        // bar — which draws LAST, straight over the top of the canvas — never
-        // overpaints the wordmark; the bottom edge uses the full window
-        // height. On macbook/capture (bar off) `reserve == 0.0`, so the anchor
-        // is the plain (0, 0, window_w, window_h) canvas.
         let reserve = self.menubar_reserve();
         let anchor = (0.0, reserve, self.window_w, self.window_h - reserve);
         // FIT THE CANVAS (the minimum-window overflow fix — found live by the
@@ -374,8 +265,6 @@ impl TextPipeline {
     /// content the stipple contract can honor.
     pub(in crate::render) fn placard_stipple_rects(&mut self, origin: (f32, f32)) -> Vec<[f32; 4]> {
         let (px, py) = origin;
-        // Collect (cache_key, pen_x, baseline_y) first: `get_image` needs
-        // `&mut font_system` while `layout_runs` borrows the buffer.
         let mut glyphs: Vec<(CacheKey, f32, f32)> = Vec::new();
         for run in self.placard_buffer.layout_runs() {
             let baseline_y = py + run.line_y;
@@ -400,8 +289,6 @@ impl TextPipeline {
                 continue;
             }
             let gw = img.placement.width as usize;
-            // Box top-left = (pen_x + placement.left, baseline - placement.top)
-            // — the same placement convention the morph caret's masks use.
             let x0 = pen_x + img.placement.left as f32;
             let y0 = baseline_y - img.placement.top as f32;
             for (row, cols) in img.data.chunks_exact(gw).enumerate() {
@@ -425,64 +312,15 @@ impl TextPipeline {
         rects
     }
 
-    /// Compose + shape the overlay text into the shared buffers: the query line +
-    /// candidate rows (selected ink / rest muted) in `panel_buffer`, and the dim
-    /// `Align::Right` chord/time column in `panel_bind_buffer`. Returns whether a
-    /// right column was built (so the caller uploads its text area).
-    ///
-    /// The NAME and the RIGHT column share ONE row budget, split by the
-    /// [`rowlayout`] primitive (the single owner of the rules): the comfortable
-    /// regime reproduces the historical char budget byte-for-byte; when the
-    /// estimate goes tight the shaped PIXELS arbitrate ([`rowlayout::fits`]) and
-    /// the right column YIELDS whole rather than ever painting over a name.
-    ///
-    /// `elide` is `false` ONLY from [`Self::measure_overlay_content_w`] (ITEM 83)
-    /// — every real-draw call site passes `true`, byte-identical to before this
-    /// parameter existed. The reservation this module's char-budget estimate
-    /// makes for a right column is SHARED across every row (`rowlayout`'s own
-    /// documented "one row budget" — a genuinely long chord on ONE row tightens
-    /// the estimate for EVERY row's primary), which is the right call once a
-    /// card's width is already fixed, but is EXACTLY WRONG while still deciding
-    /// how wide a content-hugging card SHOULD be: measuring the width of primary
-    /// text that this SAME pass already elided under that shared-budget squeeze
-    /// bakes the squeeze into the "natural" content width, so the card sizes
-    /// itself to the elided text and never grows enough to show it whole (the
-    /// no-usable-width-remains report — "Compare with version…" reading
-    /// "Compare …version…" beside a chord-bearing row that has nothing to do
-    /// with it). `elide=false` skips straight to the UNELIDED shaping every
-    /// primary already falls back to under [`rowlayout::Plan::Measure`], so
-    /// [`Self::widest_candidate_px`] reads each row's true natural width.
     pub(in crate::render) fn overlay_shape_text(
         &mut self,
         geom: &OverlayGeom,
         ink: glyphon::Color,
         muted: glyphon::Color,
-        // The SELECTED row's own glyph color on a true 1-bit world
-        // (`HighlightTreatment::InverseFill` — solid `base_300` so black text
-        // lands crisply on the white band). `None` on every ordinary world,
-        // where the selected row keeps its content ink and the shaper is
-        // byte-identical to before.
         selected_ink: Option<glyphon::Color>,
-        // ARM B LIVING-BAND PROBE — the DISPLAY rows the moving band COVERS this
-        // frame (whose ink flips instead of the static selected row). `None` on
-        // every ordinary run: the shaper flips exactly `overlay_selected`
-        // (byte-identical). Threaded through BOTH the flat AND the FACETED path
-        // (the demo surface is the Cmd-P palette, which is faceted) so the ink
-        // rides the band wherever the fill animates it.
         covered: Option<&[usize]>,
-        // ITEM 83 — `false` shapes every primary UNELIDED (see the doc above);
-        // `true` (every real-draw call site) is byte-identical to pre-item-83.
         elide: bool,
     ) -> bool {
-        // FACETED (lens-strip) pickers — the theme worlds AND the Cmd-P command
-        // palette / Settings / Browse / … once a lens strip is populated — lay out
-        // differently from the flat pickers: a section-grouped name column (its own
-        // shaper, which also records the active-lens underline rect) PLUS, when the
-        // picker fills a right column (chords / times / git), that column aligned to
-        // the plan's item rows. `shape_faceted` owns both halves and returns whether
-        // a right column was built. It ALSO threads `covered` through to the
-        // section-grouped shaper, so the living-band ink flip works on the palette
-        // (the demo surface) exactly like the flat pickers.
         self.overlay_right_shown = false;
         if geom.theme {
             return self.shape_faceted(geom, ink, muted, selected_ink, covered, elide);
@@ -490,18 +328,8 @@ impl TextPipeline {
         let visible = geom.visible;
         let top_idx = geom.top_idx;
 
-        // The dim RIGHT-aligned column: command-palette key chords (`bindings`), the
-        // go-to picker's relative "last edited" labels (`times`), OR the Project /
-        // Browse pickers' per-row `"git"` repo tag (`git`). Only one is ever populated,
-        // so prefer bindings, then times, then git. It is drawn FLUSH at the card's
-        // right text edge by a SEPARATE buffer laid out with cosmic-text `Align::Right`,
-        // so the column is a clean right edge regardless of the proportional name width.
         let right_labels = self.overlay_right_labels();
         let has_right = !right_labels.is_empty();
-        // One line per name row, aligned to the candidate rows through the shared
-        // `right_bind_lines` owner: the flat card's ONE header line (the `› query`
-        // row, `header_rows == 1`) stays empty and label N lands on candidate row N;
-        // the hint row (if any) stays empty.
         let bind_strs = right_bind_lines(
             geom.header_rows,
             (0..visible).map(|row| {
@@ -528,23 +356,12 @@ impl TextPipeline {
             .map(|s| crate::render::slant_max_offset(&s, visible))
             .unwrap_or(0.0);
         let slant_text_w = (geom.text_w - slant_tax).max(0.0);
-        // ITEM 83: the row-budget estimate reads the overlay's OWN (smaller,
-        // `OVERLAY_UI_SCALE`-stepped) char width, not the bare document
-        // `self.metrics.char_width` — see `overlay_char_width`'s doc.
         let char_w = self.overlay_char_width();
         let total_chars = if char_w > 0.0 {
             (slant_text_w / char_w).floor() as usize
         } else {
             usize::MAX
         };
-        // V7 TASTE-GATE — TEXT-HUGGING (`HugText`) bars with a right column: the
-        // shortcut rides its own name line (trailing the label, `INLINE_SHORTCUT_GAP`
-        // between) so EVERY row's bar hugs its own content; the ragged right derives
-        // from content length alone. The names shape at FULL budget (the pane is
-        // dropped under bars — no right column to reserve against), and the separate
-        // right-aligned column is NOT drawn (`overlay_right_shown` stays false). The
-        // `HugLabel` HYBRID does NOT take this path — its chord stays in the
-        // right-aligned column below, so the plate hugs the label ALONE.
         if has_right && super::bars_inline_shortcut() {
             let full = rowlayout::full_budget(total_chars);
             let rows: Vec<String> = (0..visible)
@@ -577,11 +394,6 @@ impl TextPipeline {
         } else {
             None
         };
-        // ITEM 83: `!elide` (measurement only) always takes the UNELIDED branch
-        // below (`budget = None`) — the shared-budget char ESTIMATE
-        // (`rowlayout::plan`'s `Split`) is exactly the mechanism whose squeeze
-        // must NOT leak into a content-hugging card's own width decision (see
-        // this fn's doc). The real-draw call (`elide == true`) is untouched.
         let budget = if !elide {
             None
         } else {
@@ -607,12 +419,6 @@ impl TextPipeline {
         }
         self.shape_overlay_right(geom, ink, muted, &bind_strs);
 
-        // THE NO-OVERLAP LAW, in shaped pixels: the widest candidate name + the gap
-        // + the widest right label must tile inside the text column. When they do
-        // (every comfortable window, plus tight-but-genuinely-fitting cards like the
-        // caret picker's short names beside its label-size descriptions), the right
-        // column shows. When they do NOT, it YIELDS — dropped whole — and the names
-        // re-shape owning the full row (elided only if a name alone overflows).
         let name_px = self.widest_candidate_px(geom);
         let right_px = self.widest_right_px();
         let gap_px = rowlayout::GAP_CHARS as f32 * char_w;
@@ -620,13 +426,6 @@ impl TextPipeline {
             self.overlay_right_shown = true;
             return true;
         }
-        // ITEM 83: measuring (`!elide`) stops here — the secondary genuinely
-        // doesn't fit beside the UNELIDED primary even at this wide provisional
-        // geometry, so it YIELDS (the caller already reads `has_right == false`
-        // as "no secondary width to add"); re-eliding the primary here would
-        // bake a squeeze into the very measurement that decides the card's
-        // width (the bug this parameter exists to close) — `panel_buffer`
-        // already holds the unelided rows from the shaping above.
         if !elide {
             return false;
         }
@@ -638,69 +437,16 @@ impl TextPipeline {
         false
     }
 
-    /// ITEM 51 — measure the RIGHT-ANCHORED card's CONTENT WIDTH (device px,
-    /// INCLUDING the `2 * hpad` side padding) for the currently-synced overlay, so a
-    /// content-hugging card can shrink to it. Called from `sync_view_fields` with a
-    /// `&mut FontSystem` in hand (like [`Self::measure_spell_content_w`]), the result
-    /// cached in `overlay_content_w`; the buffers it shapes here are RE-SHAPED by
-    /// `overlay_shape_text` before the card draws, so borrowing them for a
-    /// measurement is harmless.
-    ///
-    /// It shapes the overlay through the REAL shaper ([`Self::overlay_shape_text`])
-    /// against a PROVISIONAL WIDE geometry — the caller reset `overlay_content_w` to
-    /// `0.0` first, so [`Self::overlay_geometry`] uses the fixed wide cap here —
-    /// UNELIDED (ITEM 83: `elide=false`), so nothing this pass measures was ALREADY
-    /// truncated by a card width still being decided. Before item 83 this passed
-    /// `elide=true` on the (false) assumption that the wide provisional cap alone
-    /// guaranteed no elision; it does not — `rowlayout`'s SHARED row-budget
-    /// estimate (`Plan::Split`) can still squeeze a primary at the wide cap
-    /// whenever some OTHER row's secondary (chord/time/git label) is long, even
-    /// though that row's own primary carries no secondary at all ("Compare with
-    /// version…" reading "Compare …version…" beside a compound-chord row it
-    /// shares nothing with). `elide=false` reads each row's TRUE natural width —
-    /// then reads the widest shaped run, so the measurement can NEVER disagree
-    /// with what the draw path shapes AT THAT width. The content the card must
-    /// hold is the WIDEST of: any single LEFT-side line (the query line, the lens
-    /// strip, a bare primary, the footer hint) AND a candidate row's PRIMARY +
-    /// gap + right-aligned SECONDARY (which sit side by side, in two buffers).
-    /// The standard cell gap is charged ONLY when a secondary column is actually
-    /// shown, so the label-to-shortcut gap stays content-bounded — the scanning
-    /// column begins right after the widest primary, never at a remote edge.
     pub(in crate::render) fn measure_overlay_content_w(&mut self) -> f32 {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
-        // The provisional WIDE geometry (right-anchored, `overlay_content_w == 0.0`
-        // → the fixed wide cap), shaped through the REAL shaper so the measured
-        // widths are exactly the ones the draw path will lay out.
         let geom = self.overlay_geometry(self.window_w as u32);
         self.overlay_remetric();
         let has_right = self.overlay_shape_text(&geom, ink, muted, None, None, false);
-        // The widest LEFT-side element (query / lens strip / bare primary / footer).
         let mut left = 0.0_f32;
         for run in self.panel_buffer.layout_runs() {
             left = left.max(run.line_w);
         }
-        // A candidate row's own content: primary + gap + right-aligned secondary.
-        //
-        // ITEM 83 ADJUST (Fable's audit, item83-mangrove-plain-picker.png): a
-        // right-anchored card whose width is DRIVEN by a candidate row's own
-        // primary (the widest element is a row, not the query/footer line) still
-        // elides that exact row by one character — the SAME row's real draw pass
-        // reaches `rowlayout::full_budget`/`Plan::Full`'s built-in `total - 1`
-        // margin (every no-secondary-shown fallback reserves one char, by
-        // design — `rowlayout::full_budget`'s own doc), but THIS measurement
-        // sized the card to the row's bare pixel width with no room for that
-        // reserve, so the draw pass's `total_chars` lands exactly one character
-        // short and the widest (here: the selected) row's own label pays for it
-        // ("English (Australia)" -> "English …ustralia)" even though the card
-        // plainly has room). One extra char of width absorbs that reserve
-        // before elision ever kicks in — the row was going to occupy that
-        // pixel width regardless, this just stops the fallback budget from
-        // undercutting a width the card already grew to hold. `overlay_desired_w`
-        // still clamps the result to the SAME normal wide cap, so a genuinely
-        // long corpus elides exactly as before; this only closes the
-        // one-char-short gap for a content-hugging card sized off its own
-        // widest row.
         let primary = self.widest_candidate_px(&geom) + self.overlay_char_width();
         let secondary = if has_right {
             self.widest_right_px()
@@ -716,62 +462,18 @@ impl TextPipeline {
         content_text + 2.0 * self.overlay_text_hpad()
     }
 
-    /// FACETED (lens-strip) card shaping: the section-grouped NAME column
-    /// ([`Self::overlay_shape_theme`], which also records the active-lens
-    /// underline), then — REUSING the SAME right-column owner the flat path uses
-    /// ([`Self::shape_overlay_right`], not a copy) — the dim RIGHT column
-    /// (command-palette chords / go-to "last edited" times / Browse·Project git
-    /// tags), its lines offset to line up with the plan's ITEM rows. Returns
-    /// whether a right column was built (so the caller uploads its text area).
-    ///
-    /// THE ROW MODEL (the alignment crux — got exactly right, verified by a
-    /// capture): a faceted card has TWO header rows (query line 0 + lens STRIP
-    /// line 1, `geom.header_rows == 2`), and its candidate area is the DISPLAY
-    /// PLAN — section HEADERS ([`ThemeLine::Header`], present under a real lens
-    /// where `overlay_sections` is populated) interleaved with world/command
-    /// ROWS ([`ThemeLine::Item`]). So the bind column is built by walking the
-    /// plan one display line at a time via the shared [`right_bind_lines`]: an
-    /// `Item(i)` gets item `i`'s label (the absolute item index the plan carries,
-    /// NOT a windowed offset), a `Header` gets an EMPTY line (a header is not a
-    /// binding row), and the FIRST line carries `header_rows` leading newlines so
-    /// the plan begins on display line 2. Both buffers share the overlay UI row
-    /// height ([`Self::overlay_lh`]), so bind line N sits on the same y as name
-    /// line N.
-    ///
-    /// THE LITERAL Theme picker (Switch theme…) has empty bindings/times/git →
-    /// `has_right` false → an early `false` return with NO bind buffer built, so
-    /// it renders byte-identically. Only the faceted pickers that populate a right
-    /// column get one.
     fn shape_faceted(
         &mut self,
         geom: &OverlayGeom,
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        // ARM B LIVING-BAND PROBE — the DISPLAY (plan-line) rows the moving band
-        // covers this frame; their ink flips instead of the static selected item.
-        // `None` on every ordinary run → the theme shaper flips exactly the
-        // selected item (byte-identical).
         covered: Option<&[usize]>,
-        // ITEM 83 — see [`TextPipeline::overlay_shape_text`]'s doc; threaded
-        // through to [`TextPipeline::overlay_shape_theme`] unchanged.
         elide: bool,
     ) -> bool {
-        // The dim RIGHT column through the SAME one-owner precedence the flat path
-        // reads (bindings → times → git; only one is ever populated). Empty on the
-        // literal Theme picker → no right column, byte-identical.
         let right_labels = self.overlay_right_labels();
         let has_right = !right_labels.is_empty();
-        // V7 TASTE-GATE — under `HugText` bars a right column rides INLINE on each
-        // ITEM row (trailing the label, `INLINE_SHORTCUT_GAP` between) so the bar
-        // hugs the whole content; the separate right-aligned column is dropped.
-        // One trailing string per PLAN line (a header line gets none). Empty on a
-        // non-`HugText` frame (incl. the `HugLabel` hybrid, whose chord stays in
-        // the right column) or a picker with no right column → byte-identical.
         let hug_inline = has_right && super::bars_inline_shortcut();
-        // Both the INLINE trailing (hug) and the right-aligned bind lines (non-hug)
-        // are materialized into OWNED `Vec<String>`s up front, so the `right_labels`
-        // borrow of `self` ends before the `&mut self` shaper calls below.
         let trailing: Vec<String> = if hug_inline {
             geom.plan
                 .iter()
@@ -788,10 +490,6 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        // One bind line per DISPLAY line of the plan, aligned to the ITEM rows: a
-        // header line gets an empty label, an item line gets its own item's label,
-        // and the first line pads by `header_rows` (query + strip) so the plan
-        // begins on display line 2. Empty under hug (the shortcut rides inline).
         let bind_strs: Vec<String> = if has_right && !hug_inline {
             right_bind_lines(
                 geom.header_rows,
@@ -803,8 +501,6 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        // The section-grouped name column + the active-lens underline (unchanged,
-        // save the inline shortcuts composed onto the ITEM rows under hug bars).
         self.overlay_shape_theme(geom, ink, muted, selected_ink, covered, &trailing, elide);
         if !has_right || hug_inline {
             return false;
@@ -837,23 +533,6 @@ impl TextPipeline {
         true
     }
 
-    /// The inline `"<title> › "` query-line prefix, or an EMPTY string when
-    /// the bare `› ` sigil should show instead. ONE owner, shared by the flat
-    /// ([`Self::shape_overlay_names`]) and faceted
-    /// ([`Self::overlay_shape_theme`]) shapers so the two inline sites can
-    /// never diverge (`same behavior ⇒ same code`). Empty when:
-    /// - this picker draws no title (`overlay_title` empty — Rename/InsertLink
-    ///   orient via their own modal prompt), OR
-    /// - the active [`theme::TitleStyle`] is a `Placard` AND the placard is NOT
-    ///   folded (the corner wordmark already announces the picker, so the inline
-    ///   prefix must NOT ALSO fire — both firing was the reported double-title
-    ///   bug). `InlinePrefix` (the default on every world) keeps the prefix —
-    ///   byte-identical to before.
-    ///
-    /// item 4 (NARROW FOLD) — when the card is in its narrow-fallback regime
-    /// (`geom.card_narrow`, the SAME owner the placard shaper folds on), a
-    /// `Placard` world FOLDS to `InlinePrefix`: the wordmark is suppressed there,
-    /// so the prefix RETURNS here. Exactly one of the two fires at any width.
     pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
         let placard_drawn = matches!(
             crate::render::effective_title_style(),
@@ -866,17 +545,6 @@ impl TextPipeline {
         }
     }
 
-    /// ONE OWNER of the summoned card's FOOT-HINT spans (the "↑/↓ move …" control
-    /// row) — appends the break-`\n` (at the prior row's NORMAL height) then the hint
-    /// TEXT on a SHORTER line ([`Self::overlay_hint_h`]) at the LABEL rung, keycap
-    /// glyphs (↵ ⇥ ⌘ …) split onto the SYMBOL_FAMILY face. Shared by the flat
-    /// ([`Self::shape_overlay_names`]) and faceted/theme
-    /// ([`Self::shape_theme_spans`]) shapers so EVERY `OverlayKind`'s footer carries
-    /// IDENTICAL bottom geometry (the C2 footer-drift fix — before this the theme /
-    /// faceted path drew the hint at FULL row height while the flat path drew it
-    /// compact, so the card's bottom pad differed per kind). The card-height owners
-    /// ([`overlay_geometry`] / [`theme_geometry`]) reclaim `lh - hint_h` per hint row
-    /// to match this compact strip exactly.
     pub(super) fn push_overlay_hint_spans<'a>(
         &self,
         spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
@@ -898,18 +566,10 @@ impl TextPipeline {
                 .color(c)
                 .metrics(GlyphMetrics::new(hint_fs, hint_h))
         };
-        // Break the last content line at its OWN (normal) height first.
         spans.push(("\n", base.clone().color(muted)));
-        // The compact foot hint through the ONE symbol-split owner (⌘ ⇧ ⌥ ⌃ ↵ ⇥
-        // ride SYMBOL_FAMILY, the rest the chrome face) at the LABEL rung.
         push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
     }
 
-    /// Shape the overlay's LEFT column into `panel_buffer`: the `› query` line (when
-    /// the picker has one), the candidate `rows` (pre-budgeted by the caller through
-    /// [`rowlayout`]), and the dim foot hint. Carved verbatim out of the old inline
-    /// shaper so the no-overlap arbiter can re-shape the names after a yield.
-    // Overlay rows arrive as parallel shaped inputs; a parameter object would obscure their alignment.
     #[allow(clippy::too_many_arguments)]
     fn shape_overlay_names(
         &mut self,
@@ -917,54 +577,17 @@ impl TextPipeline {
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        // ARM B LIVING-BAND PROBE — the DISPLAY rows the moving band covers this
-        // frame; their ink flips instead of the static selected row ("ink rides
-        // the band"). `None` on every ordinary run → the shaper flips exactly
-        // `sel_vis` (byte-identical). See [`livingband::covered_rows`].
         covered: Option<&[usize]>,
         rows: &[String],
-        // V7 TASTE-GATE — one trailing INLINE-SHORTCUT string per candidate row
-        // (already `INLINE_SHORTCUT_GAP`-prefixed; empty = none). Non-empty ONLY
-        // under `HugText` bars with a right column, where the shortcut rides its
-        // own name line (muted, symbol-split for modifier glyphs) instead of the
-        // right-aligned column, so the bar hugs `label + gap + shortcut`. Pass
-        // `&[]` everywhere else — byte-identical (no trailing spans).
         trailing: &[String],
     ) {
-        // The flat/nav pickers show a `› query` line on top (`header_rows == 1`); the
-        // contextual SPELL panel shows none (`0`) — just the suggestion rows.
         let has_query = geom.header_rows > 0;
-        // Per-row colors: query full ink; candidate rows ink (selected) / muted.
-        // Names/query/sigil render in the ACTIVE-WORLD face (`mk`).
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
-        // Symbol-face attrs for the inline shortcut's modifier glyphs (⌘ ⇧ ⌥ ⌃) —
-        // the same bundled `SYMBOL_FAMILY` the right-aligned column + hint use.
         let sym_name = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
-        // The query line occupies text line 0 when present; the spell panel skips it
-        // so its first suggestion IS line 0. THE OVERLAY-TITLES ROUND: a picker that
-        // draws its title (`overlay_title` nonempty — every kind except Rename/
-        // InsertLink, which already orient via their own modal prompt) prepends it,
-        // muted, before the `› ` sigil — "<title> › query", so routing from the
-        // palette into another picker always says where you landed. SUPPRESSED under
-        // a `Placard` title style (the corner wordmark already names the picker) —
-        // `overlay_title_prefix` owns that ONE rule for both inline sites, and the
-        // NARROW FOLD (`geom.card_narrow`) brings the prefix back when the poster folds.
         let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
-        // PALETTE-COMPOSITION round's HEADER GAP: inflate the query line's own
-        // height by `header_gap`, so the extra negative space falls between the
-        // query header and the first candidate row (the divider is negative
-        // space, no drawn rule). The candidate rows keep their normal height and
-        // the selected-row band folds the same gap in through `overlay_row_top`,
-        // so the band still lands on each row. `hk` = the header spans' attrs
-        // (taller line only when a gap is set). NOTE cosmic-text HALF-LEADS the
-        // glyphs into this taller line — the query text sits `header_gap * 0.5`
-        // BELOW the top, NOT pinned to it — so the amber caret centres on this
-        // line's REAL shaped height (`overlay_place_caret` reads the run's own
-        // `line_height`), never the bare `overlay_lh()`, or it floats a half-beat
-        // above the text (the full-bleed caret bug).
         let name_fs = self.overlay_metrics().font_size;
         let header_lh = self.overlay_lh() + geom.header_gap;
         let hk = |c| {
@@ -974,10 +597,6 @@ impl TextPipeline {
                 mk(c)
             }
         };
-        // The "<title> › " prefix is CHROME (it names the picker), so it rides
-        // the chrome face (`chrome_attrs` == `panel_attrs` on every Body world
-        // — byte-identical today); the bare `› ` sigil and the query TEXT are
-        // the input affordance, never chrome — they keep the body face.
         let hkc = |c| {
             let a = chrome_attrs().color(c);
             if geom.header_gap > 0.0 {
@@ -994,25 +613,7 @@ impl TextPipeline {
             }
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
-        // Every row's FILENAME is the FIGURE: content ink at BODY size. Its leading
-        // DIRECTORY (through the last `/`) recedes to MUTED ink (figure/ground by value)
-        // so the eye lands on the file; a folder row (trailing `/`, no filename after it)
-        // stays whole in content ink. The SELECTED row is marked by a surface VALUE BAND
-        // (DESIGN §5), not a brighter name. A leading `\n` puts each name on its own row
-        // BELOW the query line; without a query line (spell panel) row 0 sits on line 0.
-        //
-        // ONE EXCEPTION — a true 1-bit world (`selected_ink.is_some()`): the
-        // SELECTED row's own glyphs (name AND its dir prefix) recolor to the
-        // solid contrasting ink so black text lands crisp on the white band,
-        // instead of the gamma-grey a framebuffer invert of the row produced
-        // (see `HighlightTreatment::InverseFill`). `sel_vis` is the 0-based row
-        // among those SHOWN, matching `overlay_draw_card`'s band placement.
         let sel_vis = self.overlay_selected.saturating_sub(geom.top_idx);
-        // WILD-MENU SLANT PROBE, italic half (env-gated; `false` on every
-        // normal run): the Persona-style italic on the row NAMES only — the
-        // query/hint/chrome never slant. The face may not carry a true italic;
-        // cosmic-text then matches the nearest style — acceptable for a
-        // gallery probe (which faces carry real italics is a probe FINDING).
         let slant_italic = crate::render::overlay_slant()
             .map(|s| s.italic)
             .unwrap_or(false);
@@ -1027,9 +628,6 @@ impl TextPipeline {
             if has_query || row != 0 {
                 spans.push(("\n", mk(ink)));
             }
-            // INK RIDES THE BAND: under the living-band probe (`covered` set) the
-            // flip follows whichever rows the MOVING band covers this frame;
-            // otherwise it flips exactly the settled selected row (byte-identical).
             let flip = match covered {
                 Some(rows) => rows.contains(&row),
                 None => row == sel_vis,
@@ -1053,14 +651,6 @@ impl TextPipeline {
                 _ if is_spell_add_row => (muted, muted),
                 _ => (ink, muted),
             };
-            // ITEM 66: the muted-directory/content-filename split only applies to a
-            // kind whose row content is a genuine path/URL (`overlay_row_path_splits`
-            // — currently InsertLink alone). Everything else — most sharply the DATE
-            // picker's `DD/MM/YY`-shaped examples, where `/` is a date separator, not
-            // a path one — renders its ENTIRE row in one uniform ink; `row_split`'s
-            // "split at the last `/`" rule would otherwise have mistaken that
-            // separator for a directory boundary and muted part of the date's own
-            // glyphs.
             let split = if content.ends_with('/') || !self.overlay_row_path_splits {
                 0
             } else {
@@ -1070,44 +660,19 @@ impl TextPipeline {
                 spans.push((&content[..split], rk(dir_c)));
             }
             spans.push((&content[split..], rk(name_c)));
-            // V7 TASTE-GATE — the trailing INLINE SHORTCUT (HugText bars only),
-            // muted, on the SAME name line so the bar hugs label + gap + shortcut.
-            // Symbol-split so ⌘ ⇧ ⌥ ⌃ shape from the bundled face (real advances),
-            // exactly like the right-aligned column + the foot hint.
             if let Some(t) = trailing.get(row).filter(|t| !t.is_empty()) {
                 push_symbol_split(&mut spans, t, || mk(muted), || sym_name(muted));
             }
         }
-        // EMPTY STATE: with no candidate rows, one dim, non-selectable message row
-        // (styled like the foot hint) sits in the candidate area — the shared calm
-        // "no matches" / "no suggestions" / … from `geom.empty`. A query line pushes
-        // it to its own line below; the spell popup (no query line) puts it on line 0.
         if let Some(msg) = &geom.empty {
             if has_query {
                 spans.push(("\n", mk(muted)));
             }
             spans.push((msg.as_str(), mk(muted)));
         }
-        // The quiet control-hint row, last. LIP FIX (item 5): a leading "\n"
-        // breaks the last candidate line at its NORMAL height, then the hint
-        // TEXT rides a SHORTER line ([`Self::overlay_hint_h`]) at the LABEL rung
-        // — a compact footer that hugs the card's bottom edge instead of
-        // floating a full row high (the ugly "lip"). Both geometry owners shrink
-        // the card by `lh - overlay_hint_h()` so it fits this tighter strip
-        // exactly. Its keycap glyphs (↵ ⇥ ⌘ … ) ride the SYMBOL_FAMILY face —
-        // split into symbol / non-symbol runs exactly like the chord column — so
-        // a hint that teaches a key with a glyph (`↵ restore`) renders it.
         if geom.hint_rows > 0 {
-            // The compact foot-hint through the ONE shared owner (C2 footer-drift).
             self.push_overlay_hint_spans(&mut spans, geom.hint.as_str(), muted);
         }
-        // KEYBINDINGS TIPS FOOTER: the quiet "your top 3" band below the hint (chrome,
-        // like the hint line — NOT selectable rows). Each tip a FAINT line (fainter than
-        // the muted hint, so it's the quietest thing on the card), prefixed by a blank
-        // separator so it reads as its own band. Built up front so the shaped spans can
-        // borrow it past `set_rich_text` (like `hint_line`). Its chord glyphs (⌘ ⇧ …)
-        // ride the SYMBOL_FAMILY face (the same `sym` split the hint uses), so a
-        // "⌘O  Go to file" tip renders the glyph rather than tofu.
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
         if geom.footer_rows > 0 {
             let faint = theme::faint().to_glyphon();
@@ -1136,10 +701,6 @@ impl TextPipeline {
             .shape_until_scroll(&mut self.font_system, false);
     }
 
-    /// Shape the RIGHT column into the `Align::Right` `panel_bind_buffer`, one
-    /// (`\n`-prefixed) label line per candidate row, flush at the card's right text
-    /// edge (width == `text_w`). The dim labels stay MONOSPACE; carved verbatim out
-    /// of the old inline shaper.
     fn shape_overlay_right(
         &mut self,
         geom: &OverlayGeom,
@@ -1149,29 +710,8 @@ impl TextPipeline {
     ) {
         let base = panel_attrs();
         let mono = |c| Attrs::new().family(Family::Monospace).color(c);
-        // Split each chord label into SYMBOL / non-symbol runs so the macOS
-        // modifier glyphs (⌘ ⇧ ⌥ ⌃) shape from the bundled `SYMBOL_FAMILY` face
-        // — which has real, finite advances — instead of the monospace face's
-        // tofu. Those flaky-fallback glyphs are what let the glyph chords
-        // overshoot the right margin: cosmic-text's `Align::Right` measures the
-        // shaped run width, so once the modifier glyphs carry their REAL width the
-        // chord column lands flush and `⌘⇧O` lines up with the `C-x` text chords.
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-        // SECONDARY-INK FLIP (Potoroo taste-gate defect — the primary flip landed
-        // but the dim right column never followed, so the selected row's chord
-        // hints washed into a saturated band, invisible). The SELECTED display
-        // line's chord recolors to [`theme::selected_row_secondary_ink`] (the ONE
-        // derive owner) when the band would drop `muted` below the contrast floor;
-        // every OTHER line — and every world whose band already clears the floor —
-        // stays `muted`, byte-identical. The selected line is the SAME index the
-        // band uses ([`overlay_selected_display_line`]), so recolor and highlight
-        // can never disagree.
         let sel_line = self.overlay_selected_display_line(geom);
-        // The flip is CORRECT only when the chord actually sits ON the band. Under a
-        // HUGGING plate (`HugLabel`) the bare right chord rides the GROUND, not the
-        // plate, so contrasting the band drives it into the ground — the chord stays
-        // `muted` there (legible, identical to the unselected rows). One owner:
-        // `selected_secondary_on_band`.
         let sel_muted = if !super::selected_secondary_on_band() {
             None
         } else {
@@ -1211,9 +751,6 @@ impl TextPipeline {
             .shape_until_scroll(&mut self.font_system, false);
     }
 
-    /// The widest shaped CANDIDATE row (px) in the just-shaped `panel_buffer` — the
-    /// query line above and the hint line below are excluded (only the rows the
-    /// right column could collide with count). Feeds [`rowlayout::fits`].
     fn widest_candidate_px(&self, geom: &OverlayGeom) -> f32 {
         let first = geom.header_rows;
         let last = first + geom.visible;
@@ -1226,9 +763,6 @@ impl TextPipeline {
         w
     }
 
-    /// The widest shaped RIGHT-column label (px) in the just-shaped
-    /// `panel_bind_buffer` (its line 0 — the query row — is empty, so a plain max
-    /// over every run is the label column's width). Feeds [`rowlayout::fits`].
     fn widest_right_px(&self) -> f32 {
         let mut w = 0.0f32;
         for run in self.panel_bind_buffer.layout_runs() {
@@ -1237,14 +771,6 @@ impl TextPipeline {
         w
     }
 
-    /// V6 P5 [`theme::BarExtent::HugText`] — per DISPLAY-row PRIMARY text width
-    /// (px), read from the just-shaped `panel_buffer`, keyed by display-row index
-    /// (`line_i - header_rows`). A display row is a candidate line: for the flat
-    /// pickers that is candidate `N`, for the theme picker it is plan line `N`
-    /// (a section-header plan line is present too, but the bar draw only looks up
-    /// the ITEM rows). The hug-extent bars read this so each bar's right edge
-    /// hugs its own row's text — the SAME shaped glyphs the text draws from, so
-    /// bar and glyph can't disagree.
     pub(in crate::render) fn overlay_row_primary_px(
         &self,
         geom: &OverlayGeom,
@@ -1258,16 +784,6 @@ impl TextPipeline {
         m
     }
 
-    /// ITEM 35 (overlay text on a surface) — per DISPLAY-row SECONDARY (right
-    /// column / chord) text width (px), read from the just-shaped
-    /// `panel_bind_buffer`, keyed by display-row index. Mirrors
-    /// [`Self::overlay_row_primary_px`] for the OTHER buffer: the right column
-    /// leads with `header_rows` empty lines (so line `header_rows + N` is
-    /// candidate `N`'s chord), and a run's `line_w` is the shaped chord's width.
-    /// A row with no chord contributes 0 (or is absent). The HugLabel bars read
-    /// this to lay a per-row CHORD PLATE so the right-aligned shortcut never
-    /// floats bare over the backdrop — the SAME shaped glyphs the chord draws
-    /// from, so plate and glyph can't disagree.
     pub(in crate::render) fn overlay_row_secondary_px(
         &self,
         geom: &OverlayGeom,
@@ -1281,14 +797,6 @@ impl TextPipeline {
         m
     }
 
-    /// V8 — the WIDEST shaped FOOTER content line (px) in the just-shaped
-    /// `panel_buffer`: the dim foot-hint plus the keybindings-tips lines, which
-    /// all sit BELOW the `content_rows` candidate/empty lines (`line_i >=
-    /// header_rows + content_rows`). Read so the [`super::footer_plate_rect`] can
-    /// HUG the footer text under [`theme::BarExtent::HugText`] instead of drawing
-    /// a lone full-width plate under hugging rows — the SAME shaped glyphs the
-    /// footer draws from, so plate and text can't disagree. `0.0` when there is no
-    /// footer content (the plate then collapses to its 1px floor, never drawn).
     pub(in crate::render) fn overlay_footer_content_px(
         &self,
         geom: &OverlayGeom,

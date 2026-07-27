@@ -1,6 +1,3 @@
-//! Swappable synchronous filesystem seam: native disk in production and in-memory
-//! storage for deterministic tests and scenarios.
-
 use crate::clock::SystemTime;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -12,60 +9,36 @@ use std::sync::{Arc, RwLock};
 /// (a `read_dir` consumer never re-stats it).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirEntry {
-    /// The entry's full path (`<dir>/<name>`), as the native `entry.path()` gave.
     pub path: PathBuf,
-    /// The leaf file name (`entry.file_name()`), lossily-stringable by the caller.
     pub name: String,
-    /// True for a directory entry.
     pub is_dir: bool,
-    /// True for a regular file entry.
     pub is_file: bool,
 }
 
-/// A file's stat — the cross-backend stand-in for `std::fs::Metadata`, pared to
-/// what awl reads: the "last edited" recency (go-to) and the byte length (the
-/// autosave clobber guard's same-tick tie-breaker — an external edit landing
-/// within our last stat's mtime tick still moves the size). Each field is an
-/// `Option` because not every platform / backend records it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Metadata {
-    /// Last-modification time, if the backend records it.
     pub modified: Option<SystemTime>,
-    /// Byte length of the file, if the backend records it.
     pub len: Option<u64>,
 }
 
-/// The FILESYSTEM SEAM: every file op awl performs, behind one sync trait so the
-/// `std::fs` dependency is swappable for a future sandboxed (OPFS/IndexedDB)
-/// backend. SYNC on purpose (awl is sync; an OPFS worker uses sync-access-handles).
-/// Kept MINIMAL — exactly the surface the inventoried call sites need, no more.
 pub trait FileSystem: Send + Sync {
     /// Read the whole file at `path` as a UTF-8 string (config load, buffer open).
     fn read_to_string(&self, path: &Path) -> io::Result<String>;
 
-    /// Read the whole file at `path` as raw bytes (the `AWL_FONT` face load).
     fn read(&self, path: &Path) -> io::Result<Vec<u8>>;
 
-    /// Write `data` to `path`, creating or truncating it (config + buffer save).
     fn write(&self, path: &Path, data: &[u8]) -> io::Result<()>;
 
-    /// Create `path` and every missing parent (note/config dir seeding).
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
 
-    /// Rename / move `from` → `to` (note rename + C-x m move; a true move).
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
 
-    /// True if `path` exists (collision scans, git-root + notes-root probes).
     fn exists(&self, path: &Path) -> bool;
 
-    /// True if `path` is a directory (the launch-file root probe in `main.rs`).
     fn is_dir(&self, path: &Path) -> bool;
 
-    /// List ONE directory level at `path` (the index walk + browse navigator).
-    /// Order is unspecified (callers sort), matching `std::fs::read_dir`.
     fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>>;
 
-    /// The last-modified timestamp of `path` (go-to recency).
     fn metadata(&self, path: &Path) -> io::Result<Metadata>;
 
     /// Remove a single file at `path`. Used by the corrupt-backup pruner
@@ -75,12 +48,6 @@ pub trait FileSystem: Send + Sync {
     fn remove_file(&self, path: &Path) -> io::Result<()>;
 }
 
-// --- Native backend -------------------------------------------------------
-
-/// The std::fs backing — the native disk. Every method is a THIN, behaviour-
-/// preserving wrapper over the exact `std::fs::…` call the code used to inline, so
-/// the native editor reads and writes precisely as before (same paths, same
-/// `io::Result` errors, byte-identical results).
 #[derive(Debug, Default, Clone, Copy)]
 pub struct NativeFs;
 
@@ -115,10 +82,6 @@ impl FileSystem for NativeFs {
 
     fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>> {
         let mut out = Vec::new();
-        // Mirror the inlined `read_dir(...).flatten()` + per-entry `file_type()`
-        // pattern exactly: an entry whose type can't be read is SKIPPED (as the
-        // call sites' `let Ok(ft) = entry.file_type() else { continue }` did), so
-        // the visible result is identical.
         for entry in std::fs::read_dir(path)? {
             let Ok(entry) = entry else { continue };
             let Ok(ft) = entry.file_type() else { continue };
@@ -154,15 +117,6 @@ impl FileSystem for NativeFs {
 // files. Gated `any(test, not(wasm32))`: native builds carry it for the
 // scenario door; a wasm release build (whose sandbox is `WebFs`) doesn't.
 
-/// A HashMap-backed fake filesystem: files + their bytes live in memory,
-/// directories are tracked as a set, so fs-touching logic runs deterministically
-/// with NO real disk (no temp-dir litter, no cross-test interference). Paths are
-/// stored verbatim (the keys callers pass), and the ops model the native ones
-/// closely enough that the inventoried code behaves identically. Cloneable +
-/// shareable (`Arc<RwLock<…>>`) so a test can seed it, install it, then assert.
-/// Doubles as the HERMETIC SCENARIO SANDBOX (see `crate::scenario`): a strict
-/// replay installs a seeded instance as the active backend, so every in-app
-/// read and write of a scenario run stays in memory.
 #[cfg(any(test, not(target_arch = "wasm32")))]
 #[derive(Debug, Clone, Default)]
 pub struct InMemoryFs {
@@ -172,9 +126,7 @@ pub struct InMemoryFs {
 #[cfg(any(test, not(target_arch = "wasm32")))]
 #[derive(Debug, Default)]
 struct MemState {
-    /// path → (bytes, modified).
     files: std::collections::BTreeMap<PathBuf, MemFile>,
-    /// known directories (every created/implied dir).
     dirs: std::collections::BTreeSet<PathBuf>,
 }
 
@@ -187,30 +139,24 @@ struct MemFile {
 
 #[cfg(any(test, not(target_arch = "wasm32")))]
 impl InMemoryFs {
-    /// A fresh, empty in-memory filesystem (root `/` implicitly present).
     pub fn new() -> Self {
         let fs = InMemoryFs::default();
         fs.inner.write().unwrap().dirs.insert(PathBuf::from("/"));
         fs
     }
 
-    /// Seed a text file (creating its parent dirs), for arranging a test. Returns
-    /// `self` so seeds can chain. (Test-only sugar — the production scenario
-    /// sandbox seeds raw bytes through the trait's own `write`.)
     #[cfg(test)]
     pub fn with_file(self, path: impl AsRef<Path>, contents: &str) -> Self {
         self.write(path.as_ref(), contents.as_bytes()).unwrap();
         self
     }
 
-    /// Seed a directory (and its parents), for arranging a test.
     #[cfg(test)]
     pub fn with_dir(self, path: impl AsRef<Path>) -> Self {
         self.create_dir_all(path.as_ref()).unwrap();
         self
     }
 
-    /// Record `path` and every ancestor as a known directory.
     fn insert_dirs(state: &mut MemState, path: &Path) {
         let mut cur = Some(path);
         while let Some(p) = cur {
@@ -342,8 +288,6 @@ impl FileSystem for InMemoryFs {
     }
 }
 
-/// The leaf file name of `path` as an owned lossy string (matches what the native
-/// `entry.file_name().to_string_lossy()` yields for a `read_dir` entry).
 #[cfg(any(test, not(target_arch = "wasm32")))]
 fn leaf_name(path: &Path) -> String {
     path.file_name()
@@ -462,10 +406,6 @@ mod web {
     const DIR_PREFIX: &str = "awlfs:D:";
     const MTIME_PREFIX: &str = "awlfs:M:";
 
-    /// The browser-`localStorage` filesystem. A ZERO-SIZE handle: the `Storage`
-    /// object is fetched fresh per call (cheap — it's a live binding to the one
-    /// origin store), so the struct stays `Send + Sync` for the `dyn FileSystem`
-    /// global despite `Storage` itself being a non-`Send` JS handle.
     #[derive(Debug, Default, Clone, Copy)]
     pub struct WebFs;
 
@@ -477,8 +417,6 @@ mod web {
         web_sys::window()?.local_storage().ok()?
     }
 
-    /// An io-flavoured error when the JS side throws (e.g. `QuotaExceeded` on a
-    /// write, or the API being unavailable).
     fn js_err(what: &str) -> io::Error {
         io::Error::other(format!("localStorage {what} failed"))
     }
@@ -505,8 +443,6 @@ mod web {
             format!("{prefix}{}", path.to_string_lossy())
         }
 
-        /// Record `path` and every ancestor as a directory marker (mirrors the
-        /// `InMemoryFs` `insert_dirs` contract so `create_dir_all` is idempotent).
         fn insert_dirs(s: &web_sys::Storage, path: &Path) {
             let mut cur = Some(path);
             while let Some(p) = cur {
@@ -561,10 +497,8 @@ mod web {
             let text = String::from_utf8_lossy(data);
             s.set_item(&Self::key(FILE_PREFIX, path), &text)
                 .map_err(|_| js_err("write"))?;
-            // Stamp the modification time on every write.
             let now = now_millis().to_string();
             let _ = s.set_item(&Self::key(MTIME_PREFIX, path), &now);
-            // The containing dir (and its ancestors) now exist.
             if let Some(parent) = path.parent() {
                 if !parent.as_os_str().is_empty() {
                     Self::insert_dirs(&s, parent);
@@ -627,8 +561,6 @@ mod web {
             let mut out = Vec::new();
             for i in 0..len {
                 let Ok(Some(k)) = s.key(i) else { continue };
-                // Each stored path is a FILE or a DIR marker; recover its virtual
-                // path and keep the entry iff its parent IS the queried directory.
                 let (rest, is_dir) = if let Some(r) = k.strip_prefix(FILE_PREFIX) {
                     (r, false)
                 } else if let Some(r) = k.strip_prefix(DIR_PREFIX) {
@@ -690,8 +622,6 @@ mod web {
         fn remove_file(&self, path: &Path) -> io::Result<()> {
             let s = storage().ok_or_else(|| js_err("unavailable"))?;
             let key = Self::key(FILE_PREFIX, path);
-            // Mirror the native/InMemory contract: removing an unknown path is
-            // a NotFound error, not a silent success.
             if s.get_item(&key).ok().flatten().is_none() {
                 return Err(io::Error::new(io::ErrorKind::NotFound, "no such file"));
             }
@@ -757,12 +687,6 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     fs.rename(&tmp, path)
 }
 
-/// awl's PERSISTENT DATA root — where the local-history store and the scratch
-/// stash live. Native honours the XDG data dir (`$XDG_DATA_HOME/awl`, else
-/// `~/.local/share/awl`), with a relative last-resort so the function is total
-/// when no HOME is set. On the web the path is virtual (WebFs maps it onto
-/// `localStorage` keys), so a fixed root suffices. `history::history_root()`
-/// nests under this (`<data_root>/history`).
 pub fn data_root() -> PathBuf {
     #[cfg(target_arch = "wasm32")]
     {
@@ -803,12 +727,6 @@ pub fn web_config_path() -> PathBuf {
     data_root().join("config.toml")
 }
 
-// --- The process-global active backend ------------------------------------
-
-/// The app-wide filesystem. DEFAULT is [`NativeFs`] (the real disk); tests swap in
-/// an [`InMemoryFs`]. Behind an `RwLock<Arc<…>>` (not a plain static) so a test can
-/// install a fake without `unsafe` and without threading a handle through every
-/// I/O function — the same one-app-wide-setting idiom as `page`/`fps`/`caret`.
 fn global() -> &'static RwLock<Arc<dyn FileSystem>> {
     use std::sync::OnceLock;
     static FS: OnceLock<RwLock<Arc<dyn FileSystem>>> = OnceLock::new();
@@ -980,9 +898,6 @@ pub(crate) struct CwdGuard {
 
 #[cfg(test)]
 impl CwdGuard {
-    /// Chdir into `dir`, panicking if either the current cwd can't be read
-    /// (so it could be restored later) or `dir` can't be entered — both are
-    /// setup failures, not something a test should silently limp past.
     pub(crate) fn enter(dir: &Path) -> Self {
         let lock = crate::testlock::serial();
         let prev = std::env::current_dir().expect("current dir must be readable");
@@ -998,7 +913,6 @@ impl Drop for CwdGuard {
     }
 }
 
-/// THE FS-SERIALIZATION LAWS (queue item 101) — see the module's own doc.
 #[cfg(test)]
 mod serialization_law;
 
@@ -1008,9 +922,7 @@ mod tests {
 
     #[test]
     fn native_is_the_default_backend() {
-        // Without any swap the global is the native disk backing.
         let _g = crate::testlock::serial();
-        // A read of a path that surely doesn't exist returns NotFound, not a fake.
         let err = active()
             .read_to_string(Path::new("/awl/definitely/not/here.toml"))
             .unwrap_err();
@@ -1022,7 +934,6 @@ mod tests {
         let fs = InMemoryFs::new();
         fs.write(Path::new("/n/a.md"), b"hello").unwrap();
         assert_eq!(fs.read_to_string(Path::new("/n/a.md")).unwrap(), "hello");
-        // The parent dir is implied by the write.
         assert!(fs.exists(Path::new("/n")));
         assert!(fs.exists(Path::new("/n/a.md")));
         assert!(!fs.exists(Path::new("/n/b.md")));
@@ -1042,7 +953,6 @@ mod tests {
             .collect();
         names.sort();
         assert_eq!(names, vec!["readme.md:f".to_string(), "src:d".to_string()]);
-        // Descend: only main.rs.
         let sub = fs.read_dir(Path::new("/r/src")).unwrap();
         assert_eq!(sub.len(), 1);
         assert_eq!(sub[0].name, "main.rs");
@@ -1078,7 +988,6 @@ mod tests {
         let fs = InMemoryFs::new().with_file("/a.md", "x");
         let md = fs.metadata(Path::new("/a.md")).unwrap();
         assert!(md.modified.is_some());
-        // A missing file errors.
         assert!(fs.metadata(Path::new("/nope")).is_err());
     }
 
@@ -1140,12 +1049,9 @@ mod tests {
                 "zoom = 1.0"
             );
         });
-        // Restored to native: the fake's file is gone.
         let _g = crate::testlock::serial();
         assert!(active().read_to_string(Path::new("/cfg.toml")).is_err());
     }
-
-    // --- Web first-load seed curation ---------------------------------
 
     /// THE CURATED SEED LIST, pinned exactly — the four paths a first-time
     /// web visitor sees, in seed order, and nothing else. `/longwrap.md` and
@@ -1164,16 +1070,11 @@ mod tests {
             !paths.contains(&"/longwrap.md") && !paths.contains(&"/spellcheck.md"),
             "dev fixtures must never re-enter the first-load seed set: {paths:?}"
         );
-        // Every seeded doc actually carries content (a bare include_str! typo
-        // would otherwise silently seed an empty file).
         for (p, content) in SEED_SAMPLES {
             assert!(!content.trim().is_empty(), "{p} seeds non-empty content");
         }
     }
 
-    /// The sentinel bumped generations: `awlfs:seeded` (v1) -> `awlfs:seeded:v2`,
-    /// so an already-seeded browser (which only ever wrote the v1 key) re-runs
-    /// seeding exactly once more under the new key.
     #[test]
     fn seed_sentinel_is_bumped_to_v2() {
         assert_eq!(SEED_SENTINEL_KEY, "awlfs:seeded:v2");
@@ -1201,7 +1102,6 @@ mod tests {
                 crate::commands::Platform::Web,
             );
             assert_eq!(fs.read_to_string(Path::new(p)).unwrap(), rendered);
-            // The seeded text is fully rendered — no stray token/unknown-slug marker survives.
             assert!(
                 !fs.read_to_string(Path::new(p)).unwrap().contains("{{key:"),
                 "{p} still carries a raw token"
@@ -1209,13 +1109,6 @@ mod tests {
         }
     }
 
-    /// THE WRITE-IF-ABSENT LAW, the returning-visitor half: a path that
-    /// already exists — whether it's one of the curated seed paths the
-    /// visitor has since edited, or an unrelated leftover from an OLDER seed
-    /// generation (`/longwrap.md`, `/spellcheck.md`) — is left BYTE-FOR-BYTE
-    /// untouched by a re-seed. This is the actual guarantee behind "a
-    /// returning visitor with edits keeps every byte; they just gain the new
-    /// files."
     #[test]
     fn seed_write_if_absent_never_clobbers_an_existing_path() {
         let fs = InMemoryFs::new()
@@ -1228,7 +1121,6 @@ mod tests {
             crate::commands::Platform::Web,
         );
 
-        // The edited existing seed path survives verbatim.
         assert_eq!(
             fs.read_to_string(Path::new("/welcome.md")).unwrap(),
             "my own edited welcome, thanks"
@@ -1244,8 +1136,6 @@ mod tests {
             fs.read_to_string(Path::new("/spellcheck.md")).unwrap(),
             "another old leftover, untouched"
         );
-        // Meanwhile every OTHER curated path — absent before — gets seeded,
-        // token-rendered same as the fresh-fs case above.
         for (p, content) in SEED_SAMPLES {
             let content = &crate::keytoken::render_key_tokens(
                 content,

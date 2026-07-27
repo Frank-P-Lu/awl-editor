@@ -135,8 +135,6 @@ const fn r(id: &'static str, command: &'static str) -> Routed {
     }
 }
 
-/// Like [`r`], but flagged to carry an icon (`menu_icons::icon_for(id)`) — see
-/// that module's doc for the small, deliberately minimal set this is used for.
 const fn ri(id: &'static str, command: &'static str) -> Routed {
     Routed {
         id,
@@ -177,10 +175,6 @@ const APP_ITEMS: &[Routed] = &[
 
 const FILE_ITEMS: &[Routed] = &[
     ri("awl.new_document", "New document"),
-    // "Open…" is the Finder-style "choose a file" affordance — the closest
-    // catalog match is "Browse files…" (a file-tree picker), not the fuzzy
-    // "Go to file…" quick-open. The label below stays "Browse files…" (menus
-    // teach the SAME words Cmd-P does), documented here rather than silently.
     ri("awl.open", "Browse files…"),
     ri("awl.switch_project", "Switch project…"),
     // "Recent projects" is a SINGLE File item that opens the SWITCH-PROJECT
@@ -218,9 +212,6 @@ const VIEW_ITEMS: &[Routed] = &[
     r("awl.toggle_debug", "Toggle debug"),
 ];
 
-/// Every routed section, in build order — the ONE thing [`resolve`] and the
-/// law test below walk, so a new section added to [`roster`] is automatically
-/// covered by both.
 const SECTIONS: &[&[Routed]] = &[APP_ITEMS, FILE_ITEMS, EDIT_ITEMS, VIEW_ITEMS];
 
 /// A muda PREDEFINED item this menu bar uses — no `Action`, no catalog entry:
@@ -234,14 +225,10 @@ pub enum PredefinedKind {
     /// App-menu Hide (⌘H, macOS gives the accelerator for free). P3 of the
     /// keybinding-idiom audit.
     Hide,
-    /// App-menu Hide Others (⌥⌘H).
     HideOthers,
-    /// App-menu Show All (no default accelerator).
     ShowAll,
 }
 
-/// One item in a menu's PURE structure (see [`roster`]) — either a routed
-/// command (resolved via [`resolve`]), a predefined item, or a separator.
 #[derive(Debug, PartialEq)]
 pub enum RosterItem {
     Routed {
@@ -253,7 +240,6 @@ pub enum RosterItem {
     Separator,
 }
 
-/// One top-level menu in the PURE roster: a title + its items, in order.
 #[derive(Debug, PartialEq)]
 pub struct RosterMenu {
     pub title: &'static str,
@@ -307,8 +293,6 @@ pub fn roster_for(platform: commands::Platform) -> Vec<RosterMenu> {
         .collect()
 }
 
-/// Filter one menu's ITEMS for `platform` (the per-item availability rules described
-/// in [`roster_for`]'s doc), then trim any now-dangling separator.
 fn filter_items_for_platform(
     items: Vec<RosterItem>,
     platform: commands::Platform,
@@ -345,9 +329,6 @@ fn trim_separators(items: Vec<RosterItem>) -> Vec<RosterItem> {
     out
 }
 
-/// The FULL, UNFILTERED menu bar structure, in build order — every platform's items,
-/// before [`roster_for`]'s per-platform filter runs. `pub(crate)`/private helper for
-/// [`roster_for`]/[`roster`]; the public door is always one of those two.
 fn roster_all() -> Vec<RosterMenu> {
     vec![
         RosterMenu {
@@ -467,11 +448,6 @@ pub fn item_chord(command: &str) -> String {
         .unwrap_or_default()
 }
 
-/// The native chord GLYPHS for a routed menu item by its muda `id` (the id -> command
-/// -> [`item_chord`] hop), or `""` for an id this table doesn't own / a command with
-/// no native chord. The awl-rendered dropdown uses THIS (it carries the item's `id`,
-/// not its command name — the two differ for the App-menu "About Awl"/"Quit Awl"
-/// items, which have no chord anyway).
 pub fn item_chord_for_id(id: &str) -> String {
     SECTIONS
         .iter()
@@ -502,7 +478,6 @@ fn to_menu_item(id: &'static str, label: &'static str, icon: bool) -> Box<dyn mu
     Box::new(MenuItem::with_id(id, label, true, None))
 }
 
-/// Translate one [`PredefinedKind`] into muda's real predefined item.
 #[cfg(target_os = "macos")]
 fn to_predefined(kind: PredefinedKind) -> PredefinedMenuItem {
     match kind {
@@ -655,9 +630,6 @@ mod tests {
         }
     }
 
-    /// Every routed id is UNIQUE — muda dispatches purely by id string, so a
-    /// collision would silently alias two different menu items to whichever
-    /// table entry `resolve` happens to find first.
     #[test]
     fn every_routed_id_is_unique() {
         let mut ids: Vec<&str> = SECTIONS
@@ -698,8 +670,6 @@ mod tests {
         }
     }
 
-    /// `resolve` round-trips every table entry back to its exact catalog
-    /// Action — the id → Action direction `App::handle_menu_event` depends on.
     #[test]
     fn resolve_round_trips_every_routed_entry() {
         for section in SECTIONS {
@@ -804,12 +774,6 @@ mod tests {
         );
     }
 
-    /// The File menu's exact clustered sequence: New document · Open… · Switch
-    /// project… · Recent projects… · —sep— · Save · Finish file · —sep— · Export
-    /// as PDF… · Export as Word… · Export as HTML…, with the iconed
-    /// items flagged and "Recent projects…" (a plain, un-iconed picker door)
-    /// placed just after Switch project… — pinned so the cluster can't silently
-    /// reorder or lose/gain a flag.
     #[test]
     fn native_and_linux_file_menu_has_the_separated_export_block_in_order() {
         let menus = roster_for(commands::Platform::Native);
@@ -976,11 +940,6 @@ mod tests {
         assert_eq!(roster(), roster_for(commands::Platform::Native));
     }
 
-    /// The App menu on web drops "Quit Awl" (native_only) and the predefined
-    /// Hide/Hide Others/Show All block (OS window chrome, pruned on web outright),
-    /// along with every separator left dangling by those drops — keeping "About Awl"
-    /// and "Settings…" (neither is `native_only`) with exactly one separator between
-    /// them.
     #[test]
     fn web_roster_app_menu_keeps_about_and_settings_drops_quit_and_hide_block() {
         let menus = roster_for(commands::Platform::Web);
@@ -1003,8 +962,6 @@ mod tests {
         );
     }
 
-    /// The File menu on web drops native-only Recent projects…, Finish file, and PDF,
-    /// retaining the Word/HTML download doors after the one separating rule.
     #[test]
     fn web_file_menu_drops_pdf_and_keeps_word_html_without_dangling_separators() {
         let menus = roster_for(commands::Platform::Web);
@@ -1057,8 +1014,6 @@ mod tests {
         assert_eq!(resolve("awl.export_html"), Some(Action::ExportHtml));
     }
 
-    /// Edit and View are untouched on web (none of their routed commands are
-    /// `native_only`) — byte-identical to the native roster's own Edit/View menus.
     #[test]
     fn web_roster_edit_and_view_are_untouched() {
         let native = roster_for(commands::Platform::Native);
@@ -1072,9 +1027,6 @@ mod tests {
         }
     }
 
-    /// The Window menu (Minimize/Zoom, both predefined OS chrome) is entirely
-    /// PREDEFINED, so it vanishes on web — no OS window to minimize/zoom in a browser
-    /// tab, and a menu left with zero items after filtering is dropped, not shown empty.
     #[test]
     fn web_roster_drops_the_whole_window_menu() {
         let menus = roster_for(commands::Platform::Web);
@@ -1082,13 +1034,10 @@ mod tests {
             menus.iter().all(|m| m.title != "Window"),
             "Window must vanish on web"
         );
-        // Exactly four menus survive: Awl · File · Edit · View.
         let titles: Vec<&str> = menus.iter().map(|m| m.title).collect();
         assert_eq!(titles, vec!["Awl", "File", "Edit", "View"]);
     }
 
-    /// No separator in the web roster is ever LEADING, TRAILING, or DOUBLED — the
-    /// dangling-separator trim's own law, checked over every surviving menu.
     #[test]
     fn web_roster_never_leaves_a_dangling_separator() {
         for menu in roster_for(commands::Platform::Web) {

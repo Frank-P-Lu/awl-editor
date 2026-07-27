@@ -39,14 +39,8 @@ const QUOTE_MARK_SCALE: f32 = 2.0;
 /// real type, not a symbol-font ornament.
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
 
-/// Fold chevron, shown on hovered/current foldable headings and used as the fold hit
-/// target. It is shaped in the display face and placed left of the heading glyphs.
 const FOLD_CHEVRON: &str = "\u{203A}";
 
-/// The collapsed-heading TAIL text: `… N lines` (singular `… 1 line`). The leading
-/// glyph is U+2026 HORIZONTAL ELLIPSIS (the same General-Punctuation mark the row
-/// elision uses in the display face); the rest is ASCII, so it shapes cleanly in any
-/// world. `N` is the fold's hidden-line count ([`crate::fold::hidden_count`]).
 fn fold_tail_text(n: usize) -> String {
     if n == 1 {
         "\u{2026} 1 line".to_string()
@@ -55,14 +49,6 @@ fn fold_tail_text(n: usize) -> String {
     }
 }
 
-/// One GFM table's shaped GRID layout — the shared output of
-/// [`super::TextPipeline::shape_table_grid`], consumed by both the row-height
-/// RESERVATION (`compute_table_layout`) and the DRAW pass (`prepare_table_grid`)
-/// so the two can never disagree on a wrapped table's geometry. `col_x`/`col_w`
-/// are the per-column x-offset + width; `cells` is one reshaped-at-column-width
-/// buffer per non-empty cell as `(grid-row, column, buffer, wrapped width)`;
-/// `row_heights` is each grid row's height (max wrapped-cell height, ≥ one
-/// line-height).
 struct TableGridShaped {
     col_x: Vec<f32>,
     col_w: Vec<f32>,
@@ -113,35 +99,15 @@ impl TableGridCache {
     }
 }
 
-/// INLINE IMAGES — the gentle rounded-corner radius (logical px, zoom-scaled) of an
-/// inline image quad + its missing-file placeholder card. A calm card edge, not a
-/// hard rectangle. TUNABLE.
 #[cfg(not(target_arch = "wasm32"))]
 const IMAGE_CORNER_PX: f32 = 4.0;
 
-/// INLINE IMAGES — the opacity multiply applied to a REVEALED image (the caret is
-/// on its `![alt](path)` source line, whose raw source reveals CENTRED OVER it — the
-/// caption model). Off the caret's line the image draws at full opacity (`1.0`);
-/// revealed, it recedes to a calm dimmed backdrop UNDER the editable caption. Pulled
-/// down from the reveal-grow round's `0.55` to buy the centred source real contrast
-/// over arbitrary image pixels (the caption model puts the text ON the image, not
-/// beside it). TASTE TUNABLE — flagged for live review, judged by LOOKING at the
-/// `gallery/image-reveal/` revealed captures over a dark + a light world (named like
-/// `THEME_FONT_DEBOUNCE` / the copy-pulse tunables).
 #[cfg(not(target_arch = "wasm32"))]
 const IMAGE_REVEAL_DIM_ALPHA: f32 = 0.4;
 
-/// INLINE IMAGES — the CAPTION SCRIM's vertical padding (px, unzoomed) above and
-/// below the revealed source's own text-line band. A hair of breathing room so the
-/// scrim reads as a soft caption plate, not a tight underline. TASTE TUNABLE —
-/// flagged for live review. Scaled by zoom at build time.
 #[cfg(not(target_arch = "wasm32"))]
 const CAPTION_SCRIM_PAD_Y: f32 = 3.0;
 
-/// INLINE IMAGES — the CAPTION SCRIM's horizontal overhang (px, unzoomed) past each
-/// end of the revealed source's shaped extent, so the plate hugs the text with a
-/// small even inset rather than clipping the glyphs. TASTE TUNABLE — flagged for
-/// live review. Scaled by zoom at build time.
 #[cfg(not(target_arch = "wasm32"))]
 const CAPTION_SCRIM_PAD_X: f32 = 4.0;
 
@@ -164,14 +130,6 @@ impl TextPipeline {
         } else {
             (0.0, width as f32)
         };
-        // WAVES PHASE DRIFT (item 87): a single scalar radians value, `0.0` for
-        // every ground that isn't the active world's `Background::Waves` — so
-        // every other ground, and Waves at the settled/headless phase, upload
-        // the EXACT same `0.0` this pipeline always has (byte-identical). The
-        // effective phase rides the SAME shared ambient clock the lava lamp
-        // and twinkling stars read (`Self::waves_render_phase`), so
-        // `ambient_motion` off / Reduce Motion / a headless capture all freeze
-        // it to `0.0` for free, with no Bombora-specific scheduling of its own.
         let drift = if self.effective_background().is_waves() {
             crate::background::waves_drift_radians(self.waves_render_phase())
         } else {
@@ -181,18 +139,6 @@ impl TextPipeline {
             .prepare(queue, width, height, bg_left, bg_w, drift);
     }
 
-    /// Per-frame LAVA-LAMP GROUND ([`crate::theme::Background::Lava`]): a slow 2D
-    /// viewport-space metaball field behind the page, visible MARGINS-ONLY over
-    /// the flat ground the background pass just laid. Column width changes only
-    /// the mask; they never resize/recompose the field. A total no-op for
-    /// every non-lava world — so all fifteen shipped worlds stay byte-identical.
-    ///
-    /// The effective background honors the dev gallery knob (`crate::lava::
-    /// env_override`); the column bounds come from the SAME `page_geometry()`
-    /// (the one geometry owner) the background pass reads, with the identical
-    /// page-off collapse (col covers the whole canvas → the mask has no margin →
-    /// nothing draws), and the effective phase from [`TextPipeline::lava_render_phase`]
-    /// (env override > Reduce-Motion freeze > the App-driven [`TextPipeline::lava_phase`]).
     pub(super) fn prepare_lava_layer(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
         let (page_on, _measure, col_left, col_w) = self.page_geometry();
         let (bg_left, bg_w) = if page_on {
@@ -252,11 +198,6 @@ impl TextPipeline {
             self.effective_background()
                 .lava_params()
                 .map(|(ground, lo, hi, edge, dithered)| {
-                    // A Bayer-posterized source and the downsampled separable blur
-                    // form axis-aligned crosses. While frost is active this lava is
-                    // visible only through the blur capture, so feed that capture the
-                    // same field without posterization; the unobscured document keeps
-                    // the world's authored dither unchanged.
                     (
                         ground,
                         lo,
@@ -282,9 +223,6 @@ impl TextPipeline {
         );
     }
 
-    /// How many organic frost SEEDS the cached field currently holds — the live
-    /// seed/island population the `--bench-frost` witness reads (a nonzero field is
-    /// the "the bench measures real work" guard). Zero in every non-frost frame.
     pub fn frost_seed_count(&self) -> usize {
         self.frost_seeds.len()
     }
@@ -305,8 +243,6 @@ impl TextPipeline {
         height.hash(&mut h);
         self.metrics.zoom.to_bits().hash(&mut h);
         self.dpi.to_bits().hash(&mut h);
-        // The active world's face drives the MEASURED label widths (and so the seed
-        // positions); a Mangrove↔Firetail switch changes the face, so key on it.
         crate::theme::active_index().hash(&mut h);
         let (_page_on, _measure, col_left, col_w) = self.page_geometry();
         col_left.to_bits().hash(&mut h);
@@ -366,21 +302,6 @@ impl TextPipeline {
                 .prepare_multicolor(device, queue, width, height, &[]);
             return;
         };
-        // DPI/ZOOM INVARIANCE: the authored `cell_px`/`size_px` (`theme/worlds.rs`)
-        // are PHYSICAL px at scale 1.0. The layout scatters one candidate per
-        // `cell_px` cell over the PHYSICAL viewport (`width`/`height`), and each dot
-        // draws `size_px` physical px wide — so on a 2x-retina surface (the SAME
-        // logical window rasterized 2x) an unscaled cell packs ~4x the grid cells
-        // (the ~5.6x-denser field the user saw) and every dot renders at half its
-        // intended LOGICAL size. Scale BOTH by the TOTAL logical->physical factor
-        // `scale` = user-zoom × device-DPI (exactly `Metrics::with_dpi`'s own `s`):
-        // `metrics.zoom` is the user zoom ALONE (the frost path right above scales by
-        // it), so it must also be multiplied by `self.dpi` to cover retina. With a
-        // 2x cell over a 2x viewport the grid is the SAME logical structure (constant
-        // density) and a 2x dot keeps a constant logical size. Shadowing carries the
-        // scaled values through the proto key, the margin cull, and the quads below.
-        // `STAR_MARGIN_GAP_PX` + the 1px AA fringe stay in physical px (the placement
-        // law owner `stars::in_margin` is untouched).
         let scale = self.metrics.zoom * self.dpi;
         let cell_px = cell_px * scale;
         let size_px = size_px * scale;
@@ -399,9 +320,6 @@ impl TextPipeline {
             (0.0, width as f32)
         };
         let band_right = band_left + band_w;
-        // MARGIN-INK no-star zones: the outline's per-entry pill rects + the
-        // gutter's corner rect — the SAME geometry owners the lava frost pills
-        // and gutter carve read, so a star can never crowd the rail's dim ink.
         let mut ink_zones: Vec<[f32; 4]> = if self.outline_visible(height) {
             self.lava_frost_pill_rects(height)
         } else {
@@ -440,16 +358,9 @@ impl TextPipeline {
             }
             let a = crate::stars::brightness(s.seed, phase, floor, peak);
             let alpha = (a * 255.0).round().clamp(0.0, 255.0) as u8;
-            // LIFECYCLE cull: a star in its dark dwell (envelope at true zero)
-            // draws NOTHING — it is gone this frame, not a zero-alpha ghost. So
-            // the DRAWN instance count IS the live population (the sidecar oracle
-            // + the per-phase population laws read it), and it changes with the
-            // phase as stars appear and die.
             if alpha == 0 {
                 continue;
             }
-            // Per-star tint from the low-sat real-star palette (blue-white /
-            // white / champagne — the amber guard holds by low saturation).
             let st = crate::stars::star_tint(tint, s.seed);
             quads.push((
                 [s.x - half, s.y - half, star_size, star_size],
@@ -465,23 +376,6 @@ impl TextPipeline {
             .prepare_multicolor(device, queue, width, height, &quads);
     }
 
-    /// THE PAGE FRAME (`theme::PageFrame`, the personality-assignment round's
-    /// graduated capability — the `AWL_PAGE_BORDER` gallery probe's geometry,
-    /// now driven by per-world DATA instead of an env var): four thin quads
-    /// framing the writing column over the document's vertical extent, or
-    /// ZERO rects for every `PageFrame::None` world (all but Wagtail — a
-    /// byte-identical no-op there). The column bounds come from the SAME
-    /// `column_left()`/`column_width()` owners every other layer reads; the
-    /// vertical extent starts at the first visible document row and closes at
-    /// the usable canvas bottom. This makes a short document's frame a page
-    /// surface rather than a tight content bracket; a tall or scrolled document
-    /// still has one coherent, on-canvas frame. The
-    /// frame straddles the column boundary OUTWARD (into the margin), so it
-    /// never sits under the text. Ink comes from `theme::page_frame_ink()`
-    /// (re-tinted in `sync_theme_colors`); the pipeline draws hard-edged
-    /// (dither 1.0 — see the field's own doc). Page mode owns the margin and
-    /// its writing-surface boundary: edge-to-edge mode uploads zero frame
-    /// rects across the entire capability roster.
     pub(super) fn prepare_page_frame(
         &mut self,
         device: &wgpu::Device,
@@ -560,8 +454,6 @@ impl TextPipeline {
         self.gutter_carve_rect(height)
     }
 
-    /// Upload the document text layer with the full-ink default color — the one
-    /// glyphon `prepare` per frame (the caret is a quad drawn underneath).
     pub(super) fn prepare_text_layer(
         &mut self,
         device: &wgpu::Device,
@@ -584,8 +476,6 @@ impl TextPipeline {
         };
         let doc_top = self.doc_top();
 
-        // Every glyph whose `color_opt` is None resolves to the full-ink default at
-        // prepare time (per-span md/syntax/CJK colors override where present).
         let default_color = theme::base_content().to_glyphon();
         let text_area = TextArea {
             buffer: &self.buffer,
@@ -613,8 +503,6 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// Select + upload exactly one caret look (block / morph silhouette / I-beam /
-    /// glyphless bar) plus the cosmetic trail, clearing the unused pipelines.
     pub(super) fn prepare_caret_layer(
         &mut self,
         device: &wgpu::Device,
@@ -702,30 +590,15 @@ impl TextPipeline {
         let settle = self.caret.settle_factor();
         let has_glyph = mode == CaretMode::Morph && self.prepare_caret_masks(device, queue);
         let paint_silhouette = has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
-        // MORPH on a glyphless cell (space / EOL / empty line). Gate the thin bar on
-        // the SAME settle threshold the silhouette uses, NOT on `!is_animating()`:
-        // the old `!is_animating()` gate meant that while the spring was still
-        // settling onto a space the code fell through to the block ⇄ streak path,
-        // so arriving on a space FLASHED the full block and only snapped to the thin
-        // bar after motion fully stopped. Using `settle >= SHOW` makes a short hop
-        // onto a space (settle stays high) resolve DIRECTLY to the thin bar with no
-        // block frame, while a genuine fast glide (settle < SHOW) still streaks via
-        // the final `else`.
         let paint_space_bar =
             mode == CaretMode::Morph && !has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
         if mode == CaretMode::Ibeam {
-            // I-BEAM (prototype): a STEADY thin bar at the insertion point (no
-            // breathing — fully static at rest), drawn via the block (rounded-quad)
-            // pipeline at full opacity. Velocity squash/stretch (the elongating
-            // comet) + the recoil kick ride the same spring as Block, so Block/Morph
-            // paths are untouched.
             let (cx, cy, cw, ch, ccorner) = self.caret_ibeam_geometry();
             let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
             self.caret_pipeline
                 .prepare(queue, width, height, cx, cy, cw, ch, ccorner);
             self.caret_glyph_pipeline.clear();
         } else if paint_silhouette {
-            // Settled on a glyph: the accent silhouette recolours the letter.
             let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
             self.caret_glyph_pipeline.prepare(
                 device,
@@ -742,16 +615,6 @@ impl TextPipeline {
             );
             self.caret_pipeline.prepare_empty();
         } else if paint_space_bar {
-            // Settled (or short-hopped) with NO inhabited glyph. LINE START (col 0
-            // — incl. a fresh line after Enter and an empty line): the morph
-            // DEGRADES to the I-beam look's thin insertion bar at the insertion x
-            // (there is no produced glyph to light, and lighting the char AHEAD
-            // would misplace the caret). Otherwise the glyphless-anchor SPACE BAR,
-            // a thin version of the fat caret CENTERED in the cell. Both resolve
-            // directly here without a full-block intermediate (see
-            // `paint_space_bar` above); a genuine fast glide keeps `settle < SHOW`
-            // and falls to the streak in the final else — so C-a's melt-to-bar
-            // streaks across the travel, then forms the bar.
             let (cx, cy, cw, ch, ccorner) = if crate::caret::morph_line_start(self.cursor_col) {
                 self.caret_linestart_bar_geometry()
             } else {
@@ -762,19 +625,9 @@ impl TextPipeline {
                 .prepare(queue, width, height, cx, cy, cw, ch, ccorner);
             self.caret_glyph_pipeline.clear();
         } else {
-            // BLOCK mode, OR MORPH deferring to the streak during fast travel: the
-            // block pipeline's settle-driven square ⇄ trailing-underline streak,
-            // oriented along the true travel vector (diagonal trails truly slant).
-            // See [`prepare_caret_block`].
             self.prepare_caret_block(device, queue, width, height);
         }
 
-        // COSMETIC | TRAIL: a fading accent streak from the OLD caret position to the
-        // NEW, layered OVER the snapped caret. Independent of the caret's resting/morph
-        // quad above and of the position (it spans the latched OLD→NEW points), so a
-        // small move that SNAPS still shows the | . Empty when no streak is active, so
-        // the deterministic `--screenshot` (trail-absent settled state) draws nothing.
-        // See [`prepare_caret_trail`].
         self.prepare_caret_trail(queue, width, height);
     }
 
@@ -816,20 +669,8 @@ impl TextPipeline {
                 // chromatic ink would flip green → magenta, not a lit cell).
                 self.caret_pipeline
                     .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
-                // KNOCKOUT: reuse the MORPH silhouette pipeline (drawn OVER the text)
-                // to repaint the covered glyph — the SAME anchor glyph the block sits on
-                // (both key off `caret.pos`, so they align by construction) — in
-                // `primary_content` (the ground; set at the draw site below). Only when
-                // SETTLED on a real inhabited glyph: mid-glide the block is a thin streak
-                // with no full cell to punch, and a glyphless anchor (space / line start /
-                // empty line) is simply a solid phosphor cell with nothing to knock out.
                 let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
                 if settled && self.prepare_caret_masks(device, queue) {
-                    // THE KNOCKOUT COLOUR — the GROUND (`primary_content`), set at the
-                    // draw site so it is authoritative even in the headless capture
-                    // (which never runs `sync_theme_colors`); on a Filled world the
-                    // silhouette pipeline is ONLY ever the knockout (morph folds to
-                    // block), so this override is total, never fighting a morph accent.
                     self.caret_glyph_pipeline
                         .set_color(theme::primary_content().rgb_bytes());
                     let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
@@ -893,10 +734,6 @@ impl TextPipeline {
         }
     }
 
-    /// COSMETIC | TRAIL upload — the fading accent streak from the latched OLD caret
-    /// position to the NEW, layered OVER the snapped caret (so even a SNAP move shows
-    /// the | ). Empty when no streak is active, so a deterministic `--screenshot`
-    /// draws nothing. Lifted verbatim out of [`prepare_caret_layer`]; byte-identical.
     fn prepare_caret_trail(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
         match self.caret_trail_geometry() {
             Some((cx, cy, cw, ch, ccorner, ax, ay, alpha)) => {
@@ -945,21 +782,10 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &comment_rects);
         self.wash_string_pipeline
             .prepare(device, queue, width, height, &string_rects);
-        // The markdown `==highlight==` band rides its OWN violet tint (every
-        // world carries it — no opt-out hatch, unlike the syntax washes), so no
-        // gating: an empty `highlight_rects` (prose / non-highlight buffer)
-        // uploads zero instances and draws nothing, byte-identical.
         self.wash_highlight_pipeline
             .prepare(device, queue, width, height, &highlight_rects);
     }
 
-    /// Build + upload the WYSIWYG value-step quads: the fenced-code PANEL (whole
-    /// text column, every visual row of the block) and the inline-code PILL
-    /// (a small overhang past each `Code { inline: true }` span). Both ride the
-    /// SAME fixed `base_200` tint (re-tinted in `sync_theme_colors`, unlike the
-    /// per-role syntax washes) and both empty — zero instances uploaded — with
-    /// [`crate::markdown::wysiwyg_on`] off or for a fence/inline-code-less buffer,
-    /// keeping those frames byte-identical.
     pub(super) fn prepare_wysiwyg_wash_layer(
         &mut self,
         device: &wgpu::Device,
@@ -1085,50 +911,24 @@ impl TextPipeline {
         let muted = theme::muted().to_glyphon();
         let left = self.text_left();
         let col_w = self.text_wrap_width().max(1.0);
-        // Positions (computed from &self before the disjoint-field borrow split).
-        // Each break carries the ornament its syntax picked (`---`/`***`/`___`).
         let rule_marks = if self.md_enabled {
             self.rule_marks()
         } else {
             Vec::new()
         };
 
-        // The section-break FLEURON shapes in the ACTIVE WORLD'S OWN ornament face
-        // (EB Garamond / Junicode / the merged marks face), NOT the shared symbol
-        // face — so each world's `---`/`***`/`___` reads in its assigned flavour (see
-        // `theme::Theme::ornament_face`). The list BULLETS (below) now ride the SAME
-        // per-world ornament face — keycaps + plain marks are the only symbols still
-        // pinned to `SYMBOL_FAMILY`. The ornament faces are Regular/400, so a plain
-        // NORMAL weight matches (no `mono_safe_weight` trap).
         let rule_attrs = Attrs::new()
             .family(Family::Name(theme::active().ornament_face))
             .color(muted);
-        // The depth-derived list BULLETS shape in the ACTIVE WORLD'S OWN ornament
-        // face too (PER-WORLD DATA, `theme::Theme::bullets` — the ornament trio one
-        // level down): the geometric worlds' face IS the merged marks face (so their
-        // `•`/`◦` are byte-identical to before this round), while the antique/literary
-        // serifs draw a hedera / fleuron / manicule from EB Garamond or Junicode.
-        // Same muted ink (faint unchanged, never amber). The ornament faces are
-        // Regular/400, so a plain NORMAL weight matches.
         let bullet_attrs = Attrs::new()
             .family(Family::Name(theme::active().ornament_face))
             .color(muted);
         let center = Some(glyphon::cosmic_text::Align::Center);
 
-        // The centered section-break glyph is shaped BIGGER than body ink — a calm,
-        // present flourish (still muted, never amber). The scale is PER-WORLD (keyed to
-        // the ornament's character — `theme::Theme::ornament_scale`), and the break
-        // line's ROW was grown by the SAME value (via `md_line_scale`), so shaping the
-        // glyph in a line-box of that grown height (`line_height * ornament_scale`)
-        // centers it vertically on the tall break row, exactly as a heading glyph
-        // centers on its grown row.
         let ornament_scale = theme::active().ornament_scale;
         let orn_line_h = m.line_height * ornament_scale;
         let orn_metrics = GlyphMetrics::new(m.font_size * ornament_scale, orn_line_h);
 
-        // The breaks may mix syntaxes (`---` here, `***` there), so each needs its OWN
-        // shaped glyph. Dedupe by ornament char — at most three distinct — into local
-        // buffers the `TextArea`s below borrow; a doc with one break-style shapes once.
         let mut distinct: Vec<char> = Vec::new();
         for (_, ch) in &rule_marks {
             if !distinct.contains(ch) {
@@ -1150,15 +950,6 @@ impl TextPipeline {
             rule_buffers.push(buf);
         }
 
-        // DEPTH-DERIVED BULLETS: an unordered list line the caret is NOT on draws its
-        // per-world glyph (by nesting depth) LEFT-aligned exactly over the concealed
-        // raw `-` cell, in the world's ornament face + muted ink. Shaped at
-        // `font_size * bullet_scale` — body size for the plain `•`/`◦` worlds
-        // (byte-identical), ~half body for a characterful hedera/manicule so it reads
-        // as a quiet marker, not a section flourish. The line-box stays the row's FULL
-        // `line_height`, so cosmic-text's own `(line_height - glyph_height)/2` centering
-        // keeps a scaled-down bullet on the text's optical middle (same centering the
-        // body run gets). Each mark carries its own `left` (the marker cell's x).
         let bullet_marks = if self.md_enabled {
             self.bullet_marks()
         } else {
@@ -1201,8 +992,6 @@ impl TextPipeline {
         let quote_attrs = Attrs::new()
             .family(Family::Name(theme::active().font))
             .color(quote_faint);
-        // A box wide enough to hold the scaled glyph; its shaped advance is measured
-        // below so the mark hangs a hair shy of the text's left edge.
         let quote_box_w = (m.font_size * QUOTE_MARK_SCALE * 2.0).max(1.0);
         let mut quote_buffer = GlyphBuffer::new(&mut self.font_system, quote_metrics);
         let mut quote_left = 0.0f32;
@@ -1220,13 +1009,6 @@ impl TextPipeline {
                 None,
             );
             quote_buffer.shape_until_scroll(&mut self.font_system, false);
-            // DROP-CAP: hang the mark INSIDE the writing column, in the block's own
-            // leading indent (the page column's left text-pad gutter), NOT in the
-            // left margin — the margin belongs to the OUTLINE alone. Its RIGHT edge
-            // sits a hair shy of `text_left` (the quote text's own left edge), so the
-            // big opening mark reads as the paragraph's drop-cap and the quote text
-            // clears it; its LEFT edge is clamped to `column_left` so it can never
-            // spill back out past the page edge into the outline's margin.
             let mut mark_w = 0.0f32;
             for run in quote_buffer.layout_runs() {
                 mark_w = mark_w.max(run.line_w);
@@ -1236,15 +1018,6 @@ impl TextPipeline {
                 super::geometry::pull_quote_left(self.column_left(), self.text_left(), gap, mark_w);
         }
 
-        // FENCE LANGUAGE LABEL: a quiet MUTED word (e.g. "rust") right-aligned on
-        // each recognized fenced block's OPENING fence line — naming what the body
-        // is highlighted as, DATA-driven off the parsed info string
-        // (`fence_lang_marks`, the SAME `syntax::Lang::from_info` gate the fence's
-        // `CodeSyntax` highlighting itself uses), so a plain / unknown-lang fence
-        // draws nothing. Rides this SAME ornament renderer/pass — no new pipeline —
-        // deduped by distinct LANGUAGE (mirrors the rule/bullet glyph dedupe, just
-        // keyed by a word instead of a char) since a doc mixing a few fence
-        // languages shapes each only once.
         let fence_lang_marks = if self.md_enabled {
             self.fence_lang_marks()
         } else {
@@ -1286,31 +1059,6 @@ impl TextPipeline {
         let fence_lang_right = self.text_left() + self.text_wrap_width();
         let fence_lang_inset = m.char_width * 0.5;
 
-        // FOLD AFFORDANCES (item 47, item 65 taste correction, item 81 widened the
-        // chevron to every heading): the quiet "… N lines" TAIL on every visible
-        // FOLDED heading only (to the RIGHT of its text), plus the small fold
-        // CHEVRON — hung IMMEDIATELY LEFT of the heading, in the writing column's
-        // own leading pad, OUTSIDE the shaped document glyph run entirely
-        // (`fold_chevron_marks`'s own doc), for EVERY foldable heading, expanded or
-        // collapsed — revealed when the caret is on the heading (or it is hovered —
-        // live only). Both are
-        // ornaments, never part of the shaped line, so they add NO row and never
-        // touch the zero-height hidden-row law, and can never shift a heading
-        // glyph's x. Each shapes at its OWN natural small-text row height
-        // (`fold_label_scale`, NOT the heading's grown row) so its OWN baseline
-        // (`layout_runs().next().line_y`, read after shaping) can be placed exactly
-        // on the heading's REAL shaped baseline (`fold_mark_line_y`, below) —
-        // BASELINE-ALIGNED, not merely centered in the tall row (the old approach,
-        // which read as the tail "floating" above a big heading's ink). FAINT ink
-        // for the quiet tail, MUTED for the summoned chevron; never amber (DESIGN
-        // §3) — each lifted toward `base_content` by the active theme's own
-        // [`theme::FoldAfford`] dial (item 65 taste correction: a `Background::
-        // Lava` world's `LavaEdge::Glow` lifts the WHOLE writing column off flat
-        // `base_100`, not just its margin edge, so the bare ladder rung reads too
-        // faint there; every other world's dial is `0.0` — byte-identical to the
-        // bare rung). See `theme::derive::fold_afford_chevron_ink`/
-        // `fold_afford_tail_ink` — the ONE pair of consumers; no per-world branch
-        // lives here or there, only the theme's own dial does.
         let fold_tail_ink = theme::fold_afford_tail_ink().to_glyphon();
         let fold_chevron_ink = theme::fold_afford_chevron_ink().to_glyphon();
         let fold_tail_marks = self.fold_tail_marks();
@@ -1318,17 +1066,8 @@ impl TextPipeline {
         let fold_label_scale = crate::markdown::type_scale::LABEL;
         let fold_tail_attrs = panel_attrs().color(fold_tail_ink);
         let fold_chevron_attrs = panel_attrs().color(fold_chevron_ink);
-        // The NATURAL (unstretched) box every fold-affordance glyph shapes in —
-        // shared by the tail and the chevron so they read as ONE quiet family.
         let fold_mark_h = m.line_height * fold_label_scale;
         let fold_mark_metrics = GlyphMetrics::new(m.font_size * fold_label_scale, fold_mark_h);
-        // The y-OFFSET from a fold-affordance buffer's own box top to its REAL
-        // shaped baseline, read straight off the run cosmic-text just laid — the
-        // placement loops below subtract this from the heading's own target
-        // baseline (`fold_tail_marks`/`fold_chevron_marks`'s `f32` slot 0) to land
-        // the mark's baseline exactly there. Falls back to a conservative fraction
-        // of the box height on the (unreachable in practice — the mark text is
-        // never empty) empty-run case, so this can never divide by a missing run.
         let fold_mark_line_y = |buf: &GlyphBuffer| -> f32 {
             buf.layout_runs()
                 .next()
@@ -1427,8 +1166,6 @@ impl TextPipeline {
                 custom_glyphs: &[],
             });
         }
-        // The one shaped pull-quote buffer, reused at each block's first-line top,
-        // hung at the column-hugging left computed above.
         for top in &quote_tops {
             areas.push(TextArea {
                 buffer: &quote_buffer,
@@ -1457,32 +1194,6 @@ impl TextPipeline {
                 custom_glyphs: &[],
             });
         }
-        // FOLD affordances: the tail (faint) then the summoned chevron (muted), each
-        // BASELINE-ALIGNED to the collapsed heading's own REAL shaped baseline —
-        // `baseline` (slot 0) minus this buffer's OWN `line_y` places its baseline
-        // exactly there (item 65's "floating tail" taste correction; see the marks'
-        // own doc comments).
-        //
-        // item 73 CLAMP: the tail's PREFERRED left (`desired_left`, item 65's own
-        // small-gap placement) hangs it just past the heading's first visual row —
-        // correct UNLESS that row already runs to (or near) the column's own right
-        // edge, in which case the tail's shaped width (`fold_tail_widths[i]`, only
-        // known now that it's shaped) would carry its own right edge past
-        // `column_right` and bleed onto the margin ground (Fable's item 65 taste
-        // find). Never touches item 65's baseline, chevron, ink dials, or the
-        // Outline `(N)` marker — placement ONLY. Three cases:
-        //   1. fits at the preferred spot (`desired_left + w <= column_right`):
-        //      byte-identical to before this fix.
-        //   2. doesn't fit there, but fits hugging the column edge
-        //      (`column_right - w` is still at/past the heading's own real text
-        //      end, `fold_affordance_row_end_x`): SHIFT left just enough to end
-        //      exactly at `column_right`, drawing over the row's own trailing
-        //      whitespace (never over the heading's real ink — the floor guards
-        //      that).
-        //   3. doesn't fit even hugging the edge (the heading's first row runs
-        //      flush to the column with no gap at all, and the tail is wider than
-        //      what's left): ELIDE this tail rather than either overlap the
-        //      heading's own glyphs or bleed past the column.
         let column_right = left + col_w;
         for (i, &(baseline, desired_left, _n, line)) in fold_tail_marks.iter().enumerate() {
             let w = fold_tail_widths[i];
@@ -1611,7 +1322,6 @@ impl TextPipeline {
                 cells.push((gr, c, buf, w));
             }
         }
-        // A column of only-empty cells still occupies its padding.
         for c in 0..ncols {
             if maxs[c] <= 0.0 {
                 maxs[c] = 2.0 * pad;
@@ -1619,11 +1329,6 @@ impl TextPipeline {
             mins[c] = mins[c].max(2.0 * pad);
         }
         let (col_x, col_w) = crate::markdown::table_column_layout(&mins, &maxs, gap, avail);
-        // PASS 2 — reshape each cell at its OWN column's inner width so it WRAPS
-        // inside the column (never clips at the edge, never overruns the neighbour);
-        // recompute its wrapped width (for alignment) and count its wrapped rows to
-        // grow the row. A cell whose column is at least its natural width lays out on
-        // one line (rows == 1) — a table that fits is unchanged.
         let mut row_heights = vec![m.line_height; grid_rows.len()];
         for (gr, c, buf, w) in cells.iter_mut() {
             let box_w = col_w.get(*c).copied().unwrap_or(avail);
@@ -1682,16 +1387,12 @@ impl TextPipeline {
         let avail = self.text_wrap_width().max(1.0);
         let pad = TABLE_CELL_PAD_X * m.zoom;
         let gap = TABLE_COL_GAP * m.zoom;
-        // Per-line first byte offset, so a table conceal span's `start` maps to its
-        // header line and its `end` bounds the block's lines.
         let mut starts = Vec::with_capacity(lines.len());
         let mut acc = 0usize;
         for l in &lines {
             starts.push(acc);
             acc += l.len() + 1;
         }
-        // PHASE A (pure) — parse each table block's grid rows from the source lines,
-        // collected first so the shaping loop below can take `&mut self`.
         struct TMeta {
             range: std::ops::Range<usize>,
             grid_rows: Vec<(usize, Vec<String>)>,
@@ -1737,12 +1438,6 @@ impl TextPipeline {
                 ncols,
             });
         }
-        // PHASE B — shape each table ONCE (the ONE shape site, see
-        // [`TableGridCache`]'s own doc comment) and reserve the tall row on any
-        // grid row that wrapped past one line-height, THEN keep the shaped result
-        // in `table_grid_cache` so the draw pass (`prepare_table_grid`) reads the
-        // SAME geometry instead of re-shaping — a reservation/draw divergence is
-        // now structurally unrepresentable.
         let mut cache_entries: Vec<(usize, TableGridShaped)> = Vec::new();
         for tm in tmetas {
             if tm.ncols == 0 {
@@ -1798,9 +1493,6 @@ impl TextPipeline {
             .map(|(_, g)| (g.col_x.clone(), g.col_w.clone()))
     }
 
-    /// TEST-ONLY: every table cell's document line the LAST [`Self::prepare_table_grid`]
-    /// call actually uploaded as a `TextArea` (see `last_table_cell_lines`'s own
-    /// field doc). A doc line absent from this list drew NO grid cells that frame.
     #[cfg(test)]
     pub(super) fn table_cell_lines_drawn(&self) -> Vec<usize> {
         self.last_table_cell_lines.borrow().clone()
@@ -1851,8 +1543,6 @@ impl TextPipeline {
     /// thousands of `GlyphBuffer`s a frame; the caret's own row is never culled
     /// (it is on-screen by construction).
     pub(super) fn prepare_table_xray(&mut self) {
-        // Carry the previous pan for the CARET's row only (stable walk) before
-        // clearing the stash.
         let prev_pan = self
             .xray
             .iter()
@@ -1887,9 +1577,6 @@ impl TextPipeline {
             if *header_line > last_doc_line {
                 continue;
             }
-            // This block's own line span, found by walking its SOURCE lines
-            // (mirrors `prepare_table_grid`'s Phase A block walk) — bounded by
-            // the table's own row count, never the document's.
             let mut li = *header_line;
             let mut b = self.line_doc_byte_start(*header_line);
             let mut last_line_of_block = *header_line;
@@ -1916,8 +1603,6 @@ impl TextPipeline {
                 let Some(src) = self.buffer.lines.get(line).map(|l| l.text().to_string()) else {
                     continue;
                 };
-                // Shape the RAW source NON-WRAPPING (Wrap::None) — one line that
-                // pans, so the row NEVER grows (the whole point of the x-ray).
                 let mut buf = GlyphBuffer::new(&mut self.font_system, body);
                 buf.set_wrap(&mut self.font_system, Wrap::None);
                 buf.set_size(&mut self.font_system, None, Some(m.line_height * 2.0));
@@ -1939,9 +1624,6 @@ impl TextPipeline {
                     );
                     (pan, self.cursor_row_height())
                 } else {
-                    // Selection-only reveal: no caret column on this row to pan
-                    // toward — always flush-left, sized to the row's own
-                    // (single, non-wrapping-source) visual row height.
                     let h = super::geometry::pick_row(&self.visual_rows(line), 0).line_height;
                     (0.0, h)
                 };
@@ -2000,7 +1682,6 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         use crate::markdown::ColAlign;
-        // Always reflect THIS frame's grid in the sidecar report; refill below.
         self.table_report.borrow_mut().clear();
         #[cfg(test)]
         self.last_table_cell_lines.borrow_mut().clear();
@@ -2012,7 +1693,6 @@ impl TextPipeline {
             Vec::new()
         };
         if blocks.is_empty() {
-            // Park both layers — byte-identical to a no-table frame.
             self.table_rule_pipeline
                 .prepare(device, queue, width, height, &[]);
             self.table_renderer
@@ -2033,8 +1713,6 @@ impl TextPipeline {
         let text_left = self.text_left();
         let avail = self.text_wrap_width().max(1.0);
         let pad = TABLE_CELL_PAD_X * m.zoom;
-        // No `gap` here: the per-column layout (which bakes the gap in) is READ from
-        // `table_grid_cache` (the one shape site), never recomputed at draw time.
         let rule_thick = (TABLE_RULE_THICKNESS * m.zoom).max(1.0);
         let cursor_byte = self.line_doc_byte_start(self.cursor_line);
         // SELECTION REVEAL: the SAME touched-line byte extent `wysiwyg_reveals`
@@ -2062,12 +1740,10 @@ impl TextPipeline {
             sep_doc_line: usize,
             revealed: bool,
             visible: bool,
-            /// (doc line, cells) for every GRID row (header + body; NOT the separator).
             grid_rows: Vec<(usize, Vec<String>)>,
         }
         let mut metas: Vec<Meta> = Vec::new();
         for (header_line, range) in &blocks {
-            // Collect the table's source lines by walking doc lines across the range.
             let mut src_lines: Vec<String> = Vec::new();
             let mut li = *header_line;
             let mut b = range.start;
@@ -2081,8 +1757,6 @@ impl TextPipeline {
                 continue; // a real table always has header + separator
             }
             let align_cells = crate::markdown::split_row_cells(&src_lines[1]);
-            // Grid rows = header (src 0) + body (src 2..); the separator (src 1) is
-            // the rule row (drawn as the hairline, no cells).
             let mut grid_rows: Vec<(usize, Vec<String>)> = Vec::new();
             for (i, line) in src_lines.iter().enumerate() {
                 if i == 1 {
@@ -2146,10 +1820,6 @@ impl TextPipeline {
             })
             .collect();
 
-        // PHASE C — place the reshaped cells + the header rule, fill the report. The
-        // column layout was already computed inside `shape_table_grid`. A too-wide
-        // grid grows into the right margin at pan 0 and, once the live gesture pans
-        // it, shifts LEFT by `pan` and clips to the writing column (`table_pan_*`).
         let view_w = avail;
         let pan_bar_thick = (crate::render::TABLE_PAN_BAR_THICKNESS * m.zoom).max(1.0);
         let muted = theme::muted().to_glyphon();
@@ -2250,8 +1920,6 @@ impl TextPipeline {
                 }
                 continue;
             }
-            // The laid grid width + this table's clamped horizontal pan. A grid that
-            // fits (`content_w ≤ view_w`) never pans (`table_pan_clamp → 0`).
             let content_w = col_x
                 .last()
                 .zip(col_w.last())
@@ -2306,9 +1974,6 @@ impl TextPipeline {
                     custom_glyphs: &[],
                 });
             }
-            // The ONE faint header-separator hairline (the grid's only drawn line),
-            // centered in the separator row's band. Spans the laid grid width at pan
-            // 0 (growing into the margin), else the visible portion within the view.
             let sep_top = self.line_ornament_top(meta.sep_doc_line);
             let rule_y = sep_top + (m.line_height - rule_thick) * 0.5;
             let rule_w = if pan > 0.0 {
@@ -2319,10 +1984,6 @@ impl TextPipeline {
             if rule_w > 0.0 {
                 rule_rects.push([text_left, rule_y, rule_w, rule_thick]);
             }
-            // The THIN transient pan-indicator bar at the table's bottom edge, while
-            // this table is panned (`pan > 0`). Value-step tint (the rule pipeline's
-            // own faint colour), never amber. A default capture never sets a pan, so
-            // no bar draws — byte-identical. The hover/idle FADE is live-only.
             if pan > 0.0
                 && let Some((last_dl, _)) = meta.grid_rows.last()
             {
@@ -2386,28 +2047,15 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// The deterministic per-table geometry the last [`Self::prepare_table_grid`]
-    /// laid out, for the capture `tables` sidecar block (a clone of the stashed
-    /// report). Empty for a non-table / WYSIWYG-off frame.
     pub fn tables_report(&self) -> Vec<crate::render::TableReport> {
         self.table_report.borrow().clone()
     }
 
-    /// LIVE horizontal table PAN (the reading gesture). If `(px, py)` is over an
-    /// OVERFLOWING table (its laid grid is wider than the writing column), nudge
-    /// that table's pan by `dx` px (a horizontal wheel notch) and return `true` so
-    /// the caller CONSUMES the scroll (the document does not also scroll). Returns
-    /// `false` — fall through to normal vertical scroll — when no pannable table is
-    /// under the pointer. The `content_w`/`view_w` clamp reuses the LAST frame's
-    /// `tables_report` widths (a table under the pointer has necessarily been laid
-    /// this session), so no reshape is needed on the hot wheel path. LIVE-ONLY:
-    /// never reached by the headless capture (which has no pointer / wheel).
     pub fn try_table_pan(&mut self, px: f32, py: f32, scroll: ScrollPos, dx: f32) -> bool {
         if !(crate::markdown::wysiwyg_on() && self.md_enabled) {
             return false;
         }
         let (line, _) = self.hit_test_scroll(px, py, scroll);
-        // Which table block (if any) owns the hit line?
         let line_byte = self.line_doc_byte_start(line);
         let Some((start, _range)) = self
             .table_blocks()
@@ -2417,7 +2065,6 @@ impl TextPipeline {
         else {
             return false;
         };
-        // The laid grid width from the last report (widths + gaps), vs the view.
         let report = self.table_report.borrow();
         let Some(t) = report.iter().find(|t| t.range.0 == start) else {
             return false;
@@ -2438,23 +2085,11 @@ impl TextPipeline {
             .filter(|(s, _)| *s == start)
             .map(|(_, o)| o)
             .unwrap_or(0.0);
-        // A rightward swipe (dx < 0 by the natural-scroll convention) reveals the
-        // right of the grid: pan offset += -dx. TASTE/tunable, flagged live-only.
         let next = crate::markdown::table_pan_clamp(cur - dx, content_w, view_w);
         self.table_pan = Some((start, next));
         true
     }
 
-    /// INLINE-IMAGE CAPTION SCRIM: append one soft ground-colour band per visual row
-    /// of the revealed image line `li` behind that row's shaped source text, so the
-    /// centred caption reads over arbitrary image pixels. Each band hugs the row's
-    /// own text extent (`xs[start_col]..xs[end_col]` + [`CAPTION_SCRIM_PAD_X`]) at a
-    /// one-text-line height (+ [`CAPTION_SCRIM_PAD_Y`]) centred where cosmic-text
-    /// centres the source within the `h`-tall row. Because the scrim is the WORLD'S
-    /// OWN GROUND (`base_100`, part-alpha), it is INVISIBLE where the caption sits
-    /// clear of the image (ground-over-ground) and only lifts value where the text
-    /// actually overlaps the dimmed image — no stray band artifact. A glyphless / zero-
-    /// width row contributes nothing.
     #[cfg(not(target_arch = "wasm32"))]
     fn push_caption_scrim(&self, li: usize, out: &mut Vec<[f32; 4]>) {
         let zoom = self.metrics.zoom;
@@ -2462,8 +2097,6 @@ impl TextPipeline {
         let pad_y = CAPTION_SCRIM_PAD_Y * zoom;
         let text_left = self.text_left();
         let doc_top = self.doc_top();
-        // The caption's own text-line band height (one body line), NOT the tall row
-        // `h` — the source glyphs are body-size, centred within `h`.
         let band_h = self.metrics.line_height;
         for vr in self.visual_rows(li) {
             let (Some(&x0), Some(&x1)) = (vr.xs.get(vr.start_col), vr.xs.get(vr.end_col)) else {
@@ -2563,26 +2196,13 @@ impl TextPipeline {
         }
         let mut ready: Vec<Ready> = Vec::new();
         let mut missing: Vec<Missing> = Vec::new();
-        // CAPTION scrim bands: one soft ground-colour quad behind the revealed
-        // source of each revealed image, so the caption reads over arbitrary image
-        // pixels (built below, uploaded to `image_scrim_pipeline`). Empty unless a
-        // real image line is revealed with WYSIWYG on.
         let mut scrim_bands: Vec<[f32; 4]> = Vec::new();
         for im in &report {
-            // ITEM 5 REWORK: a REVEALED MIXED line reserves nothing this frame
-            // (`compute_image_layout`'s doc comment — the raw source wraps as
-            // plain text instead), so there is no well-defined place to draw
-            // the image; skip it for that one frame, like the `!wysiwyg` arm.
             if im.revealed && (!wysiwyg || !self.image_row_reserved(im.line)) {
                 continue;
             }
             let dw = im.display_w.max(1.0);
             let dh = im.display_h.max(1.0);
-            // ITEM 5 REWORK: a bare image-only line's row IS `dh` tall, so this is
-            // just its row top (byte-identical to before). A MIXED line instead
-            // reads its LAST visual row's own top — the genuine cosmic-text row the
-            // forcing glyph landed on (`Self::image_draw_top`'s doc) — directly
-            // below the untouched marker+caption row, never overlapping it.
             let row_top = self.image_draw_top(im.line);
             // ITEM 82: cull on the row's OWN box (top..top+dh), not a fixed small
             // margin around its top alone — a tall image's top can scroll well
@@ -2592,20 +2212,13 @@ impl TextPipeline {
             if !self.row_box_visible(row_top, dh) {
                 continue;
             }
-            // Revealed: the image stays at the row top, DIMMED, and the source
-            // reveals CENTRED over it (the caption model). Off-cursor / missing: full
-            // opacity, source concealed. A missing placeholder never dims.
             let alpha = if im.revealed && !im.missing {
                 IMAGE_REVEAL_DIM_ALPHA
             } else {
                 1.0
             };
-            // Fit-to-column: centered horizontally in the writing column; the row
-            // reserves `dh` of height, so the quad fills it vertically.
             let left = text_left + (wrap - dw).max(0.0) * 0.5;
             let dst = [left, row_top, dw, dh];
-            // Build the caption scrim behind the revealed source (a real, readable
-            // image line only — a missing placeholder shows its own card).
             if im.revealed && !im.missing && wysiwyg {
                 self.push_caption_scrim(im.line, &mut scrim_bands);
             }
@@ -2624,9 +2237,6 @@ impl TextPipeline {
                 .ensure(device, queue, &resolved, dw, max_dim)
             {
                 ImageState::Ready { .. } => ready.push(Ready { dst, alpha, key }),
-                // Header read OK at layout but the full decode failed at draw (a rare
-                // race — the file changed/vanished): fall to the placeholder, drawn in
-                // the aspect-reserved box.
                 ImageState::Missing => missing.push(Missing {
                     dst,
                     path: im.path.clone(),
@@ -2656,21 +2266,13 @@ impl TextPipeline {
             pipeline.prepare(device, queue, width, height, &placed);
         }
 
-        // The calm MISSING-file placeholder quads (base_200 rounded cards).
         let placeholder_rects: Vec<[f32; 4]> = missing.iter().map(|m| m.dst).collect();
         self.image_placeholder_pipeline
             .prepare(device, queue, width, height, &placeholder_rects);
 
-        // The CAPTION SCRIM bands (ground-colour, part-alpha — see
-        // `push_caption_scrim`), drawn OVER the dimmed image and UNDER the revealed
-        // source, so the caption reads over any image pixels. Empty (parked) unless
-        // a real image line is revealed, so a default frame is byte-identical.
         self.image_scrim_pipeline
             .prepare(device, queue, width, height, &scrim_bands);
 
-        // The placeholder LABELS: a muted filename over a faint alt, centered in each
-        // card (the ornament pattern — one shaped buffer per line, borrowed by its
-        // TextArea). Empty `missing` parks the renderer off-screen (no areas).
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
         let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);
@@ -2680,7 +2282,6 @@ impl TextPipeline {
         let center = Some(glyphon::cosmic_text::Align::Center);
         let name_attrs = self.doc_attrs().color(muted);
         let alt_attrs = self.doc_attrs().color(faint);
-        // (buffer, left, top, color) tuples; the buffers outlive the areas below.
         let mut buffers: Vec<(GlyphBuffer, f32, f32, glyphon::Color)> = Vec::new();
         for mss in &missing {
             let filename = std::path::Path::new(&mss.path)
@@ -2811,8 +2412,6 @@ impl TextPipeline {
             .collect()
     }
 
-    /// Build + upload the summoned chrome: the nav overlay OR search panel, the
-    /// bottom-left page-mode gutter, the DEBUG frame counter, and the held stats HUD.
     pub(super) fn prepare_chrome_layer(
         &mut self,
         device: &wgpu::Device,
@@ -2833,59 +2432,22 @@ impl TextPipeline {
         // keeps it from racing this one; see `prepare_popover`'s doc.)
         self.prepare_caret_preview_panel(device, queue, width, height)?;
 
-        // The summoned navigation overlay takes priority over the search panel
-        // (they are mutually exclusive in practice). When neither is up we upload
-        // zero card / row instances so nothing lingers. A full-takeover overlay's
-        // backdrop is now the cached FROSTED BLUR (prepared in `prepare_blur` / drawn
-        // in `render`), not a grey scrim — except the crisp THEME/CARET pickers (they
-        // keep the doc crisp) and the contextual SPELL panel (a small float popup at
-        // the word). The search SPLIT panel / no overlay leave the doc bright.
         if self.overlay_active {
             self.prepare_overlay(device, queue, width, height)?;
         } else if self.search_active {
             self.prepare_panel(device, queue, width, height)?;
             self.overlay_rows.prepare(device, queue, width, height, &[]);
-            // The list-surface bar quads park empty while the search panel is up.
             self.overlay_bars.prepare(device, queue, width, height, &[]);
         } else {
-            // NO overlay, NO search: PARK every overlay pipeline empty — the flat
-            // card + row-band + lens-underline quads, the amber query caret, AND
-            // the overlay TEXT renderer. The last is load-bearing: the frosted-blur
-            // path (`render`'s blur branch, taken whenever the HUD is held) draws
-            // the overlay card UNCONDITIONALLY, so a text renderer left holding a
-            // closed palette's rows would ghost over the HUD frost. See
-            // `park_overlay`.
             self.park_overlay(device, queue, width, height)?;
         }
-        // The page-mode orientation gutter (bottom-left margin; parks off-screen
-        // edge-to-edge or with no buffer name, so a non-page capture stays byte-identical).
         self.prepare_gutter(device, queue, width, height)?;
-        // The persistent margin OUTLINE (top-left margin; parks off-screen when off /
-        // not page mode / not markdown / heading-free / too narrow, so a default (off)
-        // capture stays byte-identical).
         self.prepare_outline(device, queue, width, height)?;
-        // The opt-in DEBUG panel (top-left; parks off-screen when off, so a default
-        // capture stays byte-identical). NOTE: the persistent bottom word-count
-        // readout is no longer drawn here — it moves into the held HUD (phase 2); the
-        // `word_count` / `reading_time` helpers + the sidecar `readout` block remain.
         self.prepare_debug(device, queue, width, height)?;
-        // The CALM NOTICE (bottom-center; live-only content — the autosave clobber
-        // guard). Empty parks off-screen, so every capture stays byte-identical.
         self.prepare_notice(device, queue, width, height)?;
-        // The PAGE-WIDTH DRAG READOUT (floats at the pointer; live-only, mouse-driven
-        // content). `None` parks it off-screen, so every capture stays byte-identical.
         self.prepare_page_drag_readout(device, queue, width, height)?;
-        // The ZOOM READOUT (floats at the pointer while a zoom gesture is in flight;
-        // live-only content). `None` parks it off-screen, so every default capture
-        // stays byte-identical (the `AWL_ZOOM_READOUT` gallery probe is opt-in).
         self.prepare_zoom_readout(device, queue, width, height)?;
-        // The SUMMONED-WHILE-HELD stats HUD: a dim scrim + centered stacked stats,
-        // drawn only while held (`crate::hud::hud_held`); released, the scrim is empty
-        // and the text is parked off-screen, so a default capture stays byte-identical.
         self.prepare_hud(device, queue, width, height)?;
-        // The SUMMONED WHICH-KEY panel: a bottom-left hint card listing a pending
-        // prefix's follow-up keys. Drawn only while summoned (the App set its rows on a
-        // prefix pause); parked off-screen otherwise, so a default capture is byte-identical.
         self.prepare_whichkey(device, queue, width, height)?;
         // THE FORMAT POPOVER (reveal-on-select format toolbar): its active-button
         // wash + labels + (shared) float elevation, anchored over the selection.
@@ -2897,12 +2459,7 @@ impl TextPipeline {
         // anywhere in this sequence; it stays here (last, before the menu bar)
         // to minimize churn from its pre-existing position.
         self.prepare_popover(device, queue, width, height)?;
-        // All claimants have now described the one shared float surface. Upload it
-        // once so a Bars overlay's lack of a card cannot park a caret preview.
         self.flush_float_panel(device, queue, width, height);
-        // The WEB/LINUX MENU BAR (top strip + open dropdown). Parks everything
-        // off-screen/empty when the bar is hidden (default off on macOS), so a default
-        // capture stays byte-identical; `--menu-bar` / a web/Linux launch shows it.
         self.prepare_menubar(device, queue, width, height)?;
         Ok(())
     }
@@ -2940,12 +2497,6 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &underlines);
     }
 
-    /// Build + upload the markdown `~~strikethrough~~` STRIKE LINES (one flat
-    /// band per visual-row segment of every struck span), positioned by THE ONE
-    /// strike-line owner (`super::spans::strike_line_band` — see
-    /// [`super::TextPipeline::strike_lines`]). Empty (nothing uploaded, nothing
-    /// drawn) for a strike-less / non-markdown buffer, so those frames stay
-    /// byte-identical.
     pub(super) fn prepare_strike_layer(
         &mut self,
         device: &wgpu::Device,
@@ -2958,12 +2509,6 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &lines);
     }
 
-    /// Build + upload the quiet markdown LINK UNDERLINE (one flat band per
-    /// visual-row segment of every `MdKind::LinkText` span), positioned by THE
-    /// ONE line-band owner (`super::spans::link_underline_band` — see
-    /// [`super::TextPipeline::link_underlines`]). Empty (nothing uploaded,
-    /// nothing drawn) for a link-less / non-markdown buffer, so those frames
-    /// stay byte-identical.
     pub(super) fn prepare_link_underline_layer(
         &mut self,
         device: &wgpu::Device,

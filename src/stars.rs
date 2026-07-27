@@ -318,8 +318,6 @@ mod tests {
     use crate::lava::{LAVA_FROZEN_PHASE, LAVA_LOOP_CYCLES, lava_phase_for, lava_should_tick};
     use crate::theme::THEMES;
 
-    /// Currawong's shipped params, read off the world DATA itself (never a
-    /// second copy that could drift).
     fn currawong_stars() -> (f32, f32, f32, f32) {
         let caps = crate::theme::CURRAWONG.render_caps.ambient;
         let Some((_tint, cell, density, _size, peak, floor)) = caps.stars_params() else {
@@ -351,7 +349,6 @@ mod tests {
             );
             assert!((0.0..1.0).contains(&s.seed), "seed {} out of [0,1)", s.seed);
         }
-        // Density is a real dial: doubling it grows the population.
         let denser = layout(1200.0, 800.0, cell, (density * 2.0).min(1.0));
         assert!(
             denser.len() > a.len(),
@@ -361,18 +358,6 @@ mod tests {
         );
     }
 
-    /// THE SCALE-INVARIANCE GUARANTEE the DPI fix rides on (the twinkling-stars
-    /// density/size bug): [`layout`] is VIEWPORT-space and unit-agnostic, so
-    /// scattering over an `s×` viewport with an `s×` cell reproduces the SAME grid
-    /// — identical population, every star at exactly `s×` its position, same seeds.
-    /// The renderer (`prepare_stars_layer`) leans on exactly this: it multiplies the
-    /// authored physical `cell_px` by the total logical->physical factor `s`
-    /// (user-zoom × device-DPI) before laying out over the `s×` physical viewport, so
-    /// the LOGICAL density is constant at any DPI. (`s = 2.0` is a power of two, so
-    /// the `ceil(w/cell)` grid dims are BIT-identical and the counts are EXACTLY
-    /// equal; the render-side `currawong_star_field_is_dpi_invariant_in_logical_space`
-    /// proves the fix is actually WIRED at real pixels — this proves the layout math
-    /// underneath it.)
     #[test]
     fn layout_is_scale_invariant_in_logical_space() {
         let (cell, density, _, _) = currawong_stars();
@@ -409,11 +394,6 @@ mod tests {
         }
     }
 
-    /// THE LIFECYCLE ENVELOPE (2026-07-23): over a full loop each star (a) DWELLS
-    /// at TRUE zero for a real stretch — it goes fully absent, not merely dim —
-    /// and (b) LIGHTS UP to its own shine peak, which lands inside the visibility
-    /// band `[floor, peak]` and never exceeds `peak`. The old never-vanishing
-    /// breath (which stayed `>= floor` forever) fails arm (a).
     #[test]
     fn lifecycle_dwells_dark_then_shines_within_its_band() {
         let (_, _, peak, floor) = currawong_stars();
@@ -432,14 +412,11 @@ mod tests {
                 lo = lo.min(b);
                 hi = hi.max(b);
             }
-            // (a) DARK DWELL at true zero — the star genuinely disappears.
             assert!(
                 lo < 0.01,
                 "star seed {} never reaches its dark dwell (min {lo}) — it must fully vanish",
                 s.seed
             );
-            // (b) SHINES to at least the band floor (a real, seeable glint), and
-            // no higher than the ceiling. Its own shine peak lives in [floor, peak].
             assert!(
                 (floor - 1e-3..=peak + 1e-3).contains(&hi),
                 "star seed {}'s shine peak {hi} fell outside the band [{floor}, {peak}]",
@@ -448,18 +425,10 @@ mod tests {
         }
     }
 
-    /// THE POPULATION CHANGES between phases — the round's headline: stars appear
-    /// and die, so the set of LIT stars (brightness above a visible threshold)
-    /// differs from one phase to another, and each phase's lit-count is
-    /// DETERMINISTIC (a pure function of the phase — the capture oracle relies on
-    /// it). A never-vanishing breath would keep the SAME (full) population lit at
-    /// every phase and fail the "differs" arm.
     #[test]
     fn lifecycle_population_changes_between_phases_and_is_deterministic() {
         let (_, _, peak, floor) = currawong_stars();
         let stars = layout(1200.0, 800.0, 34.0, 0.30);
-        // A star is "lit" when its envelope clears a hair off zero (the same
-        // sense the renderer's `alpha == 0` cull uses).
         let lit_at = |phase: f32| -> Vec<bool> {
             stars
                 .iter()
@@ -468,7 +437,6 @@ mod tests {
         };
         let a = lit_at(0.0);
         let b = lit_at(3.1);
-        // Deterministic: recomputing the same phase yields the identical set.
         assert_eq!(
             a,
             lit_at(0.0),
@@ -481,7 +449,6 @@ mod tests {
             "at a given phase SOME stars are lit and some are dark-dwelling (lit {count_a}/{})",
             a.len()
         );
-        // The population genuinely turns over: many stars flip lit<->dark.
         let flips = a.iter().zip(b.iter()).filter(|(x, y)| x != y).count();
         assert!(
             flips > a.len() / 10,
@@ -510,10 +477,6 @@ mod tests {
     fn stars_are_individually_phased_never_in_unison() {
         let (_, _, peak, floor) = currawong_stars();
         let stars = layout(1200.0, 800.0, 34.0, 0.30);
-        // At one fixed mid phase, the population's brightnesses SPREAD — the
-        // "individually phased" contract (a shared phase would put every star at
-        // the same value; that's a pulse, not a sky). With the lifecycle the
-        // spread is starker still: some dark-dwelling at zero, some mid-shine.
         let phase = 0.37;
         let values: Vec<f32> = stars
             .iter()
@@ -528,11 +491,6 @@ mod tests {
         );
     }
 
-    /// THE PER-STAR TINT PALETTE (2026-07-23): every star's tint is one of the
-    /// three low-sat real-star palette entries (`star_palette`), the pick is a
-    /// pure + deterministic function of the seed, and across a spread of seeds
-    /// ALL THREE colors actually appear (the sky is not monochrome — blue-white
-    /// dominant, with white and champagne glints).
     #[test]
     fn star_tint_is_a_deterministic_pick_from_the_low_sat_palette() {
         let base = Srgb::rgb(0x9B, 0xB0, 0xD2); // Currawong's ambient tint
@@ -541,9 +499,7 @@ mod tests {
         for i in 0..1000 {
             let seed = i as f32 / 1000.0;
             let tint = star_tint(base, seed);
-            // Deterministic.
             assert_eq!(tint, star_tint(base, seed), "star_tint must be pure");
-            // A palette member, never an off-palette color.
             let idx = palette.iter().position(|p| *p == tint).unwrap_or_else(|| {
                 panic!("star_tint returned {tint:?}, not a member of {palette:?}")
             });
@@ -556,8 +512,6 @@ mod tests {
                 palette[i]
             );
         }
-        // The world's own blue-white base dominates (a cool night sky), the
-        // whites are the rarer glints.
         assert!(
             seen[0] > seen[1] && seen[0] > seen[2],
             "the world's blue-white base must dominate the sky (counts {seen:?})"
@@ -567,8 +521,6 @@ mod tests {
     #[test]
     fn margin_gate_rejects_the_whole_column_band_and_gap() {
         let (col_l, col_r, gap, half) = (300.0, 900.0, STAR_MARGIN_GAP_PX, 1.3);
-        // Sweep a fine grid over the canvas: every accepted x must be strictly
-        // clear of the widened band; every x inside the band must be rejected.
         let mut accepted_left = 0;
         let mut accepted_right = 0;
         for i in 0..=1200 {
@@ -590,7 +542,6 @@ mod tests {
             accepted_left > 0 && accepted_right > 0,
             "both margins must admit stars"
         );
-        // Page-off collapse: the column spans the whole canvas -> nothing passes.
         for i in 0..=1200 {
             assert!(
                 !in_margin(i as f32, half, 0.0, 1200.0, gap),
@@ -601,8 +552,6 @@ mod tests {
 
     #[test]
     fn currawong_alone_carries_the_stars_and_the_ambient_gate_composes() {
-        // The assignment: exactly one world ships Stars (the taste-round's one
-        // pick), and the ONE scheduling gate reads it.
         for t in THEMES.iter() {
             let has_stars = t.render_caps.ambient.is_animated();
             assert_eq!(
@@ -612,7 +561,6 @@ mod tests {
                  is a conscious data edit + its own gallery)",
                 t.name
             );
-            // The one owner composes: lava OR stars, nothing else.
             assert_eq!(
                 t.has_ambient_motion(),
                 t.background.is_lava() || has_stars,
@@ -620,26 +568,11 @@ mod tests {
                 t.name
             );
         }
-        // Reduce Motion freezes the twinkle at the same resolver the lava rides:
-        // reduced -> the frozen phase regardless of the stored one (static stars,
-        // present but not twinkling), and the cadence gate refuses to arm.
         assert_eq!(lava_phase_for(1.23, true, None), LAVA_FROZEN_PHASE);
         assert!(!lava_should_tick(true, true, true, true, false));
-        // `ambient_motion = false` (the config kill-switch) also refuses.
         assert!(!lava_should_tick(true, false, false, true, false));
     }
 
-    /// THE STARS-ARM-THE-TICK-LIKE-LAVA LAW (user report 2026-07-18: "they don't
-    /// twinkle though?" — Currawong's stars render but sit STATIC while the lava
-    /// worlds animate). The live App arms its ~10 fps ambient tick by feeding the
-    /// ACTIVE world's `has_ambient_motion()` into `lava_should_tick` as its `active`
-    /// term (`App::about_to_wait`, `let lava_active = active().has_ambient_motion()`).
-    /// A stars-only world (Currawong, NOT lava) must therefore arm the tick EXACTLY
-    /// like a lava world — the widening from the old `is_lava()` gate to the shared
-    /// `has_ambient_motion()` one, which the vanish-fix's lava.rs deletion sweep was
-    /// suspected of reverting. This pins the COMPOSITION the App performs (the prior
-    /// test only fed a hardcoded `true`), so any future regression of the tick-arm
-    /// term back to lava-only fails here rather than silently freezing the stars.
     #[test]
     fn a_stars_only_world_arms_the_ambient_tick_exactly_like_a_lava_world() {
         let world = |name: &str| THEMES.iter().find(|t| t.name == name).expect("real world");
@@ -654,9 +587,6 @@ mod tests {
             !magpie.has_ambient_motion(),
             "Magpie is a static world (the vanish's light destination)"
         );
-        // Compose EXACTLY as `App::about_to_wait` does: active-world ambient bit ->
-        // `lava_should_tick`'s `active` term, with normal live conditions (ambient
-        // on, motion not reduced, focused, not paused).
         let arms = |t: &crate::theme::Theme| {
             lava_should_tick(t.has_ambient_motion(), true, false, true, false)
         };
@@ -686,13 +616,6 @@ mod tests {
         }
     }
 
-    /// THE CHROMA-BOOST LAW (item 62, 2026-07-24, user-decided): every entry in
-    /// today's shipped palette carries MEASURABLY more saturation than the
-    /// palette it replaced, at NO GREATER relative luminance (never brighter —
-    /// the user's explicit call). The pre-item-62 hex triples are kept here
-    /// ONLY as the "before" snapshot this law measures against — they are not
-    /// a second source of truth for the shipped colors (`star_palette` alone
-    /// is that), and nothing else in the crate reads them.
     #[test]
     fn star_palette_carries_more_chroma_than_before_at_no_greater_luminance() {
         fn lin(u: u8) -> f32 {
@@ -706,15 +629,11 @@ mod tests {
         fn rel_lum(c: Srgb) -> f32 {
             0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
         }
-        // The "before" snapshot (was Currawong's shipped palette pre-item-62).
         let old_base = Srgb::rgb(0x9D, 0xB0, 0xCF);
         let old_white = Srgb::rgb(0xE9, 0xEC, 0xF2);
         let old_champagne = Srgb::rgb(0xEF, 0xEE, 0xEA);
         let old_palette = [old_base, old_white, old_champagne];
 
-        // The "after" is TODAY's data: the live Currawong tint plus the two
-        // shared consts, read through the SAME `star_palette` the renderer and
-        // the amber-guard law use (one owner, never a second copy).
         let (new_base, ..) = crate::theme::CURRAWONG
             .render_caps
             .ambient
@@ -743,12 +662,6 @@ mod tests {
         }
     }
 
-    /// THE SIZE-SPREAD LAW (item 62): [`star_size_scale`] is a NARROW, NONZERO
-    /// distribution around `1.0` — narrow (every roll lands inside
-    /// `[1 - STAR_SIZE_SPREAD_FRAC, 1 + STAR_SIZE_SPREAD_FRAC]`, a mild band,
-    /// not a wide scatter) and genuinely nonzero (across a spread of seeds the
-    /// scale actually varies — it is not a constant `1.0` in disguise). Also
-    /// deterministic: the same seed always yields the same scale.
     #[test]
     fn star_size_scale_is_a_narrow_nonzero_spread_around_one() {
         let lo_bound = 1.0 - STAR_SIZE_SPREAD_FRAC;
@@ -758,9 +671,7 @@ mod tests {
         for i in 0..1000 {
             let seed = i as f32 / 1000.0;
             let scale = star_size_scale(seed);
-            // Deterministic and pure.
             assert_eq!(scale, star_size_scale(seed), "star_size_scale must be pure");
-            // NARROW: never outside the authored band.
             assert!(
                 (lo_bound..=hi_bound).contains(&scale),
                 "seed {seed}: scale {scale} escaped the narrow band [{lo_bound}, {hi_bound}]"
@@ -768,26 +679,18 @@ mod tests {
             lo = lo.min(scale);
             hi = hi.max(scale);
         }
-        // NONZERO: the population actually spreads (not every star the same size).
         assert!(
             hi - lo > 0.5 * (hi_bound - lo_bound),
             "the size spread must be genuinely nonzero across the population \
              (observed range {lo:.3}..{hi:.3} inside authored band \
              {lo_bound:.3}..{hi_bound:.3})"
         );
-        // MILD: the band itself stays narrow relative to the star (never a wide
-        // scatter that would read as size noise rather than a subtle spread).
         assert!(
             std::hint::black_box(STAR_SIZE_SPREAD_FRAC) <= 0.3,
             "the size-spread fraction must stay mild, not a wide scatter"
         );
     }
 
-    /// THE STAR-IDENTITY LAW: a star's tint, size, phase (brightness), and
-    /// position are ALL pure functions of (seed, phase) — so the SAME star,
-    /// evaluated twice at the SAME fixed phase, is identical on every axis.
-    /// This is the unit-level half of the render-side pixel proof
-    /// (`render::tests::stars::currawong_stars_are_pixel_identical_across_two_captures_of_the_same_phase`).
     #[test]
     fn a_star_is_identical_across_two_evaluations_of_the_same_fixed_phase() {
         let (_, _, peak, floor) = currawong_stars();
@@ -796,25 +699,21 @@ mod tests {
         let stars_b = layout(1200.0, 800.0, 34.0, 0.30);
         let phase = 1.7;
         for (a, b) in stars_a.iter().zip(stars_b.iter()) {
-            // Position: the layout hash itself.
             assert_eq!(
                 (a.x, a.y, a.seed),
                 (b.x, b.y, b.seed),
                 "position/seed must match"
             );
-            // Phase (brightness): a pure function of (seed, phase, band).
             assert_eq!(
                 brightness(a.seed, phase, floor, peak),
                 brightness(b.seed, phase, floor, peak),
                 "brightness at a fixed phase must match"
             );
-            // Tint: a pure function of seed.
             assert_eq!(
                 star_tint(base, a.seed),
                 star_tint(base, b.seed),
                 "tint must match"
             );
-            // Size: a pure function of seed.
             assert_eq!(
                 star_size_scale(a.seed),
                 star_size_scale(b.seed),

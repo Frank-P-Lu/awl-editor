@@ -9,9 +9,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
 
-/// The maintainer address every "Report a Problem" `mailto:` is addressed to —
-/// the repo's own git author email. USER-CHANGEABLE: edit this one const to
-/// redirect reports to a different inbox; nothing else in the app reads it.
 pub const MAINTAINER_EMAIL: &str = "franklu.99@outlook.com";
 
 /// How many crash logs to keep on disk — oldest pruned first. A generous but
@@ -41,9 +38,6 @@ pub struct PanicMeta {
 }
 
 impl PanicMeta {
-    /// This build's own static metadata (version/OS/arch), with `uptime_secs`
-    /// left for the caller to fill in from whatever live clock it has (or
-    /// `None`).
     pub fn current(uptime_secs: Option<u64>) -> Self {
         Self {
             version: env!("CARGO_PKG_VERSION"),
@@ -54,13 +48,6 @@ impl PanicMeta {
     }
 }
 
-// --- Pure composition: mailto: URL (every platform) ------------------------
-
-/// Minimal RFC 3986 percent-encoding for a `mailto:` URL's `subject`/`body`
-/// query values: everything outside the UNRESERVED set (`A-Za-z0-9-_.~`) is
-/// escaped, so spaces, newlines, `&`, `?`, `#`, `%` itself — anything a calm
-/// multi-line template needs — survive as literal text on the receiving end
-/// rather than truncating or corrupting the URL.
 pub fn url_encode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
@@ -107,9 +94,6 @@ pub fn report_problem_mailto(meta: &PanicMeta, crash_log_path: Option<&str>) -> 
     )
 }
 
-// --- Native-only: the crashes dir, the writer, pruning, the notice marker --
-
-/// Where crash logs live: `<data_root>/crashes/`.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn crashes_dir() -> PathBuf {
     crate::fs::data_root().join("crashes")
@@ -139,7 +123,6 @@ pub fn utc_timestamp(secs: u64) -> String {
     format!("{y:04}-{mo:02}-{d:02}T{h:02}-{m:02}-{s:02}Z")
 }
 
-/// The crash log's FILE NAME (not the full path) for a UTC-seconds stamp.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn log_file_name(secs: u64) -> String {
     format!("awl-crash-{}.log", utc_timestamp(secs))
@@ -268,27 +251,16 @@ fn list_logs_via_fs(dir: &Path) -> Vec<String> {
     names
 }
 
-/// The newest crash log's FILENAME in `dir`, if any (the LAST name once
-/// sorted — chronologically last by construction). Ordinary-path read (see
-/// [`list_logs_via_fs`]'s doc) — used by [`pending_notice`] and by
-/// `App::report_problem`'s mailto composer.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn newest_log(dir: &Path) -> Option<String> {
     list_logs_via_fs(dir).pop()
 }
 
-/// The next-launch NOTICE marker's path: a tiny text file, beside the logs
-/// themselves, remembering the filename of the crash log the user was last
-/// SHOWN the notice for (so it fires once per crash, not once per launch).
 #[cfg(not(target_arch = "wasm32"))]
 fn marker_path(dir: &Path) -> PathBuf {
     dir.join(".last-acknowledged")
 }
 
-/// If a crash log exists that is NEWER than the last acknowledged one, return
-/// its filename (the caller shows [`notice_text`] and calls [`acknowledge`]).
-/// `None` when there is no crash log, or the newest one was already shown.
-/// Ordinary-path read, through the active `FileSystem` backend.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn pending_notice(dir: &Path) -> Option<String> {
     let newest = newest_log(dir)?;
@@ -320,7 +292,6 @@ pub fn acknowledge(dir: &Path, name: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 static HOOK_INSTALLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Whether [`install_hook`] has been called yet in this process. Test-only.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub fn hook_installed_for_test() -> bool {
     HOOK_INSTALLED.load(std::sync::atomic::Ordering::SeqCst)
@@ -362,8 +333,6 @@ pub fn install_hook() {
 mod tests {
     use super::*;
 
-    // --- Pure composition: mailto: URL (every platform) --------------------
-
     #[test]
     fn url_encode_escapes_reserved_and_whitespace_leaves_unreserved_bare() {
         assert_eq!(url_encode("abcXYZ019-_.~"), "abcXYZ019-_.~");
@@ -389,9 +358,7 @@ mod tests {
             url.contains("subject=awl%20problem%20report%20%28v1.2.3%29"),
             "{url}"
         );
-        // No attach-this-file line when there's no crash log.
         assert!(!url.contains("attach"), "{url}");
-        // The version/OS line is present in the (percent-encoded) body.
         assert!(
             url.contains(&url_encode("awl v1.2.3 - macos aarch64")),
             "{url}"
@@ -415,8 +382,6 @@ mod tests {
         );
     }
 
-    // --- Native-only: format / prune / marker (real tempdirs, no data_root) --
-
     #[cfg(not(target_arch = "wasm32"))]
     fn tmp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -433,7 +398,6 @@ mod tests {
     #[test]
     fn utc_timestamp_formats_the_epoch_and_a_known_date() {
         assert_eq!(utc_timestamp(0), "1970-01-01T00-00-00Z");
-        // 2021-01-01T00:00:00Z = 1609459200.
         assert_eq!(utc_timestamp(1_609_459_200), "2021-01-01T00-00-00Z");
         assert_eq!(log_file_name(0), "awl-crash-1970-01-01T00-00-00Z.log");
     }
@@ -553,11 +517,8 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn pending_notice_fires_once_per_crash_then_acknowledges() {
-        // See `newest_log_is_none_on_an_empty_or_missing_dir`'s comment: this
-        // exercises the same `fs::active()`-backed reads/writes.
         let _g = crate::testlock::serial();
         let dir = tmp_dir("notice");
-        // No crash logs yet: nothing to notify.
         assert_eq!(pending_notice(&dir), None);
 
         write_log(&dir, "awl-crash-2026-01-01T00-00-00Z.log", "x").unwrap();
@@ -567,10 +528,8 @@ mod tests {
             Some("awl-crash-2026-01-01T00-00-00Z.log")
         );
         acknowledge(&dir, pending.as_deref().unwrap());
-        // Same crash, already shown: quiet now.
         assert_eq!(pending_notice(&dir), None);
 
-        // A NEWER crash lands: fires again.
         write_log(&dir, "awl-crash-2026-06-01T00-00-00Z.log", "y").unwrap();
         assert_eq!(
             pending_notice(&dir).as_deref(),

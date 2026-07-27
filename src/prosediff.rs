@@ -1,25 +1,14 @@
-//! Pure prose-oriented diff and marked-up markdown serializer. Moves remain moves;
-//! dense rewrites coalesce for readability.
-
 use std::sync::OnceLock;
 
-/// Word- vs sentence-level granularity for the within-paragraph diff.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Gran {
-    /// Diff over whitespace-delimited word tokens (finest — surgical).
     Word,
-    /// Diff over sentence tokens (calmer — a changed sentence swaps whole).
     Sentence,
 }
 
-/// The two knobs the diff carries: within-paragraph granularity + the coalescing
-/// threshold. [`Params::shipping`] is the gate-approved recipe the live view uses;
-/// [`Params::default`] (Word × 0.5) is the exploration baseline the core tests pin.
 #[derive(Clone, Copy, Debug)]
 pub struct Params {
     pub gran: Gran,
-    /// Change DENSITY (0..=1, = `1 - similarity`) above which a modified paragraph
-    /// COALESCES to a whole-paragraph rewrite instead of inline word surgery.
     pub coalesce: f32,
 }
 
@@ -48,58 +37,34 @@ impl Params {
     }
 }
 
-/// A within-paragraph segment of the inline diff (word/sentence granularity).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Seg {
-    /// Carried through unchanged (default ink).
     Same(String),
-    /// Added (renders in the highlight wash).
     Ins(String),
-    /// Removed (renders struck).
     Del(String),
 }
 
-/// Which way a relocated paragraph travelled (cosmetic — drives the marker arrow).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MoveDir {
     Up,
     Down,
 }
 
-/// One block of the diff transcript, in NEW-document reading order.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Block {
-    /// A run of `n` consecutive untouched paragraphs, folded to one quiet row.
     Fold(usize),
-    /// A paragraph edited in place — inline word/sentence segments.
     Modified(Vec<Seg>),
-    /// A paragraph whose change density crossed the coalescing threshold: the old
-    /// text struck whole, the new text washed whole.
     Rewritten { old: String, new: String },
-    /// A wholly new paragraph.
     Inserted(String),
-    /// A wholly removed paragraph.
     Deleted(String),
-    /// A paragraph relocated (matched by similarity, out of order) — shown ONCE, at
-    /// its new location, marked as moved rather than as delete+insert.
     Moved { text: String, dir: MoveDir },
 }
 
-// --- tuning (probe constants; the gallery varies `coalesce`, these stay fixed) ---
-
-/// A paragraph pair below this similarity is NOT an in-place edit (backbone) — low
-/// so even a heavy rewrite still MATCHES (then density decides Modified vs Rewritten).
 const BACKBONE_SIM_MIN: f32 = 0.25;
 /// A leftover (off-backbone) pair must clear this HIGHER bar to read as a move — a
 /// relocation carries most of its words with it.
 const MOVE_SIM_MIN: f32 = 0.55;
 
-// ---------------------------------------------------------------------------
-// Tokenizing
-// ---------------------------------------------------------------------------
-
-/// Split into paragraphs on blank-line boundaries, trimmed of surrounding blank
-/// lines but keeping each paragraph's internal newlines (docs are hard-wrapped).
 fn paragraphs(s: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur: Vec<&str> = Vec::new();
@@ -119,8 +84,6 @@ fn paragraphs(s: &str) -> Vec<String> {
     out
 }
 
-/// Word tokens: alternating runs of non-whitespace and whitespace, so a lossless
-/// join reproduces the source exactly (whitespace, including `\n`, is its own token).
 fn word_tokens(s: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut chars = s.chars().peekable();
@@ -139,9 +102,6 @@ fn word_tokens(s: &str) -> Vec<String> {
     out
 }
 
-/// Sentence tokens: split after `.`/`!`/`?` runs that are followed by whitespace or
-/// end-of-text, keeping the terminator and its trailing whitespace with the sentence
-/// (lossless join). A calmer granularity — a touched sentence swaps as one.
 fn sentence_tokens(s: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
@@ -151,7 +111,6 @@ fn sentence_tokens(s: &str) -> Vec<String> {
         let c = chars[i];
         cur.push(c);
         if matches!(c, '.' | '!' | '?') {
-            // absorb any run of terminators + following whitespace
             let mut j = i + 1;
             while j < chars.len() && matches!(chars[j], '.' | '!' | '?') {
                 cur.push(chars[j]);
@@ -198,7 +157,6 @@ fn content_tokens(toks: &[String]) -> Vec<&str> {
 // LCS (the one shared primitive: paragraph alignment AND within-paragraph diff)
 // ---------------------------------------------------------------------------
 
-/// Classic LCS length table over two token slices (by equality).
 fn lcs_table<T: PartialEq>(a: &[T], b: &[T]) -> Vec<Vec<u32>> {
     let mut dp = vec![vec![0u32; b.len() + 1]; a.len() + 1];
     for i in (0..a.len()).rev() {
@@ -213,13 +171,10 @@ fn lcs_table<T: PartialEq>(a: &[T], b: &[T]) -> Vec<Vec<u32>> {
     dp
 }
 
-/// difflib-style ratio: `2·|LCS| / (|a| + |b|)`, over content tokens. 1.0 = identical.
 fn ratio(a: &[&str], b: &[&str]) -> f32 {
     if a.is_empty() && b.is_empty() {
         return 1.0;
     }
-    // Token-identical: |LCS| = |a| = |b| by inspection — skip the O(n·m) table
-    // (the overwhelmingly common pair in a lightly-edited document).
     if a == b {
         return 1.0;
     }
@@ -239,16 +194,13 @@ fn ratio_upper_bound(a: &[&str], b: &[&str]) -> f32 {
     2.0 * a.len().min(b.len()) as f32 / (a.len() + b.len()) as f32
 }
 
-/// Within-paragraph inline diff → merged Same/Del/Ins segments (lossless).
 fn seg_diff(old: &str, new: &str, gran: Gran) -> Vec<Seg> {
     let a = tokens(old, gran);
     let b = tokens(new, gran);
     let dp = lcs_table(&a, &b);
     let (mut i, mut j) = (0usize, 0usize);
-    // Accumulate into runs, flushing when the kind changes.
     let mut segs: Vec<Seg> = Vec::new();
     let push = |segs: &mut Vec<Seg>, mk: fn(String) -> Seg, s: &str, tag: u8| {
-        // merge with the previous run of the same tag
         if let Some(last) = segs.last_mut() {
             let same_tag = match (last, tag) {
                 (Seg::Same(x), 0) | (Seg::Del(x), 1) | (Seg::Ins(x), 2) => {
@@ -287,8 +239,6 @@ fn seg_diff(old: &str, new: &str, gran: Gran) -> Vec<Seg> {
     segs
 }
 
-/// Change density of a seg list = changed content tokens / total content tokens,
-/// i.e. `1 - similarity`. Drives the coalescing decision.
 fn seg_density(segs: &[Seg], gran: Gran) -> f32 {
     let count = |s: &str| content_tokens(&tokens(s, gran)).len();
     let (mut same, mut changed) = (0usize, 0usize);
@@ -306,10 +256,6 @@ fn seg_density(segs: &[Seg], gran: Gran) -> f32 {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Paragraph alignment + move detection
-// ---------------------------------------------------------------------------
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Role {
     Same,
@@ -317,7 +263,6 @@ enum Role {
     Move,
 }
 
-/// A matched paragraph pair (old index, new index) and how it matched.
 #[derive(Clone, Copy, Debug)]
 struct Pair {
     oi: usize,
@@ -350,7 +295,6 @@ fn backbone(old: &[Vec<&str>], new: &[Vec<&str>]) -> Vec<Pair> {
     let mut pairs = Vec::new();
     let (mut oi, mut ni) = (0usize, 0usize);
     for &(ao, an) in &anchors {
-        // The gap window before this anchor takes the (small) similarity DP.
         pairs.extend(sim_backbone(old, new, oi..ao, ni..an));
         pairs.push(Pair {
             oi: ao,
@@ -360,18 +304,12 @@ fn backbone(old: &[Vec<&str>], new: &[Vec<&str>]) -> Vec<Pair> {
         oi = ao + 1;
         ni = an + 1;
     }
-    // The tail window after the last anchor.
     pairs.extend(sim_backbone(old, new, oi..old.len(), ni..new.len()));
     pairs
 }
 
-/// Candidate ANCHORS for [`backbone`]: `(oi, ni)` pairs whose content tokens are
-/// exactly equal AND unique within each document (the patience-diff bar — a
-/// duplicated paragraph can't anchor, it falls to the gap windows). Ordered by
-/// `oi` (ascending) by construction.
 fn anchor_pairs(old: &[Vec<&str>], new: &[Vec<&str>]) -> Vec<(usize, usize)> {
     use std::collections::HashMap;
-    // content-tokens -> (count, first index) per side.
     let mut on_old: HashMap<&[&str], (usize, usize)> = HashMap::new();
     for (i, p) in old.iter().enumerate() {
         let e = on_old.entry(p.as_slice()).or_insert((0, i));
@@ -388,8 +326,7 @@ fn anchor_pairs(old: &[Vec<&str>], new: &[Vec<&str>]) -> Vec<(usize, usize)> {
             continue;
         }
         if let Some(&(1, j)) = on_new.get(p.as_slice()) {
-            // An all-whitespace/empty paragraph has no content tokens; equality
-            // over zero tokens would anchor unrelated blanks — skip those.
+            // Empty partitions are separators, not anchors.
             if !p.is_empty() {
                 out.push((i, j));
             }
@@ -398,15 +335,10 @@ fn anchor_pairs(old: &[Vec<&str>], new: &[Vec<&str>]) -> Vec<(usize, usize)> {
     out
 }
 
-/// The LONGEST INCREASING SUBSEQUENCE (by `ni`) of the `oi`-ordered anchor
-/// candidates — the largest order-consistent anchor spine. An out-of-order
-/// candidate (a relocated paragraph) is dropped here and re-found as a MOVE in
-/// the leftovers. Standard O(A log A) patience stacks.
 fn lis_anchors(cands: &[(usize, usize)]) -> Vec<(usize, usize)> {
     if cands.is_empty() {
         return Vec::new();
     }
-    // tails[k] = index into cands of the smallest-ending increasing chain of len k+1.
     let mut tails: Vec<usize> = Vec::new();
     let mut prev: Vec<Option<usize>> = vec![None; cands.len()];
     for (idx, &(_, ni)) in cands.iter().enumerate() {
@@ -430,9 +362,6 @@ fn lis_anchors(cands: &[(usize, usize)]) -> Vec<(usize, usize)> {
     chain
 }
 
-/// The ORIGINAL similarity-aware LCS over a paragraph WINDOW (`or` × `nr`) — the
-/// expensive exact aligner, now scoped to the gaps between anchors (and the whole
-/// document only when no anchor exists). Emits pairs in ABSOLUTE indices.
 fn sim_backbone(
     old: &[Vec<&str>],
     new: &[Vec<&str>],
@@ -446,7 +375,6 @@ fn sim_backbone(
     if n == 0 || m == 0 {
         return Vec::new();
     }
-    // score[i][j] = best total similarity aligning old[i..] with new[j..]
     let mut score = vec![vec![0.0f32; m + 1]; n + 1];
     for i in (0..n).rev() {
         for j in (0..m).rev() {
@@ -459,7 +387,6 @@ fn sim_backbone(
             score[i][j] = diag.max(score[i + 1][j]).max(score[i][j + 1]);
         }
     }
-    // backtrack
     let mut pairs = Vec::new();
     let (mut i, mut j) = (0usize, 0usize);
     while i < n && j < m {
@@ -487,8 +414,6 @@ fn sim_backbone(
     pairs
 }
 
-/// Greedy best-first match over the LEFTOVER (unmatched) paragraphs, above the
-/// higher MOVE bar → relocations. Everything still unmatched is a pure delete/insert.
 fn detect_moves(
     old: &[Vec<&str>],
     new: &[Vec<&str>],
@@ -504,8 +429,6 @@ fn detect_moves(
             if used_new[ni] {
                 continue;
             }
-            // Length bound first: a pair that provably can't clear the MOVE bar
-            // skips the quadratic ratio table (exact — see `ratio_upper_bound`).
             if ratio_upper_bound(o, nw) < MOVE_SIM_MIN {
                 continue;
             }
@@ -532,16 +455,9 @@ fn detect_moves(
     moves
 }
 
-// ---------------------------------------------------------------------------
-// Diff (the pure entry point)
-// ---------------------------------------------------------------------------
-
-/// Diff two prose documents into an ordered, reading-order block list. Pure +
-/// deterministic — the whole design surface the gallery + tests exercise.
 pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
     let old_ps = paragraphs(old);
     let new_ps = paragraphs(new);
-    // Own the word tokens so the `&str` content views below stay alive.
     let old_words: Vec<Vec<String>> = old_ps.iter().map(|s| word_tokens(s)).collect();
     let new_words: Vec<Vec<String>> = new_ps.iter().map(|s| word_tokens(s)).collect();
     let old_tok: Vec<Vec<&str>> = old_words.iter().map(|w| content_tokens(w)).collect();
@@ -550,7 +466,6 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
     let bb = backbone(&old_tok, &new_tok);
     let mut used_old = vec![false; old_ps.len()];
     let mut used_new = vec![false; new_ps.len()];
-    // classification per index (None = not yet placed)
     let mut old_role: Vec<Option<Pair>> = vec![None; old_ps.len()];
     let mut new_role: Vec<Option<Pair>> = vec![None; new_ps.len()];
     for pr in &bb {
@@ -571,7 +486,6 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
     let (mut i, mut j) = (0usize, 0usize);
     let (no, nn) = (old_ps.len(), new_ps.len());
     while i < no || j < nn {
-        // old-only side first
         if i < no {
             match old_role[i] {
                 None => {
@@ -580,14 +494,12 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
                     continue;
                 }
                 Some(pr) if pr.role == Role::Move => {
-                    // content emitted at its NEW location; skip here
                     i += 1;
                     continue;
                 }
                 _ => {}
             }
         }
-        // new-only side
         if j < nn {
             match new_role[j] {
                 None => {
@@ -648,7 +560,6 @@ pub fn diff(old: &str, new: &str, p: Params) -> Vec<Block> {
     merge_folds(blocks)
 }
 
-/// Collapse consecutive `Fold(_)` blocks into one summed fold row.
 fn merge_folds(blocks: Vec<Block>) -> Vec<Block> {
     let mut out: Vec<Block> = Vec::new();
     for b in blocks {
@@ -662,10 +573,6 @@ fn merge_folds(blocks: Vec<Block>) -> Vec<Block> {
     }
     out
 }
-
-// ---------------------------------------------------------------------------
-// Serialize → marked-up markdown (awl's OWN render vocabulary)
-// ---------------------------------------------------------------------------
 
 /// Struck deletions speak REAL markdown now: `~~…~~`, wrapped per line by
 /// [`wrap_inline`] — routed through the renderer's own `MdKind::Strikethrough`
@@ -685,8 +592,6 @@ fn strike(s: &str) -> String {
     wrap_inline(s, "~~")
 }
 
-/// Wrap each physical line's content in `==…==` (single-line pairs only — a
-/// cross-line `==` is inert in awl), preserving leading indentation.
 fn highlight_lines(s: &str) -> String {
     s.lines()
         .map(|line| {
@@ -708,12 +613,6 @@ fn highlight_inline(s: &str) -> String {
     wrap_inline(s, "==")
 }
 
-/// Wrap ONE inline run (may straddle hard-wrap newlines) in `marker` pairs so no
-/// pair crosses a line, and so leading/trailing whitespace stays OUTSIDE the
-/// markers (a `== foo ==` with inner padding is inert in awl's scan, and a
-/// `~~ foo ~~` fails GFM's flanking rules the same way). THE ONE wrapper both
-/// the `==insertion==` wash and the `~~deletion~~` strike serialize through —
-/// merge, don't align.
 fn wrap_inline(s: &str, marker: &str) -> String {
     let mut out = String::new();
     for (k, piece) in s.split('\n').enumerate() {
@@ -748,7 +647,6 @@ fn strip_markdown(s: &str) -> String {
         if li > 0 {
             out.push('\n');
         }
-        // strip a leading block marker (heading / bullet / quote / numbered)
         let mut rest = line;
         let trimmed = rest.trim_start();
         let indent_len = rest.len() - trimmed.len();
@@ -773,7 +671,6 @@ fn strip_markdown(s: &str) -> String {
         if let Some(a) = after {
             rest = a;
         }
-        // strip inline emphasis/code markers, keeping the inner text
         let bytes: Vec<char> = rest.chars().collect();
         let mut i = 0;
         while i < bytes.len() {
@@ -781,15 +678,9 @@ fn strip_markdown(s: &str) -> String {
             match c {
                 '`' => {}
                 '*' | '_' => {}
-                // `~` is an inline marker in awl's markdown now (`~~strike~~`,
-                // the strikethrough-render round): a literal tilde inside a
-                // deleted run would open/close the serializer's own `~~` wrap
-                // early — exactly the nested-markdown fragility this strip
-                // exists to remove (the `*`/`_`/backtick precedent).
                 '~' => {}
                 '[' | ']' => {}
                 '(' if i > 0 && bytes[i - 1] == ']' => {
-                    // skip a link's (url) tail entirely
                     while i < bytes.len() && bytes[i] != ')' {
                         i += 1;
                     }
@@ -802,7 +693,6 @@ fn strip_markdown(s: &str) -> String {
     out
 }
 
-/// Prefix every physical line with `> ` (blockquote → dim, `>` auto-conceals).
 fn blockquote(s: &str) -> String {
     s.lines()
         .map(|l| format!("> {l}"))
@@ -850,7 +740,6 @@ pub fn render_markdown_blocks(blocks: &[Block], title: &str) -> String {
                     MoveDir::Up => "↑",
                     MoveDir::Down => "↓",
                 };
-                // italic blockquote + distinct marker: same content, relocated.
                 let body = text.replace('\n', " ");
                 out.push_str(&format!("> *⇄  moved {arrow} — {body}*\n\n"));
             }
@@ -897,15 +786,11 @@ pub struct DiffCounts {
     /// Paragraphs shown WASHED whole (a coalesced rewrite's new side, or a pure
     /// insertion) — the marks that must render in the highlight wash.
     pub washed: usize,
-    /// Paragraphs edited IN PLACE (inline word/sentence segments).
     pub modified: usize,
-    /// Relocated paragraphs, shown once at the new location.
     pub moved: usize,
-    /// Folded unchanged-stretch rows (`⋯ N paragraphs unchanged ⋯`).
     pub folds: usize,
 }
 
-/// Tally a block list into its [`DiffCounts`] — the sidecar's state view of a diff.
 pub fn count_blocks(blocks: &[Block]) -> DiffCounts {
     let mut c = DiffCounts::default();
     for b in blocks {
@@ -993,13 +878,6 @@ mod tests {
         word_tokens(s)
     }
 
-    /// DIFF-AS-PREVIEW perf probe (run manually, RELEASE ONLY — dev timings lie):
-    /// `cargo test --release perf_probe -- --ignored --nocapture`. Measures the
-    /// per-arrow cost of [`diff_and_render`] — the whole work one History-picker
-    /// arrow step pays — on (a) a real repo doc (SCOPE.md scale), (b) a 5k-line
-    /// synthetic draft, (c) the same 5k-line draft with a heavy mid-document
-    /// rewrite + a paragraph move (the expensive alignment case). The numbers
-    /// gate the theme-preview-debounce decision recorded in the round report.
     #[test]
     #[ignore]
     fn perf_probe() {
@@ -1007,25 +885,21 @@ mod tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("SCOPE.md"),
         )
         .unwrap_or_default();
-        // An edited SCOPE.md: reword one paragraph, drop one, append one.
         let scope_new = {
             let mut s = scope.replace("audience", "readership");
             s.push_str("\n\nA freshly appended closing paragraph for the probe.\n");
             s
         };
-        // A 5k-line synthetic draft: 1000 five-line paragraphs of varied prose.
         let mut big_old = String::new();
         for i in 0..1000 {
             big_old.push_str(&format!(
                 "Paragraph {i} begins with its own opening line here.\nThe second line of paragraph {i} carries on the thought.\nA third line follows, still inside paragraph {i} itself.\nLine four of paragraph {i} keeps the rhythm moving along.\nAnd the fifth line closes paragraph {i} with a full stop.\n\n"
             ));
         }
-        // A light edit: one paragraph reworded mid-document.
         let big_light = big_old.replace(
             "Paragraph 500 begins with its own opening line here.",
             "Paragraph 500 now opens with an entirely reworded first line.",
         );
-        // A heavy edit: rewrite a band of paragraphs AND relocate one to the top.
         let mut big_heavy = big_old.replace(
             "inside paragraph 7 itself",
             "inside the seventh stanza of this draft",
@@ -1061,7 +935,6 @@ mod tests {
     fn sentence_tokens_join_losslessly() {
         let s = "One sentence. Two! Three? A trailing bit";
         assert_eq!(sentence_tokens(s).concat(), s);
-        // four units: three terminated + the trailing bit
         assert_eq!(sentence_tokens(s).len(), 4);
     }
 
@@ -1080,8 +953,6 @@ mod tests {
         let b = content_tokens(&bw);
         assert!(ratio(&a, &b) < 0.34);
     }
-
-    // --- within-paragraph diff ---
 
     #[test]
     fn seg_diff_word_level_marks_ins_and_del() {
@@ -1118,7 +989,6 @@ mod tests {
         let old = "First stays. Second changes a lot here.";
         let new = "First stays. A totally rewritten second one.";
         let segs = seg_diff(old, new, Gran::Sentence);
-        // "First stays. " is a Same sentence; the second is Del+Ins whole
         assert!(
             segs.iter()
                 .any(|s| matches!(s, Seg::Same(x) if x.contains("First stays")))
@@ -1126,8 +996,6 @@ mod tests {
         assert!(segs.iter().any(|s| matches!(s, Seg::Del(_))));
         assert!(segs.iter().any(|s| matches!(s, Seg::Ins(_))));
     }
-
-    // --- coalescing (the density threshold) ---
 
     #[test]
     fn density_low_for_small_edit_high_for_rewrite() {
@@ -1147,12 +1015,8 @@ mod tests {
 
     #[test]
     fn coalesce_threshold_flips_modified_to_rewritten() {
-        // Shares enough of a spine ("The cat sat on the") to ALIGN as a backbone
-        // edit, but is heavily reworded (~half the words changed) — so the threshold,
-        // not the alignment, decides Modified vs Rewritten.
         let old = "The cat sat quietly on the warm mat by the old door.";
         let new = "The cat sat nervously on the cold floor near the new window.";
-        // low threshold → coalesced whole rewrite
         let lo = diff(
             old,
             new,
@@ -1165,7 +1029,6 @@ mod tests {
             lo.iter().any(|b| matches!(b, Block::Rewritten { .. })),
             "low threshold should coalesce: {lo:?}"
         );
-        // high threshold → stays inline word-level modified
         let hi = diff(
             old,
             new,
@@ -1207,7 +1070,6 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
             .filter(|b| matches!(b, Block::Rewritten { .. }))
             .count()
         };
-        // both paragraphs aligned as edits (no stray delete/insert of a whole para)
         let blocks = diff(
             old,
             new,
@@ -1221,8 +1083,6 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
                 .iter()
                 .any(|b| matches!(b, Block::Deleted(_) | Block::Inserted(_)))
         );
-        // low threshold coalesces BOTH; a middle one coalesces only the heavy
-        // paragraph; a high one leaves both inline — three distinct cells.
         let (lo, mid, hi) = (count_rw(0.30), count_rw(0.55), count_rw(0.80));
         assert_eq!(
             (lo, mid, hi),
@@ -1230,8 +1090,6 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
             "expected 2/1/0 rewrites, got {lo}/{mid}/{hi}"
         );
     }
-
-    // --- paragraph alignment ---
 
     #[test]
     fn alignment_same_insert_delete() {
@@ -1243,7 +1101,6 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
                 .iter()
                 .any(|b| matches!(b, Block::Inserted(x) if x.contains("brand new")))
         );
-        // two untouched paragraphs survive as folds
         assert!(blocks.iter().any(|b| matches!(b, Block::Fold(_))));
         assert!(!blocks.iter().any(|b| matches!(b, Block::Deleted(_))));
     }
@@ -1260,11 +1117,8 @@ She, by long habit, tallied the takings and inked the sum into the ledger before
         );
     }
 
-    // --- move detection (the prose-native requirement) ---
-
     #[test]
     fn relocated_paragraph_reads_as_moved_not_delete_plus_insert() {
-        // three anchors; the "movable" paragraph jumps from the end to the front
         let old = "\
 Anchor one stays put here.
 
@@ -1284,7 +1138,6 @@ Anchor two also stays.";
             ),
             "expected a Moved block, got {blocks:?}"
         );
-        // and NOT a delete+insert pair for the same content
         assert!(
             !blocks
                 .iter()
@@ -1299,13 +1152,9 @@ Anchor two also stays.";
 
     #[test]
     fn unrelated_swap_is_not_a_move() {
-        // low-similarity swap: two unrelated paragraphs → delete+insert, no false move
         let old = "The quantum theory of gravitation.\n\nRecipes for sourdough bread.";
         let new = "Recipes for sourdough bread.\n\nThe quantum theory of gravitation.";
         let blocks = diff(old, new, Params::default());
-        // identical paragraphs → the aligner matches one as backbone, the other moves;
-        // this is a LEGITIMATE move (same text relocated), so assert we didn't split it
-        // into a delete+insert of identical content.
         let moved = blocks
             .iter()
             .filter(|b| matches!(b, Block::Moved { .. }))
@@ -1323,8 +1172,6 @@ Anchor two also stays.";
         assert_eq!(ins, 0);
     }
 
-    // --- serialization vocabulary ---
-
     #[test]
     fn transcript_uses_awls_vocabulary() {
         let old = "Keep me.\n\nDelete me completely please.";
@@ -1338,27 +1185,16 @@ Anchor two also stays.";
 
     #[test]
     fn strike_wraps_per_line_and_keeps_whitespace_outside_markers() {
-        // REAL `~~` markdown (the strikethrough-render round; the combining-
-        // stroke `\u{0336}` mechanism is RETIRED — see `strike`'s doc). Each
-        // hard-wrapped line carries its own pair (a cross-line pair would defeat
-        // the line-scoped marker conceal), and lead/tail whitespace stays
-        // OUTSIDE the markers (`~~ foo ~~` inner padding fails GFM's flanking
-        // rules, exactly like `== foo ==` is inert in awl's scan).
         let s = strike("A short  digression\nspanning two lines.");
         assert_eq!(s, "~~A short  digression~~\n~~spanning two lines.~~");
-        // Whitespace-only pieces stay unwrapped; indentation survives outside.
         assert_eq!(strike("  indented tail  "), "  ~~indented tail~~  ");
         assert_eq!(strike("word\n\nnext"), "~~word~~\n\n~~next~~");
-        // No combining marks anywhere — the transcript is plain visible text.
         assert!(!s.contains('\u{0336}'));
-        // And it rides the ONE wrapper the `==` wash shares (merge, don't align).
         assert_eq!(highlight_inline("a b\nc"), "==a b==\n==c==");
     }
 
     #[test]
     fn strip_markdown_removes_tildes_so_the_strike_wrap_never_nests() {
-        // A literal `~~` in source prose would close the serializer's own wrap
-        // early; the strip neutralizes tildes exactly like `*`/`_`/backticks.
         assert_eq!(
             strip_markdown("approx ~40 chars, ~~old style~~"),
             "approx 40 chars, old style"
@@ -1374,8 +1210,6 @@ Anchor two also stays.";
         assert_eq!(a, b);
     }
 
-    // --- shipping recipe + sidecar counts ---
-
     #[test]
     fn shipping_recipe_is_sentence_half() {
         let p = Params::shipping();
@@ -1385,23 +1219,18 @@ Anchor two also stays.";
 
     #[test]
     fn count_blocks_tallies_each_kind() {
-        // A deleted paragraph, an inserted one, and an untouched pair (folded).
         let old = "Keep me here.\n\nDrop this whole paragraph entirely.\n\nAnd keep this.";
         let new = "Keep me here.\n\nA fresh inserted paragraph here.\n\nAnd keep this.";
         let blocks = diff(old, new, Params::shipping());
         let c = count_blocks(&blocks);
         assert_eq!(c.struck, 1, "one struck deletion: {blocks:?}");
         assert_eq!(c.washed, 1, "one washed insertion: {blocks:?}");
-        // The two untouched paragraphs survive as fold rows.
         assert!(c.folds >= 1, "at least one fold: {blocks:?}");
         assert_eq!(c.moved, 0);
     }
 
     #[test]
     fn count_blocks_rewrite_is_both_struck_and_washed() {
-        // A heavily-reworded paragraph coalesces to old-struck-whole / new-washed-whole,
-        // so it contributes to BOTH the struck and washed tallies (the sidecar's honest
-        // view of "this paragraph shows a full crossed-out block AND a full wash").
         let old = "The cat sat quietly on the warm mat by the old door.";
         let new = "The cat sat nervously on the cold floor near the new window.";
         let blocks = diff(

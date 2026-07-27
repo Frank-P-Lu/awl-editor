@@ -1,27 +1,5 @@
-//! Hidden `--bench-frame` profiler for the live redraw sequence over repository docs.
-//!
-//! The live window's hot loop (`RedrawRequested` in `app.rs`, hot here while
-//! the caret spring animates) runs, per frame: `pipeline.advance(dt)` → `pipeline.prepare(..)`
-//! → encode `pipeline.render` → `queue.submit` → present → `atlas.trim()`. This
-//! harness replays that sequence headlessly — an offscreen color target stands
-//! in for the swapchain frame, and a blocking `device.poll` after submit stands
-//! in for present, so the GPU-side cost is SERIALIZED into the number rather
-//! than overlapped — and times EACH prepare sub-call in the same order
-//! [`TextPipeline::prepare`] makes them: the chrome aggregate split into its
-//! five sub-preparations, the spell / nit underline layers split into rect
-//! BUILD vs GPU upload. A child module of `render` (like [`super::perfbench`])
-//! so it reaches the `pub(super)` per-layer prepares and private fields
-//! directly, no public shims.
-//!
-//! The `ViewState` is built the way the LIVE `App::sync_view` builds one —
-//! including `misspelled` from the real bundled-dictionary scan
-//! (`SpellChecker::misspellings(&text)`, the exact path `app/viewstate.rs`
-//! caches into `spell_cache`), so the docs carry their true squiggle load —
-//! and the canvas mirrors the user readout: 2910x1720 PHYSICAL pixels at dpi
-//! 2.0 (`set_size` then `set_dpi`, the same order `App` wires them), debug
-//! panel ON and fed a live EMA each frame. `set_view` is timed separately
-//! because the live loop does NOT run it per frame — `sync_view` runs per
-//! input EVENT; `RedrawRequested` never calls it.
+//! Hidden `--bench-frame` profiler. It replays the live redraw order headlessly,
+//! using real document state and a fixed report canvas; `set_view` is timed separately.
 //!
 //! The replay includes every live preparation stage; `STAGE_NAMES` and `mark()` calls
 //! must remain in lockstep.
@@ -36,15 +14,12 @@ use crate::clock::Instant;
 
 use super::{TextPipeline, ViewState};
 
-/// The user-report canvas: 2910x1720 physical pixels on a @2x display.
 const WIDTH: u32 = 2910;
 const HEIGHT: u32 = 1720;
 const DPI: f32 = 2.0;
 /// Untimed settle frames before sampling (atlas fills, caret spring settles).
 const WARMUP: usize = 30;
-/// Timed hot frames per document.
 const FRAMES: usize = 300;
-/// The dt a steady 60fps live loop feeds `advance`.
 const DT: f32 = 1.0 / 60.0;
 
 /// The per-frame stages, in the EXACT order the `mark()` calls are taken in
@@ -78,9 +53,6 @@ const STAGE_NAMES: [&str; 24] = [
     "atlas.trim",
 ];
 
-/// Consecutive-segment stopwatch: `begin` at the frame top, `mark()` after each
-/// stage. Segments are back-to-back (each mark restarts the clock), so the
-/// stage sum accounts for the whole frame with no untimed gaps.
 struct Marks {
     t0: Instant,
     samples: Vec<Vec<u128>>,
@@ -136,8 +108,6 @@ fn live_view(buffer: &Buffer, misspelled: Vec<crate::spell::Misspelling>) -> Vie
     }
 }
 
-/// Run the frame profiler and print a per-stage table per document. One
-/// headless wgpu device (offscreen, no window), reused across both docs.
 pub fn run() -> anyhow::Result<()> {
     pollster::block_on(run_async())
 }
@@ -156,10 +126,6 @@ async fn run_async() -> anyhow::Result<()> {
         .await?;
     let cache = Cache::new(&device);
 
-    // The worst-case live scenario is interacting with the DEBUG panel ON, so it
-    // is ON here and fed fresh perf values each frame — its corner label
-    // re-shapes per frame exactly as a hot interacting window's does. (The panel
-    // itself no longer pins the loop hot; only the spring does.)
     crate::debug::set_debug_on(true);
 
     let spell = crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs)
@@ -177,13 +143,6 @@ async fn run_async() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Run ONE frame of the exact live `RedrawRequested` sequence, marking each
-/// stage boundary in lockstep with [`STAGE_NAMES`], and return the frame's
-/// total elapsed nanoseconds. The SOLE owner of this sequence — [`profile_doc`]'s
-/// loop and `framebench::tests::wash_layer_and_table_grid_stages_stay_in_lockstep`
-/// both call this SAME function, so the two can never drift apart the way
-/// `STAGE_NAMES` and the mark count once silently did (the table-grid stage this
-/// rescue round found had no name at all — see the module doc above).
 fn run_one_frame(
     p: &mut TextPipeline,
     device: &wgpu::Device,
@@ -195,11 +154,7 @@ fn run_one_frame(
 ) -> anyhow::Result<u128> {
     let ft0 = Instant::now();
 
-    // ---- the live RedrawRequested body --------------------------------
     p.advance(DT);
-    // The live loop feeds the perf lines each drawn frame (previous frame's
-    // cost + worst, latency, redraw count, interacting form, 60 Hz budget) —
-    // a changing line 1 per frame, exactly the worst-case panel reshape.
     p.set_debug_perf(
         ema.map(|e| (e, e)),
         None,
@@ -222,13 +177,6 @@ fn run_one_frame(
     marks.mark();
     p.prepare_background_layer(queue, WIDTH, HEIGHT);
     marks.mark();
-    // The comment/string wash quads (syntax + markdown-fence washes) — in the
-    // live prepare() this sits exactly here, right after background. Was
-    // previously UNTIMED (not called at all in this replayed sequence), which
-    // hid it entirely rather than folding it into a neighbor's number; both
-    // real fixtures below carry fenced code (sh/toml) with comments + string
-    // literals, so this stage measures genuine, nonzero cull+upload work — see
-    // `framebench::tests::wash_layer_and_table_grid_stages_stay_in_lockstep`.
     p.prepare_wash_layer(device, queue, WIDTH, HEIGHT);
     marks.mark();
     p.prepare_text_layer(device, queue, WIDTH, HEIGHT)?;
@@ -241,11 +189,9 @@ fn run_one_frame(
     marks.mark();
     p.prepare_table_grid(device, queue, WIDTH, HEIGHT)?;
     marks.mark();
-    // prepare_chrome_layer, split into its five sub-preparations:
     p.begin_float_panel_frame();
     p.prepare_caret_preview_panel(device, queue, WIDTH, HEIGHT)?;
     marks.mark();
-    // no overlay + no search -> the park branch (nothing lingers)
     p.panel_card.prepare(device, queue, WIDTH, HEIGHT, &[]);
     p.panel_shadow.prepare(device, queue, WIDTH, HEIGHT, &[]);
     p.panel_border.prepare(device, queue, WIDTH, HEIGHT, &[]);
@@ -266,7 +212,6 @@ fn run_one_frame(
     p.spell_pipeline
         .prepare(device, queue, WIDTH, HEIGHT, &squiggles);
     marks.mark();
-    // prepare_nit_layer, split the same way
     let nits = p.nit_underlines();
     marks.mark();
     p.nit_pipeline.prepare(device, queue, WIDTH, HEIGHT, &nits);
@@ -274,7 +219,6 @@ fn run_one_frame(
     p.prepare_blur(device, queue, WIDTH, HEIGHT);
     marks.mark();
 
-    // ---- Gpu::redraw's tail: encode -> submit (+poll) -> trim ---------
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl frame bench encoder"),
     });
@@ -293,10 +237,6 @@ fn run_one_frame(
     Ok(ft0.elapsed().as_nanos())
 }
 
-/// Profile one document: build the live-shaped view (real misspellings), run
-/// the warmup + timed frames of the exact redraw sequence, and print the
-/// stage | median ms | % table plus the stage-sum sanity check and the two
-/// per-EVENT / off-frame costs (`set_view`, the word-count readout scan).
 fn profile_doc(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -319,7 +259,6 @@ fn profile_doc(
     let view = live_view(&buffer, misspelled.clone());
     p.set_view(&view);
 
-    // Offscreen color target standing in for the swapchain frame.
     let target = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("awl frame bench target"),
         size: wgpu::Extent3d {
@@ -351,7 +290,6 @@ fn profile_doc(
         ema = Some(ema.map_or(ms, |e| e * 0.9 + ms * 0.1));
     }
 
-    // ---- report ------------------------------------------------------------
     let total_med = median(totals.clone());
     println!();
     println!(
@@ -384,8 +322,6 @@ fn profile_doc(
         total_med as f64 / 1.0e6,
         100.0
     );
-    // Ballpark check: back-to-back marks mean the stage sum should account for
-    // ~the whole measured frame; any sizable gap is unattributed work.
     let gap = total_med as i128 - sum_med as i128;
     println!(
         "{:>29} | {:>10.3} | gap {:+.3} ms ({:+.1}% of total)",
@@ -395,9 +331,6 @@ fn profile_doc(
         gap as f64 / total_med as f64 * 100.0
     );
 
-    // ---- per-EVENT / off-frame costs, closing the suspects list -------------
-    // set_view: the live loop runs this in `sync_view` per input EVENT —
-    // RedrawRequested never calls it — so it is NOT part of the frame total.
     let mut sv = Vec::with_capacity(41);
     for _ in 0..41 {
         let t0 = Instant::now();
@@ -425,25 +358,13 @@ fn profile_doc(
     Ok(())
 }
 
-// ============================================================================
-// THEME BURST (hidden `--bench-theme-burst`) — what arrowing through the theme
-// picker actually costs, per switch, at the live-report geometry.
-// ============================================================================
-
-/// The user-report THEME-PICKER canvas: 5120x2756 PHYSICAL pixels on a @2x
-/// display at zoom 110%, page mode ON — the geometry of the `worst 230.9 ms`
-/// live report. (The regular frame profiler above keeps its own 2910x1720.)
 const BURST_WIDTH: u32 = 5120;
 const BURST_HEIGHT: u32 = 2756;
 const BURST_ZOOM: f32 = 1.1;
 
-/// The zoom report's exact posture: 3538x2610 physical pixels at @2x,
-/// Firetail, page mode ON, debug pane ON, beginning at 60%.
 const ZOOM_BURST_WIDTH: u32 = 3538;
 const ZOOM_BURST_HEIGHT: u32 = 2610;
 const ZOOM_BURST_START: f32 = 0.6;
-/// Five rapid adjacent-level requests. The old input path reflowed all five;
-/// the present-boundary path applies only the final 70% request.
 const ZOOM_BURST_LEVELS: [f32; 5] = [0.7, 0.8, 0.7, 0.6, 0.7];
 const ZOOM_BURST_SAMPLES: usize = 7;
 
@@ -491,7 +412,6 @@ async fn theme_burst_async() -> anyhow::Result<()> {
         .await?;
     let cache = Cache::new(&device);
 
-    // The live report's exact posture: debug pane ON, page mode ON, Mangrove.
     crate::debug::set_debug_on(true);
     crate::page::set_page_on(true);
     crate::theme::set_active_by_name("Mangrove");
@@ -506,18 +426,12 @@ async fn theme_burst_async() -> anyhow::Result<()> {
          text prepare (glyphon shape walk + NEW-FACE RASTERIZATION into the atlas) |\n\
          squiggle/nit proto rebuild | rest of prepare | encode+submit+poll | total; then frame 2 (settled)."
     );
-    // Both the live-report doc AND the long fixture the old `--bench-perf` THEME
-    // stage quoted its ~5 ms from — the burst shows what that reshape REALLY
-    // costs once the family genuinely changes (the old stage forced the branch
-    // with the SAME face, so cosmic-text's `set_attrs_list` equality check
-    // no-oped every line and nothing actually re-shaped).
     for doc in ["CLAUDE.md", "benches/fixtures/long_bullets.md"] {
         burst_doc(&device, &queue, &cache, &spell, doc)?;
     }
     Ok(())
 }
 
-/// Profile the burst over one document (see [`run_theme_burst`]).
 fn burst_doc(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -596,13 +510,9 @@ fn burst_doc(
             p.sync_theme();
             let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
 
-            // sync_view follows each live apply; text unchanged -> no reshape.
             p.set_view(&view);
 
-            // FIRST frame after the switch: the prepare that rasterizes the new
-            // face's visible glyphs (plus the RowGeom-bumped proto rebuilds).
             let s1 = burst_frame(&mut p, device, queue, &target_view, true)?;
-            // SECOND frame: the settled steady state (everything cached).
             let s2 = burst_frame(&mut p, device, queue, &target_view, true)?;
 
             println!(
@@ -612,11 +522,6 @@ fn burst_doc(
         }
     }
 
-    // ---- the DEBOUNCED preview (the shipped fix): per arrow only the COLOR half
-    // (`sync_theme_colors`) applies + one frame draws; the FONT half + its
-    // first-frame rasterization land ONCE at the settle (`sync_theme_font`).
-    // Worlds and geometry identical to the laps above, so the per-arrow rows here
-    // are directly comparable to lap 2's per-switch rows.
     println!();
     println!("---- debounced preview (colors per arrow, ONE deferred reshape at settle) ----");
     println!(
@@ -624,8 +529,6 @@ fn burst_doc(
         "world", "face", "colors", "frame"
     );
     let mut worst_arrow: f64 = 0.0;
-    // Stop one world short (on Galah/Figtree) so the settle below pays a GENUINE
-    // reshape out of the shaped Mangrove face, not a same-face no-op.
     for &name in &BURST_WORLDS[..BURST_WORLDS.len() - 1] {
         crate::theme::set_active_by_name(name);
         let face = crate::theme::active().font;
@@ -640,8 +543,6 @@ fn burst_doc(
             name, face, colors_ms, s.total
         );
     }
-    // The settle: the ONE deferred reshape + the frame that pays the new face's
-    // prepare — the whole cost the debounce leaves for the rest.
     let t0 = Instant::now();
     p.sync_theme_font();
     let settle_ms = t0.elapsed().as_secs_f64() * 1e3;
@@ -668,11 +569,6 @@ fn burst_doc(
     Ok(())
 }
 
-/// Run the exact ZOOM-BURST profiler. Unlike the steady-frame and theme
-/// profilers, this times the synchronous `set_view` transition itself, then the
-/// first frame that rasterizes the final level. The two routes replay the old
-/// eager per-input behavior and latest-wins present-boundary behavior against
-/// the same warmed pipeline.
 pub fn run_zoom_burst() -> anyhow::Result<()> {
     pollster::block_on(zoom_burst_async())
 }
@@ -844,21 +740,8 @@ fn zoom_frame(
     Ok(())
 }
 
-// ============================================================================
-// FROST STEADY-FRAME PROFILER (hidden `--bench-frost`, item 32) — the organic
-// glyph-seeded frost field's real workload: a HEADING-RICH page-mode lava fixture
-// with a POPULATED outline + gutter, for BOTH lava worlds. Times the exact live
-// redraw (`prepare` → encode → submit+poll → trim, the same body `zoom_frame`
-// runs) and WITNESSES the work: a nonzero seed field, ZERO seed rebuilds across
-// warm steady frames, and EXACTLY ONE rebuild after a zoom step or a margin-text
-// change (a bench that reshaped nothing is a lie — CLAUDE.md's own rule).
-
-/// The heading-rich page-mode fixture: this repo's `CLAUDE.md` (many `##`/`###`
-/// headings → a populated followed outline) under a named buffer (→ a populated
-/// bottom-left gutter), page mode + outline ON.
 const FROST_DOC: &str = "CLAUDE.md";
 
-/// Run the FROST steady-frame profiler over both lava worlds.
 pub fn run_frost() -> anyhow::Result<()> {
     pollster::block_on(frost_async())
 }
@@ -947,9 +830,6 @@ fn frost_world(
         frost_frame(&mut p, device, queue, &target_view, f)?;
     }
     let seed_count = p.frost_seed_count();
-    // The FLOOR run (`AWL_LAVA_FROST=off`, the dev A/B knob) suppresses frost, so
-    // the seed field is legitimately empty — it times the raw lamp as the no-frost
-    // baseline. Otherwise a nonzero field is the "measuring real work" witness.
     if crate::lava::frost_on() {
         anyhow::ensure!(
             seed_count > 0,
@@ -958,7 +838,6 @@ fn frost_world(
         );
     }
 
-    // STEADY: the seed field is cached, so warm frames rebuild it ZERO times.
     let rebuilds_before = p.frost_seed_rebuilds;
     let mut totals = Vec::with_capacity(FRAMES);
     for f in 0..FRAMES {
@@ -978,10 +857,6 @@ fn frost_world(
     );
     let med_ms = median(totals) as f64 / 1.0e6;
 
-    // EXACTLY ONE rebuild after a ZOOM step (the halo radius is glyph-derived, so
-    // the field must re-seed) and EXACTLY ONE after a MARGIN-TEXT change (the gutter
-    // filename — a drawn margin-ink change). Skipped in the floor run (frost off →
-    // the field is inert, nothing to rebuild).
     if crate::lava::frost_on() {
         let before = p.frost_seed_rebuilds;
         view.zoom = 1.25;
@@ -1145,10 +1020,6 @@ fn burst_frame(
 mod tests {
     use super::*;
 
-    /// Headless (device, queue, pipeline), sized like the bench canvas — the
-    /// same construction `run_async` uses, kept local since the sibling
-    /// `render::tests` helpers (`headless_pipeline`) don't expose the device +
-    /// queue this witness needs to call `prepare_wash_layer` directly.
     fn headless_dqp() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
         pollster::block_on(async {
             let instance =
@@ -1189,18 +1060,6 @@ mod tests {
         );
     }
 
-    /// Runs the EXACT frame sequence `profile_doc` uses (`run_one_frame`, the
-    /// one shared owner) over a wash-bearing fixture and witnesses TWO things:
-    /// (1) `marks.i == STAGE_NAMES.len()` — the lockstep invariant that a plain
-    /// `--bench-frame` run on the unmodified base commit was ALREADY violating
-    /// (the table-grid stage had a mark but no name; this test is the
-    /// regression guard for that bug, not just for the wash stage this round
-    /// added) — and (2) the wash pipelines actually uploaded a nonzero instance
-    /// count, so the new stage measures real work rather than an empty prepare
-    /// call. A markdown buffer with a fenced `sh` block carrying a `#` comment
-    /// AND a double-quoted string mirrors the two ingredients CLAUDE.md's own
-    /// ```sh```/```toml``` fences carry — why this is genuine work on the
-    /// bench's real fixtures, not a synthetic-only fixture.
     #[test]
     fn wash_layer_and_table_grid_stages_stay_in_lockstep() {
         let _g = crate::testlock::serial();
@@ -1228,8 +1087,6 @@ mod tests {
         };
         p.set_view(&view);
 
-        // Pure geometry sanity: `prepare_wash_layer` reads through
-        // `wash_rects()`, so it must have real quads to cull + upload.
         let (comments, strings, _highlights) = p.wash_rects();
         assert!(
             !comments.is_empty(),

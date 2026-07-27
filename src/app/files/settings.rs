@@ -1,5 +1,3 @@
-//! Sticky preferences, settings interactions, and live config reload.
-
 use crate::app::*;
 
 impl App {
@@ -19,8 +17,6 @@ impl App {
             eprintln!("could not persist {key} to {}: {e}", path.display());
             return;
         }
-        // Keep the in-memory config in step with the file so it stays the source of
-        // truth between explicit reloads.
         match key {
             "theme" => self.config.theme = Some(value.trim_matches('"').to_string()),
             "caret_mode" => self.config.caret_mode = Some(value.trim_matches('"').to_string()),
@@ -32,10 +28,6 @@ impl App {
             "scroll_sensitivity" => self.config.scroll_sensitivity = value.parse().ok(),
             "writing_nits" => self.config.writing_nits = Some(value == "true"),
             "spellcheck" => self.config.spellcheck = Some(value == "true"),
-            // Settings-menu TOGGLES that were previously write-only (no mirror): keep
-            // `self.config` in step with disk so the still-open menu's value cell
-            // (read from `self.config` for the mechanism-B keys) and a later
-            // conflict/reload check both see the current value.
             "autosave" => self.config.autosave = Some(value == "true"),
             "history" => self.config.history = Some(value == "true"),
             "session_restore" => self.config.session_restore = Some(value == "true"),
@@ -46,37 +38,24 @@ impl App {
             "outline" => self.config.outline = Some(value == "true"),
             "menu_bar" => self.config.menu_bar = Some(value == "true"),
             "reduce_motion" => self.config.reduce_motion = Some(value == "true"),
-            // FILE VISIBILITY (item 77): a plain bool key, like the toggles above.
             "file_visibility" => self.config.file_visibility = Some(value == "true"),
-            // KEYMAP FLAVOR: a quoted string ("native"/"emacs"), not a bool — mirrors
-            // "theme"/"caret_mode"/"dictionary" above, not the bool toggles.
             "keymap" => self.config.keymap = Some(value.trim_matches('"').to_string()),
-            // DATE FORMAT: a quoted slug ("ddmmyy"/"mmddyy"/"iso"/"yyyymmdd"/
-            // "dmonthyyyy"), not a bool — mirrors "keymap"/"caret_mode" above.
             "date_format" => self.config.date_format = Some(value.trim_matches('"').to_string()),
-            // The CJK ladder is written as a whole TOML array (see
-            // `persist_cjk_priority`); the mirror reads the LIVE process global
-            // (already updated by the picker's core-level accept) rather than
-            // re-parsing the formatted `value` string back into a `Vec<Lang>`.
             "cjk_priority" => self.config.cjk_priority = Some(crate::frontmatter::cjk_priority()),
             _ => {}
         }
     }
 
-    /// Persist the now-active THEME name (write-on-change after a theme commit/revert).
     pub(in crate::app) fn persist_theme(&mut self) {
         let name = crate::theme::active().name;
         self.persist_pref("theme", &format!("\"{name}\""));
     }
 
-    /// Persist the now-active PAGE MODE (write-on-change after a page-mode toggle).
     pub(in crate::app) fn persist_page_mode(&mut self) {
         let on = crate::page::page_on();
         self.persist_pref("page_mode", if on { "true" } else { "false" });
     }
 
-    /// Persist the now-active SPELLCHECK on/off (write-on-change after "Toggle
-    /// Spellcheck"). Mirrors `persist_page_mode` / the writing-nits persist call.
     pub(in crate::app) fn persist_spellcheck(&mut self) {
         let on = crate::spell::spellcheck_on();
         self.persist_pref("spellcheck", if on { "true" } else { "false" });
@@ -99,17 +78,10 @@ impl App {
     ///     Persistence rides the ONE `persist_pref` owner (its mirror-match now covers
     ///     every key here), so there is no bespoke per-toggle writer to drift.
     pub(in crate::app) fn setting_toggle(&mut self, key: &str) {
-        // KEYMAP is NOT a plain bool config key (its value is "native"/"emacs", not
-        // "true"/"false"), so it can't ride the generic bool mechanism below —
-        // special-cased here, before the generic `now`/`next` match, and handled
-        // by its own dedicated door (`toggle_keymap_flavor`).
         if key == "keymap" {
             self.toggle_keymap_flavor();
             return;
         }
-        // DATE FORMAT is a 5-way CYCLE, not a bool, so it can't ride the
-        // generic mechanism below either — special-cased here exactly like
-        // "keymap", before the generic `now`/`next` match.
         if key == "date_format" {
             self.cycle_date_format();
             return;
@@ -134,8 +106,6 @@ impl App {
             _ => return, // unknown key: a calm no-op
         };
         let next = !now;
-        // (a) Apply the mechanism-A process-globals LIVE so the flip renders. wysiwyg
-        //     / inline_images are the two that had NO live-apply path before this seam.
         match key {
             "page_mode" => crate::page::set_page_on(next),
             "typewriter_scroll" => crate::typewriter::set_typewriter_on(next),
@@ -146,22 +116,13 @@ impl App {
             "spellcheck" => crate::spell::set_spellcheck_on(next),
             "writing_nits" => crate::nits::set_nits_on(next),
             "outline" => crate::outline::set_outline_on(next),
-            // ACCESSIBILITY TIER 1: an explicit toggle wins over `auto` from
-            // here on — this is a deliberate user action, not a live OS-pref
-            // poll (see `motion.rs`'s module doc). Any glide/flinch already in
-            // flight settles on its very next step (the gate lives in
-            // `advance`'s three callees; nothing further to force here).
             "reduce_motion" => crate::motion::set_reduced(next),
             "menu_bar" => crate::menubar::set_menu_bar_on(next),
             "file_visibility" => crate::file_visibility::set_all_on(next),
             _ => {} // mechanism-B: config-only, applied on read
         }
-        // (b) Persist the negated value (the mirror-match keeps `self.config` in step).
         self.persist_pref(key, if next { "true" } else { "false" });
-        // (c) Reshape / rescan / repaint as the flipped global demands.
         match key {
-            // A page-column / conceal / image change: re-wrap (page mode) + let the
-            // next frame's wysiwyg/inline latch restyle the conceal, then re-push.
             "page_mode" | "wysiwyg" | "inline_images" => {
                 if let Some(gpu) = self.gpu.as_mut() {
                     let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
@@ -169,31 +130,17 @@ impl App {
                 }
                 self.sync_view(true);
             }
-            // A font-feature change (ligatures) alters `doc_attrs` but neither the
-            // text nor the wrap column, so the incremental set_view would skip the
-            // reshape — force it (set_view's `force` reshapes with the fresh attrs).
             "code_ligatures" => self.sync_view(true),
-            // Squiggles vanish/reappear this frame (mirrors `ToggleSpellcheck`).
             "spellcheck" => self.run_spellcheck_now(),
-            // Render-only nit highlighter (mirrors `Action::ToggleWritingNits`).
             "writing_nits" => self.sync_view(false),
-            // Render-only margin outline (mirrors `writing_nits`): repaint so the
-            // outline appears/vanishes this frame (the draw lands next phase).
             "outline" => self.sync_view(false),
-            // The menu bar reserves vertical space via `doc_top`, so re-sync WITH
-            // follow to re-inset the document below (or reclaim) the bar strip THIS
-            // frame — mirrors the ToggleMenuBar apply arm.
             "menu_bar" => self.sync_view(true),
-            // Scroll-only typewriter pin: re-sync with follow so the caret's row
-            // re-centers (or reverts to cursor-follow) THIS frame — the cursor-follow
-            // in `sync_view` now reads the flipped global.
             "typewriter_scroll" => self.sync_view(true),
             _ => {}
         }
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
         }
-        // (d) Refresh the still-open menu's value cell in place.
         self.refresh_settings_overlay();
     }
 
@@ -254,8 +201,6 @@ impl App {
             && ov.kind == crate::overlay::OverlayKind::Settings
         {
             ov.set_secondaries(crate::settings::visible_value_cells(&values));
-            // ITEM 94: the rail thumbs are refreshed from the SAME gathered
-            // values as the number beside them, in the same call.
             ov.set_range_cells(crate::settings::visible_range_cells(&values));
         }
     }
@@ -357,26 +302,16 @@ impl App {
         }
     }
 
-    /// Persist the now-active CARET MODE (write-on-change after a caret-mode change).
-    /// Phase 2 relies on this seam to remember the caret style across launches.
     pub(in crate::app) fn persist_caret_mode(&mut self) {
         let name = crate::config::caret_mode_name(crate::caret::mode());
         self.persist_pref("caret_mode", &format!("\"{name}\""));
     }
 
-    /// Persist the now-active DATE FORMAT (write-on-change after the Date-format
-    /// picker commits) — mirrors `persist_caret_mode`. The core already set the
-    /// process-global (`dateformat::set_active_format`) in the picker accept, so
-    /// this only writes the sticky slug (the SAME quoted `date_format` RHS
-    /// `cycle_date_format` wrote before the row became a picker).
     pub(in crate::app) fn persist_date_format(&mut self) {
         let slug = crate::dateformat::active_format().config_name();
         self.persist_pref("date_format", &format!("\"{slug}\""));
     }
 
-    /// Write the CURRENT zoom to config. The raw write alone — every caller reaches it
-    /// through [`Self::settle_zoom_persist`], which owns the surrounding bookkeeping.
-    /// Trims the float to 3 places so the file stays tidy.
     fn persist_zoom_now(&mut self) {
         let z = self.zoom;
         self.persist_pref("zoom", &format!("{z:.3}"));
@@ -409,26 +344,6 @@ impl App {
         }
     }
 
-    /// Live-reload after the config file is SAVED in the editor: re-read it, rebuild
-    /// the keymap overrides, and re-fold default_folder/workspace (flag > config >
-    /// default, so a CLI flag still wins). A bad chord keeps its default + prints a
-    /// note inside `apply_overrides`; nothing here can crash. `default_folder` only
-    /// ever matters again on a FUTURE first-run launch (item 76 — it is not the
-    /// active folder); the workspace change affects the NEXT C-x p; the keymap
-    /// change is immediate.
-    ///
-    /// SPELLCHECK and the PAGE-WIDTH pair (`page_width_prose`/`page_width_code`)
-    /// are ALSO re-applied here (unlike the other sticky prefs — theme / page /
-    /// caret / writing_nits / dictionary — which apply ONCE at launch via
-    /// `apply_sticky_globals` and otherwise only change via their own live
-    /// toggle): a hand-edited `spellcheck = false` saved straight into the config
-    /// buffer takes effect immediately, exactly like using the "Toggle
-    /// Spellcheck" palette command, and the rescan below clears/restores
-    /// squiggles in the SAME frame rather than waiting for the next text
-    /// edit to trip the eager rescan. Likewise, hand-editing `page_width_code`
-    /// while a `.rs` file is
-    /// open re-wraps it immediately (`sync_page_measure`), since the config alone
-    /// (not a live toggle) is the only way to change either key's OVERRIDE value.
     pub(in crate::app) fn reload_config(&mut self) {
         let cfg = Config::load(self.config.path.clone());
         let mut keys_with_web_alt = cfg.keys.clone();
@@ -462,10 +377,6 @@ impl App {
             crate::spell::set_spellcheck_on(on);
         }
         self.config = cfg;
-        // STICKY PAGE WIDTH: an edited `page_width_prose`/`page_width_code` takes
-        // effect immediately too, re-resolved against the buffer that is CURRENTLY
-        // active (its kind is unchanged by a config reload; only the configured
-        // override might be).
         self.sync_page_measure();
         self.run_spellcheck_now();
     }

@@ -2,8 +2,6 @@
 
 use super::*;
 
-/// How many rows a PgUp/PgDn pages the SUMMONED picker selection — one card-ful (the
-/// overlay renders up to 12 rows; see `render/chrome.rs` `MAX_ROWS`).
 const OVERLAY_PAGE: isize = 12;
 
 /// The modal OVERLAY INTERCEPT. When the summoned navigation overlay is open, it OWNS
@@ -36,7 +34,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ctx.overlay.as_mut().unwrap().rename_edit_pop();
                 return Effect::None;
             }
-            // ⌥⌫ / C-⌫ delete a whole WORD, matching the document buffer.
             Action::DeleteWordBackward => {
                 ctx.overlay.as_mut().unwrap().rename_edit_pop_word();
                 return Effect::None;
@@ -78,7 +75,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 *ctx.overlay = None;
                 return Effect::None;
             }
-            // Every other key is swallowed (the edit is modal to the one row).
             _ => return Effect::None,
         }
     }
@@ -102,12 +98,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ctx.overlay.as_mut().unwrap().link_edit_pop();
                 return Effect::None;
             }
-            // ⌥⌫ / C-⌫ delete a whole WORD of the URL, matching the buffer.
             Action::DeleteWordBackward => {
                 ctx.overlay.as_mut().unwrap().link_edit_pop_word();
                 return Effect::None;
             }
-            // ITEM 10 — char/word caret motion + forward word-delete.
             Action::ForwardChar => {
                 ctx.overlay.as_mut().unwrap().link_edit_char_right();
                 return Effect::None;
@@ -145,7 +139,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 *ctx.overlay = None;
                 return Effect::None;
             }
-            // Every other key is swallowed (the edit is modal to the one row).
             _ => return Effect::None,
         }
     }
@@ -168,12 +161,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ctx.overlay.as_mut().unwrap().keep_edit_pop();
                 return Effect::None;
             }
-            // ⌥⌫ / C-⌫ delete a whole WORD, matching the document buffer.
             Action::DeleteWordBackward => {
                 ctx.overlay.as_mut().unwrap().keep_edit_pop_word();
                 return Effect::None;
             }
-            // ITEM 10 — char/word caret motion + forward word-delete.
             Action::ForwardChar => {
                 ctx.overlay.as_mut().unwrap().keep_edit_char_right();
                 return Effect::None;
@@ -209,7 +200,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 *ctx.overlay = None;
                 return Effect::None;
             }
-            // Every other key is swallowed (the edit is modal to the one row).
             _ => return Effect::None,
         }
     }
@@ -229,12 +219,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ctx.overlay.as_mut().unwrap().value_edit_pop();
                 return Effect::None;
             }
-            // ⌥⌫ / C-⌫ delete a whole WORD, matching the document buffer.
             Action::DeleteWordBackward => {
                 ctx.overlay.as_mut().unwrap().value_edit_pop_word();
                 return Effect::None;
             }
-            // ITEM 10 — char/word caret motion + forward word-delete.
             Action::ForwardChar => {
                 ctx.overlay.as_mut().unwrap().value_edit_char_right();
                 return Effect::None;
@@ -259,8 +247,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 return Effect::None;
             }
             Action::Newline => {
-                // Commit: pull the (key, typed value), clear the sub-state (menu stays
-                // open), and signal the App to parse + clamp + apply + persist.
                 let target = ctx.overlay.as_ref().unwrap().value_edit_target();
                 ctx.overlay.as_mut().unwrap().value_edit = None;
                 return match target {
@@ -272,7 +258,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 ctx.overlay.as_mut().unwrap().value_edit_cancel();
                 return Effect::None;
             }
-            // Every other key is swallowed (the edit is modal to the row).
             _ => return Effect::None,
         }
     }
@@ -316,8 +301,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     ov.diff_scroll = ov.diff_scroll.saturating_sub(page);
                     return Effect::None;
                 }
-                // Tab TOGGLES the focus between list and panel (the takeover
-                // Compare this replaces is retired — see `Action::CompareVersion`).
                 Action::CompareVersion | Action::InsertTab => {
                     let ov = ctx.overlay.as_mut().unwrap();
                     ov.diff_focus = !ov.diff_focus;
@@ -339,11 +322,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                         ctx.overlay.as_mut().unwrap().diff_focus = false;
                         return Effect::None;
                     }
-                    // ↵ restores the highlighted version — fall through to the
-                    // ordinary History accept arm below.
                     Action::Newline => {}
-                    // The panel holds the keys: typing/backspace/lens moves are
-                    // list affordances, swallowed while focus sits in the panel.
                     _ => return Effect::None,
                 },
                 _ => {}
@@ -353,15 +332,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     match action {
         Action::InsertChar(c) => {
             ctx.overlay.as_mut().unwrap().push(*c);
-            // Typing to fuzzy-filter also PREVIEWS the new top/selected match.
             preview_move(ctx.overlay.as_mut().unwrap());
             Effect::None
         }
         Action::DeleteBackward | Action::DeleteWordBackward => {
-            // In the navigable explorers (Browse / MoveDest / Project),
-            // Backspace doubles as "go to PARENT" once the fuzzy filter is
-            // empty (file-explorer muscle memory): a non-empty query pops a
-            // char (preserving filtering), an empty query ASCENDS like Left.
             let ov = ctx.overlay.as_ref().unwrap();
             let navigable = matches!(
                 ov.kind,
@@ -379,10 +353,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 }
                 return Effect::None;
             }
-            // A non-empty query: ⌥⌫ / C-⌫ (DeleteWordBackward) drops a whole WORD
-            // of the fuzzy filter, plain ⌫ (DeleteBackward) a single char — the
-            // same split the document buffer makes, so word-delete means the same
-            // thing in the palette as in the text.
             if matches!(action, Action::DeleteWordBackward) {
                 ctx.overlay.as_mut().unwrap().pop_word();
             } else {
@@ -393,14 +363,9 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         }
         Action::NextLine => {
             ctx.overlay.as_mut().unwrap().move_sel(1);
-            // LIVE PREVIEW: moving the selection in the Theme picker applies
-            // that world immediately (no-op for the other overlay kinds).
             preview_move(ctx.overlay.as_mut().unwrap());
             Effect::None
         }
-        // PgDn / PgUp (C-v / M-v / the named keys) PAGE the selection a card-ful
-        // at a time (`move_sel` clamps), so a long picker — the rebind menu's full
-        // command list — is pageable, not just one-row-at-a-time.
         Action::PageScrollDown => {
             ctx.overlay.as_mut().unwrap().move_sel(OVERLAY_PAGE);
             preview_move(ctx.overlay.as_mut().unwrap());
@@ -431,32 +396,15 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             Effect::None
         }
         Action::ForwardChar => {
-            // ITEM 94 — A SELECTED RANGE ROW CLAIMS RIGHT: one authored step UP,
-            // checked BEFORE the facet-lens cycle below. Gated on the highlighted
-            // row actually carrying a rail, so LEFT/RIGHT on every other Settings
-            // row (and every other faceted picker) still cycles the lens exactly
-            // as before — the one behaviour this claim can regress.
             if let Some(eff) = range_step(ctx, 1) {
                 return eff;
             }
             let ov = ctx.overlay.as_ref().unwrap();
-            // FACETED PICKER (goto / browse / project / command / history / settings):
-            // LEFT/RIGHT switch the faceting
-            // LENS (keeping the same item highlighted), NOT the row selection — the
-            // lens-switcher model, checked BEFORE the navigable branch so a FACETED
-            // explorer (Browse) cycles its lens on ←/→ while descend rides Enter (on a
-            // folder) and ascend rides Backspace. The regroup may land the item in a
-            // new section; preview it (a no-op when it's the same item).
             if ov.is_faceting() {
                 ctx.overlay.as_mut().unwrap().cycle_lens(1);
                 preview_move(ctx.overlay.as_mut().unwrap());
                 return Effect::None;
             }
-            // In the NON-faceting navigable explorer (MOVE-DEST) Right DESCENDS into
-            // the highlighted folder (a no-op on a file row): Right descends, Left
-            // ascends. (Browse + Project FACET, so they took the lens-cycle branch
-            // above; their descend rides Enter, ascend rides Backspace.) For a flat,
-            // non-faceting picker Right is a down-move.
             if ov.kind == crate::overlay::OverlayKind::MoveDest {
                 if ov.selected_is_dir()
                     && let Some(name) = ov.selected_value().map(|s| s.to_string())
@@ -478,25 +426,15 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             Effect::None
         }
         Action::BackwardChar => {
-            // ITEM 94 — A SELECTED RANGE ROW CLAIMS LEFT: one authored step DOWN
-            // (see the ForwardChar arm above for the gate).
             if let Some(eff) = range_step(ctx, -1) {
                 return eff;
             }
             let ov = ctx.overlay.as_ref().unwrap();
-            // FACETED PICKER (goto / browse / project / command / history / settings):
-            // LEFT cycles the faceting lens
-            // back (keeping the item) — checked BEFORE the navigable branch so a
-            // faceted explorer (Browse) cycles its lens on ←, with ascend on Backspace.
             if ov.is_faceting() {
                 ctx.overlay.as_mut().unwrap().cycle_lens(-1);
                 preview_move(ctx.overlay.as_mut().unwrap());
                 return Effect::None;
             }
-            // Up for a flat picker; in the NON-faceting explorer (MOVE-DEST) Left
-            // ASCENDS one directory level (rebuilds the list with the parent's
-            // children), flooring at its root. (Browse + Project FACET, so they took
-            // the lens-cycle branch above; their ascend rides Backspace.)
             if ov.kind == crate::overlay::OverlayKind::MoveDest {
                 if let Some(parent) = ascend_target(ov)
                     && let Some(next) = (ctx.browse_to)(ov.kind, parent)
@@ -510,18 +448,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             Effect::None
         }
         Action::Newline => {
-            // Accept. For BROWSE / PROJECT (both faceted navigators), Enter on a
-            // FOLDER descends (rebuilds the list with that folder's children)
-            // instead of closing; Browse Enter on a FILE opens it (emitted as a Goto
-            // path) and closes, while Project Enter on the synthetic "." row SELECTS
-            // the current dir as the root. For Goto, Enter emits the chosen value and
-            // closes. A no-match closes without emitting.
-            //
-            // SPELL suggestion accept: REPLACE the targeted misspelled word with
-            // the chosen suggestion as ONE undoable edit, then close. The owned
-            // bits (the picked suggestion + the word's char span) are pulled out
-            // first so the immutable overlay borrow is released before the buffer
-            // is mutated. An empty/no-match list just closes (no edit).
             {
                 let ov = ctx.overlay.as_ref().unwrap();
                 if ov.kind == crate::overlay::OverlayKind::Spell {
@@ -534,8 +460,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                         dispose_after_accept(ctx);
                         return word.map(Effect::AddToDictionary).unwrap_or(Effect::None);
                     }
-                    // Otherwise a SUGGESTION row: replace the targeted misspelled word
-                    // with the chosen suggestion as ONE undoable edit, then close.
                     let pick = ov.selected_value().map(|s| s.to_string());
                     let target = ov.spell_target;
                     if let (Some(word), Some((line, start, end))) = (pick, target) {
@@ -548,9 +472,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     dispose_after_accept(ctx);
                     return Effect::None;
                 }
-                // SETTINGS MENU accept: toggle in place / open a sub-picker (with a
-                // return_to breadcrumb) / open config-as-text / no-op. Handled in one
-                // seam so the borrow of `ctx.overlay` is scoped there.
                 if ov.kind == crate::overlay::OverlayKind::Settings {
                     return settings_accept(ctx);
                 }
@@ -580,33 +501,20 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 let mut eff = Effect::None;
                 if let Some(name) = ov.selected_value().map(|s| s.to_string()) {
                     if ov.selected_is_dir() {
-                        // Descend: parent dir = browse_dir, child = name.
                         let child = join_browse(ov.browse_dir.as_deref(), &name);
                         if let Some(next) = (ctx.browse_to)(ov.kind, Some(child)) {
                             *ctx.overlay = Some(next);
                         }
                         return Effect::None;
                     }
-                    // File: open via the Goto path so the caller's open_rel
-                    // loads it. The accept value is the FULL root-relative path.
                     let rel = join_browse(ov.browse_dir.as_deref(), &name);
                     eff = Effect::OverlayAccept(crate::overlay::OverlayKind::Goto, rel);
                 }
-                // Opening a file is NAVIGATING — close the whole stack to the buffer.
                 dispose_after_accept(ctx);
                 return eff;
             }
             if ov.kind == crate::overlay::OverlayKind::Project {
-                // PROJECT NAVIGATOR (now FACETED like Browse — ←/→ cycle the
-                // All/Recent lens): Enter on a real FOLDER DESCENDS into it (drill
-                // in, overlay stays open at that level), while Enter on the synthetic
-                // "." row SELECTS the CURRENT directory as the project root. Ascend
-                // is on Backspace. This mirrors Browse exactly (folder descends, the
-                // accept affordance is a dedicated row) now that ←/→ belong to the
-                // lens strip.
                 if ov.selected_is_dir() {
-                    // Carry the Settings breadcrumb forward so descending while picking
-                    // a path for a Settings row keeps writing THAT key (see `Breadcrumb`).
                     let bc = Breadcrumb::of(ov);
                     if let Some(name) = ov.selected_value().map(|s| s.to_string()) {
                         let child = descend_target(ov, &name);
@@ -617,17 +525,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     }
                     return Effect::None;
                 }
-                // The "." select-this-folder row (or no match): the current
-                // directory itself (always the absolute browse_dir). We emit the
-                // absolute path the caller feeds to set_root (re-index + recompute
-                // branch/dirty) and CLOSE.
                 let dir = ov.browse_dir.clone();
-                // A navigator opened FROM a Settings PATH row (its `setting_path_key`
-                // is set) writes THAT config key instead of switching the project, and
-                // POPS back to Settings via the `return_to` breadcrumb (`close_overlay`)
-                // — a value-pick, not a navigation. A PLAIN switch-project accept is
-                // NAVIGATING: it re-roots the app, so close the whole stack
-                // (`close_to_buffer`) even if some parent breadcrumb is set.
                 let path_key = ov.setting_path_key.clone();
                 match dir.filter(|d| !d.is_empty()) {
                     Some(dir) => match path_key {
@@ -644,24 +542,18 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                         }
                     },
                     None => {
-                        // Nothing to accept (empty browse dir): pop like a cancel.
                         close_overlay(ctx);
                         return Effect::None;
                     }
                 }
             }
             if ov.kind == crate::overlay::OverlayKind::MoveDest {
-                // ACCEPT a destination FOLDER (notes-root-relative). Enter on a
-                // highlighted folder moves into it; a typed name matching no
-                // folder is a NEW folder to create; nothing typed/selected
-                // accepts the CURRENT level. The caller does the mkdir + move.
                 let eff = match move_dest_value(ov) {
                     Some(dest) => {
                         Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest)
                     }
                     None => Effect::None,
                 };
-                // Moving the note is an ACTION (Navigate) — close the whole stack.
                 dispose_after_accept(ctx);
                 return eff;
             }
@@ -678,10 +570,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     .selected_corpus_index()
                     .map(|i| Effect::RunAction(crate::commands::visible_action_of(i)))
                     .unwrap_or(Effect::None);
-                // Close the palette to the buffer FIRST (Navigate) so the caller's
-                // re-dispatch of `RunAction` lands with the slot empty — an
-                // overlay-opening command then opens into it, stamped `return_to =
-                // Command` by `stamp_return_to` at the re-dispatch seam.
                 dispose_after_accept(ctx);
                 return eff;
             }
@@ -694,31 +582,18 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
                     None => Effect::None,
                 };
-                // Keeping a theme is VALUE-PICKING: pop back to the summoning overlay
-                // (Settings / the palette) if any; close to buffer for a direct summon.
                 dispose_after_accept(ctx);
                 return eff;
             }
             if ov.kind == crate::overlay::OverlayKind::Caret {
-                // COMMIT: the highlighted look is ALREADY active (live preview
-                // applied it to the process-global as the selection moved), so
-                // Enter keeps it and closes. Emit the committed look's LABEL so
-                // the caller can PERSIST the caret style (phase 1's `caret_mode`
-                // preference) — the picker's whole point over the blind toggle.
                 let eff = match ov.selected_value() {
                     Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
                     None => Effect::None,
                 };
-                // Applying a caret look is VALUE-PICKING: pop back to the parent.
                 dispose_after_accept(ctx);
                 return eff;
             }
             if ov.kind == crate::overlay::OverlayKind::Dictionary {
-                // COMMIT: UNLIKE Theme/Caret there is NO live preview during
-                // navigation (a dictionary re-parse is a real one-time cost — see
-                // `spell.rs` — so it happens exactly ONCE, here, on accept). Set
-                // the process-global THEN emit the committed label so the caller
-                // (App) reconstructs its `SpellChecker` + persists the pref.
                 let eff = match ov
                     .selected_value()
                     .and_then(crate::spell::DictVariant::from_label)
@@ -729,17 +604,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     }
                     None => Effect::None,
                 };
-                // Applying a dictionary is VALUE-PICKING: pop back to the parent.
                 dispose_after_accept(ctx);
                 return eff;
             }
             if ov.kind == crate::overlay::OverlayKind::CjkLang {
-                // COMMIT: PROMOTE the highlighted language to the FRONT of the live
-                // ladder — core-level (`frontmatter::set_cjk_priority`), exactly like
-                // Theme/Caret/Dictionary set their process global here, so both the
-                // live App and headless `--keys` replay observe the promotion. The
-                // App-only work (persisting the whole ordered list to config.toml) is
-                // handled by the caller from the emitted Effect.
                 let eff = match ov
                     .selected_value()
                     .and_then(crate::frontmatter::Lang::from_label)
@@ -751,18 +619,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     }
                     None => Effect::None,
                 };
-                // Promoting a language is VALUE-PICKING: pop back to the parent.
                 dispose_after_accept(ctx);
                 return eff;
             }
             if ov.kind == crate::overlay::OverlayKind::Date {
-                // COMMIT: NO live preview (the example dates ARE the preview), like
-                // Dictionary/CjkLang. The picker's PRIMARY text is the example DATE,
-                // not a mappable label, so resolve the choice by CORPUS INDEX — the
-                // corpus is built in `DateFormat::ALL` order (see `new_date`), so the
-                // selected corpus index maps straight back to the format (the Command
-                // palette's own `selected_corpus_index` idiom). Set the process-global
-                // THEN emit the committed slug so the caller (App) persists the pref.
                 let eff = match ov
                     .selected_corpus_index()
                     .and_then(|i| crate::dateformat::DateFormat::ALL.get(i).copied())
@@ -773,21 +633,14 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     }
                     None => Effect::None,
                 };
-                // Applying a date format is VALUE-PICKING: pop back to the parent.
                 dispose_after_accept(ctx);
                 return eff;
             }
             if ov.kind == crate::overlay::OverlayKind::Goto && ov.selected_is_heading() {
-                // GO-TO's HEADINGS lens (the retired Outline picker): the highlighted
-                // row is a document heading, so JUMP the cursor to its line rather than
-                // open a file. Emit the LINE NUMBER (titles can repeat, so the line is
-                // the accept value, not the text); a file row falls through to the
-                // ordinary Goto open below. A no-match closes silently.
                 let eff = match ov.selected_line() {
                     Some(line) => Effect::JumpToLine(line),
                     None => Effect::None,
                 };
-                // Jumping to a heading is NAVIGATING — close the whole stack.
                 dispose_after_accept(ctx);
                 return eff;
             }
@@ -806,16 +659,10 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                 };
             }
             if ov.kind == crate::overlay::OverlayKind::History {
-                // RESTORE the highlighted version. Emit its opaque restore ID (which
-                // the caller resolves via `history::load` and writes back with
-                // `Buffer::set_text` — one undoable edit, so C-/ undoes the restore).
-                // The synthetic "no history yet" row has an empty id, so Enter there
-                // just closes (no-op).
                 let eff = match ov.selected_history_id() {
                     Some(id) => Effect::OverlayAccept(ov.kind, id.to_string()),
                     None => Effect::None,
                 };
-                // Restoring a version rewrites the buffer (Navigate) — close the stack.
                 dispose_after_accept(ctx);
                 return eff;
             }
@@ -829,13 +676,6 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             dispose_after_accept(ctx);
             eff
         }
-        // ITEM 10 — the query's own CHAR-index caret moves on WORD motion only
-        // (plain L/R stay lens/descend/list, claimed above): Ctrl/Opt-Right
-        // walks the caret forward a word within the typed filter text, sharing
-        // `crate::buffer::word_forward_boundary` with the document's own M-f
-        // (the DISTINCT rule from `pop_word`'s word-DELETE boundary). A pure
-        // caret move — no refilter (the text is unchanged) — followed by the
-        // same live-preview re-apply every selection-adjacent move makes.
         Action::ForwardWord => {
             ctx.overlay.as_mut().unwrap().query_word_right();
             preview_move(ctx.overlay.as_mut().unwrap());
@@ -846,21 +686,12 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             preview_move(ctx.overlay.as_mut().unwrap());
             Effect::None
         }
-        // NOTE (DIFF-AS-PREVIEW): Tab in the HISTORY picker is handled ABOVE (the
-        // focus shift into the diff panel — the old Tab-TAKEOVER into a separate
-        // read-only view is RETIRED; the diff IS the picker's live preview now).
-        // In every other picker Tab stays inert, exactly as before.
         Action::Cancel => {
-            // REVERT the live preview: the Theme picker restores the world, and
-            // the Caret picker restores the LOOK, that was active when it opened.
-            // Other overlays just close.
             let ov = ctx.overlay.as_ref().unwrap();
             let eff = if ov.kind == crate::overlay::OverlayKind::Theme {
                 if let Some(orig) = ov.original_theme {
                     crate::theme::set_active(orig);
                 }
-                // Signal the revert so the caller can re-tint to the restored
-                // world. The accept VALUE is the restored world's name.
                 let name = crate::theme::active().name.to_string();
                 Effect::OverlayAccept(crate::overlay::OverlayKind::Theme, name)
             } else if ov.kind == crate::overlay::OverlayKind::Caret {
@@ -985,10 +816,6 @@ pub(crate) fn stamp_return_to(
     }
 }
 
-/// ITEM 94 — THE CORE-SIDE RANGE PORT: the live scalar `apply_core` owns for a
-/// range setting. Value arithmetic stays in the range spec; this only locates the
-/// scalar. `None` is made unreachable for real Range rows by the core port sweep,
-/// which fails an unwired port.
 fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f32> {
     Some(match id {
         crate::settings::SettingId::Zoom => *ctx.zoom,
@@ -1007,17 +834,6 @@ fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
     }
 }
 
-/// ITEM 94 — MOVE THE HIGHLIGHTED RANGE ROW by exactly `steps` AUTHORED increments
-/// (Left/Right; ordinary key repeat supplies longer travel — there is deliberately
-/// no Shift/Option fine-or-coarse variant). `None` when the selection is NOT a
-/// range row, which is what leaves LEFT/RIGHT to the faceting lens-cycler for every
-/// other row and every other picker — the one behavioural gate this claim rests on.
-///
-/// Applies IN THE CORE (so `--keys` replay observes it exactly as live does):
-/// reads the live scalar through the port, steps it through the ONE spec, writes it
-/// back, and mirrors the new readout + thumb straight into the still-open menu's own
-/// row. The returned effect asks the caller for the live tail only (reflow +
-/// the discrete sticky persist).
 fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
     let cell = ctx.overlay.as_ref()?.selected_range()?;
     let spec = crate::settings::range_spec(cell.id)?;
@@ -1033,22 +849,8 @@ fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
     })
 }
 
-/// SETTINGS MENU accept (Enter on a row): dispatch by the highlighted row's
-/// [`crate::settings::SettingKind`] — a TOGGLE signals [`Effect::SettingToggle`]
-/// and keeps the menu OPEN (the caller flips + persists + refreshes the value
-/// cell); a PICKER / SUBMENU swaps the overlay for that sub-picker, stamping a
-/// `return_to = Settings` breadcrumb so its commit/cancel returns here (this is
-/// how "Ambiguous CJK reads as" opens [`crate::overlay::OverlayKind::CjkLang`] —
-/// no bespoke kind of its own, it's a Picker like Theme/Caret/Dictionary); the
-/// ADVANCED "Edit config as text" row closes the menu and opens config.toml
-/// ([`Effect::OpenSettings`]); a VALUE row arms the inline numeric edit sub-state; a
-/// PATH row opens the folder navigator (breadcrumb back to Settings). The corpus is
-/// [`crate::settings::visible_rows`] (the platform-filtered view — hides "Edit
-/// config as text" on web; see that function's doc), so the selected corpus index
-/// maps back through it, NOT a raw `crate::settings::SETTINGS` index.
 fn settings_accept(ctx: &mut ActionCtx) -> Effect {
     let Some(ci) = ctx.overlay.as_ref().unwrap().selected_corpus_index() else {
-        // No row matches the filter: close (Settings itself carries no breadcrumb).
         close_overlay(ctx);
         return Effect::None;
     };
@@ -1075,9 +877,6 @@ fn dispatch_settings_row(
     close_on_toggle: bool,
 ) -> Effect {
     match row.kind {
-        // Flip IN PLACE: signal the caller to toggle + persist + refresh the value
-        // cell. A row with no key (shouldn't happen for a Toggle) is a calm no-op
-        // rather than a signal.
         crate::settings::SettingKind::Toggle => {
             let key = crate::settings::toggle_key(row.id).expect(
                 "Toggle row always resolves its config key — settings law \
@@ -1090,9 +889,6 @@ fn dispatch_settings_row(
                 key: key.to_string(),
             }
         }
-        // Open the sub-picker with a breadcrumb back to `breadcrumb`. `make_overlay`
-        // builds it from the live globals (theme/caret/dictionary/keybindings), so a
-        // commit reflects in the value cell when the breadcrumb re-summons.
         crate::settings::SettingKind::Picker | crate::settings::SettingKind::Submenu => {
             let target = crate::settings::sub_overlay(row.id).expect(
                 "Picker/Submenu row always resolves its sub-overlay — settings law \
@@ -1104,9 +900,6 @@ fn dispatch_settings_row(
             }
             Effect::None
         }
-        // Advanced action rows close the menu and reuse their ordinary command
-        // effects. Keeping Report a Problem here makes Settings a second calm
-        // door without duplicating its mail/crash-marker machinery.
         crate::settings::SettingKind::Action => {
             *ctx.overlay = None;
             match row.id {
@@ -1115,14 +908,6 @@ fn dispatch_settings_row(
                 _ => Effect::None,
             }
         }
-        // VALUE (page widths / zoom): arm the inline numeric edit sub-state, seeded
-        // from the row's current cell. The overlay stays open (the value edit is its
-        // own modal intercept, checked above); the caller then owns the keys until
-        // Enter commits / Esc cancels.
-        // VALUE + RANGE share Enter: the EXACT numeric-entry path is retained for a
-        // range row (item 94's "Enter retains the existing exact numeric-entry
-        // path") — the rail is an ADDITIONAL affordance on the same setting, not a
-        // replacement, and both kinds persist under the same `value_key`.
         crate::settings::SettingKind::Value | crate::settings::SettingKind::Range => {
             let key = crate::settings::value_key(row.id).expect(
                 "Value/Range row always resolves its config key — settings law \
@@ -1134,10 +919,6 @@ fn dispatch_settings_row(
                 .start_value_edit(key.to_string(), row.name.to_string());
             Effect::None
         }
-        // PATH (default_folder / workspace / project_root): open the folder NAVIGATOR (the
-        // Project picker, which roams the filesystem by absolute path) with a
-        // `return_to = breadcrumb` + the config key stamped, so its accept writes THAT
-        // key and returns rather than switching the project blindly.
         crate::settings::SettingKind::Path => {
             let key = crate::settings::path_key(row.id).expect(
                 "Path row always resolves its config key — settings law \
@@ -1153,8 +934,6 @@ fn dispatch_settings_row(
     }
 }
 
-/// Join a browse directory (root-relative, `None` = root) with a child entry
-/// name into a single root-relative, forward-slashed path.
 pub(super) fn join_browse(dir: Option<&str>, name: &str) -> String {
     match dir {
         Some(d) if !d.is_empty() => format!("{d}/{name}"),
@@ -1162,10 +941,6 @@ pub(super) fn join_browse(dir: Option<&str>, name: &str) -> String {
     }
 }
 
-/// The PARENT browse directory of `dir` (root-relative, `None` = root), as the
-/// value to pass back to `browse_to`. Returns `None` when already at the root
-/// (Left there is a no-op). One level up: `docs/api` -> `Some("docs")`, `docs`
-/// -> `Some(None)` (i.e. the root), root -> `None`.
 pub(super) fn browse_parent(dir: Option<&str>) -> Option<Option<String>> {
     match dir {
         None => None, // already at root; nothing above
@@ -1193,23 +968,18 @@ struct Breadcrumb {
 }
 
 impl Breadcrumb {
-    /// Snapshot the breadcrumb off `ov` before it is replaced.
     fn of(ov: &OverlayState) -> Self {
         Self {
             return_to: ov.return_to,
             setting_path_key: ov.setting_path_key.clone(),
         }
     }
-    /// Re-apply the snapshot onto a rebuilt level.
     fn apply(self, next: &mut OverlayState) {
         next.return_to = self.return_to;
         next.setting_path_key = self.setting_path_key;
     }
 }
 
-/// The DESCEND target for the highlighted folder `name` in `ov`, as the value to
-/// pass back to `browse_to`. `Project` navigates by ABSOLUTE path (so it can roam
-/// the whole filesystem); `Browse`/`MoveDest` stay root-relative.
 pub(super) fn descend_target(ov: &OverlayState, name: &str) -> String {
     match ov.kind {
         crate::overlay::OverlayKind::Project => {
@@ -1222,10 +992,6 @@ pub(super) fn descend_target(ov: &OverlayState, name: &str) -> String {
     }
 }
 
-/// The ASCEND target (parent directory) for `ov`. Outer `None` = can't ascend
-/// (no-op). `Project` uses real `Path::parent()` with NO root floor (so Left /
-/// Backspace climb ABOVE the workspace, stopping only at the filesystem root);
-/// `Browse`/`MoveDest` floor at their root via [`browse_parent`].
 pub(super) fn ascend_target(ov: &OverlayState) -> Option<Option<String>> {
     match ov.kind {
         crate::overlay::OverlayKind::Project => {
@@ -1237,37 +1003,19 @@ pub(super) fn ascend_target(ov: &OverlayState) -> Option<Option<String>> {
     }
 }
 
-/// The accepted MOVE destination for a `MoveDest` overlay, as a notes-root-relative
-/// directory path (`""` = the notes root itself). Precedence: a highlighted FOLDER
-/// (move into it); else a non-empty typed QUERY that matched no folder (a NEW folder
-/// to create at this level); else the CURRENT level. The caller mkdir's + moves.
 pub(super) fn move_dest_value(ov: &OverlayState) -> Option<String> {
-    // A highlighted folder is the destination (descend-as-accept).
     if let Some(name) = ov.selected_value()
         && ov.selected_is_dir()
     {
         return Some(join_browse(ov.browse_dir.as_deref(), name));
     }
-    // No folder highlighted: a typed name becomes a NEW folder at this level.
     let q = ov.query.text().trim();
     if !q.is_empty() {
         return Some(join_browse(ov.browse_dir.as_deref(), q));
     }
-    // Nothing typed or selected: accept the current level (`None` root -> "").
     Some(ov.browse_dir.clone().unwrap_or_default())
 }
 
-/// LIVE PREVIEW for the Theme picker: if `ov` is the Theme overlay, apply its
-/// currently-highlighted world to the process-global active theme so the rendered
-/// frame shows it immediately. A no-op for every other overlay kind (and when no
-/// item matches the filter). Driven from the overlay move / filter paths so the
-/// preview is identical under `--keys` and live.
-/// LIVE PREVIEW as the selection moves in a preview-carrying picker: the THEME
-/// picker re-tints to the highlighted world, the CARET-STYLE picker applies the
-/// highlighted look to the process-global (so BOTH the document caret and the
-/// picker's preview box switch to it). A no-op for every other overlay kind. The
-/// caller persists nothing here — preview is ephemeral; only the Enter COMMIT path
-/// writes the preference (mirroring the theme picker's commit-only persistence).
 pub(crate) fn preview_overlay(ov: &OverlayState) {
     match ov.kind {
         crate::overlay::OverlayKind::Theme => {
@@ -1284,14 +1032,6 @@ pub(crate) fn preview_overlay(ov: &OverlayState) {
     }
 }
 
-/// ITEM 52 — LIVE PREVIEW **plus** RE-ANCHOR for a DELIBERATE selection crossing
-/// (keyboard nav, wheel, page/jump moves): applies the highlighted world
-/// ([`preview_overlay`]) and THEN snaps the card into that world's own left/center/
-/// right rail ([`OverlayState::reanchor`], a no-op for a non-Theme picker) — choosing
-/// a world drops you inside it. The re-anchor runs AFTER the preview so it reads the
-/// DESTINATION world's anchor. PASSIVE pointer hover uses the bare [`preview_overlay`]
-/// instead (`app/input/mouse.rs::overlay_hover`), so a hover re-tints without starting
-/// a spatial chase (the item-45 freeze still holds the card put under the pointer).
 pub(crate) fn preview_move(ov: &mut OverlayState) {
     preview_overlay(ov);
     ov.reanchor();

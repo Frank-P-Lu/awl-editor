@@ -607,13 +607,11 @@ pub(super) fn scan_number(
 pub(crate) mod testutil {
     use super::{Range, SynKind};
 
-    /// True if `s` contains an exact `lo..hi` span of role `k`.
     pub(crate) fn has(s: &[(Range<usize>, SynKind)], lo: usize, hi: usize, k: SynKind) -> bool {
         s.iter()
             .any(|(r, kk)| r.start == lo && r.end == hi && *kk == k)
     }
 
-    /// The substring each span of role `k` covers, for readable assertions.
     pub(crate) fn at<'a>(text: &'a str, s: &[(Range<usize>, SynKind)], k: SynKind) -> Vec<&'a str> {
         s.iter()
             .filter(|(_, kk)| *kk == k)
@@ -674,7 +672,6 @@ mod tests {
 
     #[test]
     fn excluded_and_unknown_extensions_are_none() {
-        // The gate: prose / work-file cases must NOT highlight.
         for e in ["env", "md", "markdown", "txt", "", "log", "bin", "lock"] {
             assert_eq!(Lang::from_extension(e), None, "{e:?} must not highlight");
         }
@@ -686,7 +683,6 @@ mod tests {
         assert_eq!(Lang::from_path(Path::new("/a/b/main.rs")), Some(Lang::Rust));
         assert_eq!(Lang::from_path(Path::new("notes.md")), None);
         assert_eq!(Lang::from_path(Path::new("README")), None);
-        // A `.env` file has no real extension (the name IS `.env`) -> no highlight.
         assert_eq!(Lang::from_path(Path::new(".env")), None);
     }
 
@@ -698,8 +694,6 @@ mod tests {
         assert_eq!(SynKind::Constant.tag(), "constant");
         assert_eq!(SynKind::Definition.tag(), "definition");
     }
-
-    // --- Two-tier comment classification (prose prominent / disabled code grey) ---
 
     #[test]
     fn comment_body_strips_markers() {
@@ -717,12 +711,8 @@ mod tests {
         assert_eq!(comment_body(""), "");
     }
 
-    /// The locked heuristic table — BOTH tiers, near-misses included. When
-    /// unsure the answer is PROSE (prominent); only a body that clearly reads as
-    /// a disabled statement goes grey.
     #[test]
     fn looks_like_code_two_tier_table() {
-        // PROSE (prominent) — the default.
         for prose in [
             "// TODO: fix the wrap",
             "// return early here",       // keyword alone, no symbol
@@ -741,7 +731,6 @@ mod tests {
                 "{prose:?} must classify as PROSE"
             );
         }
-        // CODE (muted grey) — disabled statements.
         for code in [
             "// let x = foo(bar);",   // trailing ;
             "// x += 1;",             // trailing ;
@@ -761,23 +750,17 @@ mod tests {
 
     #[test]
     fn multiline_block_comment_prose_wins_on_mix() {
-        // ALL code lines -> code.
         assert!(looks_like_code(comment_body(
             "/* let a = 1;\n * let b = 2;\n */"
         )));
-        // MIXED (prose + code) -> prose wins.
         assert!(!looks_like_code(comment_body(
             "/* This sets the default.\n * let a = 1;\n */"
         )));
-        // ALL prose -> prose.
         assert!(!looks_like_code(comment_body(
             "/* A quiet block of prose\n * that keeps explaining. */"
         )));
     }
 
-    /// The dispatch's central post-pass reclassifies a commented-out statement to
-    /// `CommentCode` while a prose comment stays `Comment` — for the reference
-    /// lexer AND a `#`-comment language, so the split is provably central.
     #[test]
     fn spans_post_pass_splits_comment_tiers() {
         let rs = "// TODO: fix the wrap\n// let x = foo(bar);\nfn main() {}\n";
@@ -806,11 +789,9 @@ mod tests {
 
     #[test]
     fn dispatch_routes_to_implemented_lexers() {
-        // Every language now has a real lexer; a trivial snippet yields a span.
         assert!(!spans(Lang::Rust, "// hi\n").is_empty());
         assert!(!spans(Lang::Python, "# hi\n").is_empty());
         assert!(!spans(Lang::Go, "// hi\n").is_empty());
-        // A SQL comment recedes too — the dispatch routes to the SQL lexer.
         assert!(!spans(Lang::Sql, "-- hi\n").is_empty());
     }
 
@@ -824,23 +805,17 @@ mod tests {
 
     #[test]
     fn shared_scan_line_comment_runs_to_newline_or_eof() {
-        // The body runs to (and stops AT) the newline; the marker itself rides
-        // inside the caller's `start..` span.
         let t = b"// hi\nx";
         assert_eq!(scan_line_comment(t, 0), 5);
-        // No newline -> the body runs to EOF.
         let e = b"-- end";
         assert_eq!(scan_line_comment(e, 0), e.len());
     }
 
     #[test]
     fn shared_scan_block_comment_nesting_flag() {
-        // Non-nesting: the FIRST `*/` closes, so an inner `/*` is ignored.
         let flat = b"/* a /* b */ c */ x";
         assert_eq!(scan_block_comment(flat, 0, false), 12);
-        // Nesting: the inner `/*` must be matched, so the whole run is one span.
         assert_eq!(scan_block_comment(flat, 0, true), 17);
-        // Unterminated -> EOF either way.
         let un = b"/* open";
         assert_eq!(scan_block_comment(un, 0, false), un.len());
         assert_eq!(scan_block_comment(un, 0, true), un.len());
@@ -848,18 +823,13 @@ mod tests {
 
     #[test]
     fn shared_scan_quoted_handles_escapes_quote_and_newline() {
-        // Closes on the matching quote; the index returned is just past it.
         let t = br#""ab"x"#;
         assert_eq!(scan_quoted(t, 0, b'"', false), 4);
-        // A `\\` escapes the next byte, so an escaped quote does not close.
         let e = br#""a\"b""#;
         assert_eq!(scan_quoted(e, 0, b'"', false), e.len());
-        // With `stop_at_newline`, an unterminated literal ends AT the newline...
         let nl = b"\"ab\ncd";
         assert_eq!(scan_quoted(nl, 0, b'"', true), 3);
-        // ...without it, the newline rides inside and the scan runs to EOF.
         assert_eq!(scan_quoted(nl, 0, b'"', false), nl.len());
-        // The quote byte is the caller's choice (single quotes too).
         let sq = b"'q' ";
         assert_eq!(scan_quoted(sq, 0, b'\'', false), 3);
     }
@@ -871,20 +841,14 @@ mod tests {
             radix_extra: b"",
             dot_dot_stops: true,
         };
-        // A hex body consumes alnum + `_`; the suffix rides along.
         let hex = b"0xFF_u8;";
         assert_eq!(scan_number(hex, 0, o(), is_ident_start), 7);
-        // A float keeps its fractional point.
         let f = b"3.14 ";
         assert_eq!(scan_number(f, 0, o(), is_ident_start), 4);
-        // `dot_dot_stops`: a `..` range op ends the integer before the dots.
         let r = b"0..5";
         assert_eq!(scan_number(r, 0, o(), is_ident_start), 1);
-        // A member access (`.` before an ident start) also ends the integer.
         let m = b"1.foo";
         assert_eq!(scan_number(m, 0, o(), is_ident_start), 1);
-        // Without `dot_dot_stops`, only the member-access guard applies, so a
-        // `.`-before-digit is consumed as a fraction.
         let no = NumOpts {
             radix: b"xXbB",
             radix_extra: b"",
@@ -897,25 +861,19 @@ mod tests {
     fn shared_ident_role_precedence_and_arming() {
         const DEF: &[&str] = &["fn", "struct"];
         const CONST: &[&str] = &["true", "None"];
-        // An introducer arms the expectation and styles nothing itself.
         let mut e = false;
         assert_eq!(ident_role("fn", DEF, CONST, &mut e), None);
         assert!(e, "an introducer arms expect_def");
-        // The very next identifier is the definition name; the flag is consumed.
         assert_eq!(
             ident_role("main", DEF, CONST, &mut e),
             Some(SynKind::Definition)
         );
         assert!(!e, "emitting a name clears expect_def");
-        // A constant word (when not awaiting a name) is a Constant.
         assert_eq!(
             ident_role("true", DEF, CONST, &mut e),
             Some(SynKind::Constant)
         );
-        // An ordinary identifier is unstyled.
         assert_eq!(ident_role("foo", DEF, CONST, &mut e), None);
-        // Pending-name wins over the constant/introducer tables: a keyword sitting
-        // in the name slot is still styled as the Definition.
         let mut e2 = true;
         assert_eq!(
             ident_role("true", DEF, CONST, &mut e2),
@@ -926,24 +884,20 @@ mod tests {
 
     #[test]
     fn from_name_maps_fence_languages_and_aliases() {
-        // Canonical names.
         assert_eq!(Lang::from_name("rust"), Some(Lang::Rust));
         assert_eq!(Lang::from_name("python"), Some(Lang::Python));
         assert_eq!(Lang::from_name("bash"), Some(Lang::Bash));
         assert_eq!(Lang::from_name("javascript"), Some(Lang::JavaScript));
-        // Aliases + case-insensitivity.
         assert_eq!(Lang::from_name("Rust"), Some(Lang::Rust));
         assert_eq!(Lang::from_name("golang"), Some(Lang::Go));
         assert_eq!(Lang::from_name("c++"), Some(Lang::Cpp));
         assert_eq!(Lang::from_name("c#"), Some(Lang::CSharp));
         assert_eq!(Lang::from_name("shell"), Some(Lang::Bash));
-        // Extension-style tags fall through to the shared extension table.
         assert_eq!(Lang::from_name("rs"), Some(Lang::Rust));
         assert_eq!(Lang::from_name("py"), Some(Lang::Python));
         assert_eq!(Lang::from_name("sh"), Some(Lang::Bash));
         assert_eq!(Lang::from_name("zsh"), Some(Lang::Bash));
         assert_eq!(Lang::from_name("yml"), Some(Lang::Yaml));
-        // Unknown / prose stays None (the body renders plain mono Code).
         assert_eq!(Lang::from_name("plaintext"), None);
         assert_eq!(Lang::from_name("text"), None);
         assert_eq!(Lang::from_name(""), None);
@@ -951,15 +905,11 @@ mod tests {
 
     #[test]
     fn from_info_takes_the_first_token() {
-        // A bare language.
         assert_eq!(Lang::from_info("rust"), Some(Lang::Rust));
-        // GitHub attributes ride after a space or comma — only the first token counts.
         assert_eq!(Lang::from_info("rust ignore"), Some(Lang::Rust));
         assert_eq!(Lang::from_info("rust,ignore"), Some(Lang::Rust));
         assert_eq!(Lang::from_info("sh title=demo"), Some(Lang::Bash));
-        // Leading whitespace is trimmed by the token split.
         assert_eq!(Lang::from_info("   python  "), Some(Lang::Python));
-        // Empty / attribute-only info yields no language.
         assert_eq!(Lang::from_info(""), None);
         assert_eq!(Lang::from_info("   "), None);
         assert_eq!(Lang::from_info("unknownlang"), None);
@@ -967,7 +917,6 @@ mod tests {
 
     #[test]
     fn lang_names_are_stable_and_lowercase() {
-        // The sidecar's `syn_lang` field reads these; keep them stable + lowercase.
         assert_eq!(Lang::Rust.name(), "rust");
         assert_eq!(Lang::Cpp.name(), "cpp");
         assert_eq!(Lang::CSharp.name(), "csharp");
@@ -1002,28 +951,13 @@ mod tests {
     }
 }
 
-/// RESCUE ROUND (2026-07): two adversarial/corpus probes reimplemented from a
-/// stale `verify` branch (forked ~316 commits behind, never landed) against
-/// main's CURRENT `looks_like_code`/`comment_body` two-tier classifier. The
-/// three-rule heuristic + `CODE_LEAD_KEYWORDS` table are unchanged since the
-/// fork (confirmed by reading the branch's own copy against this file's), so
-/// these port largely verbatim — kept as their own module (rather than folded
-/// into `mod tests` above) since the corpus sweep reads real repo files, a
-/// slower and structurally different kind of test than the pure unit table.
 #[cfg(test)]
 mod verifier_probe {
     use super::*;
 
-    /// Adversarial two-tier probe: prose with symbols, code-like prose, doc
-    /// comments with inline backticks, dividers, near-miss keywords. Overlaps
-    /// partly with `tests::looks_like_code_two_tier_table` above (both pin the
-    /// SAME heuristic) but adds cases that table doesn't carry — a divider rule
-    /// (`// ---...`), a doc-comment `///` case, and the `-- select * from users`
-    /// SQL-shaped one-liner among others.
     #[test]
     fn verifier_adversarial_two_tier() {
         let cases: &[(&str, bool)] = &[
-            // locked examples (must hold)
             ("// TODO: fix the wrap", false),
             ("// let x = foo(bar);", true),
             ("// return early here", false),
@@ -1031,7 +965,6 @@ mod verifier_probe {
             ("// x += 1;", true),
             ("-- select * from users", true),
             ("// use two spaces here", false),
-            // prose with symbols (should stay prose)
             ("// wraps at 53 -> 2 rows", false),
             ("// e.g. `foo();` disables the cache entirely", false),
             ("// If you set x = 3, the cache invalidates", false),
@@ -1043,23 +976,14 @@ mod verifier_probe {
                 false,
             ),
             ("// -----------------------------------------", false),
-            // code-like prose probes (KNOWN heuristic edges - record behavior)
-            // first-word keyword + any of =(){}[]<>* reads as code:
-            //   "use `mono_safe_weight()` ..." -> CODE (greyed) - accepted edge,
-            //   see `verifier_keyword_plus_backtick_edges` below
-            // commented-out code (must stay code)
             ("// return None;", true),
             ("//     let mut out = Vec::new();", true),
             ("// if x > 3 { bail() }", true),
             ("// fn old_hook() -> bool {", true),
-            // bare import, no symbol companion: stays PROSE per the locked spec
             ("# import os", false),
             ("// foo(bar, baz);", true),
-            // mixed multi-line block: prose wins
             ("/* let x = 1;\n   but this line is prose */", false),
-            // all-code multi-line block stays code
             ("/* let x = 1;\n * let y = 2; */", true),
-            // empty-ish
             ("//", false),
             ("/* */", false),
         ];
@@ -1072,9 +996,6 @@ mod verifier_probe {
         }
     }
 
-    /// Probe the known false-positive family: first-word keyword + backtick code
-    /// reference. Records CURRENT behavior so the user sees the edge honestly —
-    /// a genuine, logged heuristic limitation, not a hidden bug.
     #[test]
     fn verifier_keyword_plus_backtick_edges() {
         let greyed: &[&str] = &[
@@ -1089,18 +1010,11 @@ mod verifier_probe {
                 "expectation drifted: {c:?} currently classifies CODE (greyed)"
             );
         }
-        // equals-sign divider also reads as code (density rule):
         assert!(looks_like_code(comment_body(
             "// ============================"
         )));
     }
 
-    /// Corpus sweep over this repo's own source comments: measure how many
-    /// PROSE-looking `//` comment lines the heuristic sends to the muted
-    /// (CODE) tier. `src/theme.rs`/`src/markdown.rs` (the branch's original
-    /// picks) were each split into a `theme/`/`markdown/` directory since the
-    /// branch forked; `theme/model.rs`/`markdown/spans.rs` are their natural,
-    /// comment-heavy successors.
     #[test]
     fn verifier_corpus_report() {
         let mut flagged: Vec<String> = Vec::new();

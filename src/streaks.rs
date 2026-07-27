@@ -531,9 +531,7 @@ mod tests {
         s.record_delta("2026-07-17", 100);
         s.record_delta("2026-07-17", -30); // a net-cut flush
         s.record_delta("2026-07-17", 20);
-        // Day total: only the positive deltas summed (100 + 20 = 120).
         assert_eq!(s.words_on("2026-07-17"), 120);
-        // Raw net: all deltas summed (100 - 30 + 20 = 90).
         assert_eq!(s.days.get("2026-07-17").unwrap().raw_net, 90);
     }
 
@@ -558,9 +556,7 @@ mod tests {
                 },
             );
         }
-        // Today (17th) blank but yesterday (16th) written → streak still alive = 3.
         assert_eq!(s.current_streak((2026, 7, 17)), 3);
-        // Today written extends it to 4.
         s.days.insert(
             "2026-07-17".to_string(),
             DayWords {
@@ -569,7 +565,6 @@ mod tests {
             },
         );
         assert_eq!(s.current_streak((2026, 7, 17)), 4);
-        // A two-day gap (neither today nor yesterday) → 0.
         assert_eq!(s.current_streak((2026, 7, 19)), 0);
     }
 
@@ -590,31 +585,23 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn civil_ymd_from_epoch_secs_maps_the_day() {
-        // 2026-07-17 00:00:00 UTC = 1_784_246_400s; any second that day maps to it.
         let start = days_from_civil(2026, 7, 17) * 86_400;
         assert_eq!(civil_ymd_from_epoch_secs(start), (2026, 7, 17));
         assert_eq!(civil_ymd_from_epoch_secs(start + 86_399), (2026, 7, 17));
         assert_eq!(civil_ymd_from_epoch_secs(start + 86_400), (2026, 7, 18));
-        // A negative (pre-epoch) stamp still floors to the right day.
         assert_eq!(civil_ymd_from_epoch_secs(-1), (1969, 12, 31));
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn civil_date_round_trips_and_prev_day_steps_back() {
-        // Epoch day 0 is 1970-01-01 (a Thursday → weekday 4).
         assert_eq!(civil_from_days(0), (1970, 1, 1));
         assert_eq!(days_from_civil(1970, 1, 1), 0);
         assert_eq!(weekday(0), 4);
-        // Round trip a modern date.
         let d = days_from_civil(2026, 7, 17);
         assert_eq!(civil_from_days(d), (2026, 7, 17));
-        // prev_day steps back one civil day, across month and year boundaries.
         assert_eq!(prev_day(2026, 8, 1), (2026, 7, 31));
         assert_eq!(prev_day(2026, 1, 1), (2025, 12, 31));
-        // It is pure arithmetic — total, so the streak walk always terminates (the
-        // old string form's "malformed key returned unchanged" fallback is gone with
-        // the parse: callers only ever hold real civil dates now).
         assert_eq!(prev_day(1970, 1, 1), (1969, 12, 31));
     }
 
@@ -630,8 +617,6 @@ mod tests {
             },
         );
         let v = s.view((2026, 7, 17));
-        // 2026-07-17 is a Friday → weekday 5. It sits in the LAST week column at
-        // row 5; the peak day lights level 4.
         let today_days = days_from_civil(2026, 7, 17);
         assert_eq!(weekday(today_days), 5);
         let today_idx = (WEEKS - 1) * DAYS_PER_WEEK + 5;
@@ -639,7 +624,6 @@ mod tests {
             v.cells[today_idx], 4,
             "today (the only writing day) is the peak rung"
         );
-        // Saturday of this week is in the future → empty.
         let future_idx = (WEEKS - 1) * DAYS_PER_WEEK + 6;
         assert_eq!(
             v.cells[future_idx], 0,
@@ -662,8 +646,6 @@ mod tests {
         }
         assert_eq!(a.streak, 12);
         assert_eq!(a.today_words, 347);
-        // The synthetic cumulative series: full-length, non-decreasing (a running
-        // total never dips), ends positive (the chart has a line to draw).
         assert_eq!(a.cumulative.len(), CELLS);
         assert!(
             a.cumulative.windows(2).all(|w| w[0] <= w[1]),
@@ -689,8 +671,6 @@ mod tests {
         assert_eq!(card_view(), CardView::Cumulative);
         toggle_view();
         assert_eq!(card_view(), CardView::Heatmap, "the toggle round-trips");
-        // Leave it flipped, close, re-summon: back on the heatmap — the view is
-        // EPHEMERAL by design (no config key, no stickiness across summons).
         toggle_view();
         set_open(false);
         set_open(true);
@@ -705,10 +685,8 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn cumulative_series_runs_totals_and_carries_gaps_flat() {
-        // 2026-07-17 is a Friday (dow 5): window = 52 weeks + Sun..Fri = 370 days.
         let today = (2026, 7, 17);
 
-        // Empty store: a full-length, all-zero series (a flat baseline, no bars).
         let empty = Streaks::default().cumulative_series(today);
         assert_eq!(empty.len(), 370);
         assert!(
@@ -716,8 +694,6 @@ mod tests {
             "an empty store totals zero everywhere"
         );
 
-        // Two writing days with a GAP between them: the gap day carries the
-        // total FLAT (a plateau, never a dip), today (blank) carries the final.
         let mut s = Streaks::default();
         s.days.insert(
             "2026-07-14".to_string(),
@@ -754,7 +730,6 @@ mod tests {
             "a running total never dips"
         );
 
-        // Single day: one step, then flat all the way to today.
         let mut one = Streaks::default();
         one.days.insert(
             "2026-07-10".to_string(),
@@ -775,14 +750,10 @@ mod tests {
     #[test]
     fn chart_bars_stay_inside_the_rect_and_skip_zero_days() {
         let rect = [10.0_f32, 20.0, 580.0, 60.0];
-        // Empty / all-zero series: no bars (a calm empty chart).
         assert!(chart_bars(&[], rect).is_empty());
         assert!(chart_bars(&[0, 0, 0], rect).is_empty());
-        // A degenerate rect: no bars, never a NaN/negative quad.
         assert!(chart_bars(&[5, 9], [0.0, 0.0, 0.0, 0.0]).is_empty());
 
-        // The synthetic year's own series (gaps + plateaus): every bar strictly
-        // inside the rect — the in-bounds law the render inherits.
         let series = placeholder().cumulative;
         let bars = chart_bars(&series, rect);
         assert!(!bars.is_empty());
@@ -803,14 +774,12 @@ mod tests {
                 "bar y-span inside the rect: {b:?}"
             );
         }
-        // The FINAL bar reaches the rect's full height: the total IS the top.
         let final_bar = bars.last().unwrap();
         assert!(
             (final_bar[3] - rect[3]).abs() < 0.01,
             "the line tops out at the right edge"
         );
 
-        // A single-entry series fills the full height with one bar.
         let single = chart_bars(&[42], rect);
         assert_eq!(single.len(), 1);
         assert!((single[0][3] - rect[3]).abs() < 0.01);
@@ -835,11 +804,9 @@ mod tests {
             },
         );
         assert_eq!(from_toml(&to_toml(&s)), s);
-        // Garbage / empty degrade to an empty record, never a panic.
         assert_eq!(from_toml(""), Streaks::default());
         assert_eq!(from_toml("not valid toml {{{"), Streaks::default());
         assert_eq!(from_toml("other = 3\n"), Streaks::default());
-        // A wrong-typed row is skipped.
         let lenient = from_toml("[days]\n\"2026-07-17\" = { words = \"lots\", raw = 5 }\n");
         assert_eq!(lenient.words_on("2026-07-17"), 0);
         assert_eq!(lenient.days.get("2026-07-17").map(|d| d.raw_net), Some(5));

@@ -30,11 +30,6 @@ impl TextPipeline {
         self.caret_pipeline.set_color(theme::primary().rgb_bytes());
         self.caret_trail_pipeline
             .set_color(theme::primary().rgb_bytes());
-        // The glyph-silhouette pipeline rides `primary` (the MORPH accent letter).
-        // A FILLED block caret repurposes it as the CRT KNOCKOUT and OVERRIDES this
-        // colour to `primary_content` at the draw site each frame (the ONE owner is
-        // `prepare_caret_block`'s `Filled` arm — authoritative in the headless
-        // capture too, which never calls this `sync_theme_colors`).
         self.caret_glyph_pipeline
             .set_color(theme::primary().rgb_bytes());
         self.selection_pipeline
@@ -47,21 +42,12 @@ impl TextPipeline {
         // every re-tint.
         self.match_pipeline.set_color(search_match_rgba_bytes());
         self.match_pipeline.set_dither(wagtail_dither_density());
-        // CHUNK round: THE ONE WAGTAIL HIGHLIGHT TEXTURE's Bayer-cell block size
-        // (physical px, Retina-aware — paired with the density above; a no-op
-        // `1.0` off a one-bit world, so this resets cleanly on a switch AWAY).
         self.match_pipeline
             .set_dither_cell(wagtail_stipple_cell_px(self.dpi));
-        // SYNTAX WASHES: re-tint from THE role style provider so the theme
-        // picker's instant color preview recolors the bands for free (wash
-        // GEOMETRY depends only on the text, so no reshape is needed).
         self.wash_comment_pipeline
             .set_color(wash_rgba_bytes(crate::syntax::SynKind::Comment));
         self.wash_string_pipeline
             .set_color(wash_rgba_bytes(crate::syntax::SynKind::Str));
-        // MARKDOWN `==highlight==` wash: re-tint from its OWN violet derivation
-        // (the light/dark params flip with the world's mode) — pure white +
-        // dither density on a one-bit world, same reset reasoning as above.
         self.wash_highlight_pipeline
             .set_color(highlight_wash_rgba_bytes());
         self.wash_highlight_pipeline
@@ -85,27 +71,17 @@ impl TextPipeline {
         // preview re-tints for free.
         self.image_scrim_pipeline
             .set_color(theme::image_reveal_scrim().rgba_bytes());
-        // WYSIWYG table header separator re-tints from `muted`.
         self.table_rule_pipeline
             .set_color(theme::muted().rgba_bytes());
         self.panel_card
             .set_color(theme::pane_surface(effective_card_elevation()).rgba_bytes());
-        // Centered-overlay elevation companions: same shadow/border tokens as
-        // every other summoned card (re-tinted for free on a theme-picker preview).
         self.panel_shadow.set_color(float_shadow_srgba());
         self.panel_border
             .set_color(theme::surface_selected().rgba_bytes());
-        // The frosted blur backdrop re-reads `base_100` for its dim each `prepare`
-        // (via `blur.ensure`), so no color is cached here — and the held HUD now recedes
-        // the doc behind that same frost, so there is no grey scrim to re-tint.
-        // Held HUD elevation re-tints with the world (same float-panel tokens as which-key:
-        // shadow ink, raised surface-step border, base_300 card).
         self.hud_shadow.set_color(float_shadow_srgba());
         self.hud_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.hud_card.set_color(theme::base_300().rgba_bytes());
-        // WHICH-KEY panel elevation re-tints with the world (same tokens as the
-        // shared float panel: shadow ink, raised surface-step border, base_300 card).
         self.wk_shadow.set_color(float_shadow_srgba());
         self.wk_border
             .set_color(theme::surface_selected().rgba_bytes());
@@ -116,10 +92,6 @@ impl TextPipeline {
         // below, alongside the caret-preview panel / spell popup / search panel
         // that already ride them) — no dedicated popover elevation tokens anymore.
         self.popover_wash.set_color(theme::base_200().rgba_bytes());
-        // SELF-DEMONSTRATING buttons: `A`'s pill re-tints from the doc highlight
-        // wash's own derivation (+ the one-bit dither density — a switch AWAY
-        // from a one-bit world must reset it, mirroring `wash_highlight_pipeline`);
-        // `S`'s line from THE strike ink.
         self.popover_hl_wash.set_color(highlight_wash_rgba_bytes());
         self.popover_hl_wash.set_dither(wagtail_dither_density());
         self.popover_hl_wash
@@ -133,12 +105,6 @@ impl TextPipeline {
         // amber — figure/ground by value only (DESIGN §3/§4). The title/item text ink
         // (faint / muted / content) is re-read live at prepare time.
         self.menubar_bg.set_color(theme::base_200().rgba_bytes());
-        // The open title's highlight band color tracks the world here so a live
-        // theme switch reskins it even between menu opens; `prepare_menubar`
-        // OVERRIDES it per-frame from `highlight_treatment` — a true 1-bit world
-        // fills the band with solid `base_content` and recolors the open title's
-        // glyphs to `base_300` (see `HighlightTreatment::InverseFill`), never the
-        // old framebuffer invert of the title text.
         self.menubar_hi.set_color(theme::selection().rgba_bytes());
         self.menu_drop_shadow.set_color(float_shadow_srgba());
         self.menu_drop_border
@@ -155,55 +121,28 @@ impl TextPipeline {
         self.float_border
             .set_color(theme::surface_selected().rgba_bytes());
         self.float_card.set_color(theme::base_300().rgba_bytes());
-        // DIFF-AS-PREVIEW panel: shadow/card re-tint here; the BORDER color is
-        // re-decided every `prepare_diff_panel` (it carries the focus cue).
         self.diffpanel_shadow.set_color(float_shadow_srgba());
         self.diffpanel_card
             .set_color(theme::base_300().rgba_bytes());
         self.overlay_rows.set_color(theme::selection().rgba_bytes());
-        // PER-ITEM LIST SURFACES: the bar surfaces re-tint to the new world's
-        // quiet value step (their real per-frame color is set at draw time from the
-        // effective bar tokens; this keeps a parked pipeline coherent on a switch).
         self.overlay_bars
             .set_color(theme::surface_selected().rgba_bytes());
-        // ARM B LIVING-BAND PROBE — keep the two-shape crossing quad coherent on a
-        // world switch (its real per-frame color is re-read at draw time). Parked
-        // empty on every ordinary run, so this is inert there.
         self.overlay_cross
             .set_color(theme::overlay_band_overlap().rgba_bytes());
-        // ITEM 94 — keep the range rail's two ink rungs coherent on a world switch
-        // (their real per-frame colour is re-read at draw time, where the
-        // selected-row contrast flip is resolved). Parked empty off Settings.
         self.overlay_range_track
             .set_color(theme::faint().rgba_bytes());
         self.overlay_range_thumb
             .set_color(theme::muted().rgba_bytes());
-        // The theme picker's active-lens underline re-tints to the new world's ink (it
-        // is drawn while the picker is up AND the world previews live, so the hairline
-        // tracks the previewed world's ink).
         self.overlay_lens_underline
             .set_color(theme::base_content().rgba_bytes());
         self.spell_pipeline.set_color(theme::error().rgba_bytes());
-        // Re-tint the WRITING-NIT underline to the new world's MUTED ink.
         self.nit_pipeline.set_color(nit_underline_srgba());
-        // Re-tint the `~~strikethrough~~` line from THE strike-ink owner (the
-        // struck text's own muted transform re-reads the theme each reshape).
         self.strike_pipeline.set_color(strike_srgba_bytes());
-        // Re-tint the quiet link UNDERLINE from its own ink owner (the same
-        // muted rung as the strike, decoupled instance).
         self.link_underline_pipeline
             .set_color(link_underline_srgba_bytes());
-        // Re-tint the PAGE-MODE margin ground to the new world's tokens.
         self.background_pipeline.set_gradient(background_desc());
-        // THE PAGE FRAME: re-tint from the one ink owner (`base_content`).
-        // Geometry is re-prepared each frame (`prepare_page_frame`), so a
-        // world switch re-tints AND re-gates (a None world uploads zero
-        // rects) for free. The dither density stays the construction-time
-        // 1.0 (a hard-edged full fill — never a translucent AA rim).
         self.page_frame_pipeline
             .set_color(theme::page_frame_ink().rgba_bytes());
-        // THE STIPPLE PLACARD: re-tint the pixel ink + re-derive the density
-        // from the new world's own ladder (both one-owner derivations).
         self.placard_stipple
             .set_color(theme::placard_ink(theme::PlacardInk::Stipple).rgba_bytes());
         self.placard_stipple
@@ -344,8 +283,6 @@ impl TextPipeline {
         // metrics fold in the display DPI (`self.dpi`, set by `set_dpi`) on top of
         // the user zoom, so the live page scales correctly on a HiDPI screen.
         let new_metrics = Metrics::with_dpi(view.zoom, self.dpi);
-        // Re-shape on ANY pixel-metric change (zoom OR dpi); compare a metric that
-        // carries both rather than the (zoom-only) `zoom` field.
         let zoom_changed = (new_metrics.font_size - self.metrics.font_size).abs() > f32::EPSILON;
         self.metrics = new_metrics;
         if zoom_changed {
@@ -364,24 +301,11 @@ impl TextPipeline {
             // total-visual-row count is stale after a zoom change.
             self.row_geom.invalidate();
         }
-        // MORPH caret: before the cursor advances, capture the CacheKey of the
-        // glyph the caret is LEAVING so the silhouette can cross-fade from it to
-        // the newly-inhabited glyph during the glide. Read through the ONE
-        // inhabited-key seam (`caret_inhabited_key` — the caret's ANCHOR column,
-        // for Morph one char BACK of the insertion point; Block/I-beam the cursor
-        // column; `None` at a Morph LINE START, where the caret was the thin
-        // insertion bar and inhabited NO glyph, so leaving col 0 fades in the new
-        // glyph from nothing rather than from the un-inhabited char ahead),
-        // derived with the STILL-LATCHED look and the OLD cursor, so from/to stay
-        // anchor-consistent across the move. Only latch on a real cursor move
-        // (not a same-position reshape); the buffer is still shaped in the OLD
-        // state here, so this reads the correct outgoing glyph.
         let cursor_moved =
             view.cursor_line != self.cursor_line || view.cursor_col != self.cursor_col;
         let from_key = if cursor_moved {
             self.caret_inhabited_key()
         } else {
-            // No move: keep the prior from-key so an in-flight glide keeps fading.
             self.caret_from_key
         };
         self.cursor_line = view.cursor_line;
@@ -401,41 +325,17 @@ impl TextPipeline {
             crate::caret::mode()
         };
         self.sync_view_fields(view);
-        // MARKDOWN STYLING gate: copy the buffer's markdown-ness BEFORE shaping so
-        // the per-line span pass sees it. A flip (switching between a `.md` and a
-        // non-md buffer with — unusually — the SAME text) must force a reshape, as
-        // the composed-string compare would otherwise skip restyling.
         let md_changed = self.md_enabled != view.is_markdown;
         self.md_enabled = view.is_markdown;
-        // SYNTAX HIGHLIGHTING gate: copy the buffer's language BEFORE shaping so the
-        // per-line span pass sees it. A flip (switching to/from a code language on
-        // the same text) must force a reshape + restyle, since the composed-string
-        // compare and the incremental line diff would otherwise skip restyling.
         let syn_changed = self.syn_lang != view.syn_lang;
         self.syn_lang = view.syn_lang;
-        // WYSIWYG / INLINE-IMAGES gate: these two rendering globals bake into each
-        // line's attrs (conceal zero-width metrics / image row heights) at shape
-        // time, so a live flip on UNCHANGED text (a settings-menu toggle) must force
-        // a reshape + restyle the incremental diff can't catch — the same shape as
-        // `md_changed` / `syn_changed`. Latched here so any producer of the flip
-        // (settings menu, a future command, a config reload) applies on the next frame.
         let wysiwyg_changed = self.wysiwyg_latched != crate::markdown::wysiwyg_on();
         self.wysiwyg_latched = crate::markdown::wysiwyg_on();
         let inline_images_changed =
             self.inline_images_latched != crate::markdown::inline_images_on();
         self.inline_images_latched = crate::markdown::inline_images_on();
-        // INLINE-IMAGE DRAG-RESIZE (live only): a live-preview width override was
-        // just (un)set on UNCHANGED text — force the reshape that re-runs
-        // `compute_image_layout` so the dragged image re-fits at the new width. Taken
-        // here (one-shot) exactly like the wysiwyg/inline-images force latches.
         let image_preview_dirty = std::mem::take(&mut self.image_preview_dirty);
         let render_flag_changed = wysiwyg_changed || inline_images_changed || image_preview_dirty;
-        // i18n: the Han-ambiguity tiebreak ladder (config `cjk_priority`), read
-        // by the per-run render resolution ladder on the NEXT reshape — a
-        // live config change with no accompanying text edit applies on the
-        // document's next edit/reshape rather than forcing one immediately (a
-        // narrow, accepted scope trim; `doc_lang` itself is always current,
-        // since it is re-derived from the text on every reshape below).
         self.cjk_priority = view.cjk_priority.clone();
         // Shape the document text with any active preedit spliced in at the cursor.
         // This is the ONE place a reshape may happen; it is skipped when neither the
@@ -490,16 +390,9 @@ impl TextPipeline {
         // step behind the just-revealed/concealed row until some unrelated event
         // caught it up. Calling it here settles the geometry first.
         self.refresh_rule_conceal(reshaped || restyled);
-        // Update the spring target so a cursor move starts a glide (the first
-        // call snaps, per CaretAnim::set_target). Pass whether this move was an
-        // edit so typing slides as a plain block (no underline).
         self.set_caret_target(view.is_edit_move, view.held);
     }
 
-    /// Set the FILTERED document row the pointer is hovering (LIVE only — the app
-    /// derives it from the pointer; the headless capture never calls this, so hover
-    /// stays `None` there). Returns whether it CHANGED, so the caller can schedule a
-    /// redraw only when a collapsed heading's chevron reveal actually flips.
     pub fn set_hover_line(&mut self, line: Option<usize>) -> bool {
         if self.hover_line == line {
             return false;
@@ -515,9 +408,6 @@ impl TextPipeline {
         self.scroll = view.scroll;
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
-        // COLLAPSED-HEADING TAILS: mirror the fold-tail rows so the ornament pass can
-        // hang each "… N lines" glyph (+ caret/hover chevron). `hover_line` is a
-        // pointer fact set separately (live only), NOT carried on the view.
         self.fold_tails = view.fold_tails.clone();
         self.preedit = view.preedit.clone();
         // Mirror the spell list ONLY when it actually changed (a rescan landing),
@@ -537,9 +427,6 @@ impl TextPipeline {
         self.search_editing_replacement = view.search_editing_replacement;
         self.search_query_caret = view.search_query_caret;
         self.search_replacement_caret = view.search_replacement_caret;
-        // FORMAT POPOVER: mirror the model (built by the App / capture probe); the
-        // geometry is (re)computed in `prepare_popover`, which also parks the quads
-        // when this is `None`.
         self.popover_model = view.popover.clone();
         // A summoned overlay appears + disappears INSTANTLY (no rise-in / sink-out
         // motion) on every CALM world: the overlay content syncs verbatim from the
@@ -556,9 +443,6 @@ impl TextPipeline {
         let overlay_opened = view.overlay_active && !self.overlay_active;
         let overlay_closed = !view.overlay_active && self.overlay_active;
         self.overlay_active = view.overlay_active;
-        // ITEM 45 — the alignment FROZEN at summon rides through verbatim (`Some`
-        // while open, `None` closed): the render-path anchor readers resolve it via
-        // `resolve_overlay_anchor`, so an open card never relocates on a preview cross.
         self.overlay_align = view.overlay_align;
         if overlay_opened
             && self.juice_live
@@ -592,10 +476,6 @@ impl TextPipeline {
         self.overlay_spell = view.overlay_spell;
         self.diff_panel = view.diff_panel;
         self.diff_panel_focus = view.diff_panel_focus;
-        // Measure the widest suggestion NOW (a `&mut FontSystem` is in hand) so the
-        // contextual spell panel can size its card to the longest correction, not the
-        // anchor word. Cheap + gated: only shaped when the SPELL panel is the open
-        // overlay; otherwise the cached width is cleared to 0.
         self.overlay_spell_w = if self.overlay_spell.is_some() {
             self.measure_spell_content_w()
         } else {
@@ -613,47 +493,26 @@ impl TextPipeline {
         if self.overlay_active && self.overlay_spell.is_none() && self.overlay_right_anchored() {
             self.overlay_content_w = self.measure_overlay_content_w();
         }
-        // CARET-STYLE PICKER preview: mirror which look the picker highlights (None
-        // when it is closed). Keep the preview animator's look in step with it so the
-        // SAME loop animates in whatever style the highlighted row selects; the loop
-        // itself is driven by `advance` (live) / settled by `prepare` (headless).
         self.caret_preview = view.caret_preview;
         match view.caret_preview {
             Some(look) => self.caret_demo.mode = look,
-            // Picker closed: reset the demo so a fresh summon re-types the line from
-            // beat 0 (and nothing animates while closed — back to perfect idle).
             None => self.caret_demo.reset(),
         }
         self.gutter_name = view.gutter_name.clone();
         self.gutter_project = view.gutter_project.clone();
         self.notice = view.notice.clone();
-        // LINE ENDINGS: mirror the buffer's on-disk ending (a pure fact, no reshape
-        // needed) so the held stats HUD + sidecar report the active buffer's EOL.
         self.eol = view.eol;
     }
 
-    /// Set the display DPI `scale_factor` (live app only; the capture leaves it at
-    /// 1.0). Folds the new scale into the metrics on top of the current user zoom
-    /// and re-shapes the document at the rescaled column width, so the page keeps its
-    /// proportions (≈10% margin, capped column, larger glyphs) on a HiDPI monitor and
-    /// across a monitor change. A no-op when the scale is unchanged. See
-    /// [`Metrics::with_dpi`]; the per-frame `set_view` reads `self.dpi` thereafter.
     pub fn set_dpi(&mut self, dpi: f32) {
         if (dpi - self.dpi).abs() < f32::EPSILON {
             return;
         }
         self.dpi = dpi;
-        // CHUNK round: the Wagtail highlight stipple's cell is PHYSICAL px, so a
-        // display-scale change must re-push it (the density/color don't move on
-        // a DPI change, so `sync_theme_colors` isn't otherwise called here) —
-        // else the stipple would keep the OLD monitor's block size after a
-        // monitor move. A no-op `1.0` off a one-bit world.
         let stipple_cell = wagtail_stipple_cell_px(dpi);
         self.match_pipeline.set_dither_cell(stipple_cell);
         self.wash_highlight_pipeline.set_dither_cell(stipple_cell);
         self.popover_hl_wash.set_dither_cell(stipple_cell);
-        // Rebuild the metrics from the SAME user zoom (already clamped in the stored
-        // metrics) with the new scale, then re-shape exactly like a zoom change.
         self.metrics = Metrics::with_dpi(self.metrics.zoom, dpi);
         self.buffer
             .set_metrics(&mut self.font_system, self.metrics.glyph_metrics());
@@ -662,8 +521,6 @@ impl TextPipeline {
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
         self.row_geom.invalidate();
-        // Heading rows carry absolute per-span metrics; a DPI change must rebuild
-        // them to rescale (same reason as the zoom path in `set_view`).
         if self.has_heading_lines() {
             self.restyle_all_lines();
         }
@@ -712,19 +569,6 @@ impl TextPipeline {
         if changed(before.0, Some(wrap_w)) || changed(before.1, Some(shape_h)) {
             self.row_geom.invalidate();
         }
-        // TABLES: `set_size` just re-wrapped the document buffer to the new
-        // width DIRECTLY (above), so by the time `prepare()`'s own
-        // `sync_wrap_width` runs, `buffer.size().0` already equals
-        // `text_wrap_width()` — its own drift check is false, and its
-        // table-resync companion (`resync_table_layout_for_width`) never
-        // fires. Without this, a real window resize (this is the ONLY seam
-        // `WindowEvent::Resized` drives — a page-measure edit goes through
-        // `sync_wrap_width` alone and is already covered) leaves
-        // `TableGridCache` pinned to whatever width the last full `set_text`
-        // reshape used, so a shrunk window keeps drawing the OLD (too-wide)
-        // column geometry — the real user-reported overflow. Gated on the
-        // SAME `changed(...)` width check above: a height-only resize (or no
-        // real change at all) never re-shapes tables it doesn't need to.
         if changed(before.0, Some(wrap_w)) {
             self.resync_table_layout_for_width();
         }

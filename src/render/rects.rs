@@ -15,22 +15,8 @@ pub(super) struct OrnamentCache {
     version: std::cell::Cell<Option<u64>>,
     rule_lines: std::cell::RefCell<Vec<usize>>,
     bullet_lines: std::cell::RefCell<Vec<usize>>,
-    /// Each GFM table's `(header logical-line index, byte range)`, derived from the
-    /// [`crate::markdown::ConcealKind::Table`] conceal spans in the same reshape scan.
-    /// `prepare_table_grid` walks this (visible tables only) to place the pixel grid;
-    /// the header line + range give it the row→doc-line mapping and the reveal test.
     table_blocks: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
-    /// The FIRST logical-line index of each contiguous BLOCKQUOTE block (a maximal
-    /// run of lines carrying a [`crate::markdown::ConcealKind::Blockquote`] marker
-    /// span). One entry per block — the line the margin-hung pull-quote mark is
-    /// placed at (see [`TextPipeline::quote_marks`]). Empty for a non-markdown /
-    /// quote-less buffer.
     quote_blocks: std::cell::RefCell<Vec<usize>>,
-    /// Each fenced code block's `(opening-fence line, recognized language)` — ONLY
-    /// for a block whose info string named a language [`crate::markdown::
-    /// fence_line_lang`] recognizes (the SAME gate `CodeSyntax` highlighting uses),
-    /// so a plain / unknown-lang fence contributes nothing. Drives the quiet
-    /// per-fence LANGUAGE LABEL (see [`TextPipeline::fence_lang_marks`]).
     fence_lang_blocks: std::cell::RefCell<Vec<(usize, crate::syntax::Lang)>>,
 }
 
@@ -150,11 +136,6 @@ impl WashCache {
     }
 }
 
-/// One cached FULL-WIDTH row band: an absolute-row-relative top/height, spanning
-/// the whole TEXT COLUMN rather than one span's x-extent (unlike
-/// [`UnderlineProto`]) — the geometry the fenced-code PANEL background needs, one
-/// per VISUAL row of a fenced block (fence lines AND body). See
-/// [`FencePanelCache`].
 struct RowBandProto {
     line_top: f32,
     line_height: f32,
@@ -183,11 +164,6 @@ impl FencePanelCache {
     }
 }
 
-/// Vertical merge tolerance (px) for [`merge_row_bands`] — two quads whose
-/// top/bottom sit within this of each other are treated as touching (guards
-/// against float accumulation over many rows, never enough to bridge a real
-/// gap: even at the smallest heading-scale row height this is far under one
-/// pixel of visual slack).
 const ROW_MERGE_EPS: f32 = 0.5;
 
 /// Merge vertically-CONTIGUOUS quads (already built for THIS frame, in any
@@ -243,10 +219,6 @@ pub(super) fn merge_row_bands(mut bands: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
 }
 
 impl TextPipeline {
-    /// Rebuild the cached rule-line + bullet-line index lists IF the document has
-    /// reshaped since they were last built (keyed by `reshape_count`). ONE scan over
-    /// the lines + md_spans, amortised across every frame that reads the same shaped
-    /// text — the scan the per-frame `rule_lines` / `bullet_marks` used to do afresh.
     fn ensure_ornament_lists(&self) {
         if self.ornament_cache.version.get() == Some(self.reshape_count) {
             return;
@@ -261,11 +233,6 @@ impl TextPipeline {
         for (li, line) in self.buffer.lines.iter().enumerate() {
             let text = line.text();
             let end = start + text.len();
-            // FENCE LANGUAGE: this line OPENS a fenced code block when a
-            // `ConcealMarkup(Fence)` span's own START byte falls on it — re-derive
-            // the label straight from the RAW line text (mirrors `break_kind`'s
-            // post-hoc glyph pick for `Rule`: md_spans only marks WHERE the fence
-            // lives, never which label the render shows).
             if !self.md_spans.is_empty() {
                 for (r, k) in &self.md_spans {
                     if *k
@@ -280,10 +247,6 @@ impl TextPipeline {
                     }
                 }
             }
-            // BLOCKQUOTE blocks: a line "is a quote line" when a `Blockquote` marker
-            // conceal span overlaps its byte range. The FIRST line of each contiguous
-            // run (a run boundary = a quote line whose predecessor was not one) starts
-            // a block — where the margin-hung pull-quote mark is placed.
             let is_quote = !self.md_spans.is_empty()
                 && self.md_spans.iter().any(|(r, k)| {
                     *k == crate::markdown::MdKind::ConcealMarkup(
@@ -295,9 +258,6 @@ impl TextPipeline {
                 quotes.push(li);
             }
             prev_quote = is_quote;
-            // A GFM table's whole-block conceal span STARTS on this line (tables
-            // begin at a line boundary): record its header line + byte range for
-            // `prepare_table_grid`. One entry per table.
             if !self.md_spans.is_empty() {
                 for (r, k) in &self.md_spans {
                     if *k
@@ -320,9 +280,6 @@ impl TextPipeline {
             {
                 rules.push(li);
             }
-            // An unordered-list line (same `list_item` gate the old `bullet_marks`
-            // used); ordered items keep their number and get no glyph, so they are
-            // excluded here.
             if crate::markdown::list_item(text).is_some_and(|it| !it.ordered) {
                 bullets.push(li);
             }
@@ -347,14 +304,6 @@ impl TextPipeline {
                 .line_first_top(&self.buffer, &self.metrics, line)
     }
 
-    /// Buffer-relative -> absolute: the REAL shaped BASELINE y of logical `line`'s
-    /// first visual row (`doc_top() + row_geom.line_first_baseline(...)`), read
-    /// straight off cosmic-text's own `LayoutRun::line_y` rather than approximated
-    /// from the row's metrics. The item 65 fold-affordance baseline-alignment fix's
-    /// placement source: [`Self::fold_tail_marks`] / [`Self::fold_chevron_marks`]
-    /// hang their small glyphs' OWN baseline exactly here, instead of merely
-    /// centering the glyph in the heading's tall (grown) row box — which used to
-    /// read as the tail "floating" above the heading's ink on a big heading.
     pub(super) fn line_ornament_baseline(&self, line: usize) -> f32 {
         self.doc_top()
             + self
@@ -362,10 +311,6 @@ impl TextPipeline {
                 .line_first_baseline(&self.buffer, &self.metrics, line)
     }
 
-    /// Each GFM table's `(header logical-line, byte range)` (cached per reshape via
-    /// [`Self::ensure_ornament_lists`]). Read by `prepare_table_grid`, which culls
-    /// off-screen tables and measures/places the on-screen ones. Empty for a
-    /// non-markdown / table-less buffer.
     pub(super) fn table_blocks(&self) -> Vec<(usize, std::ops::Range<usize>)> {
         if self.md_spans.is_empty() {
             return Vec::new();
@@ -400,14 +345,6 @@ impl TextPipeline {
         self.row_box_visible(self.line_ornament_top(line), 0.0)
     }
 
-    /// Logical line indices that carry a Markdown `Rule` span (a thematic break)
-    /// AND should render the centered `hr_ornament` fleuron — i.e. every hr line the
-    /// caret is NOT on. Driven by the parsed `md_spans` — NOT a bare line scan — so a
-    /// setext `---` heading underline is correctly NOT a rule. REVEAL-ON-CURSOR: the
-    /// hr line the caret sits on is EXCLUDED here (its raw `---` reveal for editing
-    /// and the fleuron yields to them), exactly the line [`build_line_attrs`] leaves
-    /// un-concealed — so the dash-conceal and the fleuron toggle stay in lockstep.
-    /// Empty for a non-markdown buffer.
     pub(super) fn rule_lines(&self) -> Vec<usize> {
         if self.md_spans.is_empty() {
             return Vec::new();
@@ -426,12 +363,6 @@ impl TextPipeline {
             .collect()
     }
 
-    /// True when buffer line `li`'s markdown horizontal-rule `---` glyphs are CONCEALED
-    /// (rendered with transparent ink) in the currently-laid attrs — the reveal-on-
-    /// cursor state for an hr the caret is NOT on. Reads the laid color at the line's
-    /// first byte: `false` for a non-rule line, an out-of-range index, or when the
-    /// caret is on the line (the dashes reveal). Used by the tests to assert the
-    /// conceal/reveal toggle without eyeballing pixels.
     #[cfg(test)]
     pub(super) fn rule_line_concealed(&self, li: usize) -> bool {
         let Some(line) = self.buffer.lines.get(li) else {
@@ -443,14 +374,6 @@ impl TextPipeline {
         matches!(line.attrs_list().get_span(0).color_opt, Some(c) if c.a() == 0)
     }
 
-    /// The centered ornament for each markdown thematic-break line the caret is NOT
-    /// on: its first visual row's absolute top-y (current scroll + zoom) paired with
-    /// the GLYPH to draw there — chosen PER SYNTAX from the active world's
-    /// [`theme::Ornaments`] set by which break the author typed (`---` → dash, `***`
-    /// → star, `___` → underscore; see [`crate::markdown::break_kind`]). One entry
-    /// per [`Self::rule_lines`]; the dim raw glyphs stay underneath (present +
-    /// editable). Empty for a non-markdown buffer. Off-screen rows still produce
-    /// geometry (cheap — awl docs are small).
     pub(super) fn rule_marks(&self) -> Vec<(f32, char)> {
         let lines = self.rule_lines();
         if lines.is_empty() {
@@ -460,8 +383,6 @@ impl TextPipeline {
         lines
             .into_iter()
             .map(|li| {
-                // Top from the cached first-row-top table (== `doc_top() +
-                // visual_rows(li)[0].line_top`), NOT a fresh whole-doc `visual_rows`.
                 let top = self.line_ornament_top(li);
                 let kind = crate::markdown::break_kind(self.buffer.lines[li].text());
                 (top, orn.pick(kind))
@@ -469,25 +390,11 @@ impl TextPipeline {
             .collect()
     }
 
-    /// The absolute top-y of each markdown thematic-break line's ornament — the
-    /// tops half of [`Self::rule_marks`]. Kept as its own accessor for the geometry
-    /// tests (which assert placement independent of which ornament renders).
     #[cfg(test)]
     pub(super) fn rule_tops(&self) -> Vec<f32> {
         self.rule_marks().into_iter().map(|(t, _)| t).collect()
     }
 
-    /// The depth-derived BULLET glyph for each UNORDERED markdown list line the caret
-    /// is NOT on: its first visual row's absolute top-y and the x of the marker cell
-    /// (so the glyph draws exactly where the raw `-` sits, which is concealed under it),
-    /// paired with the glyph — the ACTIVE WORLD's own [`crate::theme::Theme::bullets`]
-    /// pair cycled by nesting depth (every 2 leading spaces one level; see
-    /// [`crate::theme::Theme::bullet_for_depth`]). REVEAL-ON-CURSOR:
-    /// the caret's own list line is EXCLUDED (its raw marker reveals for editing),
-    /// exactly the line [`build_line_attrs`] leaves un-concealed — so the dash-conceal
-    /// and the glyph toggle stay in lockstep. Ordered (`1.`) items keep their number
-    /// (no glyph). Empty for a non-markdown buffer. Off-screen rows still produce
-    /// geometry (cheap — awl docs are small).
     pub(super) fn bullet_marks(&self) -> Vec<(f32, f32, char)> {
         if !self.md_enabled {
             return Vec::new();
@@ -524,16 +431,11 @@ impl TextPipeline {
             }
             let glyph = crate::theme::active().bullet_for_depth(it.depth());
             let top = self.line_ornament_top(li);
-            // The marker char sits at char index == its leading-space count.
             if it.indent > 0 {
                 indented.insert(li);
             }
             items.push((li, top, it.indent, glyph));
         }
-        // ONE `layout_runs()` walk for the (rare) INDENTED bullet lines — each row
-        // carries the WHOLE logical line's `xs`, so row 0's `xs[indent]` is
-        // byte-identical to the retired `line_glyph_xs(li)[indent]` (the marker is
-        // always on the first visual row). Empty set => no walk at all.
         let rows_by_line = if indented.is_empty() {
             std::collections::HashMap::new()
         } else {
@@ -555,17 +457,6 @@ impl TextPipeline {
         out
     }
 
-    /// The absolute top-y of each contiguous BLOCKQUOTE block's first line — where the
-    /// margin-hung DIM pull-quote mark is drawn (its x is decided in
-    /// [`Self::prepare_ornaments`] after the glyph is measured, so it hugs the writing
-    /// column's left edge). ONE entry per block (via the reshape-cached
-    /// [`OrnamentCache::quote_blocks`]), NOT per line, and NOT reveal-on-cursor: the
-    /// mark is the block's persistent margin affordance (like a fence panel), present
-    /// even when the caret sits in the block. Off-screen blocks are culled (clipped to
-    /// nothing anyway). EMPTY unless page mode + WYSIWYG + a markdown buffer: the mark
-    /// hangs in the LEFT MARGIN, which exists only in page mode; edge-to-edge falls
-    /// back to the concealed marker alone (documented non-page treatment). So a
-    /// non-page / WYSIWYG-off / non-markdown capture draws no mark (byte-identical).
     pub(super) fn quote_marks(&self) -> Vec<f32> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || !crate::page::page_on() {
             return Vec::new();
@@ -594,15 +485,6 @@ impl TextPipeline {
         self.ornament_cache.quote_blocks.borrow().clone()
     }
 
-    /// The quiet per-fence LANGUAGE LABEL's `(top-y, language)` for every VISIBLE
-    /// fenced code block whose info string named a language [`crate::markdown::
-    /// fence_line_lang`] recognizes (the SAME gate the fence's own `CodeSyntax`
-    /// highlighting uses) — an unknown-lang / no-lang fence contributes nothing, so
-    /// it draws no label (DATA-driven off the parsed info string, never a second
-    /// per-fence flag). `top` is the opening fence LINE's own row top (the label
-    /// rides the same row as the ` ``` ` marker text). Off-screen blocks are culled.
-    /// Empty for a non-markdown / fence-less buffer, keeping those renders
-    /// byte-identical.
     pub(super) fn fence_lang_marks(&self) -> Vec<(f32, crate::syntax::Lang)> {
         if !self.md_enabled || self.md_spans.is_empty() {
             return Vec::new();
@@ -650,23 +532,12 @@ impl TextPipeline {
         self.text_left() + end
     }
 
-    /// The DESIRED (unclamped) tail placement — [`Self::fold_affordance_row_end_x`]
-    /// plus a small breath, item 65's original spacing. This is the tail's
-    /// preferred left; item 73's clamp (`layers.rs`'s `prepare_ornaments`, the only
-    /// place the tail's own SHAPED width is known) pulls it no further left than
-    /// [`Self::fold_affordance_row_end_x`] itself when the preferred spot would
-    /// bleed the tail's ink past the writing column's right edge.
     fn fold_affordance_base_x(&self, line: usize) -> f32 {
         self.fold_affordance_row_end_x(line) + self.metrics.char_width * 0.6
     }
 
-    /// The GAP (px) between the writing column's own text origin and a left-hung
-    /// fold chevron's right edge — the same small breath [`Self::quote_marks`]' own
-    /// drop-cap hang uses (`layers.rs`'s `quote_left`).
     const FOLD_CHEVRON_GAP_CHARS: f32 = 0.3;
 
-    /// The RESERVED width (px, in char-width units) of the fold chevron's own glyph
-    /// box — generous for one small "›" so it never feels clipped.
     const FOLD_CHEVRON_WIDTH_CHARS: f32 = 1.0;
 
     /// Is there room in the writing column's OWN leading pad (`[column_left,
@@ -697,19 +568,6 @@ impl TextPipeline {
         super::geometry::pull_quote_left(self.column_left(), self.text_left(), gap, w)
     }
 
-    /// The quiet "… N lines" TAIL for every VISIBLE collapsed heading:
-    /// `(baseline-y, left-x, N hidden, filtered line)`. One entry per
-    /// [`ViewState::fold_tails`] row that is on-screen. The tail rides the heading's
-    /// EXISTING row (an ornament, never a shaped line), so it adds no row and cannot
-    /// disturb the zero-height hidden-row law. `left` sits to the RIGHT of the
-    /// heading text (unaffected by the item 65 chevron move — it now lives in the
-    /// LEFT margin, see [`Self::fold_chevron_marks`], so the tail no longer reserves
-    /// a slot for it). The `f32` in slot 0 is the heading's REAL shaped BASELINE
-    /// ([`Self::line_ornament_baseline`]), NOT its row top — the draw pass
-    /// (`layers.rs`) subtracts its OWN shaped small-glyph `line_y` from this to hang
-    /// the tail's baseline exactly on the heading's, rather than merely centering
-    /// the glyph in the heading's tall grown row (the item 65 "floating tail" taste
-    /// correction). Empty unless folded.
     pub(super) fn fold_tail_marks(&self) -> Vec<(f32, f32, usize, usize)> {
         if self.fold_tails.is_empty() {
             return Vec::new();
@@ -728,32 +586,6 @@ impl TextPipeline {
             .collect()
     }
 
-    /// The fold CHEVRON for every heading whose chevron is REVEALED (caret on the
-    /// heading OR pointer hovering it — [`crate::fold::chevron_revealed`]) —
-    /// **item 81: EVERY visible heading, expanded or collapsed**, not merely a
-    /// collapsed one's tail (the item-47b/65 original scope). `(baseline-y, left-x,
-    /// filtered line)`. Reads [`Self::outline_headings`] rather than `fold_tails`: the
-    /// persistent-margin-outline list is already distilled from the shaped
-    /// fold-FILTERED text (so its `.line`s are already in the same filtered space
-    /// `fold_tails` reports in — see that field's own doc), and a collapsed heading's
-    /// own line is a MEMBER of that list too (its row is never hidden — only its body
-    /// is) — so this is a strict widening of the item-65 set, not a parallel one; a
-    /// heading buried inside a folded ancestor is structurally absent from both alike.
-    /// **item 65 taste correction (placement, unchanged by item 81):** the chevron
-    /// hangs IMMEDIATELY LEFT of the heading, in the writing column's own leading pad
-    /// — OUTSIDE the editable text advance entirely (never part of the shaped
-    /// document glyph run, so it can never shift a heading glyph's x or overlap its
-    /// ink; [`Self::fold_chevron_left`]/[`Self::fold_chevron_has_room`] keep it clear
-    /// of both the heading text AND the persistent outline's own margin). Gracefully
-    /// EMPTY when the pad has no room (edge-to-edge / a very narrow custom page pad —
-    /// [`Self::fold_chevron_has_room`]): a collapsed heading's tail alone still shows
-    /// the "… N lines" count either way. Empty in a headless capture unless the caret
-    /// sits on a foldable heading (no pointer → no hover). One quiet marker, never
-    /// amber (DESIGN §3) — and, since item 81, ITS OWN click target in BOTH
-    /// directions ([`Self::fold_chevron_hit`], the SAME geometry, driving
-    /// [`crate::buffer::Buffer::toggle_fold_at_line`]); a collapsed heading keeps its
-    /// tail region too ([`crate::buffer::Buffer::fold_tail_hit`], expand-only,
-    /// unchanged).
     pub(super) fn fold_chevron_marks(&self) -> Vec<(f32, f32, usize)> {
         if self.outline_headings.is_empty() || !self.fold_chevron_has_room() {
             return Vec::new();
@@ -815,11 +647,6 @@ impl TextPipeline {
         self.bullet_marks().into_iter().map(|(_, _, c)| c).collect()
     }
 
-    /// True when buffer line `li`'s bullet marker `-`/`*`/`+` is CONCEALED (transparent
-    /// ink) in the currently-laid attrs — the reveal-on-cursor state for a bullet the
-    /// caret is NOT on. Reads the laid color at the marker's byte offset: `false` for a
-    /// non-list line, an ordered item, an out-of-range index, or the caret's own line
-    /// (the marker reveals). Mirrors [`Self::rule_line_concealed`] for the tests.
     #[cfg(test)]
     pub(super) fn bullet_marker_concealed(&self, li: usize) -> bool {
         let Some(line) = self.buffer.lines.get(li) else {
@@ -834,12 +661,6 @@ impl TextPipeline {
         matches!(line.attrs_list().get_span(it.indent).color_opt, Some(c) if c.a() == 0)
     }
 
-    /// True when buffer line `li`'s attrs carry TRANSPARENT ink at local byte
-    /// `local_byte` — the GENERIC WYSIWYG conceal-state reader (the same
-    /// transparent-ink test [`Self::rule_line_concealed`]/[`Self::bullet_marker_concealed`]
-    /// use, generalized to an arbitrary byte so a test can assert any
-    /// `ConcealKind`'s conceal/reveal state, not just the hr/bullet ones).
-    /// `false` for an out-of-range line/byte.
     #[cfg(test)]
     pub(super) fn concealed_at(&self, li: usize, local_byte: usize) -> bool {
         let Some(line) = self.buffer.lines.get(li) else {
@@ -862,13 +683,6 @@ impl TextPipeline {
         self.row_band_for(li, row.line_height, line_top)
     }
 
-    /// [`Self::row_caret_band`] from the row's bare `line_height` — the same math
-    /// for callers that carry the height without a full [`VisualRow`] (the cached
-    /// underline protos). One body so the two can never drift. The scale is
-    /// [`Self::caret_band_scale`] (line-aware: `1.0` on an image line so the band
-    /// stays body-height, the row's own scale on a heading), then centred in the
-    /// full `row_height` — so an image line's band centres in the tall row exactly
-    /// where the caret + caption sit.
     fn row_band_for(&self, li: usize, row_height: f32, line_top: f32) -> (f32, f32) {
         let m = &self.metrics;
         let row_caret_h = m.caret_h * self.caret_band_scale(li, row_height);
@@ -987,8 +801,6 @@ impl TextPipeline {
         rects
     }
 
-    /// DIFF-AS-PREVIEW: the line-shaped emit gate (strike / squiggle / nit rows).
-    /// A 1–2px line is DROPPED when any part leaves the band, never trimmed.
     fn band_admits(&self, y: f32, h: f32) -> bool {
         match self.doc_clip_band(self.window_h) {
             Some((top, bottom)) => y >= top && y + h <= bottom,
@@ -1010,24 +822,6 @@ impl TextPipeline {
     /// is 0.01), while any real glyph run clears it with room to spare.
     const IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE: f32 = 1.0;
 
-    /// Queue item 60: every inline link/image DESTINATION byte range in the
-    /// document, in ABSOLUTE document byte coordinates — "markdown
-    /// destinations are ADDRESSES, not prose." Shared by
-    /// [`Self::ensure_squiggle_protos`] (spell) and [`Self::ensure_nit_protos`]
-    /// (writing-nits) so the two candidate builders can never disagree on
-    /// where an address starts and ends, and — unlike
-    /// [`Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE`]'s near-zero-advance
-    /// guard (item 25, which only catches the OFF-cursor COLLAPSED case) —
-    /// this excludes the destination whether the source is visibly revealed
-    /// under the caret OR WYSIWYG-concealed off it, and covers ordinary
-    /// LINKS (never guarded before this item) as well as images. Reads the
-    /// SAME `md_spans` conceal ranges item 25's `line_is_inline_image` reads
-    /// ([`crate::markdown::destination_ranges`], THE one owner) — never a
-    /// second pulldown parse, never a second path/extension heuristic.
-    /// Reconstructs the shaped document text from `self.buffer`'s own lines
-    /// (byte-identical to what `md_spans` was parsed from, `parse_doc_spans`'s
-    /// `text` param) only when there IS markdown to scan (`md_spans` non-empty
-    /// guard), so a code/plain buffer pays nothing.
     fn destination_ranges(&self) -> Vec<std::ops::Range<usize>> {
         if self.md_spans.is_empty() {
             return Vec::new();
@@ -1042,22 +836,6 @@ impl TextPipeline {
         crate::markdown::destination_ranges(&doc_text, &self.md_spans)
     }
 
-    /// Queue item 72: true when nit `[.., end_col)` on OFF-cursor line `li` falls
-    /// FULLY inside an UNORDERED list marker's own prefix (indent + `-`/`*`/`+` +
-    /// its required space, [`crate::markdown::ListItem::content`]) — the exact
-    /// region [`Self::bullet_marks`] paints its depth-derived BULLET GLYPH over
-    /// (same `md_enabled` + `!it.ordered` gate, so this tracks the glyph in
-    /// lockstep). That prefix's raw text stays REAL, non-zero-width dim ink
-    /// (unlike the image-source conceal's zero-width trick guarded by
-    /// [`Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE`] — a list marker never
-    /// shrinks its advance), so an un-gated nit fully inside it — typically the
-    /// single REQUIRED trailing space of an EMPTY item's `"- "` — would draw its
-    /// muted tick with nothing visible above it: the row-bottom placement lands
-    /// right at the NEXT row's top, reading as a stray mark on the following
-    /// (often blank) line. Ordered items are untouched (`bullet_marks` never
-    /// conceals their number either). Callers already know `li != cursor_line`
-    /// (reveal-on-cursor excludes the caret's own line first), so a caret ON the
-    /// marker line — raw text genuinely visible, no bullet drawn — keeps its nit.
     fn nit_hidden_by_bullet_glyph(&self, li: usize, end_col: usize) -> bool {
         self.md_enabled
             && self
@@ -1068,21 +846,11 @@ impl TextPipeline {
                 .is_some_and(|it| !it.ordered && end_col <= it.content)
     }
 
-    /// Rebuild the cached spell-squiggle protos IF the shaped geometry or the
-    /// misspelling list changed since they were last built (keyed by the row-geometry
-    /// GENERATION + the spell list generation). ONE `layout_runs()` walk for ALL
-    /// misspelled lines (via [`Self::visual_rows_for_lines`]) — the per-span row
-    /// pick / column clamp / x reads are exactly the ones the per-frame builder
-    /// used to do, moved here and amortised across every frame that reads the same
-    /// shaped text + spell list.
     fn ensure_squiggle_protos(&self) {
         let key = (self.row_geom.generation(), self.spell_gen);
         if self.squiggle_cache.version.get() == Some(key) {
             return;
         }
-        // Item 60: link/image destination byte ranges, excluded from spell
-        // candidates outright (see `Self::destination_ranges`). Empty (and the
-        // per-span `line_starts` lookup skipped below) for a non-markdown buffer.
         let destination_ranges = self.destination_ranges();
         let mut line_starts: Vec<usize> = Vec::new();
         if !destination_ranges.is_empty() {
@@ -1097,9 +865,6 @@ impl TextPipeline {
         let rows_by_line = self.visual_rows_for_lines(&lines);
         let mut protos = Vec::with_capacity(self.misspelled.len());
         for sp in &self.misspelled {
-            // Item 60: a misspelling fully inside a link/image DESTINATION is
-            // never a candidate — addresses are not prose, in caret-ON and
-            // caret-OFF states alike.
             if let Some(&ls) = line_starts.get(sp.line) {
                 let text = self.buffer.lines[sp.line].text();
                 if crate::nits::span_in_prose_ranges(
@@ -1126,12 +891,8 @@ impl TextPipeline {
             if e <= s {
                 continue;
             }
-            // The two x boundaries `row_x_span` reads (same `.get` fallbacks).
             let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
             let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
-            // Item 25: drop a misspelling collapsed inside an OFF-cursor image
-            // source (concealed to ~0 width) so no stray red tick lands in the
-            // placeholder card. See `IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE`.
             if self.line_is_inline_image(sp.line)
                 && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE
             {
@@ -1151,14 +912,6 @@ impl TextPipeline {
         self.squiggle_cache.version.set(Some(key));
     }
 
-    /// REVEAL-ON-CURSOR (spell): true when `(line, start_col, end_col)` is the
-    /// word the CARET currently sits ON or is ADJACENT to — the exact adjacency
-    /// [`crate::spell::misspelling_at`] uses (the cursor col INCLUSIVE of both the
-    /// span's start and end, so a caret just after finishing a typo still counts).
-    /// A word that fails this check is unaffected — only the ONE word under active
-    /// editing yields; every other misspelling on the same line still squiggles
-    /// (unlike the nit whole-LINE suppression — a taste call: spelling mistakes on
-    /// a line you're not actively typing are still worth flagging).
     fn word_at_caret(&self, line: usize, start_col: usize, end_col: usize) -> bool {
         line == self.cursor_line && self.cursor_col >= start_col && self.cursor_col <= end_col
     }
@@ -1190,14 +943,7 @@ impl TextPipeline {
         let amp = SPELL_AMP * m.zoom;
         let period = SPELL_PERIOD * m.zoom;
         let thickness = SPELL_THICKNESS * m.zoom;
-        // PER-WORLD BASELINE DIAL (`Theme::render_caps.spell_underline_gap`,
-        // px at zoom 1.0): the gap between the glyph cell's bottom and the
-        // band's top. DATA, read fresh every frame like amp/period/thickness
-        // above (never cached into the protos, so no invalidation to manage;
-        // a theme switch already reshapes anyway) — `SPELL_UNDERLINE_GAP_DEFAULT`
-        // on every world except Bilby's tighter override.
         let gap = theme::active().render_caps.spell_underline_gap * m.zoom;
-        // The band must be tall enough to contain the wave crests + the stroke.
         let band_h = amp * 2.0 + thickness + 2.0;
         let protos = self.squiggle_cache.protos.borrow();
         let mut out = Vec::with_capacity(protos.len());
@@ -1209,15 +955,10 @@ impl TextPipeline {
             if !self.proto_visible(line_top, p.line_height) {
                 continue; // off-screen: the quad would be clipped to nothing
             }
-            // `row_x_span(row, text_left, s, e, 1.0)` on the cached boundaries.
             let x = text_left + p.xs_s;
             let w = (p.xs_e - p.xs_s).max(1.0);
-            // Sit the squiggle just below the glyph cell (a hair under the
-            // bottom of the caret-height box), centered vertically in its band.
             let (band_y, row_caret_h) = self.row_band_for(p.line, p.line_height, line_top);
             let cell_bottom = band_y + row_caret_h;
-            // Center the wave band a touch below the cell bottom, per the
-            // active world's baseline dial.
             let y = cell_bottom + gap;
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
@@ -1260,9 +1001,6 @@ impl TextPipeline {
         if self.nit_cache.version.get() == Some(key) {
             return;
         }
-        // Code buffer: the prose byte-ranges (Comment + Str) a nit span must fall
-        // FULLY inside. `None` for a non-code buffer => no scoping (every span
-        // eligible), matching spell's `lang == None` verbatim-scan branch.
         let prose_ranges: Option<Vec<std::ops::Range<usize>>> = self.syn_lang.map(|_| {
             use crate::syntax::SynKind;
             let mut ranges: Vec<std::ops::Range<usize>> = self
@@ -1274,23 +1012,13 @@ impl TextPipeline {
             ranges.sort_by_key(|r| r.start);
             ranges
         });
-        // A leading FRONTMATTER block is metadata, not manuscript — its `key:
-        // value` lines never nit (mirrors the word-count exclusion exactly).
         let fm_end = crate::markdown::frontmatter_end(&self.md_spans);
-        // GFM-table rows: the byte ranges of every table-markup span (pipes /
-        // separator / header cell). A line overlapping one is a table row, where the
-        // MULTIPLE-SPACES nit is suppressed (column alignment is intentional — the
-        // banked false positive). Empty for a non-table buffer, so nits stay
-        // byte-identical there.
         let table_ranges: Vec<std::ops::Range<usize>> = self
             .md_spans
             .iter()
             .filter(|(_, k)| k.is_table_markup())
             .map(|(r, _)| r.clone())
             .collect();
-        // Item 60: link/image destination byte ranges — a nit fully inside one
-        // is dropped outright, in caret-ON and caret-OFF states alike (see
-        // `Self::destination_ranges`). Empty for a non-markdown buffer.
         let destination_ranges = self.destination_ranges();
         let mut per_line: Vec<(usize, Vec<(usize, usize)>)> = Vec::new();
         let mut line_start = 0usize;
@@ -1341,13 +1069,8 @@ impl TextPipeline {
                 if e <= s {
                     continue;
                 }
-                // The two x boundaries `row_x_span` reads (same `.get` fallbacks).
                 let xs_s = row.xs.get(s).copied().unwrap_or(0.0);
                 let xs_e = row.xs.get(e).copied().unwrap_or(xs_s);
-                // Item 25: drop a nit collapsed inside an OFF-cursor image source
-                // (concealed to ~0 width) so no stray muted dash lands in the
-                // placeholder card. The `line_is_inline_image` gate keeps the
-                // deliberate faint trailing-whitespace tick on ORDINARY lines.
                 if self.line_is_inline_image(li)
                     && xs_e - xs_s < Self::IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE
                 {
@@ -1395,7 +1118,6 @@ impl TextPipeline {
         let doc_top = self.doc_top();
         let text_left = self.text_left();
         let thickness = NIT_THICKNESS * m.zoom;
-        // A flat band just tall enough for the stroke + antialiasing feather.
         let band_h = thickness + 2.0;
         let protos = self.nit_cache.protos.borrow();
         let mut out = Vec::with_capacity(protos.len());
@@ -1410,14 +1132,10 @@ impl TextPipeline {
             if !self.proto_visible(line_top, p.line_height) {
                 continue; // off-screen: the quad would be clipped to nothing
             }
-            // `row_x_span(row, text_left, s, e, 2.0 * zoom)` on the cached
-            // boundaries — the small min-width keeps a trailing-whitespace run
-            // whose spaces shape to zero advance showing a faint tick.
             let x = text_left + p.xs_s;
             let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
             let (band_y, row_caret_h) = self.row_band_for(p.line, p.line_height, line_top);
             let cell_bottom = band_y + row_caret_h;
-            // Sit the straight line a hair below the cell bottom (as the squiggle).
             let y = cell_bottom + 1.0 * m.zoom;
             if !self.band_admits(y, band_h) {
                 continue; // DIFF-AS-PREVIEW: the row scrolled past the card edge
@@ -1470,14 +1188,7 @@ impl TextPipeline {
             Str,
             Highlight,
             CodePill,
-            /// `~~strikethrough~~` content — the thin strike LINE's x-extents
-            /// (not a background wash; the band geometry is the one owner
-            /// `super::spans::strike_line_band`'s at read time).
             Strike,
-            /// A link's visible TEXT — the quiet UNDERLINE's x-extents (not a
-            /// background wash; the band geometry is `super::spans::
-            /// link_underline_band`'s at read time, the SAME line-band primitive
-            /// `Strike` rides).
             LinkUnderline,
         }
         // A GFM table renders as a drawn GRID (`prepare_table_grid`), which styles
@@ -1520,20 +1231,12 @@ impl TextPipeline {
                     SynKind::CommentCode | SynKind::Constant | SynKind::Definition => {}
                 },
                 crate::markdown::MdKind::Highlight => spans.push((r.clone(), Bucket::Highlight)),
-                // `~~struck~~` content: the strike LINE's x-extents. NOT
-                // WYSIWYG-gated — like the muted text transform itself, the line
-                // is content styling (present whether or not markers conceal).
                 crate::markdown::MdKind::Strikethrough => {
                     spans.push((r.clone(), Bucket::Strike));
                 }
-                // A link's visible TEXT: the quiet underline's x-extents. NOT
-                // WYSIWYG-gated (like `Strike` — content styling, present
-                // whether or not the `[]()`  plumbing conceals).
                 crate::markdown::MdKind::LinkText => {
                     spans.push((r.clone(), Bucket::LinkUnderline));
                 }
-                // INLINE code gets a small value-step pill — gated on WYSIWYG (off
-                // reproduces the pre-round render: no pill, no panel, no conceal).
                 crate::markdown::MdKind::Code { inline: true } if wysiwyg => {
                     spans.push((r.clone(), Bucket::CodePill));
                 }
@@ -1550,15 +1253,12 @@ impl TextPipeline {
             self.wash_cache.version.set(Some(key));
             return;
         }
-        // Line byte-offset table: ONE walk (the `ensure_ornament_lists` pattern).
         let mut line_starts: Vec<usize> = Vec::with_capacity(self.buffer.lines.len());
         let mut start = 0usize;
         for line in self.buffer.lines.iter() {
             line_starts.push(start);
             start += line.text().len() + 1; // +1 for the '\n'
         }
-        // Cut each span per logical line into CHAR-col segments.
-        // (line, start_col, end_col, bucket)
         let mut segs: Vec<(usize, usize, usize, Bucket)> = Vec::new();
         for (r, bucket) in &spans {
             let mut li = match line_starts.binary_search(&r.start) {
@@ -1572,8 +1272,6 @@ impl TextPipeline {
                 let lo = r.start.max(ls);
                 let hi = r.end.min(le);
                 if lo < hi {
-                    // Byte -> char col, boundary-defensive (counts chars strictly
-                    // before the byte, so a mid-char byte can never panic).
                     let char_col =
                         |b: usize| text.char_indices().take_while(|(bi, _)| *bi < b).count();
                     let s_col = char_col(lo - ls);
@@ -1585,8 +1283,6 @@ impl TextPipeline {
                 li += 1;
             }
         }
-        // One `layout_runs()` walk for ALL washed lines, then the exact
-        // `range_rects` per-visual-row clipping into protos.
         let lines: std::collections::BTreeSet<usize> = segs.iter().map(|(li, ..)| *li).collect();
         let rows_by_line = self.visual_rows_for_lines(&lines);
         let mut comment_protos = Vec::new();
@@ -1611,7 +1307,6 @@ impl TextPipeline {
                 if b <= a {
                     continue;
                 }
-                // The two x boundaries `row_x_span` reads (same `.get` fallbacks).
                 let xs_s = row.xs.get(a).copied().unwrap_or(0.0);
                 let xs_e = row.xs.get(b).copied().unwrap_or(xs_s);
                 let proto = UnderlineProto {
@@ -1775,7 +1470,6 @@ impl TextPipeline {
             }
             let x = text_left + p.xs_s;
             let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
-            // The row's caret-height glyph cell, then THE owner's band over it.
             let (band_y, cell_h) = self.row_band_for(p.line, p.line_height, line_top);
             let (y, band_h, stroke) = super::spans::strike_line_band(band_y, cell_h, m.zoom);
             if !self.band_admits(y, band_h) {
@@ -1828,7 +1522,6 @@ impl TextPipeline {
             }
             let x = text_left + p.xs_s;
             let w = (p.xs_e - p.xs_s).max(2.0 * m.zoom);
-            // The row's caret-height glyph cell, then THE owner's band over it.
             let (band_y, cell_h) = self.row_band_for(p.line, p.line_height, line_top);
             let (y, band_h, stroke) = super::spans::link_underline_band(band_y, cell_h, m.zoom);
             if !self.band_admits(y, band_h) {
@@ -1847,13 +1540,6 @@ impl TextPipeline {
         out
     }
 
-    /// Rebuild the cached FENCE-PANEL row bands IF the shaped geometry / text
-    /// changed since they were last built (keyed like [`WashCache`]). Source: every
-    /// `MdKind::ConcealMarkup(ConcealKind::Fence)` span in `md_spans` — one whole
-    /// fenced-block byte range — mapped to its LINE range, then to EVERY visual row
-    /// of every line in that range (fence lines AND body, unlike the marker-only
-    /// conceal) via the one-walk [`TextPipeline::visual_rows_for_lines`]. Empty
-    /// with WYSIWYG off, or for a fence-less buffer.
     fn ensure_fence_panel_protos(&self) {
         // The whole panel is WYSIWYG-gated, and `wysiwyg_on()` can flip WITHOUT a
         // reshape — so it rides the cache key or a stale panel would keep drawing
@@ -1880,14 +1566,12 @@ impl TextPipeline {
             self.fence_panel_cache.version.set(Some(key));
             return;
         }
-        // Line byte-offset table: ONE walk (the `ensure_wash_protos` pattern).
         let mut line_starts: Vec<usize> = Vec::with_capacity(self.buffer.lines.len());
         let mut start = 0usize;
         for line in self.buffer.lines.iter() {
             line_starts.push(start);
             start += line.text().len() + 1;
         }
-        // Every LINE index any fence range overlaps (marker lines AND body).
         let mut lines: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
         for r in &fence_ranges {
             let mut li = match line_starts.binary_search(&r.start) {
@@ -1916,18 +1600,6 @@ impl TextPipeline {
         self.fence_panel_cache.version.set(Some(key));
     }
 
-    /// Build the WYSIWYG fenced-code PANEL quads — `[x, y, w, h]` in pixels for
-    /// the current scroll + zoom — from the cached row bands (see
-    /// [`FencePanelCache`]). Each quad spans the whole TEXT COLUMN (a minimal
-    /// [`FENCE_PANEL_INSET_X`] overhang on both sides), not one span's x-extent —
-    /// the quiet value-step background is always present for a fenced block once
-    /// WYSIWYG is on, independent of the caret (only the marker TEXT conceal is
-    /// caret-gated — see `add_wysiwyg_conceal_spans`). [`merge_row_bands`]
-    /// collapses the block's per-row bands into ONE quad from block top to
-    /// block bottom (every row shares the same x/width here, so the merge is
-    /// exact) — the live-review fix for the panel reading as separate striped
-    /// rows instead of one continuous card (see that fn's doc comment). Empty
-    /// with WYSIWYG off, or for a fence-less buffer.
     pub(super) fn fence_panel_rects(&self) -> Vec<[f32; 4]> {
         if self.md_spans.is_empty() {
             return Vec::new();
@@ -1976,9 +1648,6 @@ impl TextPipeline {
         self.range_rects((l0, c0), (l1, c1))
     }
 
-    /// All translucent-quad rects (in pixels, current scroll+zoom) for ONE
-    /// ordered ((l0,c0),(l1,c1)) CHAR range. Extracted from `selection_rects`
-    /// so search-match highlights reuse the EXACT same advance-aware geometry.
     pub(super) fn range_rects(
         &self,
         (l0, c0): (usize, usize),
@@ -1986,9 +1655,6 @@ impl TextPipeline {
     ) -> Vec<[f32; 4]> {
         let m = &self.metrics;
         let doc_top = self.doc_top();
-        // A small fill so a zero-width (empty-line) selected line still shows a
-        // sliver, and so end-of-line highlights extend slightly past the last
-        // glyph (the way most editors render a selected newline).
         let eol_pad = m.char_width * 0.5;
         // VISIBLE-BAND CULL (mirrors the wash / squiggle / nit proto builders). A
         // selection can span the WHOLE document (Select-All), yet only the on-screen
@@ -2008,8 +1674,6 @@ impl TextPipeline {
         let mut lines: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
         for line in l0..=l1.min(last_line) {
             let top = first_top(line);
-            // The line's bottom is where the NEXT line's first row starts (== this
-            // line's last row's bottom); the final line runs to the document bottom.
             let bottom = if line < last_line {
                 first_top(line + 1)
             } else {
@@ -2111,23 +1775,10 @@ impl TextPipeline {
         r
     }
 
-    /// True only when the query is non-empty and yields zero hits — the single
-    /// state that tints the panel field with ERROR red.
     pub(super) fn search_no_matches(&self) -> bool {
         self.search_active && !self.search_query.is_empty() && self.search_matches.is_empty()
     }
 
-    /// Geometry of the top-right panel for the current canvas `width`, derived
-    /// from the SHAPED panel_buffer advances. Returns:
-    /// (card_rect [x,y,w,h], text_left, text_top, caret_x). `caret_byte` is the
-    /// byte offset (into the shaped panel string) of the focused field's reserved
-    /// caret cell; `fallback_chars` is the char-column to place it at if shaping
-    /// produced no glyph there. The card sizes to ALL shaped rows (one for plain
-    /// search, two once the replace field is revealed). `card_y` yields to the
-    /// WEB/LINUX MENU BAR when it is shown — the SAME [`Self::menubar_reserve`] the
-    /// document's own `doc_top` and the margin Outline's own `top` fold in (never a
-    /// hardcoded pixel or a second offset convention — "same behavior ⇒ same code"),
-    /// so a bar-off (macOS default) frame keeps its exact `margin` top.
     pub(super) fn panel_layout(
         &self,
         width: u32,
@@ -2138,8 +1789,6 @@ impl TextPipeline {
         let m = &self.metrics;
         let pad = 12.0;
         let margin = 12.0;
-        // Measure the shaped panel: widest run sets the card width, the run count
-        // sets its height (so the replace row grows the card by one line).
         let mut text_w = 0.0_f32;
         let mut rows = 0usize;
         for run in self.panel_buffer.layout_runs() {
@@ -2153,17 +1802,6 @@ impl TextPipeline {
         let card_y = margin + self.menubar_reserve();
         let text_left = card_x + pad;
         let text_top = card_y + pad;
-        // The caret block rides in the RESERVED cell shaped immediately after the
-        // focused field's text. Read its x from the SHAPED panel_buffer so the
-        // caret and the counter live in ONE coordinate system — placing it via a
-        // hardcoded CHAR_WIDTH instead let the block drift relative to glyphon's
-        // real advances and collide with "N/M" (the old overlap bug). `caret_byte`
-        // is LINE-relative (cosmic-text resets `LayoutGlyph::start` to 0 per line),
-        // so the scan is scoped to `caret_row`'s run — otherwise the identically
-        // numbered byte on the FIND row (line 0, always scanned first) would
-        // false-match and pin the replace caret onto the wrong row. Find the glyph
-        // whose byte `start` is at the cell; fall back to the hardcoded advance only
-        // if shaping produced no glyph there.
         let mut caret_x = None;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i != caret_row as usize {
@@ -2213,7 +1851,6 @@ impl TextPipeline {
         let (x, w) = row_x_span(row, self.text_left(), s, e, 1.0);
         let m = &self.metrics;
         let line_top = self.doc_top() + row.line_top;
-        // Sit the bar just below the glyph cell (bottom of the caret-height box).
         let cell_top = line_top + (m.line_height - m.caret_h) * 0.5;
         let thickness = PREEDIT_UNDERLINE_H * m.zoom;
         let y = cell_top + m.caret_h - thickness;

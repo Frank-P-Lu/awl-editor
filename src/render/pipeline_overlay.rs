@@ -1,16 +1,6 @@
-//! Per-frame animation advance for overlays, ambient backgrounds, copy pulse, and
-//! caret-preview state. `advance(dt)` is the virtual-clock seam.
-
 use super::*;
 
 impl TextPipeline {
-    /// THE single virtual-clock seam: advance every time-varying renderer state by
-    /// `dt` seconds and report whether ANYTHING is still animating (so the caller
-    /// keeps redrawing). The caret spring is the primary animator; any future
-    /// animator (a status fade) that exposes the same `step(dt) -> still_animating`
-    /// contract is OR-folded in here, e.g. `self.step_caret(dt) | self.fade.step(dt)`.
-    /// Both the windowed loop and the deterministic timeline capture drive the clock
-    /// through this one entry point, so neither needs to know WHICH animation it advances.
     pub fn advance(&mut self, dt: f32) -> bool {
         self.step_caret(dt)
             | self.step_caret_preview(dt)
@@ -62,17 +52,6 @@ impl TextPipeline {
         hot
     }
 
-    /// The overlay card's ENTRANCE y-offset THIS frame: exactly `0.0` when
-    /// settled (every capture, every CALM world, Reduce Motion, and every
-    /// frame after the ~200ms spring lands — `card_y + 0.0` is bit-identical
-    /// to the pre-round geometry), else the eased drop-in: the card starts
-    /// [`OVERLAY_ENTRANCE_DROP_PX`] ABOVE its resting place and springs down
-    /// with a small overshoot ([`crate::ease::out_back`]). Folded into
-    /// `card_y` at the END of both geometry owners (`overlay_geometry` /
-    /// `theme_overlay_geometry`) — after all row-fit math, so the transient
-    /// offset can never change how many rows the card shows — and because the
-    /// geometry is the ONE shared source, the card quad, rows, band, caret,
-    /// and hit-tests all ride the spring together (never desynced).
     pub(in crate::render) fn overlay_entrance_offset(&self) -> f32 {
         if self.overlay_enter_t >= 1.0 {
             return 0.0;
@@ -119,7 +98,6 @@ impl TextPipeline {
                 self.overlay_band_last = Some(target);
             }
             None => {
-                // First frame of a fresh overlay: no previous row — settle.
                 self.overlay_band_from = target;
                 self.overlay_band_last = Some(target);
                 self.overlay_band_t = 1.0;
@@ -230,13 +208,6 @@ impl TextPipeline {
             let from = target + livingband::PIN_JUMP_ROWS * lh;
             return (from, target, phase.clamp(0.0, 1.0));
         }
-        // SETTLE in every unarmed pipeline (every capture) and under Reduce Motion —
-        // mirrors [`Self::overlay_band_drawn`]. A settled frame is `morph_band(target,
-        // target, .., 1.0)` = the exact target rect, so with MORPH (the shipped live
-        // default) a settled capture is BYTE-IDENTICAL to the ordinary single band;
-        // the choreography only breathes in the live app. This is what makes the
-        // on-by-default flip safe, and gives the whole choreography the accessibility
-        // contract (Reduce Motion → no motion) for free.
         if !self.juice_live || crate::motion::reduced() {
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 1.0;
@@ -289,16 +260,6 @@ impl TextPipeline {
         }
     }
 
-    /// The slant FAN-IN progress this frame (motion choreography 3): the fraction
-    /// of the diagonal stair currently drawn. `1.0` (full stagger) in EVERY
-    /// capture and on every unarmed / CALM pipeline (byte-identical to the settled
-    /// slant), so the determinism law holds by construction; the mid-animation
-    /// frame-dump probe ([`crate::render::overlay_motion_probe`]) pins it; a live
-    /// SpringIn world eases it from `0` as the card springs in (the stair
-    /// UNFURLS). Reduce Motion → `1.0` (settled instantly). It multiplies the
-    /// per-row DRAW offset only — the width TAX stays at the full max offset, so
-    /// rows never reflow mid-flight (they are pre-elided for the settled stair and
-    /// merely slide into place).
     pub(in crate::render) fn overlay_slant_progress(&self) -> f32 {
         if let Some(m) = crate::render::overlay_motion_probe() {
             return crate::ease::out_back(m.enter);
@@ -325,14 +286,6 @@ impl TextPipeline {
         crate::ease::out_back(self.overlay_band_t)
     }
 
-    /// The per-DISPLAY-ROW slant DRAW offset (device px) this frame — the ONE
-    /// owner every slant consumer (the row text areas, the Pane selected band,
-    /// and the Bars plates) reads, so the stair, its fan-in, and every surface
-    /// that rides it can never disagree. `0.0` when the slant probe is unset
-    /// (byte-identical); else [`crate::render::slant_offset`] scaled by the
-    /// fan-in progress. Unsigned (always steps right, width-taxed on the right);
-    /// the right-anchor composition rides the EXISTING grow mirror, not a slant
-    /// mirror (banked — a left-stepping stair clips the text bounds' left edge).
     pub(in crate::render) fn overlay_slant_dx(&self, row: usize) -> f32 {
         match crate::render::overlay_slant() {
             None => 0.0,
@@ -340,22 +293,10 @@ impl TextPipeline {
         }
     }
 
-    /// THE EFFECTIVE margin background this frame — the active world's own
-    /// [`theme::Background`], UNLESS the dev gallery knob (`AWL_LAVA=...`) forces a
-    /// [`Background::Lava`] over it (`crate::lava::env_override`). For every one of
-    /// the fifteen shipped worlds (no knob) this is exactly `theme::background()`,
-    /// so both the lava layer and the sidecar report precisely what's drawn.
     pub fn effective_background(&self) -> theme::Background {
         crate::lava::env_override().unwrap_or_else(theme::background)
     }
 
-    /// THE EFFECTIVE lava PHASE this frame, resolving the determinism ladder in
-    /// one place ([`crate::lava::lava_phase_for`]): the dev gallery knob's fixed
-    /// phase wins outright; else Reduce Motion pins [`crate::lava::LAVA_FROZEN_PHASE`];
-    /// else the App-driven [`Self::lava_phase`] (which stays the frozen 0.0 in a
-    /// headless capture, since the capture never ticks — so a capture always
-    /// renders the fixed t=0 phase). Read by [`Self::prepare_lava_layer`] + the
-    /// capture sidecar.
     pub fn lava_render_phase(&self) -> f32 {
         crate::lava::lava_phase_for(
             self.lava_phase,
@@ -364,13 +305,6 @@ impl TextPipeline {
         )
     }
 
-    /// THE EFFECTIVE TWINKLE PHASE this frame — the SAME determinism ladder as
-    /// [`Self::lava_render_phase`] (one resolver, [`crate::lava::lava_phase_for`]),
-    /// fed the stars' own dev gallery knob (`AWL_STARS_PHASE`): env override >
-    /// Reduce-Motion freeze (static stars — present, not twinkling) > the
-    /// App-driven ambient [`Self::lava_phase`] (ONE clock, two consumers; the
-    /// frozen 0.0 in every headless capture, since the capture never ticks).
-    /// Read by [`Self::prepare_stars_layer`] + the capture sidecar.
     pub fn stars_render_phase(&self) -> f32 {
         crate::lava::lava_phase_for(
             self.lava_phase,
@@ -379,19 +313,6 @@ impl TextPipeline {
         )
     }
 
-    /// THE EFFECTIVE WAVES DRIFT PHASE this frame (item 87) — the SAME
-    /// determinism ladder as [`Self::lava_render_phase`] /
-    /// [`Self::stars_render_phase`] (one resolver, [`crate::lava::lava_phase_for`]),
-    /// with no dev-gallery override (Bombora's settled captures are the ones
-    /// item 87 ships): Reduce Motion pins [`crate::lava::LAVA_FROZEN_PHASE`] >
-    /// the App-driven ambient [`Self::lava_phase`] (ONE clock, now THREE
-    /// consumers — lava, stars, waves; frozen at `0.0` in every headless
-    /// capture, since the capture never ticks, so a Bombora capture always
-    /// renders the pre-drift settled composition). Read by
-    /// [`Self::prepare_background_layer`] alone — unlike lava/stars, the
-    /// resolved phase isn't separately surfaced on the capture sidecar (no new
-    /// state to assert beyond the pixels themselves; the sidecar's `page.
-    /// background` block already names the `Waves` ground).
     pub fn waves_render_phase(&self) -> f32 {
         crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), None)
     }
@@ -441,11 +362,6 @@ impl TextPipeline {
         self.caret.copy_pulse();
     }
 
-    /// Tick the copy-pulse's decay by `dt` seconds, easing [`Self::copy_pulse_t`]
-    /// back toward 1.0 (settled) over [`COPY_PULSE_MS`]. Returns true while still
-    /// in flight, so [`Self::advance`]'s "keep redrawing" OR-fold stays hot only
-    /// while the pulse plays, then idles — mirrors [`crate::caret::CaretAnim::step_pop`]
-    /// exactly.
     fn step_copy_pulse(&mut self, dt: f32) -> bool {
         // ACCESSIBILITY TIER 1 — REDUCE MOTION: settle the selection-tint
         // brighten INSTANTLY to its resting (fully-settled) value instead of
@@ -472,24 +388,10 @@ impl TextPipeline {
         copy_pulse_ease(self.copy_pulse_t)
     }
 
-    /// Advance the CARET-STYLE picker's live preview loop by `dt` — but ONLY while
-    /// that picker is open (`caret_preview.is_some()`). Returns true while it is open
-    /// (so the live loop stays HOT and the preview keeps looping); the instant the
-    /// picker closes (`None`) this returns false, the loop idles, and the preview
-    /// stops — back to 0% idle CPU (DESIGN §6). The geometry is seeded in `prepare`
-    /// each frame (it needs the card layout), so a frame with no geometry yet still
-    /// reports "open" to keep the loop alive until the first prepare seeds it.
     fn step_caret_preview(&mut self, dt: f32) -> bool {
         if self.caret_preview.is_none() {
             return false;
         }
-        // ACCESSIBILITY TIER 1 — REDUCE MOTION: the caret-style picker's
-        // choreographed demo (typing/gliding/deleting on a loop) settles to
-        // its fixed, fully-typed end-state instead of looping — the SAME
-        // frame a headless capture already renders for this preview
-        // (`CaretDemo::settle`), so the picker still shows the selected
-        // look correctly, just without the ambient motion. Returns `false`
-        // (not still-animating) so the redraw loop is free to idle.
         if crate::motion::reduced() {
             self.caret_demo.settle();
             return false;

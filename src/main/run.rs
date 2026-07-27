@@ -1,6 +1,3 @@
-//! Mode execution. Headless key replay uses `actions::apply_core`, the same
-//! editing seam as the windowed app.
-
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -27,7 +24,6 @@ pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
     }
 }
 
-/// Resolve a headless capture root from explicit inputs: `--root`, target, cwd.
 pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> PathBuf {
     if let Some(r) = root {
         return r.clone();
@@ -77,13 +73,6 @@ pub(crate) fn resolve_launch_context(
     }
 }
 
-/// Resolve the EFFECTIVE workspace whose child dirs are the switch-project
-/// (Cmd-Shift-P) candidates: an explicit `--workspace` wins; otherwise DEFAULT to the
-/// PARENT of the active project `root`, so switch-project lists the root's
-/// SIBLING projects out of the box — launched inside `~/work/repos/some-repo`,
-/// the workspace defaults to `~/work/repos`, so Cmd-Shift-P shows all the repos. A
-/// root with no usable parent (e.g. the filesystem root) falls back to the root
-/// itself, so the picker still opens rather than silently doing nothing.
 pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::Path) -> PathBuf {
     if let Some(w) = workspace {
         return w.clone();
@@ -94,8 +83,6 @@ pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::P
     }
 }
 
-/// What a `--keys` replay produced beyond the buffer (App-level state living off
-/// the `Buffer`), folded into the capture options by the caller.
 struct ReplayResult {
     zoom: Option<f32>,
     selection: Option<((usize, usize), (usize, usize))>,
@@ -104,18 +91,9 @@ struct ReplayResult {
     /// Whether the replay left the search panel in REPLACE mode (Cmd-R / Tab /
     /// Cmd-Option-F — all drivable through the shared search-key seam).
     replace_active: bool,
-    /// The replacement field text, typed through the SAME interception seam the
-    /// live panel uses (the old "isearch-input gap" — where this could only
-    /// ever be empty — is retired).
     replacement: String,
-    /// Whether typing currently edits the REPLACEMENT field (vs. the query) —
-    /// folded into the sidecar's `search.editing_replacement` so a replayed
-    /// Tab/Cmd-R focus move is assertable.
     editing_replacement: bool,
-    /// The overlay left open at the end of the replay (if any), for the sidecar.
     overlay: Option<crate::overlay::OverlayState>,
-    /// If the replay ACCEPTED a go-to item (Enter), the chosen value so the
-    /// caller can load that file before capturing.
     accept: Option<(crate::overlay::OverlayKind, String)>,
     /// How many buffers are open at the end of the replay (the active `buffer`
     /// + everything the MULTI-BUFFER REGISTRY still has backgrounded) — feeds
@@ -123,31 +101,12 @@ struct ReplayResult {
     ///   drives a Goto accept, so a plain `--screenshot` (no `--keys`, or keys
     ///   that never open a second file) is unaffected.
     buffers_open: usize,
-    /// STRICT REPLAY TRUTHFULNESS: every INTERCEPTED external handoff the
-    /// replay observed + recorded without performing (URL open, mailto, Trash,
-    /// download — see [`crate::replay::classify`]), in replay order. Recorded
-    /// under BOTH modes; the phase-5 scenario trace consumes this seam (no
-    /// consumer beyond the tests yet, hence the allow).
     #[allow(dead_code)]
     intercepts: Vec<crate::replay::Intercept>,
-    /// The permissive-mode warning lines (exactly what was printed to stderr,
-    /// one per Unsupported/Intercepted crossing — [`crate::replay::warn_line`]),
-    /// so the warnings themselves are testable. Empty under strict mode (it
-    /// aborts on Unsupported and records Intercepted silently) and for any
-    /// replay that stays on the Applied path.
     #[allow(dead_code)]
     warnings: Vec<String>,
 }
 
-/// PARK `buffer` into `registry` under its stable identity (a no-op for an
-/// unnamed, still-empty quick note — see [`crate::buffers::BufferKey::of`]),
-/// leaving `buffer` a scratch placeholder for the caller to immediately
-/// overwrite. The headless replay's mirror of `App::park_active_buffer` — same
-/// behavior, same code, so EVERY "the active buffer is about to be replaced"
-/// site in [`replay_keys`] (a Goto switch, `Cmd-N`) backgrounds it identically
-/// rather than one path silently discarding it (the `Effect::NewDocument` gap a
-/// code review caught: it used to reset `buffer` in place with no park at
-/// all, permanently losing whatever the buffer being left held).
 fn park_active(buffer: &mut Buffer, registry: &mut crate::buffers::BufferRegistry<()>) {
     if let Some(key) = crate::buffers::BufferKey::of(buffer) {
         let old = std::mem::replace(buffer, Buffer::scratch());
@@ -194,9 +153,6 @@ fn replay_keys(
         km,
     ) {
         Ok(res) => res,
-        // Every abort in the loop is Strict-gated, so the permissive door is
-        // structurally infallible — pinned by
-        // `permissive_replay_never_aborts_and_warns_on_both_non_applied_seams`.
         Err(e) => unreachable!("permissive replay never aborts: {e}"),
     }
 }
@@ -250,16 +206,7 @@ pub(crate) struct ReplaySession<'a> {
     // geometry. `None` in the unit tests / GPU-less paths, where motion falls
     // back to LOGICAL lines.
     oracle: Option<&'a mut capture::OraclePipeline>,
-    // The chord→action resolver: ONE persistent keymap across the stream (prefix
-    // sequences + rebinds compose exactly as live), with the STRICT
-    // unbound/dangling-prefix refusals armed under `Mode::Strict` — resolution
-    // is interleaved with the search guard exactly like live key dispatch, and
-    // the underlying keymap is borrowed `&mut` so the `C-x` prefix state
-    // survives a caller that replays a split spec in two calls (the timeline's
-    // origin/glide halves).
     resolver: crate::keyspec::ChordResolver<'a>,
-    // The spell engine for the Cmd-`;` picker, loaded once (None if the dictionary
-    // failed to parse — the summon then no-ops, like the live path with no checker).
     spell: Option<crate::spell::SpellChecker>,
     intercepts: Vec<crate::replay::Intercept>,
     warnings: Vec<String>,
@@ -280,15 +227,6 @@ pub(crate) struct ReplaySession<'a> {
     // (`()`): headless replay tracks nothing per-buffer beyond the `Buffer`
     // itself (no scroll/spell/autosave state to preserve here).
     registry: crate::buffers::BufferRegistry<()>,
-    // ITEM 106 — THE POINTER-REPLAY SEAM: the replay's own notion of the
-    // pointer's current PHYSICAL position, mirroring `App::cursor_px` exactly
-    // (same default `(0.0, 0.0)` — no pointer motion ever "assumed", just like
-    // a freshly-launched live window before its first `CursorMoved`). Moved
-    // only by [`Self::apply_move`]; read back by [`Self::apply_chord`]'s
-    // end-of-chord `arm_hover_baseline` stamp, the headless twin of
-    // `App::apply`'s own stamp — so a scripted `move X Y` step and a scripted
-    // keyboard nav step compose through the SAME movement-slop gate a live
-    // session does.
     cursor_px: (f32, f32),
 }
 
@@ -355,13 +293,6 @@ impl<'a> ReplaySession<'a> {
         }
     }
 
-    /// ITEM 106 — push the CURRENT overlay's row/window geometry onto the
-    /// oracle's pipeline (a no-op with no overlay open). Split out of
-    /// [`Self::apply_move`] so a law can also call it directly to locate a
-    /// real row's pixel bounds (`Self::oracle`'s test-only geometry
-    /// accessors) BEFORE driving a move at it — private, but visible to
-    /// `mod tests` like every other item in this file.
-    // Kept alongside `apply_move` so the oracle seam owns its overlay synchronization.
     #[allow(dead_code)]
     fn sync_oracle_overlay(&mut self) {
         if let Some(ov) = self.overlay.as_ref()
@@ -371,10 +302,6 @@ impl<'a> ReplaySession<'a> {
         }
     }
 
-    /// Apply ONE chord — the live `App::on_keyboard_input` order: search guard
-    /// first, then keymap resolution, then `apply_core` + the deferred-effect
-    /// arms. `Err` only under STRICT (an unbound chord, a dangling prefix, or
-    /// an Unsupported effect, each naming the offender).
     pub(crate) fn apply_chord(&mut self, chord: &crate::keyspec::Chord) -> Result<()> {
         // SEARCH GUARD — the live `App::on_keyboard_input` guard's exact position,
         // now the exact same code: while the isearch panel is open EVERY chord is
@@ -401,9 +328,6 @@ impl<'a> ReplaySession<'a> {
             });
             return Ok(());
         }
-        // Resolve THIS chord through the persistent keymap; a dropped
-        // `Ignore`/`BeginPrefix` yields no action, and a strict refusal aborts
-        // naming the offending chord.
         let Some(resolved) = self.resolver.resolve(chord)? else {
             self.records.push(crate::storyboard::ChordTrace {
                 chord: chord.spec.clone(),
@@ -432,17 +356,7 @@ impl<'a> ReplaySession<'a> {
             .state()
             .contains(winit::keyboard::ModifiersState::SHIFT)
             && crate::app::motion_honors_shift_select(&resolved, &chord.key);
-        // A tiny worklist so the COMMAND PALETTE's run-on-Enter chains: Enter on a
-        // command writes `run_action`, which we then feed back through the core
-        // (slot now empty) so an overlay-opening command opens its sub-overlay as
-        // the final captured state. At most one chained action, so this drains in
-        // one extra pass.
         let mut current: Option<Action> = Some(resolved);
-        // BREADCRUMB: when the palette's Enter re-dispatches a `RunAction` (below),
-        // stamp `return_to = Command` onto whatever overlay that command opens, so a
-        // later POP (Esc / value-pick) re-summons the palette — mirroring the live
-        // `App::apply` seam. Set by the `RunAction` arm, consumed right after the
-        // re-dispatched action's `apply_core` opens its overlay.
         let mut pending_return_to: Option<crate::overlay::OverlayKind> = None;
         while let Some(action) = current.take() {
             // FRESH LAYOUT ORACLE PER ACTION: re-shape the oracle from the CURRENT
@@ -455,11 +369,6 @@ impl<'a> ReplaySession<'a> {
             if let Some(op) = self.oracle.as_deref_mut() {
                 op.refresh(self.buffer, self.zoom);
             }
-            // GO-TO's HEADINGS lens corpus: the current buffer's markdown headings (title
-            // indented by depth, paired with its line) — the fold that retired the
-            // standalone Outline picker. Gathered ONLY when a Go-to door fires (Cmd-O /
-            // "Go to heading…"), matching the live app; a non-markdown buffer / no headings
-            // yields an empty list (the Headings lens then reads empty).
             let goto_headings: Vec<(String, usize)> =
                 if matches!(action, Action::OpenGoto | Action::OpenOutline)
                     && self.buffer.is_markdown()
@@ -471,10 +380,6 @@ impl<'a> ReplaySession<'a> {
                 } else {
                     Vec::new()
                 };
-            // SPELL picker target: the misspelled word the cursor is on (or adjacent to)
-            // + its corrections, resolved before the builder and ONLY when the spell
-            // binding fired. None when the cursor isn't on a flagged word (no-op summon).
-            // The replay mirrors the spell overlay contract exactly: suggestions, byte span, source word.
             #[allow(clippy::type_complexity)]
             let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
                 if matches!(action, Action::OpenSpellSuggest) {
@@ -520,20 +425,11 @@ impl<'a> ReplaySession<'a> {
                 } else {
                     Vec::new()
                 };
-            // ASSET CLEANER orphan list: scanned from the replay's active root + corpus
-            // ONLY when the "Clean unused assets" binding fired, so a `--keys` capture sees
-            // the real orphan list via the sidecar. Reads through the FileSystem seam (the
-            // capture's fixture / real `--root`), mirroring the live gather. The TRASH
-            // itself is a documented no-op in the effect match below (the determinism gate).
             let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
                 crate::assets::scan(self.root, self.corpus)
             } else {
                 Vec::new()
             };
-            // The non-navigable builder inputs. Headless leaves the GO-TO recency tiers +
-            // labels EMPTY (no mtime read, no open/recent history) so the capture stays
-            // byte-stable; the buffer-scoped headings / spell / history come from the
-            // replayed state + the store.
             let effective_keep = self.config.effective_linux_keep();
             let build_ctx = crate::overlay::BuildCtx {
                 goto_corpus: self.corpus.to_vec(),
@@ -545,17 +441,8 @@ impl<'a> ReplaySession<'a> {
                 goto_headings,
                 spell_target,
                 history_entries,
-                // Headless capture has no wall clock: History's Session / Today lenses
-                // stay inert (the determinism gate), so a `--keys` History capture groups
-                // nothing regardless of what the store's stamps say.
                 history_now: None,
                 history_session_start: None,
-                // SETTINGS MENU value cells: gathered from the replay's config + active
-                // root + zoom, so a `--keys "Settings"` capture reports each setting's
-                // real value (deterministic — config is loaded from --config or defaults).
-                // `today_ymd` is the FIXED headless placeholder (no clock in a capture —
-                // see `dateformat::CAPTURE_PLACEHOLDER_YMD`'s doc), so the "Date format"
-                // row's preview is byte-stable.
                 settings_values: crate::settings::SettingsValues::gather(
                     self.config,
                     self.root,
@@ -586,8 +473,6 @@ impl<'a> ReplaySession<'a> {
                 shift_selecting: &mut self.shift_selecting,
                 zoom: &mut self.zoom,
                 search: &mut self.search,
-                // Headless has no viewport to measure; a page is a fixed,
-                // deterministic chunk of logical lines.
                 scroll_page_lines: 20,
                 overlay: &mut self.overlay,
                 make_overlay: &mut make_overlay,
@@ -596,19 +481,7 @@ impl<'a> ReplaySession<'a> {
             };
             let effect = actions::apply_core(&mut ctx, &action, shift);
             let _ = ctx;
-            // STRICT REPLAY TRUTHFULNESS: consult the ONE classification
-            // (`crate::replay::classify`, a no-wildcard match over `Effect`) BEFORE
-            // the apply arms below run. Strict ABORTS on an Unsupported effect,
-            // naming the exact action + effect; permissive keeps the legacy
-            // behavior byte-identically but WARNS on stderr (and records the same
-            // line) when it crosses an Unsupported or Intercepted seam. Every
-            // Intercepted handoff is recorded under BOTH modes — the phase-5
-            // trace seam.
             let classified = crate::replay::classify(&effect);
-            // TRACE RECORD: one entry per applied action (a palette Enter's chained
-            // re-dispatch records twice under the same chord) — the storyboard
-            // trace's raw material, including an Unsupported offender (recorded
-            // BEFORE the strict abort below, so the trace names it too).
             self.records.push(crate::storyboard::ChordTrace {
                 chord: chord.spec.clone(),
                 action: Some(format!("{action:?}")),
@@ -623,52 +496,29 @@ impl<'a> ReplaySession<'a> {
                     _ => String::new(),
                 },
             });
-            // An intercepted handoff is RECORDED under both modes (the trace seam).
             if let crate::replay::EffectClass::Intercepted { detail } = &classified.class {
                 self.intercepts.push(crate::replay::Intercept {
                     effect: classified.name,
                     detail: detail.clone(),
                 });
             }
-            // Strict refuses an Unsupported effect outright, naming the offender.
             if self.mode == crate::replay::Mode::Strict
                 && let crate::replay::EffectClass::Unsupported { .. } = classified.class
             {
                 return Err(crate::replay::strict_error(&action, &classified));
             }
-            // Permissive warns on either non-Applied crossing (`warn_line` is
-            // `None` for Applied) — the ONE stderr seam, mirrored into `warnings`
-            // so the exact printed line is testable.
             if self.mode == crate::replay::Mode::Permissive
                 && let Some(w) = crate::replay::warn_line(&action, &classified)
             {
                 eprintln!("{w}");
                 self.warnings.push(w);
             }
-            // BREADCRUMB: stamp the overlay this action just opened (if any) with the
-            // palette parent a preceding `RunAction` re-dispatch set — a no-op unless the
-            // previous iteration was a palette Enter (`pending_return_to` still None here
-            // for a direct summon).
             crate::actions::stamp_return_to(&mut self.overlay, pending_return_to.take());
-            // Carry out the ONE deferred effect the core signalled (mutually exclusive,
-            // so a single match suffices). Quit / LastBuffer are no-ops in capture (no
-            // event loop, no 2-deep history); the rest mirror the live App's handling.
             match effect {
-            // New document (Cmd-N): PARK the buffer being left (exactly like the live
-            // `App::new_document` — a code-review-caught gap used to skip this and
-            // just reset `buffer` in place, silently discarding it) then reset
-            // to a fresh unnamed document bound to the ACTIVE root (item 76 — no
-            // separate notes-root jump, live or headless), so subsequent typed
-            // chars build the title and an explicit Cmd-S derives the filename +
-            // writes it.
             actions::Effect::NewDocument => {
                 park_active(self.buffer, &mut self.registry);
                 self.buffer.start_fresh_doc(self.root.to_path_buf());
             }
-            // Settings: load the config file into the buffer (creating the commented
-            // default first if missing), so the capture reflects the config CONTENTS
-            // — exactly what the live Settings command does. Opens the EFFECTIVE
-            // config path (the `--config` target when one was given).
             actions::Effect::OpenSettings => {
                 if !self.config.path.as_os_str().is_empty() {
                     if !crate::fs::active().exists(&self.config.path) {
@@ -686,22 +536,12 @@ impl<'a> ReplaySession<'a> {
             actions::Effect::OpenCredits => {
                 *self.buffer = Buffer::from_str(crate::credits::CREDITS_MD);
             }
-            // Guide: load the embedded GUIDE.md text directly into the buffer —
-            // mirrors OpenCredits exactly, same side-effect-light reasoning.
-            // Rendered through `guide::render` (chord-token substitution) for
-            // the headless replay's own convention/platform, exactly like the
-            // live `App::open_guide` door.
             actions::Effect::OpenGuide => {
                 *self.buffer = Buffer::from_str(&crate::guide::render(
                     crate::convention::Convention::current(),
                     crate::commands::Platform::current(),
                 ));
             }
-            // INSERT DATE: the SAME insert `App::insert_date` performs live, against
-            // the FIXED placeholder date instead of the real clock (the determinism
-            // gate — see `dateformat::CAPTURE_PLACEHOLDER_YMD`'s doc), reading the
-            // SAME active-format process-global (seeded from `--config`/defaults by
-            // `apply_sticky_globals`, exactly like `caret_mode`/`dictionary`).
             actions::Effect::InsertDate => {
                 let (y, m, d) = crate::dateformat::CAPTURE_PLACEHOLDER_YMD;
                 let text = crate::dateformat::active_format().format(y, m, d);
@@ -749,19 +589,9 @@ impl<'a> ReplaySession<'a> {
                 }
                 self.accept = Some((kind, val));
             }
-            // SAVE-FEEDBACK round: `Action::Save` on the true scratch surface —
-            // the ONE headless-reachable half of the effect (see its own doc):
-            // convert the buffer into a real document under the ACTIVE root (item
-            // 76), using the SAME `Buffer::save_into_folder` the live App calls.
-            // This actually writes through the active `fs` backend (the fixture /
-            // real disk), so the sidecar's `cursor`/buffer state and a later Goto
-            // both see the new file — no notice to reflect (live-only).
             actions::Effect::ConvertScratchAndSave => {
                 let _ = self.buffer.save_into_folder(self.root);
             }
-            // Go-to's HEADINGS lens accepted (the retired Outline picker): jump the
-            // cursor to the accepted heading LINE so the capture's `cursor` block
-            // reflects the jump (agent-verifiable), mirroring the live App.
             actions::Effect::JumpToLine(line) => {
                 let idx = self.buffer.line_col_to_char(line, 0);
                 self.buffer.set_cursor(idx);
@@ -772,26 +602,16 @@ impl<'a> ReplaySession<'a> {
                 // a section is folded.
                 self.buffer.reveal_placement();
             }
-            // COMMAND PALETTE run-on-Enter: feed the chosen command back through the
-            // core (the palette already closed), so e.g. "Go to file" opens the goto
-            // overlay as the final captured state.
             actions::Effect::RunAction(a) => {
                 pending_return_to = Some(crate::overlay::OverlayKind::Command);
                 current = Some(a);
             }
-            // REBIND MENU commit: the headless capture path does NOT mutate the user's
-            // config file (a screenshot stays side-effect-light); it reflects the
-            // completed capture in the menu's NOTICE so the sidecar shows what was
-            // bound, then returns to the command list. The real write + live-reload is
-            // the live App's job (`App::rebind_commit`), unit-tested via `Config`.
             actions::Effect::RebindCommit { slug, binding, .. } => {
                 if let Some(ov) = self.overlay.as_mut() {
                     ov.notice = format!("bound {slug} -> {binding}");
                     ov.capture_abort();
                 }
             }
-            // REBIND MENU reset: likewise reflected in the NOTICE only (intercept
-            // already set it); no file mutation in the capture path.
             actions::Effect::RebindReset { slug } => {
                 if let Some(ov) = self.overlay.as_mut()
                     && ov.notice.is_empty() {
@@ -818,11 +638,6 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::Gulp
             | actions::Effect::LineLand
             | actions::Effect::CopyPulse
-            // SETTINGS MENU toggle: flipping a live global + writing config is the
-            // live App's job (`App::setting_toggle`) — the capture path has neither a
-            // global setter it should mutate nor a config file to write, so it reflects
-            // nothing here (the menu stays open on its pre-toggle value cells). The
-            // toggle round-trip is unit-tested at the apply seam instead.
             | actions::Effect::SettingToggle { .. }
             // SETTINGS MENU inline VALUE commit / PATH pick: parse-clamp-apply-persist
             // and folder-key writes are the live App's job (`App::setting_value_commit`
@@ -839,13 +654,6 @@ impl<'a> ReplaySession<'a> {
             // live tail (reflow + the sticky config write) is skipped here.
             | actions::Effect::SettingRangeStep { .. }
             | actions::Effect::FinishBuffer
-            // KEEP THIS VERSION: pinning a (possibly NAMED) snapshot writes the
-            // local-history store, a live-App-only concern (`App::keep_version`) —
-            // the history determinism gate keeps every store write off the capture
-            // path, so this is a no-op here (the pin/name/exemption logic is
-            // unit-tested in `history/` instead; the naming MINIBUFFER's
-            // open/type/cancel flow IS core-driven and stays fully
-            // `--keys`-drivable, mirroring Rename — only the commit is inert).
             | actions::Effect::KeepVersion { .. }
             // FollowLink (C-c C-o): opening the OS browser is a live-App-only
             // handoff (`App::follow_link`) — a capture must never spawn a browser,
@@ -884,12 +692,6 @@ impl<'a> ReplaySession<'a> {
             // trashed that wasn't); the trash + row-removal wiring is unit-tested at
             // the apply seam with a fake trash instead.
             | actions::Effect::TrashAsset { .. }
-            // SAVE-FEEDBACK round: the write already happened inside the core
-            // (`Buffer::save`, through the active `fs` backend); the notice is
-            // live-only (`App::notice` has no sidecar field) and history
-            // snapshotting-on-save is a live-App-only concern (see
-            // `App::snapshot_after_save`'s call site) — so both fates are a
-            // no-op here, same shape as `FinishBuffer`.
             | actions::Effect::SaveDone { .. }
             // NOTES VERBS round: both the actual disk RENAME (`App::rename_current_file`
             // — git-managed gate, no-clobber refusal, the one-owner path-keyed
@@ -926,10 +728,7 @@ impl<'a> ReplaySession<'a> {
         Ok(())
     }
 
-    /// Fold the session's end-state into the [`ReplayResult`] the capture path
-    /// consumes. Consumes the session (the borrows end here).
     fn finish(self) -> ReplayResult {
-        // The active `buffer` + whatever the registry still has backgrounded.
         let buffers_open = self.registry.len() + 1;
         let zoom_out = if self.zoom != 1.0 {
             Some(self.zoom)
@@ -974,55 +773,36 @@ impl<'a> ReplaySession<'a> {
         }
     }
 
-    // ── Storyboard-runner views over the LIVE session (crate::story) ──
-
-    /// The active buffer, read-only (cursor / selection / text for expectations
-    /// and the per-step render).
     pub(crate) fn buffer(&self) -> &Buffer {
         self.buffer
     }
 
-    /// The replay's current zoom factor (1.0 = default).
     pub(crate) fn zoom(&self) -> f32 {
         self.zoom
     }
 
-    /// The open isearch panel, if any.
     pub(crate) fn search(&self) -> Option<&crate::search::SearchState> {
         self.search.as_ref()
     }
 
-    /// The open overlay, if any.
     pub(crate) fn overlay(&self) -> Option<&crate::overlay::OverlayState> {
         self.overlay.as_ref()
     }
 
-    /// TEST-ONLY — the session's own motion oracle, so item 106's
-    /// `ReplaySession`-level law can locate a real row's on-screen pixel
-    /// bounds (via [`capture::OraclePipeline`]'s own test-only geometry
-    /// accessors) before driving [`Self::apply_move`] at it.
     #[cfg(test)]
     pub(crate) fn oracle(&self) -> Option<&capture::OraclePipeline> {
         self.oracle.as_deref()
     }
 
-    /// Open-buffer count (the active one + everything backgrounded).
     pub(crate) fn buffers_open(&self) -> usize {
         self.registry.len() + 1
     }
 
-    /// Drain the per-chord trace records accumulated since the last drain — the
-    /// storyboard runner calls this once per step.
     pub(crate) fn drain_records(&mut self) -> Vec<crate::storyboard::ChordTrace> {
         std::mem::take(&mut self.records)
     }
 }
 
-/// A plain `--screenshot` capture: resolve the project, replay `--keys`, fold the
-/// replay's App-level state into the capture opts, then render one settled frame.
-/// This is the heaviest mode (the only one that threads the full verification-hook
-/// `CaptureOpts` + overlay/accept handling), so it lives in its own seam.
-// The capture CLI contract is intentionally explicit so every headless control is visible here.
 #[allow(clippy::too_many_arguments)]
 fn capture_screenshot(
     out: PathBuf,
@@ -1034,9 +814,6 @@ fn capture_screenshot(
     workspace: Option<PathBuf>,
     default_folder: PathBuf,
     config: Config,
-    // STRICT REPLAY (`--strict-replay`): abort on any Unsupported effect, an
-    // unbound/dangling chord (the resolver refuses at replay time), or a
-    // missing layout oracle instead of degrading quietly — see `crate::replay`.
     strict: bool,
 ) -> Result<()> {
     // Resolve the active project + its file index BEFORE the replay so a
@@ -1047,29 +824,18 @@ fn capture_screenshot(
     let active_root = resolve_root(&root, &file);
     let proj = crate::project::Project::resolve(&active_root);
     let corpus = crate::index::build_index(&active_root);
-    // Default the switch-project workspace to the active root's PARENT when
-    // neither `--workspace` nor a config `workspace` was given, so the sidecar
-    // reports an EFFECTIVE folder (and a replayed Cmd-Shift-P lists siblings).
     let effective_workspace = resolve_workspace(&workspace, &active_root);
     opts.project = Some(capture::ProjectInfo {
         root: active_root.clone(),
         name: proj.name.clone(),
         branch: proj.branch.clone(),
         dirty: proj.dirty,
-        // The EFFECTIVE default_folder / workspace (flag > config > default), so a
-        // `--config`-driven launch shows the configured folders with no flags.
         default_folder: Some(default_folder.clone()),
         workspace: Some(effective_workspace.clone()),
         keymap_flavor: config.keymap_flavor().config_name(),
     });
 
     let mut buffer = load_buffer(&file);
-    // PROSE-DIFF VIEW (capture harness, env-gated — a no-op unless
-    // AWL_DIFF_OLD/NEW are set): render the marked-up-manuscript transcript
-    // (the pure `prosediff` core → awl's own strike / highlight / blockquote-
-    // dim vocabulary) as a markdown scratch buffer, so `--screenshot` renders
-    // the READ-ONLY diff view (a live `App` feature) pixel-for-pixel and the
-    // sidecar `diff` block reports its state. See `src/prosediff.rs`.
     if let Some((md, counts, label)) = crate::prosediff::env_capture_render() {
         buffer = crate::buffer::Buffer::from_str(&md);
         // Park the caret on the blank line 1 (between the title and the first
@@ -1150,14 +916,6 @@ fn capture_screenshot(
         opts.search_replacement = res.replacement;
         opts.search_editing_replacement = res.editing_replacement;
     }
-    // If the replay ACCEPTED an overlay item, reflect it in the capture.
-    // Goto is handled ALREADY, INLINE inside `replay_keys` (the
-    // multi-buffer registry switch happens there, so a LATER Goto in
-    // the same spec can see an EARLIER one's backgrounded buffer) —
-    // re-doing it here would clobber that with a fresh disk read.
-    // Project: re-root — re-resolve the project at the accepted
-    // ABSOLUTE directory and overwrite the sidecar `project` block
-    // (otherwise a switch-project replay leaves NO observable trace).
     if let Some((kind, val)) = &res.accept {
         match kind {
             crate::overlay::OverlayKind::Goto => {}
@@ -1189,16 +947,10 @@ fn capture_screenshot(
             _ => {}
         }
     }
-    // Reflect any still-open overlay in the capture opts (and thus the
-    // sidecar `overlay` block).
     if let Some(ov) = &res.overlay {
         let (info, preview_text, diff) = overlay_capture_info(ov, &buffer);
         opts.overlay = Some(info);
         opts.preview_text = preview_text;
-        // DIFF-AS-PREVIEW: surface the preview's diff STATE in the
-        // top-level `diff` block (the AWL_DIFF harness's env request, if
-        // any, was set earlier and wins), and honor the overlay's diff
-        // scroll as the capture's scroll unless the spec pinned one.
         if opts.diff.is_none() {
             opts.diff = diff;
         }
@@ -1206,21 +958,12 @@ fn capture_screenshot(
             opts.scroll = Some(crate::render::ScrollPos::at_row(ov.diff_scroll));
         }
     }
-    // If a selection is requested (or one came from --keys), move the
-    // buffer cursor to its END so the caret renders at the cursor end of
-    // the region. A --keys replay already left the cursor where it
-    // belongs, so only do this for an EXPLICIT --sel (no replay).
     if keys.is_empty()
         && let Some((_, (l1, c1))) = opts.selection
     {
         let end = buffer.line_col_to_char(l1, c1);
         buffer.set_cursor(end);
     }
-    // WHICH-KEY force (`--whichkey`): render the SETTLED summoned panel by
-    // deriving the `C-x` continuation rows from the command catalog + this
-    // capture's config, exactly as the live App does on the pause. The live
-    // 500ms timer is windowed (human-confirm); the shown STATE + derived list
-    // are what a capture pins.
     if crate::whichkey::force_shown() {
         opts.whichkey = Some(
             crate::whichkey::continuations_cx(&config.keys)
@@ -1229,11 +972,6 @@ fn capture_screenshot(
                 .collect(),
         );
     }
-    // MULTI-BUFFER: report the replay's final open-buffer count + which
-    // one is active (its path, or the literal "scratch") — so a `--keys`
-    // spec driving Goto A -> edit -> Goto B -> edit -> Goto A is
-    // assertable straight from the sidecar (`buffers.open` stays 2,
-    // `buffers.active` reports A again with its preserved cursor/text).
     opts.buffers = Some(capture::BuffersInfo {
         open: res.buffers_open,
         active: match buffer.path() {
@@ -1260,18 +998,10 @@ pub(crate) fn overlay_capture_info(
     Option<String>,
     Option<capture::DiffInfo>,
 ) {
-    // HISTORY timeline (DIFF-AS-PREVIEW): the highlighted row's writer's-DIFF
-    // previews in the document itself — resolve it here so the capture folds
-    // the transcript over the snapshot text and the sidecar reports
-    // `preview_id` + the previewed `text` + the `diff` counts block (exactly
-    // what the live preview shows).
     let preview = history_preview_for(ov, buffer);
     let preview_text = preview
         .as_ref()
         .map(|(_, transcript, _)| transcript.clone());
-    // The sidecar's top-level `diff` block now ALSO reports a History preview's
-    // counts (the same DiffInfo shape the `AWL_DIFF_*` harness fills) — the
-    // label is the picker row the user is looking at.
     let diff = preview.as_ref().map(|(_, _, c)| capture::DiffInfo {
         active: true,
         label: ov
@@ -1287,14 +1017,11 @@ pub(crate) fn overlay_capture_info(
     let info = capture::OverlayInfo {
         active: true,
         mode: ov.kind.as_str(),
-        // ITEM 45: the alignment the overlay froze at summon, so the capture places
-        // the card exactly where the live picker did.
         align: ov.align,
         query: ov.query.text().to_string(),
         items: ov.item_strings(),
         empty: ov.empty_notice(),
         bindings: ov.item_bindings(),
-        // ITEM 94: the rail fractions beside the value strings above.
         ranges: ov.item_range_fracs(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
@@ -1305,10 +1032,6 @@ pub(crate) fn overlay_capture_info(
         preview_id: preview.map(|(id, _, _)| id),
         diff_focus: ov.diff_focus,
         diff_scroll: ov.diff_scroll,
-        // ITEM 77: `OverlayState::show_hidden` (a per-picker field) is retired —
-        // this now mirrors the sticky `file_visibility` global, but ONLY for a
-        // file-picker kind, so a non-file picker (Theme/Settings/…) still
-        // reports `false` unconditionally, exactly like before.
         show_hidden: ov.kind.hides_dotfiles() && crate::file_visibility::all_on(),
         capture: ov.capture.as_ref().map(|c| capture::CaptureInfo {
             command: c.cmd_name.clone(),
@@ -1322,9 +1045,6 @@ pub(crate) fn overlay_capture_info(
             prompt: c.prompt(),
         }),
         notice: ov.notice.clone(),
-        // FACETED PICKER: the active lens + strip + per-row section labels so
-        // a `--keys "Cmd-T <right>"` capture renders + reports the faceted view.
-        // `None` for a non-faceting picker (no scheme).
         lens: ov.active_facet_id(),
         lens_strip: ov.lens_strip(),
         sections: ov.item_sections(),
@@ -1352,11 +1072,6 @@ fn history_preview_for(
     crate::history::diff_preview(ov, buffer.path(), buffer.is_unnamed_fresh(), &buffer.text())
 }
 
-/// Execute the resolved [`Mode`]: render a headless capture, run the typing
-/// benchmark, or open the windowed editor. This is the dispatch the native
-/// `fn main` defers to once argument parsing has chosen a mode. The heavy
-/// `--screenshot` path lives in [`capture_screenshot`]; the lighter modes stay
-/// inline.
 pub(crate) fn run(mode: Mode) -> Result<()> {
     match mode {
         Mode::Screenshot {
@@ -1461,9 +1176,6 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             frames,
             step_ms,
         } => {
-            // The document is a stationary backdrop; the real App (built inside the
-            // harness) drives the scheduling. No `--keys` replay — the which-key
-            // prefix is armed directly at virtual t=0 (see `capture::frames`).
             let buffer = load_buffer(&file);
             capture::capture_frames(&out, &buffer, frames, step_ms, &CaptureOpts::default())?;
             let stem = out
@@ -1504,16 +1216,10 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             };
 
             let mut buffer = load_buffer(&file);
-            // Split the replay: all-but-last set up the ORIGIN, the LAST chord is
-            // the NAVIGATION move whose glide the timeline captures. With an empty
-            // or single-key spec the origin is wherever the prefix left the cursor.
             let (last, init) = match keys.split_last() {
                 Some((last, init)) => (Some(last.clone()), init.to_vec()),
                 None => (None, Vec::new()),
             };
-            // ONE keymap across both halves, so a prefix armed by the origin
-            // replay still resolves the glide chord (the split is at CHORD
-            // boundaries now that resolution lives inside the replay loop).
             if !init.is_empty() {
                 replay_keys(
                     &mut buffer,
@@ -1577,9 +1283,6 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             };
 
             let mut buffer = load_buffer(&file);
-            // The FULL `--keys` replay sets up the ORIGIN the held burst starts from
-            // (e.g. C-n's + C-f's to land mid-line); the held re-targeting then
-            // drives the motion deterministically from there.
             if !keys.is_empty() {
                 replay_keys(
                     &mut buffer,
@@ -1796,11 +1499,6 @@ mod tests {
     /// every catalog motion has somewhere to go from the middle.
     const SHIFT_FIXTURE: &str = "alpha beta\ngamma delta\nepsilon zeta\n";
 
-    /// Replay `spec` against a fresh [`SHIFT_FIXTURE`] buffer, returning the
-    /// post-replay `(selection, cursor)` — the exact pair the capture sidecar
-    /// publishes (`ReplayResult::selection` feeds `CaptureOpts::selection`
-    /// feeds the sidecar `selection` field; `cursor` is read off the buffer
-    /// the same way the capture's `ViewState` is).
     #[allow(clippy::type_complexity)]
     fn shift_replay(spec: &str) -> (Option<((usize, usize), (usize, usize))>, (usize, usize)) {
         let mut buffer = Buffer::from_str(SHIFT_FIXTURE);
@@ -1812,10 +1510,6 @@ mod tests {
 
     #[test]
     fn replay_shift_arrow_extends_a_real_selection_then_unshifted_motion_collapses() {
-        // THE LAW that closes the trap: `--keys "S-Right S-Right"` extends a
-        // real two-char selection headlessly (the sidecar `selection` is this
-        // exact value — see `shift_replay`'s doc), where the old unshifted
-        // replay silently produced `selection: null` with the cursor at (0,2).
         let (sel, cursor) = shift_replay("S-Right S-Right");
         assert_eq!(cursor, (0, 2), "the motion itself still runs");
         assert_eq!(
@@ -1823,8 +1517,6 @@ mod tests {
             Some(((0, 0), (0, 2))),
             "S-Right S-Right spans exactly the two chars the live Shift+Right pair selects"
         );
-        // And the OTHER half of the live transient-selection contract: the next
-        // UNSHIFTED motion collapses it (GUI style), exactly like live.
         let (sel, cursor) = shift_replay("S-Right S-Right Right");
         assert_eq!(cursor, (0, 3));
         assert_eq!(
@@ -1863,8 +1555,6 @@ mod tests {
                 }
                 swept += 1;
                 let spec = format!("S-{chord}");
-                // Key on the pressed CHORD exactly as the replay + live dispatch
-                // do: parse the same `S-{chord}` token and read its resolved key.
                 let key = keyspec::parse_keys(&spec)
                     .unwrap()
                     .last()
@@ -1885,9 +1575,6 @@ mod tests {
                         "{} (S-{chord}): Shift+motion extends exactly like live",
                         cmd.name
                     );
-                    // Witness the fix: at least one BufferStart/BufferEnd endpoint,
-                    // reached via a named key, DID extend (the old rule excluded
-                    // these outright, so Shift+Cmd-Up/Down silently didn't select).
                     if matches!(cmd.action, Action::BufferStart | Action::BufferEnd) {
                         extended_a_named_endpoint = true;
                     }
@@ -1948,17 +1635,9 @@ mod tests {
 
     #[test]
     fn replay_shift_cmd_up_down_extend_to_document_bounds() {
-        // THE BUG THIS ROUND FIXED, pinned at the sidecar seam: Shift+Cmd-Up /
-        // Shift+Cmd-Down (`S-s-Up` / `S-s-Down` — `s-` is Super/Cmd) select to
-        // the document start / end, exactly like every platform text field. The
-        // old rule excluded BufferStart/BufferEnd outright (guarding the retired
-        // `M-<`/`M->` incidental Shift), so these silently produced `selection:
-        // null` — the reported defect. `--keys "S-s-Down"` is what a live drive
-        // would witness in the capture sidecar.
         const SETUP: &str = "Down Right Right Right";
         let (_, pre) = shift_replay(SETUP);
         assert_eq!(pre, (1, 3), "setup parks the cursor mid-document");
-        // Shift+Cmd-Up extends up to the very start (0,0).
         let (sel, cursor) = shift_replay(&format!("{SETUP} S-s-Up"));
         assert_eq!(cursor, (0, 0), "Cmd-Up still lands on document start");
         assert_eq!(
@@ -1966,7 +1645,6 @@ mod tests {
             Some(((0, 0), (1, 3))),
             "S-s-Up extends the selection from mid-document to the start"
         );
-        // Shift+Cmd-Down extends down to the document end.
         let (sel, cursor) = shift_replay(&format!("{SETUP} S-s-Down"));
         assert_ne!(cursor, pre, "Cmd-Down moves the caret to the document end");
         assert_eq!(
@@ -1988,8 +1666,6 @@ mod tests {
         let (sel, _) = shift_replay("S-PageDown S-PageUp");
         assert_eq!(sel, None, "Shift-PageUp stays a non-extending non-mover");
     }
-
-    // ── STRICT REPLAY TRUTHFULNESS: the mode-aware replay engine ──
 
     #[test]
     fn strict_replay_aborts_on_an_unsupported_effect_naming_action_and_effect() {
@@ -2026,8 +1702,6 @@ mod tests {
         let mut buffer = Buffer::from_str("[a](https://awl.example/doc) tail");
         buffer.set_cursor(1); // inside the link
         let root = PathBuf::from("/tmp");
-        // Follow link's real chord (the emacs slot, `C-c C-o`) — resolution now
-        // happens inside the replay loop, so the spec drives the same door.
         let keys = keyspec::parse_keys("C-c C-o").unwrap();
         let res = replay_keys_mode(
             crate::replay::Mode::Strict,
@@ -2055,10 +1729,6 @@ mod tests {
 
     #[test]
     fn permissive_replay_never_aborts_and_warns_on_both_non_applied_seams() {
-        // The legacy `--keys` door: an Unsupported effect (Quit) and an
-        // Intercepted one (FollowLink) both WARN — the same strings printed to
-        // stderr are recorded here — and the replay runs to completion (the
-        // key AFTER the Quit still applies, today's documented behavior).
         let mut buffer = Buffer::from_str("[a](https://awl.example/x) tail");
         buffer.set_cursor(1);
         let keys = keyspec::parse_keys("s-q C-c C-o s-Down").unwrap();
@@ -2095,8 +1765,6 @@ mod tests {
 
     #[test]
     fn a_fully_applied_replay_stays_warning_and_intercept_free() {
-        // The common case (typing/motion) crosses no seam: the permissive door
-        // is byte-identical to the pre-round replay, with silent stderr.
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("a b c C-a C-e").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2105,30 +1773,15 @@ mod tests {
         assert!(res.intercepts.is_empty());
     }
 
-    // ── HERMETIC SCENARIO FILESYSTEM: the strict door's sandbox ──
-    //
-    // `crate::scenario` owns the seam (its own tests pin seeding + install);
-    // these pin the COMPOSITION with the replay engine: a strict scenario's
-    // writes land in the sandbox and its external handoffs stay intercepted,
-    // while the REAL files keep every byte.
-
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk() {
-        // Arrange a REAL input file (the storyboard input), enter the sandbox
-        // through the ONE production door, then strict-replay an edit + save:
-        // the sandboxed copy updates, the real file keeps every byte — the
-        // hermetic inverse of CAPTURE.md's legacy "save writes to disk" caveat.
         let dir = std::env::temp_dir().join(format!("awl-hermetic-save-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let input = dir.join("doc.md");
         std::fs::write(&input, "alpha\n").unwrap();
         {
-            // FsGuard::capture() restores whatever the install swaps in, even
-            // on a failed assert, so no sibling test ever sees the sandbox.
-            // `capture()` rather than `install(fs::active())`: the argument
-            // form read the global BEFORE taking the guard (queue item 101).
             let _restore = crate::fs::FsGuard::capture();
             crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir));
             let mut buffer = load_buffer(&Some(input.clone()));
@@ -2167,11 +1820,6 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn hermetic_scenario_witnesses_the_url_handoff_as_an_intercept() {
-        // The phase-1 intercept seam COMPOSED with the sandbox: a strict
-        // scenario driving "open link at caret" records the handoff — URL
-        // included — performs nothing, and leaves both filesystems byte-
-        // identical (the sandbox untouched beyond its seed, the real file
-        // untouched entirely).
         let dir = std::env::temp_dir().join(format!("awl-hermetic-link-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -2182,7 +1830,6 @@ mod tests {
             let _restore = crate::fs::FsGuard::capture();
             crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir));
             let mut buffer = load_buffer(&Some(input.clone()));
-            // Right lands the caret inside the link, C-c C-o follows it.
             let keys = keyspec::parse_keys("Right C-c C-o").unwrap();
             let res = replay_keys_mode(
                 crate::replay::Mode::Strict,
@@ -2227,10 +1874,6 @@ mod tests {
 
     #[test]
     fn replay_search_typing_extends_the_query_never_the_buffer() {
-        // THE search-typing regression (the retired isearch-input gap): typing
-        // after C-s used to insert into the BUFFER because in-panel chars
-        // resolved through the keymap to `InsertChar`. Now the guard routes
-        // them to the query, and the caret lands on the current match.
         let mut buffer = Buffer::from_str("say hi twice: hi");
         let keys = keyspec::parse_keys("C-s h i").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2246,8 +1889,6 @@ mod tests {
 
     #[test]
     fn replay_search_steps_case_toggle_and_prefix_chords_stay_in_the_panel() {
-        // STEP next/previous while open: C-s/arrows advance the current match
-        // (they used to RESTART the search through `start_search`).
         let mut buffer = Buffer::from_str("x.x.x");
         let keys = keyspec::parse_keys("C-s x Down C-s").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2255,8 +1896,6 @@ mod tests {
         assert_eq!(res.search_query.as_deref(), Some("x"));
         assert_eq!(buffer.cursor_char(), 4, "two steps advanced 0 -> 2 -> 4");
 
-        // CASE TOGGLE (M-c) — a chord with NO keymap binding at all, reachable
-        // only because the guard consumes it before resolution.
         let mut buffer = Buffer::from_str("Hello HELLO hello");
         let keys = keyspec::parse_keys("C-s h e l l o M-c").unwrap();
         let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
@@ -2289,8 +1928,6 @@ mod tests {
 
     #[test]
     fn replay_search_replacement_typing_replace_one_and_replace_all() {
-        // Tab reveals + focuses the replace field; typed chars fill it; Enter
-        // replaces the CURRENT match and advances (panel stays open).
         let mut buffer = Buffer::from_str("line one\nline two\nline three");
         let keys = keyspec::parse_keys("C-s l i n e Tab r o w Enter").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2306,7 +1943,6 @@ mod tests {
             "the caret advanced to the next match"
         );
 
-        // Cmd-Enter (s-Enter) REPLACES ALL remaining matches in one edit.
         let mut buffer = Buffer::from_str("line one\nline two\nline three");
         let keys = keyspec::parse_keys("C-s l i n e Tab r o w s-Enter").unwrap();
         let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
@@ -2319,8 +1955,6 @@ mod tests {
 
     #[test]
     fn replay_search_enter_accepts_and_esc_restores_origin() {
-        // ENTER on a plain find ACCEPTS: the panel closes, the cursor stays on
-        // the match, and the query is remembered (a process global -> serial()).
         let _g = crate::testlock::serial();
         crate::search::clear_last_query();
         let mut buffer = Buffer::from_str("alpha beta alpha");
@@ -2349,10 +1983,6 @@ mod tests {
 
     #[test]
     fn strict_replay_allows_panel_consumed_chords_but_rejects_them_outside() {
-        // `s-l` (Cmd-L) is deliberately unbound (the unbound-Super swallow
-        // guard): OUTSIDE a search, strict refuses it — the relocated
-        // parse-time check. (`M-c` is NOT the contrast chord: outside a panel
-        // the retired Option-letter layer lets it fall through to self-insert.)
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-l").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2392,17 +2022,8 @@ mod tests {
         assert_eq!(res.search_query.as_deref(), Some("h"));
     }
 
-    // ── SAVE-FEEDBACK round: Cmd-S on a scratch buffer is headless-reachable ──
-
     #[test]
     fn replay_keys_cmd_s_on_scratch_buffer_converts_it_into_a_document_under_the_active_root() {
-        // The scratch-conversion effect (`Effect::ConvertScratchAndSave`) IS
-        // headless-reachable, and behaves IDENTICALLY to the live App (item
-        // 76): a no-path, unnamed buffer's Cmd-S creates a real file under
-        // the replay's own ACTIVE ROOT — not a separate notes-root concept —
-        // through the active `fs` backend (here: an `InMemoryFs`, so the
-        // assertion is a real file-creation check, not a guess). One-shot
-        // naming: the promoted buffer is an ordinary named file immediately.
         use crate::fs::{FileSystem, InMemoryFs};
         let mem = InMemoryFs::new();
         let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
@@ -2447,8 +2068,6 @@ mod tests {
             "hi"
         );
     }
-
-    // ── NOTES VERBS round: the Rename minibuffer stays --keys-drivable ──
 
     #[test]
     fn replay_keys_drives_the_rename_minibuffer_prompt_and_sidecar_reflects_typing() {
@@ -2498,9 +2117,6 @@ mod tests {
 
     #[test]
     fn replay_keys_rename_minibuffer_does_not_open_on_a_pathless_buffer() {
-        // A pathless (scratch) buffer has nothing to rename yet — the pure gate
-        // is a buffer-state check (no fs needed), so this is a calm no-op even
-        // headlessly.
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p r e n a m e RET").unwrap();
         let root = PathBuf::from("/proj");
@@ -2510,8 +2126,6 @@ mod tests {
             "nothing to rename on a pathless buffer"
         );
     }
-
-    // ── NAMED SAVE POINTS: the Keep-version minibuffer stays --keys-drivable ──
 
     #[test]
     fn replay_keys_drives_the_keep_version_minibuffer_prompt_and_sidecar_reflects_typing() {
@@ -2602,7 +2216,6 @@ mod tests {
             "link to: https://   Enter commit   Esc cancel",
             "the live prompt is sidecar-visible via the same foot_hint seam Rename/Keybindings use"
         );
-        // The buffer is UNTOUCHED until commit.
         assert_eq!(buffer.text(), "hello");
     }
 
@@ -2649,10 +2262,6 @@ mod tests {
 
     #[test]
     fn replay_keys_runs_palette_chain_into_overlay() {
-        // The command-palette run-on-Enter chain (Effect::RunAction fed back through
-        // the core in the same replay): Cmd-P opens the palette, "goto" filters to
-        // "Go to file", Enter runs OpenGoto, which the worklist re-dispatches into
-        // the Goto overlay as the final captured state.
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p g o t o RET").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2666,12 +2275,6 @@ mod tests {
 
     #[test]
     fn replay_keys_drives_palette_guide_and_opens_the_guide_buffer() {
-        // Cmd-P → "guide" filters to "Guide" → Enter runs Action::OpenGuide,
-        // which (headlessly, no filesystem write — see Effect::OpenGuide above)
-        // loads the embedded GUIDE.md text straight into the buffer. Mirrors the
-        // palette-chain shape `replay_keys_runs_palette_chain_into_overlay` uses
-        // for an overlay-opening command, but for a buffer-opening one instead —
-        // so the palette door is verified all the way to its settled content.
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p g u i d e RET").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2701,10 +2304,6 @@ mod tests {
 
     #[test]
     fn replay_keys_palette_filter_surfaces_the_marked_settings_row() {
-        // Cmd-P → "keymap" (no Enter): the palette stays open with the union corpus
-        // filtered down to the settings row, its display text carrying the `§ `
-        // marker glyph — assertable straight from `res.overlay.items` (and, via the
-        // sidecar, `overlay.items`).
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e y m a p").unwrap();
         let root = PathBuf::from("/tmp");
@@ -2765,9 +2364,6 @@ mod tests {
 
     #[test]
     fn replay_keys_palette_theme_esc_pops_back_to_palette() {
-        // The breadcrumb POP end-to-end: palette → theme picker → Esc lands back on
-        // the PALETTE (not the buffer). The re-summoned palette carries no breadcrumb
-        // of its own (single-level).
         let _g = crate::testlock::serial();
         let _world = crate::theme::WorldPin::snapshot();
         let mut buffer = Buffer::scratch();
@@ -2791,11 +2387,6 @@ mod tests {
 
     #[test]
     fn replay_keys_palette_theme_keep_closes_to_buffer_not_a_recent_menu() {
-        // SHIP-BLOCKER REGRESSION, end-to-end: palette → theme → Enter (keep) LANDS IN
-        // THE BUFFER with no overlay left — NOT back on the palette (which re-appears on
-        // its Recent lens and reads as a stray "recent files menu", the user report).
-        // The theme is still committed by the keep (`res.accept`). Contrast the Esc test
-        // above, which DOES pop back — only ACCEPT closes to the buffer.
         let _g = crate::testlock::serial();
         let _world = crate::theme::WorldPin::snapshot();
         let mut buffer = Buffer::scratch();
@@ -2835,9 +2426,6 @@ mod tests {
         assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Morph);
 
         let mut buffer = Buffer::scratch();
-        // Palette -> filter to "Caret style…" -> Enter opens it (breadcrumb =
-        // Command) -> Esc pops back to the palette -> Esc closes to the buffer
-        // (no pick was ever made) -> Cmd-T -> filter "Potoroo" -> Enter commits.
         let keys =
             keyspec::parse_keys("s-p C a r e t Space s t y l e RET Esc Esc s-t P o t o r o o RET")
                 .unwrap();
@@ -2853,9 +2441,6 @@ mod tests {
             "the theme switch landed"
         );
 
-        // THE LAW: auto survived the picker-open-and-cancel detour, so it
-        // still tracks Potoroo's mono font — Block, not a Morph pin left over
-        // from glancing at the picker while Gumtree was active.
         assert!(
             crate::caret::is_auto(),
             "cancelling the caret picker must not pin auto"
@@ -2872,11 +2457,6 @@ mod tests {
 
     #[test]
     fn replay_keys_goto_open_file_closes_all_no_overlay() {
-        // A NAVIGATING accept closes the whole stack: ⌘O → Enter on a file lands you
-        // IN the file with NO overlay left open (like a palette value-pick keep, and
-        // unlike the Esc breadcrumb pop).
-        //
-        // The accepted open reads through the swappable fs global (item 101).
         let _tg = crate::testlock::serial();
         let mut buffer = Buffer::scratch();
         let corpus = vec!["doc-fixture.md".to_string()];
@@ -2907,11 +2487,6 @@ mod tests {
 
     #[test]
     fn replay_keys_goto_hides_dotfiles_until_file_visibility_is_all() {
-        // The go-to picker HIDES dot-prefixed corpus entries under Text (the
-        // default); the sticky `file_visibility` global (item 77 — no chord
-        // any more, Cmd-Shift-. is retired) reveals them under All. Drive it
-        // end-to-end through the real keymap + apply_core, asserting the
-        // overlay listing at each phase.
         let _g = crate::testlock::serial();
         let saved = crate::file_visibility::all_on();
         crate::file_visibility::set_all_on(false);
@@ -2923,7 +2498,6 @@ mod tests {
             "src/main.rs".to_string(),
         ];
         let root = PathBuf::from("/tmp");
-        // Open the go-to overlay (Cmd-O), then assert dotfiles are hidden.
         let keys = keyspec::parse_keys("s-o").unwrap();
         let res = replay_keys(
             &mut buffer,
@@ -2947,7 +2521,6 @@ mod tests {
             ".env stays visible: {shown:?}"
         );
         assert!(shown.iter().any(|s| s == "doc-fixture.md"));
-        // Flip to All -> .gitignore appears.
         crate::file_visibility::set_all_on(true);
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-o").unwrap();
@@ -2975,10 +2548,6 @@ mod tests {
 
     #[test]
     fn replay_keys_asset_cleaner_lists_only_the_orphans_from_the_scan() {
-        // Summon the ASSET CLEANER headlessly via the palette (Cmd-P → "clean" → Enter
-        // runs OpenAssetClean, which chains into the Assets overlay) and assert the
-        // orphan list the scan produced — end-to-end through the real keymap +
-        // apply_core + the run.rs orphan gather over the FileSystem seam.
         use std::sync::Arc;
         let root = PathBuf::from("/proj");
         let mem = crate::fs::InMemoryFs::new()
@@ -3006,23 +2575,14 @@ mod tests {
                 .overlay
                 .expect("asset cleaner open after the palette chain");
             assert_eq!(ov.kind, crate::overlay::OverlayKind::Assets);
-            // Only the UNREFERENCED asset is listed; the primary cell is the leaf name.
             assert_eq!(ov.item_strings(), vec!["orphan.png"]);
-            // The secondary column carries the human size + parent dir.
             assert_eq!(ov.item_bindings(), vec!["2 B · assets"]);
-            // The sidecar mode string agrees.
             assert_eq!(ov.kind.as_str(), "assets");
         });
     }
 
     #[test]
     fn replay_keys_project_hides_dotfolders_marks_git_tag() {
-        // The switch-project picker (Cmd-Shift-P) over a real (in-memory) workspace: it now
-        // HIDES dotfolders (`.claude`) under Text (the default) while keeping the synthetic
-        // "." accept row; a git-repo child carries a `"git"` SECONDARY-column tag (no name
-        // bullet); the sticky `file_visibility` global set to All reveals the dotfolders
-        // (item 77 — no chord any more, Cmd-Shift-. is retired). Driven end-to-end through
-        // the real keymap + apply_core + `browse_level`'s filesystem seam.
         use std::sync::Arc;
         let _g = crate::testlock::serial();
         let saved = crate::file_visibility::all_on();
@@ -3035,7 +2595,6 @@ mod tests {
             .with_dir("/ws/repo")
             .with_dir("/ws/repo/.git"); // marks `repo` a git repo
         crate::fs::with_fs(Arc::new(mem), || {
-            // Open the switch-project overlay over the workspace children (Cmd-Shift-P).
             let mut buffer = Buffer::scratch();
             let keys = keyspec::parse_keys("s-S-p").unwrap();
             let res = replay_keys(
@@ -3051,12 +2610,10 @@ mod tests {
             assert_eq!(ov.kind, crate::overlay::OverlayKind::Project);
             assert!(!crate::file_visibility::all_on());
             let shown = ov.item_strings();
-            // The "." accept-this-folder row survives the dotfolder filter.
             assert!(
                 shown.iter().any(|s| s == "."),
                 "'.' accept row kept: {shown:?}"
             );
-            // `.claude` (and junk `.git`) are hidden; the plain + repo folders show.
             assert!(
                 !shown.iter().any(|s| s.starts_with(".claude")),
                 "dotfolder hidden: {shown:?}"
@@ -3073,8 +2630,6 @@ mod tests {
                 shown.iter().any(|s| s.starts_with("repo")),
                 "repo shown: {shown:?}"
             );
-            // No name carries the old bullet; the git repo carries the "git" tag, the
-            // plain folder none.
             assert!(
                 shown.iter().all(|s| !s.contains('•')),
                 "no name bullet: {shown:?}"
@@ -3142,8 +2697,6 @@ mod tests {
 
     #[test]
     fn replay_keys_rebind_menu_recording_state_visible() {
-        // Stopping mid-capture leaves the RECORDING sub-state on the overlay, so the
-        // sidecar `capture` block is assertable (mode, command, empty captured list).
         let mut buffer = Buffer::scratch();
         let keys = keyspec::parse_keys("s-p k e y b RET s a v e RET Down RET").unwrap();
         let root = PathBuf::from("/tmp");
@@ -3161,14 +2714,6 @@ mod tests {
 
     #[test]
     fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
-        // The CJK-priority LANGUAGE picker's whole point, driven end-to-end through
-        // the headless `--keys` replay: Cmd-P -> "settings" -> Enter opens the
-        // Settings menu; "ambiguous" filters to the "Ambiguous CJK reads as" row;
-        // Enter opens the CjkLang sub-picker (breadcrumbed back to Settings); three
-        // Downs select "Korean" (Japanese/Simplified/Traditional/Korean order);
-        // Enter PROMOTES it (core-level, so this is observable with no live App at
-        // all) and pops back to Settings — whose re-summoned value cell reads
-        // "Korean", not the raw "ko" code.
         let _g = crate::testlock::serial();
         crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
         let mut buffer = Buffer::scratch();
@@ -3178,8 +2723,6 @@ mod tests {
         let root = PathBuf::from("/tmp");
         let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
 
-        // The live global was promoted (core-level — the reason this test needs no
-        // App at all).
         assert_eq!(
             crate::frontmatter::cjk_priority(),
             vec![
@@ -3213,15 +2756,6 @@ mod tests {
 
     #[test]
     fn replay_keys_page_reset_restores_default_measure() {
-        // The "no easy way back" fix: mirror `--measure 40` (the flag writes the
-        // process-global directly, exactly like this), then replay "Reset page
-        // width" (no default chord — palette/double-click only) through a config
-        // `[keys]` rebind, the real door a chord-driven replay has for a
-        // defaultless command now that resolution lives inside the loop. The
-        // sidecar's `page.measure` field reads this SAME global, so this is the
-        // capture-level half of the reset (the config-file override removal is
-        // App-only + unit-tested separately in `config/`). Holds the process-wide
-        // page TEST_LOCK and restores it after, like every other page-global test.
         let _pg = crate::testlock::serial();
         crate::page::set_measure(40);
         let mut buffer = Buffer::scratch();
@@ -3263,7 +2797,6 @@ mod tests {
         let mut buffer = Buffer::from_str("fn main() {}\n");
         buffer.set_path(PathBuf::from("/tmp/main.rs"));
         let root = PathBuf::from("/tmp");
-        // Same rebind door as the prose sibling above (palette-only command).
         let keys = keyspec::parse_keys("C-j").unwrap();
         let mut km = crate::keymap::KeymapState::with_overrides_and_convention(
             &[("reset_page_width".into(), vec!["C-j".into()])],
@@ -3291,12 +2824,6 @@ mod tests {
 
     #[test]
     fn replay_keys_goto_switch_reapplies_measure_per_buffer_kind() {
-        // The prose/code page-width split's HEADLESS switch wiring: a `--keys`
-        // Goto from a `.md` fixture to a `.rs` fixture (and back) re-applies the
-        // sticky measure for whichever kind is NOW active, exactly like the live
-        // App's `load_path` -> `sync_page_measure`. Configured overrides (not just
-        // the built-in defaults) flow through too, since both read
-        // `Config::measure_for`.
         let _fs = crate::testlock::serial();
         let _pg = crate::testlock::serial();
         let measure0 = crate::page::measure();
@@ -3463,9 +2990,6 @@ mod tests {
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
         std::fs::write(dir.join("b.txt"), "beta\n").unwrap();
-        // A differently-spelled-but-identical path to a.txt: `dir/sub/../a.txt`
-        // is lexically distinct from the CLEAN `dir/a.txt` the Goto picker
-        // always resolves to, but names the same file.
         let messy = dir.join("sub").join("..").join("a.txt");
         let mut buffer = Buffer::from_file(&messy);
         let corpus = vec!["a.txt".to_string(), "b.txt".to_string()];
@@ -3510,7 +3034,6 @@ mod tests {
         std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
         let mut buffer = Buffer::from_file(&dir.join("a.txt"));
         let corpus = vec!["a.txt".to_string()];
-        // Edit A, spawn a new note (Cmd-N), type into the note, then Goto back to A.
         let keys = keyspec::parse_keys("X s-n Z s-o a . t x t RET").unwrap();
         let res = replay_keys(
             &mut buffer,
@@ -3536,11 +3059,6 @@ mod tests {
 
     #[test]
     fn headless_replay_never_arms_autosave_or_stashes_scratch() {
-        // The DETERMINISM LAW as a tripwire: a `--keys` replay drives edits
-        // through the pure core against a bare Buffer — the autosave engine
-        // lives only on the live App and is structurally out of reach. After
-        // typing on a scratch buffer, neither the scratch stash nor the history
-        // store may exist (a default capture stays side-effect-light).
         use std::sync::Arc;
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut buffer = Buffer::scratch();
@@ -3732,11 +3250,7 @@ mod tests {
         use std::sync::Arc;
 
         let png = PathBuf::from("/proj/logo.png");
-        // A real PNG signature (high bytes + an embedded NUL) — the same
-        // shape `crate::openable::tests` / `app/tests/openable.rs` use.
         let png_bytes: &[u8] = &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00];
-        // A supported UNUSUAL-extension text file (not an allow-list — the
-        // bytes decide) alongside it, to prove the gate does not over-refuse.
         let xyzzy = PathBuf::from("/proj/notes.xyzzy");
 
         let mem = crate::fs::InMemoryFs::new();
@@ -3764,9 +3278,6 @@ mod tests {
             );
             assert_eq!(text_buffer.text(), "plain prose, odd extension\n");
 
-            // END-TO-END: replay the EXACT adversarial repro (a Save chord)
-            // against the buffer this door handed back for the binary path,
-            // then confirm the original file is byte-for-byte untouched.
             let mut buffer = load_buffer(&Some(png.clone()));
             let keys = keyspec::parse_keys("s-s").unwrap();
             let root = PathBuf::from("/proj");
@@ -3780,10 +3291,6 @@ mod tests {
         });
     }
 
-    // ── The HISTORY TIMELINE, replay-driven (--keys drivable, sidecar-honest) ─
-
-    /// Seed an InMemoryFs with `file` at "v2\n" and two history versions, run
-    /// `body` with the store installed. The standard preview-test fixture.
     fn with_seeded_history(body: impl FnOnce(PathBuf)) {
         use std::sync::Arc;
         let p = PathBuf::from("/notes/draft.md");
@@ -3820,7 +3327,6 @@ mod tests {
                 "row 0 is identical to the buffer → no change marks: {transcript}"
             );
             assert_eq!(Some(id.as_str()), ov.selected_history_id());
-            // Arrow down: the OLDER version's diff previews — its marks present.
             ov.move_sel(1);
             let (_, older, _) = history_preview_for(&ov, &buffer).expect("row 1 resolves");
             assert!(
@@ -3858,9 +3364,6 @@ mod tests {
 
     #[test]
     fn replay_history_enter_restores_undoably() {
-        // Enter on the older row ACCEPTS its restore id; the capture arm's
-        // `history::load` + `set_text` lands it as ONE undoable edit, so a
-        // replayed Cmd-Z returns the buffer to its pre-restore text.
         with_seeded_history(|p| {
             let mut buffer = Buffer::from_file(&p);
             let keys = keyspec::parse_keys("Cmd-S-h C-n RET").unwrap();
@@ -3881,14 +3384,8 @@ mod tests {
         });
     }
 
-    // ---- THE ONE LAUNCH-PRECEDENCE LAW (item 76) --------------------------
-    // `resolve_root` — the EXPLICIT-target half, used standalone by every
-    // headless capture mode. `resolve_launch_context` — the full law
-    // (explicit > remembered > default_folder), used by the windowed door.
-
     #[test]
     fn resolve_root_explicit_flag_wins_over_file() {
-        // --root always wins, regardless of a file arg.
         let flag = PathBuf::from("/flag/root");
         let file = PathBuf::from("/some/file.txt");
         assert_eq!(resolve_root(&Some(flag.clone()), &Some(file)), flag);
@@ -3896,7 +3393,6 @@ mod tests {
 
     #[test]
     fn resolve_root_file_argument_resolves_from_its_own_directory() {
-        // `resolve_root` probes `fs::active().is_dir(f)` (queue item 101).
         let _tg = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!("awl-resolve-root-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -3923,8 +3419,6 @@ mod tests {
 
     #[test]
     fn resolve_launch_context_explicit_root_wins_over_remembered_and_file() {
-        // Law point 1: --root wins outright, even over a remembered context
-        // AND a file argument.
         let flag = PathBuf::from("/flag/root");
         let remembered = PathBuf::from("/remembered/root");
         let default_folder = PathBuf::from("/home/me/notes");
@@ -3942,10 +3436,6 @@ mod tests {
 
     #[test]
     fn resolve_launch_context_file_argument_wins_over_remembered() {
-        // Law point 1 (file half): `awl file.md` resolves from the file's own
-        // directory, ignoring the remembered document/folder entirely — the
-        // crisp "explicit beats resumed" rule.
-        // `resolve_root` probes `fs::active().is_dir(f)` (queue item 101).
         let _tg = crate::testlock::serial();
         let remembered = PathBuf::from("/remembered/root");
         let default_folder = PathBuf::from("/home/me/notes");
@@ -3991,8 +3481,6 @@ mod tests {
 
     #[test]
     fn resolve_launch_context_bare_launch_restores_remembered() {
-        // Law point 2: bare `awl` — no --root, no file — with a remembered
-        // active-folder context: it wins over the default folder.
         let remembered = PathBuf::from("/home/me/work/repo-a");
         let default_folder = PathBuf::from("/home/me/notes");
         assert_eq!(
@@ -4011,9 +3499,6 @@ mod tests {
             resolve_launch_context(&None, &None, None, &default_folder),
             default_folder
         );
-        // Distinct from cwd in this test's own working directory, so the
-        // assertion above isn't accidentally true by coincidence. Reading the
-        // process-CWD global -> take the guard (queue item 101).
         let _tg = crate::testlock::serial();
         let cwd = crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         assert_ne!(default_folder, cwd);
@@ -4032,13 +3517,7 @@ mod tests {
         let _fs = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!("awl-capture-bare-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        // `CwdGuard` owns the chdir + the restore (queue item 101): the manual
-        // save/chdir/restore this replaced stranded every sibling test in the
-        // temp dir whenever an assertion below failed before the restore line.
         let _cwd_guard = crate::fs::CwdGuard::enter(&dir);
-        // macOS's temp dir sits behind a `/var` -> `/private/var` symlink, so
-        // read the CANONICAL cwd back rather than trusting `dir` verbatim —
-        // `fs::current_dir()` (what `resolve_root` itself calls) resolves it.
         let cwd = crate::fs::current_dir().unwrap();
         let config = Config {
             default_folder: Some(PathBuf::from("/should/never/be/read")),
@@ -4222,8 +3701,6 @@ mod tests {
 
     #[test]
     fn workspace_defaults_to_root_parent_when_unset() {
-        // No `--workspace`: the effective workspace is the active root's PARENT,
-        // so Cmd-Shift-P lists the root's sibling projects out of the box.
         let root = PathBuf::from("/home/me/work/repos/some-repo");
         assert_eq!(
             resolve_workspace(&None, &root),
@@ -4233,7 +3710,6 @@ mod tests {
 
     #[test]
     fn explicit_workspace_overrides_the_default() {
-        // An explicit `--workspace` always wins, ignoring the root's parent.
         let root = PathBuf::from("/home/me/work/repos/some-repo");
         let ws = PathBuf::from("/elsewhere/projects");
         assert_eq!(resolve_workspace(&Some(ws.clone()), &root), ws);
@@ -4241,8 +3717,6 @@ mod tests {
 
     #[test]
     fn workspace_falls_back_to_root_when_no_parent() {
-        // A root with no usable parent (the filesystem root) falls back to the
-        // root itself, so the picker still opens rather than doing nothing.
         let root = PathBuf::from("/");
         assert_eq!(resolve_workspace(&None, &root), root);
     }
@@ -4283,15 +3757,11 @@ mod tests {
         out
     }
 
-    // A single long paragraph that soft-wraps into several visual rows at a narrow
-    // measure, followed by a SHORT line — the wrapped + crossing fixture.
     const LONG: &str = "the quick brown fox jumps over the lazy dog today\nNEXT\n";
     const LONG_LINE0_LEN: usize = 49; // chars before the first '\n'
 
     #[test]
     fn visual_c_n_lands_on_next_visual_row_not_next_paragraph() {
-        // (1) C-n from the start of a wrapped line steps DOWN one VISUAL row of the
-        // SAME logical line — not into the next paragraph.
         let Some((line, col)) = replay_visual(LONG, 15, "C-n") else {
             eprintln!("skipping visual_c_n_lands_on_next_visual_row: no wgpu adapter");
             return;
@@ -4312,8 +3782,6 @@ mod tests {
 
     #[test]
     fn visual_c_e_stops_at_visual_row_end_not_logical_line_end() {
-        // (2) C-e goes to the end of the current VISUAL row, well short of the
-        // logical line's end.
         let Some((line, col)) = replay_visual(LONG, 15, "C-e") else {
             eprintln!("skipping visual_c_e_stops_at_visual_row_end: no wgpu adapter");
             return;
@@ -4328,8 +3796,6 @@ mod tests {
 
     #[test]
     fn visual_goal_x_is_preserved_across_c_n_then_c_p() {
-        // (3) The sticky GOAL-X: move right 5, then C-n then C-p returns to the
-        // SAME column (the down/up round-trip lands back under the seeded goal-x).
         let down_up = replay_visual(LONG, 15, "C-f C-f C-f C-f C-f C-n C-p");
         let just_right = replay_visual(LONG, 15, "C-f C-f C-f C-f C-f");
         let (Some(down_up), Some(just_right)) = (down_up, just_right) else {
@@ -4345,8 +3811,6 @@ mod tests {
 
     #[test]
     fn visual_c_a_goes_to_visual_row_start() {
-        // (4) C-a goes to the start of the current VISUAL row. C-n from col 0 lands
-        // on the next visual row's start S; from mid that row, C-a returns to S.
         let start = replay_visual(LONG, 15, "C-n");
         let from_mid = replay_visual(LONG, 15, "C-n C-f C-f C-a");
         let (Some(start), Some(from_mid)) = (start, from_mid) else {
@@ -4363,17 +3827,12 @@ mod tests {
 
     #[test]
     fn visual_c_n_at_last_visual_row_crosses_to_next_logical_line() {
-        // (5) At the LAST visual row of a wrapped line, C-n crosses into the NEXT
-        // logical line's FIRST visual row. Count line-0's visual rows via the
-        // oracle, then drive that many C-n through the real keymap.
         let _g = crate::testlock::serial();
         crate::page::set_page_on(true);
         crate::page::set_measure(15);
         let probe = Buffer::from_str(LONG);
         let opts = CaptureOpts::default();
         let result = capture::build_oracle(&probe, &opts).map(|mut op| {
-            // Step DOWN from (0,0) with goal-x 0 until the logical line changes;
-            // `steps` C-n's cross into line 1, `steps-1` stay on line 0.
             let mut steps = 0usize;
             {
                 let oracle = op.as_oracle();
@@ -4392,7 +3851,6 @@ mod tests {
             }
             assert!(steps >= 2, "line 0 should wrap into multiple visual rows");
             let root = PathBuf::from("/tmp");
-            // One fewer C-n keeps us on line 0's LAST visual row...
             let mut b0 = Buffer::from_str(LONG);
             let keys_stay = keyspec::parse_keys(&"C-n ".repeat(steps - 1)).unwrap();
             replay_keys(
@@ -4405,7 +3863,6 @@ mod tests {
                 Some(&mut op),
             );
             let stay = b0.cursor_line_col();
-            // ...and the full count crosses into line 1's first visual row.
             let mut b1 = Buffer::from_str(LONG);
             let keys_cross = keyspec::parse_keys(&"C-n ".repeat(steps)).unwrap();
             replay_keys(
@@ -4432,7 +3889,6 @@ mod tests {
             cross.0, 1,
             "the last-row C-n crosses into the next logical line"
         );
-        // Line 1 ("NEXT") fits one visual row, so its first row starts at col 0.
         assert_eq!(cross.1, 0, "we land on line 1's FIRST visual row");
     }
 
@@ -4506,16 +3962,6 @@ mod tests {
         let _ = std::fs::remove_file(&pl);
     }
 
-    // ---- FRESH LAYOUT ORACLE PER ACTION (Phase 2) --------------------------
-    //
-    // The replay loop re-shapes the oracle from the CURRENT buffer / zoom /
-    // page-measure state before EVERY action (`OraclePipeline::refresh` — the
-    // one freshness seam), mirroring the live window's between-keystrokes
-    // re-sync. Each test below drives one staleness source end-to-end through
-    // the REAL replay and FAILS on the pre-phase build-once oracle (which
-    // shaped the pre-replay buffer exactly once). The per-source refresh
-    // mechanics are unit-tested beside the seam (`capture::oracle::tests`).
-
     #[test]
     fn regression_edit_then_wrapped_motion_sees_fresh_wrap_geometry() {
         // THE known stale case this round retires: a spec that EDITS (wrapping
@@ -4533,8 +3979,6 @@ mod tests {
             eprintln!("skipping regression_edit_then_wrapped_motion: no wgpu adapter");
             return;
         };
-        // Type 30 chars at the head of line 0 (it now wraps at the 15-char
-        // measure), return to the buffer start, then move DOWN one visual row.
         let mut spec: Vec<String> = "the quick brown fox jumps over"
             .chars()
             .map(|c| {
@@ -4696,14 +4140,11 @@ mod tests {
         let _g = crate::testlock::serial();
         let _t = crate::testlock::serial();
         let root = PathBuf::from("/tmp");
-        // Cmd-T Wagtail Enter (commit) -> Cmd-T Gumtree Enter (commit) ->
-        // Cmd-T Wagtail Esc (preview-then-cancel, reverting to Gumtree).
         let keys = keyspec::parse_keys(
             "s-t W a g t a i l RET s-t G u m t r e e RET s-t W a g t a i l Esc",
         )
         .unwrap();
 
-        // AN EXPLICIT PIN survives the journey untouched.
         crate::theme::set_active_by_name("Gumtree").unwrap();
         crate::caret::set_mode(crate::caret::CaretMode::Block);
         let mut buf = Buffer::scratch();
@@ -4719,9 +4160,6 @@ mod tests {
         );
         assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Block);
 
-        // AUTO survives the SAME journey too — no caret picker was ever opened,
-        // so nothing should touch the override at all (the render-time one-bit
-        // fallback in `prepare_caret_layer` only ever READS `caret::mode()`).
         crate::caret::clear_override();
         crate::theme::set_active_by_name("Gumtree").unwrap();
         let mut buf2 = Buffer::scratch();
@@ -4767,7 +4205,6 @@ mod tests {
             crate::caret::CaretMode::Morph,
             crate::caret::CaretMode::Ibeam,
         ] {
-            // BASELINE: land directly on Gumtree + `mode`, no detour at all.
             crate::theme::set_active_by_name("Gumtree").unwrap();
             crate::caret::set_mode(mode);
             let base_buf = Buffer::from_str(text);
@@ -4779,19 +4216,11 @@ mod tests {
                 crate::caret::clear_override();
                 return;
             };
-            // PID-suffixed: `serial()` only excludes other tests IN THIS SAME
-            // process — a second concurrent `cargo test` process (e.g. a
-            // parallel native + AWL_CONVENTION_FORCE=linux run) has its own
-            // `serial()` and would clobber a fixed name (the ~1-in-3 flake
-            // under a full parallel suite; 6/6 clean in isolation).
             let dir = std::env::temp_dir();
             let pid = std::process::id();
             let base_png = dir.join(format!("awl_caret_stateless_base_{mode:?}_{pid}.png"));
             capture::capture_with(&base_png, &base_buf, &opts).expect("baseline capture");
 
-            // DETOUR: the SAME (mode, world), reached via a real committed
-            // Wagtail visit + a theme-picker preview-of-Wagtail-then-Esc, all
-            // through the real apply_core seam.
             crate::theme::set_active_by_name("Gumtree").unwrap();
             crate::caret::set_mode(mode);
             let mut detour_buf = Buffer::from_str(text);
@@ -4873,16 +4302,11 @@ mod tests {
             &mut km,
         );
 
-        // Open Goto (Cmd-O): a real 40-row picker.
         for chord in keyspec::parse_keys("s-o").unwrap() {
             session.apply_chord(&chord).unwrap();
         }
         assert!(session.overlay().is_some(), "Goto must be open");
 
-        // Locate display row 3's real on-screen pixel bounds via the oracle's
-        // own geometry — a plain linear scan using the SAME `overlay_row_at`
-        // hit-test the production seam uses, just probed at a fine step to
-        // FIND a row instead of assuming its position.
         session.sync_oracle_overlay();
         let card = session
             .oracle()
@@ -4908,7 +4332,6 @@ mod tests {
         };
         let py = find_row(&session, Some(3)).expect("row 3 must be found within the card");
 
-        // Hover row 3 for real, through the production pointer-replay seam.
         session.apply_move(px, py);
         assert_eq!(
             session.overlay().unwrap().selected,
@@ -4916,7 +4339,6 @@ mod tests {
             "the real hover selected row 3"
         );
 
-        // A REAL keyboard session scrolls the window deep past it (22x Down).
         for chord in keyspec::parse_keys(&"Down ".repeat(22)).unwrap() {
             session.apply_chord(&chord).unwrap();
         }
@@ -4958,9 +4380,6 @@ mod tests {
             "the keyboard's selection survives a 1px-jittered stationary pointer re-check"
         );
 
-        // AND a genuine pointer move — to display row 0's own y-center, a
-        // full row height (or more) away from (px, py) — still takes over
-        // immediately, on the very first such event.
         session.sync_oracle_overlay();
         let py0 = find_row(&session, None).expect("display row 0 must be found");
         let hit0 = session

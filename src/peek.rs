@@ -18,9 +18,6 @@
 /// lands it promptly. LIVE-ONLY feel.
 pub const HOLD_PEEK_MS: u64 = 600;
 
-/// How many personalized shortcut rows the peek card shows at most — the top-N slow-door
-/// commands the user keeps reaching but has a chord for (the ledger's graduation
-/// ranking). ~6 keeps the card a calm glance, not a dashboard.
 #[cfg(not(target_arch = "wasm32"))]
 pub const PEEK_ROWS: usize = 6;
 
@@ -32,7 +29,6 @@ pub const PEEK_ROWS: usize = 6;
 /// breaks, via [`PeekArm`]).
 static PEEK: crate::card::CardFlag = crate::card::CardFlag::new();
 
-/// True when the shortcut-peek card is currently summoned.
 pub fn peek_open() -> bool {
     PEEK.is_open()
 }
@@ -53,7 +49,6 @@ pub fn set_open(open: bool) {
 pub struct PeekRow {
     /// The macOS modifier-glyph chord, e.g. `"⌘O"` (`keyspec::mac_glyph_chord`).
     pub chord: String,
-    /// The command's display name, e.g. `"Go to file"` (ellipsis stripped).
     pub name: String,
 }
 
@@ -84,12 +79,6 @@ pub fn starter_rows() -> Vec<PeekRow> {
     starter_rows_for(crate::convention::Convention::current())
 }
 
-/// [`starter_rows`], but pinning [`crate::convention::Convention`] explicitly rather
-/// than reading [`crate::convention::Convention::current`] — the door a unit test
-/// uses to assert BOTH conventions' curated six directly (mirrors
-/// `KeymapState::new_with_convention`), independent of the ambient build target or
-/// `AWL_CONVENTION_FORCE`. Every real call site wants the ambient convention via
-/// [`starter_rows`].
 pub fn starter_rows_for(convention: crate::convention::Convention) -> Vec<PeekRow> {
     STARTER
         .iter()
@@ -175,23 +164,14 @@ pub fn peek_allowed(zoom_in_flight: bool) -> bool {
     !zoom_in_flight
 }
 
-/// The pure hold-⌘ peek ARM state — the "hold the convention's bare arming modifier
-/// for a beat" gesture and every cancellation, modeled WITHOUT a clock or winit
-/// (WHICH physical modifier that means is [`arming_modifier`]'s separate,
-/// convention-resolved concern — this machine only ever sees the already-decided
-/// [`PeekStimulus`]). The live App holds one of these + the arm `Instant`; it feeds
-/// [`PeekStimulus`]es through [`Self::next`] and stamps the deadline on the
-/// `Idle → Pending` edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PeekArm {
-    /// Nothing pending, no card shown — the idle default.
     #[default]
     Idle,
     /// The convention's bare arming modifier went down alone (⌘ on Mac, Ctrl on
     /// Linux — [`arming_modifier`]); the hold timer is running. When it elapses
     /// (still `Pending`), the card summons.
     Pending,
-    /// The card is summoned (the hold completed) and stays up until the hold breaks.
     Open,
 }
 
@@ -212,9 +192,6 @@ pub enum PeekStimulus {
     /// Modifiers became EXACTLY the convention's bare arming modifier alone (⌘ alone
     /// on Mac, Ctrl alone on Linux) — the only state that arms.
     ArmAlone,
-    /// Modifiers are no longer the bare arming modifier (it plus another modifier, or
-    /// it released) — the hold chord broke, so a pending peek cancels and an open one
-    /// closes.
     ArmBroken,
     /// A non-modifier key press joined the arming modifier (⌘S, ⌘⇧P's letter, Cmd-I on
     /// Mac; `C-f`, `C-s`, … on Linux) — a real chord is forming, so the peek
@@ -222,37 +199,20 @@ pub enum PeekStimulus {
     /// Mac, or a Ctrl-chord on Linux (where the emacs nav layer AND the Linux-native
     /// layer both live on the SAME arming modifier) — from ever flickering the card.
     KeyJoined,
-    /// An external interruption — a mouse press (a ⌘-click is Follow link) or the window
-    /// losing focus — cancels/closes.
     Interrupt,
-    /// The hold-timer deadline fired while still `Pending`: summon the card.
     Elapsed,
 }
 
 impl PeekArm {
-    /// The pure transition: fold `stim` into this state, returning the next one. No
-    /// clock, no side effects — the live App reads the RESULT to drive the process-
-    /// global + the `WaitUntil` deadline (see `App::feed_peek`).
-    ///
-    /// The table, in one breath: the bare arming modifier alone ARMS from idle and
-    /// holds a pending/open peek; the timer OPENS a pending one; a joined key, a
-    /// broken modifier, or any interruption returns to idle from anywhere (cancel
-    /// pending, close open). A stray `Elapsed` while already idle/open is inert (it
-    /// can only meaningfully fire while pending).
     pub fn next(self, stim: PeekStimulus) -> PeekArm {
         use PeekArm::*;
         use PeekStimulus::*;
         match (self, stim) {
-            // Idle: only the bare arming modifier arms; everything else stays idle.
             (Idle, ArmAlone) => Pending,
             (Idle, _) => Idle,
-            // Pending: the timer opens it; a re-affirmed bare arming modifier holds;
-            // any break cancels.
             (Pending, Elapsed) => Open,
             (Pending, ArmAlone) => Pending,
             (Pending, ArmBroken | KeyJoined | Interrupt) => Idle,
-            // Open: stays open while the arming modifier is re-affirmed / the timer
-            // re-fires; any break closes it.
             (Open, ArmAlone | Elapsed) => Open,
             (Open, ArmBroken | KeyJoined | Interrupt) => Idle,
         }
@@ -284,12 +244,8 @@ mod tests {
 
     #[test]
     fn bare_arm_modifier_arms_then_timer_opens() {
-        // The happy path: the bare arming modifier alone arms Pending, the hold timer
-        // opens the card.
         assert_eq!(Idle.next(ArmAlone), Pending);
         assert_eq!(Pending.next(Elapsed), Open);
-        // A re-affirmed bare arming modifier (an OS-repeated ModifiersChanged) holds
-        // each state.
         assert_eq!(Pending.next(ArmAlone), Pending);
         assert_eq!(Open.next(ArmAlone), Open);
         assert_eq!(Open.next(Elapsed), Open);
@@ -324,27 +280,15 @@ mod tests {
 
     #[test]
     fn a_click_or_blur_cancels_pending_and_closes_open() {
-        // A ⌘-click (Follow link) or the window blurring interrupts either state.
         assert_eq!(Pending.next(Interrupt), Idle);
         assert_eq!(Open.next(Interrupt), Idle);
     }
 
     #[test]
     fn an_open_peek_closes_when_the_arm_modifier_lifts() {
-        // Holding past the threshold opens the card; lifting the arming modifier
-        // closes it (a true hold).
         assert_eq!(Open.next(ArmBroken), Idle);
-        // A key pressed while it's open (e.g. finally hitting the shortcut) closes it too.
         assert_eq!(Open.next(KeyJoined), Idle);
     }
-
-    // ---- THE ZOOM-SUPPRESSION GATE ----------------------------------------------
-    //
-    // The bug this fixes: holding the arming modifier is ALSO the start of the
-    // Cmd-scroll / Cmd-± zoom gesture. Without the gate, the frosted-backdrop card
-    // pops up over the very text the user is zooming to read. `peek_allowed` is the
-    // pure decision (gesture state → panel visibility); the live App reads it at the
-    // arm + summon seams and dismisses an open card on the first zoom step.
 
     #[test]
     fn peek_allowed_only_when_no_zoom_in_flight() {
@@ -374,7 +318,6 @@ mod tests {
         assert_eq!(Idle.next(stim), Idle, "so a fresh hold never arms mid-zoom");
         assert_eq!(Pending.next(stim), Idle, "and a pending hold is cancelled");
         assert_eq!(Open.next(stim), Idle, "and an open card is closed");
-        // Once the zoom settles the gate re-opens and the same edge arms normally.
         let settled = if peek_allowed(false) {
             ArmAlone
         } else {
@@ -390,9 +333,6 @@ mod tests {
 
     #[test]
     fn zoom_in_flight_suppresses_the_summon_at_the_timer_seam() {
-        // `about_to_wait` fires the hold-timer deadline as `Elapsed` (opens the card)
-        // ONLY while `peek_allowed`; a zoom in flight feeds the cancelling `ArmBroken`
-        // instead, so a pause that would have opened the card folds back to Idle.
         let elapsed_stim = |zoom_in_flight: bool| {
             if peek_allowed(zoom_in_flight) {
                 Elapsed
@@ -414,17 +354,12 @@ mod tests {
 
     #[test]
     fn a_zoom_step_closes_an_open_card_via_interrupt() {
-        // A wheel-zoom notch lands while the card is up (⌘ was held long enough to
-        // summon it, THEN the user Cmd-scrolls): the live wheel-zoom seam feeds
-        // `Interrupt`, closing the card before the next frame draws it over the text.
         assert_eq!(Open.next(Interrupt), Idle);
         assert_eq!(Pending.next(Interrupt), Idle);
     }
 
     #[test]
     fn a_stray_elapsed_while_idle_is_inert() {
-        // The timer can only meaningfully fire while Pending; a late/stray Elapsed in
-        // any other state changes nothing.
         assert_eq!(Idle.next(Elapsed), Idle);
         assert_eq!(Open.next(Elapsed), Open);
     }
@@ -540,7 +475,6 @@ mod tests {
     fn starter_rows_are_the_curated_six_glyphified() {
         let rows = starter_rows();
         assert_eq!(rows.len(), 6, "the curated starter six");
-        // The curated ORDER/NAMES are convention-independent.
         let names: Vec<&str> = rows.iter().map(|r| r.name.as_str()).collect();
         assert_eq!(
             names,
@@ -606,7 +540,6 @@ mod tests {
     fn rows_or_starter_folds_empty_to_the_starter_six() {
         // A capture (never pushed) / fresh-install ledger (no candidates) → starter six.
         assert_eq!(rows_or_starter(&[]), starter_rows());
-        // A non-empty push wins verbatim.
         let learned = vec![PeekRow {
             chord: "⌘;".into(),
             name: "Spell suggestions".into(),

@@ -1,36 +1,16 @@
-//! The rope-backed editor buffer and pure editing logic.
-
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use ropey::Rope;
 
-/// A buffer's line-ending discipline — the VS Code model. The rope is ALWAYS
-/// stored purely `\n`-based (CRLF is normalized to LF on load, see
-/// [`Buffer::from_file`]); `Eol` remembers what the FILE used so a save can
-/// restore it byte-for-byte. New / no-path buffers default to [`Eol::Lf`].
-///
-/// This is deliberately a two-value enum: awl recognizes exactly the two endings
-/// a real editor round-trips — Unix `\n` and Windows `\r\n`. A lone `\r`, NEL,
-/// LS or PS is treated as ordinary CONTENT (never a line break, never an EOL
-/// style), matching VS Code — see the "Line endings" section of CLAUDE.md.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Eol {
-    /// Unix `\n`. The default for a fresh / scratch / note buffer.
     #[default]
     Lf,
-    /// Windows `\r\n`.
     Crlf,
 }
 
 impl Eol {
-    /// Detect a file's DOMINANT line ending from its raw (pre-normalization)
-    /// bytes-as-str. The rule (documented, VS Code-leaning): CRLF iff the file's
-    /// `\r\n` pairs OUTNUMBER its lone `\n` breaks — i.e. `\r\n` is the majority
-    /// ending. A pure-LF file (no `\r\n`) is `Lf`; a pure-CRLF file is `Crlf`; a
-    /// MIXED file follows the majority (ties, incl. the empty / newline-free file,
-    /// fall to `Lf` — the conservative default). Only `\r\n` counts toward CRLF; a
-    /// lone `\r` is content and is ignored here.
     pub fn detect(s: &str) -> Eol {
         let total_lf = s.bytes().filter(|&b| b == b'\n').count();
         // Every '\n' immediately preceded by a '\r' is a CRLF pair.
@@ -39,17 +19,7 @@ impl Eol {
         if crlf > lone_lf { Eol::Crlf } else { Eol::Lf }
     }
 
-    /// Encode a PURELY `\n`-based buffer string into this ending's on-disk form:
-    /// `Lf` returns it untouched (byte-identical to today); `Crlf` rewrites every
-    /// `\n` to `\r\n`. The rope's invariant is pure-`\n`, but text can reach here
-    /// already holding a `\r\n` if it entered by a door OTHER than [`from_file`]
-    /// (a pasted CRLF clipboard value, a git-history restore); so the `Crlf` arm
-    /// COLLAPSES to the pure-`\n` base FIRST ([`normalize_eol`]) rather than assume
-    /// it, making the `\n`→`\r\n` rewrite IDEMPOTENT (never `\r\n`→`\r\r\n`). A lone
-    /// `\r` that was content is left alone (only `\r\n`/`\n` is touched).
-    /// Allocation-light: `Lf`, or a `Crlf` string with no `\n`, borrows.
-    ///
-    /// [`from_file`]: Buffer::from_file
+    /// Encode text for disk without doubling CRLF introduced by other input paths.
     pub fn encode<'a>(&self, lf_text: &'a str) -> Cow<'a, str> {
         match self {
             Eol::Lf => Cow::Borrowed(lf_text),
@@ -92,9 +62,6 @@ fn normalize_eol(s: &str) -> Cow<'_, str> {
     }
 }
 
-/// A character classification used for word motion (M-f / M-b). "Word"
-/// characters are alphanumeric or underscore; everything else is punctuation or
-/// whitespace, matching mg/emacs default word syntax closely enough for v1.
 fn is_word_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
@@ -123,15 +90,12 @@ pub(crate) fn word_delete_backward_boundary(
     char_at: impl Fn(usize) -> char,
 ) -> usize {
     let mut i = cursor;
-    // 1. Fold any trailing whitespace into the deletion (a word/punct token to the
-    //    left "owns" the space that introduced it, mirroring macOS word motion).
     while i > 0 && char_at(i - 1).is_whitespace() {
         i -= 1;
     }
     if i == 0 {
         return 0;
     }
-    // 2. Delete exactly one token — the class of the char now before the caret.
     if is_word_char(char_at(i - 1)) {
         while i > 0 && is_word_char(char_at(i - 1)) {
             i -= 1;
@@ -168,15 +132,12 @@ pub(crate) fn word_delete_forward_boundary(
     char_at: impl Fn(usize) -> char,
 ) -> usize {
     let mut j = cursor;
-    // 1. Fold any leading whitespace into the deletion (the token to the RIGHT
-    //    "owns" the space that introduced it, mirroring macOS word motion).
     while j < len && char_at(j).is_whitespace() {
         j += 1;
     }
     if j == len {
         return len;
     }
-    // 2. Delete exactly one token — the class of the char now at the caret.
     if is_word_char(char_at(j)) {
         while j < len && is_word_char(char_at(j)) {
             j += 1;
@@ -256,24 +217,10 @@ enum EditKind {
     Delete,
 }
 
-/// The text buffer + cursor. The cursor is stored as an absolute char index into
-/// the rope; line/column are derived on demand. A "goal column" is remembered so
-/// that vertical motion (C-n/C-p) keeps a stable column across short lines.
 pub struct Buffer {
     rope: Rope,
-    /// Absolute char index of the cursor, in `0..=rope.len_chars()`.
     cursor: usize,
-    /// Remembered visual column for vertical motion; `None` means "recompute".
     goal_col: Option<usize>,
-    /// Remembered VISUAL goal-x (pixels, in the layout oracle's TEXT_LEFT-relative
-    /// space) for VISUAL-line vertical motion: it keeps the caret under the same
-    /// screen column across consecutive up/down moves through soft-wrapped rows —
-    /// the wrap-aware analogue of `goal_col`. The buffer carries it opaquely (it
-    /// owns no layout itself); `apply_core`'s oracle reads/writes it via
-    /// [`Self::goal_x`] + [`Self::set_cursor_visual`]. `None` means "recompute from
-    /// the caret's current visual x". Cleared by every non-vertical motion and edit
-    /// (through `clear_kill_flag` / `set_cursor` / `apply_edit`), so it only ever
-    /// survives a RUN of consecutive visual vertical moves.
     goal_x: Option<f32>,
     /// CARET WRAP AFFINITY: which visual row the caret RENDERS on when its column
     /// sits exactly on a SHARED soft-wrap boundary (see [`crate::caret::Affinity`]).
@@ -300,7 +247,6 @@ pub struct Buffer {
     /// from disk — or reached by ANY route other than that one immediately
     /// preceding continuation — are never guessed to be generated.
     list_continuation_generated: bool,
-    /// The file this buffer is bound to (for Cmd-S). `None` for scratch.
     path: Option<PathBuf>,
     /// This buffer's line-ending discipline (the VS Code model): the rope is
     /// ALWAYS pure-`\n`, and `eol` remembers the file's original ending so a save
@@ -315,21 +261,10 @@ pub struct Buffer {
     /// auto-saving the note; the filename then LOCKS (save writes the bound path).
     /// `None` for ordinary files and scratch buffers (which never auto-name).
     note_dir: Option<PathBuf>,
-    /// Kill buffer (C-k / C-y). Appended to by consecutive kills.
     kill: String,
-    /// Whether the previous command was a kill, so consecutive C-k appends.
     last_was_kill: bool,
-    /// Dirty flag (unsaved changes).
     dirty: bool,
-    /// Selection mark: the anchor char index. The selection is the span between
-    /// `anchor` and `cursor`. `None` means no active selection. Set by C-Space
-    /// (set-mark) or a Shift+motion / mouse drag; cleared by C-g or a plain
-    /// motion that does not extend.
     anchor: Option<usize>,
-    /// Monotonic edit version, bumped on every mutation of the rope CONTENT. Lets
-    /// callers (the view sync / eager spell rescan) detect "did the text change?" with
-    /// a cheap `u64` compare instead of cloning + comparing the whole rope string
-    /// each keystroke. Cursor/selection-only changes do NOT bump it.
     version: u64,
     /// Undo stack: completed (and the in-progress) edit groups, oldest first.
     /// Each group is a run of coalesced [`Edit`]s applied together; one undo pops
@@ -343,7 +278,6 @@ pub struct Buffer {
     /// may coalesce into it. Sealed (set false) by [`seal_undo_group`] after any
     /// non-edit command, and internally when a group-breaking edit occurs.
     undo_group_open: bool,
-    /// The direction of the last recorded edit, for coalescing decisions.
     last_edit_kind: Option<EditKind>,
     /// COLLAPSED SECTIONS (view state, never file content): the set of ATX heading
     /// LOGICAL LINES whose sections are folded. Pure in-memory render state for the
@@ -357,7 +291,6 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    /// Empty scratch buffer (no file).
     pub fn scratch() -> Self {
         Self::from_rope(Rope::new(), None)
     }
@@ -381,7 +314,6 @@ impl Buffer {
         buf
     }
 
-    /// Build directly from a string (used in tests and scratch construction).
     #[allow(dead_code)]
     pub fn from_str(s: &str) -> Self {
         Self::from_rope(Rope::from_str(s), None)
@@ -411,22 +343,15 @@ impl Buffer {
         }
     }
 
-    /// The current edit version (bumped on every content mutation). A cheap change
-    /// token for the view-sync / spell-rescan hot path: equal versions ⇒ the
-    /// rope text is unchanged, so a full-string compare can be skipped.
     pub fn version(&self) -> u64 {
         self.version
     }
-
-    // --- Accessors --------------------------------------------------------
 
     pub fn text(&self) -> String {
         self.rope.to_string()
     }
 
     pub fn line_count(&self) -> usize {
-        // ropey counts a trailing newline as ending a line; for display we want
-        // at least one line.
         self.rope.len_lines().max(1)
     }
 
@@ -455,9 +380,6 @@ impl Buffer {
             return;
         }
         self.eol = eol;
-        // The DISK bytes changed even though the rope content did not; bump the
-        // content version so the autosave engine (which keys on `version`) picks
-        // the rewrite up on the next idle/blur/switch/quit, and mark dirty.
         self.dirty = true;
         self.version += 1;
     }
@@ -479,13 +401,6 @@ impl Buffer {
         }
     }
 
-    /// The buffer's DISPLAY NAME for the page-mode orientation gutter: the bound
-    /// file's name (`notes.md`) for a saved file, else the name a fresh document
-    /// WOULD derive on its first save — the slugified first non-empty line plus
-    /// `.md`, or the `"scratch"` placeholder for an empty / untitled buffer. So a
-    /// scratch surface or an unnamed fresh document still shows a stable,
-    /// save-consistent name in the gutter BEFORE it is ever written (matching
-    /// [`Self::save`]'s naming).
     pub fn display_name(&self) -> String {
         if let Some(p) = &self.path {
             return p
@@ -517,10 +432,7 @@ impl Buffer {
     /// exclusive even for the scratch surface.
     pub fn is_markdown(&self) -> bool {
         match self.path.as_deref() {
-            // Scratch (the blank writing surface) or an unsaved note: prose-first,
-            // so the writing surface defaults to markdown.
             None => true,
-            // A saved file is markdown only by a `.md` / `.markdown` extension.
             Some(p) => p
                 .extension()
                 .and_then(|e| e.to_str())
@@ -551,10 +463,6 @@ impl Buffer {
         crate::page::PageClass::of_syntax(self.syntax_lang())
     }
 
-    /// Re-point the buffer at a new file path. Future saves write here. Used by a
-    /// fresh document's first auto-save (once its filename is derived) and by
-    /// C-x m MOVE (so editing continues at the moved path). The app keeps its own
-    /// `file` notion in sync alongside this.
     pub fn set_path(&mut self, p: PathBuf) {
         self.path = Some(p);
     }
@@ -568,17 +476,10 @@ impl Buffer {
         self.note_dir = Some(dir);
     }
 
-    /// True when this buffer is an UNNAMED FRESH DOCUMENT (no path yet; the
-    /// first non-empty line names it on its first save — see [`Self::save`]).
-    /// `false` again the moment that first save lands (one-shot, item 76):
-    /// ordinary files, scratch buffers, and any ALREADY-named document are not.
     pub fn is_unnamed_fresh(&self) -> bool {
         self.note_dir.is_some()
     }
 
-    /// Reset this buffer to a fresh, EMPTY, unnamed document bound to `dir` (no
-    /// file yet). Used by Cmd-N to start capturing immediately; the filename is
-    /// derived from the first non-empty line on the first save.
     pub fn start_fresh_doc(&mut self, dir: PathBuf) {
         *self = Self::from_rope(Rope::new(), None);
         self.note_dir = Some(dir);
@@ -608,23 +509,16 @@ impl Buffer {
         self.kill.push_str(&normalize_eol(s));
     }
 
-    /// Cursor as (line, column) both 0-based, column measured in chars.
     pub fn cursor_line_col(&self) -> (usize, usize) {
         let line = self.rope.char_to_line(self.cursor);
         let line_start = self.rope.line_to_char(line);
         (line, self.cursor - line_start)
     }
 
-    // --- Folds (collapsed sections; view state — see the `folds` field + `fold`) -
-
-    /// The set of folded heading LOGICAL LINES (read-only). Empty when nothing is
-    /// collapsed.
     pub fn folds(&self) -> &std::collections::BTreeSet<usize> {
         &self.folds
     }
 
-    /// True when there is at least one collapsed section. The cheap short-circuit
-    /// every render / reveal path checks first so an unfolded document pays nothing.
     pub fn has_folds(&self) -> bool {
         !self.folds.is_empty()
     }
@@ -641,17 +535,10 @@ impl Buffer {
         crate::fold::hidden_lines(&levels, &self.folds)
     }
 
-    /// This buffer's per-logical-line heading levels ([`crate::fold::heading_levels`]
-    /// over the current text, gated by markdown-ness) — the one input the fold logic
-    /// reads. Recomputed per gesture (fold ops are rare, not a hot path).
     fn heading_levels(&self) -> Vec<u8> {
         crate::fold::heading_levels(&self.text(), self.is_markdown())
     }
 
-    /// The "… N lines" TAIL data for the current fold set — one
-    /// `(full-doc heading line, hidden line count)` per VISIBLE folded heading,
-    /// ascending ([`crate::fold::fold_tails`]). Empty when nothing is folded. The
-    /// render remaps each heading into filtered space to hang its quiet tail glyph.
     pub fn fold_tails(&self) -> Vec<(usize, usize)> {
         if self.folds.is_empty() {
             return Vec::new();
@@ -660,10 +547,6 @@ impl Buffer {
         crate::fold::fold_tails(&levels, &self.folds)
     }
 
-    /// Map a VISIBLE (fold-filtered) line index — what a pointer hit-test returns,
-    /// since the render shapes the filtered document — back to its FULL-document line.
-    /// The IDENTITY when nothing is folded, so every unfolded click is byte-identical.
-    /// ([`crate::fold::visible_to_full`].)
     pub fn visible_line_to_full(&self, visible_line: usize) -> usize {
         if self.folds.is_empty() {
             return visible_line;
@@ -695,15 +578,9 @@ impl Buffer {
         if !self.folds.contains(&full) {
             return None; // not a collapsed heading's row
         }
-        // The affordance sits past the heading's own text. `col` is a CHAR column on
-        // the logical line; a click to the right of the last glyph maps to the line's
-        // char length (the tail region), so `col >= len` is the hit.
         (col >= self.line_len(full)).then_some(full)
     }
 
-    /// Expand (unfold) the section headed by `heading_line`, parking the caret on that
-    /// heading — the click-to-expand affordance's action. Returns `true` when that line
-    /// was folded (and is now open), `false` (no-op) otherwise.
     pub fn unfold_at(&mut self, heading_line: usize) -> bool {
         if self.folds.remove(&heading_line) {
             self.set_cursor(self.line_start(heading_line));
@@ -713,12 +590,6 @@ impl Buffer {
         }
     }
 
-    /// Toggle the fold on the heading enclosing the caret (fold ⇄ unfold). No-op on
-    /// a non-markdown buffer or a caret with no enclosing heading. Returns the
-    /// toggled heading line, or `None` when nothing was toggled. On a FOLD (not an
-    /// unfold), the caret is parked on the heading line so it is not left inside the
-    /// section it just collapsed (which the auto-expand would immediately reveal) —
-    /// the standard fold gesture leaves you on the collapsed heading.
     pub fn toggle_fold_at_cursor(&mut self) -> Option<usize> {
         let levels = self.heading_levels();
         let (line, _) = self.cursor_line_col();
@@ -751,8 +622,6 @@ impl Buffer {
         true
     }
 
-    /// "Collapse other sections": fold every heading except the caret's section and
-    /// its enclosing chain (the daily-notes gesture). No-op on a non-markdown buffer.
     pub fn collapse_other_sections(&mut self) {
         if !self.is_markdown() {
             return;
@@ -762,7 +631,6 @@ impl Buffer {
         self.folds = crate::fold::collapse_others(&levels, line);
     }
 
-    /// Unfold everything.
     #[allow(dead_code)] // used by the render increment + palette "Unfold all"
     pub fn unfold_all(&mut self) {
         self.folds.clear();
@@ -827,31 +695,18 @@ impl Buffer {
         self.cursor
     }
 
-    /// The cursor's absolute BYTE offset into the document text (`text()`), the
-    /// coordinate [`crate::markdown::link_at`] and other byte-indexed span readers
-    /// want. Derived from the char cursor via the rope's char→byte map, so it
-    /// agrees with the `\n`-only byte offsets `markdown::spans` produces.
     pub fn cursor_byte(&self) -> usize {
         self.rope.char_to_byte(self.cursor)
     }
 
-    /// The absolute BYTE offset of an arbitrary CHAR index (`text()` coordinates) —
-    /// the same rope char→byte map [`Self::cursor_byte`] uses, for a byte-indexed
-    /// span reader (e.g. [`crate::markdown::link_at`]) that needs a HIT-TESTED char,
-    /// not the cursor's. Clamped to the document length so an off-the-end index is
-    /// safe.
     pub fn char_to_byte(&self, ch: usize) -> usize {
         self.rope.char_to_byte(ch.min(self.rope.len_chars()))
     }
 
-    // --- Internal line geometry helpers -----------------------------------
-
-    /// Char index of the start of `line`.
     fn line_start(&self, line: usize) -> usize {
         self.rope.line_to_char(line)
     }
 
-    /// Number of chars on `line` EXCLUDING the trailing newline (if any).
     fn line_len(&self, line: usize) -> usize {
         let total_lines = self.rope.len_lines();
         if line >= total_lines {
@@ -864,7 +719,6 @@ impl Buffer {
             self.rope.len_chars()
         };
         let mut len = end - start;
-        // Trim a single trailing '\n' from the count.
         if len > 0 {
             let last = self.rope.char(end - 1);
             if last == '\n' {
@@ -876,9 +730,6 @@ impl Buffer {
 
     fn clear_kill_flag(&mut self) {
         self.last_was_kill = false;
-        // A non-vertical motion ends any visual vertical run, so the sticky
-        // visual goal-x is recomputed on the next C-n/C-p. (The visual vertical
-        // path uses `set_cursor_visual`, which bypasses this and KEEPS goal_x.)
         self.goal_x = None;
         // A plain motion / edit also drops any caret wrap-affinity: the caret is no
         // longer parked at a visual-row END, so at a shared boundary it renders on
@@ -891,22 +742,10 @@ impl Buffer {
         self.list_continuation_generated = false;
     }
 
-    /// Item 78: true iff `smart_newline`'s list-item Continue arm generated the
-    /// CURRENT empty marker line on the immediately preceding action, with
-    /// nothing intervening since (see the field's own doc for the full clear
-    /// list). READ-AND-CLEAR — the ONE reader is `smart_newline`'s
-    /// `EmptyListItem` arm, deciding preserve-vs-end, and the flag exists only
-    /// to answer that ONE following question.
     pub(crate) fn take_list_continuation_generated(&mut self) -> bool {
         std::mem::take(&mut self.list_continuation_generated)
     }
 
-    /// Item 78: mark that `smart_newline`'s list-item Continue arm JUST opened a
-    /// bare, otherwise-empty bullet/numbered/task continuation line (nothing
-    /// carried over from the split line). The ONE setter — called by
-    /// `actions::edit::smart_newline` immediately after performing that edit
-    /// (whose own `replace_before_cursor` already ran `clear_kill_flag`, so this
-    /// assignment is the last word for this action).
     pub(crate) fn mark_list_continuation_generated(&mut self) {
         self.list_continuation_generated = true;
     }
@@ -928,19 +767,12 @@ impl Buffer {
         self.affinity = affinity;
     }
 
-    // --- Word / line bounds (for double / triple click) -------------------
-
-    /// The char range `[start, end)` of the word containing or adjacent to
-    /// `idx`. If `idx` is on a word char, returns that whole word; otherwise the
-    /// run of non-word chars under it. Used by double-click select-word.
     pub fn word_bounds(&self, idx: usize) -> (usize, usize) {
         let len = self.rope.len_chars();
         if len == 0 {
             return (0, 0);
         }
         let idx = idx.min(len);
-        // Decide which class we are selecting: prefer the char AT idx, else the
-        // char before it (so a click at end-of-word still grabs the word).
         let class_at = |i: usize| -> Option<bool> {
             if i < len {
                 Some(is_word_char(self.rope.char(i)))
@@ -962,8 +794,6 @@ impl Buffer {
         (start, end)
     }
 
-    /// The char range `[start, end)` of the line containing `idx`, INCLUDING the
-    /// trailing newline if present (so triple-click selects the whole line).
     pub fn line_bounds(&self, idx: usize) -> (usize, usize) {
         let idx = idx.min(self.rope.len_chars());
         let line = self.rope.char_to_line(idx);
@@ -993,8 +823,6 @@ impl Buffer {
         self.seal_undo_group();
     }
 
-    /// Select an explicit char range: set the mark at `start` and the cursor at
-    /// `end` (both clamped). Used by double/triple-click and the `--sel` hook.
     pub fn select_range(&mut self, start: usize, end: usize) {
         self.clear_kill_flag();
         self.goal_col = None;
@@ -1002,8 +830,6 @@ impl Buffer {
         self.anchor = Some(start.min(max));
         self.cursor = end.min(max);
     }
-
-    // --- Files ------------------------------------------------------------
 
     /// Save to the bound path. For an UNNAMED FRESH DOCUMENT that has not been
     /// named yet (`path` is None but `note_dir` is set), DERIVE the filename from
@@ -1024,10 +850,6 @@ impl Buffer {
         {
             let text = self.rope.to_string();
             match first_nonempty_line(&text) {
-                // A non-empty first line names the file. A single word counts
-                // ("foo" -> foo.md). A first line with no alphanumeric content
-                // (e.g. punctuation-only) yields no slug, so FALL BACK to the
-                // "scratch" placeholder (scratch.md / scratch-2.md / …).
                 Some(line) => {
                     let stem = note_stem(line);
                     crate::fs::active().create_dir_all(&dir)?;
@@ -1079,13 +901,8 @@ impl Buffer {
     }
 }
 
-/// SELECTION + CURSOR PLACEMENT — the mark / region model and the raw cursor
-/// setters (`set_cursor` / `set_cursor_visual` / `delete_selection` / `kill_region`
-/// …). Inherent methods on [`Buffer`], carved out verbatim.
 mod selection;
 
-/// CURSOR MOTION — the non-mutating caret movements (char / line / buffer / word).
-/// Inherent methods on [`Buffer`], carved out verbatim.
 mod motion;
 
 /// UNDO / REDO ENGINE — the `apply_edit` mutation choke point + the op-based
@@ -1094,21 +911,10 @@ mod motion;
 /// modules + this root.
 mod undo;
 
-/// TEXT EDITING OPS — self-insert / tab / delete / kill-line / yank, all routed
-/// through [`Buffer::apply_edit`]. Inherent methods on [`Buffer`], carved out
-/// verbatim — plus the free [`is_url`] URL-shape helper (paste-URL-over-selection
-/// → markdown-link), re-exported so its call sites + tests resolve it bare.
 mod edit;
-// Public URL-shape helper (used bare by `yank` inside `edit`; re-exported for its
-// tests + future clipboard call sites). Allowed-unused: the binary itself only
-// reaches it through `edit`'s own module-local name.
 #[allow(unused_imports)]
 pub use edit::is_url;
 
-/// QUICK-NOTE NAMING + FILE MOVES — the pure title-slug + no-clobber move / rename
-/// helpers. Glob re-exported so the `crate::buffer::note_stem` / `first_nonempty_line`
-/// / `move_file` / `rename_to_stem` (and the in-module `save`) call sites resolve
-/// them by their bare names.
 mod notes;
 pub use notes::*;
 

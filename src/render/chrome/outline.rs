@@ -1,41 +1,13 @@
-//! Persistent page-mode heading outline in the left margin. The current heading uses
-//! a stronger value; hidden outlines park their glyph buffer off-screen.
-//! See [`super`].
-//!
-//! **Figure/ground by value, TWO states (DESIGN §4 — NEVER amber).** The user's
-//! call, superseding the earlier depth-floor × ancestor-lift 4-shade (which read
-//! muddy on light grounds — "all faint, current dark, and that's it"):
-//!   * **INK ([`OutlineRung`], faint/content):** every heading is `Faint`; ONLY the
-//!     CURRENT heading (the caret's section) lifts to `Content` ([`row_rung`]).
-//!     DEPTH reads from the row INDENT, not ink; ancestry gets no lift.
-//!   * **EDGE FADE:** on a long doc the follow-window's clipped first/last row fades
-//!     its `Faint` ink toward the ground (ALPHA, [`OUTLINE_EDGE_FADE_ALPHA`]) — a
-//!     "more above / more below" whisper; the current row is never faded.
-//!   * **GROUP RHYTHM:** a half-row blank gap precedes each top-level section but the
-//!     first, breaking the wall of headings into visual paragraphs.
-
 use super::*;
 
-/// H1/H2 are the STRUCTURAL / "top-level" rungs: the ones the depth floor lifts
-/// above H3+, and the ones a group gap precedes. See [`is_top_level`].
 const OUTLINE_TOP_LEVEL_MAX: u8 = 2;
 
-/// A group gap is HALF a heading row tall — a breath, not a blank line.
 const OUTLINE_GAP_ROWS: f32 = 0.5;
 
-/// A heading is TOP-LEVEL (structural) when its level is H1 or H2
-/// ([`OUTLINE_TOP_LEVEL_MAX`]) — the rungs the depth floor lifts above H3+, and the
-/// rows a [group gap](group_gap_before) precedes.
 fn is_top_level(level: u8) -> bool {
     level <= OUTLINE_TOP_LEVEL_MAX
 }
 
-/// The margin outline's INK — a TWO-STATE value contrast (figure/ground by value
-/// only, NEVER amber per DESIGN §4): every heading is `Faint` (the quiet
-/// surroundings), and ONLY the CURRENT heading (the caret's section) lifts to
-/// `Content` (the full doc ink). Depth reads from the row INDENT, not ink. (The
-/// user's call, superseding the earlier depth-floor × ancestor-lift 4-shade,
-/// which read muddy on light grounds: "all faint, current dark, and that's it.")
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(in crate::render) enum OutlineRung {
     Faint,
@@ -43,7 +15,6 @@ pub(in crate::render) enum OutlineRung {
 }
 
 impl OutlineRung {
-    /// This rung's ACTIVE-theme ink, as a glyphon color.
     fn color(self) -> glyphon::Color {
         let ink = match self {
             OutlineRung::Faint => theme::faint(),
@@ -53,14 +24,8 @@ impl OutlineRung {
     }
 }
 
-/// EDGE-FADE ALPHA: a CLIPPED first/last row of the follow-window whispers "more
-/// above / more below" by dropping its (already `Faint`) alpha toward the ground —
-/// the value-rung step the old 3-rung `dimmed()` used can't apply once every row is
-/// `Faint` (there is no rung below it), so the fade rides ALPHA instead. The current
-/// heading (`Content`, pinned to the edge by the follow) is never faded.
 const OUTLINE_EDGE_FADE_ALPHA: f32 = 0.45;
 
-/// `color` with its alpha scaled by `f` (clamped) — the edge-fade's alpha step.
 fn faded(color: glyphon::Color, f: f32) -> glyphon::Color {
     let a = (color.a() as f32 * f).round().clamp(0.0, 255.0) as u8;
     glyphon::Color::rgba(color.r(), color.g(), color.b(), a)
@@ -100,10 +65,6 @@ pub(in crate::render) fn ancestor_chain(
     out
 }
 
-/// The per-row INK — TWO STATES, nothing else: the CURRENT heading (the caret's
-/// section) is `Content`, every other heading is `Faint`. Depth reads from the row
-/// INDENT (not ink); ancestry has no ink lift (the caret's own row is the only lit
-/// one). Never amber (both are value steps on the ink ladder, DESIGN §4).
 pub(in crate::render) fn row_rung(is_current: bool) -> OutlineRung {
     if is_current {
         OutlineRung::Content
@@ -112,18 +73,10 @@ pub(in crate::render) fn row_rung(is_current: bool) -> OutlineRung {
     }
 }
 
-/// The index of the FIRST top-level (H1/H2) heading, if any — the one top-level
-/// section that gets NO leading [group gap](group_gap_before) (you don't open the
-/// document with a blank breath).
 fn first_top_level(headings: &[crate::markdown::Heading]) -> Option<usize> {
     headings.iter().position(|h| is_top_level(h.level))
 }
 
-/// GROUP RHYTHM: whether the heading at `i` opens a new visual paragraph — TRUE for a
-/// top-level (H1/H2) heading that is NOT the first top-level one (`first_top`), so a
-/// half-row blank gap precedes it. Window-INDEPENDENT (a pure fact of the heading
-/// list); the render additionally suppresses a gap on the first VISIBLE row so the
-/// band never opens with a blank breath.
 fn group_gap_before(
     headings: &[crate::markdown::Heading],
     first_top: Option<usize>,
@@ -132,34 +85,12 @@ fn group_gap_before(
     is_top_level(headings[i].level) && first_top.is_some_and(|f| i > f)
 }
 
-/// REVEAL-ON-CARET-DEPTH master switch — DEFAULT OFF. When off (the shipped
-/// default this round), the outline shows EVERY heading. When on, it shows the
-/// top-level (H1/H2) headings always, plus H3+ headings ONLY inside the caret's
-/// current top-level section — the WYSIWYG conceal rule generalized to the
-/// outline (deep structure appears as you enter its section, folds away as you
-/// leave). A PROTOTYPE flagged for the user's taste verdict, NOT this round's
-/// default (see [`reveal_shown`]). Kept a `const false` so a normal build takes
-/// the show-everything path; the dev-only `AWL_OUTLINE_REVEAL` env var
-/// ([`reveal_depth_on`]) flips it at runtime to produce the review capture
-/// without a rebuild (a total no-op unless set, mirroring `render::apply_cjk_force`).
 const OUTLINE_REVEAL_DEPTH: bool = false;
 
-/// Whether reveal-on-caret-depth is active: the [`OUTLINE_REVEAL_DEPTH`] const OR
-/// the dev-only `AWL_OUTLINE_REVEAL` env override (set → on, for the review
-/// capture). Unset + const-off → the show-everything default, so determinism is
-/// preserved (a default capture is byte-identical).
 fn reveal_depth_on() -> bool {
     OUTLINE_REVEAL_DEPTH || std::env::var_os("AWL_OUTLINE_REVEAL").is_some()
 }
 
-/// REVEAL-ON-CARET-DEPTH filter (pure, `reveal`-parameterized for tests): the
-/// heading indices the outline SHOWS. `reveal = false` → every heading (the
-/// default). `reveal = true` → each top-level (H1/H2) heading always, plus each
-/// H3+ heading whose NEAREST top-level (H1/H2) ancestor is the caret's current
-/// section — so deep headings appear only while the caret is inside their
-/// section. The caret's current section is the nearest top-level heading at or
-/// above `current`; `None` (caret above the first heading) shows only the
-/// top-level headings.
 fn reveal_shown_with(
     headings: &[crate::markdown::Heading],
     current: Option<usize>,
@@ -168,7 +99,6 @@ fn reveal_shown_with(
     if !reveal {
         return (0..headings.len()).collect();
     }
-    // The nearest top-level heading AT or ABOVE a heading index — its "section".
     let section_of = |i: usize| (0..=i).rev().find(|&j| is_top_level(headings[j].level));
     let cur_section = current.and_then(&section_of);
     (0..headings.len())
@@ -176,8 +106,6 @@ fn reveal_shown_with(
         .collect()
 }
 
-/// The heading indices the outline SHOWS this frame — [`reveal_shown_with`] driven
-/// by the live [`reveal_depth_on`] switch (default: every heading).
 fn reveal_shown(headings: &[crate::markdown::Heading], current: Option<usize>) -> Vec<usize> {
     reveal_shown_with(headings, current, reveal_depth_on())
 }
@@ -195,17 +123,6 @@ fn outline_block_left(right_edge: f32, block_w: f32, min_left: f32) -> f32 {
     (right_edge - block_w).max(min_left)
 }
 
-/// The persistent OUTLINE's COLLAPSED-PARENT state marker — appended (space-
-/// separated) to a collapsed heading row's label, item 65's Outline-state taste
-/// correction. Parenthesized so it reads unambiguously as METADATA, never as more
-/// title text: it can never collide with [`rowlayout::fit_primary_end`]'s own
-/// trailing-ellipsis truncation mark (a bare `…`, no digits/parens), and it is
-/// visually DISTINCT from the doc-body's own expand chevron (`FOLD_CHEVRON` in
-/// `render/layers.rs`) so it never reads as a second click target — the Outline
-/// stays click-to-jump ONLY (DESIGN.md's outline amendment); a row carrying this
-/// marker jumps exactly like any other row. The number is the SAME hidden-line
-/// count the doc-body's own "… N lines" tail shows for this heading
-/// ([`crate::fold::fold_tails`]), so the two surfaces never disagree.
 fn outline_collapsed_marker(hidden: usize) -> String {
     format!(" ({hidden})")
 }
@@ -223,40 +140,15 @@ fn outline_collapsed_marker(hidden: usize) -> String {
 pub(in crate::render) struct OutlineRow {
     pub(in crate::render) label: String,
     pub(in crate::render) rung: OutlineRung,
-    /// EDGE-FADE: this row is a CLIPPED first/last of the follow-window, so its
-    /// `Faint` ink is drawn at reduced alpha ([`OUTLINE_EDGE_FADE_ALPHA`]) — the
-    /// "more above / more below" whisper. Never set on the current row.
     pub(in crate::render) faded: bool,
-    // Read only by the sidecar/tests (the ink already encodes the current row).
     #[cfg_attr(not(test), allow(dead_code))]
     pub(in crate::render) current: bool,
     pub(in crate::render) gap_before: bool,
-    /// The source heading's 0-based document line — the click-to-jump target.
     pub(in crate::render) line: usize,
-    /// item 65 PERSISTENT OUTLINE: is this heading CURRENTLY a folded root — i.e.
-    /// does it own a visible [`crate::render::FoldTail`] ([`TextPipeline::fold_tails`])?
-    /// A collapsed heading's row STAYS in the outline (parent retention: this flag
-    /// is the ONLY thing that changes — nothing here ever removes the row), while
-    /// its now-hidden descendants are already absent from [`TextPipeline::outline_headings`]
-    /// itself (they were dropped from the FOLD-FILTERED text before the markdown
-    /// heading parse ever ran — see that field's own doc; descendant suppression is
-    /// structural, not a filter applied here). A pure STATE fact, read only by the
-    /// sidecar/tests — the DRAWN signal is the [`outline_collapsed_marker`] already
-    /// folded into `label` — kept as its own field (mirroring `current`) so a test
-    /// can assert the state independently of the marker's exact text/glyph.
     #[cfg_attr(not(test), allow(dead_code))]
     pub(in crate::render) collapsed: bool,
 }
 
-/// The margin OUTLINE's fully decided layout for one frame — the visible heading
-/// [rows](OutlineRow) plus the band's RIGHT edge `right_edge` (px, = `column_left −
-/// gap`, the target the block's right edge hugs), the max one-line `avail` width (px,
-/// = `right_edge − TEXT_LEFT`, for the char budget + graceful-hide floor), and top
-/// `top` (px). The block's LEFT origin is decided in [`TextPipeline::prepare_outline`]
-/// AFTER shaping (`right_edge − the block's natural width`, via [`outline_block_left`]),
-/// so it hugs the column. On a long document (more headings than the margin holds) the
-/// slice FOLLOWS the current heading, and the clipped first/last rows EDGE-FADE one rung
-/// (see [`TextPipeline::outline_layout`]).
 struct OutlineLayout {
     right_edge: f32,
     avail: f32,
@@ -264,10 +156,6 @@ struct OutlineLayout {
     lines: Vec<OutlineRow>,
 }
 
-/// One DRAWN outline row's ink band (device px): the column-hugging text `left`,
-/// its MEASURED `width`, the row's own `y_top`, and the fitted `label`. The shared
-/// per-row geometry both the stars keep-out rects and the organic frost seeds read
-/// (see [`TextPipeline::outline_ink_bands`]).
 struct OutlineBand {
     left: f32,
     width: f32,
@@ -312,12 +200,6 @@ impl TextPipeline {
             return None;
         }
         let label = crate::markdown::type_scale::LABEL;
-        // The LEFT MARGIN band: the block's RIGHT edge hugs the writing column (a small
-        // gap shy of `column_left`, the SAME gap/axis the gutter uses), and `avail` is
-        // the max block width back to the text-left pad — the char budget + the
-        // graceful-hide floor. The block's actual LEFT origin is decided in
-        // `prepare_outline` after shaping (right_edge − its natural width), so the whole
-        // block moves WITH the column instead of left-anchoring at the window edge.
         let left_pad = crate::render::TEXT_LEFT;
         let gap = self.metrics.char_width * MARGIN_COLUMN_GAP_CHARS;
         let right_edge = self.column_left() - gap;
@@ -325,8 +207,6 @@ impl TextPipeline {
         if avail <= 0.0 {
             return None;
         }
-        // Char budget at the LABEL scale the outline actually renders at (its glyphs
-        // are smaller than the doc's, so its per-char footprint shrinks with it).
         let label_char_w = self.metrics.char_width * label;
         let avail_chars = if label_char_w > 0.0 {
             (avail / label_char_w).floor().max(0.0) as usize
@@ -336,19 +216,6 @@ impl TextPipeline {
         if avail_chars < rowlayout::OUTLINE_MIN_CHARS {
             return None;
         }
-        // Vertical extent: TOP-anchored from the text top down to a reserved band
-        // above the BOTTOM-anchored gutter, so the two margin surfaces never collide.
-        // The gutter is at most two LABEL rows + its 8px inset; reserve that plus a
-        // one-row breath. `top` ALSO yields to the WEB/LINUX MENU BAR when it is
-        // actually shown — the SAME [`Self::menubar_reserve`] the document's own
-        // `doc_top` already folds in (`render/geometry.rs`), never a hardcoded pixel
-        // or a duplicated bar-height formula, so the two persistent-chrome surfaces
-        // move in lockstep and a bar-off (macOS default) frame is untouched
-        // (`menubar_reserve() == 0.0`). Because both the DRAW (`prepare_outline`) and
-        // the HIT-TEST (`outline_hit_line`) read `top` from THIS one `outline_layout`,
-        // the offset can never drift between what is drawn and what a click resolves
-        // to, and the row BUDGET below (`avail_h`) shrinks with it too — not just a
-        // shift that clips at the bottom.
         let row_h = self.metrics.line_height * label;
         let top = crate::render::TEXT_TOP + self.menubar_reserve();
         let gutter_reserve = row_h * 3.0 + 8.0;
@@ -364,31 +231,21 @@ impl TextPipeline {
         let full = &self.outline_headings;
         let current = self.outline_current(); // index into the FULL list
 
-        // REVEAL-ON-CARET-DEPTH (default off → every heading): the heading indices
-        // this frame SHOWS. Everything below operates over this `shown` subset, so
-        // the follow window / lit path / group gaps all read the shown rows.
         let shown = reveal_shown(full, current);
         if shown.is_empty() {
             return None;
         }
         let len = shown.len();
-        // The current heading's POSITION within the shown subset (the follow "sel").
         let sel = current
             .and_then(|c| shown.iter().position(|&i| i == c))
             .unwrap_or(0);
 
-        // GROUP GAPS over the shown subset (a pure fact of the heading structure;
-        // top-level headings are always shown, so the group rhythm is unchanged).
         let first_top = first_top_level(full);
         let gap_full: Vec<bool> = shown
             .iter()
             .map(|&i| group_gap_before(full, first_top, i))
             .collect();
 
-        // FOLLOW, gap-aware: keep the current heading visible, shrinking the heading
-        // budget until the windowed rows PLUS their internal group gaps fit the band.
-        // A gap before the FIRST visible row never renders (suppressed below), so it
-        // does not count toward the fit. Converges: each shrink drops a heading row.
         let mut budget = max_rows;
         let (win_top, count) = loop {
             let (wt, cnt) = super::scroll_window(len, sel, 0, budget);
@@ -400,13 +257,6 @@ impl TextPipeline {
             budget -= 1;
         };
 
-        // EDGE FADE: when the window actually CLIPS (headings above / below the slice),
-        // fade the clipped first / last visible row toward the ground (an ALPHA step
-        // now that every non-current row is `Faint` — see [`OUTLINE_EDGE_FADE_ALPHA`])
-        // — a quiet "more above / more below" with no scrollbar chrome. A fully-visible
-        // outline (`win_top == 0` and the last row is the doc's last heading) fades
-        // nothing. The CURRENT row is NEVER faded — the follow pins it to the bottom
-        // edge, so this exemption keeps the you-are-here row at full `Content`.
         let clips_above = win_top > 0;
         let clips_below = win_top + count < len;
         let last_vis = count.saturating_sub(1);
@@ -415,24 +265,12 @@ impl TextPipeline {
             .map(|(vis, pos)| {
                 let idx = shown[pos]; // index into the FULL heading list
                 let h = &full[idx];
-                // Heading rows are PROSE titles (front-loaded) — end-elide + drop an
-                // em/en-dash subtitle first (never the filename middle-elide).
                 let label = rowlayout::fit_primary_end(&h.label(), avail_chars);
                 let is_current = current == Some(idx);
                 let rung = row_rung(is_current);
                 let clipped_edge = (vis == 0 && clips_above) || (vis == last_vis && clips_below);
                 let faded = clipped_edge && !is_current;
-                // Suppress a group gap on the FIRST visible row (no leading blank).
                 let gap_before = vis > 0 && gap_full[pos];
-                // item 65 COLLAPSED-PARENT MARKER: this heading's own row is a
-                // currently-folded root exactly when it owns a visible `FoldTail`
-                // (`self.fold_tails` — the SAME set the doc-body's own "… N lines"
-                // tail draws from, in the SAME fold-filtered line space `h.line`
-                // already lives in — see `outline_headings`'s own doc). Appended
-                // BEFORE the later measured-pixel re-fit (`outline_pixel_fit`), so a
-                // title long enough to need BOTH truncation and the marker still
-                // never overflows `avail` — the marker is simply the first thing an
-                // extreme case's re-fit trims.
                 let hidden = self
                     .fold_tails
                     .iter()
@@ -462,35 +300,10 @@ impl TextPipeline {
         })
     }
 
-    /// Whether the margin OUTLINE is actually DRAWN this frame — THE one
-    /// visibility rule, read straight off [`Self::outline_layout`]'s own full
-    /// gate (on + page mode + markdown + headings + horizontal room + vertical
-    /// room), never a re-derivation. Exposed for the LAVA rail carve
-    /// ([`TextPipeline::lava_rail_carved`], `render/layers.rs`): the lava field
-    /// mask treats a visible outline's rail as another no-lava zone, and
-    /// reclaims the margin the instant the outline hides — reading the SAME
-    /// owner means the carve can never disagree with what the frame draws.
     pub(in crate::render) fn outline_visible(&self, height: u32) -> bool {
         self.outline_layout(height).is_some()
     }
 
-    /// FROST PILL RECTS (the shipped headed-doc lava treatment): one rounded-pill
-    /// rect `[left, top, right, bottom]` (device px) hugging EACH drawn outline
-    /// entry's text extents + comfortable padding — the regions
-    /// [`TextPipeline::prepare_lava_layer`] uploads for the lava field to render
-    /// FROSTED behind (a softened SMOOTH-field blur + a value dim), so the dim
-    /// outline ink keeps its contrast while the lamp stays alive between and around
-    /// the pills. EMPTY when the outline is HIDDEN (no rail ink → no frost, so a
-    /// heading-less doc stays byte-identical to the both-margins behaviour), and
-    /// capped at [`crate::lava::MAX_FROST_PILLS`].
-    ///
-    /// Derived from the SAME [`Self::outline_layout`] + [`Self::outline_pixel_fit`]
-    /// owners the outline's own pixels ride — its follow slice, group gaps,
-    /// `top`/`row_h`, per-row MEASURED width (`measure_outline_label_px`), and the
-    /// column-hugging left origin ([`outline_block_left`], from the block's natural
-    /// width) — so a pill can never drift from the row it frosts. `&mut self`
-    /// because the per-row pixel measurement genuinely shapes text (a throwaway on
-    /// `outline_buffer`, re-shaped for real by the later `prepare_outline`).
     pub(in crate::render) fn lava_frost_pill_rects(&mut self, height: u32) -> Vec<[f32; 4]> {
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
         if row_h <= 0.0 {
@@ -500,8 +313,6 @@ impl TextPipeline {
             crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
         let inset_y = row_h * crate::lava::FROST_PILL_INSET_Y_FRAC;
         let mut rects = Vec::new();
-        // Each drawn row's own text band `[left, left+width]` at `y_top`, hugged with
-        // padding and inset from the line box so the lamp breathes BETWEEN rows.
         for band in self.outline_ink_bands(height) {
             if band.width > 0.0 {
                 rects.push([
@@ -518,30 +329,16 @@ impl TextPipeline {
         rects
     }
 
-    /// THE OUTLINE INK BANDS — one per DRAWN outline row, each carrying the row's
-    /// column-hugging text origin `left`, its MEASURED pixel `width`, the row's own
-    /// `y_top`, and the fitted `label`. The ONE owner of the outline's per-row band
-    /// geometry: both the STARS keep-out rects ([`Self::lava_frost_pill_rects`]) and
-    /// the organic FROST SEEDS ([`Self::outline_frost_seeds`]) read it, so the two
-    /// can never drift from the row they surround. Walks the SAME
-    /// [`Self::outline_layout`] + [`Self::outline_pixel_fit`] + [`outline_block_left`]
-    /// the drawn pixels ride (follow slice, group gaps, `top`/`row_h`, measured
-    /// widths, column-hugging left). `&mut self` because the per-row pixel
-    /// measurement genuinely shapes text on the throwaway `outline_buffer`.
     fn outline_ink_bands(&mut self, height: u32) -> Vec<OutlineBand> {
         let Some(mut layout) = self.outline_layout(height) else {
             return Vec::new();
         };
-        // Correct each label to its MEASURED pixel width (the same fit the draw
-        // applies), so band widths match the drawn glyphs exactly.
         self.outline_pixel_fit(&mut layout);
         let label = crate::markdown::type_scale::LABEL;
         let row_h = self.metrics.line_height * label;
         if row_h <= 0.0 {
             return Vec::new();
         }
-        // Per-row MEASURED width + the block's natural width → the column-hugging
-        // left origin (mirrors `prepare_outline`'s own measure-then-place).
         let widths: Vec<f32> = layout
             .lines
             .iter()
@@ -550,8 +347,6 @@ impl TextPipeline {
         let block_w = widths.iter().copied().fold(0.0_f32, f32::max);
         let left = outline_block_left(layout.right_edge, block_w, crate::render::TEXT_LEFT);
         let mut bands = Vec::with_capacity(layout.lines.len());
-        // Walk each row's own y-band (matching `outline_hit_line`'s stacking: a
-        // half-row group gap ABOVE a group-opening row, each row its own `row_h`).
         let mut y = layout.top;
         for (i, row) in layout.lines.iter().enumerate() {
             if row.gap_before {
@@ -568,16 +363,6 @@ impl TextPipeline {
         bands
     }
 
-    /// THE ORGANIC FROST SEEDS for the outline (the shipped lava treatment): every
-    /// visible outline glyph (per-glyph — or per WORD-RUN under the degradation arm
-    /// [`crate::lava::FROST_SEED_PER_GLYPH`]) seeds a small close halo `[x0, x1, yc,
-    /// r]` (device px), hugging the drawn ink. [`TextPipeline::prepare_lava_layer`]
-    /// SUMS these (plus the gutter's) into one continuous field the lava renders
-    /// FROSTED behind (see `shaders/lava.wgsl`), so nearby rows/words merge into
-    /// organic islands with no per-row separation. EMPTY when the outline is HIDDEN
-    /// (byte-identical to the both-margins behaviour). The halo radius is DERIVED
-    /// FROM THE ZOOMED GLYPH GEOMETRY (the LABEL row height), so islands join/split
-    /// naturally with zoom through the continuous field, never a mode switch.
     pub(in crate::render) fn outline_frost_seeds(&mut self, height: u32) -> Vec<[f32; 4]> {
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
         if row_h <= 0.0 {
@@ -664,7 +449,6 @@ impl TextPipeline {
     /// a row (`cursor_shape`), both gated on the outline actually being drawn.
     pub fn outline_hit_line(&self, px: f32, py: f32, height: u32) -> Option<usize> {
         let layout = self.outline_layout(height)?;
-        // Horizontal band: the whole left margin up to the column-hugging right edge.
         if px < crate::render::TEXT_LEFT || px > layout.right_edge {
             return None;
         }
@@ -685,14 +469,6 @@ impl TextPipeline {
         None
     }
 
-    /// Shape + upload the persistent margin OUTLINE: a quiet table-of-contents in the
-    /// TOP-LEFT margin — one dim line per heading (LABEL size), coloured by its two-
-    /// state ink rung ([`row_rung`]: ONLY the caret's CURRENT heading is `Content`,
-    /// every other heading `Faint` — figure/ground by value only, NO amber per DESIGN
-    /// §4), with a half-row group gap before each new top-level section. Indented per
-    /// heading level (via [`crate::markdown::Heading::label`]).
-    /// HIDDEN (off / non-page / non-md / heading-free / too-narrow / no room) => empty
-    /// text parked off-screen, so a default/off capture stays byte-identical.
     pub(in crate::render) fn prepare_outline(
         &mut self,
         device: &wgpu::Device,
@@ -725,8 +501,6 @@ impl TextPipeline {
             right: width as i32,
             bottom: height as i32,
         };
-        // Hidden: empty text parked off-screen, so nothing draws and an off / non-page
-        // / non-markdown capture stays byte-identical.
         let Some(mut layout) = self.outline_layout(height) else {
             self.outline_buffer
                 .set_size(&mut self.font_system, Some(1.0), Some(m.line_height));
@@ -777,15 +551,11 @@ impl TextPipeline {
         // line to a half-row breath while the label rows stay full LABEL height).
         let row_h = m.line_height * label;
         let gap_metrics = GlyphMetrics::new(m.font_size * label, row_h * OUTLINE_GAP_ROWS);
-        // (text, color, is_gap) per visual line, owning the strings first.
         let mut vlines: Vec<(String, glyphon::Color, bool)> = Vec::new();
         for row in &layout.lines {
             if row.gap_before {
                 vlines.push((" ".to_string(), faint, true));
             }
-            // A clipped-edge row fades its Faint ink toward the ground (ALPHA — the
-            // old rung-step can't apply once every row is Faint); the current row
-            // (Content, never `faded`) stays full-strength.
             let color = if row.faded {
                 faded(row.rung.color(), OUTLINE_EDGE_FADE_ALPHA)
             } else {
@@ -795,9 +565,6 @@ impl TextPipeline {
         }
         let n_rows = layout.lines.len();
         let gap_count = layout.lines.iter().filter(|r| r.gap_before).count();
-        // Join with a leading newline after the first line; the gap line's `\n` rides
-        // the PREVIOUS (heading) row and its half metrics never shrink that row (its
-        // height is the max over its full-metrics label glyphs).
         let pieces: Vec<(String, glyphon::Color, bool)> = vlines
             .into_iter()
             .enumerate()
@@ -820,9 +587,6 @@ impl TextPipeline {
         self.outline_buffer
             .set_size(&mut self.font_system, Some(layout.avail), Some(total_h));
         let default_attrs = base.clone().color(faint);
-        // Default LEFT alignment (None) — lines stay internally left-aligned (the level
-        // indentation reads left-to-right); only the WHOLE block's x is placed to hug
-        // the column below.
         self.outline_buffer.set_rich_text(
             &mut self.font_system,
             spans,
@@ -832,11 +596,6 @@ impl TextPipeline {
         );
         self.outline_buffer
             .shape_until_scroll(&mut self.font_system, false);
-        // ANCHOR TO COLUMN: measure the block's NATURAL width (the widest shaped row)
-        // and place its LEFT so the block's RIGHT edge hugs the writing column
-        // (`right_edge`), moving WITH the column as the page resizes — never
-        // left-anchored to the window edge. (Same measure-then-place shape as the
-        // bottom-right word-count readout.)
         let mut block_w = 0.0_f32;
         for run in self.outline_buffer.layout_runs() {
             block_w = block_w.max(run.line_w);
@@ -927,18 +686,6 @@ impl TextPipeline {
         w
     }
 
-    /// The persistent margin OUTLINE's DRAWN rows for tests: `Some(rows)` EXACTLY
-    /// when the outline is drawn (the same gate + FOLLOW slice as
-    /// [`Self::prepare_outline`]), each an [`OutlineRow`] as painted — the label
-    /// already fit to one line **by MEASURED PIXELS** (the same
-    /// [`Self::outline_pixel_fit`] correction the real draw applies — `&mut self`
-    /// because that correction genuinely shapes text), its composite ink `rung`,
-    /// the `current` flag, and the half-row `gap_before`. `None` whenever the
-    /// outline hides (off / non-page / non-md / heading-free / margin below the
-    /// floor / no vertical room). Shares the ONE `outline_layout` + `outline_pixel_fit`
-    /// owners with the pixels, so a test can never assert a state the frame doesn't
-    /// draw. Test-only: the capture sidecar's `outline` block reports the FULL
-    /// heading list + current + ancestors, not the followed slice.
     #[cfg(test)]
     pub(in crate::render) fn outline_draw_report(
         &mut self,
@@ -949,21 +696,11 @@ impl TextPipeline {
         Some(layout.lines)
     }
 
-    /// The margin OUTLINE's `avail` px for this frame (the one-line width budget
-    /// every row's label must fit under) — test-only accessor so a test can assert
-    /// [`Self::outline_draw_report`]'s labels against the SAME number
-    /// [`Self::outline_pixel_fit`] fits them to, without re-deriving the geometry by
-    /// hand.
     #[cfg(test)]
     pub(in crate::render) fn outline_avail_px(&self, height: u32) -> Option<f32> {
         self.outline_layout(height).map(|l| l.avail)
     }
 
-    /// The margin OUTLINE's `top` px for this frame (the y its first row's band
-    /// begins at — `TEXT_TOP` plus the WEB/LINUX MENU BAR's reserve when it is
-    /// shown) — test-only accessor so a test can assert the bar-yield offset
-    /// [`Self::outline_hit_line`]'s y-band starts from, without re-deriving the
-    /// geometry by hand. Mirrors [`Self::outline_avail_px`].
     #[cfg(test)]
     pub(in crate::render) fn outline_top_px(&self, height: u32) -> Option<f32> {
         self.outline_layout(height).map(|l| l.top)
@@ -983,12 +720,8 @@ mod tests {
         }
     }
 
-    /// THE ANCESTOR CHAIN: a heading's ancestors are the nearest preceding heading at
-    /// each strictly-shallower level; an H1 has none; a deep H3 nested under H2 under
-    /// H1 lifts BOTH; a sibling at the same level is never an ancestor.
     #[test]
     fn ancestor_chain_is_the_nearest_shallower_heading_per_level() {
-        // H1, H2, H2, H3(idx3) — the spec's worked example.
         let hs = [h(1, "T"), h(2, "A"), h(2, "B"), h(3, "Deep")];
         let mut anc = ancestor_chain(&hs, 3);
         anc.sort_unstable();
@@ -998,21 +731,18 @@ mod tests {
             "H3's ancestors = nearest preceding H2 (idx2) + the H1 (idx0)"
         );
 
-        // An H1 has NO ancestors.
         assert_eq!(
             ancestor_chain(&hs, 0),
             Vec::<usize>::new(),
             "an H1 has no ancestors"
         );
 
-        // The second H2 (idx2): only the H1 above it (a sibling H2 is not an ancestor).
         assert_eq!(
             ancestor_chain(&hs, 2),
             vec![0],
             "an H2's ancestor is the H1, never a sibling H2"
         );
 
-        // Deep nest H1>H2>H3>H4: the H4 lifts the whole chain, nearest-first.
         let deep = [h(1, "1"), h(2, "2"), h(3, "3"), h(4, "4")];
         assert_eq!(
             ancestor_chain(&deep, 3),
@@ -1020,8 +750,6 @@ mod tests {
             "a deep H4 lifts H3,H2,H1 nearest-first"
         );
 
-        // A shallower-than-the-first heading (e.g. the doc opens at H3, then H2):
-        // the H3 has no shallower heading before it -> empty.
         let jump = [h(3, "deep first"), h(2, "later")];
         assert_eq!(
             ancestor_chain(&jump, 0),
@@ -1035,9 +763,6 @@ mod tests {
         );
     }
 
-    /// THE INK RULE — two states: the CURRENT heading is `Content` (dark), every
-    /// other heading is `Faint`. No depth floor, no ancestor lift (depth reads from
-    /// the row indent, not ink — the user's "all faint, current dark" call).
     #[test]
     fn row_rung_is_two_state_current_content_else_faint() {
         assert_eq!(
@@ -1057,13 +782,8 @@ mod tests {
         );
     }
 
-    /// ANCHOR TO COLUMN: the block's RIGHT edge lands exactly at `right_edge`
-    /// (`column_left − gap`) — `left + block_w == right_edge` — so the block hugs the
-    /// writing column; and it clamps at `min_left` (never crossing the margin pad)
-    /// when the block is somehow wider than the whole margin (the graceful-hide guard).
     #[test]
     fn outline_block_left_hugs_the_column_right_edge() {
-        // A block narrower than the margin: its right edge sits AT right_edge.
         let right_edge = 300.0;
         let min_left = 16.0;
         let block_w = 120.0;
@@ -1073,8 +793,6 @@ mod tests {
             "the block's right edge hugs the column"
         );
         assert!(left >= min_left);
-        // A block wider than the available margin clamps at the left pad (the belt-and-
-        // braces floor; the char budget hides this case first in practice).
         let fat = right_edge - min_left + 50.0;
         assert_eq!(
             outline_block_left(right_edge, fat, min_left),
@@ -1083,9 +801,6 @@ mod tests {
         );
     }
 
-    /// EDGE FADE step: [`faded`] scales ONLY the ALPHA channel (the whisper now that
-    /// every non-current row is `Faint` — there is no rung below it to step down to),
-    /// leaving RGB untouched; f=1 is a no-op, f=0 is fully transparent.
     #[test]
     fn faded_scales_only_the_alpha_channel() {
         let c = glyphon::Color::rgba(120, 130, 140, 200);
@@ -1100,12 +815,8 @@ mod tests {
         assert_eq!(faded(c, 0.0).a(), 0, "f=0 is fully transparent");
     }
 
-    /// REVEAL-ON-CARET-DEPTH (default-off prototype): off shows every heading; on
-    /// shows H1/H2 always plus H3+ ONLY inside the caret's current top-level section.
     #[test]
     fn reveal_shown_gates_deep_headings_to_the_caret_section() {
-        // H1(0) · H2(1) · H3(2) · H3(3) · H2(4) · H3(5) — two sections each with deep
-        // headings under an H2.
         let hs = [
             h(1, "T"),
             h(2, "A"),
@@ -1114,26 +825,21 @@ mod tests {
             h(2, "B"),
             h(3, "b1"),
         ];
-        // OFF: every heading, regardless of caret.
         assert_eq!(
             reveal_shown_with(&hs, Some(2), false),
             vec![0, 1, 2, 3, 4, 5],
             "reveal off shows every heading"
         );
-        // ON, caret in section A (current = the H3 a1, idx 2): A's deep headings show,
-        // B's do not — but every top-level (H1/H2) always shows.
         assert_eq!(
             reveal_shown_with(&hs, Some(2), true),
             vec![0, 1, 2, 3, 4],
             "in section A: A's H3s show, B's H3 is hidden, all top-level shown"
         );
-        // ON, caret in section B (current = idx 4, the H2 B): B's H3 shows, A's don't.
         assert_eq!(
             reveal_shown_with(&hs, Some(4), true),
             vec![0, 1, 4, 5],
             "in section B: B's H3 shows, A's H3s hidden"
         );
-        // ON, caret ABOVE the first heading (None): only the top-level headings.
         assert_eq!(
             reveal_shown_with(&hs, None, true),
             vec![0, 1, 4],
@@ -1141,12 +847,8 @@ mod tests {
         );
     }
 
-    /// GROUP RHYTHM: a half-row gap precedes each top-level (H1/H2) section but the
-    /// first; an H3+ never opens a group; a doc with a single top-level section has
-    /// no gaps at all.
     #[test]
     fn group_gap_precedes_each_non_first_top_level_section() {
-        // H1 title, then three H2 sections each with a nested H3 — WORLDS.md's shape.
         let hs = [
             h(1, "Title"),
             h(2, "At a glance"),
@@ -1166,7 +868,6 @@ mod tests {
             "no gap before the title; a gap before each later H2; never before an H3"
         );
 
-        // A doc whose only top-level section is a lone H1: no gaps anywhere.
         let one = [h(1, "Only"), h(3, "sub"), h(3, "sub2")];
         let ft1 = first_top_level(&one);
         let gaps1: Vec<bool> = (0..one.len())
@@ -1178,8 +879,6 @@ mod tests {
             "a single top-level section has no gaps"
         );
 
-        // A doc that opens at H2 (no H1): the first H2 is the first top-level, later
-        // H2s still open groups.
         let no_h1 = [h(2, "A"), h(3, "a"), h(2, "B")];
         let ftn = first_top_level(&no_h1);
         assert_eq!(ftn, Some(0));

@@ -3,69 +3,23 @@
 use super::*;
 
 impl App {
-    /// Recompute the KEYED spell-verdict cache (`self.active.extra.spell_cache`, see
-    /// [`crate::spell::SpellVerdict`]) against the current buffer text — pure
-    /// state mutation, no `sync_view` side effect, so [`Self::sync_view`] can
-    /// call it INLINE on every version change (the EAGER half of the
-    /// completed-word-lag fix: "check every word as it changes") without
-    /// recursing back into itself.
+    /// Recompute the text-keyed spell cache without synchronizing the view.
     pub(super) fn recompute_spell_cache(&mut self) {
         if let Some(spell) = self.spell.as_ref() {
             let text = self.active.buffer.text();
-            // The ONE spell-scope owner: a CODE buffer checks only its
-            // prose-comment + string spans (identifiers never squiggle); a prose
-            // buffer takes the unscoped path byte-identically.
             let spans = spell.misspellings_for(&text, self.active.buffer.syntax_lang());
-            // KEYED against the SAME text the spans came from, so every fresh
-            // verdict starts out valid by construction.
             self.active.extra.spell_cache = crate::spell::keyed(&text, spans);
             self.active.extra.spell_checked_version = Some(self.active.buffer.version());
         }
     }
 
-    /// Force an IMMEDIATE rescan + view refresh — for discrete action
-    /// handlers OUTSIDE a text edit that still need squiggles to reflect a
-    /// change THIS frame (the spellcheck toggle, a dictionary switch, a
-    /// config reload, replacing a misspelled word): [`Self::recompute_spell_cache`]
-    /// plus the `sync_view` that pushes it to the renderer. A plain text edit
-    /// never needs this — `sync_view`'s own eager version check already
-    /// calls `recompute_spell_cache` inline.
     pub(super) fn run_spellcheck_now(&mut self) {
         self.recompute_spell_cache();
         self.sync_view(false);
     }
 
-    /// THEME-PICKER LIVE PREVIEW re-tint: apply the newly-active world's COLORS
-    /// instantly (`sync_theme_colors`, O(1) pipeline re-tints) and DEFER the font
-    /// reshape until the selection settles, by (re)stamping the
-    /// `THEME_FONT_DEBOUNCE` deadline consumed in `about_to_wait`. The theme-burst
-    /// profile showed the font half — a full-document reshape plus the next
-    /// frame's new-face atlas rasterization — dominating every preview step, so
-    /// arrowing through N worlds now costs N cheap recolors + ONE reshape at rest
-    /// instead of N reshape storms. The deferred reshape ALSO re-bakes the per-span
-    /// text colors (syntax/markdown are frozen into the AttrsList at shape
-    /// time), so a same-FACE world hop that only changes the palette still rides this
-    /// same settle-deferral (`needs_theme_reshape` catches it) — the preview stays
-    /// O(1) colors-only and the span re-tint lands at rest, not on every arrow.
-    /// Landing back on the SAME world (arrowing away and back) cancels the pending
-    /// deferral outright (nothing left to restyle). Live-only: the shared headless
-    /// replay never routes through here.
-    ///
-    /// PRESENT-RACE BRACKET (the vanishing-page fix — UNCONDITIONAL as of
-    /// 2026-07-18). EVERY preview step arms the present-transaction bracket, no
-    /// exceptions. The old `lava::preview_crossing` classification (arm only when
-    /// the pair straddled a lava/one-bit boundary) was RETIRED: a live trace of
-    /// the reported Mangrove→Magpie gesture showed the actual LANDING step
-    /// (`Galah→Magpie`) reads `Steady`, so the bracket armed on the transient
-    /// boundary crossed EARLIER in the nav and had already torn down before the
-    /// landing frame presented — which is why three successive widenings (is_lava
-    /// → ambient → one-bit) never fixed it. The simpler truth: a preview step is a
-    /// preview step; every one of them joins the compositor's transaction. We stamp
-    /// `crossing_settle_at` (re-stamped per step, the "user still navigating"
-    /// debounce) and arm the sync (`sync_present_txn`, the one owner shared with
-    /// resize/move) BEFORE the caller's post-apply redraw runs. The bracket's
-    /// TEARDOWN is event-ordered (`finish_crossing_settle` +
-    /// `crossing_teardown_pending`), not a timer race — see those two.
+    /// Preview colors immediately and defer reshaping until navigation settles.
+    /// Every preview arms the compositor transaction before redraw.
     // `prev` (the outgoing world) is now only named by the native probe trace, so
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
@@ -111,7 +65,6 @@ impl App {
                 g[2],
             ));
         }
-        // Unconditional: every preview frame joins the compositor's transaction.
         self.crossing_settle_at = Some(self.clock.now());
         self.sync_present_txn();
         self.update_title();
@@ -160,19 +113,8 @@ impl App {
         }
     }
 
-    /// The deferred theme FONT reshape, fired from `about_to_wait` once the
-    /// preview selection has rested `THEME_FONT_DEBOUNCE`: reshape the document
-    /// into the (long-since color-applied) active world's face, re-push the view,
-    /// and draw the frame that pays the one rasterization. A no-op reshape (the
-    /// face already matches — e.g. the pending world was re-previewed away and
-    /// back) is inherently cheap inside `sync_theme_font`.
     pub(super) fn apply_deferred_theme_font(&mut self) {
         self.theme_font_at = None;
-        // DEBUG settle readout (live-only): this is the deferred PREVIEW settle — time
-        // the reshape and arm the once-per-switch readout, keyed to the last preview
-        // input (`theme_switch_at`). The frame this schedules is the settled present,
-        // which the frame loop finalizes. Non-debug (and no pending input) takes the
-        // byte-identical plain `sync_theme_font`.
         let input_at = crate::debug::debug_on()
             .then_some(self.theme_switch_at)
             .flatten();
@@ -221,10 +163,6 @@ impl App {
         }
     }
 
-    // PREFER-EXTERNAL-ON-YANK. Call BEFORE buffer.yank(). If the OS clipboard
-    // holds text that differs from what we last wrote/read, the user copied in
-    // another app: load it into the kill ring so the yank uses it. Empty/Err
-    // reads or an unchanged value keep the internal kill ring untouched.
     pub(super) fn refresh_kill_from_clipboard(&mut self) {
         let Some(clip) = self.clipboard.as_mut() else {
             return;
@@ -273,24 +211,13 @@ impl App {
         let Some(clip) = self.clipboard.as_mut() else {
             return false;
         };
-        // No image on the clipboard (the common case: it holds text, or is empty)
-        // → let the normal text paste run. `get_image` Errs for text/empty.
         let img = match clip.get_image() {
             Ok(img) => img,
             Err(_) => return false,
         };
-        // Encode raw RGBA → PNG bytes; a degenerate / length-mismatched buffer
-        // bails to the text path rather than write a broken file.
         let Some(png) = paste_image::encode_rgba_png(img.width, img.height, &img.bytes) else {
             return false;
         };
-        // NO-PATH PASTE SAVES FIRST: a path-less buffer (bare scratch, or an
-        // unnamed quick note) has nowhere to hang an `assets/` folder — trigger
-        // the notes system's own auto-name save now, so the paste lands beside a
-        // real file instead of the data-root fallback below. Best-effort: an
-        // empty buffer can't derive a name yet and simply stays path-less (see
-        // `ensure_note_named_before_paste`'s doc comment) — the fallback still
-        // makes the paste succeed.
         if self.active.buffer.path().is_none() {
             self.ensure_note_named_before_paste();
         }
@@ -298,12 +225,9 @@ impl App {
         let data_root = crate::fs::data_root();
         let doc_path = self.active.buffer.path().map(|p| p.to_path_buf());
         let dir = paste_image::assets_dir(doc_path.as_deref(), &data_root);
-        // Make the assets/ folder (idempotent). A failure → fall back to text.
         if fs.create_dir_all(&dir).is_err() {
             return false;
         }
-        // Probe the dir for the next free `pasted-N.png` (deterministic — a pure
-        // function of the listing, no clock/random).
         let existing: Vec<String> = fs
             .read_dir(&dir)
             .map(|entries| entries.into_iter().map(|e| e.name).collect())
@@ -326,8 +250,6 @@ impl App {
         let text = paste_image::insert_text(col == 0, &reference);
         let at = self.active.buffer.cursor_char();
         self.active.buffer.replace_char_range(at, at, &text);
-        // Refresh the view + repaint (self-contained, so ANY `apply` caller — a
-        // keypress, the Edit menu's Paste — lands the same).
         self.sync_view(true);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();
@@ -335,19 +257,11 @@ impl App {
         true
     }
 
-    /// wasm: no native clipboard image path (the browser clipboard is async +
-    /// permission-gated and the stub exposes no `get_image`), so paste-image is a
-    /// no-op that always falls through to the internal text paste.
     #[cfg(target_arch = "wasm32")]
     pub(super) fn try_paste_image(&mut self) -> bool {
         false
     }
 
-    /// Apply a resolved action; returns true if the app should exit. `shift` is
-    /// whether the Shift modifier was held (so a motion extends the selection,
-    /// Shift+Arrow style); the app passes the live modifier state. `door` names which
-    /// discoverability surface dispatched it (chord / palette / menu) — recorded into
-    /// the silent usage ledger below.
     pub(super) fn apply(
         &mut self,
         action: Action,
@@ -409,14 +323,7 @@ impl App {
             return handled;
         }
 
-        // Yank pulls any newer FOREIGN clipboard text into the on-buffer kill
-        // ring BEFORE the core yanks, so an external copy wins (live behavior).
         if matches!(action, Action::Yank) {
-            // PASTE-IMAGE first: if the OS clipboard holds an IMAGE (not text),
-            // save it as a PNG beside the doc and insert a markdown ref — then
-            // we're DONE (skip the text-paste path entirely). A no-image clipboard
-            // (or any graceful failure) falls through to the normal text yank.
-            // Native + live-only; a byte-identical no-op in the headless capture.
             if self.try_paste_image() {
                 return false;
             }
@@ -427,10 +334,6 @@ impl App {
         let mut zoom = self.zoom;
         let mut search = self.search.take();
         let mut overlay = self.overlay.take();
-        // CURSOR SHAPE: whether an overlay was open BEFORE this action, so an
-        // open/close transition below (summon / accept / cancel — every one of them
-        // flows through the one `self.overlay = overlay` reassignment further down)
-        // can recompute the OS cursor shape WITHOUT waiting for the next mouse move.
         let overlay_was_open = overlay.is_some();
         // Whether the Theme picker is open BEFORE the core runs: live preview
         // (move / filter) mutates the process-global active theme while it stays
@@ -452,10 +355,6 @@ impl App {
             .as_ref()
             .map(|o| o.kind == crate::overlay::OverlayKind::History)
             .unwrap_or(false);
-        // The config `[keys]` (cloned to dodge the &mut self.active.buffer borrow below) so
-        // the command palette can show each command's EFFECTIVE binding, plus the
-        // EFFECTIVE `linux_keep_emacs` list (widened under `keymap = "emacs"`) that
-        // shapes that SAME label under Linux.
         let config_keys = self.config.keys.clone();
         let config_linux_keep = self.config.effective_linux_keep();
         // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
@@ -473,11 +372,6 @@ impl App {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
-        // LAST-EDITED RECENCY: for the DEFAULT folder, re-order the go-to corpus
-        // most-recently-edited first and attach a relative "last edited" label per
-        // file. Live-only (real mtime read here); the headless path passes `None`
-        // so the capture stays byte-stable. Other roots keep name order (and skip
-        // the per-file mtime stat) so a large repo's picker stays fast.
         let recency_now = if self.root == self.default_folder {
             Some(crate::clock::system_now())
         } else {
@@ -498,13 +392,6 @@ impl App {
                 .map(|(i, _)| i)
                 .collect()
         };
-        // RECENTLY-OPENED FILES → go-to corpus indices, IN MRU ORDER (most-recent
-        // first). The persisted MRU (`self.recent_files`) holds ABSOLUTE paths; keep
-        // only those under the ACTIVE root and map each to its corpus row. This feeds
-        // BOTH the "recently-opened" ranking tier AND the Recent LENS (which shows
-        // ONLY these rows, in exactly this order — see `OverlayState::refilter`'s MRU
-        // tiebreak + `index::goto_bucket`). Live-only: `recent_files` is empty in the
-        // headless capture path, so Recent degrades to the empty state there.
         let goto_recent: Vec<usize> = self
             .recent_files
             .iter()
@@ -515,15 +402,6 @@ impl App {
             })
             .filter_map(|rel| goto_corpus.iter().position(|c| *c == rel))
             .collect();
-        // GO-TO's HEADINGS lens corpus: the CURRENT buffer's markdown headings (each
-        // title indented by depth, paired with its line) — the fold that retired the
-        // standalone Outline picker. Read here, BEFORE the closure / the &mut
-        // self.active.buffer borrow below. A non-markdown buffer (or one with no headings)
-        // yields an empty list, so the Headings lens simply reads empty.
-        // GATED on the action (like `spell_target` below): parsing the whole document
-        // (`headings` allocates the full text + runs pulldown) is pure waste on every
-        // OTHER keystroke — the corpus is only consumed when building a Go-to overlay,
-        // which `OpenGoto` (Cmd-O) and `OpenOutline` ("Go to heading…") both do.
         let goto_headings: Vec<(String, usize)> =
             if matches!(action, Action::OpenGoto | Action::OpenOutline)
                 && self.active.buffer.is_markdown()
@@ -535,12 +413,6 @@ impl App {
             } else {
                 Vec::new()
             };
-        // SPELL picker target: the misspelled word the cursor is ON or ADJACENT to,
-        // plus its corrections — resolved HERE, before the &mut self.active.buffer borrow
-        // below, and ONLY when the spell binding actually fired (suggestion
-        // generation isn't free). `None` when spell-check is off or the cursor isn't
-        // on a flagged word, so the summon becomes a calm no-op.
-        // The spell overlay contract carries suggestions, byte span, and source word together.
         #[allow(clippy::type_complexity)]
         let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
             if matches!(action, Action::OpenSpellSuggest) {
@@ -593,12 +465,6 @@ impl App {
             } else {
                 Vec::new()
             };
-        // ASSET CLEANER orphan list: the unreferenced `assets/` images under the
-        // active project — scanned HERE (before the &mut self.active.buffer borrow) and ONLY
-        // when the "Clean unused assets" binding fired (walking the tree + reading
-        // every doc is pure waste on every other keystroke). Native-only (gated like
-        // the daemon: wasm has no Trash / fs walk, so a wasm summon shows the empty
-        // state). The scan reads through the `FileSystem` seam, so it stays testable.
         #[cfg(not(target_arch = "wasm32"))]
         let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
             crate::assets::scan(&self.root, &self.file_index)
@@ -619,11 +485,6 @@ impl App {
             .is_some_and(|key| self.wait_conns.get(&key).is_some_and(|w| !w.is_empty()));
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
-        // The non-navigable builder (Goto / Theme / Command + the buffer-scoped
-        // Spell / History) lives in `overlay`, fed the caller-gathered inputs: the
-        // live recency bits + Go-to's folded headings / spell target / history rows
-        // here, all empty or None in headless except what the replayed buffer + store
-        // yield.
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,
@@ -634,20 +495,12 @@ impl App {
             goto_headings,
             spell_target,
             history_entries,
-            // LIVE reference clocks for History's Session / Today lenses.
             history_now: Some(crate::history::now_millis()),
             history_session_start: crate::history::session_epoch_ms(),
-            // SETTINGS MENU value cells: the config/project-derived pieces gathered
-            // from the live App's config + active root + zoom (the process-global
-            // settings are read live inside the readout). Cheap; unused unless the
-            // Settings overlay is the one being summoned.
             settings_values: crate::settings::SettingsValues::gather(
                 &self.config,
                 &self.root,
                 self.zoom,
-                // LIVE "today" for the "Date format" row's preview — the same
-                // clock read `recency_now` above uses, decomposed to a civil
-                // date (see `dateformat::today_from_system_clock`'s doc).
                 crate::dateformat::today_from_system_clock(),
             ),
             assets,
@@ -663,9 +516,6 @@ impl App {
         // borrow.
         let browse_root = self.root.clone();
         let workspace = self.workspace.clone();
-        // The recent-PROJECTS MRU (absolute paths, newest-first) for the Project
-        // navigator's Recent lens — captured as strings so the navigator can mark
-        // the folders you've switched to. Empty in the headless replay.
         let recent_projects: Vec<String> = self
             .recent_projects
             .iter()
@@ -702,15 +552,9 @@ impl App {
         };
         let effect = actions::apply_core(&mut ctx, &action, shift);
         self.active.extra.shift_selecting = shift_selecting;
-        // ZoomIn/Out/Reset clamp inside the core; mirror the result back so the
-        // next sync picks up the new metrics. A Cmd-zoom action ARMS the debounced
-        // sticky-zoom write (the wheel path arms it in `set_zoom`).
         let zoom_changed = self.zoom != zoom;
         self.zoom = zoom;
         if zoom_changed && matches!(action, Action::ZoomIn | Action::ZoomOut | Action::ZoomReset) {
-            // Anchor the keyboard zoom on the CARET (captured against the still-OLD
-            // geometry, BEFORE the deferred reflow reshapes): the caret holds its
-            // screen position instead of drifting by its distance from the top.
             self.arm_zoom_anchor_caret();
             self.mark_zoom_dirty();
         }
@@ -732,47 +576,24 @@ impl App {
         if let Some(ov) = self.overlay.as_mut() {
             ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
         }
-        // CURSOR SHAPE: the overlay just opened or closed WITHOUT any mouse motion (a
-        // keyboard summon/accept/cancel, or a click routed back through `apply` from
-        // `overlay_click`) — recompute now rather than waiting for the next
-        // `CursorMoved`. A no-op call while the OS pointer is hidden (the common case
-        // for a keyboard-driven open) — see `sync_cursor_icon`'s hidden-pointer gate.
         if self.overlay.is_some() != overlay_was_open {
             self.sync_cursor_icon();
         }
-        // Carry out the ONE deferred EFFECT the core signalled. The signalling
-        // paths are mutually exclusive, so a single match (leaning on
-        // exhaustiveness) replaces the former cluster of out-param `if`s.
         let quit = matches!(&effect, actions::Effect::Quit);
-        // The Theme picker COMMITTED (Enter) or REVERTED (C-g): the core already
-        // set the process-global active theme; remember it so we re-tint below.
         let theme_committed = matches!(
             &effect,
             actions::Effect::OverlayAccept(crate::overlay::OverlayKind::Theme, _)
         );
-        // The HISTORY timeline ACCEPTED (Enter on a real row): the restore is about
-        // to land, so the saved scroll is discarded rather than restored below.
         let history_accepted = matches!(
             &effect,
             actions::Effect::OverlayAccept(crate::overlay::OverlayKind::History, _)
         );
         match effect {
-            // COMMAND PALETTE run-on-Enter: the palette closed itself in the core
-            // and returned the chosen command. Re-dispatch it through the NORMAL
-            // apply path now that the overlay slot is empty — so an overlay-opening
-            // command (Go to file / Switch theme) opens cleanly, ToggleCaretMode/
-            // PageScrollDown hit their App-special handling, and a Quit propagates. The
-            // action here is always Newline (no clipboard/theme post-step), so
-            // returning early is safe.
             actions::Effect::RunAction(act) => {
                 // Feed the command palette's Recent lens: record the RUN command in the
                 // in-memory MRU. LIVE-ONLY (this handler is the App's, never the headless
                 // replay), so a capture never populates it — Recent stays inert there.
                 crate::commands::record_recent(&act);
-                // PALETTE door: the command was chosen from Cmd-P (a SLOW discovery
-                // surface). Re-dispatching here attributes it to `Door::Palette` in the
-                // ledger — the outer `apply` that produced this `RunAction` was the
-                // palette's own Enter (a non-catalog `Newline`), so no double count.
                 let quit = self.apply(act, shift, event_loop, crate::stats::Door::Palette);
                 // BREADCRUMB: if the re-dispatched command OPENED an overlay (Switch
                 // theme / Caret style / Settings / …), stamp it with `return_to =
@@ -788,36 +609,17 @@ impl App {
                 );
                 return quit;
             }
-            // C-x b last-buffer toggle (history lives here).
             actions::Effect::LastBuffer => self.last_buffer_toggle(),
-            // Cmd-N: a fresh document in the ACTIVE folder (the buffer swap here).
             actions::Effect::NewDocument => self.new_document(),
-            // Settings: open the config file into the buffer (create the default
-            // first if missing). The palette entry runs this via re-dispatch above.
             actions::Effect::OpenSettings => self.open_settings(),
-            // Credits: open the embedded CREDITS.md into the buffer (refresh the
-            // on-disk view first, then reuse the ordinary load_path door).
             actions::Effect::OpenCredits => self.open_credits(),
-            // Guide: open the embedded GUIDE.md into the buffer (refresh the
-            // on-disk view first, then reuse the ordinary load_path door).
             actions::Effect::OpenGuide => self.open_guide(),
-            // Insert Date: the pure core can't read a clock/Config, so it only
-            // signalled the request — insert the real TODAY, formatted per the
-            // active `DateFormat`, as one undoable edit.
             actions::Effect::InsertDate => self.insert_date(),
-            // The overlay ACCEPTED (Enter): open the chosen file / switch project /
-            // move the file. Browse emits its file picks as Goto, so Goto covers both.
             actions::Effect::OverlayAccept(kind, val) => match kind {
                 crate::overlay::OverlayKind::Goto => self.open_rel(&val),
-                // C-x p: the explorer accepted an ABSOLUTE directory; make it the
-                // ACTIVE folder (re-resolve project + rebuild index), then remember it
-                // as the one active-folder context — a plain relaunch (no file
-                // argument, no --root) reopens this same folder + its active document
-                // (see `session::remembered_root`/`session_flush`, item 76).
                 crate::overlay::OverlayKind::Project => {
                     self.switch_project(PathBuf::from(val));
                 }
-                // C-x m: move the current file into the chosen destination folder.
                 crate::overlay::OverlayKind::MoveDest => self.move_current_file(&val),
                 // The Theme picker COMMITTED (Enter) or REVERTED (C-g): the core
                 // already set the process-global active theme to `val`; the re-tint
@@ -857,14 +659,9 @@ impl App {
                 crate::overlay::OverlayKind::Browse => {}
                 // The command palette never accepts a value — it runs an Action.
                 crate::overlay::OverlayKind::Command => {}
-                // Cmd-`;`: the spell picker performed the replace IN the core (it's a
-                // buffer edit), so there is nothing to do here — the post-action sync
-                // re-runs spell-check on the new text.
                 crate::overlay::OverlayKind::Spell => {}
                 // The rebind menu never accepts a value — it commits via RebindCommit.
                 crate::overlay::OverlayKind::Keybindings => {}
-                // Cmd-Shift-H: the history timeline accepted a version's restore ID —
-                // load that version and replace the buffer with it (an undoable edit).
                 crate::overlay::OverlayKind::History => self.restore_history(&val),
                 // Settings menu never emits an OverlayAccept(Settings): Enter on a
                 // row signals SettingToggle (toggle), swaps to a sub-picker (picker /
@@ -889,90 +686,40 @@ impl App {
                 // arm is for match exhaustiveness only.
                 crate::overlay::OverlayKind::KeepName => {}
             },
-            // Go-to's HEADINGS lens accepted (the retired Outline picker): move the
-            // cursor to the chosen heading's document line.
             actions::Effect::JumpToLine(line) => self.jump_to_line(line),
-            // Cmd-`;` "Add '<word>' to dictionary": silence the word in the live
-            // checker + append it to the on-disk personal dictionary, then rescan.
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
-            // REBIND MENU: persist the captured binding (after a conflict gate) /
-            // reset to default, then live-reload + refresh the open menu.
             actions::Effect::RebindCommit {
                 slug,
                 binding,
                 confirmed,
             } => self.rebind_commit(slug, binding, confirmed),
             actions::Effect::RebindReset { slug } => self.rebind_reset(slug),
-            // BLOCKED-ACTION RECOIL: the requested action couldn't proceed; queue a
-            // caret bump away from the wall for the next sync_view (it applies the
-            // impulse after setting the spring target). Buffer/cursor are unchanged.
             actions::Effect::Recoil(dir) => self.caret_recoil = Some(dir),
-            // Edit FLINCH: a successful typed char / delete / kill-line / Enter; queue
-            // the matching caret flinch for the next sync_view (applied after the
-            // target is set). The buffer is already mutated by the core.
             actions::Effect::TypeImpact => self.caret_impact = Some(CaretImpact::Type),
             actions::Effect::DeleteSquash => self.caret_impact = Some(CaretImpact::Delete),
             actions::Effect::Gulp => self.caret_impact = Some(CaretImpact::Gulp),
-            // PHASE 3 — ENTER JUICE: a successful Newline lands a caret-level
-            // touchdown squash (queued the same way as the other edit flinches).
             actions::Effect::LineLand => self.caret_impact = Some(CaretImpact::Land),
-            // COPY PULSE: a successful M-w/Cmd-C copy of a non-empty selection.
-            // Queued the same way as the other edit flinches; unlike them the
-            // pipeline call ALSO brightens the selection quad's own tint (the
-            // caret kick alone would be "obvious" but not "understated" — the
-            // selection is the thing that was actually acted on).
             actions::Effect::CopyPulse => self.caret_impact = Some(CaretImpact::Copy),
-            // SETTINGS MENU toggle: flip the sticky boolean live + persist + refresh
-            // the still-open menu's value cell (the menu stays up — see
-            // `settings_accept`). The overlay is already back in `self.overlay`.
             actions::Effect::SettingToggle { key } => self.setting_toggle(&key),
-            // SETTINGS MENU inline VALUE commit: parse + clamp the typed value, apply
-            // it live (page measure / zoom), persist the named key, refresh the cell.
             actions::Effect::SettingValueCommit { key, value } => {
                 self.setting_value_commit(&key, &value)
             }
-            // SETTINGS MENU path pick: write the named folder key (and re-scope the
-            // project for `project_root`), then refresh the re-summoned menu's cell.
             actions::Effect::SettingPathPick { key, path } => self.setting_path_pick(&key, &path),
-            // ITEM 94 — SETTINGS MENU range step: the CORE already applied the new
-            // value (and mirrored the cell + thumb); the live tail is the reflow +
-            // the discrete sticky persist of the named key.
             actions::Effect::SettingRangeStep { key } => self.setting_range_step(&key),
-            // ASSET CLEANER: move the highlighted orphan to the OS Trash (recoverable),
-            // then — only on SUCCESS — remove its row from the still-open picker. A
-            // failure leaves the row and shows a calm notice. Live-App-only (the trash
-            // seam); the headless replay no-ops this effect (its list stays whole).
             actions::Effect::TrashAsset { rel } => self.trash_asset(rel),
             // C-x #: the core already saved; notify any daemon `--wait` client
             // waiting on this buffer (native-only — no daemon on wasm) and switch
             // to the previously-open buffer (the LastBuffer swap).
             actions::Effect::FinishBuffer => self.finish_buffer(),
-            // "Keep version…": THE CONSCIOUS MARK — pin the current buffer as a
-            // prune-exempt local-history snapshot, optionally NAMED (the naming
-            // minibuffer's commit; the store owns the git/off gates).
             actions::Effect::KeepVersion { name } => self.keep_version(name.as_deref()),
-            // C-c C-o: open the markdown link under the caret in the OS default
-            // browser (a user-initiated handoff — see `App::follow_link`).
             actions::Effect::FollowLink(url) => self.follow_link(&url),
-            // "Report a Problem": compose the mailto: URL live (the newest
-            // crash log's path is native-only fs state the pure core can't
-            // reach) and open it through the same seam.
             actions::Effect::ReportProblem => self.report_problem(),
-            // "Download file" (web-only): export the active buffer's text as a
-            // browser download. Gated off on native by `commands::action_available`
-            // (`web_only: true`), so this arm is a documented no-op there.
             actions::Effect::DownloadFile => self.download_file(),
-            // EXPORT: render the active markdown buffer to `.docx` / `.html` (both
-            // platforms) or native `.pdf`, then write a sibling file (native) or
-            // trigger a browser download (DOCX/HTML only), with a calm notice.
             actions::Effect::Export(format) => self.export_document(format),
             // "Check for Updates": record the local "last checked" marker (the
             // app never fetches anything itself) and open the site's own
             // check page through the same OS-handoff seam.
             actions::Effect::CheckForUpdates => self.check_for_updates(),
-            // SAVE-FEEDBACK round: manual save on the TRUE scratch surface —
-            // convert it into a real note (the same auto-name recipe the
-            // paste-image door uses), then finish the bookkeeping + notice.
             actions::Effect::ConvertScratchAndSave => self.convert_scratch_and_save(),
             // Manual save FINISHED (an already-pathed or already-note buffer):
             // the core already wrote the file; raise the calm "saved" / "save
@@ -985,17 +732,9 @@ impl App {
             // actual disk rename + the one-owner path-keyed bookkeeping (refusing
             // calmly on a git-managed file or a name collision).
             actions::Effect::RenameNoteCommit { new_name } => self.rename_current_file(&new_name),
-            // NOTES VERBS round: copy the current file to an auto-named sibling and
-            // open the copy as the active buffer (parking the original first).
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
             actions::Effect::Quit | actions::Effect::None => {}
         }
-        // HISTORY TIMELINE live-preview lifecycle, mirroring the theme block below:
-        // opening the timeline saves the document scroll (a shorter previewed
-        // version can destructively clamp it); the moment the overlay is GONE the
-        // preview is put down — restore the scroll on a close-without-restore
-        // (Esc / click-away / no-op Enter → "back to now exactly"), just discard it
-        // on a real accept (the restored version owns the viewport now).
         if matches!(action, Action::OpenHistory | Action::CompareVersion)
             && self
                 .overlay
@@ -1016,13 +755,6 @@ impl App {
         quit
     }
 
-    /// The HISTORY timeline just CLOSED: drop the live preview (the next sync
-    /// pushes the buffer's own text again) and settle the viewport — `accepted`
-    /// false (Esc / click-away / empty-row Enter) RESTORES the scroll saved at
-    /// open, so "back to now" is exact even after a shorter version's max-scroll
-    /// clamp; `accepted` true (a real Enter-restore) just discards it (the
-    /// undoable restore owns the viewport). Extracted so the close contract is
-    /// unit-testable without an event loop.
     pub(super) fn history_overlay_closed(&mut self, accepted: bool) {
         if accepted {
             self.active.extra.history_scroll_before = None;
@@ -1072,8 +804,6 @@ impl App {
         if self.overlay.is_none() {
             match action {
                 Action::PageScrollDown => {
-                    // RECOIL: a page that can't page further (cursor already at the
-                    // bottom) bumps the caret UP, away from the wall.
                     if !self.scroll_page(1) {
                         self.caret_recoil = Some(crate::caret::RecoilDir::Up);
                     }
@@ -1084,7 +814,6 @@ impl App {
                     return Some(false);
                 }
                 Action::PageScrollUp => {
-                    // RECOIL: already at the top -> bump the caret DOWN.
                     if !self.scroll_page(-1) {
                         self.caret_recoil = Some(crate::caret::RecoilDir::Down);
                     }
@@ -1282,41 +1011,22 @@ impl App {
             // valid (keyed by CacheKey), so the trailing `sync_view` + redraw in the
             // caller suffice — just log the new mode.
             Action::ToggleCaretMode => {
-                // STICKY CARET: remember the new caret style for next launch.
-                // SAVE-FEEDBACK round: the terminal "caret: Block/Morph/Ibeam"
-                // echo was removed — the caret itself is the UI's own feedback
-                // (it visibly changes shape this frame); no state-toggle chatter
-                // belongs on stderr (see the round's println audit).
                 self.persist_caret_mode();
             }
-            // Page mode: the column width changed, so RE-WRAP — `set_size` reshapes
-            // the buffer at the new wrap width (a cursor-only resync is not enough),
-            // then `sync_view` re-pushes the view so caret/selection x land on the
-            // new column.
             Action::TogglePageMode => {
-                // SAVE-FEEDBACK round: the "page mode: on/off" terminal echo was
-                // removed — the page column itself renders (or doesn't) this
-                // frame; that IS the feedback (see the round's println audit).
                 if let Some(gpu) = self.gpu.as_mut() {
                     let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
                     gpu.pipeline.set_size(w, h);
                 }
                 self.sync_view(true);
-                // STICKY PAGE MODE: remember on/off for next launch.
                 self.persist_page_mode();
             }
-            // Page WIDER / NARROWER: the core stepped the measure, so the column pixel
-            // width changed — RE-WRAP (`set_size` reshapes at the new wrap width) and
-            // re-push the view, exactly like the page-mode toggle, then remember the new
-            // width. Zoom is untouched (the glyphs keep their size; only the column and
-            // its char-per-line count change).
             Action::PageWider | Action::PageNarrower => {
                 if let Some(gpu) = self.gpu.as_mut() {
                     let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
                     gpu.pipeline.set_size(w, h);
                 }
                 self.sync_view(true);
-                // STICKY PAGE WIDTH: remember the measure for next launch.
                 self.persist_page_width();
             }
             // RESET PAGE WIDTH: the core snapped the measure to DEFAULT_MEASURE, so
@@ -1331,58 +1041,28 @@ impl App {
                 self.sync_view(true);
                 self.persist_page_reset();
             }
-            // DEBUG panel: the core flipped the process-global; here we just kick ONE
-            // redraw so the panel appears (or vanishes) this frame — the pane
-            // schedules no frames of its own. Toggled ON, that frame settles into the
-            // one still-stamp (see `RedrawRequested`) and goes quiet; toggled OFF,
-            // the same handler forgets the measurements so the next enable starts
-            // fresh. Render-only: no buffer change.
             Action::ToggleDebug => {
-                // SAVE-FEEDBACK round: the "debug: on/off" terminal echo was
-                // removed — the debug panel itself appears/vanishes this frame
-                // (see the round's println audit).
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();
                 }
             }
-            // PERSISTENT MARGIN OUTLINE toggle: the core flipped the process-global;
-            // here we PERSIST the sticky pref (write-on-change, like page mode /
-            // spellcheck) and kick ONE redraw so the margin outline appears/vanishes
-            // this frame. Render-only: no buffer change. The render itself lands next
-            // phase; persisting + the redraw are correct now regardless.
             Action::ToggleOutline => {
                 let on = crate::outline::outline_on();
-                // SAVE-FEEDBACK round: no terminal echo — the margin outline
-                // itself appears/vanishes this frame.
                 self.persist_pref("outline", if on { "true" } else { "false" });
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();
                 }
             }
-            // MENU BAR toggle: the core flipped the process-global; here we PERSIST the
-            // sticky pref (write-on-change, like the outline) and re-sync the view so
-            // the document re-insets below (or reclaims) the bar strip THIS frame — the
-            // bar reserves vertical space via `doc_top`, so a `sync_view(true)` re-runs
-            // the cursor-follow against the fresh top. Render-only: no buffer change.
             Action::ToggleMenuBar => {
                 let on = crate::menubar::menu_bar_on();
-                // SAVE-FEEDBACK round: no terminal echo — the bar itself
-                // appears/vanishes this frame.
                 self.persist_pref("menu_bar", if on { "true" } else { "false" });
                 self.sync_view(true);
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();
                 }
             }
-            // TYPEWRITER SCROLL toggle: the core flipped the process-global; here we
-            // PERSIST the sticky pref (write-on-change, like the outline) and re-sync
-            // the view so the caret's row re-pins (or reverts to cursor-follow) THIS
-            // frame — `sync_view(true)` re-runs the cursor-follow, which now reads the
-            // flipped global. Scroll-only: no buffer change, no reshape.
             Action::ToggleTypewriter => {
                 let on = crate::typewriter::typewriter_on();
-                // SAVE-FEEDBACK round: no terminal echo — the caret's row
-                // re-pins (or reverts) this frame.
                 self.persist_pref("typewriter_scroll", if on { "true" } else { "false" });
                 self.sync_view(true);
                 if let Some(gpu) = self.gpu.as_ref() {
@@ -1396,33 +1076,20 @@ impl App {
             // vanish/reappear THIS frame rather than waiting for the next edit's
             // debounce. Render-only: no buffer change.
             Action::ToggleSpellcheck => {
-                // SAVE-FEEDBACK round: no terminal echo — squiggles vanish/
-                // reappear this frame.
                 self.persist_spellcheck();
                 self.run_spellcheck_now();
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();
                 }
             }
-            // WRITING NITS toggle: the core already flipped the process-global (the
-            // seam every nit proto rebuilds from), so here we persist the sticky pref
-            // (write-on-change, like spellcheck) and re-sync the view so the nit
-            // underlines rebuild from the flipped global THIS frame. Render-only: no
-            // buffer change.
             Action::ToggleWritingNits => {
                 let on = crate::nits::nits_on();
-                // SAVE-FEEDBACK round: no terminal echo — the nit underlines
-                // appear/vanish this frame.
                 self.persist_pref("writing_nits", if on { "true" } else { "false" });
                 self.sync_view(false);
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();
                 }
             }
-            // HELD stats HUD summoned: the core set the process-global true; here we
-            // just kick a redraw so the panel appears this frame. The RedrawRequested
-            // handler keeps the loop hot while it's held (so the session timer ticks),
-            // and the matching key RELEASE dismisses it (`on_key_release`). Render-only.
             Action::ShowStatsHud => {
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();
@@ -1440,9 +1107,6 @@ impl App {
             }
             _ => {}
         }
-        // LIVE CONFIG RELOAD: a Save of the config file (Settings buffer) re-applies
-        // the keymap overrides + default_folder/workspace immediately. Other saves are
-        // untouched. An invalid config keeps prior values (see `reload_config`).
         if matches!(action, Action::Save)
             && self
                 .active
@@ -1486,8 +1150,6 @@ impl App {
             crate::app_icon::adopt(&crate::theme::active());
         }
 
-        // After a cut/copy push the on-buffer kill ring out to the OS clipboard
-        // (the one thing the pure core deliberately skips).
         match action {
             Action::DeleteWordBackward
             | Action::KillLine
@@ -1496,14 +1158,6 @@ impl App {
             _ => {}
         }
 
-        // Delete-word-backward moves the caret a WHOLE WORD to the left while the
-        // text to its right collapses to meet it. Let that caret glide streak like
-        // the matching navigation move (M-b) so the removal and the motion read as
-        // ONE concurrent gesture, instead of the word vanishing and THEN a bare
-        // block sliding. Other edits (typing, Backspace, paste) stay plain slides:
-        // Backspace moves only one cell (no visible streak) and kill-line doesn't
-        // move the caret at all, so neither shares this defect. The next sync_view
-        // consumes this flag.
         if matches!(action, Action::DeleteWordBackward) {
             self.caret_edit_streaks = true;
         }
@@ -1518,8 +1172,6 @@ impl App {
     }
 }
 
-// PDF export is native-only (`Format::Pdf` is `cfg(not(wasm32))`), so its apply
-// tests compile on native targets only.
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "apply_tests.rs"]
 mod tests;

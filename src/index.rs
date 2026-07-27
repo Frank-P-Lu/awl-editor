@@ -431,8 +431,6 @@ mod tests {
 
     #[test]
     fn walk_skips_junk_dirs() {
-        // Routed through the FILESYSTEM SEAM (InMemoryFs): the non-git walk strategy
-        // runs entirely in memory — no temp dir, no `.git` so build_index walks.
         use std::sync::Arc;
         let root = std::path::PathBuf::from("/proj");
         let mem = crate::fs::InMemoryFs::new()
@@ -452,18 +450,6 @@ mod tests {
 
     #[test]
     fn build_index_on_this_repo_is_fast() {
-        // MEASURE, not guess (CLAUDE.md): the "file picker freshness" decision
-        // (queue, 2026-07-04) is RE-SCAN ON EVERY SUMMON, on the assumption a
-        // real project tree's scan is disk-cheap enough that a summoned overlay
-        // — transient by design — never needs a cache. Confirm it against
-        // awl-next's OWN tree (a real git repo, not a synthetic fixture) and
-        // print the timing. No hard bound is asserted (a raw wall-clock number
-        // is too machine/CI-dependent to make a good regression gate) — this is
-        // a recorded measurement, not a perf test; see the queue item + the
-        // orchestrator report for the number this produced.
-        // Real-disk read through the fs seam -> hold TEST_LOCK (mirrors the
-        // real-disk tests in app.rs) so a parallel InMemoryFs install can't
-        // swallow it.
         let _fs = crate::testlock::serial();
         let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let start = std::time::Instant::now();
@@ -483,9 +469,6 @@ mod tests {
 
     #[test]
     fn git_index_lists_untracked_but_not_gitignored_files() {
-        // The git strategy shells out to real `git`, so this needs a real on-disk
-        // repo (not the InMemoryFs seam). Hold TEST_LOCK so a parallel InMemoryFs
-        // install can't swallow the .env walk half (mirrors the real-repo test above).
         let _fs = crate::testlock::serial();
         let base = std::env::temp_dir().join(format!(
             "awl-idx-{}-{}",
@@ -532,13 +515,10 @@ mod tests {
 
     #[test]
     fn resolve_joins_relative_under_root() {
-        // The forward-slash relative form the index emits joins back onto root as a
-        // host-native PathBuf.
         assert_eq!(
             resolve(Path::new("/root"), "a/b.rs"),
             PathBuf::from("/root").join("a/b.rs")
         );
-        // A bare filename joins directly under root.
         assert_eq!(
             resolve(Path::new("/root"), "notes.md"),
             PathBuf::from("/root/notes.md")
@@ -556,16 +536,13 @@ mod tests {
 
     #[test]
     fn hidden_entry_filter() {
-        // A dotfile basename hides; a nested dotfile (basename OR ancestor) hides.
         assert!(is_hidden_entry(".gitignore"));
         assert!(is_hidden_entry("sub/.hidden"));
         assert!(is_hidden_entry(".config/x")); // ancestor component starts with '.'
         assert!(is_hidden_entry(".git/config"));
-        // The earned exception: `.env*` family files stay VISIBLE.
         assert!(!is_hidden_entry(".env"));
         assert!(!is_hidden_entry(".env.local"));
         assert!(!is_hidden_entry("config/.env.production"));
-        // Ordinary files stay visible.
         assert!(!is_hidden_entry("normal.rs"));
         assert!(!is_hidden_entry("src/main.rs"));
         assert!(!is_hidden_entry("doc-fixture.md"));
@@ -581,7 +558,6 @@ mod tests {
 
     #[test]
     fn dir_level_dirs_first_files_sorted() {
-        // The browse navigator's one-level listing, over the InMemoryFs seam.
         use std::sync::Arc;
         let root = std::path::PathBuf::from("/proj");
         let mem = crate::fs::InMemoryFs::new()
@@ -590,7 +566,6 @@ mod tests {
             .with_file("/proj/docs/guide.md", "g")
             .with_dir("/proj/node_modules");
         crate::fs::with_fs(Arc::new(mem), || {
-            // Root level: dirs (docs, src) before files (doc-fixture.md), junk skipped.
             let lvl = list_dir_level(&root, None);
             let names: Vec<&str> = lvl.iter().map(|e| e.name.as_str()).collect();
             assert_eq!(
@@ -599,7 +574,6 @@ mod tests {
                 "got {names:?}"
             );
             assert!(lvl[0].is_dir && lvl[1].is_dir && !lvl[2].is_dir);
-            // Descend into docs/: shows guide.md.
             let docs = list_dir_level(&root, Some("docs"));
             assert_eq!(docs.len(), 1);
             assert_eq!(docs[0].name, "guide.md");
@@ -620,7 +594,6 @@ mod tests {
         assert_eq!(ago(2 * 60 * 60), "2h ago");
         assert_eq!(ago(24 * 60 * 60), "1d ago");
         assert_eq!(ago(3 * 24 * 60 * 60), "3d ago");
-        // A future mtime (clock skew) reads as "just now", never panics.
         assert_eq!(
             relative_time(now, now + Duration::from_secs(99)),
             "just now"
@@ -657,8 +630,6 @@ mod tests {
 
     #[test]
     fn with_recency_headless_keeps_name_order_no_times() {
-        // `now == None` (headless): corpus order is preserved and labels are empty
-        // so the capture stays byte-stable (no mtime read).
         let corpus = vec!["a.md".to_string(), "b.md".to_string()];
         let (names, times) = with_recency(Path::new("/nonexistent"), corpus.clone(), None);
         assert_eq!(names, corpus);
@@ -675,8 +646,6 @@ mod tests {
             "notes.txt".to_string(),
         ];
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
-        // HOME LAW: "All" is FIRST on the strip and the picker LANDS on it (flat list,
-        // no sections).
         assert_eq!(
             ov.lens_strip().first().map(|(l, _)| l.clone()),
             Some("All".to_string())
@@ -684,7 +653,6 @@ mod tests {
         assert_eq!(ov.active_facet_id(), Some("all"));
         assert_eq!(ov.items.len(), 4);
         assert!(ov.item_sections().iter().all(|s| s.is_empty()));
-        // "This folder" (strip index 2): only top-level entries; the src/* files opt out.
         ov.set_facet_lens(2);
         assert_eq!(ov.active_facet_id(), Some("folder"));
         let shown = ov.item_strings();
@@ -696,15 +664,6 @@ mod tests {
         );
     }
 
-    /// THE UNIFIED-LIST LAW (item 11): the DEFAULT Go-to list (`All`, strip index 0)
-    /// mixes the current doc's HEADING rows with its FILE rows, ranked together by
-    /// ONE fuzzy filter — the redundant "By type" facet is gone (there is no strip
-    /// index 3 left for it; index 3 is now Headings). A query substring that matches
-    /// a heading title AND a query substring that matches a filename both surface
-    /// their row from the SAME `All` list, and picking a heading row is distinguished
-    /// from a file row via `selected_is_heading` (the accept-time split), plus a
-    /// dim "heading" secondary-column tag ([`crate::overlay::OverlayState::item_times`]) —
-    /// the rowlayout PRIMARY/SECONDARY disambiguator this item asked for.
     #[test]
     fn goto_all_lens_unifies_headings_and_files_in_one_fuzzy_list() {
         use crate::overlay::{OverlayKind, OverlayState};
@@ -715,13 +674,9 @@ mod tests {
             ("Introduction".to_string(), 3),
             ("  Widgets".to_string(), 7),
         ]);
-        // Strip lost "By type": All / Recent / This folder / Headings — 4 lenses.
         let strip: Vec<String> = ov.lens_strip().into_iter().map(|(l, _)| l).collect();
         assert_eq!(strip, vec!["All", "Recent", "This folder", "Headings"]);
         assert_eq!(ov.active_facet_id(), Some("all"));
-        // ALL home: BOTH files AND headings show, mixed — the unified default. A
-        // heading row carries the `❡ ` KIND-HINT marker (item 11's rowlayout
-        // PRIMARY-cell disambiguator); a file row never does.
         let all = ov.item_strings();
         assert!(all.iter().any(|s| s == "doc-fixture.md"), "{all:?}");
         assert!(all.iter().any(|s| s == "src/main.rs"), "{all:?}");
@@ -734,9 +689,6 @@ mod tests {
             "heading row present under All, marked: {all:?}"
         );
         assert_eq!(all.len(), 4, "2 files + 2 headings, one flat list");
-        // A query substring that ONLY a heading title matches surfaces it from All
-        // (the fuzzy filter runs over the RAW corpus title, unaffected by the
-        // display-only marker).
         ov.push('w');
         ov.push('i');
         ov.push('d');
@@ -751,8 +703,6 @@ mod tests {
         for _ in 0..3 {
             ov.pop();
         }
-        // A query substring that ONLY a filename matches surfaces it from the SAME
-        // All list — one fuzzy filter reaches both kinds.
         ov.push('m');
         ov.push('a');
         ov.push('i');
@@ -762,8 +712,6 @@ mod tests {
         for _ in 0..4 {
             ov.pop();
         }
-        // A second disambiguator: the secondary column tags a heading row "heading";
-        // a file row's secondary cell is blank in headless (no mtime read).
         let times = ov.item_times();
         let idx = |name: &str| all.iter().position(|s| s == name).unwrap();
         assert_eq!(times[idx(&format!("{H}Introduction"))], "heading");
@@ -772,8 +720,6 @@ mod tests {
         assert_eq!(times[idx("src/main.rs")], "");
     }
 
-    /// GATE: a doc with NO headings still lists its files under All — attaching an
-    /// empty heading list is a clean no-op (never a crash, never an empty list).
     #[test]
     fn goto_all_lens_lists_files_even_with_no_headings() {
         use crate::overlay::{OverlayKind, OverlayState};
@@ -796,19 +742,14 @@ mod tests {
             "src/lib.rs".to_string(),     // 2 — never opened
             "notes.txt".to_string(),      // 3 — opened (most recent)
         ];
-        // The recently-opened MRU (most-recent FIRST) as corpus indices: notes.txt
-        // then src/main.rs. doc-fixture + lib were never opened.
         let recent = vec![3usize, 1usize];
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], recent);
         ov.set_facet_lens(1);
         assert_eq!(ov.active_facet_id(), Some("recent"));
-        // ONLY the opened files show, and in MRU order (most-recent first) — the
-        // whole point of the fix (previously this returned the WHOLE corpus).
         assert_eq!(
             ov.item_strings(),
             vec!["notes.txt".to_string(), "src/main.rs".to_string()],
         );
-        // Every surviving row sits under the single "Recent" section header.
         assert!(ov.item_sections().iter().all(|s| s == "Recent"));
     }
 
@@ -816,8 +757,6 @@ mod tests {
     fn goto_recent_lens_is_empty_on_a_fresh_session() {
         use crate::overlay::{OverlayKind, OverlayState};
         let corpus = vec!["doc-fixture.md".to_string(), "src/main.rs".to_string()];
-        // Nothing opened yet → empty MRU → the Recent lens is EMPTY (shows the empty
-        // state), NOT the whole corpus.
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
         ov.set_facet_lens(1);
         assert_eq!(ov.active_facet_id(), Some("recent"));
@@ -831,7 +770,6 @@ mod tests {
     #[test]
     fn browse_picker_splits_folders_files_and_git() {
         use crate::overlay::{OverlayKind, OverlayState};
-        // One directory level: a git-repo folder, a plain folder, two files.
         let corpus = vec![
             "repo".to_string(),
             "plain".to_string(),
@@ -849,14 +787,12 @@ mod tests {
             vec![],
             None,
         );
-        // Lands on All (flat), All parked first on the strip.
         assert_eq!(
             ov.lens_strip().first().map(|(l, _)| l.clone()),
             Some("All".to_string())
         );
         assert_eq!(ov.active_facet_id(), Some("all"));
         assert_eq!(ov.items.len(), 4);
-        // Folders (index 1): only the two directories.
         ov.set_facet_lens(1);
         assert_eq!(ov.active_facet_id(), Some("folders"));
         let f = ov.item_strings();
@@ -865,7 +801,6 @@ mod tests {
             !f.iter().any(|s| s.contains("a.md")),
             "files hidden under Folders: {f:?}"
         );
-        // Files (index 2): only the two files.
         ov.set_facet_lens(2);
         assert_eq!(ov.active_facet_id(), Some("files"));
         let f = ov.item_strings();
@@ -874,12 +809,10 @@ mod tests {
             !f.iter().any(|s| s.contains("repo")),
             "folders hidden under Files: {f:?}"
         );
-        // Git repos (index 3): ONLY the git-marked entry (the task's pinned example).
         ov.set_facet_lens(3);
         assert_eq!(ov.active_facet_id(), Some("git"));
         let g = ov.item_strings();
         assert_eq!(g.len(), 1, "only the git repo appears: {g:?}");
-        // The name column is clean (no bullet); the git marker rides the SECONDARY tag.
         assert!(
             g[0].contains("repo") && !g[0].contains('•'),
             "git repo name, no bullet: {g:?}"
@@ -893,7 +826,6 @@ mod tests {
 
     #[test]
     fn dir_level_marks_git_child() {
-        // The git-child marker (`<child>/.git` probe), over the InMemoryFs seam.
         use std::sync::Arc;
         let root = std::path::PathBuf::from("/proj");
         let mem = crate::fs::InMemoryFs::new()
