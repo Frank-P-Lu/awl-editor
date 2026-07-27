@@ -1010,9 +1010,14 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         (frac - spec.frac_of(stepped) as f64).abs() < 1e-3,
         "the reported thumb ({frac}) must be the spec's fraction for {stepped}"
     );
-    // Every other row is railless.
+    // Every range row reports its own rail; every other row is railless.
     for (i, name) in items.iter().enumerate() {
-        if i != row {
+        let is_range = crate::settings::visible_rows().iter().any(|setting| {
+            setting.name == name && setting.kind == crate::settings::SettingKind::Range
+        });
+        if is_range {
+            assert!(ranges[i].is_number(), "{name} must report its rail");
+        } else {
             assert_eq!(
                 ranges[i],
                 serde_json::json!(null),
