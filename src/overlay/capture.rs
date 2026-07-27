@@ -1,8 +1,4 @@
-//! The Keybindings-menu CAPTURE sub-state (`Capture`/`CaptureStage`) and the
-//! Settings-menu inline VALUE-EDIT sub-state (`ValueEdit`), plus the
-//! `OverlayState` methods that drive both state machines. Split out of the
-//! former `overlay.rs` monolith (2026-07 code-organization pass); every
-//! item's path is unchanged -- only the file it lives in moved.
+//! Keybinding-capture and settings value-edit overlay state.
 
 use super::{OverlayKind, OverlayState};
 use crate::textbox::TextBox;

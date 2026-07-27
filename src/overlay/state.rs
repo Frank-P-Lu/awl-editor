@@ -1,8 +1,4 @@
-//! `OverlayState` -- the live overlay data model -- plus its per-kind
-//! CONSTRUCTORS (`new`/`new_theme`/`new_caret`/`new_project`/…). Split out of
-//! the former `overlay.rs` monolith (2026-07 code-organization pass); every
-//! item's path is unchanged (`overlay::OverlayState`) -- only the file it
-//! lives in moved.
+//! Live overlay state and per-kind constructors.
 
 use super::{Capture, KeepEdit, LinkEdit, OverlayKind, PIN_TAG, RenameEdit, ValueEdit};
 use crate::textbox::TextBox;
@@ -14,13 +10,7 @@ pub fn add_to_dictionary_label(word: &str) -> String {
     format!("Add '{word}' to dictionary")
 }
 
-/// ITEM 54 — ONE typed row, replacing the former TWELVE corpus-parallel arrays
-/// (`corpus`/`git`/`is_dir`/`bindings`/`times`/`lines`/`heading`/`spell_add`/
-/// `history_ids`/`facet_ts`/`is_setting`/`hidden`). Every metadata read routes
-/// through a row's own field or its [`RowMeta`] — never a separate array by
-/// index — so a reorder or removal carries a row's identity as ONE element
-/// (structurally impossible to separate a row from its own metadata, the
-/// headline bug class the parallel-array shape invited).
+/// A typed overlay row. Its display and kind-specific metadata travel together.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OverlayRow {
     /// The RAW accept value (also the fuzzy corpus text): a root-relative path,

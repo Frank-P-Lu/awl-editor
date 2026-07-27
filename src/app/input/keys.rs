@@ -1,11 +1,4 @@
-//! src/app/input/keys.rs — the KEYBOARD input path: the held-HUD release
-//! doors, the hold-⌘ peek feed, the whichkey summon/dismiss, the
-//! incremental-search key surface (+ its step/jump/abort/replace helpers),
-//! zoom + the GPU-aware page scroll (C-v/M-v), the IME composition
-//! lifecycle, and `WindowEvent::KeyboardInput`/`ModifiersChanged` dispatch
-//! itself. Split out of the former `app/input.rs` monolith (2026-07
-//! code-organization pass); see `mouse` for the pointer-press/click/wheel
-//! path and `drags` for the page/image resize state machines.
+//! Keyboard, IME, search, and held-surface input handling.
 
 use crate::app::*;
 

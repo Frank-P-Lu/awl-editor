@@ -1,17 +1,4 @@
-//! CARET SPRING PHYSICS — the pure glide engine: target setting, the zip
-//! distance gate (small nav SNAPS, big nav GLIDES), distance-aware damping, the
-//! explicit-Euler integration + settle test, the deterministic capture seams
-//! (`snap_to_target`/`inject_motion`), and the per-move classification setters the
-//! renderer feeds in (`set_edit_move`/`set_held`/`set_glyph_advance`/…).
-//!
-//! Like the render/ split next door, these stay inherent methods on
-//! [`CaretAnim`] (they read/write its private spring fields heavily), so this
-//! module is purely a physical home for that cluster carved out of `caret.rs`
-//! VERBATIM. A child module sees its ancestor's private items, so the methods keep
-//! full access to `CaretAnim`'s private fields with NO behaviour change — the
-//! capture output is byte-identical. The tunable constants stay in the `caret`
-//! root (the shared vocabulary every concern reads) and resolve here via
-//! `use super::*`.
+//! Caret spring physics and deterministic capture seams.
 
 use super::*;
 
@@ -32,9 +19,6 @@ impl CaretAnim {
         if (new.x - self.target.x).abs() > f32::EPSILON
             || (new.y - self.target.y).abs() > f32::EPSILON
         {
-            // Judge the move by its REAL remaining distance from where the caret
-            // is RIGHT NOW (not the old target), so a new target arriving
-            // mid-glide is damped for the distance actually left to travel.
             // Damping is judged by the REAL remaining distance from where the
             // caret is RIGHT NOW (not the old target), so a new target arriving
             // mid-glide is damped for the distance actually left to travel.

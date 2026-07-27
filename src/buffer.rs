@@ -1,7 +1,4 @@
-//! The editor buffer: a ropey `Rope` plus a cursor, plus all the pure editing
-//! and motion logic. This module has NO rendering and NO winit dependency, so it
-//! is unit-testable in isolation (see the `tests` module at the bottom). The
-//! keymap turns key events into method calls on this type.
+//! The rope-backed editor buffer and pure editing logic.
 
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};

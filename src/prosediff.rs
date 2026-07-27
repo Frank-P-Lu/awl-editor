@@ -1,33 +1,5 @@
-//! PROSE DIFF — the marked-up manuscript (THE WRITER'S DIFF).
-//!
-//! THE WRITER'S DIFF (board item, thesis settled with the user 2026-07-17, shipped):
-//! the code diff is the WRONG metaphor for prose. Lines aren't meaning-units; hunks
-//! serve verification, not reading; and a delete+insert PAIR *lies* about a move —
-//! the commonest writer revision. The RIGHT metaphor is the 400-year-old marked-up
-//! manuscript: inline, in reading order, in the document, spoken in awl's OWN
-//! vocabulary — struck+muted deletions, insertions in the highlight wash, moves
-//! marked distinctly, unchanged stretches folded to a quiet `⋯ ¶ ⋯` row.
-//!
-//! This module is the PURE CORE (fully unit-tested) plus a serializer that lays the
-//! diff into a marked-up-markdown transcript the EXISTING renderer draws with its
-//! real strike / `==highlight==` / blockquote-dim vocabulary — so the diff adds
-//! ZERO render-path code. DIFF-AS-PREVIEW: the History picker's live preview hands
-//! the CURRENT buffer + the highlighted history version to [`diff_and_render`]
-//! (via [`crate::history::diff_preview`]); the resulting transcript is shown in the
-//! page column, dressed as a card, IN PLACE OF the buffer (read-only — the overlay
-//! owns every key). The capture harness renders the same transcript headlessly
-//! (both the History-preview fold and the `AWL_DIFF_OLD`/`AWL_DIFF_NEW` env probe,
-//! see [`env_capture`]) so the preview is pixel-verifiable.
-//!
-//! Two prose-native REQUIREMENTS the code diff can't express, both lived here:
-//!   * **Move detection** — a relocated paragraph reads as *moved*, never as a
-//!     delete+insert pair (LCS backbone + a higher-bar greedy match on the
-//!     leftovers).
-//!   * **Rewrite coalescing** — past a change-density threshold a paragraph stops
-//!     showing word-level surgery and reads as old-struck-whole / new-washed-whole,
-//!     because "edited" and "rewritten" are different authorial acts. The threshold
-//!     is a PARAMETER (the gate picked SENTENCE granularity × 0.5 coalescing — see
-//!     [`Params::shipping`]).
+//! Pure prose-oriented diff and marked-up markdown serializer. Moves remain moves;
+//! dense rewrites coalesce for readability.
 
 use std::sync::OnceLock;
 

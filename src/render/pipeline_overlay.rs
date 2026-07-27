@@ -1,16 +1,5 @@
-//! PIPELINE OVERLAY — the per-frame ANIMATION advance of [`super::TextPipeline`].
-//!
-//! The single virtual-clock seam (`advance`) and every animator it OR-folds in,
-//! carved out of `render.rs` VERBATIM: the summoned-overlay ENTRANCE spring +
-//! living-band + slant/grow motion (`overlay_*` / `living_band_*`), the
-//! lava/stars background field (`advance_lava` + the viewport holds + the
-//! render-phase reads), the copy-pulse juice, and the caret-style-picker
-//! preview. i.e. the time-varying `advance(dt)` surface, named for the
-//! overlay-motion cluster that dominates it. Methods stay inherent on
-//! `TextPipeline` (a child module sees its ancestor's private fields), so the
-//! capture output is byte-identical. `copy_pulse_settle` is widened private ->
-//! `pub(in crate::render)` for its pre-existing cross-submodule caller
-//! (`layers`) — reachability preserved exactly.
+//! Per-frame animation advance for overlays, ambient backgrounds, copy pulse, and
+//! caret-preview state. `advance(dt)` is the virtual-clock seam.
 
 use super::*;
 

@@ -1,23 +1,6 @@
-//! DOCUMENT GEOMETRY — the read-only spatial query layer that turns the shaped
-//! buffer into pixels and back: the centered PAGE-MODE writing column (its width /
-//! left edge / text inset / wrap width), the scroll<->pixel mapping (`doc_top`, the
-//! per-row top/height delegated to [`rowgeom::RowGeom`], the variable-row-height
-//! `max_scroll_rows` / `scroll_to_show_row` / `scroll_to_center_row`), the
-//! wrap-aware visual-row model (`visual_rows`, `visual_row_of`, `visual_row_top`,
-//! `total_visual_rows`), the per-glyph advance maps (`line_glyph_xs`,
-//! `col_x_and_advance`, the cursor row height/scale), and the pixel->`(line,col)`
-//! hit test. The free helpers (`visible_lines`, `clamp_scroll`, `max_scroll`,
-//! `column_width_for` / `column_left_for`, `pick_row`, `row_x_span`,
-//! `assemble_glyph_xs`) are the pure, GPU-free math these read.
-//!
-//! Like [`caret`] and [`chrome`], the methods stay inherent on [`super::TextPipeline`]
-//! (they read its buffer / metrics / scroll state heavily), so this module is purely
-//! a physical home for that cohesive cluster, carved out of `render.rs` VERBATIM. A
-//! child module sees its ancestor's private items, so the methods keep full access to
-//! `TextPipeline`'s private fields with NO behaviour change — the capture output is
-//! byte-identical. The two app-facing free fns (`hit_test`, `visible_lines_z`) stay
-//! re-exported from `render` so `render::hit_test` / `render::visible_lines_z` resolve
-//! unchanged.
+//! Spatial queries and pure layout helpers for the writing column, visual rows, and
+//! pixel-to-document hit testing. Methods remain on [`super::TextPipeline`] because
+//! they read its buffer, metrics, and scroll state.
 
 use super::*;
 

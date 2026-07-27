@@ -1,30 +1,5 @@
-//! THE LIVE PROBE HARNESS (`--live-script`) — scripted keystrokes + real-window
-//! screenshots against the REAL windowed app.
-//!
-//! ## The class of bug this exists to catch
-//!
-//! The headless `--screenshot` harness renders offscreen: it rebuilds the text
-//! pipeline every capture, never opens an OS window, never presents to a real
-//! compositor, and never runs the live `WaitUntil` debounce machinery over real
-//! time. That makes it structurally BLIND to three whole bug classes the live
-//! app owns alone:
-//!   (a) stale caches across live state transitions (the capture rebuilds
-//!       everything per frame, so a missed invalidation can never show);
-//!   (b) redraw-scheduling gaps (a state change whose frame is simply never
-//!       drawn — the capture always draws exactly one frame on purpose);
-//!   (c) present/compositor races (the frame is correct but the macOS
-//!       window-server shows a stale/blank drawable — `presentsWithTransaction`
-//!       territory; provably invisible offscreen).
-//! The theme-picker "page vanishes while previewing" bug survived three
-//! law-tested fixes precisely because every fix was verified through the
-//! offscreen path — which was proven byte-identical across the full 16×16
-//! world matrix while the live symptom persisted. CLAUDE.md's rule applies:
-//! when a bug won't reproduce headlessly, EXTEND THE HARNESS TOWARD REALITY.
-//! This module is that extension: the NORMAL winit loop, the real GPU surface,
-//! real presents, real debounce timers — with a script driving the same seams
-//! a keystroke drives, and screenshots taken from the COMPOSITOR's side of the
-//! window (`CGWindowListCreateImage` of our own window — the window server's
-//! current idea of our pixels, not a re-render of what we hoped they were).
+//! `--live-script` drives real-window input and compositor screenshots. It covers
+//! cache, redraw, and presentation faults unavailable to offscreen capture.
 //!
 //! ## Grammar (deliberately dumb)
 //!

@@ -1,22 +1,4 @@
-//! src/settings.rs — the SETTINGS MENU corpus (the single owner) + its faceting
-//! scheme.
-//!
-//! The summoned Settings overlay reuses faceted lenses with categories as lenses.
-//! Every setting is one flat-corpus row; its secondary cell reads the same live
-//! owner as the renderer, never a parallel value.
-//!
-//! This module owns ONLY the corpus + the faceting DATA and the value READOUT.
-//! Overlay construction lives in [`crate::overlay::build`]; Enter interactions
-//! run through the shared `apply_core` seam. Toggle, numeric value, path, picker,
-//! submenu, and action rows each signal their typed effect, identically live and
-//! in headless replay.
-//!
-//! SINGLE OWNER (the `commands::COMMANDS` pattern): [`SETTINGS`] is the one table.
-//! Its display name, category, and type never live anywhere else; the FacetScheme
-//! bucket ([`settings_bucket`]) looks a row's category up here, and the value
-//! readout ([`value_for`]) matches on the display name here — so a new setting is
-//! ONE row, and the `every_setting_category_is_a_lens` law test keeps the two in
-//! lockstep.
+//! Settings corpus, categories, and value readouts for the shared overlay.
 
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::Path;

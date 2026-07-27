@@ -1,17 +1,6 @@
-//! PER-LAYER PREPARE ORCHESTRATION — the per-frame `prepare_*_layer` steps the
-//! aggregating [`TextPipeline::prepare`] (which stays in `render.rs`) folds together:
-//! the background, the document text, the animated caret, the selection / search
-//! highlights, the chrome (panel / overlay / gutter / readouts), and the spell
-//! underlines. Each uploads ONE layer's instances / glyphs into its glyphon
-//! renderer or GPU pipeline against the shared atlas / viewport / queue.
-//!
-//! These are inherent methods on [`super::TextPipeline`] — they ARE the GPU
-//! aggregation that is the pipeline's reason for being, driving its renderers /
-//! pipelines / buffers, so they CANNOT become free functions. This module is purely
-//! a physical home for that cohesive per-layer cluster, carved out of `render.rs`
-//! verbatim; a child module sees its ancestor's private items, so the methods keep
-//! full access to `TextPipeline`'s fields/helpers (and the sibling `rects` builders)
-//! with NO behaviour change — the rendered frame is byte-identical.
+//! Per-frame preparation for background, text, caret, highlights, chrome, and spell
+//! underlines. These methods remain on [`super::TextPipeline`] because they share its
+//! GPU state, atlas, viewport, and buffers.
 
 use super::*;
 
@@ -50,19 +39,8 @@ const QUOTE_MARK_SCALE: f32 = 2.0;
 /// real type, not a symbol-font ornament.
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
 
-/// The fold CHEVRON — U+203A SINGLE RIGHT-POINTING ANGLE QUOTATION MARK, a quiet
-/// "there's a fold control here" mark for ANY foldable heading, expanded or
-/// collapsed alike (item 81 widened this from collapsed-only). Shaped in the world
-/// DISPLAY face (General Punctuation, like the elision ellipsis the picker already
-/// renders there), so it never tofus. Revealed only when the caret is on the
-/// heading or it is hovered ([`crate::fold::chevron_revealed`]); rest state shows
-/// none. Since item 81 this is ALSO the click target for BOTH directions (fold an
-/// expanded heading, unfold a collapsed one — [`super::TextPipeline::fold_chevron_hit`]
-/// / [`crate::buffer::Buffer::toggle_fold_at_line`]), not merely a visual cue. **item
-/// 65 taste correction:** hung IMMEDIATELY LEFT of the heading (the writing column's
-/// own leading pad), OUTSIDE the shaped document glyph run, instead of the original
-/// right-of-text placement — see [`super::TextPipeline::fold_chevron_marks`]'s own
-/// doc for the geometry and the graceful no-room hide.
+/// Fold chevron, shown on hovered/current foldable headings and used as the fold hit
+/// target. It is shaped in the display face and placed left of the heading glyphs.
 const FOLD_CHEVRON: &str = "\u{203A}";
 
 /// The collapsed-heading TAIL text: `… N lines` (singular `… 1 line`). The leading

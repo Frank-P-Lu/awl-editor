@@ -1,11 +1,4 @@
-//! src/app/files/open.rs — opening folder-relative files, the last-buffer
-//! (C-x b) toggle, project/folder switching + the recent-projects/recent-files
-//! MRU pushes, Cmd-N's own re-scan half, and the i18n write-back-once +
-//! fold-reveal jump helpers. Split out of the former `app/files.rs` monolith
-//! (item 56); see `files/active.rs` for the owned slot this module swaps
-//! through `park_active_buffer`/`activate_from_registry`, and
-//! `files/document.rs` for the fresh-document buffer swap built on top of
-//! these.
+//! File opening, buffer switching, project changes, and related navigation.
 
 use super::active::BufferExtra;
 use crate::app::*;

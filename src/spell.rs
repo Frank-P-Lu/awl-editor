@@ -1,35 +1,5 @@
-//! Spell-check engine (v1: detect only).
-//!
-//! Two responsibilities, kept apart so the markdown-aware tokenizer is unit-
-//! testable without a real dictionary:
-//!
-//!   * [`SpellChecker`] — wraps a [`spellbook::Dictionary`] loaded ONCE from a
-//!     bundled LibreOffice Hunspell pair (`include_str!`'d into the binary),
-//!     exposing [`SpellChecker::check`] (a microsecond dict lookup).
-//!   * [`misspelled_spans`] — the pure, dictionary-parameterized detector: given
-//!     the whole document and a `check` predicate, it tokenizes into words and
-//!     returns the MISSPELLED ones as `(line, start_col, end_col)` in CHAR
-//!     columns (consistent with the advance-aware layout + selection rects), with
-//!     markdown skipping of fenced code blocks, inline code, and URLs.
-//!
-//! CORRECTIONS. [`SpellChecker::suggest`] asks the Hunspell engine for ordered
-//! replacement candidates for a word, and [`SpellChecker::suggest_at`] resolves
-//! the misspelling the cursor is ON or ADJACENT to (via the pure
-//! [`misspelling_at`]) and pairs it with those suggestions — the data the
-//! summoned correction picker (Cmd-`;`) lists and the chosen one a single
-//! undoable edit replaces.
-//!
-//! DICTIONARY VARIANTS: awl bundles THREE LibreOffice Hunspell pairs — en_US
-//! (default), en_GB, en_AU — all `include_str!`'d into the binary (same
-//! self-contained, no-external-files, deterministic-capture contract as the
-//! original single dictionary). [`DictVariant`] is the picker/process-global
-//! enum (mirroring [`crate::caret::CaretMode`]'s `ALL`/`label`/`from_label`
-//! shape); [`SpellChecker::new`] now takes the variant to parse. Parsing a
-//! ~50-100k-stem dictionary is a real one-time cost (tens of ms, not a render-
-//! frame concern) — see `spell::tests::parse_cost_per_dictionary_variant` for
-//! measured numbers — so a SWITCH reparses exactly ONCE, on commit (Enter),
-//! never per navigating keystroke (see `overlay/`'s Dictionary picker: unlike
-//! Theme/Caret it has NO live preview-on-move).
+//! Spell checking, suggestions, and bundled Hunspell dictionaries. Tokenization
+//! stays pure and markdown-aware; dictionary changes parse only on commit.
 
 /// The bundled dictionary PAIRS (LibreOffice Hunspell), `include_str!`'d into
 /// the binary so spell-check works with no external files and the headless

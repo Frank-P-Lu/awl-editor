@@ -1,32 +1,5 @@
-//! src/fs.rs — the FILESYSTEM SEAM: awl's file I/O behind one swappable trait.
-//!
-//! awl is a native editor today (std::fs, the real disk), but the SAME editor is
-//! meant to run later in a SANDBOXED browser, where there is no `std::fs` — storage
-//! is OPFS / IndexedDB reached through a worker's synchronous access handles. That
-//! future backend is NOT built here; this module only carves the SEAM it plugs into,
-//! so the day it arrives no call site has to change.
-//!
-//! The shape:
-//!   * [`FileSystem`] — the trait every file op routes through. SYNC by design: awl
-//!     stays sync, and an OPFS worker's sync-access-handles let the browser backend
-//!     honour these signatures without going async. Minimal — only the ops awl
-//!     actually performs (read/write text + bytes, dir create/list, rename, remove,
-//!     exists, metadata times).
-//!   * [`NativeFs`] — the std::fs backing. BEHAVIOUR-PRESERVING: each method does
-//!     EXACTLY what the inlined `std::fs::…` call did (same paths, same `io::Result`
-//!     errors, same bytes), so a native capture is byte-identical to before.
-//!   * [`InMemoryFs`] — a HashMap-backed fake: no real disk, deterministic. Serves
-//!     fs-touching unit tests AND the hermetic scenario sandbox (`crate::scenario`
-//!     installs a seeded one for a strict `--keys` replay, so a scenario run never
-//!     touches the user's real files).
-//!
-//! INJECTION follows awl's existing process-global idiom (mirroring `page`/`fps`/
-//! `caret` — one app-wide setting reached without threading a handle through every
-//! function): a single process-global FS, [`active`], returns the live backend
-//! (default [`NativeFs`]). Production code calls `fs::active().read_to_string(p)`.
-//! Tests swap in an [`InMemoryFs`] via [`set_active`] / [`with_fs`] under a shared
-//! lock, so the seam is testable without plumbing `&dyn FileSystem` through the
-//! whole call graph.
+//! Swappable synchronous filesystem seam: native disk in production and in-memory
+//! storage for deterministic tests and scenarios.
 
 use crate::clock::SystemTime;
 use std::io;

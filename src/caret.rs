@@ -1,8 +1,6 @@
-//! The animated text caret: spring physics + a motion-driven shape morph, plus
-//! the wgpu pipeline that draws the caret as a single GPU quad.
+//! Animated caret state, tuning, and GPU pipeline.
 //!
-//! The caret has TWO states that the spring morphs between, both driven by the
-//! same settle/velocity factor:
+//! The caret morphs between two states:
 //!   * AT REST — a "roundish square": a rounded rectangle sitting ON the current
 //!     character, full glyph-advance wide (full-width for CJK) and most of the
 //!     line's glyph height tall, with clearly soft corners. Amber, no glow; the
@@ -15,28 +13,8 @@
 //!     it decelerates onto the target it shortens and re-forms into the rounded
 //!     square on the destination glyph.
 //!
-//! So during a move the caret morphs in SHAPE (rounded square ⇄ stretched trailing
-//! streak), keyed off `settle_factor()` (≈1 = rounded square on the char; ≈0 /
-//! high speed = long centred streak). The streak length additionally scales with
-//! the spring's velocity, and the trail is TEXT-centre-anchored for every mode and
-//! direction (no baseline drop — a horizontal sweep runs through the letters too;
-//! the small drop to the x-height middle is `CARET_TRAIL_TEXT_CENTER_DROP`).
-//!
-//! The module keeps [`CaretAnim`]'s data (the spring state + the tunable
-//! constants every concern reads) and the [`CaretMode`] machinery here at the
-//! root, and lifts the cohesive method clusters into private submodules — exactly
-//! the precedent that split `render.rs` into `render/{caret,chrome,geometry,…}`:
-//!   * [`spring`] — the pure glide engine (targeting, the zip gate, damping, the
-//!     Euler integration + settle, the deterministic capture seams).
-//!   * [`morph`] — the shape morph + streak geometry + the cosmetic | trail.
-//!   * [`juice`] — the live-only edit/blocked-action flinches (squash-pop, typing
-//!     impact, deletion squash, kill-line gulp, the Enter line-landing squash, the
-//!     velocity-kick recoil).
-//!   * [`preview`] — the caret-style picker's looping live preview.
-//!   * [`pipeline`] — the wgpu render pipeline that draws the caret quad.
-//!     Each submodule is inherent `impl CaretAnim` blocks (or its own type) carved out
-//!     VERBATIM and re-exported here, so behaviour — and the capture output — is
-//!     byte-identical.
+//! The root owns shared state and tuning; submodules own spring, morph, juice,
+//! preview, and pipeline concerns.
 
 mod juice;
 mod morph;
@@ -44,11 +22,7 @@ mod pipeline;
 mod preview;
 mod spring;
 
-// Re-export the submodules' public surface so the historical `caret::CaretPipeline`
-// / `caret::CaretDemo` / `caret::srgb_u8_to_linear` / `caret::bytes_of_pod` (and the
-// choreographed-preview types) paths keep resolving for every call site unchanged. The
-// `spring`/`morph`/`juice` modules add only inherent methods to `CaretAnim`, which
-// attach to the type automatically — no re-export needed.
+// Preserve the root public surface; inherent methods need no re-export.
 pub use pipeline::*;
 pub use preview::*;
 

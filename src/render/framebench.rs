@@ -1,5 +1,4 @@
-//! FRAME PROFILER (hidden `--bench-frame` flag) — per-stage timing of the EXACT
-//! live redraw sequence over the REAL repo docs, at the live-report canvas.
+//! Hidden `--bench-frame` profiler for the live redraw sequence over repository docs.
 //!
 //! The live window's hot loop (`RedrawRequested` in `app.rs`, hot here while
 //! the caret spring animates) runs, per frame: `pipeline.advance(dt)` → `pipeline.prepare(..)`
@@ -24,17 +23,8 @@
 //! because the live loop does NOT run it per frame — `sync_view` runs per
 //! input EVENT; `RedrawRequested` never calls it.
 //!
-//! RESCUE ROUND (2026-07): the "wash layer (cull + upload)" stage
-//! (`prepare_wash_layer`) was added here — it previously ran live every frame
-//! (`TextPipeline::prepare`) but was never called AT ALL in this replayed
-//! sequence, so its cost was simply missing from the printed table rather than
-//! folded into a neighbor's number. Fixing that exposed a SEPARATE, pre-existing
-//! bug this round also fixed: `prepare_table_grid`'s own mark (added by an
-//! earlier tables round) had no matching `STAGE_NAMES` entry at all, so
-//! `assert_eq!(marks.i, STAGE_NAMES.len(), ..)` below panicked on a plain
-//! `--bench-frame` run on an UNMODIFIED base commit — this bench was broken
-//! before this round touched it, just never caught (a manual CLI flag, not
-//! under `cargo test`). Both stages are now named.
+//! The replay includes every live preparation stage; `STAGE_NAMES` and `mark()` calls
+//! must remain in lockstep.
 
 use anyhow::Context as _;
 use glyphon::{Cache, Resolution};

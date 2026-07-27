@@ -1,37 +1,6 @@
-//! WRITING STREAKS — a quiet, entirely-LOCAL record of how much you write each
-//! day, summoned as a year-calendar heatmap card (the contribution-graph shape).
-//!
-//! This module is the PURE data model + the calendar/intensity arithmetic + the
-//! (de)serializer + the summoned-card open flag + the card's two-page VIEW
-//! state ([`CardView`]: per-day heatmap ⇄ cumulative running total — a pure
-//! view over the same daily records, flipped with ←/→ while the card is open,
-//! ephemeral per-summon). It is deliberately TIMEZONE- and
-//! CLOCK-FREE: every recording call takes the calendar day as an INJECTED
-//! `"YYYY-MM-DD"` string (the `prune_ladder` precedent — a pure function of
-//! `(state, day)`), so the whole boundary rule is unit-testable with no clock at
-//! all. The App-side wiring (the live word-delta sampling on the autosave flush
-//! triggers, and the local-calendar-day read) lives in [`crate::app`]'s
-//! `app/streaks.rs`; the CARD RENDER lives in `render/chrome/hud.rs`, reusing the
-//! HUD's float-card pipeline exactly like the About + Lifetime cards do.
-//!
-//! **What a day records (two figures, data is cheap — the visualization picks):**
-//!  - `words` — the DAY TOTAL of NET WORDS ADDED, each per-flush delta clamped to
-//!    0 before it is summed (deleting is editing, not un-writing, so a day you
-//!    trimmed prose still reads as a writing day, never a negative one).
-//!  - `raw_net` — the same deltas summed WITHOUT the clamp (can go negative on a
-//!    heavy-cut day), kept alongside so a future readout can show true net churn.
-//!
-//! **Where it lives:** beside the scratch stash / session / stats / recent-* files
-//! (`fs::data_root()/streaks.toml`), NOT inside `config.toml` — machine state the
-//! app reads and writes as you work, the SAME reasoning + hand-rolled-writer /
-//! real-`toml`-parser shape as [`crate::stats`] and [`crate::session`].
-//!
-//! **Determinism (CRITICAL):** the recording engine is native-only and lives ONLY
-//! on the live `App` (armed like autosave), so a headless `--screenshot`/`--keys`
-//! capture is STRUCTURALLY incapable of touching `streaks.toml`. The CARD is
-//! drawn on any target, but a capture never pushes a live view, so it renders the
-//! fixed synthetic [`placeholder`] year + fixed streak numbers — exactly the HUD
-//! determinism boundary (`hud_stats` → `"—"`).
+//! Writing-streak data, calendar arithmetic, persistence, and card state.
+//! Recording is live/native-only; headless capture uses [`placeholder`] and never
+//! touches persisted state.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 

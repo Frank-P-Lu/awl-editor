@@ -1,15 +1,9 @@
-//! Windowed mode: open a winit window, create a wgpu surface, and run the
-//! interactive editor. Keyboard events flow through the keymap into the buffer,
-//! and every change triggers a redraw of the shared text pipeline.
+//! Windowed editor runtime.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-// `Instant` is the live editor's monotonic wall-clock (spring dt, debounces, the
-// session timer); std's `Instant::now()` PANICS on wasm32, so it comes from
-// `crate::clock` (std on native — byte-identical; `web-time` on wasm). The
-// notes-recency `SystemTime` stamp `apply` reads is a wasm-SAFE clock read via
-// `crate::clock::system_now()`. Never reach for raw `std::time::…::now()` here.
+// `crate::clock` supplies a wasm-safe monotonic clock.
 use crate::clock::Instant;
 
 #[cfg(test)]
@@ -17,16 +11,7 @@ mod crossing;
 #[cfg(test)]
 mod present_txn;
 
-// OS clipboard bridge. Native = arboard (the real platform clipboard). wasm =
-// a best-effort ASYNC mirror onto `navigator.clipboard` (the WEB ESCAPE
-// HATCHES round — arboard itself still won't compile for wasm32, and the
-// browser clipboard is async + permission-gated, so it can't fit arboard's
-// SYNC surface directly; `web_clipboard::Clipboard` below adapts it). COPY
-// mirrors out fire-and-forget; PASTE stays internal-only (see that module's
-// doc for why). `App::new` always gets `Some(Clipboard)` on both platforms
-// now (native: a real system clipboard, or `None` only if `Clipboard::new()`
-// itself errs — e.g. no display server; web: always `Some`, `set_text`/
-// `get_text` degrade individually instead).
+// Native uses arboard; wasm mirrors copy best-effort through the browser API.
 #[cfg(not(target_arch = "wasm32"))]
 use arboard::Clipboard;
 #[cfg(target_arch = "wasm32")]
@@ -34,34 +19,8 @@ use web_clipboard::Clipboard;
 
 #[cfg(target_arch = "wasm32")]
 mod web_clipboard {
-    //! Best-effort async bridge onto the browser Clipboard API
-    //! (`navigator.clipboard`), landed in the WEB ESCAPE HATCHES round. Mirrors
-    //! the slice of arboard's sync API `app.rs` uses (`new`/`set_text`/
-    //! `get_text`) so `App`'s clipboard-mirror call sites (`sync_kill_to_
-    //! clipboard` / `refresh_kill_from_clipboard`) need no platform branching.
-    //!
-    //! **COPY (`set_text`) mirrors out for real.** `writeText` is fire-and-
-    //! forget via `wasm_bindgen_futures::spawn_local` — NEVER blocks the
-    //! editor (matches `App::follow_link`'s / `web_export::trigger_download`'s
-    //! own never-await-inline discipline) — and any rejection (permission
-    //! denied, insecure context / non-HTTPS, no focus) is swallowed exactly
-    //! like a failed native arboard write: a calm degrade back to the
-    //! internal-kill-ring-only behavior this stub always had, never a panic,
-    //! never a user-visible error.
-    //!
-    //! **PASTE (`get_text`) is DELIBERATELY NOT wired to `readText`** — a
-    //! logged, honest asymmetry (see `WEB.md`), not an oversight. `readText`
-    //! needs "transient activation" (a currently-live, un-consumed user
-    //! gesture) in Chromium, and awl's key dispatch reaches this call several
-    //! async hops downstream of the real DOM `keydown` (winit's own event
-    //! queue, then `App::apply`) — by the time it would run, that gesture is
-    //! very likely already stale. The realistic outcomes are a silent
-    //! `NotAllowedError` on every call (Chromium) or a NEW permission prompt
-    //! on every single paste (Firefox, which does not consult the Permissions
-    //! API for `clipboard-read` the way Chromium does) — exactly the "prompt
-    //! storm" this round's own spec says to avoid rather than ship. So
-    //! `get_text` always `Err`s here: Yank stays on the internal kill-ring
-    //! only, byte-identical to before this round.
+    //! Best-effort async browser clipboard adapter. Copy never blocks; paste
+    //! remains internal because browser reads require unreliable user activation.
     pub struct Clipboard;
 
     impl Clipboard {

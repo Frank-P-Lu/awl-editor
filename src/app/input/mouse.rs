@@ -1,13 +1,4 @@
-//! src/app/input/mouse.rs — the MOUSE input path: the pixel->char hit test,
-//! click-count/drag-slop arming, left-press + text-selection drag, the
-//! outline/link/overlay/panel/menu-bar click surfaces, right-click
-//! spellcheck, the context-aware cursor icon, wheel scroll + wheel-zoom
-//! (incl. the horizontal table-pan gesture), and
-//! `WindowEvent::CursorMoved`/`MouseInput`/`MouseWheel` dispatch itself.
-//! Split out of the former `app/input.rs` monolith (2026-07
-//! code-organization pass); see `keys` for the keyboard/IME path and
-//! `drags` for the page/image resize state machines (this file ARMS
-//! those drags from `on_mouse_input`, but their own lifecycle lives there).
+//! Pointer input dispatch and document, overlay, and chrome hit testing.
 
 use super::wheel::*;
 use crate::app::*;

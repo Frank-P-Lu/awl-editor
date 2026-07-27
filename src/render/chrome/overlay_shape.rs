@@ -1,8 +1,4 @@
-//! OVERLAY TEXT SHAPING — the summoned overlay card's name/right-column shaping and
-//! the shaped-pixel no-overlap arbiter ([`rowlayout`]). Split out of the overlay
-//! geometry/draw owner ([`super::overlay`]) so each file stays cohesive; the two
-//! share [`OverlayGeom`] + [`TextPipeline::overlay_geometry`]. Carved out of
-//! `chrome.rs` verbatim, no behaviour change. See [`super`].
+//! Overlay name/right-column shaping and the row no-overlap arbiter.
 
 use super::*;
 

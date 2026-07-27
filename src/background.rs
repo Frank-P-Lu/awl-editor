@@ -1,23 +1,6 @@
-//! The MARGIN-gradient background pipeline (PAGE MODE). Draws ONE fullscreen
-//! triangle BEFORE the selection / text passes: the calm page column is left
-//! untouched (the fragment outputs alpha 0 there, so the base_100 clear shows)
-//! and the surrounding MARGINS carry a per-world gradient, so the page reads as
-//! a clean shape floating on a styled ground (N++ figure/ground).
-//!
-//! It mirrors [`crate::selection::SelectionPipeline`]'s structure (std140-friendly
-//! globals, a tiny local bytemuck shim, the same straight-alpha over-blend) but is
-//! vertex-free: the triangle is generated from `vertex_index`, so there is no
-//! instance buffer — the draw call is a LITERAL `pass.draw(0..3, 0..1)` (see
-//! [`BackgroundPipeline::draw`]), never scaled by document length or visible
-//! content. Colors arrive as sRGB theme bytes and are converted to linear here
-//! (the render target is sRGB). Almost entirely static: no per-doc/per-glyph
-//! input ever reaches this pipeline. The ONE exception (item 87) is a single
-//! scalar `drift` uniform — [`Background::Waves`]' very slow phase drift,
-//! riding the SAME shared ambient clock the lava lamp and twinkling stars use
-//! ([`crate::lava::lava_phase_for`] via `TextPipeline::waves_render_phase`) —
-//! `0.0` for every world/frame that isn't an active `Waves` ground mid-tick, so
-//! the headless capture (which never advances that clock) stays exactly as
-//! byte-deterministic as before.
+//! Page-mode margin background. A vertex-generated fullscreen triangle leaves the
+//! writing column transparent and paints the themed surround. The only animated input
+//! is Waves drift; it is zero for other worlds and deterministic captures.
 
 /// Uniform globals. MUST match `Globals` in `shaders/background.wgsl`.
 #[repr(C)]
@@ -33,31 +16,11 @@ struct Globals {
     /// 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag (see
     /// `Background::shader_id`).
     shader: u32,
-    /// WAVES phase-drift, in radians (item 87) — a DEDICATED per-frame slot
-    /// occupying what was `_pad` after `shader` (offset 60; std140-safe — a
-    /// scalar packed after `shader`'s scalar, so `pat`'s vec4 still lands on
-    /// its 16-byte boundary at 64 and the struct stays 96 bytes). `0.0` for
-    /// every non-Waves ground and every settled/headless frame, so those
-    /// renders stay byte-identical to the pre-item-87 shape. Kept OFF `params`
-    /// ON PURPOSE (merge reconcile with item 86): Zigzag already owns all four
-    /// `params` slots — routing the drift through one of them would flatten a
-    /// Zigzag world's dial to 0.0 every frame — so the drift gets its own
-    /// storage here. Read by `waves_rgb` as `g.drift`.
+    /// Waves phase drift. Its dedicated std140 slot keeps Zigzag's parameter slots intact.
     drift: f32,
     /// Mark/band tint (linear rgb) + its max coverage in `a`.
     pat: [f32; 4],
-    /// Extra per-ground params — the SAME four slots read with different
-    /// per-shader meanings (exactly one ground is ever active, so there is
-    /// no real overlap): `params.x` = edge/proximity flag (0/1, Dots) OR
-    /// Zigzag's `period_px` (item 86 — the two never coexist, since `edge`
-    /// is always `false` off a Zigzag world and `period_px` is always `0.0`
-    /// off a Dots world, so the two contributions simply SUM); `params.y` =
-    /// stripe/band angle in radians (Stripes, Bands) OR Zigzag's own chevron
-    /// travel angle; `params.z` = Zigzag's `amplitude_px`; `params.w` =
-    /// Zigzag's `density`. Bands/Waves read `from`/`to`/`tint` above as
-    /// their three authored TONES (not a gradient) — and Waves reads its
-    /// phase drift from the dedicated `drift` slot above — so neither needs a
-    /// `params` slot.
+    /// Per-ground parameters. Slots are reused because only one ground is active.
     params: [f32; 4],
 }
 

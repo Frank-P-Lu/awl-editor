@@ -1,16 +1,5 @@
-//! SUMMONED OVERLAY chrome — the CARD lifecycle and text-upload half. The geometry/hit-test owner
-//! ([`super::overlay`]: `overlay_geometry`, the row-window math, the metric
-//! ladder, `overlay_footer_reclaim`, and the pointer hit-tests) computes WHERE
-//! every element of the summoned card sits; this file orchestrates shaping,
-//! uploads the placard/name/chord text areas, places the amber query caret, and
-//! owns the park-when-off lifecycle. Selected-row bands, bars, facets, and their
-//! probes live beside it in [`super::overlay_rows`].
-//!
-//! Carved out of [`super::overlay`] verbatim, no behaviour change. `TextPipeline`
-//! lives in [`crate::render`], of which this is a descendant module, so these
-//! methods keep full access to its private GPU fields; Rust merges the inherent
-//! `impl TextPipeline` blocks across the module tree, so splitting the file is a
-//! pure physical carve — the chrome pixels are byte-identical. See [`super`].
+//! Overlay card lifecycle and text upload. Geometry and hit testing live in
+//! [`super::overlay`]; row surfaces and probes live in [`super::overlay_rows`].
 
 use super::*;
 

@@ -1,9 +1,4 @@
-//! `OverlayKind` -- which picker/navigator is open -- its accept-disposition
-//! law, and the picker-row hint-line shape. Split out of the former
-//! `overlay.rs` monolith (2026-07 code-organization pass); every item's path
-//! is unchanged (`overlay::OverlayKind`, `overlay::AcceptDisposition`,
-//! `overlay::HintAction`, `overlay::format_hint`) -- only the file it lives
-//! in moved.
+//! Overlay kinds, acceptance rules, and hint formatting.
 
 /// Which kind of overlay is open. `Goto` lists the active project's file index;
 /// `Project` is a navigable directory explorer (pick any folder as the root);

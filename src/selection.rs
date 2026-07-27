@@ -1,12 +1,4 @@
-//! The selection highlight pipeline: a set of translucent GPU quads drawn UNDER
-//! the caret and text, one per visible line of the active region. It mirrors the
-//! structure of [`crate::caret::CaretPipeline`] (instanced quad draw, per-quad
-//! instance buffer, std140-friendly globals) but is intentionally simpler: a
-//! flat, soft-cornered, single-color translucent rectangle — no glow, no trail.
-//!
-//! Each rectangle is given as `[x, y, w, h]` in PIXELS (top-left origin); the
-//! renderer computes these from the selection endpoints + scroll + zoom so the
-//! highlight lands exactly behind the selected glyphs.
+//! GPU selection-highlight quads, drawn beneath text and caret.
 
 /// Rounded-corner radius (px) of a selection rectangle. A small radius softens
 /// the block so it reads as a highlight rather than a hard inverse-video bar.

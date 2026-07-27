@@ -1,24 +1,4 @@
-//! src/debug.rs — DEBUG-mode state: the pane that never creates the work it
-//! measures.
-//!
-//! An opt-in, DEBUG-only developer panel drawn quietly in the top-left corner
-//! (dim, value-only — NO amber per DESIGN §3; amber is the caret's alone). It is
-//! OFF by default and exists as DIAGNOSTIC INFRASTRUCTURE FOR THE AGENT — the
-//! user screenshots it, the agent triages — so its lines favor dense, honest
-//! triage signal: per-frame COST against the monitor's budget (not fps, which
-//! reads idle-as-frozen and averages away spikes), the WORST recent frame, the
-//! felt key→px latency, and a frozen-unless-broken redraw counter whose only job
-//! is to expose accidental hot loops. It also surfaces the buffer's diagnostic
-//! state (zoom, viewport, cursor, theme/caret/page mode, and the key md/syn
-//! line) while debugging styling.
-//!
-//! THE PANE SCHEDULES ZERO FRAMES. Debug mode no longer pins the redraw loop
-//! hot: every metric here is meaningful for a single sparse frame (a cost, a
-//! max, a latency, a count), so the panel simply rides whatever frames the
-//! editor drew anyway, plus exactly ONE settle-stamp frame (see [`DebugStill`])
-//! that writes the final numbers and goes quiet. While you are not touching the
-//! editor the `redraws` count does not move — if it climbs while you sit still,
-//! you are looking at a hot-loop bug, made visible instead of manufactured.
+//! Opt-in debug metrics. The panel never schedules frames; idle redraws stay zero.
 //!
 //! One process-global mirrors the `page`/`focus`/`caret` pattern so the runtime
 //! toggle (palette "Toggle debug" / `C-x r`), the headless `--debug` flag, and a

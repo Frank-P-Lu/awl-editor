@@ -1,13 +1,6 @@
-//! Pure incremental-search model. No winit/gpu. Operates on a document string +
-//! query, computes all match CHAR ranges, supports next/prev with wrap.
-//!
-//! The query lives in its OWN String (like the IME preedit), never spliced into
-//! the rope. All offsets are CHAR indices (not bytes) so they map directly to
-//! `Buffer::set_cursor` / `char_to_line_col` even for multibyte text.
+//! Pure incremental search over char-indexed document ranges.
 
-// The ONE search/replace key-interception seam (`keys::intercept`) — shared by
-// the live window's `App::handle_search_key` and the headless `--keys` replay
-// guard, so the two drivers cannot drift.
+// Live input and replay share the search/replace interception seam.
 pub mod keys;
 
 use crate::textbox::TextBox;

@@ -1,8 +1,4 @@
-//! The capture path's public INPUT types: the deterministic [`CaptureOpts`]
-//! overrides and the read-only metadata blocks they carry ([`ProjectInfo`],
-//! [`OverlayInfo`], [`CaptureInfo`]). These are the data contract `main.rs` fills
-//! before driving a capture; lifted out of `capture.rs` verbatim and re-exported
-//! from [`super`] so the `capture::CaptureOpts` call sites keep resolving.
+//! Public deterministic capture options and read-only metadata blocks.
 
 /// Deterministic overrides for the verification hooks. All default to the
 /// byte-stable baseline (zoom 1.0, cursor-follow scroll, no selection), so a

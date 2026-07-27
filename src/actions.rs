@@ -1,25 +1,11 @@
-//! The pure, GPU-/winit-free core of action application. This is the single
-//! seam through which BOTH the windowed app and the headless `--keys` replay
-//! drive the buffer, so live editing and captured replay behave identically.
-//!
-//! `apply_core` is a near-mechanical lift of the big `match action` in
-//! `App::apply`: it touches only the `Buffer`, the transient Shift-selection
-//! flag, the zoom scalar, and the optional `SearchState`. It deliberately does
-//! NOT touch the GPU, the window, or the system clipboard — the windowed
-//! `App::apply` wraps this with its clipboard mirroring, and the headless
-//! replay drives it with no side channels at all. The kill ring lives on the
-//! `Buffer`, so cut/copy/yank still work headlessly without a clipboard.
+//! Pure action application shared by the windowed app and headless replay.
 
 use crate::buffer::Buffer;
 use crate::keymap::Action;
 use crate::overlay::OverlayState;
 use crate::search::{Direction, SearchState};
 
-// The dispatch (`apply_core`) + its public seam (the [`LayoutOracle`] trait,
-// [`ActionCtx`], [`Effect`]) stay in this module root; the cohesive clusters the
-// dispatch leans on are carved into submodules and re-exported by bare name, exactly
-// the precedent that split `render.rs` into `render/{caret,chrome,geometry,…}`. Each
-// submodule pulls this root's items back in with its own `use super::*`.
+// Shared dispatch types stay here; cohesive action families live in submodules.
 mod edit; // the markdown smart-Enter edit (smart_newline + its pure decision)
 mod flinch; // the caret-feedback triggers (impact_for / recoil_for)
 mod format; // the markdown formatting-command toggles (block + inline)
@@ -36,11 +22,7 @@ use motion::*;
 use overlay_nav::*;
 use rebind::*;
 
-// The overlay live-preview seam is shared with `app/input/mouse.rs`, where a HOVER over a
-// picker row previews it exactly like a keyboard move (Theme re-tints, Caret swaps
-// the look). Re-exported so the mouse path applies the identical preview. `preview_move`
-// (item 52) is the deliberate-crossing variant that ALSO re-anchors — the wheel path uses
-// it; passive hover keeps the bare `preview_overlay` (no spatial chase).
+// Mouse and keyboard picker navigation share these preview helpers.
 pub(crate) use overlay_nav::{preview_move, preview_overlay};
 
 // The palette/menu re-dispatch BREADCRUMB stamp is shared by both re-dispatch seams

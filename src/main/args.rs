@@ -1,10 +1,4 @@
-//! CLI argument parsing + capture-mode selection.
-//!
-//! This is the front half of `main.rs`: it turns `std::env::args` into a
-//! [`Mode`] — the windowed editor or one of the headless capture variants — plus
-//! all the small `parse_*` validators and the "did the chosen mode silently drop
-//! a hook?" guard ([`unused_hooks`]). It is the pure decision layer; the actual
-//! work each `Mode` performs lives in [`crate::run`].
+//! CLI argument parsing and capture-mode selection.
 
 use std::path::PathBuf;
 

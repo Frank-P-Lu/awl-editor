@@ -1,14 +1,4 @@
-//! The SUMMONED NAVIGATION OVERLAY's key handling — the modal intercept that, while
-//! a picker is open, OWNS every key (printable chars filter the query, Up/Down move
-//! the selection, Right/Left descend/ascend the explorers, Enter accepts, Esc/C-g
-//! cancels-or-reverts). Routing this through the shared core (not just `App`) is what
-//! makes the overlay drivable under `--keys`. [`overlay_intercept`] is the dispatch
-//! `apply_core` calls the instant `ctx.overlay.is_some()`; the small browse-path
-//! helpers below ([`join_browse`] / [`browse_parent`] / [`descend_target`] /
-//! [`ascend_target`] / [`move_dest_value`]) compute the explorer's descend/ascend/
-//! accept targets, and [`preview_overlay`] applies the Theme/Caret live preview as the
-//! selection moves. Carved out of `actions.rs` VERBATIM (the `is_some()` block lifted
-//! into one named seam).
+//! Modal navigation-overlay actions, shared by live input and `--keys` replay.
 
 use super::*;
 

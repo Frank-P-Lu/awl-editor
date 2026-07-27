@@ -1,9 +1,4 @@
-//! Building a picker/navigator [`OverlayState`] from the caller-gathered
-//! [`BuildCtx`] -- the flat pickers (`build`) and one directory LEVEL of a
-//! navigable explorer (`browse_level`) -- plus the row-elision helpers picker
-//! rendering shares (`elide_path`/`row_split`). Split out of the former
-//! `overlay.rs` monolith (2026-07 code-organization pass); every item's path
-//! is unchanged -- only the file it lives in moved.
+//! Build picker and navigator [`OverlayState`] values from caller-gathered data.
 
 use super::{OverlayKind, OverlayState};
 use std::path::Path;

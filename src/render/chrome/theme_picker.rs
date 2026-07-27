@@ -1,8 +1,4 @@
-//! FACETED THEME PICKER chrome — the lens-strip / section-grouped world-row variant
-//! of the summoned overlay: its display plan, its own geometry + span shaping, the
-//! responsive strip fold, and the lens-strip hit-test. Lays out differently from the
-//! flat pickers in [`super::overlay`] but shares [`OverlayGeom`]. Carved out of
-//! `chrome.rs` verbatim, no behaviour change. See [`super`].
+//! Theme picker display plan, shaping, responsive strip fold, and hit testing.
 
 use super::*;
 

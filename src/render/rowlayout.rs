@@ -1,11 +1,7 @@
-//! ROW LAYOUT — the ONE owner of picker-row column budgets.
+//! Picker-row column budgets. Primary text yields last; optional secondary text first.
 //!
-//! Every summoned picker draws rows of up to two CELLS sharing one line: the
-//! PRIMARY (the name / path — the figure; NEVER dropped, elided only as a last
-//! resort and never when short) and an optional SECONDARY (the dim right
-//! column: key chord, caret-look description, relative time, "+N −M" diff
-//! count — always the FIRST to yield). Before this module each picker computed
-//! its own split, and the caret picker's long descriptions drove the shared
+//! Every summoned picker draws rows of up to two cells. Before this module each
+//! picker computed its own split, and the caret picker's long descriptions drove the shared
 //! estimate negative: names collapsed to a 4-char floor ("Block" → "B…ck")
 //! while the description column painted straight over them. The rules now live
 //! here exactly once, so every current AND future picker behaves identically:

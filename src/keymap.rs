@@ -1,11 +1,4 @@
-//! Keymap: translate winit keyboard events into editor `Action`s. Catalogued
-//! defaults are seeded into maps from `assets/keymap-defaults.toml`; raw input,
-//! prefix arming, and platform aliases remain small hand-written policy. User
-//! config maps sit above defaults, so rebinding stays additive and wins conflicts.
-//!
-//! This module is winit-aware but editor-buffer-agnostic: it produces `Action`s,
-//! which the app layer applies to the `Buffer`. That keeps the dispatch table
-//! testable and the buffer logic clean.
+//! Translate keyboard input into editor actions. User bindings override defaults.
 
 use std::collections::HashMap;
 

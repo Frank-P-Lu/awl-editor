@@ -1,8 +1,4 @@
-//! HELD STATS HUD + ABOUT CARD chrome — the two mutually-exclusive summoned
-//! float-cards sharing one pipeline: the %-through-doc figure, the
-//! machine-readable [`HudReport`], and the shared shape/upload of the stats HUD
-//! (held) or the About card (open). Carved out of `chrome.rs` verbatim, no
-//! behaviour change. See [`super`].
+//! Held stats HUD and About card, including shared shaping and [`HudReport`].
 
 use super::*;
 

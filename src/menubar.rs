@@ -1,44 +1,12 @@
-//! THE WEB/LINUX MENU BAR — a slim, awl-RENDERED strip of menu titles across the
-//! top of the canvas, the THIRD DOOR to actions on the platforms the OS gives no
-//! chrome. macOS ships a real NSMenu bar (`crate::menu` + muda); a browser tab and
-//! most Linux window managers give a bare wgpu canvas with nothing discoverable
-//! unless you already know ⌘P — so awl draws its OWN calm menu bar there, reading
-//! the SAME roster (`crate::menu::roster`) the native bar does. Clicking a title
-//! drops a menu; clicking an item fires its `Action` through the SAME
-//! `menu::resolve` -> `App::apply` seam a keypress uses — never new behaviour, never
-//! a menu-only code path (the design law shared with `crate::menu`).
-//!
-//! This module owns two things, both PURE and deterministic (no clock):
-//!   * the process-GLOBALS ([`MENU_BAR_ON`] shown-or-not, [`OPEN_MENU`] which
-//!     dropdown is dropped) — the exact shape as [`crate::outline`] / [`crate::debug`]
-//!     / [`crate::hud`], set at launch from the sticky config pref
-//!     (`config::menu_bar`), flipped live by the "Toggle menu bar" command, and
-//!     forced on for a capture by `--menu-bar`;
-//!   * the LAYOUT MATH — where each title's clickable band sits, and where an open
-//!     dropdown's rows land. The render pipeline feeds these the REAL shaped title
-//!     widths (so the drawn glyphs and the hit-test can never drift — merge, don't
-//!     align) and reads the boxes back for BOTH the draw and the click hit-test.
-//!
-//! **PLATFORM DEFAULT (the one `cfg`):** [`MENU_BAR_ON`] defaults ON for web/Linux
-//! and OFF for macOS (where the native bar is the door). A capture runs native, so
-//! its default is OFF — meaning a plain `--screenshot` on this machine is
-//! byte-identical (the bar draws nothing, reserves no space); `--menu-bar` forces
-//! the global on to drive the bar deterministically for the capture tests. The
-//! DOCUMENT is inset below the bar only while it is shown (`TextPipeline::doc_top`
-//! adds [`crate::render::TextPipeline::menubar_reserve`]), so caret / selection /
-//! hit-test all shift together and a bar-off frame keeps its exact geometry. Every
-//! OTHER top-anchored persistent surface reads the SAME accessor rather than a
-//! parallel offset: the margin Outline's own vertical origin (`chrome/outline.rs`'s
-//! `outline_layout`, whose draw + click hit-test share ONE `top`) and the top-right
-//! search/replace panel's card (`rects.rs::panel_layout`'s `card_y`).
+//! Awl-rendered web/Linux menu bar. It shares the native menu roster and action
+//! dispatch, so it adds no menu-only behavior. Layout consumes shaped title extents
+//! for both drawing and hit testing. It defaults off on macOS, preserving normal
+//! native captures unless explicitly enabled.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-/// Whether the awl-rendered menu bar is drawn. DEFAULT: ON for web/Linux (the OS
-/// gives no chrome there), OFF for macOS (the native NSMenu bar is the door — see
-/// `crate::menu`). A capture runs native, so this defaults OFF and a plain
-/// `--screenshot` is byte-identical; `--menu-bar` / the "Toggle menu bar" command /
-/// config `menu_bar` flip it. Mirrors [`crate::outline::OUTLINE_ON`].
+/// Whether the rendered menu bar is drawn. It defaults on where there is no native
+/// bar and off on macOS; config, command, and capture flags can override it.
 static MENU_BAR_ON: AtomicBool = AtomicBool::new(cfg!(not(target_os = "macos")));
 
 /// Sentinel for "no dropdown open" in [`OPEN_MENU`].
@@ -62,12 +30,7 @@ pub fn menu_bar_on() -> bool {
 /// capture flag. Turning it OFF also closes any open dropdown (a hidden bar can hold
 /// no open menu). Mirrors [`crate::outline::set_outline_on`].
 pub fn set_menu_bar_on(on: bool) {
-    // Self-serialize into the GEOMETRY test-lock domain: the bar reserves vertical
-    // space folded into `TextPipeline::doc_top`, so flipping it races any test reading
-    // doc geometry. Acquiring the page test-lock (reentrant per thread) here — exactly
-    // as the page-global writers do (see `page::test_lock`) — keeps a parallel geometry
-    // test that holds the same lock from observing a half-flipped bar. No-op in a real
-    // (non-test) build.
+    // Geometry tests share this reentrant global with the page-layout state.
     #[cfg(test)]
     let _g = crate::testlock::serial();
     MENU_BAR_ON.store(on, Ordering::Relaxed);
@@ -96,9 +59,7 @@ pub fn open_menu() -> Option<usize> {
 /// the renderer / hit-test tolerate an out-of-range index (nothing draws / nothing
 /// hits), so a stale index can never panic.
 pub fn set_open(i: Option<usize>) {
-    // Serialize with the same geometry lock as [`set_menu_bar_on`] (an open dropdown
-    // rides the shown bar's reserved strip); reentrant, so `set_menu_bar_on`'s internal
-    // `set_open(None)` is a nested no-op. No-op in a real build.
+    // Share the geometry test lock; nested use from `set_menu_bar_on` is reentrant.
     #[cfg(test)]
     let _g = crate::testlock::serial();
     OPEN_MENU.store(i.unwrap_or(NONE), Ordering::Relaxed);
@@ -118,9 +79,7 @@ pub fn toggle_open(i: usize) -> Option<usize> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LAYOUT MATH — pure, deterministic, unit-tested without a GPU. The pipeline feeds
-// these the real shaped title widths and reads the results back for BOTH the draw
-// and the hit-test, so the two can never drift (the merge-don't-align discipline).
+// Pure menu-bar layout, using shaped title widths for drawing and hit testing.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Left inset (px) of the FIRST title's clickable band from the canvas edge.
@@ -145,35 +104,11 @@ pub fn bar_height(line_height: f32) -> f32 {
     line_height + 2.0 * BAR_PAD_Y
 }
 
-/// THE TOP-EDGE SLIVER FIX. How far (px) to bleed a bar quad's edge PAST a canvas
-/// boundary it runs flush to, so [`shaders/selection.wgsl`]'s `fs_main` rounded-rect
-/// AA feather (a ~1px-wide `smoothstep` centered on the quad's TRUE geometric edge)
-/// never lands on a visible pixel. A quad whose top/left/right edge sits EXACTLY at
-/// the canvas boundary (`y=0`, `x=0`, `x=width` — the bar's ground + open-title
-/// highlight, which both run flush to the window) has only ~0.5px of "inside" margin
-/// at the first sampled pixel center, so that row/column renders at ~84% coverage —
-/// a visible sliver of whatever was drawn underneath (confirmed empirically: a
-/// `--menu-bar` capture's row 0 measured EXACTLY the linear-space blend of the bar's
-/// own color at ~84% opacity over the pre-existing frame content, both in the
-/// margins and inside the page column). Bleeding the edge a few px PAST the boundary
-/// (into space the rasterizer silently clips — nothing there is ever visible) moves
-/// the true edge off-screen, so every visible pixel sits comfortably inside the
-/// shape (SDF distance well past the smoothstep's `-1` floor) regardless of DPI/zoom
-/// — the feather is a FIXED physical-pixel width, so a small constant bleed is safe
-/// at every scale. `0.5` is the mathematical minimum; `4.0` is a generous, still
-/// invisible margin.
+/// Off-canvas bleed for flush rounded-rect edges. It keeps antialiasing feathers
+/// outside the visible canvas, preventing a background sliver at any DPI.
 pub const EDGE_BLEED_PX: f32 = 4.0;
 
-/// Extend `rect`'s TOP edge (always) and its LEFT/RIGHT edges (only the ones already
-/// flush with a canvas boundary, within a tiny epsilon) by [`EDGE_BLEED_PX`] — the
-/// fix for the sliver documented on that constant. A rect that does NOT touch a
-/// given edge is left exactly alone on that side (bleeding an INTERIOR edge would
-/// visibly grow the shape, not just hide off-canvas geometry that the rasterizer was
-/// always going to clip). `canvas_w` is the frame width `rect`'s x-extent is measured
-/// against. Pure; unit-tested without a GPU. Used by
-/// [`crate::render::TextPipeline::prepare_menubar`] for BOTH the bar's ground strip
-/// (always flush on all three sides) and the open title's highlight band (always
-/// flush on top; flush on a side only for the first/last title).
+/// Bleed only rect edges already flush with the canvas, leaving interior edges exact.
 pub fn bleed_to_canvas_edges(rect: [f32; 4], canvas_w: f32) -> [f32; 4] {
     const FLUSH_EPS: f32 = 0.5;
     let [mut x, mut y, mut w, mut h] = rect;

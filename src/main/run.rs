@@ -1,12 +1,5 @@
-//! Mode execution: the back half of `main.rs`.
-//!
-//! [`run`] takes the [`Mode`](crate::args::Mode) that argument parsing resolved
-//! and DOES it — renders a headless capture, runs the typing benchmark, or hands
-//! off to the windowed editor. The headless captures share one seam:
-//! [`replay_keys`] applies a parsed `--keys` action stream against a [`Buffer`]
-//! THROUGH `actions::apply_core`, so a replay is byte-for-byte identical to live
-//! editing. The small `resolve_*` / `load_buffer` helpers build the project +
-//! buffer context every mode needs.
+//! Mode execution. Headless key replay uses `actions::apply_core`, the same
+//! editing seam as the windowed app.
 
 use std::path::PathBuf;
 
@@ -19,27 +12,8 @@ use crate::config::Config;
 use crate::keymap::Action;
 use crate::{actions, app, bench};
 
-/// Build the editor buffer for a (possibly absent) file. A missing/unreadable
-/// file yields an empty buffer bound to that path; no file yields a scratch
-/// buffer.
-///
-/// ITEM 77 FOLLOW-UP — THE SAME ONE CAPABILITY OWNER, at the headless door:
-/// this is EVERY capture mode's file-load seam (`--screenshot`,
-/// `--screenshot-motion[-v|-d]`, the timeline/held/frames captures, the
-/// storyboard runner) — the exact analog of `App::new`'s CLI/OS-open launch
-/// argument, just without a live `App` to carry a sticky notice. Before this
-/// gate, a binary/undecodable file named here reached `Buffer::from_file`
-/// directly, which swallows the decode failure and returns an EMPTY buffer
-/// STILL BOUND to that path (see `crate::openable`'s module doc) — so
-/// `cargo run -- --screenshot out.png --keys "s-s" logo.png` would TRUNCATE
-/// the real `logo.png` to zero bytes on the replayed save. `classify` refuses
-/// it HERE instead, the same verdict `App::load_path` reaches for the SAME
-/// path, and the refusal degrades to a scratch buffer (path `None`) exactly
-/// like a no-argument launch — never a path bound to the refused file, so a
-/// later `Action::Save` in the replay can, at worst, convert the scratch into
-/// a NEW document under the active root (`Effect::ConvertScratchAndSave`),
-/// never overwrite the binary. Supported unusual-extension TEXT is unaffected
-/// (`classify` decides by bytes, not the name) — it still opens.
+/// Build the editor buffer. Refused files become unbound scratch buffers so a
+/// replayed save can never overwrite them.
 pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
     match file {
         Some(p) => match crate::openable::classify(p).refusal_message() {
@@ -53,19 +27,7 @@ pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
     }
 }
 
-/// Resolve the ACTIVE folder from an EXPLICIT target only: `--root` wins
-/// outright; else a file/dir ARGUMENT resolves from its own location (a dir
-/// argument — including `awl .` — IS the folder; a file's PARENT is; a bare
-/// filename with no directory component falls to cwd, since that file lives
-/// in cwd). This is the "explicit target wins" half of the ONE
-/// launch-precedence law ([`resolve_launch_context`]) — used standalone by
-/// every HEADLESS capture mode, which is structurally free of remembered
-/// session state (the capture-gate law, `CLAUDE.md`) and therefore never
-/// consults anything beyond what its own flags/args named; a bare (no
-/// root, no file) capture invocation falls all the way to cwd, unchanged
-/// from before item 76 (capture was never a "remembered folder" launch
-/// door, so retiring the old sticky `config.project_root` — folded into the
-/// live-App-only session, item 76 — changes nothing observable here).
+/// Resolve a headless capture root from explicit inputs: `--root`, target, cwd.
 pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> PathBuf {
     if let Some(r) = root {
         return r.clone();

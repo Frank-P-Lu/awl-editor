@@ -1,13 +1,4 @@
-//! src/history/store.rs — the STORE half: the on-disk snapshot log (one
-//! log file per source path, via the [`crate::fs`] seam so it works on
-//! native AND web), the GIT-PRESENCE GATE that decides whether awl or git
-//! owns a file's history, the git read-back BACKEND (native `git log`/
-//! `git show` shells, inert wasm stubs), and the public read/write API
-//! ([`record`]/[`record_pinned`]/[`list`]/[`load`]) every caller uses.
-//! Split out of the former `history.rs` monolith (2026-07
-//! code-organization pass); see `prune` for the aged retention ladder
-//! [`record_at`] calls after every append, and `picker` for the timeline
-//! picker's read model built on top of [`list`]/[`load`].
+//! Persistent local-history snapshots, including the git-ownership gate.
 
 use super::prune::prune_ladder;
 use crate::config::Config;

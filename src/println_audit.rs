@@ -1,37 +1,5 @@
-//! THE PRINTLN AUDIT (SAVE-FEEDBACK round): a structural law test guarding
-//! against a println!/eprintln! call sneaking into a RUNTIME path where it
-//! would be invisible on a GUI launch (the reported bug — a `Cmd-S` failure on
-//! Linux only ever printed to the TERMINAL, never in-app) and, worse, actively
-//! confusing on a terminal launch (state-toggle chatter like "page mode: on"
-//! narrating every keystroke to stdout nobody is reading).
-//!
-//! Every user-facing `println!`/`eprintln!` in `src/` earns one of three fates
-//! (see `CLAUDE.md`'s SAVE-FEEDBACK round note for the full table):
-//!   (a) ROUTED through the existing bottom-center notice seam (`App::notice`)
-//!       — save failures, an explicit "Move note" failure, anything the user
-//!       should see;
-//!   (b) SILENCED — state-toggle chatter the UI already shows some other way
-//!       (the toggle's own visible effect, the window title, …);
-//!   (c) KEPT, with a reason — genuine CLI/diagnostic output: `--help`,
-//!       `--screenshot`'s "wrote …" deliverable, the bench harnesses' tabular
-//!       output, startup-before-a-window-exists errors (a malformed config,
-//!       a font/dictionary/GPU init failure), and other best-effort background
-//!       bookkeeping whose failure is rare and non-fatal (candidates for a
-//!       future notice-routing pass, not fixed this round — see the table).
-//!
-//! [`no_stray_println_outside_the_audited_table`] is the tripwire: it walks
-//! `src/` (mirroring `durable.rs`'s own bare-write scanner — the same
-//! precedent, generalized from "durable write calls" to "print macro calls"),
-//! SKIPPING every `#[cfg(test)]`-gated item (a brace-balanced skip, so a test
-//! module's own `eprintln!("skipping …: no wgpu adapter")` fixtures — the vast
-//! majority of the raw count in this crate — never count against the law) and
-//! every file living under a `tests/` directory or literally named `tests.rs`,
-//! then compares the per-file match COUNT against the audited table below. A
-//! new print macro appearing in an already-audited file changes that file's
-//! count and fails loudly; a print macro appearing in a NEW file fails loudly
-//! too (the file is simply absent from the table). Either way: route it
-//! through the notice seam, silence it, or add it here with a reason — never
-//! let it slip back into the terminal unaccounted for.
+//! Structural audit for production `println!`/`eprintln!` sites. User-facing
+//! failures use notices; remaining output is intentional CLI or diagnostics.
 
 /// The audited, CURRENT expected count of print-macro call sites per file
 /// (relative to `src/`), for every file NOT under a `tests/` directory and NOT

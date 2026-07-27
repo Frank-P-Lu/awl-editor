@@ -1,44 +1,5 @@
-//! src/cursor_shape.rs — CONTEXT-AWARE OS pointer shapes: winit draws the
-//! actual glyph (`Window::set_cursor(CursorIcon::…)`); this module is the ONE
-//! pure priority decision (hover context -> `CursorIcon`) plus the tiny
-//! "only call on an actual change" cache logic, so `App` never has to
-//! re-derive the priority ad hoc at each mouse call site — the same
-//! single-owner discipline as `syn_role_color` / `pointer_hide::os_visibility_change`.
-//!
-//! **The mapping** (macOS convention, not the web one — settled taste call),
-//! priority highest-first:
-//! 1. over the draggable PAGE-COLUMN EDGE, or while actively dragging it ->
-//!    `ColResize` (↔).
-//!    1b. while actively drag-SELECTING text (the primary button is down inside the
-//!    writing column) -> `Text` (I-beam), pinned for the WHOLE gesture — even a
-//!    moment where the pointer strays outside the exact column bounds (past the
-//!    last line, into a margin) mid-drag, so the icon never flickers to the
-//!    arrow/hand and back while one continuous selection is in progress.
-//! 2. over ANY summoned overlay's clickable ROWS (Command-P / go-to / browse /
-//!    theme / history / keybindings / spell / … — every faceting/list picker) OR
-//!    a clickable LENS-STRIP facet label (Time/Register/… — every FACETING
-//!    picker's strip) -> `Pointer` (the pointing hand — a clickable-affordance
-//!    signal). This GENERALIZES the former spell-suggest-only override to every
-//!    picker row (and now the strip): a row or facet you can click to act on
-//!    earns the hand, uniformly.
-//! 3. over the overlay's QUERY-INPUT line (the editable filter field at the top
-//!    of a flat/nav/theme picker) -> `Text` (I-beam — it is a text field you type
-//!    into, so it reads like one).
-//! 4. over any OTHER part of a summoned OVERLAY (its scrim, foot hint, empty
-//!    gaps) -> `Default` (the plain ARROW — macOS menus/lists use the arrow for
-//!    dead space; the hand is reserved for an actual clickable row).
-//!    4b. over the awl-rendered WEB/LINUX MENU BAR: a clickable TITLE / dropdown ITEM ->
-//!    `Pointer` (hand); dead bar/dropdown space -> `Default` (arrow, over the doc it covers).
-//! 5. over the TEXT AREA (the writing column, no overlay open) -> `Text` (I-beam).
-//! 6. everywhere else (margins, the overlay scrim, the gutter) -> `Default`.
-//!
-//! **Determinism:** LIVE-APP-ONLY, exactly like `pointer_hide` — the headless
-//! capture has no window and no OS pointer to shape, so nothing here is
-//! reachable from the capture path and a `--screenshot` needs no new sidecar
-//! field (there is nothing deterministic to report: the OS cursor glyph never
-//! renders into the PNG). See `App::sync_cursor_icon` (`app/input/mouse.rs`) for the
-//! live wiring; the actual on-screen SHAPE appearing is flagged there for
-//! human confirmation.
+//! Context-aware OS cursor selection and change caching. This is live-only;
+//! captures have no OS pointer.
 
 use crate::render::ImageHandle;
 use winit::window::CursorIcon;

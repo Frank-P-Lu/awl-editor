@@ -1,8 +1,4 @@
-//! `OverlayState`'s QUERY/NAVIGATION half: the fuzzy refilter, the
-//! type/scroll/move-selection primitives, and the row-display accessors the
-//! renderer + sidecar read (`item_strings`, `empty_message`, …). Split out of
-//! the former `overlay.rs` monolith (2026-07 code-organization pass); every
-//! item's path is unchanged -- only the file it lives in moved.
+//! Overlay query filtering, navigation, and row-display accessors.
 
 use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
 use crate::fuzzy::{self, Tier};

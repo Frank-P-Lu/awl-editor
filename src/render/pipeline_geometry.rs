@@ -1,15 +1,5 @@
-//! PIPELINE GEOMETRY — the RECONFIGURE-FROM-INPUT half of [`super::TextPipeline`].
-//!
-//! The setters that resize / re-tint / re-ingest the pipeline's state WITHOUT
-//! drawing, carved out of `render.rs` VERBATIM: theme colour + font sync
-//! (`sync_theme` / `sync_theme_colors` / `sync_theme_font` + the
-//! `needs_theme_reshape` gate), `ViewState` ingestion (`set_view` +
-//! `sync_view_fields`), DPI + window sizing (`set_dpi` / `set_size`), and the
-//! `line_count` query. NOTE the sibling [`super::geometry`] module owns the pure,
-//! read-only SPATIAL math (column / wrap / hit-test); this file owns the
-//! state-MUTATING setters that feed it. Methods stay inherent on `TextPipeline`
-//! (a child module sees its ancestor's private fields), so the capture output is
-//! byte-identical.
+//! Reconfigure-from-input methods: resize, retint, font sync, and view ingestion.
+//! Pure column, wrap, and hit-test math lives in [`super::geometry`].
 
 use super::*;
 

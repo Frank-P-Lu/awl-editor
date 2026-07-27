@@ -1,20 +1,5 @@
-//! Headless one-frame capture: render the shared text pipeline to an offscreen
-//! texture, read the pixels back to the CPU, and write a PNG + a JSON sidecar.
-//!
-//! This is the PRIMARY verification path for the project: same input => byte
-//! stable PNG, plus a machine-readable description of render state.
-//!
-//! The harness is split into focused submodules (the `render.rs` precedent), with
-//! this file as the module ROOT holding only the shared constants + the wiring:
-//! - [`gpu`]: the headless wgpu device / offscreen target / pixel readback.
-//! - [`opts`]: the public INPUT types ([`CaptureOpts`] + its metadata blocks).
-//! - [`modes`]: the SINGLE-FRAME capture entry points + shared snapshot helpers.
-//! - [`animated`]: the `--capture-timeline` / `--capture-held` per-step drivers.
-//! - [`sidecar`]: the hand-rolled JSON sidecar writer.
-//! - [`oracle`]: the headless visual-line motion oracle for `--keys` replay.
-//!
-//! Every public item is re-exported here so the `capture::*` call sites resolve
-//! exactly as before.
+//! Deterministic headless rendering to PNG plus a JSON state sidecar. This root
+//! shares capture constants and re-exports its focused submodules.
 
 /// Deterministic canvas size for headless renders.
 pub const CANVAS_WIDTH: u32 = 1200;
@@ -22,29 +7,8 @@ pub const CANVAS_HEIGHT: u32 = 800;
 /// Offscreen format. Srgb so glyphon's default (sRGB) blending matches windowed.
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
-/// The sidecar SCHEMA. [`SCHEMA_VERSION`] (defined just below this history table)
-/// is THE single number — bump it ONCE per sidecar-shape change and APPEND a row
-/// to the table below (never edit a past row; that is what makes a bump a
-/// one-line, merge-friendly edit). The three emitted shapes derive from it via
-/// [`schema_plain`] (`--screenshot`, caret block absent), [`schema_timeline`]
-/// (`--capture-timeline`, caret block, no `trail`), and [`schema_held`]
-/// (`--capture-held`, caret block WITH the `trail`) — PLAIN = N, TIMELINE = N+1,
-/// HELD = N+2 — so the three shape strings can never drift from each other.
-///
-/// **CLAIM CONVENTION (the merge-collision cure, 2026-07-18 debt audit).** A
-/// schema bump is TWO coupled edits: set [`SCHEMA_VERSION`] to the next free
-/// number AND append exactly one `/N` row here with that same number. Because
-/// two branches in flight will both grab the same next number, the const line
-/// CONFLICTS on merge (git flags it) — but the appended rows do NOT (they land
-/// on different lines and git takes both silently). So after resolving the const
-/// to the next free number, RENUMBER your row to match: whoever merges second
-/// bumps BOTH their const and their row. The `tests::schema_ledger` test turns a
-/// missed renumber into a LOUD build failure (the last row must equal the const,
-/// and the rows must be strictly increasing — a duplicate `/N` from a merge
-/// fails it) instead of a silently-wrong sidecar schema string.
-///
-/// HISTORY TABLE (append-only) — each entry is `/N` (the PLAIN number at that
-/// round) and what changed:
+/// Sidecar schema base version. `plain`, `timeline`, and `held` are derived as
+/// `N`, `N + 1`, and `N + 2`; bump this once for a shape change.
 ///
 /// `/86` (was `/83`) added `font.cjk` — the Japanese-bundle round's resolved CJK
 /// family + whether it's the bundled Noto Serif/Sans JP face (see

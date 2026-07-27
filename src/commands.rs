@@ -1,36 +1,5 @@
-//! The COMMAND CATALOG: the named, fuzzy-searchable list of editor commands the
-//! Cmd-P palette runs. Each entry is a human DISPLAY NAME, the `Action` it
-//! dispatches on Enter, and UP TO 2 binding labels — slot 1 = NATIVE (macOS), slot
-//! 2 = EMACS — shown dim beside the name so the palette also TEACHES the chords.
-//!
-//! The TWO-BINDING model (awl's "lean into macOS, progressively enhance with
-//! Emacs"): every command has at most two chords, both of which fire. A command may
-//! fill only one slot (zoom is Cmd-only; the navigation chords are emacs-only), in
-//! which case the other is `""` and is omitted from the label.
-//!
-//! This is deliberately a flat `static` slice rather than logic baked into the
-//! palette UI: the bindings are DATA, not hardcoded strings in the renderer, so
-//! this catalog is the seam a future NATIVE REBINDING registry slots into (the slot
-//! fields become owned, user-overridable labels). The corpus the overlay
-//! fuzzy-matches is [`visible_names`], in that same (platform-filtered) order, so the
-//! selected ROW index maps straight back to the real `Action` via
-//! [`visible_action_of`] (see the palette accept branch in `actions::apply_core`).
-//! Plain `names()` stays as the unfiltered full-catalog baseline, now test-only.
-//!
-//! `InsertChar` / prefix / ignore are intentionally EXCLUDED: the palette lists
-//! actions a user would summon or rebind by name, never self-insertion. MOTIONS
-//! are split (user-decided 2026-07-10, superseding the original all-motions
-//! exclusion; widened by the emacs-hands-on-Linux round): the curated NAVIGATION
-//! motions — word / line / document PLUS char/line (forward/backward char, next/
-//! previous line) — ARE catalog rows, so they show in Cmd-P + the Keybindings
-//! rebind menu and are rebindable via `[keys]` (the door that lets a hand
-//! reclaim the retired Option-letter word motion as `forward_word = "M-f"`, or
-//! restore a Linux-displaced `forward_char = "C-f"`). ONLY the plain, unmodified
-//! ARROW motions (Left/Right/Up/Down with no modifier) stay keymap-only: an
-//! arrow key is not a command anyone summons or rebinds by name (it dispatches
-//! via `resolve_named`'s static arms regardless of catalog membership), and the
-//! catalog stays calm. The law test `catalog_motions_are_exactly_the_curated_navigation_set`
-//! pins the split.
+//! Named commands for the palette, menus, and binding UI. Entries carry their
+//! action, labels, and platform availability; plain arrow input stays keymap-only.
 
 use crate::convention::Convention;
 use crate::facets::{Facet, FacetItem, FacetScheme};

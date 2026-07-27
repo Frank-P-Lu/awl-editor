@@ -1,36 +1,4 @@
-//! src/peek.rs — the HOLD-⌘ SHORTCUT PEEK: the pure hold/cancel state machine, the
-//! convention-resolved ARMING modifier, the drawn-flag process-global, the
-//! [`PeekRow`] content shape, and the curated STARTER SIX fallback.
-//!
-//! Holding the active keyboard [`crate::convention::Convention`]'s bare ARMING
-//! modifier alone — [`arming_modifier`] resolves it to ⌘ (Super) on
-//! [`crate::convention::Convention::Mac`], Ctrl on
-//! [`crate::convention::Convention::Linux`] — for a beat ([`HOLD_PEEK_MS`]) summons a
-//! calm centered card of shortcuts the user actually reaches for but hasn't learned
-//! yet — the discoverability round's "surfaced ONLY where the user chooses to look,
-//! never a nudge" law applied to the one gesture a user already makes when they're
-//! hunting for a shortcut: holding the modifier their OWN convention's chords live on
-//! and staring at a menu. THE CONVENTION SPLIT (settled this round): Mac convention
-//! arms on ⌘, unchanged from the original behavior. Linux convention arms on Ctrl
-//! instead — Super belongs to the COMPOSITOR there (window-manager gestures, e.g.
-//! Omarchy/Hyprland's own Super-driven bindings), so arming on it popped the card
-//! uninvited mid-WM-gesture, and Ctrl is also the modifier the native chords THIS
-//! CARD TEACHES already live on under that convention (see [`starter_rows`]) — so
-//! holding it to "peek" is the exact same gesture as Mac's ⌘, just on the modifier
-//! that convention's chords actually use. It reuses the held stats HUD's exact
-//! float-card pipeline (`render/chrome/hud.rs`), dismissing the instant the hold
-//! breaks — a true HOLD, like the HUD, NOT a modal like the About / Lifetime cards.
-//!
-//! **CANCELLATION IS THE CRUX.** The peek must NEVER flicker in front of a real chord:
-//! a native chord (⌘S on Mac; a real Ctrl-chord — `C-f`, `C-s`, … — on Linux, where
-//! the emacs nav layer AND the Linux-native layer both already live on Ctrl), a
-//! ⌘-click (Follow link), the window blurring — any of these instantly kills a
-//! pending peek and closes an open one. The pure [`PeekArm`] state machine
-//! ([`PeekArm::next`]) models exactly that, WITHOUT a clock or winit, so every
-//! cancellation path is unit-testable; the live `App` decides WHICH physical modifier
-//! means "armed" via [`is_bare_arming_modifier`], feeds the resulting stimuli to
-//! `PeekArm`, and consults `peek_armed_at` for the single `WaitUntil` deadline (the
-//! same idle-safe timer pattern the which-key pause uses — no hot loop).
+//! Hold-modifier shortcut peek state. It is cancelled before any real chord runs.
 //!
 //! **Determinism:** the peek is a HELD, clocked, live-only surface exactly like the
 //! stats HUD. The live App pushes the personalized [`PeekRow`]s (its ledger's

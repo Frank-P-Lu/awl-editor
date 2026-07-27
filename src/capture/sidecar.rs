@@ -1,13 +1,4 @@
-//! The machine-readable JSON SIDECAR: the hand-rolled `<out>.json` writer that is
-//! the source of truth for every headless assertion, the per-frame caret-report
-//! structs it serialises ([`CaretFrame`] / [`CosmeticReport`] / [`TrailReport`]),
-//! and the two string helpers ([`background_json`], [`json_string`]). Lifted out of
-//! `capture.rs` VERBATIM — no serde, so the emitted bytes stay byte-stable.
-//!
-//! [`write_sidecar`] is a thin ORCHESTRATOR: each top-level JSON block has its own
-//! pure `*_json` builder below, so the one giant `format!` reads as a table of
-//! named seams. The builders are byte-for-byte the expressions the single function
-//! used to inline. See [`super`].
+//! Hand-rolled, byte-stable JSON sidecar serialization and caret reports.
 
 use anyhow::{Context, Result};
 use std::io::Write;
@@ -18,25 +9,8 @@ use crate::render::{self, ScriptFontReports, TextPipeline, ViewState};
 use super::opts::CaptureOpts;
 use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
 
-/// THE CAPTURE-SERIALIZATION LAW (queue item 98). Every capture path funnels
-/// through [`write_sidecar`], and a capture READS a fistful of process-global
-/// state — the active theme above all — while rendering its frame and writing
-/// its JSON. In a `cargo test` build that state is shared with the hundreds of
-/// `theme::set_active` / `cycle` call sites the suite drives, so a capture
-/// running outside [`crate::testlock::serial`] can be torn by a concurrent flip
-/// and report a world it did not render.
-///
-/// The convention was already "every test takes the guard"; ONE capture test
-/// (`capture::tests::i18n_fixtures::sidecar_reports_doc_lang_and_per_script_font_resolution`)
-/// silently didn't, and flaked the merge train. This turns the convention into
-/// a LAW: an unguarded capture in a test build panics IMMEDIATELY and by name,
-/// instead of failing a random assertion once every few thousand runs. In a
-/// release/live build it compiles to nothing (the live app is single-threaded
-/// over these globals, and `--screenshot` is a whole process).
-///
-/// Law-tested in `capture::tests::serialization_law` — both that the check
-/// itself rejects an unguarded caller and that it is WIRED into the real
-/// capture path (a genuine `capture_with` off-guard panics).
+/// Test captures read shared globals and must hold the process-wide test lock.
+/// This compiles out for live builds.
 #[inline]
 pub(super) fn assert_capture_is_serialized() {
     #[cfg(test)]
@@ -49,60 +23,37 @@ pub(super) fn assert_capture_is_serialized() {
     );
 }
 
-/// One timeline frame's caret-spring snapshot, written into the sidecar `caret`
-/// block so a `--capture-timeline` step's trajectory is machine-readable: the
-/// animated `pos` (where the caret is drawn THIS step), the true `target`, the
-/// [0,1] `settle_factor`, and whether the spring is still animating. `t_ms` is the
-/// cumulative virtual-clock time (ms since the move started) this frame renders.
+/// One timeline frame's machine-readable caret snapshot.
 pub(super) struct CaretFrame {
     pub(super) t_ms: u32,
     pub(super) pos: (f32, f32),
     pub(super) target: (f32, f32),
     pub(super) settle: f32,
     pub(super) animating: bool,
-    /// The cosmetic SQUASH-POP factor (1.0 settled, dipping to `CARET_POP_SCALE`
-    /// right after a move) and the caret BLOCK rect's DRAWN width/height (the morph
-    /// geometry already multiplied by `scale`). Lets a timeline run assert, straight
-    /// from the JSON, that the block starts squashed (<1) and eases back to full size
-    /// while the position stays pinned to target. From `TextPipeline::caret_pop_report`.
+    /// Cosmetic scale and drawn block dimensions.
     pub(super) scale: f32,
     pub(super) block_w: f32,
     pub(super) block_h: f32,
-    /// The drawn TRAIL geometry, present ONLY for a `--capture-held` step (the
-    /// plain `--capture-timeline` path leaves it `None`). Carries the held latch +
-    /// the streak length/endpoints so a held run is machine-verifiable: each step's
-    /// `length` should clear the streak gap and never collapse to zero.
+    /// Drawn held-trail geometry; absent from ordinary timeline frames.
     pub(super) trail: Option<TrailReport>,
-    /// The COSMETIC | TRAIL drawn OVER the snapped caret this step (present on BOTH the
-    /// timeline AND held paths, since the cosmetic streak is what both now verify).
-    /// `present` flags whether a streak draws, with its `length`/`direction`/`alpha` +
-    /// endpoints, so a capture can assert: a vertical move shows the | , a 1-char hop
-    /// shows none, a held-down run is present + steady, a held-right run shows none.
+    /// Cosmetic trail geometry for timeline and held frames.
     pub(super) cosmetic: CosmeticReport,
 }
 
-/// The caret's COSMETIC | TRAIL geometry for a capture step's sidecar `caret.cosmetic`
-/// block: whether a streak is `present`, its on-screen `length` + `alpha` + whether it
-/// is the `vertical` up/down | , and the `tail`/`head` endpoints in canvas pixels.
+/// Cosmetic trail geometry for the sidecar `caret.cosmetic` block.
 pub(super) struct CosmeticReport {
     pub(super) present: bool,
     pub(super) length: f32,
     pub(super) vertical: bool,
     pub(super) held: bool,
     pub(super) alpha: f32,
-    /// The eased SWEEP progress in [0,1]: 0 = the streak's leading edge sits at the OLD
-    /// caret position (just kicked), 1 = it has swept onto the NEW (caret) position.
-    /// Lets a timeline assert the directional sweep old→new (and held = 1.0 steady)
-    /// straight from JSON without re-deriving it from the endpoints.
+    /// Eased sweep progress from old position (0) to target (1).
     pub(super) sweep: f32,
     pub(super) tail: (f32, f32),
     pub(super) head: (f32, f32),
 }
 
-/// The caret's drawn trailing-streak geometry for a held-capture step's sidecar
-/// `caret.trail` block: the latched `holding` flag, the on-screen streak `length`
-/// along the travel axis, and the trail's `tail` (origin-side) + `head`
-/// (caret-side) endpoints in canvas pixels.
+/// Held-capture trailing-streak geometry for `caret.trail`.
 pub(super) struct TrailReport {
     pub(super) holding: bool,
     pub(super) length: f32,
@@ -110,14 +61,8 @@ pub(super) struct TrailReport {
     pub(super) head: (f32, f32),
 }
 
-/// Minimal hand-rolled JSON so we don't pull in serde. `caret` is `Some` ONLY for
-/// a `--capture-timeline`/`--capture-held` step (it adds the per-step `caret` block —
-/// including the cosmetic squash-pop `pop_scale` + drawn `block` size — and selects
-/// [`schema_timeline`]/[`schema_held`]); the plain `--screenshot` path passes `None`,
-/// keeping its byte-stable [`schema_plain`] sidecar unchanged.
-///
-/// A thin orchestrator: each block is built by its own `*_json` helper, then the
-/// one terminal `format!` lays them out (the layout string is the schema's shape).
+/// Write JSON without serde. Motion captures add `caret`; plain captures use
+/// [`schema_plain`] unchanged.
 pub(super) fn write_sidecar(
     out_png: &Path,
     view: &ViewState,

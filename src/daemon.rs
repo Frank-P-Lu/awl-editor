@@ -1,57 +1,5 @@
-//! The SINGLE-INSTANCE DAEMON: one `awl` process per machine, reached by a Unix
-//! domain socket beside the scratch stash (`fs::data_root().join("awl.sock")`).
-//! Native-only (`cfg(not(target_arch = "wasm32"))`) — the browser build has no
-//! process/socket concept at all, so this whole module compiles out on wasm.
-//!
-//! **The doors:**
-//! - [`startup`] runs the bind-or-handoff dance BEFORE any window/GPU work: bind
-//!   success means THIS launch becomes the instance (the caller gets the
-//!   [`UnixListener`] back to hand to [`spawn_accept_thread`] once it has an
-//!   `EventLoopProxy`); bind failure + a live peer on the other end means another
-//!   instance is already running, so we hand `file` off to it and return fast
-//!   (no window ever created — see the module's CAPTURE GATE note below).
-//! - [`bind_or_connect`] is the pure stale-socket-detection truth table: bind
-//!   fails could mean either "a real instance owns this address" (connect
-//!   succeeds → hand off) or "a crash left the special file with nobody home"
-//!   (connect refused → unlink + reclaim the address ourselves).
-//! - The wire protocol is deliberately DUMB, newline-delimited text: a client
-//!   sends `open <abs-canonical-path>[ wait]\n`; the server replies `ok\n`
-//!   immediately, and — for a `wait` client only — `done <path>\n` once the
-//!   opened buffer finishes (`Action::FinishBuffer`, C-x #). A `wait` client
-//!   MUST also treat a closed connection with no `done` as done too (a quit, a
-//!   crash, or the buffer being evicted all close the socket without further
-//!   ceremony) — see [`spawn_accept_thread`]'s doc for why the server needs no
-//!   extra eviction-notify plumbing to keep that promise.
-//! - [`spawn_accept_thread`] is the server's listener THREAD: blocks on
-//!   `accept()` (0% CPU while idle, no polling) and posts a [`DaemonEvent`] into
-//!   the live winit event loop via `EventLoopProxy::send_event` for every
-//!   request, so the actual `load_path` + window-raise work happens on the
-//!   normal winit thread (`App::handle_daemon_event`, `src/app/daemon.rs`).
-//!
-//! **The CAPTURE GATE:** exactly like the autosave engine (see CLAUDE.md's
-//! Autosave section and its `headless_replay_never_arms_autosave…` tripwire),
-//! every door above lives ONLY on the live App's startup path
-//! (`crate::app::run`, itself only ever invoked by `Mode::Windowed` /
-//! `wasm_start` — never by `Mode::Screenshot`/`BenchFrame`/…/`replay_keys`).
-//! `--screenshot`/`--bench-*`/`--keys` never import this module at all, so a
-//! headless capture is STRUCTURALLY incapable of binding or handing off —
-//! there is no field, no call, nothing to gate at runtime. See
-//! `daemon::tests::headless_capture_never_touches_the_socket` for a runtime
-//! proof using the test-only directory override below.
-//!
-//! **LIVE-ONLY (needs human confirmation):** the real two-process handoff (two
-//! `awl` binaries racing the same socket path) and the accept-loop thread
-//! itself — both need a real OS process/socket pair. What IS unit-tested here:
-//! the protocol parse/serialize (pure), the bind/stale-detection truth table
-//! (real temp-dir Unix sockets, no window), and — via a single-process loopback
-//! — the listener-thread → channel → `DaemonEvent` path with a real socket and
-//! no winit event loop (see the `spawn_accept_thread` test).
-//!
-//! **Compiled OUT under the `mas` feature (see `src/mas.rs`'s module doc):** a
-//! Mac App Store build has no CLI/argv handoff story, and Launch Services
-//! already refuses to launch a second instance of a sandboxed app — so this
-//! whole module (and every call site in `app.rs`/`app/daemon.rs`) is inert
-//! there, gated `not(feature = "mas")` alongside the existing wasm32 gate.
+//! Native single-instance daemon. The newline protocol hands off absolute paths;
+//! `--wait` treats connection closure as completion. Headless modes never import it.
 #![cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
 
 use std::io::{BufRead, BufReader, Write};

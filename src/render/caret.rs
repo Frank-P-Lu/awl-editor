@@ -1,30 +1,6 @@
-//! CARET RENDER GEOMETRY — the layout-entangled half of the animated caret.
-//!
-//! The caret's *spring physics*, *global mode*, and *GPU pipelines* already live
-//! in their own crate modules ([`crate::caret`] — `CaretAnim` spring + `CaretMode`
-//! global + the block/trail `CaretPipeline`; [`crate::caret_glyph`] — the morph
-//! `CaretGlyphPipeline` + `GlyphMask`). What remains here is everything that turns
-//! that machinery into *pixels for the current frame*: the per-frame caret/streak
-//! geometry, the morph glyph-mask rasterisation + placement, the IME cell rect,
-//! the spring TARGET wiring, the deterministic settle/inject poses, and the
-//! capture-sidecar reports.
-//!
-//! These are all inherent methods on [`super::TextPipeline`] — they read its font
-//! / layout / metrics / buffer state heavily (the cursor's visual row, the real
-//! glyph advance, the shaped baseline), so they CANNOT become `&self`-free free
-//! functions the way the span/attrs helpers over in `render.rs` already are
-//! (`build_line_attrs`, `add_md_line_spans`, `scaled_base_attrs`, … take explicit
-//! params, so they could move to a sibling module unchanged). The row-geometry
-//! cache (`ensure_row_geom` and friends), by contrast, is still inherent methods
-//! on `TextPipeline` just like the caret geometry here. So this module is purely a
-//! physical home for that cohesive cluster, carved out of `render.rs` verbatim.
-//! Because a child module sees its ancestor's private items, the methods keep
-//! their full access to `TextPipeline`'s private fields and helpers with NO
-//! behaviour change — the capture output is byte-identical.
-//!
-//! The NON-caret neighbour from the original region — the virtual-clock seam
-//! `advance()` — deliberately stays in the parent `render` module; only
-//! `step_caret()` (which `advance()` OR-folds in) lives here.
+//! Layout-dependent caret geometry, glyph-mask placement, IME rects, and capture
+//! reports. Methods remain on [`super::TextPipeline`] because they read its shaped
+//! font, layout, and buffer state.
 
 use super::*;
 

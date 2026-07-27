@@ -1,51 +1,16 @@
-//! src/lava.rs — the LAVA-LAMP GROUND machinery: awl's first TIME-VARYING
-//! background. ONE continuous viewport-space metaball field ("lava lamp"
-//! register) sits behind the centered page; the page mask merely reveals it in
-//! the margins. Page-width changes never resize or recompose the lamp — the
-//! mirror of Wagtail (the one world whose one warm thing is the GROUND itself).
-//! This module owns:
-//!
-//! * [`LavaPipeline`] — the wgpu pipeline (`shaders/lava.wgsl`), a single
-//!   fullscreen triangle drawn AFTER the margin-gradient background pass and
-//!   BEFORE every foreground layer. Inactive (draws NOTHING) unless the active
-//!   world's [`crate::theme::Background`] is [`Background::Lava`] — so every one
-//!   of the fifteen non-lava worlds stays byte-identical.
-//! * The PURE field + column-mask math ([`metaball_field`], [`column_mask`],
-//!   [`animated_center`]) — the Rust mirror the shader must stay in lockstep
-//!   with, unit-tested here without a GPU (the dither.rs / Bayer precedent).
-//! * The ANIMATION CADENCE helpers: the gate ([`lava_should_tick`]) the live
-//!   App reads before arming its slow ~10 fps `WaitUntil` tick, the bounded
-//!   phase advance ([`advance_phase`]), and the effective-phase resolver
-//!   ([`lava_phase_for`]) — env override > Reduce-Motion freeze > App-driven.
-//! * The dev-only [`env_override`] gallery knob (`AWL_LAVA=...`), mirroring the
-//!   `AWL_CJK_FORCE` / probe `AWL_LAVA_PROBE` precedent: a total no-op unless
-//!   set, so normal + headless determinism is untouched when absent.
-//!
-//! NEGOTIATED LAWS (logged on `THEMES.md` / the queue's lava entry): 0%-idle
-//! (the tick arms ONLY for a lava world with ambient motion on, focused, not
-//! reduced — a non-lava world schedules zero frames); Reduce Motion freezes to a
-//! fixed phase; a headless capture renders the fixed t=0 phase (deterministic).
-//!
-//! Firetail and Mangrove ship [`Background::Lava`]; every other world leaves the
-//! pipeline dormant.
+//! Animated viewport-space lava ground. The shader and pure Rust field helpers
+//! must stay aligned. Ticks run only for active lava worlds; reduced motion and
+//! headless capture use fixed phases for determinism.
 
 use crate::theme::{Background, LavaEdge, Srgb};
 use std::sync::OnceLock;
 
 // --- CADENCE / PHASE constants ------------------------------------------------
 
-/// The ambient tick period — a SLOW ~10 fps cadence (never the hot per-frame
-/// `advance()` loop). The live App's `about_to_wait` arms a single `WaitUntil`
-/// this far out, advances the phase, requests one redraw, and re-arms — so a lava
-/// world costs ~10 sparse frames/sec, and a non-lava world costs zero. TASTE
-/// TUNABLE — flagged for live review (the lava's speed is a feel call), named
-/// like `THEME_FONT_DEBOUNCE`.
+/// Ambient tick period; inactive worlds schedule no lava frames.
 pub const LAVA_TICK_MS: u64 = 100;
 
-/// Phase advance rate in CYCLES PER SECOND. The composed field loops over
-/// [`LAVA_LOOP_CYCLES`] (two cycles, because horizontal sway runs at half the
-/// vertical frequency), so one seamless lamp loop lasts ~67 s at 0.03. TASTE
-/// TUNABLE.
+/// Phase advance rate in cycles per second.
 pub const LAVA_SPEED: f32 = 0.03;
 
 /// The WHOLE field's period in phase cycles. Vertical bob repeats after one

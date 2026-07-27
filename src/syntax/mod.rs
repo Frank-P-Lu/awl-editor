@@ -1,38 +1,5 @@
-//! Syntax styling spans — awl's Alabaster-style highlighting for CODE buffers.
-//!
-//! THE PHILOSOPHY (tonsky.me/blog/alabaster): we do NOT rainbow-highlight. A code
-//! buffer keeps almost everything in the DEFAULT ink — keywords, operators,
-//! identifiers, punctuation all ride `base_content`. Only FOUR roles are ever
-//! distinguished, and they distinguish by VALUE first (a muted, low-saturation
-//! tint derived from the active theme), never by a loud hue and NEVER by amber
-//! (DESIGN.md §3: `primary`/amber is the caret and only the caret):
-//!
-//! - [`SynKind::Comment`]    — recedes to the DIM ink, exactly like markdown markup.
-//! - [`SynKind::Str`]        — string + char literals.
-//! - [`SynKind::Constant`]   — numbers, booleans, `nil`/`null`/`None`-style literals.
-//! - [`SynKind::Definition`] — the NAME being defined (after `fn`/`def`/`class`/
-//!   `struct`/`type`/…, best-effort per language).
-//!
-//! This module is PURE: [`spans`] is a deterministic function of the text (no
-//! clock, no layout), so a headless capture renders the settled styled state and
-//! the sidecar can report the spans verbatim (the `syn_spans` block).
-//!
-//! GATING is by file EXTENSION ([`Lang::from_path`]): only the recognized code
-//! extensions below highlight. `.env`, `.md`/`.markdown`, `.txt`, and any unknown
-//! / scratch buffer return `None` and render BYTE-IDENTICAL to a plain buffer.
-//!
-//! ## Adding / completing a language
-//!
-//! Every language lives in its own file `src/syntax/<lang>.rs` exposing exactly:
-//!
-//! ```ignore
-//! pub fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)>;
-//! ```
-//!
-//! All 20 are PRE-WIRED into [`spans`] below, so completing a language edits ONLY
-//! its own `<lang>.rs` (and that file's tests) — never this file, `theme/`, or
-//! `render.rs`. [`rust`] and [`python`] are the fully-implemented REFERENCE lexers;
-//! the rest are stubs returning an empty list (so a stub language renders plain).
+//! Deterministic Alabaster-style syntax spans. Only four roles depart from base
+//! ink; amber remains caret-only. See `docs/syntax.md` for policy.
 
 use std::ops::Range;
 

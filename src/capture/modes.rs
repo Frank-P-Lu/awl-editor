@@ -1,9 +1,4 @@
-//! The SINGLE-FRAME capture entry points and their pollster-blocked driver: the
-//! plain `--screenshot` frame, the three mid-glide motion stills, and the shared
-//! snapshot helpers ([`base_viewstate`] / [`follow_scroll`]) the animated per-step
-//! loops also lean on. (The deterministic `--capture-timeline` / `--capture-held`
-//! per-step drivers live in [`super::animated`].) Lifted out of `capture.rs`
-//! VERBATIM — same input => byte-stable PNG + sidecar. See [`super`].
+//! Single-frame capture entry points and shared snapshot helpers.
 
 use anyhow::{Context, Result};
 use glyphon::Cache;

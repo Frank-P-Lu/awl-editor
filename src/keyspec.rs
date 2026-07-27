@@ -1,27 +1,5 @@
-//! Parse a headless `--keys` spec — a space-separated list of emacs chords —
-//! into the winit `(Key, Modifiers)` CHORD stream the replay loop consumes
-//! ([`parse_chords`] → [`Chord`]), and resolve each chord through the REAL
-//! keymap one press at a time ([`ChordResolver`] wraps `KeymapState::resolve`,
-//! including the `C-x` two-key prefix state — one persistent keymap drives the
-//! whole sequence). Parsing and resolution are deliberately SEPARATE steps:
-//! the replay loop interleaves the search guard between them, exactly like
-//! live key dispatch, so a chord the open search panel consumes never reaches
-//! the keymap. An unrecognized token is a clear `anyhow::Error`, never a panic.
-//!
-//! Grammar:
-//!   spec  := chord (WS+ chord)*
-//!   chord := mod* key                # mods: "C-" Ctrl, "M-" Meta/Alt,
-//!                                    #       "S-" Shift, "s-" Super/Cmd. Word-form
-//!                                    #       aliases also parse: "Cmd-"/"Super-",
-//!                                    #       "Ctrl-", "Option-"/"Opt-"/"Alt-"/"Meta-",
-//!                                    #       "Shift-" (case-insensitive).
-//!   key   := <named> | <single printable char>
-//!
-//! Named keys (case-insensitive): Left Right Up Down Home End PageUp/PgUp
-//! PageDown/PgDn Enter/Return/RET Tab Backspace/DEL Delete Space/SPC Esc/Escape.
-//! Anything else of length one is
-//! a self-insert / literal char (case + shifted glyphs like `<` `>` pass through
-//! verbatim, matching how the keymap reads them).
+//! Parse and resolve space-separated `--keys` chords. Replay interleaves search
+//! interception with normal keymap resolution, matching live dispatch.
 
 use anyhow::{Result, bail};
 use winit::event::Modifiers;

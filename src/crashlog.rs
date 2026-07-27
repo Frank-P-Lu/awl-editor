@@ -1,53 +1,6 @@
-//! src/crashlog.rs — LOCAL, OFFLINE crash visibility: the solo-dev feedback
-//! channel that never violates awl's zero-network invariant (see CLAUDE.md's
-//! "Supply chain" section — awl never phones home, ever). Three doors:
-//!
-//!   1. **Panic hook (native, LIVE APP ONLY):** on ANY panic, write a plain-text
-//!      log to `fs::data_root()/crashes/awl-crash-<UTC timestamp>.log` — version,
-//!      OS/arch, uptime, the panic message/location, and a backtrace — then
-//!      re-raise via the CHAINED previous hook. Installed exactly once, from
-//!      `crate::app::run`'s native branch (see the CAPTURE GATE below).
-//!   2. **"Report a Problem" palette command (every platform):** composes a
-//!      `mailto:` link to the maintainer, with a calm what-happened template and
-//!      (if a crash log exists) that log's PATH — never its content — for the
-//!      human to attach by hand. Opens through the SAME OS-handoff seam
-//!      `Action::FollowLink` uses (`App::follow_link`).
-//!   3. **Passive recovery state (native):** a newer crash stays visible as a
-//!      quiet About-card line until Report a Problem acknowledges its marker.
-//!
-//! **THE PRIVACY LAW (this round's law test): a crash log — and a "Report a
-//! Problem" body — can NEVER contain document content.** Enforced at the TYPE
-//! level, not by convention: [`format_log`] and [`report_problem_mailto`] accept
-//! only [`PanicMeta`] (static build metadata) plus plain strings the panic
-//! runtime itself hands them (message/location/backtrace) — neither function's
-//! signature has anywhere to plug in a `Buffer` or a document path, so there is
-//! structurally nothing here that COULD leak a document's text. Not even a
-//! user-doc file PATH is logged in v1 (see [`format_log`]'s doc). A content test
-//! (`format_log_never_contains_a_sentinel_planted_in_a_live_document`) backs the
-//! type-level guarantee with an empirical one.
-//!
-//! **CAPTURE GATE (mirrors the daemon/session-restore precedent exactly):**
-//! [`install_hook`] is called from ONLY ONE place, `crate::app::run`'s native
-//! branch — never `--screenshot`/`--keys`/`--bench-*`, which build a bare
-//! `Buffer` or hermetic `App` directly and never call `crate::app::run`. So a
-//! headless capture is STRUCTURALLY incapable of installing the hook; tripwire
-//! test in `main/run.rs`: `headless_screenshot_never_installs_the_crash_hook`.
-//!
-//! **Writer is PRIMITIVE, deliberately (`write_log`):** a direct `std::fs`
-//! create+write, never `fs::write_atomic`'s temp-sibling-then-rename dance and
-//! never the `FileSystem` trait seam (whose active-backend lookup takes an
-//! `RwLock` read guard — a lock a panicking thread might already hold, however
-//! unlikely). Mid-panic, simpler wins: a half-written crash log is still far
-//! more useful than losing the log to a second panic inside a fancier write
-//! path. Every step here is best-effort — no unwrap, nothing panics again.
-//!
-//! **Wasm:** `console_error_panic_hook` (wired in `main.rs::wasm_start`) is the
-//! web build's crash log — the browser console. The disk-backed machinery here
-//! (`install_hook`/the crashes dir/the next-launch notice) is native-only:
-//! `localStorage` quota is precious (see WEB.md), so this round doesn't add a
-//! second, disk-shaped crash store on top of the console awl already has. The
-//! PURE mailto composition (`report_problem_mailto`/[`url_encode`]) compiles and
-//! is usable on every platform — "Report a Problem" is `native_only: false`.
+//! Local, offline crash reporting. Crash logs and report mailto bodies accept no
+//! document content or path. Hooks are native live-app only; panic writing is
+//! deliberately best-effort and lock-free.
 
 // `Path`/`PathBuf` are only touched by the native-only crashes-dir machinery
 // below (the pure mailto/url-encode composition above needs no filesystem

@@ -1,27 +1,6 @@
-//! CHROME RENDER — the summoned/quiet UI furniture composited OVER the document:
-//! the top-right search/replace panel, the centered navigation overlay (go-to /
-//! command palette), the bottom-left page-mode orientation GUTTER (filename over
-//! project), and the single-line CORNER readouts (the bottom-right markdown
-//! word-count and the opt-in top-left DEBUG frame counter).
-//!
-//! These are all inherent methods on [`super::TextPipeline`]: they shape into its
-//! shared panel / gutter / wordcount / fps glyph buffers and `prepare` them through
-//! its glyphon renderers, atlas, viewport, font-system and swash-cache — the GPU
-//! aggregation that is `TextPipeline`'s whole reason for being — so they CANNOT
-//! become `&self`-free free functions the way the span/attrs helpers in `render.rs`
-//! could. This module is purely a physical home for that cohesive chrome cluster,
-//! carved out of `render.rs` verbatim. Because a child module sees its ancestor's
-//! private items, the methods keep their full access to `TextPipeline`'s private
-//! fields and helpers with NO behaviour change — the chrome pixels are byte-identical.
-//!
-//! The corner readouts share ONE body, [`TextPipeline::prepare_corner_label`]:
-//! `prepare_wordcount` / `prepare_fps` were ~95%-identical copies differing only by
-//! the (renderer, buffer) pair, the text, and the [`CornerAnchor`], so they each
-//! reduce to resolving their own text + column geometry and delegating to that shared
-//! helper. The readout text-feeders (`word_count`, `readout_report`, `wordcount_text`,
-//! `set_fps_frame_ms`, `fps_text`) ride along with their readouts. (The bottom-left
-//! project status strip was REMOVED — the gutter now carries the filename/project
-//! orientation, so the strip was redundant clutter.)
+//! Document chrome: search/replace, navigation overlays, gutter, and corner readouts.
+//! Methods remain on [`super::TextPipeline`] because they prepare its shared glyph and
+//! GPU resources. Corner labels share [`TextPipeline::prepare_corner_label`].
 
 use super::*;
 
@@ -44,18 +23,7 @@ const DIFF_PANEL_TOP: f32 = 8.0;
 /// `prepare_diff_panel`.)
 const DIFF_PANEL_BOTTOM: f32 = 14.0;
 
-/// ITEM 70's PRINTED-CARD dot texture, resolved to PHYSICAL px + a concrete
-/// sRGBA ink at the ONE call site that ever builds one
-/// ([`TextPipeline::overlay_draw_card`]'s `ListBacking::Card` arms) — the
-/// primitive [`set_float_quads_rects`]/[`set_float_quads`] plumbing stays a
-/// dumb float-carrier, never re-deriving theme state itself. `None` (every
-/// non-Quokka card, every which-key/HUD/menu/popover/diff-panel float) draws
-/// no texture at all — `fs_main`'s `g.halftone` stays `0.0`.
-///
-/// (Item 71 added a sibling `CardWave`/`CardTextureDraw` wrapper enum for
-/// Bowerbird's own woven card texture; item 86 retired it — Bowerbird's
-/// cards returned to plain flat, so this is once again the ONE card
-/// texture, carried as a bare `Option` rather than a one-armed enum.)
+/// Optional card halftone, resolved at the themed overlay-card call site.
 #[derive(Clone, Copy)]
 pub(in crate::render) struct CardHalftone {
     pub density: f32,
@@ -64,16 +32,7 @@ pub(in crate::render) struct CardHalftone {
     pub ink: [u8; 4],
 }
 
-/// THE ONE CHAMFER NARROWING RULE (item 70): "narrow layouts reduce the
-/// chamfer before it can steal text room." A pure cap — the AUTHORED cut
-/// (already DPI-scaled to physical px by the caller) never exceeds 40% of
-/// the card's own smaller physical dimension. 40% (not a tighter fraction)
-/// is deliberate: a Split Pane's UPPER query surface is legitimately SHORT
-/// by design (one text line + padding, ~50-90px) without being "narrow" in
-/// the sense this rule targets — a tighter cap would shrink its chamfer on
-/// every ordinary picker, not just a genuinely small surface. Only a truly
-/// tiny card (below roughly `2 * cut_px / 0.4`, e.g. ~55px at the round's
-/// 11px cut — the spell popup at its smallest) ever gets reduced.
+/// Cap a chamfer at 40% of the card's smaller dimension to preserve text room.
 pub(in crate::render) fn narrowed_chamfer_px(cut_px: f32, card_w: f32, card_h: f32) -> f32 {
     let cap = card_w.min(card_h).max(0.0) * 0.40;
     cut_px.min(cap).max(0.0)

@@ -1,7 +1,5 @@
-//! src/theme/worlds.rs — the WORLDS DATA TABLE: the eighteen concrete
-//! [`Theme`] literals (exact hex from the theme spec) + the [`THEMES`] cycle
-//! order + [`DEFAULT_THEME`]. Pure data — no derivation logic lives here (see
-//! [`crate::theme::derive`] for the active-theme accessors).
+//! Concrete theme data, cycle order, and default. Derivation lives in
+//! [`crate::theme::derive`].
 
 use super::cjk::{
     CJK_GOTHIC, CJK_JA_KLEE, CJK_JA_SHIPPORI, CJK_JA_ZENMARU, CJK_KO, CJK_KO_SERIF, CJK_MINCHO,
@@ -21,15 +19,7 @@ use super::ornament::{
     ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, Ornaments,
 };
 
-/// FLIP ROUND (user FINAL PICKS 2026-07-17) — the SHIPPING poster list surface,
-/// shared by every statement world (Firetail / Galah / Magpie / Mangrove) so the
-/// four can never drift: `Bars` with the HUG-ALL HYBRID extent
-/// ([`BarExtent::HugLabel`] — the plate hugs the LABEL, the shortcut chord
-/// renders as bare dim text in the right-aligned column OUTSIDE the plate), the
-/// gate's MID corner radius (6.0), every row a bar ([`BarCoverage::All`]), the
-/// default gap (10) + selected-bar grow (24 px, one step past the label plate).
-/// The calm/quiet worlds keep [`ListStyle::Pane`] (their selected row is already
-/// the full-width band; the panel wants an unbroken rectangle).
+/// Shared picker-list treatment for statement worlds.
 const POSTER_BARS: ListStyle = ListStyle::Bars {
     radius: 6.0,
     gap: 10.0,

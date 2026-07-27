@@ -1,8 +1,5 @@
-//! PIPELINE DRAW — GPU construction for [`super::TextPipeline`].
-//!
-//! The constructor builds every wgpu pipeline, glyphon renderer, and text/panel/
-//! gutter buffer the editor draws with. Per-frame preparation lives in
-//! `pipeline_prepare`; render-pass composition lives in `pipeline_layers`.
+//! GPU construction for [`super::TextPipeline`]. Per-frame preparation and render
+//! composition live in their respective pipeline modules.
 
 use super::*;
 

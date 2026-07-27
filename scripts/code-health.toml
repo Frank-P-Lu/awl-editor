@@ -12,35 +12,35 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/actions/overlay_nav.rs"
-line = 28
+line = 18
 message = "the function has a cognitive complexity of (34/25)"
 reason = "Existing input action owner; extraction must preserve one drivable state transition."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/overlay_nav.rs"
-line = 28
+line = 18
 message = "this function has too many lines (592/100)"
 reason = "Existing input action owner; extraction must preserve one drivable state transition."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/actions.rs"
-line = 490
+line = 472
 message = "the function has a cognitive complexity of (26/25)"
 reason = "Existing input action owner; extraction must preserve one drivable state transition."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions.rs"
-line = 490
+line = 472
 message = "this function has too many lines (345/100)"
 reason = "Existing input action owner; extraction must preserve one drivable state transition."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 983
+line = 974
 message = "this function has too many lines (114/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -61,21 +61,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
-line = 15
+line = 12
 message = "this function has too many lines (290/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
-line = 520
+line = 514
 message = "this function has too many lines (133/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/app/apply.rs"
-line = 356
+line = 351
 message = "the function has a cognitive complexity of (30/25)"
 target_os = "macos"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
@@ -83,7 +83,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/app/apply.rs"
-line = 356
+line = 351
 message = "the function has a cognitive complexity of (29/25)"
 target_os = "linux"
 reason = "The target-gated application path has one fewer branch on Linux; ratchet it against that platform's real metric."
@@ -91,98 +91,98 @@ reason = "The target-gated application path has one fewer branch on Linux; ratch
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/apply.rs"
-line = 356
+line = 351
 message = "this function has too many lines (308/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/apply.rs"
-line = 1273
+line = 1268
 message = "this function has too many lines (114/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1182
+line = 1141
 message = "this function has too many lines (223/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1722
+line = 1681
 message = "this function has too many lines (106/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1912
+line = 1871
 message = "this function has too many lines (118/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 2378
+line = 2337
 message = "this function has too many lines (102/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
-line = 466
+line = 460
 message = "this function has too many lines (717/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 416
+line = 378
 message = "this function has too many lines (261/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 1065
+line = 1027
 message = "this function has too many lines (126/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 1398
+line = 1360
 message = "this function has too many lines (321/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
-line = 222
+line = 217
 message = "this function has too many lines (224/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 121
+line = 66
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 389
+line = 334
 message = "this function has too many lines (123/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 1222
+line = 1167
 message = "this function has too many lines (113/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -196,14 +196,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/config/model.rs"
-line = 430
+line = 422
 message = "the function has a cognitive complexity of (35/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/config/model.rs"
-line = 430
+line = 422
 message = "this function has too many lines (158/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -231,7 +231,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/markdown/spans.rs"
-line = 459
+line = 453
 message = "this function has too many lines (159/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -245,28 +245,28 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 246
+line = 235
 message = "this function has too many lines (179/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/chrome/overlay_rows.rs"
-line = 379
+line = 372
 message = "the function has a cognitive complexity of (41/25)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_rows.rs"
-line = 379
+line = 372
 message = "this function has too many lines (340/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_shape.rs"
-line = 918
+line = 914
 message = "this function has too many lines (102/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
@@ -287,42 +287,42 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/outline.rs"
-line = 303
+line = 297
 message = "this function has too many lines (104/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/outline.rs"
-line = 702
+line = 696
 message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 281
+line = 277
 message = "this function has too many lines (167/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 570
+line = 566
 message = "this function has too many lines (127/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 210
+line = 206
 message = "this function has too many lines (220/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
-line = 563
+line = 559
 message = "this function has too many lines (169/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
@@ -364,49 +364,49 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
-line = 473
+line = 459
 message = "this function has too many lines (134/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/text.rs"
-line = 1187
+line = 1173
 message = "this function has too many lines (140/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rects.rs"
-line = 1469
+line = 1457
 message = "this function has too many lines (151/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/layers.rs"
-line = 1099
+line = 1077
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 1099
+line = 1077
 message = "this function has too many lines (304/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 2017
+line = 1995
 message = "this function has too many lines (310/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 2532
+line = 2510
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -420,7 +420,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/framebench.rs"
-line = 531
+line = 521
 message = "this function has too many lines (112/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -441,14 +441,14 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
-line = 10
+line = 7
 message = "this function has too many lines (420/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render.rs"
-line = 1360
+line = 1309
 message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -476,7 +476,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/selection.rs"
-line = 231
+line = 223
 message = "this function has too many lines (110/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -672,7 +672,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap.rs"
-line = 3422
+line = 3415
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -686,7 +686,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
-line = 396
+line = 392
 message = "this function has too many lines (101/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -896,7 +896,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/syntax/mod.rs"
-line = 663
+line = 630
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

@@ -17,97 +17,46 @@ use crate::spell::Misspelling;
 use crate::spellunderline::{SpellUnderlinePipeline, Squiggle};
 use crate::theme;
 
-/// CARET RENDER GEOMETRY — the layout-entangled half of the animated caret (the
-/// per-frame caret/streak/morph geometry, glyph-mask rasterisation, IME rect,
-/// spring-target wiring, and capture reports). These stay inherent methods ON
-/// [`TextPipeline`] (they read its font/layout/metrics state); the submodule is a
-/// physical home for that cluster, carved out verbatim. See [`caret`]. The spring
-/// physics + mode + GPU pipelines live in [`crate::caret`] / [`crate::caret_glyph`].
+/// Layout-dependent caret geometry. Methods remain on [`TextPipeline`] because they
+/// read its font, layout, and metrics; animation and GPU pipelines live in
+/// [`crate::caret`] and [`crate::caret_glyph`].
 mod caret;
 
-/// FACE PITCH — "is this bundled display family monospaced?", MEASURED from the
-/// face's own advance widths (queue item 97) instead of recognised by name. The
-/// caret's mono/proportional fork ([`crate::caret::font_is_mono`]) reads it, and
-/// [`FONT_THEME_FACES`] declares each face's pitch alongside its bytes so a newly
-/// bundled face cannot enter the build without one. See the module doc.
+/// Measured bundled-face pitch used by the caret's mono/proportional fork.
+/// [`FONT_THEME_FACES`] declares it alongside each face's bytes.
 pub(crate) mod facepitch;
 
-/// ORDERED (BAYER) DITHER — the pure math mirror of `shaders/background.wgsl`'s
-/// banding-kill offset and `shaders/selection.wgsl`'s one-bit highlight/search
-/// stipple. See [`dither`]'s own module doc for the "why one matrix, two uses"
-/// shape and THEMES.md's 1-bit section for the product razor. `pub(crate)` so
-/// `theme::worlds` can read [`dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY`] as
-/// plain CAPABILITY DATA (`Theme::render_caps`'s `HighlightTexture::Stipple`)
-/// rather than duplicating the tuned value.
+/// Bayer dither math shared with the background and one-bit highlight shaders.
+/// Exposes the theme capability value without duplicating it.
 pub(crate) mod dither;
 
-/// SPAN / ATTRS LAYERING — the pure free functions that assemble one buffer line's
-/// `AttrsList` from the base doc attrs plus the markdown / syntax / CJK / heading-
-/// size layers ([`spans::build_line_attrs`] and friends). Unlike [`caret`],
-/// these take explicit params (no `&self`), so they lift out verbatim; carved here
-/// for navigability. Glob-re-exported so the unqualified call sites + tests keep
-/// resolving them by their bare names.
+/// Pure line-attribute assembly for markdown, syntax, CJK, and headings.
 mod spans;
 use spans::*;
 
-/// VARIABLE-ROW GEOMETRY — the scroll<->pixel cache for non-uniform (heading) rows,
-/// carved out as an OWNING sub-struct ([`rowgeom::RowGeom`]). Unlike [`caret`] (whose
-/// methods stay inherent on `TextPipeline`), this is the one genuine owning-decouple:
-/// `RowGeom` owns its RefCell/Cell caches and takes the buffer + metrics it needs as
-/// narrow params, so `TextPipeline` holds it as a field and DELEGATES `row_top_px` /
-/// `row_height_px` / `total_doc_height` / `total_visual_rows` to it. Behaviour (and
-/// so the capture output) is byte-identical.
+/// Cached scroll/pixel geometry for variable-height rows.
 mod rowgeom;
 
-/// CHROME RENDER — the summoned/quiet UI furniture composited OVER the document: the
-/// search/replace panel, the navigation overlay (go-to / command palette), the
-/// bottom-left page-mode gutter, and the single-line CORNER readouts (word-count,
-/// DEBUG dev panel). Like [`caret`], these stay inherent methods ON [`TextPipeline`]
-/// — they shape into its panel/gutter/wordcount/debug buffers and `prepare` them through
-/// its glyphon renderers/atlas/viewport — so the submodule is a physical home for that
-/// cluster, carved out verbatim. The corner readouts share one body, `prepare_corner_label`.
+/// Document chrome: panels, overlays, gutter, and corner readouts.
 mod chrome;
 #[cfg(test)]
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
 
-/// ROW LAYOUT — the ONE owner of picker-row column budgets: how a summoned
-/// overlay row splits its width between the PRIMARY cell (name/path — never
-/// dropped, elided only as a last resort) and the optional SECONDARY right
-/// column (chord / description / time / diff count — always yields first).
-/// [`chrome`] routes every overlay kind through it; its law test enumerates
-/// [`crate::overlay::OverlayKind`] with a no-wildcard match so a future picker
-/// cannot bypass the rules.
+/// Picker-row column budgets: primary text yields last; optional secondary text first.
 mod rowlayout;
-/// ITEM 94 — the ONE px→rail-fraction resolver, re-exported so the live POINTER
-/// path (`app::input::drags`) resolves a scrub against the SAME arithmetic the
-/// rail is drawn and hit-tested with. Nothing else of `rowlayout` is public.
+/// Shared rail arithmetic for drawing, hit testing, and pointer scrubbing.
 pub use rowlayout::rail_frac_at;
 
-/// FROSTED-BACKDROP BLUR — the cached, cheap defocus that replaces the old neutral
-/// grey overlay scrim. A self-contained wgpu post-process (capture the doc once →
-/// downsample → separable-Gaussian ping-pong → composite) that owns its own GPU
-/// pipelines + offscreen textures; [`TextPipeline`] holds it as a field and routes
-/// the blur-eligible full overlays through it. See [`blur::BlurBackdrop`].
+/// Cached backdrop blur for eligible full overlays.
 mod blur;
 
-/// DOCUMENT GEOMETRY — the read-only spatial query layer: the centered page-mode
-/// writing column, the scroll<->pixel mapping, the wrap-aware visual-row model, the
-/// per-glyph advance maps, and the pixel->`(line,col)` hit test, plus the pure GPU-free
-/// math helpers (`pick_row` / `column_width_for` / `assemble_glyph_xs` …) they read.
-/// Like [`caret`]/[`chrome`] the methods stay inherent on `TextPipeline`; the free fns
-/// glob in like [`spans`]. The two app-facing helpers stay re-exported by name so
-/// `render::hit_test` / `render::visible_lines_z` resolve unchanged. Byte-identical.
+/// Spatial queries and pure geometry helpers for the writing column and visual rows.
 mod geometry;
 use geometry::*;
 pub use geometry::{ImageHandle, ResizeEdge, hit_test, visible_lines_z};
 
-/// TEXT / SHAPING SEAM — the `set_text` family + its supporting layout machinery
-/// (incremental-vs-full reshape, per-line `AttrsList` assembly, IME preedit
-/// composition, wrap-width / shape-height / heading-presence queries). Like
-/// [`caret`]/[`chrome`] these stay inherent methods ON [`TextPipeline`] — they shape
-/// into its glyphon buffer through its font system — so the submodule is purely a
-/// physical home for that cohesive cluster, carved out verbatim. Byte-identical.
+/// Text shaping, incremental reshaping, IME composition, and layout queries.
 mod text;
 pub use text::ScriptFontReports;
 

@@ -1,15 +1,4 @@
-//! CARET SHAPE MORPH + STREAK — the geometry that conveys MOTION: the settle
-//! factor (rounded square ⇄ trailing streak), the true travel vector + effective
-//! draw axis, the axis-free in-motion streak geometry (`motion_geometry`), the
-//! held-streak length, and the cosmetic | trail decoupled from position
-//! (`trail_gate`/`kick_trail`/`step_trail`/`trail_geometry`/…).
-//!
-//! These stay inherent methods on [`CaretAnim`], carved out of `caret.rs`
-//! VERBATIM. A child module sees its ancestor's private fields, so the pure
-//! geometry keeps full access with NO behaviour change — the renderer and the unit
-//! tests share these exact functions, so the capture output is byte-identical. The
-//! shape/settle/trail constants live in the `caret` root and resolve here via
-//! `use super::*`.
+//! Caret shape-morph and trail geometry.
 
 use super::*;
 

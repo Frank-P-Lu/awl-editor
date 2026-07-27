@@ -1,15 +1,5 @@
-//! Per-root file index: the corpus the go-to overlay fuzzy-matches against.
-//!
-//! The active project is a ROOT directory. Its file list scopes the go-to panel
-//! so typing ".env" finds THIS repo's env, not every env on disk. Two roots,
-//! one rule each:
-//!   * GIT root (`<root>/.git` exists) -> `git ls-files` (tracked) UNION the
-//!     PRESENT `.env*` files in the tree, MINUS the heavy junk dirs. The .env
-//!     union is deliberate: a repo's `.env` is usually gitignored but is exactly
-//!     the file you want to jump to.
-//!   * NON-git root -> a recursive walk, skipping those same junk dirs.
-//!     Either way the returned paths are ROOT-RELATIVE (forward-slashed), so they
-//!     render compactly and match the way a developer thinks about a tree.
+//! Per-root file index for the go-to overlay. Git roots use tracked files plus
+//! present `.env*` files; other roots are walked. Results are root-relative.
 
 use crate::clock::SystemTime;
 use crate::facets::{Facet, FacetItem, FacetScheme};

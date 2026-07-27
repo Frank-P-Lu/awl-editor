@@ -1,8 +1,5 @@
-//! The native macOS MENU BAR: a THIRD DOOR to actions that already live in
-//! [`crate::commands::COMMANDS`] — never new behavior, never a menu-only code
-//! path. `cfg(target_os = "macos")` only; Linux/wasm never see a menu bar (a
-//! documented v1 scope trim, not a bug — muda supports gtk on Linux, but
-//! wiring it is left for a future round; wasm has no native chrome at all).
+//! Native macOS menu bar: a second route to catalog actions, never a separate
+//! behavior path. Linux and wasm use their own menu surfaces.
 //!
 //! **The design law:** every routed menu item fires an `Action` the
 //! `commands.rs` catalog already dispatches, through the SAME apply seam a

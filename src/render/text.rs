@@ -1,18 +1,4 @@
-//! TEXT / SHAPING SEAM — the `set_text` family + its supporting layout machinery:
-//! the incremental-vs-full reshape decision, the per-line `AttrsList` assembly
-//! (base doc attrs + markdown / syntax / CJK / heading-size layers), the IME
-//! preedit composition, and the wrap-width / shape-height / heading-presence
-//! queries that feed it.
-//!
-//! These are all inherent methods on [`super::TextPipeline`]: they shape into its
-//! glyphon `GlyphBuffer` through its `FontSystem`, reading + mutating its line /
-//! attrs / metrics state heavily, so they CANNOT become `&self`-free free functions
-//! the way the pure span/attrs helpers in [`super::spans`] already are. This module
-//! is purely a physical home for that cohesive shaping cluster, carved out of
-//! `render.rs` verbatim. Because a child module sees its ancestor's private items,
-//! the methods keep their full access to `TextPipeline`'s private fields/helpers and
-//! to the `spans` / `geometry` free helpers with NO behaviour change — the shaped
-//! glyphs are byte-identical.
+//! Text shaping, incremental reshaping, IME composition, and layout queries.
 
 use super::*;
 

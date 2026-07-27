@@ -1,12 +1,4 @@
-//! src/app/files/settings.rs — the STICKY-PREFERENCE writes (theme/zoom/
-//! page/caret/spellcheck/…, all through the ONE `persist_pref` owner), the
-//! Settings-menu toggle/value/path-pick doors, the sticky page-width pair,
-//! and the live config reload. Split out of the former `app/files.rs`
-//! monolith (item 56); dictionary-specific persistence lives in
-//! `files/dictionary.rs`, the rebind-menu capture in `files/rebind.rs` (both
-//! peeled out to stay under the ~500-line ceiling). Item 76 retired the
-//! `project_root` config key — the active folder is now remembered by the
-//! session's one owner (`app/session.rs::session_flush`), not written here.
+//! Sticky preferences, settings interactions, and live config reload.
 
 use crate::app::*;
 

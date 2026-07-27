@@ -1,29 +1,11 @@
-//! src/history/picker.rs — the SUMMONED TIMELINE picker's read model: the
-//! pure row composer ([`TimelineRow`]/[`timeline_rows`]/[`rows_from`]),
-//! the All/Session/Today FACETING scheme ([`HISTORY_FACETS`]), and the
-//! small pure helpers a row's WHEN/WHICH/counts columns are built from
-//! (relative-time labels, the changed-line diff, an auto-description of
-//! the edit). Split out of the former `history.rs` monolith (2026-07
-//! code-organization pass) — see `store` for [`super::store::Snapshot`],
-//! the read-back type this reads, and `prune` for the retention policy
-//! (a picker-independent concern this file never touches).
+//! Timeline-picker row composition, facets, and display helpers.
 
 use super::store::{Snapshot, list, load};
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-// --- The SUMMONED TIMELINE picker's read model ----------------------------
-//
-// The timeline overlay is a summoned, transient picker (like the theme / outline
-// pickers): it shows a file's versions NEWEST-FIRST, each row answering WHEN
-// (a relative timestamp, gaining a clock time exactly when siblings share a
-// label) and WHICH (the git COMMIT SUBJECT, or an AUTO-DESCRIPTION of what an
-// awl snapshot edited), with a faint "+N −M" changed-count vs the CURRENT
-// buffer riding the right column. Enter RESTORES the highlighted version.
-// [`timeline_rows`] is a thin store-reading shell over the PURE [`rows_from`],
-// which both the live App and the headless `--keys` replay build from, so the
-// two summon byte-identical rows for a given `now`.
+// [`timeline_rows`] reads storage; [`rows_from`] composes deterministic rows.
 
 /// One ROW of the timeline picker. `when` answers "when was this?" (a relative
 /// label, e.g. `"2 hr ago"`, appended with a ` HH:MM` clock time exactly when

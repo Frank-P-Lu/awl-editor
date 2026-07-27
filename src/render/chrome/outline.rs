@@ -1,11 +1,5 @@
-//! PERSISTENT MARGIN OUTLINE chrome — the quiet page-mode table-of-contents that
-//! lingers in the LEFT margin (top-anchored), a dim line per heading with only the
-//! caret's CURRENT heading lit (dark) over the faint rest. The counterpart to the
-//! bottom-anchored orientation [`gutter`](super::gutter): orientation lingers in the
-//! two margin surfaces (DESIGN.md amendment — outline top-left, gutter bottom-left),
-//! so the writing column stays clean. Inherent methods on [`super::TextPipeline`];
-//! mirrors the gutter machinery (a standalone glyph buffer shaped at LABEL scale,
-//! parked off-screen when hidden, so a default/off capture stays byte-identical).
+//! Persistent page-mode heading outline in the left margin. The current heading uses
+//! a stronger value; hidden outlines park their glyph buffer off-screen.
 //! See [`super`].
 //!
 //! **Figure/ground by value, TWO states (DESIGN §4 — NEVER amber).** The user's

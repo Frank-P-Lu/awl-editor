@@ -1,14 +1,9 @@
-//! VIEWSTATE — the render-relevant editor SNAPSHOT the pipeline draws.
+//! Render-relevant editor snapshot.
 //!
-//! Pure data: both the windowed app and the headless capture build one
-//! ([`ViewState`]) and hand it to [`super::TextPipeline`]. Carved out of
-//! `render.rs` VERBATIM — the struct definition plus its canonical
-//! [`ViewState::base`] default (the ONE place a new field is defaulted, so
-//! every bench / perf / frame / capture / test scaffold inherits it). Because
-//! the type is `&self`-free and carries no GPU state it lifts cleanly; it is
-//! re-exported from `render` so `crate::render::ViewState` resolves unchanged
-//! for every caller. The live App's EXHAUSTIVE `sync_view` deliberately stays
-//! in `app/viewstate.rs` and does NOT route through `base()`.
+//! Both app and headless capture build [`ViewState`] and hand it to
+//! [`super::TextPipeline`]. [`ViewState::base`] is the canonical inert default, so
+//! every bench, frame, capture, and test scaffold inherits new fields. The live app
+//! remains responsible for exhaustive `sync_view` construction.
 
 use super::*;
 

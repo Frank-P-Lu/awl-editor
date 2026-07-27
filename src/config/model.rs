@@ -1,12 +1,4 @@
-//! src/config/model.rs — the [`Config`] data model + its TOML PARSE half (the
-//! "model+parse" seam of the 2026-07 code-organization split; see
-//! `config/mod.rs` for the full module doc). Holds every field, the accessors
-//! that turn an `Option<T>` field into an effective value (`*_on`,
-//! `measure_for`, `cjk_priority_or_default`), [`Config::empty`], and
-//! [`Config::load`] (the lenient TOML reader) plus its small parse helpers —
-//! everything a READER of the config needs. Format-preserving WRITES live in
-//! `config::write`; the launch-time process-global APPLY lives in
-//! `config::apply`.
+//! [`Config`] data, effective-value accessors, and lenient TOML parsing.
 
 use std::path::{Path, PathBuf};
 

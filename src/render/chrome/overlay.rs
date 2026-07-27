@@ -1,11 +1,4 @@
-//! SUMMONED OVERLAY chrome — the centered navigation/command/theme takeover card
-//! and the contextual spell popup: the row WINDOW geometry (the just-merged
-//! overlay row->Y owner lives beside its consumers here — the selected-row band in
-//! [`TextPipeline::overlay_draw_card`] and the pointer hit-test
-//! [`TextPipeline::overlay_row_at`]), the spell-word anchoring, the card upload, and
-//! the amber query caret. The text SHAPING half lives in [`super::overlay_shape`];
-//! the faceted theme picker in [`super::theme_picker`]. Carved out of `chrome.rs`
-//! verbatim, no behaviour change. See [`super`].
+//! Summoned overlay geometry, spell-popup anchoring, card upload, and query caret.
 
 use super::*;
 

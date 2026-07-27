@@ -1,16 +1,4 @@
-//! LAYER GEOMETRY — the rect / squiggle builders that turn document + view state
-//! into the instanced quads each draw layer uploads: selection + arbitrary
-//! char-range rectangles, the search-match highlights, the markdown horizontal-rule
-//! quads, the spell-underline squiggles, the IME preedit cells, and the
-//! search/replace panel layout.
-//!
-//! These are inherent methods on [`super::TextPipeline`]: they read its shaped
-//! buffer / cursor / selection / search / metrics state (the real glyph advances,
-//! wrap-aware visual rows) to place pixels, so they can't be `&self`-free. This
-//! module is purely a physical home for that cohesive rect-building cluster, carved
-//! out of `render.rs` verbatim. A child module sees its ancestor's private items, so
-//! the methods keep full access to `TextPipeline`'s fields/helpers and to the
-//! `geometry` row helpers with NO behaviour change — the quads are byte-identical.
+//! Rectangle and squiggle builders for document-adjacent GPU layers.
 
 use super::*;
 

@@ -1,27 +1,12 @@
-//! src/theme/model.rs — the core palette DATA MODEL: [`Theme`] itself (the
-//! per-world struct), its [`Background`] margin-ground union, the syntax
-//! [`RoleOverrides`] escape hatch, and the theme-picker's [`Lens`]/[`ThemeTags`]
-//! faceting types. See [`crate::theme::worlds`] for the sixteen concrete
-//! [`Theme`] literals and [`crate::theme::derive`] for the active-theme
-//! accessors that read them.
+//! Theme data types. Concrete worlds live in [`crate::theme::worlds`]; active-theme
+//! accessors live in [`crate::theme::derive`].
 
 use super::cjk::FontId;
 use super::color::Srgb;
 use super::ornament::Ornaments;
 
-/// PER-WORLD SYNTAX ROLE-STYLE OVERRIDES — the designed escape hatch for the
-/// DERIVED role tints + washes (`render/spans.rs::role_style_for`, the one owner
-/// of role color). FIFTEEN of the sixteen worlds ship [`RoleOverrides::NONE`]:
-/// every role style is a pure function of the world's own palette (ink-ladder
-/// lightness × fixed hue anchors). A world may PIN a role's foreground tint, PIN
-/// a wash quad color (rgba — washes are computed quad colors, deliberately NOT
-/// opaque theme tokens), or DISABLE a wash outright, without touching the shared
-/// derivation. **Wagtail is the escape hatch's FIRST real use** (see its doc
-/// comment in `worlds.rs`): a hue-anchored derivation cannot serve a
-/// zero-saturation world by construction (an anchor IS a hue), so every one of
-/// Wagtail's four role fgs + both washes is pinned to a plain grey instead. The
-/// law test in `render/spans.rs` sweeps the EFFECTIVE style, so an override
-/// can never smuggle a style past the distinguishability / amber-guard laws.
+/// Per-world overrides for derived syntax tints and washes. Use only when palette
+/// derivation cannot express a world; render laws validate effective styles.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     /// Pin the `Definition` foreground tint (None = derived).

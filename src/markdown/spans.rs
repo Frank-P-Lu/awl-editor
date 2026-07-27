@@ -1,10 +1,4 @@
-//! The per-span markdown model: [`MdKind`] (one styled span kind) and
-//! [`spans`] (the `pulldown-cmark`-driven parser that turns a document into
-//! a flat list of `(byte-range, MdKind)` spans the renderer lays as
-//! per-span `Attrs`). Split out of the former `markdown.rs` monolith
-//! (2026-07 code-organization pass); every item's path is unchanged
-//! (`markdown::MdKind`, `markdown::spans`, …) -- only the file it lives in
-//! moved.
+//! Markdown span kinds and parser output for renderer attributes.
 
 use super::ConcealKind;
 use super::inline_images_on;

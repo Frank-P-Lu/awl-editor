@@ -1,9 +1,4 @@
-//! THE APPLY BRIDGE: [`App::apply`] resolves an [`Action`] through the shared
-//! [`actions::apply_core`] seam (so live editing and headless `--keys` replay
-//! behave identically) and carries out the live-only side effects the pure core
-//! can't reach — the GPU-measured page scroll, the system-clipboard mirror, the
-//! render-toggle window work, theme re-tint, sticky-pref writes. Plus the
-//! EAGER spell re-scan. Lifted out of `app.rs` verbatim.
+//! Live-only effects layered around shared pure action application.
 
 use super::*;
 

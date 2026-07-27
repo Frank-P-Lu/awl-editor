@@ -1,25 +1,4 @@
-//! The MARKDOWN FORMATTING-COMMAND engine — the pure toggle transforms behind the
-//! block / inline format Actions (`ToggleBlockquote`, `Bold`, …). Every command is a
-//! TOGGLE (apply the format when it is absent on the target, STRIP it when present)
-//! and lands as ONE atomic, undoable edit through [`crate::buffer::Buffer::apply_format`]
-//! (a whole-buffer replace never coalesces, so a single Cmd-Z reverts each toggle).
-//!
-//! The transforms are PURE — a document's text plus its selection/cursor (char
-//! indices) go in, the new text plus the selection to restore over it come out
-//! ([`FormatResult`]) — so they are unit-testable without a `Buffer`, GPU, or clock.
-//! `apply_core`'s arms call the two thin wrappers ([`apply_block_format`] /
-//! [`apply_inline_format`]) which read the buffer's text + selection, run the pure
-//! transform, and apply the result; a transform that changes nothing is a calm no-op
-//! (no edit, so undo stays meaningful) exactly like the align-table command.
-//!
-//! TWO FAMILIES:
-//!   * BLOCK toggles operate on the SELECTED LINES (or the caret line with no
-//!     selection): a per-line prefix (`> `, `- `, `1. `, `- [ ] `, `# `) placed AFTER
-//!     any leading indentation so the toggle round-trips, or a fenced wrapper
-//!     (`CodeBlock`) placed above/below the range.
-//!   * INLINE toggles operate on the SELECTION within a line (or the word under the
-//!     caret, or empty delimiters with the caret between them): a symmetric wrapper
-//!     (`**`, `*`, `` ` ``, `==`, `~~`).
+//! Pure, atomic markdown block and inline formatting toggles.
 
 use super::*;
 

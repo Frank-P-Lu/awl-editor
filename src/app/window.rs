@@ -1,10 +1,4 @@
-//! WINDOW-LIFECYCLE + redraw arm bodies lifted out of `App::window_event` (now a
-//! thin dispatcher). These are the arms that are NOT input: focus-lost flush,
-//! physical resize, DPI (scale-factor) refold, and the redraw-request frame
-//! loop (caret spring advance + present + the debug-panel perf feed). Lifted
-//! verbatim — each method IS one former `match` arm, so the ORDER and behaviour
-//! (including the redraw arm's control-flow decisions) are unchanged. The input
-//! arms live in `app/input/`.
+//! Window lifecycle and redraw handlers; input lives in `app/input/`.
 
 use super::*;
 

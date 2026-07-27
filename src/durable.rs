@@ -1,27 +1,5 @@
-//! src/durable.rs — DATA-SAFETY HARDENING: the PRESERVE-ON-CORRUPT recovery
-//! contract shared by every durable, app-owned store (session/stats/recents/
-//! the mas grant store/the history log/the scratch stash) — everything that
-//! isn't the user's own hand-edited `config.toml` (which is deliberately
-//! EXEMPT; see this module's doc below).
-//!
-//! **The problem this closes:** every store's `load()` already degrades
-//! LENIENTLY on a malformed or missing file (`Config::load`'s idiom, copied
-//! everywhere — `session::load`, `stats::load`, `recents::load`,
-//! `mas::load`) — correct for AVAILABILITY (a garbled file must never block
-//! a launch), but WRONG for DATA SAFETY when the file was PRESENT and
-//! CORRUPTED rather than simply absent: the lenient default silently
-//! discards whatever text survived, and the store's next flush overwrites
-//! the corrupt file with that (smaller/emptier) default — permanently.
-//!
-//! **The fix, ONE shared seam:** [`preserve_corrupt`] copies the corrupt
-//! ORIGINAL bytes to a sibling file (`<name>.corrupt-<utc-millis>`,
-//! zero-padded so lexical sort is chronological sort) BEFORE the lenient
-//! default proceeds, then prunes down to the newest [`CORRUPT_BACKUP_KEEP`]
-//! siblings (pure prune logic in [`corrupt_siblings_to_prune`], mirroring
-//! `crashlog::names_to_prune`'s shape). Best-effort throughout (an I/O
-//! failure while backing up must never block the lenient load it is
-//! protecting) and routed through the SAME [`crate::fs::active`] backend as
-//! everything else, so it works identically on native and web.
+//! Preserve malformed app-owned TOML stores before lenient fallback overwrites
+//! them. The user-edited config remains exempt.
 //!
 //! [`load_toml_store`] is the ONE shared loader every TOML-backed store
 //! (`session`, `stats`, `recents`, `mas::GrantStore`) now calls: it detects

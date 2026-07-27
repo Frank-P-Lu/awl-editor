@@ -1,7 +1,4 @@
-//! VIEW SNAPSHOT: build the [`ViewState`] from the current buffer + scroll +
-//! zoom + selection + search + overlay and push it into the pipeline
-//! ([`App::sync_view`]), plus anchoring the OS IME candidate window to the
-//! caret: the one bridge from editor state to the render pipeline.
+//! Build and publish render snapshots, including IME-candidate anchoring.
 
 use super::*;
 mod scroll;

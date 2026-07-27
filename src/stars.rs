@@ -1,59 +1,6 @@
-//! src/stars.rs — the TWINKLING-STARS ambient ground: awl's second time-varying
-//! page ground, and the QUIET pole of the user's "aliveness ≠ loudness"
-//! principle (2026-07-18: most worlds should feel ALIVE, including quiet ones —
-//! twinkling stars are maximally quiet, unmistakably alive). Tiny points
-//! scattered through the page-mode MARGINS — never the writing column — each
-//! breathing its brightness on its own slow, individually phased seconds-scale
-//! cycle. Currawong (the near-black OLED night world, named for the Australian
-//! night bird whose voice is the quiet dark) is the one assignment.
-//!
-//! THE SHAPE (deliberately the lava lamp's, one register quieter):
-//!
-//! * **Capability, not a code path.** The renderer reads ONE caps field —
-//!   [`crate::theme::AmbientStyle`] on `Theme::render_caps.ambient` — never a
-//!   world name (`theme_caps_law`). A second world adopts stars by data alone.
-//! * **One ambient clock, two consumers.** The twinkle phase IS the lava
-//!   phase (`TextPipeline::lava_phase`), advanced by the live App's single
-//!   ~10 fps `WaitUntil` ambient tick (`App::about_to_wait`), gated by the
-//!   SAME [`crate::lava::lava_should_tick`] cadence gate (`ambient_motion`
-//!   config on, motion not reduced, window focused, no transient pause), and
-//!   resolved through the SAME [`crate::lava::lava_phase_for`] determinism
-//!   ladder — env override > Reduce-Motion freeze > the App-driven phase
-//!   (which stays the frozen `0.0` in every headless capture, since the
-//!   capture never ticks). A non-ambient world schedules ZERO frames (0% idle).
-//! * **Layout is a position hash, not entropy.** [`layout`] scatters one
-//!   candidate star per fixed pixel grid cell via a pure INTEGER hash of the
-//!   cell id ([`hash01`] — deliberately not a float `sin`-fract hash, whose
-//!   libm results vary across platforms; an integer mix is bit-exact
-//!   everywhere). Two captures are byte-identical; a resize keeps every
-//!   surviving star anchored to its exact pixel cell.
-//! * **Margins only, by a hard gate.** [`in_margin`] rejects any star whose
-//!   full quad (AA fringe included) could touch the writing column band plus
-//!   a breathing gap — the placement LAW, shared verbatim by the renderer
-//!   (`TextPipeline::prepare_stars_layer`) and the law tests, so they can
-//!   never disagree.
-//! * **Quads through the existing owner.** The dots render as tiny
-//!   fully-rounded quads through `SelectionPipeline::prepare_multicolor`
-//!   (the same per-instance-color path the writing-streaks heatmap rides) —
-//!   no new pipeline, no new shader, nothing new for the WebGL2 fallback to
-//!   validate. Per-frame work is phase arithmetic over the visible star set
-//!   (the proto-cache shape: layout built once per size/params, culled +
-//!   tinted per frame). Every instance shares ONE uploaded corner radius
-//!   (`Globals::corner`) sized to the WIDEST star the size spread allows; the
-//!   shader clamps it to each instance's own half-extent
-//!   (`min(g.corner, hsize)`, `selection.wgsl`), so a smaller star still
-//!   renders as a full circle with no per-instance corner field needed.
-//! * **Chroma up, size mildly spread, never a clock or a brightness change**
-//!   (item 62, 2026-07-24, user-decided). The palette ([`STAR_TINT_WHITE`],
-//!   [`STAR_TINT_CHAMPAGNE`], the world's own `ambient.tint`) carries ~10%
-//!   more saturation than it shipped with, at no greater luminance (champagne
-//!   alone is capped short of the full amount — the amber guard's exemption
-//!   line is the hard ceiling on a hue that sits only ~5° from the caret's).
-//!   Each star's dot size also spreads mildly around the authored `size_px`
-//!   by a FOURTH decorrelated roll off its own `seed` ([`star_size_scale`]) —
-//!   deterministic, no extra clock, no density change; the same seed always
-//!   yields the same scale, so a star's size (like its tint, phase, and
-//!   position) is identical across every frame and every capture.
+//! Deterministic ambient stars. Themes select the capability through render caps,
+//! never world names. Layout uses an integer hash and is margin-gated; headless
+//! and reduced-motion paths use the shared fixed ambient phase.
 
 use crate::theme::Srgb;
 use std::sync::OnceLock;

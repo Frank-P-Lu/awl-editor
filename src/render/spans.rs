@@ -1,26 +1,5 @@
-//! SPAN / ATTRS LAYERING — how one buffer line's `AttrsList` is assembled from
-//! the base doc attrs plus every styling layer (markdown, syntax, CJK family,
-//! heading SIZE scale, reveal-on-cursor conceal).
-//!
-//! Unlike the caret geometry next door (which is inherent methods on
-//! [`super::TextPipeline`] because it reads the live font/layout/metrics state),
-//! every helper here is a PURE free function: it takes the line text, the base
-//! [`Attrs`], the parsed span lists, and the resolved CJK `(family, weight)` as
-//! explicit params and returns the layered attrs — no `&self`, no GPU state. That
-//! is exactly why this cluster lifts out of `render.rs` cleanly: the pipeline
-//! methods that drive shaping ([`super::TextPipeline::set_text_incremental`] /
-//! [`super::TextPipeline::restyle_all_lines`] / the caret-driven
-//! [`super::TextPipeline::refresh_rule_conceal`]) all funnel through the SINGLE
-//! recipe [`build_line_attrs`], which orders the layers (heading scale → markdown
-//! spans → syntax spans → CJK family spans → symbol spans → conceal). The bodies
-//! are carved out of `render.rs` VERBATIM, so the capture output is byte-identical.
-//!
-//! `use super::*;` pulls in the parent's `glyphon` re-exports (`Attrs`, `Family`,
-//! `GlyphMetrics`), the `theme` alias, and the sibling free helpers these reuse
-//! (`lerp_srgb`); a child module sees its ancestor's private items, so the layer
-//! recipe keeps working with NO behaviour change. Re-exported via `use spans::*`
-//! in `render.rs` so the unqualified call sites — and the in-module tests — keep
-//! resolving these by their bare names.
+//! Pure `AttrsList` construction for markdown, syntax, CJK, headings, symbols, and
+//! conceal. [`build_line_attrs`] is the shared layer-ordering recipe.
 
 use super::*;
 

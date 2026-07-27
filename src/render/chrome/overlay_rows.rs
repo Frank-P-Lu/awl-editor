@@ -1,11 +1,4 @@
-//! SUMMONED OVERLAY chrome — selected ROWS and FACETS. The geometry/hit-test owner
-//! ([`super::overlay`]: `overlay_geometry`, the row-window math, the metric
-//! ladder, `overlay_footer_reclaim`, and the pointer hit-tests) computes WHERE
-//! every element of the summoned card sits; this file turns the settled candidate
-//! geometry into selected-row bands, per-item bars, living-band motion, and the
-//! faceting-strip mark. It also owns the row/facet draw-state probes
-//! (`overlay_row_y_probe`, `overlay_text_glyph_count`, `living_probe_geom`, and
-//! the `OverlayYProbe` fixture the y-agreement law reads).
+//! Selected overlay rows and facets: bands, bars, motion, marks, and draw probes.
 //!
 //! Carved out of [`super::overlay`] verbatim, no behaviour change. `TextPipeline`
 //! lives in [`crate::render`], of which this is a descendant module, so these

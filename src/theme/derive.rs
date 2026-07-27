@@ -1,8 +1,4 @@
-//! src/theme/derive.rs — the ACTIVE-THEME accessors: the process-global index,
-//! the cycle/set/lookup functions, and every DERIVED-from-active-theme token
-//! (surface_selected, the scrims, `background()`, `tag_for`) plus the theme
-//! picker's generic [`FacetScheme`] bridge. See [`crate::theme::worlds`] for
-//! the concrete [`Theme`] data these read.
+//! Active-theme accessors and palette derivation. Concrete data is in `worlds`.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
