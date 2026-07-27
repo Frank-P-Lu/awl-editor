@@ -125,7 +125,7 @@ pub struct SettingRow {
     pub kind: SettingKind,
 }
 
-/// The 30-setting corpus, in stable display order (grouped by category). The ONE
+/// The 31-setting corpus, in stable display order (grouped by category). The ONE
 /// owner — the FacetScheme bucket + the value readout both key off this table.
 pub static SETTINGS: &[SettingRow] = &[
     // Editor —
@@ -896,11 +896,10 @@ mod tests {
     use super::*;
 
     /// The table has the audited 28 rows (including the Keybindings sub-menu and
-    /// the two Advanced actions) PLUS "Date format" PLUS "File visibility"
-    /// (item 77), and
-    /// every display name is UNIQUE (it is both the fuzzy corpus and the
-    /// value-readout key). The exact count is asserted below so an added/removed
-    /// row must touch this comment deliberately rather than drift silently.
+    /// two Advanced actions), plus Date format, File visibility (item 77), and
+    /// Scroll sensitivity (item 90). Every display name is UNIQUE (it is both the
+    /// fuzzy corpus and value-readout key). The exact count is asserted below so
+    /// an added/removed row must touch this comment deliberately.
     #[test]
     fn settings_table_names_are_unique() {
         let mut seen = std::collections::HashSet::new();
@@ -910,7 +909,7 @@ mod tests {
         assert_eq!(SETTINGS.len(), seen.len());
         assert_eq!(
             SETTINGS.len(),
-            30,
+            31,
             "corpus size changed — update this count deliberately (and the doc comments \
              at the top of settings.rs) rather than let it drift"
         );
@@ -1182,9 +1181,9 @@ mod tests {
         }
     }
 
-    /// ITEM 94 — the Settings menu's rail column: exactly one row (Zoom) carries a
-    /// cell, parallel to the visible names, and a corpus with NO range row hands the
-    /// renderer an EMPTY vec (so every other picker draws byte-identically).
+    /// ITEM 94 + 90 — the Settings menu's rail column: every authored Range row
+    /// (Zoom and Scroll sensitivity) carries a cell parallel to the visible names;
+    /// a corpus with NO range row hands the renderer an EMPTY vec.
     #[test]
     fn visible_range_cells_are_parallel_to_the_visible_rows() {
         let _g = crate::testlock::serial();
@@ -1728,6 +1727,7 @@ mod tests {
             SettingId::PageWidthProse,
             SettingId::PageWidthCode,
             SettingId::Zoom,
+            SettingId::ScrollSensitivity,
             SettingId::DateFormat,
             SettingId::Theme,
             SettingId::Wysiwyg,
@@ -1755,7 +1755,7 @@ mod tests {
         roster.iter().for_each(|id| id.witness());
         assert_eq!(
             roster.len(),
-            30,
+            31,
             "the hand-listed roster changed size — update deliberately"
         );
         assert_eq!(roster.len(), SETTINGS.len(), "roster/registry size drifted");

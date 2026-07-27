@@ -480,7 +480,9 @@ fn typewriter_centers_the_cursor_row() {
     );
     assert_eq!(
         p.scroll_to_show_row_pos(0, start, 800.0),
-        ScrollPos::default()
+        start,
+        "minimal follow preserves an already-visible semantic remainder; \
+         the exact typewriter target above independently resets to document top"
     );
 }
 
