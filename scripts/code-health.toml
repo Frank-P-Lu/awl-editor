@@ -45,20 +45,6 @@ message = "this function has too many lines (114/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/app/schedule.rs"
-line = 90
-message = "the function has a cognitive complexity of (46/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/app/schedule.rs"
-line = 90
-message = "this function has too many lines (170/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5

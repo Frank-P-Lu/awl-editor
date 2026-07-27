@@ -87,13 +87,7 @@ impl Scheduler for RecordingScheduler {
 }
 
 impl App {
-    pub(super) fn about_to_wait_impl(&mut self, event_loop: &impl Scheduler) {
-        // WHICH-KEY pause: while a PREFIX (`C-x`) is pending its second key, summon the
-        // continuation panel once ~500ms elapses without a follow-up. The timer is
-        // ARMED ONLY here, while `prefix_pending_at` is `Some` AND the panel isn't yet
-        // shown — a single `WaitUntil` deadline, no perpetual per-frame tick; once it
-        // fires (or the prefix resolves, clearing `prefix_pending_at`) nothing re-arms,
-        // so the app idles at 0% CPU (DESIGN §6).
+    fn schedule_prefix_surfaces(&mut self, event_loop: &impl Scheduler) {
         if let Some(pending) = self.prefix_pending_at {
             let deadline = pending + crate::whichkey::PAUSE;
             let elapsed = self.clock.now() >= deadline;
@@ -103,36 +97,22 @@ impl App {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
-        // HOLD-⌘ SHORTCUT PEEK: while a bare-arming-modifier hold is PENDING, summon the
-        // card once ~600ms elapses with the hold unbroken. The timer is ARMED ONLY while
-        // `peek_armed_at` is `Some` (the `PeekArm::Pending` state) — a single `WaitUntil`
-        // deadline, no perpetual tick; feeding `Elapsed` opens the card and clears the
-        // stamp, so nothing re-arms and the app idles at 0% CPU (the which-key pattern).
         if let Some(armed) = self.peek_armed_at {
             let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
             if self.clock.now() >= deadline {
-                // ZOOM-SUPPRESSION GATE: the pause elapsed, but if a zoom is in flight
-                // (the sticky-zoom debounce window is open) the card would pop up over
-                // the text being resized — feed the cancelling `ArmBroken` instead of
-                // `Elapsed`, folding the pending hold back to Idle. It re-arms only once
-                // the zoom settles. (`peek_allowed` is the ONE pure suppression owner,
-                // shared with the arming seam in `on_modifiers_changed`.)
-                let stim = if crate::peek::peek_allowed(self.zoom_in_flight()) {
+                let stimulus = if crate::peek::peek_allowed(self.zoom_in_flight()) {
                     crate::peek::PeekStimulus::Elapsed
                 } else {
                     crate::peek::PeekStimulus::ArmBroken
                 };
-                self.feed_peek(stim);
+                self.feed_peek(stimulus);
             } else if self.last_frame.is_none() {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
-        // Spell check is no longer debounced here (the completed-word-lag fix,
-        // 2026-07): `App::sync_view` recomputes the KEYED verdict cache EAGERLY,
-        // synchronously, the instant the buffer version changes — see
-        // `App::recompute_spell_cache`'s doc. Nothing left to schedule.
-        // Debounced quick-note AUTO-SAVE: write the note after ~400ms of quiet, so
-        // it persists calmly as you pause. An empty note writes nothing.
+    }
+
+    fn schedule_autosaves(&mut self, event_loop: &impl Scheduler) {
         if let Some(dirty) = self.autosave_dirty_at {
             let deadline = dirty + AUTOSAVE_DEBOUNCE;
             if self.clock.now() >= deadline {
@@ -145,22 +125,13 @@ impl App {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
         }
-        // Debounced DOCUMENT AUTOSAVE (the config-gated engine, default ON): the
-        // open file is written atomically — or the no-path scratch stashed — after
-        // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
-        // gate), consumed here via the same single-`WaitUntil` pattern as the note
-        // autosave above — no hot loop, and structurally unreachable headlessly.
         if let Some(dirty) = self.active.extra.doc_autosave_at {
             match debounce_due(dirty, AUTOSAVE_IDLE, self.clock.now()) {
                 true => {
                     self.active.extra.doc_autosave_at = None;
                     self.autosave_flush();
-                    // LIFETIME STATS: piggyback the same ~1s idle door, so the
-                    // odometer is crash-safe without its own timer (native only;
-                    // config + dirty gated inside).
                     #[cfg(not(target_arch = "wasm32"))]
                     self.stats_flush();
-                    // WRITING STREAKS: sample the day-delta on the same idle door.
                     #[cfg(not(target_arch = "wasm32"))]
                     self.streaks_flush();
                     if let Some(gpu) = self.gpu.as_ref() {
@@ -173,13 +144,9 @@ impl App {
                 false => {}
             }
         }
-        // Debounced theme-preview FONT reshape: while the theme picker's live preview
-        // arrows across worlds, only the COLORS applied per step; once the selection
-        // rests `theme_font_debounce()` the one deferred reshape lands here (the paused
-        // hover then shows the true face). Each further preview step RE-STAMPS
-        // `theme_font_at` (`retint_theme_preview`), sliding the deadline — the same
-        // single-`WaitUntil`, idle-safe pattern as the zoom persist below (no hot
-        // loop; commit/revert clear the stamp synchronously via `retint_theme_now`).
+    }
+
+    fn schedule_render_settles(&mut self, event_loop: &impl Scheduler) {
         if let Some(dirty) = self.theme_font_at {
             let debounce = theme_font_debounce();
             match debounce_due(dirty, debounce, self.clock.now()) {
@@ -190,6 +157,79 @@ impl App {
                 false => {}
             }
         }
+        if let Some(dirty) = self.zoom_persist_at.filter(|_| !self.zoom_persist_held()) {
+            match debounce_due(dirty, ZOOM_PERSIST_DEBOUNCE, self.clock.now()) {
+                true => self.settle_zoom_persist(),
+                false if self.last_frame.is_none() => {
+                    event_loop
+                        .set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
+                }
+                false => {}
+            }
+        }
+        if let Some(dirty) = self.resize_settle_at {
+            match debounce_due(dirty, RESIZE_SYNC_SETTLE, self.clock.now()) {
+                true => self.finish_resize_settle(),
+                false if self.last_frame.is_none() => {
+                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + RESIZE_SYNC_SETTLE));
+                }
+                false => {}
+            }
+        }
+        if let Some(dirty) = self.move_settle_at {
+            match debounce_due(dirty, MOVE_SETTLE, self.clock.now()) {
+                true => self.finish_move_settle(),
+                false if self.last_frame.is_none() => {
+                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + MOVE_SETTLE));
+                }
+                false => {}
+            }
+        }
+        if let Some(dirty) = self.crossing_settle_at {
+            match debounce_due(dirty, CROSSING_SYNC_SETTLE, self.clock.now()) {
+                true => self.finish_crossing_settle(),
+                false if self.last_frame.is_none() => {
+                    event_loop
+                        .set_control_flow(ControlFlow::WaitUntil(dirty + CROSSING_SYNC_SETTLE));
+                }
+                false => {}
+            }
+        }
+    }
+
+    pub(super) fn about_to_wait_impl(&mut self, event_loop: &impl Scheduler) {
+        // WHICH-KEY pause: while a PREFIX (`C-x`) is pending its second key, summon the
+        // continuation panel once ~500ms elapses without a follow-up. The timer is
+        // ARMED ONLY here, while `prefix_pending_at` is `Some` AND the panel isn't yet
+        // shown — a single `WaitUntil` deadline, no perpetual per-frame tick; once it
+        // fires (or the prefix resolves, clearing `prefix_pending_at`) nothing re-arms,
+        // so the app idles at 0% CPU (DESIGN §6).
+        self.schedule_prefix_surfaces(event_loop);
+        // HOLD-⌘ SHORTCUT PEEK: while a bare-arming-modifier hold is PENDING, summon the
+        // card once ~600ms elapses with the hold unbroken. The timer is ARMED ONLY while
+        // `peek_armed_at` is `Some` (the `PeekArm::Pending` state) — a single `WaitUntil`
+        // deadline, no perpetual tick; feeding `Elapsed` opens the card and clears the
+        // stamp, so nothing re-arms and the app idles at 0% CPU (the which-key pattern).
+        // Spell check is no longer debounced here (the completed-word-lag fix,
+        // 2026-07): `App::sync_view` recomputes the KEYED verdict cache EAGERLY,
+        // synchronously, the instant the buffer version changes — see
+        // `App::recompute_spell_cache`'s doc. Nothing left to schedule.
+        // Debounced quick-note AUTO-SAVE: write the note after ~400ms of quiet, so
+        // it persists calmly as you pause. An empty note writes nothing.
+        self.schedule_autosaves(event_loop);
+        // Debounced DOCUMENT AUTOSAVE (the config-gated engine, default ON): the
+        // open file is written atomically — or the no-path scratch stashed — after
+        // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
+        // gate), consumed here via the same single-`WaitUntil` pattern as the note
+        // autosave above — no hot loop, and structurally unreachable headlessly.
+        // Debounced theme-preview FONT reshape: while the theme picker's live preview
+        // arrows across worlds, only the COLORS applied per step; once the selection
+        // rests `theme_font_debounce()` the one deferred reshape lands here (the paused
+        // hover then shows the true face). Each further preview step RE-STAMPS
+        // `theme_font_at` (`retint_theme_preview`), sliding the deadline — the same
+        // single-`WaitUntil`, idle-safe pattern as the zoom persist below (no hot
+        // loop; commit/revert clear the stamp synchronously via `retint_theme_now`).
+        self.schedule_render_settles(event_loop);
         // Debounced STICKY-ZOOM write: persist the SETTLED zoom after ~500ms of quiet,
         // so a rapid Cmd-=/Cmd-- run writes the final value once (not one-per-step).
         // Each new zoom step RE-STAMPS `zoom_persist_at` (via `mark_zoom_dirty`), so the
@@ -201,20 +241,6 @@ impl App {
         // have a mid-gesture value written out from under it just because the user paused
         // to read the number. While held this branch is entirely inert: no write, and no
         // `WaitUntil` either (nothing is waiting to fire), so the loop still falls quiet.
-        if let Some(dirty) = self.zoom_persist_at.filter(|_| !self.zoom_persist_held()) {
-            match debounce_due(dirty, ZOOM_PERSIST_DEBOUNCE, self.clock.now()) {
-                // The quiet window elapsed with no gesture owning the end: THIS is the
-                // end. Settle through the one owner (`settle_zoom_persist` — write,
-                // disarm, drop the floating readout, redraw the settled frame), the
-                // exact call the rail's release makes, so the two doors cannot drift.
-                true => self.settle_zoom_persist(),
-                false if self.last_frame.is_none() => {
-                    event_loop
-                        .set_control_flow(ControlFlow::WaitUntil(dirty + ZOOM_PERSIST_DEBOUNCE));
-                }
-                false => {}
-            }
-        }
         // LIVE-RESIZE CONTENT-STRETCH FIX settle (macOS only — see
         // `resize_settle_at`'s doc): once `RESIZE_SYNC_SETTLE` passes with no
         // further `Resized` ticks, flip the CAMetalLayer's `presentsWithTransaction`
@@ -222,39 +248,11 @@ impl App {
         // Each new tick RE-STAMPS `resize_settle_at` (`App::arm_live_resize_sync`),
         // sliding the deadline exactly like the theme-font/zoom-persist debounces
         // above — the same single-`WaitUntil` shape, so a still window costs nothing.
-        if let Some(dirty) = self.resize_settle_at {
-            match debounce_due(dirty, RESIZE_SYNC_SETTLE, self.clock.now()) {
-                true => self.finish_resize_settle(),
-                false if self.last_frame.is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + RESIZE_SYNC_SETTLE));
-                }
-                false => {}
-            }
-        }
         // MOVE-stream settle (mirrors the resize debounce above; see
         // `MOVE_SETTLE`'s doc for why its window is deliberately longer).
-        if let Some(dirty) = self.move_settle_at {
-            match debounce_due(dirty, MOVE_SETTLE, self.clock.now()) {
-                true => self.finish_move_settle(),
-                false if self.last_frame.is_none() => {
-                    event_loop.set_control_flow(ControlFlow::WaitUntil(dirty + MOVE_SETTLE));
-                }
-                false => {}
-            }
-        }
         // THEME-PREVIEW CROSSING settle (mirrors the resize/move debounces above;
         // see `CROSSING_SYNC_SETTLE`'s doc). Disarms the present-transaction sync
         // and fires the ONE follow-up present once a boundary crossing has rested.
-        if let Some(dirty) = self.crossing_settle_at {
-            match debounce_due(dirty, CROSSING_SYNC_SETTLE, self.clock.now()) {
-                true => self.finish_crossing_settle(),
-                false if self.last_frame.is_none() => {
-                    event_loop
-                        .set_control_flow(ControlFlow::WaitUntil(dirty + CROSSING_SYNC_SETTLE));
-                }
-                false => {}
-            }
-        }
         // AMBIENT TICK — the slow ~10 fps drift clock behind awl's time-varying
         // grounds: the lava lamp (Firetail/Mangrove), the twinkling stars
         // (Currawong), AND (item 87) Bombora's wave-tier phase drift — ONE
