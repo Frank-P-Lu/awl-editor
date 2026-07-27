@@ -66,6 +66,7 @@ cargo llvm-cov report --json --branch --output-path "$OUT/coverage.json" \
   --ignore-filename-regex "$EXCLUDE"
 cargo llvm-cov report --html --branch --output-dir "$OUT/html" \
   --ignore-filename-regex "$EXCLUDE"
+python3 "$SCRIPT_DIR/coverage-triage.py" --self-test
 python3 "$SCRIPT_DIR/coverage-triage.py" "$ROOT" "$OUT/coverage.json" "$OUT/triage.md"
 
 printf 'coverage reports: %s\n' "$OUT"
