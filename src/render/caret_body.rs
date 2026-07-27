@@ -61,8 +61,16 @@ impl TextPipeline {
             .unwrap_or(false);
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);
+            // The support body is the accent itself, so an accent-coloured Morph
+            // silhouette would disappear into it. Knock the inhabited glyph back
+            // through in the authored primary-content colour, matching the Filled
+            // block's existing covered-glyph rule.
+            self.caret_glyph_pipeline
+                .set_color(theme::primary_content().rgb_bytes());
         } else {
             self.caret_pipeline.prepare_empty();
+            self.caret_glyph_pipeline
+                .set_color(theme::primary().rgb_bytes());
         }
     }
 }

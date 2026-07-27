@@ -5,7 +5,6 @@
 //! faces (serif/slab/sans/display/one-bit-adjacent) at both caret looks, two
 //! DPI/zoom products, every punctuation class, and letter/space/EOL controls.
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod common;
@@ -94,22 +93,13 @@ fn footprint(
     (minx, miny, maxx, maxy, n)
 }
 
-fn dominant_rgb(image: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> [u8; 3] {
-    let (w, _, pixels) = image;
-    let mut colors = BTreeMap::new();
-    for y in rect.1..=rect.3 {
-        for x in rect.0..=rect.2 {
-            let i = ((y * *w + x) * 4) as usize;
-            *colors
-                .entry([pixels[i], pixels[i + 1], pixels[i + 2]])
-                .or_insert(0usize) += 1;
-        }
-    }
-    colors
-        .into_iter()
-        .max_by_key(|(_, count)| *count)
-        .unwrap()
-        .0
+fn hex_rgb(value: &serde_json::Value) -> [u8; 3] {
+    let hex = value.as_str().unwrap().strip_prefix('#').unwrap();
+    [
+        u8::from_str_radix(&hex[0..2], 16).unwrap(),
+        u8::from_str_radix(&hex[2..4], 16).unwrap(),
+        u8::from_str_radix(&hex[4..6], 16).unwrap(),
+    ]
 }
 
 fn glyph_mask(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> Vec<usize> {
@@ -134,20 +124,31 @@ fn glyph_mask(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> Ve
     mask
 }
 
-fn glyph_contribution_pixels(
+fn body_only_control(
+    reference: &(u32, u32, Vec<u8>),
     rendered: &(u32, u32, Vec<u8>),
     rect: (u32, u32, u32, u32),
-    mask: &[usize],
-) -> usize {
-    let body = dominant_rgb(rendered, rect);
-    mask.iter()
-        .filter(|&&i| rendered.2[i..i + 3] != body)
-        .count()
+    body: [u8; 3],
+) -> ((u32, u32, Vec<u8>), Vec<usize>) {
+    let mask = glyph_mask(reference, rect);
+    let mut body_only = rendered.clone();
+    for &i in &mask {
+        let pixel = (i / 4) as u32;
+        let x = pixel % rendered.0;
+        let y = pixel / rendered.0;
+        assert!(
+            x >= rect.0 + 2 && x + 2 <= rect.2 && y >= rect.1 + 2 && y + 2 <= rect.3,
+            "glyph mask must stay inside the opaque body; caret edge AA is preserved"
+        );
+        body_only.2[i..i + 3].copy_from_slice(&body);
+    }
+    (body_only, mask)
 }
 
 fn assert_punctuation_glyph_contribution(
     reference: &(u32, u32, Vec<u8>),
     rendered: &(u32, u32, Vec<u8>),
+    body_only: &(u32, u32, Vec<u8>),
     rect: (u32, u32, u32, u32),
     world: &str,
     ch: char,
@@ -159,23 +160,29 @@ fn assert_punctuation_glyph_contribution(
         "{world} {ch:?} {mode}: fixture must contain punctuation ink"
     );
     assert!(
-        glyph_contribution_pixels(rendered, rect, &mask) >= 2,
+        mask.iter()
+            .filter(|&&i| rendered.2[i..i + 4] != body_only.2[i..i + 4])
+            .count()
+            >= 2,
         "{world} {ch:?} {mode}: covered punctuation swallowed into uniform body"
     );
-    if world == "Mopoke" && ch == ',' && mode == "block" {
-        // Mutation proof: the oracle rejects the exact regression it names,
-        // rather than merely observing palette variation.
-        let mut erased = rendered.clone();
-        let body = dominant_rgb(&erased, rect);
-        for &i in &mask {
-            erased.2[i..i + 3].copy_from_slice(&body);
-        }
-        assert_eq!(
-            glyph_contribution_pixels(&erased, rect, &mask),
-            0,
-            "mutation proof must erase the glyph/knockout contribution"
+}
+
+fn assert_body_only_mutation_red(
+    reference: &(u32, u32, Vec<u8>),
+    body_only: &(u32, u32, Vec<u8>),
+    rect: (u32, u32, u32, u32),
+) {
+    let mutation_failed = std::panic::catch_unwind(|| {
+        assert_punctuation_glyph_contribution(
+            reference, body_only, body_only, rect, "Mopoke", ',', "block",
         );
-    }
+    })
+    .is_err();
+    assert!(
+        mutation_failed,
+        "body-only control must fail the production glyph assertion"
+    );
 }
 
 #[test]
@@ -202,6 +209,7 @@ fn proportional_punctuation_has_a_real_pixel_body() {
             .unwrap();
             let top = side["text_origin"]["top"].as_u64().unwrap() as u32;
             let lh = side["font"]["line_height"].as_f64().unwrap() as u32;
+            let caret_rgb = hex_rgb(&side["theme"]["primary"]);
             let refimg = rgba(&reference);
             for (label, col) in [
                 ("letter", 0usize),
@@ -233,10 +241,9 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                     let out = dir.join(format!("{tag}-{ch:?}-{mode}.png"));
                     capture.run(&out, Some(mode), &"Right ".repeat(c));
                     let band_top = top.saturating_sub(8);
-                    let band_bottom = top + lh + 8;
                     let rendered = rgba(&out);
                     let (left, outer_top, right, outer_bottom, area) =
-                        footprint(&rendered, &refimg, band_top, band_bottom);
+                        footprint(&rendered, &refimg, band_top, top + lh + 8);
                     let w = right - left + 1;
                     let h = outer_bottom - outer_top + 1;
                     let scale = dpi * zoom;
@@ -253,13 +260,18 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                         "{world} {ch:?} {mode}: outer bbox area"
                     );
                     assert!(
-                        outer_top > band_top && outer_bottom + 1 < band_bottom,
+                        outer_top > band_top && outer_bottom + 1 < top + lh + 8,
                         "{world} {ch:?} {mode}: caret clipped by row band"
                     );
                     let rect = (left, outer_top, right, outer_bottom);
+                    let (body_only, _) = body_only_control(&refimg, &rendered, rect, caret_rgb);
                     assert_punctuation_glyph_contribution(
-                        &refimg, &rendered, rect, world, ch, mode,
+                        &refimg, &rendered, &body_only, rect, world, ch, mode,
                     );
+                    if world == "Mopoke" && ch == ',' && mode == "block" {
+                        // Run the ACTUAL production assertion against the mutation.
+                        assert_body_only_mutation_red(&refimg, &body_only, rect);
+                    }
                     assert!(
                         area as f32 >= 96.0 * scale * scale * 0.25,
                         "{world} {ch:?} {mode}: visible area floor / no swallowed glyph"
