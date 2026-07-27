@@ -169,6 +169,22 @@ fn caret_row_box_reveal_is_minimal_when_already_visible() {
 }
 
 #[test]
+fn caret_follow_uses_the_settled_pixel_at_the_viewport_boundary() {
+    let _serial = crate::testlock::serial();
+    let mut p = headless_pipeline().expect("caret-follow law requires a GPU adapter");
+    p.set_view(&view(&"ordinary row\n".repeat(200), 0, 0));
+    let scroll = ScrollPos { row: 0, px_q: 17 };
+    assert_eq!(p.scroll_top_px(scroll), 17.0 / 64.0);
+    assert_eq!(p.rendered_scroll_top_px(scroll), 0.0);
+    assert_eq!(
+        p.scroll_to_show_row_pos(0, scroll, H),
+        scroll,
+        "row 0 is flush with the actual rendered viewport top; semantic-only \
+         visibility math would incorrectly reset its accumulated remainder"
+    );
+}
+
+#[test]
 fn huge_pixel_delta_is_bounded_to_the_document_end() {
     let _serial = crate::testlock::serial();
     let mut p = headless_pipeline().expect("semantic-scroll laws require a GPU adapter");

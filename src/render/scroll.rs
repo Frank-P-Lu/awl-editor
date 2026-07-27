@@ -135,7 +135,7 @@ impl TextPipeline {
         let avail = self.viewport_avail_px(height);
         let row_top = self.row_top_px(row);
         let row_bottom = row_top + self.row_height_px(row);
-        let current = self.scroll_top_px(scroll);
+        let current = self.rendered_scroll_top_px(scroll);
         let target = if self.row_height_px(row) >= avail || row_top < current {
             row_top
         } else if row_bottom > current + avail {

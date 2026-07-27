@@ -68,6 +68,89 @@ pub(super) fn fields(scroll: ScrollPos, pipeline: &TextPipeline) -> String {
         "\"scroll_lines\": {},\n  \"scroll_px\": {},\n  \"scroll_top_px\": {}",
         scroll.row,
         scroll.px(),
-        pipeline.scroll_top_px(scroll)
+        pipeline.rendered_scroll_top_px(scroll)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::buffer::Buffer;
+    use crate::capture::{CaptureOpts, capture_with};
+
+    fn capture(
+        dir: &std::path::Path,
+        name: &str,
+        text: &str,
+        markdown: bool,
+        scroll: ScrollPos,
+    ) -> (Vec<u8>, serde_json::Value) {
+        let mut buffer = Buffer::from_str(text);
+        if markdown {
+            buffer.set_path(dir.join(format!("{name}.md")));
+        }
+        let png = dir.join(format!("{name}.png"));
+        capture_with(
+            &png,
+            &buffer,
+            &CaptureOpts {
+                scroll: Some(scroll),
+                ..CaptureOpts::default()
+            },
+        )
+        .expect("scroll capture requires a GPU adapter");
+        let pixels = std::fs::read(&png).expect("PNG bytes");
+        let json = std::fs::read_to_string(png.with_extension("json")).expect("sidecar");
+        (
+            pixels,
+            serde_json::from_str(&json).expect("valid sidecar JSON"),
+        )
+    }
+
+    #[test]
+    fn subpixel_sidecar_keeps_semantics_but_reports_settled_pixels() {
+        let _g = crate::testlock::serial();
+        let dir = std::env::temp_dir().join(format!("awl_scroll_px_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let text = "visible raster witness abcdefghijklmnopqrstuvwxyz\n".repeat(80);
+        let (zero_png, zero) = capture(&dir, "zero", &text, false, ScrollPos::default());
+        let (sub_png, sub) = capture(&dir, "sub", &text, false, ScrollPos { row: 0, px_q: 17 });
+
+        assert_eq!(sub["scroll_px"], serde_json::json!(0.265625));
+        assert_eq!(sub["scroll_top_px"], serde_json::json!(0));
+        assert_eq!(zero["scroll_top_px"], serde_json::json!(0));
+        assert_eq!(
+            zero_png, sub_png,
+            "0:17 must render byte-identically to 0:0"
+        );
+        let image = image::load_from_memory(&zero_png).unwrap().to_rgba8();
+        let ground = *image.get_pixel(0, 0);
+        assert!(
+            image.pixels().any(|pixel| *pixel != ground),
+            "pixel identity witness must contain real glyph ink"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn table_sidecar_reports_rounded_rendered_top() {
+        let _g = crate::testlock::serial();
+        let dir = std::env::temp_dir().join(format!("awl_table_scroll_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let table = "| left | right |\n| --- | --- |\n| cell | value |\n\n".repeat(80);
+        let (_, json) = capture(&dir, "table", &table, true, ScrollPos { row: 0, px_q: 48 });
+        assert_eq!(json["scroll_px"], serde_json::json!(0.75));
+        assert_eq!(
+            json["scroll_top_px"],
+            serde_json::json!(1),
+            "table appearance coordinate follows whole-pixel render geometry"
+        );
+        assert!(
+            json["tables"]
+                .as_array()
+                .is_some_and(|tables| !tables.is_empty()),
+            "fixture must exercise the table render surface"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
