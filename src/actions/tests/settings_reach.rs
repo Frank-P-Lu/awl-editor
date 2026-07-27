@@ -178,9 +178,10 @@ fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
     );
 }
 
-/// A WINDOW-SCROLLED list: the `All` home (30 rows) exceeds `window_rows()`,
-/// so this sweep forces the scroll window to advance mid-walk — the class of
-/// bug a small, always-fully-visible test corpus can't exercise.
+/// A WINDOW-SCROLLED list: the full `All` home exceeds `window_rows()`, so this
+/// sweep forces the scroll window to advance mid-walk — the class of bug a small,
+/// always-fully-visible test corpus can't exercise. The law below derives its
+/// count from the registry rather than copying it here.
 #[test]
 fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
     let _g = crate::testlock::serial();
