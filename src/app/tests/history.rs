@@ -110,7 +110,7 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     // A shorter previewed version clamped the scroll while the picker was
     // open; the close-without-accept restores the saved scroll EXACTLY
     // ("Esc = back to now") and puts the preview down.
-    app.active.extra.history_scroll_before = Some(42);
+    app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(42));
     app.active.extra.scroll_lines = 3;
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(false);
@@ -125,7 +125,7 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     );
     // A real ACCEPT keeps the current viewport (the restored version owns
     // it) — the saved scroll is discarded, the preview still dropped.
-    app.active.extra.history_scroll_before = Some(42);
+    app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(42));
     app.active.extra.scroll_lines = 3;
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(true);

@@ -15,6 +15,8 @@ use super::*;
 /// The render-relevant snapshot of the editor. Pure data so both the windowed
 /// app and the headless capture can build one and hand it to the pipeline.
 pub struct ViewState {
+    #[cfg(test)]
+    pub scroll_lines: usize,
     /// Full buffer text.
     pub text: String,
     /// Cursor line (0-based) and column (0-based, in chars).
@@ -27,15 +29,8 @@ pub struct ViewState {
     /// edge. Read ONLY by the caret's own placement (`caret_affinity`), so every
     /// other overlay is unaffected.
     pub caret_affinity: crate::caret::Affinity,
-    /// Number of VISUAL ROWS scrolled off the top. Each visual row is one
-    /// `line_height`-tall soft-wrapped sub-line, so on a wrapped document this is
-    /// NOT the same as a logical-line count: it advances by what's actually drawn,
-    /// letting the last wrapped row reach the bottom. For a non-wrapped document
-    /// visual rows == logical lines, so this is unchanged from the old meaning.
-    pub scroll_lines: usize,
-    /// Shared document scroll fact.  `scroll_lines` is retained temporarily for
-    /// compatibility with row-based overlay/diff state; a document frame reads
-    /// this semantic position.
+    /// Shared document scroll fact. Its row anchor is retained in capture as
+    /// `scroll_lines`; there is no parallel row-only render state.
     pub scroll: ScrollPos,
     /// Zoom factor (1.0 = default). Drives all zoomed metrics.
     pub zoom: f32,
@@ -343,11 +338,12 @@ impl ViewState {
     /// `eol = Eol::Lf` — matching the value every scaffold previously spelled out.
     pub fn base() -> Self {
         ViewState {
+            #[cfg(test)]
+            scroll_lines: 0,
             text: String::new(),
             cursor_line: 0,
             cursor_col: 0,
             caret_affinity: crate::caret::Affinity::Downstream,
-            scroll_lines: 0,
             scroll: ScrollPos::default(),
             zoom: 1.0,
             selection: None,

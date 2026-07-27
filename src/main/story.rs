@@ -243,7 +243,7 @@ fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo
             opts.diff = diff;
         }
         if opts.scroll.is_none() && opts.preview_text.is_some() {
-            opts.scroll = Some(ov.diff_scroll);
+            opts.scroll = Some(crate::render::ScrollPos::at_row(ov.diff_scroll));
         }
     }
     opts.buffers = Some(capture::BuffersInfo {

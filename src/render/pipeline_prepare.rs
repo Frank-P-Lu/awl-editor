@@ -175,7 +175,6 @@ impl TextPipeline {
         self.row_geom.generation().hash(&mut h);
         crate::page::page_on().hash(&mut h);
         crate::page::measure().hash(&mut h);
-        self.scroll_lines.hash(&mut h);
         self.scroll.hash(&mut h);
         self.cursor_line.hash(&mut h);
         self.cursor_col.hash(&mut h);

@@ -682,7 +682,7 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     // deliberate behavior this round left untouched, not a slot-ownership leak
     // (a switch away from a buffer always retires its own pending autosave).
     app.active.extra.history_preview = Some(("42".to_string(), "old text".to_string()));
-    app.active.extra.history_scroll_before = Some(55);
+    app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(55));
 
     app.load_path(b.clone()); // A parks whole-slot; B activates FRESH
     assert_eq!(
@@ -720,7 +720,10 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
         app.active.extra.history_preview,
         Some(("42".to_string(), "old text".to_string()))
     );
-    assert_eq!(app.active.extra.history_scroll_before, Some(55));
+    assert_eq!(
+        app.active.extra.history_scroll_before,
+        Some(crate::render::ScrollPos::at_row(55))
+    );
 
     // A -> B -> C -> A: not merely a 2-slot toggle artifact.
     app.load_path(b.clone());

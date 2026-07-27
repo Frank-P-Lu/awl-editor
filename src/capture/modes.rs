@@ -73,16 +73,14 @@ pub(super) fn base_viewstate(
 /// pipeline helpers. Shared by the timeline / held paths and the minimal-adjust
 /// branch of the single-frame path, so the three never drift (the typewriter-scroll
 /// single-frame path CENTERS instead, so it keeps its own branch). `height` is px.
-pub(super) fn follow_scroll(
+pub(super) fn settled_scroll(
     pipeline: &TextPipeline,
     line: usize,
     col: usize,
     height: f32,
-) -> usize {
+) -> crate::render::ScrollPos {
     let row = pipeline.visual_row_of(line, col);
-    pipeline
-        .scroll_to_show_row(row, 0, height)
-        .min(pipeline.max_scroll_rows(height))
+    pipeline.scroll_to_show_row_pos(row, crate::render::ScrollPos::default(), height)
 }
 
 /// How the caret is posed for a headless capture. Both modes are fully
@@ -554,9 +552,9 @@ pub(super) fn settled_viewstate(
 
     // Now compute the VISUAL-ROW scroll from the shaped buffer. Variable-row-height
     // aware (headings): the pixel-accurate pipeline helpers mirror `app.rs`.
-    let scroll_lines = match opts.scroll {
+    let settled_scroll = match opts.scroll {
         // `--scroll N` is N VISUAL rows; 999 etc. clamps to the last reachable row.
-        Some(n) => n.min(pipeline.max_scroll_rows(height as f32)),
+        Some(pos) => pipeline.scroll_by_px(pos, 0.0, height as f32),
         None => {
             // Cursor-follow default: scroll so the cursor's VISUAL row is on screen
             // (from the top, since the headless cursor starts at the buffer start
@@ -566,19 +564,16 @@ pub(super) fn settled_viewstate(
             // minimal-adjust — so a `--keys` capture with typewriter on verifies the
             // centered scroll deterministically.
             if !crate::typewriter::typewriter_on() {
-                follow_scroll(pipeline, sc_line, sc_col, height as f32)
+                settled_scroll(pipeline, sc_line, sc_col, height as f32)
             } else {
                 // Typewriter scroll CENTERS the cursor row (the pin), clamped so the
                 // document tail can't be pulled past its bottom.
                 let cursor_row = pipeline.visual_row_of(sc_line, sc_col);
-                pipeline
-                    .scroll_to_center_row(cursor_row, height as f32)
-                    .min(pipeline.max_scroll_rows(height as f32))
+                pipeline.scroll_to_center_row_pos(cursor_row, height as f32)
             }
         }
     };
-    vstate.scroll_lines = scroll_lines;
-    vstate.scroll = crate::render::ScrollPos::at_row(scroll_lines);
+    vstate.scroll = settled_scroll;
     pipeline.set_view(&vstate);
     vstate
 }

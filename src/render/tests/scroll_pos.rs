@@ -46,3 +46,15 @@ fn caret_row_box_reveal_is_minimal_when_already_visible() {
     let scroll = ScrollPos { row: 5, px_q: 13 };
     assert_eq!(p.scroll_to_show_row_pos(10, scroll, H), scroll);
 }
+
+#[test]
+fn huge_pixel_delta_is_bounded_to_the_document_end() {
+    let _serial = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        return;
+    };
+    p.set_view(&view(&"ordinary row\n".repeat(200), 0, 0));
+    let end = p.scroll_by_px(ScrollPos::default(), 1_000_000_000.0, H);
+    assert!(end.row <= p.max_scroll_rows(H));
+    assert!(end.px_q >= 0);
+}

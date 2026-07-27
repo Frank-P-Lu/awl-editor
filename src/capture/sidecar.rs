@@ -260,7 +260,7 @@ pub(super) fn write_sidecar(
         top = render::TEXT_TOP + pipeline.menubar_reserve(),
         page = page_json(pipeline),
         lc = pipeline.line_count(),
-        sl = view.scroll_lines,
+        sl = view.scroll.row,
         spx = view.scroll.px(),
         stop = pipeline.scroll_top_px(view.scroll),
         cl = cursor_line,

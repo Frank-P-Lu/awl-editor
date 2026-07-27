@@ -8,7 +8,7 @@
 //! Deterministic verification hooks (compose with --screenshot):
 //!   --sel L0:C0-L1:C1   draw a selection highlight from (line0,col0)..(line1,col1)
 //!   --zoom F            render at zoom factor F (e.g. 1.6); clamped to [0.5,3.0]
-//!   --scroll N          scroll N VISUAL rows off the top (free scroll, clamped)
+//!   --scroll N[:Q]      scroll to visual row N plus Q fixed 1/64px units (free scroll, clamped)
 //!   --preedit STR       render STR as an IME preedit (underlined) at the caret
 //!   --theme NAME        set the active color theme/world before capture (e.g. Quokka)
 //!   --caret-mode MODE   caret look: block | morph | auto (default: font-derived)

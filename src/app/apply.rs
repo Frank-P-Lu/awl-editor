@@ -1008,7 +1008,7 @@ impl App {
                 .map(|o| o.kind == crate::overlay::OverlayKind::History)
                 .unwrap_or(false)
         {
-            self.active.extra.history_scroll_before = Some(self.active.extra.scroll_lines);
+            self.active.extra.history_scroll_before = Some(self.active.extra.scroll);
         }
         if history_overlay_before && self.overlay.is_none() {
             self.history_overlay_closed(history_accepted);
@@ -1032,7 +1032,7 @@ impl App {
         if accepted {
             self.active.extra.history_scroll_before = None;
         } else if let Some(s) = self.active.extra.history_scroll_before.take() {
-            self.active.extra.scroll_lines = s;
+            self.active.extra.scroll = s;
         }
         self.active.extra.history_preview = None;
     }

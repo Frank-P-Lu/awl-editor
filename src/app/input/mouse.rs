@@ -38,7 +38,7 @@ impl App {
             None => render::hit_test(
                 px,
                 py,
-                self.active.extra.scroll_lines,
+                self.active.extra.scroll.row,
                 &render::Metrics::with_dpi(self.zoom, self.dpi),
                 render::TEXT_LEFT,
             ),
@@ -862,21 +862,14 @@ impl App {
     /// Apply a wheel scroll of `lines` (positive = content moves up / scroll
     /// down). Free scroll: moves the viewport WITHOUT moving the cursor.
     pub(in crate::app) fn wheel_scroll(&mut self, lines: f32) {
-        // The scroll unit is a VISUAL ROW. The wheel delta is already in rows
-        // (line notches / accumulated pixels per row), so just clamp to the
-        // document's total-visual-row max so a wrapped doc can scroll all the way
-        // to its last visual row.
-        let max = if let Some(gpu) = self.gpu.as_ref() {
-            gpu.pipeline.max_scroll_rows(gpu.config.height as f32)
-        } else {
-            0
-        };
-        // Round toward the scroll direction so small notches still move.
-        let delta = lines.round() as isize;
-        let cur = self.active.extra.scroll_lines as isize;
-        let next = (cur + delta).clamp(0, max as isize);
-        self.active.extra.scroll_lines = next as usize;
-        self.active.extra.scroll = crate::render::ScrollPos::at_row(next as usize);
+        if let Some(gpu) = self.gpu.as_ref() {
+            // A real mouse notch is three authored, zoomed base lines — never a
+            // row count, since a visual row can be an image or table.
+            let px = lines * 3.0 * render::LINE_HEIGHT * self.zoom * self.dpi;
+            self.active.extra.scroll =
+                gpu.pipeline
+                    .scroll_by_px(self.active.extra.scroll, px, gpu.config.height as f32);
+        }
     }
 
     /// Pixel-native document scroll.  The caller has already applied the user's
@@ -888,7 +881,6 @@ impl App {
                 pixels,
                 gpu.config.height as f32,
             );
-            self.active.extra.scroll_lines = self.active.extra.scroll.row;
         }
     }
 
@@ -1233,7 +1225,7 @@ impl App {
             };
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.cursor_px;
-                let scroll = self.active.extra.scroll_lines;
+                let scroll = self.active.extra.scroll;
                 if let Some(gpu) = self.gpu.as_mut()
                     && gpu.pipeline.try_table_pan(px, py, scroll, dx)
                 {
@@ -1242,7 +1234,8 @@ impl App {
                 }
             }
         }
-        // Convert the delta to a line count (LineDelta or PixelDelta).
+        // Picker navigation intentionally remains row-based.  The document arm
+        // below consumes raw pixels directly.
         let lines = match delta {
             MouseScrollDelta::LineDelta(_, y) => y * WHEEL_LINES_PER_NOTCH,
             MouseScrollDelta::PixelDelta(p) => {

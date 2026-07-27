@@ -72,7 +72,7 @@ impl App {
                 crate::session::BufferPos {
                     line,
                     col,
-                    scroll: self.active.extra.scroll_lines,
+                    scroll: self.active.extra.scroll.row,
                     scroll_px_q: self.active.extra.scroll.px_q,
                 },
             ));
@@ -87,7 +87,7 @@ impl App {
                 crate::session::BufferPos {
                     line,
                     col,
-                    scroll: entry.extra.scroll_lines,
+                    scroll: entry.extra.scroll.row,
                     scroll_px_q: entry.extra.scroll.px_q,
                 },
             ));
@@ -168,7 +168,6 @@ impl App {
             // Build the COMPLETE entry locally and install it in ONE move
             // (item 56: never a half-moved active slot).
             let extra = files::BufferExtra {
-                scroll_lines: pos.scroll,
                 scroll: crate::render::ScrollPos {
                     row: pos.scroll,
                     px_q: pos.scroll_px_q,
@@ -190,7 +189,6 @@ impl App {
             let mut buffer = Buffer::from_file(path);
             Self::apply_restored_pos(&mut buffer, *pos);
             let extra = files::BufferExtra {
-                scroll_lines: pos.scroll,
                 scroll: crate::render::ScrollPos {
                     row: pos.scroll,
                     px_q: pos.scroll_px_q,
@@ -280,7 +278,7 @@ mod tests {
                 (1, 2),
                 "cursor restored"
             );
-            assert_eq!(app.active.extra.scroll_lines, 3, "scroll restored");
+            assert_eq!(app.active.extra.scroll.row, 3, "scroll restored");
             assert_eq!(app.buffer_registry.len(), 1, "the OTHER survivor is parked");
             assert!(
                 app.buffer_registry
@@ -290,7 +288,7 @@ mod tests {
             // Switching to it finds the restored cursor/scroll, not a fresh 0,0.
             app.load_path(PathBuf::from("/n/b.md"));
             assert_eq!(app.active.buffer.cursor_line_col(), (0, 1));
-            assert_eq!(app.active.extra.scroll_lines, 0);
+            assert_eq!(app.active.extra.scroll.row, 0);
         });
     }
 
@@ -424,7 +422,7 @@ mod tests {
             app.active
                 .buffer
                 .set_cursor(app.active.buffer.line_col_to_char(2, 1));
-            app.active.extra.scroll_lines = 7;
+            app.active.extra.scroll = crate::render::ScrollPos::at_row(7);
             app.load_path(PathBuf::from("/n/b.md")); // a.md is now backgrounded
 
             app.session_flush();
@@ -500,7 +498,7 @@ mod tests {
             app.active
                 .buffer
                 .set_cursor(app.active.buffer.line_col_to_char(2, 1));
-            app.active.extra.scroll_lines = 5;
+            app.active.extra.scroll = crate::render::ScrollPos::at_row(5);
 
             app.switch_project(PathBuf::from("/fb"));
             app.load_path(PathBuf::from("/fb/two.md"));
@@ -532,7 +530,7 @@ mod tests {
                 (2, 1),
                 "A's cursor survived"
             );
-            assert_eq!(app2.active.extra.scroll_lines, 5, "A's scroll survived");
+            assert_eq!(app2.active.extra.scroll.row, 5, "A's scroll survived");
         });
     }
 }

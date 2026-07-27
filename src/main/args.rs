@@ -730,10 +730,20 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 let v = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("--scroll requires a line count"))?;
-                opts.scroll = Some(
-                    v.parse()
-                        .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
-                );
+                let (row, px_q) = match v.split_once(':') {
+                    Some((row, px_q)) => (
+                        row.parse()
+                            .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
+                        px_q.parse()
+                            .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
+                    ),
+                    None => (
+                        v.parse()
+                            .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
+                        0,
+                    ),
+                };
+                opts.scroll = Some(crate::render::ScrollPos { row, px_q });
             }
             "--preedit" => {
                 let v = args

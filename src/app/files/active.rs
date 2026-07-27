@@ -29,15 +29,16 @@ use crate::app::*;
 
 #[derive(Default)]
 pub(in crate::app) struct BufferExtra {
+    #[cfg(test)]
+    pub scroll_lines: usize,
     /// Whether the buffer's active selection (if any) was begun with Shift —
     /// TRANSIENT, but tied to THIS buffer's `anchor`, so it travels with it
     /// rather than leaking whatever the LAST-active buffer happened to leave it
     /// at (a plain unshifted motion in the reactivated buffer resets it anyway;
     /// this only matters for the one motion right after a switch).
     pub shift_selecting: bool,
-    pub scroll_lines: usize,
-    /// Pixel-precise document viewport; `scroll_lines` mirrors its row for the
-    /// deliberately row-based overlay/history compatibility arms.
+    /// Pixel-precise document viewport.  This is the one per-buffer document
+    /// scroll fact; overlays keep their own deliberately row-based positions.
     pub scroll: crate::render::ScrollPos,
     pub spell_cache: Vec<crate::spell::SpellVerdict>,
     pub spell_checked_version: Option<u64>,
@@ -56,7 +57,7 @@ pub(in crate::app) struct BufferExtra {
     pub history_preview: Option<(String, String)>,
     /// The document scroll captured when the History timeline opened (folded
     /// in alongside `history_preview` for the same reason).
-    pub history_scroll_before: Option<usize>,
+    pub history_scroll_before: Option<crate::render::ScrollPos>,
 }
 
 impl App {

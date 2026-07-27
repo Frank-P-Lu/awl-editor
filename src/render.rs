@@ -3467,11 +3467,10 @@ pub struct TextPipeline {
     /// shared soft-wrap boundary (see [`crate::caret::Affinity`]). `Downstream` for
     /// any caret not parked at a visual-row end, so ordinary placement is unchanged.
     caret_affinity: crate::caret::Affinity,
-    scroll_lines: usize,
-    /// The semantic document scroll. `scroll_lines` remains a temporary mirror
-    /// for old picker/diff call sites while their deliberately-row-based paths
-    /// are migrated; document draw/hit-test use this field exclusively.
+    /// The semantic document scroll; all document geometry resolves this fact.
     scroll: ScrollPos,
+    #[cfg(test)]
+    pub scroll_lines: usize,
     /// Current zoom-derived metrics (single source of truth for layout).
     metrics: Metrics,
     /// The display's DPI `scale_factor` folded into [`Self::metrics`] (1.0 for the

@@ -7,7 +7,7 @@
 /// Deterministic overrides for the verification hooks. All default to the
 /// byte-stable baseline (zoom 1.0, cursor-follow scroll, no selection), so a
 /// plain `--screenshot` is unaffected. Each field is applied verbatim into the
-/// render snapshot, letting a reviewer capture a selection / zoom / scroll still
+/// render snapshot, letting a reviewer capture a selection / zoom / semantic-scroll still
 /// as a reproducible PNG.
 /// MULTI-BUFFER registry snapshot for the sidecar `buffers` block: how many
 /// buffers a `--keys` replay left open (the active one + anything still
@@ -197,8 +197,9 @@ pub struct CaptureInfo {
 pub struct CaptureOpts {
     /// Zoom factor (None = 1.0).
     pub zoom: Option<f32>,
-    /// Explicit top scroll line (None = cursor-follow default).
-    pub scroll: Option<usize>,
+    /// Explicit semantic document top (None = cursor-follow default).  A
+    /// fixed-point offset makes sub-row geometry reproducible in capture.
+    pub scroll: Option<crate::render::ScrollPos>,
     /// Selection as ((l0,c0),(l1,c1)) in line/col (None = no selection).
     pub selection: Option<((usize, usize), (usize, usize))>,
     /// Synthetic IME preedit (composition) string to render at the cursor for the

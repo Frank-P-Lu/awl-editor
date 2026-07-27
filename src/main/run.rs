@@ -1241,7 +1241,7 @@ fn capture_screenshot(
             opts.diff = diff;
         }
         if opts.scroll.is_none() && opts.preview_text.is_some() {
-            opts.scroll = Some(ov.diff_scroll);
+            opts.scroll = Some(crate::render::ScrollPos::at_row(ov.diff_scroll));
         }
     }
     // If a selection is requested (or one came from --keys), move the

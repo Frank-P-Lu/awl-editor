@@ -162,7 +162,7 @@ fn cold_open(cx: &mut Cx) -> Result<CellOut> {
 fn typing(cx: &mut Cx) -> Result<CellOut> {
     const KEYS: usize = 30;
     let mut text = cx.text.clone();
-    cx.view.scroll_lines = 0;
+    cx.view.scroll = crate::render::ScrollPos::default();
     cx.view.cursor_line = 0;
     cx.view.is_edit_move = true;
     // Prime one keystroke untimed so the first sample isn't a cold outlier.
@@ -203,7 +203,7 @@ fn typing(cx: &mut Cx) -> Result<CellOut> {
     cx.view.is_edit_move = false;
     cx.view.cursor_line = 0;
     cx.view.cursor_col = 0;
-    cx.view.scroll_lines = 0;
+    cx.view.scroll = crate::render::ScrollPos::default();
     cx.sync_frame()?;
     Ok(CellOut {
         samples_ms: samples,
@@ -233,7 +233,7 @@ fn scroll(cx: &mut Cx) -> Result<CellOut> {
     let rows = cx.p.total_visual_rows();
     let steps = (rows.saturating_sub(1) / PAGE).clamp(1, MAX_STEPS);
     let passes = MIN_SAMPLES.div_ceil(steps);
-    cx.view.scroll_lines = 0;
+    cx.view.scroll = crate::render::ScrollPos::default();
     cx.sync_frame()?;
     let top = cx.snapshot()?;
 
@@ -241,20 +241,21 @@ fn scroll(cx: &mut Cx) -> Result<CellOut> {
     let mut samples = Vec::with_capacity(steps * passes + 1);
     let mut deepest_px = 0.0f32;
     for _ in 0..passes {
-        cx.view.scroll_lines = 0;
+        cx.view.scroll = crate::render::ScrollPos::default();
         cx.sync_frame()?; // rewind to the top, untimed
-        let mut prev_px = cx.p.row_top_px(cx.p.scroll_lines);
+        let mut prev_px = cx.p.scroll_top_px(cx.p.scroll);
         for i in 1..=steps {
-            cx.view.scroll_lines = (i * PAGE).min(rows.saturating_sub(1));
+            cx.view.scroll =
+                crate::render::ScrollPos::at_row((i * PAGE).min(rows.saturating_sub(1)));
             let t0 = Instant::now();
             cx.sync_frame()?;
             samples.push(ms(t0));
-            let px = cx.p.row_top_px(cx.p.scroll_lines);
+            let px = cx.p.scroll_top_px(cx.p.scroll);
             ensure!(
                 px > prev_px,
                 "every scroll step must advance the resolved viewport offset \
                  (row {} resolves {px}px; the previous step held {prev_px}px)",
-                cx.p.scroll_lines
+                cx.p.scroll.row
             );
             prev_px = px;
         }
@@ -272,11 +273,11 @@ fn scroll(cx: &mut Cx) -> Result<CellOut> {
     let line_start = body.rfind('\n').map_or(0, |i| i + 1);
     cx.view.cursor_line = last_line;
     cx.view.cursor_col = body[line_start..].chars().count();
-    cx.view.scroll_lines = rows.saturating_sub(10);
+    cx.view.scroll = crate::render::ScrollPos::at_row(rows.saturating_sub(10));
     let t0 = Instant::now();
     cx.sync_frame()?;
     samples.push(ms(t0));
-    let jump_px = cx.p.row_top_px(cx.p.scroll_lines);
+    let jump_px = cx.p.scroll_top_px(cx.p.scroll);
     ensure!(
         jump_px > 0.0,
         "the jump to end must move the viewport off the top (resolved {jump_px}px)"
@@ -292,7 +293,7 @@ fn scroll(cx: &mut Cx) -> Result<CellOut> {
     // Restore (untimed).
     cx.view.cursor_line = 0;
     cx.view.cursor_col = 0;
-    cx.view.scroll_lines = 0;
+    cx.view.scroll = crate::render::ScrollPos::default();
     cx.sync_frame()?;
     Ok(CellOut {
         samples_ms: samples,

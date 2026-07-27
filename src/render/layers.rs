@@ -2424,11 +2424,11 @@ impl TextPipeline {
     /// `tables_report` widths (a table under the pointer has necessarily been laid
     /// this session), so no reshape is needed on the hot wheel path. LIVE-ONLY:
     /// never reached by the headless capture (which has no pointer / wheel).
-    pub fn try_table_pan(&mut self, px: f32, py: f32, scroll: usize, dx: f32) -> bool {
+    pub fn try_table_pan(&mut self, px: f32, py: f32, scroll: ScrollPos, dx: f32) -> bool {
         if !(crate::markdown::wysiwyg_on() && self.md_enabled) {
             return false;
         }
-        let (line, _) = self.hit_test(px, py, scroll);
+        let (line, _) = self.hit_test_scroll(px, py, scroll);
         // Which table block (if any) owns the hit line?
         let line_byte = self.line_doc_byte_start(line);
         let Some((start, _range)) = self

@@ -1295,37 +1295,23 @@ impl TextPipeline {
         self.row_top_px(scroll.row) + scroll.px()
     }
 
+    /// The document viewport available to content, after the fixed text and menu
+    /// insets. Page motion and caret-follow share this value.
+    pub fn viewport_avail_px(&self, height: f32) -> f32 {
+        (height - TEXT_TOP - self.menubar_reserve()).max(1.0)
+    }
+
     /// Incrementally carry a fixed-point offset across variable-height rows.
-    pub fn scroll_by_px(&self, mut pos: ScrollPos, delta_px: f32, height: f32) -> ScrollPos {
-        pos.px_q = pos
-            .px_q
-            .saturating_add((delta_px * ScrollPos::SUBPX as f32).round() as i32);
-        let last = self.total_visual_rows().saturating_sub(1);
-        while pos.px_q >= (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32
-            && pos.row < last
-        {
-            pos.px_q -= (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32;
-            pos.row += 1;
+    pub fn scroll_by_px(&self, pos: ScrollPos, delta_px: f32, height: f32) -> ScrollPos {
+        let max_px = (self.total_doc_height() - self.viewport_avail_px(height)).max(0.0);
+        let target = (self.scroll_top_px(pos) + delta_px).clamp(0.0, max_px);
+        let row = self
+            .row_geom
+            .nearest_row(&self.buffer, &self.metrics, target);
+        ScrollPos {
+            row,
+            px_q: ((target - self.row_top_px(row)) * ScrollPos::SUBPX as f32).round() as i32,
         }
-        while pos.px_q < 0 && pos.row > 0 {
-            pos.row -= 1;
-            pos.px_q += (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32;
-        }
-        if pos.row == 0 && pos.px_q < 0 {
-            pos.px_q = 0;
-        }
-        let max_px =
-            (self.total_doc_height() - (height - TEXT_TOP - self.menubar_reserve())).max(0.0);
-        while self.scroll_top_px(pos) > max_px && (pos.row > 0 || pos.px_q > 0) {
-            if pos.px_q > 0 {
-                pos.px_q -= 1;
-            } else {
-                pos.row -= 1;
-                pos.px_q =
-                    (self.row_height_px(pos.row) * ScrollPos::SUBPX as f32).round() as i32 - 1;
-            }
-        }
-        pos
     }
 
     /// Buffer-relative top y (px) of visual row `row` (clamped to the last row).
@@ -1372,11 +1358,12 @@ impl TextPipeline {
     /// view; otherwise advances the top row until `row`'s bottom fits within the text
     /// viewport. Variable-height aware (sums real row heights), so cursor-follow
     /// lands correctly even when the cursor sits on — or just past — a tall heading.
+    #[cfg(test)]
     pub fn scroll_to_show_row(&self, row: usize, scroll: usize, height: f32) -> usize {
         if row < scroll {
             return row;
         }
-        let avail = (height - TEXT_TOP - self.menubar_reserve()).max(1.0);
+        let avail = self.viewport_avail_px(height);
         let bottom = self.row_top_px(row) + self.row_height_px(row);
         let mut s = scroll;
         while s < row && bottom - self.row_top_px(s) > avail {
@@ -1424,12 +1411,13 @@ impl TextPipeline {
     /// caller still clamps the result to [`Self::max_scroll_rows`] so the document
     /// tail can't be pulled past its bottom. When focus is Off the minimal-adjust
     /// `scroll_to_show_row` is used instead, so default scrolling is byte-identical.
+    #[cfg(test)]
     pub fn scroll_to_center_row(&self, row: usize, height: f32) -> usize {
         let total = self.total_visual_rows();
         if total == 0 {
             return 0;
         }
-        let avail = (height - TEXT_TOP - self.menubar_reserve()).max(1.0);
+        let avail = self.viewport_avail_px(height);
         // Buffer-relative top the viewport would need so `row`'s center sits at the
         // viewport's vertical center. Negative means `row` is near the document top
         // and can't be centered (no content above it), so we pin at the top.
@@ -1454,6 +1442,24 @@ impl TextPipeline {
         // Never scroll the cursor's own row off the top (a degenerate sub-row-height
         // viewport could otherwise pick s > row).
         s.min(row)
+    }
+
+    /// Semantic companion to `scroll_to_center_row`: typewriter positioning
+    /// preserves its intra-row target instead of quantizing it back to a row.
+    pub fn scroll_to_center_row_pos(&self, row: usize, height: f32) -> ScrollPos {
+        let avail = self.viewport_avail_px(height);
+        let target = (self.row_top_px(row) + self.row_height_px(row) * 0.5 - avail * 0.5).max(0.0);
+        let anchor = self
+            .row_geom
+            .nearest_row(&self.buffer, &self.metrics, target);
+        self.scroll_by_px(
+            ScrollPos {
+                row: anchor,
+                px_q: ((target - self.row_top_px(anchor)) * ScrollPos::SUBPX as f32).round() as i32,
+            },
+            0.0,
+            height,
+        )
     }
 
     /// Screen-space TOP y (px) of the visual row that holds char `(line, col)`,
@@ -1987,10 +1993,6 @@ impl TextPipeline {
     /// whose cell the pointer x falls in. A click past a glyph's midpoint snaps to
     /// the next gap (natural caret placement). Accounts for scroll + zoom; the
     /// caller clamps (line, col) to the buffer.
-    pub fn hit_test(&self, px: f32, py: f32, scroll_lines: usize) -> (usize, usize) {
-        self.hit_test_scroll(px, py, ScrollPos::at_row(scroll_lines))
-    }
-
     /// Pixel-precise companion to [`Self::hit_test`].  Live document pointer
     /// paths use this; the row API remains for headless compatibility callers.
     pub fn hit_test_scroll(&self, px: f32, py: f32, scroll: ScrollPos) -> (usize, usize) {
@@ -2019,6 +2021,11 @@ impl TextPipeline {
             Some(run) => (run.line_i, Self::col_in_run(&run, target_x)),
             None => (0, 0),
         }
+    }
+
+    #[cfg(test)]
+    pub fn hit_test(&self, px: f32, py: f32, scroll_lines: usize) -> (usize, usize) {
+        self.hit_test_scroll(px, py, ScrollPos::at_row(scroll_lines))
     }
 
     /// Char column on a cosmic-text layout RUN whose cell contains `target_x`
