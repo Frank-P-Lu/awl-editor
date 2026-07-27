@@ -357,6 +357,133 @@ pub enum Effect {
 /// the common case) — the caller carries out the filesystem/window/quit work the
 /// pure core can't. Mutates only what `ActionCtx` exposes; no GPU, window, or
 /// clipboard.
+fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    match action {
+        Action::ToggleCaretMode => {
+            crate::caret::toggle_mode();
+        }
+        Action::TogglePageMode => {
+            crate::page::toggle();
+        }
+        Action::PageWider => {
+            crate::page::widen();
+        }
+        Action::PageNarrower => {
+            crate::page::narrow();
+        }
+        Action::PageReset => {
+            crate::page::set_measure(ctx.buffer.page_class().default_measure());
+        }
+        Action::ToggleDebug => {
+            crate::debug::toggle();
+        }
+        Action::ToggleOutline => {
+            crate::outline::toggle();
+        }
+        Action::ToggleFold => {
+            ctx.buffer.toggle_fold_at_cursor();
+        }
+        Action::CollapseOtherSections => {
+            ctx.buffer.collapse_other_sections();
+        }
+        Action::ToggleMenuBar => {
+            crate::menubar::toggle();
+        }
+        Action::ToggleTypewriter => {
+            crate::typewriter::toggle();
+        }
+        Action::ShowStatsHud => {
+            crate::hud::set_held(true);
+        }
+        Action::About => {
+            crate::about::set_open(true);
+        }
+        Action::LifetimeStats => {
+            crate::lifetime::set_open(true);
+        }
+        Action::WritingStreaks => {
+            crate::streaks::set_open(true);
+        }
+        Action::ConvertLineEndings => {
+            ctx.buffer.set_eol(ctx.buffer.eol().toggled());
+        }
+        Action::ReportProblem => return Some(Effect::ReportProblem),
+        Action::DownloadFile => return Some(Effect::DownloadFile),
+        Action::CheckForUpdates => return Some(Effect::CheckForUpdates),
+        _ => return None,
+    }
+    Some(Effect::None)
+}
+
+fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> bool {
+    match action {
+        Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
+        Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
+        Action::ToggleNumberedList => apply_block_format(ctx, format::BlockKind::Numbered),
+        Action::ToggleTaskList => apply_block_format(ctx, format::BlockKind::Task),
+        Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
+        Action::HeadingCycle => format::apply_heading_cycle(ctx),
+        Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
+        Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
+        Action::Italic => apply_inline_format(ctx, format::InlineKind::Italic),
+        Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
+        Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
+        Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
+        _ => return false,
+    }
+    true
+}
+
+fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
+    match action {
+        Action::ForwardChar => ctx.buffer.forward_char(),
+        Action::BackwardChar => ctx.buffer.backward_char(),
+        Action::NextLine => vertical_motion(ctx, true),
+        Action::PreviousLine => vertical_motion(ctx, false),
+        Action::LineStart => line_edge_motion(ctx, false),
+        Action::LineEnd => line_edge_motion(ctx, true),
+        Action::ForwardWord => ctx.buffer.forward_word(),
+        Action::BackwardWord => ctx.buffer.backward_word(),
+        Action::BufferStart => ctx.buffer.buffer_start(),
+        Action::BufferEnd => ctx.buffer.buffer_end(),
+        Action::InsertChar(c) => ctx.buffer.insert_char(*c),
+        Action::Newline => {
+            if !smart_newline(ctx) {
+                ctx.buffer.insert_newline();
+            }
+        }
+        Action::InsertTab => list_tab(ctx),
+        Action::Outdent => list_outdent(ctx),
+        Action::DeleteBackward => ctx.buffer.delete_backward(),
+        Action::DeleteWordBackward => ctx.buffer.delete_word_backward(),
+        Action::DeleteWordForward => ctx.buffer.delete_word_forward(),
+        Action::DeleteToLineStart => ctx.buffer.delete_to_line_start(),
+        Action::DeleteForward => ctx.buffer.delete_forward(),
+        Action::KillLine => kill_line_motion(ctx),
+        Action::Yank => ctx.buffer.yank(),
+        Action::Undo => {
+            ctx.buffer.undo();
+            *ctx.shift_selecting = false;
+        }
+        Action::Redo => {
+            ctx.buffer.redo();
+            *ctx.shift_selecting = false;
+        }
+        Action::SetMark => {
+            ctx.buffer.set_mark();
+            *ctx.shift_selecting = false;
+        }
+        Action::CopyRegion => ctx.buffer.copy_region(),
+        Action::KillRegion => ctx.buffer.kill_region(),
+        Action::SelectAll => {
+            ctx.buffer.select_all();
+            *ctx.shift_selecting = false;
+        }
+        _ => return false,
+    }
+    true
+}
+
 pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // Serializes this whole action against any other thread's global-touching
     // test, under test only (see [`crate::testlock`]): `about_open()` /
@@ -452,67 +579,34 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
 
     let mut effect = Effect::None;
     match action {
-        Action::ForwardChar => ctx.buffer.forward_char(),
-        Action::BackwardChar => ctx.buffer.backward_char(),
-        Action::NextLine => vertical_motion(ctx, true),
-        Action::PreviousLine => vertical_motion(ctx, false),
-        Action::LineStart => line_edge_motion(ctx, false),
-        Action::LineEnd => line_edge_motion(ctx, true),
-        Action::ForwardWord => ctx.buffer.forward_word(),
-        Action::BackwardWord => ctx.buffer.backward_word(),
-        Action::BufferStart => ctx.buffer.buffer_start(),
-        Action::BufferEnd => ctx.buffer.buffer_end(),
-        Action::InsertChar(c) => ctx.buffer.insert_char(*c),
-        // MARKDOWN smart Enter: continue a list / blockquote (ordered lists
-        // AUTO-INCREMENT), unconditionally END an empty BLOCKQUOTE, PRESERVE-or-
-        // END an empty LIST item (bullet/numbered/task) by provenance (item 78 —
-        // ends the list only when awl's own immediately preceding continuation
-        // generated that empty marker; preserves it otherwise), or carry leading
-        // indentation forward. Pure + `--keys`-drivable (reads only the current
-        // line + cursor, edits via the buffer's atomic seam). A non-markdown
-        // buffer — or any line the helper declines — falls through to a plain
-        // newline, byte-identical to before.
-        Action::Newline => {
-            if !smart_newline(ctx) {
-                ctx.buffer.insert_newline();
-            }
-        }
-        // TAB: indent a markdown list item one level (across a selection), else a soft
-        // tab. SHIFT-TAB: outdent one level (clamped), or strip leading spaces off a
-        // list. Both flow through the buffer's atomic edit seam (one undo step) and are
-        // `--keys`-drivable; the list-vs-plain gate is `list_tab`.
-        Action::InsertTab => list_tab(ctx),
-        Action::Outdent => list_outdent(ctx),
-        Action::DeleteBackward => ctx.buffer.delete_backward(),
-        Action::DeleteWordBackward => ctx.buffer.delete_word_backward(),
-        Action::DeleteWordForward => ctx.buffer.delete_word_forward(),
-        Action::DeleteToLineStart => ctx.buffer.delete_to_line_start(),
-        Action::DeleteForward => ctx.buffer.delete_forward(),
-        Action::KillLine => kill_line_motion(ctx),
-        Action::Yank => ctx.buffer.yank(),
-        Action::Undo => {
-            ctx.buffer.undo();
-            *ctx.shift_selecting = false;
-        }
-        Action::Redo => {
-            ctx.buffer.redo();
-            *ctx.shift_selecting = false;
-        }
-        Action::SetMark => {
-            ctx.buffer.set_mark();
-            *ctx.shift_selecting = false; // C-Space is a sticky mark
-        }
-        Action::CopyRegion => ctx.buffer.copy_region(),
-        Action::KillRegion => ctx.buffer.kill_region(),
-        // Cmd-A: select the WHOLE buffer — mark at document start, point at
-        // document end, so every existing region op (C-w cut, M-w copy, a
-        // delete/backspace, or typing a char) then acts on the entire doc. A
-        // no-op empty region on an empty buffer (no panic). Drop any transient
-        // Shift-selection flag: this is a discrete, sticky region, not a
-        // Shift-extend.
-        Action::SelectAll => {
-            ctx.buffer.select_all();
-            *ctx.shift_selecting = false;
+        Action::ForwardChar
+        | Action::BackwardChar
+        | Action::NextLine
+        | Action::PreviousLine
+        | Action::LineStart
+        | Action::LineEnd
+        | Action::ForwardWord
+        | Action::BackwardWord
+        | Action::BufferStart
+        | Action::BufferEnd
+        | Action::InsertChar(_)
+        | Action::Newline
+        | Action::InsertTab
+        | Action::Outdent
+        | Action::DeleteBackward
+        | Action::DeleteWordBackward
+        | Action::DeleteWordForward
+        | Action::DeleteToLineStart
+        | Action::DeleteForward
+        | Action::KillLine
+        | Action::Yank
+        | Action::Undo
+        | Action::Redo
+        | Action::SetMark
+        | Action::CopyRegion
+        | Action::KillRegion
+        | Action::SelectAll => {
+            debug_assert!(apply_buffer_action(ctx, action));
         }
         // ITEM 94: ⌘= / ⌘- move exactly ONE AUTHORED STEP of the zoom range spec —
         // the same `stepped` owner Right/Left on the Settings rail row use, so the
@@ -564,142 +658,40 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
                 st.reveal_replace();
             }
         }
-        // Toggling the caret look is a pure render concern (no buffer change). The
-        // process-global flip lives HERE on the shared seam, so BOTH the windowed
-        // `App::apply` and the headless `--keys` replay toggle through one place
-        // (no double-toggle); `App` then does only the window-side follow-up (the
-        // stderr log) as a post-`apply_core` side effect. A palette-run capture
-        // (Cmd-P → "Toggle caret style") renders — and records in its sidecar — the
-        // toggled mode (Block ⇄ I-beam).
-        Action::ToggleCaretMode => {
-            crate::caret::toggle_mode();
-        }
-        // Toggling page mode is a pure render/layout concern (no buffer change). The
-        // process-global flip lives HERE on the shared seam (like the caret toggle);
-        // `App::apply` does the GPU re-wrap + view resync the core can't reach as a
-        // post-`apply_core` side effect. A palette-run capture (Cmd-P → "Toggle page
-        // mode") renders (and records in its sidecar) the toggled state.
-        Action::TogglePageMode => {
-            crate::page::toggle();
-        }
-        // Page WIDER / NARROWER: adjust the centered writing column's MEASURE (the
-        // settable page width) by a step, clamped to the usable band. Zoom-independent
-        // — this resizes the PAGE, not the glyphs — so it lives on the shared seam like
-        // the page toggle. `App::apply` does the GPU re-wrap + view resync + sticky
-        // persist afterwards (a post-`apply_core` side effect the core can't reach). A
-        // palette-run capture (Cmd-P → "Widen page") renders + records the new measure.
-        Action::PageWider => {
-            crate::page::widen();
-        }
-        Action::PageNarrower => {
-            crate::page::narrow();
-        }
-        // RESET PAGE WIDTH: snap the measure back to the ACTIVE buffer's OWN
-        // built-in default (`PageClass::default_measure` — 70 prose / 100 code) —
-        // "there's no easy way back" once you've widened/narrowed/dragged. Reads
-        // `ctx.buffer.page_class()` so a `.rs` file resets to 100, never a stray
-        // 70. Pure process-global reset on the shared seam, like the
-        // wider/narrower arms above. `App::apply` does the GPU re-wrap + view
-        // resync afterwards AND clears the sticky `page_width_prose`/
-        // `page_width_code` config override matching the SAME class entirely
-        // (format-preserving removal — the core has no config to write to) as a
-        // post-`apply_core` side effect. A `--keys`-driven reset (no default
-        // chord; palette/double-click only) renders — and records in its
-        // sidecar — the reset measure.
-        Action::PageReset => {
-            crate::page::set_measure(ctx.buffer.page_class().default_measure());
-        }
-        Action::ToggleDebug => {
-            crate::debug::toggle();
-        }
-        Action::ToggleOutline => {
-            crate::outline::toggle();
-        }
-        // FOLDS (collapsed sections) are VIEW state on the BUFFER, so they belong in
-        // the shared core: a `--keys` capture folds/unfolds and its sidecar `folds`
-        // block records the state, exactly like the live window. Neither gesture
-        // moves the caret or touches the rope (the auto-expand tail below is a no-op
-        // for them — the caret stays on the visible heading line).
-        Action::ToggleFold => {
-            ctx.buffer.toggle_fold_at_cursor();
-        }
-        Action::CollapseOtherSections => {
-            ctx.buffer.collapse_other_sections();
-        }
-        Action::ToggleMenuBar => {
-            crate::menubar::toggle();
-        }
-        Action::ToggleTypewriter => {
-            crate::typewriter::toggle();
-        }
-        Action::ShowStatsHud => {
-            crate::hud::set_held(true);
-        }
-        Action::About => {
-            // Reentrant no-op: `_test_guard` at the top of this function already
-            // holds this same process-wide lock for the WHOLE call, so this
-            // re-take costs nothing extra (outside `cfg(test)`, nothing at all) —
-            // kept as a local, self-documenting guard on the open-flag WRITE
-            // rather than leaning on the caller to already hold it.
-            #[cfg(test)]
-            let _g = crate::testlock::serial();
-            crate::about::set_open(true);
-        }
-        Action::LifetimeStats => {
-            // Reentrant no-op under the same whole-function `_test_guard` above —
-            // see the comment on the `Action::About` arm.
-            #[cfg(test)]
-            let _g = crate::testlock::serial();
-            crate::lifetime::set_open(true);
-        }
-        Action::WritingStreaks => {
-            #[cfg(test)]
-            let _g = crate::testlock::serial();
-            crate::streaks::set_open(true);
-        }
-        // Toggle the active buffer's line-ending discipline (LF <-> CRLF). The rope
-        // is byte-identical (always pure `\n`); only the on-disk encoding a save
-        // restores differs, so this is document-level METADATA, not an undoable
-        // edit (Cmd-Z does not restore it — see `Buffer::set_eol`). A real switch
-        // marks the buffer dirty + bumps `version` so autosave rewrites with the
-        // new ending on the next flush.
-        Action::ConvertLineEndings => {
-            let next = ctx.buffer.eol().toggled();
-            ctx.buffer.set_eol(next);
-        }
-        // ALIGN TABLE: re-pad the GFM table under the caret so its `|` line up
-        // (Prettier-style monospace alignment of the SOURCE — awl never draws a
-        // grid). Find the table block around the caret line, re-emit it via
-        // `markdown::align_table`, and replace it as ONE undoable edit; a calm
-        // no-op when the caret is not in a table (or the table is already aligned,
-        // so Cmd-Z stays meaningful). Pure `markdown` core + the buffer's atomic
-        // replace seam, so `--keys "..."` drives it and the result is assertable.
+        action @ (Action::ToggleCaretMode
+        | Action::TogglePageMode
+        | Action::PageWider
+        | Action::PageNarrower
+        | Action::PageReset
+        | Action::ToggleDebug
+        | Action::ToggleOutline
+        | Action::ToggleFold
+        | Action::CollapseOtherSections
+        | Action::ToggleMenuBar
+        | Action::ToggleTypewriter
+        | Action::ShowStatsHud
+        | Action::About
+        | Action::LifetimeStats
+        | Action::WritingStreaks
+        | Action::ConvertLineEndings
+        | Action::ReportProblem
+        | Action::DownloadFile
+        | Action::CheckForUpdates) => effect = apply_view_action(ctx, action).expect("view action"),
         Action::AlignTable => align_table_at_cursor(ctx),
-        Action::ReportProblem => {
-            effect = Effect::ReportProblem;
+        action @ (Action::ToggleBlockquote
+        | Action::ToggleBulletList
+        | Action::ToggleNumberedList
+        | Action::ToggleTaskList
+        | Action::ToggleHeading
+        | Action::HeadingCycle
+        | Action::ToggleCodeBlock
+        | Action::Bold
+        | Action::Italic
+        | Action::InlineCode
+        | Action::Highlight
+        | Action::Strikethrough) => {
+            debug_assert!(apply_format_action(ctx, action));
         }
-        Action::DownloadFile => {
-            effect = Effect::DownloadFile;
-        }
-        // "Check for Updates": the core has no fs / OS-handoff access, so it just
-        // signals the request; the live App records the local "last checked"
-        // marker and opens the site's `/check?v=…` page in the OS browser — the
-        // app never fetches anything itself.
-        Action::CheckForUpdates => {
-            effect = Effect::CheckForUpdates;
-        }
-        Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
-        Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
-        Action::ToggleNumberedList => apply_block_format(ctx, format::BlockKind::Numbered),
-        Action::ToggleTaskList => apply_block_format(ctx, format::BlockKind::Task),
-        Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
-        Action::HeadingCycle => format::apply_heading_cycle(ctx),
-        Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
-        Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
-        Action::Italic => apply_inline_format(ctx, format::InlineKind::Italic),
-        Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
-        Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
-        Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
         Action::ExportWord => {
             if ctx.buffer.is_markdown() {
                 effect = Effect::Export(crate::export::Format::Docx);
