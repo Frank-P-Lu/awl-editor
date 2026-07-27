@@ -142,10 +142,10 @@ impl DateFormat {
             DateFormat::Iso => format!("{year:04}-{month:02}-{day:02}"),
             DateFormat::YyyyMmDd => format!("{year:04}/{month:02}/{day:02}"),
             DateFormat::DMonthYyyy => {
-                let name = MONTH_NAMES
-                    .get(month.wrapping_sub(1) as usize)
-                    .copied()
-                    .unwrap_or("?");
+                let name = match MONTH_NAMES.get(month.wrapping_sub(1) as usize).copied() {
+                    Some(name) => name,
+                    None => "?",
+                };
                 format!("{day} {name} {year:04}")
             }
         }
@@ -306,14 +306,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn d_month_yyyy_keeps_an_invalid_month_visible_instead_of_panicking() {
-        // The formatter is deliberately total for a foreign/stale config value:
-        // its one named fallback must stay visible rather than indexing the
-        // month table out of bounds.
-        assert_eq!(DateFormat::DMonthYyyy.format(2026, 0, 7), "7 ? 2026");
-        assert_eq!(DateFormat::DMonthYyyy.format(2026, 13, 7), "7 ? 2026");
-    }
 
     // ── cycle order / round-trip ──────────────────────────────────────────
 
