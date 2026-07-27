@@ -29,8 +29,6 @@ use crate::app::*;
 
 #[derive(Default)]
 pub(in crate::app) struct BufferExtra {
-    #[cfg(test)]
-    pub scroll_lines: usize,
     /// Whether the buffer's active selection (if any) was begun with Shift —
     /// TRANSIENT, but tied to THIS buffer's `anchor`, so it travels with it
     /// rather than leaking whatever the LAST-active buffer happened to leave it

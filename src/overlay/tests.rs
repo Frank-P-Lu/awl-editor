@@ -3110,10 +3110,7 @@ fn goto_file_rows_keep_their_own_time_and_headings_read_heading() {
     );
 }
 
-/// ITEM 54 PRESERVATION LAW 7 — a Command palette row marked
-/// [`RowMeta::CommandHidden`] never appears in `items` (unselectable), but
-/// stays a real entry in `rows` at its ORIGINAL index — the row-index math
-/// `commands::visible_action_of` relies on for every OTHER row stays intact.
+/// A hidden command stays indexed in `rows` but never enters selectable `items`.
 #[test]
 fn command_hidden_rows_never_reach_items_but_stay_in_rows() {
     let names = crate::commands::visible_names();
@@ -3171,9 +3168,7 @@ fn settings_with_rails(zoom: f32) -> OverlayState {
     ov
 }
 
-/// The rail column is PARALLEL to the drawn rows and derived through the range
-/// spec: exactly the Zoom row answers, at exactly its own quantized step, and its
-/// fraction is the spec's mapping of that step — never a second computation.
+/// The rail column is parallel to rows and derived through each range spec.
 #[test]
 fn item_range_fracs_are_parallel_to_the_rows_and_derived_from_the_spec() {
     let _g = crate::testlock::serial();
@@ -3185,12 +3180,17 @@ fn item_range_fracs_are_parallel_to_the_rows_and_derived_from_the_spec() {
         names.len(),
         "the rail column is parallel to the rows"
     );
-    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
+    let visible_rows = crate::settings::visible_rows();
     for (name, frac) in names.iter().zip(&fracs) {
-        if name == "Zoom" {
-            let f = frac.expect("the Zoom row carries a rail");
+        let row = visible_rows
+            .iter()
+            .find(|row| row.name == name)
+            .expect("visible overlay name belongs to a setting");
+        if let Some(spec) = crate::settings::range_spec(row.id) {
+            let f = frac.expect("every Range row carries a rail");
+            let value = crate::settings::range_value(row.id, &settings_values(1.4)).unwrap();
             assert!(
-                (f - spec.frac_of(1.4)).abs() < 1e-6,
+                (f - spec.frac_of(value)).abs() < 1e-6,
                 "the thumb is the spec's fraction"
             );
         } else {
@@ -3203,12 +3203,12 @@ fn item_range_fracs_are_parallel_to_the_rows_and_derived_from_the_spec() {
         .iter()
         .position(|&i| ov.rows[i].accept == "Zoom")
         .unwrap();
+    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     assert_eq!(ov.item_bindings()[zi], spec.format(1.4));
     assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(1.4));
 }
 
-/// A picker with NO range row hands the renderer an EMPTY rail column (so every
-/// other card is byte-identical), and `set_range_cells(vec![])` CLEARS a stale one.
+/// A picker without range rows reports an empty rail column.
 #[test]
 fn a_picker_without_range_rows_reports_an_empty_rail_column() {
     let _g = crate::testlock::serial();
@@ -3226,8 +3226,7 @@ fn a_picker_without_range_rows_reports_an_empty_rail_column() {
     );
 }
 
-/// The keyboard/pointer mirror: `set_selected_range` moves the highlighted row's
-/// STEP and its readout together, and touches nothing else.
+/// `set_selected_range` moves the selected step and readout together.
 #[test]
 fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
     let _g = crate::testlock::serial();

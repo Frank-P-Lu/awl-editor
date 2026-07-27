@@ -258,14 +258,17 @@ impl RowGeom {
         *self.rows.borrow_mut() = Some(rows.to_vec());
     }
 
-    /// Index in the row-geometry table of the visual row whose top is nearest
-    /// `target` (the `line_top` of the picked wrapped run). Backs
-    /// [`super::TextPipeline::visual_row_of`]; `0` for an unshaped/empty buffer.
-    pub(super) fn nearest_row(&self, buf: &GlyphBuffer, m: &Metrics, target: f32) -> usize {
+    /// The row which CONTAINS fixed-point document coordinate `target_q`.
+    /// An exact boundary belongs to the following row, yielding offset zero.
+    pub(super) fn containing_row_q(&self, buf: &GlyphBuffer, m: &Metrics, target_q: i64) -> usize {
         self.ensure(buf, m);
         let tops = self.tops.borrow();
         match tops.as_ref() {
-            Some(v) if !v.is_empty() => nearest_row_index(v, target),
+            Some(v) if !v.is_empty() => v
+                .partition_point(|top| {
+                    ((*top * ScrollPos::SUBPX as f32).round() as i64) <= target_q
+                })
+                .saturating_sub(1),
             _ => 0,
         }
     }

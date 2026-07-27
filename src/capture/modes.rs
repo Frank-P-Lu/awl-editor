@@ -217,6 +217,8 @@ async fn capture_async(
 /// path and the storyboard film stepper (`super::film`) share ONE owner of
 /// "what does this capture state look like"; the caller decides the caret pose
 /// (settle / motion inject / the film's free-running spring).
+///
+/// The returned scroll is always normalized against shaped variable-row geometry.
 pub(super) fn settled_viewstate(
     pipeline: &mut TextPipeline,
     buffer: &Buffer,
@@ -550,8 +552,7 @@ pub(super) fn settled_viewstate(
     }
     pipeline.set_view(&vstate);
 
-    // Now compute the VISUAL-ROW scroll from the shaped buffer. Variable-row-height
-    // aware (headings): the pixel-accurate pipeline helpers mirror `app.rs`.
+    // Normalize semantic scroll only after shaping supplies variable-row geometry.
     let settled_scroll = match opts.scroll {
         // `--scroll N` is N VISUAL rows; 999 etc. clamps to the last reachable row.
         Some(pos) => pipeline.scroll_by_px(pos, 0.0, height as f32),
@@ -573,6 +574,8 @@ pub(super) fn settled_viewstate(
             }
         }
     };
+    debug_assert!(settled_scroll.px_q >= 0);
+    debug_assert!(pipeline.scroll_top_px(settled_scroll) >= 0.0);
     vstate.scroll = settled_scroll;
     pipeline.set_view(&vstate);
     vstate

@@ -891,17 +891,16 @@ fn history_preview_folds_text_and_reports_preview_id() {
 /// `null`, so no other picker gains a rail.
 #[test]
 fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
-    if !adapter_available() {
-        eprintln!("skipping a_settings_range_row_steps_and_reports_its_rail: no wgpu adapter");
-        return;
-    }
+    assert!(
+        adapter_available(),
+        "range sidecar law requires a wgpu adapter"
+    );
     let _tg = crate::testlock::serial();
     let dir = std::env::temp_dir().join(format!("awl_rangerow_test_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let mut buf = Buffer::from_str("preview me\n");
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
 
-    // The REAL Settings overlay, built exactly as `overlay::build` builds it.
     let values = crate::settings::SettingsValues {
         zoom: spec.default,
         today_ymd: crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
@@ -961,7 +960,6 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     let ov = overlay.as_ref().unwrap();
     let (info, _preview, _diff) = crate::run::overlay_capture_info(ov, &buf);
     let mut opts = fixture_opts();
-    // The capture fixture layers optional overlay state for readable scenario setup.
     opts.overlay = Some(info);
     let png = dir.join("range.png");
     capture_with(&png, &buf, &opts).expect("the settings range row captures");
@@ -995,6 +993,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         .collect();
     let ranges = o["ranges"].as_array().unwrap();
     let bindings = o["bindings"].as_array().unwrap();
+    assert!(ranges.iter().any(serde_json::Value::is_number));
     assert_eq!(
         ranges.len(),
         items.len(),
@@ -1012,18 +1011,12 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     );
     // Every range row reports its own rail; every other row is railless.
     for (i, name) in items.iter().enumerate() {
-        let is_range = crate::settings::visible_rows().iter().any(|setting| {
-            setting.name == name && setting.kind == crate::settings::SettingKind::Range
-        });
-        if is_range {
-            assert!(ranges[i].is_number(), "{name} must report its rail");
-        } else {
-            assert_eq!(
-                ranges[i],
-                serde_json::json!(null),
-                "{name} must report no rail"
-            );
-        }
+        let is_range = super::settings_name_is_range(name);
+        assert_eq!(
+            ranges[i].is_number(),
+            is_range,
+            "{name}: range identity and sidecar cell must agree"
+        );
     }
     let _ = std::fs::remove_dir_all(&dir);
 }

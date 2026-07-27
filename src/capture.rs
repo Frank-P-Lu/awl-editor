@@ -377,7 +377,6 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // tones: [c0,c1,c2] }` (three stacked non-overlapping wave tiers, Bombora) —
 // same "report the world's own authored data verbatim" shape as every other
 // arm (mirrors `/168`'s Lava bump). Every OTHER world's `page.background`
-// content is byte-unchanged; only the schema string bumps.
 // `/182` — item 76 (one active folder; ordinary documents): the `project`
 // block's `notes_root` key is RENAMED to `default_folder` — the fallback
 // value for a first launch with nothing remembered, no longer a separate
@@ -407,11 +406,8 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 // pixels (zoom × capture DPI), the same coordinate space as `text_origin`,
 // `page.column`, and the PNG, instead of the unscaled base constants. The
 // `font` block also gains `zoom`, the clamped user zoom factor. This closes the
-// silent trap where `top + n * font.line_height` addressed the wrong row at
-// zoom != 1 while still producing plausible pixel arithmetic.
-// `/186` — continuous document scroll: `scroll_px` reports the semantic
-// intra-row offset and `scroll_top_px` the rendered document offset, alongside
-// the retained visual-row anchor `scroll_lines`.
+// fixes row addressing at non-default zoom.
+// `/186` — semantic `scroll_px`/`scroll_top_px`; `scroll_lines` is the row anchor.
 pub const SCHEMA_VERSION: u32 = 186;
 
 /// `awl-capture/N` — the `--screenshot` single frame (caret block absent).
@@ -441,6 +437,7 @@ pub(crate) mod gpu;
 mod modes;
 mod opts;
 mod oracle;
+mod scroll_sidecar;
 mod sidecar;
 
 pub use animated::{HeldDir, capture_held, capture_timeline};

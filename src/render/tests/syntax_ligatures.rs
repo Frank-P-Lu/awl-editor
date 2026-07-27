@@ -473,12 +473,14 @@ fn caret_and_hit_test_are_per_char_inside_a_programming_ligature_cluster() {
         let py = p.doc_top() + p.metrics.line_height * 0.5;
         for c in 0..n {
             let cell = xs[c + 1] - xs[c];
-            let (_l, col_lo) = p.hit_test(text_left + xs[c] + cell * 0.25, py, 0);
+            let (_l, col_lo) =
+                p.hit_test_scroll(text_left + xs[c] + cell * 0.25, py, ScrollPos::default());
             assert_eq!(
                 col_lo, c,
                 "{world}: click in the near quarter of col {c} → col {c}"
             );
-            let (_l, col_hi) = p.hit_test(text_left + xs[c] + cell * 0.75, py, 0);
+            let (_l, col_hi) =
+                p.hit_test_scroll(text_left + xs[c] + cell * 0.75, py, ScrollPos::default());
             assert_eq!(
                 col_hi,
                 c + 1,

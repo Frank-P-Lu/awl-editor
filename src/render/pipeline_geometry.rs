@@ -523,15 +523,6 @@ impl TextPipeline {
     /// renderer's mirror of the view snapshot.
     fn sync_view_fields(&mut self, view: &ViewState) {
         self.scroll = view.scroll;
-        #[cfg(test)]
-        {
-            self.scroll = if view.scroll == ScrollPos::default() && view.scroll_lines != 0 {
-                ScrollPos::at_row(view.scroll_lines)
-            } else {
-                view.scroll
-            };
-            self.scroll_lines = self.scroll.row;
-        }
         self.image_base_dir = view.doc_dir.clone();
         self.selection = view.selection;
         // COLLAPSED-HEADING TAILS: mirror the fold-tail rows so the ornament pass can

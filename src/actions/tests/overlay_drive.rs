@@ -1281,34 +1281,48 @@ fn left_right_still_cycle_the_lens_on_every_non_range_row() {
 #[test]
 fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
     let _g = crate::testlock::serial();
-    let mut overlay = zoom_row_overlay();
-    let eff = settings_drive(&mut overlay, &Action::Newline);
-    assert_eq!(eff, Effect::None);
+    let rows: Vec<_> = crate::settings::visible_rows()
+        .into_iter()
+        .filter(|row| row.kind == crate::settings::SettingKind::Range)
+        .collect();
     assert!(
-        overlay.as_ref().unwrap().value_edit.is_some(),
-        "a Range row arms the edit"
+        rows.len() >= 2,
+        "the sweep includes Zoom and Scroll Sensitivity"
     );
-    for _ in 0..8 {
-        settings_drive(&mut overlay, &Action::DeleteBackward);
+    for row in rows {
+        let mut overlay = Some(settings_overlay());
+        for c in row.name.to_lowercase().chars() {
+            settings_drive(&mut overlay, &Action::InsertChar(c));
+        }
+        assert_eq!(overlay.as_ref().unwrap().selected_value(), Some(row.name));
+        assert_eq!(settings_drive(&mut overlay, &Action::Newline), Effect::None);
+        assert!(
+            overlay.as_ref().unwrap().value_edit.is_some(),
+            "{}: a Range row arms exact entry",
+            row.name
+        );
+        for _ in 0..16 {
+            settings_drive(&mut overlay, &Action::DeleteBackward);
+        }
+        for c in "150%".chars() {
+            settings_drive(&mut overlay, &Action::InsertChar(c));
+        }
+        assert_eq!(
+            settings_drive(&mut overlay, &Action::Newline),
+            Effect::SettingValueCommit {
+                key: crate::settings::value_key(row.id).unwrap().to_string(),
+                value: "150%".to_string()
+            },
+            "{}: typed commit carries its own config key",
+            row.name
+        );
+        assert_eq!(
+            crate::settings::range_spec(row.id).unwrap().parse("150%"),
+            Some(1.5),
+            "{}: exact entry resolves through its authored spec",
+            row.name
+        );
     }
-    for c in "140%".chars() {
-        settings_drive(&mut overlay, &Action::InsertChar(c));
-    }
-    let eff = settings_drive(&mut overlay, &Action::Newline);
-    assert_eq!(
-        eff,
-        Effect::SettingValueCommit {
-            key: "zoom".to_string(),
-            value: "140%".to_string()
-        },
-        "the typed commit rides the SAME effect + key it always did"
-    );
-    // …and the App-side parse of that raw string lands on the authored grid.
-    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
-    assert_eq!(
-        crate::settings::parse_zoom("140%"),
-        Some(spec.value_of_step(14))
-    );
 }
 
 /// KEYBOARD / POINTER PARITY: a rail fraction the POINTER resolves and the value a

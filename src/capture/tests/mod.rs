@@ -141,3 +141,9 @@ pub(super) fn num_after(json: &str, anchor: &str, key: &str) -> f64 {
         .parse()
         .unwrap_or_else(|_| panic!("bad number for {key:?}: {token:?}"))
 }
+
+pub(super) fn settings_name_is_range(name: &str) -> bool {
+    crate::settings::visible_rows()
+        .iter()
+        .any(|row| row.name == name && row.kind == crate::settings::SettingKind::Range)
+}

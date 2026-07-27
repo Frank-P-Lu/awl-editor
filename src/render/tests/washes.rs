@@ -133,7 +133,7 @@ fn range_rects_selection_is_visible_bounded_and_memo_safe() {
     let text: String = (0..N).map(|i| format!("line {i}\n")).collect();
     let cursor_line = N / 2;
     let mut v = view(&text, cursor_line, 0);
-    v.scroll_lines = cursor_line - 5; // put the cursor line near the view top
+    v.scroll = ScrollPos::at_row(cursor_line - 5);
     p.set_view(&v);
 
     // WARM the single-slot cursor-line memo, then prove Select-All leaves it
@@ -230,7 +230,7 @@ fn wash_cache_and_geometry_contract() {
     // A SCROLL keeps it warm too (scroll only shifts the per-frame offset).
     let mut v3 = view(text, 2, 3);
     v3.syn_lang = Some(crate::syntax::Lang::Rust);
-    v3.scroll_lines = 1;
+    v3.scroll = ScrollPos::at_row(1);
     p.set_view(&v3);
     let _ = p.wash_rects();
     assert_eq!(

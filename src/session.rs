@@ -1,24 +1,15 @@
 //! SESSION RESTORE — the persisted "where you left off" state (which files
 //! were open, which one was active, each file's remembered cursor/scroll, and
 //! the native window frame), so a plain relaunch reopens the workspace
-//! roughly as it was left. This module is the PURE data model + (de)serializer
-//! + clamp math; the App-side wiring (when to capture / restore, how it folds
-//!   into `App::new` and the buffer registry) lives in `app/session.rs`.
+//! roughly as it was left. This is the pure data model, serializer, and clamp;
+//! App-side wiring lives in `app/session.rs`.
 //!
 //! **Where it lives:** beside the scratch stash
-//! (`fs::data_root()/session.toml`), NOT inside `config.toml` — the config
-//! file is the user's own hand-edited settings (theme, keybindings, sticky
-//! prefs); this is MACHINE STATE the app itself reads and writes every run,
-//! so it gets its own file (mirrors [`crate::fs::scratch_stash_path`] exactly
-//! — same directory, same "beside it, not folded into it" reasoning).
+//! (`fs::data_root()/session.toml`), not inside the user-edited `config.toml`;
+//! this is machine state written by the app.
 //!
-//! **Format:** a hand-rolled TOML writer ([`to_toml`], mirrors
-//! `capture/sidecar.rs`'s hand-rolled JSON — no serde) paired with the
-//! crate's existing `toml` PARSER (the same one `config/` already uses via
-//! [`from_toml`]), so reading stays lenient — a malformed/missing file
-//! degrades to an empty [`SessionState`], never a crash — without a second
-//! dependency (the `toml` crate loads with only the `parse` feature; it has
-//! no serializer to reach for).
+//! **Format:** hand-written TOML output plus the existing lenient parser;
+//! malformed or missing input degrades to an empty [`SessionState`].
 //!
 //! **Determinism (CRITICAL):** every read/write goes through the `App`-side
 //! seam in `app/session.rs` (`session_flush` / `apply_session_restore`),
@@ -33,8 +24,8 @@ use std::path::{Path, PathBuf};
 /// One open buffer's remembered position: SMALL ints, never a content
 /// snapshot — the file on disk is still the source of truth. `line`/`col`
 /// are the 0-based cursor coordinates
-/// ([`crate::buffer::Buffer::cursor_line_col`]); `scroll` is the visual-row
-/// scroll offset (`App::scroll_lines` / `app::files::BufferExtra::scroll_lines`).
+/// ([`crate::buffer::Buffer::cursor_line_col`]); `scroll` and `scroll_px_q`
+/// persist the containing-row anchor and its fixed 1/64px intra-row offset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct BufferPos {
     pub line: usize,

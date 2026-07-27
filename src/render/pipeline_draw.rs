@@ -413,8 +413,6 @@ impl TextPipeline {
             cursor_col: 0,
             caret_affinity: crate::caret::Affinity::Downstream,
             scroll: ScrollPos::default(),
-            #[cfg(test)]
-            scroll_lines: 0,
             metrics,
             // 1.0 = no DPI scaling (the headless capture's 1:1 canvas). The live
             // app overrides it via `set_dpi` with the window's real scale_factor.

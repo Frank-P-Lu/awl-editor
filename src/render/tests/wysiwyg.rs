@@ -796,7 +796,7 @@ fn wysiwyg_zero_width_conceal_hit_test_stays_in_bounds() {
     let mut cols_seen = std::collections::BTreeSet::new();
     for i in -5..40 {
         let px = text_left + i as f32 * 2.0;
-        let (line, col) = p.hit_test(px, py, 0);
+        let (line, col) = p.hit_test_scroll(px, py, crate::render::ScrollPos::default());
         assert_eq!(line, 0, "click on row 0's band must resolve to line 0");
         assert!(
             col <= line_char_count,

@@ -520,7 +520,7 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
     // cached proto must now emit a band inside the canvas.
     let mut v2 = view(&text, 0, 0);
     v2.misspelled = mis;
-    v2.scroll_lines = 55;
+    v2.scroll = ScrollPos::at_row(55);
     p.set_view(&v2);
     assert_eq!(
         p.reshape_count, reshapes,

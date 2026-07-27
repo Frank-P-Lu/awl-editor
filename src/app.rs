@@ -473,13 +473,13 @@ struct ThemeSettleInFlight {
 mod files;
 /// GPU surface + frame loop (device/queue/surface, prepare/render).
 mod gpu;
-/// Input handling: search keys, mouse/drag, wheel/zoom, IME, HUD release.
 mod input;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the
 /// ambient (lava/stars) tick, event-toast expiry, GPU acquire retries + soak
 /// drive — one `WaitUntil` each, lifted out of the trait method (a thin
 /// delegate now) so the file's #1 collision seam has its own home.
 mod schedule;
+mod startup;
 /// View snapshot: build the `ViewState` and push it into the pipeline.
 mod viewstate;
 /// Window-lifecycle + redraw arms lifted out of `window_event`: focus-lost
@@ -650,11 +650,9 @@ pub struct App {
     /// resolves (the which-key pause pattern).
     peek_armed_at: Option<Instant>,
     /// Current zoom factor. Single source of truth for the LIVE app; pushed into the
-    /// pipeline via the view snapshot. Launches at [`INITIAL_ZOOM`] (the natural 1.0
-    /// base) so text starts at a calm default; the headless capture is unaffected (it
+    /// pipeline via the view snapshot. Launches at [`INITIAL_ZOOM`]; headless capture
     /// builds its own pipeline at the fixed `--zoom` default of 1.0).
     zoom: f32,
-    /// Smooth PixelDelta multiplier. Discrete wheel notches deliberately ignore it.
     scroll_sensitivity: f32,
     /// The window's display DPI `scale_factor` (1.0 on a 1:1 screen, 2.0 on a 2x
     /// Retina panel). The window width and the cursor position arrive in PHYSICAL
@@ -1289,18 +1287,9 @@ impl App {
             crate::convention::Convention::current(),
             crate::commands::Platform::current(),
         ));
-        let keymap = KeymapState::with_overrides_and_keep(
-            &keys_with_web_alt,
-            &config.effective_linux_keep(),
-        );
-        // STICKY ZOOM: relaunch at the remembered zoom, else the first-run default
-        // (`INITIAL_ZOOM`). Clamped to the valid range so a hand-edited extreme can't
-        // wedge the view. (Theme / page / caret are process-globals already restored
-        // in `main` before `App::new`; zoom is per-instance so it lands here.)
+        let keymap = startup::keymap(&keys_with_web_alt, &config.effective_linux_keep());
         let zoom = render::clamp_zoom(config.zoom.unwrap_or(INITIAL_ZOOM));
-        let scroll_sensitivity = config
-            .scroll_sensitivity
-            .unwrap_or(crate::range::SCROLL_SENSITIVITY.default);
+        let scroll_sensitivity = input::initial_scroll_sensitivity(config.scroll_sensitivity);
         crate::settings::set_scroll_sensitivity(scroll_sensitivity);
         // THE ONE TIME OWNER: the shipped `RealClock` (a pure `Instant::now()`
         // pass-through). Built before the literal so the session-timer origin
@@ -1524,6 +1513,10 @@ impl App {
         app
     }
 
+    /// Hold an action-required notice until its owner explicitly clears it.
+    /// Toast notices use the separate timed helper below.
+    /// This is deliberately separate from transient editor feedback.
+    ///
     fn set_sticky_notice(&mut self, text: impl Into<String>) {
         self.notice = Some(text.into());
         self.notice_kind = NoticeKind::Sticky;
@@ -2396,8 +2389,7 @@ pub fn run(
     // exactly): install the panic hook FIRST, before any window/GPU/daemon
     // work, so a panic anywhere downstream — including the daemon dance right
     // below — still gets a local crash log. `crate::crashlog::install_hook` is
-    // called from ONLY this one door; `--screenshot`/`--keys`/`--bench-*` never
-    // reach `crate::app::run` at all, so a headless capture structurally never
+    // called only here; headless capture modes never reach `crate::app::run`, so never
     // installs it (tripwire: `main::run::tests::
     // headless_screenshot_never_installs_the_crash_hook`).
     #[cfg(not(target_arch = "wasm32"))]

@@ -1,32 +1,15 @@
 //! src/settings.rs — the SETTINGS MENU corpus (the single owner) + its faceting
 //! scheme.
 //!
-//! The settings menu is a SUMMONED, transient overlay ([`crate::overlay::OverlayKind::Settings`])
-//! that reuses the faceted-lens machinery ([`crate::facets`]) with the setting
-//! CATEGORIES as lenses (All · Editor · Appearance · Writing · Files ·
-//! Keybindings · Advanced). Every setting is one row in a FLAT corpus; the active
-//! lens buckets those rows under their category. The row's SECONDARY column shows
-//! the setting's CURRENT VALUE — read from the SAME owners the renderer reads
-//! (`theme::active()`, `page::page_on()`, `caret::mode()`, `spell::*`,
-//! `markdown::*`, `nits::*`, and the config for the file/project prefs), never a
-//! parallel copy — so the menu can never disagree with the live editor.
+//! The summoned Settings overlay reuses faceted lenses with categories as lenses.
+//! Every setting is one flat-corpus row; its secondary cell reads the same live
+//! owner as the renderer, never a parallel value.
 //!
 //! This module owns ONLY the corpus + the faceting DATA and the value READOUT.
-//! The overlay construction lives in [`crate::overlay::build`]; the Enter
-//! interactions are WIRED (`actions::overlay_nav::settings_accept`, on the shared
-//! `apply_core` seam both the live App and the headless `--keys` replay run): a
-//! [`SettingKind::Toggle`] row signals `Effect::SettingToggle`, applied LIVE by
-//! `App::setting_toggle` (flips the sticky boolean, persists it, refreshes the
-//! still-open menu's value cell — a no-op in headless replay, unit-tested at the
-//! apply seam instead); a [`SettingKind::Value`] row arms an inline numeric edit
-//! sub-state (driven by the shared core either way); a [`SettingKind::Path`] row
-//! routes to the folder navigator (breadcrumbed back here); [`SettingKind::Picker`]
-//! / [`SettingKind::Submenu`] rows open a sub-overlay (also breadcrumbed back —
-//! "Ambiguous CJK reads as" is a `Picker` row like Theme/Caret/Dictionary, opening
-//! [`crate::overlay::OverlayKind::CjkLang`]); the Advanced "Edit config as text"
-//! [`SettingKind::Action`] row closes the menu and opens `config.toml` as text
-//! (`Effect::OpenSettings` — the raw escape hatch, handled identically live and
-//! headless).
+//! Overlay construction lives in [`crate::overlay::build`]; Enter interactions
+//! run through the shared `apply_core` seam. Toggle, numeric value, path, picker,
+//! submenu, and action rows each signal their typed effect, identically live and
+//! in headless replay.
 //!
 //! SINGLE OWNER (the `commands::COMMANDS` pattern): [`SETTINGS`] is the one table.
 //! Its display name, category, and type never live anywhere else; the FacetScheme
@@ -37,19 +20,14 @@
 
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::Path;
-
-/// Live smooth-scroll multiplier. It mirrors Config/App so the shared action core
-/// can drive a Range row without growing a second layout/input context parameter.
-static SCROLL_SENSITIVITY_BITS: std::sync::atomic::AtomicU32 =
-    std::sync::atomic::AtomicU32::new(1.0f32.to_bits());
+mod scroll_sensitivity;
 
 pub fn scroll_sensitivity() -> f32 {
-    f32::from_bits(SCROLL_SENSITIVITY_BITS.load(std::sync::atomic::Ordering::Relaxed))
+    scroll_sensitivity::get()
 }
 
 pub fn set_scroll_sensitivity(value: f32) {
-    let value = crate::range::SCROLL_SENSITIVITY.quantize(value);
-    SCROLL_SENSITIVITY_BITS.store(value.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    scroll_sensitivity::set(value);
 }
 
 /// How a setting is EDITED (drives what Enter does). Carried as DATA on each
@@ -631,15 +609,7 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
     })
 }
 
-/// ITEM 94 — THE RANGE IDENTITY MAP: the authored [`crate::range::RangeSpec`] a
-/// [`SettingKind::Range`] row is driven by, or `None` for every other id. THE ONE
-/// door between a settings row and its range rule: the keyboard step, the pointer
-/// click/drag, the drawn rail, the value readout, the exact-entry parse, the
-/// sidecar and the persisted RHS all resolve the spec through HERE and then do
-/// their arithmetic inside it — so no input path can compute a parallel value.
-///
-/// A `None` here for a `Range` row (or a `Some` for any other kind) fails
-/// [`tests::every_range_row_has_a_spec_and_nothing_else_does`].
+/// The one `SettingId` → authored range-spec map.
 pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
     Some(match id {
         SettingId::Zoom => &crate::range::ZOOM,
@@ -648,10 +618,7 @@ pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
     })
 }
 
-/// ITEM 94 — the CURRENT value of a range setting, read from the same gathered
-/// [`SettingsValues`] the readout reads (never a parallel copy). `None` for every
-/// non-range id. Feeds [`visible_range_cells`] (the row's rail position) and the
-/// laws that sweep the two maps against each other.
+/// Current value of a range setting from the gathered settings snapshot.
 pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
     Some(match id {
         SettingId::Zoom => values.zoom,
@@ -660,10 +627,7 @@ pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
     })
 }
 
-/// ITEM 94 — the RANGE CELL for one row: its typed identity plus the DISCRETE
-/// step its current value sits on (the rail's drawn position, an integer so a row
-/// stays `Eq` and a thumb can never drift by a float epsilon). `None` for a
-/// non-range row.
+/// Typed range identity plus the discrete step rendered by its rail.
 pub fn range_cell(row: &SettingRow, values: &SettingsValues) -> Option<crate::overlay::RangeCell> {
     let spec = range_spec(row.id)?;
     let v = range_value(row.id, values)?;
@@ -673,10 +637,7 @@ pub fn range_cell(row: &SettingRow, values: &SettingsValues) -> Option<crate::ov
     })
 }
 
-/// The RANGE CELLS for [`visible_rows`], parallel to [`visible_names`] — the
-/// Settings overlay's rail column. EMPTY when no visible row is a range (so every
-/// other picker keeps no rail data at all). Read at build AND at every refresh, so
-/// the drawn thumb tracks the live value through one owner.
+/// Range cells parallel to [`visible_rows`]; empty when none are ranges.
 pub fn visible_range_cells(values: &SettingsValues) -> Vec<Option<crate::overlay::RangeCell>> {
     let cells: Vec<Option<crate::overlay::RangeCell>> = visible_rows()
         .iter()
@@ -688,10 +649,7 @@ pub fn visible_range_cells(values: &SettingsValues) -> Vec<Option<crate::overlay
     cells
 }
 
-/// The config KEY a VALUE or RANGE row edits + persists under — the single owner
-/// of the [`SettingId`] → config-key map for the inline numeric edit AND (item 94)
-/// the rail. `None` for every other kind. The RETURNED wire string is UNCHANGED
-/// from before item 55 — see [`toggle_key`]'s doc.
+/// Config key edited and persisted by a value or range row.
 pub fn value_key(id: SettingId) -> Option<&'static str> {
     Some(match id {
         SettingId::PageWidthProse => "page_width_prose",

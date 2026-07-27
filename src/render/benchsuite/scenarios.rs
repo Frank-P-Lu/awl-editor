@@ -1,10 +1,5 @@
-//! The `--bench-suite` SCENARIO matrix: eight real interaction shapes, each
-//! run against one corpus tier's pipeline and each WITNESSED — every scenario
-//! must prove the work it timed actually happened (reshape counts, row
-//! deltas, match counts, changed pixels) or the whole suite FAILS. The old
-//! `--bench-perf` THEME stage once printed ~5 ms while nothing reshaped; a
-//! cell here that can silently measure nothing is a defect (CLAUDE.md's
-//! bench-witness law), so witnesses are `ensure!`s, not comments.
+//! The `--bench-suite` scenario matrix. Every cell proves the work it timed
+//! happened through hard reshape, row, match, or pixel witnesses.
 //!
 //! Frames replay the live `RedrawRequested` aggregate (`advance` →
 //! `prepare` → encode → submit+poll → `atlas.trim`), exactly like
@@ -218,10 +213,8 @@ fn typing(cx: &mut Cx) -> Result<CellOut> {
 /// number `doc_top()` positions the document by) must have strictly advanced,
 /// the page-through reshapes ZERO times (the O(visible) law — a pure scroll
 /// must never reshape), the jump must move the viewport off the top, and the
-/// end frame differs from the top frame. A no-op'd scroll (viewport pinned at
-/// row 0) fails the first ensure — frame-to-frame caret animation can never
-/// satisfy an offset witness (the vacuous-witness defect this cell shipped
-/// with: its pixel diff passed on caret motion alone).
+/// end frame differs from the top frame. A pinned viewport fails the offset
+/// witness, regardless of caret animation.
 fn scroll(cx: &mut Cx) -> Result<CellOut> {
     const PAGE: usize = 24;
     const MAX_STEPS: usize = 16;

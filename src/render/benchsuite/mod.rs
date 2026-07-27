@@ -221,20 +221,23 @@ mod tests {
         Some((device, queue, p, view))
     }
 
-    /// TRIPWIRE 1: a PURE SCROLL step (only `scroll_lines` changes) schedules
-    /// ZERO reshapes and leaves the shaped row geometry untouched — scrolling
+    /// TRIPWIRE 1: PURE SCROLL steps (row and sub-row movement) schedule ZERO
+    /// reshapes and leave the shaped row geometry untouched — scrolling
     /// must stay O(visible), never O(doc).
     #[test]
     fn pure_scroll_step_schedules_zero_reshapes() {
         let _g = crate::testlock::serial();
-        let Some((_d, _q, mut p, mut view)) = shaped_pipeline() else {
-            eprintln!("skipping pure_scroll_step_schedules_zero_reshapes: no wgpu adapter");
-            return;
-        };
+        let (_d, _q, mut p, mut view) =
+            shaped_pipeline().expect("pure-scroll tripwire requires a wgpu adapter");
         let reshapes = p.reshape_count;
         let geom_gen = p.row_geom.generation();
-        for scroll in [1usize, 5, 20] {
-            view.scroll_lines = scroll;
+        for scroll in [
+            crate::render::ScrollPos { row: 0, px_q: 1 },
+            crate::render::ScrollPos { row: 0, px_q: 17 },
+            crate::render::ScrollPos::at_row(5),
+            crate::render::ScrollPos { row: 20, px_q: 31 },
+        ] {
+            view.scroll = scroll;
             p.set_view(&view);
         }
         assert_eq!(
@@ -253,10 +256,8 @@ mod tests {
     #[test]
     fn identical_set_view_is_reshape_free() {
         let _g = crate::testlock::serial();
-        let Some((_d, _q, mut p, view)) = shaped_pipeline() else {
-            eprintln!("skipping identical_set_view_is_reshape_free: no wgpu adapter");
-            return;
-        };
+        let (_d, _q, mut p, view) =
+            shaped_pipeline().expect("identical-view tripwire requires a wgpu adapter");
         let reshapes = p.reshape_count;
         p.set_view(&view);
         p.set_view(&view);
@@ -272,10 +273,8 @@ mod tests {
     #[test]
     fn one_zoom_change_reshapes_exactly_once() {
         let _g = crate::testlock::serial();
-        let Some((_d, _q, mut p, mut view)) = shaped_pipeline() else {
-            eprintln!("skipping one_zoom_change_reshapes_exactly_once: no wgpu adapter");
-            return;
-        };
+        let (_d, _q, mut p, mut view) =
+            shaped_pipeline().expect("zoom tripwire requires a wgpu adapter");
         let reshapes = p.reshape_count;
         view.zoom = 1.1;
         p.set_view(&view);
@@ -293,10 +292,8 @@ mod tests {
     #[test]
     fn sync_theme_reshapes_iff_the_face_changes() {
         let _g = crate::testlock::serial();
-        let Some((_d, _q, mut p, _view)) = shaped_pipeline() else {
-            eprintln!("skipping sync_theme_reshapes_iff_the_face_changes: no wgpu adapter");
-            return;
-        };
+        let (_d, _q, mut p, _view) =
+            shaped_pipeline().expect("theme-reshape tripwire requires a wgpu adapter");
         crate::theme::set_active_by_name("Gumtree").expect("Gumtree exists");
         p.sync_theme();
         let reshapes = p.reshape_count;
@@ -325,21 +322,19 @@ mod tests {
     #[test]
     fn scroll_offset_oracle_moves_with_the_viewport() {
         let _g = crate::testlock::serial();
-        let Some((_d, _q, mut p, mut view)) = shaped_pipeline() else {
-            eprintln!("skipping scroll_offset_oracle_moves_with_the_viewport: no wgpu adapter");
-            return;
-        };
+        let (_d, _q, mut p, mut view) =
+            shaped_pipeline().expect("scroll-offset oracle requires a wgpu adapter");
         assert_eq!(
-            p.row_top_px(p.scroll_lines),
+            p.scroll_top_px(p.scroll),
             0.0,
             "the top of the document must resolve offset 0"
         );
         let rows = p.total_visual_rows();
         assert!(rows > 1, "the S corpus must shape more than one visual row");
-        view.scroll_lines = rows - 1;
+        view.scroll = crate::render::ScrollPos::at_row(rows - 1);
         p.set_view(&view);
         assert!(
-            p.row_top_px(p.scroll_lines) > 0.0,
+            p.scroll_top_px(p.scroll) > 0.0,
             "a scrolled viewport must resolve a strictly positive offset"
         );
     }

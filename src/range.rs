@@ -268,22 +268,15 @@ impl RangeSpec {
     }
 }
 
-/// ZOOM — the first (and, this round, only) range setting: 50 %–300 % in
-/// 10-percentage-point steps on a LINEAR percentage rail, defaulting to 100 %.
-/// Its band, step and NaN fallback are byte-identical to the pre-item-94
-/// `render::clamp_zoom` (which now delegates here), so every existing zoom door
-/// — ⌘=/⌘-, ⌘-wheel, `--zoom`, a sticky `zoom = 1.4`, a typed `125%` — keeps its
-/// exact behaviour while gaining the rail.
+/// Zoom: 50%–300% in ten-point steps on a linear rail, defaulting to 100%.
+/// `render::clamp_zoom` delegates here, preserving every existing zoom door.
 pub const ZOOM: RangeSpec = RangeSpec::new(0.5, 3.0, 0.1, 1.0, Unit::Percent, RailMap::Linear);
 
-/// Smooth document-scroll multiplier: physical pixels at 100%, logarithmic rail
-/// so every doubling occupies equal visual space, and whole five-point steps.
+/// Smooth pixel multiplier on a logarithmic 25%–400% rail.
 pub const SCROLL_SENSITIVITY: RangeSpec =
     RangeSpec::new(0.25, 4.0, 0.05, 1.0, Unit::Percent, RailMap::Log);
 
-/// Every spec the app registers, for the sweep laws. (A spec reachable only from
-/// [`crate::settings::range_spec`] would be law-tested there too; this is the
-/// module-local roster so the pure grid/rail laws need no settings import.)
+/// Every registered spec, for the pure sweep laws.
 #[cfg(test)]
 pub(crate) const REGISTERED: &[(&str, RangeSpec)] =
     &[("zoom", ZOOM), ("scroll_sensitivity", SCROLL_SENSITIVITY)];

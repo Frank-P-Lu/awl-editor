@@ -240,7 +240,7 @@ fn wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_non
     crate::page::set_page_on(true);
     let tall = (0..100).map(|_| "line").collect::<Vec<_>>().join("\n");
     let mut scrolled = view(&tall, 0, 0);
-    scrolled.scroll_lines = 40;
+    scrolled.scroll = ScrollPos::at_row(40);
     p.set_view(&scrolled);
     p.prepare(&device, &queue, 500, 360).unwrap();
     let scroll_left_band = (p.column_left() - weight * 0.5).floor() as i64;

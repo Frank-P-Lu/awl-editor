@@ -12,12 +12,12 @@ use crate::render::rowlayout;
 /// The probe values every rail test renders from: an off-default zoom, so a test
 /// that accidentally assumed 100 % (mid-band on nothing, rail head on nothing)
 /// fails loudly.
-fn values(zoom: f32) -> crate::settings::SettingsValues {
+fn values(zoom: f32, scroll_sensitivity: f32) -> crate::settings::SettingsValues {
     crate::settings::SettingsValues {
         page_width_prose: 70,
         page_width_code: 100,
         zoom,
-        scroll_sensitivity: 1.0,
+        scroll_sensitivity,
         default_folder: "/n".into(),
         workspace: "/w".into(),
         project_root: "/p".into(),
@@ -33,7 +33,16 @@ fn values(zoom: f32) -> crate::settings::SettingsValues {
 /// Settings arm builds it (names + value cells + rail cells), so these tests
 /// render the production row shape.
 fn settings_state(zoom: f32) -> OverlayState {
-    let vals = values(zoom);
+    settings_state_for(crate::settings::SettingId::Zoom, zoom)
+}
+
+fn settings_state_for(id: crate::settings::SettingId, value: f32) -> OverlayState {
+    let (zoom, scroll_sensitivity) = match id {
+        crate::settings::SettingId::Zoom => (value, 1.0),
+        crate::settings::SettingId::ScrollSensitivity => (1.0, value),
+        _ => unreachable!("only range rows have rails"),
+    };
+    let vals = values(zoom, scroll_sensitivity);
     let mut ov = OverlayState::new(
         OverlayKind::Settings,
         crate::settings::visible_names(),
@@ -42,13 +51,16 @@ fn settings_state(zoom: f32) -> OverlayState {
     );
     ov.set_secondaries(crate::settings::visible_value_cells(&vals));
     ov.set_range_cells(crate::settings::visible_range_cells(&vals));
-    // Select the Zoom row (the rail row) — the same thing arrowing onto it does.
-    let zoom_row = ov
+    let wanted = crate::settings::visible_rows()
+        .into_iter()
+        .find(|row| row.id == id)
+        .expect("the range setting has a visible row");
+    let range_row = ov
         .items
         .iter()
-        .position(|&i| ov.rows[i].accept == "Zoom")
-        .expect("the Settings corpus has a Zoom row");
-    ov.selected = zoom_row;
+        .position(|&i| ov.rows[i].accept == wanted.name)
+        .expect("the Settings corpus has the range row");
+    ov.selected = range_row;
     ov
 }
 
@@ -156,10 +168,8 @@ fn the_rail_geometry_round_trips_and_its_hit_target_is_generous() {
 #[test]
 fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
     let _g = crate::testlock::serial();
-    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping a_rails_hit_target_is_where_it_is_drawn: no wgpu adapter");
-        return;
-    };
+    let (device, queue, mut p) =
+        headless_dqp(1200.0, 800.0).expect("range-rail law requires a wgpu adapter");
     let ov = settings_state(1.0);
     let v = settings_view(&ov);
     p.set_view(&v);
@@ -176,7 +186,10 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
     let mid_x = (x0 + x1) * 0.5;
     let hits: Vec<f32> = (0..800)
         .map(|y| y as f32)
-        .filter(|&y| p.overlay_range_at(mid_x, y).is_some())
+        .filter(|&y| {
+            p.overlay_range_at(mid_x, y)
+                .is_some_and(|(item, _)| item == zoom_item)
+        })
         .collect();
     assert!(!hits.is_empty(), "the drawn rail must be hit-testable");
     let (top, bottom) = (hits[0], hits[hits.len() - 1]);
@@ -222,13 +235,15 @@ fn a_rails_hit_target_is_where_it_is_drawn_and_the_label_is_not_part_of_it() {
         );
         x += 4.0;
     }
-    // …and NO other row has a rail at all (only range rows draw one).
+    // …and no other row can impersonate the Zoom rail. Another range row may
+    // legitimately answer at the same x, but it must resolve to its own item.
     let mut y = 0.0f32;
     while y < 800.0 {
         if !(top..=bottom).contains(&y) {
-            assert!(
-                p.overlay_range_at(mid_x, y).is_none(),
-                "y={y} is not the Zoom row, so it must carry no rail"
+            assert_ne!(
+                p.overlay_range_at(mid_x, y).map(|(item, _)| item),
+                Some(zoom_item),
+                "y={y} is not the Zoom row, so it must not resolve to Zoom"
             );
         }
         y += 3.0;
@@ -276,19 +291,15 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
     let _g = crate::testlock::serial();
     let w = 1200u32;
     let h = 800u32;
-    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping the_thumb_moves_across_the_track_with_the_value: no wgpu adapter");
-        return;
-    };
-    let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
-
+    let (device, queue, mut p) =
+        headless_dqp(w as f32, h as f32).expect("range-rail pixel law requires a wgpu adapter");
     // The thumb's drawn position as a FRACTION OF ITS OWN FRAME'S TRACK. The
     // thumb is found by vertical EXTENT: track and fill are a hairline
     // (`RAIL_H_LH` = 0.09 row heights), the thumb is `THUMB_H_LH` = 0.50 — so
     // the thumb's columns paint several times more ink down the row band than
     // the fill they emerge from, whatever ink they share.
-    let thumb_frac = |p: &mut TextPipeline, zoom: f32| -> f32 {
-        let ov = settings_state(zoom);
+    let thumb_frac = |p: &mut TextPipeline, id: crate::settings::SettingId, value: f32| -> f32 {
+        let ov = settings_state_for(id, value);
         let v = settings_view(&ov);
         p.set_view(&v);
         p.prepare(&device, &queue, w, h).unwrap();
@@ -296,7 +307,10 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
         let mid = (x0 + x1) * 0.5;
         let ys: Vec<f32> = (0..h)
             .map(|y| y as f32)
-            .filter(|&y| p.overlay_range_at(mid, y).is_some())
+            .filter(|&y| {
+                p.overlay_range_at(mid, y)
+                    .is_some_and(|(item, _)| item == ov.selected)
+            })
             .collect();
         let (band_top, band_bot) = (ys[0] as i64, ys[ys.len() - 1] as i64);
         let pixels = pixeldiff::render_frame(p, &device, &queue, w, h);
@@ -312,7 +326,13 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
         // while the padding past the ends buys nothing and buys trouble — on
         // Mangrove the ground just past `x1` paints a taller vertical run than
         // the thumb itself.
-        let (lo, hi) = (x0.ceil() as i64, x1.floor() as i64);
+        let expected_frac = crate::settings::range_spec(id).unwrap().frac_of(value);
+        let expected_x = x0 + expected_frac * (x1 - x0);
+        // Search only the expected thumb neighbourhood. This still fails if the
+        // bitmap lacks the tall thumb (the extent assertion below), while avoiding
+        // unrelated taller texture marks elsewhere along a patterned-world rail.
+        let lo = x0.ceil().max(expected_x - 10.0) as i64;
+        let hi = x1.floor().min(expected_x + 10.0) as i64;
         let extents: Vec<i32> = (lo..=hi)
             .map(|x| {
                 let ground = at(x, band_top);
@@ -333,7 +353,7 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
         // an oracle that lost the thumb says so instead of answering with furniture.
         assert!(
             peak * 4 > (band_bot - band_top) as i32,
-            "zoom {zoom}: the tallest mark on the track ({peak}px of a \
+            "{id:?} {value}: the tallest mark on the track ({peak}px of a \
              {}px band) is too short to be the thumb",
             band_bot - band_top
         );
@@ -348,26 +368,31 @@ fn the_thumb_moves_across_the_track_with_the_value_real_pixels() {
         rowlayout::rail_frac_at(cx, x0, x1)
     };
 
-    // EVERY WORLD: the pixel oracle must find the thumb on all of them, not on
-    // whichever one happened to be active. Each iteration pins its own world
-    // (and restores it) through the one owner.
-    for world in theme::world_names() {
-        let _pin = theme::WorldPin::world(world).expect("a named world exists");
-        p.sync_theme();
-        let low = thumb_frac(&mut p, spec.min);
-        let high = thumb_frac(&mut p, spec.max);
-        assert!(
-            low < 0.25,
-            "{world}: at the band FLOOR the thumb sits at the rail's head (frac {low})"
-        );
-        assert!(
-            high > 0.75,
-            "{world}: at the band CEILING the thumb sits at the rail's tail (frac {high})"
-        );
-        assert!(
-            high > low + 0.5,
-            "{world}: the thumb genuinely travelled ({low} -> {high})"
-        );
+    // EVERY RANGE ROW × EVERY WORLD: the pixel oracle must find the thumb and
+    // confirm the same endpoint parity the pointer resolver reports.
+    for id in [
+        crate::settings::SettingId::Zoom,
+        crate::settings::SettingId::ScrollSensitivity,
+    ] {
+        let spec = crate::settings::range_spec(id).unwrap();
+        for world in theme::world_names() {
+            let _pin = theme::WorldPin::world(world).expect("a named world exists");
+            p.sync_theme();
+            let low = thumb_frac(&mut p, id, spec.min);
+            let high = thumb_frac(&mut p, id, spec.max);
+            assert!(
+                low < 0.25,
+                "{id:?}/{world}: floor thumb is at the rail head (frac {low})"
+            );
+            assert!(
+                high > 0.75,
+                "{id:?}/{world}: ceiling thumb is at the rail tail (frac {high})"
+            );
+            assert!(
+                high > low + 0.5,
+                "{id:?}/{world}: the thumb genuinely travelled ({low} -> {high})"
+            );
+        }
     }
     p.sync_theme();
 }
@@ -382,10 +407,8 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
     let _g = crate::testlock::serial();
     let w = 1200u32;
     let h = 800u32;
-    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping the_rail_reads_against_its_ground_in_light_and_dark: no wgpu adapter");
-        return;
-    };
+    let (device, queue, mut p) =
+        headless_dqp(w as f32, h as f32).expect("range-rail contrast law requires a wgpu adapter");
     // One LIGHT world and one DARK world, both `Pane` (a card behind the rows) so
     // the rail's ground is the card/band rather than the live page. The world is
     // held by an explicit [`theme::WorldPin`] rather than a hand-rolled
@@ -409,7 +432,10 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
             let mid = (x0 + x1) * 0.5;
             let ys: Vec<f32> = (0..h)
                 .map(|y| y as f32)
-                .filter(|&y| p.overlay_range_at(mid, y).is_some())
+                .filter(|&y| {
+                    p.overlay_range_at(mid, y)
+                        .is_some_and(|(item, _)| item == zoom_item)
+                })
                 .collect();
             assert!(!ys.is_empty(), "{world}: the rail must be present");
             let row_y = ((ys[0] + ys[ys.len() - 1]) * 0.5) as i64;
@@ -484,10 +510,8 @@ fn the_rail_reads_against_its_ground_in_light_and_dark_worlds_real_pixels() {
 #[test]
 fn a_card_with_no_range_rows_carries_no_rail_at_all() {
     let _g = crate::testlock::serial();
-    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping a_card_with_no_range_rows_carries_no_rail_at_all: no wgpu adapter");
-        return;
-    };
+    let (device, queue, mut p) =
+        headless_dqp(1200.0, 800.0).expect("range absence law requires a wgpu adapter");
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
     v.overlay_items = vec!["Save".into(), "Go to file…".into(), "Switch theme…".into()];

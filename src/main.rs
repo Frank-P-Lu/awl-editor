@@ -36,6 +36,8 @@ mod app_icon;
 mod args;
 #[path = "main/run.rs"]
 mod run;
+#[path = "main/scroll_arg.rs"]
+mod scroll_arg;
 // The storyboard ORCHESTRATOR (`--storyboard`): drives one strict replay
 // session step-by-step through the film renderer. A `main/` sibling of `run`
 // (same `#[path]` reason); the storyboard MODEL/parser lives in

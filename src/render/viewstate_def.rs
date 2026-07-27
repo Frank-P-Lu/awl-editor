@@ -15,8 +15,6 @@ use super::*;
 /// The render-relevant snapshot of the editor. Pure data so both the windowed
 /// app and the headless capture can build one and hand it to the pipeline.
 pub struct ViewState {
-    #[cfg(test)]
-    pub scroll_lines: usize,
     /// Full buffer text.
     pub text: String,
     /// Cursor line (0-based) and column (0-based, in chars).
@@ -338,8 +336,6 @@ impl ViewState {
     /// `eol = Eol::Lf` — matching the value every scaffold previously spelled out.
     pub fn base() -> Self {
         ViewState {
-            #[cfg(test)]
-            scroll_lines: 0,
             text: String::new(),
             cursor_line: 0,
             cursor_col: 0,

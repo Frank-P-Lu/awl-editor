@@ -32,6 +32,7 @@ mod autosave;
 mod dictionary;
 mod document;
 mod open;
+mod range_settings;
 mod rebind;
 mod settings;
 mod verbs;

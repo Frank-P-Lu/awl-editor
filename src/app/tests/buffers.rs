@@ -654,7 +654,7 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     // Mutate EVERY BufferExtra field on A to a value distinguishable from
     // both `BufferExtra::default()` and whatever B/C will carry.
     app.active.extra.shift_selecting = true;
-    app.active.extra.scroll_lines = 11;
+    app.active.extra.scroll = crate::render::ScrollPos { row: 11, px_q: 29 };
     app.run_spellcheck_now(); // populates spell_cache + spell_checked_version
     assert!(
         !app.active.extra.spell_cache.is_empty(),
@@ -685,10 +685,7 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(55));
 
     app.load_path(b.clone()); // A parks whole-slot; B activates FRESH
-    assert_eq!(
-        app.active.extra.scroll_lines, 0,
-        "B never sees A's sentinel"
-    );
+    assert_eq!(app.active.extra.scroll.row, 0, "B never sees A's sentinel");
     assert!(!app.active.extra.shift_selecting);
     assert!(app.active.extra.spell_cache.is_empty());
     assert_eq!(
@@ -704,7 +701,10 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
 
     app.load_path(a.clone()); // A reactivates: every sentinel round-trips.
     assert!(app.active.extra.shift_selecting);
-    assert_eq!(app.active.extra.scroll_lines, 11);
+    assert_eq!(
+        app.active.extra.scroll,
+        crate::render::ScrollPos { row: 11, px_q: 29 }
+    );
     assert_eq!(app.active.extra.spell_cache.len(), a_spell_len);
     assert_eq!(
         app.active.extra.spell_checked_version,
@@ -730,7 +730,8 @@ fn buffer_scoped_fields_round_trip_a_to_b_to_a_then_a_to_b_to_c_to_a() {
     app.load_path(c.clone());
     app.load_path(a.clone());
     assert_eq!(
-        app.active.extra.scroll_lines, 11,
+        app.active.extra.scroll,
+        crate::render::ScrollPos { row: 11, px_q: 29 },
         "A's state survives a 3-way swap too"
     );
     assert_eq!(app.active.extra.caret_synced_version, 999);
@@ -803,13 +804,13 @@ fn fresh_buffer_starts_with_default_buffer_extra() {
     let mem = InMemoryFs::new().with_file(&a, "# a\n");
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
-    app.active.extra.scroll_lines = 40; // dirty the CURRENT buffer's extra
+    app.active.extra.scroll = crate::render::ScrollPos::at_row(40);
     app.active.extra.history_preview = Some(("1".to_string(), "x".to_string()));
 
     app.new_document(); // a brand-new, never-before-seen buffer
 
     assert_eq!(
-        app.active.extra.scroll_lines, 0,
+        app.active.extra.scroll.row, 0,
         "fresh-defaults, not carried over"
     );
     assert!(!app.active.extra.shift_selecting);

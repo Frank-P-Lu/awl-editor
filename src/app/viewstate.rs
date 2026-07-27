@@ -1,10 +1,10 @@
 //! VIEW SNAPSHOT: build the [`ViewState`] from the current buffer + scroll +
 //! zoom + selection + search + overlay and push it into the pipeline
 //! ([`App::sync_view`]), plus anchoring the OS IME candidate window to the
-//! caret. The one bridge from editor state to the render pipeline; lifted out
-//! of `app.rs` verbatim.
+//! caret: the one bridge from editor state to the render pipeline.
 
 use super::*;
+mod scroll;
 
 impl App {
     /// Build the render snapshot from the current buffer + scroll + zoom +
@@ -22,6 +22,7 @@ impl App {
         // sync before that redraw arrives.
         self.zoom_reflow.clear();
         let height = self.gpu.as_ref().unwrap().config.height as f32;
+        debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.active.buffer.cursor_line_col();
         // Re-run spell detection only when the buffer text changed. We detect a
         // change via the cheap edit VERSION (a `u64` bump per content mutation)
@@ -94,7 +95,7 @@ impl App {
         let preview = self.history_preview_text();
         // DIFF-AS-PREVIEW scroll: while the diff preview is up, the page shows the
         // OVERLAY's own `diff_scroll` (PgUp/PgDn / panel-focus ↑/↓ / the wheel over
-        // the page all mutate it) — and `self.active.extra.scroll_lines`, the DOCUMENT's
+        // the page all mutate it) — and `self.active.extra.scroll`, the DOCUMENT's
         // viewport, is deliberately never touched, so "Esc = back to now exactly"
         // includes the scroll by construction. Clamped against the shaped
         // transcript below (with the clamp written back, so the sidecar reports
@@ -197,8 +198,6 @@ impl App {
         // depend on the scroll value, so we can read those AFTER this first push
         // and only need to re-push if cursor-follow moves the scroll.
         let mut view = ViewState {
-            #[cfg(test)]
-            scroll_lines: self.active.extra.scroll.row,
             text,
             cursor_line,
             cursor_col,
@@ -206,11 +205,7 @@ impl App {
             // motion) — the pipeline reads it to render the caret on the row it
             // visually belongs to at a shared soft-wrap boundary.
             caret_affinity: self.active.buffer.affinity(),
-            scroll: if diff_scroll.is_some() {
-                crate::render::ScrollPos::at_row(diff_scroll.unwrap_or(0))
-            } else {
-                self.active.extra.scroll
-            },
+            scroll: diff_scroll.map_or(self.active.extra.scroll, crate::render::ScrollPos::at_row),
             zoom: self.zoom,
             selection: self.active.buffer.selection_line_col(),
             preedit: self.preedit.clone(),
@@ -450,10 +445,8 @@ impl App {
             gpu.pipeline.set_view(&view);
         }
 
-        // Cursor-follow (an edit / cursor move): adjust the VISUAL-ROW scroll so the
-        // cursor's visual row sits in the viewport. TYPEWRITER SCROLL folds into
-        // cursor-follow: while it is on, the cursor's row is CENTERED vertically (it
-        // rests at the eye line); while it is off the minimal-adjust is kept EXACTLY
+        // Cursor-follow keeps the visual row visible, or centered in typewriter mode;
+        // while typewriter is off the minimal-adjust behavior is kept exactly
         // (only nudge the scroll enough to reveal the row). For a non-wrapped doc the
         // cursor's visual row == its logical line, so the off path is identical to the
         // previous logical-line cursor-follow.
@@ -470,8 +463,7 @@ impl App {
                 pipeline.zoom_anchor_scroll_pos(anchor.line, anchor.col, anchor.screen_y, height);
         } else if follow {
             let pipeline = &self.gpu.as_ref().unwrap().pipeline;
-            // Affinity-aware so cursor-follow tracks the row the caret VISUALLY sits
-            // on at a shared boundary (Upstream → the upper row).
+            // Affinity resolves shared boundaries to the caret's visual row.
             let cursor_row =
                 pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
             self.active.extra.scroll =
@@ -510,17 +502,8 @@ impl App {
                 }
             }
             None => {
-                self.active.extra.scroll = self.gpu.as_ref().unwrap().pipeline.scroll_by_px(
-                    self.active.extra.scroll,
-                    0.0,
-                    height,
-                );
-                // Re-push only if the scroll actually changed (cheap; avoids a
-                // redundant reshape on the common no-scroll-change path).
-                if self.active.extra.scroll != prev_scroll {
-                    view.scroll = self.active.extra.scroll;
-                    self.gpu.as_mut().unwrap().pipeline.set_view(&view);
-                }
+                self.normalize_and_repush_scroll(&mut view, prev_scroll, height);
+                debug_assert!(self.active.extra.scroll.px_q >= 0);
             }
         }
         // Keep the OS candidate window anchored to the (advance-aware) caret.

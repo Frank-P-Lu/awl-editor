@@ -54,7 +54,7 @@ fn reshape(
         view(text, cl, cc)
     };
     v.zoom = zoom;
-    v.scroll_lines = scroll;
+    v.scroll = ScrollPos::at_row(scroll);
     p.set_view(&v);
 }
 
@@ -146,31 +146,26 @@ fn caret_screen_y_holds_across_zoom_variable_rows() {
     });
 }
 
-/// ZoomOut ROUND-TRIP returns the scroll to (≈) where it started: zoom in anchoring
-/// the caret, then zoom back out anchoring the caret at its held y, and the scroll
-/// lands within one row of the original.
+/// Zoom round-trip preserves the semantic document coordinate, including a
+/// nonzero intra-row offset.
 #[test]
 fn zoom_round_trip_returns_scroll() {
     with_page_off(|| {
-        let Some(mut p) = headless_pipeline() else {
-            eprintln!("skip zoom_round_trip_returns_scroll: no wgpu adapter");
-            return;
-        };
+        let mut p = headless_pipeline().expect("zoom-scroll law requires a GPU adapter");
         let text = headings(60);
         let (cl, cc) = (28, 0);
-        let scroll0 = 16usize;
-        reshape(&mut p, &text, cl, cc, 1.0, scroll0, true);
-        let caret_y0 = p.char_screen_top(cl, cc, scroll0);
-        // In to 1.3.
-        reshape(&mut p, &text, cl, cc, 1.3, scroll0, true);
-        let scroll1 = p.zoom_anchor_scroll(cl, cc, caret_y0, 800.0);
-        let caret_y1 = p.char_screen_top(cl, cc, scroll1);
-        // Back out to 1.0, anchoring the caret at the y it now holds.
-        reshape(&mut p, &text, cl, cc, 1.0, scroll1, true);
-        let scroll2 = p.zoom_anchor_scroll(cl, cc, caret_y1, 800.0);
+        reshape(&mut p, &text, cl, cc, 1.0, 16, true);
+        let scroll0 = p.scroll_by_px(ScrollPos::at_row(16), 11.5, 800.0);
+        let top0 = p.scroll_top_px(scroll0);
+        let caret_y0 = p.char_screen_top_scroll(cl, cc, scroll0);
+        reshape(&mut p, &text, cl, cc, 1.3, scroll0.row, true);
+        let scroll1 = p.zoom_anchor_scroll_pos(cl, cc, caret_y0, 800.0);
+        let caret_y1 = p.char_screen_top_scroll(cl, cc, scroll1);
+        reshape(&mut p, &text, cl, cc, 1.0, scroll1.row, true);
+        let scroll2 = p.zoom_anchor_scroll_pos(cl, cc, caret_y1, 800.0);
         assert!(
-            scroll2.abs_diff(scroll0) <= 1,
-            "round-trip scroll {scroll2} vs start {scroll0} (>1 row apart)"
+            (p.scroll_top_px(scroll2) - top0).abs() <= 1.0 / ScrollPos::SUBPX as f32,
+            "round-trip document coordinate drifted: {scroll2:?} vs {scroll0:?}"
         );
     });
 }
@@ -200,7 +195,7 @@ fn off_screen_caret_anchors_viewport_center() {
         // Fallback: anchor whatever sits at the viewport centre.
         let center_y = (TEXT_TOP + 800.0) * 0.5;
         let (center_x, _) = (600.0f32, center_y);
-        let (aline, acol) = p.hit_test(center_x, center_y, scroll);
+        let (aline, acol) = p.hit_test_scroll(center_x, center_y, ScrollPos::at_row(scroll));
         let center_top_old = p.char_screen_top(aline, acol, scroll);
         reshape(&mut p, &text, cl, cc, 1.25, scroll, false);
         let new_scroll = p.zoom_anchor_scroll(aline, acol, center_y, 800.0);
@@ -236,7 +231,7 @@ fn pointer_anchor_holds_doc_point_under_cursor() {
         let scroll = 20usize;
         reshape(&mut p, &text, 0, 0, 1.0, scroll, true);
         let pointer_y = 300.0f32;
-        let (aline, acol) = p.hit_test(600.0, pointer_y, scroll);
+        let (aline, acol) = p.hit_test_scroll(600.0, pointer_y, ScrollPos::at_row(scroll));
         reshape(&mut p, &text, 0, 0, 1.35, scroll, true);
         let new_scroll = p.zoom_anchor_scroll(aline, acol, pointer_y, 800.0);
         let anchor_top_new = p.char_screen_top(aline, acol, new_scroll);

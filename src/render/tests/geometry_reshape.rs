@@ -400,10 +400,14 @@ fn cursor_move_does_not_reshape() {
         p.reshape_count, after_first,
         "cursor-only changes must NOT trigger a reshape"
     );
-    // A SCROLL-only change (different scroll_lines, same text) also must not.
+    // A same-row SUBPIXEL scroll change must be observed without reshaping.
     let mut scrolled = view(text, 2, 5);
-    scrolled.scroll_lines = 1;
+    scrolled.scroll = ScrollPos { row: 0, px_q: 17 };
     p.set_view(&scrolled);
+    assert_eq!(
+        p.scroll, scrolled.scroll,
+        "the exact semantic scroll is pushed"
+    );
     assert_eq!(
         p.reshape_count, after_first,
         "scroll-only changes must NOT trigger a reshape"

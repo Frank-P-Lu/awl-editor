@@ -534,7 +534,7 @@ fn revealed_image_row_hit_test_stays_in_bounds() {
     let steps = 48;
     for i in 0..=steps {
         let px = left + wrap * (i as f32 / steps as f32);
-        let (line, col) = p.hit_test(px, py, 0);
+        let (line, col) = p.hit_test_scroll(px, py, ScrollPos::default());
         assert_eq!(
             line, 0,
             "every click on the revealed image row lands on line 0"
@@ -1772,7 +1772,7 @@ fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scro
 
     // STATE 2 — THE LIVE-REPORTED BOUNDARY: scroll one row past the image, so
     // its bottom edge sits at exactly TEXT_TOP.
-    v.scroll_lines = 1;
+    v.scroll = ScrollPos::at_row(1);
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert_eq!(
@@ -1795,7 +1795,7 @@ fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scro
     // the margin: correctly, fully gone.
     let extra_rows_past_margin = ((margin - TEXT_TOP) / lh).ceil() as usize + 3;
     let far_scroll = 1 + extra_rows_past_margin;
-    v.scroll_lines = far_scroll;
+    v.scroll = ScrollPos::at_row(far_scroll);
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert_eq!(
@@ -1811,7 +1811,7 @@ fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scro
 
     // SCROLL BACK UP to state 1: byte-identical restored geometry — no jump,
     // no blank collapse, no stale placeholder.
-    v.scroll_lines = 0;
+    v.scroll = ScrollPos::default();
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert_eq!(

@@ -727,22 +727,15 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 capture_dpi = Some(parse_dpi(&v)?);
             }
             "--scroll" => {
+                // Keep the capture hook's row anchor and fixed-point remainder
+                // together at the CLI boundary; normalization waits until shaping
+                // has supplied real variable-row geometry.
                 let v = args
                     .next()
-                    .ok_or_else(|| anyhow::anyhow!("--scroll requires a line count"))?;
-                let (row, px_q) = match v.split_once(':') {
-                    Some((row, px_q)) => (
-                        row.parse()
-                            .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
-                        px_q.parse()
-                            .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
-                    ),
-                    None => (
-                        v.parse()
-                            .map_err(|_| anyhow::anyhow!("bad --scroll {v:?}"))?,
-                        0,
-                    ),
-                };
+                    .ok_or_else(|| anyhow::anyhow!("--scroll requires ROW[:SUBPX]"))?;
+                let parsed = super::scroll_arg::parse(&v)?;
+                let row = parsed.row;
+                let px_q = parsed.px_q;
                 opts.scroll = Some(crate::render::ScrollPos { row, px_q });
             }
             "--preedit" => {
@@ -1006,7 +999,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      verification hooks (compose with --screenshot):\n\
                      \x20 --sel L0:C0-L1:C1   selection highlight from (l0,c0)..(l1,c1)\n\
                      \x20 --zoom F            zoom factor (0.5..3.0)\n\
-                     \x20 --scroll N          scroll N visual rows off the top\n\
+                     \x20 --scroll N[:Q]     scroll to row N plus Q fixed 1/64px units\n\
                      \x20 --preedit STR       render STR as an IME preedit at the caret\n\
                      \x20 --search STR        open isearch panel for STR + highlight hits\n\
                      \x20 --search-case       make --search case-sensitive\n\
@@ -1398,8 +1391,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
 /// Resolve the DEFAULT FOLDER (item 76 — the first-run launch fallback ONLY,
 /// never the active folder once running): explicit `--default-folder`, else
 /// `~/notes` (`$HOME/notes`), else `./notes` if HOME is unset. The directory is
-/// created lazily on first use (Cmd-N / first document save), so it need not
-/// exist yet.
+/// created lazily on first use.
 pub(crate) fn resolve_default_folder(default_folder: &Option<PathBuf>) -> PathBuf {
     if let Some(n) = default_folder {
         return n.clone();
@@ -1416,11 +1408,9 @@ mod tests {
 
     #[test]
     fn parse_sel_orders_endpoints_and_rejects_malformed() {
-        // Endpoints are ordered earliest-first regardless of input order.
         assert_eq!(parse_sel("0:0-2:3").unwrap(), ((0, 0), (2, 3)));
         assert_eq!(parse_sel("2:3-0:0").unwrap(), ((0, 0), (2, 3)));
         assert_eq!(parse_sel(" 1:2 - 1:5 ").unwrap(), ((1, 2), (1, 5)));
-        // Malformed: missing `-`, missing `:`, non-numeric.
         assert!(parse_sel("0:0").is_err());
         assert!(parse_sel("00-23").is_err());
         assert!(parse_sel("a:b-c:d").is_err());

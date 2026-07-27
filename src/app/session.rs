@@ -20,17 +20,7 @@
 //! side, reading the SAME underlying state — both single-read from one file,
 //! so they cannot disagree by construction.
 //!
-//! **Native-only scope trim (TASTE CALL, logged):** the whole engine is gated
-//! off on wasm, like the daemon. A browser tab has no discrete "quit, then
-//! relaunch a new process" — its persistence story is the existing scratch
-//! stash (which already survives a reload via `localStorage`) plus, if ever
-//! wanted, a page-lifecycle hook; that is out of scope here. This keeps the
-//! window-frame half (genuinely native-only — a `<canvas>` has no OS frame to
-//! remember) and the open-file-set half under ONE gate instead of splitting
-//! the feature down the middle.
-//!
-//! **Determinism:** both halves live ONLY on the live `App`; the headless
-//! `--screenshot`/`--keys` capture never constructs one (`main::run::replay_keys`
+//! **Determinism:** headless capture never constructs the live `App` (`main::run::replay_keys`
 //! / `load_buffer` build a bare `Buffer` directly), so a capture is
 //! STRUCTURALLY incapable of touching the session file — see
 //! `main::run::tests::headless_replay_never_touches_the_session_file`.
@@ -422,7 +412,7 @@ mod tests {
             app.active
                 .buffer
                 .set_cursor(app.active.buffer.line_col_to_char(2, 1));
-            app.active.extra.scroll = crate::render::ScrollPos::at_row(7);
+            app.active.extra.scroll = crate::render::ScrollPos { row: 7, px_q: 23 };
             app.load_path(PathBuf::from("/n/b.md")); // a.md is now backgrounded
 
             app.session_flush();
@@ -446,7 +436,7 @@ mod tests {
                     line: 2,
                     col: 1,
                     scroll: 7,
-                    scroll_px_q: 0,
+                    scroll_px_q: 23,
                 }
             );
         });

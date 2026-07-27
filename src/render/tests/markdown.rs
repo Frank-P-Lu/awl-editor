@@ -901,7 +901,7 @@ fn bullet_marks_placement_unchanged_and_geometry_is_o_visible() {
     let cursor_line = N / 2;
     let mut tall = view(&text, cursor_line, 0);
     tall.is_markdown = true;
-    tall.scroll_lines = cursor_line - 5; // put the caret near the view top
+    tall.scroll = ScrollPos::at_row(cursor_line - 5);
     p.set_view(&tall);
 
     // WARM the single-slot cursor-line memo, then prove `bullet_marks` leaves it

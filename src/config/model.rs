@@ -30,7 +30,6 @@ pub struct Config {
     pub theme: Option<String>,
     /// `zoom` — the last zoom factor; `None` = the first-run default (`0.8`).
     pub zoom: Option<f32>,
-    /// Smooth trackpad sensitivity as a physical-pixel multiplier; absent = 100%.
     pub scroll_sensitivity: Option<f32>,
     /// `page_mode` — page mode on/off; `None` = the built-in default (on).
     pub page_mode: Option<bool>,
@@ -426,10 +425,8 @@ impl Config {
         configured.unwrap_or_else(|| class.default_measure())
     }
 
-    /// Load settings from `path`. A MISSING or unreadable file yields a pure-defaults
-    /// config bound to `path` (so Settings can still create it) — never an error,
-    /// never a behaviour change. A PARSE error is reported to stderr and likewise
-    /// degrades to defaults, so a half-edited config never crashes the editor.
+    /// Load settings from `path`; missing, unreadable, or malformed input degrades
+    /// to defaults without crashing the editor.
     pub fn load(path: PathBuf) -> Self {
         let mut cfg = Config {
             default_folder: None,
@@ -485,28 +482,19 @@ impl Config {
         if let Some(s) = table.get("workspace").and_then(|v| v.as_str()) {
             cfg.workspace = Some(expand_tilde(s));
         }
-        // STICKY PREFERENCES (theme/zoom/page/caret). Each is read leniently — a
-        // wrong-typed value is simply ignored (stays None → the built-in default),
-        // never an error, matching the rest of the additive load. `zoom` accepts a
-        // TOML float OR integer; `page_mode` a bool.
+        // Sticky preferences read leniently; wrong types remain at defaults.
         if let Some(s) = table.get("theme").and_then(|v| v.as_str()) {
             cfg.theme = Some(s.to_string());
         }
-        if let Some(z) = table.get("zoom").and_then(toml_as_f32) {
-            cfg.zoom = Some(z);
-        }
-        if let Some(s) = table.get("scroll_sensitivity").and_then(toml_as_f32) {
-            cfg.scroll_sensitivity = Some(crate::range::SCROLL_SENSITIVITY.quantize(s));
-        }
-        if let Some(b) = table.get("page_mode").and_then(|v| v.as_bool()) {
-            cfg.page_mode = Some(b);
-        }
-        // `page_width_prose` / `page_width_code` are character counts: accept a
-        // TOML integer (or a float that rounds), floored at 1 so a stray 0 never
-        // collapses the column. The RETIRED single `page_width` key (this pair's
-        // predecessor) is simply an unknown key to this lenient loader now — a
-        // stale line in an existing config is silently inert, never migrated
-        // (no users but the author himself).
+        (cfg.zoom, cfg.scroll_sensitivity) = super::sticky::numeric_ranges(&table);
+        debug_assert!(
+            cfg.scroll_sensitivity.is_none() || cfg.scroll_sensitivity.unwrap().is_finite()
+        );
+        cfg.page_mode = table.get("page_mode").and_then(|v| v.as_bool());
+        // Page widths accept integer-like values and floor at one so a stray zero
+        // never collapses the column. The retired single `page_width` key remains
+        // unknown to this lenient loader. Existing stale entries stay inert and
+        // are never migrated.
         if let Some(w) = table.get("page_width_prose").and_then(toml_as_usize) {
             cfg.page_width_prose = Some(w.max(1));
         }
@@ -739,7 +727,7 @@ pub fn dictionary_path(config_path: &Path) -> Option<PathBuf> {
 /// overflows the f32 cast to ±inf): a remembered `zoom = nan` would poison every
 /// zoom-derived metric, so a non-finite value reads as absent (the built-in
 /// default), like any other wrong-typed pref in the lenient load.
-fn toml_as_f32(v: &toml::Value) -> Option<f32> {
+pub(super) fn toml_as_f32(v: &toml::Value) -> Option<f32> {
     v.as_float()
         .map(|f| f as f32)
         .or_else(|| v.as_integer().map(|i| i as f32))

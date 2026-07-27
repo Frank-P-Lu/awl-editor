@@ -30,6 +30,7 @@
 
 mod apply;
 mod model;
+mod sticky;
 mod write;
 
 pub use model::{Config, caret_mode_name, config_path, dictionary_name, dictionary_path};

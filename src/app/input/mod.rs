@@ -13,8 +13,10 @@
 mod drags;
 mod keys;
 mod mouse;
+mod wheel;
 
 pub(crate) use drags::{ImageDrag, RangeDrag};
+pub(in crate::app) use wheel::initial_sensitivity as initial_scroll_sensitivity;
 
 #[cfg(test)]
 mod tests;

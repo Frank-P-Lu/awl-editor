@@ -71,28 +71,6 @@ mod chrome;
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
 
-/// A document viewport position.  `row` deliberately preserves the old visual-row
-/// anchor semantics; `px_q` is the signed offset into that row in 1/64 physical
-/// pixels.  Keeping this integer makes capture/session state exactly comparable
-/// and prevents the tiny float drift that otherwise accumulates under trackpads.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub struct ScrollPos {
-    pub row: usize,
-    pub px_q: i32,
-}
-
-impl ScrollPos {
-    pub const SUBPX: i32 = 64;
-
-    pub const fn at_row(row: usize) -> Self {
-        Self { row, px_q: 0 }
-    }
-
-    pub fn px(self) -> f32 {
-        self.px_q as f32 / Self::SUBPX as f32
-    }
-}
-
 /// ROW LAYOUT — the ONE owner of picker-row column budgets: how a summoned
 /// overlay row splits its width between the PRIMARY cell (name/path — never
 /// dropped, elided only as a last resort) and the optional SECONDARY right
@@ -3066,27 +3044,8 @@ fn byte_col(text: &str, byte: usize) -> usize {
     text.char_indices().take_while(|(b, _)| *b < byte).count()
 }
 
-/// Index in the ascending `tops` table whose value is CLOSEST to `target`. The
-/// table holds each visual row's `line_top` (from `run.line_top`), and the caller's
-/// `target` is the same `run.line_top` for the row it wants, so an exact hit is the
-/// norm; the nearest-neighbour fallback only guards float drift. `tops` is assumed
-/// non-empty (the caller checks).
-fn nearest_row_index(tops: &[f32], target: f32) -> usize {
-    match tops.binary_search_by(|v| v.partial_cmp(&target).unwrap_or(std::cmp::Ordering::Equal)) {
-        Ok(i) => i,
-        Err(i) => {
-            if i == 0 {
-                0
-            } else if i >= tops.len() {
-                tops.len() - 1
-            } else if (target - tops[i - 1]).abs() <= (tops[i] - target).abs() {
-                i - 1
-            } else {
-                i
-            }
-        }
-    }
-}
+mod scroll;
+pub use scroll::ScrollPos;
 
 /// Everything needed to lay out and draw text + caret onto a wgpu render pass.
 /// Created once, reused every frame. Format must match the target texture's
@@ -3469,8 +3428,6 @@ pub struct TextPipeline {
     caret_affinity: crate::caret::Affinity,
     /// The semantic document scroll; all document geometry resolves this fact.
     scroll: ScrollPos,
-    #[cfg(test)]
-    pub scroll_lines: usize,
     /// Current zoom-derived metrics (single source of truth for layout).
     metrics: Metrics,
     /// The display's DPI `scale_factor` folded into [`Self::metrics`] (1.0 for the

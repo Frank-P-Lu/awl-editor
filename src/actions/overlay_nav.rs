@@ -996,13 +996,9 @@ pub(crate) fn stamp_return_to(
 }
 
 /// ITEM 94 — THE CORE-SIDE RANGE PORT: the live scalar `apply_core` owns for a
-/// range setting. A tiny `SettingId` -> `ActionCtx` field map (zoom is the only
-/// member today) — the VALUE ARITHMETIC is not here, it is all in the range spec;
-/// this only says WHERE the number lives. `None` for an id the core owns no scalar
-/// for, which the sweep
-/// (`actions::tests::overlay_drive::every_range_row_steps_through_the_core_and_signals_its_own_key`)
-/// makes unreachable for a real `Range` row — an unwired port falls through to the
-/// lens-cycler and fails there.
+/// range setting. Value arithmetic stays in the range spec; this only locates the
+/// scalar. `None` is made unreachable for real Range rows by the core port sweep,
+/// which fails an unwired port.
 fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f32> {
     Some(match id {
         crate::settings::SettingId::Zoom => *ctx.zoom,

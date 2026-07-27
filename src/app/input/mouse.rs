@@ -9,6 +9,7 @@
 //! `drags` for the page/image resize state machines (this file ARMS
 //! those drags from `on_mouse_input`, but their own lifecycle lives there).
 
+use super::wheel::*;
 use crate::app::*;
 
 impl App {
@@ -859,21 +860,8 @@ impl App {
         }
     }
 
-    /// Apply a wheel scroll of `lines` (positive = content moves up / scroll
-    /// down). Free scroll: moves the viewport WITHOUT moving the cursor.
-    pub(in crate::app) fn wheel_scroll(&mut self, lines: f32) {
-        if let Some(gpu) = self.gpu.as_ref() {
-            // A real mouse notch is three authored, zoomed base lines — never a
-            // row count, since a visual row can be an image or table.
-            let px = lines * 3.0 * render::LINE_HEIGHT * self.zoom * self.dpi;
-            self.active.extra.scroll =
-                gpu.pipeline
-                    .scroll_by_px(self.active.extra.scroll, px, gpu.config.height as f32);
-        }
-    }
-
-    /// Pixel-native document scroll.  The caller has already applied the user's
-    /// smooth-scroll sensitivity; discrete notches intentionally use `wheel_scroll`.
+    /// Pixel-native document scroll. The caller has already converted the native
+    /// event through the applicable pixel or discrete-notch policy.
     fn wheel_scroll_px(&mut self, pixels: f32) {
         if let Some(gpu) = self.gpu.as_ref() {
             self.active.extra.scroll = gpu.pipeline.scroll_by_px(
@@ -986,6 +974,12 @@ impl App {
     /// `WindowEvent::MouseInput`: the left/right press+release surface — input
     /// stamping, the summoned-about-card dismiss, right-click spell suggestions,
     /// and the left-button press/drag/resize/release state machine.
+    ///
+    /// This remains one dispatch seam because press and release share the drag,
+    /// selection, popover, and redraw state machines. Splitting those halves would
+    /// duplicate the state transition table and make a release capable of missing
+    /// the arm established by its press. Narrow gesture mechanisms still live in
+    /// their own helpers and modules.
     pub(in crate::app) fn on_mouse_input(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -1200,28 +1194,21 @@ impl App {
         }
     }
 
-    /// `WindowEvent::MouseWheel`: an overlay owns the wheel (drives the list),
-    /// else Cmd/Super+wheel zooms, else free scroll. Converts the LineDelta /
-    /// PixelDelta into a whole-row count first.
+    /// `WindowEvent::MouseWheel`: picker, zoom, table-pan, or document scroll.
     pub(in crate::app) fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
-        // DEBUG key→px: scroll is input awaiting pixels — every wheel
-        // path below ends in the arm's request_redraw.
+        // DEBUG key→px: every wheel path ends in request_redraw.
         self.stamp_input();
         // Zoom modifier: Cmd/Super only. (Ctrl must NOT zoom on mac.)
         let zoom_mod = scroll_zoom_intent(self.mods.state());
-        // HORIZONTAL TABLE PAN (a live-only reading gesture): a clearly-horizontal
-        // two-finger scroll over an OVERFLOWING table pans its grid rather than
-        // scrolling the document. Only when no picker owns the wheel and Cmd/Super
-        // isn't zooming; a mostly-vertical scroll falls straight through.
+        // A clearly horizontal gesture over an overflowing table pans its grid.
         if !zoom_mod && self.overlay.is_none() {
             let (dx, dy) = match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
                     (x * WHEEL_PIXELS_PER_LINE, y * WHEEL_PIXELS_PER_LINE)
                 }
-                MouseScrollDelta::PixelDelta(p) => (
-                    p.x as f32 * self.scroll_sensitivity,
-                    p.y as f32 * self.scroll_sensitivity,
-                ),
+                MouseScrollDelta::PixelDelta(p) => {
+                    pixel_wheel_axes(p.x as f32, p.y as f32, self.scroll_sensitivity)
+                }
             };
             if dx.abs() > dy.abs() * 1.2 && dx.abs() > 0.5 {
                 let (px, py) = self.cursor_px;
@@ -1234,15 +1221,11 @@ impl App {
                 }
             }
         }
-        // Picker navigation intentionally remains row-based.  The document arm
-        // below consumes raw pixels directly.
+        // Pickers stay row-based; the document arm consumes raw pixels.
         let lines = match delta {
             MouseScrollDelta::LineDelta(_, y) => y * WHEEL_LINES_PER_NOTCH,
             MouseScrollDelta::PixelDelta(p) => {
-                self.scroll_px_accum += p.y as f32;
-                let whole = (self.scroll_px_accum / WHEEL_PIXELS_PER_LINE).trunc();
-                self.scroll_px_accum -= whole * WHEEL_PIXELS_PER_LINE;
-                whole
+                accumulate_picker_pixels(&mut self.scroll_px_accum, p.y as f32)
             }
         };
         if self.overlay.is_some() {
@@ -1311,16 +1294,14 @@ impl App {
                 self.feed_peek(crate::peek::PeekStimulus::Interrupt);
             }
         } else if let MouseScrollDelta::PixelDelta(p) = delta {
-            // Keep the old accumulator above for picker navigation, but never
-            // quantize the document gesture: trackpad pixels are physical pixels
-            // at the authored 100% default. A positive wheel delta moves content
-            // down, hence the negative viewport offset.
-            self.wheel_scroll_px(-(p.y as f32) * self.scroll_sensitivity);
+            // Document trackpad gestures remain pixel-native; positive wheel y
+            // moves content down, hence the negative viewport offset.
+            self.wheel_scroll_px(pixel_wheel_document_px(p.y as f32, self.scroll_sensitivity));
             self.sync_view(false);
-        } else if lines.abs() >= 1.0 {
+        } else if let MouseScrollDelta::LineDelta(_, y) = delta {
             // Free scroll: wheel up moves content down (scroll up), so a
             // positive wheel y DECREASES the top scroll line.
-            self.wheel_scroll(-lines);
+            self.wheel_scroll_px(line_wheel_document_px(y, self.zoom, self.dpi));
             self.sync_view(false);
         }
         if let Some(gpu) = self.gpu.as_ref() {
