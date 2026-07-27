@@ -111,11 +111,11 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     // open; the close-without-accept restores the saved scroll EXACTLY
     // ("Esc = back to now") and puts the preview down.
     app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(42));
-    app.active.extra.scroll_lines = 3;
+    app.active.extra.scroll = crate::render::ScrollPos::at_row(3);
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(false);
     assert_eq!(
-        app.active.extra.scroll_lines, 42,
+        app.active.extra.scroll.row, 42,
         "Esc restores the pre-open scroll"
     );
     assert!(app.active.extra.history_scroll_before.is_none());
@@ -126,11 +126,11 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
     // A real ACCEPT keeps the current viewport (the restored version owns
     // it) — the saved scroll is discarded, the preview still dropped.
     app.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(42));
-    app.active.extra.scroll_lines = 3;
+    app.active.extra.scroll = crate::render::ScrollPos::at_row(3);
     app.active.extra.history_preview = Some(("100".into(), "old\n".into()));
     app.history_overlay_closed(true);
     assert_eq!(
-        app.active.extra.scroll_lines, 3,
+        app.active.extra.scroll.row, 3,
         "an accept never yanks the viewport"
     );
     assert!(app.active.extra.history_scroll_before.is_none());

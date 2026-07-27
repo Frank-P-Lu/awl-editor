@@ -334,10 +334,10 @@ impl App {
         if key == "zoom" {
             self.zoom_reflow.queue();
         } else if key == "scroll_sensitivity" {
-            self.scroll_sensitivity = self
-                .config
-                .scroll_sensitivity
-                .unwrap_or(crate::range::SCROLL_SENSITIVITY.default);
+            // `apply_core` has just committed the range step to the generic
+            // scalar owner.  Reading stale config here used to overwrite that
+            // fresh keyboard value before it reached persistence.
+            self.scroll_sensitivity = crate::settings::scroll_sensitivity();
             crate::settings::set_scroll_sensitivity(self.scroll_sensitivity);
         }
         self.range_persist(key);
@@ -360,6 +360,10 @@ impl App {
             self.set_zoom(value);
         } else if id == crate::settings::SettingId::ScrollSensitivity {
             self.scroll_sensitivity = crate::range::SCROLL_SENSITIVITY.quantize(value);
+            // The settings readout is built from `Config`; keep that one
+            // semantic preference in sync during a live rail drag as well as at
+            // persistence time, so the value, rail, and input multiplier agree.
+            self.config.scroll_sensitivity = Some(self.scroll_sensitivity);
             crate::settings::set_scroll_sensitivity(self.scroll_sensitivity);
         }
     }

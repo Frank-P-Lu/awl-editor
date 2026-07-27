@@ -1350,11 +1350,7 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
         .filter(|r| r.kind == crate::settings::SettingKind::Range)
         .copied()
         .collect();
-    assert_eq!(
-        range_rows.len(),
-        1,
-        "the range roster changed size — update this sweep"
-    );
+    assert!(!range_rows.is_empty(), "the range roster must not be empty");
     for row in range_rows {
         let key = crate::settings::value_key(row.id).expect("a Range row always has a key");
         let spec = crate::settings::range_spec(row.id).expect("a Range row always has a spec");
@@ -1369,6 +1365,11 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
             .selected_range()
             .expect("the row carries a rail");
         let mut zoom = spec.default;
+        let before_value = match row.id {
+            crate::settings::SettingId::Zoom => zoom,
+            crate::settings::SettingId::ScrollSensitivity => crate::settings::scroll_sensitivity(),
+            _ => unreachable!("range roster only contains owned scalars"),
+        };
         let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
         assert_eq!(
             eff,
@@ -1382,6 +1383,17 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
         assert_ne!(
             after.step, before.step,
             "{}: the drawn step must move",
+            row.name
+        );
+        assert_ne!(
+            match row.id {
+                crate::settings::SettingId::Zoom => zoom,
+                crate::settings::SettingId::ScrollSensitivity =>
+                    crate::settings::scroll_sensitivity(),
+                _ => unreachable!("range roster only contains owned scalars"),
+            },
+            before_value,
+            "{}: the live scalar must move too",
             row.name
         );
         assert_eq!(
@@ -1451,7 +1463,15 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
                     "{name}: RIGHT stepped the value, so the foot line must have said so \
                      (it said {advertised:?}) — full line: {hint:?}"
                 );
-                assert_ne!(zoom, 1.0, "{name}: the step genuinely moved the live value");
+                let id = overlay.as_ref().unwrap().selected_range().unwrap().id;
+                let moved = match id {
+                    crate::settings::SettingId::Zoom => zoom != 1.0,
+                    crate::settings::SettingId::ScrollSensitivity => {
+                        crate::settings::scroll_sensitivity() != 1.0
+                    }
+                    _ => false,
+                };
+                assert!(moved, "{name}: the step genuinely moved the live value");
             }
             false => assert_eq!(
                 advertised,
