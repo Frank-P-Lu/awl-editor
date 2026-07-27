@@ -2,11 +2,24 @@
 
 use super::*;
 
+enum PreApply {
+    Continue,
+    Return(bool),
+}
+
 struct CoreRun {
     effect: actions::Effect,
     theme_overlay_before: bool,
     theme_before: crate::theme::Theme,
     history_overlay_before: bool,
+}
+
+struct GotoInputs {
+    goto_corpus: Vec<String>,
+    goto_times: Vec<String>,
+    goto_open: Vec<usize>,
+    goto_recent: Vec<usize>,
+    goto_headings: Vec<(String, usize)>,
 }
 
 impl App {
@@ -276,65 +289,8 @@ impl App {
         event_loop: &ActiveEventLoop,
         door: crate::stats::Door,
     ) -> bool {
-        // SILENT USAGE LEDGER: record this dispatch by its door into the persisted
-        // per-command counts (`app/stats.rs`) — the discoverability signal phase 2
-        // surfaces (never a nudge). Native-only + config-gated inside; a non-catalog
-        // action (motion / self-insert / overlay-open) is filtered there. Placed at
-        // the very top so it sees EVERY dispatch (incl. the macOS About early-return
-        // and the palette `RunAction` re-dispatch); `apply` is the ONE seam all three
-        // doors funnel through, so none needs a parallel recording path.
-        #[cfg(not(target_arch = "wasm32"))]
-        self.ledger_note_dispatch(&action, door);
-        #[cfg(target_arch = "wasm32")]
-        let _ = door;
-        // macOS: About opens the NATIVE standard About panel (the platform
-        // convention) rather than the in-app `about.rs` card — for BOTH the
-        // App-menu "About Awl" item AND the Cmd-P palette "About" command, since
-        // both dispatch through this one seam. Intercept and return BEFORE
-        // `apply_core` ever flips the card's process-global, so the in-app card
-        // never opens on macOS; every other platform keeps the card exactly as
-        // is. (Not `exited` — the app keeps running.)
-        #[cfg(target_os = "macos")]
-        if matches!(action, Action::About) {
-            crate::mac_chrome::show_about_panel();
-            return false;
-        }
-
-        // DIFF-AS-PREVIEW note: the old Compare TAKEOVER's read-only gate lived
-        // here. The takeover is RETIRED — the writer's diff now lives entirely
-        // inside the History picker's live preview, whose read-only law is the
-        // overlay's own modality (every key routes through `overlay_intercept`;
-        // typing filters the QUERY, never the transcript or the buffer).
-
-        // The buffer/zoom/search core is shared with the headless `--keys`
-        // replay via `actions::apply_core`, so live editing and captured replay
-        // behave identically. Everything that core can't reach — the system
-        // clipboard mirroring and the GPU-measured page size — stays here.
-        //
-        // The render-only TOGGLES (caret look / page mode) flip a
-        // process-global. That flip now lives in `apply_core` (the shared seam),
-        // so BOTH this live path and the headless `--keys` replay flow through one
-        // place; what the core can't reach — the GPU re-wrap on a page-mode change,
-        // the view resync, the stderr log — runs as a POST-`apply_core` side effect
-        // below (keyed off `matches!(action, …)`, like the Save/clipboard steps),
-        // not as an interception that bypasses the core.
-        //
-        // PageScrollDown/PageScrollUp still intercept here: they need a screenful
-        // measured from the live viewport, and the core's `scroll_page_lines` is
-        // only the logical-line fallback — so we override those two with the
-        // GPU-aware `scroll_page` below.
-        // PgDn/PgUp page the BUFFER via the GPU-measured viewport — but ONLY when no
-        // overlay is open. While a picker is summoned they PAGE its selection instead,
-        // so fall through to `apply_core`'s shared overlay intercept in that case.
-        if let Some(handled) = self.page_scroll_intercept(&action) {
-            return handled;
-        }
-
-        if matches!(action, Action::Yank) {
-            if self.try_paste_image() {
-                return false;
-            }
-            self.refresh_kill_from_clipboard();
+        if let PreApply::Return(result) = self.pre_apply(&action, door) {
+            return result;
         }
 
         let CoreRun {
@@ -402,46 +358,72 @@ impl App {
         quit
     }
 
-    fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
-        let mut shift_selecting = self.active.extra.shift_selecting;
-        let mut zoom = self.zoom;
-        let mut search = self.search.take();
-        let mut overlay = self.overlay.take();
-        let overlay_was_open = overlay.is_some();
-        // Whether the Theme picker is open BEFORE the core runs: live preview
-        // (move / filter) mutates the process-global active theme while it stays
-        // open, so the GPU pipelines must be re-tinted even with no accept.
-        let theme_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
-            .unwrap_or(false);
-        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
-        // live preview (which mutates the process-global active theme).
-        // `retint_theme_preview` compares it against the now-active world to detect
-        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
-        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
-        let theme_before = crate::theme::active();
-        // Whether the HISTORY timeline is open BEFORE the core runs: its live
-        // preview state (the derived document preview + the saved scroll) must be
-        // put down the moment the overlay closes, accept or not.
-        let history_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::History)
-            .unwrap_or(false);
-        let config_keys = self.config.keys.clone();
-        let config_linux_keep = self.config.effective_linux_keep();
-        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
-        // is borrowed mutably below): clone the small bits `make_overlay` needs.
-        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
-        // SUMMON: rebuild the file index right as `C-x f` opens, through the
-        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
-        // since launch (or the last scan) is never missing. No cache TTL, no
-        // watcher — a summoned overlay is transient and the walk is disk-cheap
-        // for a real project tree. Gated on the action like outline/spell/
-        // history below: walking the tree on every OTHER keystroke would be
-        // needless disk I/O.
-        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
-        // since launch is caught, same freshness rationale as go-to).
+    fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) -> PreApply {
+        // SILENT USAGE LEDGER: record this dispatch by its door into the persisted
+        // per-command counts (`app/stats.rs`) — the discoverability signal phase 2
+        // surfaces (never a nudge). Native-only + config-gated inside; a non-catalog
+        // action (motion / self-insert / overlay-open) is filtered there. Placed at
+        // the very top so it sees EVERY dispatch (incl. the macOS About early-return
+        // and the palette `RunAction` re-dispatch); `apply` is the ONE seam all three
+        // doors funnel through, so none needs a parallel recording path.
+        #[cfg(not(target_arch = "wasm32"))]
+        self.ledger_note_dispatch(&action, door);
+        #[cfg(target_arch = "wasm32")]
+        let _ = door;
+        // macOS: About opens the NATIVE standard About panel (the platform
+        // convention) rather than the in-app `about.rs` card — for BOTH the
+        // App-menu "About Awl" item AND the Cmd-P palette "About" command, since
+        // both dispatch through this one seam. Intercept and return BEFORE
+        // `apply_core` ever flips the card's process-global, so the in-app card
+        // never opens on macOS; every other platform keeps the card exactly as
+        // is. (Not `exited` — the app keeps running.)
+        #[cfg(target_os = "macos")]
+        if matches!(action, Action::About) {
+            crate::mac_chrome::show_about_panel();
+            return PreApply::Return(false);
+        }
+
+        // DIFF-AS-PREVIEW note: the old Compare TAKEOVER's read-only gate lived
+        // here. The takeover is RETIRED — the writer's diff now lives entirely
+        // inside the History picker's live preview, whose read-only law is the
+        // overlay's own modality (every key routes through `overlay_intercept`;
+        // typing filters the QUERY, never the transcript or the buffer).
+
+        // The buffer/zoom/search core is shared with the headless `--keys`
+        // replay via `actions::apply_core`, so live editing and captured replay
+        // behave identically. Everything that core can't reach — the system
+        // clipboard mirroring and the GPU-measured page size — stays here.
+        //
+        // The render-only TOGGLES (caret look / page mode) flip a
+        // process-global. That flip now lives in `apply_core` (the shared seam),
+        // so BOTH this live path and the headless `--keys` replay flow through one
+        // place; what the core can't reach — the GPU re-wrap on a page-mode change,
+        // the view resync, the stderr log — runs as a POST-`apply_core` side effect
+        // below (keyed off `matches!(action, …)`, like the Save/clipboard steps),
+        // not as an interception that bypasses the core.
+        //
+        // PageScrollDown/PageScrollUp still intercept here: they need a screenful
+        // measured from the live viewport, and the core's `scroll_page_lines` is
+        // only the logical-line fallback — so we override those two with the
+        // GPU-aware `scroll_page` below.
+        // PgDn/PgUp page the BUFFER via the GPU-measured viewport — but ONLY when no
+        // overlay is open. While a picker is summoned they PAGE its selection instead,
+        // so fall through to `apply_core`'s shared overlay intercept in that case.
+        if let Some(handled) = self.page_scroll_intercept(&action) {
+            return PreApply::Return(handled);
+        }
+
+        if matches!(action, Action::Yank) {
+            if self.try_paste_image() {
+                return PreApply::Return(false);
+            }
+            self.refresh_kill_from_clipboard();
+        }
+
+        PreApply::Continue
+    }
+
+    fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
@@ -486,6 +468,62 @@ impl App {
             } else {
                 Vec::new()
             };
+        GotoInputs {
+            goto_corpus,
+            goto_times,
+            goto_open,
+            goto_recent,
+            goto_headings,
+        }
+    }
+
+    fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
+        let mut shift_selecting = self.active.extra.shift_selecting;
+        let mut zoom = self.zoom;
+        let mut search = self.search.take();
+        let mut overlay = self.overlay.take();
+        let overlay_was_open = overlay.is_some();
+        // Whether the Theme picker is open BEFORE the core runs: live preview
+        // (move / filter) mutates the process-global active theme while it stays
+        // open, so the GPU pipelines must be re-tinted even with no accept.
+        let theme_overlay_before = overlay
+            .as_ref()
+            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
+            .unwrap_or(false);
+        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
+        // live preview (which mutates the process-global active theme).
+        // `retint_theme_preview` compares it against the now-active world to detect
+        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
+        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
+        let theme_before = crate::theme::active();
+        // Whether the HISTORY timeline is open BEFORE the core runs: its live
+        // preview state (the derived document preview + the saved scroll) must be
+        // put down the moment the overlay closes, accept or not.
+        let history_overlay_before = overlay
+            .as_ref()
+            .map(|o| o.kind == crate::overlay::OverlayKind::History)
+            .unwrap_or(false);
+        let config_keys = self.config.keys.clone();
+        let config_linux_keep = self.config.effective_linux_keep();
+        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
+        // is borrowed mutably below): clone the small bits `make_overlay` needs.
+        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
+        // SUMMON: rebuild the file index right as `C-x f` opens, through the
+        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
+        // since launch (or the last scan) is never missing. No cache TTL, no
+        // watcher — a summoned overlay is transient and the walk is disk-cheap
+        // for a real project tree. Gated on the action like outline/spell/
+        // history below: walking the tree on every OTHER keystroke would be
+        // needless disk I/O.
+        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
+        // since launch is caught, same freshness rationale as go-to).
+        let GotoInputs {
+            goto_corpus,
+            goto_times,
+            goto_open,
+            goto_recent,
+            goto_headings,
+        } = self.gather_goto_inputs(action);
         #[allow(clippy::type_complexity)]
         let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
             if matches!(action, Action::OpenSpellSuggest) {
