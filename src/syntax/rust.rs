@@ -143,7 +143,7 @@ fn utf8_len(c: u8) -> usize {
 }
 
 #[cfg(test)]
-fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)> {
+fn spans(text: &str) -> super::Spans {
     super::scanner::scan(&SPEC, text)
 }
 

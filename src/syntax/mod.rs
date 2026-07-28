@@ -216,6 +216,9 @@ impl Lang {
     }
 }
 
+/// What a lexer returns: styling spans in document byte coordinates.
+pub type Spans = Vec<(Range<usize>, SynKind)>;
+
 /// Which scanner a language's spans come from — the ONE place a language is
 /// wired in. The match below carries no wildcard, so a new [`Lang`] variant fails
 /// to compile until someone decides between the two.
@@ -224,8 +227,8 @@ enum Lexer {
     /// and what a new C-family-shaped language must use.
     Table(&'static scanner::LangSpec),
     /// A scanner of its own, because the language's shape is not the definition
-    /// walk. Every member is listed with its reason in [`BESPOKE`].
-    Own(fn(&str) -> Vec<(Range<usize>, SynKind)>),
+    /// walk. Every member is listed with its reason in `BESPOKE`.
+    Own(fn(&str) -> Spans),
 }
 
 fn lexer(lang: Lang) -> Lexer {
@@ -256,16 +259,30 @@ fn lexer(lang: Lang) -> Lexer {
 /// The languages that do NOT run the shared definition walk, each with the reason
 /// its shape is different. This roster is the deliberate escape hatch: a new
 /// `syntax/<lang>.rs` that writes its own loop without appearing here trips
-/// [`tests::no_lexer_module_writes_its_own_definition_walk`].
+/// [`tests::no_lexer_module_writes_its_own_definition_walk`], the law that reads
+/// it.
+#[cfg(test)]
 const BESPOKE: &[(&str, &str)] = &[
-    ("ruby", "heredoc bodies pend across lines; `?c`/`%w[]` disambiguate on the previous byte"),
-    ("bash", "`$`-expansion, `<<`-heredocs, and single-quote-is-raw have no C-family analogue"),
+    (
+        "ruby",
+        "heredoc bodies pend across lines; `?c`/`%w[]` disambiguate on the previous byte",
+    ),
+    (
+        "bash",
+        "`$`-expansion, `<<`-heredocs, and single-quote-is-raw have no C-family analogue",
+    ),
     ("html", "tag/attribute grammar, not a token stream"),
-    ("css", "selector/property grammar; `-` is an identifier byte"),
+    (
+        "css",
+        "selector/property grammar; `-` is an identifier byte",
+    ),
     ("json", "a closed grammar: keys vs values decide the role"),
     ("yaml", "indentation- and key-driven, with block scalars"),
     ("toml", "key/value/table grammar with date-time literals"),
-    ("sql", "case-insensitive multi-word introducers with skip-words; `\"…\"` is an identifier, not a string"),
+    (
+        "sql",
+        "case-insensitive multi-word introducers with skip-words; `\"…\"` is an identifier, not a string",
+    ),
 ];
 
 /// THE DISPATCH: parse `text` into syntax styling spans for `lang`, in DOCUMENT
@@ -281,7 +298,7 @@ const BESPOKE: &[(&str, &str)] = &[
 /// [`SynKind::CommentCode`] when it reads as a DISABLED STATEMENT rather than
 /// prose. Central here — not per lexer — so all ~20 languages split identically,
 /// and markdown FENCES inherit it for free (`markdown/` calls this same fn).
-pub fn spans(lang: Lang, text: &str) -> Vec<(Range<usize>, SynKind)> {
+pub fn spans(lang: Lang, text: &str) -> Spans {
     let mut out = match lexer(lang) {
         Lexer::Table(spec) => scanner::scan(spec, text),
         Lexer::Own(f) => f(text),
@@ -733,7 +750,10 @@ mod tests {
                 modules.contains(&m.to_string()),
                 "BESPOKE names {m}, which is not a lexer module"
             );
-            assert!(!why.trim().is_empty(), "BESPOKE entry {m} carries no reason");
+            assert!(
+                !why.trim().is_empty(),
+                "BESPOKE entry {m} carries no reason"
+            );
         }
 
         for lang in ALL {

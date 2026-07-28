@@ -39,10 +39,13 @@ pub(super) const SPEC: LangSpec = LangSpec {
 /// interpolated double-quoted string is one span).
 fn string_at(b: &[u8], i: usize) -> Option<usize> {
     let n = b.len();
-    if b[i] == b'<' && i + 2 < n && b[i + 1] == b'<' && b[i + 2] == b'<' {
-        if let Some(end) = heredoc(b, i) {
-            return Some(end);
-        }
+    if b[i] == b'<'
+        && i + 2 < n
+        && b[i + 1] == b'<'
+        && b[i + 2] == b'<'
+        && let Some(end) = heredoc(b, i)
+    {
+        return Some(end);
     }
     matches!(b[i], b'"' | b'\'').then(|| super::scan_quoted(b, i, b[i], false))
 }
@@ -120,7 +123,7 @@ fn heredoc(b: &[u8], i: usize) -> Option<usize> {
 }
 
 #[cfg(test)]
-fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)> {
+fn spans(text: &str) -> super::Spans {
     super::scanner::scan(&SPEC, text)
 }
 

@@ -150,7 +150,7 @@ fn scan_number(b: &[u8], i: usize) -> usize {
 }
 
 #[cfg(test)]
-fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)> {
+fn spans(text: &str) -> super::Spans {
     super::scanner::scan(&SPEC, text)
 }
 

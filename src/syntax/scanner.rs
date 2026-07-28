@@ -82,7 +82,7 @@ pub(super) struct LangSpec {
 /// Parse `text` into Alabaster spans under `spec`. Single pass, pure, spans in
 /// document byte order; the byte at every span boundary is ASCII, so multibyte
 /// UTF-8 rides inside a span without ever splitting a char.
-pub(super) fn scan(spec: &LangSpec, text: &str) -> Vec<(Range<usize>, SynKind)> {
+pub(super) fn scan(spec: &LangSpec, text: &str) -> super::Spans {
     let b = text.as_bytes();
     let n = b.len();
     let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
