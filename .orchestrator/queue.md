@@ -38,8 +38,10 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 - 127 fold-chevron optical centring — ✅ LANDED @ `d338a08d`.
 - 128 native macOS identity/About panel — ✅ LANDED @ `cb8aca95`;
   live About screenshot remains a display/manual verification.
-- 117 Bowerbird organic-cutout ground — 🟡 IN PROGRESS,
-  `item_155_layers` (codex), branch `codex/item-117-bowerbird-cutouts`.
+- 117 Bowerbird organic-cutout ground — 🟡 INTEGRATION REPAIR,
+  `item_155_layers` (codex), branch
+  `codex/item-117-bowerbird-integration`; standalone tip `ff81940f`,
+  combined main needs three newer exhaustive-match enrollments.
 - 121 Firetail Block/icon-ground A/B/C trial — 🟡 IN PROGRESS,
   `item_121_firetail_icon` (codex), branch
   `codex/item-121-firetail-icon-trial`.
