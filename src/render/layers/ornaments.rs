@@ -1,4 +1,5 @@
 //! Six shaped-buffer families owned through one ornament-frame upload.
+use super::fold_chevron::FoldChevrons;
 use super::*;
 
 struct RuleOrnaments {
@@ -381,68 +382,6 @@ impl FoldTails {
     }
 }
 
-struct FoldChevrons {
-    marks: Vec<(f32, f32, usize)>,
-    buffers: Vec<GlyphBuffer>,
-    color: glyphon::Color,
-    fallback_line_y: f32,
-}
-
-impl FoldChevrons {
-    fn shape(pipeline: &mut TextPipeline, metrics: Metrics, col_w: f32) -> Self {
-        let marks = pipeline.fold_chevron_marks();
-        let color = theme::fold_afford_chevron_ink().to_glyphon();
-        let mark_h = metrics.line_height * crate::markdown::type_scale::LABEL;
-        let glyph_metrics = GlyphMetrics::new(
-            metrics.font_size * crate::markdown::type_scale::LABEL,
-            mark_h,
-        );
-        let attrs = panel_attrs().color(color);
-        let buffers = marks
-            .iter()
-            .map(|_| {
-                let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
-                buffer.set_size(&mut pipeline.font_system, Some(col_w), Some(mark_h));
-                buffer.set_text(
-                    &mut pipeline.font_system,
-                    FOLD_CHEVRON,
-                    &attrs,
-                    Shaping::Advanced,
-                    None,
-                );
-                buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                buffer
-            })
-            .collect();
-        Self {
-            marks,
-            buffers,
-            color,
-            fallback_line_y: mark_h * 0.8,
-        }
-    }
-
-    fn append_areas<'a>(&'a self, areas: &mut Vec<TextArea<'a>>, bounds: TextBounds) {
-        for (i, &(baseline, left, _)) in self.marks.iter().enumerate() {
-            let buffer = &self.buffers[i];
-            let line_y = buffer
-                .layout_runs()
-                .next()
-                .map(|run| run.line_y)
-                .unwrap_or(self.fallback_line_y);
-            areas.push(TextArea {
-                buffer,
-                left,
-                top: baseline - line_y,
-                scale: 1.0,
-                bounds,
-                default_color: self.color,
-                custom_glyphs: &[],
-            });
-        }
-    }
-}
-
 pub(super) struct OrnamentFrame {
     rules: RuleOrnaments,
     bullets: BulletOrnaments,
@@ -484,7 +423,7 @@ impl OrnamentFrame {
             + self.quotes.tops.len()
             + self.fence_labels.marks.len()
             + self.fold_tails.marks.len()
-            + self.fold_chevrons.marks.len();
+            + self.fold_chevrons.len();
         let mut areas = Vec::with_capacity(capacity);
         self.rules
             .append_areas(&mut areas, self.text_left, bounds, self.muted);

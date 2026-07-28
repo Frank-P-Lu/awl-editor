@@ -265,8 +265,8 @@ fn fold_chevron_reveals_only_when_the_caret_is_on_the_collapsed_heading() {
     assert_eq!(ch[0].2, 0, "on the heading's own filtered row");
     assert_eq!(
         ch[0].0,
-        p.line_ornament_baseline(0),
-        "the chevron's placement baseline is the heading row's own REAL shaped baseline"
+        p.line_ornament_top(0) + p.visual_rows(0)[0].line_height * 0.5,
+        "the chevron's placement target is the heading's real shaped-row centre"
     );
     assert!(
         ch[0].1 < p.text_left(),

@@ -4,6 +4,7 @@
 
 use super::*;
 
+pub(in crate::render) mod fold_chevron;
 mod ornaments;
 mod table_grid;
 mod table_layout;
@@ -44,8 +45,6 @@ const QUOTE_MARK_SCALE: f32 = 2.0;
 /// pull-quote's opening mark). Shaped in the world's display serif so it reads as
 /// real type, not a symbol-font ornament.
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
-
-const FOLD_CHEVRON: &str = "\u{203A}";
 
 fn fold_tail_text(n: usize) -> String {
     if n == 1 {

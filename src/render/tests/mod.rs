@@ -30,6 +30,7 @@ mod dither;
 mod facepitch;
 mod firetail_showcase;
 mod float_surface_law;
+mod fold_chevron_center_item127;
 mod folds;
 mod frost;
 mod geometry;
