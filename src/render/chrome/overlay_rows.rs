@@ -27,81 +27,6 @@ pub(in crate::render) struct OverlayYProbe {
 }
 
 impl TextPipeline {
-    /// ARM B LIVING-BAND PROBE — the DISPLAY rows the moving band covers THIS
-    /// frame (see [`livingband::covered_rows`]), so the shaper flips those rows'
-    /// ink to the on-band pole instead of the static selected row ("ink rides
-    /// the band, not the state"). `None` on every ordinary run (env unset, a
-    /// Bars or empty picker, or no selection), where the shaper is byte-identical
-    /// (the old `overlay_selected` flip). Applies to BOTH the flat and the FACETED
-    /// (Cmd-P palette / Settings) layouts — the target row is placed through the
-    /// shared [`Self::overlay_selected_display_line`] owner so it matches the fill exactly
-    /// on either. Reads the SAME phase + rects owner (`living_band_phase` /
-    /// `living_band_rects`) `overlay_draw_card` draws from, so the flipped rows can
-    /// never disagree with the fill's position — the exact phase-seam fix the
-    /// outcome audit demands. The target row is placed through
-    /// [`Self::overlay_selected_display_line`] — the ONE owner also read by the
-    /// selected-band fill and the secondary right-column recolor — so the band, the
-    /// hint recolor, and the flipped ink can never read a different row.
-    pub(in crate::render) fn living_covered_rows(
-        &mut self,
-        geom: &OverlayGeom,
-    ) -> Option<Vec<usize>> {
-        let motion = crate::render::livingband::overlay_motion_force()?;
-        if !matches!(
-            crate::render::effective_list_style(),
-            theme::ListStyle::Pane
-        ) {
-            return None;
-        }
-        let sel_disp = self.overlay_selected_display_line(geom)?;
-        let lh = self.overlay_lh();
-        let target = overlay_row_top(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            sel_disp,
-            lh,
-        );
-        let (from, to, t) = self.living_band_phase(motion, target, lh);
-        let (primary, echo, _cross) =
-            self.living_band_rects(motion, from, to, t, geom.card_x, geom.card_w, lh);
-        let bands: Vec<crate::render::livingband::BandRect> = primary
-            .iter()
-            .chain(echo.iter())
-            .map(|r| crate::render::livingband::BandRect {
-                top: r[1],
-                height: r[3],
-            })
-            .collect();
-        let first_top = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, 0, lh);
-        Some(crate::render::livingband::covered_rows(
-            &bands,
-            first_top,
-            lh,
-            geom.visible,
-        ))
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn living_probe_geom(
-        &mut self,
-        geom: &OverlayGeom,
-    ) -> (Vec<usize>, usize, f32, f32, [f32; 4]) {
-        let motion = crate::render::livingband::overlay_motion_force()
-            .expect("living_probe_geom needs the motion probe armed");
-        let covered = self.living_covered_rows(geom).unwrap_or_default();
-        let target = self
-            .overlay_selected_display_line(geom)
-            .expect("a selected row");
-        let lh = self.overlay_lh();
-        let first_top = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, 0, lh);
-        let sel_top = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, target, lh);
-        let (from, to, t) = self.living_band_phase(motion, sel_top, lh);
-        let (primary, _echo, _cross) =
-            self.living_band_rects(motion, from, to, t, geom.card_x, geom.card_w, lh);
-        (covered, target, first_top, lh, primary[0])
-    }
-
     /// TEST HOOK: total shaped glyphs the overlay text renderer would draw this
     /// frame (summed across the name buffer's layout runs). `0` once
     /// [`Self::park_overlay`] has emptied it — the assertion that a closed
@@ -275,7 +200,6 @@ impl TextPipeline {
         height: u32,
         geom: &OverlayGeom,
     ) {
-        let lh = self.overlay_lh();
         let list_style = crate::render::effective_list_style();
         let spell = self.overlay_spell.is_some();
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
@@ -283,288 +207,20 @@ impl TextPipeline {
         self.overlay_prepare_card_backing(
             device, queue, width, height, geom, backing, spell, card_rect,
         );
-
-        // Selected-row highlight: a VALUE BAND, the next rung up the surface ladder
-        // past the card's `base_300` (`theme::surface_selected`), set per-frame so a
-        // live theme switch reskins it. Figure/ground by VALUE — not the cool
-        // `selection` hue, not the amber accent (DESIGN §3/§5). The selected name
-        // stays content ink, readable on the band. The band sits `header_rows` lines
-        // below the card top (past the query line, if any), matching the shaped rows.
-        //
-        // TRUE 1-BIT WORLDS (`render_caps.selection_style ==
-        // SelectionStyle::InverseVideo`): a flat fill would need SOME token
-        // between `base_300`/`base_content` (both pure black/white here) to read
-        // as "selected without erasing the row's own text" — no such token
-        // exists on a one-bit world. The answer is a SOLID `base_content`
-        // (white) band with the selected row's own glyphs recolored to solid
-        // `base_300` (black) up in the shaper (`selected_ink`, threaded through
-        // `overlay_shape_text`) — a hard black-on-white pair, gamma-independent
-        // and CRISP. This supersedes the earlier framebuffer invert of the row
-        // (`overlay_rows_invert`, retired): a `1 - dst` flip of the antialiased
-        // near-white row text landed at a faint mid-grey (the Wagtail
-        // selected-row low-contrast bug — see `HighlightTreatment::InverseFill`).
-        // Both regimes now drive the ONE `overlay_rows` fill pipeline; the band
-        // COLOR is the only thing that differs, so "prepare neither / draw text
-        // that can't be read" is unreachable.
-        // The `ValueBand` band VALUE is the PALETTE-COMPOSITION round's
-        // strengthened, calm-by-VALUE band (`effective_overlay_selrow_band`, one
-        // ramp step past the shared `surface_selected`; the gallery A/Bs it and
-        // the old band is one line away — see that fn's REVERT note). Never a hue
-        // (DESIGN §3/§5); the distinguishability sweep polices it.
-        let band_color = match theme::active()
-            .highlight_treatment(crate::render::effective_overlay_selrow_band())
-        {
-            theme::HighlightTreatment::ValueBand(color) => color,
-            theme::HighlightTreatment::InverseFill { band, .. } => band,
-        };
-        self.overlay_rows.set_color(band_color.rgba_bytes());
-        let sel_disp: Option<usize> = self.overlay_selected_display_line(geom);
-        // PER-ITEM LIST SURFACES round: `Pane` (default) draws the byte-identical
-        // full-width selected BAND; `Bars` gives each candidate row its own
-        // rounded surface (unselected → `overlay_bars`, quiet; selected →
-        // `overlay_rows`, brighter + `grow_px` wider) with the gap already folded
-        // into `lh`. The row-y owner `overlay_row_top` feeds BOTH so bars and text
-        // agree on every row; the hit-test rides the same `lh`, so a click in a
-        // gap maps to the nearest row (no dead zones).
-        // `list_style` computed once at the top of this fn (drives the pane-drop).
-        // ITEM 45: the selected-bar growth mirror follows the FROZEN alignment (via
-        // the ONE owner), so it composes with the (also-frozen) card placement and
-        // never flips mid-preview when the active world changes.
-        let mirror = crate::render::resolve_overlay_anchor(self.overlay_align).mirrors_growth();
-        // ARM B LIVING BAND (`AWL_LIVING_BAND`): the selection band's morph /
-        // two-shape choreography. Ships ON (calm MORPH) — `None` only when the knob
-        // is `off`. Pane-only; when active it OWNS the band rects (the ordinary
-        // `overlay_band_drawn` slide is skipped for that frame). A settled frame is
-        // byte-identical to the ordinary band (MORPH is calm-at-rest and
-        // `living_band_phase` settles every capture / Reduce-Motion frame).
-        let motion = crate::render::livingband::overlay_motion_force();
-        let sel_target: Option<f32> = sel_disp.map(|disp| {
-            overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, disp, lh)
-        });
-        let living: Option<(crate::render::livingband::MotionForce, f32, f32, f32)> =
-            match (motion, sel_target) {
-                (Some(force), Some(target)) if matches!(list_style, theme::ListStyle::Pane) => {
-                    let (from, to, t) = self.living_band_phase(force, target, lh);
-                    Some((force, from, to, t))
-                }
-                _ => None,
-            };
-        let sel_top: Option<f32> = match (living.is_some(), sel_target) {
-            (true, _) => None,
-            (false, Some(target)) => Some(self.overlay_band_drawn(target)),
-            (false, None) => None,
-        };
-        let mut cross_rects: Vec<[f32; 4]> = Vec::new();
-        let (sel_rects, bar_rects): (Vec<[f32; 4]>, Vec<[f32; 4]>) = match list_style {
-            theme::ListStyle::Pane => {
-                if let Some((force, from, to, t)) = living {
-                    let (primary, echo, cross) =
-                        self.living_band_rects(force, from, to, t, geom.card_x, geom.card_w, lh);
-                    self.overlay_bars.set_corner(2.5);
-                    self.overlay_bars
-                        .set_color(theme::surface_selected().rgba_bytes());
-                    self.overlay_cross.set_corner(2.5);
-                    self.overlay_cross
-                        .set_color(theme::overlay_band_overlap().rgba_bytes());
-                    cross_rects = cross;
-                    (primary, echo)
-                } else {
-                    let rects = match (sel_disp, sel_top) {
-                        (Some(disp), Some(top)) => {
-                            let dx = self.overlay_slant_dx(disp);
-                            vec![[geom.card_x + dx, top, geom.card_w - dx, lh]]
-                        }
-                        _ => Vec::new(),
-                    };
-                    (rects, Vec::new())
-                }
-            }
-            theme::ListStyle::Bars {
-                radius,
-                gap,
-                grow_px,
-                extent,
-                coverage,
-            } => {
-                let r = radius.max(0.0);
-                let g = gap.max(0.0);
-                let bar_h = (lh - g).max(1.0);
-                let hug = extent.hugs();
-                let primary_px = if hug {
-                    self.overlay_row_primary_px(geom)
-                } else {
-                    std::collections::BTreeMap::new()
-                };
-                let chord_px = if hug && !extent.inline_shortcut() && self.overlay_right_shown {
-                    self.overlay_row_secondary_px(geom)
-                } else {
-                    std::collections::BTreeMap::new()
-                };
-                let span_of = |k: usize| -> (f32, f32) {
-                    if hug {
-                        super::bar_hug_span(
-                            geom.card_x,
-                            geom.card_w,
-                            geom.text_left,
-                            primary_px.get(&k).copied().unwrap_or(0.0),
-                        )
-                    } else {
-                        super::bar_full_span(geom.card_x, geom.card_w)
-                    }
-                };
-                let bar_off = g * 0.5;
-                self.overlay_rows.set_corner(r);
-                self.overlay_bars.set_corner(r);
-                self.overlay_rows.set_stroke(0.0);
-                self.overlay_bars.set_stroke(0.0);
-                self.overlay_bars
-                    .set_color(theme::overlay_bar_unselected().rgba_bytes());
-                let item_rows: Vec<usize> = if geom.theme {
-                    geom.plan
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(k, l)| matches!(l, ThemeLine::Item(_)).then_some(k))
-                        .collect()
-                } else {
-                    (0..geom.visible).collect()
-                };
-                let mut unsel: Vec<[f32; 4]> = match coverage {
-                    theme::BarCoverage::SelectedOnly => Vec::new(),
-                    theme::BarCoverage::All => item_rows
-                        .iter()
-                        .copied()
-                        .filter(|k| Some(*k) != sel_disp)
-                        .map(|k| {
-                            let top = overlay_row_top(
-                                geom.text_top,
-                                geom.header_rows,
-                                geom.header_gap,
-                                k,
-                                lh,
-                            );
-                            let (x, w) = span_of(k);
-                            let (x, w) = slant_bar_span(x, w, hug, self.overlay_slant_dx(k));
-                            [x, top + bar_off, w, bar_h]
-                        })
-                        .collect(),
-                };
-                if geom.hint_rows + geom.footer_rows > 0 {
-                    let content_rows = if geom.theme {
-                        geom.plan.len()
-                    } else {
-                        geom.visible + geom.empty.is_some() as usize
-                    };
-                    let footer_hug = hug.then(|| {
-                        (
-                            geom.text_left,
-                            self.overlay_footer_content_px(geom, content_rows),
-                        )
-                    });
-                    unsel.push(super::footer_plate_rect(
-                        geom.text_top,
-                        geom.header_rows,
-                        geom.header_gap,
-                        content_rows,
-                        lh,
-                        geom.card_x,
-                        geom.card_w,
-                        geom.card_y + geom.card_h,
-                        footer_hug,
-                    ));
-                }
-                if geom.theme {
-                    for (k, line) in geom.plan.iter().enumerate() {
-                        if !matches!(line, ThemeLine::Header(_)) {
-                            continue;
-                        }
-                        let top = overlay_row_top(
-                            geom.text_top,
-                            geom.header_rows,
-                            geom.header_gap,
-                            k,
-                            lh,
-                        );
-                        let (x, w) = span_of(k);
-                        unsel.push([x, top + bar_off, w, bar_h]);
-                    }
-                    unsel.extend(self.overlay_strip_tab_plates.iter().copied());
-                }
-                let sel = match (sel_disp, sel_top) {
-                    (Some(disp), Some(top)) => {
-                        let (bx, bw) = span_of(disp);
-                        let (bx, bw) = slant_bar_span(bx, bw, hug, self.overlay_slant_dx(disp));
-                        // GROW-POP (choreography 4): the `grow_px` ledge eases in on
-                        // each selection move via the ONE `overlay_grow_progress`
-                        // owner. Full `grow_px` in every capture (byte-identical).
-                        let grow = grow_px * self.overlay_grow_progress();
-                        let (x, w) = super::grow_span(bx, bw, grow, mirror);
-                        vec![[x, top + bar_off, w.max(1.0), bar_h]]
-                    }
-                    _ => Vec::new(),
-                };
-                let mut sel = sel;
-                if !chord_px.is_empty() {
-                    let (fx, fw) = super::bar_full_span(geom.card_x, geom.card_w);
-                    let full_right = fx + fw;
-                    let chord_right = geom.text_left + geom.text_w;
-                    let chord_plate = |k: usize, top: f32| -> [f32; 4] {
-                        let w_c = chord_px.get(&k).copied().unwrap_or(0.0);
-                        let right = (chord_right + super::BAR_TEXT_PAD).min(full_right);
-                        let plate_w = w_c + 2.0 * super::BAR_TEXT_PAD;
-                        let left = (right - plate_w).max(fx);
-                        [left, top + bar_off, (right - left).max(1.0), bar_h]
-                    };
-                    let row_top = |k: usize| {
-                        overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, k, lh)
-                    };
-                    for &k in &item_rows {
-                        if !chord_px.contains_key(&k) {
-                            continue;
-                        }
-                        if Some(k) == sel_disp {
-                            sel.push(chord_plate(k, row_top(k)));
-                        } else if coverage == theme::BarCoverage::All {
-                            unsel.push(chord_plate(k, row_top(k)));
-                        }
-                    }
-                }
-                (sel, unsel)
-            }
-        };
-        if backing == theme::ListBacking::BarePlates {
-            const SCRIM_PAD: f32 = 2.0;
-            let radius = match list_style {
-                theme::ListStyle::Bars { radius, .. } => radius.max(0.0),
-                theme::ListStyle::Pane => 0.0,
-            };
-            let scrims: Vec<[f32; 4]> = bar_rects
-                .iter()
-                .chain(sel_rects.iter())
-                .map(|&[x, y, w, h]| {
-                    [
-                        x - SCRIM_PAD,
-                        y - SCRIM_PAD,
-                        w + 2.0 * SCRIM_PAD,
-                        h + 2.0 * SCRIM_PAD,
-                    ]
-                })
-                .collect();
-            self.panel_card.set_corner(radius + SCRIM_PAD);
-            self.panel_card
-                .set_color(theme::overlay_bars_scrim().rgba_bytes());
-            self.panel_card
-                .prepare(device, queue, width, height, &scrims);
-        }
-        self.overlay_bars
-            .prepare(device, queue, width, height, &bar_rects);
-        self.overlay_rows
-            .prepare(device, queue, width, height, &sel_rects);
-        self.overlay_cross
-            .prepare(device, queue, width, height, &cross_rects);
-        self.overlay_prepare_range_rails(device, queue, width, height, geom, sel_disp);
+        let selected_row = self.overlay_selected_display_line(geom);
+        self.overlay_prepare_selection(
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            list_style,
+            backing,
+            selected_row,
+        );
+        self.overlay_prepare_range_rails(device, queue, width, height, geom, selected_row);
         self.overlay_prepare_facet_marks(device, queue, width, height, geom);
     }
-
     fn overlay_prepare_range_rails(
         &mut self,
         device: &wgpu::Device,
@@ -697,6 +353,7 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &ghosts);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn overlay_prepare_card_backing(
         &mut self,
         device: &wgpu::Device,

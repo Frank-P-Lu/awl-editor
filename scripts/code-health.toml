@@ -178,20 +178,6 @@ message = "this function has too many lines (179/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/render/chrome/overlay_rows.rs"
-line = 270
-message = "the function has a cognitive complexity of (41/25)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/chrome/overlay_rows.rs"
-line = 270
-message = "this function has too many lines (340/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_shape.rs"
 line = 574
@@ -311,30 +297,16 @@ message = "this function has too many lines (151/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/render/layers.rs"
-line = 903
-message = "the function has a cognitive complexity of (27/25)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 903
-message = "this function has too many lines (304/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/layers.rs"
-line = 1677
+line = 1373
 message = "this function has too many lines (310/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 2143
+line = 1839
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -781,13 +753,6 @@ file = "src/render/tests/syntax_roles.rs"
 line = 116
 message = "this function has too many lines (192/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/search/keys.rs"
-line = 674
-message = "this function has too many lines (121/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
