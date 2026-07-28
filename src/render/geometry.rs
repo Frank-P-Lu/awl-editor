@@ -1412,39 +1412,30 @@ impl TextPipeline {
         if lh > 0.0 { row_height / lh } else { 1.0 }
     }
 
-    /// Char column on a shaped run whose glyph cell contains `target_x`, snapped
-    /// to a grapheme-cluster boundary. A pointer inside a glyph resolves to the
+    /// Char column on a shaped run whose caret cell contains `target_x`, snapped
+    /// to a grapheme-cluster boundary. A pointer inside a cell resolves to the
     /// nearer edge of it, the natural caret placement.
     ///
-    /// The snap is not redundant with the glyph walk: a shaper's glyph clusters
+    /// The snap is not redundant with the assembled-cell lookup: a shaper's glyph clusters
     /// are NOT always UAX #29 clusters. Thai `ก` + `ำ` (U+0E33 SARA AM) is one
     /// cluster that every world's face shapes as two glyph groups — a click in
     /// the middle of it named the column BETWEEN the consonant and its vowel
     /// sign, a position that does not exist on screen. Devanagari conjuncts split
     /// the same way on faces without the ligature.
     pub(super) fn col_in_run(run: &glyphon::cosmic_text::LayoutRun, target_x: f32) -> usize {
-        let line_text = run.text;
-        let mut raw = None;
-        for g in run.glyphs.iter() {
-            let left = g.x;
-            let right = g.x + g.w;
-            let mid = (left + right) * 0.5;
-            if target_x < mid {
-                raw = Some(byte_col(line_text, g.start));
-                break;
-            } else if target_x < right {
-                raw = Some(byte_col(line_text, g.end));
-                break;
-            }
+        if run.glyphs.is_empty() {
+            return 0;
         }
-        let raw = match raw.or_else(|| run.glyphs.last().map(|g| byte_col(line_text, g.end))) {
-            Some(c) => c,
-            None => return 0,
-        };
+        // The caret, selection, and all visual-row geometry already read these
+        // assembled boundaries. Reading the same row here means a multi-char
+        // glyph span (a prose `fi` ligature or Monaspace's `=>`) has the same
+        // fair interior split for pointing as it does for drawing a caret.
+        let row = visual_row_from_run(run.text, run, 0.0);
+        let raw = Self::col_in_row(&row, target_x);
         Self::cluster_col(run, raw, target_x)
     }
 
-    /// `raw` — a column the per-glyph walk landed on — resolved against the INK of
+    /// `raw` — a column the assembled caret cells landed on — resolved against the INK of
     /// the MULTI-CHAR cluster the pointer sits in: its left half answers with the
     /// cluster's start, its right half with the end.
     ///
@@ -1454,11 +1445,8 @@ impl TextPipeline {
     /// span) sweeping the pointer rightward answered start, end, start, end, so
     /// clicking the right half of the sequence put the caret BEFORE it.
     ///
-    /// A cluster of ONE char is left to the glyph walk, whose answer is already the
-    /// same — so every ASCII/CJK/precomposed click is byte-identical, and so is a
-    /// LIGATURE whose glyph span covers several clusters (`fi`, or a Monaspace
-    /// texture-healed `=>`): those clusters have no ink of their own to measure,
-    /// and the fallback keeps today's behavior rather than inventing a position.
+    /// A cluster of ONE char is left to the assembled-cell answer, so every ASCII,
+    /// CJK, precomposed, and ligature column reads the same geometry as its caret.
     fn cluster_col(run: &glyphon::cosmic_text::LayoutRun, raw: usize, target_x: f32) -> usize {
         let line_text = run.text;
         // An all-ASCII row (most rows, in most documents) has no multi-char
