@@ -50,8 +50,9 @@ CI-30360849276. ✅ **RESOLVED.** The local/CI stable-toolchain drift was repair
 - 133 Paperbark five-treatment trial — 🔴 BLOCKED: real-app captures
   require a WGPU adapter, and the current headless host reports none before
   frame one; no trial/shipping mutation landed.
-- 120 Lava 8-vs-12 A/B trial — 🟡 IN PROGRESS, `item_120_lava_trial`
-  (codex), branch `codex/item-120-lava-twelve-trial`.
+- 120 Lava 8-vs-12 A/B trial — 🟠 USER CHOICE A/B; isolated trial
+  `e69579a8`, 31/31 focused laws and matched Metal release captures green;
+  main untouched.
 
 ## Ready — current user-visible wave
 
