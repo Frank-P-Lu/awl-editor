@@ -25,8 +25,9 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   move-only seam after item 147; `src/markdown/spans.rs` — ⏭ one
   ordered span-emission rule set, no obvious MOVE seam; `src/actions.rs`
   — ⏭ one ordered apply-core transaction, no obvious MOVE seam;
-  `src/render/framebench.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex),
-  branch `codex/item-155-framebench`.
+  `src/render/framebench.rs` — ⏭ one shared benchmark witness harness;
+  `src/capture/sidecar.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex),
+  branch `codex/item-155-sidecar`.
 - 107 enum-derived rosters — ✅ LANDED @ `c3f7eb27`.
 - 109 icon-ratchet subset erosion — ✅ LANDED @ `d45d34f3`.
 - 108 Gumtree chevron visibility — ✅ LANDED @ `f8d384de`.
