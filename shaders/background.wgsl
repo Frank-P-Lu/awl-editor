@@ -325,6 +325,24 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
     return mix(tone01, g.c_to.rgb, m2);
 }
 
+// 8: cut-paper blobs. Three differently-offset rounded cell fields make
+// large masses, islands, and droplets; subtracting a small inner field leaves
+// occasional holes. The only time input is the shared, slow ambient phase.
+fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
+    let s = max(g.params.x, 32.0);
+    let d = clamp(g.params.y, 0.0, 1.0);
+    let drift = vec2<f32>(sin(g.drift) * 5.0, cos(g.drift * 0.73) * 4.0);
+    let cell = floor((px + drift) / s);
+    let local = fract((px + drift) / s) - vec2<f32>(0.5);
+    let jitter = vec2<f32>(hash21(cell), hash21(cell + vec2<f32>(7.0, 3.0))) - vec2<f32>(0.5);
+    let mass = 1.0 - smoothstep(0.20, 0.42, length(local - jitter * 0.22));
+    let island = 1.0 - smoothstep(0.09, 0.22, length(local + jitter * 0.35));
+    let hole = 1.0 - smoothstep(0.045, 0.10, length(local - jitter * 0.52));
+    let tone = mix(g.c_from.rgb, g.c_pat.rgb, mass * d);
+    let with_island = mix(tone, g.c_to.rgb, island * d * 0.72);
+    return mix(with_island, g.c_from.rgb, hole * mass * 0.65);
+}
+
 // ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a
@@ -452,6 +470,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     if (g.shader == 6u) {
         return vec4<f32>(waves_rgb(in.px), 1.0);
     }
+    if (g.shader == 8u) { return vec4<f32>(organic_rgb(in.px), 1.0); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;

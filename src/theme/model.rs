@@ -439,6 +439,13 @@ pub enum Background {
         tint: Srgb,
         period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool,
     },
+    /// Flat cut-paper silhouettes in the Frame. `scale_px` and `density` are
+    /// authored per world; motion rides the shared ambient phase.
+    Organic {
+        tones: [Srgb; 3],
+        scale_px: f32,
+        density: f32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -474,6 +481,7 @@ impl Background {
             Background::Bands { .. } => 5,
             Background::Waves { .. } => 6,
             Background::Zigzag { .. } => 7,
+            Background::Organic { .. } => 8,
         }
     }
     pub fn as_str(&self) -> &'static str {
@@ -487,6 +495,7 @@ impl Background {
             Background::Bands { .. } => "bands",
             Background::Waves { .. } => "waves",
             Background::Zigzag { .. } => "zigzag",
+            Background::Organic { .. } => "organic",
         }
     }
     pub fn from(&self) -> Srgb {
@@ -498,7 +507,9 @@ impl Background {
             | Background::Stripes { from, .. }
             | Background::Zigzag { from, .. } => *from,
             Background::Lava { ground, .. } => *ground,
-            Background::Bands { tones, .. } | Background::Waves { tones } => tones[0],
+            Background::Bands { tones, .. }
+            | Background::Waves { tones }
+            | Background::Organic { tones, .. } => tones[0],
         }
     }
     pub fn to(&self) -> Srgb {
@@ -510,7 +521,9 @@ impl Background {
             | Background::Stripes { to, .. }
             | Background::Zigzag { to, .. } => *to,
             Background::Lava { ground, .. } => *ground,
-            Background::Bands { tones, .. } | Background::Waves { tones } => tones[2],
+            Background::Bands { tones, .. }
+            | Background::Waves { tones }
+            | Background::Organic { tones, .. } => tones[2],
         }
     }
     pub fn dir(&self) -> (f32, f32) {
@@ -523,7 +536,9 @@ impl Background {
             Background::Stripes { angle, .. } | Background::Bands { angle, .. } => {
                 (angle.cos(), angle.sin())
             }
-            Background::Lava { .. } | Background::Waves { .. } => (0.0, 1.0),
+            Background::Lava { .. } | Background::Waves { .. } | Background::Organic { .. } => {
+                (0.0, 1.0)
+            }
         }
     }
     pub fn tint(&self) -> Srgb {
@@ -535,7 +550,9 @@ impl Background {
             Background::Stripes { band, .. } => *band,
             Background::Gradient { from, .. } => *from,
             Background::Lava { ground, .. } => *ground,
-            Background::Bands { tones, .. } | Background::Waves { tones } => tones[1],
+            Background::Bands { tones, .. }
+            | Background::Waves { tones }
+            | Background::Organic { tones, .. } => tones[1],
         }
     }
     pub fn edge(&self) -> bool {
@@ -583,6 +600,17 @@ impl Background {
     }
     pub fn is_waves(&self) -> bool {
         matches!(self, Background::Waves { .. })
+    }
+    pub fn is_organic(&self) -> bool {
+        matches!(self, Background::Organic { .. })
+    }
+    pub fn organic_params(&self) -> (f32, f32) {
+        match self {
+            Background::Organic {
+                scale_px, density, ..
+            } => (*scale_px, *density),
+            _ => (0.0, 0.0),
+        }
     }
     pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
         match self {

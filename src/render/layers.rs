@@ -87,6 +87,10 @@ impl TextPipeline {
         };
         let drift = if self.effective_background().is_waves() {
             crate::background::waves_drift_radians(self.waves_render_phase())
+        } else if self.effective_background().is_organic() {
+            // One shared, bounded ambient clock: capture/reduced motion are
+            // already pinned by `waves_render_phase`.
+            self.waves_render_phase() * std::f32::consts::TAU / crate::lava::LAVA_LOOP_CYCLES
         } else {
             0.0
         };

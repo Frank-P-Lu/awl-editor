@@ -291,6 +291,9 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
 /// density (negative for filled bands). Other grounds retain their old zeroes;
 /// Waves keeps its dedicated drift slot.
 fn ground_params(desc: &BgDesc) -> [f32; 4] {
+    if desc.shader == 8 {
+        return [desc.period_px, desc.density, 0.0, 0.0];
+    }
     [
         if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
         desc.angle,

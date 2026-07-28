@@ -492,12 +492,15 @@ pub const BOWERBIRD: Theme = Theme {
     primary_content: Srgb::rgb(0x2A, 0x1B, 0x06),
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
     selection: Srgb::rgba(0x3D, 0x6B, 0xC4, 0x52),
-    background: Background::Dots {
-        from: Srgb::rgb(0x0C, 0x14, 0x26),
-        to: Srgb::rgb(0x13, 0x1D, 0x33),
-        dir: (0.0, 1.0),
-        tint: Srgb::rgb(0x1B, 0x27, 0x42),
-        edge: false,
+    background: Background::Organic {
+        // Navy-only collage: the warm Bowerbird primary remains caret-only.
+        tones: [
+            Srgb::rgb(0x0C, 0x14, 0x26),
+            Srgb::rgb(0x13, 0x1D, 0x33),
+            Srgb::rgb(0x1F, 0x2C, 0x49),
+        ],
+        scale_px: 156.0,
+        density: 0.46,
     },
     font: "IBM Plex Sans",
     mono: "JetBrains Mono",

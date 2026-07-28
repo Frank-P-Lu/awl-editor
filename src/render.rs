@@ -2296,6 +2296,7 @@ fn background_desc() -> BgDesc {
     // The lava gallery override supplies its real flat ground; otherwise this is
     // the authored background verbatim, keeping ordinary captures byte-identical.
     let bg = crate::lava::env_override().unwrap_or_else(theme::background);
+    let (organic_scale, organic_density) = bg.organic_params();
     BgDesc {
         from: bg.from().rgba_bytes(),
         to: bg.to().rgba_bytes(),
@@ -2304,9 +2305,17 @@ fn background_desc() -> BgDesc {
         tint: bg.tint().rgb_bytes(),
         edge: bg.edge(),
         angle: bg.angle(),
-        period_px: bg.period_px(),
+        period_px: if bg.is_organic() {
+            organic_scale
+        } else {
+            bg.period_px()
+        },
         amplitude_px: bg.amplitude_px(),
-        density: bg.density(),
+        density: if bg.is_organic() {
+            organic_density
+        } else {
+            bg.density()
+        },
         banded: bg.zigzag_banded(),
     }
 }
