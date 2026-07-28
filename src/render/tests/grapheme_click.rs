@@ -13,7 +13,7 @@
 
 use super::super::*;
 use super::{headless_pipeline, view};
-use crate::grapheme::{boundaries_of, CLUSTER_CORPUS};
+use crate::grapheme::{CLUSTER_CORPUS, boundaries_of};
 
 /// ASCII pairs that can be represented by one glyph span (a conventional prose
 /// ligature) or by Monaspace's texture-healing shared spans. Unlike
@@ -279,6 +279,7 @@ fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
             }
             let py = p.doc_top() + p.metrics.line_height * 0.5;
             let left = p.text_left();
+            reset_glyph_x_assembly_count();
             for i in 0..600 {
                 let x = i as f32 * 0.5;
                 let (_line, got) = p.hit_test_scroll(left + x, py, ScrollPos::default());
@@ -291,6 +292,11 @@ fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
                 );
                 probes += 1;
             }
+            assert_eq!(
+                glyph_x_assembly_count(),
+                0,
+                "{world}/{label}: pointer hit testing rebuilt glyph xs after the row was assembled"
+            );
         }
     }
     assert!(

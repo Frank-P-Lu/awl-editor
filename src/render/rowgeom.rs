@@ -249,6 +249,20 @@ impl RowGeom {
         }
     }
 
+    /// Read the memoized rows in place, without cloning their per-column `xs`.
+    /// Pointer motion uses this after the render/caret path has assembled the row,
+    /// so every move can resolve against the drawn geometry without allocating.
+    pub(super) fn with_cached_rows<R>(
+        &self,
+        line: usize,
+        read: impl FnOnce(&[VisualRow]) -> R,
+    ) -> Option<R> {
+        if self.rows_line.get() != Some(line) {
+            return None;
+        }
+        self.rows.borrow().as_deref().map(read)
+    }
+
     /// Store `rows` as the memo for logical `line` (replacing any prior line). Called
     /// by [`super::TextPipeline::visual_rows`] right after it builds them, so the next
     /// read of the same line hits [`Self::cached_rows`]. Dropped wholesale by
