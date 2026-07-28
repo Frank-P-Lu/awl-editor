@@ -729,7 +729,7 @@ impl Theme {
     }
 
     pub fn has_ambient_tick(&self) -> bool {
-        self.has_ambient_motion() || self.background.is_waves()
+        self.has_ambient_motion() || self.background.is_waves() || self.background.is_organic()
     }
 }
 

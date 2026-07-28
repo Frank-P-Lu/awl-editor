@@ -3570,15 +3570,15 @@ fn fold_tail_ink_clears_the_readable_floor_and_stays_quieter_than_heading_ink() 
 /// (3) NON-VACUOUS: at least one world (Bombora) is flipped by the extra
 ///     `is_waves()` arm — the widening has a live consumer, not dead data.
 #[test]
-fn has_ambient_tick_composes_has_ambient_motion_or_waves_one_owner() {
+fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
     let mut saw_a_flipped_waves_world = false;
     for t in THEMES.iter() {
         let motion = t.has_ambient_motion();
         let tick = t.has_ambient_tick();
         assert_eq!(
             tick,
-            motion || t.background.is_waves(),
-            "{}: has_ambient_tick must be exactly has_ambient_motion OR is_waves — one owner",
+            motion || t.background.is_waves() || t.background.is_organic(),
+            "{}: has_ambient_tick must include every ambient background capability — one owner",
             t.name
         );
         // The superset property: has_ambient_tick can only ADD worlds relative
@@ -3591,9 +3591,8 @@ fn has_ambient_tick_composes_has_ambient_motion_or_waves_one_owner() {
         if tick && !motion {
             saw_a_flipped_waves_world = true;
             assert!(
-                t.background.is_waves(),
-                "{}: the only way has_ambient_tick can differ from has_ambient_motion \
-                 is a Waves ground",
+                t.background.is_waves() || t.background.is_organic(),
+                "{}: tick-only grounds must be Waves or Organic",
                 t.name
             );
         }
@@ -3668,6 +3667,25 @@ fn bombora_wave_drift_schedules_zero_frames_under_every_freeze_condition() {
     // The genuinely NEW, non-vacuous case: every gate open, Bombora active —
     // the tick MUST arm (this is false for every OTHER world with no ambient
     // capability, and was unreachable for Bombora before this round).
+    assert!(crate::lava::lava_should_tick(
+        active, true, false, true, false
+    ));
+}
+
+#[test]
+fn bowerbird_organic_schedules_zero_frames_under_every_freeze_condition() {
+    let active = BOWERBIRD.has_ambient_tick();
+    assert!(active, "Organic must enroll in the shared ambient tick");
+    for (ambient, reduced, focused, paused) in [
+        (false, false, true, false),
+        (true, true, true, false),
+        (true, false, false, false),
+        (true, false, true, true),
+    ] {
+        assert!(!crate::lava::lava_should_tick(
+            active, ambient, reduced, focused, paused
+        ));
+    }
     assert!(crate::lava::lava_should_tick(
         active, true, false, true, false
     ));
