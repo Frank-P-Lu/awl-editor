@@ -148,7 +148,8 @@ and first known bad commit, and blocks further integration.
   implementation, structured research, routine diagnosis, merges, audits.
 - **Deep** — current Opus, or `gpt-5.6-sol` at `high`: ownership and state
   maps, ambiguous high-value work, adversarial verification. `xhigh` when
-  several plausible candidates must be eliminated; `max` is rare.
+  several plausible candidates must be eliminated. `xhigh` is the ceiling;
+  do not dispatch workers at `max`.
 - **Repeatable** — `gpt-5.6-luna` at `low`/`medium`: bounded extraction,
   classification, mechanical transformation, deterministic probes.
 - **Visual judge** — Fable, or `gpt-5.6-sol` at `xhigh`: receives real
