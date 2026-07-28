@@ -47,29 +47,6 @@ pub fn max_scroll(total_visual_rows: usize, height: f32, line_height: f32) -> us
     base + overscroll
 }
 
-/// Pixel -> text hit-test. Given a click at `(px, py)` in physical pixels, the
-/// current `scroll_lines`, the zoom `metrics`, and the column's `left` edge,
-/// return the (line, col) the click maps to.
-/// `line = scroll + floor((py - TEXT_TOP) / line_height)`;
-/// `col = round((px - left) / char_width)`, both clamped to be >= 0. `left` is
-/// the centered PAGE-MODE column left (or `TEXT_LEFT` edge-to-edge). The caller
-/// clamps `line`/`col` to the actual buffer (via `line_col_to_char`), since this
-/// function does not know the document. Mirrors EXACTLY the layout math used to
-/// place glyphs + the caret, so a click lands on the right glyph.
-pub fn hit_test(
-    px: f32,
-    py: f32,
-    scroll_lines: usize,
-    metrics: &Metrics,
-    left: f32,
-) -> (usize, usize) {
-    let rel_y = (py - TEXT_TOP).max(0.0);
-    let line = scroll_lines + (rel_y / metrics.line_height).floor() as usize;
-    let rel_x = (px - left).max(0.0);
-    let col = (rel_x / metrics.char_width).round() as usize;
-    (line, col)
-}
-
 pub const PAGE_MIN_PAD: f32 = TEXT_LEFT;
 
 /// PAGE MODE column glyph ADVANCE (px): the char advance that DRIVES the page

@@ -142,58 +142,6 @@ fn page_column_proportion_is_dpi_invariant() {
 }
 
 #[test]
-fn hit_test_top_left_is_origin() {
-    let m = Metrics::new(1.0);
-    // A click in the first cell maps to (line 0, col 0).
-    assert_eq!(
-        hit_test(TEXT_LEFT + 1.0, TEXT_TOP + 1.0, 0, &m, TEXT_LEFT),
-        (0, 0)
-    );
-}
-
-#[test]
-fn hit_test_roundtrips_cell_centers() {
-    // Click inside the LEFT portion of each glyph cell (col + 0.25, clearly
-    // within the glyph, away from the rounding boundary at +0.5) and confirm
-    // we recover that col, at zoom 1.0 and 1.6, with and without scroll.
-    // round() snaps a click past the half-glyph to the next gap (correct
-    // caret placement), which the +0.25 offset deliberately avoids.
-    for zoom in [1.0f32, 1.6] {
-        let m = Metrics::new(zoom);
-        for scroll in [0usize, 5] {
-            for line in 0..4usize {
-                for col in 0..8usize {
-                    let px = TEXT_LEFT + (col as f32 + 0.25) * m.char_width;
-                    let py = TEXT_TOP + ((line as f32) + 0.5) * m.line_height;
-                    let (hl, hc) = hit_test(px, py, scroll, &m, TEXT_LEFT);
-                    assert_eq!(hl, scroll + line, "line z={zoom} s={scroll}");
-                    assert_eq!(hc, col, "col z={zoom} s={scroll} line={line}");
-                }
-            }
-        }
-    }
-}
-
-#[test]
-fn hit_test_rounds_to_nearest_gap() {
-    let m = Metrics::new(1.0);
-    // Just past the right edge of col 0's glyph (>0.5 width) snaps to col 1.
-    let px = TEXT_LEFT + 0.6 * m.char_width;
-    assert_eq!(hit_test(px, TEXT_TOP + 1.0, 0, &m, TEXT_LEFT).1, 1);
-    // Just inside the left part snaps to col 0.
-    let px = TEXT_LEFT + 0.4 * m.char_width;
-    assert_eq!(hit_test(px, TEXT_TOP + 1.0, 0, &m, TEXT_LEFT).1, 0);
-}
-
-#[test]
-fn hit_test_above_text_clamps_to_first_visible() {
-    let m = Metrics::new(1.0);
-    // Click in the top margin (py < TEXT_TOP) clamps to the first visible
-    // line (= scroll) and col 0.
-    assert_eq!(hit_test(0.0, 0.0, 7, &m, TEXT_LEFT), (7, 0));
-}
-
-#[test]
 fn assemble_xs_latin_uses_real_advances() {
     // "ab": two 1-byte chars, each advance 14.4 (mono). Clusters carry BYTE
     // ranges; xs must be the per-char boundaries plus the end.

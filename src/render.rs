@@ -56,7 +56,7 @@ mod blur;
 
 mod geometry;
 use geometry::*;
-pub use geometry::{ImageHandle, ResizeEdge, hit_test, visible_lines_z};
+pub use geometry::{ImageHandle, ResizeEdge, visible_lines_z};
 
 mod layout_report;
 pub(crate) use layout_report::LayoutReport;

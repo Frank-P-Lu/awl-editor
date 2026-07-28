@@ -16,13 +16,12 @@ use crate::render::{Metrics, TEXT_LEFT, TEXT_TOP};
 // keep them from ever touching the developer's real
 // `~/.local/share/awl/{session.toml,scratch.md}`.
 
-/// Place a synthetic press at document (line 0, `col`) — the GPU-less
-/// `hit_test_char` fallback path (`render::hit_test` with fixed-pitch
-/// `Metrics`), so this drives the exact same math a real click does.
+/// Drive the selection-state seam after the separately-tested live pipeline has
+/// resolved a pointer to document column `col`.
 fn press_at_col(app: &mut App, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     app.cursor_px = (TEXT_LEFT + col as f32 * m.char_width, TEXT_TOP);
-    app.on_press(shift, true);
+    app.press_at_char(col, shift);
 }
 
 #[test]
@@ -189,15 +188,20 @@ fn exceeds_drag_slop_combines_both_axes_diagonally() {
     assert!(App::exceeds_drag_slop((0.0, 0.0), (dx, dy)));
 }
 
-/// Move the live pointer by a pixel delta from its CURRENT `cursor_px` and
-/// drive it through the real `on_cursor_moved` seam — the same path a real
-/// `WindowEvent::CursorMoved` takes.
+/// Move a hermetic pointer through the drag-arm state seam, then supply the
+/// document endpoint that production obtains from the live pipeline.
 fn move_by(app: &mut App, dx: f32, dy: f32) {
     let (x, y) = app.cursor_px;
     app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
         (x + dx) as f64,
         (y + dy) as f64,
     ));
+    if app.drag_armed {
+        let m = Metrics::with_dpi(app.zoom, app.dpi);
+        let line = ((app.cursor_px.1 - TEXT_TOP).max(0.0) / m.line_height).floor() as usize;
+        let col = ((app.cursor_px.0 - TEXT_LEFT).max(0.0) / m.char_width).round() as usize;
+        app.drag_to_char(app.active.buffer.hit_char(line, col));
+    }
 }
 
 #[test]
@@ -236,7 +240,7 @@ fn sub_slop_jitter_does_not_arm_a_selection_even_across_a_column_boundary() {
     // Half a cell short of column 6's boundary: rounds to column 6 today,
     // but a nudge of less than half a cell tips it to column 7.
     app.cursor_px = (TEXT_LEFT + 6.0 * m.char_width - 0.5, TEXT_TOP);
-    app.on_press(false, true);
+    app.press_at_char(6, false);
     let pressed_at = app.active.buffer.cursor_char();
     assert!(
         DRAG_ARM_SLOP_PX < m.char_width / 2.0,
@@ -315,10 +319,12 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
     // Drag the pointer far LEFT of the writing column's own origin — well past
     // the page's left edge, deep in the margin — but keep it on the SAME row.
     let m = Metrics::with_dpi(app.zoom, app.dpi);
-    app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
-        (TEXT_LEFT - 500.0) as f64,
-        (TEXT_TOP + 1.5 * m.line_height) as f64,
-    ));
+    let (x, y) = app.cursor_px;
+    move_by(
+        &mut app,
+        TEXT_LEFT - 500.0 - x,
+        TEXT_TOP + 1.5 * m.line_height - y,
+    );
 
     // The clamp lands on the row's OWN first column (char 6, "world"'s own
     // start) — never a negative/OOB index, never the document's absolute
@@ -335,10 +341,12 @@ fn a_drag_past_the_pages_left_edge_clamps_to_the_rows_first_column() {
 
     // Dragging even FURTHER left changes nothing further — the clamp is
     // idempotent, not a crash-prone unbounded extrapolation.
-    app.on_cursor_moved(winit::dpi::PhysicalPosition::new(
-        (TEXT_LEFT - 100_000.0) as f64,
-        (TEXT_TOP + 1.5 * m.line_height) as f64,
-    ));
+    let (x, y) = app.cursor_px;
+    move_by(
+        &mut app,
+        TEXT_LEFT - 100_000.0 - x,
+        TEXT_TOP + 1.5 * m.line_height - y,
+    );
     assert_eq!(app.active.buffer.selection_range(), Some((6, 9)));
 }
 
@@ -368,26 +376,22 @@ fn release_disarms_so_the_next_press_is_slop_gated_again() {
     );
 }
 
-// --- ITEM 47c: click-to-expand on a collapsed heading's tail / chevron ---------
-//
-// The hermetic (GPU-less) press path drives `render::hit_test`'s fixed-pitch
-// fallback — the exact math a real click runs — so a synthesized press at the tail
-// region exercises the true affordance seam. A pathless hermetic buffer is markdown
-// (so headings + folds are live), and folding parks the caret on the heading.
+// --- Folded-selection state ----------------------------------------------------
 
 /// A small nested-free markdown doc (no soft-wrap): row 0 # A hides a1,a2 when
 /// folded; # B / b1 stay visible.
 const FOLD_DOC: &str = "# A\na1\na2\n# B\nb1";
 
-/// Synthesize a press at a VISUAL row + char column (fixed-pitch fallback geometry),
-/// landing mid-row so the y floors to `row`. Drives the real `on_press`.
+/// Drive selection state at a filtered document row after a live hit test has
+/// resolved the row and column.
 fn press_at_row_col(app: &mut App, row: usize, col: usize, shift: bool) {
     let m = Metrics::with_dpi(app.zoom, app.dpi);
     app.cursor_px = (
         TEXT_LEFT + col as f32 * m.char_width,
         TEXT_TOP + (row as f32 + 0.5) * m.line_height,
     );
-    app.on_press(shift, true);
+    let full = app.active.buffer.visible_line_to_full(row);
+    app.press_at_char(app.active.buffer.line_col_to_char(full, col), shift);
 }
 
 fn folded_app() -> App {
@@ -400,29 +404,6 @@ fn folded_app() -> App {
         "precondition: # A is folded"
     );
     app
-}
-
-#[test]
-fn clicking_the_collapsed_heading_tail_expands_the_fold() {
-    let mut app = folded_app();
-    // Press PAST the heading text on its own row (col 20 ≫ "# A".len() == 3): the
-    // "… N lines" tail / chevron region. It expands the fold, parks the caret on the
-    // heading, and starts NO drag.
-    press_at_row_col(&mut app, 0, 20, false);
-    assert!(
-        app.active.buffer.folds().is_empty(),
-        "a click on the tail affordance expanded the fold"
-    );
-    assert_eq!(
-        app.active.buffer.cursor_line_col().0,
-        0,
-        "caret parked on the heading"
-    );
-    assert!(
-        !app.dragging,
-        "an expand click never starts a text-selection drag"
-    );
-    assert!(!app.active.buffer.has_selection());
 }
 
 #[test]
@@ -439,18 +420,6 @@ fn clicking_the_heading_text_places_the_caret_without_expanding() {
         app.active.buffer.cursor_line_col().0,
         0,
         "caret is on the heading line"
-    );
-}
-
-#[test]
-fn a_shift_click_on_the_tail_never_expands() {
-    let mut app = folded_app();
-    // Shift-click is a selection-extend gesture everywhere; it must not hijack into an
-    // expand, even over the tail region.
-    press_at_row_col(&mut app, 0, 20, true);
-    assert!(
-        app.active.buffer.folds().contains(&0),
-        "a shift-click extends a selection, it never expands a fold"
     );
 }
 

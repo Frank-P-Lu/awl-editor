@@ -10,18 +10,12 @@ impl App {
 
     fn hit_test_line_col(&self) -> (usize, usize) {
         let (px, py) = self.cursor_px;
-        match self.gpu.as_ref() {
-            Some(gpu) => gpu
-                .pipeline
-                .hit_test_scroll(px, py, self.active.extra.scroll),
-            None => render::hit_test(
-                px,
-                py,
-                self.active.extra.scroll.row,
-                &render::Metrics::with_dpi(self.zoom, self.dpi),
-                render::TEXT_LEFT,
-            ),
-        }
+        let gpu = self
+            .gpu
+            .as_ref()
+            .expect("pointer hit testing requires the live GPU text pipeline");
+        gpu.pipeline
+            .hit_test_scroll(px, py, self.active.extra.scroll)
     }
 
     /// The char index under the pointer — every click, drag endpoint, right-press
@@ -143,11 +137,17 @@ impl App {
             self.active.buffer.clear_mark();
             return;
         }
+        let idx = self.hit_test_char();
+        self.press_at_char(idx, shift);
+    }
+
+    /// Selection-state half of a document press after the live pipeline has
+    /// resolved its shaped pixel position to a document character.
+    pub(in crate::app) fn press_at_char(&mut self, idx: usize, shift: bool) {
         let click_count = self.bump_click_count();
         // A click is a non-edit gesture: seal the open undo group so text typed
         // after relocating the cursor is its own undo step.
         self.active.buffer.seal_undo_group();
-        let idx = self.hit_test_char();
         self.dragging = true;
         self.drag_press_px = self.cursor_px;
         self.drag_armed = false;
@@ -618,7 +618,16 @@ impl App {
         if !self.dragging {
             return;
         }
+        let Some(_) = self.gpu.as_ref() else {
+            return;
+        };
         let idx = self.hit_test_char();
+        self.drag_to_char(idx);
+    }
+
+    /// Selection-state half of a text drag after the live pipeline has resolved
+    /// the pointer to a document character.
+    pub(in crate::app) fn drag_to_char(&mut self, idx: usize) {
         match self.drag_granularity {
             DragGranularity::Char => self.active.buffer.set_cursor(idx),
             DragGranularity::Word => {
