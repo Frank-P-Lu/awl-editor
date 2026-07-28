@@ -38,19 +38,18 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 - 127 fold-chevron optical centring — ✅ LANDED @ `d338a08d`.
 - 128 native macOS identity/About panel — ✅ LANDED @ `cb8aca95`;
   live About screenshot remains a display/manual verification.
-- 117 Bowerbird organic-cutout ground — ✅ LANDED @ `ddd17260`;
+- 117 Bowerbird organic-cutout ground — ✅ LANDED @ `88ff25c2`;
   combined-main roster/health/wasm audit green; live motion/taste remains
   user-gated.
 - 121 Firetail Block/icon-ground A/B/C trial — 🔴 BLOCKED: canonical
   pinned-Chromium exporter hangs before its first PNG even for an unchanged
   32px control; clean review-only worktree, no shipping mutation.
-- 95 remaining bounded Settings ranges — 🟡 IN PROGRESS,
-  `item_108_gumtree` (codex), branch `codex/item-95-settings-ranges`.
+- 95 remaining bounded Settings ranges — ✅ LANDED @ `a79514cc`.
 - 132 Kite warped-grid world — 🟡 IN PROGRESS, `item_132_kite` (codex),
   branch `codex/item-132-kite`.
-- 133 Paperbark five-treatment trial — 🟡 IN PROGRESS,
-  `item_133_paperbark_trial` (codex), branch
-  `codex/item-133-paperbark-trial`.
+- 133 Paperbark five-treatment trial — 🔴 BLOCKED: real-app captures
+  require a WGPU adapter, and the current headless host reports none before
+  frame one; no trial/shipping mutation landed.
 
 ## Ready — current user-visible wave
 
