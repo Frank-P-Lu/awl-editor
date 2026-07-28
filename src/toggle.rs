@@ -23,16 +23,14 @@
 //! A caller that must hold the lock across MORE than one write in a row (e.g.
 //! `menubar::set_menu_bar_on` clearing the open dropdown in the same window it
 //! flips the bar off, or `page::widen` reading-then-writing the measure) takes
-//! its OWN `crate::testlock::serial()` guard first, exactly as it did before
-//! this module existed — [`Toggle`]'s assert then finds the lock already held
-//! (the guard is reentrant) rather than taking it itself, so the multi-step
-//! window stays one continuous acquisition.
+//! its OWN `crate::testlock::serial()` guard first — [`Toggle`]'s assert then
+//! finds the lock already held (the guard is reentrant) rather than taking it
+//! itself, so the multi-step window stays one continuous acquisition.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// A process-global boolean flag: the identical `AtomicBool` + relaxed
-/// load/store shape awl's sticky on/off preferences all shared before this
-/// module existed.
+/// A process-global boolean flag: one `AtomicBool` behind a relaxed
+/// load/store, the one shape every sticky on/off preference uses.
 pub(crate) struct Toggle(AtomicBool);
 
 impl Toggle {
@@ -145,9 +143,9 @@ mod tests {
         ("hud.rs", "HUD_HELD is TRANSIENT interaction state (held while a key \
             is down, no config binding, no persistence) — the same category \
             as menubar::OPEN_MENU, not a sticky preference"),
-        ("probe.rs", "LIVE_ACTIVE / FLIGHT_ACTIVE — the flight recorder, \
-            explicitly named as a localized single-concern cluster that stays \
-            (item 142's own scope note)"),
+        ("probe.rs", "LIVE_ACTIVE / FLIGHT_ACTIVE — the flight recorder, a \
+            localized single-concern cluster whose two flags are read and \
+            written together by one owner, not independent preferences"),
         ("crashlog.rs", "HOOK_INSTALLED is a one-way install witness (no \
             setter, no toggle, never flips back) — a startup latch, not a \
             get/set/toggle preference"),
