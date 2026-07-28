@@ -1,0 +1,388 @@
+use super::Command;
+use crate::keymap::Action;
+
+pub(super) static COMMANDS: &[Command] = &[
+    Command {
+        name: "Go to file…",
+        action: Action::OpenGoto,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Switch project…",
+        action: Action::OpenProject,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Recent projects…",
+        action: Action::OpenRecentProjects,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Browse files…",
+        action: Action::OpenBrowse,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Go to heading…",
+        action: Action::OpenOutline,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Spell suggestions…",
+        action: Action::OpenSpellSuggest,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Version history…",
+        action: Action::OpenHistory,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Compare with version…",
+        action: Action::CompareVersion,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Clean unused assets…",
+        action: Action::OpenAssetClean,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Keep version…",
+        action: Action::KeepVersion,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Last file",
+        action: Action::LastBuffer,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "New document",
+        action: Action::NewDocument,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Move…",
+        action: Action::MoveFile,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Rename note…",
+        action: Action::OpenRenameNote,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Duplicate note",
+        action: Action::DuplicateNote,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    // FINISH FILE: the emacsclient "server-edit" convention — save, notify any daemon
+    // `--wait` client, and switch to the previously-open file. The emacs `C-x #`
+    // default is retired; Cmd-W is its native slot now (P5 of the keybinding
+    // idiom audit — awl's closest analogue to "close the document": non-
+    // destructive under stray muscle memory, since it saves rather than closes
+    // anything). NATIVE-ONLY: the daemon handoff it notifies has no web analog.
+    // See `crate::daemon`. (Action stays `FinishBuffer`.)
+    Command {
+        name: "Finish file",
+        action: Action::FinishBuffer,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Follow link",
+        action: Action::FollowLink,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Switch theme…",
+        action: Action::OpenThemeMenu,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Caret style…",
+        action: Action::OpenCaretMenu,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Dictionary…",
+        action: Action::OpenDictionaryMenu,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle spellcheck",
+        action: Action::ToggleSpellcheck,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle caret style",
+        action: Action::ToggleCaretMode,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle page mode",
+        action: Action::TogglePageMode,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle writing nits",
+        action: Action::ToggleWritingNits,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Widen page",
+        action: Action::PageWider,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Narrow page",
+        action: Action::PageNarrower,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Reset page width",
+        action: Action::PageReset,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle debug",
+        action: Action::ToggleDebug,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle outline",
+        action: Action::ToggleOutline,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    // FOLD SECTION: collapse/expand the markdown section under the caret (view state,
+    // never file content). Default Cmd-. / C-c C-f; rebindable via config `[keys]`.
+    Command {
+        name: "Fold section",
+        action: Action::ToggleFold,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Collapse other sections",
+        action: Action::CollapseOtherSections,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle typewriter scroll",
+        action: Action::ToggleTypewriter,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Toggle menu bar",
+        action: Action::ToggleMenuBar,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "About",
+        action: Action::About,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Credits",
+        action: Action::OpenCredits,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Guide",
+        action: Action::OpenGuide,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Lifetime stats",
+        action: Action::LifetimeStats,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    Command {
+        name: "Writing streaks",
+        action: Action::WritingStreaks,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+    // LINE ENDINGS: toggle the active file's on-disk ending (LF <-> CRLF). No default
+    // chord — the palette IS its entry point (a rare command, like Settings/About); a
+    // real `Action` (`ConvertLineEndings`), independently rebindable via `[keys]`.
+    Command {
+        name: "Line endings…",
+        action: Action::ConvertLineEndings,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    // ALIGN TABLE: re-pad the GFM table under the caret so its `|` line up (source
+    // alignment, never a drawn grid). No default chord — the palette IS its entry
+    // point (like Settings/About); a real `Action`, independently rebindable.
+    Command {
+        name: "Align table",
+        action: Action::AlignTable,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Insert Date",
+        action: Action::InsertDate,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    // REPORT A PROBLEM: compose a mailto: link to the maintainer, with the
+    // newest local crash log's path attached-by-name if one exists (never its
+    // content — the crash-visibility privacy law). No default chord — the
+    // palette IS its entry point (like Settings/About/Align table); a real
+    // `Action`, independently rebindable via `[keys]`. `native_only: false` —
+    // available on the web build too (the mailto composition is pure and
+    // platform-agnostic; only the crash-log path lookup is native-only). See
+    // `crashlog.rs`.
+    Command {
+        name: "Report a Problem",
+        action: Action::ReportProblem,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+    },
+    Command {
+        name: "Download file",
+        action: Action::DownloadFile,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: true,
+    },
+    // CHECK FOR UPDATES: never a network fetch — records a LOCAL "last checked"
+    // marker (best-effort, `updates::record_checked`) then hands off to the OS
+    // browser at the site's own `/check?v=…` page, which does the actual version
+    // comparison against its own `version.json` (see `updates.rs`). No default
+    // chord — the palette IS its entry point (like Report a Problem/About). Uses
+    // the SAME `Effect::FollowLink`-style OS-handoff seam `App::follow_link`
+    // already provides. `native_only: true` — the web build updates by
+    // deploy/refresh, so "checking" is meaningless there.
+    Command {
+        name: "Check for Updates",
+        action: Action::CheckForUpdates,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+    },
+];

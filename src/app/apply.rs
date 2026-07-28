@@ -14,6 +14,33 @@ struct CoreRun {
     history_overlay_before: bool,
 }
 
+struct CoreBefore {
+    theme_overlay_before: bool,
+    theme_before: crate::theme::Theme,
+    history_overlay_before: bool,
+}
+
+impl CoreBefore {
+    fn of(overlay: &Option<crate::overlay::OverlayState>) -> Self {
+        Self {
+            theme_overlay_before: overlay
+                .as_ref()
+                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
+            theme_before: crate::theme::active(),
+            history_overlay_before: overlay
+                .as_ref()
+                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::History),
+        }
+    }
+}
+
+struct OverlayInputs {
+    spell_target: Option<(Vec<String>, (usize, usize, usize), String)>,
+    history_entries: Vec<crate::history::TimelineRow>,
+    assets: Vec<crate::assets::Orphan>,
+    has_waiter: bool,
+}
+
 struct GotoInputs {
     goto_corpus: Vec<String>,
     goto_times: Vec<String>,
@@ -477,53 +504,7 @@ impl App {
         }
     }
 
-    fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
-        let mut shift_selecting = self.active.extra.shift_selecting;
-        let mut zoom = self.zoom;
-        let mut search = self.search.take();
-        let mut overlay = self.overlay.take();
-        let overlay_was_open = overlay.is_some();
-        // Whether the Theme picker is open BEFORE the core runs: live preview
-        // (move / filter) mutates the process-global active theme while it stays
-        // open, so the GPU pipelines must be re-tinted even with no accept.
-        let theme_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
-            .unwrap_or(false);
-        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
-        // live preview (which mutates the process-global active theme).
-        // `retint_theme_preview` compares it against the now-active world to detect
-        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
-        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
-        let theme_before = crate::theme::active();
-        // Whether the HISTORY timeline is open BEFORE the core runs: its live
-        // preview state (the derived document preview + the saved scroll) must be
-        // put down the moment the overlay closes, accept or not.
-        let history_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::History)
-            .unwrap_or(false);
-        let config_keys = self.config.keys.clone();
-        let config_linux_keep = self.config.effective_linux_keep();
-        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
-        // is borrowed mutably below): clone the small bits `make_overlay` needs.
-        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
-        // SUMMON: rebuild the file index right as `C-x f` opens, through the
-        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
-        // since launch (or the last scan) is never missing. No cache TTL, no
-        // watcher — a summoned overlay is transient and the walk is disk-cheap
-        // for a real project tree. Gated on the action like outline/spell/
-        // history below: walking the tree on every OTHER keystroke would be
-        // needless disk I/O.
-        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
-        // since launch is caught, same freshness rationale as go-to).
-        let GotoInputs {
-            goto_corpus,
-            goto_times,
-            goto_open,
-            goto_recent,
-            goto_headings,
-        } = self.gather_goto_inputs(action);
+    fn gather_overlay_inputs(&mut self, action: &Action) -> OverlayInputs {
         #[allow(clippy::type_complexity)]
         let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
             if matches!(action, Action::OpenSpellSuggest) {
@@ -596,6 +577,72 @@ impl App {
             .is_some_and(|key| self.wait_conns.get(&key).is_some_and(|w| !w.is_empty()));
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
+        OverlayInputs {
+            spell_target,
+            history_entries,
+            assets,
+            has_waiter,
+        }
+    }
+
+    fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
+        let mut shift_selecting = self.active.extra.shift_selecting;
+        let mut zoom = self.zoom;
+        let mut search = self.search.take();
+        let mut overlay = self.overlay.take();
+        let overlay_was_open = overlay.is_some();
+        let CoreBefore {
+            theme_overlay_before,
+            theme_before,
+            history_overlay_before,
+        } = CoreBefore::of(&overlay);
+        /* // Whether the Theme picker is open BEFORE the core runs: live preview
+        // (move / filter) mutates the process-global active theme while it stays
+        // open, so the GPU pipelines must be re-tinted even with no accept.
+        let theme_overlay_before = overlay
+            .as_ref()
+            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
+            .unwrap_or(false);
+        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
+        // live preview (which mutates the process-global active theme).
+        // `retint_theme_preview` compares it against the now-active world to detect
+        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
+        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
+        let theme_before = crate::theme::active();
+        // Whether the HISTORY timeline is open BEFORE the core runs: its live
+        // preview state (the derived document preview + the saved scroll) must be
+        // put down the moment the overlay closes, accept or not.
+        let history_overlay_before = overlay
+            .as_ref()
+            .map(|o| o.kind == crate::overlay::OverlayKind::History)
+            .unwrap_or(false); */
+        let config_keys = self.config.keys.clone();
+        let config_linux_keep = self.config.effective_linux_keep();
+        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
+        // is borrowed mutably below): clone the small bits `make_overlay` needs.
+        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
+        // SUMMON: rebuild the file index right as `C-x f` opens, through the
+        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
+        // since launch (or the last scan) is never missing. No cache TTL, no
+        // watcher — a summoned overlay is transient and the walk is disk-cheap
+        // for a real project tree. Gated on the action like outline/spell/
+        // history below: walking the tree on every OTHER keystroke would be
+        // needless disk I/O.
+        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
+        // since launch is caught, same freshness rationale as go-to).
+        let GotoInputs {
+            goto_corpus,
+            goto_times,
+            goto_open,
+            goto_recent,
+            goto_headings,
+        } = self.gather_goto_inputs(action);
+        let OverlayInputs {
+            spell_target,
+            history_entries,
+            assets,
+            has_waiter,
+        } = self.gather_overlay_inputs(action);
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,
@@ -673,6 +720,16 @@ impl App {
         let _ = make_overlay;
         let _ = browse_to;
         self.overlay = overlay;
+        self.sync_overlay_after_core(overlay_was_open);
+        CoreRun {
+            effect,
+            theme_overlay_before,
+            theme_before,
+            history_overlay_before,
+        }
+    }
+
+    fn sync_overlay_after_core(&mut self, overlay_was_open: bool) {
         // ITEM 106 — re-anchor the hover movement-slop gate to the pointer's
         // CURRENT resting position after every action this seam applies (keyboard
         // nav/type, a menu command, or a click routed back through `apply` from
@@ -689,12 +746,6 @@ impl App {
         }
         if self.overlay.is_some() != overlay_was_open {
             self.sync_cursor_icon();
-        }
-        CoreRun {
-            effect,
-            theme_overlay_before,
-            theme_before,
-            history_overlay_before,
         }
     }
 
@@ -1019,18 +1070,7 @@ impl App {
     /// OS-clipboard mirror after a cut/copy, and the delete-word caret streak. Keyed off
     /// `action` (the Save/clipboard pattern), never an interception that bypasses the
     /// core. Runs straight through with no early return.
-    pub(super) fn post_apply_effects(
-        &mut self,
-        action: &Action,
-        theme_overlay_before: bool,
-        theme_committed: bool,
-        theme_before: crate::theme::Theme,
-    ) {
-        // RENDER-ONLY TOGGLES — post-`apply_core` side effects. The core already
-        // flipped the process-global (caret look / page mode) on the
-        // ONE shared seam, so live and `--keys` replay agree; here we do only the
-        // window/GPU work the core can't reach, keyed off the action (the
-        // Save/clipboard pattern) instead of intercepting before the core.
+    fn post_view_action(&mut self, action: &Action) {
         match action {
             // Caret look: the buffer is untouched and the cached glyph masks stay
             // valid (keyed by CacheKey), so the trailing `sync_view` + redraw in the
@@ -1132,6 +1172,21 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    pub(super) fn post_apply_effects(
+        &mut self,
+        action: &Action,
+        theme_overlay_before: bool,
+        theme_committed: bool,
+        theme_before: crate::theme::Theme,
+    ) {
+        // RENDER-ONLY TOGGLES — post-`apply_core` side effects. The core already
+        // flipped the process-global (caret look / page mode) on the
+        // ONE shared seam, so live and `--keys` replay agree; here we do only the
+        // window/GPU work the core can't reach, keyed off the action (the
+        // Save/clipboard pattern) instead of intercepting before the core.
+        self.post_view_action(action);
         if matches!(action, Action::Save)
             && self
                 .active

@@ -10,34 +10,6 @@ message = "this function has too many lines (142/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/actions/overlay_nav.rs"
-line = 16
-message = "the function has a cognitive complexity of (34/25)"
-reason = "Existing input action owner; extraction must preserve one drivable state transition."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/actions/overlay_nav.rs"
-line = 16
-message = "this function has too many lines (592/100)"
-reason = "Existing input action owner; extraction must preserve one drivable state transition."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/actions.rs"
-line = 360
-message = "the function has a cognitive complexity of (26/25)"
-reason = "Existing input action owner; extraction must preserve one drivable state transition."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/actions.rs"
-line = 360
-message = "this function has too many lines (345/100)"
-reason = "Existing input action owner; extraction must preserve one drivable state transition."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
 line = 834
@@ -56,36 +28,6 @@ lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
 line = 485
 message = "this function has too many lines (133/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/app/apply.rs"
-line = 265
-message = "the function has a cognitive complexity of (30/25)"
-target_os = "macos"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/app/apply.rs"
-line = 265
-message = "the function has a cognitive complexity of (29/25)"
-target_os = "linux"
-reason = "The target-gated application path has one fewer branch on Linux; ratchet it against that platform's real metric."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/app/apply.rs"
-line = 265
-message = "this function has too many lines (308/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/app/apply.rs"
-line = 997
-message = "this function has too many lines (114/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
