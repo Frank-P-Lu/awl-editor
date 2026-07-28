@@ -45,10 +45,7 @@ fn rich(bg: Background, phase: f32) -> String {
     let hex = |c: crate::theme::Srgb| json_string(&c.hex());
     match bg {
         Background::Lava { ground, blob_lo, blob_hi, edge, dithered } => format!(
-            concat!(
-                "{{ \"kind\": \"lava\", \"ground\": {}, \"blob_lo\": {}, ",
-                "\"blob_hi\": {}, \"edge\": \"{}\", \"dithered\": {}, \"phase\": {} }}"
-            ),
+            "{{ \"kind\": \"lava\", \"ground\": {}, \"blob_lo\": {}, \"blob_hi\": {}, \"edge\": \"{}\", \"dithered\": {}, \"phase\": {} }}",
             hex(ground), hex(blob_lo), hex(blob_hi), edge.as_str(), dithered, phase
         ), Background::Bands { tones, angle } => format!(
             "{{ \"kind\": \"bands\", \"tones\": [{}, {}, {}], \"angle\": {} }}",

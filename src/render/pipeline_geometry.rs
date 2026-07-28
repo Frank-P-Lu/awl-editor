@@ -2,6 +2,7 @@
 //! Pure column, wrap, and hit-test math lives in [`super::geometry`].
 
 use super::*;
+
 impl TextPipeline {
     /// Re-tint every baked GPU pipeline (caret, selection, search-match, panel
     /// card, panel caret, spell squiggle) from the ACTIVE theme AND, when the new
