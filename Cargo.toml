@@ -59,6 +59,11 @@ opt-level = 3
 # These lints catch real mistakes here without prescribing a style or forcing
 # architecture-scale rewrites of existing dispatch and capture seams.
 [lints.clippy]
+# A call inside `debug_assert!` VANISHES in release: the macro compiles out and
+# takes the side effect with it. No suite can catch that — `cargo test` builds
+# the dev profile, where the call is still there. Deny rather than warn: the
+# failure is invisible until a user runs a release build.
+debug_assert_with_mut_call = "deny"
 needless_borrow = "warn"
 needless_borrows_for_generic_args = "warn"
 unnecessary_to_owned = "warn"

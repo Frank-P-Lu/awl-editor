@@ -918,14 +918,26 @@ fn action_family(action: &Action) -> ActionFamily {
 fn dispatch_editor_action(ctx: &mut ActionCtx, action: &Action, family: ActionFamily) -> Effect {
     let mut effect = Effect::None;
     match family {
-        ActionFamily::Buffer => debug_assert!(apply_buffer_action(ctx, action)),
-        ActionFamily::Viewport => debug_assert!(apply_viewport_action(ctx, action)),
+        ActionFamily::Buffer => {
+            // The call must NOT sit inside `debug_assert!` — that macro compiles
+            // out in release, taking the dispatch with it and leaving the whole
+            // family inert in a shipped build. Run it, then assert the result.
+            let handled = apply_buffer_action(ctx, action);
+            debug_assert!(handled, "buffer family did not handle {action:?}");
+        }
+        ActionFamily::Viewport => {
+            let handled = apply_viewport_action(ctx, action);
+            debug_assert!(handled, "viewport family did not handle {action:?}");
+        }
         ActionFamily::Session => {
             effect = apply_session_action(ctx, action).expect("session action")
         }
         ActionFamily::View => effect = apply_view_action(ctx, action).expect("view action"),
         ActionFamily::Align => align_table_at_cursor(ctx),
-        ActionFamily::Format => debug_assert!(apply_format_action(ctx, action)),
+        ActionFamily::Format => {
+            let handled = apply_format_action(ctx, action);
+            debug_assert!(handled, "format family did not handle {action:?}");
+        }
         ActionFamily::Export => effect = apply_export_action(ctx, action).expect("export action"),
         ActionFamily::Overlay | ActionFamily::Deferred => {
             unreachable!("command family routed to editor dispatcher")
@@ -937,7 +949,10 @@ fn dispatch_editor_action(ctx: &mut ActionCtx, action: &Action, family: ActionFa
 fn dispatch_command_action(ctx: &mut ActionCtx, action: &Action, family: ActionFamily) -> Effect {
     let mut effect = Effect::None;
     match family {
-        ActionFamily::Overlay => debug_assert!(apply_overlay_open_action(ctx, action)),
+        ActionFamily::Overlay => {
+            let handled = apply_overlay_open_action(ctx, action);
+            debug_assert!(handled, "overlay family did not handle {action:?}");
+        }
         ActionFamily::Deferred => {
             effect = apply_deferred_action(ctx, action).expect("deferred action");
         }
