@@ -231,7 +231,7 @@ lines = 590
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 1244
+lines = 1027
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
