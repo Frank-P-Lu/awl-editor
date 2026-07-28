@@ -1,21 +1,12 @@
-//! THE one process-wide headless `(Device, Queue)` for tests (item 138's sibling:
-//! GPU device-creation cost, not the actions/apply/schedule work that item owns).
+//! The one process-wide headless `(Device, Queue)` shared by every render test.
 //!
-//! Every render/pipeline test used to run its own `Instance::new` ->
-//! `request_adapter` -> `request_device` dance — a real Metal/Vulkan device
-//! stand-up, paid fresh by every single test regardless of what it asserted.
-//! Measured at ~430ms/test over 613 `render::tests::` tests (326s of the suite's
-//! 8m51s), that setup cost dwarfed the work under test.
+//! `wgpu::Device`/`Queue` are Arc-backed handles, so callers get a cheap clone
+//! of one lazily-created pair instead of standing up an adapter and device
+//! apiece (~64ms each). Callers still build their own `Cache`/`TextPipeline`.
 //!
-//! `wgpu::Device` and `wgpu::Queue` are `Clone + Send + Sync` Arc-backed handles
-//! (cloning bumps a refcount, no GPU work), so ONE device is created lazily on
-//! first use and every caller gets a cheap clone of the same pair. Callers still
-//! build their OWN [`glyphon::Cache`] / `TextPipeline` / pipeline-under-test —
-//! only the Instance/Adapter/Device/Queue stand-up is shared.
-//!
-//! `None` on a GPU-less machine (CI, a headless box with no adapter) — cached
-//! too, so a GPU-less run still pays the probe exactly once, and every caller
-//! must keep degrading to its existing clean skip.
+//! `None` on a machine with no adapter — cached too, so the probe runs once and
+//! callers keep their existing skip. A test needing non-default features/limits,
+//! or exercising device loss, must create its own device instead.
 
 use std::sync::OnceLock;
 
