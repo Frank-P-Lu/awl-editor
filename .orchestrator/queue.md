@@ -33,8 +33,8 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 - 107 enum-derived rosters — ✅ LANDED @ `c3f7eb27`.
 - 109 icon-ratchet subset erosion — ✅ LANDED @ `d45d34f3`.
 - 108 Gumtree chevron visibility — ✅ LANDED @ `f8d384de`.
-- 122 Quokka alternating wallpaper bands — 🟡 IN PROGRESS,
-  `item_108_gumtree` (codex), branch `codex/item-122-quokka-bands`.
+- 122 Quokka alternating wallpaper bands — ✅ LANDED @ `2edcfdeb`;
+  live/dashboard vision smoke remains a display gate.
 - 127 fold-chevron optical centring — ✅ LANDED @ `d338a08d`.
 - 128 native macOS identity/About panel — ✅ LANDED @ `cb8aca95`;
   live About screenshot remains a display/manual verification.
@@ -43,6 +43,8 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 - 121 Firetail Block/icon-ground A/B/C trial — 🟡 IN PROGRESS,
   `item_121_firetail_icon` (codex), branch
   `codex/item-121-firetail-icon-trial`.
+- 95 remaining bounded Settings ranges — 🟡 IN PROGRESS,
+  `item_108_gumtree` (codex), branch `codex/item-95-settings-ranges`.
 
 ## Ready — current user-visible wave
 
