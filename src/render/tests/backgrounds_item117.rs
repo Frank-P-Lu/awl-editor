@@ -68,3 +68,64 @@ fn organic_phase_moves_and_wraps_without_a_catchup_jump() {
         "shared settled phase wraps exactly"
     );
 }
+
+#[test]
+fn organic_phase_sweep_stays_cool_and_the_density_mutation_goes_red() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let bg = theme::BOWERBIRD.background;
+    let (w, h, left, col) = (1200, 800, 350.0, 500.0);
+    let mut peak_marks = 0usize;
+    for phase in [0.0, 0.13, 0.37, 0.71, 1.0] {
+        let pixels = render_bg(
+            &device,
+            &queue,
+            bg_desc_for(bg),
+            w,
+            h,
+            left,
+            col,
+            phase * std::f32::consts::TAU,
+        );
+        for (i, p) in pixels.iter().enumerate() {
+            let x = (i as u32) % w;
+            if (x as f32) >= left && (x as f32) < left + col {
+                continue;
+            }
+            // Bowerbird's Frame remains navy/cool: blue must dominate red and
+            // no phase may approach the warm caret's high-red/green hue.
+            assert!(
+                p[2] >= p[0] && p[0] < 90,
+                "phase {phase}: warm/bright frame pixel {p:?}"
+            );
+            peak_marks += usize::from(p[2] > 35);
+        }
+    }
+    assert!(
+        peak_marks > 500,
+        "all-phase field must visibly occupy the Frame"
+    );
+    let mut mutant = bg_desc_for(bg);
+    mutant.density = 0.0;
+    let muted = render_bg(&device, &queue, mutant, w, h, left, col, 0.0);
+    let normal = render_bg(&device, &queue, bg_desc_for(bg), w, h, left, col, 0.0);
+    let changed = normal
+        .iter()
+        .zip(muted.iter())
+        .filter(|(a, b)| a != b)
+        .count();
+    assert!(
+        changed > 500,
+        "mutation witness: density=0 must visibly remove the field"
+    );
+}
+
+#[test]
+fn organic_freeze_conditions_resolve_to_the_settled_phase() {
+    let settled = crate::lava::LAVA_FROZEN_PHASE;
+    assert_eq!(crate::lava::lava_phase_for(0.63, true, None), settled);
+    // `ambient_motion = false` uses the same App freeze door before render.
+    assert_eq!(crate::lava::lava_phase_for(settled, false, None), settled);
+}
