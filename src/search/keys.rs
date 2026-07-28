@@ -39,170 +39,149 @@ pub fn intercept(
     let alt = mods.contains(ModifiersState::ALT);
     let sup = mods.contains(ModifiersState::SUPER);
     let shift = mods.contains(ModifiersState::SHIFT);
-    // Which field a self-insert / Backspace edits: the replacement (true) or
-    // the search query (false). A bool copy, so the immutable borrow is dropped
-    // before the arms below take a mutable borrow of `*search`.
     let editing_replacement = search
         .as_ref()
         .map(|s| s.is_editing_replacement())
         .unwrap_or(false);
 
     match logical {
-        Key::Character(s) => {
-            let c = s.chars().next()?;
-            // Cmd-based Find/Replace chords WITHIN the panel: Cmd-F skips to the
-            // next match, Cmd-Shift-F the previous (so you can pass a match without
-            // replacing it), Cmd-Option-F reveals+toggles the replace field, Cmd-R
-            // focuses the replace field (the headline door — a fresh Cmd-R opened
-            // the panel on the find field), Cmd-Option-C toggles case sensitivity
-            // (the MAC-REACHABLE case toggle — see below), and Cmd-G / Cmd-Shift-G
-            // MIRROR Cmd-F / Cmd-Shift-F's plain step (P2 — the deeper macOS
-            // find-next/previous idiom, alongside Cmd-F's own in-panel step;
-            // Cmd-Option-G has no Option-toggle counterpart, so it is simply
-            // consumed, no-op). Other Super combos are consumed.
-            if sup && !ctrl {
-                if c.eq_ignore_ascii_case(&'f') {
-                    if alt {
-                        if let Some(st) = search.as_mut() {
-                            st.toggle_replace();
-                        }
-                    } else if shift {
-                        return step(search, buffer, Direction::Backward);
-                    } else {
-                        return step(search, buffer, Direction::Forward);
-                    }
-                } else if c.eq_ignore_ascii_case(&'c') && alt {
-                    // Cmd-Option-C (⌘⌥C): toggle case sensitivity. This is the
-                    // MAC-REACHABLE case toggle — a bare Option-c composes to 'ç'
-                    // on macOS (the logical key never arrives as 'c'+Alt), so the
-                    // M-c arm below only fires on Linux. Holding Cmd suppresses the
-                    // accent composition so ⌘⌥C delivers a plain 'c' — the same
-                    // reason the ⌘⌥F replace-toggle above works. Mirrors VS Code's
-                    // ⌥⌘C "match case" idiom.
-                    toggle_case_and_jump(search, buffer);
-                } else if c.eq_ignore_ascii_case(&'g') && !alt {
-                    if shift {
-                        return step(search, buffer, Direction::Backward);
-                    } else {
-                        return step(search, buffer, Direction::Forward);
-                    }
-                } else if c.eq_ignore_ascii_case(&'r')
-                    && !alt
-                    && let Some(st) = search.as_mut()
-                {
-                    st.focus_replacement();
-                }
-                return None;
-            }
-            if ctrl && !alt {
-                match c.to_ascii_lowercase() {
-                    's' => return step(search, buffer, Direction::Forward),
-                    'r' => return step(search, buffer, Direction::Backward),
-                    'g' => abort(search, buffer),
-                    _ => {} // other ctrl combos: consumed, no-op
-                }
-            } else if alt && !ctrl {
-                if matches!(c, 'c' | 'C') {
-                    // M-c / Alt+c toggles case sensitivity — the LINUX slot (on
-                    // macOS Option-c composes to 'ç' and never reaches here; use
-                    // ⌘⌥C above). Kept as the emacs-flavour door where Alt+letter
-                    // arrives un-composed.
-                    toggle_case_and_jump(search, buffer);
-                }
-            } else if !c.is_control() {
-                // Self-insert into the FOCUSED field. The replacement is not
-                // searched, so typing it never moves a match; query edits do.
-                if editing_replacement {
-                    if let Some(st) = search.as_mut() {
-                        st.push_replace_char(c);
-                    }
-                } else {
-                    let hay = buffer.text();
-                    if let Some(st) = search.as_mut() {
-                        st.push_char(c, &hay);
-                    }
-                    jump_to_current(search, buffer);
-                }
-            }
+        Key::Character(s) => intercept_character(
+            search,
+            buffer,
+            s.chars().next()?,
+            ctrl,
+            alt,
+            sup,
+            shift,
+            editing_replacement,
+        ),
+        Key::Named(named) => {
+            intercept_named(search, buffer, *named, ctrl, alt, sup, editing_replacement)
         }
+        _ => None,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn intercept_character(
+    search: &mut Option<SearchState>,
+    buffer: &mut Buffer,
+    c: char,
+    ctrl: bool,
+    alt: bool,
+    sup: bool,
+    shift: bool,
+    editing_replacement: bool,
+) -> Option<RecoilDir> {
+    // Cmd-based Find/Replace chords WITHIN the panel: Cmd-F skips to the
+    // next match, Cmd-Shift-F the previous (so you can pass a match without
+    // replacing it), Cmd-Option-F reveals+toggles the replace field, Cmd-R
+    // focuses the replace field (the headline door — a fresh Cmd-R opened
+    // the panel on the find field), Cmd-Option-C toggles case sensitivity
+    // (the MAC-REACHABLE case toggle — see below), and Cmd-G / Cmd-Shift-G
+    // MIRROR Cmd-F / Cmd-Shift-F's plain step (P2 — the deeper macOS
+    // find-next/previous idiom, alongside Cmd-F's own in-panel step;
+    // Cmd-Option-G has no Option-toggle counterpart, so it is simply
+    // consumed, no-op). Other Super combos are consumed.
+    if sup && !ctrl {
+        if c.eq_ignore_ascii_case(&'f') {
+            if alt {
+                if let Some(st) = search.as_mut() {
+                    st.toggle_replace();
+                }
+            } else if shift {
+                return step(search, buffer, Direction::Backward);
+            } else {
+                return step(search, buffer, Direction::Forward);
+            }
+        } else if c.eq_ignore_ascii_case(&'c') && alt {
+            // Cmd-Option-C (⌘⌥C): toggle case sensitivity. This is the
+            // MAC-REACHABLE case toggle — a bare Option-c composes to 'ç'
+            // on macOS (the logical key never arrives as 'c'+Alt), so the
+            // M-c arm below only fires on Linux. Holding Cmd suppresses the
+            // accent composition so ⌘⌥C delivers a plain 'c' — the same
+            // reason the ⌘⌥F replace-toggle above works. Mirrors VS Code's
+            // ⌥⌘C "match case" idiom.
+            toggle_case_and_jump(search, buffer);
+        } else if c.eq_ignore_ascii_case(&'g') && !alt {
+            return step(
+                search,
+                buffer,
+                if shift {
+                    Direction::Backward
+                } else {
+                    Direction::Forward
+                },
+            );
+        } else if c.eq_ignore_ascii_case(&'r')
+            && !alt
+            && let Some(st) = search.as_mut()
+        {
+            st.focus_replacement();
+        }
+        return None;
+    }
+    if ctrl && !alt {
+        match c.to_ascii_lowercase() {
+            's' => return step(search, buffer, Direction::Forward),
+            'r' => return step(search, buffer, Direction::Backward),
+            'g' => abort(search, buffer),
+            _ => {}
+        }
+        return None;
+    }
+    if alt && !ctrl {
+        if matches!(c, 'c' | 'C') {
+            // M-c / Alt+c toggles case sensitivity — the LINUX slot (on
+            // macOS Option-c composes to 'ç' and never reaches here; use
+            // ⌘⌥C above). Kept as the emacs-flavour door where Alt+letter
+            // arrives un-composed.
+            toggle_case_and_jump(search, buffer);
+        }
+    } else if !c.is_control() {
+        // Self-insert into the FOCUSED field. The replacement is not
+        // searched, so typing it never moves a match; query edits do.
+        edit_char(search, buffer, c, editing_replacement);
+    }
+    None
+}
+
+#[allow(clippy::too_many_arguments)]
+fn intercept_named(
+    search: &mut Option<SearchState>,
+    buffer: &mut Buffer,
+    named: NamedKey,
+    ctrl: bool,
+    alt: bool,
+    sup: bool,
+    editing_replacement: bool,
+) -> Option<RecoilDir> {
+    match named {
         // Tab is the one FIELD-SWITCH key: flip focus find↔replace (revealing the
         // replace row the first time). No longer overloaded — Enter replaces, Tab
         // only moves between the two fields of the one warm panel.
-        Key::Named(NamedKey::Tab) => {
+        NamedKey::Tab => {
             if let Some(st) = search.as_mut() {
                 st.toggle_replace();
             }
         }
         // Down / Up SKIP to the next / previous match without replacing (alongside
         // Cmd-F / Cmd-Shift-F), so you can pass over a match you don't want changed.
-        Key::Named(NamedKey::ArrowDown) => return step(search, buffer, Direction::Forward),
-        Key::Named(NamedKey::ArrowUp) => return step(search, buffer, Direction::Backward),
+        NamedKey::ArrowDown => return step(search, buffer, Direction::Forward),
+        NamedKey::ArrowUp => return step(search, buffer, Direction::Backward),
         // ITEM 10 — Left/Right move the FOCUSED field's own caret (char, or a
         // WORD at a time held with Alt/Option) — previously a no-op. Pure
         // motion: never recomputes/jumps, on EITHER field (the replacement
         // NEVER does regardless; the query's text is unchanged by a move).
-        Key::Named(NamedKey::ArrowLeft) => {
-            if let Some(st) = search.as_mut() {
-                if editing_replacement {
-                    if alt {
-                        st.replacement_word_left();
-                    } else {
-                        st.replacement_char_left();
-                    }
-                } else if alt {
-                    st.query_word_left();
-                } else {
-                    st.query_char_left();
-                }
-            }
-        }
-        Key::Named(NamedKey::ArrowRight) => {
-            if let Some(st) = search.as_mut() {
-                if editing_replacement {
-                    if alt {
-                        st.replacement_word_right();
-                    } else {
-                        st.replacement_char_right();
-                    }
-                } else if alt {
-                    st.query_word_right();
-                } else {
-                    st.query_char_right();
-                }
-            }
-        }
+        NamedKey::ArrowLeft => move_field(search, editing_replacement, alt, false),
+        NamedKey::ArrowRight => move_field(search, editing_replacement, alt, true),
         // ITEM 10 — ⌥⌫ word-delete (the word-DELETE rule, distinct from the
         // word-MOTION arrows above): checked BEFORE the plain-Backspace arm so
         // Alt wins. The replacement's word-delete NEVER recomputes/jumps
         // (mirrors `pop_replace_char`'s own asymmetry); the query's DOES (an
         // edit, like `pop_char`).
-        Key::Named(NamedKey::Backspace) if alt => {
-            if editing_replacement {
-                if let Some(st) = search.as_mut() {
-                    st.replacement_delete_word_back();
-                }
-            } else {
-                let hay = buffer.text();
-                if let Some(st) = search.as_mut() {
-                    st.query_delete_word_back(&hay);
-                }
-                jump_to_current(search, buffer);
-            }
-        }
-        Key::Named(NamedKey::Backspace) => {
-            if editing_replacement {
-                if let Some(st) = search.as_mut() {
-                    st.pop_replace_char();
-                }
-            } else {
-                let hay = buffer.text();
-                if let Some(st) = search.as_mut() {
-                    st.pop_char(&hay);
-                }
-                jump_to_current(search, buffer);
-            }
-        }
-        Key::Named(NamedKey::Enter) => {
+        NamedKey::Backspace => delete_back(search, buffer, editing_replacement, alt),
+        NamedKey::Enter => {
             // The clarified core loop: once replace is active, Enter ALWAYS
             // replaces the current match + advances to the next (regardless of
             // which field has focus) — Cmd-Enter replaces ALL. In a PLAIN find
@@ -226,26 +205,72 @@ pub fn intercept(
                 buffer.seal_undo_group();
             }
         }
-        Key::Named(NamedKey::Space) if !ctrl && !alt && !sup => {
+        NamedKey::Space if !ctrl && !alt && !sup => {
             // Space arrives as a Named key (not a Character), so without this
             // arm it would fall through to the no-op below and never reach the
             // focused field. Ctrl/Alt/Cmd+Space stay no-ops.
-            if editing_replacement {
-                if let Some(st) = search.as_mut() {
-                    st.push_replace_char(' ');
-                }
-            } else {
-                let hay = buffer.text();
-                if let Some(st) = search.as_mut() {
-                    st.push_char(' ', &hay);
-                }
-                jump_to_current(search, buffer);
-            }
+            edit_char(search, buffer, ' ', editing_replacement);
         }
-        Key::Named(NamedKey::Escape) => abort(search, buffer),
+        NamedKey::Escape => abort(search, buffer),
         _ => {} // any other named key: consumed, no-op
     }
     None
+}
+
+fn edit_char(search: &mut Option<SearchState>, buffer: &mut Buffer, c: char, replacement: bool) {
+    if replacement {
+        if let Some(st) = search.as_mut() {
+            st.push_replace_char(c);
+        }
+    } else {
+        let hay = buffer.text();
+        if let Some(st) = search.as_mut() {
+            st.push_char(c, &hay);
+        }
+        jump_to_current(search, buffer);
+    }
+}
+
+fn move_field(search: &mut Option<SearchState>, replacement: bool, word: bool, right: bool) {
+    if let Some(st) = search.as_mut() {
+        match (replacement, word, right) {
+            (true, true, true) => st.replacement_word_right(),
+            (true, true, false) => st.replacement_word_left(),
+            (true, false, true) => st.replacement_char_right(),
+            (true, false, false) => st.replacement_char_left(),
+            (false, true, true) => st.query_word_right(),
+            (false, true, false) => st.query_word_left(),
+            (false, false, true) => st.query_char_right(),
+            (false, false, false) => st.query_char_left(),
+        }
+    }
+}
+
+fn delete_back(
+    search: &mut Option<SearchState>,
+    buffer: &mut Buffer,
+    replacement: bool,
+    word: bool,
+) {
+    if replacement {
+        if let Some(st) = search.as_mut() {
+            if word {
+                st.replacement_delete_word_back();
+            } else {
+                st.pop_replace_char();
+            }
+        }
+    } else {
+        let hay = buffer.text();
+        if let Some(st) = search.as_mut() {
+            if word {
+                st.query_delete_word_back(&hay);
+            } else {
+                st.pop_char(&hay);
+            }
+        }
+        jump_to_current(search, buffer);
+    }
 }
 
 /// C-s / C-r (and arrows / the Cmd-F family) while searching: advance to the
