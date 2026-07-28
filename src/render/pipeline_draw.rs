@@ -309,6 +309,7 @@ impl TextPipeline {
             background_pipeline,
             lava_pipeline,
             lava_phase: crate::lava::LAVA_FROZEN_PHASE,
+            warp_grid_phase: crate::warpgrid::FROZEN_PHASE,
             lava_field_viewport: [0.0, 0.0],
             frost_seeds: Vec::new(),
             frost_seed_key: None,

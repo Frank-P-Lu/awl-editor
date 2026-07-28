@@ -406,6 +406,16 @@ pub enum Background {
     Zigzag { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb,
         period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool },
     Organic { tones: [Srgb; 3], scale_px: f32, density: f32 },
+    /// A perspective-warped major/minor grid in the Frame. `tones` are
+    /// `[ground, minor, major]`; all motion comes from the shared ambient
+    /// cadence and the page column remains an opaque hole in the fullscreen
+    /// background pass.
+    WarpedGrid {
+        tones: [Srgb; 3],
+        spacing_px: f32,
+        density: f32,
+        curvature: f32,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -442,6 +452,7 @@ impl Background {
             Background::Waves { .. } => 6,
             Background::Zigzag { .. } => 7,
             Background::Organic { .. } => 8,
+            Background::WarpedGrid { .. } => 9,
         }
     }
     pub fn as_str(&self) -> &'static str {
@@ -456,6 +467,7 @@ impl Background {
             Background::Waves { .. } => "waves",
             Background::Zigzag { .. } => "zigzag",
             Background::Organic { .. } => "organic",
+            Background::WarpedGrid { .. } => "warped-grid",
         }
     }
     pub fn from(&self) -> Srgb {
@@ -469,7 +481,8 @@ impl Background {
             Background::Lava { ground, .. } => *ground,
             Background::Bands { tones, .. }
             | Background::Waves { tones }
-            | Background::Organic { tones, .. } => tones[0],
+            | Background::Organic { tones, .. }
+            | Background::WarpedGrid { tones, .. } => tones[0],
         }
     }
     pub fn to(&self) -> Srgb {
@@ -483,7 +496,8 @@ impl Background {
             Background::Lava { ground, .. } => *ground,
             Background::Bands { tones, .. }
             | Background::Waves { tones }
-            | Background::Organic { tones, .. } => tones[2],
+            | Background::Organic { tones, .. }
+            | Background::WarpedGrid { tones, .. } => tones[2],
         }
     }
     pub fn dir(&self) -> (f32, f32) {
@@ -496,9 +510,10 @@ impl Background {
             Background::Stripes { angle, .. } | Background::Bands { angle, .. } => {
                 (angle.cos(), angle.sin())
             }
-            Background::Lava { .. } | Background::Waves { .. } | Background::Organic { .. } => {
-                (0.0, 1.0)
-            }
+            Background::Lava { .. }
+            | Background::Waves { .. }
+            | Background::Organic { .. }
+            | Background::WarpedGrid { .. } => (0.0, 1.0),
         }
     }
     pub fn tint(&self) -> Srgb {
@@ -512,7 +527,8 @@ impl Background {
             Background::Lava { ground, .. } => *ground,
             Background::Bands { tones, .. }
             | Background::Waves { tones }
-            | Background::Organic { tones, .. } => tones[1],
+            | Background::Organic { tones, .. }
+            | Background::WarpedGrid { tones, .. } => tones[1],
         }
     }
     pub fn edge(&self) -> bool {
@@ -530,12 +546,14 @@ impl Background {
         match self {
             Background::Zigzag { period_px, .. } => *period_px,
             Background::Organic { scale_px, .. } => *scale_px,
+            Background::WarpedGrid { spacing_px, .. } => *spacing_px,
             _ => 0.0,
         }
     }
     pub fn amplitude_px(&self) -> f32 {
         match self {
             Background::Zigzag { amplitude_px, .. } => *amplitude_px,
+            Background::WarpedGrid { curvature, .. } => *curvature,
             _ => 0.0,
         }
     }
@@ -551,6 +569,7 @@ impl Background {
         match self {
             Background::Zigzag { density, .. } => *density,
             Background::Organic { density, .. } => *density,
+            Background::WarpedGrid { density, .. } => *density,
             _ => 0.0,
         }
     }
@@ -564,6 +583,9 @@ impl Background {
         matches!(self, Background::Waves { .. })
     }
     pub fn is_organic(&self) -> bool { matches!(self, Background::Organic { .. }) }
+    pub fn is_warped_grid(&self) -> bool {
+        matches!(self, Background::WarpedGrid { .. })
+    }
     pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
         match self {
             Background::Lava {
@@ -677,7 +699,9 @@ impl Theme {
     }
 
     pub fn has_ambient_motion(&self) -> bool {
-        self.background.is_lava() || self.render_caps.ambient.is_animated()
+        self.background.is_lava()
+            || self.background.is_warped_grid()
+            || self.render_caps.ambient.is_animated()
     }
 
     pub fn has_ambient_tick(&self) -> bool {

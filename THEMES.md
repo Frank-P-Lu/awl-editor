@@ -13,7 +13,7 @@ world the design got wrong.
 ## 1. What a world is
 
 A **world** (`theme::Theme`, `src/theme.rs`) is a complete, curated mood — not a
-swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each with:
+swatch. Nineteen ship today (eleven dark, eight light; `theme::THEMES`), each with:
 
 - **An identity**: a name (Tawny, Saltpan, Potoroo, …), a one-line character
   description in its doc comment, and — critically — its own **display font**
@@ -33,8 +33,8 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   Wagtail was REWORKED again in 2026-07 from greyscale (any grey permitted)
   into a **true 1-bit world** ("only black or white, no gray") — see "The
   1-bit law" immediately below the monochrome law.
-- **A ground** (`Background`): the procedural margin pattern (Dots / Gradient /
-  Starfield / Pinstripe / Stripes) drawn only in the page-mode margins, never the
+- **A ground** (`Background`): the procedural margin treatment selected from
+  reusable renderer capabilities, drawn only in the page-mode margins, never the
   document column itself (`every_world_has_a_valid_background`,
   `every_world_has_a_real_margin_gradient`). The sixteenth ground is **`Lava`** —
   awl's first TIME-VARYING background, a slow metaball "lava lamp" in the margins
@@ -74,7 +74,9 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
   PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
   the settled/theme-crossing composition stay byte-identical) — see "The
-  waves phase-drift law" below.
+  waves phase-drift law" below. Kite adds `WarpedGrid`: a single perspective
+  field split by the page column, with shared deterministic route choreography
+  and no identity branch — see "The warped-grid law" below.
 - **A CJK fallback** matched to its character: serif worlds get the mincho list,
   sans/mono worlds get the gothic list (`cjk_fallback_matches_world_character`).
   Generalized to a per-script `FontId` ladder (ja/zh-Hans/zh-Hant/ko) by the
@@ -140,6 +142,19 @@ ground-contrast laws ON the green ink. No other new law: Cassowary rides the
 shared derivations. Iosevka is its terminal-readout face; the summoned command
 overlay goes loud (Archivo Black wordmark placard, bordered console card, poster
 Bars) while the writing page stays a calm green terminal.
+
+The nineteenth world, **Kite**, is the loud light technical room: a pale
+lavender-mineral page travelling through one cool indigo/graphite warped grid.
+Fira Sans gives it a distinct warm-humanist voice using the already-bundled,
+verified OFL Regular/Bold pair; Iosevka remains its code face. One hot
+vermilion caret is the only accent. The grid is one fullscreen perspective
+field viewed through both margins, not two strips: a turn compresses one side
+while opening the other, climb/descent oppose top and bottom, and the opaque
+page remains flat. Its several-minute route pauses under every ambient-motion
+gate and uses a fixed phase in deterministic capture. The automated laws prove
+state, geometry, value hierarchy, freeze behavior, and frame-to-frame
+direction changes; the lived calmness of a full multi-minute loop remains a
+human taste review.
 
 ---
 
@@ -296,7 +311,7 @@ new law here, not a bypass of this one.
 ### Structural / identity laws
 
 Enforced by the `theme::tests` module (see file for exact assertions):
-`worlds_eleven_dark_seven_light`, `every_world_has_a_valid_background`,
+`worlds_eleven_dark_eight_light`, `every_world_has_a_valid_background`,
 `every_world_has_a_bundled_mono`, `cjk_fallback_matches_world_character`,
 `zh_hans_ladder_matches_world_character_with_klee_override`,
 `zh_hant_uniform_ko_splits_serif_from_sans`,
@@ -331,7 +346,7 @@ Enforced by `render::tests::syntax_roles::every_monochrome_world_renders_zero_sa
   from-comment-wash laws apply UNCHANGED — a monochrome highlight must still
   read as a highlight, by value instead of hue.
 - This is a property test layered ON TOP of, not a replacement for, the
-  ordinary structural laws above (`worlds_eleven_dark_seven_light`,
+  ordinary structural laws above (`worlds_eleven_dark_eight_light`,
   `role_style_laws_hold_for_every_world`, …) — those still separately pin
   Wagtail's exact hex literals; this law is what stops a future hand-edit from
   quietly nudging one of those greys toward a hue and surviving unnoticed.
@@ -770,6 +785,34 @@ All star numbers (tint, cell, density, size, peak/floor) are TASTE TUNABLE
 data on `worlds.rs::CURRAWONG` — the round shipped BUILD + GALLERY + HOLD,
 landing only on the user's gallery pick; the twinkle's FEEL over real seconds
 is live-only and flagged for human confirmation, never claimed verified.
+
+### The warped-grid law (`Background::WarpedGrid`)
+
+Kite selects one reusable data-driven renderer: three tones plus spacing,
+density, and curvature. The shader contains no world-name comparison.
+
+- The field is continuous across the canvas; the opaque page column removes
+  its middle. Real-GPU differential tests prove both margins retain grid ink
+  while the page receives none.
+- Every fifth rail is major. Major graphite and minor indigo occupy distinct
+  value rungs; minor detail fades beside the page, at alias-prone projected
+  spacing, and as margins narrow. Narrow margins keep a readable major
+  scaffold instead of squeezing the full tunnel into a strip.
+- The six route legs are straight, left, climb, right, descent, and straight.
+  Each lasts 58 seconds and eases to zero velocity at its endpoints. The route
+  and 64-cell forward travel wrap together at 348 seconds.
+- One sparse ambient cadence advances the independent long route phase.
+  Ambient motion off, Reduce Motion, focus loss, resize/move holds, and
+  headless capture freeze it; a late wake advances no more than one ordinary
+  tick and never catches up in a jump.
+- `render::tests::backgrounds_item132` owns the exhaustive roster, real-GPU
+  geometry/value/motion/alias laws, and mutation witness.
+  `warpgrid::tests` owns the pure route continuity and freeze laws. Sidecar
+  schema `/189` reports phase plus derived yaw, pitch, and forward-cell state.
+
+Captures can prove named route poses and deterministic stills. Whether the
+complete multi-minute loop stays calm is a live human review, not a harness
+claim.
 
 ### The waves phase-drift law (`Background::Waves` — item 87, 2026-07-25)
 
@@ -1479,11 +1522,13 @@ drop to a single ink value either.
 
 ## 5. Adding a world
 
-A new world is **data only** — a new `pub const` `Theme` value plus one entry in
-`THEMES`. If adding a world requires touching `render.rs`, `spans.rs`, or any
-picker/chrome code, the design is wrong; stop and find the existing token the new
-world should be expressed through instead (`CLAUDE.md`'s "spend complexity where
-the product is — themes are DATA" principle).
+An ordinary new world is **data only** — a new `pub const` `Theme` value plus
+one entry in `THEMES`. A genuinely new environmental mechanism must first be
+made a reusable `Background` or `RenderCaps` capability selected by data, with
+no identity comparison in the renderer; the world then opts into it like any
+other theme. Picker/chrome code never branches on a world name
+(`CLAUDE.md`'s "spend complexity where the product is — themes are DATA"
+principle).
 
 Checklist:
 
@@ -1495,11 +1540,14 @@ Checklist:
    `muted`, `faint`) and the accents (`primary`, `primary_content`, `error`,
    `selection`).
 3. Pick a `Background` ground and tags on all four lenses. Most worlds pick a
-   STATIC ground (Dots / Gradient / Starfield / Pinstripe / Stripes). A world may
+   STATIC ground. A world may
    instead pick the animated `Background::Lava` (a statement world — the whole
    room is the lava lamp), but then it MUST satisfy "The `Background::Lava` law"
    (§3): `ground == base_100`, `blob_hi` inside the ground value band, blobs
-   ≥30° off the amber caret, and never on a 1-bit world. Curation note: the four
+   ≥30° off the amber caret, and never on a 1-bit world. `WarpedGrid` is the
+   shared long-route capability: it additionally requires real-GPU page-hole,
+   coherent-field, hierarchy, alias, responsive-margin, route, and freeze laws.
+   Curation note: the four
    lenses are near-saturated — a new world may have to opt OUT of crowded sections
    (the cap is 2–4 per section) and headline the one lens where it reads clearest.
 4. Pick a CJK fallback list matching the world's character (mincho for serif,
@@ -1530,7 +1578,7 @@ Checklist:
    `assets/macos/`, the canonical `Awl.icns` and `src/app_icon/embedded.rs`) and
    commit them with the world; the bijection law fails until you do.
 7. Add the const to `THEMES`; run `cargo test` — the structural laws
-   (`worlds_eleven_dark_seven_light` will need its counts updated), the role-style
+   (`worlds_eleven_dark_eight_light` will need its counts updated), the role-style
    laws, and the ink-ladder/selection laws all sweep `THEMES` automatically, so a
    new world is enrolled in every law the moment it's in the array. A new WORLD
    CLASS (Wagtail's monochrome one) may also need its own new law, per §2/§3's

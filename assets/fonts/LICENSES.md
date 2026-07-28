@@ -86,6 +86,10 @@ to their needed code-point ranges, as described in `CLAUDE.md`. Subsetting and s
 permitted modifications under the OFL (the fonts remain OFL, unsold by
 themselves, reserved names untouched).
 
+Fira Sans Regular and Bold are Kite's display pair. They were already embedded
+and attributed before Kite joined the roster, so the world adds no font asset
+or license surface.
+
 The **`*-Bold.ttf`** faces (Bitter, EB Garamond, Figtree, Fira Sans, Fraunces 9pt,
 iA Writer Quattro S, IBM Plex Sans, Literata, Newsreader, Zilla Slab — plus the
 four monospace display faces IBM Plex Mono, JetBrains Mono, Monaspace Xenon,

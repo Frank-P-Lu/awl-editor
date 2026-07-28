@@ -682,6 +682,7 @@ fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
         ("Wagtail", 0),
         ("Firetail", 0), // Lava degrades to 0 for the base margin pass
         ("Cassowary", 3),
+        ("Kite", 9), // Shared WarpedGrid capability
     ];
     for &(name, want) in expected {
         let t = theme::THEMES

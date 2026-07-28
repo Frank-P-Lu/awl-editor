@@ -9,6 +9,30 @@
 - **THE CONTENT CLIP (item 84) — `TextPipeline::content_clip` / `clip_rects_to_band` (`render/rects.rs`).** The ONE resolved region every document-content, selection-adjacent quad must paint inside: horizontally the writing column ALWAYS (`column_left()`..`+column_width()` — the SAME box the diff-preview card draws at, so "the writing column" and "the active card" are one region), vertically the whole canvas on an ordinary frame narrowed to the diff panel's own inset band while a preview is up (`doc_clip_band`). A drag whose hit-test clamps to the page's own left edge, or a diff transcript scrolled so a selected/composing/caret row leaves the card, both resolve through this one rect — bounding PAINT only, never the SELECTABLE range. `range_rects` (feeding both `selection_rects` and `search_match_rects`), `preedit_rects`, and the caret's own park gate in `prepare_caret_layer` all route through it; on an ordinary frame this is a no-op (selection/caret x is already inside the column by construction — only the diff-panel vertical case genuinely trips it). Laws: `render/tests/selection_clip_law.rs` (a no-wildcard, by-name check that each emitter's own body calls the shared owner, plus the runtime proof the diff-panel case actually clips).
 - **ITEM 84-FIX — the decorative-overhang emitters get their OWN Y-only clip, `clip_decorative_rects_to_band`, never `clip_rects_to_band`.** A follow-up audit found item 84 had ALSO routed `fence_panel_rects` and `code_pill_rects` — pre-existing DECORATIVE quads whose whole point is to overhang the bare glyph column (`FENCE_PANEL_INSET_X`/`CODE_PILL_INSET_X`, "so the panel reads as a distinct surface rather than being clipped exactly to the glyph edges") — through the strict writing-column X-clip meant for selection-adjacent quads. Invisible with page mode ON (the page pad dwarfs both insets); UNIVERSAL with page mode off (`text_pad()` is hard-zeroed then, so `text_left() == column_left()` and there is no margin to absorb the inset): every fenced block's panel clipped flush on both edges every frame, and an inline-code pill lost its left cap whenever the span touched column 0 or the wrap edge. Fix: two distinctly-named owners — `clip_rects_to_band` (X+Y, item 84's strict writing-column bound) stays SELECTION-ADJACENT-only (`range_rects`, `preedit_rects`; the caret gate reads `content_clip` directly); `clip_decorative_rects_to_band` (Y-only, the fn's pre-84 body, restored verbatim) is the DECORATIVE owner — `fence_panel_rects`, `code_pill_rects`, and the column-bound `wash_rects` comment/string/highlight buckets (structurally safe either way, kept on the decorative owner for one consistent story). Laws: `render/tests/washes.rs`'s `fence_panel_overhang_survives_content_clip_with_page_mode_off` / `code_pill_left_inset_survives_content_clip_at_line_start_with_page_mode_off` (each with a page-off zero-slack precondition, page mode off); the four `render/tests/selection_clip_law.rs` tests still hold unmodified — the selection/search/preedit/caret X-clip is untouched by this fix.
 
+## Warped-grid ambient background
+
+- `Background::WarpedGrid { tones, spacing_px, density, curvature }` is a
+  reusable fullscreen background capability selected by theme data. Shader id
+  9 contains no world-name branch. Kite is its sole current assignee.
+- The shader evaluates one perspective field across the canvas and the page
+  column punches an opaque hole through its middle. The two margins are slices
+  of one tunnel: turning compresses one side while opening the other. Every
+  fifth rail is major; projected minor rails fade before they alias, and narrow
+  margins retain the major scaffold while shedding detail.
+- `warpgrid::route_pose` owns the deterministic six-leg route. Each leg lasts
+  58 seconds, endpoints ease to zero velocity, and 64 forward cells complete
+  with the 348-second route wrap. `TextPipeline::warp_grid_phase` advances on
+  the shared sparse ambient cadence but stays independent of the shorter
+  lava/waves phase.
+- Ambient motion off, Reduce Motion, focus loss, resize/move holds, and
+  headless capture freeze the route through the same scheduling gate. A late
+  wake advances at most one sparse step; it never catches up in a jump.
+- Laws: `render/tests/backgrounds_item132.rs` covers the exhaustive roster,
+  real-GPU page exclusion, Room/Frame and scale geometries, coherent turn
+  opposition, major/minor value hierarchy, page-edge fade, alias suppression,
+  named route poses, and mutation non-vacuity. `warpgrid::tests` owns route
+  continuity and freeze semantics.
+
 ## The caret's cell geometry (`render/caret.rs`)
 
 - **THE INK BOX IS THE CARET'S ONE DESCRIPTION OF A LETTER (item 91).** `TextPipeline::caret_anchor_raster_box` is the single swash read on the caret path and returns the FULL placement box (`InkBox { left, top, width, height }`, plus the derived `descent()`); `caret_anchor_ink_box` layers the policy gate on it (no box on a MONO face, on a multi-char LIGATURE cluster, or on a glyphless / zero-mask anchor) and is the ONE funnel every ink-derived caret rule passes through. The horizontal half (the kerned-glyph fix) already rode it; item 91 added the vertical.

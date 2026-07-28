@@ -177,6 +177,10 @@ mod updates;
 mod view_policy;
 mod web_export;
 mod webreserved;
+// KITE'S WARPED-GRID ROUTE — pure, deterministic choreography driven by the
+// existing sparse ambient cadence. The renderer consumes the resulting phase
+// through Background data; no world identity reaches this module.
+mod warpgrid;
 mod whichkey;
 // The CORE web/wasm smoke suite — inert on native (never compiles there), built
 // only for the wasm target's `cargo test`. See `scripts/web-smoke.sh`.

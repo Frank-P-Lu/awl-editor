@@ -147,18 +147,18 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
 }
 
 #[test]
-fn worlds_eleven_dark_seven_light() {
-    assert_eq!(THEMES.len(), 18);
+fn worlds_eleven_dark_eight_light() {
+    assert_eq!(THEMES.len(), 19);
     let dark = THEMES.iter().filter(|t| t.dark).count();
     let light = THEMES.iter().filter(|t| !t.dark).count();
     // 11 dark (Tawny/Mopoke/Currawong/Potoroo/Bombora/Bowerbird/Mulga/
-    // Mangrove/Wagtail/Firetail/Cassowary) / 7 light (Gumtree/Bilby/Saltpan/
-    // Quokka/Galah/Magpie/Brolga). Brolga (the COOL LIGHT POLE) is a pale
+    // Mangrove/Wagtail/Firetail/Cassowary) / 8 light (Gumtree/Bilby/Saltpan/
+    // Quokka/Galah/Magpie/Brolga/Kite). Brolga (the COOL LIGHT POLE) is a pale
     // sky-blue light world filling the cool-light-blue hole the DAWN round
     // vacated when Bilby turned warm rose-gold; Cassowary (the NERV-terminal
-    // statement world) is the eighteenth, an additive dark entry.
+    // statement world) is the eighteenth; Kite is the loud light nineteenth.
     assert_eq!(dark, 11);
-    assert_eq!(light, 7);
+    assert_eq!(light, 8);
 }
 
 /// `world_names()` (item 68's one code-owned roster source, read by `--help`,
@@ -223,8 +223,9 @@ fn every_world_has_a_valid_background() {
             t.name
         );
         // 0..=4 the five original static grounds (Lava also degrades to 0 for
-        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic.
-        assert!(bg.shader_id() <= 8, "{} bad shader id", t.name);
+        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic,
+        // 9=WarpedGrid.
+        assert!(bg.shader_id() <= 9, "{} bad shader id", t.name);
     }
     // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
     // Bands is dormant infrastructure since item 86 moved Gumtree to Zigzag
@@ -241,6 +242,7 @@ fn every_world_has_a_valid_background() {
         "stripes",
         "waves",
         "zigzag",
+        "warped-grid",
     ] {
         assert!(used.contains(p), "ground {p} unused by any world");
     }
@@ -400,8 +402,8 @@ fn every_world_has_a_valid_background() {
 /// THE LAVA-LAMP WORLDS round: EXACTLY two worlds ship a `Background::Lava` —
 /// Firetail (warm, undithered) and Mangrove (cool deepsea, dithered), both with
 /// the Glow edge (the probe's agent pick). Pins the roster + each world's edge/
-/// dither config, and that every OTHER world stays a STATIC ground (shader id
-/// 0..=6, item 69's Bands/Waves included) so the lava layer is dormant there
+/// dither config, and that every OTHER world stays a non-lava ground (shader id
+/// 0..=9) so the lava layer is dormant there
 /// and their captures are unaffected.
 #[test]
 fn exactly_firetail_and_mangrove_ship_lava() {
@@ -418,7 +420,7 @@ fn exactly_firetail_and_mangrove_ship_lava() {
     );
     for t in THEMES.iter().filter(|t| !t.background.is_lava()) {
         assert!(
-            t.background.shader_id() <= 8,
+            t.background.shader_id() <= 9,
             "{}: a non-lava world stays a non-lava ground",
             t.name
         );
@@ -818,7 +820,8 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             | Background::Bands { .. }
             | Background::Waves { .. }
             | Background::Zigzag { .. }
-            | Background::Organic { .. } => continue,
+            | Background::Organic { .. }
+            | Background::WarpedGrid { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -962,7 +965,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             | Background::Bands { .. }
             | Background::Waves { .. }
             | Background::Zigzag { .. }
-            | Background::Organic { .. } => continue,
+            | Background::Organic { .. }
+            | Background::WarpedGrid { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -1550,6 +1554,7 @@ fn cjk_fallback_matches_world_character() {
         "Firetail",
         "Brolga",
         "Cassowary",
+        "Kite",
     ]; // neutral sans/mono (Noto Sans JP)
     for t in THEMES.iter() {
         assert!(!t.cjk.is_empty(), "{} has no CJK fallback list", t.name);
@@ -1935,6 +1940,7 @@ fn zh_hans_ladder_matches_world_character_with_klee_override() {
         "Firetail",
         "Brolga",
         "Cassowary",
+        "Kite",
     ];
     for t in THEMES.iter() {
         assert!(
@@ -3029,7 +3035,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // Brolga (the SEVENTEENTH world, the cool light pole) joins them —
             // a crisp rim off its pale sky-blue ground; deliberately NO page
             // frame (the DAWN round's 1px light-pole frame was user-rejected).
-            "Gumtree" | "Saltpan" | "Brolga" => RenderCaps {
+            "Gumtree" | "Saltpan" | "Brolga" | "Kite" => RenderCaps {
                 elevation: Elevation::Bordered,
                 ..RenderCaps::DEFAULT
             },
@@ -3551,18 +3557,17 @@ fn fold_tail_ink_clears_the_readable_floor_and_stays_quieter_than_heading_ink() 
 /// ITEM 87's SCHEDULING-GATE COMPOSITION law (mirrors `stars.rs`'s
 /// `currawong_alone_carries_the_stars_and_the_ambient_gate_composes` — same
 /// "one owner" shape): [`Theme::has_ambient_tick`] is EXACTLY
-/// `has_ambient_motion() || background.is_waves()` for every world, no
+/// `has_ambient_motion() || background.is_waves() || background.is_organic()`
+/// for every world, no
 /// per-world name comparison and no re-derived OR at a call site.
 ///
-/// (1) Composition holds for all sixteen worlds.
-/// (2) It is a STRICT SUPERSET of `has_ambient_motion` — the only worlds it
-///     flips true that `has_ambient_motion` didn't are the `Waves` worlds
-///     (today: Bombora alone).
-/// (3) NON-VACUOUS: at least one world (Bombora) is flipped by the extra
-///     `is_waves()` arm — the widening has a live consumer, not dead data.
+/// (1) Composition holds for the full roster.
+/// (2) It is a STRICT SUPERSET of `has_ambient_motion`: Waves and Organic
+///     grounds join the sparse tick without forcing page mode.
+/// (3) NON-VACUOUS: Bombora and Bowerbird exercise those extra arms.
 #[test]
 fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
-    let mut saw_a_flipped_waves_world = false;
+    let mut saw_a_tick_only_ground = false;
     for t in THEMES.iter() {
         let motion = t.has_ambient_motion();
         let tick = t.has_ambient_tick();
@@ -3580,7 +3585,7 @@ fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
             t.name
         );
         if tick && !motion {
-            saw_a_flipped_waves_world = true;
+            saw_a_tick_only_ground = true;
             assert!(
                 t.background.is_waves() || t.background.is_organic(),
                 "{}: tick-only grounds must be Waves or Organic",
@@ -3589,8 +3594,8 @@ fn has_ambient_tick_composes_all_ambient_background_capabilities_one_owner() {
         }
     }
     assert!(
-        saw_a_flipped_waves_world,
-        "at least one world (Bombora) must be a Waves world the widening actually reaches"
+        saw_a_tick_only_ground,
+        "at least one Waves/Organic world must exercise the tick-only widening"
     );
     assert!(
         BOMBORA.background.is_waves(),
@@ -3700,7 +3705,7 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
         let _pin = WorldPin::snapshot();
         set_active_by_name("Tawny");
         cycle(1);
-        // A world that is never `before`, whatever `before` is (18 worlds).
+        // A world that is never `before`, whatever `before` is (19 worlds).
         set_active(before + 5);
         assert_ne!(
             active_index(),
@@ -3726,7 +3731,7 @@ fn a_world_pin_restores_the_active_world_however_it_moved() {
     );
     assert_eq!(active_index(), before);
 
-    // AND ON THE UNWIND PATH: a law that fails mid-sweep (the 18-world rail
+    // AND ON THE UNWIND PATH: a law that fails mid-sweep (the 19-world rail
     // sweep is exactly this shape) must still hand the next test a clean world —
     // the restore rides `Drop`, so a panic through the pin's scope restores it.
     let quiet = std::panic::take_hook();

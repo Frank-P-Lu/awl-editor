@@ -86,6 +86,8 @@ impl TextPipeline {
             crate::background::waves_drift_radians(self.waves_render_phase())
         } else if self.effective_background().is_organic() {
             self.waves_render_phase() * std::f32::consts::TAU / crate::lava::LAVA_LOOP_CYCLES
+        } else if self.effective_background().is_warped_grid() {
+            self.warp_grid_render_phase()
         } else {
             0.0
         };

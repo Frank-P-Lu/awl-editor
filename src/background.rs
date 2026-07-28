@@ -9,7 +9,8 @@ struct Globals {
     to: [f32; 4],
     dir: [f32; 2],
     shader: u32,
-    /// Waves phase drift. Its dedicated std140 slot keeps Zigzag's parameter slots intact.
+    /// Ambient scalar: Waves/Organic read radians; WarpedGrid reads route
+    /// seconds. Its dedicated std140 slot keeps authored parameter slots intact.
     drift: f32,
     pat: [f32; 4],
     params: [f32; 4],
@@ -286,11 +287,17 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
     [lin[0], lin[1], lin[2], PATTERN_MAX_COVERAGE]
 }
 
-/// Pack the per-ground params the shader reads: `x` = the Dots proximity flag
-/// Pack the mutually exclusive ground controls into the shared parameter slots.
+/// Pack the mutually exclusive ground controls into the shared parameter slots:
+/// (0/1) plus Zigzag's period, `y` its angle, `z` its amplitude, and `w` its
+/// density (negative for filled bands). WarpedGrid reuses the same slots as
+/// spacing/density/curvature. Other grounds retain their old zeroes; motion
+/// keeps its dedicated drift slot.
 fn ground_params(desc: &BgDesc) -> [f32; 4] {
     if desc.shader == 8 {
         return [desc.period_px, desc.density, 0.0, 0.0];
+    }
+    if desc.shader == 9 {
+        return [desc.period_px, desc.density, desc.amplitude_px, 0.0];
     }
     [
         if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
@@ -326,6 +333,24 @@ unsafe impl bytemuck_lite::Pod for Globals {}
 #[cfg(test)]
 mod waves_drift_tests {
     use super::*;
+
+    #[test]
+    fn warped_grid_params_land_in_the_three_slots_the_shader_reads() {
+        let desc = BgDesc {
+            from: [0; 4],
+            to: [0; 4],
+            dir: (0.0, 1.0),
+            shader: 9,
+            tint: [0; 3],
+            edge: false,
+            angle: 0.0,
+            period_px: 54.0,
+            amplitude_px: 0.9,
+            density: 0.78,
+            banded: false,
+        };
+        assert_eq!(ground_params(&desc), [54.0, 0.78, 0.9, 0.0]);
+    }
 
     #[test]
     fn drift_is_zero_at_the_settled_phase() {

@@ -7,7 +7,7 @@
 //! contains every row, but moving/selecting through it reaches only
 //! alternating rows"), asserting the hit-test, a passive HOVER, and the
 //! corpus mapping an ACCEPT would use all name the SAME item as the row
-//! actually drawn there — across the FULL 18-world roster (not e10b9fa's
+//! actually drawn there — across the FULL 19-world roster (not e10b9fa's
 //! hand-picked seven — item 104's own "full roster, not a hand-picked few"
 //! requirement), both `Pane`/`Bars` list styles, and 1×/2× DPI.
 //!

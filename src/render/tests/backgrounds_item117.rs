@@ -18,6 +18,7 @@ fn organic_is_bowerbird_alone_no_wildcard() {
             theme::Background::Waves { .. } => false,
             theme::Background::Zigzag { .. } => false,
             theme::Background::Organic { .. } => true,
+            theme::Background::WarpedGrid { .. } => false,
         };
         assert_eq!(organic, t.name == "Bowerbird", "{} organic roster", t.name);
     }

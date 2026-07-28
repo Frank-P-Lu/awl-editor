@@ -10,7 +10,7 @@
 //! [`color`] (the [`Srgb`] primitive), [`model`] (the [`Theme`]/[`Background`]/
 //! [`Lens`] data model), [`ornament`] (the section-break + list-bullet trios),
 //! [`cjk`] (the per-script fallback ladders + [`FontId`]), [`worlds`] (the
-//! eighteen concrete [`Theme`] literals), and [`derive`] (the active-theme
+//! nineteen concrete [`Theme`] literals), and [`derive`] (the active-theme
 //! index + every derived-from-active-theme accessor). Every external path
 //! (`theme::Theme`, `theme::THEMES`, `theme::CJK_MINCHO`, …) is unchanged —
 //! this file only re-exports.
@@ -21,7 +21,7 @@
 //! the one organic accent (the caret), `error` is the signal color, and
 //! `selection` is a custom token (DaisyUI has no selection role).
 //!
-//! There are eighteen [`Theme`]s ("worlds"), eleven dark and seven light. Two are
+//! There are nineteen [`Theme`]s ("worlds"), eleven dark and eight light. Two are
 //! DESIGN.md §3 statement worlds: Wagtail (awl's first true MONOCHROME/1-bit
 //! world — zero saturation everywhere, the caret included) and Firetail (awl's
 //! first LAVA-LAMP world — a slow metaball ground whose living warmth IS the
@@ -95,11 +95,11 @@ pub use ornament::{
     ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT,
     Ornaments,
 };
-#[allow(unused_imports)] // the seventeen individually named world consts: public
+#[allow(unused_imports)] // the individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code
 // always reaches them through the `THEMES` array instead (Cassowary among them).
 pub use worlds::{
-    BILBY, BOMBORA, BOWERBIRD, BROLGA, CURRAWONG, FIRETAIL, GALAH, GUMTREE, MAGPIE, MANGROVE,
+    BILBY, BOMBORA, BOWERBIRD, BROLGA, CURRAWONG, FIRETAIL, GALAH, GUMTREE, KITE, MAGPIE, MANGROVE,
     MOPOKE, MULGA, POTOROO, QUOKKA, SALTPAN, TAWNY, WAGTAIL,
 };
 pub use worlds::{DEFAULT_THEME, THEMES, world_names};

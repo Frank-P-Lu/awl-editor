@@ -382,6 +382,12 @@ fn page_json(pipeline: &TextPipeline) -> String {
         crate::page::PageClass::Prose => "prose",
         crate::page::PageClass::Code => "code",
     };
+    let background = pipeline.effective_background();
+    let background_phase = if background.is_warped_grid() {
+        pipeline.warp_grid_render_phase()
+    } else {
+        pipeline.lava_render_phase()
+    };
     format!(
         "{{ \"on\": {}, \"measure\": {}, \"class\": \"{}\", \"column\": {{ \"left\": {}, \"width\": {} }}, \"background\": {}, \"ambient\": {} }}",
         page_on,
@@ -389,10 +395,7 @@ fn page_json(pipeline: &TextPipeline) -> String {
         class,
         col_left,
         col_w,
-        background_json(
-            pipeline.effective_background(),
-            pipeline.lava_render_phase()
-        ),
+        background_json(background, background_phase),
         ambient_json(pipeline),
     )
 }
@@ -905,7 +908,33 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
                 "\"scale_px\":{},\"density\":{},\"phase\":{}}}"
             ),
             hex(tones[0]), hex(tones[1]), hex(tones[2]), scale_px, density, lava_phase
-        ), _ => unreachable!("rich background helper received a simple ground"),
+        ),
+        Background::WarpedGrid {
+            tones,
+            spacing_px,
+            density,
+            curvature,
+        } => {
+            let pose = crate::warpgrid::route_pose(lava_phase);
+            format!(
+                concat!(
+                    "{{ \"kind\": \"warped-grid\", \"tones\": [{}, {}, {}], ",
+                    "\"spacing_px\": {}, \"density\": {}, \"curvature\": {}, ",
+                    "\"phase\": {}, \"yaw\": {}, \"pitch\": {}, \"forward_cells\": {} }}"
+                ),
+                hex(tones[0]),
+                hex(tones[1]),
+                hex(tones[2]),
+                spacing_px,
+                density,
+                curvature,
+                lava_phase,
+                pose.yaw,
+                pose.pitch,
+                pose.forward_cells
+            )
+        },
+        _ => unreachable!("rich background helper received a simple ground"),
     }
 }
 pub(crate) fn json_string(s: &str) -> String {

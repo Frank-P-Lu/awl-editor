@@ -1629,11 +1629,16 @@ pub struct TextPipeline {
     /// THE LAVA-LAMP GROUND ([`Background::Lava`]): a slow 2D metaball field
     /// painted MARGINS-ONLY, drawn right AFTER `background_pipeline` and BEFORE the
     /// washes/selection/text. INACTIVE (draws nothing) for every non-lava world,
-    /// so all fifteen shipped worlds stay byte-identical. The animation PHASE is
+    /// so every non-lava world stays byte-identical. The animation PHASE is
     /// driven by the live App's slow ~10 fps tick (never `advance()`'s hot loop);
     /// [`Self::lava_phase`] holds it. See [`crate::lava`].
     pub lava_pipeline: crate::lava::LavaPipeline,
     lava_phase: f32,
+    /// Long deterministic route phase for `Background::WarpedGrid`. It advances
+    /// from the same sparse App cadence as `lava_phase`, but keeps its own
+    /// several-minute seamless route instead of inheriting the lamp's 67-second
+    /// wrap. Headless and frozen pipelines start at the composed straight pose.
+    warp_grid_phase: f32,
     lava_field_viewport: [f32; 2],
     /// THE ORGANIC FROST SEED FIELD (proto-cache): the visible margin glyphs' halo
     /// seeds `[x0, x1, yc, r]` (the outline entries + the gutter), summed by the
