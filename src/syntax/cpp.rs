@@ -40,7 +40,7 @@ fn string_at(b: &[u8], i: usize) -> Option<usize> {
     if let Some(end) = raw_string(b, i) {
         return Some(end);
     }
-    for quote in [b'"', b'\''] {
+    for quote in *b"\"'" {
         if let Some(p) = enc_prefix_for(b, i, quote) {
             return Some(super::scan_quoted(b, i + p, quote, false));
         }

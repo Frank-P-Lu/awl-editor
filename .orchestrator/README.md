@@ -91,6 +91,11 @@ once, at landing.
 - **Push after two or three landed items.** Board- or docs-only changes ride
   the next train. Push immediately for a CI repair, a correctness or data-loss
   fix, or a requested checkpoint.
+- **Check `main`'s CI before pushing and after** —
+  `gh run list --branch main --limit 1`. A green local train says nothing about
+  the remote. While `main` is red, the repair is the only thing that ships.
+- **Keep the local toolchain level with CI's** — `rustup check`. CI tracks
+  floating stable; a stale local clippy cannot see the lint it is pushing.
 
 Integrate one branch at a time. Two branches each green alone can be red
 together — a roster or ownership law is designed to cause exactly that. For
