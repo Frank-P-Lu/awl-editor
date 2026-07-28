@@ -453,6 +453,10 @@ mod tests {
             // run; a torn write costs one re-run of a deterministic scenario,
             // never user data.
             ("main/story.rs", 1),
+            // `render_overrides_env_read_law`'s own test-fixture seed (a throwaway
+            // file under `std::env::temp_dir()`, removed at the end of the same
+            // test) — never a durable app store.
+            ("render/overrides.rs", 1),
             ("scenario.rs", 5),
         ];
         let expected_map: std::collections::BTreeMap<String, usize> =

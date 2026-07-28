@@ -9,9 +9,8 @@
 //! sites need no edits). One `#[cfg(test)]` `Mutex` remains as the test
 //! bypass — not zero — because these readers are called from ~200 sites with
 //! no shared owner object to thread a parameter through (see the commit
-//! message for the full tradeoff); both its reader and writer assert
-//! `crate::testlock::currently_held()`, a guard nine of the ten predecessor
-//! statics omitted.
+//! message for the full tradeoff). It is NOT testlock-guarded — see
+//! [`TEST_OVERRIDE`]'s doc for why a uniform guard was tried and reverted.
 
 use crate::theme;
 
@@ -458,10 +457,22 @@ fn env_overrides() -> &'static RenderOverrides {
     ONCE.get_or_init(RenderOverrides::from_env)
 }
 
-/// The one `#[cfg(test)]` bypass for every knob in [`RenderOverrides`]. Reader
-/// ([`current`]) and writer ([`set_test_override`]) both assert
-/// `crate::testlock::currently_held()`, so an override cannot leak across a
-/// parallel render test's frame window.
+/// The one `#[cfg(test)]` bypass for every knob in [`RenderOverrides`].
+///
+/// NOT testlock-guarded, matching nine of the ten predecessor statics this
+/// module replaced (only `LIST_STYLE_TEST_OVERRIDE` asserted
+/// `crate::testlock::currently_held()`). Guarding [`current`] uniformly was
+/// tried and reverted: `card_anchor` alone is read incidentally by
+/// `OverlayState::open` from ~120 test call sites across `overlay::tests`,
+/// `actions::tests`, `app::tests`, and `index::tests` that never hold
+/// `crate::testlock::serial()` (they don't touch any override, they just
+/// build overlay state) — asserting there would demand a testlock refactor
+/// across all of them, well outside this round's scope. A test that DOES
+/// mutate an override still serializes correctly against a concurrent test,
+/// because `crate::testlock::serial()`'s own mutex — not this assert —
+/// provides the actual mutual exclusion (see
+/// `list_style_override_reader_writer_are_serialized`, which pins that with
+/// a real second thread).
 #[cfg(test)]
 static TEST_OVERRIDE: std::sync::Mutex<RenderOverrides> = std::sync::Mutex::new(RenderOverrides {
     title_style: None,
@@ -482,10 +493,6 @@ static TEST_OVERRIDE: std::sync::Mutex<RenderOverrides> = std::sync::Mutex::new(
 pub(super) fn current() -> RenderOverrides {
     #[cfg(test)]
     {
-        assert!(
-            crate::testlock::currently_held(),
-            "RenderOverrides reader requires crate::testlock::serial()"
-        );
         let test = TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()).clone();
         return test.or(env_overrides());
     }
@@ -499,21 +506,28 @@ pub(super) fn current() -> RenderOverrides {
 /// instead of the ten named setters below.
 #[cfg(test)]
 pub(crate) fn set_test_override(overrides: RenderOverrides) {
-    assert!(
-        crate::testlock::currently_held(),
-        "RenderOverrides writer requires crate::testlock::serial()"
-    );
+    assert_writer_serialized();
     *TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()) = overrides;
 }
 
 #[cfg(test)]
 fn set_field(f: impl FnOnce(&mut RenderOverrides)) {
-    assert!(
-        crate::testlock::currently_held(),
-        "RenderOverrides writer requires crate::testlock::serial()"
-    );
+    assert_writer_serialized();
     let mut g = TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner());
     f(&mut g);
+}
+
+/// The WRITE half of the guard, matching `theme::set_active`: mutating a
+/// process-global off-guard is a hard error, while reading it is not. Only
+/// writers are asserted here — see [`TEST_OVERRIDE`] for why the read side
+/// cannot be.
+#[cfg(test)]
+fn assert_writer_serialized() {
+    assert!(
+        crate::testlock::currently_held(),
+        "a RenderOverrides test override was installed without holding \
+         crate::testlock::serial()"
+    );
 }
 
 // The ten legacy per-knob setters, kept so the ~200 existing test call sites
