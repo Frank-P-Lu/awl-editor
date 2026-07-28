@@ -2,6 +2,55 @@
 
 use super::*;
 
+enum PreApply {
+    Continue,
+    Return(bool),
+}
+
+type SpellTarget = (Vec<String>, (usize, usize, usize), String);
+
+struct CoreRun {
+    effect: actions::Effect,
+    theme_overlay_before: bool,
+    theme_before: crate::theme::Theme,
+    history_overlay_before: bool,
+}
+
+struct CoreBefore {
+    theme_overlay_before: bool,
+    theme_before: crate::theme::Theme,
+    history_overlay_before: bool,
+}
+
+impl CoreBefore {
+    fn of(overlay: &Option<crate::overlay::OverlayState>) -> Self {
+        Self {
+            theme_overlay_before: overlay
+                .as_ref()
+                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
+            theme_before: crate::theme::active(),
+            history_overlay_before: overlay
+                .as_ref()
+                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::History),
+        }
+    }
+}
+
+struct OverlayInputs {
+    spell_target: Option<SpellTarget>,
+    history_entries: Vec<crate::history::TimelineRow>,
+    assets: Vec<crate::assets::Orphan>,
+    has_waiter: bool,
+}
+
+struct GotoInputs {
+    goto_corpus: Vec<String>,
+    goto_times: Vec<String>,
+    goto_open: Vec<usize>,
+    goto_recent: Vec<usize>,
+    goto_headings: Vec<(String, usize)>,
+}
+
 impl App {
     /// Recompute the text-keyed spell cache without synchronizing the view.
     pub(super) fn recompute_spell_cache(&mut self) {
@@ -269,6 +318,76 @@ impl App {
         event_loop: &ActiveEventLoop,
         door: crate::stats::Door,
     ) -> bool {
+        if let PreApply::Return(result) = self.pre_apply(&action, door) {
+            return result;
+        }
+
+        let CoreRun {
+            effect,
+            theme_overlay_before,
+            theme_before,
+            history_overlay_before,
+        } = self.run_action_core(&action, shift);
+        let quit = matches!(&effect, actions::Effect::Quit);
+        let theme_committed = matches!(
+            &effect,
+            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::Theme, _)
+        );
+        let history_accepted = matches!(
+            &effect,
+            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::History, _)
+        );
+        match effect {
+            actions::Effect::RunAction(act) => {
+                // Feed the command palette's Recent lens: record the RUN command in the
+                // in-memory MRU. LIVE-ONLY (this handler is the App's, never the headless
+                // replay), so a capture never populates it — Recent stays inert there.
+                crate::commands::record_recent(&act);
+                let quit = self.apply(act, shift, event_loop, crate::stats::Door::Palette);
+                // BREADCRUMB: if the re-dispatched command OPENED an overlay (Switch
+                // theme / Caret style / Settings / …), stamp it with `return_to =
+                // Command` so a later POP (Esc, or a value-picking accept) re-summons
+                // the palette instead of closing to the buffer. The nested `apply`
+                // above has already put any opened overlay in `self.overlay`; a
+                // terminal command (Save / Quit) left it None, a no-op. Settings
+                // sub-pickers that set their own `return_to = Settings` are never
+                // overwritten (`stamp_return_to` only fills a `None` breadcrumb).
+                actions::stamp_return_to(
+                    &mut self.overlay,
+                    Some(crate::overlay::OverlayKind::Command),
+                );
+                return quit;
+            }
+            actions::Effect::LastBuffer => self.last_buffer_toggle(),
+            actions::Effect::NewDocument => self.new_document(),
+            actions::Effect::OpenSettings => self.open_settings(),
+            actions::Effect::OpenCredits => self.open_credits(),
+            actions::Effect::OpenGuide => self.open_guide(),
+            actions::Effect::InsertDate => self.insert_date(),
+            actions::Effect::OverlayAccept(kind, val) => self.apply_overlay_accept(kind, &val),
+            effect => self.apply_effect_tail(effect),
+        }
+        if matches!(action, Action::OpenHistory | Action::CompareVersion)
+            && self
+                .overlay
+                .as_ref()
+                .map(|o| o.kind == crate::overlay::OverlayKind::History)
+                .unwrap_or(false)
+        {
+            self.active.extra.history_scroll_before = Some(self.active.extra.scroll);
+        }
+        if history_overlay_before && self.overlay.is_none() {
+            self.history_overlay_closed(history_accepted);
+        }
+        self.post_apply_effects(&action, theme_overlay_before, theme_committed, theme_before);
+
+        if quit {
+            event_loop.exit();
+        }
+        quit
+    }
+
+    fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) -> PreApply {
         // SILENT USAGE LEDGER: record this dispatch by its door into the persisted
         // per-command counts (`app/stats.rs`) — the discoverability signal phase 2
         // surfaces (never a nudge). Native-only + config-gated inside; a non-catalog
@@ -277,7 +396,7 @@ impl App {
         // and the palette `RunAction` re-dispatch); `apply` is the ONE seam all three
         // doors funnel through, so none needs a parallel recording path.
         #[cfg(not(target_arch = "wasm32"))]
-        self.ledger_note_dispatch(&action, door);
+        self.ledger_note_dispatch(action, door);
         #[cfg(target_arch = "wasm32")]
         let _ = door;
         // macOS: About opens the NATIVE standard About panel (the platform
@@ -290,7 +409,7 @@ impl App {
         #[cfg(target_os = "macos")]
         if matches!(action, Action::About) {
             crate::mac_chrome::show_about_panel();
-            return false;
+            return PreApply::Return(false);
         }
 
         // DIFF-AS-PREVIEW note: the old Compare TAKEOVER's read-only gate lived
@@ -319,56 +438,21 @@ impl App {
         // PgDn/PgUp page the BUFFER via the GPU-measured viewport — but ONLY when no
         // overlay is open. While a picker is summoned they PAGE its selection instead,
         // so fall through to `apply_core`'s shared overlay intercept in that case.
-        if let Some(handled) = self.page_scroll_intercept(&action) {
-            return handled;
+        if let Some(handled) = self.page_scroll_intercept(action) {
+            return PreApply::Return(handled);
         }
 
         if matches!(action, Action::Yank) {
             if self.try_paste_image() {
-                return false;
+                return PreApply::Return(false);
             }
             self.refresh_kill_from_clipboard();
         }
 
-        let mut shift_selecting = self.active.extra.shift_selecting;
-        let mut zoom = self.zoom;
-        let mut search = self.search.take();
-        let mut overlay = self.overlay.take();
-        let overlay_was_open = overlay.is_some();
-        // Whether the Theme picker is open BEFORE the core runs: live preview
-        // (move / filter) mutates the process-global active theme while it stays
-        // open, so the GPU pipelines must be re-tinted even with no accept.
-        let theme_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
-            .unwrap_or(false);
-        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
-        // live preview (which mutates the process-global active theme).
-        // `retint_theme_preview` compares it against the now-active world to detect
-        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
-        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
-        let theme_before = crate::theme::active();
-        // Whether the HISTORY timeline is open BEFORE the core runs: its live
-        // preview state (the derived document preview + the saved scroll) must be
-        // put down the moment the overlay closes, accept or not.
-        let history_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::History)
-            .unwrap_or(false);
-        let config_keys = self.config.keys.clone();
-        let config_linux_keep = self.config.effective_linux_keep();
-        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
-        // is borrowed mutably below): clone the small bits `make_overlay` needs.
-        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
-        // SUMMON: rebuild the file index right as `C-x f` opens, through the
-        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
-        // since launch (or the last scan) is never missing. No cache TTL, no
-        // watcher — a summoned overlay is transient and the walk is disk-cheap
-        // for a real project tree. Gated on the action like outline/spell/
-        // history below: walking the tree on every OTHER keystroke would be
-        // needless disk I/O.
-        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
-        // since launch is caught, same freshness rationale as go-to).
+        PreApply::Continue
+    }
+
+    fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
@@ -413,6 +497,16 @@ impl App {
             } else {
                 Vec::new()
             };
+        GotoInputs {
+            goto_corpus,
+            goto_times,
+            goto_open,
+            goto_recent,
+            goto_headings,
+        }
+    }
+
+    fn gather_overlay_inputs(&mut self, action: &Action) -> OverlayInputs {
         #[allow(clippy::type_complexity)]
         let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
             if matches!(action, Action::OpenSpellSuggest) {
@@ -485,6 +579,72 @@ impl App {
             .is_some_and(|key| self.wait_conns.get(&key).is_some_and(|w| !w.is_empty()));
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
+        OverlayInputs {
+            spell_target,
+            history_entries,
+            assets,
+            has_waiter,
+        }
+    }
+
+    fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
+        let mut shift_selecting = self.active.extra.shift_selecting;
+        let mut zoom = self.zoom;
+        let mut search = self.search.take();
+        let mut overlay = self.overlay.take();
+        let overlay_was_open = overlay.is_some();
+        let CoreBefore {
+            theme_overlay_before,
+            theme_before,
+            history_overlay_before,
+        } = CoreBefore::of(&overlay);
+        /* // Whether the Theme picker is open BEFORE the core runs: live preview
+        // (move / filter) mutates the process-global active theme while it stays
+        // open, so the GPU pipelines must be re-tinted even with no accept.
+        let theme_overlay_before = overlay
+            .as_ref()
+            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
+            .unwrap_or(false);
+        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
+        // live preview (which mutates the process-global active theme).
+        // `retint_theme_preview` compares it against the now-active world to detect
+        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
+        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
+        let theme_before = crate::theme::active();
+        // Whether the HISTORY timeline is open BEFORE the core runs: its live
+        // preview state (the derived document preview + the saved scroll) must be
+        // put down the moment the overlay closes, accept or not.
+        let history_overlay_before = overlay
+            .as_ref()
+            .map(|o| o.kind == crate::overlay::OverlayKind::History)
+            .unwrap_or(false); */
+        let config_keys = self.config.keys.clone();
+        let config_linux_keep = self.config.effective_linux_keep();
+        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
+        // is borrowed mutably below): clone the small bits `make_overlay` needs.
+        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
+        // SUMMON: rebuild the file index right as `C-x f` opens, through the
+        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
+        // since launch (or the last scan) is never missing. No cache TTL, no
+        // watcher — a summoned overlay is transient and the walk is disk-cheap
+        // for a real project tree. Gated on the action like outline/spell/
+        // history below: walking the tree on every OTHER keystroke would be
+        // needless disk I/O.
+        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
+        // since launch is caught, same freshness rationale as go-to).
+        let GotoInputs {
+            goto_corpus,
+            goto_times,
+            goto_open,
+            goto_recent,
+            goto_headings,
+        } = self.gather_goto_inputs(action);
+        let OverlayInputs {
+            spell_target,
+            history_entries,
+            assets,
+            has_waiter,
+        } = self.gather_overlay_inputs(action);
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,
@@ -550,7 +710,7 @@ impl App {
             browse_to: &mut browse_to,
             oracle,
         };
-        let effect = actions::apply_core(&mut ctx, &action, shift);
+        let effect = actions::apply_core(&mut ctx, action, shift);
         self.active.extra.shift_selecting = shift_selecting;
         let zoom_changed = self.zoom != zoom;
         self.zoom = zoom;
@@ -562,6 +722,16 @@ impl App {
         let _ = make_overlay;
         let _ = browse_to;
         self.overlay = overlay;
+        self.sync_overlay_after_core(overlay_was_open);
+        CoreRun {
+            effect,
+            theme_overlay_before,
+            theme_before,
+            history_overlay_before,
+        }
+    }
+
+    fn sync_overlay_after_core(&mut self, overlay_was_open: bool) {
         // ITEM 106 — re-anchor the hover movement-slop gate to the pointer's
         // CURRENT resting position after every action this seam applies (keyboard
         // nav/type, a menu command, or a click routed back through `apply` from
@@ -579,113 +749,10 @@ impl App {
         if self.overlay.is_some() != overlay_was_open {
             self.sync_cursor_icon();
         }
-        let quit = matches!(&effect, actions::Effect::Quit);
-        let theme_committed = matches!(
-            &effect,
-            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::Theme, _)
-        );
-        let history_accepted = matches!(
-            &effect,
-            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::History, _)
-        );
+    }
+
+    fn apply_effect_tail(&mut self, effect: actions::Effect) {
         match effect {
-            actions::Effect::RunAction(act) => {
-                // Feed the command palette's Recent lens: record the RUN command in the
-                // in-memory MRU. LIVE-ONLY (this handler is the App's, never the headless
-                // replay), so a capture never populates it — Recent stays inert there.
-                crate::commands::record_recent(&act);
-                let quit = self.apply(act, shift, event_loop, crate::stats::Door::Palette);
-                // BREADCRUMB: if the re-dispatched command OPENED an overlay (Switch
-                // theme / Caret style / Settings / …), stamp it with `return_to =
-                // Command` so a later POP (Esc, or a value-picking accept) re-summons
-                // the palette instead of closing to the buffer. The nested `apply`
-                // above has already put any opened overlay in `self.overlay`; a
-                // terminal command (Save / Quit) left it None, a no-op. Settings
-                // sub-pickers that set their own `return_to = Settings` are never
-                // overwritten (`stamp_return_to` only fills a `None` breadcrumb).
-                actions::stamp_return_to(
-                    &mut self.overlay,
-                    Some(crate::overlay::OverlayKind::Command),
-                );
-                return quit;
-            }
-            actions::Effect::LastBuffer => self.last_buffer_toggle(),
-            actions::Effect::NewDocument => self.new_document(),
-            actions::Effect::OpenSettings => self.open_settings(),
-            actions::Effect::OpenCredits => self.open_credits(),
-            actions::Effect::OpenGuide => self.open_guide(),
-            actions::Effect::InsertDate => self.insert_date(),
-            actions::Effect::OverlayAccept(kind, val) => match kind {
-                crate::overlay::OverlayKind::Goto => self.open_rel(&val),
-                crate::overlay::OverlayKind::Project => {
-                    self.switch_project(PathBuf::from(val));
-                }
-                crate::overlay::OverlayKind::MoveDest => self.move_current_file(&val),
-                // The Theme picker COMMITTED (Enter) or REVERTED (C-g): the core
-                // already set the process-global active theme to `val`; the re-tint
-                // below (flagged by `theme_committed`) handles the GPU/title.
-                crate::overlay::OverlayKind::Theme => {}
-                // The Caret-style picker COMMITTED (Enter): the core already set the
-                // process-global caret look via the live preview, so PERSIST it (phase
-                // 1's caret_mode preference) so the choice sticks across launches. A
-                // Cancel reverts in the core and signals Effect::None, so it never
-                // reaches here — persistence is commit-only, like the theme.
-                crate::overlay::OverlayKind::Caret => self.persist_caret_mode(),
-                // The Dictionary picker COMMITTED (Enter): the core already set the
-                // process-global active variant (there is NO live preview here, unlike
-                // Theme/Caret — see `overlay/`'s Dictionary doc), so reconstruct the
-                // App's `SpellChecker` for the new variant (the one real per-switch
-                // cost) + persist the sticky pref, mirroring `persist_caret_mode`. A
-                // Cancel never reaches here (nothing was set to revert).
-                crate::overlay::OverlayKind::Dictionary => {
-                    self.set_dictionary(crate::spell::active_variant())
-                }
-                // The CJK-priority LANGUAGE picker COMMITTED (Enter): the core
-                // already promoted + set the live ladder global (there is no live
-                // preview here either, like Dictionary), so PERSIST the whole
-                // ordered list to config.toml. A Cancel never reaches here (nothing
-                // was set to revert).
-                crate::overlay::OverlayKind::CjkLang => self.persist_cjk_priority(),
-                // The DATE-format picker COMMITTED (Enter): the core already set the
-                // process-global active format (no live preview — the example dates
-                // ARE the preview), so PERSIST the sticky slug, mirroring
-                // `persist_caret_mode`. A Cancel never reaches here (nothing to
-                // revert). Refresh the still-open Settings menu (the summoning
-                // overlay) so its "Date format" value cell shows the new example.
-                crate::overlay::OverlayKind::Date => {
-                    self.persist_date_format();
-                    self.refresh_settings_overlay();
-                }
-                crate::overlay::OverlayKind::Browse => {}
-                // The command palette never accepts a value — it runs an Action.
-                crate::overlay::OverlayKind::Command => {}
-                crate::overlay::OverlayKind::Spell => {}
-                // The rebind menu never accepts a value — it commits via RebindCommit.
-                crate::overlay::OverlayKind::Keybindings => {}
-                crate::overlay::OverlayKind::History => self.restore_history(&val),
-                // Settings menu never emits an OverlayAccept(Settings): Enter on a
-                // row signals SettingToggle (toggle), swaps to a sub-picker (picker /
-                // submenu), or emits OpenSettings (edit-as-text) — handled below /
-                // via their own kinds. This arm stays for match exhaustiveness only.
-                crate::overlay::OverlayKind::Settings => {}
-                // The asset cleaner never emits an OverlayAccept: Enter signals
-                // TrashAsset (handled below). This arm is for match exhaustiveness.
-                crate::overlay::OverlayKind::Assets => {}
-                // The Rename minibuffer never emits an OverlayAccept — Enter signals
-                // RenameNoteCommit (handled below), and Esc/Cancel just closes the
-                // overlay outright at the core seam. This arm is for exhaustiveness.
-                crate::overlay::OverlayKind::Rename => {}
-                // LINKS V2: the InsertLink minibuffer never emits an OverlayAccept
-                // either — Enter applies the edit directly INSIDE the core (no
-                // filesystem, no deferred Effect needed) and closes the overlay
-                // itself. This arm is for match exhaustiveness only.
-                crate::overlay::OverlayKind::InsertLink => {}
-                // NAMED SAVE POINTS: the Keep-version minibuffer never emits an
-                // OverlayAccept — Enter signals `Effect::KeepVersion { name }`
-                // (handled below) and closes the overlay at the core seam. This
-                // arm is for match exhaustiveness only.
-                crate::overlay::OverlayKind::KeepName => {}
-            },
             actions::Effect::JumpToLine(line) => self.jump_to_line(line),
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
             actions::Effect::RebindCommit {
@@ -734,25 +801,36 @@ impl App {
             actions::Effect::RenameNoteCommit { new_name } => self.rename_current_file(&new_name),
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
             actions::Effect::Quit | actions::Effect::None => {}
+            actions::Effect::RunAction(_)
+            | actions::Effect::LastBuffer
+            | actions::Effect::NewDocument
+            | actions::Effect::OpenSettings
+            | actions::Effect::OpenCredits
+            | actions::Effect::OpenGuide
+            | actions::Effect::InsertDate
+            | actions::Effect::OverlayAccept(_, _) => {
+                unreachable!("effect handled before apply_effect_tail")
+            }
         }
-        if matches!(action, Action::OpenHistory | Action::CompareVersion)
-            && self
-                .overlay
-                .as_ref()
-                .map(|o| o.kind == crate::overlay::OverlayKind::History)
-                .unwrap_or(false)
-        {
-            self.active.extra.history_scroll_before = Some(self.active.extra.scroll);
-        }
-        if history_overlay_before && self.overlay.is_none() {
-            self.history_overlay_closed(history_accepted);
-        }
-        self.post_apply_effects(&action, theme_overlay_before, theme_committed, theme_before);
+    }
 
-        if quit {
-            event_loop.exit();
+    fn apply_overlay_accept(&mut self, kind: crate::overlay::OverlayKind, value: &str) {
+        use crate::overlay::OverlayKind::*;
+        match kind {
+            Goto => self.open_rel(value),
+            Project => self.switch_project(PathBuf::from(value)),
+            MoveDest => self.move_current_file(value),
+            Caret => self.persist_caret_mode(),
+            Dictionary => self.set_dictionary(crate::spell::active_variant()),
+            CjkLang => self.persist_cjk_priority(),
+            Date => {
+                self.persist_date_format();
+                self.refresh_settings_overlay();
+            }
+            History => self.restore_history(value),
+            Theme | Browse | Command | Spell | Keybindings | Settings | Assets | Rename
+            | InsertLink | KeepName => {}
         }
-        quit
     }
 
     pub(super) fn history_overlay_closed(&mut self, accepted: bool) {
@@ -994,18 +1072,7 @@ impl App {
     /// OS-clipboard mirror after a cut/copy, and the delete-word caret streak. Keyed off
     /// `action` (the Save/clipboard pattern), never an interception that bypasses the
     /// core. Runs straight through with no early return.
-    pub(super) fn post_apply_effects(
-        &mut self,
-        action: &Action,
-        theme_overlay_before: bool,
-        theme_committed: bool,
-        theme_before: crate::theme::Theme,
-    ) {
-        // RENDER-ONLY TOGGLES — post-`apply_core` side effects. The core already
-        // flipped the process-global (caret look / page mode) on the
-        // ONE shared seam, so live and `--keys` replay agree; here we do only the
-        // window/GPU work the core can't reach, keyed off the action (the
-        // Save/clipboard pattern) instead of intercepting before the core.
+    fn post_view_action(&mut self, action: &Action) {
         match action {
             // Caret look: the buffer is untouched and the cached glyph masks stay
             // valid (keyed by CacheKey), so the trailing `sync_view` + redraw in the
@@ -1107,6 +1174,21 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    pub(super) fn post_apply_effects(
+        &mut self,
+        action: &Action,
+        theme_overlay_before: bool,
+        theme_committed: bool,
+        theme_before: crate::theme::Theme,
+    ) {
+        // RENDER-ONLY TOGGLES — post-`apply_core` side effects. The core already
+        // flipped the process-global (caret look / page mode) on the
+        // ONE shared seam, so live and `--keys` replay agree; here we do only the
+        // window/GPU work the core can't reach, keyed off the action (the
+        // Save/clipboard pattern) instead of intercepting before the core.
+        self.post_view_action(action);
         if matches!(action, Action::Save)
             && self
                 .active
