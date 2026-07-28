@@ -187,6 +187,8 @@ mod tests {
             "capture/replay_sidecar.rs",
             "capture/scroll_sidecar.rs",
             "capture/sidecar.rs",
+            // Serializes background capability data and owns no view policy.
+            "capture/sidecar/background.rs",
         ];
         assert_eq!(
             sources.keys().map(String::as_str).collect::<Vec<_>>(),
