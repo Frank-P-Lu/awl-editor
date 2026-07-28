@@ -95,7 +95,7 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 2668
+lines = 828
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -147,7 +147,7 @@ lines = 842
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 2806
+lines = 1135
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
@@ -163,7 +163,7 @@ lines = 1609
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 4396
+lines = 1410
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -283,7 +283,7 @@ lines = 1121
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 2380
+lines = 1502
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
@@ -343,7 +343,7 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/settings.rs"
-lines = 1673
+lines = 730
 
 [[file_size_mark]]
 file = "src/soak_gpu/mod.rs"
@@ -934,8 +934,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/keymap.rs"
-line = 2649
+file = "src/keymap/tests.rs"
+line = 1514
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

@@ -395,7 +395,7 @@ mod tests {
     //     themselves.
     //   src/app/tests/buffers.rs, src/app/tests/lifecycle.rs,
     //   src/app/daemon.rs, src/buffers.rs, src/daemon.rs,
-    //   src/history/tests.rs, src/index.rs, src/main/run.rs (26 combined)
+    //   src/history/tests.rs, src/index.rs, src/main/tests.rs (26 combined)
     //     — every one of these is INSIDE a `#[cfg(test)]` module, seeding a
     //     real temp-dir fixture file directly (never a durable app store) or
     //     (in `history/tests.rs`) deliberately planting garbage to exercise
@@ -443,7 +443,7 @@ mod tests {
             // (seeded precisely to prove the sandbox never writes them back).
             // One more (item 76): `resolve_launch_context_file_argument_wins_
             // over_remembered`'s own temp-dir fixture seed, same shape.
-            ("main/run.rs", 18),
+            ("main/tests.rs", 18),
             // The storyboard runner's `trace.json` write (`write_trace`): a
             // HARNESS DELIVERABLE, not app state — a storyboard run's active
             // backend IS the hermetic sandbox, so routing this through
