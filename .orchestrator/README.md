@@ -143,7 +143,12 @@ the applicable arms; they do not trigger native/wasm/capture work by ritual.
 - **Clean up landed worktrees promptly.** Remove clean, merged worktrees and
   prune registrations. Do not touch dirty, locked, or differently owned
   worktrees without handoff. `git worktree remove` removes the checkout, not
-  the branch.
+  the branch. Then run `scripts/sweep.sh` — Cargo never collects superseded
+  artifacts, so target/ grows without bound (one reached 68 GB). It is a no-op
+  when nothing is stale, and keeps anything a live worktree still uses.
+  A directory whose `.git` file points at a pruned registry entry is dead
+  weight: git cannot read it, so confirm its `src/` matches the branch tip and
+  delete it outright.
 - **Establish input modality before diagnosis.** If a report does not identify
   keyboard, pointer, or wheel input, disambiguate that first.
 - **Preserve gate truth.** Do not pipe gates through commands that hide their
