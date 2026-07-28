@@ -493,8 +493,11 @@ static TEST_OVERRIDE: std::sync::Mutex<RenderOverrides> = std::sync::Mutex::new(
 pub(super) fn current() -> RenderOverrides {
     #[cfg(test)]
     {
-        let test = TEST_OVERRIDE.lock().unwrap_or_else(|e| e.into_inner()).clone();
-        return test.or(env_overrides());
+        let test = TEST_OVERRIDE
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        test.or(env_overrides())
     }
     #[cfg(not(test))]
     {
@@ -663,8 +666,7 @@ mod tests {
             let trimmed = line.trim_start();
             state = match state {
                 State::Normal => {
-                    if trimmed.starts_with("#[cfg(test)") || trimmed.starts_with("#[cfg(all(test")
-                    {
+                    if trimmed.starts_with("#[cfg(test)") || trimmed.starts_with("#[cfg(all(test") {
                         State::AfterCfgTest
                     } else {
                         if !trimmed.starts_with("//") {
@@ -682,8 +684,7 @@ mod tests {
                     if trimmed.starts_with("#[") {
                         State::AfterCfgTest // a stacked attribute; keep waiting
                     } else if line.contains('{') {
-                        let d =
-                            line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                        let d = line.matches('{').count() as i32 - line.matches('}').count() as i32;
                         if d <= 0 {
                             State::Normal
                         } else {
@@ -696,8 +697,8 @@ mod tests {
                     }
                 }
                 State::InSkippedBlock(depth) => {
-                    let d = depth + line.matches('{').count() as i32
-                        - line.matches('}').count() as i32;
+                    let d =
+                        depth + line.matches('{').count() as i32 - line.matches('}').count() as i32;
                     if d <= 0 {
                         State::Normal
                     } else {
@@ -752,7 +753,10 @@ mod tests {
         .unwrap();
         let mut out = Vec::new();
         scan_file(&path, &mut out);
-        assert!(out.is_empty(), "a comment line must not count as a code read");
+        assert!(
+            out.is_empty(),
+            "a comment line must not count as a code read"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 }

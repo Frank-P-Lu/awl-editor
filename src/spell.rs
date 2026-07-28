@@ -71,11 +71,12 @@ pub fn set_active_variant(v: DictVariant) {
 }
 
 /// Whether spell-check is active AT ALL — the GLOBAL escape hatch (default ON):
-/// a process-global read by the ONE owner seam ([`SpellChecker::misspellings_for`]
-/// + [`SpellChecker::suggest_at`]) so OFF silences every squiggle — prose
-/// comments and the scoped code-string/comment check alike — and turns the
-/// spell-suggest picker into a calm no-op, with zero duplicated gating at any
-/// call site (render, capture, the right-click seam).
+/// a process-global read by the ONE owner seam
+/// ([`SpellChecker::misspellings_for`] and [`SpellChecker::suggest_at`]) so OFF
+/// silences every squiggle — prose comments and the scoped
+/// code-string/comment check alike — and turns the spell-suggest picker into a
+/// calm no-op, with zero duplicated gating at any call site (render, capture,
+/// the right-click seam).
 static SPELLCHECK_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(true);
 
 pub fn spellcheck_on() -> bool {

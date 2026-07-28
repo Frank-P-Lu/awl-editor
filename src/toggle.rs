@@ -136,19 +136,31 @@ mod tests {
     /// fixture don't need an entry: neither wraps a BARE `static _: AtomicBool`
     /// (the pattern below scans for), so they can never appear in `hits`.
     const ALLOWED_RAW_ATOMIC_BOOL: &[(&str, &str)] = &[
-        ("streaks.rs", "CUMULATIVE rides CardFlag's OWN (deliberately \
+        (
+            "streaks.rs",
+            "CUMULATIVE rides CardFlag's OWN (deliberately \
             unguarded) discipline — `set_open` resets it in the same \
             unguarded window `CardFlag::set_open` writes in, and it has no \
-            direct external setter (only the XOR-only `toggle_view`)"),
-        ("hud.rs", "HUD_HELD is TRANSIENT interaction state (held while a key \
+            direct external setter (only the XOR-only `toggle_view`)",
+        ),
+        (
+            "hud.rs",
+            "HUD_HELD is TRANSIENT interaction state (held while a key \
             is down, no config binding, no persistence) — the same category \
-            as menubar::OPEN_MENU, not a sticky preference"),
-        ("probe.rs", "LIVE_ACTIVE / FLIGHT_ACTIVE — the flight recorder, a \
+            as menubar::OPEN_MENU, not a sticky preference",
+        ),
+        (
+            "probe.rs",
+            "LIVE_ACTIVE / FLIGHT_ACTIVE — the flight recorder, a \
             localized single-concern cluster whose two flags are read and \
-            written together by one owner, not independent preferences"),
-        ("crashlog.rs", "HOOK_INSTALLED is a one-way install witness (no \
+            written together by one owner, not independent preferences",
+        ),
+        (
+            "crashlog.rs",
+            "HOOK_INSTALLED is a one-way install witness (no \
             setter, no toggle, never flips back) — a startup latch, not a \
-            get/set/toggle preference"),
+            get/set/toggle preference",
+        ),
     ];
 
     fn scan_dir(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize)>) {
@@ -200,11 +212,13 @@ mod tests {
             let trimmed = line.trim_start();
             state = match state {
                 State::Normal => {
-                    if trimmed.starts_with("#[cfg(test)") || trimmed.starts_with("#[cfg(all(test")
-                    {
+                    if trimmed.starts_with("#[cfg(test)") || trimmed.starts_with("#[cfg(all(test") {
                         State::AfterCfgTest
                     } else {
-                        if !trimmed.starts_with("//") && trimmed.contains("static ") && trimmed.contains("AtomicBool") {
+                        if !trimmed.starts_with("//")
+                            && trimmed.contains("static ")
+                            && trimmed.contains("AtomicBool")
+                        {
                             out.push((name.clone(), i + 1));
                         }
                         State::Normal
@@ -214,9 +228,12 @@ mod tests {
                     if trimmed.starts_with("#[") {
                         State::AfterCfgTest
                     } else if line.contains('{') {
-                        let d =
-                            line.matches('{').count() as i32 - line.matches('}').count() as i32;
-                        if d <= 0 { State::Normal } else { State::InSkippedBlock(d) }
+                        let d = line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                        if d <= 0 {
+                            State::Normal
+                        } else {
+                            State::InSkippedBlock(d)
+                        }
                     } else if trimmed.ends_with(';') {
                         State::Normal
                     } else {
@@ -224,9 +241,13 @@ mod tests {
                     }
                 }
                 State::InSkippedBlock(depth) => {
-                    let d = depth + line.matches('{').count() as i32
-                        - line.matches('}').count() as i32;
-                    if d <= 0 { State::Normal } else { State::InSkippedBlock(d) }
+                    let d =
+                        depth + line.matches('{').count() as i32 - line.matches('}').count() as i32;
+                    if d <= 0 {
+                        State::Normal
+                    } else {
+                        State::InSkippedBlock(d)
+                    }
                 }
             };
         }

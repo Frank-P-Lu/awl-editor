@@ -36,7 +36,6 @@ pub use chrome::PanelHit;
 /// The `AWL_*_FORCE` dev-only render/theme override knobs, consolidated into
 /// ONE [`overrides::RenderOverrides`] struct. See that module's doc.
 mod overrides;
-pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
 #[cfg(test)]
 pub(crate) use overrides::{
     ForcedKnob, RenderOverrides, classify_forced_knob, parse_facet_style_force,
@@ -48,6 +47,7 @@ pub(crate) use overrides::{
     set_pane_split_test_override, set_slant_test_override, set_test_override,
     set_title_style_test_override,
 };
+pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
 
 mod rowlayout;
 pub use rowlayout::rail_frac_at;
