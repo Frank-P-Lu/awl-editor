@@ -187,11 +187,6 @@ impl SearchState {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn wrap_armed(&self) -> Option<Direction> {
-        self.wrap_armed
-    }
-
     // --- find + replace -----------------------------------------------------
     //
     // Replace is a MODE of the same panel: the search query stays the needle, a
@@ -308,11 +303,7 @@ impl SearchState {
         self.replacement.text()
     }
 
-    // --- accessors for App + render + capture -------------------------------
-    //
-    // Several of these are consumed by the RENDER stage (panel + sidecar) and
-    // are not yet referenced by the CORE stage; allow dead_code so the CORE
-    // build stays warning-clean, mirroring buffer.rs's not-yet-used accessors.
+    // --- accessors for App + render -----------------------------------------
 
     #[allow(dead_code)]
     pub fn query(&self) -> &str {
@@ -347,18 +338,8 @@ impl SearchState {
     }
 
     #[allow(dead_code)]
-    pub fn current_ordinal(&self) -> Option<usize> {
-        self.current.map(|i| i + 1)
-    }
-
-    #[allow(dead_code)]
     pub fn current_index(&self) -> Option<usize> {
         self.current
-    }
-
-    #[allow(dead_code)]
-    pub fn has_no_matches(&self) -> bool {
-        !self.query.is_empty() && self.matches.is_empty()
     }
 
     pub fn origin(&self) -> usize {
@@ -566,14 +547,14 @@ mod tests {
         s.push_char('x', hay); // 0,2,4; current 0
         s.step(Direction::Forward); // ->2
         s.step(Direction::Forward); // ->4 (last)
-        assert_eq!(s.wrap_armed(), None);
+        assert_eq!(s.wrap_armed, None);
         assert_eq!(
             s.step(Direction::Forward),
             StepOutcome::RecoiledAtBoundary(Direction::Forward)
         );
-        assert_eq!(s.wrap_armed(), Some(Direction::Forward));
+        assert_eq!(s.wrap_armed, Some(Direction::Forward));
         assert_eq!(s.step(Direction::Backward), StepOutcome::Moved);
-        assert_eq!(s.wrap_armed(), None);
+        assert_eq!(s.wrap_armed, None);
         assert_eq!(s.current_match(), Some(m(2, 3)));
 
         let mut s2 = SearchState::start(0, Direction::Forward);
@@ -581,16 +562,16 @@ mod tests {
         s2.step(Direction::Forward); // ->2
         s2.step(Direction::Forward); // ->4
         s2.step(Direction::Forward); // arm
-        assert_eq!(s2.wrap_armed(), Some(Direction::Forward));
+        assert_eq!(s2.wrap_armed, Some(Direction::Forward));
         s2.push_char('.', hay); // query "x." now matches at 0,2; recompute disarms
-        assert_eq!(s2.wrap_armed(), None);
+        assert_eq!(s2.wrap_armed, None);
         let mut s3 = SearchState::start(0, Direction::Forward);
         s3.push_char('x', hay);
         s3.step(Direction::Forward);
         s3.step(Direction::Forward);
         s3.step(Direction::Forward); // arm
         s3.pop_char(hay); // also disarms via recompute
-        assert_eq!(s3.wrap_armed(), None);
+        assert_eq!(s3.wrap_armed, None);
     }
 
     #[test]
@@ -646,18 +627,6 @@ mod tests {
         assert_eq!(s.hit_count(), 1); // only exact "hello"
         s.toggle_case(hay);
         assert_eq!(s.hit_count(), 3);
-    }
-
-    #[test]
-    fn has_no_matches_only_when_query_nonempty_and_zero_hits() {
-        let mut s = SearchState::start(0, Direction::Forward);
-        assert!(!s.has_no_matches()); // empty query
-        s.push_char('z', "abc");
-        assert!(s.has_no_matches()); // non-empty, zero hits
-        s.pop_char("abc");
-        assert!(!s.has_no_matches()); // empty again
-        s.push_char('a', "abc");
-        assert!(!s.has_no_matches()); // has a hit
     }
 
     #[test]
@@ -847,16 +816,6 @@ mod tests {
         replace_current_once(&mut buf, &mut st);
         assert_eq!(buf.text(), "thé au lait, café noir");
         assert_eq!(buf.cursor_char(), 13, "next 'café' starts at char 13");
-    }
-
-    #[test]
-    fn ordinal_is_one_based() {
-        let hay = "x.x.x";
-        let mut s = SearchState::start(0, Direction::Forward);
-        s.push_char('x', hay);
-        assert_eq!(s.current_ordinal(), Some(1));
-        s.step(Direction::Forward);
-        assert_eq!(s.current_ordinal(), Some(2));
     }
 
     #[test]
