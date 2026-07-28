@@ -6,6 +6,13 @@
 
 ## CI incidents
 
+CI-30394097267. 🔧 **REPAIR PUSHING.** Item 126's Linux PNG job exposed a
+sidecar-number portability bug in its new test: `text_origin.top` was read only
+as a JSON integer even though the schema permits a number and Linux emitted a
+fractional representation. The oracle now reads the coordinate through the
+same numeric path as the established pixel harnesses; replacement CI is the
+resolution gate.
+
 CI-30360849276. ✅ **RESOLVED.** The local/CI stable-toolchain drift was repaired; subsequent main runs `30363168910` and `30370615734` completed successfully. The standing pre-push remote-result and toolchain-level rules remain in `.orchestrator/README.md`.
 
 ## Ready — harness correctness

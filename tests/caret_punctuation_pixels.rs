@@ -248,8 +248,12 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                 &std::fs::read_to_string(reference.with_extension("json")).unwrap(),
             )
             .unwrap();
-            let top = side["text_origin"]["top"].as_u64().unwrap() as u32;
-            let lh = side["font"]["line_height"].as_f64().unwrap() as u32;
+            let top = side["text_origin"]["top"]
+                .as_f64()
+                .expect("text_origin.top") as u32;
+            let lh = side["font"]["line_height"]
+                .as_f64()
+                .expect("font.line_height") as u32;
             let band_pad = (8.0 * dpi * zoom).ceil() as u32;
             let caret_rgb = hex_rgb(&side["theme"]["primary"]);
             let refimg = rgba(&reference);
