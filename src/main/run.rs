@@ -7,6 +7,7 @@ use crate::buffer::Buffer;
 use crate::capture::{self, CaptureOpts};
 use crate::config::Config;
 use crate::keymap::Action;
+use crate::replay_report::ReplayResult;
 use crate::{actions, app, bench};
 
 /// Build the editor buffer. Refused files become unbound scratch buffers so a
@@ -81,31 +82,6 @@ pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::P
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => root.to_path_buf(),
     }
-}
-
-struct ReplayResult {
-    zoom: Option<f32>,
-    selection: Option<((usize, usize), (usize, usize))>,
-    search_query: Option<String>,
-    search_case: bool,
-    /// Whether the replay left the search panel in REPLACE mode (Cmd-R / Tab /
-    /// Cmd-Option-F — all drivable through the shared search-key seam).
-    replace_active: bool,
-    replacement: String,
-    editing_replacement: bool,
-    overlay: Option<crate::overlay::OverlayState>,
-    accept: Option<(crate::overlay::OverlayKind, String)>,
-    /// How many buffers are open at the end of the replay (the active `buffer`
-    /// + everything the MULTI-BUFFER REGISTRY still has backgrounded) — feeds
-    ///   the sidecar `buffers.open` count. Stays `1` for any replay that never
-    ///   drives a Goto accept, so a plain `--screenshot` (no `--keys`, or keys
-    ///   that never open a second file) is unaffected.
-    buffers_open: usize,
-    #[allow(dead_code)]
-    intercepts: Vec<crate::replay::Intercept>,
-    replay_skips: Vec<crate::replay::SkippedEffect>,
-    #[allow(dead_code)]
-    warnings: Vec<String>,
 }
 
 fn park_active(buffer: &mut Buffer, registry: &mut crate::buffers::BufferRegistry<()>) {

@@ -47,6 +47,9 @@ use crate::actions::Effect;
 use crate::keymap::Action;
 use crate::overlay::OverlayKind;
 
+mod skip;
+pub use skip::{SkippedEffect, permissive_skip};
+
 /// How a replay treats the effects (and chords) it cannot honestly apply.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -85,10 +88,8 @@ pub struct Classified {
     pub class: EffectClass,
 }
 
-/// One intercepted external handoff, recorded in replay order — the seam the
-/// phase-5 scenario trace consumes (the trace FILE itself is a later phase;
-/// this in-memory record is deliberately already in its vocabulary: a stable
-/// effect name + the observed payload).
+/// One intercepted external handoff, recorded in replay order for the future
+/// scenario trace: a stable effect name plus the observed payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Intercept {
     /// The effect's stable name ([`classify`]'s `name`), e.g. `"follow_link"`.
@@ -98,31 +99,10 @@ pub struct Intercept {
     pub detail: String,
 }
 
-/// One live-only effect a permissive replay skipped. The sidecar carries these
-/// records so its state oracle cannot make a skipped operation look completed.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SkippedEffect {
-    /// The effect's stable snake_case name from [`classify`].
-    pub effect: &'static str,
-    /// The resolved action that originated this effect (`Action`'s stable debug name).
-    pub action: String,
-}
-
-/// Converts one Unsupported classification into the sidecar's permissive
-/// replay record. Applied and intercepted effects deliberately stay absent:
-/// they are not skipped live-only work.
-pub fn permissive_skip(action: &Action, c: &Classified) -> Option<SkippedEffect> {
-    matches!(c.class, EffectClass::Unsupported { .. }).then(|| SkippedEffect {
-        effect: c.name,
-        action: format!("{action:?}"),
-    })
-}
-
 /// Classify one [`Effect`] — the ONE owner of the Applied / Intercepted /
 /// Unsupported truth, consulted by the replay loop in `main/run.rs`. A
-/// NO-WILDCARD match: a future `Effect` variant fails to compile here until it
-/// is consciously classified (same for a future [`OverlayKind`], via
-/// [`accept_class`]).
+/// NO-WILDCARD match: a future `Effect` or [`OverlayKind`] fails to compile
+/// until it is consciously classified.
 pub fn classify(effect: &Effect) -> Classified {
     let c = |name, class| Classified { name, class };
     let applied = EffectClass::Applied;

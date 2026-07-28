@@ -163,7 +163,7 @@ lines = 1609
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1410
+lines = 1396
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -459,21 +459,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 305
-message = "this function has too many lines (261/100)"
+line = 284
+message = "this function has too many lines (266/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 807
-message = "this function has too many lines (126/100)"
+line = 792
+message = "this function has too many lines (127/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 1075
+line = 1061
 message = "this function has too many lines (321/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -487,8 +487,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 54
-message = "this function has too many lines (103/100)"
+line = 53
+message = "this function has too many lines (104/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]

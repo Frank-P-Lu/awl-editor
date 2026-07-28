@@ -34,6 +34,8 @@ mod app_icon;
 // it. `fn main` + the wasm entry below stay thin.
 #[path = "main/args.rs"]
 mod args;
+#[path = "main/replay_report.rs"]
+mod replay_report;
 #[path = "main/run.rs"]
 mod run;
 #[path = "main/scroll_arg.rs"]
