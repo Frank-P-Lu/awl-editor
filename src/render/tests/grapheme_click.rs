@@ -280,6 +280,7 @@ fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
             let py = p.doc_top() + p.metrics.line_height * 0.5;
             let left = p.text_left();
             reset_glyph_x_assembly_count();
+            rowgeom::reset_in_place_row_borrow_count();
             for i in 0..600 {
                 let x = i as f32 * 0.5;
                 let (_line, got) = p.hit_test_scroll(left + x, py, ScrollPos::default());
@@ -296,6 +297,11 @@ fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
                 glyph_x_assembly_count(),
                 0,
                 "{world}/{label}: pointer hit testing rebuilt glyph xs after the row was assembled"
+            );
+            assert_eq!(
+                rowgeom::in_place_row_borrow_count(),
+                600,
+                "{world}/{label}: every pointer probe must borrow the cached row in place"
             );
         }
     }
