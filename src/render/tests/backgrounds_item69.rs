@@ -40,6 +40,7 @@ pub(super) fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
 /// of the accessor call sequence, reused here so the test drives the exact
 /// same upload shape production code does.
 pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
+    let (organic_scale, organic_density) = bg.organic_params();
     BgDesc {
         from: bg.from().rgba_bytes(),
         to: bg.to().rgba_bytes(),
@@ -48,9 +49,17 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
         tint: bg.tint().rgb_bytes(),
         edge: bg.edge(),
         angle: bg.angle(),
-        period_px: bg.period_px(),
+        period_px: if bg.is_organic() {
+            organic_scale
+        } else {
+            bg.period_px()
+        },
         amplitude_px: bg.amplitude_px(),
-        density: bg.density(),
+        density: if bg.is_organic() {
+            organic_density
+        } else {
+            bg.density()
+        },
         banded: bg.zigzag_banded(),
     }
 }

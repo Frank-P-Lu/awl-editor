@@ -55,6 +55,7 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
             theme::Background::Bands { .. } => "bands",
             theme::Background::Waves { .. } => "waves",
             theme::Background::Zigzag { .. } => "zigzag",
+            theme::Background::Organic { .. } => "organic",
         };
         match t.name {
             "Quokka" | "Gumtree" => {

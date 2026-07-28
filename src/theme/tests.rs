@@ -223,8 +223,8 @@ fn every_world_has_a_valid_background() {
             t.name
         );
         // 0..=4 the five original static grounds (Lava also degrades to 0 for
-        // this base-margin pass), 5=Bands, 6=Waves (item 69), 7=Zigzag (item 86).
-        assert!(bg.shader_id() <= 7, "{} bad shader id", t.name);
+        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic.
+        assert!(bg.shader_id() <= 8, "{} bad shader id", t.name);
     }
     // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
     // Bands is dormant infrastructure since item 86 moved Gumtree to Zigzag
@@ -817,7 +817,8 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             | Background::Stripes { .. }
             | Background::Bands { .. }
             | Background::Waves { .. }
-            | Background::Zigzag { .. } => continue,
+            | Background::Zigzag { .. }
+            | Background::Organic { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -965,7 +966,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             | Background::Stripes { .. }
             | Background::Bands { .. }
             | Background::Waves { .. }
-            | Background::Zigzag { .. } => continue,
+            | Background::Zigzag { .. }
+            | Background::Organic { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
