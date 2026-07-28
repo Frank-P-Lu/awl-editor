@@ -79,51 +79,28 @@ mod zoom_anchor;
 // 800px tall, TEXT_TOP 16, LINE_HEIGHT 32 -> floor((800-16)/32) = 24 rows.
 pub(super) const H: f32 = 800.0;
 
-/// Build a headless pipeline, or `None` if no wgpu adapter is available.
+/// Build a headless pipeline, or `None` if no wgpu adapter is available. The
+/// device/queue underneath come from the process-wide shared pair
+/// (`crate::test_gpu`) — only the `TextPipeline` (and its `Cache`) are fresh.
 pub(super) fn headless_pipeline() -> Option<TextPipeline> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some(p)
-    })
+    let (device, queue) = crate::test_gpu::shared_device_queue()?;
+    let cache = Cache::new(&device);
+    let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+    p.set_size(1200.0, 800.0);
+    Some(p)
 }
 
 /// A `(Device, Queue, TextPipeline)` triple sized `w`×`h`, or `None` on a
 /// GPU-less machine — for tests that must READ what a real `prepare()` left in
 /// the pipeline (instance counts, shaped-buffer geometry) and so need a device
-/// and queue of their own to drive it.
+/// and queue to drive it. The device/queue are cloned handles onto the shared
+/// process-wide pair (`crate::test_gpu`), not a fresh device.
 pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl test device (dqp)"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(w, h);
-        Some((device, queue, p))
-    })
+    let (device, queue) = crate::test_gpu::shared_device_queue()?;
+    let cache = Cache::new(&device);
+    let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+    p.set_size(w, h);
+    Some((device, queue, p))
 }
 
 pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {

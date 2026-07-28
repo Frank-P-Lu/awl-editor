@@ -555,27 +555,15 @@ fn revealed_image_row_hit_test_stays_in_bounds() {
 /// A headless pipeline PLUS its device/queue, so a test can drive the full
 /// `prepare` frame (the image draw's instance counts are only set there). `None`
 /// on a GPU-less machine (skip). Native-only: its three callers below are all
-/// `#[cfg(not(target_arch = "wasm32"))]` GPU-draw tests.
+/// `#[cfg(not(target_arch = "wasm32"))]` GPU-draw tests. The device/queue are
+/// cloned handles onto the process-wide shared pair (`crate::test_gpu`).
 #[cfg(not(target_arch = "wasm32"))]
 fn headless_pipeline_dq() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl image-draw test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    })
+    let (device, queue) = crate::test_gpu::shared_device_queue()?;
+    let cache = Cache::new(&device);
+    let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
+    p.set_size(1200.0, 800.0);
+    Some((device, queue, p))
 }
 
 /// GPU DRAW: an OFF-CURSOR image on a visible line decodes the bundled fixture
