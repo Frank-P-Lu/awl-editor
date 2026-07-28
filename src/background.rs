@@ -312,7 +312,6 @@ mod waves_drift_tests {
     use super::*;
 
     #[test]
-    #[test]
     fn drift_is_zero_at_the_settled_phase() {
         assert_eq!(waves_drift_radians(0.0), 0.0);
     }
@@ -378,3 +377,4 @@ mod waves_drift_tests {
     }
 }
 mod params;
+pub(crate) use params::active as active_desc;

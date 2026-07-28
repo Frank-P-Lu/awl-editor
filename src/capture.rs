@@ -19,7 +19,6 @@ pub fn schema_timeline() -> String {
 pub fn schema_held() -> String {
     format!("awl-capture/{}", SCHEMA_VERSION + 2)
 }
-
 mod animated;
 mod film;
 #[cfg(not(target_arch = "wasm32"))]

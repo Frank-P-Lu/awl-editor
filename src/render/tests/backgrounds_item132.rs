@@ -147,7 +147,8 @@ fn warped_grid_occupies_both_margins_at_room_frame_and_scale_geometries_only() {
             .count();
         assert!(
             left_marks > (height / 10) as usize && right_marks > (height / 10) as usize,
-            "{width}x{height}: both Frame slices must retain a readable scaffold ({left_marks}/{right_marks})"
+            "{width}x{height}: both Frame slices must retain a readable scaffold \
+             ({left_marks}/{right_marks})"
         );
         assert!(
             (left as u32..(left + col) as u32).all(|x| (0..height)
@@ -222,7 +223,9 @@ fn route_poses_change_one_coherent_field_and_turns_open_opposite_sides() {
     assert!(
         left_slice_when_left > left_slice_when_right
             && right_slice_when_right > right_slice_when_left,
-        "turn compression must swap sides as one field: left {left_slice_when_left}/{left_slice_when_right}, right {right_slice_when_left}/{right_slice_when_right}"
+        "turn compression must swap sides as one field: \
+         left {left_slice_when_left}/{left_slice_when_right}, \
+         right {right_slice_when_left}/{right_slice_when_right}"
     );
 }
 

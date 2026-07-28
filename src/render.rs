@@ -4,7 +4,7 @@ use glyphon::{
     Viewport, Wrap,
 };
 
-use crate::background::{BackgroundPipeline, BgDesc};
+use crate::background::BackgroundPipeline;
 use crate::caret::{CORNER_RADIUS, CaretAnim, CaretMode, CaretPipeline, STREAK_RADIUS, Sample};
 use crate::caret_glyph::{CaretGlyphPipeline, GlyphMask};
 use crate::selection::SelectionPipeline;
@@ -1591,6 +1591,7 @@ fn byte_col(text: &str, byte: usize) -> usize {
     text.char_indices().take_while(|(b, _)| *b < byte).count()
 }
 
+mod ambient;
 mod scroll;
 pub use scroll::ScrollPos;
 
@@ -2277,10 +2278,6 @@ pub struct TextPipeline {
 }
 
 /// Flatten the ACTIVE world's [`crate::theme::Background`] into the host-side
-/// [`BgDesc`] the margin pipeline uploads — gradient endpoints + direction, the
-/// ground discriminant, and the mark/band tint plus its per-ground params (the
-/// Dots proximity flag / the Stripes angle). Read at construction AND on every
-/// live theme switch so both paths agree.
 /// Convert an 8-bit sRGB RGBA quad to LINEAR-light rgb (alpha dropped), for the
 /// frosted-blur composite's dim-toward-base_100 (the blur targets are sRGB, so the
 /// shader's `mix` must happen in linear space). Same curve the selection /
@@ -2295,25 +2292,6 @@ fn srgb_u8_to_linear3(c: [u8; 4]) -> [f32; 3] {
         }
     }
     [ch(c[0]), ch(c[1]), ch(c[2])]
-}
-
-fn background_desc() -> BgDesc {
-    // The lava gallery override supplies its real flat ground; otherwise this is
-    // the authored background verbatim, keeping ordinary captures byte-identical.
-    let bg = crate::lava::env_override().unwrap_or_else(theme::background);
-    BgDesc {
-        from: bg.from().rgba_bytes(),
-        to: bg.to().rgba_bytes(),
-        dir: bg.dir(),
-        shader: bg.shader_id(),
-        tint: bg.tint().rgb_bytes(),
-        edge: bg.edge(),
-        angle: bg.angle(),
-        period_px: bg.period_px(),
-        amplitude_px: bg.amplitude_px(),
-        density: bg.density(),
-        banded: bg.zigzag_banded(),
-    }
 }
 
 /// The visual-line motion LAYOUT ORACLE, implemented on the GPU pipeline because

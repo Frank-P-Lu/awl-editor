@@ -297,43 +297,6 @@ impl TextPipeline {
         crate::lava::env_override().unwrap_or_else(theme::background)
     }
 
-    pub fn lava_render_phase(&self) -> f32 {
-        crate::lava::lava_phase_for(
-            self.lava_phase,
-            crate::motion::reduced(),
-            crate::lava::env_phase(),
-        )
-    }
-
-    pub fn stars_render_phase(&self) -> f32 {
-        crate::lava::lava_phase_for(
-            self.lava_phase,
-            crate::motion::reduced(),
-            crate::stars::env_phase(),
-        )
-    }
-
-    pub fn waves_render_phase(&self) -> f32 {
-        crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), None)
-    }
-
-    pub fn warp_grid_render_phase(&self) -> f32 {
-        crate::warpgrid::phase_for(
-            self.warp_grid_phase,
-            crate::motion::reduced(),
-            crate::warpgrid::env_phase(),
-        )
-    }
-
-    /// Advance both ambient background phases by `dt` seconds — called ONLY by
-    /// the live App's slow ambient tick (`App::about_to_wait`), NEVER
-    /// `advance()`'s hot per-frame loop. Delayed wakes clamp to one ambient step;
-    /// the lamp/waves and warped-grid route retain their independent wraps.
-    pub fn advance_lava(&mut self, dt: f32) {
-        self.lava_phase = crate::lava::advance_phase(self.lava_phase, dt);
-        self.warp_grid_phase = crate::warpgrid::advance_phase(self.warp_grid_phase, dt);
-    }
-
     pub fn hold_lava_field_viewport(&mut self, width: u32, height: u32) {
         if self.lava_field_viewport[0] <= 0.0 || self.lava_field_viewport[1] <= 0.0 {
             self.lava_field_viewport = [width as f32, height as f32];
@@ -346,13 +309,6 @@ impl TextPipeline {
 
     pub fn lava_blur_active(&self) -> bool {
         self.backdrop_blur()
-    }
-
-    /// Pin every ambient background phase to its frozen composition — the live
-    /// App calls this for Reduce Motion or `ambient_motion` off.
-    pub fn freeze_lava(&mut self) {
-        self.lava_phase = crate::lava::LAVA_FROZEN_PHASE;
-        self.warp_grid_phase = crate::warpgrid::FROZEN_PHASE;
     }
 
     /// COPY PULSE: kick the selection quad's brighten/decay AND the caret's own

@@ -82,15 +82,7 @@ impl TextPipeline {
         } else {
             (0.0, width as f32)
         };
-        let drift = if self.effective_background().is_waves() {
-            crate::background::waves_drift_radians(self.waves_render_phase())
-        } else if self.effective_background().is_organic() {
-            self.waves_render_phase() * std::f32::consts::TAU / crate::lava::LAVA_LOOP_CYCLES
-        } else if self.effective_background().is_warped_grid() {
-            self.warp_grid_render_phase()
-        } else {
-            0.0
-        };
+        let drift = self.background_render_phase();
         self.background_pipeline
             .prepare(queue, width, height, bg_left, bg_w, drift);
     }

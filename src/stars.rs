@@ -573,7 +573,6 @@ mod tests {
         assert!(!lava_should_tick(true, true, true, true, false));
         assert!(!lava_should_tick(true, false, false, true, false));
     }
-
     #[test]
     fn a_stars_only_world_arms_the_ambient_tick_exactly_like_a_lava_world() {
         let world = |name: &str| THEMES.iter().find(|t| t.name == name).expect("real world");

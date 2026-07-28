@@ -1,5 +1,22 @@
 use super::BgDesc;
 
+pub(crate) fn active() -> BgDesc {
+    let bg = crate::lava::env_override().unwrap_or_else(crate::theme::background);
+    BgDesc {
+        from: bg.from().rgba_bytes(),
+        to: bg.to().rgba_bytes(),
+        dir: bg.dir(),
+        shader: bg.shader_id(),
+        tint: bg.tint().rgb_bytes(),
+        edge: bg.edge(),
+        angle: bg.angle(),
+        period_px: bg.period_px(),
+        amplitude_px: bg.amplitude_px(),
+        density: bg.density(),
+        banded: bg.zigzag_banded(),
+    }
+}
+
 /// Pack the mutually exclusive ground controls into the shared shader slots.
 pub(super) fn ground(desc: &BgDesc) -> [f32; 4] {
     if desc.shader == 8 {

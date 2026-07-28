@@ -11,7 +11,6 @@ impl TextPipeline {
         format: wgpu::TextureFormat,
     ) -> Self {
         let mut font_system = build_font_system();
-
         let swash_cache = SwashCache::new();
         let viewport = Viewport::new(device, cache);
         let mut atlas = TextAtlas::new(device, queue, cache, format);
@@ -19,7 +18,6 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let metrics = Metrics::new(1.0);
         let buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-
         // The caret is a GPU quad (the accent underline that collapses to a dot
         // while it glides) drawn by its own pipeline, not a glyph. Colors come
         // from the ACTIVE theme; `sync_theme()` re-uploads them on a live switch.
@@ -29,8 +27,7 @@ impl TextPipeline {
             CaretGlyphPipeline::new(device, queue, format, theme::primary().rgb_bytes());
         // PAGE MODE margin gradient, drawn first (under selection + text). Tinted
         // from the active world's margin tokens; re-tinted on a live theme switch.
-        let background_pipeline = BackgroundPipeline::new(device, format, background_desc());
-        let lava_pipeline = crate::lava::LavaPipeline::new(device, format);
+        let (background_pipeline, lava_pipeline) = super::ambient::pipelines(device, format);
         // One `selection.wgsl` module for the ~25 selection pipelines below —
         // see `selection::selection_shader`.
         let sel_shader = crate::selection::selection_shader(device);
