@@ -33,6 +33,22 @@ mod chrome;
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
 
+/// The `AWL_*_FORCE` dev-only render/theme override knobs, consolidated into
+/// ONE [`overrides::RenderOverrides`] struct. See that module's doc.
+mod overrides;
+pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
+#[cfg(test)]
+pub(crate) use overrides::{
+    ForcedKnob, RenderOverrides, classify_forced_knob, parse_facet_style_force,
+    parse_list_style_force, parse_motion_force, parse_overlay_align, parse_overlay_anchor_force,
+    parse_overlay_density_force, parse_overlay_motion_force, parse_overlay_slant_force,
+    parse_overlay_style_force, set_card_anchor_test_override, set_chrome_face_test_override,
+    set_facet_style_test_override, set_list_style_test_override, set_motion_test_override,
+    set_overlay_density_test_override, set_overlay_motion_test_override,
+    set_pane_split_test_override, set_slant_test_override, set_test_override,
+    set_title_style_test_override,
+};
+
 mod rowlayout;
 pub use rowlayout::rail_frac_at;
 
@@ -1231,46 +1247,6 @@ fn apply_sourgummy_heavy_force(font_system: &mut FontSystem) {
     }
 }
 
-fn parse_overlay_style_force(s: &str) -> Option<theme::TitleStyle> {
-    let s = s.trim();
-    if s.eq_ignore_ascii_case("inline") {
-        return Some(theme::TitleStyle::InlinePrefix);
-    }
-    let mut parts = s.split(':');
-    if !parts.next()?.eq_ignore_ascii_case("placard") {
-        return None;
-    }
-    let corner = match parts.next()?.to_ascii_uppercase().as_str() {
-        "TL" => theme::PlacardCorner::TL,
-        "TR" => theme::PlacardCorner::TR,
-        "BL" => theme::PlacardCorner::BL,
-        "BR" => theme::PlacardCorner::BR,
-        _ => return None,
-    };
-    let scale: f32 = parts.next()?.parse().ok()?;
-    let ink = match parts.next()?.to_ascii_lowercase().as_str() {
-        "faint" => theme::PlacardInk::Faint,
-        "ghost" => theme::PlacardInk::Ghost,
-        "stipple" => theme::PlacardInk::Stipple,
-        "muted" => theme::PlacardInk::Muted,
-        "bold" => theme::PlacardInk::Bold,
-        _ => return None,
-    };
-    if parts.next().is_some() {
-        return None; // trailing garbage — reject rather than silently ignore
-    }
-    Some(theme::TitleStyle::Placard { corner, scale, ink })
-}
-
-fn awl_overlay_style_force() -> &'static Option<theme::TitleStyle> {
-    static ONCE: std::sync::OnceLock<Option<theme::TitleStyle>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        std::env::var("AWL_OVERLAY_STYLE_FORCE")
-            .ok()
-            .and_then(|s| parse_overlay_style_force(&s))
-    })
-}
-
 fn parse_page_frame_force(s: &str) -> Option<theme::PageFrame> {
     let s = s.trim();
     if s.eq_ignore_ascii_case("none") {
@@ -1353,29 +1329,9 @@ pub(crate) fn push_text_seeds(
     }
 }
 
-#[cfg(test)]
-static PLACARD_TEST_OVERRIDE: std::sync::Mutex<Option<theme::TitleStyle>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_title_style_test_override(style: Option<theme::TitleStyle>) {
-    *PLACARD_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = style;
-}
-
 pub(crate) fn effective_title_style() -> theme::TitleStyle {
-    #[cfg(test)]
-    {
-        if let Some(style) = *PLACARD_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return style;
-        }
-    }
-    match awl_overlay_style_force() {
-        Some(style) => *style,
+    match overrides::current().title_style {
+        Some(style) => style,
         None => theme::active().render_caps.title_style,
     }
 }
@@ -1402,80 +1358,9 @@ pub(crate) fn derived_placard_corner(
     }
 }
 
-fn parse_overlay_anchor_force(s: &str) -> Option<theme::CardAnchor> {
-    let s = s.trim();
-    if let Some(rest) = s
-        .strip_prefix("inset:")
-        .or_else(|| s.strip_prefix("Inset:"))
-        .or_else(|| s.strip_prefix("INSET:"))
-    {
-        let frac: f32 = rest.trim().parse().ok()?;
-        if (0.0..=1.0).contains(&frac) {
-            return Some(theme::CardAnchor::Inset { x_frac: frac });
-        }
-        return None;
-    }
-    match s.to_ascii_lowercase().as_str() {
-        "tl" | "topleft" | "left" => Some(theme::CardAnchor::TopLeft),
-        "tc" | "topcenter" | "center" | "centre" => Some(theme::CardAnchor::TopCenter),
-        "tr" | "topright" | "right" | "mirror" => Some(theme::CardAnchor::TopRight),
-        _ => None,
-    }
-}
-
-fn awl_overlay_anchor_force() -> &'static Option<theme::CardAnchor> {
-    static ONCE: std::sync::OnceLock<Option<theme::CardAnchor>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        std::env::var("AWL_OVERLAY_ANCHOR_FORCE")
-            .ok()
-            .and_then(|s| parse_overlay_anchor_force(&s))
-    })
-}
-
-fn parse_overlay_align(s: &str) -> Option<theme::CardAnchor> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "left" | "l" => Some(theme::CardAnchor::TopLeft),
-        "center" | "centre" | "c" => Some(theme::CardAnchor::TopCenter),
-        "right" | "r" => Some(theme::CardAnchor::TopRight),
-        _ => None,
-    }
-}
-
-fn awl_overlay_align_force() -> &'static Option<theme::CardAnchor> {
-    static ONCE: std::sync::OnceLock<Option<theme::CardAnchor>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        std::env::var("AWL_OVERLAY_ALIGN")
-            .ok()
-            .and_then(|s| parse_overlay_align(&s))
-    })
-}
-
-#[cfg(test)]
-static CARD_ANCHOR_TEST_OVERRIDE: std::sync::Mutex<Option<theme::CardAnchor>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_card_anchor_test_override(anchor: Option<theme::CardAnchor>) {
-    *CARD_ANCHOR_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = anchor;
-}
-
 pub(crate) fn effective_card_anchor() -> theme::CardAnchor {
-    #[cfg(test)]
-    {
-        if let Some(a) = *CARD_ANCHOR_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return a;
-        }
-    }
-    if let Some(anchor) = awl_overlay_align_force() {
-        return *anchor;
-    }
-    match awl_overlay_anchor_force() {
-        Some(anchor) => *anchor,
+    match overrides::current().card_anchor {
+        Some(anchor) => anchor,
         None => theme::active().render_caps.card_anchor,
     }
 }
@@ -1536,163 +1421,22 @@ pub(crate) fn effective_overlay_selrow_band() -> theme::Srgb {
     }
 }
 
-fn awl_chrome_face_force() -> &'static Option<theme::ChromeFace> {
-    static ONCE: std::sync::OnceLock<Option<theme::ChromeFace>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        std::env::var("AWL_CHROME_FACE_FORCE").ok().and_then(|s| {
-            let s = s.trim();
-            if s.is_empty() {
-                return None;
-            }
-            Some(theme::ChromeFace::Named(Box::leak(
-                s.to_string().into_boxed_str(),
-            )))
-        })
-    })
-}
-
-#[cfg(test)]
-static CHROME_FACE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::ChromeFace>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_chrome_face_test_override(face: Option<theme::ChromeFace>) {
-    *CHROME_FACE_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = face;
-}
-
 pub(crate) fn effective_chrome_face() -> theme::ChromeFace {
-    #[cfg(test)]
-    {
-        if let Some(f) = *CHROME_FACE_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return f;
-        }
-    }
-    match awl_chrome_face_force() {
-        Some(f) => *f,
+    match overrides::current().chrome_face {
+        Some(f) => f,
         None => theme::active().render_caps.chrome_face,
     }
 }
 
-fn parse_motion_force(s: &str) -> Option<theme::MotionJuice> {
-    let (mut entrance, mut band) = (theme::OverlayEntrance::Instant, theme::BandResponse::Snap);
-    match s.trim().to_ascii_lowercase().as_str() {
-        "off" | "calm" => {}
-        "spring" => entrance = theme::OverlayEntrance::SpringIn,
-        "slide" => band = theme::BandResponse::Slide,
-        "spring:slide" | "slide:spring" | "full" | "on" => {
-            entrance = theme::OverlayEntrance::SpringIn;
-            band = theme::BandResponse::Slide;
-        }
-        _ => return None,
-    }
-    Some(theme::MotionJuice { entrance, band })
-}
-
-fn awl_motion_force() -> &'static Option<theme::MotionJuice> {
-    static ONCE: std::sync::OnceLock<Option<theme::MotionJuice>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        std::env::var("AWL_MOTION_FORCE")
-            .ok()
-            .and_then(|s| parse_motion_force(&s))
-    })
-}
-
-#[cfg(test)]
-static MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<theme::MotionJuice>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_motion_test_override(m: Option<theme::MotionJuice>) {
-    *MOTION_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = m;
-}
-
 pub(crate) fn effective_motion_juice() -> theme::MotionJuice {
-    #[cfg(test)]
-    {
-        if let Some(m) = *MOTION_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return m;
-        }
-    }
-    match awl_motion_force() {
-        Some(m) => *m,
+    match overrides::current().motion_juice {
+        Some(m) => m,
         None => theme::active().render_caps.motion,
     }
 }
 
-/// THE WILD-MENU SLANT PROBE's parsed shape: each successive candidate row's
-/// draw ORIGIN steps `px_per_row` further right (a Persona-style stair), and
-/// `italic` additionally requests an italic style on the row names. PROBE
-/// ONLY — no `RenderCaps` field, no world data: this ships only if the user
-/// gallery-approves it later (the board's own gate), so it stays an env-gated
-/// LAYOUT VARIANT. Rows still flow through `render/rowlayout` (the law is
-/// untouched); the slant is a DRAW-TIME row-origin transform whose maximum
-/// offset is subtracted from the effective row width BEFORE the rowlayout
-/// budget/fits math, so elision respects the reduced span (a shifted row can
-/// never paint past the card's right text edge).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct SlantProbe {
-    pub px_per_row: f32,
-    pub italic: bool,
-}
-
-fn parse_overlay_slant_force(s: &str) -> Option<SlantProbe> {
-    let s = s.trim();
-    let (px_s, italic) = match s.split_once(':') {
-        Some((px, flag)) if flag.trim().eq_ignore_ascii_case("italic") => (px, true),
-        Some(_) => return None,
-        None => (s, false),
-    };
-    let px: f32 = px_s.trim().parse().ok()?;
-    if px > 0.0 && px.is_finite() {
-        Some(SlantProbe {
-            px_per_row: px,
-            italic,
-        })
-    } else {
-        None
-    }
-}
-
-fn awl_overlay_slant_force() -> &'static Option<SlantProbe> {
-    static ONCE: std::sync::OnceLock<Option<SlantProbe>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        std::env::var("AWL_OVERLAY_SLANT_FORCE")
-            .ok()
-            .and_then(|s| parse_overlay_slant_force(&s))
-    })
-}
-
-#[cfg(test)]
-static SLANT_TEST_OVERRIDE: std::sync::Mutex<Option<SlantProbe>> = std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_slant_test_override(s: Option<SlantProbe>) {
-    *SLANT_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = s;
-}
-
 pub(crate) fn overlay_slant() -> Option<SlantProbe> {
-    #[cfg(test)]
-    {
-        if let Some(s) = *SLANT_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return Some(s);
-        }
-    }
-    *awl_overlay_slant_force()
+    overrides::current().slant
 }
 
 pub(crate) fn slant_offset(slant: &SlantProbe, row: usize) -> f32 {
@@ -1703,363 +1447,32 @@ pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
     slant.px_per_row * n_rows.saturating_sub(1) as f32
 }
 
-const BARS_DEFAULT_RADIUS: f32 = 6.0;
-const BARS_DEFAULT_GAP: f32 = 10.0;
-const BARS_DEFAULT_GROW: f32 = 24.0;
-const BARS_DEFAULT_EXTENT: theme::BarExtent = theme::BarExtent::FullWidth;
-const BARS_DEFAULT_COVERAGE: theme::BarCoverage = theme::BarCoverage::All;
 pub(crate) const BAR_OUTLINE_STROKE_PX: f32 = 1.5;
 
-/// `AWL_OVERLAY_LIST_FORCE` grammar (V6 P5 round — the three ORTHOGONAL bar axes
-/// fold into the SAME colon-delimited word so the gallery A/Bs them freely):
-/// - `"pane"` → [`theme::ListStyle::Pane`];
-/// - `"bars"` → [`theme::ListStyle::Bars`] with the default treatment
-///   (`FullWidth` / `All` / `Filled` — byte-identical to the shipped v5 bars);
-/// - any `:`-separated token after `bars` is either a NON-NEGATIVE FLOAT
-///   (positional: the first fills `radius`, the second `gap`, the third `grow`)
-///   or an AXIS KEYWORD flipping one of the three v6 axes:
-///     - extent:   `full` | `hug` | `huglabel`|`hybrid`  ([`theme::BarExtent`] —
-///       `huglabel`/`hybrid` is the FLIP-ROUND label-hug + bare right-chord arm)
-///     - coverage: `all`  | `selected` ([`theme::BarCoverage`])
-///       So `"bars:0:12:0:hug:selected"`, `"bars:hug"`, `"bars:selected"`
-///       all parse; floats and keywords may appear in any order. More than 3 floats,
-///       an unrecognized token, or a negative/non-finite float → `None` (falls
-///       through to the world's own `render_caps.list_style`).
-fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
-    let low = s.trim().to_ascii_lowercase();
-    if low == "pane" {
-        return Some(theme::ListStyle::Pane);
-    }
-    let rest = if low == "bars" {
-        ""
-    } else {
-        low.strip_prefix("bars:")?
-    };
-    let mut radius = BARS_DEFAULT_RADIUS;
-    let mut gap = BARS_DEFAULT_GAP;
-    let mut grow_px = BARS_DEFAULT_GROW;
-    let mut extent = BARS_DEFAULT_EXTENT;
-    let mut coverage = BARS_DEFAULT_COVERAGE;
-    let mut floats_seen = 0usize;
-    if !rest.is_empty() {
-        for tok in rest.split(':') {
-            let tok = tok.trim();
-            match tok {
-                "full" => extent = theme::BarExtent::FullWidth,
-                "hug" => extent = theme::BarExtent::HugText,
-                "huglabel" | "hybrid" => extent = theme::BarExtent::HugLabel,
-                "all" => coverage = theme::BarCoverage::All,
-                "selected" => coverage = theme::BarCoverage::SelectedOnly,
-                _ => {
-                    let v: f32 = tok.parse().ok()?;
-                    if !v.is_finite() || v < 0.0 {
-                        return None;
-                    }
-                    match floats_seen {
-                        0 => radius = v,
-                        1 => gap = v,
-                        2 => grow_px = v,
-                        _ => return None, // a fourth float is malformed
-                    }
-                    floats_seen += 1;
-                }
-            }
-        }
-    }
-    Some(theme::ListStyle::Bars {
-        radius,
-        gap,
-        grow_px,
-        extent,
-        coverage,
-    })
-}
-
-#[derive(Debug)]
-enum ForcedKnob<T> {
-    Unset,
-    Parsed(T),
-    Retired,
-}
-
-fn classify_forced_knob<T>(raw: Option<&str>, parse: impl Fn(&str) -> Option<T>) -> ForcedKnob<T> {
-    match raw {
-        None => ForcedKnob::Unset,
-        Some(s) => match parse(s) {
-            Some(v) => ForcedKnob::Parsed(v),
-            None => ForcedKnob::Retired,
-        },
-    }
-}
-
-/// Read a memoized `AWL_*_FORCE` dev knob. A recognized value forces the render;
-/// UNSET is silent (world default); SET-BUT-UNRECOGNIZED emits a one-line stderr
-/// note naming the value + the grammar before falling back — so a stale re-shoot
-/// of a retired variant (the killed `chips` skin) is caught at shot time instead
-/// of producing a silent duplicate of the default.
-fn read_forced_knob<T>(var: &str, grammar: &str, parse: impl Fn(&str) -> Option<T>) -> Option<T> {
-    let raw = std::env::var(var).ok();
-    match classify_forced_knob(raw.as_deref(), &parse) {
-        ForcedKnob::Parsed(v) => Some(v),
-        ForcedKnob::Unset => None,
-        ForcedKnob::Retired => {
-            eprintln!(
-                "awl: {var}={:?} is not a recognized value ({grammar}); using the world default",
-                raw.unwrap_or_default()
-            );
-            None
-        }
-    }
-}
-
-fn awl_list_style_force() -> &'static Option<theme::ListStyle> {
-    static ONCE: std::sync::OnceLock<Option<theme::ListStyle>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        read_forced_knob(
-            "AWL_OVERLAY_LIST_FORCE",
-            "pane | bars | bars:<radius>:<gap>:<grow>[:hug|huglabel|full][:selected|all]",
-            parse_list_style_force,
-        )
-    })
-}
-
-#[cfg(test)]
-static LIST_STYLE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::ListStyle>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_list_style_test_override(s: Option<theme::ListStyle>) {
-    assert!(
-        crate::testlock::currently_held(),
-        "LIST_STYLE_TEST_OVERRIDE writer requires crate::testlock::serial()"
-    );
-    *LIST_STYLE_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = s;
-}
-
 pub(crate) fn effective_list_style() -> theme::ListStyle {
-    #[cfg(test)]
-    {
-        assert!(
-            crate::testlock::currently_held(),
-            "LIST_STYLE_TEST_OVERRIDE reader requires crate::testlock::serial()"
-        );
-        if let Some(s) = *LIST_STYLE_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return s;
-        }
-    }
-    match awl_list_style_force() {
-        Some(s) => *s,
+    match overrides::current().list_style {
+        Some(s) => s,
         None => theme::active().render_caps.list_style,
     }
 }
 
-fn parse_facet_style_force(s: &str) -> Option<theme::FacetStyle> {
-    let low = s.trim().to_ascii_lowercase();
-    match low.as_str() {
-        "text" => return Some(theme::FacetStyle::Text),
-        "band" => return Some(theme::FacetStyle::Band),
-        "chips" => return Some(theme::FacetStyle::Chips(theme::ChipVariant::Hairline)),
-        _ => {}
-    }
-    let variant = low.strip_prefix("chips:")?;
-    let v = match variant {
-        "hairline" => theme::ChipVariant::Hairline,
-        "filled" | "filledactive" => theme::ChipVariant::FilledActive,
-        "underline" => theme::ChipVariant::Underline,
-        "bracket" => theme::ChipVariant::Bracket,
-        _ => return None,
-    };
-    Some(theme::FacetStyle::Chips(v))
-}
-
-fn awl_facet_style_force() -> &'static Option<theme::FacetStyle> {
-    static ONCE: std::sync::OnceLock<Option<theme::FacetStyle>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        read_forced_knob(
-            "AWL_FACET_STYLE_FORCE",
-            "text | band | chips[:hairline|bold|filled|underline|tinted|bracket]",
-            parse_facet_style_force,
-        )
-    })
-}
-
-#[cfg(test)]
-static FACET_STYLE_TEST_OVERRIDE: std::sync::Mutex<Option<theme::FacetStyle>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_facet_style_test_override(s: Option<theme::FacetStyle>) {
-    *FACET_STYLE_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = s;
-}
-
 pub(crate) fn effective_facet_style() -> theme::FacetStyle {
-    #[cfg(test)]
-    {
-        if let Some(s) = *FACET_STYLE_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return s;
-        }
-    }
-    match awl_facet_style_force() {
-        Some(s) => *s,
+    match overrides::current().facet_style {
+        Some(s) => s,
         None => theme::active().render_caps.facet_style,
     }
 }
 
-fn parse_pane_split_force(s: &str) -> Option<theme::PaneSplit> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "unified" => Some(theme::PaneSplit::Unified),
-        "split" => Some(theme::PaneSplit::Split),
-        _ => None,
-    }
-}
-
-fn awl_pane_split_force() -> &'static Option<theme::PaneSplit> {
-    static ONCE: std::sync::OnceLock<Option<theme::PaneSplit>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        read_forced_knob(
-            "AWL_PANE_SPLIT_FORCE",
-            "unified | split",
-            parse_pane_split_force,
-        )
-    })
-}
-
-#[cfg(test)]
-static PANE_SPLIT_TEST_OVERRIDE: std::sync::Mutex<Option<theme::PaneSplit>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_pane_split_test_override(s: Option<theme::PaneSplit>) {
-    *PANE_SPLIT_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = s;
-}
-
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
-    #[cfg(test)]
-    {
-        if let Some(s) = *PANE_SPLIT_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return s;
-        }
-    }
-    match awl_pane_split_force() {
-        Some(s) => *s,
+    match overrides::current().pane_split {
+        Some(s) => s,
         None => theme::active().render_caps.pane_split,
     }
 }
 
-// --- THE OVERLAY-EXPLORATION round's dev probes ------------------------------
-//
-// INERT dials for the per-world summoned-menu personality exploration, each
-// byte-identical by default and reachable only through the established
-// `AWL_*_FORCE` idiom (read once, memoized, malformed → the world default, total
-// no-op unset, no config key, no CLI flag, no `RenderCaps` field — probe-gated
-// until a later gallery win):
-//   1. DENSITY   (`AWL_OVERLAY_DENSITY_FORCE`)  — the whole-menu type scale +
-//      leading, the cheapest per-line distinctness (proposal 1). Default is the
-//      shipped `OVERLAY_UI_SCALE` with zero extra leading.
-//   2. SLANT-ON-BARS — the EXISTING `AWL_OVERLAY_SLANT_FORCE` stair, now applied
-//      to the BAR PLATES too (each bar cascades with its label) and MIRRORED
-//      under a right-anchored card so it steps toward the open margin. No new env
-//      knob: it composes with `AWL_OVERLAY_LIST_FORCE=bars` +
-//      `AWL_OVERLAY_ANCHOR_FORCE`.
-//   3+4. TWO MOTION CHOREOGRAPHIES — the slant FAN-IN (the diagonal unfurls as
-//      the card springs in, riding `overlay_enter_t`) and the selected-bar
-//      GROW-POP (the ledge juts into the margin on each selection move, riding
-//      `overlay_band_t`). Both are LIVE-ONLY (the `juice_live` gate; settled in
-//      every capture, folded to nothing under Reduce Motion) and both compose
-//      with the slant/bars dials. The MID-ANIMATION frame-dump probe below
-//      (`AWL_OVERLAY_MOTION_FORCE`) pins their phase so a headless `--screenshot`
-//      can witness a frame partway through (the `--screenshot-motion` idiom for
-//      the overlay).
-
-/// THE OVERLAY DENSITY PROBE's parsed shape (proposal 1): the whole-menu UI
-/// `scale` (a step below the reading body — dense chrome, DESIGN §4) and extra
-/// `leading` (device px added to the row line-height). Both feed the ONE row
-/// owners [`TextPipeline::overlay_metrics`] / [`TextPipeline::overlay_lh`], so
-/// the card height, row-Y, hit-test, band, and bars inherit the new texture for
-/// free. PROBE-ONLY — no `RenderCaps` field; ships only on a later gallery win.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct TypeDensity {
-    pub scale: f32,
-    pub leading: f32,
-}
-
-impl TypeDensity {
-    pub(crate) fn shipped() -> Self {
-        TypeDensity {
-            scale: chrome::OVERLAY_UI_SCALE,
-            leading: 0.0,
-        }
-    }
-}
-
-fn parse_overlay_density_force(s: &str) -> Option<TypeDensity> {
-    let s = s.trim();
-    let (scale_s, leading) = match s.split_once(':') {
-        Some((sc, ld)) => {
-            let ld: f32 = ld.trim().parse().ok()?;
-            if !ld.is_finite() || ld < 0.0 {
-                return None;
-            }
-            (sc, ld)
-        }
-        None => (s, 0.0),
-    };
-    let scale: f32 = scale_s.trim().parse().ok()?;
-    if scale.is_finite() && scale > 0.0 {
-        Some(TypeDensity { scale, leading })
-    } else {
-        None
-    }
-}
-
-fn awl_overlay_density_force() -> &'static Option<TypeDensity> {
-    static ONCE: std::sync::OnceLock<Option<TypeDensity>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        read_forced_knob(
-            "AWL_OVERLAY_DENSITY_FORCE",
-            "<scale> | <scale>:<leading>",
-            parse_overlay_density_force,
-        )
-    })
-}
-
-#[cfg(test)]
-static DENSITY_TEST_OVERRIDE: std::sync::Mutex<Option<TypeDensity>> = std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_overlay_density_test_override(d: Option<TypeDensity>) {
-    *DENSITY_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = d;
-}
-
 pub(crate) fn effective_overlay_density() -> TypeDensity {
-    #[cfg(test)]
-    {
-        if let Some(d) = *DENSITY_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return d;
-        }
-    }
-    match awl_overlay_density_force() {
-        Some(d) => *d,
+    match overrides::current().density {
+        Some(d) => d,
         None => TypeDensity::shipped(),
     }
 }
@@ -2072,71 +1485,8 @@ pub(crate) fn effective_overlay_leading() -> f32 {
     effective_overlay_density().leading
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct OverlayMotionProbe {
-    pub enter: f32,
-    pub band: f32,
-}
-
-fn parse_overlay_motion_force(s: &str) -> Option<OverlayMotionProbe> {
-    let s = s.trim();
-    let (enter_s, band_s) = match s.split_once(':') {
-        Some((e, b)) => (e, Some(b)),
-        None => (s, None),
-    };
-    let enter: f32 = enter_s.trim().parse().ok()?;
-    if !enter.is_finite() {
-        return None;
-    }
-    let band: f32 = match band_s {
-        Some(b) => {
-            let b: f32 = b.trim().parse().ok()?;
-            if !b.is_finite() {
-                return None;
-            }
-            b
-        }
-        None => enter,
-    };
-    Some(OverlayMotionProbe {
-        enter: enter.clamp(0.0, 1.0),
-        band: band.clamp(0.0, 1.0),
-    })
-}
-
-fn awl_overlay_motion_force() -> &'static Option<OverlayMotionProbe> {
-    static ONCE: std::sync::OnceLock<Option<OverlayMotionProbe>> = std::sync::OnceLock::new();
-    ONCE.get_or_init(|| {
-        read_forced_knob(
-            "AWL_OVERLAY_MOTION_FORCE",
-            "<enter> | <enter>:<band>  (each 0..1)",
-            parse_overlay_motion_force,
-        )
-    })
-}
-
-#[cfg(test)]
-static OVERLAY_MOTION_TEST_OVERRIDE: std::sync::Mutex<Option<OverlayMotionProbe>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(test)]
-pub(crate) fn set_overlay_motion_test_override(m: Option<OverlayMotionProbe>) {
-    *OVERLAY_MOTION_TEST_OVERRIDE
-        .lock()
-        .unwrap_or_else(|e| e.into_inner()) = m;
-}
-
 pub(crate) fn overlay_motion_probe() -> Option<OverlayMotionProbe> {
-    #[cfg(test)]
-    {
-        if let Some(m) = *OVERLAY_MOTION_TEST_OVERRIDE
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-        {
-            return Some(m);
-        }
-    }
-    *awl_overlay_motion_force()
+    overrides::current().overlay_motion
 }
 
 /// Remove [`BAD_FALLBACK_FAMILIES`] from the font system's database so cosmic-text

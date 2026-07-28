@@ -96,12 +96,11 @@ const EXPECTED: &[(&str, usize)] = &[
     // `AWL_FONT` + `AWL_CHROME_FACE_FILE` dev-only env var override
     // diagnostics (the second is the Firetail-showcase round's audition-font
     // loader: a missing/unreadable candidate file prints a note and is
-    // skipped — the same advisory class as `AWL_FONT`'s fallback note). The
-    // third is `read_forced_knob`'s LOUD-fallback note: a SET-but-unrecognized
-    // `AWL_*_FORCE` value (a retired skin like the killed `chips`, or a typo)
-    // names itself + the grammar before falling back to the world default, so a
-    // stale gallery re-shoot can't silently duplicate the default.
-    ("render.rs", 3),
+    // skipped — the same advisory class as `AWL_FONT`'s fallback note).
+    ("render.rs", 2),
+    // `read_forced_knob`'s unrecognized-value warning (moved here with the
+    // `AWL_*_FORCE` knobs it serves).
+    ("render/overrides.rs", 1),
     ("render/framebench.rs", 39),
     ("render/perfbench.rs", 8),
     ("render/caretbench.rs", 6),

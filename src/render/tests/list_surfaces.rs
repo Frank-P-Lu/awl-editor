@@ -46,6 +46,23 @@ fn bars(radius: f32, gap: f32, grow_px: f32) -> theme::ListStyle {
     }
 }
 
+// --- RenderOverrides direct construction -------------------------------------
+
+/// A whole [`RenderOverrides`] literal can be installed directly, not just
+/// through the per-field `set_*_test_override` helpers this file otherwise uses.
+#[test]
+fn render_overrides_can_be_installed_as_a_struct_literal() {
+    let _g = crate::testlock::serial();
+    set_test_override(RenderOverrides {
+        card_anchor: Some(theme::CardAnchor::TopLeft),
+        list_style: Some(bars(1.0, 2.0, 3.0)),
+        ..Default::default()
+    });
+    assert_eq!(effective_card_anchor(), theme::CardAnchor::TopLeft);
+    assert_eq!(effective_list_style(), bars(1.0, 2.0, 3.0));
+    set_test_override(RenderOverrides::default());
+}
+
 // --- grammar (pure) ----------------------------------------------------------
 
 #[test]
