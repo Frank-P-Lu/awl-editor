@@ -656,9 +656,118 @@ pub(crate) mod testutil {
     }
 }
 
+/// Every [`Lang`], for the sweeps below. Held complete by
+/// [`tests::no_lexer_module_writes_its_own_definition_walk`], which counts
+/// [`lexer`]'s wildcard-free arms against this length.
+#[cfg(test)]
+const ALL: &[Lang] = &[
+    Lang::Rust,
+    Lang::Python,
+    Lang::JavaScript,
+    Lang::TypeScript,
+    Lang::Go,
+    Lang::C,
+    Lang::Cpp,
+    Lang::Java,
+    Lang::CSharp,
+    Lang::Ruby,
+    Lang::Php,
+    Lang::Swift,
+    Lang::Kotlin,
+    Lang::Bash,
+    Lang::Html,
+    Lang::Css,
+    Lang::Json,
+    Lang::Yaml,
+    Lang::Toml,
+    Lang::Sql,
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// LAW: the definition walk has exactly ONE owner. Every `syntax/<lang>.rs`
+    /// either drives [`scanner::scan`] through a `LangSpec` or is declared in
+    /// [`BESPOKE`] with the reason its shape differs. The sweep is over the
+    /// DIRECTORY rather than a roster, so a new lexer file that copy-pastes a loop
+    /// goes red before it is even wired into [`Lang`]; the roster is then tied
+    /// back to [`lexer`]'s wildcard-free match, which a new `Lang` variant cannot
+    /// compile past without choosing a side.
+    #[test]
+    fn no_lexer_module_writes_its_own_definition_walk() {
+        // The state variable every copy of the walk carries.
+        const WALK: &str = "expect_def";
+        // `mod.rs` holds the dispatch and `ident_role`; `scanner.rs` IS the walk.
+        const NOT_A_LANGUAGE: &[&str] = &["mod", "scanner"];
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/syntax");
+
+        let owner = std::fs::read_to_string(dir.join("scanner.rs")).unwrap();
+        assert!(
+            owner.contains(WALK),
+            "{WALK:?} no longer names the walk — this law would sweep nothing"
+        );
+
+        let mut modules: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+            .map(|p| p.file_stem().unwrap().to_string_lossy().into_owned())
+            .filter(|s| !NOT_A_LANGUAGE.contains(&s.as_str()))
+            .collect();
+        modules.sort();
+        assert!(modules.len() >= ALL.len(), "{modules:?} missed lexer files");
+
+        let declared: Vec<&str> = BESPOKE.iter().map(|(m, _)| *m).collect();
+        for stem in &modules {
+            let src = std::fs::read_to_string(dir.join(format!("{stem}.rs"))).unwrap();
+            assert!(
+                !src.contains(WALK) || declared.contains(&stem.as_str()),
+                "{stem}.rs carries its own {WALK:?} walk: run the shared scanner \
+                 through a LangSpec instead, or declare it in syntax::BESPOKE with \
+                 the reason its shape differs"
+            );
+        }
+        for (m, why) in BESPOKE {
+            assert!(
+                modules.contains(&m.to_string()),
+                "BESPOKE names {m}, which is not a lexer module"
+            );
+            assert!(!why.trim().is_empty(), "BESPOKE entry {m} carries no reason");
+        }
+
+        for lang in ALL {
+            let bespoke = declared.contains(&lang.name());
+            match lexer(*lang) {
+                Lexer::Table(_) => assert!(
+                    !bespoke,
+                    "{} is table-driven but declared BESPOKE",
+                    lang.name()
+                ),
+                Lexer::Own(_) => assert!(
+                    bespoke,
+                    "{} dispatches to its own lexer but is not declared in BESPOKE",
+                    lang.name()
+                ),
+            }
+        }
+
+        // `lexer`'s match is exhaustive and wildcard-free, so its arm count IS the
+        // variant count — which is how `ALL` is held complete.
+        let src = std::fs::read_to_string(dir.join("mod.rs")).unwrap();
+        let body = src
+            .split_once("fn lexer(lang: Lang) -> Lexer {")
+            .expect("the dispatch moved")
+            .1
+            .split_once("\n}\n")
+            .unwrap()
+            .0;
+        assert_eq!(
+            body.matches("Lang::").count(),
+            ALL.len(),
+            "a Lang variant was added or removed; ALL has drifted out of sync"
+        );
+    }
 
     #[test]
     fn extension_detection_covers_all_languages() {
@@ -956,28 +1065,7 @@ mod tests {
         assert_eq!(Lang::Rust.name(), "rust");
         assert_eq!(Lang::Cpp.name(), "cpp");
         assert_eq!(Lang::CSharp.name(), "csharp");
-        for l in [
-            Lang::Rust,
-            Lang::Python,
-            Lang::JavaScript,
-            Lang::TypeScript,
-            Lang::Go,
-            Lang::C,
-            Lang::Cpp,
-            Lang::Java,
-            Lang::CSharp,
-            Lang::Ruby,
-            Lang::Php,
-            Lang::Swift,
-            Lang::Kotlin,
-            Lang::Bash,
-            Lang::Html,
-            Lang::Css,
-            Lang::Json,
-            Lang::Yaml,
-            Lang::Toml,
-            Lang::Sql,
-        ] {
+        for l in ALL {
             let n = l.name();
             assert!(
                 !n.is_empty() && n == n.to_ascii_lowercase(),
