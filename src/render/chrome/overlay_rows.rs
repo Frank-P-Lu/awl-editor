@@ -280,23 +280,9 @@ impl TextPipeline {
         let spell = self.overlay_spell.is_some();
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
         let backing = list_style.list_backing(spell);
-        match backing {
-            theme::ListBacking::BarePlates => {
-                self.panel_shadow.prepare(device, queue, width, height, &[]);
-                self.panel_border.prepare(device, queue, width, height, &[]);
-            }
-            theme::ListBacking::Card if spell => {
-                let (chamfer_px, texture) = self.card_shape_texture(&[card_rect]);
-                self.claim_float_panel(card_rect, FloatElevation::Rimmed, chamfer_px, texture);
-                self.panel_card.prepare(device, queue, width, height, &[]);
-                self.panel_shadow.prepare(device, queue, width, height, &[]);
-                self.panel_border.prepare(device, queue, width, height, &[]);
-            }
-            theme::ListBacking::Card => {
-                let fills = self.overlay_pane_fills(geom);
-                self.prepare_panel_card_elevation(device, queue, width, height, &fills);
-            }
-        }
+        self.overlay_prepare_card_backing(
+            device, queue, width, height, geom, backing, spell, card_rect,
+        );
 
         // Selected-row highlight: a VALUE BAND, the next rung up the surface ladder
         // past the card's `base_300` (`theme::surface_selected`), set per-frame so a
@@ -575,6 +561,19 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &sel_rects);
         self.overlay_cross
             .prepare(device, queue, width, height, &cross_rects);
+        self.overlay_prepare_range_rails(device, queue, width, height, geom, sel_disp);
+        self.overlay_prepare_facet_marks(device, queue, width, height, geom);
+    }
+
+    fn overlay_prepare_range_rails(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        geom: &OverlayGeom,
+        sel_disp: Option<usize>,
+    ) {
         // ITEM 94 — THE RANGE ROW'S RAIL. Every visible range row's track / fill /
         // thumb, resolved by the ONE rail owner (`overlay_rails`, which the pointer
         // hit-test reads too — so the control is clickable exactly where it is
@@ -616,6 +615,16 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &track_rects);
         self.overlay_range_thumb
             .prepare(device, queue, width, height, &thumb_rects);
+    }
+
+    fn overlay_prepare_facet_marks(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        geom: &OverlayGeom,
+    ) {
         // FACETED STRIP active-lens mark: the rect the shaper recorded (its SHAPE
         // set by `facet_style` — hairline underline / band / active chip); a
         // non-theme card parks it empty (so a stale rect never lingers).
@@ -686,5 +695,35 @@ impl TextPipeline {
         }
         self.overlay_facet_ghost
             .prepare(device, queue, width, height, &ghosts);
+    }
+
+    fn overlay_prepare_card_backing(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        geom: &OverlayGeom,
+        backing: theme::ListBacking,
+        spell: bool,
+        card_rect: [f32; 4],
+    ) {
+        match backing {
+            theme::ListBacking::BarePlates => {
+                self.panel_shadow.prepare(device, queue, width, height, &[]);
+                self.panel_border.prepare(device, queue, width, height, &[]);
+            }
+            theme::ListBacking::Card if spell => {
+                let (chamfer_px, texture) = self.card_shape_texture(&[card_rect]);
+                self.claim_float_panel(card_rect, FloatElevation::Rimmed, chamfer_px, texture);
+                self.panel_card.prepare(device, queue, width, height, &[]);
+                self.panel_shadow.prepare(device, queue, width, height, &[]);
+                self.panel_border.prepare(device, queue, width, height, &[]);
+            }
+            theme::ListBacking::Card => {
+                let fills = self.overlay_pane_fills(geom);
+                self.prepare_panel_card_elevation(device, queue, width, height, &fills);
+            }
+        }
     }
 }
