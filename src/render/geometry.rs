@@ -1412,22 +1412,72 @@ impl TextPipeline {
         if lh > 0.0 { row_height / lh } else { 1.0 }
     }
 
+    /// Char column on a shaped run whose glyph cell contains `target_x`, snapped
+    /// to a grapheme-cluster boundary. A pointer inside a glyph resolves to the
+    /// nearer edge of it, the natural caret placement.
+    ///
+    /// The snap is not redundant with the glyph walk: a shaper's glyph clusters
+    /// are NOT always UAX #29 clusters. Thai `ก` + `ำ` (U+0E33 SARA AM) is one
+    /// cluster that every world's face shapes as two glyph groups — a click in
+    /// the middle of it named the column BETWEEN the consonant and its vowel
+    /// sign, a position that does not exist on screen. Devanagari conjuncts split
+    /// the same way on faces without the ligature.
     pub(super) fn col_in_run(run: &glyphon::cosmic_text::LayoutRun, target_x: f32) -> usize {
         let line_text = run.text;
+        let mut raw = None;
         for g in run.glyphs.iter() {
             let left = g.x;
             let right = g.x + g.w;
             let mid = (left + right) * 0.5;
             if target_x < mid {
-                return byte_col(line_text, g.start);
+                raw = Some(byte_col(line_text, g.start));
+                break;
             } else if target_x < right {
-                return byte_col(line_text, g.end);
+                raw = Some(byte_col(line_text, g.end));
+                break;
             }
         }
-        match run.glyphs.last() {
-            Some(g) => byte_col(line_text, g.end),
-            None => 0,
+        let raw = match raw.or_else(|| run.glyphs.last().map(|g| byte_col(line_text, g.end))) {
+            Some(c) => c,
+            None => return 0,
+        };
+        Self::cluster_col(run, raw, target_x)
+    }
+
+    /// `raw` — a column the glyph walk landed on — moved to the cluster boundary
+    /// the pointer is NEAREST, measured against the cluster's own INK so the left
+    /// half of a rendered character selects its start and the right half its end.
+    /// The identity whenever `raw` is already a boundary, which is every ASCII,
+    /// CJK and precomposed case, so ordinary clicks are byte-identical.
+    fn cluster_col(run: &glyphon::cosmic_text::LayoutRun, raw: usize, target_x: f32) -> usize {
+        let line_text = run.text;
+        let chars: Vec<char> = line_text.chars().collect();
+        let start = crate::grapheme::snap_backward(raw, chars.len(), |i| chars[i]);
+        let end = crate::grapheme::snap_forward(raw, chars.len(), |i| chars[i]);
+        if start == end {
+            return raw;
         }
+        let byte_of = |col: usize| -> usize {
+            line_text
+                .char_indices()
+                .nth(col)
+                .map(|(b, _)| b)
+                .unwrap_or(line_text.len())
+        };
+        let (first, last) = (byte_of(start), byte_of(end));
+        let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
+        for g in run.glyphs.iter().filter(|g| g.start >= first && g.end <= last) {
+            lo = lo.min(g.x);
+            hi = hi.max(g.x + g.w);
+        }
+        if lo > hi {
+            // No glyph of this cluster carries ink (nothing to measure against):
+            // the cluster's end is still a real position, and the raw column is not.
+            return end;
+        }
+        // In an RTL run the cluster's logical START sits at the RIGHT of its ink.
+        let past_middle = target_x >= (lo + hi) * 0.5;
+        if past_middle == run.rtl { start } else { end }
     }
 
     /// Char column on a visual row whose cell contains `target_x` (relative to

@@ -24,10 +24,14 @@ impl App {
         }
     }
 
+    /// The char index under the pointer — every click, drag endpoint, right-press
+    /// and ⌘-click link probe resolves here, and here only. The pixel half is the
+    /// hit test above; the document half (fold-space line remap + cluster-boundary
+    /// snap) belongs to [`crate::buffer::Buffer::hit_char`], which is where the
+    /// rule is stated and unit-tested without a GPU.
     pub(in crate::app) fn hit_test_char(&self) -> usize {
         let (line, col) = self.hit_test_line_col();
-        let full = self.active.buffer.visible_line_to_full(line);
-        self.active.buffer.line_col_to_char(full, col)
+        self.active.buffer.hit_char(line, col)
     }
 
     fn fold_affordance_at_pointer(&self) -> Option<usize> {

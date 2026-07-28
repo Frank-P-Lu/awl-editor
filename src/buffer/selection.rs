@@ -109,6 +109,24 @@ impl Buffer {
         self.line_start(line) + col.min(len)
     }
 
+    /// THE ONE CLICK-TO-ROPE RESOLUTION: a hit-tested `(line, col)` — `line` in
+    /// the render's FOLD-FILTERED space, `col` a char column on it — to the char
+    /// index a caret may actually occupy. Two steps the pointer path must never
+    /// take separately: remap the line through [`Self::visible_line_to_full`] (a
+    /// fold above the click shifts every line below it), then snap the column's
+    /// char index to the NEAREST grapheme-cluster boundary
+    /// ([`crate::grapheme::snap_nearest`], which is also where "nearest in chars"
+    /// is justified as nearest on screen), so a pointer inside a rendered `é`
+    /// resolves to one side of it instead of between its letter and its accent.
+    ///
+    /// Every click, drag endpoint, right-press and ⌘-click link probe passes
+    /// through here, via `App::hit_test_char`. Kept on the buffer rather than the
+    /// app so the rule is testable without a live pointer or a GPU.
+    pub fn hit_char(&self, visible_line: usize, col: usize) -> usize {
+        let idx = self.line_col_to_char(self.visible_line_to_full(visible_line), col);
+        crate::grapheme::snap_nearest(idx, self.rope.len_chars(), |i| self.rope.char(i))
+    }
+
     /// Move the cursor to an absolute char index (clamped), WITHOUT touching the
     /// mark, so a Shift+motion or mouse drag extends the selection. Resets the
     /// goal column and kill flag like the other motions.
@@ -134,10 +152,19 @@ impl Buffer {
     /// C-n/C-p keep the same screen column through soft wraps; like it, it leaves
     /// the mark untouched (so Shift+C-n extends the region). The next non-vertical
     /// motion or edit clears `goal_x` via `clear_kill_flag` / `apply_edit`.
+    ///
+    /// A vertical step aims at a PIXEL column, so `idx` arrives from the layout
+    /// oracle's `col_in_row` and can name a position interior to a grapheme
+    /// cluster (a cluster's chars each get a slice of its ink — see
+    /// `render::assemble_glyph_xs`, and a goal-x can fall in any slice). The snap
+    /// to the NEAREST boundary lives HERE, at the one sink every vertical landing
+    /// passes through, rather than in the caller, so a future vertical motion
+    /// cannot reintroduce a caret between a letter and its accent.
     pub fn set_cursor_visual(&mut self, idx: usize, goal_x: f32) {
         self.last_was_kill = false;
         self.goal_col = None;
-        self.cursor = idx.min(self.rope.len_chars());
+        let len = self.rope.len_chars();
+        self.cursor = crate::grapheme::snap_nearest(idx.min(len), len, |i| self.rope.char(i));
         self.goal_x = Some(goal_x);
         // A vertical move is not a line-END intent, so it drops any wrap-affinity
         // (mirrors `clear_kill_flag`, which this method deliberately bypasses to
