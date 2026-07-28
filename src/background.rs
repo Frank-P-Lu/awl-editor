@@ -31,6 +31,7 @@ pub struct BgDesc {
     pub period_px: f32,
     pub amplitude_px: f32,
     pub density: f32,
+    pub banded: bool,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -302,7 +303,11 @@ fn ground_params(desc: &BgDesc) -> [f32; 4] {
         if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
         desc.angle,
         desc.amplitude_px,
-        desc.density,
+        if desc.banded {
+            -desc.density
+        } else {
+            desc.density
+        },
     ]
 }
 

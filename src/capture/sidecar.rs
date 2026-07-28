@@ -906,8 +906,9 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
             amplitude_px,
             angle,
             density,
+            banded,
         } => format!(
-            "{{ \"kind\": \"zigzag\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"period_px\": {}, \"amplitude_px\": {}, \"angle\": {}, \"density\": {} }}",
+            "{{ \"kind\": \"zigzag\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"period_px\": {}, \"amplitude_px\": {}, \"angle\": {}, \"density\": {}, \"banded\": {} }}",
             hex(from),
             hex(to),
             dir.0,
@@ -916,7 +917,8 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
             period_px,
             amplitude_px,
             angle,
-            density
+            density,
+            banded
         ),
     }
 }

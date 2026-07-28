@@ -689,6 +689,7 @@ fn the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold() {
         amplitude_px: 150.0,
         angle: 0.26,
         density: 0.6,
+        banded: false,
     };
     let (w, h) = (W, H);
     let field = mark_field(&device, &queue, huge_tooth, w, h, 0.0, 0.0);
@@ -933,7 +934,7 @@ fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
     // render-side assertion (the design-is-data discipline `theme_caps_law`
     // enforces for real render code, kept here by habit).
     let expected = [
-        ("Quokka", theme::QUOKKA.background, 10..=14),
+        ("Quokka", theme::QUOKKA.background, 15..=18),
         ("Gumtree", theme::GUMTREE.background, 5..=9),
     ];
     let mut tightest = Vec::new();
@@ -960,6 +961,99 @@ fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
         "Quokka's field must read TIGHTER (more chevron rows per window: {} vs Gumtree's {})",
         tightest[0],
         tightest[1]
+    );
+}
+
+#[test]
+fn quokka_filled_bands_alternate_over_real_pixels_and_match_the_host_phase() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let field = mark_field(&device, &queue, theme::QUOKKA.background, W, H, 0.0, 0.0);
+    let x = W / 2;
+    let mut runs = Vec::new();
+    let mut host_runs = Vec::new();
+    let mut last = None;
+    let mut last_host = None;
+    for y in 0..H {
+        let gpu = field[(y * W + x) as usize] >= INK_FLOOR;
+        let host = zigzag_coverage(
+            x as f32,
+            y as f32,
+            theme::QUOKKA.background,
+            PitchRule::Abut,
+        ) >= theme::QUOKKA.background.density() * 0.5;
+        if last != Some(gpu) {
+            runs.push(gpu);
+            last = Some(gpu);
+        }
+        if last_host != Some(host) {
+            host_runs.push(host);
+            last_host = Some(host);
+        }
+    }
+    assert!(
+        runs.len() >= 12,
+        "expected repeated filled/untouched Quokka lanes, got {runs:?}"
+    );
+    assert!(
+        runs.windows(2).all(|w| w[0] != w[1]),
+        "Quokka lanes must alternate: {runs:?}"
+    );
+    assert!(
+        runs.contains(&true) && runs.contains(&false),
+        "both filled and untouched lanes must exist"
+    );
+    assert!(
+        (runs.len() as isize - host_runs.len() as isize).abs() <= 1,
+        "host/GPU band phase must have the same alternating cadence: gpu={runs:?}, host={host_runs:?}"
+    );
+}
+
+#[test]
+fn gumtree_outline_upload_remains_byte_identical_to_the_unbanded_descriptor() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let field = mark_field(
+        &device,
+        &queue,
+        theme::GUMTREE.background,
+        W,
+        H,
+        COL_LEFT,
+        COL_W,
+    );
+    let theme::Background::Zigzag {
+        from,
+        to,
+        dir,
+        tint,
+        period_px,
+        amplitude_px,
+        angle,
+        density,
+        ..
+    } = theme::GUMTREE.background
+    else {
+        unreachable!()
+    };
+    let explicit_outline = theme::Background::Zigzag {
+        from,
+        to,
+        dir,
+        tint,
+        period_px,
+        amplitude_px,
+        angle,
+        density,
+        banded: false,
+    };
+    assert_eq!(
+        field,
+        mark_field(&device, &queue, explicit_outline, W, H, COL_LEFT, COL_W)
     );
 }
 
@@ -1118,6 +1212,13 @@ fn zigzag_coverage(x: f32, y: f32, bg: theme::Background, rule: PitchRule) -> f3
         PitchRule::PeriodLattice => period,
     };
     let d = (fr((ry - center) / row_h + 0.5) - 0.5).abs() * row_h;
+    if bg.zigzag_banded() {
+        return if fr((ry - center) / row_h) < 0.5 {
+            dens
+        } else {
+            0.0
+        };
+    }
     let t = ((d - thickness * 0.6) / (thickness - thickness * 0.6)).clamp(0.0, 1.0);
     let line = 1.0 - t * t * (3.0 - 2.0 * t);
     line * dens
@@ -1150,6 +1251,7 @@ fn the_abutment_rule_forbids_a_blank_lane_at_every_dial_setting() {
                 amplitude_px: amp,
                 angle: 0.1 + (pi % 7) as f32 * 0.2,
                 density: 0.5,
+                banded: false,
             };
             let t = bg.zigzag_stroke_px();
             let pitch = bg.zigzag_row_pitch_px();

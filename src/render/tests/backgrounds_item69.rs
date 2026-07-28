@@ -51,6 +51,7 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
         period_px: bg.period_px(),
         amplitude_px: bg.amplitude_px(),
         density: bg.density(),
+        banded: bg.zigzag_banded(),
     }
 }
 

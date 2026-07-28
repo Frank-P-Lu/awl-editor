@@ -2312,6 +2312,7 @@ fn background_desc() -> BgDesc {
         period_px: bg.period_px(),
         amplitude_px: bg.amplitude_px(),
         density: bg.density(),
+        banded: bg.zigzag_banded(),
     }
 }
 

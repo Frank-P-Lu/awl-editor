@@ -223,7 +223,11 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let period = max(g.params.x, 1.0);
         let a = g.params.y;
         let amp = max(g.params.z, 0.0);
-        let dens = clamp(g.params.w, 0.0, 1.0);
+        // A negative density selects the data-authored filled-band treatment;
+        // its magnitude remains the ordinary contrast dial. The uniform has no
+        // spare slot, so this preserves Gumtree's positive-density upload bits.
+        let banded = g.params.w < 0.0;
+        let dens = clamp(abs(g.params.w), 0.0, 1.0);
         let ca = cos(a);
         let sa = sin(a);
         // Rotate into the chevron's own travel frame: `rx` runs ALONG the
@@ -283,6 +287,11 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         // Signed distance to the NEAREST row line (px): fold to [-0.5, 0.5).
         let d = abs(fract(u + 0.5) - 0.5) * row_h;
         let line = 1.0 - smoothstep(thickness * 0.6, thickness, d);
+        if (banded) {
+            // One filled chevron lane followed by one untouched lane. `u` is
+            // continuous in viewport space, so both margins share one rhythm.
+            return select(0.0, dens, fract(u) < 0.5);
+        }
         return line * dens;
     }
     // 0: plain gradient — no marks.

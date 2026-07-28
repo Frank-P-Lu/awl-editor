@@ -119,6 +119,14 @@ fn zigzag_dials_are_measurably_distinct_between_quokka_and_gumtree() {
     assert!(gd < qd, "Gumtree's density must be QUIETER than Quokka's");
 }
 
+#[test]
+fn quokka_alone_uses_horizontal_filled_zigzag_bands() {
+    assert!(theme::QUOKKA.background.zigzag_banded());
+    assert!(!theme::GUMTREE.background.zigzag_banded());
+    assert_eq!(theme::QUOKKA.background.angle(), 0.0);
+    assert_eq!(theme::GUMTREE.background.angle(), 0.26);
+}
+
 // ---------------------------------------------------------------------------
 // REAL-PIXEL LAWS
 // ---------------------------------------------------------------------------
@@ -253,6 +261,7 @@ fn gumtree_visibility_floor_rejects_the_imperceptible_density_mutation() {
         amplitude_px,
         angle,
         density: 0.20,
+        banded: false,
     };
     let field = super::backgrounds_item89::mark_field(
         &device,

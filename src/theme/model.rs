@@ -441,6 +441,9 @@ pub enum Background {
         amplitude_px: f32,
         angle: f32,
         density: f32,
+        /// Fill every other chevron lane instead of drawing its outline.
+        /// Data-only: the shared Zigzag renderer owns the treatment.
+        banded: bool,
     },
 }
 
@@ -577,6 +580,9 @@ impl Background {
             Background::Zigzag { density, .. } => *density,
             _ => 0.0,
         }
+    }
+    pub fn zigzag_banded(&self) -> bool {
+        matches!(self, Background::Zigzag { banded: true, .. })
     }
     pub fn is_lava(&self) -> bool {
         matches!(self, Background::Lava { .. })
