@@ -734,7 +734,8 @@ mod tests {
         assert_eq!(
             owner_hits,
             KNOB_ENV_VARS.len(),
-            "expected exactly one `from_env` read site per knob env var in `{OWNER}`; found {owner_hits}"
+            "expected exactly one `from_env` read site per knob env var in \
+             `{OWNER}`; found {owner_hits}"
         );
     }
 

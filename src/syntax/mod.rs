@@ -281,7 +281,8 @@ const BESPOKE: &[(&str, &str)] = &[
     ("toml", "key/value/table grammar with date-time literals"),
     (
         "sql",
-        "case-insensitive multi-word introducers with skip-words; `\"…\"` is an identifier, not a string",
+        "case-insensitive multi-word introducers with skip-words; `\"…\"` is \
+         an identifier, not a string",
     ),
 ];
 

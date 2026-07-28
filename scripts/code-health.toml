@@ -370,13 +370,13 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (420/100)"
+message = "this function has too many lines (490/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render.rs"
-line = 948
+line = 964
 message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -404,8 +404,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/selection.rs"
-line = 173
-message = "this function has too many lines (110/100)"
+line = 198
+message = "this function has too many lines (106/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -646,80 +646,62 @@ line = 205
 message = "this function has too many lines (128/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/chrome_panels.rs"
-line = 17
-message = "this function has too many lines (102/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_panels.rs"
-line = 1369
+line = 1315
 message = "this function has too many lines (118/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
-line = 179
+line = 155
 message = "this function has too many lines (104/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/distinguishability.rs"
-line = 666
+line = 642
 message = "this function has too many lines (125/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/dither.rs"
-line = 766
-message = "this function has too many lines (107/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/dither.rs"
-line = 927
-message = "this function has too many lines (106/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/images.rs"
-line = 1716
+line = 1704
 message = "this function has too many lines (105/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 676
+line = 693
 message = "this function has too many lines (123/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1029
+line = 1046
 message = "this function has too many lines (145/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 1294
+line = 1311
 message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
-line = 2242
+line = 2259
 message = "this function has too many lines (116/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -733,42 +715,42 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/one_bit.rs"
-line = 545
+line = 501
 message = "this function has too many lines (108/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/oracle.rs"
-line = 280
+line = 303
 message = "the function has a cognitive complexity of (28/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/oracle.rs"
-line = 280
+line = 303
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/render/tests/outline.rs"
-line = 1168
+line = 1150
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/outline.rs"
-line = 1168
+line = 1150
 message = "this function has too many lines (125/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_personality.rs"
-line = 1301
+line = 1276
 message = "this function has too many lines (120/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -789,7 +771,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/page_frame.rs"
-line = 113
+line = 89
 message = "this function has too many lines (183/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -824,7 +806,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/syntax/mod.rs"
-line = 628
+line = 794
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

@@ -49,8 +49,19 @@ def baseline(path: str) -> list[str]:
 
 
 def production(path: str) -> bool:
+    # Test code is exempt from the production ceilings however it is spelled:
+    # a `tests/` directory, a sibling `tests.rs`, or a `*_test.rs`. Counting
+    # `tests.rs` as production would also defeat the point of carving an inline
+    # `mod tests` out of an oversized module — the lines would simply move from
+    # one measured file to another.
     parts = Path(path).parts
-    return parts[0] == "src" and "tests" not in parts and not path.endswith("_test.rs")
+    name = Path(path).name
+    return (
+        parts[0] == "src"
+        and "tests" not in parts
+        and name != "tests.rs"
+        and not path.endswith("_test.rs")
+    )
 
 
 def diagnostic_key(entry: dict[str, Any]) -> tuple[str, str, int, str]:
