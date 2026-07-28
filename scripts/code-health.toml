@@ -215,7 +215,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2430
+lines = 2429
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -231,7 +231,7 @@ lines = 590
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 1027
+lines = 1025
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
@@ -725,7 +725,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render.rs"
-line = 967
+line = 966
 message = "this function has too many lines (105/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 

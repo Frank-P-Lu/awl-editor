@@ -554,7 +554,6 @@ impl TextPipeline {
             self.caret_glyph_pipeline.clear();
         } else if paint_silhouette {
             self.prepare_morph_body_or_empty(device, queue, width, height);
-            // Settled on a glyph: the accent silhouette recolours the letter.
             let (from_box, to_box, morph_t) = self.caret_glyph_geometry();
             self.caret_glyph_pipeline.prepare(
                 device,

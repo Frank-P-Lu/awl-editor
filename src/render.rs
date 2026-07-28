@@ -12,11 +12,8 @@ use crate::spell::Misspelling;
 use crate::spellunderline::{SpellUnderlinePipeline, Squiggle};
 use crate::theme;
 
-/// Layout-dependent caret geometry. Methods remain on [`TextPipeline`] because they
-/// read its font, layout, and metrics; animation and GPU pipelines live in
-/// [`crate::caret`] and [`crate::caret_glyph`].
+/// Layout-dependent caret geometry; animation and GPU pipelines live in crate modules.
 mod caret;
-
 mod caret_body;
 
 /// Measured bundled-face pitch used by the caret's mono/proportional fork.
@@ -2393,6 +2390,10 @@ impl crate::actions::LayoutOracle for TextPipeline {
         let rows = self.line_rows_local(line);
         let idx = pick_row_index_aff(&rows, col, affinity);
         if idx + 1 < rows.len() {
+            // A wrapped line with rows below: step to the next visual row of the
+            // SAME logical line (owned by that row — `col_on_row` keeps a large
+            // goal-x off the shared wrap boundary so the step lands on the
+            // immediately-next row rather than skipping past it).
             return (line, col_on_row(&rows, idx + 1, goal_x));
         }
         let last_line = self.buffer.lines.len().saturating_sub(1);
