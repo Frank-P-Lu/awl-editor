@@ -567,7 +567,7 @@ fn packing_a_mismatched_or_missing_rep_is_an_error() {
 fn the_parser_rejects_a_malformed_container() {
     let _g = crate::testlock::serial();
     let good = icon_bytes(THEMES[0].name);
-    assert!(icns::unpack(b"not an icns at all").is_err());
+    icns::unpack(b"not an icns at all").unwrap_err();
     let mut bad_magic = good.clone();
     bad_magic[0] = b'x';
     assert!(icns::unpack(&bad_magic).is_err(), "bad magic");

@@ -849,7 +849,7 @@ fn record_inside_git_repo_writes_nothing_ever() {
             ..Config::empty()
         };
         record(&p, "v3", &off);
-        assert!(crate::fs::active().read(&log_path(&p)).is_err());
+        crate::fs::active().read(&log_path(&p)).unwrap_err();
     });
 }
 

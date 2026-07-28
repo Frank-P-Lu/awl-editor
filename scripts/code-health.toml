@@ -513,17 +513,10 @@ message = "this function has too many lines (213/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/config/model.rs"
-line = 149
-message = "the function has a cognitive complexity of (35/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/config/model.rs"
 line = 149
-message = "this function has too many lines (158/100)"
+message = "this function has too many lines (111/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -765,17 +758,10 @@ message = "this function has too many lines (132/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/syntax/bash.rs"
-line = 39
-message = "the function has a cognitive complexity of (27/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/syntax/bash.rs"
 line = 39
-message = "this function has too many lines (142/100)"
+message = "this function has too many lines (127/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -793,17 +779,10 @@ message = "this function has too many lines (137/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/syntax/toml.rs"
-line = 52
-message = "the function has a cognitive complexity of (34/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/syntax/toml.rs"
-line = 52
-message = "this function has too many lines (152/100)"
+line = 51
+message = "this function has too many lines (118/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]

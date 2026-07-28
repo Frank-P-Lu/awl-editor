@@ -641,7 +641,7 @@ mod tests {
     #[test]
     fn unknown_chord_errors() {
         // A multi-char token that is not a named key is an error, not a panic.
-        assert!(parse_keys("frobnicate").is_err());
+        parse_keys("frobnicate").unwrap_err();
     }
 
     #[test]

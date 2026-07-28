@@ -273,7 +273,7 @@ mod tests {
         crate::fs::with_fs(fake.clone(), || {
             let path = PathBuf::from("/data/toy.toml");
             assert_eq!(load_toml_store(&path, parse_toy), Toy::default());
-            assert!(fake.read_dir(Path::new("/data")).is_err());
+            fake.read_dir(Path::new("/data")).unwrap_err();
         });
     }
 

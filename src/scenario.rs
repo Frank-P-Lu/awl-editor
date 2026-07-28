@@ -173,10 +173,8 @@ mod tests {
         assert_eq!(names, vec!["doc.md".to_string()]);
         // NOTHING else: the user-config shape of path is absent, so a config
         // load inside the sandbox degrades to pure defaults.
-        assert!(
-            fs.read_to_string(Path::new("/home/u/.config/awl/config.toml"))
-                .is_err()
-        );
+        fs.read_to_string(Path::new("/home/u/.config/awl/config.toml"))
+            .unwrap_err();
         // And the root carries no `.git`, so `Project::resolve` classifies it
         // non-git and never spawns the read-only git subprocesses.
         assert!(!fs.exists(&root.join(".git")));

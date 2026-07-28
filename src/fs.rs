@@ -1044,7 +1044,7 @@ mod tests {
         let fs = InMemoryFs::new().with_file("/a.md", "x");
         let md = fs.metadata(Path::new("/a.md")).unwrap();
         assert!(md.modified.is_some());
-        assert!(fs.metadata(Path::new("/nope")).is_err());
+        fs.metadata(Path::new("/nope")).unwrap_err();
     }
 
     #[test]
@@ -1106,7 +1106,7 @@ mod tests {
             );
         });
         let _g = crate::testlock::serial();
-        assert!(active().read_to_string(Path::new("/cfg.toml")).is_err());
+        active().read_to_string(Path::new("/cfg.toml")).unwrap_err();
     }
 
     /// THE CURATED SEED LIST, pinned exactly — the four paths a first-time

@@ -450,6 +450,21 @@ file. The render is pinned so nothing varies frame to frame:
   `--keys` (see below) — replay runs the real keymap with no clock or animation,
   so the capture stays deterministic.
 
+### Debug/release sidecar differential
+
+`scripts/release-profile-gate.sh` closes the optimization-profile blind spot
+that ordinary `cargo test` cannot see. It builds both profiles, runs the same
+strict, deterministic `--keys` capture once for each state-bearing action
+family (`Buffer`, `Viewport`, `Format`, `Overlay`, `Session`, `View`, `Align`,
+`Export`), and requires each debug/release sidecar pair to be byte-identical.
+There are no bespoke outcome assertions: the debug build is the differential
+oracle for the corresponding release state.
+
+Run it once on combined `main` before a push train and before a tag, not at
+every worktree landing. It is fully headless and parallel-safe. A live-window
+probe is not part of this routine law: compositor/window behavior remains the
+separate live-only tier below.
+
 **Determinism boundary (documented honestly):** the glyph *shapes* come from the
 active world's EMBEDDED display face (IBM Plex Mono for a mono world; Literata /
 Newsreader / IBM Plex Sans / Zilla Slab for the proportional worlds — all bundled

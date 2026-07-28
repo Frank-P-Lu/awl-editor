@@ -220,7 +220,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             pkg-config \
             libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            mesa-vulkan-drivers
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -228,10 +229,20 @@ jobs:
         with:
           key: release-linux
 
+      # Build the debug half consumed by the profile differential below.
+      - name: cargo build
+        run: cargo build
+
       # with-remap.sh strips the runner's $HOME/registry paths from the shipped
       # release binary (rustc bakes compile-time source locations otherwise).
       - name: cargo build --release
         run: scripts/with-remap.sh cargo build --release
+
+      # Release artifacts must cross the same differential state law as a main
+      # push. This is headless and parallel-safe; live-window probes remain a
+      # separate pre-tag/human tier.
+      - name: Debug/release sidecar parity
+        run: scripts/release-profile-gate.sh --use-built-binaries
 
       - name: Package tar.gz
         run: |

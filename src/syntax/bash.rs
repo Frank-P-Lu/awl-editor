@@ -180,23 +180,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
 
         // --- identifier / keyword ---
         if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if expect_def {
-                out.push((start..i, SynKind::Definition));
-                expect_def = false;
-            } else if CONST_WORDS.contains(&word) {
-                out.push((start..i, SynKind::Constant));
-            } else if word == "function" {
-                expect_def = true;
-            } else if is_func_def(b, i) {
-                // The `name() { … }` form — the name is the definition.
-                out.push((start..i, SynKind::Definition));
-            }
+            (i, expect_def) = scan_identifier(text, b, i, expect_def, &mut out);
             continue;
         }
 
@@ -209,6 +193,30 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
     }
 
     out
+}
+
+fn scan_identifier(
+    text: &str,
+    b: &[u8],
+    start: usize,
+    expect_def: bool,
+    out: &mut Vec<(Range<usize>, SynKind)>,
+) -> (usize, bool) {
+    let mut end = start + 1;
+    while end < b.len() && is_ident_continue(b[end]) {
+        end += 1;
+    }
+    let word = &text[start..end];
+    let next_expect_def = !expect_def && word == "function";
+    if expect_def {
+        out.push((start..end, SynKind::Definition));
+    } else if CONST_WORDS.contains(&word) {
+        out.push((start..end, SynKind::Constant));
+    } else if !next_expect_def && is_func_def(b, end) {
+        // The `name() { … }` form — the name is the definition.
+        out.push((start..end, SynKind::Definition));
+    }
+    (end, next_expect_def)
 }
 
 /// Scan a quoted string starting at the opening quote `q`; returns the index just

@@ -446,7 +446,7 @@ fn follow_link_command_present_and_rebindable() {
     // native Copy (`LINUX_DISPLACED_LETTERS` includes 'c'), so the `C-c`
     // prefix never arms there — that displacement is its own contract, see
     // `keymap.rs`'s collision table doc.
-    assert!(crate::keymap::parse_binding("C-c C-o").is_ok());
+        crate::keymap::parse_binding("C-c C-o").unwrap();
     assert_eq!(
         resolve_chord_under("C-c C-o", Convention::Mac),
         Action::FollowLink

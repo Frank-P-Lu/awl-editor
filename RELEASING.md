@@ -77,8 +77,10 @@ touches or commits `site/editor/`'s checked-in bundle (legacy — see below).
 **Downloadable artifacts (macOS / Linux / web):**
 
 ```sh
-# 1. bump Cargo.toml's package.version if this is a real version bump
-# 2. tag and push
+# 1. on the final combined main, prove debug/release state parity
+scripts/release-profile-gate.sh
+# 2. bump Cargo.toml's package.version if this is a real version bump
+# 3. tag and push
 git tag v0.1.0
 git push origin v0.1.0
 ```
@@ -86,7 +88,8 @@ git push origin v0.1.0
 The tag push triggers `release.yml`: builds a macOS universal `.app`/`.dmg`
 (signed + notarized if the Apple secrets are set, unsigned otherwise), a
 Linux `.tar.gz`, and a zipped web `dist/`, then attaches all of them to a new
-GitHub Release at that tag.
+GitHub Release at that tag. The Linux release job reruns the headless parity
+law before packaging, so a missed local pre-tag run still blocks publication.
 
 **Dry run (no tag, nothing published) — verify the pipeline is healthy:**
 

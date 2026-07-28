@@ -64,6 +64,16 @@ opt-level = 3
 # the dev profile, where the call is still there. Deny rather than warn: the
 # failure is invisible until a user runs a release build.
 debug_assert_with_mut_call = "deny"
+# These are zero-debt lints: none existed when denied, so any future hit is a
+# newly introduced correctness/debugging escape rather than historical style.
+mem_forget = "deny"
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+mutable_key_type = "deny"
+# Prefer unwrap/unwrap_err in tests when the Result state itself is the claim:
+# failures then print the unexpected value instead of only a boolean assertion.
+assertions_on_result_states = "deny"
 needless_borrow = "warn"
 needless_borrows_for_generic_args = "warn"
 unnecessary_to_owned = "warn"

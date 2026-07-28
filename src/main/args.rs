@@ -1405,9 +1405,9 @@ mod tests {
         assert_eq!(parse_sel("0:0-2:3").unwrap(), ((0, 0), (2, 3)));
         assert_eq!(parse_sel("2:3-0:0").unwrap(), ((0, 0), (2, 3)));
         assert_eq!(parse_sel(" 1:2 - 1:5 ").unwrap(), ((1, 2), (1, 5)));
-        assert!(parse_sel("0:0").is_err());
-        assert!(parse_sel("00-23").is_err());
-        assert!(parse_sel("a:b-c:d").is_err());
+        parse_sel("0:0").unwrap_err();
+        parse_sel("00-23").unwrap_err();
+        parse_sel("a:b-c:d").unwrap_err();
     }
 
     #[test]
@@ -1416,9 +1416,9 @@ mod tests {
         // Whitespace + trailing/empty entries are tolerated.
         assert_eq!(parse_steps(" 0 , 30 ,").unwrap(), vec![0, 30]);
         // Empty / all-blank / non-numeric are errors.
-        assert!(parse_steps("").is_err());
-        assert!(parse_steps("  ,  ").is_err());
-        assert!(parse_steps("0,x,2").is_err());
+        parse_steps("").unwrap_err();
+        parse_steps("  ,  ").unwrap_err();
+        parse_steps("0,x,2").unwrap_err();
     }
 
     #[test]
@@ -1442,10 +1442,10 @@ mod tests {
         assert_eq!(parse_size("2400x1600").unwrap(), (2400, 1600));
         assert_eq!(parse_size("800X600").unwrap(), (800, 600));
         // Missing separator, zero dimension, non-numeric are errors.
-        assert!(parse_size("1200").is_err());
-        assert!(parse_size("0x600").is_err());
-        assert!(parse_size("800x0").is_err());
-        assert!(parse_size("axb").is_err());
+        parse_size("1200").unwrap_err();
+        parse_size("0x600").unwrap_err();
+        parse_size("800x0").unwrap_err();
+        parse_size("axb").unwrap_err();
     }
 
     #[test]
@@ -1465,11 +1465,11 @@ mod tests {
         assert_eq!(parse_dpi(" 1 ").unwrap(), 1.0);
         // Zero, negative, non-finite, and non-numeric are all errors (mirrors
         // parse_size's non-zero guard).
-        assert!(parse_dpi("0").is_err());
-        assert!(parse_dpi("-1.5").is_err());
-        assert!(parse_dpi("inf").is_err());
-        assert!(parse_dpi("nan").is_err());
-        assert!(parse_dpi("x").is_err());
+        parse_dpi("0").unwrap_err();
+        parse_dpi("-1.5").unwrap_err();
+        parse_dpi("inf").unwrap_err();
+        parse_dpi("nan").unwrap_err();
+        parse_dpi("x").unwrap_err();
     }
 
     #[test]
@@ -1479,11 +1479,11 @@ mod tests {
         // Zero, negative, non-finite, and non-numeric are all errors (mirrors
         // parse_dpi's guard) — a NaN factor would otherwise poison every
         // zoom-derived metric downstream.
-        assert!(parse_zoom("0").is_err());
-        assert!(parse_zoom("-1").is_err());
-        assert!(parse_zoom("inf").is_err());
-        assert!(parse_zoom("nan").is_err());
-        assert!(parse_zoom("x").is_err());
+        parse_zoom("0").unwrap_err();
+        parse_zoom("-1").unwrap_err();
+        parse_zoom("inf").unwrap_err();
+        parse_zoom("nan").unwrap_err();
+        parse_zoom("x").unwrap_err();
     }
 
     #[test]
@@ -1520,16 +1520,16 @@ mod tests {
         assert_eq!(parse_measure("80").unwrap(), 80);
         assert_eq!(parse_measure(" 40 ").unwrap(), 40);
         // Zero and non-numeric are errors (mirrors parse_size's non-zero guard).
-        assert!(parse_measure("0").is_err());
-        assert!(parse_measure("-1").is_err());
-        assert!(parse_measure("x").is_err());
+        parse_measure("0").unwrap_err();
+        parse_measure("-1").unwrap_err();
+        parse_measure("x").unwrap_err();
     }
 
     #[test]
     fn single_capture_mode_rejects_conflicts() {
         // Zero or one capture-mode flag is fine.
-        assert!(ensure_single_capture_mode(&[]).is_ok());
-        assert!(ensure_single_capture_mode(&["--screenshot"]).is_ok());
+        ensure_single_capture_mode(&[]).unwrap();
+        ensure_single_capture_mode(&["--screenshot"]).unwrap();
         // Two distinct modes — or the same flag twice — is a conflict.
         assert!(ensure_single_capture_mode(&["--screenshot", "--capture-held"]).is_err());
         assert!(ensure_single_capture_mode(&["--screenshot", "--screenshot"]).is_err());

@@ -21,7 +21,7 @@
 //! bytes; multibyte UTF-8 inside a string/comment rides inside the span. Pure +
 //! single-pass. See the tests below for the exact contract on a sample snippet.
 
-use super::SynKind;
+use super::{SynKind, is_ident_continue, is_ident_start};
 use std::ops::Range;
 
 /// Value-side bare words that are CONSTANT literals (booleans + the special
@@ -43,7 +43,6 @@ enum Bracket {
     Table,
 }
 
-use super::{is_ident_continue, is_ident_start};
 /// A character allowed in a TOML bare key (`A-Z a-z 0-9 _ -`).
 fn is_bare_key(c: u8) -> bool {
     c == b'_' || c == b'-' || c.is_ascii_alphanumeric()
@@ -69,7 +68,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
             i += 1;
             continue;
         }
-        if c == b' ' || c == b'\t' || c == b'\r' {
+        if c.is_ascii_whitespace() {
             i += 1;
             continue;
         }
@@ -89,34 +88,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 // A line-leading `[name]` / `[[name]]` table header (only at the
                 // top level — never inside an inline table).
                 if stack.is_empty() && c == b'[' {
-                    i += 1; // past `[`
-                    let double = i < n && b[i] == b'[';
-                    if double {
-                        i += 1;
-                    }
-                    while i < n && b[i] != b']' && b[i] != b'\n' {
-                        let d = b[i];
-                        if d == b'"' || d == b'\'' {
-                            let end = scan_string(b, i);
-                            out.push((i..end, SynKind::Definition));
-                            i = end;
-                        } else if is_bare_key(d) {
-                            let s = i;
-                            while i < n && is_bare_key(b[i]) {
-                                i += 1;
-                            }
-                            out.push((s..i, SynKind::Definition));
-                        } else {
-                            // dots, whitespace inside the header
-                            i += 1;
-                        }
-                    }
-                    if i < n && b[i] == b']' {
-                        i += 1;
-                    }
-                    if double && i < n && b[i] == b']' {
-                        i += 1;
-                    }
+                    i = scan_table_header(b, i, &mut out);
                     continue;
                 }
 
@@ -168,24 +140,21 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                     i += 1;
                     continue;
                 }
-                if c == b']' {
-                    if stack.last() == Some(&Bracket::Array) {
-                        stack.pop();
-                    }
-                    i += 1;
-                    continue;
-                }
                 if c == b'{' {
                     stack.push(Bracket::Table);
                     mode = Mode::Key;
                     i += 1;
                     continue;
                 }
-                if c == b'}' {
-                    if stack.last() == Some(&Bracket::Table) {
+                if c == b']' || c == b'}' {
+                    let closing = if c == b']' {
+                        Bracket::Array
+                    } else {
+                        Bracket::Table
+                    };
+                    if stack.last() == Some(&closing) {
                         stack.pop();
                     }
-                    mode = Mode::Value;
                     i += 1;
                     continue;
                 }
@@ -214,12 +183,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
                 // Bare value words: only the booleans / special floats are styled.
                 if is_ident_start(c) {
                     let start = i;
-                    i += 1;
-                    while i < n && is_ident_continue(b[i]) {
-                        i += 1;
-                    }
-                    let word = &text[start..i];
-                    if CONST_WORDS.contains(&word) {
+                    if scan_value_word(text, b, &mut i) {
                         out.push((start..i, SynKind::Constant));
                     }
                     continue;
@@ -231,6 +195,39 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
     }
 
     out
+}
+
+fn scan_table_header(b: &[u8], mut i: usize, out: &mut Vec<(Range<usize>, SynKind)>) -> usize {
+    i += 1; // past `[`
+    let double = i < b.len() && b[i] == b'[';
+    i += double as usize;
+    while i < b.len() && b[i] != b']' && b[i] != b'\n' {
+        let c = b[i];
+        if c == b'"' || c == b'\'' {
+            let end = scan_string(b, i);
+            out.push((i..end, SynKind::Definition));
+            i = end;
+        } else if is_bare_key(c) {
+            let start = i;
+            while i < b.len() && is_bare_key(b[i]) {
+                i += 1;
+            }
+            out.push((start..i, SynKind::Definition));
+        } else {
+            i += 1;
+        }
+    }
+    i += (i < b.len() && b[i] == b']') as usize;
+    i += (double && i < b.len() && b[i] == b']') as usize;
+    i
+}
+fn scan_value_word(text: &str, b: &[u8], i: &mut usize) -> bool {
+    let start = *i;
+    *i += 1;
+    while *i < b.len() && is_ident_continue(b[*i]) {
+        *i += 1;
+    }
+    CONST_WORDS.contains(&&text[start..*i])
 }
 
 /// Scan a string literal whose opening quote is at `i` — basic (`"`) or literal

@@ -77,6 +77,13 @@ jobs:
       - name: cargo test
         run: cargo test
 
+      # A push is the combined-main train. Pull requests/worktree landings keep
+      # the fast dev-only loop; once the train is assembled, compare one real
+      # headless replay per ActionFamily across debug and release sidecars.
+      - name: Debug/release sidecar parity
+        if: github.event_name == 'push'
+        run: scripts/release-profile-gate.sh
+
   web:
     name: web (wasm build + smoke)
     runs-on: ubuntu-latest

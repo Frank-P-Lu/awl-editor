@@ -221,60 +221,13 @@ impl Config {
         if let Some(s) = table.get("dictionary").and_then(|v| v.as_str()) {
             cfg.dictionary = Some(s.to_string());
         }
-        if let Some(b) = table.get("writing_nits").and_then(|v| v.as_bool()) {
-            cfg.writing_nits = Some(b);
-        }
-        if let Some(b) = table.get("spellcheck").and_then(|v| v.as_bool()) {
-            cfg.spellcheck = Some(b);
-        }
-        if let Some(b) = table.get("history").and_then(|v| v.as_bool()) {
-            cfg.history = Some(b);
-        }
-        if let Some(b) = table.get("autosave").and_then(|v| v.as_bool()) {
-            cfg.autosave = Some(b);
-        }
-        if let Some(b) = table.get("popover").and_then(|v| v.as_bool()) {
-            cfg.popover = Some(b);
-        }
-        if let Some(b) = table.get("wysiwyg").and_then(|v| v.as_bool()) {
-            cfg.wysiwyg = Some(b);
-        }
-        if let Some(b) = table.get("inline_images").and_then(|v| v.as_bool()) {
-            cfg.inline_images = Some(b);
-        }
-        if let Some(b) = table.get("code_ligatures").and_then(|v| v.as_bool()) {
-            cfg.code_ligatures = Some(b);
-        }
+        apply_boolean_settings(&mut cfg, &table);
         if let Some(arr) = table.get("cjk_priority").and_then(|v| v.as_array()) {
             let langs: Vec<crate::frontmatter::Lang> = arr
                 .iter()
                 .filter_map(|v| v.as_str().and_then(crate::frontmatter::Lang::parse))
                 .collect();
             cfg.cjk_priority = Some(langs);
-        }
-        if let Some(b) = table.get("session_restore").and_then(|v| v.as_bool()) {
-            cfg.session_restore = Some(b);
-        }
-        if let Some(b) = table.get("outline").and_then(|v| v.as_bool()) {
-            cfg.outline = Some(b);
-        }
-        if let Some(b) = table.get("menu_bar").and_then(|v| v.as_bool()) {
-            cfg.menu_bar = Some(b);
-        }
-        if let Some(b) = table.get("typewriter_scroll").and_then(|v| v.as_bool()) {
-            cfg.typewriter_scroll = Some(b);
-        }
-        if let Some(b) = table.get("stats").and_then(|v| v.as_bool()) {
-            cfg.stats = Some(b);
-        }
-        if let Some(b) = table.get("file_visibility").and_then(|v| v.as_bool()) {
-            cfg.file_visibility = Some(b);
-        }
-        if let Some(b) = table.get("reduce_motion").and_then(|v| v.as_bool()) {
-            cfg.reduce_motion = Some(b);
-        }
-        if let Some(b) = table.get("ambient_motion").and_then(|v| v.as_bool()) {
-            cfg.ambient_motion = Some(b);
         }
         if let Some(s) = table.get("keymap").and_then(|v| v.as_str()) {
             cfg.keymap = Some(s.to_string());
@@ -306,6 +259,26 @@ impl Config {
         }
         cfg
     }
+}
+
+fn apply_boolean_settings(cfg: &mut Config, table: &toml::Table) {
+    let value = |key| table.get(key).and_then(toml::Value::as_bool);
+    cfg.writing_nits = value("writing_nits");
+    cfg.spellcheck = value("spellcheck");
+    cfg.history = value("history");
+    cfg.autosave = value("autosave");
+    cfg.popover = value("popover");
+    cfg.wysiwyg = value("wysiwyg");
+    cfg.inline_images = value("inline_images");
+    cfg.code_ligatures = value("code_ligatures");
+    cfg.session_restore = value("session_restore");
+    cfg.outline = value("outline");
+    cfg.menu_bar = value("menu_bar");
+    cfg.typewriter_scroll = value("typewriter_scroll");
+    cfg.stats = value("stats");
+    cfg.file_visibility = value("file_visibility");
+    cfg.reduce_motion = value("reduce_motion");
+    cfg.ambient_motion = value("ambient_motion");
 }
 
 pub fn caret_mode_name(m: crate::caret::CaretMode) -> &'static str {
