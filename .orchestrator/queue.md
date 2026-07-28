@@ -50,6 +50,8 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 - 133 Paperbark five-treatment trial — 🔴 BLOCKED: real-app captures
   require a WGPU adapter, and the current headless host reports none before
   frame one; no trial/shipping mutation landed.
+- 120 Lava 8-vs-12 A/B trial — 🟡 IN PROGRESS, `item_120_lava_trial`
+  (codex), branch `codex/item-120-lava-twelve-trial`.
 
 ## Ready — current user-visible wave
 
