@@ -1,10 +1,10 @@
 # THEMES.md — the contract for a "world"
 
 This is a chapter of `PHILOSOPHY.md`, alongside `SCOPE.md` and `DESIGN.md`. Where
-`DESIGN.md` §4 introduces the two-ladder token system in the abstract, this doc is
+`DESIGN.md` §3 introduces the shared type and ink roles in the abstract; this doc is
 the **contract a concrete world must satisfy** — what a world *is*, every law a
 world is measured against, which test enforces each law, and the process for
-adding one. Themes are **data through one renderer** (`PHILOSOPHY.md` §4's
+adding one. Themes are **data through one renderer** (`PHILOSOPHY.md` §6's
 engineering principle applied to color): a world that needs its own code path is a
 world the design got wrong.
 
@@ -24,13 +24,11 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   Refined), Voice (Literary/Technical/Modern), Temperature (Warm/Cool/Neutral).
   Every world must carry a valid tag on every lens, and every lens section must
   have at least one world under it (`every_world_tagged_on_every_lens`).
-- **One warm element**: the caret (`primary`). `DESIGN.md` §3's law applies to
-  every world with exactly ONE logged exception — amber (or whatever hue a
-  world's `primary` is) is the caret's *alone*. A world's syntax roles, washes,
-  and selection tint are all held to the **amber guard** (§4 below) so no world
-  can accidentally spend its one accent on something that isn't the caret.
-  **Wagtail is the named exception** (`DESIGN.md` §3's settled 2026-07-11
-  amendment): it keeps NO warm element at all — its caret's identity rides on
+- **A clear point of presence**: the caret (`primary`). In the current roster,
+  amber (or whatever hue a world's `primary` is) normally belongs to the caret.
+  Syntax roles, washes, and selection are held to the **primary guard** (§4
+  below) so they do not accidentally compete with it. **Wagtail** keeps no warm
+  element at all — its caret's identity rides on
   value + motion alone, not hue. See §3's "The monochrome law" below.
   Wagtail was REWORKED again in 2026-07 from greyscale (any grey permitted)
   into a **true 1-bit world** ("only black or white, no gray") — see "The
@@ -41,7 +39,7 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   `every_world_has_a_real_margin_gradient`). The sixteenth ground is **`Lava`** —
   awl's first TIME-VARYING background, a slow metaball "lava lamp" in the margins
   (Firetail warm, Mangrove cool) — see §3's "The `Background::Lava` law" and
-  DESIGN.md §3's ambient-motion amendment. Item 69 (2026-07) added two more
+  `DESIGN.md` §4's ambient-motion rule. Item 69 (2026-07) added two more
   reusable static grounds authored as three-tone FIELDS, not whisper-marks: **`Bands`**
   (three broad tone-on-tone diagonal bands spanning the whole margin — Gumtree's
   ORIGINAL cut-paper grass, since retired — see below) and **`Waves`** (three
@@ -82,11 +80,11 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   Generalized to a per-script `FontId` ladder (ja/zh-Hans/zh-Hant/ko) by the
   i18n round — see §3's "Per-script font resolution" below.
 
-New worlds are **curated, not generated**: `PHILOSOPHY.md` §2 sets the target at
-"roughly a dozen to sixteen," each earning its slot with a distinct mood. The
+New worlds are **curated, not generated**: `PHILOSOPHY.md` §2 sets a deliberate
+twenty-world target, with each world earning its slot through a distinct mood. The
 fifteenth world, **Wagtail**, is exactly that kind of deliberate addition — awl's
 first true MONOCHROME world (zero saturation everywhere, the caret included),
-and a named, logged exception to `DESIGN.md` §3's "one warm thing" law rather
+and a deliberate rejection of the roster's usual warm-caret treatment rather
 than a swatch-grid filler. See §3's "The monochrome law" and §4's "RoleOverrides,
 first use" below. **2026-07: reworked from greyscale to true 1-bit** — "only
 black or white, no gray" (anti-aliased glyph/quad edges excepted) — see §3's
@@ -95,15 +93,15 @@ black or white, no gray" (anti-aliased glyph/quad edges excepted) — see §3's
 The sixteenth world, **Firetail**, is the OTHER kind of statement world — the
 MIRROR of Wagtail. Where Wagtail keeps NO warm thing, Firetail's one warm living
 thing is the **ground itself**: a slow oxblood/wine lava-lamp drifting in the page
-margins (`Background::Lava`), a named exception to `DESIGN.md` §3's "the caret is
-the only thing that breathes." Its room is an original deep oxblood-charcoal
+margins (`Background::Lava`), an expression of `DESIGN.md` §4's environmental
+motion rule. Its room is an original deep oxblood-charcoal
 den: warm blush ink, muted claret chrome, wine lava, and one ember-gold caret.
 It is measurably redder/warmer than Bombora and substantially less orange/rust
 than Potoroo; numeric whole-palette distance keeps it distinct from every world.
 **Mangrove** folds the COOL second lava ground (a dithered deep-sea lamp),
 deepening its existing tidal-teal identity. Both are law-tested by §3's "The
-`Background::Lava` law". This reaches PHILOSOPHY.md §2's upper "sixteen" — future
-worlds displace, not just append.
+`Background::Lava` law". This reached the roster's former upper bound of sixteen;
+the later twenty-world decision supersedes that limit.
 
 The seventeenth world, **Brolga**, is not a statement world but a deliberate
 ROSTER REPAIR: the **cool light pole**. The DAWN round (2026-07-18) retuned
@@ -114,7 +112,7 @@ cool sky after rain — a pale periwinkle sky-blue ground under a deep cool
 slate-navy ink, drawn in the clean cool sans IBM Plex Sans (the light value-pole
 twin of dark Bowerbird's navy, and a SANS where Gumtree is a serif, so it never
 reads as Gumtree's sibling — the exact near-pair trap the dawn round fixed). Its
-one warm living thing (DESIGN §3) is the brolga crane's red crown, a warm
+warm point of presence is the brolga crane's red crown, a warm
 coral-vermilion caret. Its ground sits ≥35.7 redmean from every surviving light
 ground (min vs Galah), well past the dawn round's ~18.8 pale-band ceiling — its
 own point in the crowded pale band. It carries only the light-world card border
@@ -125,7 +123,7 @@ is enrolled in every sweep the moment it joins `THEMES`.
 
 The eighteenth world, **Cassowary**, is the dark-technical statement — a NERV
 operations terminal (an Evangelion wink): green phosphor data on near-black
-GLASS, red held back for the alert channel alone. Its one accent (DESIGN §3) is
+GLASS, red held back for the alert channel alone. Its principal interactive ink is
 NOT amber — it is the terminal's own phosphor GREEN, and it introduces the
 **ink-caret** pattern (`Theme::ink_caret`, `primary == base_content`): the caret
 is the ink's own colour, so it carries no separate accent HUE. It draws as the
@@ -206,7 +204,7 @@ shape of fix as law (h), aimed at the other end of the same interpolation.
 
 ## 3. The laws, and what enforces them
 
-### Ink ladder (`DESIGN.md` §4 — `base_content` → `muted` → `faint`)
+### Ink ladder (`DESIGN.md` §3 — `base_content` → `muted` → `faint`)
 
 All enforced by `render::tests::syntax_roles::ink_ladder_and_selection_laws_hold_for_every_world`:
 
@@ -551,14 +549,10 @@ A lava world's margin ground is awl's first TIME-VARYING background: ONE slow
 viewport-space 2D metaball "lava lamp" (`Background::Lava { ground, blob_lo,
 blob_hi, edge, dithered }`, `src/lava.rs` + `shaders/lava.wgsl`) behind the page,
 revealed only by the page-mode margins. Page-width changes alter only the
-occluding mask, never the lamp's centers or radii. This is a **named, narrow
-exception** to DESIGN.md §3's "the caret is the only thing that breathes" (see
-that section's ambient-motion amendment) —
-the SECOND deliberate §3 exception, and the exact MIRROR of the first: Wagtail
-is the world with no warm living thing; a lava world is the world whose one warm
-living thing is the GROUND itself. Because it is a genuine second moving thing,
-the exception is fenced by **measurable laws**, exactly like the monochrome and
-1-bit laws fence Wagtail's:
+occluding mask, never the lamp's centers or radii. It follows `DESIGN.md` §4:
+environmental motion may carry a world's character without delaying input.
+Because it is a genuine moving ground, it is fenced by **measurable laws**,
+exactly like the monochrome and 1-bit laws fence Wagtail's:
 
 - **Figure/ground, at the WORST animation phase (the value-band law).** The lava
   lives ONLY in the margins — the writing column is untouched, flat `base_100`,
@@ -575,8 +569,8 @@ the exception is fenced by **measurable laws**, exactly like the monochrome and
   color arithmetic), never over sidecar state — the Wagtail-invisible-picker-row
   lesson: appearance is proven over the bytes. Test:
   `theme::tests::lava_worlds_keep_figure_ground_at_the_worst_animation_phase`.
-- **Amber-hue-clear (the one-accent guard).** The blobs are ambient GROUND
-  motion, but the CARET's amber must remain the one accent (DESIGN §3), so any
+- **Primary-hue-clear (the presence guard).** The blobs are ambient GROUND
+  motion, but must not compete with the caret's principal ink, so any
   blob tone with real chroma (HSL saturation > 0.15) sits ≥30° of hue from
   `primary`. Firetail's wine blobs (~342°) clear its ember-gold caret (~41°) by
   ~59°; Mangrove's cool-blue blobs (~204°) clear its amber (~30°) by ~175°. Test:
