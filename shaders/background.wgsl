@@ -35,8 +35,9 @@ struct Globals {
     // stripe angle.
     dir: vec2<f32>,
     // Procedural margin ground: 0=plain gradient, 1=dots, 2=starfield,
-    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag. Matches
-    // `Background::shader_id` in src/theme/model.rs.
+    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag, 8=organic.
+    // 9 is the isolated, disposable Paperbark A–E trial and is never returned
+    // by `Background::shader_id` or enrolled in the shipping world roster.
     shader: u32,
     // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
@@ -380,6 +381,103 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     return mix(with_island, g.c_from.rgb, hole * mass * 0.65);
 }
 
+// 9: DISPOSABLE PAPERBARK MATERIAL STUDY. `params.x` selects exactly one of
+// five fully-static treatments. All five consume the same three provisional
+// material tones and the same page-column mask; no clock, texture, asset, or
+// world identity enters this shader. This whole branch is deleted after the
+// user's A–E choice rather than becoming five permanent backgrounds.
+fn paperbark_broad_sheets(px: vec2<f32>) -> vec3<f32> {
+    let warp = sin(px.x * 0.0053) * 19.0 + sin(px.x * 0.017 + 1.7) * 6.0;
+    let q = (px.y + warp) / 190.0;
+    let lane = fract(q);
+    let body = smoothstep(0.035, 0.14, lane) * (1.0 - smoothstep(0.72, 0.97, lane));
+    let lift = 1.0 - smoothstep(0.018, 0.085, lane);
+    let alternating = mix(0.45, 0.72, hash21(vec2<f32>(floor(q), 3.0)));
+    let sheet = mix(g.c_from.rgb, g.c_to.rgb, body * alternating);
+    return mix(sheet, g.c_pat.rgb, lift * 0.22);
+}
+
+fn paperbark_deckled_strata(px: vec2<f32>) -> vec3<f32> {
+    var distance = g.col_left - px.x;
+    if (px.x > g.col_left + g.col_w) {
+        distance = px.x - (g.col_left + g.col_w);
+    }
+    let torn = sin(px.y * 0.017) * 13.0 + sin(px.y * 0.053 + distance * 0.011) * 4.5;
+    let q = max(distance + torn, 0.0) / 94.0;
+    let lane = fract(q);
+    let layer = floor(q);
+    let value = mix(0.22, 0.70, hash21(vec2<f32>(layer, 11.0)));
+    let edge = 1.0 - smoothstep(0.015, 0.075, min(lane, 1.0 - lane));
+    let strata = mix(g.c_from.rgb, g.c_to.rgb, value);
+    return mix(strata, g.c_pat.rgb, edge * 0.20);
+}
+
+fn paperbark_loose_fibres(px: vec2<f32>) -> vec3<f32> {
+    let row = floor(px.y / 88.0);
+    let seed = hash21(vec2<f32>(row, 23.0));
+    let center = (row + 0.18 + seed * 0.64) * 88.0;
+    let fibre_y = center + sin(px.x * 0.006 + seed * 6.28318) * (9.0 + seed * 16.0);
+    let long_fibre = (1.0 - smoothstep(0.7, 2.2, abs(px.y - fibre_y))) * step(0.34, seed);
+
+    let diagonal_coord = px.y + px.x * 0.24;
+    let vein_row = floor(diagonal_coord / 146.0);
+    let vein_seed = hash21(vec2<f32>(vein_row, 47.0));
+    let vein_center = (vein_row + 0.28 + vein_seed * 0.44) * 146.0;
+    let vein = (1.0 - smoothstep(0.5, 1.45, abs(diagonal_coord - vein_center)))
+        * step(0.64, vein_seed);
+
+    let paper = mix(g.c_from.rgb, g.c_to.rgb, 0.10);
+    let translucent = mix(paper, g.c_to.rgb, long_fibre * 0.38);
+    return mix(translucent, g.c_pat.rgb, vein * 0.26);
+}
+
+fn paperbark_relief_print(px: vec2<f32>) -> vec3<f32> {
+    let cell_size = vec2<f32>(230.0, 176.0);
+    let cell = floor(px / cell_size);
+    let stagger = vec2<f32>(select(0.0, 0.47, i32(cell.y) % 2 == 1), 0.0);
+    let local = fract(px / cell_size + stagger) - vec2<f32>(0.5);
+    let jitter = vec2<f32>(
+        hash21(cell + vec2<f32>(3.0, 7.0)),
+        hash21(cell + vec2<f32>(13.0, 2.0)),
+    ) - vec2<f32>(0.5);
+    let p = local - jitter * 0.11;
+    let block_distance = max(abs(p.x) * 0.78, abs(p.y));
+    let block = 1.0 - smoothstep(0.31, 0.38, block_distance);
+    let grain = hash21(floor(px / 6.0) + cell * 5.0);
+    let dry = mix(0.48, 1.0, step(0.22, grain));
+    let print = block * dry;
+    let edge = smoothstep(0.28, 0.33, block_distance)
+        * (1.0 - smoothstep(0.37, 0.42, block_distance));
+    let ink = mix(g.c_from.rgb, g.c_to.rgb, print * 0.78);
+    return mix(ink, g.c_pat.rgb, edge * 0.16);
+}
+
+fn paperbark_peeling_curls(px: vec2<f32>) -> vec3<f32> {
+    let cell_size = vec2<f32>(310.0, 184.0);
+    let cell = floor(px / cell_size);
+    let local = fract(px / cell_size) - vec2<f32>(0.5);
+    let seed = hash21(cell + vec2<f32>(29.0, 5.0));
+    let x = local.x + (seed - 0.5) * 0.14;
+    let arch = -0.17 * (1.0 - clamp((x / 0.40) * (x / 0.40), 0.0, 1.0));
+    let curve = arch + sin(x * 8.0 + seed * 2.2) * 0.035 + (seed - 0.5) * 0.20;
+    let bounded = 1.0 - smoothstep(0.37, 0.44, abs(x));
+    let ribbon = (1.0 - smoothstep(0.016, 0.034, abs(local.y - curve))) * bounded;
+    let shadow = (1.0 - smoothstep(0.022, 0.052, abs(local.y - curve - 0.050))) * bounded;
+    let tip_center = vec2<f32>(select(-0.39, 0.39, seed > 0.5), curve);
+    let tip = 1.0 - smoothstep(0.025, 0.060, length(local - tip_center));
+    let paper = mix(g.c_from.rgb, g.c_to.rgb, ribbon * 0.72 + tip * 0.48);
+    return mix(paper, g.c_pat.rgb, shadow * (1.0 - ribbon) * 0.20);
+}
+
+fn paperbark_rgb(px: vec2<f32>) -> vec3<f32> {
+    let profile = u32(round(clamp(g.params.x, 0.0, 4.0)));
+    if (profile == 0u) { return paperbark_broad_sheets(px); }
+    if (profile == 1u) { return paperbark_deckled_strata(px); }
+    if (profile == 2u) { return paperbark_loose_fibres(px); }
+    if (profile == 3u) { return paperbark_relief_print(px); }
+    return paperbark_peeling_curls(px);
+}
+
 // ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a
@@ -508,6 +606,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         return vec4<f32>(waves_rgb(in.px), 1.0);
     }
     if (g.shader == 8u) { return vec4<f32>(organic_rgb(in.px), 1.0); }
+    if (g.shader == 9u) { return vec4<f32>(paperbark_rgb(in.px), 1.0); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;

@@ -2299,7 +2299,7 @@ fn background_desc() -> BgDesc {
     // The lava gallery override supplies its real flat ground; otherwise this is
     // the authored background verbatim, keeping ordinary captures byte-identical.
     let bg = crate::lava::env_override().unwrap_or_else(theme::background);
-    BgDesc {
+    crate::paperbark_trial::background_desc_or(BgDesc {
         from: bg.from().rgba_bytes(),
         to: bg.to().rgba_bytes(),
         dir: bg.dir(),
@@ -2311,7 +2311,7 @@ fn background_desc() -> BgDesc {
         amplitude_px: bg.amplitude_px(),
         density: bg.density(),
         banded: bg.zigzag_banded(),
-    }
+    })
 }
 
 /// The visual-line motion LAYOUT ORACLE, implemented on the GPU pipeline because

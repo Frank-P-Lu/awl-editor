@@ -122,6 +122,9 @@ mod openable;
 mod outline;
 mod overlay;
 mod page;
+// Disposable item-133 review machinery. An inert no-op unless the dedicated
+// AWL_PAPERBARK_TRIAL environment knob is present; never part of the world roster.
+mod paperbark_trial;
 #[cfg(not(target_arch = "wasm32"))]
 mod paste_image;
 mod peek;

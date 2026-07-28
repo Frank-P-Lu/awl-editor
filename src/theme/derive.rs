@@ -7,7 +7,7 @@ use super::worlds::{DEFAULT_THEME, THEMES};
 static ACTIVE: AtomicUsize = AtomicUsize::new(DEFAULT_THEME);
 
 pub fn active() -> Theme {
-    THEMES[ACTIVE.load(Ordering::Relaxed) % THEMES.len()]
+    crate::paperbark_trial::theme_or(THEMES[ACTIVE.load(Ordering::Relaxed) % THEMES.len()])
 }
 
 pub fn active_index() -> usize {

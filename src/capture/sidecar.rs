@@ -805,14 +805,14 @@ fn caret_block(caret: Option<&CaretFrame>) -> (String, String) {
     }
 }
 
+#[rustfmt::skip]
 fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
+    if let Some(json) = crate::paperbark_trial::background_json() { return json; }
+
     use crate::theme::Background;
     match bg {
-        Background::Gradient { .. }
-        | Background::Dots { .. }
-        | Background::Starfield { .. }
-        | Background::Pinstripe { .. }
-        | Background::Stripes { .. } => simple_background_json(bg),
+        Background::Gradient { .. } | Background::Dots { .. } | Background::Starfield { .. }
+        | Background::Pinstripe { .. } | Background::Stripes { .. } => simple_background_json(bg),
         _ => rich_background_json(bg, lava_phase),
     }
 }
