@@ -100,7 +100,7 @@ const EXPECTED: &[(&str, usize)] = &[
     ("render.rs", 2),
     // `read_forced_knob`'s unrecognized-value warning (moved here with the
     // `AWL_*_FORCE` knobs it serves).
-    ("render/overrides.rs", 1),
+    ("render/overrides/parsers.rs", 1),
     ("render/framebench.rs", 39),
     ("render/perfbench.rs", 8),
     ("render/caretbench.rs", 6),

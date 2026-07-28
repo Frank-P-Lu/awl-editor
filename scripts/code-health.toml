@@ -805,8 +805,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
-file = "src/syntax/mod.rs"
-line = 794
+file = "src/syntax/tests.rs"
+line = 146
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
