@@ -7,6 +7,8 @@ enum PreApply {
     Return(bool),
 }
 
+type SpellTarget = (Vec<String>, (usize, usize, usize), String);
+
 struct CoreRun {
     effect: actions::Effect,
     theme_overlay_before: bool,
@@ -35,7 +37,7 @@ impl CoreBefore {
 }
 
 struct OverlayInputs {
-    spell_target: Option<(Vec<String>, (usize, usize, usize), String)>,
+    spell_target: Option<SpellTarget>,
     history_entries: Vec<crate::history::TimelineRow>,
     assets: Vec<crate::assets::Orphan>,
     has_waiter: bool,
@@ -394,7 +396,7 @@ impl App {
         // and the palette `RunAction` re-dispatch); `apply` is the ONE seam all three
         // doors funnel through, so none needs a parallel recording path.
         #[cfg(not(target_arch = "wasm32"))]
-        self.ledger_note_dispatch(&action, door);
+        self.ledger_note_dispatch(action, door);
         #[cfg(target_arch = "wasm32")]
         let _ = door;
         // macOS: About opens the NATIVE standard About panel (the platform
@@ -436,7 +438,7 @@ impl App {
         // PgDn/PgUp page the BUFFER via the GPU-measured viewport — but ONLY when no
         // overlay is open. While a picker is summoned they PAGE its selection instead,
         // so fall through to `apply_core`'s shared overlay intercept in that case.
-        if let Some(handled) = self.page_scroll_intercept(&action) {
+        if let Some(handled) = self.page_scroll_intercept(action) {
             return PreApply::Return(handled);
         }
 
@@ -708,7 +710,7 @@ impl App {
             browse_to: &mut browse_to,
             oracle,
         };
-        let effect = actions::apply_core(&mut ctx, &action, shift);
+        let effect = actions::apply_core(&mut ctx, action, shift);
         self.active.extra.shift_selecting = shift_selecting;
         let zoom_changed = self.zoom != zoom;
         self.zoom = zoom;
