@@ -128,10 +128,6 @@ pub enum ListStyle {
 }
 
 impl ListStyle {
-    pub fn backs_rows_with_pane(self) -> bool {
-        matches!(self, ListStyle::Pane)
-    }
-
     pub fn list_backing(self, _spell: bool) -> ListBacking {
         match self {
             ListStyle::Pane => ListBacking::Card,

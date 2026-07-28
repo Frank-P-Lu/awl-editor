@@ -103,15 +103,6 @@ impl App {
         self.stats_last_cursor = None;
     }
 
-    /// The live odometer snapshot the HUD DISPLAY phase reads (the store + this
-    /// accessor is all the next phase needs). Kept beside the tracking hooks so the
-    /// HUD never reaches into a private field.
-    #[cfg(not(target_arch = "wasm32"))]
-    #[allow(dead_code)]
-    pub(super) fn stats_report(&self) -> &crate::stats::Stats {
-        &self.stats
-    }
-
     /// Push the LIFETIME-ODOMETER snapshot into the pipeline for the held HUD's
     /// odometer rows (characters / writing time / files touched / caret travel /
     /// most-lived-in world). Called every `sync_view` — the field is cheap to hold

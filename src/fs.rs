@@ -916,6 +916,62 @@ impl Drop for CwdGuard {
 #[cfg(test)]
 mod serialization_law;
 
+/// A backend where every write fails and every read reports "not found" — the
+/// fake for proving a save path SURFACES an error rather than losing the edit
+/// silently. Shared, because two suites need the same failing disk and a
+/// second copy would let them drift into testing different failures.
+#[cfg(test)]
+pub(crate) struct UnwritableFs;
+
+#[cfg(test)]
+impl FileSystem for UnwritableFs {
+    fn read_to_string(&self, _path: &std::path::Path) -> std::io::Result<String> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "unwritable fake",
+        ))
+    }
+    fn read(&self, _path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "unwritable fake",
+        ))
+    }
+    fn write(&self, _path: &std::path::Path, _data: &[u8]) -> std::io::Result<()> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "folder unwritable",
+        ))
+    }
+    fn create_dir_all(&self, _path: &std::path::Path) -> std::io::Result<()> {
+        Ok(()) // "creating" the dir succeeds; the WRITE into it is what fails
+    }
+    fn rename(&self, _from: &std::path::Path, _to: &std::path::Path) -> std::io::Result<()> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "folder unwritable",
+        ))
+    }
+    fn exists(&self, _path: &std::path::Path) -> bool {
+        false
+    }
+    fn is_dir(&self, _path: &std::path::Path) -> bool {
+        false
+    }
+    fn read_dir(&self, _path: &std::path::Path) -> std::io::Result<Vec<crate::fs::DirEntry>> {
+        Ok(vec![])
+    }
+    fn metadata(&self, _path: &std::path::Path) -> std::io::Result<crate::fs::Metadata> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "unwritable fake",
+        ))
+    }
+    fn remove_file(&self, _path: &std::path::Path) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

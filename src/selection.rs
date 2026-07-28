@@ -347,12 +347,6 @@ impl SelectionPipeline {
 
     /// The current DITHER CELL edge (`1.0` = the fine per-pixel stipple). A
     /// cheap headless assertion hook, mirroring [`Self::dither`] (used by the
-    /// render tests; no non-test caller in the shipping binary).
-    #[allow(dead_code)]
-    pub fn dither_cell(&self) -> f32 {
-        self.dither_cell
-    }
-
     /// Override the rounded-rect corner radius (px) the NEXT `prepare` call
     /// uploads into `Globals::corner`. Meaningless (never called) on the
     /// ORDINARY fill pipeline (its `CORNER_RADIUS` is fixed at construction
@@ -393,12 +387,6 @@ impl SelectionPipeline {
 
     /// The current CHAMFER depth (`0.0` = the rounded-rect silhouette). A
     /// cheap headless assertion hook mirroring [`Self::stroke`] (used by the
-    /// render tests; no non-test caller in the shipping binary).
-    #[allow(dead_code)]
-    pub fn chamfer(&self) -> f32 {
-        self.chamfer
-    }
-
     /// Set the HALFTONE dot texture (item 70) the NEXT `prepare` uploads into
     /// `Globals::halftone`/`halftone_angle`/`halftone_cell`/`dot_color`.
     /// `density <= 0.0` disables the texture entirely (`Globals::halftone`
@@ -417,12 +405,6 @@ impl SelectionPipeline {
 
     /// The current HALFTONE density ceiling (`0.0` = off). A cheap headless
     /// assertion hook mirroring [`Self::dither`] (used by the render tests;
-    /// no non-test caller in the shipping binary).
-    #[allow(dead_code)]
-    pub fn halftone(&self) -> f32 {
-        self.halftone
-    }
-
     /// How many quad instances the last `prepare` uploaded (0 = nothing drawn). A cheap
     /// headless assertion hook for "is this summoned rect present this frame?" (used by
     /// the render tests; no non-test caller in the shipping binary).

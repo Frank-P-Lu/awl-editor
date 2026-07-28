@@ -641,11 +641,6 @@ impl Buffer {
         self.folds = crate::fold::collapse_others(&levels, line);
     }
 
-    #[allow(dead_code)] // used by the render increment + palette "Unfold all"
-    pub fn unfold_all(&mut self) {
-        self.folds.clear();
-    }
-
     /// THE ONE REVEALED CARET/SELECTION PLACEMENT OWNER. Every gesture that PLACES
     /// the caret or a selection directly — action motion, single / shift / double /
     /// triple click and drag endpoints, search next/previous, heading & line jumps,

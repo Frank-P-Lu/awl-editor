@@ -861,13 +861,7 @@ impl App {
             && ov.selected_history_id().is_some()
             && matches!(action, Action::PageScrollDown | Action::PageScrollUp)
         {
-            let visible = if let Some(gpu) = self.gpu.as_ref() {
-                let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
-                render::visible_lines_z(gpu.config.height as f32, line_height)
-            } else {
-                1
-            };
-            let page = visible.saturating_sub(2).max(1);
+            let page = self.page_scroll_rows();
             let ov = self.overlay.as_mut().unwrap();
             ov.diff_scroll = match action {
                 Action::PageScrollDown => ov.diff_scroll.saturating_add(page),

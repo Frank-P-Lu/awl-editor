@@ -254,15 +254,26 @@ impl App {
         self.range_drag.is_some()
     }
 
-    pub(in crate::app) fn scroll_page(&mut self, dir: isize) -> bool {
-        let cursor_before = self.active.buffer.cursor_line_col();
+    /// The ONE owner of "how many rows is one page". Both the document pager and
+    /// the History diff's `PageScrollDown`/`PageScrollUp` step by this, and they
+    /// must agree: a reader paging a diff and a writer paging a document are doing
+    /// the same gesture and a drift between them is felt, not merely untidy. The
+    /// two-row overlap is what makes paging readable — the line you were reading
+    /// is still on screen after the jump. Without a GPU there is no viewport to
+    /// measure, so one row is the only honest answer.
+    pub(in crate::app) fn page_scroll_rows(&self) -> usize {
         let visible = if let Some(gpu) = self.gpu.as_ref() {
             let line_height = render::LINE_HEIGHT * self.zoom * self.dpi;
             render::visible_lines_z(gpu.config.height as f32, line_height)
         } else {
             1
         };
-        let target_rows = visible.saturating_sub(2).max(1);
+        visible.saturating_sub(2).max(1)
+    }
+
+    pub(in crate::app) fn scroll_page(&mut self, dir: isize) -> bool {
+        let cursor_before = self.active.buffer.cursor_line_col();
+        let target_rows = self.page_scroll_rows();
         let start_row = match self.gpu.as_ref() {
             Some(gpu) => {
                 let (l, c) = self.active.buffer.cursor_line_col();

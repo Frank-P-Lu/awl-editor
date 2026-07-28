@@ -422,3 +422,57 @@ fn retired_item_76_needles() -> Vec<String> {
         ["notes", "_", "root"].concat(), // the retired quick-notes-home config key
     ]
 }
+
+/// One page is one rule. The document pager and the History diff's
+/// `PageScrollDown`/`PageScrollUp` both step by `App::page_scroll_rows`; a
+/// second hand-written copy would let a reader paging a diff and a writer
+/// paging a document drift apart by a row.
+///
+/// This COUNTS rather than merely finding the owner. CLAUDE.md's tripwire is
+/// that a needle-locating audit stays green forever while a copy survives
+/// beside it — the copy this law replaced lived happily next to its twin. The
+/// needle is assembled at runtime so this file's own text cannot match it.
+#[test]
+fn the_page_scroll_row_rule_has_exactly_one_owner() {
+    let needle = ["saturating", "_", "sub(2).max(1)"].concat();
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut hits: Vec<String> = Vec::new();
+    fn walk(base: &std::path::Path, dir: &std::path::Path, needle: &str, out: &mut Vec<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        let mut entries: Vec<_> = entries.flatten().collect();
+        entries.sort_by_key(|e| e.path());
+        for entry in entries {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(base, &path, needle, out);
+                continue;
+            }
+            if path.extension().and_then(|e| e.to_str()) != Some("rs") {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let rel = path
+                .strip_prefix(base)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            for (n, line) in text.lines().enumerate() {
+                if line.contains(needle) {
+                    out.push(format!("{rel}:{}", n + 1));
+                }
+            }
+        }
+    }
+    walk(&root, &root, &needle, &mut hits);
+    assert_eq!(
+        hits.len(),
+        1,
+        "the one-page-of-rows rule must live in exactly one place \
+         (`App::page_scroll_rows`); found {} sites: {hits:?}",
+        hits.len()
+    );
+}

@@ -777,55 +777,7 @@ fn convert_scratch_and_save_unwritable_active_folder_raises_a_calm_notice_never_
     // error, …) must surface as the SAME calm notice a failed manual save
     // gets — never a terminal print, never a crash, and the scratch stash
     // is left untouched (nothing succeeded to retire it over).
-    struct UnwritableFs;
-    impl crate::fs::FileSystem for UnwritableFs {
-        fn read_to_string(&self, _p: &std::path::Path) -> std::io::Result<String> {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "unwritable fake",
-            ))
-        }
-        fn read(&self, _p: &std::path::Path) -> std::io::Result<Vec<u8>> {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "unwritable fake",
-            ))
-        }
-        fn write(&self, _p: &std::path::Path, _d: &[u8]) -> std::io::Result<()> {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "folder unwritable",
-            ))
-        }
-        fn create_dir_all(&self, _p: &std::path::Path) -> std::io::Result<()> {
-            Ok(())
-        }
-        fn rename(&self, _f: &std::path::Path, _t: &std::path::Path) -> std::io::Result<()> {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "folder unwritable",
-            ))
-        }
-        fn exists(&self, _p: &std::path::Path) -> bool {
-            false
-        }
-        fn is_dir(&self, _p: &std::path::Path) -> bool {
-            false
-        }
-        fn read_dir(&self, _p: &std::path::Path) -> std::io::Result<Vec<crate::fs::DirEntry>> {
-            Ok(vec![])
-        }
-        fn metadata(&self, _p: &std::path::Path) -> std::io::Result<crate::fs::Metadata> {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "unwritable fake",
-            ))
-        }
-        fn remove_file(&self, _p: &std::path::Path) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-    let _g = crate::fs::FsGuard::install(Arc::new(UnwritableFs));
+    let _g = crate::fs::FsGuard::install(Arc::new(crate::fs::UnwritableFs));
     let mut app = app_on(None, "/proj", Config::empty());
     app.active.buffer.set_text("won't land\n");
 
