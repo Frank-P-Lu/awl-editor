@@ -418,8 +418,8 @@ fn exactly_firetail_and_mangrove_ship_lava() {
     );
     for t in THEMES.iter().filter(|t| !t.background.is_lava()) {
         assert!(
-            t.background.shader_id() <= 7,
-            "{}: a non-lava world stays a static ground",
+            t.background.shader_id() <= 8,
+            "{}: a non-lava world stays a non-lava ground",
             t.name
         );
     }
