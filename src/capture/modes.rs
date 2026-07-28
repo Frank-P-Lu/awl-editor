@@ -225,13 +225,7 @@ pub(super) fn settled_viewstate(
     // Spell-check the buffer text for the headless capture too, so `--screenshot`
     // renders the squiggles. Deterministic (fixed text -> fixed spans). If the
     // bundled dictionary fails to parse, report it and render without squiggles.
-    let misspelled = match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
-        Ok(sc) => sc.misspellings_for(&buffer.text(), buffer.syntax_lang()),
-        Err(e) => {
-            eprintln!("spell-check disabled for capture: {e}");
-            Vec::new()
-        }
-    };
+    let misspelled = capture_misspellings(buffer);
 
     // --- Search panel (deterministic headless isearch) -------------------
     // Compute matches against the loaded buffer, pick current = first match at
@@ -559,13 +553,20 @@ pub(super) fn settled_viewstate(
             // SCROLL toggle on, the caret row is CENTERED, otherwise it's the
             // minimal-adjust — so a `--keys` capture with typewriter on verifies the
             // centered scroll deterministically.
-            if !crate::typewriter::typewriter_on() {
-                settled_scroll(pipeline, sc_line, sc_col, height as f32)
-            } else {
-                // Typewriter scroll CENTERS the cursor row (the pin), clamped so the
-                // document tail can't be pulled past its bottom.
-                let cursor_row = pipeline.visual_row_of(sc_line, sc_col);
-                pipeline.scroll_to_center_row_pos(cursor_row, height as f32)
+            match crate::view_policy::follow_scroll_strategy(
+                crate::typewriter::typewriter_on(),
+                false,
+            ) {
+                crate::view_policy::FollowScroll::ShowRow => {
+                    settled_scroll(pipeline, sc_line, sc_col, height as f32)
+                }
+                crate::view_policy::FollowScroll::CenterRow => {
+                    let cursor_row = pipeline.visual_row_of(sc_line, sc_col);
+                    pipeline.scroll_to_center_row_pos(cursor_row, height as f32)
+                }
+                crate::view_policy::FollowScroll::Deferred => unreachable!(
+                    "a bare capture has no primary-button drag; it still shares the policy"
+                ),
             }
         }
     };
@@ -574,4 +575,22 @@ pub(super) fn settled_viewstate(
     vstate.scroll = settled_scroll;
     pipeline.set_view(&vstate);
     vstate
+}
+
+/// Compute capture spell verdicts through the shared version trigger. Capture has
+/// no persistent cache, so every new bare pipeline starts at the same `None` state
+/// a newly activated live buffer does; checker construction remains capture-local.
+pub(super) fn capture_misspellings(buffer: &Buffer) -> Vec<crate::spell::Misspelling> {
+    let checked_version = None;
+    if crate::view_policy::spell_recompute_needed(checked_version, buffer.version()) {
+        match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
+            Ok(sc) => sc.misspellings_for(&buffer.text(), buffer.syntax_lang()),
+            Err(e) => {
+                eprintln!("spell-check disabled for capture: {e}");
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    }
 }

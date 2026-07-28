@@ -29,7 +29,10 @@ impl App {
         // this one call, a verdict this rescan is ABOUT to replace can never be
         // read as still describing the new text.
         if self.spell.is_some()
-            && self.active.extra.spell_checked_version != Some(self.active.buffer.version())
+            && crate::view_policy::spell_recompute_needed(
+                self.active.extra.spell_checked_version,
+                self.active.buffer.version(),
+            )
         {
             self.recompute_spell_cache();
         }
@@ -369,18 +372,18 @@ impl App {
             // Affinity resolves shared boundaries to the caret's visual row.
             let cursor_row =
                 pipeline.visual_row_of_aff(cursor_line, cursor_col, self.active.buffer.affinity());
-            self.active.extra.scroll =
-                match follow_scroll_strategy(crate::typewriter::typewriter_on(), self.dragging) {
-                    FollowScroll::ShowRow => pipeline.scroll_to_show_row_pos(
-                        cursor_row,
-                        self.active.extra.scroll,
-                        height,
-                    ),
-                    FollowScroll::CenterRow => {
-                        pipeline.scroll_to_center_row_pos(cursor_row, height)
-                    }
-                    FollowScroll::Deferred => self.active.extra.scroll,
-                };
+            self.active.extra.scroll = match crate::view_policy::follow_scroll_strategy(
+                crate::typewriter::typewriter_on(),
+                self.dragging,
+            ) {
+                crate::view_policy::FollowScroll::ShowRow => {
+                    pipeline.scroll_to_show_row_pos(cursor_row, self.active.extra.scroll, height)
+                }
+                crate::view_policy::FollowScroll::CenterRow => {
+                    pipeline.scroll_to_center_row_pos(cursor_row, height)
+                }
+                crate::view_policy::FollowScroll::Deferred => self.active.extra.scroll,
+            };
         }
         let max = self.gpu.as_ref().unwrap().pipeline.max_scroll_rows(height);
         match diff_scroll {
@@ -581,68 +584,5 @@ impl App {
             winit::dpi::PhysicalPosition::new(x as f64, y as f64),
             winit::dpi::PhysicalSize::new(w.max(1.0) as f64, h.max(1.0) as f64),
         );
-    }
-}
-
-/// Which vertical-scroll strategy `sync_view`'s cursor-follow applies — a PURE
-/// function of typewriter scroll + whether a primary-button press is currently
-/// live, extracted so the DEFERRAL DECISION is unit-testable without a GPU pipeline.
-///
-/// The sticky TYPEWRITER SCROLL toggle (`crate::typewriter`) asks for the CENTERED
-/// pin (the caret row rests at the eye line). When it is off, the minimal-adjust
-/// cursor-follow (`ShowRow`) is kept EXACTLY, so a default (typewriter off) launch
-/// is byte-identical.
-///
-/// The bug the `Deferred` arm exists to prevent: the typewriter recenter used to
-/// fire on EVERY `sync_view` — including the one a mouse PRESS triggers (hit-test
-/// -> place cursor -> sync). Recentering moves the document under a pointer that
-/// hasn't moved, so the very next `CursorMoved` is read as a big relative drag ->
-/// phantom selection -> recenters again: a runaway feedback loop ("scroll really
-/// quickly"). The fix keeps the auto-jump (it's the point of typewriter scroll) but
-/// never lets it move the view while a press is down; the deferred recenter applies
-/// on release, since `MouseInput::Released` already calls `sync_view(true)` after
-/// `dragging` flips back to `false`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum FollowScroll {
-    ShowRow,
-    CenterRow,
-    /// Centering would apply, but a primary-button press is live right now: defer
-    /// it — leave the scroll exactly where it is. The view must never move under a
-    /// stationary pointer.
-    Deferred,
-}
-
-pub(super) fn follow_scroll_strategy(typewriter: bool, dragging: bool) -> FollowScroll {
-    if !typewriter {
-        FollowScroll::ShowRow
-    } else if dragging {
-        FollowScroll::Deferred
-    } else {
-        FollowScroll::CenterRow
-    }
-}
-
-#[cfg(test)]
-mod follow_scroll_tests {
-    use super::*;
-
-    #[test]
-    fn typewriter_off_always_shows_row_regardless_of_dragging() {
-        assert_eq!(follow_scroll_strategy(false, false), FollowScroll::ShowRow);
-        assert_eq!(follow_scroll_strategy(false, true), FollowScroll::ShowRow);
-    }
-
-    #[test]
-    fn typewriter_on_centers_when_no_press_is_live() {
-        assert_eq!(follow_scroll_strategy(true, false), FollowScroll::CenterRow);
-    }
-
-    #[test]
-    fn centering_defers_the_recenter_while_a_press_is_live() {
-        // THE REGRESSION THIS GUARDS: a mouse press must never move the view
-        // underneath the stationary pointer. While `dragging` is true, centering
-        // must defer rather than recenter — the caller then leaves `scroll_lines`
-        // untouched (see `sync_view`'s `Deferred` arm).
-        assert_eq!(follow_scroll_strategy(true, true), FollowScroll::Deferred);
     }
 }
