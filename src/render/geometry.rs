@@ -1461,6 +1461,13 @@ impl TextPipeline {
     /// and the fallback keeps today's behavior rather than inventing a position.
     fn cluster_col(run: &glyphon::cosmic_text::LayoutRun, raw: usize, target_x: f32) -> usize {
         let line_text = run.text;
+        // An all-ASCII row (most rows, in most documents) has no multi-char
+        // cluster to resolve — a CR-LF pair cannot occur, since the rope is pure
+        // `\n` and a run's text excludes it. Answered without allocating, because
+        // this runs on every pointer MOVE (hover and drag), not only on a press.
+        if line_text.is_ascii() {
+            return raw;
+        }
         let chars: Vec<char> = line_text.chars().collect();
         let len = chars.len();
         let at = |i: usize| chars[i];
