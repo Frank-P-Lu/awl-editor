@@ -201,7 +201,8 @@ fn gumtree_visibility_floor(field: &[i32]) -> i32 {
 fn gumtree_zigzag_is_visibly_present_across_dashboard_geometries() {
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
-            "skipping gumtree_zigzag_is_visibly_present_across_dashboard_geometries: no wgpu adapter"
+            "skipping gumtree_zigzag_is_visibly_present_across_dashboard_geometries: \
+             no wgpu adapter"
         );
         return;
     };
