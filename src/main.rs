@@ -170,6 +170,7 @@ mod themeswitch;
 mod toggle;
 mod typewriter;
 mod updates;
+mod view_policy;
 mod web_export;
 mod webreserved;
 mod whichkey;
