@@ -35,7 +35,7 @@
 
 use super::super::*;
 use super::pixeldiff::{self, DistinguishFloor, Region};
-use super::view;
+use super::{headless_dqp, view};
 
 /// MEASURED redmean RGB distance — a small, deliberate duplication of
 /// `syntax_roles.rs`'s own copy (the same accepted shape as
@@ -85,30 +85,6 @@ fn average_color(pixels: &[[u8; 4]], width: i64, height: i64, region: Region) ->
     }
     assert!(n > 0, "average_color: empty region {region:?}");
     theme::Srgb::rgb((sum[0] / n) as u8, (sum[1] / n) as u8, (sum[2] / n) as u8)
-}
-
-/// A `(Device, Queue, TextPipeline)` triple, or `None` on a GPU-less
-/// machine — mirrors `one_bit.rs`'s own `headless_dqp` (the small, accepted
-/// per-file duplication this codebase already carries for GPU test setup).
-fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl distinguishability-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(w, h);
-        Some((device, queue, p))
-    })
 }
 
 /// The full roster of genuinely stateful render surfaces this law sweeps.

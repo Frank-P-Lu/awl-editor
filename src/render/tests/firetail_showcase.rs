@@ -19,31 +19,7 @@
 //!    it budgets against).
 
 use super::super::*;
-use super::{headless_pipeline, view};
-
-/// A `(Device, Queue, TextPipeline)` triple, or `None` on a GPU-less machine —
-/// the small, accepted per-file duplication every GPU test file carries
-/// (mirrors `overlay_personality.rs`'s own `headless_dqp`).
-fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl firetail-showcase-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(w, h);
-        Some((device, queue, p))
-    })
-}
+use super::{headless_dqp, headless_pipeline, view};
 
 // --- dial 1: the placard dial-up grammar (pure) -----------------------------
 

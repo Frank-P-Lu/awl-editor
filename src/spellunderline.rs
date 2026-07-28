@@ -366,22 +366,7 @@ mod tests {
     /// pipeline that actually crashed; until now only the color helper was tested.
     #[test]
     fn grow_sizes_buffer_to_capacity_not_contents() {
-        let dq = pollster::block_on(async {
-            let instance =
-                wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions::default())
-                .await
-                .ok()?;
-            adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: Some("awl spell-underline grow-test device"),
-                    ..Default::default()
-                })
-                .await
-                .ok()
-        });
-        let Some((device, queue)) = dq else {
+        let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
             return; // no GPU adapter available — skip
         };
         let mut pipe = SpellUnderlinePipeline::new(

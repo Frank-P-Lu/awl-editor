@@ -15,25 +15,7 @@ use super::{headless_dqp, headless_pipeline, pixeldiff, view};
 /// overlay to prove the geometry actually differs.
 #[test]
 fn spell_panel_floats_at_the_word_not_center_screen() {
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl spell-panel test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping spell_panel_floats_at_the_word_not_center_screen: no wgpu adapter");
         return;
     };
@@ -1149,25 +1131,7 @@ fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
 fn overlay_lens_at_resolves_facet_labels_by_their_own_strip_index() {
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping overlay_lens_at_resolves_facet_labels_by_their_own_strip_index: no wgpu adapter"
         );
@@ -1279,25 +1243,7 @@ fn overlay_right_column_yields_before_names_elide() {
     // globals — hold both test locks (theme → page order, page.rs:95-99).
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(464.0, 600.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(464.0, 600.0) else {
         eprintln!("skipping overlay_right_column_yields_before_names_elide: no wgpu adapter");
         return;
     };
@@ -1631,23 +1577,6 @@ fn keycap_glyphs_are_symbols_and_bundled() {
 
 const MENUBAR_TEST_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
-fn menubar_test_headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl menubar-sliver-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()
-    })
-}
-
 fn menubar_test_offscreen(
     device: &wgpu::Device,
     width: u32,
@@ -1751,7 +1680,7 @@ fn menubar_test_read_pixels(
 /// never DISCRIMINATE this bug by color alone.
 #[test]
 fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
-    let Some((device, queue)) = menubar_test_headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath: no wgpu adapter"
         );
@@ -1799,7 +1728,7 @@ fn menu_bar_row_zero_is_pure_ground_never_a_blend_with_content_underneath() {
 /// covering the fix's OTHER two bled edges.
 #[test]
 fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
-    let Some((device, queue)) = menubar_test_headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height: no wgpu adapter"
         );
@@ -1851,7 +1780,7 @@ fn menu_bar_left_and_right_columns_are_pure_ground_across_the_bar_height() {
 /// a THIRD non-pure value at row 0 either — the one-bit law holds regardless.
 #[test]
 fn menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world() {
-    let Some((device, queue)) = menubar_test_headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping menu_bar_row_zero_stays_pure_black_or_white_on_a_one_bit_world: no wgpu adapter"
         );

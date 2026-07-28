@@ -257,21 +257,7 @@ mod tests {
     /// A real headless device+queue, or `None` on a GPU-less machine (skip).
     #[cfg(not(target_arch = "wasm32"))]
     fn try_device() -> Option<(wgpu::Device, wgpu::Queue)> {
-        pollster::block_on(async {
-            let instance =
-                wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions::default())
-                .await
-                .ok()?;
-            adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: Some("awl image-cache test device"),
-                    ..Default::default()
-                })
-                .await
-                .ok()
-        })
+        crate::test_gpu::shared_device_queue()
     }
 
     /// The pure upload-size math: downscale to the display width, never upscale

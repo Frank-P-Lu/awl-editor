@@ -146,6 +146,11 @@ mod soak_gpu;
 mod spell;
 mod spellunderline;
 mod storyboard;
+// THE shared process-wide headless GPU device+queue for tests (see the module
+// doc) — cuts the per-test `request_adapter`/`request_device` stand-up that
+// dominated the render test suite's wall clock.
+#[cfg(test)]
+mod test_gpu;
 // TWINKLING STARS — the ambient star-field ground (margins-only, individually
 // phased twinkle riding the lava's own ~10 fps ambient clock). Currawong's
 // differentiator; every other world's `AmbientStyle::None` is a total no-op.

@@ -10,8 +10,8 @@
 //! world is the byte-identity control.
 
 use super::super::*;
-use super::dither::{FMT, offscreen, read_pixels};
-use super::view;
+use super::dither::{offscreen, read_pixels};
+use super::{headless_dqp, view};
 
 // --- the AWL_PAGE_FRAME_FORCE grammar (pure) — the probe that survives the
 // --- AWL_PAGE_BORDER graduation, reshaped to force the CAPABILITY only.
@@ -74,30 +74,6 @@ fn page_frame_vertical_bounds_cover_short_tall_scrolled_and_menu_bar_cases() {
         );
     }
     assert_ne!(16.0 + 32.0, 359.0, "sanity: old one-line bottom must fail");
-}
-
-/// A `(Device, Queue, TextPipeline)` triple, or `None` on a GPU-less machine
-/// — the same accepted per-file duplication every real-pixel test module
-/// carries (see `distinguishability.rs`'s own doc note).
-fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl page-frame-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(w, h);
-        Some((device, queue, p))
-    })
 }
 
 /// THE ASSIGNED HALF, over real GPU output: Wagtail's 2px frame draws PURE

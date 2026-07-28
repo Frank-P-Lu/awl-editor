@@ -43,6 +43,18 @@ mas = ["objc2-foundation/NSArray", "objc2-foundation/NSData"]
 [profile.dev]
 debug = "line-tables-only"
 
+# Dependencies are optimized even in dev/test; awl itself is not. naga's
+# WGSL->Metal shader translation runs on every `TextPipeline::new`, and at
+# -O0 that cost 432ms a call — the dominant per-test cost in the render suite.
+# MEASURED on this repo (2026-07-28): TextPipeline::new 432ms -> 77ms, full
+# `cargo test` 531s -> 182s (3093 passed / 0 failed / 11 ignored, unchanged).
+# awl's own crate stays unoptimized, so the incremental edit-rebuild loop stays
+# in the same range (~4s). The cost is a one-time dependency rebuild per target
+# dir — which every worktree pays separately, so a fleet of concurrent worktrees
+# feels it most; `sccache` as RUSTC_WRAPPER shares those artifacts if that bites.
+[profile.dev.package."*"]
+opt-level = 3
+
 # The health gate owns this deliberately small extension to Clippy's defaults.
 # These lints catch real mistakes here without prescribing a style or forcing
 # architecture-scale rewrites of existing dispatch and capture seams.

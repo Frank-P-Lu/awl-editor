@@ -25,25 +25,7 @@ fn table_allocation_holds_token_columns_rigid_across_widths() {
     let _g = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     crate::page::set_page_on(true);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl table-alloc test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping table_allocation_holds_token_columns_rigid_across_widths: no wgpu adapter"
         );
@@ -332,25 +314,7 @@ fn revealed_row_uploads_no_grid_cells_other_rows_still_draw() {
     crate::markdown::set_wysiwyg_on(true);
     crate::page::set_page_on(true);
     crate::page::set_measure(80);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl table-swap test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping revealed_row_uploads_no_grid_cells_other_rows_still_draw: no wgpu adapter"
         );
@@ -399,25 +363,7 @@ fn selected_table_rows_swap_to_raw_source_caret_never_touches_table() {
     crate::markdown::set_wysiwyg_on(true);
     crate::page::set_page_on(true);
     crate::page::set_measure(80);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl table-selection-swap test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping selected_table_rows_swap_to_raw_source_caret_never_touches_table: no wgpu adapter"
         );
@@ -495,25 +441,7 @@ fn clearing_selection_heals_table_back_to_a_plain_grid() {
     crate::markdown::set_wysiwyg_on(true);
     crate::page::set_page_on(true);
     crate::page::set_measure(80);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl table-selection-clear test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping clearing_selection_heals_table_back_to_a_plain_grid: no wgpu adapter");
         return;
     };
@@ -583,26 +511,7 @@ fn table_draw_and_reservation_stay_identical_across_a_width_only_frame() {
 
     let new_pipeline = |measure: usize| -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
         crate::page::set_measure(measure);
-        pollster::block_on(async {
-            let instance =
-                wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions::default())
-                .await
-                .ok()?;
-            let (device, queue) = adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: Some("awl table-one-owner test device"),
-                    ..Default::default()
-                })
-                .await
-                .ok()?;
-            let cache = Cache::new(&device);
-            let mut p =
-                TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-            p.set_size(1200.0, 800.0);
-            Some((device, queue, p))
-        })
+        headless_dqp(1200.0, 800.0)
     };
 
     // A phrase cell that fits on ONE line at a WIDE measure but is forced to
@@ -715,24 +624,7 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
     crate::page::set_page_on(true);
     crate::page::set_measure(crate::page::DEFAULT_MEASURE);
 
-    let Some((device, queue, mut p)) = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl table-resize test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(2400.0, 800.0);
-        Some((device, queue, p))
-    }) else {
+    let Some((device, queue, mut p)) = headless_dqp(2400.0, 800.0) else {
         eprintln!(
             "skipping table_grid_reclamps_to_the_column_on_a_real_window_resize: no wgpu adapter"
         );

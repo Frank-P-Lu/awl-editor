@@ -32,20 +32,7 @@ use crate::background::BgDesc;
 use crate::theme;
 
 pub(super) fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl item69-bg-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()
-    })
+    crate::test_gpu::shared_device_queue()
 }
 
 /// Flatten a world's [`theme::Background`] into a [`BgDesc`] the SAME way

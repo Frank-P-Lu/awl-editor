@@ -807,24 +807,7 @@ fn copy_pulse_settles_at_construction_then_kicks_and_decays_back() {
     // clock out settles it back to exactly 1.0 (byte-identical to the pre-kick
     // rendering) — the LIVE-ONLY animation's "decays to exactly the pre-copy
     // rendering" contract, exercised without a GPU present/draw.
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl copy-pulse test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        Some(p)
-    });
-    let Some(mut p) = got else {
+    let Some(mut p) = headless_pipeline() else {
         eprintln!(
             "skipping copy_pulse_settles_at_construction_then_kicks_and_decays_back: no wgpu adapter"
         );
