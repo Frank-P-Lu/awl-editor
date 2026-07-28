@@ -99,7 +99,7 @@ lines = 828
 
 [[file_size_mark]]
 file = "src/config/model.rs"
-lines = 396
+lines = 369
 
 [[file_size_mark]]
 file = "src/crashlog.rs"
@@ -379,7 +379,7 @@ lines = 644
 
 [[file_size_mark]]
 file = "src/syntax/toml.rs"
-lines = 518
+lines = 515
 
 [[file_size_mark]]
 file = "src/theme/derive.rs"
@@ -914,7 +914,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/keymap/tests.rs"
-line = 1514
+line = 1513
 message = "this function has too many lines (103/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
