@@ -12,8 +12,9 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 
 ### Active claims pending stale-line reconciliation
 
-- 155 `src/app.rs` — ✅ LANDED @ `9f34bbc2`; `src/render/rects.rs` —
-  🟡 IN PROGRESS, `item_155_layers` (codex), branch `codex/item-155-rects`.
+- 155 `src/app.rs` — ✅ `9f34bbc2`; `src/render/rects.rs` — ✅ `e363d948`;
+  `src/render/text.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex),
+  branch `codex/item-155-text`.
 - 107 enum-derived rosters — 🟡 IN PROGRESS, `item_107_rosters` (codex),
   branch `codex/item-107-derived-rosters`.
 - 109 icon-ratchet subset erosion — 🟡 IN PROGRESS, `item_109_icon_ratchet`
