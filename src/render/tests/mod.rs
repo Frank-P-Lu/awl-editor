@@ -40,6 +40,7 @@ mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
 mod images;
+mod layout_oracle;
 mod list_surfaces;
 mod markdown;
 mod markdown_headings;

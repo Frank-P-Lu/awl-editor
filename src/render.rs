@@ -58,6 +58,9 @@ mod geometry;
 use geometry::*;
 pub use geometry::{ImageHandle, ResizeEdge, hit_test, visible_lines_z};
 
+mod layout_report;
+pub(crate) use layout_report::LayoutReport;
+
 mod text;
 pub use text::ScriptFontReports;
 
@@ -1548,7 +1551,6 @@ fn lerp_srgb(a: theme::Srgb, b: theme::Srgb, t: f32) -> theme::Srgb {
 /// `Clone` so [`rowgeom::RowGeom`] can memoize the cursor line's rows across the
 /// ~4 per-frame caret-geometry reads (see the single-slot row memo there); a hit
 /// hands back a clone rather than re-walking every shaped run of the document.
-#[derive(Clone)]
 struct VisualRow {
     line_top: f32,
     /// This row's HEIGHT in px (cosmic-text `run.line_height`). Uniform for body
@@ -1558,6 +1560,28 @@ struct VisualRow {
     start_col: usize,
     end_col: usize,
     xs: Vec<f32>,
+}
+
+impl Clone for VisualRow {
+    fn clone(&self) -> Self {
+        #[cfg(test)]
+        rowgeom::note_visual_row_clone();
+        Self {
+            line_top: self.line_top,
+            line_height: self.line_height,
+            start_col: self.start_col,
+            end_col: self.end_col,
+            xs: self.xs.clone(),
+        }
+    }
+}
+
+/// One row in the exact shaped frame partition. Keeping the logical-line
+/// identity beside the row lets reports walk draw order without reconstructing
+/// a line-prefix table.
+struct FrameVisualRow {
+    logical_line: usize,
+    row: VisualRow,
 }
 
 fn byte_col(text: &str, byte: usize) -> usize {

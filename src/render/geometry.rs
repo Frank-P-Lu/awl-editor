@@ -1106,24 +1106,10 @@ impl TextPipeline {
             .get(line)
             .map(|l| l.text().to_string())
             .unwrap_or_default();
-        let mut rows: Vec<VisualRow> = Vec::new();
-        for run in self.buffer.layout_runs() {
-            if run.line_i != line {
-                // Runs arrive in document order (non-decreasing `line_i`), so once
-                // we pass the target line no later run can own it — stop instead of
-                // walking the rest of the document's runs. Byte-identical: only
-                // non-matching trailing runs are skipped (same as `cursor_glyph_key_at`).
-                if run.line_i > line {
-                    break;
-                }
-                continue;
-            }
-            rows.push(visual_row_from_run(
-                &line_text,
-                &run,
-                self.metrics.char_width,
-            ));
-        }
+        let mut rows = self
+            .row_geom
+            .rows_for_line(&self.buffer, &self.metrics, line)
+            .unwrap_or_default();
         if rows.is_empty() {
             // Empty / glyphless logical line: synthesize one row at the uniform
             // top so the caret / selection sliver still renders sanely. This is
@@ -1135,12 +1121,11 @@ impl TextPipeline {
         rows
     }
 
-    /// The [`VisualRow`]s of EVERY logical line in `lines`, built in ONE
-    /// `layout_runs()` walk — the batched twin of [`Self::visual_rows`] for the
+    /// The [`VisualRow`]s of EVERY logical line in `lines`, borrowed from the
+    /// full shaped-frame partition — the batched twin of [`Self::visual_rows`] for the
     /// spell-squiggle / nit-underline proto rebuilds, which need the rows of MANY
-    /// lines at once. Calling `visual_rows` per line re-walks every shaped run of
-    /// the document each time (O(lines × doc)); this walks the runs once and
-    /// assembles rows only for the requested lines (O(doc + requested rows)).
+    /// lines at once. The partition is assembled once per shaped generation;
+    /// this clones only the requested rows into the caller's map.
     ///
     /// Per line the rows are IDENTICAL to `visual_rows(line)` — the same
     /// [`visual_row_from_run`] assembly per shaped run, and the same synthetic
@@ -1151,35 +1136,9 @@ impl TextPipeline {
         &self,
         lines: &std::collections::BTreeSet<usize>,
     ) -> std::collections::HashMap<usize, Vec<VisualRow>> {
-        let mut out: std::collections::HashMap<usize, Vec<VisualRow>> =
-            std::collections::HashMap::with_capacity(lines.len());
-        let Some(&max_line) = lines.iter().next_back() else {
-            return out;
-        };
-        let mut cur: Option<(usize, String)> = None;
-        for run in self.buffer.layout_runs() {
-            if run.line_i > max_line {
-                break; // document order: nothing later can be a requested line
-            }
-            if !lines.contains(&run.line_i) {
-                continue;
-            }
-            if cur.as_ref().map(|(li, _)| *li) != Some(run.line_i) {
-                let text = self
-                    .buffer
-                    .lines
-                    .get(run.line_i)
-                    .map(|l| l.text().to_string())
-                    .unwrap_or_default();
-                cur = Some((run.line_i, text));
-            }
-            let line_text = &cur.as_ref().unwrap().1;
-            out.entry(run.line_i).or_default().push(visual_row_from_run(
-                line_text,
-                &run,
-                self.metrics.char_width,
-            ));
-        }
+        let mut out = self
+            .row_geom
+            .rows_for_lines(&self.buffer, &self.metrics, lines);
         for &line in lines {
             if out.contains_key(&line) {
                 continue;

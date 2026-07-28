@@ -269,6 +269,7 @@ fn assert_plain_schema(obj: &serde_json::Map<String, serde_json::Value>) {
         "peek",
         "cursor",
         "selection",
+        "layout",
         "search",
         "project",
         "overlay",

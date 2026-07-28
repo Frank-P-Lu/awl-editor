@@ -457,22 +457,27 @@ under `assets/fonts/` and registered into the glyphon `FontSystem` at startup),
 selected per-frame via `Family::Name(theme.font)`. Because every face is embedded,
 the shapes for a given theme are stable across platforms; only CJK/fallback glyphs
 a face lacks resolve to a system face and can vary by OS. The JSON sidecar is fully
-platform-independent (it contains no glyph bitmaps), so prefer the sidecar for
-cross-platform assertions.
+platform-independent for STATE. Its `layout` geometry is cross-platform-stable
+for bundled-face text, but correctly follows whichever system fallback shaped an
+unbundled glyph and can therefore vary by OS just as the corresponding PNG can.
+Do not use fallback-dependent `layout.xs` as a cross-platform golden.
 
-**The sidecar is a STATE oracle, not an APPEARANCE oracle.** It reports what
-the view state IS — `selected_index: 2`, `search.active: true`, an
-instance-count seam like `overlay_rows.instance_count() == 1` — never what a
-frame LOOKS like. The 2026-07 Wagtail invisible-picker-row bug is the
-concrete case: the sidecar truthfully reported the selected row's index every
-single time, and a mechanism-shaped test (`instance_count == 1`) passed every
-single time, while the row itself rendered as a fully-transparent
-`[0,0,0,0]`-alpha band — invisible on screen, six surfaces, three separate
-rounds, before anyone actually read a pixel back. Appearance-class properties
-("visible", "distinct", "legible", "the highlight moved") MUST be asserted
-over the PNG's PIXELS — arithmetic over the bytes (a redmean color distance,
-a differing-pixel fraction, a max-channel delta), never inferred from
-sidecar state. `render/tests/pixeldiff.rs`'s `assert_perceptibly_different`/
+**Three oracles, three claims.** The sidecar's ordinary fields are the STATE
+oracle: what the view state IS (`selected_index: 2`, `search.active: true`).
+Its `layout` block is the LAYOUT oracle: where the exact shaped frame placed
+visual rows, source columns, caret, and selection. It borrows the renderer's
+sealed row partition after frame preparation; it never reshapes text,
+reassembles advances, or estimates fixed-pitch positions. The PNG is the
+APPEARANCE oracle: what the frame LOOKS like.
+
+Do not promote a layout fact into an appearance claim. The 2026-07 Wagtail
+invisible-picker-row bug is the concrete case: state and geometry could both be
+perfect while the row rendered as a fully-transparent `[0,0,0,0]`-alpha band.
+The `layout` block cannot catch invisible pixels, low contrast, illegibility, or
+whether a highlight is perceptibly distinct. Those claims MUST be asserted over
+the PNG's PIXELS — arithmetic over the bytes (a redmean color distance, a
+differing-pixel fraction, a max-channel delta), never inferred from state or
+layout. `render/tests/pixeldiff.rs`'s `assert_perceptibly_different`/
 `assert_identical` are the in-process tool for this — see below.
 
 **A fourth live-only bug class: compositor interaction during window
@@ -503,7 +508,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/185` (`/186` timeline, `/187` held)
+## The sidecar JSON — schema `awl-capture/187` (`/188` timeline, `/189` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -527,6 +532,19 @@ popover's `S` button shares); the writer's-diff transcript serializes deletions
 as real `~~…~~` now (the combining-stroke `\u{0336}` mechanism is retired). The
 `popover.buttons` labels changed VALUE (not shape) to the self-demonstrating
 roster `B I A code S H link`.
+
+Schema `/187` adds the top-level **`layout`** block, the shaped-frame layout
+oracle: `{ rows, caret, selection }`. `rows` is every shaped visual row in
+document order. Each row is `{ index, content, line, start_col, end_col,
+xs, top, height }`: raw source content for that wrapped span; its source logical
+line and half-open character-column span; absolute physical-pixel x boundaries
+for `start_col..=end_col`; and the absolute row top and shaped height. `caret`
+is `null` or `{ row, line, col, x }`, using the caret's real wrap affinity.
+`selection` is a list of row-local `{ row, start_col, end_col, x0, x1,
+to_next_line }` segments. The pipeline seam returns no report before a frame is
+prepared; after preparation it borrows the renderer-owned sealed row partition
+in place. This is layout, not appearance: a perfectly reported row can still be
+transparent or illegible in the PNG.
 
 Schema `/169` (`/170` timeline, `/171` held) is the state after the rounds
 between `/99` and here. Blocks/fields added or changed since the `/99` About
@@ -1196,6 +1214,7 @@ world.)
 | `selection`    | the active selection region, or `null` when there is none |
 | `text`         | the complete buffer contents (JSON-escaped) |
 | `first_lines`  | the first up-to-12 logical lines, in order, for quick checks |
+| `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text) |
 | `project`      | active project (`--root`): `root`, `name`, `branch` (or null), `dirty`; `null` when no project |
 | `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`move`/`command`/`outline`/`spell`/`keybindings`/`history`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer, else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
@@ -1209,14 +1228,16 @@ For a sample `samples/NAME.md`:
 2. **Right content:** `line_count` equals the number of logical lines in the
    source, and `first_lines` matches the file's leading lines verbatim.
 3. **Cursor sane:** `cursor.line == 0 && cursor.col == 0` for a fresh load.
-4. **Right geometry:** with default zoom/DPI, `canvas` is 1200×800 and
-   `font.size == 24.0`; otherwise use the effective reported metric.
+4. **Right geometry:** inspect `layout.rows` directly for wraps, shaped advances,
+   row heights, and caret/selection placement. With default zoom/DPI, `canvas`
+   is 1200×800 and `font.size == 24.0`; otherwise use the effective reported
+   physical-pixel metrics.
 5. **Stable:** run the capture twice and diff the PNGs — identical bytes on the
    same machine. (Diff the JSON too; it must match exactly.)
 
-A pass on checks 1–4 from the sidecar alone is sufficient to confirm the render
-is wired correctly; the PNG is only needed when a human/agent wants to confirm
-the pixels look right.
+A pass on checks 1–4 confirms state and layout wiring. Any claim that pixels are
+visible, distinct, or legible still requires PNG pixel arithmetic (or human
+review for taste).
 
 ## Live menu-click smoke tier (macOS only, LOCAL runs — `scripts/smoke-menus.sh`)
 

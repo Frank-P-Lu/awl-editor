@@ -62,8 +62,7 @@ pub(super) fn write_sidecar(
     let json_path = out_png.with_extension("json");
 
     let text = &view.text;
-    let cursor_line = view.cursor_line;
-    let cursor_col = view.cursor_col;
+    let (cursor_line, cursor_col) = (view.cursor_line, view.cursor_col);
 
     let first_lines: Vec<String> = text.lines().take(12).map(|s| s.to_string()).collect();
     let first_lines_json = first_lines
@@ -93,7 +92,6 @@ pub(super) fn write_sidecar(
     let (schema, caret_extra) = caret_block(caret);
     debug_assert!(!schema.is_empty());
     let (font_zoom, font_size, line_height) = pipeline.effective_font_metrics();
-
     let json = super::scroll_sidecar::sidecar_format!(
         schema_json = json_string(&schema),
         caret_extra = caret_extra,
@@ -148,6 +146,7 @@ pub(super) fn write_sidecar(
         sel = selection_json(view),
         text_json = json_string(text),
         fl = first_lines_json,
+        layout = super::layout_sidecar::from_pipeline(pipeline)?,
         sq = json_string(&view.search_query),
         sa = view.search_active,
         scs = view.search_case_sensitive,
