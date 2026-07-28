@@ -846,6 +846,7 @@ fn the_mark_survives_at_app_switcher_size() {
 /// world that was never exported and run it through the SAME check the law
 /// runs, rather than a hand-reimplemented copy that could silently drift
 /// from what ships.
+#[derive(Clone)]
 struct Pair {
     a: &'static str,
     b: &'static str,
@@ -929,26 +930,12 @@ fn all_real_pairs() -> Vec<Pair> {
     pairs
 }
 
-/// Relative give on a blessed pair's erosion ratchet: enough to absorb a
-/// handful of antialiased pixels shifting when the offline exporter is
-/// re-run, far too little to absorb a pair actually moving closer together.
-const RATCHET_SLACK: f64 = 0.02;
-
-/// Item 102 round 3: the per-pair ratchet above has no memory across pairs —
-/// every blessed pair on an axis can erode together, each individually
-/// staying just under its own [`RATCHET_SLACK`], and `check_pair_axes` would
-/// report zero failures (found by round 2's own independent verification,
-/// reproduced by `coordinated_erosion_across_the_blessed_list_is_caught`).
-/// Independent antialiasing jitter on unrelated pairs points in unrelated
-/// directions, so averaged across an axis's whole blessed list it cancels
-/// toward zero; a SHARED-CAUSE shift (a gamma/hinting/antialiasing change in
-/// the exporter, applied once and re-run over the whole roster) moves every
-/// pair the same direction, so it does not cancel. Half of `RATCHET_SLACK`
-/// is tight enough to catch a coordinated shift while staying well clear of
-/// real per-pair jitter's mean (measured near zero on the shipped roster,
-/// see `small_sizes_keep_every_pair_of_worlds_apart`, which exercises this
-/// on all 27 real blessed entries every run).
-const SYSTEMIC_DRIFT_SLACK: f64 = RATCHET_SLACK / 2.0;
+/// Relative give on a blessed pair's erosion ratchet. Two independent runs of
+/// the pinned offline exporter produced byte-identical output for all 540
+/// generated tiles: the measured noise floor is zero pixels. The 0.05%
+/// allowance is honest headroom for the committed decimal precision while
+/// remaining tighter than a one-pixel erosion of a 32px tile.
+const RATCHET_SLACK: f64 = 0.0005;
 
 type Read = fn(&Pair) -> f64;
 
@@ -987,32 +974,32 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Currawong",
         b: "Cassowary",
-        baseline: 0.123047,
+        baseline: 0.130859375,
     },
     Blessed {
         a: "Bilby",
         b: "Galah",
-        baseline: 0.203125,
+        baseline: 0.19921875,
     },
     Blessed {
         a: "Mopoke",
         b: "Mulga",
-        baseline: 0.206055,
+        baseline: 0.2119140625,
     },
     Blessed {
         a: "Bilby",
         b: "Magpie",
-        baseline: 0.208008,
+        baseline: 0.2421875,
     },
     Blessed {
         a: "Saltpan",
         b: "Quokka",
-        baseline: 0.228516,
+        baseline: 0.2373046875,
     },
     Blessed {
         a: "Galah",
         b: "Magpie",
-        baseline: 0.232422,
+        baseline: 0.240234375,
     },
     // Item 110 aligned every face's rendered baseline; the intentional seat
     // change moved this cream-ground near-pair without changing palette or
@@ -1025,27 +1012,27 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Tawny",
         b: "Mulga",
-        baseline: 0.253906,
+        baseline: 0.2685546875,
     },
     Blessed {
         a: "Tawny",
         b: "Mopoke",
-        baseline: 0.268555,
+        baseline: 0.2822265625,
     },
     Blessed {
         a: "Tawny",
         b: "Bowerbird",
-        baseline: 0.272461,
+        baseline: 0.287109375,
     },
     Blessed {
         a: "Currawong",
         b: "Wagtail",
-        baseline: 0.279297,
+        baseline: 0.2958984375,
     },
     Blessed {
         a: "Wagtail",
         b: "Cassowary",
-        baseline: 0.283203,
+        baseline: 0.2978515625,
     },
 ];
 
@@ -1058,32 +1045,32 @@ const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Currawong",
         b: "Cassowary",
-        baseline: 19.52,
+        baseline: 20.7490234375,
     },
     Blessed {
         a: "Potoroo",
         b: "Firetail",
-        baseline: 32.25,
+        baseline: 32.8740234375,
     },
     Blessed {
         a: "Galah",
         b: "Brolga",
-        baseline: 54.86,
+        baseline: 55.6943359375,
     },
     Blessed {
         a: "Mopoke",
         b: "Mulga",
-        baseline: 55.84,
+        baseline: 57.2373046875,
     },
     Blessed {
         a: "Tawny",
         b: "Mangrove",
-        baseline: 56.46,
+        baseline: 57.84375,
     },
     Blessed {
         a: "Saltpan",
         b: "Galah",
-        baseline: 65.89,
+        baseline: 68.361328125,
     },
     // Item 110's vertical-seat correction moves Bilby's rendered ink while
     // preserving every palette and cursor assignment.
@@ -1100,12 +1087,12 @@ const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Bowerbird",
         b: "Mulga",
-        baseline: 67.55,
+        baseline: 67.619140625,
     },
     Blessed {
         a: "Tawny",
         b: "Firetail",
-        baseline: 68.89,
+        baseline: 69.74609375,
     },
 ];
 
@@ -1119,27 +1106,27 @@ const INK_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Potoroo",
         b: "Firetail",
-        baseline: 0.510121,
+        baseline: 0.5430711610486891,
     },
     Blessed {
         a: "Bilby",
         b: "Wagtail",
-        baseline: 0.688136,
+        baseline: 0.7222222222222222,
     },
     Blessed {
         a: "Magpie",
         b: "Wagtail",
-        baseline: 0.807947,
+        baseline: 0.8167202572347267,
     },
     Blessed {
         a: "Currawong",
         b: "Cassowary",
-        baseline: 0.857143,
+        baseline: 0.864_516_129_032_258,
     },
     Blessed {
         a: "Bowerbird",
         b: "Firetail",
-        baseline: 0.883895,
+        baseline: 0.8763250883392226,
     },
 ];
 
@@ -1350,17 +1337,14 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 ///     for one world at a time — this guard cannot make that discipline
 ///     optional, only tell a maintainer who skipped it.
 ///
-///     A DIFFERENT SHAPE OF SILENT FAILURE, ALSO CLOSED (item 102 round 3):
-///     the per-pair ratchet above has no memory ACROSS pairs — every one of
-///     an axis's blessed pairs can erode together, each individually staying
-///     under its own [`RATCHET_SLACK`], and the per-pair loop alone reports
-///     nothing (found by round 2's own independent verification). A
-///     SYSTEMIC-DRIFT check catches this: the MEAN erosion across an axis's
-///     blessed list is checked against [`SYSTEMIC_DRIFT_SLACK`] (half of
-///     `RATCHET_SLACK`) — independent per-pair jitter cancels toward zero
-///     when averaged, a shared-cause shift (the whole exporter re-rendering
-///     slightly differently) does not. See
-///     `coordinated_erosion_across_the_blessed_list_is_caught`. A SEPARATE
+///     A DIFFERENT SHAPE OF SILENT FAILURE, ALSO CLOSED: a mean over the
+///     entire blessed list diluted coordinated erosion of only a subset.
+///     The pinned exporter is deterministic — two independent canonical
+///     exports were byte-identical across all 540 tiles — so the ratchet is
+///     now pair-owned with 0.05% relative headroom. Every non-empty identity
+///     subset is swept by
+///     `every_nonempty_blessed_subset_at_1_9_percent_is_caught_by_pair_ratchets`;
+///     there is no aggregate denominator left to hide behind. A separate
 ///     check catches the list's other failure direction — a `Blessed` row
 ///     whose pair no longer exists (a world renamed) or has widened back out
 ///     of the zone, which would otherwise sit inert forever with nothing
@@ -1455,10 +1439,6 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
         // this function's caller for the two ways a fixed-rank design broke.
         let mut in_zone: Vec<&Pair> = pairs.iter().filter(|p| read(p) < danger).collect();
         in_zone.sort_by(|x, y| read(x).total_cmp(&read(y)));
-        // Erosion fraction of every matched blessed pair still in the zone —
-        // fed into the systemic-drift check below, once the per-pair loop is
-        // done. Positive == crowding (closer than baseline).
-        let mut erosions: Vec<f64> = Vec::new();
         for p in in_zone {
             let v = read(p);
             match blessed.iter().find(|b| b.matches(p)) {
@@ -1480,7 +1460,7 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
                     if v < ratchet {
                         failures.push(format!(
                             "{} vs {} were blessed on {name} at {} but now measure {} — \
-                             eroded past {:.0}% slack (ratchet {}). Either back it out, or \
+                             eroded past {:.2}% slack (ratchet {}). Either back it out, or \
                              re-bless with the new value in `axes()` and say why.",
                             p.a,
                             p.b,
@@ -1490,32 +1470,7 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
                             show(ratchet),
                         ));
                     }
-                    erosions.push((b.baseline - v) / b.baseline);
                 }
-            }
-        }
-
-        // SYSTEMIC DRIFT (item 102 round 3): no single pair breached its own
-        // ratchet, but if the whole blessed list moved the same direction at
-        // once, that is a shared-cause shift (see SYSTEMIC_DRIFT_SLACK's
-        // doc), not independent per-pair noise — and the per-pair loop above
-        // has no way to notice it, by construction.
-        if !erosions.is_empty() {
-            let mean_erosion = erosions.iter().sum::<f64>() / erosions.len() as f64;
-            if mean_erosion > SYSTEMIC_DRIFT_SLACK {
-                failures.push(format!(
-                    "{name}'s {} blessed pairs eroded together by a mean of {:.2}% — more \
-                     than half of {name}'s {:.0}% per-pair ratchet slack, even though no \
-                     single pair crossed its own ratchet. That shape is a coordinated shift \
-                     (every pair moving the same direction at once — a shared-cause \
-                     re-export, not independent antialiasing jitter on one pair), which the \
-                     per-pair ratchet alone cannot see. Either back out whatever changed the \
-                     exporter, or re-bless {name}'s whole list with today's measured values \
-                     and say why they moved together.",
-                    erosions.len(),
-                    mean_erosion * 100.0,
-                    RATCHET_SLACK * 100.0,
-                ));
             }
         }
 
@@ -1916,64 +1871,99 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
     }
 }
 
-/// NON-VACUITY (item 102 round 3 — closing the coordinated-erosion gap):
-/// EVERY blessed pair on EVERY axis erodes together, each individually
-/// staying just under its own [`RATCHET_SLACK`], and the failure list must
-/// still be non-empty. This reproduces round 2's own independent
-/// verification exactly, against the real shipped `all_real_pairs`,
-/// `DIFFERING_BLESSED`/`MEAN_BLESSED`/`INK_BLESSED`, and `check_pair_axes` —
-/// no reimplementation. Under the per-pair-only ratchet this passed in
-/// total silence: all 27 blessed axis-entries individually stayed above
-/// their own ratchet, so `check_pair_axes` returned zero failures despite a
-/// real, coordinated 1.9% narrowing of the entire blessed population.
+type Write = fn(&mut Pair, f64);
+
+fn erosion_axes() -> [(&'static str, &'static [Blessed], Write); 3] {
+    [
+        ("differing pixels", DIFFERING_BLESSED, |p, v| {
+            p.differing = v
+        }),
+        ("mean channel distance", MEAN_BLESSED, |p, v| p.mean = v),
+        ("differing INK pixels", INK_BLESSED, |p, v| p.ink = v),
+    ]
+}
+
+fn erode(pairs: &mut [Pair], blessed: &Blessed, write: Write, fraction: f64) {
+    let pair = pairs
+        .iter_mut()
+        .find(|p| blessed.matches(p))
+        .unwrap_or_else(|| {
+            panic!(
+                "{} vs {} is blessed but missing from the roster",
+                blessed.a, blessed.b
+            )
+        });
+    write(pair, blessed.baseline * (1.0 - fraction));
+}
+
+fn assert_pair_failed(failures: &[String], axis: &str, blessed: &Blessed) {
+    assert!(
+        failures.iter().any(|failure| {
+            failure.contains(axis)
+                && failure.contains(blessed.a)
+                && failure.contains(blessed.b)
+                && failure.contains("eroded past")
+        }),
+        "expected a pair-owned erosion failure for {} vs {} on {axis}; got:\n\n{}",
+        blessed.a,
+        blessed.b,
+        failures.join("\n\n")
+    );
+}
+
+/// Every non-empty identity subset of every blessed axis is guarded directly
+/// by the affected pairs. A mean over the whole list cannot prove this: the
+/// omitted members dilute a coordinated subset even though every changed pair
+/// moved by the same shared cause.
 #[test]
-fn coordinated_erosion_across_the_blessed_list_is_caught() {
+fn every_nonempty_blessed_subset_at_1_9_percent_is_caught_by_pair_ratchets() {
+    let _g = crate::testlock::serial();
+    let base = all_real_pairs();
+    for (axis, blessed, write) in erosion_axes() {
+        for mask in 1usize..(1usize << blessed.len()) {
+            let mut pairs = base.clone();
+            for (index, row) in blessed.iter().enumerate() {
+                if mask & (1 << index) != 0 {
+                    erode(&mut pairs, row, write, 0.019);
+                }
+            }
+            let failures = check_pair_axes(&pairs);
+            for (index, row) in blessed.iter().enumerate() {
+                if mask & (1 << index) != 0 {
+                    assert_pair_failed(&failures, axis, row);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn first_half_of_each_blessed_list_at_1_9_percent_fails() {
     let _g = crate::testlock::serial();
     let mut pairs = all_real_pairs();
-
-    // Just inside RATCHET_SLACK (2%): no single pair's own ratchet trips.
-    const COORDINATED_EROSION: f64 = 0.019;
-    for b in DIFFERING_BLESSED {
-        let p = pairs
-            .iter_mut()
-            .find(|p| b.matches(p))
-            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
-        p.differing = b.baseline * (1.0 - COORDINATED_EROSION);
+    for (_, blessed, write) in erosion_axes() {
+        for row in blessed.iter().take(blessed.len() / 2) {
+            erode(&mut pairs, row, write, 0.019);
+        }
     }
-    for b in MEAN_BLESSED {
-        let p = pairs
-            .iter_mut()
-            .find(|p| b.matches(p))
-            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
-        p.mean = b.baseline * (1.0 - COORDINATED_EROSION);
-    }
-    for b in INK_BLESSED {
-        let p = pairs
-            .iter_mut()
-            .find(|p| b.matches(p))
-            .unwrap_or_else(|| panic!("{} vs {} is blessed but missing from the roster", b.a, b.b));
-        p.ink = b.baseline * (1.0 - COORDINATED_EROSION);
-    }
-
     let failures = check_pair_axes(&pairs);
-    assert!(
-        !failures.is_empty(),
-        "all 27 blessed axis-entries eroded together by 1.9% (just inside RATCHET_SLACK) and \
-         check_pair_axes reported no failures — the systemic-drift guard is not catching \
-         coordinated erosion across the blessed list"
-    );
-    for axis in [
-        "differing pixels",
-        "mean channel distance",
-        "differing INK pixels",
-    ] {
-        assert!(
-            failures
-                .iter()
-                .any(|f| f.contains(axis) && f.contains("eroded together")),
-            "expected a systemic-drift failure mentioning {axis:?}; got:\n\n{}",
-            failures.join("\n\n")
-        );
+    for (axis, blessed, _) in erosion_axes() {
+        for row in blessed.iter().take(blessed.len() / 2) {
+            assert_pair_failed(&failures, axis, row);
+        }
+    }
+}
+
+#[test]
+fn eleven_of_twelve_differing_pairs_at_1_99_percent_fails() {
+    let _g = crate::testlock::serial();
+    let mut pairs = all_real_pairs();
+    for row in DIFFERING_BLESSED.iter().take(11) {
+        erode(&mut pairs, row, |p, v| p.differing = v, 0.0199);
+    }
+    let failures = check_pair_axes(&pairs);
+    for row in DIFFERING_BLESSED.iter().take(11) {
+        assert_pair_failed(&failures, "differing pixels", row);
     }
 }
 
