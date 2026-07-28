@@ -48,6 +48,9 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   `item_108_gumtree` (codex), branch `codex/item-95-settings-ranges`.
 - 132 Kite warped-grid world — 🟡 IN PROGRESS, `item_132_kite` (codex),
   branch `codex/item-132-kite`.
+- 133 Paperbark five-treatment trial — 🟡 IN PROGRESS,
+  `item_133_paperbark_trial` (codex), branch
+  `codex/item-133-paperbark-trial`.
 
 ## Ready — current user-visible wave
 
