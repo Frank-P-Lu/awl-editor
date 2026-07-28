@@ -30,12 +30,13 @@ use objc2_app_kit::{
     NSAboutPanelOptionApplicationName, NSAboutPanelOptionApplicationVersion,
     NSAboutPanelOptionCredits, NSApplication, NSBitmapFormat, NSBitmapImageRep,
     NSCompositingOperation, NSDeviceRGBColorSpace, NSFontWeightRegular, NSGraphicsContext, NSImage,
-    NSImageSymbolConfiguration, NSImageSymbolScale, NSMenu, NSModalResponseOK, NSOpenPanel,
+    NSImageSymbolConfiguration, NSImageSymbolScale, NSMenu, NSModalResponseOK,
+    NSMutableParagraphStyle, NSOpenPanel, NSParagraphStyleAttributeName, NSTextAlignment,
     NSWorkspace,
 };
 use objc2_foundation::{
-    NSAttributedString, NSData, NSDictionary, NSFileManager, NSInteger, NSPoint, NSRect, NSSize,
-    NSString, NSURL,
+    NSAttributedString, NSAttributedStringKey, NSData, NSDictionary, NSFileManager, NSInteger,
+    NSPoint, NSRect, NSSize, NSString, NSURL,
 };
 
 /// Run the standard macOS OPEN panel (files only, single selection) modally
@@ -128,10 +129,9 @@ pub fn trash_path(path: &std::path::Path) -> Result<(), String> {
 /// options dictionary. The macOS-only replacement for the in-app About card
 /// (`about.rs`) — the native panel is the platform convention.
 ///
-/// NOTE: the panel's ICON comes from the `.app` bundle's `CFBundleIconFile`,
-/// which does not exist yet for the bare CLI binary — so the icon stays a
-/// generic placeholder until the bundle chore lands. Name/version/credits
-/// populate fine from the options dict regardless.
+/// NOTE: the panel's icon comes from the `.app` bundle's `CFBundleIconFile`.
+/// A bare CLI launch keeps AppKit's generic process icon; packaging supplies
+/// `Awl.icns` without changing the lowercase `awl` command name.
 pub fn show_about_panel() {
     let Some(mtm) = MainThreadMarker::new() else {
         return;
@@ -140,12 +140,25 @@ pub fn show_about_panel() {
 
     let name = NSString::from_str("Awl");
     let version = NSString::from_str(env!("CARGO_PKG_VERSION"));
-    // The Credits key expects an NSAttributedString (it renders in the panel's
-    // info area); a plain NSString would be the wrong type there. Author +
-    // license sit under the one-line description, calm and minimal.
-    let credits = NSAttributedString::from_nsstring(&NSString::from_str(
-        "A calm, opinionated plain-text editor for prose and light code.\nby Frank Lu · GPL-3.0",
-    ));
+    // Credits must be attributed for the native panel to honour the paragraph
+    // alignment. This is intentionally its complete content: the panel itself
+    // supplies icon/name/version, and the license is a declaration, not a
+    // copyright notice.
+    let paragraph = NSMutableParagraphStyle::new();
+    paragraph.setAlignment(NSTextAlignment::Center);
+    // SAFETY: AppKit exports this immutable attribute-name static.
+    let credit_attribute_keys: [&NSAttributedStringKey; 1] =
+        unsafe { [NSParagraphStyleAttributeName] };
+    let credit_attribute_values: [&AnyObject; 1] = [paragraph.as_ref()];
+    let credit_attributes: Retained<NSDictionary<NSAttributedStringKey, AnyObject>> =
+        NSDictionary::from_slices(&credit_attribute_keys, &credit_attribute_values);
+    // SAFETY: the paragraph-style value is valid for NSParagraphStyleAttributeName.
+    let credits = unsafe {
+        NSAttributedString::new_with_attributes(
+            &NSString::from_str("Frank Lu · GPL-3.0"),
+            &credit_attributes,
+        )
+    };
 
     // SAFETY: these are AppKit's own `&'static NSString` option keys — reading
     // them is a plain static-ref load; they are immutable, never data-raced.

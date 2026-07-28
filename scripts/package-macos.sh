@@ -228,6 +228,16 @@ cat >> "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Package identity is deliberately separate from the command-line identity:
+# Finder/AppKit display the capitalised product name while the executable path
+# remains `awl`. Fail assembly if a future plist edit merges those contracts.
+bundle_value() {
+  /usr/libexec/PlistBuddy -c "Print :$1" "$CONTENTS/Info.plist"
+}
+test "$(bundle_value CFBundleName)" = "Awl"
+test "$(bundle_value CFBundleDisplayName)" = "Awl"
+test "$(bundle_value CFBundleExecutable)" = "awl"
+
 echo "==> Awl.app assembled"
 
 if [[ "$MAS" -eq 1 ]]; then

@@ -1,21 +1,18 @@
 //! src/about.rs — the summoned ABOUT card: state only (rendering lives in
 //! `render/chrome.rs`, which reuses the HUD's float-card pipeline verbatim).
 //!
-//! A calm, centered info card — "Awl", the crate version, the active theme
-//! world's name, and a closing ornament (the world's own dash fleuron, the
-//! same glyph a `---` rule renders as) — summoned via Cmd-P → "About" (and,
-//! on macOS, the menu bar's App → "About Awl" item). Unlike the HELD stats HUD
+//! A calm, centered info card for Linux and the browser — "Awl", the crate
+//! version, the active theme world's name, and a closing ornament (the world's
+//! own dash fleuron, the same glyph a `---` rule renders as). On macOS, both
+//! Cmd-P → "About" and App → "About Awl" open the standard native panel via
+//! `mac_chrome`, so this card never appears. Unlike the HELD stats HUD
 //! (`hud.rs`), this is NOT a hold: it OPENS and stays open until dismissed by
 //! ANY key or mouse click — the modal-summon pattern the navigation overlay
 //! already uses, just with no content to navigate.
 //!
-//! **Why this exists at all (not muda's predefined About dialog):** see
-//! `menu.rs`'s module doc for the full mechanism, but in short — the OS About
-//! panel is genuinely OS chrome with no correctness reason to route UNLESS you
-//! also want it to look and feel like the rest of awl (calm, one warm accent,
-//! `base_300` float card) rather than a stock AppKit dialog. Routing it also
-//! means it works identically on Linux (no native menu bar there at all) and is
-//! `--keys`/sidecar drivable like everything else in this app.
+//! **Why this exists at all:** Linux and the browser have no native About
+//! panel, and the card remains `--keys`/sidecar-drivable there. macOS routes
+//! before this state owner, preserving the standard AppKit panel instead.
 //!
 //! One process-global mirrors the `debug`/`focus`/`hud` pattern:
 //!   * `ABOUT_OPEN` — whether the card is drawn (DEFAULT OFF / closed).
@@ -41,9 +38,9 @@
 //! for EVERY process-global, the old about/lifetime/page acquire ORDER — and the
 //! ABBA it once risked — is gone by construction; see [`crate::testlock`].
 
-/// Whether the About card is drawn. DEFAULT OFF (closed) — summoned only via
-/// the palette "About" command / macOS menu "About Awl" item. The shared
-/// summoned-card flag mechanism (see [`crate::card::CardFlag`]).
+/// Whether the non-macOS About card is drawn. DEFAULT OFF (closed) — summoned
+/// by the palette "About" command where the native panel is unavailable. The
+/// shared summoned-card flag mechanism (see [`crate::card::CardFlag`]).
 static ABOUT: crate::card::CardFlag = crate::card::CardFlag::new();
 
 /// True when the About card is currently summoned.

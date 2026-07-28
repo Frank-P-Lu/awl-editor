@@ -160,6 +160,11 @@ objc2 = "0.6"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = [
     "std",
     "NSApplication",
+    # The standard About panel's credits are an attributed string with a
+    # centred paragraph style; name those AppKit capabilities explicitly.
+    "NSAttributedString",
+    "NSParagraphStyle",
+    "NSText",
     "NSResponder",
     "NSPanel",
     "NSWindow",
