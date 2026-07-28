@@ -4,7 +4,7 @@
 
 ## Markdown styling (`markdown/` + `render.rs`) — dim the markup, style the content
 
-- Syntax characters recede to `muted` (present + editable); content gains structure: bold weight, italic, mono+tint code, link text in content ink (brackets/URL recede — not amber), **headings = larger size per level (Ladder J: 1.6/1.3/1.15 via `markdown/headings.rs::type_scale`), no accent; weight is per-world data** — `Theme::heading_bold` (one bit: `##`/`###` bold, `#` never; serif worlds regular, mono/sans worlds bold; law `heading_bold_worlds_shape_bold_in_their_own_family`) (amber stays the caret's, DESIGN §3).
+- Syntax characters recede to `muted` (present + editable); content gains structure: bold weight, italic, mono+tint code, link text in content ink (brackets/URL recede), **headings = larger size per level (Ladder J: 1.6/1.3/1.15 via `markdown/headings.rs::type_scale`), no interactive accent; weight is per-world data** — `Theme::heading_bold` (one bit: `##`/`###` bold, `#` never; serif worlds regular, mono/sans worlds bold; law `heading_bold_worlds_shape_bold_in_their_own_family`).
 - Gated by `is_markdown` — a no-path scratch/note buffer reads as markdown from the first keystroke; a saved file by `.md`/`.markdown` only. A `.rs`/`.txt`/`.env` file renders byte-identically.
 - `markdown::spans(text)` (pulldown-cmark) → `(range, MdKind)` laid as base per-span `AttrsList` under the CJK spans (same seam). Pure/deterministic, re-parsed each reshape. Sidecar `md_spans`.
 - **Heading size = variable row heights:** keyed off leading `#` count. The scroll↔pixel math reads a per-row geometry table (`ensure_row_geom` → `cached_row_tops/_heights/_doc_height`), not a constant `LINE_HEIGHT`; block caret scales by `cursor_scale()`. A zoom/DPI change or `is_markdown` flip rebuilds attrs (`restyle_all_lines`).
@@ -21,5 +21,5 @@
 
 ## Markdown formatting commands (`actions/format.rs`) + Links v2 (`actions/link.rs`)
 
-- **Eleven toggle commands**, each one undoable edit, markdown buffers only. Block: Blockquote, Bullet/Numbered/Task List, Heading, Code Block. Inline: Bold (Cmd-B), Italic (Cmd-I), Inline Code (Cmd-E), Highlight, Strikethrough. The rest are palette-only, all rebindable. Button-free (DESIGN §5): a chord or summoned command, never a floating format bar.
+- **Eleven toggle commands**, each one undoable edit, markdown buffers only. Block: Blockquote, Bullet/Numbered/Task List, Heading, Code Block. Inline: Bold (Cmd-B), Italic (Cmd-I), Inline Code (Cmd-E), Highlight, Strikethrough. The rest are palette-only, all rebindable. The contextual formatting popover fires these same actions; it is the bounded pointer bridge described in `DESIGN.md` §6, not a separate formatting model.
 - **Insert link… (Cmd-K, markdown only):** `link::plan` decides purely from state — selection wraps `[sel](url)`; caret in an existing link edits (prefills that link's URL); else inserts `[](url)`. A kill-ring URL prefills iff it looks like one. Cmd-K stays Insert-link on Mac unconditionally; on Linux `C-k` stays kill-line (see docs/config.md's tripwire).

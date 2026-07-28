@@ -4,11 +4,11 @@
 
 awl is a calm, opinionated plain-text editor for prose and light code — Rust + wgpu + winit + glyphon. One core, two builds: native desktop (macOS Metal, Linux Vulkan) and browser (wasm32, WebGPU with a WebGL2 fallback). Native macOS ⌘ bindings are the advertised keymap, quietly doubled with Emacs/`mg` — both slots fire. A personal tool with a widened audience: people who aren't programmers but like computers, writing, novelty, and beauty.
 
-Start with `PHILOSOPHY.md` — the why under everything. The other contract docs: SCOPE.md (in/out), DESIGN.md (the feel), THEMES.md (world laws), CAPTURE.md (headless verification), ARCHITECTURE.md (module map), WEB.md (browser build), RELEASING.md, ACCESSIBILITY.md.
+Start with `PHILOSOPHY.md` — the identity, priorities, and product boundary. The other contract docs: DESIGN.md (the feel), THEMES.md (world laws), CAPTURE.md (headless verification), ARCHITECTURE.md (module map), WEB.md (browser build), RELEASING.md, ACCESSIBILITY.md.
 
 ## Direction
 
-awl is a WYSIWYG editor on the Obsidian Live-Preview model: the file stays plain text, only the render becomes rich, and any line shows raw markdown while the caret is on it. The committed work is finishing that model — images inline, tables as real grids — through the markdown formatting commands. It is not a Word clone (no styled clipboard, no format toolbar) and carries no IDE machinery (LSP, multi-cursor, project tree). Contract: PHILOSOPHY.md's pivot amendment + SCOPE.md.
+awl is a WYSIWYG editor on the Obsidian Live-Preview model: the file stays plain text, only the render becomes rich, and any line shows raw markdown while the caret is on it. The committed work is finishing that model — images inline, tables as real grids — through the markdown formatting commands. It is not a Word clone (no styled clipboard or general formatting toolbar) and carries no IDE machinery (LSP, multi-cursor, project tree). Contract: PHILOSOPHY.md §§1, 5.
 
 ## Build & test
 

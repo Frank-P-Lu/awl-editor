@@ -1,11 +1,12 @@
 # ARCHITECTURE.md — awl's module map
 
-How the pieces fit. For the *feel* see `DESIGN.md`; for *what's in/out of v1* see
-`SCOPE.md`; for *how to verify headlessly* see `CAPTURE.md`. This doc is the wiring.
+How the pieces fit. For the identity and product boundary see `PHILOSOPHY.md`;
+for the feel see `DESIGN.md`; for how to verify headlessly see `CAPTURE.md`.
+This doc is the wiring.
 
 awl is a single Rust binary (crate `awl`): Rust + wgpu (2D only) + winit.
-mac = Metal, linux = Vulkan. A personal prose-writing instrument with Emacs/`mg`
-keybindings (see `SCOPE.md` — "Who this is for").
+mac = Metal, linux = Vulkan. It is a keyboard-native prose-writing instrument
+with native and selectable keymaps (see `PHILOSOPHY.md` §4).
 
 ## The input → action → apply spine
 

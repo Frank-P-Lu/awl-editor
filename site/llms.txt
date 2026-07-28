@@ -1,22 +1,21 @@
 # awl
 
-> A calm, opinionated plain-text editor for prose and light code. Native (Rust + wgpu + winit + glyphon) and an experimental browser build from one core. One warm amber caret, fourteen curated theme worlds, WYSIWYG markdown, and no IDE machinery.
+> A calm, beautiful, and fun writing environment for prose and light code. Native (Rust + wgpu + winit + glyphon) with a lighter browser build from one core. WYSIWYG Markdown, a playful caret, authored worlds, and no IDE machinery.
 
-awl keeps its eye on the content and nothing in front of it: a no-path scratch buffer *is* the writing surface, reading as markdown from the first keystroke. Keybindings lead with native macOS ⌘ chords, with Emacs / `mg` underneath as a quiet, fully-working second layer — both fire. It is a personal tool: pre-release, audience of one, not chasing other users.
+awl is for people who want to create Markdown files, especially people who enjoy writing and typing on keyboards. Native platform shortcuts receive first-class support; selectable keymaps and individual rebinding remain available. Desktop is primary, macOS is the design center, and offline single-player use is the permanent assumption.
 
 ## Docs
 
-- [README](https://github.com/Frank-P-Lu/awl-next/blob/main/README.md): what awl is, the in/out line, build & run, status, and font/license notes.
-- [Philosophy](https://github.com/Frank-P-Lu/awl-next/blob/main/PHILOSOPHY.md): the root document — why awl is the way it is (simple / beautiful / fun as constraints; the one warm element; architecture as philosophy).
-- [Design](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): the feel and the look — Swiss discipline plus game-juice, one living amber caret, figure/ground by value, the two type ladders (one ink × one size).
-- [Scope](https://github.com/Frank-P-Lu/awl-next/blob/main/SCOPE.md): where the in/out line is drawn and who awl is for — minimal syntax highlighting in, IDE machinery (LSP, multi-cursor, symbol nav, project tree) out.
+- [README](https://github.com/Frank-P-Lu/awl-next/blob/main/README.md): what awl is, build & run, status, and font/license notes.
+- [Philosophy](https://github.com/Frank-P-Lu/awl-next/blob/main/PHILOSOPHY.md): the identity, priorities, and product boundary — fun, beauty, calm; WYSIWYG plain text; offline single-player; no word-processor or IDE machinery.
+- [Design](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): the visual and interaction contract — coherent worlds, typography, tactile performance, one-primary-task surfaces, and keyboard-native pointer support.
 - [Themes](https://github.com/Frank-P-Lu/awl-next/blob/main/THEMES.md): the world contract — every measurable law a theme must satisfy, the ink-ladder / role-tint derivation, and the add-a-world process.
 - [Worlds](https://github.com/Frank-P-Lu/awl-next/blob/main/WORLDS.md): the human reference for the fourteen theme worlds — each one's flavour, faces, and section-break ornament.
 
 ## Concepts
 
-- [One warm element](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): the caret is the only living thing; the amber accent (`primary`) is the caret, and they are the same. Only the caret gets juice; everything else is figure/ground by value, never a second accent.
-- [Syntax highlighting — Alabaster](https://github.com/Frank-P-Lu/awl-next/blob/main/SCOPE.md): a code buffer keeps everything in the default ink and distinguishes only four value-based roles — comment, string, constant, definition — never a rainbow, never amber.
+- [Earned expression](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): a world may be quiet, loud, colorful, or animated when its expression forms a coherent and beautiful environment for writing rather than novelty alone.
+- [Syntax highlighting — Alabaster](https://github.com/Frank-P-Lu/awl-next/blob/main/docs/syntax.md): a code buffer keeps everything in the default ink and distinguishes only four quiet roles — comment, string, constant, and definition.
 - [WYSIWYG markdown](https://github.com/Frank-P-Lu/awl-next/blob/main/PHILOSOPHY.md): reveal-on-cursor — if the caret is on that line, show the actual markdown; otherwise show the styled preview.
 
 ## Try it

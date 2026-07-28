@@ -26,8 +26,9 @@ Three words, treated as constraints: **simple**, **beautiful**, **fun**.
   cheaply, and *idle = 0% CPU* — alive when you act, perfectly still when you
   don't.
 
-The full *why* lives in [`PHILOSOPHY.md`](PHILOSOPHY.md); the feel in
-[`DESIGN.md`](DESIGN.md); the in/out line in [`SCOPE.md`](SCOPE.md).
+The identity, priorities, and product boundary live in
+[`PHILOSOPHY.md`](PHILOSOPHY.md); the feel lives in
+[`DESIGN.md`](DESIGN.md).
 
 ## What it is (and isn't)
 

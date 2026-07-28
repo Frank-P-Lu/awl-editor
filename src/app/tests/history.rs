@@ -145,7 +145,7 @@ fn history_close_without_accept_restores_scroll_and_drops_preview() {
 // retired). These pin the transcript's shape and the read-only invariants on
 // the PREVIEW path (buffer / version / undo untouched — the successor of
 // the old diff_view_gate suite). The render is SYNCHRONOUS: the round's
-// release perf probe measured ~1-2 ms per diff at SCOPE.md scale (the diff
+// release perf probe measured ~1-2 ms per diff at contract-document scale (the diff
 // folds unchanged regions, so the transcript stays tiny), so no per-arrow
 // debounce is warranted; the old settle machinery was cut.
 

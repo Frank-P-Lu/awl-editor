@@ -882,7 +882,7 @@ mod tests {
     #[ignore]
     fn perf_probe() {
         let scope = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("SCOPE.md"),
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("PHILOSOPHY.md"),
         )
         .unwrap_or_default();
         let scope_new = {

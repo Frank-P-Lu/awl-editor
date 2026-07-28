@@ -457,7 +457,7 @@ impl App {
     /// nothing. Reads only; the buffer is never touched.
     ///
     /// SYNCHRONOUS (no per-arrow debounce): the round's release perf probe measured
-    /// ~1-2 ms per diff at SCOPE.md scale — the diff FOLDS unchanged regions, so the
+    /// ~1-2 ms per diff at contract-document scale — the diff FOLDS unchanged regions, so the
     /// transcript stays tiny and the reshape stays cheap even against a large draft
     /// (~15 ms of compute at 6k lines, still well inside a single stepped selection).
     /// So no measured demand for the theme-font-style debounce; the cost is paid

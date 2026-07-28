@@ -5,7 +5,6 @@ decide when good ideas pull in different directions.
 
 The other contract documents carry the detail:
 
-- `SCOPE.md` draws the in/out line.
 - `DESIGN.md` turns the philosophy into visual and interaction rules.
 - `THEMES.md` defines the worlds and their shared laws.
 - `ARCHITECTURE.md` describes the system that keeps one editor coherent.

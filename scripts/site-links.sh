@@ -3,7 +3,7 @@
 # site-links.sh — prove every REPO-RELATIVE link the site publishes points at a
 # file that actually exists in this repo. The site's source-links are GitHub
 # blob URLs (`…/blob/main/<repo-path>`) to the contract docs + license files
-# (PHILOSOPHY.md, DESIGN.md, SCOPE.md, LICENSE, NOTICE, assets/*/LICENSES.md,
+# (PHILOSOPHY.md, DESIGN.md, LICENSE, NOTICE, assets/*/LICENSES.md,
 # THIRD-PARTY-LICENSES.md, site/check.js …). A doc rename that leaves one of
 # these dangling would 404 for a real reader; this catches it BEFORE deploy.
 #

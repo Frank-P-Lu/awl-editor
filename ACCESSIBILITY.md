@@ -9,7 +9,7 @@ this one sits alongside.
 
 - **Fully keyboard-drivable.** Every command is reachable from the Cmd-P
   command palette by name — there is no mouse-only affordance anywhere in
-  awl (DESIGN.md's button-free rule: a chord or a summoned palette command,
+  awl (`DESIGN.md` §6: keyboard-native with a bounded contextual pointer bridge,
   never a floating toolbar). The two-binding keymap (native ⌘ as the
   advertised layer, a quiet Emacs second slot) means the whole editor — open,
   edit, save, search, format, switch project, rebind keys, everything — is
@@ -112,7 +112,7 @@ away.
 Reduce Motion (this round) and the pre-existing keyboard-first design close
 the two accessibility needs awl's own architecture makes cheap: motion is a
 render-side settle-instantly gate, and full keyboard operability was already
-the whole design (DESIGN.md, SCOPE.md). Screen-reader support is the
+part of the design (`PHILOSOPHY.md` §4, `DESIGN.md` §6). Screen-reader support is the
 opposite kind of gap — expensive, architectural, and honestly the reason a
 "tier 2" is a real future round rather than a follow-up patch. This document
 will be updated when that round lands, not before.

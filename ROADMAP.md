@@ -7,6 +7,11 @@ the way it is; nothing below overrides it.
 
 ## Now / next
 
+- **Custom world composer — final v1 product feature.** Let the user assemble
+  one custom world from awl's existing wardrobe of colors, typography,
+  patterns, and effects. This composes the renderer's established vocabulary;
+  it does not create a plugin surface or freeze a public theme-file format.
+  Portable themes, sharing, and a broader editor remain future possibilities.
 - **Check for updates — SHIPPED.** The palette command records a local
   "last checked" marker and opens the site's `/check?v=…` page in the OS
   browser — the app itself makes no network request; the SITE compares the

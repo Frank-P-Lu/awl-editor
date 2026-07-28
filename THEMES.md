@@ -1,6 +1,6 @@
 # THEMES.md — the contract for a "world"
 
-This is a chapter of `PHILOSOPHY.md`, alongside `SCOPE.md` and `DESIGN.md`. Where
+This is a chapter of `PHILOSOPHY.md`, alongside `DESIGN.md`. Where
 `DESIGN.md` §3 introduces the shared type and ink roles in the abstract; this doc is
 the **contract a concrete world must satisfy** — what a world *is*, every law a
 world is measured against, which test enforces each law, and the process for

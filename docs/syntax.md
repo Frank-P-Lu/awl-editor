@@ -4,7 +4,7 @@
 
 ## Syntax highlighting (`syntax/` + `render/spans.rs`) — Alabaster, four roles only
 
-The philosophy (tonsky.me/blog/alabaster) is the whole point — **do not rainbow-highlight.** A code buffer keeps everything in the default ink and distinguishes only four roles, quiet per-world hues, **never amber** (DESIGN §3: `primary` is the caret alone; role tints are law-tested away from it):
+The philosophy (tonsky.me/blog/alabaster) is the whole point — **do not rainbow-highlight.** A code buffer keeps everything in the default ink and distinguishes only four roles, quiet per-world hues kept clear of each world's principal interactive ink (`THEMES.md` owns the concrete contrast laws):
 
 - **Comment is two-tier** (comments are the prose in the code, and awl is a writing tool): prose comments render prominent at full ink + a warm wash; commented-out code (`SynKind::CommentCode`, the `looks_like_code` heuristic, default-to-prose when unsure) stays muted grey, no wash.
 - **Str** → strings/chars: quiet green tint (+ green wash on dark worlds). **Constant** → numbers/booleans/nil: quiet violet, never washed. **Definition** → the name being defined: quiet blue, never washed.

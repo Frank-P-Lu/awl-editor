@@ -1,418 +1,309 @@
-# DESIGN.md — awl's design sensibilities
+# DESIGN.md — how awl should feel
 
-This is the *feel*, not the feature list (that's `SCOPE.md`) and not the
-verification path (that's `CAPTURE.md`). It's the why behind the look: the rules
-that keep awl coherent as it grows, so a new surface or mode feels like it
-*belongs* instead of like a bolted-on widget.
-
-The roots are in **`PHILOSOPHY.md`** — the canonical *why awl is the way it is*
-(simple / beautiful / fun, and the operating rules that follow). This doc is the
-*visual* chapter of that one: where those convictions become a screen. The
-one-accent law (§3), the two type ladders (§4), the summoned-not-furniture stance
-(§5), and the do-the-effect-cheap ethos (§6) all live in `PHILOSOPHY.md` too —
-here they get their working detail.
-
-If you read one section, read **§3 — the one-organic-element law**. Everything
-else falls out of it.
-
----
-
-## 1. The thesis (one line)
-
-> **A calm, cool room with one warm, living thing in it.**
-
-Two halves, held in tension:
+`PHILOSOPHY.md` holds the identity, priorities, and product boundary. This
+document turns them into visual and interaction rules.
 
-- **Swiss discipline** — flat, gridded, reductive, one accent, negative space as
-  a material. The room.
-- **Game-juice** — physical, springy, momentum-driven motion. The living thing.
+The implementation mechanisms live in `docs/render.md`, `docs/markdown.md`, and
+`docs/fonts.md`. Concrete world laws live in `THEMES.md`.
 
-awl is the marriage of those two. Most "designed" editors pick one (austere OR
-playful). The whole bet is that you can have both *if* you keep them in their
-lanes (§3).
+## 1. The instrument
 
-**Amendment (settled 2026-07-14, the two-layer model — the Room and the
-Frame):** as the worlds multiplied, the thesis gained a second reading. awl is a
-**chameleon** — one *creature*, many *skins* — and every skin is exactly two
-layers: **the Room** (the writing column — calm, disciplined, the same in every
-world; it never shouts) and **the Frame** (ground, margins, overlays, chrome —
-where *all* of a world's personality lives, and the only place it may vary).
-Every "is this too much?" question resolves by asking *Room or Frame?* —
-personality in the Frame is a world being itself; personality in the Room is a
-violation. And the chameleon's complexity stays **data, never machinery**: one
-simple system with rich pigment.
+awl should feel like an instrument someone plays, not an application they
+operate.
 
----
+Its design vocabulary comes from four places:
 
-## 2. Lineage (where this comes from)
+- **Swiss and International Typographic Style:** grids, hierarchy, confident
+  space, and structure that does not need ornament to explain itself.
+- **Teenage Engineering:** a disciplined object with a playful soul; one
+  dependable instrument containing several distinctive worlds.
+- **N++ and good game feel:** immediate control, motion drawn as a mark, and
+  responsiveness that makes restraint feel alive rather than sterile.
+- **Persona:** proof that a functional core can support an authored, theatrical
+  frame when the composition remains legible and intentional.
 
-The vocabulary for what we're doing is **Swiss Style / the International
-Typographic Style** (Bauhaus → Ulm → Swiss: Müller-Brockmann, Hofmann, Ruder).
-Grids, limited palette, geometric clarity, no ornament, confident emptiness.
+These are references, not costumes. Borrow their reasoning, not their surface
+decoration.
 
-But pure Swiss is *static* and cold. The references that fuse it with life — our
-actual north stars:
+## 2. Room and Frame
 
-- **N++** (Metanet) — Swiss minimalism + extreme kinetic juice. A rigid,
-  systematic world with one loose, alive thing (the ninja) moving through it.
-  Proves the combination is coherent. Figure/ground by *value*, one accent
-  (red = danger), motion rendered as a drawn mark.
-- **Teenage Engineering OP-1** — Nordic functionalism out of the Braun/Rams
-  tradition: a ruthlessly disciplined instrument with a playful, animated soul on
-  the screen. *Rigor as a stage for play.* It's an instrument you **play**, not an
-  appliance you operate — that's the feeling we want at the keyboard. Its
-  mode-engines (each a small world with its own personality) are the model for
-  our deferred modes.
-- **Dieter Rams / Braun → Apple** — Swiss made into objects you hold and operate.
-  Restraint, one accent, "less but better."
+Every world composes two layers:
 
-Three-item syllabus if you ever forget the feel: **Otl Aicher's Munich '72
-pictograms** (a designed visual *system*), **Rams/Braun** (Swiss as an
-instrument), **N++ + Mini Metro** (Swiss + juice + sliding surfaces).
+- **Room:** the writing itself—the page, prose, code, caret, selection, images,
+  and tables.
+- **Frame:** the ground, margins, orientation, overlays, workspaces, menus, and
+  other chrome around the writing.
 
-The common thread: none of them are decoration. They're **instruments and
-systems where the restraint is the function.**
+The Room is always excellent to read and edit. It may change typeface, palette,
+and authored details with the world, but it cannot sacrifice text to spectacle.
 
-**Addition (settled 2026-07-14, Persona — clean core, loud frame):** *Persona 5*
-is the reference for how loud a Frame (§1) may go. It keeps the functional,
-*reading* content dead clean and pours all the spectacle into the frame and
-margins — loud type only ever on labels, never on prose. awl already has that
-architecture (calm column; character in the margins). So steal Persona's
-**composition** — no dead space, defined edges, one divider — never its
-**volume**. And when a world does go loud, the two awl-native loud dials are
-**type + motion**: a type tool shouts in type and motion, never in decoration.
+The Frame carries most of a world's personality. It may be quiet, graphic,
+animated, or loud. A strong world treats Room and Frame as one composition
+without letting the frame obscure the work.
 
----
+This is a heuristic, not an austerity law. Firetail may be theatrical; Wagtail
+may reject hue; an image may contain colors awl does not control. The question
+is not “is this calm?” It is “does this make a coherent and beautiful place to
+write?”
 
-## 3. The one-organic-element law
+### Worlds are complete environments
 
-The single rule that makes everything else work:
+A world owns the visible properties that give the environment character:
+typography, palette, ground, patterns, surface composition, chrome treatment,
+caret treatment, and motion.
 
-> **The caret is the only living thing. `primary` (amber) is the caret. They are
-> the same.**
+Changing worlds is a full audition. The real document and the real summoned
+surface adopt the highlighted world together. Interaction state—query, selected
+row, scroll, and focus—survives the crossing because it belongs to the user.
 
-In awl, three things coincide on one object:
+A deliberate selection may snap the surface into the destination world's
+composition. Passive hover may preview color without moving the surface under
+the pointer.
 
-- the **one accent color** (`primary`, the warm amber),
-- the **one organic element** (the thing with weight, momentum, life),
-- the **point of presence** — *you*, in the document.
+World personality is data through shared renderers. A world requiring identity
+checks and private layout code is a design failure unless the shared model first
+proves genuinely incapable of expressing the idea.
 
-From this, a hard law for all UI:
+## 3. Typography and hierarchy
 
-- **The caret is the only thing allowed juice.** Spring, squash-and-stretch,
-  overshoot, the trailing streak — all the loose, physical, hand-feeling motion
-  lives on the caret and *nowhere else*.
-- **Everything else is Swiss structure** — text, gutters, surfaces, panels,
-  selection, errors. Calm, geometric, precise. No juice.
-- **Decision procedure** when you're unsure whether something should feel alive:
-  *only if it's the caret.* A surface may **move** (structure relocating — but
-  crisply); the caret is the only thing that **breathes**.
+Typography is the foundation. Prose must remain readable before any pattern,
+motion, or chrome earns attention.
 
-This is the "two line languages" idea, made into a rule: in N++ the world is rigid
-and only the ninja is loose; in the OP-1 the aluminium is rigid and only the screen
-soul is loose. Same here. One organic element, ruthlessly — that's what stops
-"Swiss + juice" from degenerating into "everything wiggles."
-
-Note the deliberate semantic choice: N++ gives the loud color to *danger* and
-makes the player a faint ghost. awl does the **opposite** — *you* get the warm
-color; the world stays quiet. That's the humanist, intimate read, and it's
-core to awl's identity. Keep it.
+Text uses authored roles rather than arbitrary styling. The common grammar is:
 
-**Amendment (settled 2026-07, syntax washes):** quiet, desaturated per-world role hues — foreground tints and low-alpha background washes on CODE surfaces (comments, strings, constants, definitions) — are Swiss structure, not life, and are permitted; the one-amber law is untouched: `primary` remains the caret and only the caret, and no role tint may saturate toward or read as the accent (law-tested).
-
-**Amendment (settled 2026-07-05, copy pulse):** the selection may pulse ONCE — a single brighten-and-decay of its own tint, never ambient, never idle — as a direct one-shot reaction to the caret's own copy action (M-w / Cmd-C); this is the sole exception ever granted to selection's "no juice," and it stays exactly that narrow: one gesture, one reaction, back to calm. The one-amber law is untouched: the pulse rides the selection's own hue, never amber, and the caret remains the only thing that *breathes*.
-
-**Amendment (settled 2026-07, WYSIWYG images — the palette awl does not own):** with the WYSIWYG pivot (`PHILOSOPHY.md`), awl renders images inline, and an image is **the one element awl draws whose palette it does not control.** A bright, saturated photo can shout louder than the amber caret and break the one-warm-thing discipline outright — and this is **largely unmitigable**: awl cannot re-tint arbitrary user content without lying about it. So this is named as a conscious, user-approved, **narrow** exception rather than pretended away — the one place the room's color is not awl's to govern. What awl *does* control stays ruthlessly calm: the default is **fit-to-column**, no border / shadow / frame chrome, **dim placeholders** while an image is missing or loading, and **no amber or `error` red** anywhere in awl's own image affordances (the drag-resize handle included). awl keeps its own chrome quiet; it does not fight the pixels inside the image.
-
-**Amendment (settled 2026-07, WYSIWYG formatting + tables):** two more consequences of the pivot, both *consistent with* the existing laws, logged for the record. (1) The **markdown formatting commands** (block + inline toggles — Bold/Inline-code/Italic/Highlight/Strikethrough, Blockquote/lists/Heading/Code-block) are **keyboard toggles**, a chord or a summoned palette command — never a floating format bar or a clickable button (the button-free rule, §5, holds under WYSIWYG). (2) **Tables render as real grids**, but the grid is **Swiss structure, not life**: thin `faint`/rule-weight separators, value-based, no second accent, no juice — a table is a laid-out surface, exactly like every other panel (§5), and the caret is still the only thing that breathes over it.
-
-**Amendment (settled 2026-07-11, Wagtail — the "no warm thing" world):** every world so far kept the caret's amber as its one warm, living thing, so awl's fifteenth world does the opposite ON PURPOSE: **Wagtail is a deliberate exception to this whole section, not a silent widening of it.** It is a DARK world with **zero saturation anywhere — the caret included.** There is no amber, no warm hue at all, on any surface, at any lightness — enforced structurally, not just by eye (`theme::Theme::is_monochrome` + `render::tests::syntax_roles::every_monochrome_world_renders_zero_saturation_everywhere`, THEMES.md's "monochrome law"). The caret's IDENTITY — "the one organic element," "the point of presence" — survives intact, but rides on the other two legs of §3's tripod instead of hue: **VALUE** (pure white, `#FFFFFF` — unmistakably the brightest thing in the room, by construction) and **MOTION** (the spring juice is still the caret's alone; nothing else on Wagtail moves, exactly as on every other world). So the law is refined, not broken: *the caret is the only thing allowed juice* still holds absolutely; *the one accent color is warm* does not, on this one world, by name, on purpose — a named exception exactly like the WYSIWYG-images amendment above (a place the room's usual rule can't reach), not a crack that lets some other world's role tint start creeping toward the accent. `role_style_for`'s hue-anchored derivation cannot serve a zero-saturation world by construction (an anchor IS a hue), so Wagtail is also `RoleOverrides`' first real user — see THEMES.md §4's "RoleOverrides, first use."
-
-**Amendment (settled 2026-07, the lava worlds — ambient GROUND motion, the mirror of Wagtail):** §3 says the caret is the only thing that *breathes* — the only thing allowed juice; everything else is calm. The **lava worlds** (Firetail, and the cool second Mangrove) are a deliberate, **named, narrow** exception to exactly that, and — like Wagtail's — an exception ON PURPOSE, not a silent crack that lets motion start creeping into the room generally. Where Wagtail is the world with **no** warm living thing, a lava world is the world whose one warm living thing is the **ground itself**: a slow metaball "lava lamp" drifting in the page margins, a deep oxblood/wine lamp for Firetail, a cool deep-sea one for Mangrove. It is a genuine second moving thing, so the exception is real — but it is bounded on every side so it never competes with the caret and never becomes "everything wiggles." (1) **It is the GROUND, not the figure.** The lava is ONE continuous viewport-space field behind the page; the writing column merely occludes it, staying untouched and flat, while the margins reveal it. Changing page width reveals/hides the same field — it never resizes or recomposes separate side lamps. Its marks stay inside the world's own **ground value band** — never brightening past `base_300`, law-tested at the worst animation phase, so the margins read as recessive ground the whole time, not a light show. (2) **It is not amber.** The blobs ride the world's own hue, held ≥40° of hue clear of the caret's `primary` (law-tested) — the one-accent law is untouched; amber is still the caret's alone. (3) **It is slow, and it is polite.** ~10 fps, not the caret spring's hot loop; it pauses when the window loses focus; it is gated behind the `ambient_motion` setting (a user who wants the room perfectly still turns it off); and it is **frozen** under Reduce Motion and in every headless capture (a fixed phase, t=0) — so the accessibility promise and the determinism promise both hold. The caret still `breathes`; the lava merely *drifts*, in the margins, in the ground band, off the amber — a lamp in the corner of a calm room, not a rave.
-
-**Animation/palette clarification (settled 2026-07-14):** Firetail is an original oxblood-charcoal room with blush ink and one ember-gold caret, measurably redder than Bombora and clear of Potoroo's orange-rust. The polite-motion bound is now exact: the vertical bob and half-frequency horizontal sway wrap together only after TWO phase cycles (~67 s), and every delayed event-loop wake advances at most one fixed 100 ms ambient step, never a catch-up leap.
-
-**Live-window clarification (settled 2026-07-14):** the lamp animates only while
-the room is genuinely idle, focused, unobscured, and not being moved or resized.
-A live resize holds the last-settled metaball geometry while the page mask follows
-the window, then snaps the field once on settle; a title-bar move holds the phase
-through the compositor transaction. Frost is a deliberate source exception:
-Mangrove's live document keeps its authored Bayer grain, but the offscreen blur
-capture receives the same field smooth, because filtering that axis-aligned grid
-creates cross/stripe moiré. Opening frost holds—never resets—the current phase,
-and the cached frost signature includes it.
-
-**Amendment (settled 2026-07, Wagtail reworked to TRUE 1-bit — "only black or white, no gray"):** the no-warm-thing exception above still stands verbatim (Wagtail keeps NO warm element, by value + motion alone); this round pushed it one step further, from *any* grey to the literal two-value floor: `Theme::is_one_bit()` — every surface Wagtail paints is EXACTLY `#000000` or `#FFFFFF`, no rung between (anti-aliased glyph/quad edges excepted — the law is about *authored* colors; see THEMES.md's "The 1-bit law"). The hardest consequence lands on §3's OTHER named exception, selection: a translucent highlight composites a forbidden grey the instant its alpha sits anywhere other than 0 or 255, so Wagtail's `selection` is now a pure opaque white quad with legibility carried by a SEPARATE render-side mechanism (a black "punch" quad carving the covered text's ground back out — see THEMES.md), not by this token's alpha. TRUE per-glyph inversion (the covered text itself flipping to black) was investigated and found to need new renderer machinery — banked, not built, this round; the shipped mechanism is the honestly-logged "least-bad 2-value selection." Elevation (cards/panels) likewise loses its smooth value ramp and becomes a strict binary: a 1px white BORDER on a flush-black card, reusing the existing float-panel double-rect primitive rather than a new one. The frosted-blur backdrop — mathematically incompatible with a pure black/white document (a gaussian defocus smears every edge into grey) — is disabled outright for this world, falling back to the pre-existing crisp-overlay path.
-
----
-
-## 4. Color & type — the token system, two ladders
-
-Colors are named by **role**, not by hue or by count, following **DaisyUI**.
-Source of truth: `src/theme.rs` (every color is defined once there; nothing
-hardcodes a hue). The size half of the system lives in `src/markdown.rs`
-(`type_scale`).
-
-awl's text system is **TWO LADDERS**, and **every element is exactly one rung of
-each — one ink × one size.** That is the whole discipline: you never reach for a
-new color or a bespoke pixel size; you pick a rung on each ladder and the element
-is defined. The ink ladder carries emphasis by *value*; the size ladder carries
-hierarchy by *scale*. Together they do the work that bold weights and loud hues do
-elsewhere — which is how amber stays the caret's alone (§3) and the bundled
-Regular-only faces never fall back to mono.
-
-### The INK ladder (a value ramp — per-theme, authored in `theme.rs`)
-
-Two kinds of color. First the **neutral surfaces** (the depth model, see §5):
-
-| token      | hex       | role |
-|------------|-----------|------|
-| `base_100` | `#16181D` | the canvas / deepest plane (document bg, render clear) |
-| `base_200` | `#202228` | a raised surface, one step forward |
-| `base_300` | `#2A2D34` | the **focused** plane / borders (e.g. an active panel) |
-
-Then the **ink ramp** — three rungs of foreground text, each a step quieter, a
-value ladder from full presence down toward the background:
-
-| rung           | hex       | role |
-|----------------|-----------|------|
-| `base_content` | `#E6E6E6` | **content** — full ink. Body prose, code, heading titles. |
-| `muted`        | `#8B919D` | **de-emphasized** — markdown markup (`#`, `*`, backticks…), code comments, secondary labels / the `/` sigil / counters. |
-| `faint`        | `#4E525A` | **faintest** — UI metadata that should barely register: a future gutter's line numbers, the stats / word-count readout. Stepped further toward `base_100`. |
-
-(`muted` was formerly `base_content_dim` — same value, a clearer name now that it
-is one named rung of a ladder rather than a lone "dim" token. `faint` is new and
-reserved for the gutter/stats pass.)
-
-**Accents — by job, not "primary/secondary."** These sit OUTSIDE the ink ladder:
-
-| token             | hex                  | role |
-|-------------------|----------------------|------|
-| `primary`         | `#FFC05E`            | the caret — *you*. Amber. **Only ever the caret.** |
-| `primary_content` | `#261A08`            | warm near-black ink drawn *on* amber |
-| `error`           | `#E54B4B`            | failure/signal only (e.g. search found nothing) |
-| `selection`       | `#3A6FD8` @ ~0.32α   | translucent region/match highlight (custom token) |
-
-### The SIZE ladder (multipliers over body metrics — `markdown::type_scale`)
-
-Named tiers, not scattered magic numbers, so the ratios tune in one place:
-
-| rung      | scale | role |
-|-----------|-------|------|
-| `TITLE`   | 1.6×  | h1 — the document / top title (Ladder J; was 1.8) |
-| `SECTION` | 1.3×  | h2 — a section head (Ladder J; was 1.5) |
-| `SUBHEAD` | 1.15× | h3+ — a subhead (Ladder J; was 1.25) |
-| `BODY`    | 1.0×  | body prose / code — the baseline rung |
-| `LABEL`   | 0.8×  | UI metadata smaller than body (the future gutter / stats) |
-
-**Amendment (settled 2026-07-18, the heading-weight round — Ladder J + one bit
-of per-world weight):** the heading rungs eased to 1.6/1.3/1.15, and WEIGHT
-joined size as a *per-world* hierarchy leg: each world carries one bit
-(`Theme::heading_bold`) — set, its `##`/`###` heads shape in the face's own
-bundled Bold; clear, everything stays Regular. The TITLE (`#`) never bolds on
-any world — it spends pure size. The lean: serif worlds Regular (a serif's
-stroke contrast carries hierarchy structurally), mono-display worlds Bold
-(uniform strokes need weight), sans worlds judged by eye. Still no accent —
-amber stays the caret's alone (§3).
-
-### Worked examples (one ink × one size)
-
-- **A heading title** = `TITLE` (or `SECTION`/`SUBHEAD`) × `base_content`. Size
-  carries the hierarchy (plus, on the worlds whose bit says so, real bold on
-  `##`/`###` — the amendment above); the ink stays full content — no accent (§3).
-- **Markdown markup** (the `#`, `*`, backticks) = `BODY` × `muted`. Same size as
-  the prose around it, one value rung quieter, so it recedes but stays editable.
-- **A future gutter label** (line numbers, the stats readout) = `LABEL` × `faint`.
-  The faintest ink at the smallest size — present for when you look, invisible
-  when you don't.
-
-Conventions worth keeping:
-
-- **`-content` = "the ink that sits on this"** (DaisyUI's version of Material's
-  `on-`). `base-content` is text on base; `primary-content` is text on amber.
-- **The neutrals AND the inks are *ramps*, not flats.** Depth is steps on the
-  surface ramp (§5); emphasis is steps on the ink ramp (content → muted → faint).
-- **White is `ink`, not an accent.** It's `base-content`. Don't spend an accent
-  slot on foreground text.
-- **Functional colors are named for meaning.** `error` only ever means failure —
-  never decoration. `selection` only ever means "a span is highlighted."
-- **Modes get the spare accent slots.** DaisyUI's `secondary`/`accent` are
-  reserved for the deferred modes (§7) — each mode may claim a signature hue, the
-  way each OP-1 engine has one. v1 lights up only `primary`.
-
----
-
-## 5. Depth & surfaces (figure/ground by value)
-
-awl has no chrome-based depth. **Depth is value**, the N++ figure/ground move:
-solids and voids differ by tone, not outlines or shadows.
-
-- The neutral ramp **is** the depth/focus mechanism. A surface that takes focus
-  rises toward `BASE_300` (comes forward); an unfocused surface recedes toward
-  `BASE_100`.
-- **No borders, bevels, drop-shadows, or heavy fills to fake elevation.** A thin
-  value step does the work.
-- **Surfaces + focus is a first-class primitive**, not a one-off for the
-  minibuffer. The moment awl has a second place for the eye (search box,
-  minibuffer, later the modes), it needs: a second buffer/surface, a *focus*
-  notion (which surface receives input), and value-based recession. Build that
-  primitive deliberately — it's the seed the deferred modes grow from.
-- **Attention can split or relocate.** A small corner popover (e.g. search)
-  *splits* attention — keep the document visible. A full takeover *relocates* it —
-  dim the document back a value. Choose per surface.
-
-### Summoned, not furniture
-
-awl has **no persistent chrome** — no sidebar, no tab strip, no always-on
-toolbar, no status dashboard nailed to an edge. Every surface above is
-**summoned and transient**: search, the command palette, the theme and keybinding
-pickers, the stats HUD — each appears on a keystroke, does its job, and dismisses,
-leaving the screen to the text. The test: *if it would still be on screen when
-you're not using it, it shouldn't be on screen.*
-
-The one thing allowed to linger is **orientation** — a filename, a project — and
-even that lives *quietly* in the gutter, in page mode only (`faint` ink, `LABEL`
-size; §4). It's there when you look and gone when you don't. This is the
-`SCOPE.md` "summoned, never furniture" stance made visual, and it's the root of
-why the deferred modes (§7) are *skins layered on top*, not new permanent panels.
-(See `PHILOSOPHY.md` §1.)
-
-**Amendment (settled 2026-07, the margin Outline — orientation widens from a label to a list):** orientation-that-lingers is now permitted in **two** margin surfaces, not one — the **gutter** (your position in the *filesystem*: filename over project) and the **Outline** (your position in the *document*: the heading list). This widens "the one thing allowed to linger is orientation" from a single label to a short list, and **no further**. Both obey the identical discipline: **faint × `LABEL`** ink (§4), **page-mode only**, **hide-when-cramped** (yield the whole surface rather than crowd the text), and **click-to-jump only** — the Outline is a *readout* of where you are, that you may click to jump the caret to a heading (a benign, user-approved navigation affordance, with the pointing-hand cursor to signal it), but it is **not** a resizable, focusable, or draggable nav tree. That last clause is the guardrail — the sub-amendment (settled 2026-07, "orientation, not a list") relaxed the original **never-interactive** wording to **click-to-jump only**, and no further: the remaining rails are what keep it from being the persistent sidebar `SCOPE.md` forbids — **page-mode only**, **hide-when-cramped**, **non-resizable**, never a focus target. The exception is *orientation lingering quietly* (now jumpable); it is not a licence for furniture.
-
-**Further amendment (settled 2026-07-09, default flips ON):** the Outline shipped **opt-in, off by default** above; having lived with it, the user's call is that it's worth showing by default — flipped to **on by default**, alongside the other sticky toggles (WYSIWYG / spellcheck / nits), while `outline = false` in config still turns it off. Every other rail in the amendment above (page-mode only, hide-when-cramped, non-resizable, click-to-jump only, never a focus target) is unchanged.
-
-**Amendment (settled 2026-07-09, the web/Linux MENU BAR — persistent chrome, but only where the OS gives nothing):** a **slim, awl-rendered menu bar** (one row of the File/Edit/View/Window titles across the top; a title drops a menu, an item fires its `Action`) is permitted — the FIRST genuinely persistent, always-on chrome awl draws, a deliberate, bounded exception to §5's "summoned, not furniture." The bound: it shows **only on web + Linux**, where the platform gives a bare canvas with **nothing discoverable** unless you already know ⌘P — never on macOS, which has the real native NSMenu bar (the OS's own always-on menu bar is the door there). It is the Outline precedent taken one step: ambient orientation the user can turn off, `cfg`-gated to the platforms that need it, **opt-out** (`menu_bar = false` / "Toggle menu bar"), never on the surface (macOS) that has its own. It obeys the calm laws: **theme-derived by value** (bar ground a step off the room, faint titles, the open one muted over the muted `selection` band, the dropdown the overlay float-card at `base_300`), **NEVER amber** (the caret's alone, §3), re-tinted O(1) with the world. The guardrail: it grows **no behaviour of its own** — every item fires an `Action` the palette already dispatches, through the SAME apply seam a keypress uses (the same "third door, one roster" law the macOS bar obeys); it is a *rendered menu bar*, not a toolbar, sidebar, or tab strip. A future round could give Linux a real gtk NSMenu-equivalent and retire the rendered bar there; the web has no native chrome to ever fall back to.
-
-**Amendment (settled 2026-07-23, the theme picker crosses COMPLETELY — item 52, superseding item 45's summon-time freeze):** a summoned card normally holds its placement the whole time it's open (item 45 froze the overlay's anchor at summon so a theme-preview crossing never moved it). The **theme picker** is the one deliberate exception, because it is an **audition** surface: highlighting a world applies **every theme-owned visible property to the real open picker at once** — palette, background/ambient, `Pane`/`Bars` surfaces, facet/chrome face, motion, **and the card's own `TopLeft`/`TopCenter`/`TopRight` anchor** — so what you see *is* that world's picker, not a neutral preview of it. Only the **interaction state survives** the crossing (query, filtered corpus, selected world, scroll, focus). The placement rule is split by **intent**: a **deliberate** selection move (keyboard nav / wheel / click) **SNAPS** the card into the destination world's rail (a hard cut, no glide animator — choosing a world drops you inside it), while a **passive pointer hover** re-tints the world **without** relocating the card (item 45's freeze still holds under a wandering pointer — no spatial chase). This is not a new furniture behaviour and grows no new machinery: the anchor stays **data through one resolver** (`render::effective_card_anchor` → the frozen `overlay_align`, re-stamped only by `OverlayState::reanchor` on a deliberate move), so no render consumer ever reads the live world (the alignment-is-data grep-law holds). Laws: `render::tests::reanchor_crossing_law`, `render::tests::overlay_align_law`.
-
-### Button-free — teach the key, don't draw a button
-
-A summoned surface carries **no clickable action-buttons** — no toolbar, no
-OK/Cancel, no "Replace All" to click. Actions are **keystrokes**; where the key
-isn't obvious the surface prints a small **dim key-hint line** (`muted` ink,
-`LABEL` size — the recessive rung of §4, macOS modifier glyphs from the bundled
-symbol face) that *teaches* the keyboard. The find-and-replace panel is the worked
-example: below its labeled `find` / `replace` rows sits `Enter replace+next ·
-⌘Enter all · Tab switch · ⌥c case · Esc done` — informational text, not targets.
-The **mouse points** (caret, selection, a summoned list row, right-click); it never
-presses an action. List rows in a picker stay click-*selectable* — that's pointing
-at a choice, not a button. (See `PHILOSOPHY.md` §1.)
-
-**Amendment (settled 2026-07-16, the format popover — taste-exception #3):** the
-WYSIWYG formatting amendment (§3) said "never a floating format bar," and this
-reverses it, narrowly, by name — the third logged taste-exception, beside images
-and the Outline. A **reveal-on-select popover** — the small inline-format row
-that appears over a fresh *mouse* selection — is permitted, because the deeper
-rule, **summoned not furniture**, holds: the selection *gesture* IS the summons.
-It appears only on a mouse-made selection (mouse-up on a drag, a double-click
-word — never a keyboard selection), and it dismisses with the selection: never
-on screen when you aren't mid-gesture. Its buttons fire only Actions the palette
-already dispatches (the menu-bar law — no popover-only path), it obeys the calm
-laws (float-panel, value-based, never amber), it lives in markdown buffers only,
-and a sticky config switch turns it off. What it genuinely costs is named: the
-button-free rule bends — these ARE clickable actions — and it bends exactly this
-far: one bounded mouse-gesture affordance, not a licence for toolbars.
-
----
-
-## 6. Motion & the caret
-
-The caret is where the soul lives. Principles encoded in `src/caret.rs`:
-
-- **Spring, not teleport.** It moves with physics. Big jumps are lightly
-  underdamped — a small overshoot-and-settle that reads as *life*. Tiny hops are
-  near-critical (no overshoot) so fast typing never strobes.
-- **Squash and stretch.** At rest it's a friendly rounded square sitting *on* the
-  glyph; in motion it drops to the baseline and stretches into a trailing streak
-  whose length scales with velocity. (Two of Disney's animation principles,
-  applied to a cursor.)
-- **Glide, don't blink.** A blinking caret is a *clock* — a mechanical interrupt
-  nagging "I'm waiting." A gliding caret is *physics* — it says "I follow you."
-  awl's caret never blinks.
-- **The caret possesses the character** (block / reverse-video), it doesn't sit in
-  a seam. The caret is a *place you are*, a body in the text — not a gap between
-  things.
-- **Motion is a drawn mark.** The trailing streak makes movement itself a visible
-  graphic (cf. N++'s motion trails). Movement is something we *draw*.
-- **Idle = 0% CPU.** It's alive when moving, perfectly still when resting. Life,
-  not animation-for-its-own-sake.
-
-### The game-juice ethos — do the effect, do it cheap
-
-The juice on the caret (and any effect awl ever adds) follows the rule the good
-games run on — N++, Smash, the racing games: **performance is first, beauty a
-close second**, and you refuse to choose between them. They feel alive *and* fast
-because they don't drop the effect to save the cost — they find the cheap way to
-do it.
-
-So the discipline is **not** "skip the effect for fear of the budget." It is:
-
-- **Do the effect — just do it cheaply.** Precompute and cache, downsample, stay
-  **event-driven**. There is almost always a version of the effect that costs
-  next to nothing; ship *that* one. Spend the budget wisely rather than declining
-  to spend it.
-- **Then prove it settled.** The payoff of event-driven is **Idle = 0% CPU**
-  (above): no animation loop spinning to redraw a frame nothing changed. Motion
-  when you act; perfect stillness when you don't — that stillness is how you know
-  the juice was done right, not bolted on.
-
-(This is the *fun* pillar of `PHILOSOPHY.md` §3, stated as an engineering rule.)
-
----
-
-## 7. The deferred atmosphere (modes)
-
-`SCOPE.md` defers the atmospheric "awl modes" to after the editor core is solid,
-and pins them to **2D-GPU faux-3D, not true 3D** (the `overlay_2d` / `postprocess`
-shaders are stubbed for this). The visual north star for that phase:
-
-- **The OP-1 dashboard look** — synthwave / "outrun" **vector-HUD**: monoline
-  glowing strokes, additive neon on near-black, faux-3D via a one-point
-  perspective grid receding to a horizon. The wireframe/vector-display lineage
-  (Vectrex, Battlezone, *Elite*, Star Wars arcade), phosphor-CRT energy.
-
-Two rules for when modes arrive:
-
-1. **Keep it out of the structural UI.** The atmosphere is a *skin layered on
-   top*. The search box, minibuffer, gutters stay Swiss-flat-calm. Same
-   two-line-languages law, one level up: structure is disciplined; the *mode* is
-   where glow and depth live.
-2. **Translate the neon into awl's palette** rather than copying rainbow neon.
-   Two options, decide then:
-   - **Amber-led monochrome glow** (default) — render the faux-3D in `primary`
-     (and dim-amber) glow on `BASE_100`. The whole world becomes an extension of
-     the one organic element. Most "us."
-   - **Modes bloom the palette** (flourish) — each mode claims a hue from the
-     spare accent slots (§4), à la OP-1 engines, so *color means mode*.
-
-Parking lot of mode ideas lives in `SCOPE.md`; don't build them until the core
-is genuinely good.
-
----
-
-## 8. Applied: designing a new surface (checklist)
-
-When you add any UI, run it against this:
-
-- [ ] Built from `theme.rs` tokens — no hardcoded colors.
-- [ ] Depth by **value** (a `BASE_*` step), not borders/shadows/heavy fills.
-- [ ] The **only** amber on screen is the caret. Body text/labels/counters are
-      `base-content` (or muted ink).
-- [ ] Nothing breathes except the caret. The surface may move crisply; it doesn't
-      bounce or glow.
-- [ ] `error` red appears **only** to signal failure.
-- [ ] Keyboard-first. Mouse affordances are quiet (ghost glyphs), never big
-      filled buttons.
-- [ ] Confident negative space; reductive, not busy.
-- [ ] Agent-verifiable: there's a headless `--screenshot` hook that renders it
-      deterministically (see `CAPTURE.md`). If you can't capture it, you can't
-      converge on it.
-
-**Worked example — the incremental-search panel:** a small `BASE_300` popover in
-the **top-right** (doesn't occlude the text), document stays visible, matches
-highlighted *in the document* (not a detached list), the current match
-distinguished simply by the amber caret landing on it. Inside: a `/` sigil in
-muted ink, the query in `base-content`, the amber caret as the lone accent, an
-`n/total` counter, an `Aa` case toggle. `error` red appears *only* when the query
-has zero hits. Keyboard-driven (`C-s`/`C-r`); no mouse buttons. That panel is
-this whole document in miniature.
+- content is fully present;
+- markup and secondary information recede;
+- metadata is available without competing;
+- hierarchy comes from size, spacing, face, and limited authored weight.
+
+### Ink roles
+
+| Role | Use |
+| --- | --- |
+| `base_content` | Body prose, code, headings, and primary labels |
+| `muted` | Markdown marks, comments, secondary labels, and quiet controls |
+| `faint` | Orientation, counters, and metadata that should disappear from attention |
+| `primary` | The world's principal interactive presence, normally the caret |
+| `primary_content` | Legible ink drawn on `primary` |
+| `selection` | Selected or matched content |
+| `error` | Failure or destructive warning, never decoration |
+
+These are semantic jobs, not fixed hues. Worlds author their own palettes and
+may be monochrome or strongly colored. Functional colors keep their meaning.
+
+### Size roles
+
+The type scale is expressed as multipliers over body metrics:
+
+| Role | Scale | Use |
+| --- | ---: | --- |
+| `TITLE` | 1.6× | H1 and document title |
+| `SECTION` | 1.3× | H2 |
+| `SUBHEAD` | 1.15× | H3 and below |
+| `BODY` | 1.0× | Prose and code |
+| `LABEL` | 0.8× | UI labels and metadata |
+
+Worlds may give lower heading levels an authored bold face where the typeface
+needs it. H1 spends size rather than bold weight.
+
+Avoid scattered pixel sizes, invented emphasis colors, and synthetic weights.
+Choose an existing role or extend the shared grammar deliberately.
+
+### Layout
+
+The writing column is adaptive, stable, and generous. It stays centered when
+the frame is symmetric and moves only when real occupied territory requires it.
+Margin surfaces borrow leftover space; they do not steal width from prose or
+reflow the document when toggled.
+
+Spacing carries hierarchy as seriously as type. Prefer a clear interval and
+confident negative space over boxes, separators, and labels explaining every
+relationship.
+
+## 4. Presence and response
+
+The caret is the clearest point of presence. It occupies the character rather
+than hiding in the seam between characters, never blinks, and makes motion
+visible through its body and trail.
+
+The caret is a main character, not a monopoly on expression. Other elements may
+react or animate when motion expresses a world or acknowledges an action.
+
+### Motion follows importance
+
+The more often an action occurs, the less animation may delay it.
+
+- Typing, caret movement, selection, and scrolling complete immediately.
+- The caret reaches its destination at full speed; squash, stretch, overshoot,
+  and the trailing mark describe the movement after the input has landed.
+- Menu navigation and other occasional choices may use visible transitions,
+  provided they remain responsive.
+- World changes and ambient grounds may carry longer motion because they are
+  environmental rather than input-critical.
+
+No animation may hold the result hostage. If an effect makes the editor feel
+slower, redesign the effect.
+
+### Performance is visible design
+
+Moving worlds target fluid 60-frame-per-second presentation on moderate
+hardware. Static worlds redraw only when something changes. Idle work should be
+negligible.
+
+Prefer event-driven motion, cached geometry, bounded fields, downsampled effects,
+and simple compositing. Do not remove character reflexively to save cost; find
+the inexpensive version of the intended effect and measure it in release mode.
+
+Motion settings and current accessibility behavior are specified in
+`ACCESSIBILITY.md` and the relevant feature docs. Do not claim a broader
+guarantee than the implementation provides.
+
+## 5. Surfaces and attention
+
+One primary task owns the screen.
+
+### Contextual overlays
+
+An overlay belongs to the current writing action. It keeps the document visible
+because the user still needs that context. Examples include Commands, Goto,
+Find/Replace, Theme, Caret, spelling, links, and formatting.
+
+Overlays:
+
+- are summoned and transient;
+- keep a stable relationship to the document or their authored world rail;
+- share row measurement, focus, navigation, and hit-testing primitives;
+- use the world's surface composition rather than feature-specific decoration;
+- dismiss without disturbing document state.
+
+### Sustained workspaces
+
+A workspace relocates attention for a sustained task. Settings and Version
+History may occupy the viewport rather than competing with a readable document
+behind a small card.
+
+A workspace may use coordinated regions—navigation and controls, or timeline
+and comparison—when they form one task. Narrow windows stage those regions
+sequentially instead of compressing them into illegibility.
+
+Closing the workspace returns to the exact editor state. A workspace is still
+summoned; it is not a persistent application shell, page router, tab system, or
+permission to migrate every picker.
+
+### Depth and separation
+
+Prefer figure/ground, value, spacing, and composition over generic elevation
+effects. The shared neutral ramp provides the default depth grammar:
+
+- `base_100`: deepest plane;
+- `base_200`: raised or differentiated plane;
+- `base_300`: focused or foreground plane.
+
+Worlds may express shared surfaces through authored Pane, Bars, border, binary,
+or other data-driven compositions. Borders, rules, and patterns are valid when
+they belong to the world; a default drop shadow added merely to make something
+look like a card is not.
+
+### Persistent orientation
+
+Persistent chrome is narrowly bounded.
+
+In page mode, the left margin answers **where am I?**:
+
+- Outline at the top: position in the document;
+- filename and folder identity at the bottom: position in the filesystem.
+
+The right margin answers **how much?**:
+
+- word count and reading time at the bottom.
+
+Margin surfaces:
+
+- hug the writing column rather than the window edge;
+- use quiet label treatment;
+- hide when space is insufficient;
+- never change the prose column's geometry;
+- remain orientation, not permanent management UI.
+
+The Outline may click-to-jump. It is not a resizable or focusable file-tree
+substitute.
+
+Web and Linux may show a slim persistent menu bar because those environments
+otherwise provide no discoverable application menu. macOS uses its native menu
+bar and never draws the substitute.
+
+## 6. Keyboard and pointer
+
+Keyboard interaction is the primary grammar. Surfaces teach important shortcuts
+through concise footer hints and which-key guidance rather than assuming prior
+knowledge.
+
+Pointer interaction is real, not grudging:
+
+- click to place the caret or choose a row;
+- drag to select text, resize images, and adjust range controls;
+- use contextual menus;
+- use the selection-triggered Markdown formatting popover.
+
+The formatting popover is a bounded bridge for pointer users. Its controls fire
+the same actions as keymaps and Commands. It appears from a mouse selection,
+dismisses with that context, and does not grow into a persistent toolbar.
+
+Do not create separate keyboard and pointer products. They share actions,
+state, geometry, and validation.
+
+## 7. Rich content
+
+WYSIWYG content should feel native to the page rather than embedded as a foreign
+widget.
+
+- Markdown marks recede away from the caret and reveal for editing.
+- Images default to fit the column. Awl does not recolor user images or surround
+  them with ornamental frames. Missing-image and resize affordances remain
+  subordinate to the content.
+- Tables use real grid geometry with legible cells and restrained structure.
+- Code blocks remain readable as code without turning into miniature IDEs.
+- Formatting controls edit Markdown and remain undoable.
+
+The rich render never changes file ownership: source Markdown is always one
+caret placement away.
+
+## 8. Responsive behavior
+
+Narrow layouts simplify or stage; they do not miniaturize.
+
+When space contracts:
+
+1. preserve readable type and honest control sizes;
+2. remove decorative travel or peripheral detail;
+3. hide optional margin orientation;
+4. stage multi-region workspaces with a back path;
+5. reduce a world's composition within its authored bounds;
+6. never overlap, clip, introduce horizontal scrolling, or silently change the
+   interaction model.
+
+Drawn geometry and hit-test geometry have one owner. A surface that looks
+clickable must be clickable where it is drawn at supported zoom and DPI.
+
+## 9. Designing something new
+
+Before adding a surface or visual mechanism, answer:
+
+- What single task owns attention?
+- Is this Room or Frame, and does its expression belong there?
+- Which shared text, surface, row, focus, and input primitives already own the
+  behavior?
+- Does motion preserve the speed of the action?
+- Does the result remain legible in every enrolled world?
+- What happens narrow, zoomed, at high DPI, and with current accessibility
+  settings?
+- Can the real result be captured and inspected deterministically?
+- Is the feature still interesting after the novelty wears off?
+
+Then verify the rendered result, not only the state that intended to draw it.
+Use real captures for geometry and appearance, sidecars for state, and live
+release-mode judgment for motion and feel.
+
+The final visual test is simple: awl should look good enough to interrupt
+expectation, interesting enough to invite exploration, and responsive enough
+that the user begins writing instead of admiring the interface from a distance.

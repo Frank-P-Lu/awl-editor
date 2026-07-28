@@ -19,17 +19,13 @@ site/
 
 ### Page sections (`index.html`)
 
-1. **Hero** — the `awl` wordmark, tagline, the primary `Try it →` CTA (→ `/editor/`),
-   and the `img/hero.png` screenshot in a framed window.
-2. **Theme worlds** — a responsive grid of the 14 `img/world-*.png` showcases.
-3. **The pitch** — simple / beautiful / fun, the three constraints, with links to
-   the repo docs.
-4. **What it is / isn't** — the in/out line from `SCOPE.md` (minimal syntax
-   highlighting in; LSP / multi-cursor / symbol nav / project tree out).
-5. **Footer** — GitHub, the editor, `llms.txt`, GPL-3.0, "by Frank Lu", zero-network.
+1. **One-screen hero** — compact human navigation, the `awl` wordmark, one-line
+   description, primary `Try it →` CTA, and secondary `Download ↓` anchor.
+2. **Download** — macOS and Linux release links plus the web-editor route for
+   Windows.
 
-One HTML comment marks deferred work: the **download section** (native binaries,
-left out of v1).
+Human navigation is deliberately limited to GitHub, Try, Philosophy, and Guide.
+`llms.txt` remains available to machines but is not linked from human pages.
 
 ### Web analytics — GoatCounter (configured)
 
