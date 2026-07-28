@@ -37,10 +37,10 @@ pub const LAVA_FROZEN_PHASE: f32 = 0.0;
 /// modest margin. TASTE TUNABLE — flagged for live review.
 pub const MARGIN_GAP_PX: f32 = 28.0;
 
-/// Maximum blobs the shader's uniform carries (`array<vec4<f32>, 8>`); the
-/// backdrop currently uses the full budget, and `blob_count` names how many are
-/// live.
-pub const MAX_BLOBS: usize = 8;
+/// Maximum blobs the shader's uniform carries. Control deliberately leaves four
+/// slots unused: changing this capacity is invisible until the developer-only
+/// trial selector chooses the twelve-body arm.
+pub const MAX_BLOBS: usize = 12;
 
 /// ONE continuous backdrop field, authored in viewport UV and wholly independent
 /// of the page column. Each row is `[cx, cy, r, w]`: center in viewport UV,
@@ -66,6 +66,57 @@ pub const BACKDROP_BLOBS: [[f32; 4]; 8] = [
     [0.82, 0.50, 0.153, 1.05],
     [0.88, 0.82, 0.136, 0.95],
 ];
+
+/// The reversible twelve-body trial. Large masses remain legible, while the
+/// smaller satellites make each margin read as a field rather than two banks.
+/// Average radius is 10.1% below control; both lava worlds intentionally share
+/// this one authored layout.
+pub const TWELVE_BLOBS: [[f32; 4]; 12] = [
+    [0.06, 0.14, 0.130, 0.92],
+    [0.18, 0.38, 0.165, 1.00],
+    [0.07, 0.67, 0.140, 0.95],
+    [0.23, 0.86, 0.104, 0.86],
+    [0.35, 0.58, 0.145, 1.00],
+    [0.62, 0.29, 0.138, 1.00],
+    [0.76, 0.08, 0.100, 0.82],
+    [0.88, 0.31, 0.156, 1.00],
+    [0.95, 0.59, 0.123, 0.92],
+    [0.78, 0.78, 0.140, 0.96],
+    [0.61, 0.88, 0.098, 0.84],
+    [0.48, 0.50, 0.133, 0.95],
+];
+
+/// Startup-only developer A/B selector. It is deliberately absent from normal
+/// configuration and CLI help: unset (or `control`) is the shipping field.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LavaFieldTrial {
+    Control,
+    Twelve,
+}
+
+pub fn field_trial() -> LavaFieldTrial {
+    static TRIAL: OnceLock<LavaFieldTrial> = OnceLock::new();
+    *TRIAL.get_or_init(
+        || match std::env::var("AWL_LAVA_FIELD_TRIAL").ok().as_deref() {
+            Some("twelve") => LavaFieldTrial::Twelve,
+            _ => LavaFieldTrial::Control,
+        },
+    )
+}
+
+pub fn active_blobs() -> &'static [[f32; 4]] {
+    match field_trial() {
+        LavaFieldTrial::Control => &BACKDROP_BLOBS,
+        LavaFieldTrial::Twelve => &TWELVE_BLOBS,
+    }
+}
+
+fn active_horizontal_sway() -> f32 {
+    match field_trial() {
+        LavaFieldTrial::Control => 1.0,
+        LavaFieldTrial::Twelve => 0.52,
+    }
+}
 
 // --- FROST constants (the shipped headed-doc treatment) -----------------------
 //
@@ -336,6 +387,27 @@ pub fn animated_center(
     let cy = base_cy + amp_y * (phase * TAU + off).sin();
     let cx = base_cx + amp_x * (phase * TAU * 0.5 + off * 1.3).sin();
     (cx, cy)
+}
+
+#[cfg(test)]
+fn animated_center_with_sway(
+    i: usize,
+    base_cx: f32,
+    base_cy: f32,
+    base_r: f32,
+    viewport: (f32, f32),
+    phase: f32,
+    sway: f32,
+) -> (f32, f32) {
+    let fi = i as f32;
+    let amp_y = 0.055 + 0.020 * (fi * 0.37).fract();
+    let aspect = viewport.1.max(1.0) / viewport.0.max(1.0);
+    let amp_x = base_r * aspect * (0.18 + 0.08 * (fi * 0.61).fract()) * sway;
+    let off = fi * 1.7;
+    (
+        base_cx + amp_x * (phase * TAU * 0.5 + off * 1.3).sin(),
+        base_cy + amp_y * (phase * TAU + off).sin(),
+    )
 }
 
 /// The summed metaball FIELD at pixel `px` (physical px), the Gaussian-falloff
@@ -853,18 +925,18 @@ impl LavaPipeline {
         };
         self.active = true;
         let mut blobs = [[0.0f32; 4]; MAX_BLOBS];
-        for (dst, src) in blobs.iter_mut().zip(BACKDROP_BLOBS.iter()) {
+        for (dst, src) in blobs.iter_mut().zip(active_blobs().iter()) {
             *dst = *src;
         }
         let globals = Globals {
             viewport: [width as f32, height as f32],
             field_viewport: field_viewport([width as f32, height as f32], settled_field_viewport),
-            blob_count: BACKDROP_BLOBS.len() as u32,
+            blob_count: active_blobs().len() as u32,
             dither: dithered as u32,
             rail: rail_carved as u32,
             gutter: gutter_rect.is_some() as u32,
             margin: [col_left, col_left + col_w, MARGIN_GAP_PX, edge.mask_mode()],
-            anim: [phase, 0.0, 0.0, 0.0],
+            anim: [phase, active_horizontal_sway(), 0.0, 0.0],
             ground: srgb_u8_to_linear(ground),
             blob_lo: srgb_u8_to_linear(blob_lo),
             blob_hi: srgb_u8_to_linear(blob_hi),
@@ -985,7 +1057,15 @@ mod tests {
     #[test]
     fn backdrop_layout_has_no_page_geometry_input() {
         let vp = (1200.0, 800.0);
-        assert_eq!(BACKDROP_BLOBS.len(), MAX_BLOBS);
+        assert_eq!(
+            BACKDROP_BLOBS.len(),
+            8,
+            "control remains the exact eight-body field"
+        );
+        assert!(
+            BACKDROP_BLOBS.len() < MAX_BLOBS,
+            "trial capacity does not make control bodies live"
+        );
         for b in BACKDROP_BLOBS {
             assert!((0.0..=1.0).contains(&b[0]));
             assert!((0.0..=1.0).contains(&b[1]));
@@ -993,6 +1073,67 @@ mod tests {
                 b[2] * vp.1 >= 90.0,
                 "backdrop blob is substantial at 1200×800 (floor lowered from 100 \
                  to 90 for the COMPOSITION-C2 ~15% shrink — still a real lamp, not a dot)"
+            );
+        }
+    }
+
+    #[test]
+    fn twelve_trial_has_a_smaller_three_scale_population_and_quieter_sway() {
+        assert_eq!(
+            TWELVE_BLOBS.len(),
+            MAX_BLOBS,
+            "every trial uniform slot is authored"
+        );
+        let control_mean =
+            BACKDROP_BLOBS.iter().map(|b| b[2]).sum::<f32>() / BACKDROP_BLOBS.len() as f32;
+        let trial_mean = TWELVE_BLOBS.iter().map(|b| b[2]).sum::<f32>() / TWELVE_BLOBS.len() as f32;
+        assert!(
+            (trial_mean / control_mean - 0.90).abs() < 0.02,
+            "trial mean radius {trial_mean:.4} is not about 10% below control {control_mean:.4}"
+        );
+        let small = TWELVE_BLOBS.iter().filter(|b| b[2] <= 0.105).count();
+        let medium = TWELVE_BLOBS
+            .iter()
+            .filter(|b| (0.120..0.150).contains(&b[2]))
+            .count();
+        let large = TWELVE_BLOBS.iter().filter(|b| b[2] >= 0.155).count();
+        assert!(
+            small >= 3 && medium >= 5 && large >= 2,
+            "trial hierarchy vanished: {small} small, {medium} medium, {large} large"
+        );
+        let base = TWELVE_BLOBS[1];
+        let a =
+            animated_center_with_sway(1, base[0], base[1], base[2], (5120.0, 2756.0), 0.0, 0.52);
+        let b =
+            animated_center_with_sway(1, base[0], base[1], base[2], (5120.0, 2756.0), 0.5, 0.52);
+        assert!(
+            (a.0 - b.0).abs() < 0.04,
+            "trial horizontal sway is not contained"
+        );
+    }
+
+    #[test]
+    fn twelve_trial_contributes_to_both_margins_across_the_geometry_sweep() {
+        // A body contributes when its centre or nominal-radius disk reaches the
+        // visible margin; this is intentionally a geometry law, not a sidecar
+        // proxy for pixels.
+        for (w, h, left, right) in [
+            (1200.0, 800.0, 260.0, 940.0),
+            (800.0, 1200.0, 80.0, 720.0),
+            (2560.0, 1378.0, 570.0, 1990.0),
+            (5120.0, 2756.0, 1140.0, 3980.0),
+        ] {
+            let mut left_n = 0;
+            let mut right_n = 0;
+            for (i, b) in TWELVE_BLOBS.iter().enumerate() {
+                let (cx, _) = animated_center_with_sway(i, b[0], b[1], b[2], (w, h), 0.0, 0.52);
+                let radius_x = b[2] * h / w;
+                left_n += ((cx - radius_x) < left / w) as usize;
+                right_n += ((cx + radius_x) > right / w) as usize;
+            }
+            assert!(
+                left_n >= 4 && right_n >= 4,
+                "{w}x{h}: trial population collapses ({left_n} left, {right_n} right)"
             );
         }
     }
