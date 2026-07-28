@@ -164,6 +164,14 @@ pub(crate) fn word_delete_forward_boundary(
 /// Abstracted over the storage so [`Buffer::forward_word`] (rope-backed) and
 /// [`crate::textbox::TextBox::word_right`] (a plain `String`) share the SAME
 /// rule instead of the textbox silently drifting from the document's own M-f.
+///
+/// The word rule runs over CHARS and then the answer is snapped OUTWARD to a
+/// grapheme-cluster boundary ([`crate::grapheme`]). It must be: `is_word_char`
+/// asks `char::is_alphanumeric`, which is `Alphabetic | Nd | Nl | No` and so
+/// says NO to a combining acute (`Mn`) and to a variation selector — the run
+/// therefore ends BETWEEN a base letter and the mark drawn on top of it, at a
+/// position that does not exist on screen. Snapping changes the answer only
+/// where it was interior to a cluster, never which chars count as a word.
 pub(crate) fn word_forward_boundary(
     cursor: usize,
     len: usize,
@@ -176,13 +184,15 @@ pub(crate) fn word_forward_boundary(
     while i < len && is_word_char(char_at(i)) {
         i += 1;
     }
-    i
+    crate::grapheme::snap_forward(i, len, char_at)
 }
 
 /// The ONE owner of the WORD-MOTION backward boundary — the exact mirror of
-/// [`word_forward_boundary`], shared by [`Buffer::backward_word`] and
-/// [`crate::textbox::TextBox::word_left`]. `char_at(i)` yields the char at
-/// `i` (`0 <= i < cursor`).
+/// [`word_forward_boundary`], snapped outward to the LEFT for the same reason
+/// (a Devanagari conjunct's virama is non-word and sits mid-cluster), and
+/// shared by [`Buffer::backward_word`] and [`crate::textbox::TextBox::word_left`].
+/// `char_at(i)` yields the char at `i` (`0 <= i < cursor`); the walk never
+/// reaches `cursor` itself, so the caret doubles as the snap's `len`.
 pub(crate) fn word_backward_boundary(cursor: usize, char_at: impl Fn(usize) -> char) -> usize {
     let mut i = cursor;
     while i > 0 && !is_word_char(char_at(i - 1)) {
@@ -191,7 +201,7 @@ pub(crate) fn word_backward_boundary(cursor: usize, char_at: impl Fn(usize) -> c
     while i > 0 && is_word_char(char_at(i - 1)) {
         i -= 1;
     }
-    i
+    crate::grapheme::snap_backward(i, cursor, char_at)
 }
 
 /// One recorded edit, the unit of undo. We store the CHANGE (op-based history),
@@ -767,6 +777,12 @@ impl Buffer {
         self.affinity = affinity;
     }
 
+    /// The word (or the run of non-word chars) around `idx` — what a
+    /// DOUBLE-CLICK selects, and the unit a word-granularity drag extends by.
+    /// Both ends are snapped OUTWARD to grapheme-cluster boundaries, since the
+    /// caret lands on one of them: the char-class walk alone ends a word before
+    /// a trailing combining mark, which would park the caret inside the `é` it
+    /// just selected.
     pub fn word_bounds(&self, idx: usize) -> (usize, usize) {
         let len = self.rope.len_chars();
         if len == 0 {
@@ -791,7 +807,10 @@ impl Buffer {
         while end < len && is_word_char(self.rope.char(end)) == want {
             end += 1;
         }
-        (start, end)
+        (
+            crate::grapheme::snap_backward(start, len, |i| self.rope.char(i)),
+            crate::grapheme::snap_forward(end, len, |i| self.rope.char(i)),
+        )
     }
 
     pub fn line_bounds(&self, idx: usize) -> (usize, usize) {

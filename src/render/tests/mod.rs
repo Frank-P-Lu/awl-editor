@@ -35,6 +35,7 @@ mod frost;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
+mod grapheme_click;
 mod hover_slop_law;
 mod hud;
 mod hybrid_band_snap;
