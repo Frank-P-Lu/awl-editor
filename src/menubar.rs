@@ -3,11 +3,13 @@
 //! for both drawing and hit testing. It defaults off on macOS, preserving normal
 //! native captures unless explicitly enabled.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use crate::toggle::Toggle;
 
 /// Whether the rendered menu bar is drawn. It defaults on where there is no native
 /// bar and off on macOS; config, command, and capture flags can override it.
-static MENU_BAR_ON: AtomicBool = AtomicBool::new(cfg!(not(target_os = "macos")));
+static MENU_BAR_ON: Toggle = Toggle::new(cfg!(not(target_os = "macos")));
 
 const NONE: usize = usize::MAX;
 
@@ -21,18 +23,21 @@ static OPEN_MENU: AtomicUsize = AtomicUsize::new(NONE);
 /// True when the menu bar is enabled (read by the renderer each frame + the capture
 /// sidecar's `menubar` block, so the two can never disagree).
 pub fn menu_bar_on() -> bool {
-    MENU_BAR_ON.load(Ordering::Relaxed)
+    MENU_BAR_ON.on()
 }
 
 /// Set the menu bar on/off explicitly — the config sticky-pref launch-apply
 /// (`Config::apply_sticky_globals`), the settings-menu toggle, and the `--menu-bar`
 /// capture flag. Turning it OFF also closes any open dropdown (a hidden bar can hold
-/// no open menu). Mirrors [`crate::outline::set_outline_on`].
+/// no open menu).
 pub fn set_menu_bar_on(on: bool) {
-    // Geometry tests share this reentrant global with the page-layout state.
+    // Self-acquiring: geometry tests share this reentrant global with the
+    // page-layout state across many call sites, so the write takes the lock
+    // itself (held across both this store and the nested `set_open` below)
+    // rather than demanding every one of them pre-hold it.
     #[cfg(test)]
     let _g = crate::testlock::serial();
-    MENU_BAR_ON.store(on, Ordering::Relaxed);
+    MENU_BAR_ON.set(on);
     if !on {
         set_open(None);
     }

@@ -57,22 +57,22 @@
 //! There is currently no separate scroll-glide animator to gate (scroll is an
 //! instant target, no spring) — noted so a future one doesn't get missed.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether every juice animator should settle INSTANTLY rather than ease over
 /// time. DEFAULT OFF — a plain launch (and every headless capture) keeps the
 /// full glide/flinch feel until [`apply_at_startup`] (live-only) says otherwise.
-static REDUCED_ON: AtomicBool = AtomicBool::new(false);
+static REDUCED_ON: Toggle = Toggle::new(false);
 
 /// True while reduce-motion is active (read by every animation-step seam).
 pub fn reduced() -> bool {
-    REDUCED_ON.load(Ordering::Relaxed)
+    REDUCED_ON.on()
 }
 
 /// Set reduce-motion on/off explicitly — [`apply_at_startup`]'s resolved value,
 /// and the Settings menu's "Reduce motion" toggle (`App::setting_toggle`).
 pub fn set_reduced(on: bool) {
-    REDUCED_ON.store(on, Ordering::Relaxed);
+    REDUCED_ON.set(on);
 }
 
 /// THE resolution ladder, pure + fully unit-testable without any real OS call:

@@ -161,6 +161,7 @@ mod theme;
 #[cfg(test)]
 mod testlock;
 mod themeswitch;
+mod toggle;
 mod typewriter;
 mod updates;
 mod web_export;

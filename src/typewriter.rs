@@ -8,11 +8,11 @@
 //! near the bottom it clamps to `max_scroll_rows`), the standard typewriter feel.
 //!
 //! This module owns ONLY the process-global on/off flag (DEFAULT OFF — opt-in,
-//! like the margin outline). The PIN GEOMETRY is pure and lives on the render
+//! like the margin outline), a [`crate::toggle::Toggle`] — see that module for
+//! the shared mechanism. The PIN GEOMETRY is pure and lives on the render
 //! pipeline (`TextPipeline::scroll_to_center_row` — no parallel math); the DECISION
 //! of when to center is `app::viewstate::follow_scroll_strategy` (which reads this
-//! flag). Mirrors the [`crate::outline`] / [`crate::markdown::wysiwyg_on`]
-//! global shape exactly:
+//! flag):
 //!
 //!   * [`TYPEWRITER_ON`] — whether typewriter scroll pins the caret row (DEFAULT OFF).
 //!   * [`typewriter_on`] / [`set_typewriter_on`] / [`toggle`] — the readers/writers.
@@ -25,33 +25,30 @@
 //! deterministically (see `capture::modes`). A default `--screenshot` (typewriter
 //! OFF) keeps the exact cursor-follow scroll → byte-identical.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether typewriter scroll pins the caret row centered. DEFAULT OFF — the calm
 /// room scrolls with the ordinary cursor-follow until you ask for the pinned line
 /// (palette "Toggle typewriter scroll" / settings menu / config `typewriter_scroll = true`).
-static TYPEWRITER_ON: AtomicBool = AtomicBool::new(false);
+static TYPEWRITER_ON: Toggle = Toggle::new(false);
 
 /// True when typewriter scroll is enabled (read by `sync_view`'s cursor-follow +
 /// by the capture scroll computation, so the live app and a headless capture can
 /// never disagree about whether the caret row is pinned).
 pub fn typewriter_on() -> bool {
-    TYPEWRITER_ON.load(Ordering::Relaxed)
+    TYPEWRITER_ON.on()
 }
 
 /// Set typewriter scroll on/off explicitly — the config sticky-pref launch-apply
-/// (`Config::apply_sticky_globals`) and the settings-menu toggle. Mirrors
-/// [`crate::outline::set_outline_on`] / [`crate::markdown::set_wysiwyg_on`].
+/// (`Config::apply_sticky_globals`) and the settings-menu toggle.
 pub fn set_typewriter_on(on: bool) {
-    TYPEWRITER_ON.store(on, Ordering::Relaxed);
+    TYPEWRITER_ON.set(on);
 }
 
 /// Flip typewriter scroll and return the now-active state (the palette
-/// "Toggle typewriter scroll" command / a rebound chord). Mirrors [`crate::outline::toggle`].
+/// "Toggle typewriter scroll" command / a rebound chord).
 pub fn toggle() -> bool {
-    let next = !typewriter_on();
-    TYPEWRITER_ON.store(next, Ordering::Relaxed);
-    next
+    TYPEWRITER_ON.toggle()
 }
 
 #[cfg(test)]

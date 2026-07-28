@@ -53,6 +53,7 @@ fn pane_band_top(p: &mut TextPipeline, target: f32, lh: f32) -> f32 {
 /// Arm a live pipeline with Reduce-Motion OFF (the only state where the band
 /// animates at all), returning it plus the saved reduced-flag to restore.
 fn armed() -> Option<(TextPipeline, bool)> {
+    let _g = crate::testlock::serial();
     let mut p = headless_pipeline()?;
     let saved = crate::motion::reduced();
     crate::motion::set_reduced(false);

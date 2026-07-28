@@ -25,7 +25,6 @@
 //! the RENDER (a bottom-left float panel) lives in `render/chrome.rs`. This module is
 //! the pure DERIVATION + the headless force-global, both unit-testable without a window.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 /// awl's ONE live prefix. Which-key is generic over the prefix (so a future second
@@ -140,16 +139,16 @@ pub fn should_summon(pending: bool, shown: bool, elapsed: bool) -> bool {
 /// capture sets it so `--whichkey --screenshot` renders the SETTLED summoned panel
 /// deterministically, while a default capture (unset) draws nothing and stays
 /// byte-identical.
-static FORCE_SHOWN: AtomicBool = AtomicBool::new(false);
+static FORCE_SHOWN: crate::toggle::Toggle = crate::toggle::Toggle::new(false);
 
 /// Force the which-key panel shown (or not) for the headless capture path.
 pub fn set_force_shown(on: bool) {
-    FORCE_SHOWN.store(on, Ordering::Relaxed);
+    FORCE_SHOWN.set(on);
 }
 
 /// Is the which-key panel being FORCED shown for a capture (`--whichkey`)?
 pub fn force_shown() -> bool {
-    FORCE_SHOWN.load(Ordering::Relaxed)
+    FORCE_SHOWN.on()
 }
 
 #[cfg(test)]

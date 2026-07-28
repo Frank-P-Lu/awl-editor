@@ -12,10 +12,10 @@
 //! orientation it gives is worth showing by default, like the other sticky
 //! toggles (WYSIWYG / spellcheck / nits). A user config `outline = false`
 //! still wins (the sticky-pref override reads the same either direction — see
-//! [`crate::config::Config::outline_on`]). Mirrors the [`crate::debug`] /
-//! [`crate::markdown::wysiwyg_on`] global shape exactly:
+//! [`crate::config::Config::outline_on`]).
 //!
-//!   * [`OUTLINE_ON`] — whether the margin outline is drawn (DEFAULT ON).
+//!   * [`OUTLINE_ON`] — whether the margin outline is drawn (DEFAULT ON), a
+//!     [`crate::toggle::Toggle`] — see that module for the shared mechanism.
 //!   * [`outline_on`] / [`set_outline_on`] / [`toggle`] — the readers/writers.
 //!
 //! Set once at launch from the config sticky pref (`config::outline`, via
@@ -27,33 +27,30 @@
 //! buffer WITH headings under page mode now legitimately shows the outline in
 //! a default capture, where it previously did not.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether the persistent margin outline is drawn. DEFAULT ON (see the module
 /// doc's 2026-07-09 taste reversal) — the calm room shows the outline's quiet
 /// orientation unless you turn it off (palette / `Cmd-Shift-O` / config
 /// `outline = false`).
-static OUTLINE_ON: AtomicBool = AtomicBool::new(true);
+static OUTLINE_ON: Toggle = Toggle::new(true);
 
 /// True when the margin outline is enabled (read by the renderer each reshape
 /// + by the capture sidecar's `outline` block, so the two can never disagree).
 pub fn outline_on() -> bool {
-    OUTLINE_ON.load(Ordering::Relaxed)
+    OUTLINE_ON.on()
 }
 
 /// Set the outline on/off explicitly — the config sticky-pref launch-apply
-/// (`Config::apply_sticky_globals`) and the settings-menu toggle. Mirrors
-/// [`crate::debug::set_debug_on`] / [`crate::markdown::set_wysiwyg_on`].
+/// (`Config::apply_sticky_globals`) and the settings-menu toggle.
 pub fn set_outline_on(on: bool) {
-    OUTLINE_ON.store(on, Ordering::Relaxed);
+    OUTLINE_ON.set(on);
 }
 
 /// Flip the outline and return the now-active state (the `Cmd-Shift-O` chord +
-/// palette "Toggle outline"). Mirrors [`crate::debug::toggle`].
+/// palette "Toggle outline").
 pub fn toggle() -> bool {
-    let next = !outline_on();
-    OUTLINE_ON.store(next, Ordering::Relaxed);
-    next
+    OUTLINE_ON.toggle()
 }
 
 #[cfg(test)]

@@ -861,17 +861,17 @@ fn nit_underline_srgba() -> [u8; 4] {
 /// code buffer on JetBrains Mono / Iosevka renders its programming ligatures;
 /// OFF renders code ligature-free (the pre-split behaviour). Read each reshape by
 /// [`text::font_features`] (via `doc_attrs` / `panel_attrs`), set once at launch
-/// from the config sticky pref (`config/`) and live by the settings menu.
-/// Mirrors `markdown::WYSIWYG_ON`. Gates ONLY code — PROSE standard fi/fl
-/// ligatures are uncontroversial and always on (see [`text::font_features`]).
-static CODE_LIGATURES_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+/// from the config sticky pref (`config/`) and live by the settings menu. Gates
+/// ONLY code — PROSE standard fi/fl ligatures are uncontroversial and always on
+/// (see [`text::font_features`]).
+static CODE_LIGATURES_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(true);
 
 pub(crate) fn code_ligatures_on() -> bool {
-    CODE_LIGATURES_ON.load(std::sync::atomic::Ordering::Relaxed)
+    CODE_LIGATURES_ON.on()
 }
 
 pub(crate) fn set_code_ligatures_on(on: bool) {
-    CODE_LIGATURES_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+    CODE_LIGATURES_ON.set(on);
 }
 
 fn panel_attrs() -> Attrs<'static> {

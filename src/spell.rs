@@ -70,26 +70,24 @@ pub fn set_active_variant(v: DictVariant) {
     ACTIVE_VARIANT.store(v.as_u8(), std::sync::atomic::Ordering::Relaxed);
 }
 
-/// Whether spell-check is active AT ALL — the GLOBAL escape hatch (default ON),
-/// mirroring `nits::NITS_ON` exactly: a process-global read by the ONE owner seam
-/// ([`SpellChecker::misspellings_for`] + [`SpellChecker::suggest_at`]) so OFF
-/// silences every squiggle — prose comments and the scoped code-string/comment
-/// check alike — and turns the spell-suggest picker into a calm no-op, with zero
-/// duplicated gating at any call site (render, capture, the right-click seam).
-static SPELLCHECK_ON: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+/// Whether spell-check is active AT ALL — the GLOBAL escape hatch (default ON):
+/// a process-global read by the ONE owner seam ([`SpellChecker::misspellings_for`]
+/// + [`SpellChecker::suggest_at`]) so OFF silences every squiggle — prose
+/// comments and the scoped code-string/comment check alike — and turns the
+/// spell-suggest picker into a calm no-op, with zero duplicated gating at any
+/// call site (render, capture, the right-click seam).
+static SPELLCHECK_ON: crate::toggle::Toggle = crate::toggle::Toggle::new(true);
 
 pub fn spellcheck_on() -> bool {
-    SPELLCHECK_ON.load(std::sync::atomic::Ordering::Relaxed)
+    SPELLCHECK_ON.on()
 }
 
 pub fn set_spellcheck_on(on: bool) {
-    SPELLCHECK_ON.store(on, std::sync::atomic::Ordering::Relaxed);
+    SPELLCHECK_ON.set(on);
 }
 
 pub fn toggle() -> bool {
-    let next = !spellcheck_on();
-    SPELLCHECK_ON.store(next, std::sync::atomic::Ordering::Relaxed);
-    next
+    SPELLCHECK_ON.toggle()
 }
 
 /// A misspelled word's location in the document, in CHAR columns on a logical

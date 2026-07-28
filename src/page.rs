@@ -17,7 +17,9 @@
 //! derive the column's pixel left + width (see `TextPipeline::column_left` /
 //! `column_width`), so flipping either re-wraps + re-centers the text.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use crate::toggle::Toggle;
 
 /// Default PROSE measure (column width in characters). ~70 sits squarely in
 /// Butterick's 45–90 comfort band (≈2.5 lowercase alphabets); 80 read a touch
@@ -104,7 +106,7 @@ pub const MAX_MEASURE: usize = 140;
 
 /// Whether page mode (the centered capped column) is active. DEFAULT ON: the app
 /// opens with the calm centered column; the toggle drops to edge-to-edge.
-static PAGE_ON: AtomicBool = AtomicBool::new(true);
+static PAGE_ON: Toggle = Toggle::new(true);
 
 /// The column's maximum width in CHARACTERS. The pixel width is this times the
 /// (zoomed) glyph advance, clamped to the window. Tunable via `--measure N` and
@@ -146,22 +148,23 @@ impl Drop for PagePin {
             crate::testlock::currently_held(),
             "PagePin must restore inside crate::testlock::serial()"
         );
-        PAGE_ON.store(self.on, Ordering::Relaxed);
+        PAGE_ON.set(self.on);
         MEASURE.store(self.measure, Ordering::Relaxed);
     }
 }
 
 /// True when the centered column is active.
 pub fn page_on() -> bool {
-    PAGE_ON.load(Ordering::Relaxed)
+    PAGE_ON.on()
 }
 
 /// Set page mode on/off explicitly (the `--page on|off` flag, a settings write).
 pub fn set_page_on(on: bool) {
-    // Writers self-serialize under test via crate::testlock::serial() (reentrant).
+    // Writers self-serialize under test via crate::testlock::serial() (reentrant);
+    // `Toggle::set`'s assert then finds the lock already held.
     #[cfg(test)]
     let _g = crate::testlock::serial();
-    PAGE_ON.store(on, Ordering::Relaxed);
+    PAGE_ON.set(on);
 }
 
 /// Flip page mode and return the now-active state (the `C-x w` chord + palette).
@@ -169,9 +172,7 @@ pub fn toggle() -> bool {
     // The guard spans the whole read-modify-write, not just the store.
     #[cfg(test)]
     let _g = crate::testlock::serial();
-    let next = !page_on();
-    PAGE_ON.store(next, Ordering::Relaxed);
-    next
+    PAGE_ON.toggle()
 }
 
 /// The column measure (characters). Floored at 1 so the column never collapses.
