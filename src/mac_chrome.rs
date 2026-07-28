@@ -124,7 +124,7 @@ pub fn trash_path(path: &std::path::Path) -> Result<(), String> {
 }
 
 /// Show the standard macOS About window (`orderFrontStandardAboutPanel…`),
-/// populated with the app NAME, VERSION, and a short credits line via the
+/// populated with the app NAME, VERSION, and a centred credits line via the
 /// options dictionary. The macOS-only replacement for the in-app About card
 /// (`about.rs`) — the native panel is the platform convention.
 ///
