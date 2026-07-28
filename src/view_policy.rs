@@ -183,6 +183,8 @@ mod tests {
             "capture/opts.rs",
             "capture/oracle.rs",
             "capture/policy.rs",
+            // Serializes replay-skip records and owns no view policy.
+            "capture/replay_sidecar.rs",
             "capture/scroll_sidecar.rs",
             "capture/sidecar.rs",
         ];
