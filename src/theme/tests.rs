@@ -209,12 +209,7 @@ fn wagtail_alone_is_one_bit() {
 fn every_world_has_a_valid_background() {
     for t in THEMES.iter() {
         let bg = t.background;
-        assert_eq!(
-            bg.from().a,
-            0xFF,
-            "{} background from must be opaque",
-            t.name
-        );
+        assert_eq!(bg.from().a, 0xFF, "{} background from opaque", t.name);
         assert_eq!(bg.to().a, 0xFF, "{} background to must be opaque", t.name);
         assert_eq!(
             bg.tint().a,
@@ -222,9 +217,8 @@ fn every_world_has_a_valid_background() {
             "{} background tint must be opaque",
             t.name
         );
-        // 0..=4 the five original static grounds (Lava also degrades to 0 for
-        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic,
-        // 9=WarpedGrid.
+        // 0..=4 are the original static grounds (Lava also degrades to 0);
+        // 5=Bands, 6=Waves, 7=Zigzag, 8=Organic, 9=WarpedGrid.
         assert!(bg.shader_id() <= 9, "{} bad shader id", t.name);
     }
     // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
@@ -944,8 +938,11 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
 /// it `continue`s — no frost, byte-identical (the unaffected-worlds guarantee).
 fn frost_redmean(a: Srgb, b: Srgb) -> f32 {
     let rbar = (a.r as f32 + b.r as f32) * 0.5;
-    let (dr, dg, db) =
-        (a.r as f32 - b.r as f32, a.g as f32 - b.g as f32, a.b as f32 - b.b as f32);
+    let (dr, dg, db) = (
+        a.r as f32 - b.r as f32,
+        a.g as f32 - b.g as f32,
+        a.b as f32 - b.b as f32,
+    );
     let squared =
         (2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db;
     squared.sqrt()
