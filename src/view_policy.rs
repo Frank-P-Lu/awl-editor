@@ -91,6 +91,46 @@ mod tests {
         );
     }
 
+    fn capture_production_sources() -> BTreeMap<String, String> {
+        fn visit(root: &Path, dir: &Path, sources: &mut BTreeMap<String, String>) {
+            for entry in std::fs::read_dir(dir).expect("read capture source directory") {
+                let entry = entry.expect("read capture source entry");
+                let path = entry.path();
+                if path.is_dir() {
+                    if path.file_name().and_then(|name| name.to_str()) != Some("tests") {
+                        visit(root, &path, sources);
+                    }
+                } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
+                    let source = std::fs::read_to_string(&path).expect("read capture Rust source");
+                    let production = source.split("#[cfg(test)]").next().unwrap_or(&source);
+                    let relative = path
+                        .strip_prefix(root)
+                        .expect("capture source lives under src")
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    sources.insert(relative, production.to_string());
+                }
+            }
+        }
+
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut sources = BTreeMap::new();
+        let root_module = root.join("capture.rs");
+        sources.insert(
+            "capture.rs".to_string(),
+            std::fs::read_to_string(root_module).expect("read capture root module"),
+        );
+        visit(&root, &root.join("capture"), &mut sources);
+        sources
+    }
+
+    fn identifier_count(source: &str, identifier: &str) -> usize {
+        source
+            .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .filter(|token| *token == identifier)
+            .count()
+    }
+
     /// API ownership and consumer roster. This counts named policy doors rather
     /// than one lexical spelling of their expressions: rewriting a bypass as
     /// `matches!`, a `match`, or a reordered comparison cannot satisfy the law.
@@ -122,36 +162,85 @@ mod tests {
         );
     }
 
-    /// The imperative primitives may appear only in their declared live/capture
-    /// wiring owners. An alternate hand-written policy branch necessarily adds a
-    /// raw input or primitive here even if it disguises the boolean expression.
+    /// The COMPLETE production capture tree is enumerated first, so adding a new
+    /// capture module cannot silently escape this audit. Raw identifier tokens are
+    /// then rostered without depending on call punctuation, qualification, aliases,
+    /// or the spelling of a surrounding `if`/`match`/`matches!`.
     #[test]
-    fn raw_policy_inputs_and_effects_have_an_exhaustive_owner_roster() {
-        let app = include_str!("app/viewstate.rs");
-        let capture = include_str!("capture/modes.rs");
-        let animated = include_str!("capture/animated.rs");
+    fn every_capture_source_has_an_identifier_level_policy_owner() {
+        let sources = capture_production_sources();
+        let expected_files = [
+            "capture.rs",
+            "capture/animated.rs",
+            "capture/film.rs",
+            "capture/frames.rs",
+            "capture/gpu.rs",
+            "capture/modes.rs",
+            "capture/opts.rs",
+            "capture/oracle.rs",
+            "capture/scroll_sidecar.rs",
+            "capture/sidecar.rs",
+        ];
+        assert_eq!(
+            sources.keys().map(String::as_str).collect::<Vec<_>>(),
+            expected_files,
+            "the production capture source roster changed; enroll every new .rs file \
+             in the policy ownership audit before it can ship"
+        );
 
-        assert_eq!(app.matches("typewriter_on()").count(), 1);
-        assert_eq!(app.matches("spell_checked_version").count(), 1);
-        assert_eq!(app.matches("scroll_to_center_row_pos(").count(), 1);
-        assert_eq!(app.matches("recompute_spell_cache()").count(), 1);
-
-        assert_eq!(capture.matches("typewriter_on()").count(), 1);
-        assert_eq!(capture.matches("scroll_to_show_row_pos(").count(), 1);
-        assert_eq!(capture.matches("scroll_to_center_row_pos(").count(), 1);
-        assert_eq!(capture.matches("SpellChecker::new(").count(), 1);
-
-        for bypass in [
-            "typewriter_on()",
-            "scroll_to_show_row_pos(",
-            "scroll_to_center_row_pos(",
-            "SpellChecker::new(",
+        for identifier in [
+            "typewriter_on",
+            "scroll_to_show_row_pos",
+            "scroll_to_center_row_pos",
+            "SpellChecker",
             "spell_checked_version",
+            "checked_version",
         ] {
+            let actual: BTreeMap<&str, usize> = sources
+                .iter()
+                .filter_map(|(path, source)| {
+                    let count = identifier_count(source, identifier);
+                    (count != 0).then_some((path.as_str(), count))
+                })
+                .collect();
+            let expected = match identifier {
+                "spell_checked_version" => BTreeMap::new(),
+                _ => BTreeMap::from([(
+                    "capture/modes.rs",
+                    if identifier == "checked_version" {
+                        2
+                    } else {
+                        1
+                    },
+                )]),
+            };
             assert_eq!(
-                animated.matches(bypass).count(),
-                0,
-                "animated capture bypasses the shared capture policy via `{bypass}`"
+                actual, expected,
+                "raw capture policy identifier `{identifier}` escaped its sole declared \
+                 owner; animated/timeline/held/frames/film may call only shared helpers"
+            );
+        }
+
+        for (helper, expected) in [
+            (
+                "capture_follow_scroll",
+                BTreeMap::from([("capture/animated.rs", 2), ("capture/modes.rs", 2)]),
+            ),
+            (
+                "capture_misspellings",
+                BTreeMap::from([("capture/animated.rs", 2), ("capture/modes.rs", 2)]),
+            ),
+        ] {
+            let actual: BTreeMap<&str, usize> = sources
+                .iter()
+                .filter_map(|(path, source)| {
+                    let count = identifier_count(source, helper);
+                    (count != 0).then_some((path.as_str(), count))
+                })
+                .collect();
+            assert_eq!(
+                actual, expected,
+                "shared helper roster changed for `{helper}`"
             );
         }
     }
