@@ -6,12 +6,14 @@
 //! every phase. Both `match`es are wildcard-free: adding a phase or event makes
 //! the suite stop compiling until the ordering law is extended deliberately.
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum CrossingPhase {
-    Idle,
-    Debouncing,
-    AwaitingPresent,
-    DebouncingAwaitingPresent,
+enum_with_all! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub(super) enum CrossingPhase {
+        Idle,
+        Debouncing,
+        AwaitingPresent,
+        DebouncingAwaitingPresent,
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,13 +26,6 @@ pub(super) enum CrossingEvent {
 }
 
 impl CrossingPhase {
-    pub(super) const ALL: [Self; 4] = [
-        Self::Idle,
-        Self::Debouncing,
-        Self::AwaitingPresent,
-        Self::DebouncingAwaitingPresent,
-    ];
-
     pub(super) const fn from_claims(debouncing: bool, awaiting_present: bool) -> Self {
         match (debouncing, awaiting_present) {
             (false, false) => Self::Idle,

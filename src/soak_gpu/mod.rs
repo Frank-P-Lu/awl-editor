@@ -59,36 +59,26 @@ pub(crate) enum FrameOutcome {
     Skipped(SkipKind),
 }
 
-/// The reason a frame did not present, mirrored from the live GPU skip/fault
-/// taxonomy so the probe can count each cause SEPARATELY. Collapsing these into
-/// a single `skipped` total is exactly what hid the zero-drawable
-/// investigation: 30s of pure `Occluded` skips read identically to a timeout
-/// storm. Per-kind counters make that self-diagnosing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum SkipKind {
-    Timeout,
-    Occluded,
-    SurfaceReconfigured,
-    SurfaceRecreated,
-    PrepareFailed,
-    /// A classified fault (OOM / device-lost / surface-lost / validation) whose
-    /// frame is dropped while App-owned recovery runs.
-    Fault,
+enum_with_all! {
+    /// The reason a frame did not present, mirrored from the live GPU skip/fault
+    /// taxonomy so the probe can count each cause SEPARATELY. Collapsing these into
+    /// a single `skipped` total is exactly what hid the zero-drawable
+    /// investigation: 30s of pure `Occluded` skips read identically to a timeout
+    /// storm. Per-kind counters make that self-diagnosing.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub(crate) enum SkipKind {
+        Timeout,
+        Occluded,
+        SurfaceReconfigured,
+        SurfaceRecreated,
+        PrepareFailed,
+        /// A classified fault (OOM / device-lost / surface-lost / validation) whose
+        /// frame is dropped while App-owned recovery runs.
+        Fault,
+    }
 }
 
 impl SkipKind {
-    /// Every variant, in the fixed order the report prints — the array's length
-    /// IS the counter table's width (a new variant fails to compile the
-    /// `[u64; SkipKind::ALL.len()]` counter until it is added here).
-    pub(crate) const ALL: [SkipKind; 6] = [
-        Self::Timeout,
-        Self::Occluded,
-        Self::SurfaceReconfigured,
-        Self::SurfaceRecreated,
-        Self::PrepareFailed,
-        Self::Fault,
-    ];
-
     pub(crate) fn index(self) -> usize {
         match self {
             Self::Timeout => 0,

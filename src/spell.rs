@@ -5,18 +5,18 @@ const DIC_GB: &str = include_str!("../assets/dict/en_GB.dic");
 const AFF_AU: &str = include_str!("../assets/dict/en_AU.aff");
 const DIC_AU: &str = include_str!("../assets/dict/en_AU.dic");
 
-/// Active bundled Hunspell variant, shared by live mode and capture.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(clippy::enum_variant_names)]
-pub enum DictVariant {
-    EnUs,
-    EnGb,
-    EnAu,
+enum_with_all! {
+    /// Active bundled Hunspell variant, shared by live mode and capture.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    #[allow(clippy::enum_variant_names)]
+    pub enum DictVariant {
+        EnUs,
+        EnGb,
+        EnAu,
+    }
 }
 
 impl DictVariant {
-    pub const ALL: [DictVariant; 3] = [DictVariant::EnUs, DictVariant::EnGb, DictVariant::EnAu];
-
     fn as_u8(self) -> u8 {
         match self {
             DictVariant::EnUs => 0,

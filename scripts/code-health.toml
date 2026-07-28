@@ -187,7 +187,7 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 326
+lines = 306
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -219,7 +219,7 @@ lines = 2434
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
-lines = 567
+lines = 560
 
 [[file_size_mark]]
 file = "src/render/benchsuite/report.rs"
@@ -227,7 +227,7 @@ lines = 598
 
 [[file_size_mark]]
 file = "src/render/benchsuite/scenarios.rs"
-lines = 599
+lines = 590
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
@@ -347,7 +347,7 @@ lines = 730
 
 [[file_size_mark]]
 file = "src/soak_gpu/mod.rs"
-lines = 628
+lines = 618
 
 [[file_size_mark]]
 file = "src/spell.rs"
@@ -1113,7 +1113,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/syntax/tests.rs"
-line = 146
+line = 123
 message = "the function has a cognitive complexity of (29/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

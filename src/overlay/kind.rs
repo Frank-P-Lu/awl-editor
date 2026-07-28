@@ -1,23 +1,25 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OverlayKind {
-    Goto,
-    Project,
-    Browse,
-    Theme,
-    Caret,
-    MoveDest,
-    Dictionary,
-    CjkLang,
-    Date,
-    Command,
-    Spell,
-    Keybindings,
-    History,
-    Settings,
-    Assets,
-    Rename,
-    InsertLink,
-    KeepName,
+enum_with_all! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum OverlayKind {
+        Goto,
+        Project,
+        Browse,
+        Theme,
+        Caret,
+        Dictionary,
+        CjkLang,
+        Date,
+        MoveDest,
+        Command,
+        Spell,
+        Keybindings,
+        History,
+        Settings,
+        Assets,
+        Rename,
+        InsertLink,
+        KeepName,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,28 +30,6 @@ pub enum AcceptDisposition {
 }
 
 impl OverlayKind {
-    #[allow(dead_code)] // consumed only by the `facets`/law tests today.
-    pub const ALL: [OverlayKind; 18] = [
-        OverlayKind::Goto,
-        OverlayKind::Project,
-        OverlayKind::Browse,
-        OverlayKind::Theme,
-        OverlayKind::Caret,
-        OverlayKind::Dictionary,
-        OverlayKind::CjkLang,
-        OverlayKind::Date,
-        OverlayKind::MoveDest,
-        OverlayKind::Command,
-        OverlayKind::Spell,
-        OverlayKind::Keybindings,
-        OverlayKind::History,
-        OverlayKind::Settings,
-        OverlayKind::Assets,
-        OverlayKind::Rename,
-        OverlayKind::InsertLink,
-        OverlayKind::KeepName,
-    ];
-
     pub fn from_mode(mode: &str) -> Option<OverlayKind> {
         Self::ALL.iter().copied().find(|k| k.as_str() == mode)
     }

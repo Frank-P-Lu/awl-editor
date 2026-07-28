@@ -33,14 +33,15 @@ fn shaped_popover_labels_and_hits_agree_at_narrow_zoom_and_dpi() {
             "dpi {dpi} zoom {zoom}: exact popover roster"
         );
         let mid_y = card[1] + card[3] * 0.5;
-        for ((label, _, [x0, x1]), button) in buttons.iter().zip(crate::popover::ALL) {
+        for ((label, _, [x0, x1]), button) in buttons.iter().zip(crate::popover::PopoverButton::ALL)
+        {
             assert!(
                 x1 > x0,
                 "{label} has a real shaped span at dpi {dpi} zoom {zoom}"
             );
             assert_eq!(
                 p.popover_hit((x0 + x1) * 0.5, mid_y),
-                Some(*button),
+                Some(button),
                 "dpi {dpi} zoom {zoom}: painted {label:?} span hits its own button"
             );
         }

@@ -8,16 +8,16 @@
 
 use super::crossing::{self, CrossingEvent, CrossingPhase};
 
-/// A resize or move stream's contribution to the transaction bracket.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum StreamPhase {
-    Disarmed,
-    Armed,
+enum_with_all! {
+    /// A resize or move stream's contribution to the transaction bracket.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum StreamPhase {
+        Disarmed,
+        Armed,
+    }
 }
 
 impl StreamPhase {
-    const ALL: [Self; 2] = [Self::Disarmed, Self::Armed];
-
     const fn claims_present_sync(self) -> bool {
         match self {
             Self::Disarmed => false,
@@ -40,34 +40,22 @@ impl StreamPhase {
     }
 }
 
-/// Every event owner that can change a present-transaction claim. `Teardown`
-/// is the explicit GPU/window suspend reset; a present only disarms the
-/// preview source after its settle has handed off to pending teardown.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PresentTxnTransition {
-    ResizeArm,
-    ResizeSettle,
-    MoveArm,
-    MoveSettle,
-    PreviewArm,
-    PreviewSettle,
-    PresentSkipped,
-    PresentSucceeded,
-    Teardown,
-}
-
-impl PresentTxnTransition {
-    const ALL: [Self; 9] = [
-        Self::ResizeArm,
-        Self::ResizeSettle,
-        Self::MoveArm,
-        Self::MoveSettle,
-        Self::PreviewArm,
-        Self::PreviewSettle,
-        Self::PresentSkipped,
-        Self::PresentSucceeded,
-        Self::Teardown,
-    ];
+enum_with_all! {
+    /// Every event owner that can change a present-transaction claim. `Teardown`
+    /// is the explicit GPU/window suspend reset; a present only disarms the
+    /// preview source after its settle has handed off to pending teardown.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum PresentTxnTransition {
+        ResizeArm,
+        ResizeSettle,
+        MoveArm,
+        MoveSettle,
+        PreviewArm,
+        PreviewSettle,
+        PresentSkipped,
+        PresentSucceeded,
+        Teardown,
+    }
 }
 
 /// The full product state read by `App::sync_present_txn`.

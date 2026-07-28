@@ -150,7 +150,7 @@ fn catalog_non_empty_and_named() {
 
 #[test]
 fn every_popover_button_fires_a_catalog_command() {
-    for &b in crate::popover::ALL {
+    for b in crate::popover::PopoverButton::ALL {
         let action = b.action();
         assert!(
             COMMANDS.iter().any(|c| c.action == action),

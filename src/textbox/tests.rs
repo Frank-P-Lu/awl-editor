@@ -29,9 +29,10 @@ fn all_seven_fields_have_a_home_no_wildcard() {
     }
     assert_eq!(
         TextField::ALL.len(),
-        7,
-        "the roster is exactly the 7 fields item 10 names"
+        TextField::VARIANT_COUNT,
+        "the runtime sweep covers the enum's generated variant count"
     );
+    assert!(!TextField::ALL.is_empty(), "the sweep is non-vacuous");
 }
 
 // --- B. UNICODE / BUFFER PARITY -----------------------------------------

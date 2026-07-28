@@ -29,28 +29,21 @@
 /// golden-hash tests below will insist).
 const SEED: u64 = 0xAB5_0177_BEAC_0DE5;
 
-/// The corpus tier axis. `ALL` is the suite's iteration order; `name`/`class`
-/// use no-wildcard matches so a new tier fails to compile until it is placed.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Tier {
-    S,
-    M,
-    L,
-    XPara,
-    XMd,
-    Code,
+enum_with_all! {
+    /// The corpus tier axis. `ALL` is the suite's iteration order; `name`/`class`
+    /// use no-wildcard matches so a new tier fails to compile until it is placed.
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub(super) enum Tier {
+        S,
+        M,
+        L,
+        XPara,
+        XMd,
+        Code,
+    }
 }
 
 impl Tier {
-    pub(super) const ALL: [Tier; 6] = [
-        Tier::S,
-        Tier::M,
-        Tier::L,
-        Tier::XPara,
-        Tier::XMd,
-        Tier::Code,
-    ];
-
     pub(super) fn name(self) -> &'static str {
         match self {
             Tier::S => "S",

@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn demo_attrs_previews_each_buttons_own_effect() {
         let base = panel_attrs();
-        for &b in crate::popover::ALL {
+        for b in PopoverButton::ALL {
             let a = demo_attrs(b, &base);
             match b {
                 PopoverButton::Bold => {

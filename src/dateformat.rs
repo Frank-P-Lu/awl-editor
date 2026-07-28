@@ -27,22 +27,24 @@
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
-/// The FIVE date-insert formats, in CYCLE order (also the settings row's
-/// stepping order and [`ALL`]'s iteration order — one owner). No free-form
-/// pattern strings: this is the whole closed set.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum DateFormat {
-    /// `22/07/26` — DD/MM/YY. THE DEFAULT.
-    #[default]
-    DdMmYy,
-    /// `07/22/26` — MM/DD/YY.
-    MmDdYy,
-    /// `2026-07-22` — ISO 8601.
-    Iso,
-    /// `2026/07/22` — YYYY/MM/DD.
-    YyyyMmDd,
-    /// `22 July 2026` — D Month YYYY (day unpadded, full English month name).
-    DMonthYyyy,
+enum_with_all! {
+    /// The FIVE date-insert formats, in CYCLE order (also the settings row's
+    /// stepping order and `ALL`'s iteration order — one owner). No free-form
+    /// pattern strings: this is the whole closed set.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+    pub enum DateFormat {
+        /// `22/07/26` — DD/MM/YY. THE DEFAULT.
+        #[default]
+        DdMmYy,
+        /// `07/22/26` — MM/DD/YY.
+        MmDdYy,
+        /// `2026-07-22` — ISO 8601.
+        Iso,
+        /// `2026/07/22` — YYYY/MM/DD.
+        YyyyMmDd,
+        /// `22 July 2026` — D Month YYYY (day unpadded, full English month name).
+        DMonthYyyy,
+    }
 }
 
 /// The full English month name table `[Jan..Dec]`, indexed `month - 1`. The
@@ -64,16 +66,6 @@ const MONTH_NAMES: [&str; 12] = [
 ];
 
 impl DateFormat {
-    /// Every format, in CYCLE order — the settings row's "Date format" Enter
-    /// steps through exactly this array, wrapping ([`Self::cycle_next`]).
-    pub const ALL: [DateFormat; 5] = [
-        DateFormat::DdMmYy,
-        DateFormat::MmDdYy,
-        DateFormat::Iso,
-        DateFormat::YyyyMmDd,
-        DateFormat::DMonthYyyy,
-    ];
-
     /// The persisted config-key SLUG (`date_format = "ddmmyy"` etc.) — the
     /// wire form both `Config::apply_sticky_globals` (parse, via
     /// [`Self::from_config_name`]) and `App::cycle_date_format`'s persist

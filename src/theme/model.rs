@@ -598,11 +598,13 @@ impl Background {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum IconCursor {
-    Block,
-    Pill,
-    Narrow,
+enum_with_all! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub enum IconCursor {
+        Block,
+        Pill,
+        Narrow,
+    }
 }
 
 impl IconCursor {
@@ -613,8 +615,6 @@ impl IconCursor {
             IconCursor::Narrow => "narrow",
         }
     }
-
-    pub const ALL: [IconCursor; 3] = [IconCursor::Block, IconCursor::Pill, IconCursor::Narrow];
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

@@ -10,7 +10,7 @@
 //! `active`/`label` from the live selection.
 
 use super::format::{self, InlineKind};
-use crate::popover::{ALL, ButtonState, PopoverButton, PopoverModel};
+use crate::popover::{ButtonState, PopoverButton, PopoverModel};
 
 /// The [`InlineKind`] a button's active-state reads through, or `None` for the two
 /// non-inline buttons (`Heading` reads [`format::heading_level`], `Link` reads
@@ -56,7 +56,7 @@ pub(crate) fn plan(
     let byte = char_to_byte(text, cursor);
     let in_link = crate::markdown::link_at_full(text, byte).is_some();
 
-    let buttons = ALL
+    let buttons = PopoverButton::ALL
         .iter()
         .map(|&button| {
             let (active, label) = match button {

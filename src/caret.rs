@@ -65,11 +65,13 @@ pub const CARET_COPY_PULSE_MS: f32 = 180.0;
 
 use std::sync::atomic::{AtomicU8, Ordering};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CaretMode {
-    Block,
-    Morph,
-    Ibeam,
+enum_with_all! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum CaretMode {
+        Block,
+        Morph,
+        Ibeam,
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -87,8 +89,6 @@ impl CaretMode {
             CaretMode::Ibeam => 2,
         }
     }
-
-    pub const ALL: [CaretMode; 3] = [CaretMode::Block, CaretMode::Morph, CaretMode::Ibeam];
 
     pub fn label(self) -> &'static str {
         match self {

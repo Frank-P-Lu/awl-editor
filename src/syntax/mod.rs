@@ -65,32 +65,32 @@ impl SynKind {
     }
 }
 
-/// A recognized CODE language. Detected purely by file extension
-/// ([`Lang::from_path`] / [`Lang::from_extension`]); a buffer whose extension is
-/// not one of these (incl. `.env`, `.md`, `.txt`) has no `Lang` and is NOT
-/// highlighted.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Lang {
-    Rust,
-    Python,
-    JavaScript,
-    TypeScript,
-    Go,
-    C,
-    Cpp,
-    Java,
-    CSharp,
-    Ruby,
-    Php,
-    Swift,
-    Kotlin,
-    Bash,
-    Html,
-    Css,
-    Json,
-    Yaml,
-    Toml,
-    Sql,
+enum_with_all! {
+    /// A recognized code language, detected purely by file extension. A buffer with
+    /// no recognized extension (including `.env`, `.md`, `.txt`) is not highlighted.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Lang {
+        Rust,
+        Python,
+        JavaScript,
+        TypeScript,
+        Go,
+        C,
+        Cpp,
+        Java,
+        CSharp,
+        Ruby,
+        Php,
+        Swift,
+        Kotlin,
+        Bash,
+        Html,
+        Css,
+        Json,
+        Yaml,
+        Toml,
+        Sql,
+    }
 }
 
 impl Lang {

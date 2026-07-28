@@ -28,33 +28,6 @@ const BESPOKE: &[(&str, &str)] = &[
     ),
 ];
 
-/// Every [`Lang`], for the sweeps below. Held complete by
-/// [`no_lexer_module_writes_its_own_definition_walk`], which counts
-/// [`lexer`]'s wildcard-free arms against this length.
-#[cfg(test)]
-const ALL: &[Lang] = &[
-    Lang::Rust,
-    Lang::Python,
-    Lang::JavaScript,
-    Lang::TypeScript,
-    Lang::Go,
-    Lang::C,
-    Lang::Cpp,
-    Lang::Java,
-    Lang::CSharp,
-    Lang::Ruby,
-    Lang::Php,
-    Lang::Swift,
-    Lang::Kotlin,
-    Lang::Bash,
-    Lang::Html,
-    Lang::Css,
-    Lang::Json,
-    Lang::Yaml,
-    Lang::Toml,
-    Lang::Sql,
-];
-
 use super::*;
 
 /// LAW: the definition walk has exactly ONE owner. Every `syntax/<lang>.rs`
@@ -86,7 +59,10 @@ fn no_lexer_module_writes_its_own_definition_walk() {
         .filter(|s| !NOT_A_LANGUAGE.contains(&s.as_str()))
         .collect();
     modules.sort();
-    assert!(modules.len() >= ALL.len(), "{modules:?} missed lexer files");
+    assert!(
+        modules.len() >= Lang::ALL.len(),
+        "{modules:?} missed lexer files"
+    );
 
     let declared: Vec<&str> = BESPOKE.iter().map(|(m, _)| *m).collect();
     for stem in &modules {
@@ -109,9 +85,9 @@ fn no_lexer_module_writes_its_own_definition_walk() {
         );
     }
 
-    for lang in ALL {
+    for lang in Lang::ALL {
         let bespoke = declared.contains(&lang.name());
-        match lexer(*lang) {
+        match lexer(lang) {
             Lexer::Table(_) => assert!(
                 !bespoke,
                 "{} is table-driven but declared BESPOKE",
@@ -126,7 +102,7 @@ fn no_lexer_module_writes_its_own_definition_walk() {
     }
 
     // `lexer`'s match is exhaustive and wildcard-free, so its arm count IS the
-    // variant count — which is how `ALL` is held complete.
+    // variant count, matching the roster generated from the enum declaration.
     let src = std::fs::read_to_string(dir.join("mod.rs")).unwrap();
     let body = src
         .split_once("fn lexer(lang: Lang) -> Lexer {")
@@ -137,9 +113,10 @@ fn no_lexer_module_writes_its_own_definition_walk() {
         .0;
     assert_eq!(
         body.matches("Lang::").count(),
-        ALL.len(),
-        "a Lang variant was added or removed; ALL has drifted out of sync"
+        Lang::VARIANT_COUNT,
+        "the wildcard-free dispatch must cover the generated language roster"
     );
+    assert!(!Lang::ALL.is_empty(), "the language sweep is non-vacuous");
 }
 
 #[test]
@@ -438,7 +415,7 @@ fn lang_names_are_stable_and_lowercase() {
     assert_eq!(Lang::Rust.name(), "rust");
     assert_eq!(Lang::Cpp.name(), "cpp");
     assert_eq!(Lang::CSharp.name(), "csharp");
-    for l in ALL {
+    for l in Lang::ALL {
         let n = l.name();
         assert!(
             !n.is_empty() && n == n.to_ascii_lowercase(),

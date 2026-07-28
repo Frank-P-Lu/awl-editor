@@ -2369,19 +2369,14 @@ fn keyboard_nav_survives_a_pointer_parked_over_any_row_relative_to_the_destinati
     }
 }
 
-/// ITEM 106 — NO-WILDCARD SURFACE SWEEP: `hover_at`/`arm_hover_baseline`
+/// NO-WILDCARD SURFACE SWEEP: `hover_at`/`arm_hover_baseline`
 /// never branch on `self.kind` at all — the `match` below is a compile-time
 /// EXHAUSTIVE (no `_` arm) check over every `OverlayKind` variant, so a new
 /// variant fails THIS FILE to compile until a match arm is added for it,
 /// forcing a developer to consciously touch this law rather than have a new
-/// kind silently inherit an untested code path. The `for` loop that actually
-/// DRIVES the keyboard-scrolls-then-stationary-pointer script per kind still
-/// iterates [`OverlayKind::ALL`], which — as its own doc says — is a SEPARATE
-/// hand-kept roster the match does not itself force into lockstep: a variant
-/// added to the enum and to this match but forgotten in `ALL` still compiles
-/// clean and is silently never driven by the loop below. The match is a
-/// nudge at the enum-variant seam, not a substitute guard for `ALL`'s own
-/// maintenance discipline.
+/// kind silently inherit an untested code path. The loop drives
+/// [`OverlayKind::ALL`], generated from the same declaration as the enum, so
+/// the exhaustive match and runtime sweep grow together.
 #[test]
 fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
     fn sweep_this_kind(kind: OverlayKind) {
@@ -2898,9 +2893,10 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
 fn every_kind_produces_only_its_declared_row_meta_roster() {
     assert_eq!(
         OverlayKind::ALL.len(),
-        18,
-        "the kind roster itself is this sweep's scope"
+        OverlayKind::VARIANT_COUNT,
+        "the runtime sweep covers the enum's generated variant count"
     );
+    assert!(!OverlayKind::ALL.is_empty(), "the sweep is non-vacuous");
     for kind in OverlayKind::ALL {
         let ov = representative_overlay(kind);
         let roster = kind.row_meta_roster();

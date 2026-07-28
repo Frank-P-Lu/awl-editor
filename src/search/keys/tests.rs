@@ -308,33 +308,20 @@ fn unhandled_chords_are_consumed_no_ops() {
     assert_eq!(buffer.text(), "alpha beta alpha");
 }
 
-#[derive(Clone, Copy, Debug)]
-enum PanelKeyAffordance {
-    TypeQuery,
-    Backspace,
-    NextMatch,
-    PrevMatch,
-    ToggleCase,
-    FieldSwitch,
-    ReplaceCurrent,
-    ReplaceAll,
-    Accept,
-    Abort,
-}
-
-impl PanelKeyAffordance {
-    const ALL: [Self; 10] = [
-        Self::TypeQuery,
-        Self::Backspace,
-        Self::NextMatch,
-        Self::PrevMatch,
-        Self::ToggleCase,
-        Self::FieldSwitch,
-        Self::ReplaceCurrent,
-        Self::ReplaceAll,
-        Self::Accept,
-        Self::Abort,
-    ];
+enum_with_all! {
+    #[derive(Clone, Copy, Debug)]
+    enum PanelKeyAffordance {
+        TypeQuery,
+        Backspace,
+        NextMatch,
+        PrevMatch,
+        ToggleCase,
+        FieldSwitch,
+        ReplaceCurrent,
+        ReplaceAll,
+        Accept,
+        Abort,
+    }
 }
 
 fn assert_affordance_drivable(affordance: PanelKeyAffordance) {

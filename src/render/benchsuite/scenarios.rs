@@ -16,32 +16,23 @@ use super::corpus::{self, Tier};
 use super::cx::{Cx, differing_pixels, ms};
 use super::{HEIGHT, WIDTH};
 
-/// The scenario axis. `ALL` is the per-tier run order; `name` is a no-wildcard
-/// match so a new scenario fails to compile until it is placed everywhere.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Scenario {
-    ColdOpen,
-    Typing,
-    Scroll,
-    Search,
-    Palette,
-    Zoom,
-    Theme,
-    Resize,
+enum_with_all! {
+    /// The scenario axis. `ALL` is the per-tier run order; `name` is a no-wildcard
+    /// match so a new scenario fails to compile until it is placed everywhere.
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    pub(super) enum Scenario {
+        ColdOpen,
+        Typing,
+        Scroll,
+        Search,
+        Palette,
+        Zoom,
+        Theme,
+        Resize,
+    }
 }
 
 impl Scenario {
-    pub(super) const ALL: [Scenario; 8] = [
-        Scenario::ColdOpen,
-        Scenario::Typing,
-        Scenario::Scroll,
-        Scenario::Search,
-        Scenario::Palette,
-        Scenario::Zoom,
-        Scenario::Theme,
-        Scenario::Resize,
-    ];
-
     pub(super) fn name(self) -> &'static str {
         match self {
             Scenario::ColdOpen => "cold_open",

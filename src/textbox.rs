@@ -228,41 +228,26 @@ impl PartialEq<str> for TextBox {
     }
 }
 
-/// THE 7-FIELD ROSTER — every end-only single-line surface item 10 routes
-/// through [`TextBox`]. Mirrors `OverlayKind::ALL`'s law
-/// (`overlay/tests.rs`): [`Self::ALL`] plus a NO-WILDCARD match anywhere the
-/// roster must stay exhaustive means an 8th field breaks compilation instead
-/// of silently missing a sweep.
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TextField {
-    /// The summoned-picker fuzzy query (Goto / Command / Theme / …).
-    PickerQuery,
-    /// The Rename minibuffer's typed filename.
-    Rename,
-    /// The Cmd-K Insert-link minibuffer's typed URL.
-    InsertLink,
-    /// The "Keep version…" minibuffer's typed (optional) name.
-    KeepVersion,
-    /// The Settings menu's inline numeric VALUE edit (page width / zoom).
-    SettingsValue,
-    /// The find/replace panel's search query.
-    FindQuery,
-    /// The find/replace panel's replacement text.
-    ReplaceText,
-}
-
-impl TextField {
+enum_with_all! {
+    /// Every end-only single-line surface routes through [`TextBox`].
     #[allow(dead_code)]
-    pub const ALL: [TextField; 7] = [
-        TextField::PickerQuery,
-        TextField::Rename,
-        TextField::InsertLink,
-        TextField::KeepVersion,
-        TextField::SettingsValue,
-        TextField::FindQuery,
-        TextField::ReplaceText,
-    ];
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum TextField {
+        /// The summoned-picker fuzzy query (Goto / Command / Theme / …).
+        PickerQuery,
+        /// The Rename minibuffer's typed filename.
+        Rename,
+        /// The Cmd-K Insert-link minibuffer's typed URL.
+        InsertLink,
+        /// The "Keep version…" minibuffer's typed (optional) name.
+        KeepVersion,
+        /// The Settings menu's inline numeric VALUE edit (page width / zoom).
+        SettingsValue,
+        /// The find/replace panel's search query.
+        FindQuery,
+        /// The find/replace panel's replacement text.
+        ReplaceText,
+    }
 }
 
 #[cfg(test)]

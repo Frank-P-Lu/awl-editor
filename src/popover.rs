@@ -45,42 +45,29 @@ pub fn set_popover_on(on: bool) {
     POPOVER_ON.set(on);
 }
 
-/// The seven format buttons, LEFT-TO-RIGHT in the row. A no-wildcard enum: [`ALL`]
-/// lists them in draw order and the plan / render / hit-test all iterate it, so a
-/// new button lands in one place and the law test forces it a wired catalog
-/// [`Action`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PopoverButton {
-    /// `**bold**` — [`Action::Bold`].
-    Bold,
-    /// `*italic*` — [`Action::Italic`].
-    Italic,
-    /// `==highlight==` — [`Action::Highlight`].
-    Highlight,
-    /// `` `code` `` — [`Action::InlineCode`].
-    Code,
-    /// `~~strike~~` — [`Action::Strikethrough`].
-    Strike,
-    /// The state-reflective HEADING cycler (H1 → H2 → H3 → off) —
-    /// [`Action::HeadingCycle`].
-    Heading,
-    /// `[text](url)` — [`Action::InsertLink`] (`link::plan` decides wrap / edit /
-    /// insert from the same selection state).
-    Link,
+enum_with_all! {
+    /// The seven format buttons, LEFT-TO-RIGHT in the row. The plan, render and
+    /// hit-test all iterate the roster generated from this declaration.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum PopoverButton {
+        /// `**bold**` — [`Action::Bold`].
+        Bold,
+        /// `*italic*` — [`Action::Italic`].
+        Italic,
+        /// `==highlight==` — [`Action::Highlight`].
+        Highlight,
+        /// `` `code` `` — [`Action::InlineCode`].
+        Code,
+        /// `~~strike~~` — [`Action::Strikethrough`].
+        Strike,
+        /// The state-reflective HEADING cycler (H1 → H2 → H3 → off) —
+        /// [`Action::HeadingCycle`].
+        Heading,
+        /// `[text](url)` — [`Action::InsertLink`] (`link::plan` decides wrap / edit /
+        /// insert from the same selection state).
+        Link,
+    }
 }
-
-/// THE ROSTER — every button, in row draw order. The plan, the renderer, the
-/// hit-test and the law test all read THIS one list (no-wildcard), so the button
-/// set has a single owner.
-pub const ALL: &[PopoverButton] = &[
-    PopoverButton::Bold,
-    PopoverButton::Italic,
-    PopoverButton::Highlight,
-    PopoverButton::Code,
-    PopoverButton::Strike,
-    PopoverButton::Heading,
-    PopoverButton::Link,
-];
 
 impl PopoverButton {
     /// The catalog [`Action`] this button fires through `App::apply` — the ONE
@@ -165,7 +152,7 @@ mod tests {
         // Action (never a popover-private path). The catalog cross-check lives in
         // `commands.rs` (it needs COMMANDS); here we only assert the mapping exists
         // and is one of the markdown-formatting actions.
-        for &b in ALL {
+        for b in PopoverButton::ALL {
             let a = b.action();
             assert!(
                 matches!(
@@ -189,7 +176,7 @@ mod tests {
         // leaked file format into chrome — wrong for the writer audience). The
         // inline-code button spells the WORD `code` (the user's call), not a bare
         // `C` — still mono, still in the pill.
-        let labels: Vec<&str> = ALL.iter().map(|b| b.base_label()).collect();
+        let labels: Vec<&str> = PopoverButton::ALL.iter().map(|b| b.base_label()).collect();
         assert_eq!(labels, vec!["B", "I", "A", "code", "S", "H", "link"]);
     }
 
@@ -198,7 +185,7 @@ mod tests {
         // The pivot's law: a button label never shows the markers it would
         // insert — the effect is PREVIEWED (weight/style/wash/strike), not
         // spelled in syntax a writer shouldn't have to know.
-        for &b in ALL {
+        for b in PopoverButton::ALL {
             let l = b.base_label();
             assert!(
                 !l.contains('~') && !l.contains('=') && !l.contains('`') && !l.contains('*'),

@@ -16,6 +16,8 @@
 //!                       loaded buffer THROUGH THE REAL KEYMAP, then capture the
 //!                       post-replay editor state (e.g. --keys "C-n C-n s-Down")
 
+#[macro_use]
+mod enum_roster;
 mod about;
 mod actions;
 mod app;
