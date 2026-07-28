@@ -45,7 +45,7 @@ pub const GUMTREE: Theme = Theme {
         period_px: 170.0,
         amplitude_px: 60.0,
         angle: 0.26,
-        density: 0.20,
+        density: 0.40,
     },
     font: "Literata",
     mono: "Monaspace Xenon",

@@ -181,9 +181,91 @@ fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
         "Gumtree's zigzag must reach SOME real ink"
     );
     assert!(
-        quokka_peak > gumtree_peak,
-        "Quokka's higher-density zigzag (peak mark deviation {quokka_peak}) must lay down BOLDER \
-         ink than Gumtree's lower-density one (peak mark deviation {gumtree_peak})"
+        quokka_peak >= gumtree_peak + 8,
+        "Quokka's louder zigzag (peak mark deviation {quokka_peak}) must retain a material \
+         contrast lead over Gumtree ({gumtree_peak})"
+    );
+}
+
+/// THE VISIBILITY FLOOR: Gumtree remains a quiet ground, but its mark cannot
+/// return to the imperceptible pre-item-108 blend. This is deliberately a
+/// differential real-pixel floor (the same world with density zeroed is
+/// subtracted), across the narrow and generous page geometries represented in
+/// the review dashboard. It pins authored visibility without changing any
+/// shared Zigzag geometry or tint machinery.
+fn gumtree_visibility_floor(field: &[i32]) -> i32 {
+    field.iter().copied().max().unwrap_or(0)
+}
+
+#[test]
+fn gumtree_zigzag_is_visibly_present_across_dashboard_geometries() {
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!(
+            "skipping gumtree_zigzag_is_visibly_present_across_dashboard_geometries: no wgpu adapter"
+        );
+        return;
+    };
+    let _g = crate::testlock::serial();
+    for (w, h, col_left, col_w) in [(900, 700, 125.0, 650.0), (1800, 1000, 350.0, 1100.0)] {
+        let field = super::backgrounds_item89::mark_field(
+            &device,
+            &queue,
+            theme::GUMTREE.background,
+            w,
+            h,
+            col_left,
+            col_w,
+        );
+        let peak = gumtree_visibility_floor(&field);
+        assert!(
+            peak >= 18,
+            "Gumtree {w}x{h}: mark peak deviation {peak} must clear the visible-background floor 18"
+        );
+    }
+}
+
+#[test]
+fn gumtree_visibility_floor_rejects_the_imperceptible_density_mutation() {
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let theme::Background::Zigzag {
+        from,
+        to,
+        dir,
+        tint,
+        period_px,
+        amplitude_px,
+        angle,
+        ..
+    } = theme::GUMTREE.background
+    else {
+        unreachable!("Gumtree must remain a Zigzag world");
+    };
+    let imperceptible = theme::Background::Zigzag {
+        from,
+        to,
+        dir,
+        tint,
+        period_px,
+        amplitude_px,
+        angle,
+        density: 0.20,
+    };
+    let field = super::backgrounds_item89::mark_field(
+        &device,
+        &queue,
+        imperceptible,
+        900,
+        700,
+        125.0,
+        650.0,
+    );
+    let peak = gumtree_visibility_floor(&field);
+    assert!(
+        peak < 18,
+        "mutation witness must remain below the visibility floor, got {peak}"
     );
 }
 
