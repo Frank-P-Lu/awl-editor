@@ -26,12 +26,15 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   ordered span-emission rule set, no obvious MOVE seam; `src/actions.rs`
   — ⏭ one ordered apply-core transaction, no obvious MOVE seam;
   `src/render/framebench.rs` — ⏭ one shared benchmark witness harness;
-  `src/capture/sidecar.rs` — ⏭ one byte-stable schema serializer, no
-  safe split; `src/buffer.rs` — 🟡 IN PROGRESS, `item_155_layers`
-  (codex), branch `codex/item-155-buffer`.
+  `src/capture/sidecar.rs` — ⏭ one byte-stable schema serializer;
+  `src/buffer.rs` — ⏭ core editing owner, no obvious MOVE seam.
+  ✅ ITEM 155 COMPLETE: every ranked file was either safely split or
+  explicitly declined at its ownership boundary.
 - 107 enum-derived rosters — ✅ LANDED @ `c3f7eb27`.
 - 109 icon-ratchet subset erosion — ✅ LANDED @ `d45d34f3`.
 - 108 Gumtree chevron visibility — ✅ LANDED @ `f8d384de`.
+- 122 Quokka alternating wallpaper bands — 🟡 IN PROGRESS,
+  `item_108_gumtree` (codex), branch `codex/item-122-quokka-bands`.
 - 127 fold-chevron optical centring — 🟡 IN PROGRESS,
   `item_127_fold_chevron` (codex), branch `codex/item-127-fold-chevron`.
 
