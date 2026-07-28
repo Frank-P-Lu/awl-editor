@@ -285,8 +285,11 @@ impl Buffer {
         self.anchor = anchor.map(|a| a.min(max));
     }
 
-    /// Backspace: delete the char before the cursor. With an active selection,
-    /// delete the selection instead (modern editor behavior).
+    /// Backspace: delete the CHARACTER before the cursor — one extended
+    /// grapheme cluster, via the shared boundary owner [`crate::grapheme`], so
+    /// a base and its combining marks go together instead of the stroke
+    /// stripping an accent off a letter the reader sees as one. With an active
+    /// selection, delete the selection instead (modern editor behavior).
     pub fn delete_backward(&mut self) {
         self.clear_kill_flag();
         self.goal_col = None;
@@ -295,7 +298,8 @@ impl Buffer {
         }
         if self.cursor > 0 {
             let before = self.cursor;
-            self.apply_edit(self.cursor - 1, 1, "", before, before - 1);
+            let start = crate::grapheme::prev_cluster_boundary(before, |i| self.rope.char(i));
+            self.apply_edit(start, before - start, "", before, start);
         }
     }
 
@@ -396,17 +400,20 @@ impl Buffer {
         }
     }
 
-    /// C-d: delete the char at the cursor. With an active selection, delete the
-    /// selection instead.
+    /// C-d: delete the CHARACTER at the cursor — the forward mirror of
+    /// [`Self::delete_backward`], one extended grapheme cluster through the
+    /// same owner. With an active selection, delete the selection instead.
     pub fn delete_forward(&mut self) {
         self.clear_kill_flag();
         self.goal_col = None;
         if self.delete_selection() {
             return;
         }
-        if self.cursor < self.rope.len_chars() {
+        let len = self.rope.len_chars();
+        if self.cursor < len {
             let before = self.cursor;
-            self.apply_edit(self.cursor, 1, "", before, before);
+            let end = crate::grapheme::next_cluster_boundary(before, len, |i| self.rope.char(i));
+            self.apply_edit(before, end - before, "", before, before);
         }
     }
 

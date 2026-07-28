@@ -9,20 +9,23 @@ use super::Buffer;
 impl Buffer {
     // --- Motion -----------------------------------------------------------
 
+    /// One CHARACTER right — one extended grapheme cluster, via the shared
+    /// boundary owner [`crate::grapheme`], so a base and its combining marks
+    /// cross together and the caret never parks inside a glyph.
     pub fn forward_char(&mut self) {
         self.clear_kill_flag();
         self.goal_col = None;
-        if self.cursor < self.rope.len_chars() {
-            self.cursor += 1;
-        }
+        self.cursor =
+            crate::grapheme::next_cluster_boundary(self.cursor, self.rope.len_chars(), |i| {
+                self.rope.char(i)
+            });
     }
 
+    /// One CHARACTER left — the mirror of [`Self::forward_char`], same owner.
     pub fn backward_char(&mut self) {
         self.clear_kill_flag();
         self.goal_col = None;
-        if self.cursor > 0 {
-            self.cursor -= 1;
-        }
+        self.cursor = crate::grapheme::prev_cluster_boundary(self.cursor, |i| self.rope.char(i));
     }
 
     pub fn line_start_motion(&mut self) {
