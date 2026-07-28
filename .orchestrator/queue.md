@@ -45,10 +45,10 @@ CI-30360849276. ✅ **RESOLVED.** The local/CI stable-toolchain drift was repair
   pinned-Chromium exporter hangs before its first PNG even for an unchanged
   32px control; clean review-only worktree, no shipping mutation.
 - 95 remaining bounded Settings ranges — ✅ LANDED @ `a79514cc`.
-- 132 Kite warped-grid world — 🟡 INTEGRATION REPAIR, core `4ddca10`;
-  `item_132_kite` (codex), branch `codex/item-132-kite-integration`;
-  combined size/Clippy ratchets must be restored, while the pinned-Chromium
-  icon exporter and live multi-minute calmness remain residual gates.
+- 132 Kite warped-grid world — ✅ CORE LANDED @ `066ca23c`; combined
+  health/native/wasm/release/Metal perf green. Pinned Chromium hangs in
+  `Page.captureScreenshot` even at 16×16, blocking icon/dashboard packing;
+  live multi-minute calmness remains user-gated.
 - 133 Paperbark five-treatment trial — 🔴 BLOCKED: real-app captures
   require a WGPU adapter, and the current headless host reports none before
   frame one; no trial/shipping mutation landed.
