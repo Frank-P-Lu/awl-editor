@@ -14,7 +14,8 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 
 - 155 `src/app.rs` — ✅ `9f34bbc2`; `src/render/rects.rs` — ✅ `e363d948`;
   `src/render/text.rs` — ⏭ no safe move-only seam; `src/main/args.rs` —
-  🟡 IN PROGRESS, `item_155_layers` (codex), branch `codex/item-155-args`.
+  ✅ `18f13ba3`; `src/render/spans.rs` — 🟡 IN PROGRESS,
+  `item_155_layers` (codex), branch `codex/item-155-spans`.
 - 107 enum-derived rosters — 🟡 IN PROGRESS, `item_107_rosters` (codex),
   branch `codex/item-107-derived-rosters`.
 - 109 icon-ratchet subset erosion — 🟡 IN PROGRESS, `item_109_icon_ratchet`
