@@ -159,7 +159,7 @@ lines = 1529
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1609
+lines = 1388
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -452,7 +452,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
-line = 460
+line = 239
 message = "this function has too many lines (717/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
