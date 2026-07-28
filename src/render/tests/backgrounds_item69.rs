@@ -675,7 +675,7 @@ fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
         ("Saltpan", 3),
         ("Galah", 0),
         ("Mopoke", 1),
-        ("Bowerbird", 1),
+        ("Bowerbird", 8), // Organic cutout field
         ("Brolga", 0),
         ("Mangrove", 0), // Lava degrades to 0 for the base margin pass
         ("Tawny", 1),
