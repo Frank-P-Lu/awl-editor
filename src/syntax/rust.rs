@@ -1,130 +1,53 @@
-//! Rust syntax lexer — the REFERENCE implementation (the template every other
-//! `<lang>.rs` follows). A minimal hand-written scanner over the raw bytes; it
-//! recognizes only what the four Alabaster roles need and leaves everything else
-//! (keywords, operators, identifiers, punctuation) as the default ink:
+//! Rust — the shared definition walk ([`crate::syntax::scanner`]) under Rust's
+//! constants. It recognizes only what the four Alabaster roles need and leaves
+//! everything else (keywords, operators, identifiers, punctuation) default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` and `/* block */` (nested) comments.
-//! - [`SynKind::Str`]        — `"strings"`, `'c'` char literals, and raw strings
-//!   (`r"..."`, `r#"..."#`, plus the `b`-prefixed byte variants).
-//! - [`SynKind::Constant`]   — numeric literals (incl. `0x`/`0o`/`0b`, floats,
-//!   `_` separators, type suffixes) and the `true` / `false` / `None` literals.
-//! - [`SynKind::Definition`] — the identifier right after a `fn` / `struct` /
-//!   `enum` / `trait` / `type` / `union` / `const` / `static` / `mod` introducer.
-//!
-//! Span boundaries always land on ASCII bytes (quotes, `/`, digits, ASCII
-//! identifiers), so multibyte UTF-8 inside a string/comment rides along inside the
-//! span without ever splitting a char. Pure + allocation-light: one pass, push as
-//! we go. See the tests at the bottom for the exact contract on a sample snippet.
+//! - `Comment`    — `// line` and `/* block */` (nested) comments.
+//! - `Str`        — `"strings"`, `'c'` char literals, and raw strings (`r"..."`,
+//!   `r#"..."#`, plus the `b`-prefixed byte variants).
+//! - `Constant`   — numeric literals (incl. `0x`/`0o`/`0b`, floats, `_`
+//!   separators, type suffixes) and `true` / `false` / `None`.
+//! - `Definition` — the identifier right after a `fn` / `struct` / `enum` /
+//!   `trait` / `type` / `union` / `const` / `static` / `mod` introducer.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// The keyword introducers after which the next identifier is the DEFINITION name.
-const DEF_KEYWORDS: &[&str] = &[
-    "fn", "struct", "enum", "trait", "type", "union", "const", "static", "mod",
-];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Nested,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXoObB",
+        radix_extra: b"",
+        dot_dot_stops: true,
+    }),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    def_kws: &[
+        "fn", "struct", "enum", "trait", "type", "union", "const", "static", "mod",
+    ],
+    const_words: &["true", "false", "None"],
+    words: WordRule::Standard,
+    // A `'` that opens a LIFETIME rather than a char literal is not a token that
+    // cancels a pending name — it rides through to the identifier behind it.
+    def_survives: b"'",
+    receiver_kw: None,
+};
 
-/// Identifiers that are CONSTANT literals (booleans + the `None` nil-style value).
-const CONST_WORDS: &[&str] = &["true", "false", "None"];
-
-use super::{is_ident_continue, is_ident_start};
-
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (Rust nests them) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, true);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- raw string: (b)r "..." / (b)r#"..."# ---
-        if let Some(end) = raw_string(b, i) {
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- byte string / normal string: ("..." or b"...") ---
-        if c == b'"' || (c == b'b' && i + 1 < n && b[i + 1] == b'"') {
-            let q = if c == b'"' { i } else { i + 1 };
-            let end = scan_string(b, q);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- char literal vs lifetime ---
-        if c == b'\'' {
-            if let Some(end) = char_literal(b, i) {
-                out.push((i..end, SynKind::Str));
-                i = end;
-                expect_def = false;
-                continue;
-            }
-            // A lifetime (`'a`, `'static`): not a literal — skip the quote and let
-            // the following identifier scan as a plain (un-styled) token.
-            i += 1;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace) stays default ink.
-        // Don't let stray punctuation between a keyword and its name clear the
-        // expectation for `fn`/`struct`/… (only whitespace appears there anyway).
-        if !c.is_ascii_whitespace() {
-            // A non-identifier, non-whitespace token after a def keyword means the
-            // name never materialized (e.g. EOF) — drop the expectation.
-            expect_def = false;
-        }
-        i += 1;
+/// A raw string (`r"…"`, `r#"…"#`, `b`-prefixed too), a `"`/`b"` string, or a
+/// char literal. A `'` that opens a LIFETIME yields `None`, so it rides the
+/// default-ink path and the name behind it scans as a plain token.
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
+    if let Some(end) = raw_string(b, i) {
+        return Some(end);
     }
-
-    out
+    let n = b.len();
+    match b[i] {
+        b'"' => Some(super::scan_quoted(b, i, b'"', false)),
+        b'b' if i + 1 < n && b[i + 1] == b'"' => Some(super::scan_quoted(b, i + 1, b'"', false)),
+        b'\'' => char_literal(b, i),
+        _ => None,
+    }
 }
 
 /// If a raw string literal starts at `i` (`r"`, `r#"`, …, optionally `b`-prefixed),
@@ -165,13 +88,6 @@ fn raw_string(b: &[u8], i: usize) -> Option<usize> {
         j += 1;
     }
     Some(n) // unterminated: run to EOF
-}
-
-/// Scan a normal double-quoted string starting at the opening quote `q`; returns
-/// the index just past the closing quote (or EOF if unterminated). Honors `\\`
-/// escapes so an escaped quote does not close the string.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b'"', false)
 }
 
 /// If a CHAR literal starts at `i` (`'x'`, `'\n'`, `'\u{1F}'`), return the index
@@ -226,26 +142,15 @@ fn utf8_len(c: u8) -> usize {
     }
 }
 
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0o`/`0b` radixes, `_` separators, a fractional `.`, an
-/// exponent, and a trailing type suffix (`u32`, `f64`, …). A `..` range operator
-/// after the integer is NOT consumed.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXoObB",
-            radix_extra: b"",
-            dot_dot_stops: true,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)> {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

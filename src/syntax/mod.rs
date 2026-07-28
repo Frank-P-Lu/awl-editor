@@ -18,6 +18,7 @@ pub mod php;
 pub mod python;
 pub mod ruby;
 pub mod rust;
+mod scanner;
 pub mod sql;
 pub mod swift;
 pub mod toml;
@@ -215,11 +216,63 @@ impl Lang {
     }
 }
 
+/// Which scanner a language's spans come from — the ONE place a language is
+/// wired in. The match below carries no wildcard, so a new [`Lang`] variant fails
+/// to compile until someone decides between the two.
+enum Lexer {
+    /// Data through the shared definition walk ([`scanner::scan`]) — the default,
+    /// and what a new C-family-shaped language must use.
+    Table(&'static scanner::LangSpec),
+    /// A scanner of its own, because the language's shape is not the definition
+    /// walk. Every member is listed with its reason in [`BESPOKE`].
+    Own(fn(&str) -> Vec<(Range<usize>, SynKind)>),
+}
+
+fn lexer(lang: Lang) -> Lexer {
+    match lang {
+        Lang::Rust => Lexer::Table(&rust::SPEC),
+        Lang::Python => Lexer::Table(&python::SPEC),
+        Lang::JavaScript => Lexer::Table(&javascript::SPEC),
+        Lang::TypeScript => Lexer::Table(&typescript::SPEC),
+        Lang::Go => Lexer::Table(&go::SPEC),
+        Lang::C => Lexer::Table(&c::SPEC),
+        Lang::Cpp => Lexer::Table(&cpp::SPEC),
+        Lang::Java => Lexer::Table(&java::SPEC),
+        Lang::CSharp => Lexer::Table(&csharp::SPEC),
+        Lang::Php => Lexer::Table(&php::SPEC),
+        Lang::Swift => Lexer::Table(&swift::SPEC),
+        Lang::Kotlin => Lexer::Table(&kotlin::SPEC),
+        Lang::Ruby => Lexer::Own(ruby::spans),
+        Lang::Bash => Lexer::Own(bash::spans),
+        Lang::Html => Lexer::Own(html::spans),
+        Lang::Css => Lexer::Own(css::spans),
+        Lang::Json => Lexer::Own(json::spans),
+        Lang::Yaml => Lexer::Own(yaml::spans),
+        Lang::Toml => Lexer::Own(toml::spans),
+        Lang::Sql => Lexer::Own(sql::spans),
+    }
+}
+
+/// The languages that do NOT run the shared definition walk, each with the reason
+/// its shape is different. This roster is the deliberate escape hatch: a new
+/// `syntax/<lang>.rs` that writes its own loop without appearing here trips
+/// [`tests::no_lexer_module_writes_its_own_definition_walk`].
+const BESPOKE: &[(&str, &str)] = &[
+    ("ruby", "heredoc bodies pend across lines; `?c`/`%w[]` disambiguate on the previous byte"),
+    ("bash", "`$`-expansion, `<<`-heredocs, and single-quote-is-raw have no C-family analogue"),
+    ("html", "tag/attribute grammar, not a token stream"),
+    ("css", "selector/property grammar; `-` is an identifier byte"),
+    ("json", "a closed grammar: keys vs values decide the role"),
+    ("yaml", "indentation- and key-driven, with block scalars"),
+    ("toml", "key/value/table grammar with date-time literals"),
+    ("sql", "case-insensitive multi-word introducers with skip-words; `\"…\"` is an identifier, not a string"),
+];
+
 /// THE DISPATCH: parse `text` into syntax styling spans for `lang`, in DOCUMENT
-/// byte coordinates. Each arm calls the matching `<lang>.rs::spans`, so language
-/// work touches only that one file. Spans may be returned in any order and may
-/// overlap; the renderer applies them in order (last-wins on overlap), so a lexer
-/// that pushes a coarse span then a finer one inside it gets the finer styling.
+/// byte coordinates. [`lexer`] picks the scanner; spans may be returned in any
+/// order and may overlap; the renderer applies them in order (last-wins on
+/// overlap), so a lexer that pushes a coarse span then a finer one inside it gets
+/// the finer styling.
 ///
 /// TWO-TIER COMMENT POST-PASS (the ONE owner of the split): the lexers keep
 /// emitting plain [`SynKind::Comment`]; after the per-language lexer returns,
@@ -229,27 +282,9 @@ impl Lang {
 /// prose. Central here — not per lexer — so all ~20 languages split identically,
 /// and markdown FENCES inherit it for free (`markdown/` calls this same fn).
 pub fn spans(lang: Lang, text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let mut out = match lang {
-        Lang::Rust => rust::spans(text),
-        Lang::Python => python::spans(text),
-        Lang::JavaScript => javascript::spans(text),
-        Lang::TypeScript => typescript::spans(text),
-        Lang::Go => go::spans(text),
-        Lang::C => c::spans(text),
-        Lang::Cpp => cpp::spans(text),
-        Lang::Java => java::spans(text),
-        Lang::CSharp => csharp::spans(text),
-        Lang::Ruby => ruby::spans(text),
-        Lang::Php => php::spans(text),
-        Lang::Swift => swift::spans(text),
-        Lang::Kotlin => kotlin::spans(text),
-        Lang::Bash => bash::spans(text),
-        Lang::Html => html::spans(text),
-        Lang::Css => css::spans(text),
-        Lang::Json => json::spans(text),
-        Lang::Yaml => yaml::spans(text),
-        Lang::Toml => toml::spans(text),
-        Lang::Sql => sql::spans(text),
+    let mut out = match lexer(lang) {
+        Lexer::Table(spec) => scanner::scan(spec, text),
+        Lexer::Own(f) => f(text),
     };
     for (r, k) in out.iter_mut() {
         if *k == SynKind::Comment
@@ -543,6 +578,7 @@ pub(super) fn scan_quoted(b: &[u8], open: usize, quote: u8, stop_at_newline: boo
 
 /// Per-language knobs for the shared [`scan_number`] — the small set of constants
 /// the otherwise-identical numeric scanners varied by.
+#[derive(Clone, Copy)]
 pub(super) struct NumOpts {
     /// Letters that, right after a leading `0`, open a radix-prefixed integer
     /// (e.g. `b"xXoObB"` for hex/octal/binary, `b"xXbB"` where there is no `0o`).

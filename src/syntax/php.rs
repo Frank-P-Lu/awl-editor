@@ -1,146 +1,50 @@
-//! PHP syntax lexer — a minimal hand-written byte scanner following the
-//! reference lexers ([`crate::syntax::rust`] / [`crate::syntax::python`]). It
-//! emits only the four Alabaster roles and leaves everything else (keywords,
-//! operators, `$variables`, identifiers, punctuation) as the default ink:
+//! PHP — the shared definition walk ([`crate::syntax::scanner`]) under PHP's
+//! constants. It emits only the four Alabaster roles and leaves everything else
+//! (keywords, operators, `$variables`, identifiers, punctuation) default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line`, `# line`, and `/* block */` comments
-//!   (PHP block comments do NOT nest). A `#[` attribute is NOT a comment.
-//! - [`SynKind::Str`]        — `'single'` / `"double"` (interpolated) strings as
-//!   one span each, plus heredoc / nowdoc (`<<<LABEL … LABEL`).
-//! - [`SynKind::Constant`]   — numeric literals (`0x`/`0o`/`0b`, floats, `_`
-//!   separators) and the `true` / `false` / `null` literals (case-insensitive).
-//! - [`SynKind::Definition`] — the identifier right after a `function` / `class` /
+//! - `Comment`    — `// line`, `# line`, and `/* block */` comments (PHP blocks
+//!   do NOT nest). A `#[` attribute is NOT a comment.
+//! - `Str`        — `'single'` / `"double"` (interpolated) strings as one span
+//!   each, plus heredoc / nowdoc (`<<<LABEL … LABEL`).
+//! - `Constant`   — numeric literals (`0x`/`0o`/`0b`, floats, `_` separators) and
+//!   `true` / `false` / `null` (case-insensitive).
+//! - `Definition` — the identifier right after a `function` / `class` /
 //!   `interface` / `trait` / `enum` / `const` introducer (case-insensitive).
 //!
-//! Span boundaries land on ASCII bytes (quotes, `/`, `#`, digits, ASCII
-//! identifiers), so multibyte UTF-8 inside a string/comment rides inside the span
-//! without ever splitting a char. Pure + single-pass. See the tests at the bottom
-//! for the exact contract on a sample snippet.
+//! A `$` sigil is not an identifier byte here, so `$name` reaches the scanner's
+//! default-ink path and the variable name scans as a plain token.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// Introducers after which the next identifier is the DEFINITION name. Matched
-/// case-insensitively (PHP keywords are case-insensitive).
-const DEF_KEYWORDS: &[&str] = &["function", "class", "interface", "trait", "enum", "const"];
-/// Identifiers that are CONSTANT literals (booleans + the `null` nil value).
-/// Matched case-insensitively (`TRUE`/`True`/`true` are all the same in PHP).
-const CONST_WORDS: &[&str] = &["true", "false", "null"];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::SlashesOrHashNotAttr,
+    block: BlockComment::Flat,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXoObB",
+        radix_extra: b"",
+        dot_dot_stops: true,
+    }),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    def_kws: &["function", "class", "interface", "trait", "enum", "const"],
+    const_words: &["true", "false", "null"],
+    // PHP keywords and literals are case-insensitive: `TRUE`/`True`/`true` alike.
+    words: WordRule::CaseInsensitive,
+    def_survives: b"",
+    receiver_kw: None,
+};
 
-fn is_ident_start(c: u8) -> bool {
-    c == b'_' || c.is_ascii_alphabetic() || c >= 0x80
-}
-fn is_ident_continue(c: u8) -> bool {
-    c == b'_' || c.is_ascii_alphanumeric() || c >= 0x80
-}
-use super::matches_word_ci as matches_word;
-
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
+/// A heredoc / nowdoc, or a `'`/`"` string (neither stops at a newline; an
+/// interpolated double-quoted string is one span).
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
     let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment: `//` or `#` (but `#[` is an attribute, not a comment) ---
-        if (c == b'/' && i + 1 < n && b[i + 1] == b'/')
-            || (c == b'#' && !(i + 1 < n && b[i + 1] == b'['))
-        {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
+    if b[i] == b'<' && i + 2 < n && b[i + 1] == b'<' && b[i + 2] == b'<' {
+        if let Some(end) = heredoc(b, i) {
+            return Some(end);
         }
-
-        // --- block comment (PHP does NOT nest them) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, false);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- heredoc / nowdoc: `<<<LABEL … LABEL` ---
-        if c == b'<'
-            && i + 2 < n
-            && b[i + 1] == b'<'
-            && b[i + 2] == b'<'
-            && let Some(end) = heredoc(b, i)
-        {
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- string: '…' or "…" ---
-        if c == b'"' || c == b'\'' {
-            let end = scan_string(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- `$variable`: skip the sigil so the name scans as a plain token ---
-        if c == b'$' {
-            expect_def = false;
-            i += 1;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            // NOT the shared `super::ident_role`: PHP matches its keyword tables
-            // case-INsensitively (`matches_word`), so it keeps its own arm.
-            let word = &text[start..i];
-            if expect_def {
-                out.push((start..i, SynKind::Definition));
-                expect_def = false;
-            } else if matches_word(CONST_WORDS, word) {
-                out.push((start..i, SynKind::Constant));
-            } else if matches_word(DEF_KEYWORDS, word) {
-                expect_def = true;
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace) stays default ink.
-        if !c.is_ascii_whitespace() {
-            // A non-identifier token after a def keyword means the name never
-            // materialized — drop the expectation.
-            expect_def = false;
-        }
-        i += 1;
     }
-
-    out
-}
-
-/// Scan a single- or double-quoted string from the opening quote `q` to just past
-/// its close (or EOF if unterminated). Honors `\\` escapes so an escaped quote
-/// does not close the string; an interpolated double-quoted string is one span.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b[q], false)
+    matches!(b[i], b'"' | b'\'').then(|| super::scan_quoted(b, i, b[i], false))
 }
 
 /// If a heredoc / nowdoc starts at `i` (`<<<LABEL`, `<<<"LABEL"`, or `<<<'LABEL'`
@@ -163,10 +67,10 @@ fn heredoc(b: &[u8], i: usize) -> Option<usize> {
     };
     // The label is a normal identifier.
     let label_start = j;
-    if j >= n || !is_ident_start(b[j]) {
+    if j >= n || !super::is_ident_start(b[j]) {
         return None;
     }
-    while j < n && is_ident_continue(b[j]) {
+    while j < n && super::is_ident_continue(b[j]) {
         j += 1;
     }
     let label = &b[label_start..j];
@@ -200,7 +104,7 @@ fn heredoc(b: &[u8], i: usize) -> Option<usize> {
             let after = k + label.len();
             // The closer must not be part of a longer identifier (`LABEL` vs
             // `LABELX`); `;`, `,`, a newline, or EOF all end it cleanly.
-            if after >= n || !is_ident_continue(b[after]) {
+            if after >= n || !super::is_ident_continue(b[after]) {
                 return Some(after);
             }
         }
@@ -215,25 +119,15 @@ fn heredoc(b: &[u8], i: usize) -> Option<usize> {
     Some(n) // unterminated: run to EOF
 }
 
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0o`/`0b` radixes, `_` separators, a fractional `.`, and an
-/// exponent. A `.` that begins a method/property access on an int is not eaten.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXoObB",
-            radix_extra: b"",
-            dot_dot_stops: true,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)> {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

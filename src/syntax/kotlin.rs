@@ -1,138 +1,56 @@
-//! Kotlin syntax lexer — a minimal hand-written byte scanner following the
-//! reference lexers (`rust.rs` / `python.rs`). It emits only the four Alabaster
-//! roles and leaves everything else (keywords, operators, identifiers,
-//! punctuation) as the default ink:
+//! Kotlin — the shared definition walk ([`crate::syntax::scanner`]) under
+//! Kotlin's constants. It emits only the four Alabaster roles and leaves
+//! everything else (keywords, operators, identifiers, punctuation) default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` and `/* block */` comments. Kotlin
-//!   block comments NEST, so the whole nested run is one span.
-//! - [`SynKind::Str`]        — `"strings"` (with `\` escapes), `'c'` char
-//!   literals, and raw/multiline triple-quoted `"""..."""` (no escapes). A
-//!   `$name` / `${expr}` interpolation rides INSIDE the one `Str` span.
-//! - [`SynKind::Constant`]   — numeric literals (`0x`/`0b` radixes, `_`
-//!   separators, `L`/`u`/`f` suffixes, floats) and `true` / `false` / `null`.
-//! - [`SynKind::Definition`] — the identifier right after a `fun` / `class` /
-//!   `interface` / `object` / `typealias` / `val` / `var` introducer.
-//!
-//! Span boundaries land on ASCII bytes (quotes, `/`, digits, ASCII identifiers),
-//! so multibyte UTF-8 inside a string/comment rides inside the span without ever
-//! splitting a char. Pure + single-pass. See the tests below for the contract.
+//! - `Comment`    — `// line` and `/* block */` comments. Kotlin block comments
+//!   NEST, so the whole nested run is one span.
+//! - `Str`        — `"strings"` (with `\` escapes), `'c'` char literals, and
+//!   raw/multiline triple-quoted `"""..."""` (no escapes). A `$name` / `${expr}`
+//!   interpolation rides INSIDE the one `Str` span.
+//! - `Constant`   — numeric literals (`0x`/`0b` radixes, `_` separators,
+//!   `L`/`u`/`f` suffixes, floats) and `true` / `false` / `null`.
+//! - `Definition` — the identifier right after a `fun` / `class` / `interface` /
+//!   `object` / `typealias` / `val` / `var` introducer.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// Introducers after which the next identifier is the DEFINITION name. `val`/`var`
-/// cover the let-binding case; `enum class X` is caught by `class`.
-const DEF_KEYWORDS: &[&str] = &[
-    "fun",
-    "class",
-    "interface",
-    "object",
-    "typealias",
-    "val",
-    "var",
-];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Nested,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXbB",
+        radix_extra: b"",
+        dot_dot_stops: true,
+    }),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    // `val`/`var` cover the let-binding case; `enum class X` is caught by `class`.
+    def_kws: &[
+        "fun",
+        "class",
+        "interface",
+        "object",
+        "typealias",
+        "val",
+        "var",
+    ],
+    const_words: &["true", "false", "null"],
+    words: WordRule::Standard,
+    def_survives: b"",
+    receiver_kw: None,
+};
 
-/// Identifiers that are CONSTANT literals (booleans + the `null` nil value).
-const CONST_WORDS: &[&str] = &["true", "false", "null"];
-
-use super::{is_ident_continue, is_ident_start};
-
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
+/// A raw/multiline `"""` string, a normal `"` string, or a `'c'` char literal —
+/// the latter two stop at a newline.
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
     let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (Kotlin nests them) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, true);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- raw/multiline triple-quoted string: """...""" (no escapes) ---
-        if c == b'"' && i + 2 < n && b[i + 1] == b'"' && b[i + 2] == b'"' {
-            let end = scan_triple(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- normal double-quoted string (honors \ escapes) ---
-        if c == b'"' {
-            let end = scan_string(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- char literal: 'x', '\n', 'A' ---
-        if c == b'\'' {
-            let end = scan_char(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace) stays default ink.
-        if !c.is_ascii_whitespace() {
-            // A non-identifier token after a def keyword means the name never
-            // materialized (e.g. `fun (` for a lambda receiver) — drop it.
-            expect_def = false;
-        }
-        i += 1;
+    match b[i] {
+        b'"' if i + 2 < n && b[i + 1] == b'"' && b[i + 2] == b'"' => Some(scan_triple(b, i)),
+        b'"' => Some(super::scan_quoted(b, i, b'"', true)),
+        b'\'' => Some(super::scan_quoted(b, i, b'\'', true)),
+        _ => None,
     }
-
-    out
-}
-
-/// Scan a normal double-quoted string starting at the opening quote `q`; returns
-/// the index just past the closing quote (or EOF / newline if unterminated). A
-/// `\` escapes the next byte so an escaped quote does not close the string.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b'"', true)
 }
 
 /// Scan a raw/multiline triple-quoted string from the opening `"""` (at `q`) to
@@ -153,43 +71,15 @@ fn scan_triple(b: &[u8], q: usize) -> usize {
     n
 }
 
-/// Scan a char literal starting at the opening quote `i` (`'x'`, `'\n'`,
-/// `'A'`); returns the index just past the closing quote (or EOF). Kotlin
-/// has no lifetimes, so a lone quote simply runs to its mate.
-fn scan_char(b: &[u8], i: usize) -> usize {
-    let n = b.len();
-    let mut j = i + 1;
-    while j < n {
-        match b[j] {
-            b'\\' => j += 2,
-            b'\n' => return j,
-            b'\'' => return j + 1,
-            _ => j += 1,
-        }
-    }
-    n
-}
-
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0b` radixes, `_` separators, a fractional `.`, an exponent,
-/// and trailing `L`/`u`/`U`/`f`/`F` suffixes. A `..` range operator after the
-/// integer is NOT consumed.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXbB",
-            radix_extra: b"",
-            dot_dot_stops: true,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> Vec<(std::ops::Range<usize>, super::SynKind)> {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]
