@@ -17,6 +17,7 @@ use crate::render;
 mod caret_streak;
 mod folds;
 mod i18n_fixtures;
+mod layout_oracle;
 mod metric_scale;
 mod panels;
 mod pickers_faceted;

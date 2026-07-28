@@ -23,6 +23,12 @@ static IN_PLACE_ROW_BORROWS: std::sync::atomic::AtomicUsize =
     std::sync::atomic::AtomicUsize::new(0);
 
 #[cfg(test)]
+static VISUAL_ROW_CLONES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
+static REPORT_ROW_BORROWS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
 pub(super) fn reset_in_place_row_borrow_count() {
     IN_PLACE_ROW_BORROWS.store(0, std::sync::atomic::Ordering::Relaxed);
 }
@@ -30,6 +36,27 @@ pub(super) fn reset_in_place_row_borrow_count() {
 #[cfg(test)]
 pub(super) fn in_place_row_borrow_count() -> usize {
     IN_PLACE_ROW_BORROWS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+#[cfg(test)]
+pub(super) fn note_visual_row_clone() {
+    VISUAL_ROW_CLONES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub(super) fn reset_layout_report_ownership_counts() {
+    VISUAL_ROW_CLONES.store(0, std::sync::atomic::Ordering::Relaxed);
+    REPORT_ROW_BORROWS.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub(super) fn visual_row_clone_count() -> usize {
+    VISUAL_ROW_CLONES.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+#[cfg(test)]
+pub(super) fn report_row_borrow_count() -> usize {
+    REPORT_ROW_BORROWS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// The lazily-built variable-row-height geometry table for one shaped buffer (see the
@@ -65,6 +92,12 @@ pub(super) struct RowGeom {
     /// which used to read as "floating" above the heading's ink, especially on a
     /// big H1. Indexed by logical line; dropped with the rest by [`Self::invalidate`].
     line_baselines: std::cell::RefCell<Option<Vec<f32>>>,
+    /// Full visual-row partition assembled in the SAME shaped-run walk as the
+    /// scalar row table. Layout consumers and the report share this owner.
+    frame_rows: std::cell::RefCell<Option<Vec<FrameVisualRow>>>,
+    /// Reports only borrow a partition after glyphon prepared this generation.
+    /// Before that seal, the report seam returns `None` instead of shaping.
+    frame_sealed: std::cell::Cell<bool>,
     /// SINGLE-SLOT memo of the most-recently-requested logical line's
     /// [`VisualRow`]s — in the per-frame caret path that line is the CURSOR line.
     /// [`super::TextPipeline::visual_rows`] is O(every shaped run in the document)
@@ -101,6 +134,8 @@ impl RowGeom {
             doc_height: std::cell::Cell::new(0.0),
             line_tops: std::cell::RefCell::new(None),
             line_baselines: std::cell::RefCell::new(None),
+            frame_rows: std::cell::RefCell::new(None),
+            frame_sealed: std::cell::Cell::new(false),
             rows_line: std::cell::Cell::new(None),
             rows: std::cell::RefCell::new(None),
             generation: std::cell::Cell::new(0),
@@ -123,6 +158,8 @@ impl RowGeom {
         *self.heights.borrow_mut() = None;
         *self.line_tops.borrow_mut() = None;
         *self.line_baselines.borrow_mut() = None;
+        *self.frame_rows.borrow_mut() = None;
+        self.frame_sealed.set(false);
         // Drop the cursor-line VisualRow memo too: the shaped runs just changed, so
         // the cached wrap geometry is stale and must rebuild on the next read.
         self.rows_line.set(None);
@@ -138,7 +175,7 @@ impl RowGeom {
     /// vector is sorted. Cheap to call before any geometry read — it returns
     /// immediately once built and is dropped by [`Self::invalidate`]. The metrics
     /// are only consulted by the callers' unshaped fallbacks, not the walk itself.
-    fn ensure(&self, buf: &GlyphBuffer, _m: &Metrics) {
+    fn ensure(&self, buf: &GlyphBuffer, m: &Metrics) {
         if self.tops.borrow().is_some() {
             return;
         }
@@ -151,10 +188,20 @@ impl RowGeom {
         let mut line_tops: Vec<f32> = vec![0.0; buf.lines.len()];
         let mut line_baselines: Vec<f32> = vec![0.0; buf.lines.len()];
         let mut line_seen: Vec<bool> = vec![false; buf.lines.len()];
+        let mut frame_rows = Vec::new();
         for run in buf.layout_runs() {
             tops.push(run.line_top);
             heights.push(run.line_height);
             doc_h = doc_h.max(run.line_top + run.line_height);
+            let line_text = buf
+                .lines
+                .get(run.line_i)
+                .map(|line| line.text())
+                .unwrap_or("");
+            frame_rows.push(FrameVisualRow {
+                logical_line: run.line_i,
+                row: visual_row_from_run(line_text, &run, m.char_width),
+            });
             if let Some(seen) = line_seen.get_mut(run.line_i)
                 && !*seen
             {
@@ -168,6 +215,74 @@ impl RowGeom {
         *self.heights.borrow_mut() = Some(heights);
         *self.line_tops.borrow_mut() = Some(line_tops);
         *self.line_baselines.borrow_mut() = Some(line_baselines);
+        *self.frame_rows.borrow_mut() = Some(frame_rows);
+    }
+
+    /// Mark the current shaped partition as the frame glyphon just prepared.
+    /// This is the only door that makes it reportable.
+    pub(super) fn seal_frame(&self, buf: &GlyphBuffer, m: &Metrics) {
+        self.ensure(buf, m);
+        self.frame_sealed.set(true);
+    }
+
+    /// Clone one logical line's rows from the canonical shaped partition for
+    /// existing caret/selection consumers. No glyph-x assembly occurs here.
+    pub(super) fn rows_for_line(
+        &self,
+        buf: &GlyphBuffer,
+        m: &Metrics,
+        line: usize,
+    ) -> Option<Vec<VisualRow>> {
+        self.ensure(buf, m);
+        let rows = self.frame_rows.borrow();
+        let rows = rows.as_ref()?;
+        let found: Vec<VisualRow> = rows
+            .iter()
+            .filter(|entry| entry.logical_line == line)
+            .map(|entry| entry.row.clone())
+            .collect();
+        (!found.is_empty()).then_some(found)
+    }
+
+    /// Clone a requested line set in one scan of the canonical frame partition.
+    /// This preserves the underline/wash cache rebuild's O(doc + requested rows)
+    /// behavior while keeping row assembly in one owner.
+    pub(super) fn rows_for_lines(
+        &self,
+        buf: &GlyphBuffer,
+        m: &Metrics,
+        lines: &std::collections::BTreeSet<usize>,
+    ) -> std::collections::HashMap<usize, Vec<VisualRow>> {
+        self.ensure(buf, m);
+        let mut out = std::collections::HashMap::with_capacity(lines.len());
+        let rows = self.frame_rows.borrow();
+        let Some(rows) = rows.as_ref() else {
+            return out;
+        };
+        for entry in rows {
+            if lines.contains(&entry.logical_line) {
+                out.entry(entry.logical_line)
+                    .or_insert_with(Vec::new)
+                    .push(entry.row.clone());
+            }
+        }
+        out
+    }
+
+    /// Borrow the sealed frame partition in place. This never calls
+    /// [`Self::ensure`], so a report cannot assemble geometry on demand.
+    pub(super) fn with_report_rows<R>(
+        &self,
+        read: impl FnOnce(&[FrameVisualRow]) -> R,
+    ) -> Option<R> {
+        if !self.frame_sealed.get() {
+            return None;
+        }
+        let rows = self.frame_rows.borrow();
+        let rows = rows.as_deref()?;
+        #[cfg(test)]
+        REPORT_ROW_BORROWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Some(read(rows))
     }
 
     /// Buffer-relative top y (px) of logical `line`'s FIRST visual row — the O(1)

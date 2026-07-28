@@ -5,9 +5,9 @@ pub const CANVAS_WIDTH: u32 = 1200;
 pub const CANVAS_HEIGHT: u32 = 800;
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
-/// `/186` — current schema; history lives in Git. Bump this row with the const.
+/// `/187` — shaped-frame `layout` rows; history lives in Git. Bump this row with the const.
 /// Sidecar schema base; timeline and held use the next two versions.
-pub const SCHEMA_VERSION: u32 = 186;
+pub const SCHEMA_VERSION: u32 = 187;
 
 /// Plain single-frame schema.
 pub fn schema_plain() -> String {
@@ -25,6 +25,7 @@ mod film;
 #[cfg(not(target_arch = "wasm32"))]
 mod frames;
 pub(crate) mod gpu;
+mod layout_sidecar;
 mod modes;
 mod opts;
 mod oracle;

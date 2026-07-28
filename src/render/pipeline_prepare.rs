@@ -41,6 +41,9 @@ impl TextPipeline {
         self.prepare_wash_layer(device, queue, width, height);
         self.prepare_wysiwyg_wash_layer(device, queue, width, height);
         self.prepare_text_layer(device, queue, width, height)?;
+        // Seal the exact shaped partition glyphon just prepared. Layout reports
+        // can only borrow this frame; they never shape or assemble rows.
+        self.row_geom.seal_frame(&self.buffer, &self.metrics);
         // THE X-RAY: stash the caret's table-row floated source BEFORE the caret /
         // selection layers, so their `col_x_and_advance` redirects onto it (the
         // concealed doc row is zero-width). A no-op off a table row.

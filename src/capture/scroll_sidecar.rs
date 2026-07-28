@@ -47,6 +47,7 @@ macro_rules! sidecar_format {
                 "  \"selection\": {sel},\n",
                 "  \"text\": {text_json},\n",
                 "  \"first_lines\": [{fl}],\n",
+                "  \"layout\": {layout},\n",
                 "  \"search\": {{ \"query\": {sq}, \"active\": {sa}, ",
                 "\"case_sensitive\": {scs}, \"hit_count\": {hc}, \"current\": {cur}, ",
                 "\"replace_active\": {ra}, \"replacement\": {rep}, ",
