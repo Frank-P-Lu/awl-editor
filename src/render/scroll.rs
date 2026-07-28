@@ -187,12 +187,12 @@ impl TextPipeline {
             let above_first = first_run && want_top < run.line_top;
             let in_band = want_top >= run.line_top && want_top < run.line_top + run.line_height;
             if above_first || in_band {
-                return (run.line_i, Self::col_in_run(&run, target_x));
+                return (run.line_i, self.col_in_run(&run, target_x));
             }
             first_run = false;
         }
         match self.buffer.layout_runs().last() {
-            Some(run) => (run.line_i, Self::col_in_run(&run, target_x)),
+            Some(run) => (run.line_i, self.col_in_run(&run, target_x)),
             None => (0, 0),
         }
     }

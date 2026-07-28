@@ -723,6 +723,8 @@ pub(super) fn assemble_glyph_xs(
     clusters: &[(usize, usize, f32, f32)],
     char_width: f32,
 ) -> Vec<f32> {
+    #[cfg(test)]
+    GLYPH_X_ASSEMBLIES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let char_count = line_text.chars().count();
     let mut byte_to_col = vec![char_count; line_text.len() + 1];
     for (col, (b, _)) in line_text.char_indices().enumerate() {
@@ -798,6 +800,19 @@ pub(super) fn assemble_glyph_xs(
         *last = last.max(max_right);
     }
     xs
+}
+
+#[cfg(test)]
+static GLYPH_X_ASSEMBLIES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
+pub(super) fn reset_glyph_x_assembly_count() {
+    GLYPH_X_ASSEMBLIES.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub(super) fn glyph_x_assembly_count() -> usize {
+    GLYPH_X_ASSEMBLIES.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// The char SPAN of the glyph CLUSTER (a `(start_byte, end_byte)` pair — one
@@ -1412,39 +1427,42 @@ impl TextPipeline {
         if lh > 0.0 { row_height / lh } else { 1.0 }
     }
 
-    /// Char column on a shaped run whose glyph cell contains `target_x`, snapped
-    /// to a grapheme-cluster boundary. A pointer inside a glyph resolves to the
+    /// Char column on a shaped run whose caret cell contains `target_x`, snapped
+    /// to a grapheme-cluster boundary. A pointer inside a cell resolves to the
     /// nearer edge of it, the natural caret placement.
     ///
-    /// The snap is not redundant with the glyph walk: a shaper's glyph clusters
+    /// The snap is not redundant with the assembled-cell lookup: a shaper's glyph clusters
     /// are NOT always UAX #29 clusters. Thai `ก` + `ำ` (U+0E33 SARA AM) is one
     /// cluster that every world's face shapes as two glyph groups — a click in
     /// the middle of it named the column BETWEEN the consonant and its vowel
     /// sign, a position that does not exist on screen. Devanagari conjuncts split
     /// the same way on faces without the ligature.
-    pub(super) fn col_in_run(run: &glyphon::cosmic_text::LayoutRun, target_x: f32) -> usize {
-        let line_text = run.text;
-        let mut raw = None;
-        for g in run.glyphs.iter() {
-            let left = g.x;
-            let right = g.x + g.w;
-            let mid = (left + right) * 0.5;
-            if target_x < mid {
-                raw = Some(byte_col(line_text, g.start));
-                break;
-            } else if target_x < right {
-                raw = Some(byte_col(line_text, g.end));
-                break;
-            }
-        }
-        let raw = match raw.or_else(|| run.glyphs.last().map(|g| byte_col(line_text, g.end))) {
-            Some(c) => c,
-            None => return 0,
-        };
+    pub(super) fn col_in_run(&self, run: &glyphon::cosmic_text::LayoutRun, target_x: f32) -> usize {
+        let line = run.line_i;
+        let row_top = run.line_top;
+        let raw = self
+            .row_geom
+            .with_cached_rows(line, |rows| {
+                Self::col_in_assembled_row(rows, row_top, target_x)
+            })
+            .unwrap_or_else(|| {
+                let rows = self.visual_rows(line);
+                Self::col_in_assembled_row(&rows, row_top, target_x)
+            });
         Self::cluster_col(run, raw, target_x)
     }
 
-    /// `raw` — a column the per-glyph walk landed on — resolved against the INK of
+    /// Resolve x against the already-assembled visual row that owns `row_top`.
+    /// `row_top` comes from the same shaped run that produced the row, so equality
+    /// selects the exact wrap row rather than repeating the y-band policy.
+    fn col_in_assembled_row(rows: &[VisualRow], row_top: f32, target_x: f32) -> usize {
+        rows.iter()
+            .find(|row| row.line_top == row_top)
+            .map(|row| Self::col_in_row(row, target_x))
+            .unwrap_or(0)
+    }
+
+    /// `raw` — a column the assembled caret cells landed on — resolved against the INK of
     /// the MULTI-CHAR cluster the pointer sits in: its left half answers with the
     /// cluster's start, its right half with the end.
     ///
@@ -1454,11 +1472,8 @@ impl TextPipeline {
     /// span) sweeping the pointer rightward answered start, end, start, end, so
     /// clicking the right half of the sequence put the caret BEFORE it.
     ///
-    /// A cluster of ONE char is left to the glyph walk, whose answer is already the
-    /// same — so every ASCII/CJK/precomposed click is byte-identical, and so is a
-    /// LIGATURE whose glyph span covers several clusters (`fi`, or a Monaspace
-    /// texture-healed `=>`): those clusters have no ink of their own to measure,
-    /// and the fallback keeps today's behavior rather than inventing a position.
+    /// A cluster of ONE char is left to the assembled-cell answer, so every ASCII,
+    /// CJK, precomposed, and ligature column reads the same geometry as its caret.
     fn cluster_col(run: &glyphon::cosmic_text::LayoutRun, raw: usize, target_x: f32) -> usize {
         let line_text = run.text;
         // An all-ASCII row (most rows, in most documents) has no multi-char

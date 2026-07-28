@@ -18,6 +18,20 @@
 
 use super::*;
 
+#[cfg(test)]
+static IN_PLACE_ROW_BORROWS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
+pub(super) fn reset_in_place_row_borrow_count() {
+    IN_PLACE_ROW_BORROWS.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub(super) fn in_place_row_borrow_count() -> usize {
+    IN_PLACE_ROW_BORROWS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// The lazily-built variable-row-height geometry table for one shaped buffer (see the
 /// module docs). Owned by [`super::TextPipeline`] as its `row_geom` field.
 pub(super) struct RowGeom {
@@ -247,6 +261,24 @@ impl RowGeom {
         } else {
             None
         }
+    }
+
+    /// Read the memoized rows in place, without cloning their per-column `xs`.
+    /// Pointer motion uses this after the render/caret path has assembled the row,
+    /// so every move can resolve against the drawn geometry without allocating.
+    pub(super) fn with_cached_rows<R>(
+        &self,
+        line: usize,
+        read: impl FnOnce(&[VisualRow]) -> R,
+    ) -> Option<R> {
+        if self.rows_line.get() != Some(line) {
+            return None;
+        }
+        let rows = self.rows.borrow();
+        let rows = rows.as_deref()?;
+        #[cfg(test)]
+        IN_PLACE_ROW_BORROWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Some(read(rows))
     }
 
     /// Store `rows` as the memo for logical `line` (replacing any prior line). Called

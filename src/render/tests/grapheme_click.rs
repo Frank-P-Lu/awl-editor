@@ -15,6 +15,17 @@ use super::super::*;
 use super::{headless_pipeline, view};
 use crate::grapheme::{CLUSTER_CORPUS, boundaries_of};
 
+/// ASCII pairs that can be represented by one glyph span (a conventional prose
+/// ligature) or by Monaspace's texture-healing shared spans. Unlike
+/// [`CLUSTER_CORPUS`], each source char is its own grapheme cluster: this is the
+/// complementary glyph-spans-many-clusters case.
+const LIGATURE_CORPUS: &[(&str, &str)] = &[
+    ("equals-greater", "=>"),
+    ("minus-greater", "->"),
+    ("not-equal", "!="),
+    ("fi", "fi"),
+];
+
 /// Every world, so no face's shaping is exempt. Returns `(name, is_mono)`.
 fn worlds() -> Vec<(&'static str, bool)> {
     theme::THEMES
@@ -197,7 +208,11 @@ fn dragging_the_pointer_rightward_never_moves_the_caret_left() {
     for (world, _) in worlds() {
         theme::set_active_by_name(world);
         p.sync_theme();
-        for (label, text) in CLUSTER_CORPUS {
+        for (label, text) in CLUSTER_CORPUS
+            .iter()
+            .copied()
+            .chain(LIGATURE_CORPUS.iter().copied())
+        {
             p.set_view(&view(&format!("{text}\n"), 1, 0));
             let py = p.doc_top() + p.metrics.line_height * 0.5;
             let left = p.text_left();
@@ -217,6 +232,91 @@ fn dragging_the_pointer_rightward_never_moves_the_caret_left() {
             }
         }
     }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// THE GEOMETRY-OWNER LAW: the real pointer resolver and the row that draws the
+/// caret must name the SAME column at every x. This specifically reaches both
+/// Monaspace's shared-span operators and proportional faces, so it cannot pass
+/// by accidentally checking a fixed-pitch grid alone.
+#[test]
+fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
+    let _t = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping a_ligature_click_resolves_to_the_column_the_caret_draws: no wgpu");
+        return;
+    };
+    let mut proportional = 0;
+    let mut monaspace_shared_spans = 0;
+    let mut probes = 0;
+    for (world, mono) in worlds() {
+        theme::set_active_by_name(world);
+        p.sync_theme();
+        if !mono {
+            proportional += 1;
+        }
+        for (label, text) in LIGATURE_CORPUS {
+            p.set_view(&view(&format!("{text}\n"), 1, 0));
+            let row = p.visual_rows(0).remove(0);
+            if mono
+                && p.buffer.layout_runs().any(|run| {
+                    run.line_i == 0
+                        && run.glyphs.iter().any(|g| {
+                            g.end.saturating_sub(g.start) > 1
+                                || g.start == 0
+                                    && g.end == text.len()
+                                    && run
+                                        .glyphs
+                                        .iter()
+                                        .filter(|h| h.start == g.start && h.end == g.end)
+                                        .count()
+                                        > 1
+                        })
+                })
+            {
+                monaspace_shared_spans += 1;
+            }
+            let py = p.doc_top() + p.metrics.line_height * 0.5;
+            let left = p.text_left();
+            reset_glyph_x_assembly_count();
+            rowgeom::reset_in_place_row_borrow_count();
+            for i in 0..600 {
+                let x = i as f32 * 0.5;
+                let (_line, got) = p.hit_test_scroll(left + x, py, ScrollPos::default());
+                let want = TextPipeline::col_in_row(&row, x);
+                assert_eq!(
+                    got, want,
+                    "{world}/{label}: click at x=+{x:.1} resolved to column {got}, but the \
+                     caret row draws column {want} at that x (xs {:?})",
+                    row.xs
+                );
+                probes += 1;
+            }
+            assert_eq!(
+                glyph_x_assembly_count(),
+                0,
+                "{world}/{label}: pointer hit testing rebuilt glyph xs after the row was assembled"
+            );
+            assert_eq!(
+                rowgeom::in_place_row_borrow_count(),
+                600,
+                "{world}/{label}: every pointer probe must borrow the cached row in place"
+            );
+        }
+    }
+    assert!(
+        monaspace_shared_spans > 0,
+        "the Monaspace witness must actually shape a shared glyph span: {monaspace_shared_spans}"
+    );
+    assert!(
+        proportional >= 8,
+        "the agreement law must cover proportional faces, not only mono ones: {proportional}"
+    );
+    assert!(
+        probes > 40_000,
+        "the agreement law must sweep every world: {probes} probes"
+    );
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
