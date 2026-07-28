@@ -20,7 +20,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (290/100)"
+message = "this function has too many lines (286/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -89,8 +89,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
-line = 217
-message = "this function has too many lines (224/100)"
+line = 201
+message = "this function has too many lines (213/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -574,20 +574,6 @@ lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 line = 893
 message = "this function has too many lines (113/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/capture/tests/schema_chrome.rs"
-line = 185
-message = "the function has a cognitive complexity of (43/25)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/tests/schema_chrome.rs"
-line = 185
-message = "this function has too many lines (170/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]

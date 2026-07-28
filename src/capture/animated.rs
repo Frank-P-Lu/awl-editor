@@ -80,7 +80,7 @@ async fn capture_timeline_async(
 
     // --- Text pipeline (shared with windowed) ----------------------------
     let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
-    let misspelled = super::modes::capture_misspellings(buffer);
+    let misspelled = super::policy::misspellings(buffer);
 
     // The buffer cursor rests at the DESTINATION; `origin` is where the glide
     // STARTS. Both poses share ONE stationary viewport so only the caret moves
@@ -111,8 +111,7 @@ async fn capture_timeline_async(
 
     // ONE fixed scroll for the whole timeline: follow the DESTINATION's visual row
     // (where the caret settles), mirroring capture_async's cursor-follow default.
-    vstate.scroll =
-        super::modes::capture_follow_scroll(&pipeline, dest_line, dest_col, height as f32);
+    vstate.scroll = super::policy::follow_scroll(&pipeline, dest_line, dest_col, height as f32);
 
     // Pose the spring AT REST on the ORIGIN, then start the glide to the
     // DESTINATION. settle_caret() reads the pipeline's current cursor, so move the
@@ -205,7 +204,7 @@ async fn capture_held_async(
 
     // --- Text pipeline (shared with windowed) ----------------------------
     let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
-    let misspelled = super::modes::capture_misspellings(buffer);
+    let misspelled = super::policy::misspellings(buffer);
 
     // Per-line char lengths, so each held re-target clamps to a real document
     // position (one char/line at a time, like the OS auto-repeat) instead of
@@ -240,8 +239,7 @@ async fn capture_held_async(
     // ONE fixed scroll for the whole run: follow the ORIGIN's visual row, mirroring
     // the timeline path. The held re-targets move at most a handful of cells, so the
     // viewport stays put (a mid-run rescroll would break determinism / the trail).
-    vstate.scroll =
-        super::modes::capture_follow_scroll(&pipeline, orig_line, orig_col, height as f32);
+    vstate.scroll = super::policy::follow_scroll(&pipeline, orig_line, orig_col, height as f32);
 
     // Pose the spring AT REST on the ORIGIN (the initial key PRESS, not yet a
     // repeat): settle_caret reads the pipeline's current cursor, which set_view just

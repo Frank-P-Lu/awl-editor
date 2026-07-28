@@ -141,24 +141,24 @@ mod tests {
             &[
                 ("view_policy.rs", 1),
                 ("app/viewstate.rs", 1),
-                ("capture/modes.rs", 1),
+                ("capture/policy.rs", 1),
             ],
         );
         assert_roster(
-            ["capture_follow_", "scroll("].concat(),
-            &[("capture/animated.rs", 2), ("capture/modes.rs", 2)],
+            ["policy::follow_", "scroll("].concat(),
+            &[("capture/animated.rs", 2), ("capture/modes.rs", 1)],
         );
         assert_roster(
             ["spell_recompute_", "needed("].concat(),
             &[
                 ("view_policy.rs", 1),
                 ("app/viewstate.rs", 1),
-                ("capture/modes.rs", 1),
+                ("capture/policy.rs", 1),
             ],
         );
         assert_roster(
-            ["capture_misspell", "ings("].concat(),
-            &[("capture/animated.rs", 2), ("capture/modes.rs", 2)],
+            "policy::misspellings(".to_string(),
+            &[("capture/animated.rs", 2), ("capture/modes.rs", 1)],
         );
     }
 
@@ -178,6 +178,7 @@ mod tests {
             "capture/modes.rs",
             "capture/opts.rs",
             "capture/oracle.rs",
+            "capture/policy.rs",
             "capture/scroll_sidecar.rs",
             "capture/sidecar.rs",
         ];
@@ -206,7 +207,7 @@ mod tests {
             let expected = match identifier {
                 "spell_checked_version" => BTreeMap::new(),
                 _ => BTreeMap::from([(
-                    "capture/modes.rs",
+                    "capture/policy.rs",
                     if identifier == "checked_version" {
                         2
                     } else {
@@ -223,12 +224,20 @@ mod tests {
 
         for (helper, expected) in [
             (
-                "capture_follow_scroll",
-                BTreeMap::from([("capture/animated.rs", 2), ("capture/modes.rs", 2)]),
+                "follow_scroll",
+                BTreeMap::from([
+                    ("capture/animated.rs", 2),
+                    ("capture/modes.rs", 1),
+                    ("capture/policy.rs", 1),
+                ]),
             ),
             (
-                "capture_misspellings",
-                BTreeMap::from([("capture/animated.rs", 2), ("capture/modes.rs", 2)]),
+                "misspellings",
+                BTreeMap::from([
+                    ("capture/animated.rs", 2),
+                    ("capture/modes.rs", 1),
+                    ("capture/policy.rs", 1),
+                ]),
             ),
         ] {
             let actual: BTreeMap<&str, usize> = sources
