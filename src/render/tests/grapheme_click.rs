@@ -197,7 +197,7 @@ fn dragging_the_pointer_rightward_never_moves_the_caret_left() {
     for (world, _) in worlds() {
         theme::set_active_by_name(world);
         p.sync_theme();
-        for (label, text) in CLUSTER_CORPUS.iter().copied() {
+        for (label, text) in CLUSTER_CORPUS {
             p.set_view(&view(&format!("{text}\n"), 1, 0));
             let py = p.doc_top() + p.metrics.line_height * 0.5;
             let left = p.text_left();

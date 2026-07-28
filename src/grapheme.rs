@@ -381,7 +381,7 @@ mod tests {
     /// break at `i` is decided by the chars up to `i` alone.
     #[test]
     fn snap_backward_is_indifferent_to_a_shortened_len() {
-        for (label, text) in CLUSTER_CORPUS.iter().copied() {
+        for (label, text) in CLUSTER_CORPUS {
             let chars: Vec<char> = text.chars().collect();
             let len = chars.len();
             for cursor in 1..=len {
