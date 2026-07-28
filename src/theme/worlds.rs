@@ -16,6 +16,11 @@ use super::ornament::{
     ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, Ornaments,
 };
 
+mod kite;
+mod roster;
+pub use kite::KITE;
+pub use roster::{DEFAULT_THEME, THEMES, world_names};
+
 const POSTER_BARS: ListStyle = ListStyle::Bars {
     radius: 6.0,
     gap: 10.0,
@@ -495,8 +500,13 @@ pub const BOWERBIRD: Theme = Theme {
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
     selection: Srgb::rgba(0x3D, 0x6B, 0xC4, 0x52),
     background: Background::Organic {
-        tones: [Srgb::rgb(0x0C, 0x14, 0x26), Srgb::rgb(0x13, 0x1D, 0x33),
-            Srgb::rgb(0x1F, 0x2C, 0x49)], scale_px: 156.0, density: 0.46,
+        tones: [
+            Srgb::rgb(0x0C, 0x14, 0x26),
+            Srgb::rgb(0x13, 0x1D, 0x33),
+            Srgb::rgb(0x1F, 0x2C, 0x49),
+        ],
+        scale_px: 156.0,
+        density: 0.46,
     },
     font: "IBM Plex Sans",
     mono: "JetBrains Mono",
@@ -1013,62 +1023,6 @@ pub const CASSOWARY: Theme = Theme {
     },
 };
 
-/// Loud light technical room: a stable mineral page travelling through one
-/// cool warped-grid field, with the caret as the bird's single vermilion eye.
-pub const KITE: Theme = Theme {
-    name: "Kite",
-    dark: false,
-    base_100: Srgb::rgb(0xF8, 0xF7, 0xFC),
-    base_200: Srgb::rgb(0xEE, 0xEA, 0xF7),
-    base_300: Srgb::rgb(0xDF, 0xD8, 0xED),
-    base_content: Srgb::rgb(0x24, 0x24, 0x3A),
-    muted: Srgb::rgb(0x68, 0x64, 0x7D),
-    faint: Srgb::rgb(0xA1, 0x9B, 0xAF),
-    primary: Srgb::rgb(0xE4, 0x47, 0x2F),
-    primary_content: Srgb::rgb(0xFF, 0xF2, 0xEE),
-    error: Srgb::rgb(0xC8, 0x2F, 0x38),
-    selection: Srgb::rgba(0x65, 0x5F, 0x9B, 0x52),
-    background: Background::WarpedGrid {
-        tones: [
-            Srgb::rgb(0xEE, 0xEA, 0xF7),
-            Srgb::rgb(0x9E, 0x97, 0xBB),
-            Srgb::rgb(0x40, 0x3D, 0x64),
-        ],
-        spacing_px: 54.0,
-        density: 0.78,
-        curvature: 0.90,
-    },
-    font: "Fira Sans",
-    mono: "Iosevka",
-    icon_cursor: IconCursor::Narrow,
-    heading_bold: true,
-    cjk: CJK_GOTHIC,
-    zh_hans: CJK_ZH_HANS_SANS,
-    zh_hant: CJK_ZH_HANT,
-    ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '◆',
-        star: '✦',
-        underscore: '◈',
-    },
-    ornament_face: ORNAMENT_MARKS,
-    ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
-    bullets: BULLETS_PLAIN,
-    bullet_scale: BULLET_SCALE_PLAIN,
-    list_indent_scale: LIST_INDENT_SCALE_PLAIN,
-    tags: ThemeTags {
-        time: Some("Day"),
-        register: Some("Refined"),
-        voice: Some("Modern"),
-        temperature: None,
-    },
-    role_overrides: RoleOverrides::NONE,
-    render_caps: RenderCaps {
-        elevation: Elevation::Bordered,
-        ..RenderCaps::DEFAULT
-    },
-};
-
 #[allow(dead_code)] // gallery-only exploration; not in THEMES (see doc above).
 pub const CASSOWARY_LIGHT: Theme = Theme {
     name: "Cassowary Light",
@@ -1129,40 +1083,3 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
         ..RenderCaps::DEFAULT
     },
 };
-
-pub const THEMES: [Theme; 19] = [
-    TAWNY, MOPOKE, CURRAWONG, POTOROO, GUMTREE, BILBY, SALTPAN, QUOKKA, BOMBORA, BOWERBIRD, MULGA,
-    MANGROVE, GALAH, MAGPIE, BROLGA, WAGTAIL, FIRETAIL, CASSOWARY, KITE,
-];
-
-const fn str_eq(a: &str, b: &str) -> bool {
-    let (a, b) = (a.as_bytes(), b.as_bytes());
-    if a.len() != b.len() {
-        return false;
-    }
-    let mut i = 0;
-    while i < a.len() {
-        if a[i] != b[i] {
-            return false;
-        }
-        i += 1;
-    }
-    true
-}
-
-const fn world_index(name: &str) -> usize {
-    let mut i = 0;
-    while i < THEMES.len() {
-        if str_eq(THEMES[i].name, name) {
-            return i;
-        }
-        i += 1;
-    }
-    panic!("world_index: no world by that name")
-}
-
-pub const DEFAULT_THEME: usize = world_index("Saltpan");
-
-pub fn world_names() -> Vec<&'static str> {
-    THEMES.iter().map(|t| t.name).collect()
-}
