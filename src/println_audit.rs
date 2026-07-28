@@ -85,7 +85,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // no live App/notice seam here to route through), reported the same way
     // every other CLI-only diagnostic in this file is: a stderr line naming
     // what happened before the capture proceeds on a scratch buffer instead.
-    ("main/tests.rs", 9),
+    ("main/run.rs", 9),
     // `--storyboard`'s deliverable output (the run summary + "wrote film…"),
     // plus the BEST-EFFORT film-encode notes ("no ffmpeg on PATH", a nonzero
     // ffmpeg exit, a non-UTF-8 output path) — CLI product + diagnostics by
