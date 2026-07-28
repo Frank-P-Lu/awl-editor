@@ -21,6 +21,20 @@ fn temp() -> PathBuf {
     p
 }
 
+fn fixture(dir: &Path) -> PathBuf {
+    let doc = dir.join("fixture.txt");
+    std::fs::write(&doc, DOC).unwrap();
+    // Prose underlines are document state, not caret pixels. Keep the differential
+    // reference free of them so entering the punctuation row cannot erase a
+    // writing-nit or spelling squiggle and inflate the caret's measured footprint.
+    std::fs::write(
+        common::config_path_in(dir),
+        "writing_nits = false\nspellcheck = false\n",
+    )
+    .unwrap();
+    doc
+}
+
 struct Capture<'a> {
     sandbox: &'a Path,
     doc: &'a Path,
@@ -57,6 +71,37 @@ impl Capture<'_> {
             self.world,
             String::from_utf8_lossy(&o.stderr)
         );
+    }
+}
+
+fn assert_visible_controls(
+    capture: &Capture<'_>,
+    dir: &Path,
+    tag: &str,
+    top: u32,
+    bottom: u32,
+    reference: &(u32, u32, Vec<u8>),
+) {
+    for (label, col) in [
+        ("letter", 0usize),
+        ("space", 2),
+        ("eol", DOC.lines().next().unwrap().chars().count()),
+    ] {
+        for mode in ["block", "morph"] {
+            let c = if mode == "morph" && col > 0 {
+                col + 1
+            } else {
+                col
+            };
+            let out = dir.join(format!("{tag}-{label}-{mode}.png"));
+            capture.run(&out, Some(mode), &"Right ".repeat(c));
+            let got = footprint(&rgba(&out), reference, top, bottom);
+            assert!(
+                got.4 >= 8,
+                "{} {label} {mode}: visible control",
+                capture.world
+            );
+        }
     }
 }
 
@@ -112,9 +157,13 @@ fn glyph_mask(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> Ve
         pixels[((rect.1 * *w + rect.0) * 4) as usize + 1],
         pixels[((rect.1 * *w + rect.0) * 4) as usize + 2],
     ];
+    // The target glyph is centred in the caret body. Probe its middle half,
+    // leaving the body edge out: on the literal `a,` fixture the widened comma
+    // body legitimately overlaps the preceding `a`'s antialiased fringe.
+    let inset_x = ((rect.2 - rect.0 + 1) / 4).max(2);
     let mut mask = Vec::new();
-    for y in rect.1..=rect.3 {
-        for x in rect.0..=rect.2 {
+    for y in rect.1 + 2..=rect.3 - 2 {
+        for x in rect.0 + inset_x..=rect.2 - inset_x {
             let i = ((y * *w + x) * 4) as usize;
             if pixels[i..i + 3] != page {
                 mask.push(i);
@@ -133,13 +182,6 @@ fn body_only_control(
     let mask = glyph_mask(reference, rect);
     let mut body_only = rendered.clone();
     for &i in &mask {
-        let pixel = (i / 4) as u32;
-        let x = pixel % rendered.0;
-        let y = pixel / rendered.0;
-        assert!(
-            x >= rect.0 + 2 && x + 2 <= rect.2 && y >= rect.1 + 2 && y + 2 <= rect.3,
-            "glyph mask must stay inside the opaque body; caret edge AA is preserved"
-        );
         body_only.2[i..i + 3].copy_from_slice(&body);
     }
     (body_only, mask)
@@ -188,8 +230,7 @@ fn assert_body_only_mutation_red(
 #[test]
 fn proportional_punctuation_has_a_real_pixel_body() {
     let dir = temp();
-    let doc = dir.join("fixture.txt");
-    std::fs::write(&doc, DOC).unwrap();
+    let doc = fixture(&dir);
     let mut active_comma = false;
     for world in WORLDS {
         for (dpi, zoom) in SCALES {
@@ -209,25 +250,17 @@ fn proportional_punctuation_has_a_real_pixel_body() {
             .unwrap();
             let top = side["text_origin"]["top"].as_u64().unwrap() as u32;
             let lh = side["font"]["line_height"].as_f64().unwrap() as u32;
+            let band_pad = (8.0 * dpi * zoom).ceil() as u32;
             let caret_rgb = hex_rgb(&side["theme"]["primary"]);
             let refimg = rgba(&reference);
-            for (label, col) in [
-                ("letter", 0usize),
-                ("space", 2),
-                ("eol", DOC.lines().next().unwrap().chars().count()),
-            ] {
-                for mode in ["block", "morph"] {
-                    let c = if mode == "morph" && col > 0 {
-                        col + 1
-                    } else {
-                        col
-                    };
-                    let out = dir.join(format!("{tag}-{label}-{mode}.png"));
-                    capture.run(&out, Some(mode), &"Right ".repeat(c));
-                    let got = footprint(&rgba(&out), &refimg, top.saturating_sub(8), top + lh + 8);
-                    assert!(got.4 >= 8, "{world} {label} {mode}: visible control");
-                }
-            }
+            assert_visible_controls(
+                &capture,
+                &dir,
+                &tag,
+                top.saturating_sub(band_pad),
+                top + lh + band_pad,
+                &refimg,
+            );
             for ch in PUNCT {
                 let col = DOC
                     .lines()
@@ -240,10 +273,11 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                     let c = if mode == "morph" { col + 1 } else { col };
                     let out = dir.join(format!("{tag}-{ch:?}-{mode}.png"));
                     capture.run(&out, Some(mode), &"Right ".repeat(c));
-                    let band_top = top.saturating_sub(8);
+                    let band_top = top.saturating_sub(band_pad);
+                    let band_bottom = top + lh + band_pad;
                     let rendered = rgba(&out);
                     let (left, outer_top, right, outer_bottom, area) =
-                        footprint(&rendered, &refimg, band_top, top + lh + 8);
+                        footprint(&rendered, &refimg, band_top, band_bottom);
                     let w = right - left + 1;
                     let h = outer_bottom - outer_top + 1;
                     let scale = dpi * zoom;
@@ -260,7 +294,7 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                         "{world} {ch:?} {mode}: outer bbox area"
                     );
                     assert!(
-                        outer_top > band_top && outer_bottom + 1 < top + lh + 8,
+                        outer_top > band_top && outer_bottom + 1 < band_bottom,
                         "{world} {ch:?} {mode}: caret clipped by row band"
                     );
                     let rect = (left, outer_top, right, outer_bottom);
