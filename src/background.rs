@@ -219,7 +219,7 @@ impl BackgroundPipeline {
             dir: [desc.dir.0, desc.dir.1],
             shader: desc.shader,
             pat: pattern_tint(desc.tint),
-            params: params::ground(&desc),
+            params: ground_params(&desc),
         }
     }
 
@@ -229,7 +229,7 @@ impl BackgroundPipeline {
         self.dir = [desc.dir.0, desc.dir.1];
         self.shader = desc.shader;
         self.pat = pattern_tint(desc.tint);
-        self.params = params::ground(&desc);
+        self.params = ground_params(&desc);
     }
 
     pub fn prepare(
@@ -287,6 +287,29 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
     [lin[0], lin[1], lin[2], PATTERN_MAX_COVERAGE]
 }
 
+/// Pack the mutually exclusive ground controls into the shared parameter slots:
+/// (0/1) plus Zigzag's period, `y` its angle, `z` its amplitude, and `w` its
+/// density (negative for filled bands). WarpedGrid reuses the same slots as
+/// spacing/density/curvature. Other grounds retain their old zeroes; motion
+/// keeps its dedicated drift slot.
+fn ground_params(desc: &BgDesc) -> [f32; 4] {
+    if desc.shader == 8 {
+        return [desc.period_px, desc.density, 0.0, 0.0];
+    }
+    if desc.shader == 9 {
+        return [desc.period_px, desc.density, desc.amplitude_px, 0.0];
+    }
+    [
+        if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
+        desc.angle,
+        desc.amplitude_px,
+        if desc.banded {
+            -desc.density
+        } else {
+            desc.density
+        },
+    ]
+}
 // ---------------------------------------------------------------------------
 // Minimal local Pod/bytemuck shim (same approach as selection.rs, no extra crate).
 // ---------------------------------------------------------------------------
@@ -312,6 +335,23 @@ mod waves_drift_tests {
     use super::*;
 
     #[test]
+    fn warped_grid_params_land_in_the_three_slots_the_shader_reads() {
+        let desc = BgDesc {
+            from: [0; 4],
+            to: [0; 4],
+            dir: (0.0, 1.0),
+            shader: 9,
+            tint: [0; 3],
+            edge: false,
+            angle: 0.0,
+            period_px: 54.0,
+            amplitude_px: 0.9,
+            density: 0.78,
+            banded: false,
+        };
+        assert_eq!(ground_params(&desc), [54.0, 0.78, 0.9, 0.0]);
+    }
+
     #[test]
     fn drift_is_zero_at_the_settled_phase() {
         assert_eq!(waves_drift_radians(0.0), 0.0);
@@ -377,4 +417,3 @@ mod waves_drift_tests {
         assert!((b2_0 - b2_d).abs() > 0.5, "b2 moves under drift");
     }
 }
-mod params;

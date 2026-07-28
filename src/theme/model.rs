@@ -439,6 +439,167 @@ impl LavaEdge {
     }
 }
 
+impl Background {
+    pub fn shader_id(&self) -> u32 {
+        match self {
+            Background::Gradient { .. } => 0,
+            Background::Dots { .. } => 1,
+            Background::Starfield { .. } => 2,
+            Background::Pinstripe { .. } => 3,
+            Background::Stripes { .. } => 4,
+            Background::Lava { .. } => 0,
+            Background::Bands { .. } => 5,
+            Background::Waves { .. } => 6,
+            Background::Zigzag { .. } => 7,
+            Background::Organic { .. } => 8,
+            Background::WarpedGrid { .. } => 9,
+        }
+    }
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Background::Gradient { .. } => "gradient",
+            Background::Dots { .. } => "dots",
+            Background::Starfield { .. } => "starfield",
+            Background::Pinstripe { .. } => "pinstripe",
+            Background::Stripes { .. } => "stripes",
+            Background::Lava { .. } => "lava",
+            Background::Bands { .. } => "bands",
+            Background::Waves { .. } => "waves",
+            Background::Zigzag { .. } => "zigzag",
+            Background::Organic { .. } => "organic",
+            Background::WarpedGrid { .. } => "warped-grid",
+        }
+    }
+    pub fn from(&self) -> Srgb {
+        match self {
+            Background::Gradient { from, .. }
+            | Background::Dots { from, .. }
+            | Background::Starfield { from, .. }
+            | Background::Pinstripe { from, .. }
+            | Background::Stripes { from, .. }
+            | Background::Zigzag { from, .. } => *from,
+            Background::Lava { ground, .. } => *ground,
+            Background::Bands { tones, .. }
+            | Background::Waves { tones }
+            | Background::Organic { tones, .. }
+            | Background::WarpedGrid { tones, .. } => tones[0],
+        }
+    }
+    pub fn to(&self) -> Srgb {
+        match self {
+            Background::Gradient { to, .. }
+            | Background::Dots { to, .. }
+            | Background::Starfield { to, .. }
+            | Background::Pinstripe { to, .. }
+            | Background::Stripes { to, .. }
+            | Background::Zigzag { to, .. } => *to,
+            Background::Lava { ground, .. } => *ground,
+            Background::Bands { tones, .. }
+            | Background::Waves { tones }
+            | Background::Organic { tones, .. }
+            | Background::WarpedGrid { tones, .. } => tones[2],
+        }
+    }
+    pub fn dir(&self) -> (f32, f32) {
+        match self {
+            Background::Gradient { dir, .. }
+            | Background::Dots { dir, .. }
+            | Background::Starfield { dir, .. }
+            | Background::Pinstripe { dir, .. }
+            | Background::Zigzag { dir, .. } => *dir,
+            Background::Stripes { angle, .. } | Background::Bands { angle, .. } => {
+                (angle.cos(), angle.sin())
+            }
+            Background::Lava { .. }
+            | Background::Waves { .. }
+            | Background::Organic { .. }
+            | Background::WarpedGrid { .. } => (0.0, 1.0),
+        }
+    }
+    pub fn tint(&self) -> Srgb {
+        match self {
+            Background::Dots { tint, .. }
+            | Background::Starfield { tint, .. }
+            | Background::Pinstripe { tint, .. }
+            | Background::Zigzag { tint, .. } => *tint,
+            Background::Stripes { band, .. } => *band,
+            Background::Gradient { from, .. } => *from,
+            Background::Lava { ground, .. } => *ground,
+            Background::Bands { tones, .. }
+            | Background::Waves { tones }
+            | Background::Organic { tones, .. }
+            | Background::WarpedGrid { tones, .. } => tones[1],
+        }
+    }
+    pub fn edge(&self) -> bool {
+        matches!(self, Background::Dots { edge: true, .. })
+    }
+    pub fn angle(&self) -> f32 {
+        match self {
+            Background::Stripes { angle, .. }
+            | Background::Bands { angle, .. }
+            | Background::Zigzag { angle, .. } => *angle,
+            _ => 0.0,
+        }
+    }
+    pub fn period_px(&self) -> f32 {
+        match self {
+            Background::Zigzag { period_px, .. } => *period_px,
+            Background::Organic { scale_px, .. } => *scale_px,
+            Background::WarpedGrid { spacing_px, .. } => *spacing_px,
+            _ => 0.0,
+        }
+    }
+    pub fn amplitude_px(&self) -> f32 {
+        match self {
+            Background::Zigzag { amplitude_px, .. } => *amplitude_px,
+            Background::WarpedGrid { curvature, .. } => *curvature,
+            _ => 0.0,
+        }
+    }
+    #[cfg(test)]
+    pub fn zigzag_stroke_px(&self) -> f32 {
+        (self.amplitude_px() * ZIGZAG_STROKE_FRAC).max(ZIGZAG_MIN_STROKE_PX)
+    }
+    #[cfg(test)]
+    pub fn zigzag_row_pitch_px(&self) -> f32 {
+        2.0 * self.amplitude_px() + self.zigzag_stroke_px()
+    }
+    pub fn density(&self) -> f32 {
+        match self {
+            Background::Zigzag { density, .. } => *density,
+            Background::Organic { density, .. } => *density,
+            Background::WarpedGrid { density, .. } => *density,
+            _ => 0.0,
+        }
+    }
+    pub fn zigzag_banded(&self) -> bool {
+        matches!(self, Background::Zigzag { banded: true, .. })
+    }
+    pub fn is_lava(&self) -> bool {
+        matches!(self, Background::Lava { .. })
+    }
+    pub fn is_waves(&self) -> bool {
+        matches!(self, Background::Waves { .. })
+    }
+    pub fn is_organic(&self) -> bool { matches!(self, Background::Organic { .. }) }
+    pub fn is_warped_grid(&self) -> bool {
+        matches!(self, Background::WarpedGrid { .. })
+    }
+    pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
+        match self {
+            Background::Lava {
+                ground,
+                blob_lo,
+                blob_hi,
+                edge,
+                dithered,
+            } => Some((*ground, *blob_lo, *blob_hi, *edge, *dithered)),
+            _ => None,
+        }
+    }
+}
+
 enum_with_all! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub enum IconCursor {

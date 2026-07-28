@@ -34,7 +34,6 @@
 //! display `font`; that family is loaded at startup and selected per-frame, so a
 //! theme switch reskins the GLYPH SHAPES too (mono / serif / slab / sans).
 
-mod background_model;
 mod cjk;
 mod color;
 mod derive;
