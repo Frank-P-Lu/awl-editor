@@ -35,14 +35,16 @@ struct Globals {
     // stripe angle.
     dir: vec2<f32>,
     // Procedural margin ground: 0=plain gradient, 1=dots, 2=starfield,
-    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag, 8=organic,
-    // 9=warped-grid. Matches
+    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag. Matches
     // `Background::shader_id` in src/theme/model.rs.
     shader: u32,
-    // Ambient scalar in a DEDICATED slot: shaders 6/8 read radians while shader
-    // 9 reads deterministic route seconds. `0.0` for every static ground and
-    // every settled/headless frame. Kept OUT of `params`, whose four slots are
-    // authored ground data. Must byte-match `Globals.drift` in src/background.rs.
+    // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
+    // `pad` after `shader`. `0.0` for every non-Waves ground and every
+    // settled/headless frame (so those renders stay byte-identical); shader 6
+    // reads it as `g.drift` in `waves_rgb`. Kept OUT of `params` because item
+    // 86's Zigzag (shader 7) already uses all four `params` slots — routing the
+    // drift through `params.z` would zero a Zigzag world's amplitude every
+    // frame. Must byte-match `Globals.drift` in src/background.rs.
     drift: f32,
     // Mark/band tint (LINEAR rgb; a is the max coverage of the marks/band). For
     // shader 5/6 (Bands/Waves) this is the MIDDLE of three authored tones —
@@ -58,8 +60,8 @@ struct Globals {
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
     // shader 7's extra coverage multiplier `density`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
-    // exact original code path. Shader 9 reads x/y/z as grid spacing,
-    // density, and curvature. Motion rides the dedicated `drift` slot above.
+    // exact original code path. (Waves' item-87 drift is NOT here — it rides
+    // the dedicated `drift` slot above.)
     params: vec4<f32>,
 };
 
@@ -341,124 +343,6 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     return mix(with_island, g.c_from.rgb, hole * mass * 0.65);
 }
 
-struct WarpRoutePose {
-    yaw: f32,
-    pitch: f32,
-    forward_cells: f32,
-};
-
-// Shader mirror of `crate::warpgrid::route_pose`: six long (~58s) legs whose
-// Hermite endpoints have zero velocity. The last and first targets are both
-// straight, so the several-minute route wraps without a steering cut; forward
-// travel completes exactly 64 minor cells over the same loop.
-fn warp_route_pose(phase_seconds: f32) -> WarpRoutePose {
-    let leg_seconds = 58.0;
-    let loop_seconds = 348.0;
-    let phase = phase_seconds - floor(phase_seconds / loop_seconds) * loop_seconds;
-    let leg_f = phase / leg_seconds;
-    let leg = floor(leg_f);
-    let t0 = clamp(leg_f - leg, 0.0, 1.0);
-    let t = t0 * t0 * (3.0 - 2.0 * t0);
-    var a = vec2<f32>(0.0, 0.0);
-    var b = vec2<f32>(-0.72, 0.0);
-    if (leg >= 1.0 && leg < 2.0) {
-        a = vec2<f32>(-0.72, 0.0);
-        b = vec2<f32>(0.0, -0.58);
-    } else if (leg >= 2.0 && leg < 3.0) {
-        a = vec2<f32>(0.0, -0.58);
-        b = vec2<f32>(0.68, 0.0);
-    } else if (leg >= 3.0 && leg < 4.0) {
-        a = vec2<f32>(0.68, 0.0);
-        b = vec2<f32>(0.0, 0.56);
-    } else if (leg >= 4.0 && leg < 5.0) {
-        a = vec2<f32>(0.0, 0.56);
-        b = vec2<f32>(0.0, 0.0);
-    } else if (leg >= 5.0) {
-        a = vec2<f32>(0.0, 0.0);
-        b = vec2<f32>(0.0, 0.0);
-    }
-    let steering = mix(a, b, t);
-    return WarpRoutePose(steering.x, steering.y, phase / loop_seconds * 64.0);
-}
-
-fn warp_line(coord: f32, half_width_px: f32) -> f32 {
-    let fw = max(fwidth(coord), 0.0001);
-    let distance_px = abs(fract(coord + 0.5) - 0.5) / fw;
-    return 1.0 - smoothstep(half_width_px, half_width_px + 1.0, distance_px);
-}
-
-fn warp_major(coord: f32) -> f32 {
-    let nearest = round(coord);
-    let remainder = abs(nearest - round(nearest / 5.0) * 5.0);
-    return 1.0 - step(0.1, remainder);
-}
-
-// 9: one perspective field viewed through the two Frame margins. Radial and
-// logarithmic coordinates make a curved tunnel without geometry or a literal
-// 3-D engine. The opaque page column punches out the middle afterwards, so the
-// margins remain two slices of this ONE field rather than separately animated
-// strips. Steering changes the coordinate scale on opposite sides: a left turn
-// compresses the left slice while opening the right; pitch does the matching
-// top/bottom opposition.
-fn warped_grid_rgb(px: vec2<f32>) -> vec3<f32> {
-    let pose = warp_route_pose(g.drift);
-    let spacing = max(g.params.x, 24.0);
-    let density = clamp(g.params.y, 0.0, 1.0);
-    let curvature = clamp(g.params.z, 0.0, 1.5);
-    let page_center = g.col_left + g.col_w * 0.5;
-    let vanishing = vec2<f32>(
-        page_center + pose.yaw * g.viewport.x * 0.16,
-        g.viewport.y * (0.50 + pose.pitch * 0.16),
-    );
-    let side = select(-1.0, 1.0, px.x >= page_center);
-    let vertical_side = select(-1.0, 1.0, px.y >= vanishing.y);
-    let turn_scale = clamp(1.0 + pose.yaw * side * 0.48 * curvature, 0.55, 1.55);
-    let pitch_scale = clamp(1.0 + pose.pitch * vertical_side * 0.38 * curvature, 0.62, 1.45);
-    let q = vec2<f32>(
-        (px.x - vanishing.x) * turn_scale,
-        (px.y - vanishing.y) * pitch_scale * 1.16,
-    );
-    let radius = max(length(q), 1.0);
-
-    // Projected cross-sections: logarithmic radius makes spacing tighten toward
-    // the hidden vanishing point while forward travel expands continuously.
-    let ring_coord = log2(1.0 + radius / spacing) * 7.0 - pose.forward_cells;
-    // Longitudinal rails: a polar coordinate, gently bowed by distance so the
-    // field reads curved rather than like spokes on a flat wheel.
-    let angle = atan2(q.y, q.x);
-    let bow = curvature * pose.yaw * side * log2(1.0 + radius / spacing) * 0.42
-            + curvature * pose.pitch * vertical_side * log2(1.0 + radius / spacing) * 0.30;
-    let rail_coord = angle * (10.0 / 3.14159265) + bow;
-
-    let ring_major = warp_major(ring_coord);
-    let rail_major = warp_major(rail_coord);
-    let ring_minor_line = warp_line(ring_coord, 0.34);
-    let rail_minor_line = warp_line(rail_coord, 0.34);
-    let ring_major_line = warp_line(ring_coord, 0.82) * ring_major;
-    let rail_major_line = warp_line(rail_coord, 0.82) * rail_major;
-    let major = max(ring_major_line, rail_major_line);
-    let minor = max(
-        ring_minor_line * (1.0 - ring_major),
-        rail_minor_line * (1.0 - rail_major),
-    );
-
-    let left_span = max(g.col_left, 1.0);
-    let right_span = max(g.viewport.x - (g.col_left + g.col_w), 1.0);
-    let margin_span = select(left_span, right_span, side > 0.0);
-    let edge_distance = select(g.col_left - px.x, px.x - (g.col_left + g.col_w), side > 0.0);
-    // Quiet the field beside the page. At narrow margins the minor grid fades
-    // away before projected spacing can shimmer, leaving only a gently
-    // translating major scaffold rather than a squeezed miniature tunnel.
-    let edge_fade = smoothstep(8.0, min(58.0, margin_span * 0.45), max(edge_distance, 0.0));
-    let projected_minor_px = 1.0 / max(max(fwidth(ring_coord), fwidth(rail_coord)), 0.0001);
-    let alias_fade = smoothstep(2.8, 4.6, projected_minor_px);
-    let narrow_detail = smoothstep(72.0, 190.0, margin_span);
-    let minor_cov = minor * alias_fade * narrow_detail * edge_fade * density * 0.62;
-    let major_cov = major * edge_fade * density * 0.86;
-    let with_minor = mix(g.c_from.rgb, g.c_pat.rgb, clamp(minor_cov, 0.0, 1.0));
-    return mix(with_minor, g.c_to.rgb, clamp(major_cov, 0.0, 1.0));
-}
-
 // ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a
@@ -587,7 +471,6 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         return vec4<f32>(waves_rgb(in.px), 1.0);
     }
     if (g.shader == 8u) { return vec4<f32>(organic_rgb(in.px), 1.0); }
-    if (g.shader == 9u) { return vec4<f32>(warped_grid_rgb(in.px), 1.0); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;

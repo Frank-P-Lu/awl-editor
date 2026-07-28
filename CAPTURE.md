@@ -354,10 +354,10 @@ render, an unrecognized `theme.mode`, or Room page/outline/margin geometry
 that isn't the generous, non-edge-to-edge shape above. The separate law that
 catches a world being newly **un-enrolled** (or added, or reordered) lives in
 `tests/world_gallery_roster.rs` — a Rust integration test against the real
-binary that hard-codes a 19-name roster snapshot on purpose, so a
+binary that hard-codes an 18-name roster snapshot on purpose, so a
 `theme::THEMES` change fails `cargo test` loudly until a human consciously
-updates it (mirroring `theme::tests::worlds_eleven_dark_eight_light`'s
-existing hard-coded `19`).
+updates it (mirroring `theme::tests::worlds_eleven_dark_seven_light`'s
+existing hard-coded `18`).
 
 ## The visual review dashboard (`scripts/review.sh`) — item 20
 
@@ -523,7 +523,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/189` (`/190` timeline, `/191` held)
+## The sidecar JSON — schema `awl-capture/188` (`/189` timeline, `/190` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -580,8 +580,6 @@ block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 (item 69's Gumtree grass-bands + Bombora wave-tiers, `/181`); and
 `page.background`'s `zigzag` arm (item 86's light-worlds taste round — Quokka
 and Gumtree both moved to a repeating chevron ground, `/183`); and
-`page.background`'s `warped-grid` arm (Kite's deterministic route phase,
-steering pose, and forward-grid position, `/189`); and
 `overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the
@@ -1210,7 +1208,7 @@ world.)
 | `spellcheck`   | GLOBAL spell-check on/off; default `true`. `false` silences every squiggle (prose and scoped code strings/comments alike) and makes the spell-suggest picker a no-op. Set via `--config` (`spellcheck = false`) or the "Toggle Spellcheck" palette command |
 | `date_format`  | INSERT DATE (schema `/178`): `{ format, example }` — the active `crate::dateformat::DateFormat`'s persisted slug (`"ddmmyy"`/`"mmddyy"`/`"iso"`/`"yyyymmdd"`/`"dmonthyyyy"`; default `"ddmmyy"`) and that format rendered against the FIXED placeholder civil date (2009-03-07 — a headless capture has no clock, so "today" is always this same date). Set via `--config` (`date_format = "iso"`) or the Settings menu's "Date format" cycling row. `example` for the default is `"07/03/09"` |
 | `text_origin`  | top-left pixel of the first glyph row (`left` = the page column left, centered in page mode; `16.0` edge-to-edge) |
-| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object. The `/189` `warped-grid` arm carries `tones`, `spacing_px`, `density`, `curvature`, deterministic `phase`, and the derived `yaw`, `pitch`, and `forward_cells` route state) |
+| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), or `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora)) |
 | `focus`        | FOCUS MODE: `mode` (`off`/`paragraph`/`sentence`) + `active_start`/`active_end` (char offsets of the full-ink unit, `null` when off) |
 | `wysiwyg`      | WYSIWYG conceal: `{ on, concealed }`. `on` mirrors the sticky `wysiwyg` config pref (default `true`). `concealed` is `[start_byte, end_byte, "kind"]` ranges the renderer drew transparent THIS frame — `"heading"`/`"emphasis"`/`"code"`/`"highlight"` (LINE-scoped: revealed only on the caret's own line OR a line the active selection touches) or `"fence"`/`"frontmatter"` (BLOCK-scoped: revealed only with the caret anywhere inside the block, or the selection touching any line inside it — a frontmatter block reuses the `fence` rule verbatim, see schema `/92`; selection reveal, 2026-07-22, no schema bump — see `render::spans::wysiwyg_reveals`). `"table"` (schema `/163`-ish, see the `tables` narrative above) NEVER leaves `concealed` in place — a selected/caret-touched table row instead swaps to the `xray` float mechanism; `tables[].revealed` and the render-only `xray` state are the ones to check for a table. Empty when `on` is false or nothing is concealed this frame |
 | `doc_lang`     | i18n round (schema `/92`): the document's own frontmatter `lang:` tag (`"ja"`/`"zh-Hans"`/`"zh-Hant"`/`"ko"`/`"en"`), or `null` for an untagged/non-markdown document |

@@ -37,9 +37,8 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 | **Wagtail**    | near-black, zero-saturation | Gradient          | JetBrains Mono      | JetBrains Mono  | Awl Marks · ✧ ⭑ ❡                             | Dusk  | —        | —         | —       |
 | **Firetail**   | deep oxblood-charcoal       | Lava · smooth     | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✷ ✶ ✦                             | —     | —        | —         | Warm    |
 | **Cassowary**  | near-black glass            | Pinstripe         | Iosevka             | Iosevka         | Awl Marks · ◆ ✴ ◈                             | Night | —        | Technical | —       |
-| **Kite**       | pale lavender-mineral       | Warped grid       | Fira Sans           | Iosevka         | Awl Marks · ◆ ✦ ◈                             | Day   | Refined  | Modern    | —       |
 
-*(19 worlds. The names are Australian fauna, flora, and landscape — flavour, not taxonomy. Wagtail and Firetail are statement-world mirrors; Brolga is the cool light pole; Cassowary is the dark-technical statement; Kite is the loud light technical room — see below.)*
+*(18 worlds. The names are Australian fauna, flora, and landscape — flavour, not taxonomy. Wagtail and Firetail close the roster as statement-world mirrors; Brolga is the cool light pole; Cassowary is the dark-technical statement, a NERV terminal — see below.)*
 
 ---
 
@@ -52,7 +51,7 @@ uses the world's own quiet palette, and never spends the caret accent.
 | Background | What it draws | Shipping worlds |
 | ---------- | ------------- | --------------- |
 | **Gradient** | A directional colour blend with no built-in marks. | Bilby, Currawong, Galah, Brolga, Wagtail |
-| **Dots** | A regular grid of small round dots over a gradient. All shipping dot worlds currently use the uniform form; the available page-edge proximity form is unassigned. | Mopoke, Tawny |
+| **Dots** | A regular grid of small round dots over a gradient. All shipping dot worlds currently use the uniform form; the available page-edge proximity form is unassigned. | Mopoke, Bowerbird, Tawny |
 | **Starfield** | Deterministically scattered dots with occasional four-point sparkles. Static in captures and independent of the caret. | Mulga |
 | **Pinstripe** | Fine parallel print/ledger lines over a gradient. | Magpie, Saltpan, Cassowary |
 | **Stripes** | A diagonal striped band concentrated at the page boundary and dissolved outward into the margin. | Potoroo |
@@ -60,12 +59,10 @@ uses the world's own quiet palette, and never spends the caret accent.
 | **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. Reusable infrastructure, currently DORMANT — Gumtree (its one-time assignee) moved to Zigzag in item 86. | *(none — dormant)* |
 | **Zigzag** (item 86, tiled in item 89) | A TILED FIELD of repeating chevron ("V") rows over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. The chevron repeats both along its travel direction and across it, and consecutive rows abut by construction, so every part of a margin carries rows at any window size or shape. Four per-world dials (tooth wavelength, peak excursion — which also sets the row pitch — travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/open/quiet. | Quokka, Gumtree |
 | **Waves** (item 69) | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
-| **Organic** | Large cool cut-paper masses, islands, and holes drifting on the shared sparse ambient cadence. | Bowerbird |
-| **Warped grid** | One perspective tunnel field viewed through both margins. Major/minor rails simplify responsively; the deterministic several-minute route turns, climbs, and descends, and freezes under the ambient-motion gates. | Kite |
 
 Currawong's base margin background is **Gradient**. Its slowly appearing and
 dying stars are a separate ambient Frame layer, not the static **Starfield**
-background used by Mulga; the at-a-glance table writes
+background used by Bombora and Mulga; the at-a-glance table writes
 “Gradient + stars” so the visible result is not misleading.
 
 ---
@@ -159,7 +156,7 @@ Night · Everyday · Literary · Cool.
 
 ### Bowerbird
 **A glossy blue-black bower — crisp and technical.**
-IBM Plex Sans on midnight navy; Zen Maru Gothic for Japanese; the crisp JetBrains Mono for code. Cool cut-paper masses drift through the margins.
+IBM Plex Sans on midnight navy; Zen Maru Gothic for Japanese; the crisp JetBrains Mono for code.
 Night · Everyday · Modern · Cool.
 
 ### Mangrove
@@ -205,16 +202,6 @@ Day · Cool.
 Iosevka as both page and code face, the narrow mechanical terminal-readout font; Noto Sans JP for Japanese; the summoned command overlay goes loud in Archivo Black. Cassowary is the dark-technical statement world (an Evangelion wink). Where every other chromatic world spends its one accent on an amber caret, Cassowary spends it on the terminal's own phosphor GREEN: the caret is the ink's own colour, drawn as an authentic CRT block cursor — a lit green cell with the letter under it knocked out in the black-glass ground. Red is held back for the alert channel alone (the spell-squiggle, a warning-crimson selection). The writing page stays a calm green terminal; the drama is transient, appearing only when you summon a command. The cassowary is a glossy-black, red-wattled, blue-green-necked living dinosaur — the black-ground / green-data / red-warning palette is the bird's own colouring.
 Night · Technical.
 
-### Kite
-**A pale mineral flight room — cool warped space around a calm lavender page, one hot vermilion point.**
-Fira Sans on pale lavender-mineral planes; Noto Sans JP for Japanese; Iosevka
-for code. One indigo/graphite perspective grid runs continuously behind both
-margins. It turns, climbs, and descends along a slow deterministic route while
-the writing page remains flat and opaque. Narrow margins shed the minor grid
-before the major scaffold. Reduce Motion and ambient motion off freeze the
-route. The full multi-minute calmness is a live taste call.
-Day · Refined · Modern.
-
 ---
 
 ## The fonts we ship
@@ -239,7 +226,7 @@ Regular) on every face; and headings deliberately use size, not weight.
 
 ### Display sans
 - **IBM Plex Sans** — IBM's neutral humanist workhorse: clear, unfussy, corporate-calm. *(awl's cool-sans face, worn at both value poles — dark Bowerbird's midnight navy and light Brolga's pale sky.)*
-- **Fira Sans** — a warm, friendly humanist sans: rounder and more personable than corporate-calm Plex. *(Kite's display face.)*
+- **Fira Sans** — a warm, friendly humanist sans: rounder and more personable than corporate-calm Plex. *(Registered, currently unassigned.)*
 - **Sour Gummy** — a bouncy, gummy-lettered display face with real playful character. *(Quokka's own pick — its printed-card identity: a chamfered card silhouette + a rotated halftone-dot texture pair with the face.)*
 - **Figtree** — a soft, rounded geometric sans with a friendly contemporary warmth.
 - **iA Writer Quattro S** — a duospaced writing face (proportional look, monospace rhythm) tuned for calm drafting.

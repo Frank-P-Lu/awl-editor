@@ -255,9 +255,8 @@ impl App {
         // and fires the ONE follow-up present once a boundary crossing has rested.
         // AMBIENT TICK — the slow ~10 fps drift clock behind awl's time-varying
         // grounds: the lava lamp (Firetail/Mangrove), the twinkling stars
-        // (Currawong), Bombora's wave-tier phase drift, AND Kite's longer
-        // warped-grid route — ONE sparse cadence feeding the shared ambient
-        // phase plus Kite's independent long phase. A single
+        // (Currawong), AND (item 87) Bombora's wave-tier phase drift — ONE
+        // clock, three consumers (`TextPipeline::lava_phase`). A single
         // `WaitUntil` cadence (NEVER the caret spring's hot per-frame `Poll`
         // loop): when it elapses, advance the phase, request ONE redraw, and
         // re-arm. Armed ONLY while `lava::lava_should_tick` holds — an

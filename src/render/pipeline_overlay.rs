@@ -317,21 +317,13 @@ impl TextPipeline {
         crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), None)
     }
 
-    pub fn warp_grid_render_phase(&self) -> f32 {
-        crate::warpgrid::phase_for(
-            self.warp_grid_phase,
-            crate::motion::reduced(),
-            crate::warpgrid::env_phase(),
-        )
-    }
-
-    /// Advance both ambient background phases by `dt` seconds — called ONLY by
-    /// the live App's slow ambient tick (`App::about_to_wait`), NEVER
-    /// `advance()`'s hot per-frame loop. Delayed wakes clamp to one ambient step;
-    /// the lamp/waves and warped-grid route retain their independent wraps.
+    /// Advance the lava lamp's animation phase by `dt` seconds — called ONLY by
+    /// the live App's slow ambient tick (`App::about_to_wait`), NEVER `advance()`'s
+    /// hot per-frame loop (the lava's whole point is a ~10 fps sparse cadence, not
+    /// full refresh). Delayed wakes clamp to one ambient step and wrap over the
+    /// field's full two-cycle period ([`crate::lava::advance_phase`]).
     pub fn advance_lava(&mut self, dt: f32) {
         self.lava_phase = crate::lava::advance_phase(self.lava_phase, dt);
-        self.warp_grid_phase = crate::warpgrid::advance_phase(self.warp_grid_phase, dt);
     }
 
     pub fn hold_lava_field_viewport(&mut self, width: u32, height: u32) {
@@ -348,11 +340,12 @@ impl TextPipeline {
         self.backdrop_blur()
     }
 
-    /// Pin every ambient background phase to its frozen composition — the live
-    /// App calls this for Reduce Motion or `ambient_motion` off.
+    /// Pin the lava lamp's phase to the FROZEN composition — the live App calls
+    /// this when the lamp must be static (Reduce Motion, or `ambient_motion` off),
+    /// so resuming from a hard-frozen state restarts from the settled frame rather
+    /// than a stale mid-bob.
     pub fn freeze_lava(&mut self) {
         self.lava_phase = crate::lava::LAVA_FROZEN_PHASE;
-        self.warp_grid_phase = crate::warpgrid::FROZEN_PHASE;
     }
 
     /// COPY PULSE: kick the selection quad's brighten/decay AND the caret's own
