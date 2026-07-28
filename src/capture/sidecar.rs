@@ -807,68 +807,49 @@ fn caret_block(caret: Option<&CaretFrame>) -> (String, String) {
 
 fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
     use crate::theme::Background;
+    match bg {
+        Background::Gradient { .. }
+        | Background::Dots { .. }
+        | Background::Starfield { .. }
+        | Background::Pinstripe { .. }
+        | Background::Stripes { .. } => simple_background_json(bg),
+        _ => rich_background_json(bg, lava_phase),
+    }
+}
+
+#[rustfmt::skip]
+fn simple_background_json(bg: crate::theme::Background) -> String {
+    use crate::theme::Background;
     let hex = |c: crate::theme::Srgb| json_string(&c.hex());
     match bg {
         Background::Gradient { from, to, dir } => format!(
-            "{{ \"kind\": \"gradient\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}] }}",
-            hex(from),
-            hex(to),
-            dir.0,
-            dir.1
-        ),
-        Background::Dots {
-            from,
-            to,
-            dir,
-            tint,
-            edge,
-        } => format!(
-            "{{ \"kind\": \"dots\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"edge\": {} }}",
-            hex(from),
-            hex(to),
-            dir.0,
-            dir.1,
-            hex(tint),
-            edge
-        ),
-        Background::Starfield {
-            from,
-            to,
-            dir,
-            tint,
-        } => format!(
-            "{{ \"kind\": \"starfield\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {} }}",
-            hex(from),
-            hex(to),
-            dir.0,
-            dir.1,
-            hex(tint)
-        ),
-        Background::Pinstripe {
-            from,
-            to,
-            dir,
-            tint,
-        } => format!(
-            "{{ \"kind\": \"pinstripe\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {} }}",
-            hex(from),
-            hex(to),
-            dir.0,
-            dir.1,
-            hex(tint)
-        ),
-        Background::Stripes {
-            from,
-            to,
-            band,
-            angle,
-        } => format!(
-            "{{ \"kind\": \"stripes\", \"from\": {}, \"to\": {}, \"band\": {}, \"angle\": {} }}",
-            hex(from),
-            hex(to),
-            hex(band),
-            angle
-        ),
+            concat!("{{ \"kind\": \"gradient\", \"from\": {}, \"to\": {}, ",
+                "\"dir\": [{}, {}] }}"),
+            hex(from), hex(to), dir.0, dir.1),
+        Background::Dots { from, to, dir, tint, edge } => format!(
+            concat!("{{ \"kind\": \"dots\", \"from\": {}, \"to\": {}, ",
+                "\"dir\": [{}, {}], \"tint\": {}, \"edge\": {} }}"),
+            hex(from), hex(to), dir.0, dir.1, hex(tint), edge),
+        Background::Starfield { from, to, dir, tint } => format!(
+            concat!("{{ \"kind\": \"starfield\", \"from\": {}, \"to\": {}, ",
+                "\"dir\": [{}, {}], \"tint\": {} }}"),
+            hex(from), hex(to), dir.0, dir.1, hex(tint)),
+        Background::Pinstripe { from, to, dir, tint } => format!(
+            concat!("{{ \"kind\": \"pinstripe\", \"from\": {}, \"to\": {}, ",
+                "\"dir\": [{}, {}], \"tint\": {} }}"),
+            hex(from), hex(to), dir.0, dir.1, hex(tint)),
+        Background::Stripes { from, to, band, angle } => format!(
+            concat!("{{ \"kind\": \"stripes\", \"from\": {}, \"to\": {}, ",
+                "\"band\": {}, \"angle\": {} }}"),
+            hex(from), hex(to), hex(band), angle),
+        _ => unreachable!("simple background helper received a rich ground"),
+    }
+}
+
+fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
+    use crate::theme::Background;
+    let hex = |c: crate::theme::Srgb| json_string(&c.hex());
+    match bg {
         Background::Lava {
             ground,
             blob_lo,
@@ -908,7 +889,10 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
             density,
             banded,
         } => format!(
-            "{{ \"kind\": \"zigzag\", \"from\": {}, \"to\": {}, \"dir\": [{}, {}], \"tint\": {}, \"period_px\": {}, \"amplitude_px\": {}, \"angle\": {}, \"density\": {}, \"banded\": {} }}",
+            concat!(
+                "{{\"kind\":\"zigzag\",\"from\":{},\"to\":{},\"dir\":[{},{}],\"tint\":{},",
+                "\"period_px\":{},\"amplitude_px\":{},\"angle\":{},\"density\":{},\"banded\":{}}}"
+            ),
             hex(from),
             hex(to),
             dir.0,
@@ -920,6 +904,7 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
             density,
             banded
         ),
+        _ => unreachable!("rich background helper received a simple ground"),
     }
 }
 

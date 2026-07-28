@@ -59,7 +59,7 @@ lines = 691
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 397
+lines = 394
 
 [[file_size_mark]]
 file = "src/buffer.rs"
@@ -83,7 +83,7 @@ lines = 548
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 940
+lines = 927
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -215,7 +215,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2434
+lines = 2430
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -496,13 +496,6 @@ lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 line = 242
 message = "this function has too many lines (123/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/sidecar.rs"
-line = 808
-message = "this function has too many lines (113/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]

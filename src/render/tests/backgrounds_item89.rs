@@ -1007,7 +1007,7 @@ fn quokka_filled_bands_alternate_over_real_pixels_and_match_the_host_phase() {
     );
     assert!(
         (runs.len() as isize - host_runs.len() as isize).abs() <= 1,
-        "host/GPU band phase must have the same alternating cadence: gpu={runs:?}, host={host_runs:?}"
+        "host/GPU cadence: gpu={runs:?}, host={host_runs:?}"
     );
 }
 

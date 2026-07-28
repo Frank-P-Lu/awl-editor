@@ -2293,13 +2293,8 @@ fn srgb_u8_to_linear3(c: [u8; 4]) -> [f32; 3] {
 }
 
 fn background_desc() -> BgDesc {
-    // The EFFECTIVE margin background — the dev `AWL_LAVA` gallery knob forces a
-    // `Background::Lava` here too (not just at the lava overlay), so the margin
-    // FLOOR the lava overdraws is the flat lava `ground` (Lava's `from == to`,
-    // shader 0) rather than the host world's own stripes/dots bleeding through —
-    // i.e. the gallery renders exactly as a REAL authored lava world would. Absent
-    // the knob this is `theme::background()` verbatim, so every non-lava capture is
-    // byte-identical.
+    // The lava gallery override supplies its real flat ground; otherwise this is
+    // the authored background verbatim, keeping ordinary captures byte-identical.
     let bg = crate::lava::env_override().unwrap_or_else(theme::background);
     BgDesc {
         from: bg.from().rgba_bytes(),

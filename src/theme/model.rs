@@ -437,13 +437,7 @@ pub enum Background {
         to: Srgb,
         dir: (f32, f32),
         tint: Srgb,
-        period_px: f32,
-        amplitude_px: f32,
-        angle: f32,
-        density: f32,
-        /// Fill every other chevron lane instead of drawing its outline.
-        /// Data-only: the shared Zigzag renderer owns the treatment.
-        banded: bool,
+        period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool,
     },
 }
 

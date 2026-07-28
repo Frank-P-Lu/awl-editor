@@ -287,17 +287,9 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
 }
 
 /// Pack the per-ground params the shader reads: `x` = the Dots proximity flag
-/// (0/1) SUMMED with Zigzag's `period_px` (item 86 — the two grounds never
-/// coexist, so this is never a real collision, just two mutually-exclusive
-/// contributions sharing one slot), `y` = the Stripes/Bands angle in radians
-/// OR Zigzag's own chevron travel angle, `z` = Zigzag's `amplitude_px`, `w` =
-/// Zigzag's `density`. For every ground this round didn't touch, `period_px`/
-/// `amplitude_px`/`density` are all `0.0`, so `x`/`z`/`w` reduce to exactly
-/// their pre-round values (`edge` alone / `0.0` / `0.0`) — a byte-identical
-/// render. NOTE (merge reconcile with item 87): Waves' phase drift does NOT
-/// pass through here — it rides the dedicated `Globals.drift` slot uploaded
-/// per-frame by [`BackgroundPipeline::prepare`], so a Zigzag world's
-/// `amplitude_px` in `z` is never overwritten.
+/// (0/1) plus Zigzag's period, `y` its angle, `z` its amplitude, and `w` its
+/// density (negative for filled bands). Other grounds retain their old zeroes;
+/// Waves keeps its dedicated drift slot.
 fn ground_params(desc: &BgDesc) -> [f32; 4] {
     [
         if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
