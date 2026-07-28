@@ -17,8 +17,9 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   ✅ `18f13ba3`; `src/render/spans.rs` — ✅ `eba84ee2`;
   `src/app/apply.rs` — ⏭ one ordered apply transaction, no move-only seam;
   `src/render/caret.rs` — ✅ `ff350158`; `src/main/run.rs` —
-  🟡 IN PROGRESS, `item_155_layers` (codex), branch
-  `codex/item-155-main-run`.
+  ⏭ launch/replay/capture dispatcher has no safe move-only seam;
+  `src/keymap.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex), branch
+  `codex/item-155-keymap`.
 - 107 enum-derived rosters — ✅ LANDED @ `c3f7eb27`.
 - 109 icon-ratchet subset erosion — ✅ LANDED @ `d45d34f3`.
 - 108 Gumtree chevron visibility — 🟡 IN PROGRESS, `item_108_gumtree`
