@@ -1,9 +1,9 @@
 # site/ — the awl landing page
 
 A hand-rolled static landing page for awl. **No framework, no build step** for the
-landing itself — plain HTML + one CSS file + local fonts + harness-generated
-screenshots, matching awl's own aesthetic (bundled OFL faces, the amber accent,
-Swiss calm, theme-aware light/dark).
+landing itself — plain HTML + one CSS file + local fonts, matching awl's own
+aesthetic (bundled OFL faces, the amber accent, Swiss calm, theme-aware
+light/dark).
 
 ## Structure
 
@@ -12,9 +12,7 @@ site/
   index.html      the landing page (single document, links style.css)
   style.css       all styles — tokens lifted from DESIGN.md's ink ladder + amber
   llms.txt        the Answer.AI llms.txt index (markdown at a .txt name)
-  sample.md       the document the screenshots render (authored to show every feature)
   fonts/          local OFL faces used by the page (EB Garamond, Literata, JetBrains Mono)
-  img/            harness-generated PNGs — hero + 14 world showcases
 ```
 
 ### Page sections (`index.html`)
@@ -69,25 +67,6 @@ maps it out (`--remap-path-prefix`), so no personal path ships. The
 reference its wasm/js under `/editor/` instead of the root `/`. The wasm is
 ~27 MB (release, no `wasm-opt`; the bundled Latin + CJK font faces dominate) —
 acceptable for a demo, not yet size-optimized.
-
-## Screenshots
-
-Every PNG in `img/` is a **real** native-app capture from the headless harness
-(`--release`, 1200×800), not a mock. Regenerate them (final step before ship,
-after any theme-polish batch that shifts grounds / ornaments):
-
-```sh
-export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
-cargo run --release -- --screenshot site/img/hero.png --theme Bombora site/sample.md
-for W in Gumtree Bilby Magpie Saltpan Quokka Galah Potoroo Mopoke \
-         Bombora Mulga Bowerbird Mangrove Tawny Currawong; do
-  cargo run --release -- --screenshot "site/img/world-$(echo $W | tr A-Z a-z).png" \
-    --theme "$W" site/sample.md
-done
-```
-
-(The `.json` sidecars the harness also writes are not needed by the site and are
-removed from `img/`.)
 
 ## Serve locally / preview
 

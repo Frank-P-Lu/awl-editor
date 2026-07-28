@@ -176,3 +176,10 @@ only after the editor, worlds, Settings, and taught interactions have settled.
 
 - Apple signing secrets and Fly deployment token; see `RELEASING.md`.
 - Tags and releases require the user’s explicit word. A dry run may precede them.
+
+157. **Create a new hero social image for the site.** Design a dedicated sharing
+image for awl rather than reusing an editor screenshot. Add it to the social
+metadata on the landing page and the supporting site pages. Keep the image
+recognizably awl: beautiful, intriguing, and earned rather than a feature collage.
+Verify the rendered image at common social-card crops and confirm every metadata
+reference resolves. **Queued at the user’s request 2026-07-29.**

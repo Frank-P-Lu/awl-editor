@@ -127,17 +127,6 @@ section { padding: 5.5rem 0; }
   filter: none;
 }
 
-/* the hero screenshot — a framed window sitting on the page */
-.shot {
-  margin: 3.5rem auto 0;
-  max-width: 62rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;                /* wide image clips to the frame */
-  box-shadow: 0 24px 60px -30px rgba(0,0,0,0.55);
-}
-.shot img { width: 100%; height: auto; }
-
 /* ---- Landing ----------------------------------------------------------- */
 .landing {
   min-height: 100vh;
