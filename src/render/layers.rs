@@ -75,10 +75,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
-        // PAGE MODE margin gradient: punch a hole for the page column so the flat
-        // base_100 clear shows there, and paint the margins. When page mode is OFF
-        // we pass `col_w == width` so the column covers everything and the margins
-        // vanish (identical to the old flat clear).
+        // Punch a page-column hole; page-off passes the full width, hiding the margins.
         let (page_on, _measure, col_left, col_w) = self.page_geometry();
         let (bg_left, bg_w) = if page_on {
             (col_left, col_w)
@@ -88,8 +85,6 @@ impl TextPipeline {
         let drift = if self.effective_background().is_waves() {
             crate::background::waves_drift_radians(self.waves_render_phase())
         } else if self.effective_background().is_organic() {
-            // One shared, bounded ambient clock: capture/reduced motion are
-            // already pinned by `waves_render_phase`.
             self.waves_render_phase() * std::f32::consts::TAU / crate::lava::LAVA_LOOP_CYCLES
         } else {
             0.0

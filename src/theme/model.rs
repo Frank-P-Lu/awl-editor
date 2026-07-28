@@ -387,37 +387,13 @@ pub const ZIGZAG_MIN_STROKE_PX: f32 = 1.2;
 pub const ZIGZAG_MAX_ROW_PITCH_PX: f32 = 160.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[rustfmt::skip]
 pub enum Background {
-    Gradient {
-        from: Srgb,
-        to: Srgb,
-        dir: (f32, f32),
-    },
-    Dots {
-        from: Srgb,
-        to: Srgb,
-        dir: (f32, f32),
-        tint: Srgb,
-        edge: bool,
-    },
-    Starfield {
-        from: Srgb,
-        to: Srgb,
-        dir: (f32, f32),
-        tint: Srgb,
-    },
-    Pinstripe {
-        from: Srgb,
-        to: Srgb,
-        dir: (f32, f32),
-        tint: Srgb,
-    },
-    Stripes {
-        from: Srgb,
-        to: Srgb,
-        band: Srgb,
-        angle: f32,
-    },
+    Gradient { from: Srgb, to: Srgb, dir: (f32, f32) },
+    Dots { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb, edge: bool },
+    Starfield { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb },
+    Pinstripe { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb },
+    Stripes { from: Srgb, to: Srgb, band: Srgb, angle: f32 },
     Lava {
         ground: Srgb,
         blob_lo: Srgb,
@@ -425,27 +401,11 @@ pub enum Background {
         edge: LavaEdge,
         dithered: bool,
     },
-    Bands {
-        tones: [Srgb; 3],
-        angle: f32,
-    },
-    Waves {
-        tones: [Srgb; 3],
-    },
-    Zigzag {
-        from: Srgb,
-        to: Srgb,
-        dir: (f32, f32),
-        tint: Srgb,
-        period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool,
-    },
-    /// Flat cut-paper silhouettes in the Frame. `scale_px` and `density` are
-    /// authored per world; motion rides the shared ambient phase.
-    Organic {
-        tones: [Srgb; 3],
-        scale_px: f32,
-        density: f32,
-    },
+    Bands { tones: [Srgb; 3], angle: f32 },
+    Waves { tones: [Srgb; 3] },
+    Zigzag { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb,
+        period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool },
+    Organic { tones: [Srgb; 3], scale_px: f32, density: f32 },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -569,6 +529,7 @@ impl Background {
     pub fn period_px(&self) -> f32 {
         match self {
             Background::Zigzag { period_px, .. } => *period_px,
+            Background::Organic { scale_px, .. } => *scale_px,
             _ => 0.0,
         }
     }
@@ -589,6 +550,7 @@ impl Background {
     pub fn density(&self) -> f32 {
         match self {
             Background::Zigzag { density, .. } => *density,
+            Background::Organic { density, .. } => *density,
             _ => 0.0,
         }
     }
@@ -601,17 +563,7 @@ impl Background {
     pub fn is_waves(&self) -> bool {
         matches!(self, Background::Waves { .. })
     }
-    pub fn is_organic(&self) -> bool {
-        matches!(self, Background::Organic { .. })
-    }
-    pub fn organic_params(&self) -> (f32, f32) {
-        match self {
-            Background::Organic {
-                scale_px, density, ..
-            } => (*scale_px, *density),
-            _ => (0.0, 0.0),
-        }
-    }
+    pub fn is_organic(&self) -> bool { matches!(self, Background::Organic { .. }) }
     pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
         match self {
             Background::Lava {

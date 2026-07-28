@@ -287,9 +287,7 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
 }
 
 /// Pack the per-ground params the shader reads: `x` = the Dots proximity flag
-/// (0/1) plus Zigzag's period, `y` its angle, `z` its amplitude, and `w` its
-/// density (negative for filled bands). Other grounds retain their old zeroes;
-/// Waves keeps its dedicated drift slot.
+/// Pack the mutually exclusive ground controls into the shared parameter slots.
 fn ground_params(desc: &BgDesc) -> [f32; 4] {
     if desc.shader == 8 {
         return [desc.period_px, desc.density, 0.0, 0.0];
@@ -305,7 +303,6 @@ fn ground_params(desc: &BgDesc) -> [f32; 4] {
         },
     ]
 }
-
 // ---------------------------------------------------------------------------
 // Minimal local Pod/bytemuck shim (same approach as selection.rs, no extra crate).
 // ---------------------------------------------------------------------------

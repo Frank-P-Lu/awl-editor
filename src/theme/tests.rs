@@ -939,26 +939,21 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
 /// The `Background` match is NO-WILDCARD: a future ground variant must decide its
 /// frost story here or fail to compile. A static-ground world carries no lava, so
 /// it `continue`s — no frost, byte-identical (the unaffected-worlds guarantee).
+fn frost_redmean(a: Srgb, b: Srgb) -> f32 {
+    let rbar = (a.r as f32 + b.r as f32) * 0.5;
+    let (dr, dg, db) =
+        (a.r as f32 - b.r as f32, a.g as f32 - b.g as f32, a.b as f32 - b.b as f32);
+    let squared =
+        (2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db;
+    squared.sqrt()
+}
+
 #[test]
 fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
-    fn redmean(a: Srgb, b: Srgb) -> f32 {
-        let rbar = (a.r as f32 + b.r as f32) * 0.5;
-        let dr = a.r as f32 - b.r as f32;
-        let dg = a.g as f32 - b.g as f32;
-        let db = a.b as f32 - b.b as f32;
-        ((2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db)
-            .sqrt()
-    }
-    // Representative page geometry (the 1600x1000 gallery canvas). The gutter seeds
-    // the ORGANIC frost field near the bottom-left column edge — a capsule run
-    // `[x0, x1, yc, r]` hugging the two stacked LABEL rows ~8px up from the canvas
-    // bottom (`prepare_gutter` / `gutter_frost_seeds`).
     let vp = (1600.0f32, 1000.0f32);
     let gutter_seed = [40.0f32, 250.0, 930.0, 40.0];
     for t in THEMES.iter() {
-        // NO-WILDCARD: a future ground variant must decide its frost story here.
         let (ground, blob_lo, blob_hi) = match t.background {
-            // The eight static grounds carry no lava — no frost, byte-identical.
             Background::Gradient { .. }
             | Background::Dots { .. }
             | Background::Starfield { .. }
@@ -975,12 +970,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
                 ..
             } => (ground, blob_lo, blob_hi),
         };
-        // FROST-AS-CAPABILITY: the WORLD's own recipe (`render_caps.frost`), so a
-        // world tuning its gutter frost is held to the same ink-contrast floor.
         let blur = t.render_caps.frost.blur_px;
         let dim = t.render_caps.frost.dim;
-        // The field's un-lit floor IS the page's own ground — the ink-ladder laws
-        // govern it; the frost only ever LIFTS from there toward the dimmed lamp.
         assert_eq!(
             ground, t.base_100,
             "{}: frost ground must be base_100",
@@ -1005,14 +996,14 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
                         blur,
                     );
                     let px = crate::lava::frost_pixel(field, ground, blob_lo, blob_hi, dim);
-                    let project = redmean(t.faint, px);
+                    let project = frost_redmean(t.faint, px);
                     assert!(
                         project >= 100.0,
                         "{}: the gutter's faint project line only {project:.1} redmean from \
                          the frost pill at x={x} y={y} phase={phase} (under the ink-ladder floor)",
                         t.name
                     );
-                    let name = redmean(t.muted, px);
+                    let name = frost_redmean(t.muted, px);
                     assert!(
                         name >= 150.0,
                         "{}: the gutter's muted filename only {name:.1} redmean from the frost \
@@ -1037,16 +1028,16 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
         //     against it, so every phase is covered by construction.
         let worst = crate::lava::frost_pixel(1.0, ground, blob_lo, blob_hi, dim);
         assert!(
-            redmean(t.faint, worst) >= 100.0,
+            frost_redmean(t.faint, worst) >= 100.0,
             "{}: faint project ink only {:.1} redmean from the WORST gutter frost pill (phase-free bound)",
             t.name,
-            redmean(t.faint, worst)
+            frost_redmean(t.faint, worst)
         );
         assert!(
-            redmean(t.muted, worst) >= 150.0,
+            frost_redmean(t.muted, worst) >= 150.0,
             "{}: muted filename ink only {:.1} redmean from the worst gutter frost pill",
             t.name,
-            redmean(t.muted, worst)
+            frost_redmean(t.muted, worst)
         );
 
         // (4) THE FROST IS LOCAL — both margins keep their live lamp. The organic

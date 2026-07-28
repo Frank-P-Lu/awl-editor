@@ -816,7 +816,6 @@ fn background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
         _ => rich_background_json(bg, lava_phase),
     }
 }
-
 #[rustfmt::skip]
 fn simple_background_json(bg: crate::theme::Background) -> String {
     use crate::theme::Background;
@@ -845,7 +844,7 @@ fn simple_background_json(bg: crate::theme::Background) -> String {
         _ => unreachable!("simple background helper received a rich ground"),
     }
 }
-
+#[rustfmt::skip]
 fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String {
     use crate::theme::Background;
     let hex = |c: crate::theme::Srgb| json_string(&c.hex());
@@ -864,21 +863,18 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
             edge.as_str(),
             dithered,
             lava_phase
-        ),
-        Background::Bands { tones, angle } => format!(
+        ), Background::Bands { tones, angle } => format!(
             "{{ \"kind\": \"bands\", \"tones\": [{}, {}, {}], \"angle\": {} }}",
             hex(tones[0]),
             hex(tones[1]),
             hex(tones[2]),
             angle
-        ),
-        Background::Waves { tones } => format!(
+        ), Background::Waves { tones } => format!(
             "{{ \"kind\": \"waves\", \"tones\": [{}, {}, {}] }}",
             hex(tones[0]),
             hex(tones[1]),
             hex(tones[2])
-        ),
-        Background::Zigzag {
+        ), Background::Zigzag {
             from,
             to,
             dir,
@@ -903,24 +899,15 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
             angle,
             density,
             banded
-        ),
-        Background::Organic {
-            tones,
-            scale_px,
-            density,
-        } => format!(
-            "{{ \"kind\": \"organic\", \"tones\": [{}, {}, {}], \"scale_px\": {}, \"density\": {}, \"phase\": {} }}",
-            hex(tones[0]),
-            hex(tones[1]),
-            hex(tones[2]),
-            scale_px,
-            density,
-            lava_phase
-        ),
-        _ => unreachable!("rich background helper received a simple ground"),
+        ), Background::Organic { tones, scale_px, density } => format!(
+            concat!(
+                "{{\"kind\":\"organic\",\"tones\":[{},{},{}],",
+                "\"scale_px\":{},\"density\":{},\"phase\":{}}}"
+            ),
+            hex(tones[0]), hex(tones[1]), hex(tones[2]), scale_px, density, lava_phase
+        ), _ => unreachable!("rich background helper received a simple ground"),
     }
 }
-
 pub(crate) fn json_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');
