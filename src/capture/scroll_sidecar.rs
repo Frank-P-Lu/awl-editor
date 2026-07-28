@@ -55,6 +55,7 @@ macro_rules! sidecar_format {
                 "  \"project\": {project},\n",
                 "  \"overlay\": {overlay},\n",
                 "  \"buffers\": {buffers},\n",
+                "  \"replay_skips\": {replay_skips},\n",
                 "  \"diff\": {diff}{caret_extra}\n",
                 "}}\n",
             ),

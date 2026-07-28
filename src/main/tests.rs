@@ -2201,6 +2201,134 @@ fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[test]
+fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
+    // The sidecar, not stderr, is the capture verifier's state oracle. Drive a
+    // real Move accept through the same screenshot door users invoke: its
+    // settled overlay otherwise looks exactly like a successful live move.
+    let _fs = crate::testlock::serial();
+    let dir = std::env::temp_dir().join(format!("awl-replay-skips-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("archive")).unwrap();
+    let fixture = dir.join("note.md");
+    std::fs::write(&fixture, "note\n").unwrap();
+    if capture::build_oracle(&Buffer::from_file(&fixture), &CaptureOpts::default()).is_none() {
+        eprintln!("skipping replay-skip sidecar capture: no wgpu adapter");
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+    let keys = keyspec::parse_keys("s-p m o v e Enter Enter").unwrap();
+    let keymap =
+        || crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+
+    let permissive = dir.join("permissive.png");
+    capture_screenshot(
+        permissive.clone(),
+        Some(fixture.clone()),
+        CaptureOpts::default(),
+        keys.clone(),
+        keymap(),
+        Some(dir.clone()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .expect("permissive replay captures past a live-only move");
+    let sidecar: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(permissive.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        sidecar["replay_skips"],
+        serde_json::json!([{ "effect": "overlay_accept", "action": "Newline" }]),
+        "the settled sidecar names the skipped move and its originating action"
+    );
+    assert!(
+        fixture.exists() && !dir.join("archive/note.md").exists(),
+        "the test fixture proves the move was really skipped"
+    );
+
+    let ordinary = dir.join("ordinary.png");
+    capture_screenshot(
+        ordinary.clone(),
+        Some(fixture.clone()),
+        CaptureOpts::default(),
+        vec![],
+        keymap(),
+        Some(dir.clone()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .expect("ordinary capture succeeds");
+    let ordinary_sidecar: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(ordinary.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(ordinary_sidecar["replay_skips"], serde_json::json!([]));
+
+    let strict = dir.join("strict.png");
+    let err = capture_screenshot(
+        strict.clone(),
+        Some(fixture),
+        CaptureOpts::default(),
+        keys,
+        keymap(),
+        Some(dir.clone()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        true,
+    )
+    .expect_err("strict replay aborts at the same move seam");
+    assert!(err.to_string().contains("`overlay_accept`"), "{err}");
+    assert!(!strict.exists() && !strict.with_extension("json").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn permissive_skip_sweeps_the_four_known_live_only_effects() {
+    let cases = [
+        (
+            Action::Newline,
+            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, "archive".into()),
+            "overlay_accept",
+        ),
+        (
+            Action::Newline,
+            actions::Effect::RenameNoteCommit {
+                new_name: "renamed.md".into(),
+            },
+            "rename_note_commit",
+        ),
+        (
+            Action::DuplicateNote,
+            actions::Effect::DuplicateNote,
+            "duplicate_note",
+        ),
+        (
+            Action::Newline,
+            actions::Effect::SettingPathPick {
+                key: "default_folder".into(),
+                path: "/notes".into(),
+            },
+            "setting_path_pick",
+        ),
+    ];
+    for (action, effect, expected) in cases {
+        let skip = crate::replay::permissive_skip(&action, &crate::replay::classify(&effect))
+            .expect("known live-only effect records a skip");
+        assert_eq!(skip.effect, expected);
+        assert_eq!(skip.action, format!("{action:?}"));
+    }
+    assert!(
+        crate::replay::permissive_skip(
+            &Action::InsertChar('x'),
+            &crate::replay::classify(&actions::Effect::None),
+        )
+        .is_none()
+    );
+}
+
 /// USER-BUG LAW: changing the page measure must only reveal/occlude ONE
 /// already-authored lava backdrop. The pixels that remain exposed at both
 /// widths are therefore byte-identical, while pixels well inside the page

@@ -103,6 +103,7 @@ struct ReplayResult {
     buffers_open: usize,
     #[allow(dead_code)]
     intercepts: Vec<crate::replay::Intercept>,
+    replay_skips: Vec<crate::replay::SkippedEffect>,
     #[allow(dead_code)]
     warnings: Vec<String>,
 }
@@ -209,6 +210,7 @@ pub(crate) struct ReplaySession<'a> {
     resolver: crate::keyspec::ChordResolver<'a>,
     spell: Option<crate::spell::SpellChecker>,
     intercepts: Vec<crate::replay::Intercept>,
+    replay_skips: Vec<crate::replay::SkippedEffect>,
     warnings: Vec<String>,
     /// The storyboard trace's per-chord record ([`crate::storyboard::ChordTrace`]):
     /// what each chord resolved to and how its effect was classified. Recorded
@@ -254,6 +256,7 @@ impl<'a> ReplaySession<'a> {
             resolver,
             spell: crate::spell::SpellChecker::new(crate::spell::active_variant()).ok(),
             intercepts: Vec::new(),
+            replay_skips: Vec::new(),
             warnings: Vec::new(),
             records: Vec::new(),
             shift_selecting: false,
@@ -506,6 +509,11 @@ impl<'a> ReplaySession<'a> {
                 && let crate::replay::EffectClass::Unsupported { .. } = classified.class
             {
                 return Err(crate::replay::strict_error(&action, &classified));
+            }
+            if self.mode == crate::replay::Mode::Permissive
+                && let Some(skip) = crate::replay::permissive_skip(&action, &classified)
+            {
+                self.replay_skips.push(skip);
             }
             if self.mode == crate::replay::Mode::Permissive
                 && let Some(w) = crate::replay::warn_line(&action, &classified)
@@ -769,6 +777,7 @@ impl<'a> ReplaySession<'a> {
             accept: self.accept,
             buffers_open,
             intercepts: self.intercepts,
+            replay_skips: self.replay_skips,
             warnings: self.warnings,
         }
     }
@@ -979,6 +988,7 @@ fn capture_screenshot(
             None => "scratch".to_string(),
         },
     });
+    opts.replay_skips = res.replay_skips;
     capture::capture_with(&out, &buffer, &opts)?;
     println!("wrote {} (+ sidecar .json)", out.display());
     Ok(())

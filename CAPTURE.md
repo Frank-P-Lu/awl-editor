@@ -523,7 +523,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/187` (`/188` timeline, `/189` held)
+## The sidecar JSON — schema `awl-capture/188` (`/189` timeline, `/190` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -1234,6 +1234,7 @@ world.)
 | `project`      | active project (`--root`): `root`, `name`, `branch` (or null), `dirty`; `null` when no project |
 | `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`move`/`command`/`outline`/`spell`/`keybindings`/`history`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer, else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |
+| `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 
 ## How to interpret the outputs (verification recipe)
 

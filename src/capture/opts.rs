@@ -261,6 +261,10 @@ pub struct CaptureOpts {
     /// gets a sensible default. Populated in `run.rs`'s main capture path from
     /// the replay's registry count.
     pub buffers: Option<BuffersInfo>,
+    /// Unsupported live-only effects a permissive `--keys` replay skipped, in
+    /// replay order. Empty for an ordinary capture and for a replay that crossed
+    /// no unsupported seam.
+    pub replay_skips: Vec<crate::replay::SkippedEffect>,
     /// THE WRITER'S DIFF: read-only STATE of an active prose-diff view for the
     /// sidecar `diff` block. `None` (default) for every ordinary capture — the block
     /// is omitted, so a plain `--screenshot` is byte-identical. Populated only by the

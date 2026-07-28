@@ -158,6 +158,7 @@ pub(super) fn write_sidecar(
         project = project_json(opts),
         overlay = overlay_json(opts, pipeline),
         buffers = buffers_json(opts, view),
+        replay_skips = replay_skips_json(opts),
         diff = diff_json(opts),
     );
 
@@ -165,6 +166,21 @@ pub(super) fn write_sidecar(
         .with_context(|| format!("failed to create {}", json_path.display()))?;
     f.write_all(json.as_bytes())?;
     Ok(())
+}
+
+fn replay_skips_json(opts: &CaptureOpts) -> String {
+    let items = opts
+        .replay_skips
+        .iter()
+        .map(|skip| {
+            format!(
+                "{{ \"effect\": {}, \"action\": {} }}",
+                json_string(skip.effect),
+                json_string(&skip.action),
+            )
+        })
+        .collect::<Vec<_>>();
+    format!("[{}]", items.join(", "))
 }
 
 fn folds_json(view: &ViewState) -> String {

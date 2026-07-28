@@ -98,6 +98,26 @@ pub struct Intercept {
     pub detail: String,
 }
 
+/// One live-only effect a permissive replay skipped. The sidecar carries these
+/// records so its state oracle cannot make a skipped operation look completed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkippedEffect {
+    /// The effect's stable snake_case name from [`classify`].
+    pub effect: &'static str,
+    /// The resolved action that originated this effect (`Action`'s stable debug name).
+    pub action: String,
+}
+
+/// Converts one Unsupported classification into the sidecar's permissive
+/// replay record. Applied and intercepted effects deliberately stay absent:
+/// they are not skipped live-only work.
+pub fn permissive_skip(action: &Action, c: &Classified) -> Option<SkippedEffect> {
+    matches!(c.class, EffectClass::Unsupported { .. }).then(|| SkippedEffect {
+        effect: c.name,
+        action: format!("{action:?}"),
+    })
+}
+
 /// Classify one [`Effect`] — the ONE owner of the Applied / Intercepted /
 /// Unsupported truth, consulted by the replay loop in `main/run.rs`. A
 /// NO-WILDCARD match: a future `Effect` variant fails to compile here until it
