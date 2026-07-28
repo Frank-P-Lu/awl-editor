@@ -1213,21 +1213,21 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 2800
+line = 2928
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
 reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 2840
+line = 2968
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
 reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 2872
+line = 3000
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
 reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there."
 
