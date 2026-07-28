@@ -127,10 +127,30 @@ fn invert_blend() -> wgpu::BlendState {
     }
 }
 
+/// The one `selection.wgsl` module. `TextPipeline::new` stands up ~25
+/// selection pipelines whose only real variation is blend state and fragment
+/// entry point — and the entry point is a `create_render_pipeline` parameter,
+/// not a module one — so a single module serves them all, and the WGSL is
+/// translated to the backend's shading language once per device instead of
+/// once per pipeline. Every `SelectionPipeline` constructor takes the module
+/// by reference so there is no path that recompiles it.
+pub fn selection_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
+    device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("selection shader"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/selection.wgsl").into()),
+    })
+}
+
 impl SelectionPipeline {
-    pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, srgba: [u8; 4]) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        shader: &wgpu::ShaderModule,
+        format: wgpu::TextureFormat,
+        srgba: [u8; 4],
+    ) -> Self {
         Self::build(
             device,
+            shader,
             format,
             srgba,
             "fs_main",
@@ -154,9 +174,14 @@ impl SelectionPipeline {
     /// SELECTION range); a CARET-flavored instance calls [`Self::set_corner`]
     /// each frame to draw a rounded (if aliased) silhouette instead — see
     /// `shaders/selection.wgsl`'s `fs_invert` doc for the mechanism.
-    pub fn new_invert(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
+    pub fn new_invert(
+        device: &wgpu::Device,
+        shader: &wgpu::ShaderModule,
+        format: wgpu::TextureFormat,
+    ) -> Self {
         Self::build(
             device,
+            shader,
             format,
             [255, 255, 255, 255],
             "fs_invert",
@@ -172,17 +197,13 @@ impl SelectionPipeline {
     /// pipeline "flavors" cannot drift apart by construction.
     fn build(
         device: &wgpu::Device,
+        shader: &wgpu::ShaderModule,
         format: wgpu::TextureFormat,
         srgba: [u8; 4],
         entry_point: &str,
         corner: f32,
         blend: wgpu::BlendState,
     ) -> Self {
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("selection shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/selection.wgsl").into()),
-        });
-
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("selection globals layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
@@ -245,13 +266,13 @@ impl SelectionPipeline {
             label: Some("selection pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: shader,
                 entry_point: Some("vs_main"),
                 buffers: &[instance_layout],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
-                module: &shader,
+                module: shader,
                 entry_point: Some(entry_point),
                 targets: &[Some(wgpu::ColorTargetState {
                     format,
@@ -700,6 +721,7 @@ mod tests {
         };
         let mut pipe = SelectionPipeline::new(
             &device,
+            &selection_shader(&device),
             wgpu::TextureFormat::Rgba8UnormSrgb,
             [255, 255, 255, 255],
         );
