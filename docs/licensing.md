@@ -4,7 +4,7 @@
 
 ## Licensing & credits
 
-- awl's code is **GPL-3.0-only** (`Cargo.toml`, flippable to `-or-later` — sole copyright holder's call); `NOTICE` states copyright. Bundled-asset licenses live beside them (`assets/fonts/LICENSES.md` all-OFL, `assets/dict/LICENSES.md` — `en_GB` LGPL-2.1, `en_US`/`en_AU` no in-file statement, recorded as an open gap). **Never fabricate a license fact — flag what's unverifiable.**
+- awl's code is **GPL-3.0-only** (`Cargo.toml`, flippable to `-or-later` — sole copyright holder's call); `NOTICE` states copyright. Bundled-asset licenses live beside them (`assets/fonts/LICENSES.md` all-OFL; `assets/dict/LICENSES.md` records `en_GB` under LGPL-2.1 and the verified SCOWL permissive grant + Ispell BSD terms covering `en_US`/`en_AU`). **Never fabricate a license fact — flag what's unverifiable.**
 - `THIRD-PARTY-LICENSES.md` is generated (`cargo about generate about.hbs -o …`), never hand-edited; `about.toml` is its license-inventory owner. `deny.toml` independently blocks license drift across the full product graph using the resolved GPL-compatible license choices; it does not make claims about bundled assets. `CREDITS.md` (warm, PHILOSOPHY voice) is `include_str!`'d; Cmd-P → "Credits" opens it (`App::open_credits` refreshes a real on-disk copy first — a path-less buffer reads as scratch to autosave and would clobber the stash).
 
 ## Supply chain
