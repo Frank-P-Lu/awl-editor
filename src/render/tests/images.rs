@@ -145,6 +145,41 @@ fn inline_image_reserves_tall_row_and_reveals_source_on_cursor() {
         p.cursor_scale()
     );
 
+    // The committed corpus takes the SAME path with prose above and below the
+    // image.  This is defence in depth for the law above, not a second law.
+    let fixture =
+        std::fs::read_to_string("samples/image-reveal.md").expect("samples/image-reveal.md exists");
+    let image_line = fixture
+        .lines()
+        .position(|line| line.starts_with("!["))
+        .expect("fixture has its image line");
+    let after_line = image_line + 1;
+    let mut off = view(&fixture, after_line, 0);
+    off.is_markdown = true;
+    off.doc_dir = Some(std::path::PathBuf::from("samples"));
+    p.set_view(&off);
+    let off_height = p.visual_rows(image_line)[0].line_height;
+    assert_eq!(p.images_report().len(), 1, "fixture has one real image");
+    assert!(!p.images_report()[0].missing, "fixture image resolves");
+    assert!(
+        !p.images_report()[0].revealed,
+        "caret is below the image line"
+    );
+
+    let mut on = view(&fixture, image_line, 0);
+    on.is_markdown = true;
+    on.doc_dir = Some(std::path::PathBuf::from("samples"));
+    p.set_view(&on);
+    let on_height = p.visual_rows(image_line)[0].line_height;
+    assert!(
+        p.images_report()[0].revealed,
+        "caret reveals the fixture source"
+    );
+    assert!(
+        (on_height - off_height).abs() < 0.01,
+        "the corpus image row does not change height on reveal: off={off_height}, on={on_height}"
+    );
+
     crate::markdown::set_inline_images_on(prev);
 }
 

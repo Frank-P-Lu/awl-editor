@@ -33,19 +33,22 @@ fn table_allocation_holds_token_columns_rigid_across_widths() {
     };
     // A WORLDS.md-style wide table: token columns 0/4/5 (World/Time/Register)
     // are single words; phrase columns 1/3 (Ground/Ornament) carry multi-word
-    // phrases. The caret sits on the trailing prose (line 5), off the table, so
-    // the grid draws off-cursor and its widths are measured + reported.
-    let text = "\
+    // phrases.  Keep both the compact inline minimum and the committed prose
+    // corpus in this one allocation sweep; they exercise the same law.
+    let inline = "\
 | World      | Ground                | Display     | Ornament                          | Time  | Register |\n\
 |------------|-----------------------|-------------|-----------------------------------|-------|----------|\n\
 | Gumtree    | pale eucalyptus-green | Literata    | Junicode botanical sprig fleur    | Day   | Refined  |\n\
 | Bowerbird | midnight-navy         | IBM Sans    | Awl Marks pinwheel star lozenge   | Night | Everyday |\n\
 \n\
 prose after\n";
+    let wide_fixture =
+        std::fs::read_to_string("samples/wide-table.md").expect("samples/wide-table.md exists");
 
     let widths_at = |p: &mut TextPipeline,
                      device: &wgpu::Device,
                      queue: &wgpu::Queue,
+                     text: &str,
                      measure: usize|
      -> Vec<f32> {
         crate::page::set_measure(measure);
@@ -59,31 +62,29 @@ prose after\n";
         rep[0].col_widths.clone()
     };
 
-    // A NARROW measure (squeeze/overflow) and a WIDE one (the phrases fit at
-    // max-content). The token columns must be byte-identical between them.
-    let narrow = widths_at(&mut p, &device, &queue, 44);
-    let wide = widths_at(&mut p, &device, &queue, 90);
+    for (name, text) in [("inline", inline), ("wide fixture", wide_fixture.as_str())] {
+        // A NARROW measure (squeeze/overflow) and a WIDE one (the phrases fit at
+        // max-content). The token columns must be byte-identical between them.
+        let narrow = widths_at(&mut p, &device, &queue, text, 44);
+        let wide = widths_at(&mut p, &device, &queue, text, 90);
 
-    for c in [0usize, 4, 5] {
-        assert!(
-            (narrow[c] - wide[c]).abs() < 0.01,
-            "token column {c} is rigid across widths (never shrinks below its word): \
-             narrow={:?} wide={:?}",
-            narrow,
-            wide
-        );
-    }
-    // The phrase columns absorbed the extra room at the wide measure — they
-    // GREW (word-wrapping at the narrow one) rather than the token columns
-    // shrinking.
-    for c in [1usize, 3] {
-        assert!(
-            wide[c] > narrow[c] + 1.0,
-            "phrase column {c} absorbs the squeeze (grows with room): \
-             narrow={:?} wide={:?}",
-            narrow,
-            wide
-        );
+        for c in [0usize, 4, 5] {
+            assert!(
+                (narrow[c] - wide[c]).abs() < 0.01,
+                "{name}: token column {c} is rigid across widths (never shrinks below its word): \
+                 narrow={narrow:?} wide={wide:?}"
+            );
+        }
+        // The phrase columns absorbed the extra room at the wide measure — they
+        // GREW (word-wrapping at the narrow one) rather than the token columns
+        // shrinking.
+        for c in [1usize, 3] {
+            assert!(
+                wide[c] > narrow[c] + 1.0,
+                "{name}: phrase column {c} absorbs the squeeze (grows with room): \
+                 narrow={narrow:?} wide={wide:?}"
+            );
+        }
     }
 
     crate::markdown::set_wysiwyg_on(true);

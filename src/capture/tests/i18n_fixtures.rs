@@ -371,6 +371,89 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// MIXED-SCRIPT FACE-RESOLUTION LAW: `samples/mixed-cjk.md` is one `zh-Hans`
+/// document, but its Chinese Han and Japanese kana runs must still take their
+/// OWN resolved faces.  A document-wide face (or never-tofu-only) check would
+/// miss the visible Han-unification regression: Chinese would quietly render
+/// with Japanese forms.  Resolve every real non-Latin run in the fixture,
+/// then assert the capture's matching per-script face report for the one
+/// document.
+#[test]
+fn mixed_cjk_fixture_resolves_each_script_run_to_its_own_face() {
+    let _tg = crate::testlock::serial();
+    let dir =
+        std::env::temp_dir().join(format!("awl_mixed_cjk_capture_test_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let text = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/mixed-cjk.md"),
+    )
+    .expect("samples/mixed-cjk.md exists");
+
+    let mut saw_han = false;
+    let mut saw_kana = false;
+    for (_, script) in crate::script::script_runs(&text) {
+        let id = crate::script::resolve_font_id(
+            Some(crate::frontmatter::Lang::ZhHans),
+            Some(script),
+            &crate::frontmatter::DEFAULT_CJK_PRIORITY,
+        );
+        match script {
+            crate::script::Script::Han => {
+                assert_eq!(
+                    id,
+                    crate::theme::FontId::ZhHans,
+                    "the zh-Hans-tagged Han run takes the SC face"
+                );
+                saw_han = true;
+            }
+            crate::script::Script::Kana => {
+                assert_eq!(
+                    id,
+                    crate::theme::FontId::Ja,
+                    "Japanese kana keeps its own JP face inside the zh-Hans document"
+                );
+                saw_kana = true;
+            }
+            _ => continue,
+        }
+    }
+    assert!(
+        saw_han && saw_kana,
+        "the corpus must contain both Chinese Han and Japanese kana runs"
+    );
+
+    if !adapter_available() {
+        eprintln!(
+            "skipping mixed CJK capture half: no wgpu adapter (per-run resolution law still ran)"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+        return;
+    }
+
+    crate::theme::set_active_by_name("Saltpan").expect("Saltpan is a real world");
+    let mut buf = Buffer::from_str(&text);
+    buf.set_path(dir.join("mixed-cjk.md"));
+    let png = dir.join("mixed-cjk.png");
+    capture_with(&png, &buf, &CaptureOpts::default()).expect("mixed CJK capture renders");
+    let j: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(j["doc_lang"], serde_json::json!("zh-Hans"));
+    assert_eq!(
+        j["font"]["scripts"]["zh_hans"]["family"],
+        serde_json::json!("Noto Serif SC"),
+        "the fixture's Chinese Han runs resolve to the bundled SC face"
+    );
+    assert_eq!(
+        j["font"]["scripts"]["ja"]["family"],
+        serde_json::json!("Noto Serif JP"),
+        "the fixture's Japanese kana runs resolve to the bundled JP face"
+    );
+
+    crate::theme::set_active(crate::theme::DEFAULT_THEME);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The Klee-worlds' CHARACTERFUL zh-Hans override: Mopoke + Quokka resolve
 /// bundled LXGW WenKai (not the plain Noto Sans SC floor every other sans
 /// world gets), while a non-Klee sans world stays on the floor — proving the
