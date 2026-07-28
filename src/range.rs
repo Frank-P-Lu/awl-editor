@@ -52,23 +52,15 @@ pub enum RailMap {
     Log,
 }
 
-/// A range's DISPLAY unit — how its value is written in the row's value cell and
-/// how a typed value is read back. The one owner of the ×100 percent conversion
-/// (the readout, the sidecar, and the exact-entry parse all share it).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unit {
-    /// A factor shown as a whole PERCENT (`0.8` → `"80%"`). Parsing accepts the
-    /// readout's own form (`"80%"`), a bare FACTOR (`"1.5"`), and — because
-    /// retyping over the shown `"80%"` cell should do the obvious thing — an
-    /// unsuffixed integer-ish value ≥ 10 as a percent (`"125"` → `1.25`).
+    /// Factor displayed as a whole percent; parse also accepts a bare factor.
     Percent,
-    /// A whole number of text columns (`70` → `"70"`). Exact entry accepts a
-    /// finite number and the range's authored step snaps it to a whole column.
+    /// Whole text columns.
     Columns,
 }
 
 impl Unit {
-    /// The value's display string (the row's SECONDARY cell).
     pub fn format(self, v: f32) -> String {
         match self {
             Unit::Percent => format!("{:.0}%", v * 100.0),
@@ -76,9 +68,6 @@ impl Unit {
         }
     }
 
-    /// Read a typed string back into a raw (unclamped, unquantized) value, or
-    /// `None` when it isn't a number. See [`Unit::Percent`]'s doc for the
-    /// accepted forms.
     pub fn parse(self, raw: &str) -> Option<f32> {
         match self {
             Unit::Percent => {
@@ -101,10 +90,7 @@ impl Unit {
     }
 }
 
-/// ONE range setting's authored description — the spec owner. Constructed as a
-/// `const` per setting (see [`ZOOM`]) and resolved from a
-/// [`crate::settings::SettingId`] through the single map
-/// [`crate::settings::range_spec`].
+/// One range setting's authored description, resolved by `settings::range_spec`.
 #[derive(Clone, Copy, Debug)]
 pub struct RangeSpec {
     /// Lowest reachable value (inclusive, on the step grid).
@@ -256,20 +242,15 @@ impl RangeSpec {
         self.value_of_step(k as u16)
     }
 
-    /// The value's READOUT string (the row's secondary cell + the sidecar).
     pub fn format(&self, v: f32) -> String {
         self.unit.format(self.quantize(v))
     }
 
-    /// Parse an EXACT typed entry (Enter's numeric-edit commit) into a clamped,
-    /// quantized value, or `None` when it isn't a number. The typed path lands on
-    /// the SAME grid as every other door — no "typed values are special" branch.
+    /// Parse exact entry onto the same clamped grid as every other door.
     pub fn parse(&self, raw: &str) -> Option<f32> {
         self.unit.parse(raw).map(|v| self.quantize(v))
     }
 
-    /// The config RHS this value persists as (see `App::persist_pref`):
-    /// percentages keep the historical three-decimal factor; columns are whole.
     pub fn persist_value(&self, v: f32) -> String {
         let v = self.quantize(v);
         match self.unit {
@@ -287,14 +268,11 @@ pub const ZOOM: RangeSpec = RangeSpec::new(0.5, 3.0, 0.1, 1.0, Unit::Percent, Ra
 pub const SCROLL_SENSITIVITY: RangeSpec =
     RangeSpec::new(0.25, 4.0, 0.05, 1.0, Unit::Percent, RailMap::Log);
 
-/// Prose and code measures share the same whole-column band but keep distinct
-/// authored defaults and config keys.
 pub const PAGE_WIDTH_PROSE: RangeSpec =
     RangeSpec::new(20.0, 200.0, 1.0, 70.0, Unit::Columns, RailMap::Linear);
 pub const PAGE_WIDTH_CODE: RangeSpec =
     RangeSpec::new(20.0, 200.0, 1.0, 100.0, Unit::Columns, RailMap::Linear);
 
-/// Every registered spec, for the pure sweep laws.
 #[cfg(test)]
 pub(crate) const REGISTERED: &[(&str, RangeSpec)] = &[
     ("page_width_prose", PAGE_WIDTH_PROSE),

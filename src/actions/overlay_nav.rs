@@ -640,12 +640,9 @@ pub(super) fn dispose_after_accept(ctx: &mut ActionCtx) {
     }
 }
 
-/// Stamp a `return_to` BREADCRUMB onto an overlay that a palette/menu re-dispatch
-/// just opened. The command palette's Enter CLOSES the palette then returns
-/// [`Effect::RunAction`]; the caller (live `App::apply` / headless `replay_keys`)
-/// re-dispatches that action, which opens any sub-overlay into the now-empty slot —
-/// at which point THIS stamps `parent` (always `Command`) onto it so a later pop
-/// returns to the palette. Only stamps when an overlay actually opened AND it carries
+/// Stamp a `return_to` breadcrumb onto an overlay opened by palette re-dispatch.
+/// This lets a later pop return to the palette. Only stamps when an overlay actually
+/// opened AND it carries
 /// no breadcrumb of its own yet (a Settings sub-picker sets its own `return_to =
 /// Settings` in place and must not be overwritten); a terminal command (no overlay)
 /// or a `None` parent is a calm no-op. Shared by both re-dispatch seams so they can't
@@ -675,9 +672,6 @@ fn range_ctx_value(
         _ => return None,
     })
 }
-
-/// The write half of [`range_ctx_value`]. The value written is ALWAYS one the spec
-/// produced (stepped/quantized), never a raw pointer/keyboard number.
 fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
     if id == crate::settings::SettingId::Zoom {
         *ctx.zoom = v
@@ -685,7 +679,6 @@ fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
         crate::settings::set_scroll_sensitivity(v);
     }
 }
-
 fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
     let cell = ctx.overlay.as_ref()?.selected_range()?;
     let spec = crate::settings::range_spec(cell.id)?;

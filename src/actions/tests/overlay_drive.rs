@@ -1285,9 +1285,10 @@ fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
         .into_iter()
         .filter(|row| row.kind == crate::settings::SettingKind::Range)
         .collect();
-    assert!(
-        rows.len() >= 2,
-        "the sweep includes Zoom and Scroll Sensitivity"
+    assert_eq!(
+        rows.len(),
+        4,
+        "the sweep includes both widths and percentages"
     );
     for row in rows {
         let mut overlay = Some(settings_overlay());
@@ -1304,21 +1305,25 @@ fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
         for _ in 0..16 {
             settings_drive(&mut overlay, &Action::DeleteBackward);
         }
-        for c in "150%".chars() {
+        let (typed, expected) = match crate::settings::range_spec(row.id).unwrap().unit {
+            crate::range::Unit::Percent => ("150%", 1.5),
+            crate::range::Unit::Columns => ("150", 150.0),
+        };
+        for c in typed.chars() {
             settings_drive(&mut overlay, &Action::InsertChar(c));
         }
         assert_eq!(
             settings_drive(&mut overlay, &Action::Newline),
             Effect::SettingValueCommit {
                 key: crate::settings::value_key(row.id).unwrap().to_string(),
-                value: "150%".to_string()
+                value: typed.to_string()
             },
             "{}: typed commit carries its own config key",
             row.name
         );
         assert_eq!(
-            crate::settings::range_spec(row.id).unwrap().parse("150%"),
-            Some(1.5),
+            crate::settings::range_spec(row.id).unwrap().parse(typed),
+            Some(expected),
             "{}: exact entry resolves through its authored spec",
             row.name
         );
@@ -1452,6 +1457,7 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
         let name = ov.selected_value().unwrap_or("").to_string();
         let hint = ov.foot_hint();
         let lens_before = ov.facet_lens;
+        let step_before = ov.selected_range().map(|cell| cell.step);
         // The exact cell the footer devotes to the ←/→ axis, whatever it says.
         let advertised = hint
             .split(crate::overlay::HINT_SEP)
@@ -1481,15 +1487,15 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
                     "{name}: RIGHT stepped the value, so the foot line must have said so \
                      (it said {advertised:?}) — full line: {hint:?}"
                 );
-                let id = overlay.as_ref().unwrap().selected_range().unwrap().id;
-                let moved = match id {
-                    crate::settings::SettingId::Zoom => zoom != 1.0,
-                    crate::settings::SettingId::ScrollSensitivity => {
-                        crate::settings::scroll_sensitivity() != 1.0
-                    }
-                    _ => false,
-                };
-                assert!(moved, "{name}: the step genuinely moved the live value");
+                let step_after = overlay
+                    .as_ref()
+                    .unwrap()
+                    .selected_range()
+                    .map(|cell| cell.step);
+                assert_ne!(
+                    step_after, step_before,
+                    "{name}: the rail step genuinely moved"
+                );
             }
             false => assert_eq!(
                 advertised,

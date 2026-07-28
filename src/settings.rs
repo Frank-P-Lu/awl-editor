@@ -411,14 +411,7 @@ fn on_off(b: bool) -> &'static str {
     if b { "on" } else { "off" }
 }
 
-/// The current VALUE string for one setting row's SECONDARY column, read from the
-/// SAME owners the renderer reads: the process-globals live, the config/project
-/// pieces from `values` ([`SettingsValues::gather`]). A SUBMENU / ACTION row has no
-/// value (empty string — it's an affordance, not a setting). The one place the
-/// [`SettingId`] → live-value mapping lives. A NO-WILDCARD match over the closed
-/// [`SettingId`] — a new variant fails to compile here until it names its own
-/// readout (or joins the affordance arm), so the table and the readout can never
-/// drift the way a `_ => String::new()` fallthrough once allowed.
+/// The single no-wildcard SettingId → live readout mapping.
 pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
     match row.id {
         SettingId::CaretStyle => crate::caret::mode().label().to_string(),
