@@ -357,100 +357,84 @@ pub enum Effect {
 /// the common case) — the caller carries out the filesystem/window/quit work the
 /// pure core can't. Mutates only what `ActionCtx` exposes; no GPU, window, or
 /// clipboard.
-pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
-    // Serializes this whole action against any other thread's global-touching
-    // test, under test only (see [`crate::testlock`]): `about_open()` /
-    // `lifetime_open()` are read unconditionally just below, for every action, so
-    // a concurrently-running test that flips one (only `Action::About` /
-    // `Action::LifetimeStats` ever do) could otherwise leak its state into a
-    // totally unrelated test's action, changing its returned `Effect`. It is the
-    // ONE reentrant guard, so a test that already holds it around its own drive
-    // nests here for free, and there is no lock ORDER left to ABBA (the page
-    // writers acquire the SAME guard, reentrantly). This is the `product` door:
-    // an action may intentionally leave a theme preview active. If a TEST already
-    // owns `serial`, this nests and the outer test still verifies/cleans its own
-    // world on exit. Held for the whole function; zero cost outside `cfg(test)`.
-    #[cfg(test)]
-    let _test_guard = crate::testlock::product();
-
-    if !crate::commands::action_available(action, crate::commands::Platform::current()) {
-        return Effect::None;
-    }
-
-    // WRITING-STREAKS VIEW TOGGLE. While the streaks card is open, ←/→ FLIP it
-    // between its two pages (per-day heatmap ⇄ cumulative running total —
-    // `streaks::toggle_view`, a pure view flip over the same records) instead of
-    // dismissing — the overlay's Right/Left lens precedent, applied to the one
-    // summoned card with a second page. Consumed entirely (the caret never
-    // moves, the card stays open); every OTHER key still falls through to the
-    // modal dismiss just below, so the arrows are that door's ONE exception,
-    // and — sitting here in the shared core — the flip is `--keys "Left"`-
-    // drivable headlessly like everything else.
-    if crate::streaks::streaks_open()
-        && matches!(action, Action::ForwardChar | Action::BackwardChar)
-    {
-        crate::streaks::toggle_view();
-        return Effect::None;
-    }
-
-    // MODAL CARD DISMISSAL (About / Lifetime stats / Writing streaks). While a
-    // summoned card is open it OWNS the very next key — ANY key closes it and is
-    // otherwise consumed (no other effect; the streaks card's ←/→ page flip
-    // above is the one carve-out), mirroring the "any key/click dismisses" spec
-    // rather than the navigation overlay's narrower Esc/Enter contract (a card
-    // has nothing to navigate). ONE owner of the check+close
-    // (`card::dismiss_summoned_card`), shared verbatim with the live App's
-    // mouse-press handler. Checked BEFORE the overlay intercept: the cards are
-    // never open at once, nor with an overlay (each opens via
-    // `Effect::RunAction` after the palette that summoned it has already
-    // closed).
-    if crate::card::dismiss_summoned_card() {
-        return Effect::None;
-    }
-
-    // OVERLAY INTERCEPT. When the summoned navigation overlay is open it OWNS
-    // every key (printable chars filter the query, Up/Down move the selection,
-    // Right/Left descend/ascend the explorers, Enter accepts, Esc/C-g cancels);
-    // routing it through the shared core is what makes the overlay `--keys`-
-    // drivable. The modal dispatch lives in [`overlay_nav::overlay_intercept`].
-    if ctx.overlay.is_some() {
-        return overlay_intercept(ctx, action);
-    }
-
-    // NOTE — there is deliberately NO search intercept here. While the isearch
-    // panel is open, EVERY key is consumed BEFORE keymap resolution by the ONE
-    // shared interception seam (`crate::search::keys::intercept`) — the live
-    // window's search guard (`app/input/keys.rs`) and the headless replay's
-    // guard (`main/run.rs::replay_keys_mode`) are the same code — so no key
-    // path can reach `apply_core` with `ctx.search` still `Some`. The old
-    // Action-level Tab/OpenReplace intercept that lived here (the partial
-    // headless mirror from before the seam existed) was retired with it:
-    // same behavior must be same code, not an aligned copy.
-
-    if action.is_motion() {
-        if shift {
-            if ctx.buffer.anchor_char().is_none() {
-                ctx.buffer.set_mark();
-            }
-            *ctx.shift_selecting = true;
-        } else if *ctx.shift_selecting {
-            ctx.buffer.clear_mark();
-            *ctx.shift_selecting = false;
+fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    match action {
+        Action::ToggleCaretMode => {
+            crate::caret::toggle_mode();
         }
+        Action::TogglePageMode => {
+            crate::page::toggle();
+        }
+        Action::PageWider => {
+            crate::page::widen();
+        }
+        Action::PageNarrower => {
+            crate::page::narrow();
+        }
+        Action::PageReset => {
+            crate::page::set_measure(ctx.buffer.page_class().default_measure());
+        }
+        Action::ToggleDebug => {
+            crate::debug::toggle();
+        }
+        Action::ToggleOutline => {
+            crate::outline::toggle();
+        }
+        Action::ToggleFold => {
+            ctx.buffer.toggle_fold_at_cursor();
+        }
+        Action::CollapseOtherSections => {
+            ctx.buffer.collapse_other_sections();
+        }
+        Action::ToggleMenuBar => {
+            crate::menubar::toggle();
+        }
+        Action::ToggleTypewriter => {
+            crate::typewriter::toggle();
+        }
+        Action::ShowStatsHud => {
+            crate::hud::set_held(true);
+        }
+        Action::About => {
+            crate::about::set_open(true);
+        }
+        Action::LifetimeStats => {
+            crate::lifetime::set_open(true);
+        }
+        Action::WritingStreaks => {
+            crate::streaks::set_open(true);
+        }
+        Action::ConvertLineEndings => {
+            ctx.buffer.set_eol(ctx.buffer.eol().toggled());
+        }
+        Action::ReportProblem => return Some(Effect::ReportProblem),
+        Action::DownloadFile => return Some(Effect::DownloadFile),
+        Action::CheckForUpdates => return Some(Effect::CheckForUpdates),
+        _ => return None,
     }
+    Some(Effect::None)
+}
 
-    // RECOIL PRIMITIVE — snapshot the pre-action state so we can detect a BLOCKED
-    // action (one that couldn't proceed) AFTER the match and bump the caret away
-    // from the wall. Cheap scalars: the cursor char index (a motion that hit a wall
-    // leaves it unchanged), the content version (a no-op delete never bumps it), and
-    // whether undo/redo had anything to do. See `recoil_for`.
-    let cursor_before = ctx.buffer.cursor_char();
-    let version_before = ctx.buffer.version();
-    let could_undo = ctx.buffer.can_undo();
-    let could_redo = ctx.buffer.can_redo();
-    let had_selection_before = ctx.buffer.has_selection();
+fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> bool {
+    match action {
+        Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
+        Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
+        Action::ToggleNumberedList => apply_block_format(ctx, format::BlockKind::Numbered),
+        Action::ToggleTaskList => apply_block_format(ctx, format::BlockKind::Task),
+        Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
+        Action::HeadingCycle => format::apply_heading_cycle(ctx),
+        Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
+        Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
+        Action::Italic => apply_inline_format(ctx, format::InlineKind::Italic),
+        Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
+        Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
+        Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
+        _ => return false,
+    }
+    true
+}
 
-    let mut effect = Effect::None;
+fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
     match action {
         Action::ForwardChar => ctx.buffer.forward_char(),
         Action::BackwardChar => ctx.buffer.backward_char(),
@@ -463,24 +447,11 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::BufferStart => ctx.buffer.buffer_start(),
         Action::BufferEnd => ctx.buffer.buffer_end(),
         Action::InsertChar(c) => ctx.buffer.insert_char(*c),
-        // MARKDOWN smart Enter: continue a list / blockquote (ordered lists
-        // AUTO-INCREMENT), unconditionally END an empty BLOCKQUOTE, PRESERVE-or-
-        // END an empty LIST item (bullet/numbered/task) by provenance (item 78 —
-        // ends the list only when awl's own immediately preceding continuation
-        // generated that empty marker; preserves it otherwise), or carry leading
-        // indentation forward. Pure + `--keys`-drivable (reads only the current
-        // line + cursor, edits via the buffer's atomic seam). A non-markdown
-        // buffer — or any line the helper declines — falls through to a plain
-        // newline, byte-identical to before.
         Action::Newline => {
             if !smart_newline(ctx) {
                 ctx.buffer.insert_newline();
             }
         }
-        // TAB: indent a markdown list item one level (across a selection), else a soft
-        // tab. SHIFT-TAB: outdent one level (clamped), or strip leading spaces off a
-        // list. Both flow through the buffer's atomic edit seam (one undo step) and are
-        // `--keys`-drivable; the list-vs-plain gate is `list_tab`.
         Action::InsertTab => list_tab(ctx),
         Action::Outdent => list_outdent(ctx),
         Action::DeleteBackward => ctx.buffer.delete_backward(),
@@ -500,36 +471,38 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         }
         Action::SetMark => {
             ctx.buffer.set_mark();
-            *ctx.shift_selecting = false; // C-Space is a sticky mark
+            *ctx.shift_selecting = false;
         }
         Action::CopyRegion => ctx.buffer.copy_region(),
         Action::KillRegion => ctx.buffer.kill_region(),
-        // Cmd-A: select the WHOLE buffer — mark at document start, point at
-        // document end, so every existing region op (C-w cut, M-w copy, a
-        // delete/backspace, or typing a char) then acts on the entire doc. A
-        // no-op empty region on an empty buffer (no panic). Drop any transient
-        // Shift-selection flag: this is a discrete, sticky region, not a
-        // Shift-extend.
         Action::SelectAll => {
             ctx.buffer.select_all();
             *ctx.shift_selecting = false;
         }
-        // ITEM 94: ⌘= / ⌘- move exactly ONE AUTHORED STEP of the zoom range spec —
-        // the same `stepped` owner Right/Left on the Settings rail row use, so the
-        // two keyboards can never disagree about what one zoom increment is.
+        _ => return false,
+    }
+    true
+}
+
+fn apply_viewport_action(ctx: &mut ActionCtx, action: &Action) -> bool {
+    match action {
         Action::ZoomIn => *ctx.zoom = crate::range::ZOOM.stepped(*ctx.zoom, 1),
         Action::ZoomOut => *ctx.zoom = crate::range::ZOOM.stepped(*ctx.zoom, -1),
         Action::ZoomReset => *ctx.zoom = crate::range::ZOOM.default,
         Action::PageScrollDown => scroll_page(ctx.buffer, ctx.scroll_page_lines, true),
         Action::PageScrollUp => scroll_page(ctx.buffer, ctx.scroll_page_lines, false),
+        _ => return false,
+    }
+    true
+}
+
+fn apply_session_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    let effect = match action {
         Action::Save => {
             if ctx.buffer.path().is_none() && !ctx.buffer.is_unnamed_fresh() {
-                // A TRUE scratch buffer (no path, never named as a note):
-                // convert it into a real document — the caller has the
-                // active folder, the core doesn't. See `Effect::ConvertScratchAndSave`.
-                effect = Effect::ConvertScratchAndSave;
+                Effect::ConvertScratchAndSave
             } else {
-                effect = match ctx.buffer.save() {
+                match ctx.buffer.save() {
                     Ok(()) => Effect::SaveDone {
                         ok: true,
                         message: "saved".to_string(),
@@ -538,189 +511,187 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
                         ok: false,
                         message: format!("save failed: {e}"),
                     },
-                };
+                }
             }
         }
-        Action::Quit => effect = Effect::Quit,
-        // C-g / Escape / Cmd-. : cancel clears any active selection. A live
-        // search can never still be open here — the shared search-key seam
-        // (`crate::search::keys::intercept`) consumes Escape/C-g on BOTH the
-        // live and replay paths and closes the panel itself (restoring the
-        // origin cursor + remembering the query), so this arm no longer
-        // carries a search-close copy of that rule.
+        Action::Quit => Effect::Quit,
         Action::Cancel => {
             ctx.buffer.clear_mark();
             *ctx.shift_selecting = false;
+            Effect::None
         }
-        // C-s / C-r: open an incremental search anchored at the cursor. While a
-        // search is already live neither driver reaches this arm — the shared
-        // search guard consumes C-s/C-r as STEP next/previous first — so this
-        // only ever models the OPEN.
-        Action::SearchForward => start_search(ctx, Direction::Forward),
-        Action::SearchBackward => start_search(ctx, Direction::Backward),
+        Action::SearchForward => {
+            start_search(ctx, Direction::Forward);
+            Effect::None
+        }
+        Action::SearchBackward => {
+            start_search(ctx, Direction::Backward);
+            Effect::None
+        }
         Action::OpenReplace => {
             start_search(ctx, Direction::Forward);
             if let Some(st) = ctx.search.as_mut() {
                 st.reveal_replace();
             }
+            Effect::None
         }
-        // Toggling the caret look is a pure render concern (no buffer change). The
-        // process-global flip lives HERE on the shared seam, so BOTH the windowed
-        // `App::apply` and the headless `--keys` replay toggle through one place
-        // (no double-toggle); `App` then does only the window-side follow-up (the
-        // stderr log) as a post-`apply_core` side effect. A palette-run capture
-        // (Cmd-P → "Toggle caret style") renders — and records in its sidecar — the
-        // toggled mode (Block ⇄ I-beam).
-        Action::ToggleCaretMode => {
-            crate::caret::toggle_mode();
+        _ => return None,
+    };
+    Some(effect)
+}
+
+fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    let effect = match action {
+        Action::LastBuffer => Effect::LastBuffer,
+        Action::NewDocument => Effect::NewDocument,
+        Action::MoveFile => {
+            *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::MoveDest, None);
+            Effect::None
         }
-        // Toggling page mode is a pure render/layout concern (no buffer change). The
-        // process-global flip lives HERE on the shared seam (like the caret toggle);
-        // `App::apply` does the GPU re-wrap + view resync the core can't reach as a
-        // post-`apply_core` side effect. A palette-run capture (Cmd-P → "Toggle page
-        // mode") renders (and records in its sidecar) the toggled state.
-        Action::TogglePageMode => {
-            crate::page::toggle();
-        }
-        // Page WIDER / NARROWER: adjust the centered writing column's MEASURE (the
-        // settable page width) by a step, clamped to the usable band. Zoom-independent
-        // — this resizes the PAGE, not the glyphs — so it lives on the shared seam like
-        // the page toggle. `App::apply` does the GPU re-wrap + view resync + sticky
-        // persist afterwards (a post-`apply_core` side effect the core can't reach). A
-        // palette-run capture (Cmd-P → "Widen page") renders + records the new measure.
-        Action::PageWider => {
-            crate::page::widen();
-        }
-        Action::PageNarrower => {
-            crate::page::narrow();
-        }
-        // RESET PAGE WIDTH: snap the measure back to the ACTIVE buffer's OWN
-        // built-in default (`PageClass::default_measure` — 70 prose / 100 code) —
-        // "there's no easy way back" once you've widened/narrowed/dragged. Reads
-        // `ctx.buffer.page_class()` so a `.rs` file resets to 100, never a stray
-        // 70. Pure process-global reset on the shared seam, like the
-        // wider/narrower arms above. `App::apply` does the GPU re-wrap + view
-        // resync afterwards AND clears the sticky `page_width_prose`/
-        // `page_width_code` config override matching the SAME class entirely
-        // (format-preserving removal — the core has no config to write to) as a
-        // post-`apply_core` side effect. A `--keys`-driven reset (no default
-        // chord; palette/double-click only) renders — and records in its
-        // sidecar — the reset measure.
-        Action::PageReset => {
-            crate::page::set_measure(ctx.buffer.page_class().default_measure());
-        }
-        Action::ToggleDebug => {
-            crate::debug::toggle();
-        }
-        Action::ToggleOutline => {
-            crate::outline::toggle();
-        }
-        // FOLDS (collapsed sections) are VIEW state on the BUFFER, so they belong in
-        // the shared core: a `--keys` capture folds/unfolds and its sidecar `folds`
-        // block records the state, exactly like the live window. Neither gesture
-        // moves the caret or touches the rope (the auto-expand tail below is a no-op
-        // for them — the caret stays on the visible heading line).
-        Action::ToggleFold => {
-            ctx.buffer.toggle_fold_at_cursor();
-        }
-        Action::CollapseOtherSections => {
-            ctx.buffer.collapse_other_sections();
-        }
-        Action::ToggleMenuBar => {
-            crate::menubar::toggle();
-        }
-        Action::ToggleTypewriter => {
-            crate::typewriter::toggle();
-        }
-        Action::ShowStatsHud => {
-            crate::hud::set_held(true);
-        }
-        Action::About => {
-            // Reentrant no-op: `_test_guard` at the top of this function already
-            // holds this same process-wide lock for the WHOLE call, so this
-            // re-take costs nothing extra (outside `cfg(test)`, nothing at all) —
-            // kept as a local, self-documenting guard on the open-flag WRITE
-            // rather than leaning on the caller to already hold it.
-            #[cfg(test)]
-            let _g = crate::testlock::serial();
-            crate::about::set_open(true);
-        }
-        Action::LifetimeStats => {
-            // Reentrant no-op under the same whole-function `_test_guard` above —
-            // see the comment on the `Action::About` arm.
-            #[cfg(test)]
-            let _g = crate::testlock::serial();
-            crate::lifetime::set_open(true);
-        }
-        Action::WritingStreaks => {
-            #[cfg(test)]
-            let _g = crate::testlock::serial();
-            crate::streaks::set_open(true);
-        }
-        // Toggle the active buffer's line-ending discipline (LF <-> CRLF). The rope
-        // is byte-identical (always pure `\n`); only the on-disk encoding a save
-        // restores differs, so this is document-level METADATA, not an undoable
-        // edit (Cmd-Z does not restore it — see `Buffer::set_eol`). A real switch
-        // marks the buffer dirty + bumps `version` so autosave rewrites with the
-        // new ending on the next flush.
-        Action::ConvertLineEndings => {
-            let next = ctx.buffer.eol().toggled();
-            ctx.buffer.set_eol(next);
-        }
-        // ALIGN TABLE: re-pad the GFM table under the caret so its `|` line up
-        // (Prettier-style monospace alignment of the SOURCE — awl never draws a
-        // grid). Find the table block around the caret line, re-emit it via
-        // `markdown::align_table`, and replace it as ONE undoable edit; a calm
-        // no-op when the caret is not in a table (or the table is already aligned,
-        // so Cmd-Z stays meaningful). Pure `markdown` core + the buffer's atomic
-        // replace seam, so `--keys "..."` drives it and the result is assertable.
-        Action::AlignTable => align_table_at_cursor(ctx),
-        Action::ReportProblem => {
-            effect = Effect::ReportProblem;
-        }
-        Action::DownloadFile => {
-            effect = Effect::DownloadFile;
-        }
-        // "Check for Updates": the core has no fs / OS-handoff access, so it just
-        // signals the request; the live App records the local "last checked"
-        // marker and opens the site's `/check?v=…` page in the OS browser — the
-        // app never fetches anything itself.
-        Action::CheckForUpdates => {
-            effect = Effect::CheckForUpdates;
-        }
-        Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
-        Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
-        Action::ToggleNumberedList => apply_block_format(ctx, format::BlockKind::Numbered),
-        Action::ToggleTaskList => apply_block_format(ctx, format::BlockKind::Task),
-        Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
-        Action::HeadingCycle => format::apply_heading_cycle(ctx),
-        Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
-        Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
-        Action::Italic => apply_inline_format(ctx, format::InlineKind::Italic),
-        Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
-        Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
-        Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
-        Action::ExportWord => {
-            if ctx.buffer.is_markdown() {
-                effect = Effect::Export(crate::export::Format::Docx);
+        Action::OpenRenameNote => {
+            if let Some(path) = ctx.buffer.path() {
+                let name = path
+                    .file_name()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                *ctx.overlay = Some(OverlayState::new_rename(name));
             }
+            Effect::None
         }
-        Action::ExportHtml => {
-            if ctx.buffer.is_markdown() {
-                effect = Effect::Export(crate::export::Format::Html);
-            }
+        Action::DuplicateNote => Effect::DuplicateNote,
+        Action::OpenSettings => Effect::OpenSettings,
+        Action::OpenCredits => Effect::OpenCredits,
+        Action::OpenGuide => Effect::OpenGuide,
+        Action::OpenSettingsMenu => {
+            *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Settings);
+            Effect::None
         }
-        Action::ExportPdf =>
-        {
+        Action::FinishBuffer => {
+            let _ = ctx.buffer.save();
+            Effect::FinishBuffer
+        }
+        Action::FollowLink => {
+            crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
+                .map(Effect::FollowLink)
+                .unwrap_or(Effect::None)
+        }
+        Action::BeginPrefix | Action::Ignore => Effect::None,
+        _ => return None,
+    };
+    Some(effect)
+}
+
+struct ActionSnapshot {
+    cursor_before: usize,
+    version_before: u64,
+    could_undo: bool,
+    could_redo: bool,
+    had_selection_before: bool,
+}
+
+impl ActionSnapshot {
+    fn capture(ctx: &ActionCtx) -> Self {
+        Self {
+            cursor_before: ctx.buffer.cursor_char(),
+            version_before: ctx.buffer.version(),
+            could_undo: ctx.buffer.can_undo(),
+            could_redo: ctx.buffer.can_redo(),
+            had_selection_before: ctx.buffer.has_selection(),
+        }
+    }
+}
+
+fn finish_action(
+    ctx: &mut ActionCtx,
+    action: &Action,
+    snapshot: ActionSnapshot,
+    mut effect: Effect,
+) -> Effect {
+    if !action.is_edit() && !matches!(action, Action::Undo | Action::Redo) {
+        ctx.buffer.seal_undo_group();
+    }
+    if !ctx.buffer.has_selection() {
+        *ctx.shift_selecting = false;
+    }
+    ctx.buffer.reveal_placement();
+    if effect == Effect::None
+        && let Some(dir) = recoil_for(
+            action,
+            ctx,
+            snapshot.cursor_before,
+            snapshot.version_before,
+            snapshot.could_undo,
+            snapshot.could_redo,
+        )
+    {
+        effect = Effect::Recoil(dir);
+    }
+    if effect == Effect::None
+        && let Some(impact) = impact_for(action, snapshot.version_before, ctx)
+    {
+        effect = impact;
+    }
+    if effect == Effect::None
+        && let Some(copy_pulse) = copy_pulse_for(action, snapshot.had_selection_before)
+    {
+        effect = copy_pulse;
+    }
+    effect
+}
+
+fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    if !crate::commands::action_available(action, crate::commands::Platform::current()) {
+        return Some(Effect::None);
+    }
+    if crate::streaks::streaks_open()
+        && matches!(action, Action::ForwardChar | Action::BackwardChar)
+    {
+        crate::streaks::toggle_view();
+        return Some(Effect::None);
+    }
+    if crate::card::dismiss_summoned_card() {
+        return Some(Effect::None);
+    }
+    ctx.overlay
+        .is_some()
+        .then(|| overlay_intercept(ctx, action))
+}
+
+fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    let effect = match action {
+        Action::ExportWord if ctx.buffer.is_markdown() => {
+            Effect::Export(crate::export::Format::Docx)
+        }
+        Action::ExportHtml if ctx.buffer.is_markdown() => {
+            Effect::Export(crate::export::Format::Html)
+        }
+        Action::ExportWord | Action::ExportHtml => Effect::None,
+        Action::ExportPdf => {
             #[cfg(not(target_arch = "wasm32"))]
-            if ctx.buffer.is_markdown() {
-                effect = Effect::Export(crate::export::Format::Pdf);
+            {
+                if ctx.buffer.is_markdown() {
+                    Effect::Export(crate::export::Format::Pdf)
+                } else {
+                    Effect::None
+                }
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                Effect::None
             }
         }
-        Action::InsertLink => open_insert_link(ctx),
-        Action::InsertDate => {
-            effect = Effect::InsertDate;
+        Action::InsertLink => {
+            open_insert_link(ctx);
+            Effect::None
         }
+        Action::InsertDate => Effect::InsertDate,
+        _ => return None,
+    };
+    Some(effect)
+}
+
+fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
+    match action {
         Action::OpenGoto => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Goto);
         }
@@ -811,129 +782,269 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
         Action::OpenBrowse => {
             *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::Browse, None);
         }
-        Action::LastBuffer => {
-            effect = Effect::LastBuffer;
-        }
-        Action::NewDocument => {
-            effect = Effect::NewDocument;
-        }
-        Action::MoveFile => {
-            *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::MoveDest, None);
-        }
-        Action::OpenRenameNote => {
-            if let Some(path) = ctx.buffer.path() {
-                let name = path
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                *ctx.overlay = Some(OverlayState::new_rename(name));
-            }
-        }
-        Action::DuplicateNote => {
-            effect = Effect::DuplicateNote;
-        }
-        Action::OpenSettings => {
-            effect = Effect::OpenSettings;
-        }
-        Action::OpenCredits => {
-            effect = Effect::OpenCredits;
-        }
-        Action::OpenGuide => {
-            effect = Effect::OpenGuide;
-        }
-        Action::OpenSettingsMenu => {
-            *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Settings);
-        }
-        // C-x #: SAVE the buffer (the SAME `Buffer::save` call `Action::Save` makes)
-        // then signal the caller to notify daemon waiters + switch to the
-        // previously-open buffer. The caller (`App::finish_buffer`) mirrors
-        // `Action::Save`'s history-snapshot + mtime bookkeeping itself, BEFORE the
-        // buffer swap — `post_apply_effects` runs after this effect and would
-        // otherwise stamp the wrong (just-switched-to) buffer. The core can't reach
-        // the daemon socket or the 2-deep buffer history itself.
-        Action::FinishBuffer => {
-            // SAVE-FEEDBACK round: no terminal echo (matches `Action::Save`'s
-            // own fix) — a failure here is a narrower gap than plain Save's
-            // (C-x # only ever targets an already-pathed, daemon-served
-            // buffer, never the scratch surface), logged rather than fully
-            // routed to a notice: `finish_buffer` immediately switches away
-            // to the previous buffer right after, so a notice would flash
-            // and vanish before it could be read. Banked as a fast-follow if
-            // that ever proves confusing in practice.
-            let _ = ctx.buffer.save();
-            effect = Effect::FinishBuffer;
-        }
-        // C-c C-o: FOLLOW the markdown link under the caret. Extract its URL from
-        // the parsed spans ([`crate::markdown::link_at`], a pure function of the
-        // text + caret BYTE offset); a link → signal the URL back for the caller to
-        // open in the browser, a caret outside every link → a calm no-op
-        // (`Effect::None`). The core never opens anything itself (no window/process
-        // reach) — the live App performs the OS handoff, the headless replay no-ops.
-        Action::FollowLink => {
-            if let Some(url) =
-                crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
-            {
-                effect = Effect::FollowLink(url);
-            }
-        }
-        Action::BeginPrefix | Action::Ignore => {}
+        _ => return false,
     }
+    true
+}
 
-    // Seal the undo group after any NON-edit command so the next edit starts a
-    // fresh group. Undo/Redo manage history themselves and must not seal.
-    if !action.is_edit() && !matches!(action, Action::Undo | Action::Redo) {
-        ctx.buffer.seal_undo_group();
-    }
-    if !ctx.buffer.has_selection() {
-        *ctx.shift_selecting = false;
-    }
+enum ActionFamily {
+    Buffer,
+    Viewport,
+    Session,
+    View,
+    Align,
+    Format,
+    Export,
+    Overlay,
+    Deferred,
+}
 
-    // AUTO-EXPAND (folds): any edit / motion that lands the caret INSIDE a collapsed
-    // section reveals it, and a selection never spans a fold invisibly. This is the
-    // action-motion ingress into the ONE revealed-placement owner
-    // (`Buffer::reveal_placement`); the mouse click/drag, search step, and heading/
-    // line jump ingresses call the same owner at their own seams (the search guard +
-    // overlay accept return before reaching here). A cheap no-op when nothing is
-    // folded (the common case), so this runs after every action without measurable
-    // cost. The two fold GESTURES above leave the caret on the still-visible heading
-    // line, so they are unaffected.
-    ctx.buffer.reveal_placement();
+macro_rules! classify_action_family {
+    ($action:expr) => {
+        match $action {
+            Action::ForwardChar
+            | Action::BackwardChar
+            | Action::NextLine
+            | Action::PreviousLine
+            | Action::LineStart
+            | Action::LineEnd
+            | Action::ForwardWord
+            | Action::BackwardWord
+            | Action::BufferStart
+            | Action::BufferEnd
+            | Action::InsertChar(_)
+            | Action::Newline
+            | Action::InsertTab
+            | Action::Outdent
+            | Action::DeleteBackward
+            | Action::DeleteWordBackward
+            | Action::DeleteWordForward
+            | Action::DeleteToLineStart
+            | Action::DeleteForward
+            | Action::KillLine
+            | Action::Yank
+            | Action::Undo
+            | Action::Redo
+            | Action::SetMark
+            | Action::CopyRegion
+            | Action::KillRegion
+            | Action::SelectAll => ActionFamily::Buffer,
+            Action::ZoomIn
+            | Action::ZoomOut
+            | Action::ZoomReset
+            | Action::PageScrollDown
+            | Action::PageScrollUp => ActionFamily::Viewport,
+            Action::Save
+            | Action::Quit
+            | Action::Cancel
+            | Action::SearchForward
+            | Action::SearchBackward
+            | Action::OpenReplace => ActionFamily::Session,
+            Action::ToggleCaretMode
+            | Action::TogglePageMode
+            | Action::PageWider
+            | Action::PageNarrower
+            | Action::PageReset
+            | Action::ToggleDebug
+            | Action::ToggleOutline
+            | Action::ToggleFold
+            | Action::CollapseOtherSections
+            | Action::ToggleMenuBar
+            | Action::ToggleTypewriter
+            | Action::ShowStatsHud
+            | Action::About
+            | Action::LifetimeStats
+            | Action::WritingStreaks
+            | Action::ConvertLineEndings
+            | Action::ReportProblem
+            | Action::DownloadFile
+            | Action::CheckForUpdates => ActionFamily::View,
+            Action::AlignTable => ActionFamily::Align,
+            Action::ToggleBlockquote
+            | Action::ToggleBulletList
+            | Action::ToggleNumberedList
+            | Action::ToggleTaskList
+            | Action::ToggleHeading
+            | Action::HeadingCycle
+            | Action::ToggleCodeBlock
+            | Action::Bold
+            | Action::Italic
+            | Action::InlineCode
+            | Action::Highlight
+            | Action::Strikethrough => ActionFamily::Format,
+            Action::ExportWord
+            | Action::ExportHtml
+            | Action::ExportPdf
+            | Action::InsertLink
+            | Action::InsertDate => ActionFamily::Export,
+            Action::OpenGoto
+            | Action::OpenProject
+            | Action::OpenRecentProjects
+            | Action::OpenThemeMenu
+            | Action::OpenCaretMenu
+            | Action::OpenDictionaryMenu
+            | Action::ToggleSpellcheck
+            | Action::ToggleWritingNits
+            | Action::OpenCommandPalette
+            | Action::OpenKeybindings
+            | Action::OpenOutline
+            | Action::OpenSpellSuggest
+            | Action::OpenHistory
+            | Action::OpenAssetClean
+            | Action::KeepVersion
+            | Action::CompareVersion
+            | Action::OpenBrowse => ActionFamily::Overlay,
+            Action::LastBuffer
+            | Action::NewDocument
+            | Action::MoveFile
+            | Action::OpenRenameNote
+            | Action::DuplicateNote
+            | Action::OpenSettings
+            | Action::OpenCredits
+            | Action::OpenGuide
+            | Action::OpenSettingsMenu
+            | Action::FinishBuffer
+            | Action::FollowLink
+            | Action::BeginPrefix
+            | Action::Ignore => ActionFamily::Deferred,
+        }
+    };
+}
 
-    // RECOIL PRIMITIVE — if the action produced no other effect, see whether it was
-    // BLOCKED (couldn't proceed) and, if so, arm a caret bump away from the wall.
-    // Mutually exclusive with the real effects (a blocked action never sets one), so
-    // we only test when `effect` is still `None`.
-    if effect == Effect::None
-        && let Some(dir) = recoil_for(
-            action,
-            ctx,
-            cursor_before,
-            version_before,
-            could_undo,
-            could_redo,
-        )
-    {
-        effect = Effect::Recoil(dir);
-    }
-    if effect == Effect::None
-        && let Some(imp) = impact_for(action, version_before, ctx)
-    {
-        effect = imp;
-    }
-    // COPY PULSE — a successful M-w/Cmd-C copy of a NON-EMPTY selection: arm the
-    // caret kick + selection-tint brighten/decay. Never touches buffer content, so
-    // it can't ride `impact_for`'s version-changed gate above; a separate check
-    // against the PRE-action selection snapshot (`copy_region` always clears the
-    // mark, even on a no-op). Mutually exclusive with the other effects by
-    // construction (`Action::CopyRegion` never recoils or flinches), so gating on
-    // `effect == Effect::None` here is a formality that keeps the same shape as
-    // the recoil/impact cascade above.
-    if effect == Effect::None
-        && let Some(e) = copy_pulse_for(action, had_selection_before)
-    {
-        effect = e;
+fn action_family(action: &Action) -> ActionFamily {
+    classify_action_family!(action)
+}
+
+fn dispatch_editor_action(ctx: &mut ActionCtx, action: &Action, family: ActionFamily) -> Effect {
+    let mut effect = Effect::None;
+    match family {
+        ActionFamily::Buffer => debug_assert!(apply_buffer_action(ctx, action)),
+        ActionFamily::Viewport => debug_assert!(apply_viewport_action(ctx, action)),
+        ActionFamily::Session => {
+            effect = apply_session_action(ctx, action).expect("session action")
+        }
+        ActionFamily::View => effect = apply_view_action(ctx, action).expect("view action"),
+        ActionFamily::Align => align_table_at_cursor(ctx),
+        ActionFamily::Format => debug_assert!(apply_format_action(ctx, action)),
+        ActionFamily::Export => effect = apply_export_action(ctx, action).expect("export action"),
+        ActionFamily::Overlay | ActionFamily::Deferred => {
+            unreachable!("command family routed to editor dispatcher")
+        }
     }
     effect
+}
+
+fn dispatch_command_action(ctx: &mut ActionCtx, action: &Action, family: ActionFamily) -> Effect {
+    let mut effect = Effect::None;
+    match family {
+        ActionFamily::Overlay => debug_assert!(apply_overlay_open_action(ctx, action)),
+        ActionFamily::Deferred => {
+            effect = apply_deferred_action(ctx, action).expect("deferred action");
+        }
+        ActionFamily::Buffer
+        | ActionFamily::Viewport
+        | ActionFamily::Session
+        | ActionFamily::View
+        | ActionFamily::Align
+        | ActionFamily::Format
+        | ActionFamily::Export => unreachable!("editor family routed to command dispatcher"),
+    }
+    effect
+}
+
+fn dispatch_action(ctx: &mut ActionCtx, action: &Action) -> Effect {
+    let family = action_family(action);
+    match family {
+        family @ (ActionFamily::Buffer
+        | ActionFamily::Viewport
+        | ActionFamily::Session
+        | ActionFamily::View
+        | ActionFamily::Align
+        | ActionFamily::Format
+        | ActionFamily::Export) => dispatch_editor_action(ctx, action, family),
+        family @ (ActionFamily::Overlay | ActionFamily::Deferred) => {
+            dispatch_command_action(ctx, action, family)
+        }
+    }
+}
+
+pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
+    // Serializes this whole action against any other thread's global-touching
+    // test, under test only (see [`crate::testlock`]): `about_open()` /
+    // `lifetime_open()` are read unconditionally just below, for every action, so
+    // a concurrently-running test that flips one (only `Action::About` /
+    // `Action::LifetimeStats` ever do) could otherwise leak its state into a
+    // totally unrelated test's action, changing its returned `Effect`. It is the
+    // ONE reentrant guard, so a test that already holds it around its own drive
+    // nests here for free, and there is no lock ORDER left to ABBA (the page
+    // writers acquire the SAME guard, reentrantly). This is the `product` door:
+    // an action may intentionally leave a theme preview active. If a TEST already
+    // owns `serial`, this nests and the outer test still verifies/cleans its own
+    // world on exit. Held for the whole function; zero cost outside `cfg(test)`.
+    #[cfg(test)]
+    let _test_guard = crate::testlock::product();
+
+    // WRITING-STREAKS VIEW TOGGLE. While the streaks card is open, ←/→ FLIP it
+    // between its two pages (per-day heatmap ⇄ cumulative running total —
+    // `streaks::toggle_view`, a pure view flip over the same records) instead of
+    // dismissing — the overlay's Right/Left lens precedent, applied to the one
+    // summoned card with a second page. Consumed entirely (the caret never
+    // moves, the card stays open); every OTHER key still falls through to the
+    // modal dismiss just below, so the arrows are that door's ONE exception,
+    // and — sitting here in the shared core — the flip is `--keys "Left"`-
+    // drivable headlessly like everything else.
+    // MODAL CARD DISMISSAL (About / Lifetime stats / Writing streaks). While a
+    // summoned card is open it OWNS the very next key — ANY key closes it and is
+    // otherwise consumed (no other effect; the streaks card's ←/→ page flip
+    // above is the one carve-out), mirroring the "any key/click dismisses" spec
+    // rather than the navigation overlay's narrower Esc/Enter contract (a card
+    // has nothing to navigate). ONE owner of the check+close
+    // (`card::dismiss_summoned_card`), shared verbatim with the live App's
+    // mouse-press handler. Checked BEFORE the overlay intercept: the cards are
+    // never open at once, nor with an overlay (each opens via
+    // `Effect::RunAction` after the palette that summoned it has already
+    // closed).
+    // OVERLAY INTERCEPT. When the summoned navigation overlay is open it OWNS
+    // every key (printable chars filter the query, Up/Down move the selection,
+    // Right/Left descend/ascend the explorers, Enter accepts, Esc/C-g cancels);
+    // routing it through the shared core is what makes the overlay `--keys`-
+    // drivable. The modal dispatch lives in [`overlay_nav::overlay_intercept`].
+    if let Some(effect) = intercept_action(ctx, action) {
+        return effect;
+    }
+
+    // NOTE — there is deliberately NO search intercept here. While the isearch
+    // panel is open, EVERY key is consumed BEFORE keymap resolution by the ONE
+    // shared interception seam (`crate::search::keys::intercept`) — the live
+    // window's search guard (`app/input/keys.rs`) and the headless replay's
+    // guard (`main/run.rs::replay_keys_mode`) are the same code — so no key
+    // path can reach `apply_core` with `ctx.search` still `Some`. The old
+    // Action-level Tab/OpenReplace intercept that lived here (the partial
+    // headless mirror from before the seam existed) was retired with it:
+    // same behavior must be same code, not an aligned copy.
+
+    if action.is_motion() {
+        if shift {
+            if ctx.buffer.anchor_char().is_none() {
+                ctx.buffer.set_mark();
+            }
+            *ctx.shift_selecting = true;
+        } else if *ctx.shift_selecting {
+            ctx.buffer.clear_mark();
+            *ctx.shift_selecting = false;
+        }
+    }
+
+    // RECOIL PRIMITIVE — snapshot the pre-action state so we can detect a BLOCKED
+    // action (one that couldn't proceed) AFTER the match and bump the caret away
+    // from the wall. Cheap scalars: the cursor char index (a motion that hit a wall
+    // leaves it unchanged), the content version (a no-op delete never bumps it), and
+    // whether undo/redo had anything to do. See `recoil_for`.
+    let snapshot = ActionSnapshot::capture(ctx);
+
+    let effect = dispatch_action(ctx, action);
+
+    finish_action(ctx, action, snapshot, effect)
 }
 
 #[cfg(test)]
