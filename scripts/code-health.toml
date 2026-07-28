@@ -315,7 +315,7 @@ lines = 678
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
-lines = 1279
+lines = 1102
 
 [[file_size_mark]]
 file = "src/render/text.rs"
