@@ -1,6 +1,397 @@
 # Reviewed historical exceptions for the two metrics that run in code-health.py.
 # Identity is exact: lint + file + primary line + complete diagnostic text.
 # Removing, moving, or increasing a recorded function makes this entry stale.
+# The frozen file-size baseline is intentionally old. These marks record the
+# smaller current size for every production file already over the limit there.
+# A mark must be lowered with every legitimate shrink; it must never be raised.
+
+[[file_size_mark]]
+file = "src/actions.rs"
+lines = 1066
+
+[[file_size_mark]]
+file = "src/actions/format.rs"
+lines = 908
+
+[[file_size_mark]]
+file = "src/actions/overlay_nav.rs"
+lines = 883
+
+[[file_size_mark]]
+file = "src/app.rs"
+lines = 2132
+
+[[file_size_mark]]
+file = "src/app/apply.rs"
+lines = 1253
+
+[[file_size_mark]]
+file = "src/app/files/settings.rs"
+lines = 383
+
+[[file_size_mark]]
+file = "src/app/gpu.rs"
+lines = 645
+
+[[file_size_mark]]
+file = "src/app/input/keys.rs"
+lines = 581
+
+[[file_size_mark]]
+file = "src/app/input/mouse.rs"
+lines = 1095
+
+[[file_size_mark]]
+file = "src/app/session.rs"
+lines = 526
+
+[[file_size_mark]]
+file = "src/app/stats.rs"
+lines = 500
+
+[[file_size_mark]]
+file = "src/app/viewstate.rs"
+lines = 576
+
+[[file_size_mark]]
+file = "src/app/window.rs"
+lines = 691
+
+[[file_size_mark]]
+file = "src/background.rs"
+lines = 397
+
+[[file_size_mark]]
+file = "src/buffer.rs"
+lines = 936
+
+[[file_size_mark]]
+file = "src/buffer/edit.rs"
+lines = 548
+
+[[file_size_mark]]
+file = "src/buffers.rs"
+lines = 568
+
+[[file_size_mark]]
+file = "src/capture.rs"
+lines = 100
+
+[[file_size_mark]]
+file = "src/capture/modes.rs"
+lines = 548
+
+[[file_size_mark]]
+file = "src/capture/sidecar.rs"
+lines = 940
+
+[[file_size_mark]]
+file = "src/caret.rs"
+lines = 259
+
+[[file_size_mark]]
+file = "src/caret_glyph.rs"
+lines = 539
+
+[[file_size_mark]]
+file = "src/commands.rs"
+lines = 2668
+
+[[file_size_mark]]
+file = "src/config/model.rs"
+lines = 396
+
+[[file_size_mark]]
+file = "src/crashlog.rs"
+lines = 550
+
+[[file_size_mark]]
+file = "src/cursor_shape.rs"
+lines = 1028
+
+[[file_size_mark]]
+file = "src/daemon.rs"
+lines = 592
+
+[[file_size_mark]]
+file = "src/debug.rs"
+lines = 475
+
+[[file_size_mark]]
+file = "src/durable.rs"
+lines = 526
+
+[[file_size_mark]]
+file = "src/export/docx.rs"
+lines = 692
+
+[[file_size_mark]]
+file = "src/export/model.rs"
+lines = 701
+
+[[file_size_mark]]
+file = "src/frontmatter.rs"
+lines = 524
+
+[[file_size_mark]]
+file = "src/fs.rs"
+lines = 1207
+
+[[file_size_mark]]
+file = "src/history/store.rs"
+lines = 591
+
+[[file_size_mark]]
+file = "src/index.rs"
+lines = 842
+
+[[file_size_mark]]
+file = "src/keymap.rs"
+lines = 2806
+
+[[file_size_mark]]
+file = "src/keyspec.rs"
+lines = 814
+
+[[file_size_mark]]
+file = "src/lava.rs"
+lines = 1529
+
+[[file_size_mark]]
+file = "src/main/args.rs"
+lines = 1609
+
+[[file_size_mark]]
+file = "src/main/run.rs"
+lines = 4396
+
+[[file_size_mark]]
+file = "src/markdown/spans.rs"
+lines = 1057
+
+[[file_size_mark]]
+file = "src/mas.rs"
+lines = 661
+
+[[file_size_mark]]
+file = "src/menu.rs"
+lines = 1081
+
+[[file_size_mark]]
+file = "src/menubar.rs"
+lines = 368
+
+[[file_size_mark]]
+file = "src/overlay/capture.rs"
+lines = 761
+
+[[file_size_mark]]
+file = "src/overlay/kind.rs"
+lines = 326
+
+[[file_size_mark]]
+file = "src/overlay/nav.rs"
+lines = 559
+
+[[file_size_mark]]
+file = "src/overlay/state.rs"
+lines = 639
+
+[[file_size_mark]]
+file = "src/peek.rs"
+lines = 549
+
+[[file_size_mark]]
+file = "src/probe.rs"
+lines = 806
+
+[[file_size_mark]]
+file = "src/prosediff.rs"
+lines = 1248
+
+[[file_size_mark]]
+file = "src/range.rs"
+lines = 559
+
+[[file_size_mark]]
+file = "src/render.rs"
+lines = 2434
+
+[[file_size_mark]]
+file = "src/render/benchsuite/corpus.rs"
+lines = 567
+
+[[file_size_mark]]
+file = "src/render/benchsuite/report.rs"
+lines = 598
+
+[[file_size_mark]]
+file = "src/render/benchsuite/scenarios.rs"
+lines = 599
+
+[[file_size_mark]]
+file = "src/render/caret.rs"
+lines = 1244
+
+[[file_size_mark]]
+file = "src/render/chrome/hud.rs"
+lines = 539
+
+[[file_size_mark]]
+file = "src/render/chrome/menubar.rs"
+lines = 612
+
+[[file_size_mark]]
+file = "src/render/chrome/mod.rs"
+lines = 1268
+
+[[file_size_mark]]
+file = "src/render/chrome/outline.rs"
+lines = 894
+
+[[file_size_mark]]
+file = "src/render/chrome/overlay.rs"
+lines = 811
+
+[[file_size_mark]]
+file = "src/render/chrome/overlay_draw.rs"
+lines = 475
+
+[[file_size_mark]]
+file = "src/render/chrome/overlay_rows.rs"
+lines = 386
+
+[[file_size_mark]]
+file = "src/render/chrome/overlay_shape.rs"
+lines = 832
+
+[[file_size_mark]]
+file = "src/render/chrome/popover.rs"
+lines = 630
+
+[[file_size_mark]]
+file = "src/render/chrome/readout.rs"
+lines = 634
+
+[[file_size_mark]]
+file = "src/render/chrome/theme_picker.rs"
+lines = 649
+
+[[file_size_mark]]
+file = "src/render/framebench.rs"
+lines = 1121
+
+[[file_size_mark]]
+file = "src/render/geometry.rs"
+lines = 2403
+
+[[file_size_mark]]
+file = "src/render/layers.rs"
+lines = 2219
+
+[[file_size_mark]]
+file = "src/render/livingband.rs"
+lines = 579
+
+[[file_size_mark]]
+file = "src/render/pipeline_draw.rs"
+lines = 554
+
+[[file_size_mark]]
+file = "src/render/pipeline_geometry.rs"
+lines = 592
+
+[[file_size_mark]]
+file = "src/render/pipeline_overlay.rs"
+lines = 402
+
+[[file_size_mark]]
+file = "src/render/rects.rs"
+lines = 1863
+
+[[file_size_mark]]
+file = "src/render/rowlayout.rs"
+lines = 678
+
+[[file_size_mark]]
+file = "src/render/spans.rs"
+lines = 1279
+
+[[file_size_mark]]
+file = "src/render/text.rs"
+lines = 1440
+
+[[file_size_mark]]
+file = "src/replay.rs"
+lines = 609
+
+[[file_size_mark]]
+file = "src/search/keys.rs"
+lines = 380
+
+[[file_size_mark]]
+file = "src/search/mod.rs"
+lines = 855
+
+[[file_size_mark]]
+file = "src/selection.rs"
+lines = 716
+
+[[file_size_mark]]
+file = "src/session.rs"
+lines = 536
+
+[[file_size_mark]]
+file = "src/settings.rs"
+lines = 1673
+
+[[file_size_mark]]
+file = "src/soak_gpu/mod.rs"
+lines = 628
+
+[[file_size_mark]]
+file = "src/spell.rs"
+lines = 1629
+
+[[file_size_mark]]
+file = "src/stars.rs"
+lines = 724
+
+[[file_size_mark]]
+file = "src/stats.rs"
+lines = 713
+
+[[file_size_mark]]
+file = "src/storyboard.rs"
+lines = 618
+
+[[file_size_mark]]
+file = "src/streaks.rs"
+lines = 833
+
+[[file_size_mark]]
+file = "src/syntax/mod.rs"
+lines = 752
+
+[[file_size_mark]]
+file = "src/syntax/ruby.rs"
+lines = 644
+
+[[file_size_mark]]
+file = "src/syntax/toml.rs"
+lines = 518
+
+[[file_size_mark]]
+file = "src/theme/derive.rs"
+lines = 315
+
+[[file_size_mark]]
+file = "src/theme/model.rs"
+lines = 755
+
+[[file_size_mark]]
+file = "src/theme/worlds.rs"
+lines = 1113
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

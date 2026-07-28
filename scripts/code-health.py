@@ -98,6 +98,30 @@ def load_manifest(
     return expected, failures
 
 
+def load_file_size_marks(path: Path = MANIFEST) -> tuple[dict[str, int], list[str]]:
+    data = tomllib.loads(path.read_text())
+    failures: list[str] = []
+    marks: dict[str, int] = {}
+    for entry in data.get("file_size_mark", []):
+        missing = {"file", "lines"} - entry.keys()
+        if missing:
+            failures.append(f"code-health: malformed file-size mark missing {sorted(missing)}")
+            continue
+        file = entry["file"]
+        lines = entry["lines"]
+        if not isinstance(file, str) or not file.endswith(".rs"):
+            failures.append(f"code-health: invalid file-size mark path {file!r}")
+            continue
+        if not isinstance(lines, int) or isinstance(lines, bool) or lines < 0:
+            failures.append(f"code-health: invalid file-size mark for {file}")
+            continue
+        if file in marks:
+            failures.append(f"code-health: duplicate file-size mark for {file}")
+            continue
+        marks[file] = lines
+    return marks, failures
+
+
 def clippy_diagnostics(output: str) -> set[tuple[str, str, int, str]]:
     found: set[tuple[str, str, int, str]] = set()
     for line in output.splitlines():
@@ -169,21 +193,45 @@ def structural_exceptions(
     return allowed, failures
 
 
-def check_structural(allowed: set[tuple[str, int, str]]) -> list[str]:
+def check_structural(
+    allowed: set[tuple[str, int, str]], file_size_marks: dict[str, int]
+) -> list[str]:
     failures: list[str] = []
-    for path in tracked_rust():
-        current = (ROOT / path).read_text().splitlines()
+    tracked = set(tracked_rust())
+    for path in sorted(tracked):
+        current_path = ROOT / path
+        if not current_path.is_file():
+            failures.append(f"{path}: tracked Rust file is absent")
+            continue
+        current = current_path.read_text().splitlines()
         old = baseline(path)
         grandfathered_lines = {line for line in old if len(line) > LINE_LIMIT}
         for number, line in enumerate(current, 1):
             if len(line) > LINE_LIMIT and line not in grandfathered_lines and (path, number, line) not in allowed:
                 failures.append(f"{path}:{number}: {len(line)} columns (Rust limit is {LINE_LIMIT}; {BASELINE_REASON})")
-        if production(path) and len(current) > FILE_LIMIT:
-            old_size = len(old)
-            if len(current) > old_size:
-                failures.append(f"{path}: {len(current)} lines (production limit is {FILE_LIMIT}; baseline is {old_size}, must not grow)")
-            elif old_size <= FILE_LIMIT:
-                failures.append(f"{path}: {len(current)} lines (production limit is {FILE_LIMIT})")
+        if not production(path):
+            continue
+        old_size = len(old)
+        mark = file_size_marks.get(path)
+        if old_size > FILE_LIMIT:
+            if mark is None:
+                failures.append(
+                    f"{path}: missing file-size mark for {old_size}-line grandfathered production file"
+                )
+                continue
+            if mark > len(current):
+                failures.append(
+                    f"{path}: stored file-size mark is {mark} lines but current file is {len(current)}; marks may only decrease"
+                )
+            if len(current) > min(old_size, mark):
+                failures.append(
+                    f"{path}: {len(current)} lines (production limit is {FILE_LIMIT}; "
+                    f"high-water mark is {min(old_size, mark)}, must not grow)"
+                )
+        elif len(current) > FILE_LIMIT:
+            failures.append(f"{path}: {len(current)} lines (production limit is {FILE_LIMIT})")
+    for path in sorted(file_size_marks.keys() - tracked):
+        failures.append(f"{path}: stale file-size mark for untracked Rust file")
     return failures
 
 
@@ -241,6 +289,42 @@ def self_test() -> int:
                 raise AssertionError("stale structural exception must fail")
         finally:
             globals()["ROOT"] = root
+    with tempfile.TemporaryDirectory() as directory:
+        root = ROOT
+        original_tracked_rust = tracked_rust
+        original_baseline = baseline
+        try:
+            globals()["ROOT"] = Path(directory)
+            large = ROOT / "src/large.rs"
+            large.parent.mkdir()
+            large.write_text("x\n" * 501)
+            globals()["tracked_rust"] = lambda: ["src/large.rs", "src/absent.rs"]
+            globals()["baseline"] = lambda path: ["x"] * 600 if path == "src/large.rs" else []
+            marks = {"src/large.rs": 501}
+            failures = check_structural(set(), marks)
+            if failures != ["src/absent.rs: tracked Rust file is absent"]:
+                raise AssertionError("a legitimate size mark and a tracked-but-absent file must be handled cleanly")
+            large.write_text("x\n" * 502)
+            failures = check_structural(set(), marks)
+            if not any("high-water mark is 501, must not grow" in failure for failure in failures):
+                raise AssertionError("one-line regrowth beyond a stored mark must fail")
+            large.write_text("x\n" * 500)
+            failures = check_structural(set(), {"src/large.rs": 500})
+            if failures != ["src/absent.rs: tracked Rust file is absent"]:
+                raise AssertionError("a legitimate shrink with a lowered mark must pass")
+            failures = check_structural(set(), {"src/large.rs": 501})
+            if not any("stored file-size mark is 501 lines but current file is 500" in failure for failure in failures):
+                raise AssertionError("a hand-raised file-size mark must fail")
+            new = ROOT / "src/new.rs"
+            new.write_text("x\n" * 501)
+            globals()["tracked_rust"] = lambda: ["src/large.rs", "src/absent.rs", "src/new.rs"]
+            failures = check_structural(set(), {"src/large.rs": 500})
+            if not any("src/new.rs: 501 lines (production limit is 500)" == failure for failure in failures):
+                raise AssertionError("a new oversized production file must still fail")
+        finally:
+            globals()["ROOT"] = root
+            globals()["tracked_rust"] = original_tracked_rust
+            globals()["baseline"] = original_baseline
     print("code-health: self-test clean")
     return 0
 
@@ -256,9 +340,11 @@ def main() -> int:
     except subprocess.CalledProcessError as error:
         raise SystemExit(f"code-health: stale baseline {BASELINE}; refresh it deliberately") from error
     expected, failures = load_manifest()
+    file_size_marks, mark_failures = load_file_size_marks()
+    failures.extend(mark_failures)
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
-    failures.extend(check_structural(allowed))
+    failures.extend(check_structural(allowed, file_size_marks))
     failures.extend(check_clippy(run_metric_clippy(), expected))
     if failures:
         print("code-health: policy check failed", file=sys.stderr)
