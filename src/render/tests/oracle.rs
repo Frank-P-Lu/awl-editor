@@ -6,6 +6,20 @@
 use super::super::*;
 use super::{headless_pipeline, view};
 
+/// The checked-in oracle sweep fixture: headings, a soft-wrapping paragraph,
+/// bullet and numbered lists, inline code, a fenced block, a table, and a CJK
+/// line -- every construct class the vertical-motion oracle needs a wrap
+/// boundary, a list-marker column, and a double-width run to sweep across,
+/// small enough that an exhaustive column x goal-x sweep stays fast. Owned by
+/// this test module, not a living doc a human edits for unrelated reasons.
+fn oracle_fixture_text() -> String {
+    std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/samples/oracle_fixture.md"
+    ))
+    .expect("samples/oracle_fixture.md present")
+}
+
 #[test]
 fn oracle_visual_motion_follows_wrapped_rows() {
     // The visual-line LAYOUT ORACLE on the GPU pipeline: visual up/down step
@@ -69,26 +83,26 @@ fn oracle_visual_motion_follows_wrapped_rows() {
     );
 }
 
-/// FULL VERTICAL-MOTION SWEEP over the real CAPTURE.md (wrapped paragraphs,
-/// headings, lists, inline `code`): for EVERY logical line, a spread of goal_x
-/// (left edge, each row's own end-x + mid-x, far right) and EVERY start column,
-/// one `visual_line_down` step must land STRICTLY BELOW its input (a lower
-/// GROUND-TRUTH visual row from the whole-doc `visual_rows` partition) until the
-/// true LAST visual row, and one `visual_line_up` step STRICTLY ABOVE until the
-/// first. A step that returns the SAME (line,col) is a FIXED POINT — the
-/// "moving straight down gets stuck" bug. GPU-backed; skips with no adapter.
+/// FULL VERTICAL-MOTION SWEEP over the checked-in oracle fixture (wrapped
+/// paragraph, headings, lists, inline `code`, a fence, a table, a CJK line):
+/// for EVERY logical line, a spread of goal_x (left edge, each row's own
+/// end-x + mid-x, far right) and EVERY start column, one `visual_line_down`
+/// step must land STRICTLY BELOW its input (a lower GROUND-TRUTH visual row
+/// from the whole-doc `visual_rows` partition) until the true LAST visual
+/// row, and one `visual_line_up` step STRICTLY ABOVE until the first. A step
+/// that returns the SAME (line,col) is a FIXED POINT — the "moving straight
+/// down gets stuck" bug. GPU-backed; skips with no adapter.
 #[test]
-fn oracle_vertical_sweep_capture_md_strictly_monotonic() {
+fn oracle_vertical_sweep_fixture_strictly_monotonic() {
     use crate::actions::LayoutOracle;
     // Soft-wrap geometry folds the page globals (column width); hold the page
     // lock so a parallel page write can't re-wrap the rows mid-sweep.
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping oracle_vertical_sweep_capture_md: no wgpu adapter");
+        eprintln!("skipping oracle_vertical_sweep_fixture: no wgpu adapter");
         return;
     };
-    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/CAPTURE.md"))
-        .expect("CAPTURE.md present at crate root");
+    let text = oracle_fixture_text();
     let mut v = view(&text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
@@ -98,6 +112,13 @@ fn oracle_vertical_sweep_capture_md_strictly_monotonic() {
     // prefix sum so any (line,col) maps to ONE global visual-row index. This is
     // the known-correct row partition the oracle's `line_rows_local` must match.
     let all_rows: Vec<Vec<VisualRow>> = (0..n).map(|l| p.visual_rows(l)).collect();
+    // Non-vacuity: if nothing in the fixture soft-wraps, every sweep below
+    // degenerates to single-row lines and the strict-monotonicity assertions
+    // would pass trivially without ever exercising a wrap boundary.
+    assert!(
+        all_rows.iter().any(|rows| rows.len() >= 2),
+        "fixture must contain at least one soft-wrapped logical line"
+    );
     let mut cum = vec![0usize; n + 1];
     for l in 0..n {
         cum[l + 1] = cum[l] + all_rows[l].len();
@@ -181,16 +202,18 @@ fn oracle_vertical_sweep_capture_md_strictly_monotonic() {
     );
 }
 
-/// The user's exact complaint, END TO END: arrowing straight through the real
-/// CAPTURE.md must REACH the far edge and never STICK, for ANY sticky goal_x.
-/// Faithfully replays `actions::motion::vertical_motion` — a real [`Buffer`], a
-/// goal_x seeded ONCE and kept across the run (`set_cursor_visual`), each landing
-/// round-tripped through `line_col_to_char` — then walks a full DOWN from the top
-/// and a full UP from the bottom for a spread of goal_x (incl. the far-right x
-/// that used to wedge on line 471's shared table-wrap boundary). Every walk must
-/// terminate at the last / first visual row, never on a fixed point midway.
+/// The user's exact complaint, END TO END: arrowing straight through the
+/// checked-in oracle fixture must REACH the far edge and never STICK, for ANY
+/// sticky goal_x. Faithfully replays `actions::motion::vertical_motion` — a
+/// real [`Buffer`], a goal_x seeded ONCE and kept across the run
+/// (`set_cursor_visual`), each landing round-tripped through
+/// `line_col_to_char` — then walks a full DOWN from the top and a full UP
+/// from the bottom for a spread of goal_x (incl. far-right x's past any real
+/// content, the "landed past a wrap boundary's own row" default that has
+/// wedged before). Every walk must terminate at the last / first visual row,
+/// never on a fixed point midway.
 #[test]
-fn oracle_full_vertical_walk_reaches_extremes_capture_md() {
+fn oracle_full_vertical_walk_reaches_extremes_fixture() {
     use crate::actions::LayoutOracle;
     use crate::buffer::Buffer;
     // Soft-wrap geometry folds the page globals (column width); hold the page
@@ -200,8 +223,7 @@ fn oracle_full_vertical_walk_reaches_extremes_capture_md() {
         eprintln!("skipping oracle_full_vertical_walk: no wgpu adapter");
         return;
     };
-    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/CAPTURE.md"))
-        .expect("CAPTURE.md present at crate root");
+    let text = oracle_fixture_text();
     let mut v = view(&text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
@@ -242,8 +264,9 @@ fn oracle_full_vertical_walk_reaches_extremes_capture_md() {
         }
     };
 
-    // The four goal_x cover the left edge, mid, and the far-right x's (>= a table
-    // row's end) that triggered the pre-fix UP fixed point at line 471 col 416.
+    // The four goal_x cover the left edge, mid, and far-right x's (past any
+    // real content, incl. a table row's own end column) — the "goal_x lands
+    // past the row's content" default is the historical wrap-boundary stick.
     for &goal in &[0.0f32, 500.0, 1050.0, 2000.0] {
         let (_steps, (fl, _fc)) = walk(&p, true, (0, 0), goal);
         assert_eq!(
@@ -258,7 +281,7 @@ fn oracle_full_vertical_walk_reaches_extremes_capture_md() {
     }
 }
 
-/// The vertical-motion sweep body shared by the CLAUDE.md width-grid test and
+/// The vertical-motion sweep body shared by the fixture width-grid test and
 /// the bullet+bold fixture test: for the CURRENTLY-shaped document, assert that
 /// ONE `visual_line_down` / `visual_line_up` step from EVERY (line, col, goal_x)
 /// is STRICTLY monotonic in the whole-doc visual-row partition (no fixed point,
@@ -414,40 +437,38 @@ fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_
     }
 }
 
-/// The "holding arrow-down gets stuck" hunt, PINNED over the repo's own
-/// CLAUDE.md (markdown bullets with **bold** spans wrapping across rows — the
-/// reported stick was line 11's `- **PHILOSOPHY.md** — …` bullet) at a GRID of
-/// wrap widths + a HiDPI point: the live window is an arbitrary size, so a
-/// wrap-boundary seam can exist at widths the default 1200px canvas never
-/// shapes. The default width runs the full strict-monotonicity sweep; the other
-/// grid points (and the dpi-2 Retina point) run the held-arrow walks — the
-/// user's exact gesture — to keep the suite fast. GPU-backed; skips with no
-/// adapter.
+/// The "holding arrow-down gets stuck" hunt, PINNED over the checked-in
+/// oracle fixture (markdown bullets with a wrapped paragraph, wrapping across
+/// rows) at a GRID of wrap widths + a HiDPI point: the live window is an
+/// arbitrary size, so a wrap-boundary seam can exist at widths the default
+/// 1200px canvas never shapes. The default width runs the full
+/// strict-monotonicity sweep; the other grid points (and the dpi-2 Retina
+/// point) run the held-arrow walks — the user's exact gesture — to keep the
+/// suite fast. GPU-backed; skips with no adapter.
 #[test]
-fn oracle_vertical_sweep_claude_md_across_widths() {
+fn oracle_vertical_sweep_fixture_across_widths() {
     // Wrap geometry reads the page/theme globals; hold their test locks so a
     // parallel mutator can't re-wrap the document mid-sweep.
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping oracle_vertical_sweep_claude_md_across_widths: no wgpu adapter");
+        eprintln!("skipping oracle_vertical_sweep_fixture_across_widths: no wgpu adapter");
         return;
     };
-    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/CLAUDE.md"))
-        .expect("CLAUDE.md present at crate root");
+    let text = oracle_fixture_text();
     let mut v = view(&text, 0, 0);
     v.is_markdown = true;
     p.set_view(&v);
-    assert_vertical_sweep_clean(&p, &text, "CLAUDE.md w=1200", false);
+    assert_vertical_sweep_clean(&p, &text, "fixture w=1200", false);
     for w in [560.0f32, 900.0, 1620.0] {
         p.set_size(w, 800.0);
-        assert_vertical_sweep_clean(&p, &text, &format!("CLAUDE.md w={w}"), true);
+        assert_vertical_sweep_clean(&p, &text, &format!("fixture w={w}"), true);
     }
     // HiDPI: the live Retina window (dpi 2) shapes at doubled metrics — walk
     // one doubled-width point so the scaled advances get the same guarantee.
     p.set_dpi(2.0);
     p.set_size(2400.0, 1600.0);
-    assert_vertical_sweep_clean(&p, &text, "CLAUDE.md dpi=2 w=2400", true);
+    assert_vertical_sweep_clean(&p, &text, "fixture dpi=2 w=2400", true);
     p.set_dpi(1.0);
     p.set_size(1200.0, 800.0);
 }
@@ -492,10 +513,25 @@ fn oracle_vertical_sweep_bullet_bold_fixture() {
     p.set_size(1200.0, 800.0);
 }
 
+/// A long enough soft-wrapping document for a 200-step held-arrow walk to
+/// never reach the bottom edge -- generated, not checked in, since its only
+/// job is bulk: each paragraph is the same 400-char line the wrap-check at
+/// the top of this file already proves folds into 2+ visual rows, repeated
+/// well past the step count so the walk always has row left to descend into.
+fn held_walk_fixture_text() -> String {
+    let long = "word ".repeat(80);
+    let mut s = String::from("# Held-walk fixture\n\n");
+    for _ in 0..120 {
+        s.push_str(&long);
+        s.push_str("\n\n");
+    }
+    s
+}
+
 /// The LIVE held-arrow seam, pipeline-side: `App::sync_view` pushes a
 /// CURSOR-ONLY `ViewState` per OS auto-repeat (same text, same zoom — the
 /// reshape short-circuit skips all shaping). Walk the caret down a wrapped
-/// markdown doc exactly that way and assert, after EVERY push, that nothing the
+/// doc exactly that way and assert, after EVERY push, that nothing the
 /// skip left behind is stale: no reshape ran, the pipeline mirrors the pushed
 /// cursor, the caret spring TARGET equals the position computed from a
 /// freshly-invalidated row geometry (warm caches == cold truth), and the
@@ -514,8 +550,7 @@ fn held_cursor_only_view_pushes_stay_fresh() {
         eprintln!("skipping held_cursor_only_view_pushes_stay_fresh: no wgpu adapter");
         return;
     };
-    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/CLAUDE.md"))
-        .expect("CLAUDE.md present at crate root");
+    let text = held_walk_fixture_text();
     let mut v = view(&text, 0, 0);
     v.is_markdown = true;
     v.held = true;
@@ -578,11 +613,12 @@ fn held_cursor_only_view_pushes_stay_fresh() {
         // (CLAUDE.md's WYSIWYG section) cascades to every row index below it.
         // Stepping DOWN off such a line can therefore hold the global row
         // flat for exactly this one step (the line just shed a row as it
-        // re-concealed) — never regress, only plateau. A full 500-step sweep
-        // of this very file confirms no ACTUAL decrease ever occurs, only
-        // occasional equality, so `>=` (not the old strict `>`) is the
-        // correct invariant post-WYSIWYG; strict monotonicity is preserved
-        // pre-WYSIWYG (color-only conceal never changed wrap counts).
+        // re-concealed) — never regress, only plateau. `>=` (not a strict
+        // `>`) is therefore the correct invariant post-WYSIWYG; strict
+        // monotonicity holds pre-WYSIWYG (color-only conceal never changed
+        // wrap counts), and this fixture carries no bold/italic span at all
+        // so the plateau case never actually fires here — `>=` is checked
+        // regardless, so a future markup-bearing fixture stays covered.
         assert!(
             warm_row >= prev_row,
             "the scroll-follow row regressed on step {step}: {prev_row} -> {warm_row}"
