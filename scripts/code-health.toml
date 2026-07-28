@@ -39,7 +39,7 @@ lines = 581
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1095
+lines = 1093
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -283,7 +283,7 @@ lines = 1121
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 2403
+lines = 2380
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
@@ -403,7 +403,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 838
+line = 847
 message = "this function has too many lines (114/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

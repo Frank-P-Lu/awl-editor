@@ -891,12 +891,7 @@ impl App {
                     }
                     return;
                 }
-                // CMD-CLICK → follow link: a Super-held left press on a markdown link
-                // opens it in the browser (the mouse twin of C-c C-o), swallowing the
-                // click so it never moves the caret / starts a selection. Off a link
-                // it falls through to the normal press. Only on the bare document — a
-                // summoned picker / search panel owns the click first (the chain
-                // below), so this is gated on neither being open.
+                // Cmd-click follows a bare-document link and swallows the press.
                 if self.mods.state().contains(ModifiersState::SUPER)
                     && self.overlay.is_none()
                     && self.search.is_none()
@@ -905,14 +900,8 @@ impl App {
                 {
                     return;
                 }
-                // FORMAT POPOVER: a press on the summoned format toolbar fires that
-                // button's catalog Action through the SAME `App::apply` seam a chord
-                // uses (the menu-bar precedent — no popover-only edit path), keeping
-                // the popover OPEN so a run of toggles is one gesture; a press inside
-                // the card but off a button is swallowed (calm no-op, stays open); a
-                // press OFF the card dismisses it and falls through to the normal
-                // document press. Only on the bare document (the popover never shows
-                // over an overlay / search panel).
+                // Format-popover buttons use the shared action path; off-card presses
+                // dismiss, while in-card gaps are swallowed.
                 if self.popover_open && self.overlay.is_none() && self.search.is_none() {
                     let (px, py) = self.cursor_px;
                     let hit = self
