@@ -140,8 +140,7 @@ impl TextPipeline {
         self.strike_pipeline.set_color(strike_srgba_bytes());
         self.link_underline_pipeline
             .set_color(link_underline_srgba_bytes());
-        self.background_pipeline
-            .set_gradient(crate::background::active_desc());
+        self.background_pipeline.set_gradient(background_desc());
         self.page_frame_pipeline
             .set_color(theme::page_frame_ink().rgba_bytes());
         self.placard_stipple
