@@ -113,6 +113,64 @@ fn textbox_char_and_word_motion_match_buffer_char_indices() {
     }
 }
 
+/// WORD-MOTION PARITY over the cluster corpus, from EVERY starting index:
+/// `TextBox`'s M-f / M-b land the same char index as the document's, and
+/// that index is always a grapheme-cluster boundary. Both models call the
+/// same two free fns, so this is what proves the fix reached every text
+/// field in the app and not just the document — and what would catch a
+/// future "fix" applied to `Buffer::forward_word` alone.
+///
+/// The corpus is [`crate::grapheme::CLUSTER_CORPUS`], shared with the
+/// buffer's and the hit test's own laws: the classes that break word
+/// motion are not the ones that break a char step (a combining acute is
+/// non-word, a Hangul jamo and a Devanagari consonant are word chars, and
+/// a Devanagari virama is a non-word char INSIDE one cluster), so a
+/// combining-mark-only fixture list would miss the backward case.
+#[test]
+fn textbox_word_motion_matches_buffer_and_stays_on_cluster_boundaries() {
+    for (label, text) in crate::grapheme::CLUSTER_CORPUS.iter().copied() {
+        let bounds = crate::grapheme::boundaries_of(text);
+        let len = text.chars().count();
+        for start in 0..=len {
+            let mut tb = TextBox::seeded(text);
+            tb.set_caret(start);
+            let mut buf = Buffer::from_str(text);
+            buf.set_cursor(start);
+
+            tb.word_right();
+            buf.forward_word();
+            assert_eq!(
+                tb.caret(),
+                buf.cursor_char(),
+                "{label}@{start}: word_right parity"
+            );
+            assert!(
+                bounds.contains(&tb.caret()),
+                "{label}@{start}: word_right rests at {} inside a cluster of {text:?} \
+                 (boundaries {bounds:?})",
+                tb.caret()
+            );
+
+            let mut tb = TextBox::seeded(text);
+            tb.set_caret(start);
+            tb.word_left();
+            buf.set_cursor(start);
+            buf.backward_word();
+            assert_eq!(
+                tb.caret(),
+                buf.cursor_char(),
+                "{label}@{start}: word_left parity"
+            );
+            assert!(
+                bounds.contains(&tb.caret()),
+                "{label}@{start}: word_left rests at {} inside a cluster of {text:?} \
+                 (boundaries {bounds:?})",
+                tb.caret()
+            );
+        }
+    }
+}
+
 /// THE CHARACTER-STEP LAW: walking a fixture end to end one char step at a
 /// time visits EXACTLY the extended-grapheme-cluster boundaries — in the
 /// document [`Buffer`] and in a [`TextBox`], forward and backward, with no

@@ -1444,18 +1444,42 @@ impl TextPipeline {
         Self::cluster_col(run, raw, target_x)
     }
 
-    /// `raw` — a column the glyph walk landed on — moved to the cluster boundary
-    /// the pointer is NEAREST, measured against the cluster's own INK so the left
-    /// half of a rendered character selects its start and the right half its end.
-    /// The identity whenever `raw` is already a boundary, which is every ASCII,
-    /// CJK and precomposed case, so ordinary clicks are byte-identical.
+    /// `raw` — a column the per-glyph walk landed on — resolved against the INK of
+    /// the MULTI-CHAR cluster the pointer sits in: its left half answers with the
+    /// cluster's start, its right half with the end.
+    ///
+    /// It has to be the whole cluster's ink and not one glyph's, because a cluster
+    /// shaped as SEVERAL glyphs makes the per-glyph walk both wrong and jumpy: on
+    /// `a😀\u{200d}😀b` (one cluster, three glyphs, all stamped with the same byte
+    /// span) sweeping the pointer rightward answered start, end, start, end, so
+    /// clicking the right half of the sequence put the caret BEFORE it.
+    ///
+    /// A cluster of ONE char is left to the glyph walk, whose answer is already the
+    /// same — so every ASCII/CJK/precomposed click is byte-identical, and so is a
+    /// LIGATURE whose glyph span covers several clusters (`fi`, or a Monaspace
+    /// texture-healed `=>`): those clusters have no ink of their own to measure,
+    /// and the fallback keeps today's behavior rather than inventing a position.
     fn cluster_col(run: &glyphon::cosmic_text::LayoutRun, raw: usize, target_x: f32) -> usize {
         let line_text = run.text;
         let chars: Vec<char> = line_text.chars().collect();
-        let start = crate::grapheme::snap_backward(raw, chars.len(), |i| chars[i]);
-        let end = crate::grapheme::snap_forward(raw, chars.len(), |i| chars[i]);
-        if start == end {
-            return raw;
+        let len = chars.len();
+        let at = |i: usize| chars[i];
+        let (back, fwd) = (
+            crate::grapheme::snap_backward(raw, len, at),
+            crate::grapheme::snap_forward(raw, len, at),
+        );
+        // Interior: exactly one candidate, the cluster holding `raw`. On a boundary:
+        // the pointer is in the cluster on one side of it — its own ink says which.
+        let mut spans = [None, None];
+        if back != fwd {
+            spans[0] = Some((back, fwd));
+        } else {
+            if raw < len {
+                spans[0] = Some((raw, crate::grapheme::next_cluster_boundary(raw, len, at)));
+            }
+            if raw > 0 {
+                spans[1] = Some((crate::grapheme::prev_cluster_boundary(raw, at), raw));
+            }
         }
         let byte_of = |col: usize| -> usize {
             line_text
@@ -1464,20 +1488,30 @@ impl TextPipeline {
                 .map(|(b, _)| b)
                 .unwrap_or(line_text.len())
         };
-        let (first, last) = (byte_of(start), byte_of(end));
-        let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
-        for g in run.glyphs.iter().filter(|g| g.start >= first && g.end <= last) {
-            lo = lo.min(g.x);
-            hi = hi.max(g.x + g.w);
+        for (start, end) in spans.into_iter().flatten() {
+            if end - start < 2 {
+                continue;
+            }
+            let (first, last) = (byte_of(start), byte_of(end));
+            let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
+            for g in run
+                .glyphs
+                .iter()
+                .filter(|g| g.start >= first && g.end <= last)
+            {
+                lo = lo.min(g.x);
+                hi = hi.max(g.x + g.w);
+            }
+            if lo >= hi || target_x < lo || target_x >= hi {
+                continue;
+            }
+            // In an RTL run the cluster's logical START sits at the RIGHT of its ink.
+            let past_middle = target_x >= (lo + hi) * 0.5;
+            return if past_middle == run.rtl { start } else { end };
         }
-        if lo > hi {
-            // No glyph of this cluster carries ink (nothing to measure against):
-            // the cluster's end is still a real position, and the raw column is not.
-            return end;
-        }
-        // In an RTL run the cluster's logical START sits at the RIGHT of its ink.
-        let past_middle = target_x >= (lo + hi) * 0.5;
-        if past_middle == run.rtl { start } else { end }
+        // Nothing measurable: `fwd` IS `raw` whenever the walk landed on a boundary,
+        // and otherwise the cluster's end is a real position where `raw` is not.
+        fwd
     }
 
     /// Char column on a visual row whose cell contains `target_x` (relative to

@@ -205,12 +205,18 @@ pub(crate) const CLUSTER_CORPUS: &[(&str, &str)] = &[
     ("precomposed", "\u{00e9}X"),
     ("stacked marks", "a\u{0301}\u{0308}\u{0327}b"),
     ("long stack", "a\u{0301}\u{0308}\u{0327}\u{0331}\u{0324}b"),
-    ("emoji zwj family", "a\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}b"),
+    (
+        "emoji zwj family",
+        "a\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}b",
+    ),
     ("nonsense zwj", "a\u{1f600}\u{200d}\u{1f600}b"),
     ("flag", "a\u{1f1ef}\u{1f1f5}b"),
     ("two flags", "\u{1f1ef}\u{1f1f5}\u{1f1fa}\u{1f1f8}"),
     ("odd flag run", "a\u{1f1e6}\u{1f1e7}\u{1f1e8}b"),
-    ("tag flag", "a\u{1f3f4}\u{e0077}\u{e0061}\u{e0061}\u{e007f}b"),
+    (
+        "tag flag",
+        "a\u{1f3f4}\u{e0077}\u{e0061}\u{e0061}\u{e007f}b",
+    ),
     ("skin tone", "a\u{1f44d}\u{1f3fd}b"),
     ("variation selector", "a\u{2764}\u{fe0f}b"),
     ("keycap", "a1\u{fe0f}\u{20e3}b"),
@@ -355,9 +361,17 @@ mod tests {
         for (text, i, back, fwd, near) in cases {
             let chars: Vec<char> = text.chars().collect();
             let len = chars.len();
-            assert_eq!(snap_backward(i, len, |k| chars[k]), back, "{text:?} back {i}");
+            assert_eq!(
+                snap_backward(i, len, |k| chars[k]),
+                back,
+                "{text:?} back {i}"
+            );
             assert_eq!(snap_forward(i, len, |k| chars[k]), fwd, "{text:?} fwd {i}");
-            assert_eq!(snap_nearest(i, len, |k| chars[k]), near, "{text:?} near {i}");
+            assert_eq!(
+                snap_nearest(i, len, |k| chars[k]),
+                near,
+                "{text:?} near {i}"
+            );
         }
     }
 
