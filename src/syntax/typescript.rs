@@ -1,171 +1,68 @@
-//! TypeScript syntax lexer — a minimal hand-written byte scanner mirroring the
-//! reference lexers in `rust.rs` / `python.rs`. It recognizes only what the four
-//! Alabaster roles need and leaves everything else (keywords, operators,
-//! identifiers, punctuation) as the default ink:
+//! TypeScript — the shared definition walk ([`crate::syntax::scanner`]) under
+//! TS's constants. Everything outside the four Alabaster roles (keywords,
+//! operators, identifiers, punctuation) stays the default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` and `/* block */` comments (TS blocks do
-//!   NOT nest — the first `*/` closes).
-//! - [`SynKind::Str`]        — `"..."`, `'...'`, and `` `...` `` template literals
+//! - `Comment`    — `// line` and `/* block */` comments (TS blocks do NOT nest —
+//!   the first `*/` closes).
+//! - `Str`        — `"..."`, `'...'`, and `` `...` `` template literals
 //!   (multiline; an interpolated `${…}` rides inside the one Str span).
-//! - [`SynKind::Constant`]   — numeric literals (`0x`/`0o`/`0b`, floats, `_`
-//!   separators, exponents, the `n` BigInt suffix) and `true` / `false` / `null`
-//!   / `undefined`.
-//! - [`SynKind::Definition`] — the identifier right after a `function` / `class` /
+//! - `Constant`   — numeric literals (`0x`/`0o`/`0b`, floats, `_` separators,
+//!   exponents, the `n` BigInt suffix) and `true` / `false` / `null` /
+//!   `undefined`.
+//! - `Definition` — the identifier right after a `function` / `class` /
 //!   `interface` / `type` / `enum` / `namespace` / `module` introducer or a
 //!   `const` / `let` / `var` binding.
-//!
-//! Span boundaries land on ASCII bytes (quotes, `/`, digits, ASCII identifiers),
-//! so multibyte UTF-8 inside a string/comment rides inside the span without ever
-//! splitting a char. Pure + single-pass. See the tests below for the contract.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// Introducers after which the next identifier is the DEFINITION name.
-const DEF_KEYWORDS: &[&str] = &[
-    "function",
-    "class",
-    "interface",
-    "type",
-    "enum",
-    "namespace",
-    "module",
-    "const",
-    "let",
-    "var",
-];
-
-/// Identifiers that are CONSTANT literals (booleans + the nil-style values).
-const CONST_WORDS: &[&str] = &["true", "false", "null", "undefined"];
-
-use super::{
-    is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start,
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Flat,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXoObB",
+        radix_extra: b"",
+        dot_dot_stops: true,
+    }),
+    ident_start: super::is_ident_start_dollar,
+    ident_continue: super::is_ident_continue_dollar,
+    def_kws: &[
+        "function",
+        "class",
+        "interface",
+        "type",
+        "enum",
+        "namespace",
+        "module",
+        "const",
+        "let",
+        "var",
+    ],
+    const_words: &["true", "false", "null", "undefined"],
+    words: WordRule::Standard,
+    def_survives: b"",
+    receiver_kw: None,
 };
 
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (TS does NOT nest — first `*/` closes) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, false);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- template literal: `...` (multiline; `${…}` rides inside) ---
-        if c == b'`' {
-            let end = scan_template(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- normal string: "..." or '...' ---
-        if c == b'"' || c == b'\'' {
-            let end = scan_string(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace) stays default ink.
-        if !c.is_ascii_whitespace() {
-            // A non-identifier, non-whitespace token after a def keyword means the
-            // name never materialized — drop the expectation.
-            expect_def = false;
-        }
-        i += 1;
+/// A `` ` `` template (spans newlines, `${…}` rides inside the one span) or a
+/// `"`/`'` string (which does not cross an unescaped newline).
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
+    match b[i] {
+        b'`' => Some(super::scan_quoted(b, i, b'`', false)),
+        b'"' | b'\'' => Some(super::scan_quoted(b, i, b[i], true)),
+        _ => None,
     }
-
-    out
 }
 
-/// Scan a normal quoted string (`"` or `'`) starting at the opening quote `q`;
-/// returns the index just past the closing quote (or EOF / end-of-line — a normal
-/// TS string does not cross an unescaped newline). Honors `\\` escapes.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b[q], true)
-}
-
-/// Scan a template literal from the opening backtick `q` to just past its close
-/// (or EOF). Templates span newlines; honors `\\` escapes. An interpolated `${…}`
-/// is NOT lexed specially — the whole literal is one [`SynKind::Str`] span.
-fn scan_template(b: &[u8], q: usize) -> usize {
-    let n = b.len();
-    let mut i = q + 1;
-    while i < n {
-        match b[i] {
-            b'\\' => i += 2,
-            b'`' => return i + 1,
-            _ => i += 1,
-        }
-    }
-    n
-}
-
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0o`/`0b` radixes, `_` separators, a fractional `.`, an
-/// exponent, and the trailing `n` BigInt suffix.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXoObB",
-            radix_extra: b"",
-            dot_dot_stops: true,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> super::Spans {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

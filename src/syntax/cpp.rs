@@ -1,136 +1,51 @@
-//! C++ syntax lexer — a minimal hand-written byte scanner in the shape of the
-//! reference lexers (`rust.rs`, `python.rs`). It recognizes only what the four
-//! Alabaster roles need and leaves everything else (keywords, operators,
-//! identifiers, punctuation, preprocessor directives) as the default ink:
+//! C++ — the shared definition walk ([`crate::syntax::scanner`]) under C++'s
+//! constants. It recognizes only what the four Alabaster roles need and leaves
+//! everything else (keywords, operators, identifiers, punctuation, preprocessor
+//! directives) as the default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` and `/* block */` comments (C++ block
-//!   comments do NOT nest — the first `*/` closes them).
-//! - [`SynKind::Str`]        — `"strings"` and `'c'` char literals, their encoding
-//!   prefixes (`L`/`u`/`U`/`u8`), and raw strings `R"delim(...)delim"` (with the
-//!   same prefixes, e.g. `LR"(...)"`). Escapes are honored so `\"` / `\'` don't
-//!   close the literal.
-//! - [`SynKind::Constant`]   — numeric literals (incl. `0x`/`0b` radixes, floats,
-//!   hex-float `p` exponents, C++14 `'` digit separators, type suffixes) and the
-//!   `true` / `false` / `nullptr` / `NULL` literals.
-//! - [`SynKind::Definition`] — the identifier right after a `class` / `struct` /
-//!   `union` / `enum` / `namespace` / `concept` introducer (best-effort; an
-//!   `enum class Name` skips the inner `class` so `Name` is the definition).
-//!
-//! Span boundaries always land on ASCII bytes (quotes, `/`, digits, ASCII
-//! identifiers), so multibyte UTF-8 inside a string/comment rides inside the span
-//! without ever splitting a char. Pure + allocation-light: one pass, push as we go.
-//! See the tests at the bottom for the exact contract on a sample snippet.
+//! - `Comment`    — `// line` and `/* block */` comments (C++ blocks do NOT nest
+//!   — the first `*/` closes them).
+//! - `Str`        — `"strings"` and `'c'` char literals, their encoding prefixes
+//!   (`L`/`u`/`U`/`u8`), and raw strings `R"delim(...)delim"` (with the same
+//!   prefixes, e.g. `LR"(...)"`). Escapes are honored so `\"` / `\'` don't close
+//!   the literal.
+//! - `Constant`   — numeric literals (incl. `0x`/`0b` radixes, floats, hex-float
+//!   `p` exponents, C++14 `'` digit separators, type suffixes) and `true` /
+//!   `false` / `nullptr` / `NULL`.
+//! - `Definition` — the identifier right after a `class` / `struct` / `union` /
+//!   `enum` / `namespace` / `concept` introducer (best-effort; an `enum class
+//!   Name` skips the inner `class` so `Name` is the definition).
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// Introducers after which the next identifier is the DEFINITION name.
-const DEF_KEYWORDS: &[&str] = &["class", "struct", "union", "enum", "namespace", "concept"];
-/// Identifiers that are CONSTANT literals (booleans + the nil-style values).
-const CONST_WORDS: &[&str] = &["true", "false", "nullptr", "NULL"];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Flat,
+    string_at,
+    number: Number::Own(scan_number),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    def_kws: &["class", "struct", "union", "enum", "namespace", "concept"],
+    const_words: &["true", "false", "nullptr", "NULL"],
+    // `enum class Name` chains two introducers; the introducer-first order keeps
+    // the expectation alive past the inner `class` so `Name` is the definition.
+    words: WordRule::IntroducerFirst,
+    def_survives: b"",
+    receiver_kw: None,
+};
 
-use super::{is_ident_continue, is_ident_start};
-
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (C++ does NOT nest them) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, false);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- raw string: R"d(...)d" with optional L/u/U/u8 prefix ---
-        if let Some(end) = raw_string(b, i) {
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- normal string: "..." with optional L/u/U/u8 prefix ---
-        if let Some(p) = enc_prefix_for(b, i, b'"') {
-            let end = scan_string(b, i + p);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- char literal: 'c' with optional L/u/U/u8 prefix ---
-        if let Some(p) = enc_prefix_for(b, i, b'\'') {
-            let end = scan_char(b, i + p);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            // NOT the shared `super::ident_role`: C++ must check the INTRODUCER
-            // before the pending-name so `enum class Name` chains past the inner
-            // `class` to `Name` (see `enum_class_names_the_type`), so it keeps its
-            // own introducer-first order here.
-            let word = &text[start..i];
-            if CONST_WORDS.contains(&word) {
-                out.push((start..i, SynKind::Constant));
-                expect_def = false;
-            } else if DEF_KEYWORDS.contains(&word) {
-                // A def introducer. `enum class Name` chains two of them; keep
-                // expecting so the NAME (not the inner `class`) is the definition.
-                expect_def = true;
-            } else if expect_def {
-                // The name introduced by the preceding keyword.
-                out.push((start..i, SynKind::Definition));
-                expect_def = false;
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, `#` directive, whitespace) stays
-        // default ink. A non-identifier, non-whitespace token after a def keyword
-        // means the name never materialized — drop the expectation.
-        if !c.is_ascii_whitespace() {
-            expect_def = false;
-        }
-        i += 1;
+/// A raw `R"d(…)d"` string, or a `"`/`'` literal, each optionally behind an
+/// `L`/`u`/`U`/`u8` encoding prefix. Neither non-raw form stops at a newline.
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
+    if let Some(end) = raw_string(b, i) {
+        return Some(end);
     }
-
-    out
+    for quote in [b'"', b'\''] {
+        if let Some(p) = enc_prefix_for(b, i, quote) {
+            return Some(super::scan_quoted(b, i + p, quote, false));
+        }
+    }
+    None
 }
 
 /// If `b[i..]` opens a (non-raw) string/char literal with the given `quote`,
@@ -199,29 +114,6 @@ fn raw_string(b: &[u8], i: usize) -> Option<usize> {
     Some(n) // unterminated: run to EOF
 }
 
-/// Scan a normal double-quoted string starting at the opening quote `q`; returns
-/// the index just past the closing quote (or EOF if unterminated). Honors `\\`
-/// escapes so an escaped quote does not close the string.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b'"', false)
-}
-
-/// Scan a char literal starting at the opening quote `q`; returns the index just
-/// past the closing `'` (or EOF if unterminated). Honors `\\` escapes; C++ allows
-/// multi-char literals (`'ab'`), so we run to the next unescaped quote.
-fn scan_char(b: &[u8], q: usize) -> usize {
-    let n = b.len();
-    let mut i = q + 1;
-    while i < n {
-        match b[i] {
-            b'\\' => i += 2,
-            b'\'' => return i + 1,
-            _ => i += 1,
-        }
-    }
-    n
-}
-
 /// Scan a numeric literal beginning at the digit `i`; returns the index just past
 /// it. Accepts `0x`/`0b` radixes, C++14 `'` digit separators, a fractional `.`,
 /// decimal/hex (`e`/`p`) exponents with a sign, and a trailing type suffix
@@ -258,8 +150,14 @@ fn scan_number(b: &[u8], i: usize) -> usize {
 }
 
 #[cfg(test)]
+fn spans(text: &str) -> super::Spans {
+    super::scanner::scan(&SPEC, text)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

@@ -1,131 +1,59 @@
-//! C# syntax lexer — a minimal hand-written byte scanner over the raw bytes,
-//! mirroring the reference lexers in [`crate::syntax::rust`] and
-//! [`crate::syntax::python`]. It recognizes only what the four Alabaster roles
-//! need and leaves everything else (keywords, operators, identifiers,
-//! punctuation) as the default ink:
+//! C# — the shared definition walk ([`crate::syntax::scanner`]) under C#'s
+//! constants. It recognizes only what the four Alabaster roles need and leaves
+//! everything else (keywords, operators, identifiers, punctuation) default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` (incl. `///` XML doc) and `/* block */`
-//!   comments. C# block comments do NOT nest, so the first `*/` closes.
-//! - [`SynKind::Str`]        — `"strings"` (with `\` escapes), `@"verbatim"`
-//!   (where `""` is the escaped quote and `\` is literal), `$"interpolated"` and
-//!   the `$@`/`@$` combo, `"""raw"""` literals, and `'c'` char literals. An
-//!   interpolated string is treated as ONE `Str` span (we do not recurse into
-//!   the `{ … }` holes).
-//! - [`SynKind::Constant`]   — numeric literals (incl. `0x`/`0b`, `_` separators,
-//!   `f`/`d`/`m`/`u`/`l` suffixes) and the `true` / `false` / `null` literals.
-//! - [`SynKind::Definition`] — the identifier right after a `class` / `struct` /
-//!   `interface` / `enum` / `record` / `namespace` introducer. (`delegate` is
-//!   deliberately omitted: its NAME follows a return type, not the keyword.)
-//!
-//! Span boundaries always land on ASCII bytes (quotes, `/`, digits, ASCII
-//! identifiers), so multibyte UTF-8 inside a string/comment rides inside the span
-//! without ever splitting a char. Pure + single-pass. See the tests at the bottom
-//! for the exact contract on a sample snippet.
+//! - `Comment`    — `// line` (incl. `///` XML doc) and `/* block */` comments.
+//!   C# blocks do NOT nest, so the first `*/` closes.
+//! - `Str`        — `"strings"` (with `\` escapes), `@"verbatim"` (where `""` is
+//!   the escaped quote and `\` is literal), `$"interpolated"` and the `$@`/`@$`
+//!   combo, `"""raw"""` literals, and `'c'` char literals. An interpolated string
+//!   is ONE `Str` span (we do not recurse into the `{ … }` holes).
+//! - `Constant`   — numeric literals (incl. `0x`/`0b`, `_` separators,
+//!   `f`/`d`/`m`/`u`/`l` suffixes) and `true` / `false` / `null`.
+//! - `Definition` — the identifier right after a `class` / `struct` / `interface`
+//!   / `enum` / `record` / `namespace` introducer. (`delegate` is deliberately
+//!   omitted: its NAME follows a return type, not the keyword.)
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// The keyword introducers after which the next identifier is the DEFINITION name.
-const DEF_KEYWORDS: &[&str] = &[
-    "class",
-    "struct",
-    "interface",
-    "enum",
-    "record",
-    "namespace",
-];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Flat,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXbB",
+        radix_extra: b"",
+        dot_dot_stops: true,
+    }),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    def_kws: &[
+        "class",
+        "struct",
+        "interface",
+        "enum",
+        "record",
+        "namespace",
+    ],
+    const_words: &["true", "false", "null"],
+    words: WordRule::Standard,
+    def_survives: b"",
+    receiver_kw: None,
+};
 
-/// Identifiers that are CONSTANT literals (booleans + the `null` nil-style value).
-const CONST_WORDS: &[&str] = &["true", "false", "null"];
-
-use super::{is_ident_continue, is_ident_start};
-
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment (covers `//` and the `///` XML-doc form) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (C# does NOT nest them: first `*/` closes) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, false);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- string (optional `@`/`$` prefix, verbatim / interpolated / raw) ---
-        if let Some((q, verbatim)) = string_start(b, i) {
-            let end = if is_raw(b, q) {
-                scan_raw(b, q)
-            } else if verbatim {
-                scan_verbatim(b, q)
-            } else {
-                scan_string(b, q)
-            };
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- char literal (C# has no lifetimes, so `'…'` is always a char) ---
-        if c == b'\'' {
-            let end = scan_char(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace) stays default ink.
-        // A non-identifier, non-whitespace token after a def keyword means the
-        // name never materialized — drop the expectation.
-        if !c.is_ascii_whitespace() {
-            expect_def = false;
-        }
-        i += 1;
+/// A string behind an optional `@`/`$` prefix (raw / verbatim / normal), or a
+/// `'c'` char literal. Neither the normal string nor the char crosses a newline.
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
+    if let Some((q, verbatim)) = string_start(b, i) {
+        return Some(if is_raw(b, q) {
+            scan_raw(b, q)
+        } else if verbatim {
+            scan_verbatim(b, q)
+        } else {
+            super::scan_quoted(b, q, b'"', true)
+        });
     }
-
-    out
+    (b[i] == b'\'').then(|| super::scan_quoted(b, i, b'\'', true))
 }
 
 /// If a string literal starts at `i` — an optional `@`/`$` prefix (in either
@@ -217,50 +145,15 @@ fn scan_verbatim(b: &[u8], q: usize) -> usize {
     n
 }
 
-/// Scan a normal double-quoted string from the opening quote `q` to just past its
-/// close (or EOF / end-of-line — a non-verbatim C# string does not cross a
-/// newline). Honors `\` escapes so an escaped quote does not close the string.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b'"', true)
-}
-
-/// Scan a char literal from the opening quote `i` to just past its close (or
-/// EOF / end-of-line). Honors `\` escapes (`'\n'`, `'A'`, `'\''`).
-fn scan_char(b: &[u8], i: usize) -> usize {
-    let n = b.len();
-    debug_assert_eq!(b[i], b'\'');
-    let mut j = i + 1;
-    while j < n {
-        match b[j] {
-            b'\\' => j += 2,
-            b'\n' => return j,
-            b'\'' => return j + 1,
-            _ => j += 1,
-        }
-    }
-    n
-}
-
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0b` radixes, `_` separators, a fractional `.`, an exponent,
-/// and a trailing type suffix (`f`/`d`/`m`/`u`/`l`, any case). A `.` that is a
-/// member access on an integer (`.` then an ident start) is NOT consumed.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXbB",
-            radix_extra: b"",
-            dot_dot_stops: true,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> super::Spans {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

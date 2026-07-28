@@ -1,95 +1,46 @@
-//! Python syntax lexer — the second REFERENCE implementation (alongside
-//! `rust.rs`). A minimal hand-written byte scanner emitting only the four
-//! Alabaster roles; everything else stays the default ink:
+//! Python — the shared definition walk ([`crate::syntax::scanner`]) under
+//! Python's constants: `#` line comments, no block-comment form. Everything
+//! outside the four Alabaster roles stays the default ink:
 //!
-//! - [`SynKind::Comment`]    — `# line` comments.
-//! - [`SynKind::Str`]        — `'...'` / `"..."` and triple-quoted `'''...'''` /
-//!   `"""..."""`, including the `r`/`b`/`f`/`u` string prefixes (and combos).
-//! - [`SynKind::Constant`]   — numeric literals and `True` / `False` / `None`.
-//! - [`SynKind::Definition`] — the identifier right after a `def` or `class`.
-//!
-//! Span boundaries land on ASCII bytes; multibyte UTF-8 inside a string/comment
-//! rides inside the span. Pure + single-pass. See `rust.rs` for the template this
-//! mirrors and the tests below for the exact contract.
+//! - `Comment`    — `# line` comments.
+//! - `Str`        — `'...'` / `"..."` and triple-quoted `'''...'''` / `"""..."""`,
+//!   including the `r`/`b`/`f`/`u` string prefixes (and combos).
+//! - `Constant`   — numeric literals and `True` / `False` / `None`.
+//! - `Definition` — the identifier right after a `def` or `class`.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// Introducers after which the next identifier is the DEFINITION name.
-const DEF_KEYWORDS: &[&str] = &["def", "class"];
-/// Identifiers that are CONSTANT literals (booleans + the `None` nil value).
-const CONST_WORDS: &[&str] = &["True", "False", "None"];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Hash,
+    block: BlockComment::None,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXoObB",
+        radix_extra: b"",
+        dot_dot_stops: true,
+    }),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    def_kws: &["def", "class"],
+    const_words: &["True", "False", "None"],
+    words: WordRule::Standard,
+    def_survives: b"",
+    receiver_kw: None,
+};
 
-use super::{is_ident_continue, is_ident_start};
 /// A valid Python string-prefix letter (`r`/`b`/`f`/`u`, any case).
 fn is_prefix(c: u8) -> bool {
     matches!(c, b'r' | b'b' | b'f' | b'u' | b'R' | b'B' | b'F' | b'U')
 }
 
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- comment ---
-        if c == b'#' {
-            let start = i;
-            while i < n && b[i] != b'\n' {
-                i += 1;
-            }
-            out.push((start..i, SynKind::Comment));
-            continue;
-        }
-
-        // --- string (with optional prefix, triple or single) ---
-        if let Some((quote, triple)) = string_start(b, i) {
-            let end = if triple {
-                scan_triple(b, quote)
-            } else {
-                scan_string(b, quote)
-            };
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        if !c.is_ascii_whitespace() {
-            expect_def = false;
-        }
-        i += 1;
-    }
-
-    out
+/// A triple- or single-quoted string, behind up to two prefix letters.
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
+    let (quote, triple) = string_start(b, i)?;
+    Some(if triple {
+        scan_triple(b, quote)
+    } else {
+        super::scan_quoted(b, quote, b[quote], true)
+    })
 }
 
 /// If a string literal starts at `i` — an optional `r`/`b`/`f`/`u` prefix (up to
@@ -110,12 +61,6 @@ fn string_start(b: &[u8], i: usize) -> Option<(usize, bool)> {
     } else {
         None
     }
-}
-
-/// Scan a single-quoted string from the opening quote `q` to just past its close
-/// (or EOF / end-of-line — a single-quoted Python string does not cross a newline).
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b[q], true)
 }
 
 /// Scan a triple-quoted string from the opening quote `q` (the first of three) to
@@ -139,25 +84,15 @@ fn scan_triple(b: &[u8], q: usize) -> usize {
     n
 }
 
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0o`/`0b`, `_` separators, a fractional `.`, exponent, and a
-/// trailing `j` imaginary suffix.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXoObB",
-            radix_extra: b"",
-            dot_dot_stops: true,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> super::Spans {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

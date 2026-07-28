@@ -1,40 +1,55 @@
-//! C syntax lexer — a minimal hand-written byte scanner following the reference
-//! lexer in [`crate::syntax::rust`]. It recognizes only what the four Alabaster
-//! roles need and leaves everything else (keywords, operators, identifiers,
-//! punctuation, preprocessor directives) as the default ink:
+//! C — the shared definition walk ([`crate::syntax::scanner`]) under C's
+//! constants. It recognizes only what the four Alabaster roles need and leaves
+//! everything else (keywords, operators, identifiers, punctuation, preprocessor
+//! directives) as the default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` and `/* block */` comments. (C block
-//!   comments do NOT nest — the first `*/` closes.)
-//! - [`SynKind::Str`]        — `"strings"` and `'c'` char literals, including the
-//!   encoding prefixes `L`, `u`, `U`, and `u8` (`L"..."`, `u8"..."`, `U'x'`, …).
-//! - [`SynKind::Constant`]   — numeric literals (decimal, `0x`/`0b` radix, octal,
-//!   floats, `u`/`l`/`f` suffixes) and the `true` / `false` / `NULL` / `nullptr`
-//!   literals.
-//! - [`SynKind::Definition`] — the identifier right after a `struct` / `union` /
-//!   `enum` introducer (C tags the name right after the keyword; full function /
+//! - `Comment`    — `// line` and `/* block */` comments (C blocks do NOT nest —
+//!   the first `*/` closes).
+//! - `Str`        — `"strings"` and `'c'` char literals, including the encoding
+//!   prefixes `L`, `u`, `U`, and `u8` (`L"..."`, `u8"..."`, `U'x'`, …).
+//! - `Constant`   — numeric literals (decimal, `0x`/`0b` radix, octal, floats,
+//!   `u`/`l`/`f` suffixes) and `true` / `false` / `NULL` / `nullptr`.
+//! - `Definition` — the identifier right after a `struct` / `union` / `enum`
+//!   introducer (C tags the name right after the keyword; full function /
 //!   typedef-name detection needs a real parser, so we stay best-effort here).
-//!
-//! Span boundaries always land on ASCII bytes (quotes, `/`, digits, ASCII
-//! identifiers), so multibyte UTF-8 inside a string/comment rides along inside the
-//! span without ever splitting a char. Pure + allocation-light: one pass, push as
-//! we go. See the tests at the bottom for the exact contract on a sample snippet.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// The keyword introducers after which the next identifier is the DEFINITION name.
-/// C has no `fn`/`func`; the reliably-positioned names are the tag types.
-const DEF_KEYWORDS: &[&str] = &["struct", "union", "enum"];
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Flat,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXbB",
+        radix_extra: b"",
+        dot_dot_stops: false,
+    }),
+    ident_start: super::is_ident_start,
+    ident_continue: super::is_ident_continue,
+    // C has no `fn`/`func`; the reliably-positioned names are the tag types. This
+    // also handles `typedef struct Foo`: `typedef` is plain and `struct` arms.
+    def_kws: &["struct", "union", "enum"],
+    const_words: &["true", "false", "NULL", "nullptr"],
+    words: WordRule::Standard,
+    def_survives: b"",
+    receiver_kw: None,
+};
 
-/// Identifiers that are CONSTANT literals (booleans + the nil-style values).
-const CONST_WORDS: &[&str] = &["true", "false", "NULL", "nullptr"];
-
-use super::{is_ident_continue, is_ident_start};
+/// A `"`/`'` literal, optionally behind an `L`/`u`/`U`/`u8` encoding prefix.
+/// Neither form stops at a newline in C.
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
+    let q = match encoding_prefix(b, i) {
+        Some(q) => q,
+        None if b[i] == b'"' || b[i] == b'\'' => i,
+        None => return None,
+    };
+    Some(super::scan_quoted(b, q, b[q], false))
+}
 
 /// If a string/char encoding prefix (`L`, `u`, `U`, `u8`) begins at `i` and is
 /// immediately followed by a quote, return the byte index of that quote; else
 /// `None`.
-fn string_prefix(b: &[u8], i: usize) -> Option<usize> {
+fn encoding_prefix(b: &[u8], i: usize) -> Option<usize> {
     let n = b.len();
     match b[i] {
         b'L' | b'U' if i + 1 < n && (b[i + 1] == b'"' || b[i + 1] == b'\'') => Some(i + 1),
@@ -51,148 +66,15 @@ fn string_prefix(b: &[u8], i: usize) -> Option<usize> {
     }
 }
 
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
-    let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (C does NOT nest them) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, false);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- prefixed string / char (L"..", u8"..", U'x', …) ---
-        if let Some(q) = string_prefix(b, i) {
-            let end = if b[q] == b'"' {
-                scan_string(b, q)
-            } else {
-                char_literal(b, q)
-            };
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- string literal ---
-        if c == b'"' {
-            let end = scan_string(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- char literal ---
-        if c == b'\'' {
-            let end = char_literal(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            // A tag introducer (`struct`/`union`/`enum`) arms the expectation so the
-            // NEXT identifier is the name; this also handles `typedef struct Foo`,
-            // since `typedef` is plain and `struct` does the arming. C never places
-            // two tag keywords adjacently, so the shared precedence is exact here.
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace, `#`) stays default
-        // ink. A non-identifier token between a tag keyword and its name means the
-        // name never materialized (e.g. an anonymous `struct {`) — drop the
-        // expectation, but let intervening whitespace ride.
-        if !c.is_ascii_whitespace() {
-            expect_def = false;
-        }
-        i += 1;
-    }
-
-    out
-}
-
-/// Scan a normal double-quoted string starting at the opening quote `q`; returns
-/// the index just past the closing quote (or EOF if unterminated). Honors `\\`
-/// escapes so an escaped quote does not close the string.
-fn scan_string(b: &[u8], q: usize) -> usize {
-    super::scan_quoted(b, q, b'"', false)
-}
-
-/// Scan a CHAR literal starting at the opening quote `q` (`'x'`, `'\n'`, `'\0'`);
-/// returns the index just past the closing quote (or EOF if unterminated). Honors
-/// `\\` escapes. Unlike Rust there are no lifetimes, so a `'` always opens a char.
-fn char_literal(b: &[u8], q: usize) -> usize {
-    let n = b.len();
-    let mut i = q + 1;
-    while i < n {
-        match b[i] {
-            b'\\' => i += 2,
-            b'\'' => return i + 1,
-            _ => i += 1,
-        }
-    }
-    n
-}
-
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0X` hex, `0b`/`0B` binary, octal, a fractional `.`, an
-/// exponent, and trailing type suffixes (`u`, `l`, `ll`, `f`, …).
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXbB",
-            radix_extra: b"",
-            dot_dot_stops: false,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> super::Spans {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

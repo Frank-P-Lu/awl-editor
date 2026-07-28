@@ -1,135 +1,50 @@
-//! Java syntax lexer — a minimal hand-written byte scanner following the
-//! reference lexers in [`crate::syntax::rust`] and [`crate::syntax::python`]. It
-//! emits only the four Alabaster roles and leaves everything else (keywords,
-//! operators, identifiers, punctuation) as the default ink:
+//! Java — the shared definition walk ([`crate::syntax::scanner`]) under Java's
+//! constants. It emits only the four Alabaster roles and leaves everything else
+//! (keywords, operators, identifiers, punctuation) as the default ink:
 //!
-//! - [`SynKind::Comment`]    — `// line` and `/* block */` comments (Java block
-//!   comments do NOT nest — the first `*/` closes).
-//! - [`SynKind::Str`]        — `"strings"`, `'c'` char literals, and `"""` text
-//!   blocks (Java 13+ multi-line strings).
-//! - [`SynKind::Constant`]   — numeric literals (incl. `0x`/`0b`/octal, `_`
-//!   separators, `L`/`f`/`d` suffixes, floats/exponents) and the `true` /
-//!   `false` / `null` literals.
-//! - [`SynKind::Definition`] — the identifier right after a `class` / `interface`
-//!   / `enum` / `record` introducer.
-//!
-//! Span boundaries land on ASCII bytes (quotes, `/`, digits, ASCII identifiers),
-//! so multibyte UTF-8 inside a string/comment rides inside the span without ever
-//! splitting a char. Pure + single-pass. See the tests below for the contract.
+//! - `Comment`    — `// line` and `/* block */` comments (Java blocks do NOT nest
+//!   — the first `*/` closes).
+//! - `Str`        — `"strings"`, `'c'` char literals, and `"""` text blocks
+//!   (Java 13+ multi-line strings).
+//! - `Constant`   — numeric literals (incl. `0x`/`0b`/octal, `_` separators,
+//!   `L`/`f`/`d` suffixes, floats/exponents) and `true` / `false` / `null`.
+//! - `Definition` — the identifier right after a `class` / `interface` / `enum` /
+//!   `record` introducer.
 
-use super::SynKind;
-use std::ops::Range;
+use super::scanner::{BlockComment, LangSpec, LineComment, Number, WordRule};
 
-/// Introducers after which the next identifier is the DEFINITION name.
-const DEF_KEYWORDS: &[&str] = &["class", "interface", "enum", "record"];
-/// Identifiers that are CONSTANT literals (booleans + the `null` nil value).
-const CONST_WORDS: &[&str] = &["true", "false", "null"];
-
-use super::{
-    is_ident_continue_dollar as is_ident_continue, is_ident_start_dollar as is_ident_start,
+pub(super) const SPEC: LangSpec = LangSpec {
+    line: LineComment::Slashes,
+    block: BlockComment::Flat,
+    string_at,
+    number: Number::Shared(super::NumOpts {
+        radix: b"xXbB",
+        radix_extra: b"",
+        dot_dot_stops: false,
+    }),
+    ident_start: super::is_ident_start_dollar,
+    ident_continue: super::is_ident_continue_dollar,
+    def_kws: &["class", "interface", "enum", "record"],
+    const_words: &["true", "false", "null"],
+    words: WordRule::Standard,
+    def_survives: b"",
+    receiver_kw: None,
 };
 
-pub fn spans(text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let b = text.as_bytes();
+/// A `"""` text block, or a `"`/`'` literal (neither of which crosses a newline).
+fn string_at(b: &[u8], i: usize) -> Option<usize> {
     let n = b.len();
-    let mut out: Vec<(Range<usize>, SynKind)> = Vec::new();
-    let mut i = 0usize;
-    // Set when the previous significant token was a DEF_KEYWORD; the next
-    // identifier is then the defined NAME.
-    let mut expect_def = false;
-
-    while i < n {
-        let c = b[i];
-
-        // --- line comment ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
-            let end = super::scan_line_comment(b, i);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- block comment (Java does NOT nest them) ---
-        if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
-            let end = super::scan_block_comment(b, i, false);
-            out.push((i..end, SynKind::Comment));
-            i = end;
-            continue;
-        }
-
-        // --- text block: """ ... """ ---
-        if c == b'"' && i + 2 < n && b[i + 1] == b'"' && b[i + 2] == b'"' {
-            let end = scan_text_block(b, i);
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- normal string ---
-        if c == b'"' {
-            let end = scan_string(b, i, b'"');
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- char literal (Java has no lifetimes — `'` always opens one) ---
-        if c == b'\'' {
-            let end = scan_string(b, i, b'\'');
-            out.push((i..end, SynKind::Str));
-            i = end;
-            expect_def = false;
-            continue;
-        }
-
-        // --- number literal ---
-        if c.is_ascii_digit() {
-            let start = i;
-            i = scan_number(b, i);
-            out.push((start..i, SynKind::Constant));
-            expect_def = false;
-            continue;
-        }
-
-        // --- identifier / keyword ---
-        if is_ident_start(c) {
-            let start = i;
-            i += 1;
-            while i < n && is_ident_continue(b[i]) {
-                i += 1;
-            }
-            let word = &text[start..i];
-            if let Some(kind) = super::ident_role(word, DEF_KEYWORDS, CONST_WORDS, &mut expect_def)
-            {
-                out.push((start..i, kind));
-            }
-            continue;
-        }
-
-        // Any other byte (operator, punctuation, whitespace) stays default ink.
-        // A non-identifier, non-whitespace token after a def keyword means the
-        // name never materialized — drop the expectation.
-        if !c.is_ascii_whitespace() {
-            expect_def = false;
-        }
-        i += 1;
+    match b[i] {
+        b'"' if i + 2 < n && b[i + 1] == b'"' && b[i + 2] == b'"' => Some(text_block(b, i)),
+        b'"' => Some(super::scan_quoted(b, i, b'"', true)),
+        b'\'' => Some(super::scan_quoted(b, i, b'\'', true)),
+        _ => None,
     }
-
-    out
-}
-
-/// Scan a single-quoted string or char literal from the opening quote `q` to just
-/// past its close (or EOF / end-of-line — neither crosses a newline in Java).
-/// Honors `\\` escapes so an escaped quote does not close the literal.
-fn scan_string(b: &[u8], q: usize, quote: u8) -> usize {
-    super::scan_quoted(b, q, quote, true)
 }
 
 /// Scan a text block from the opening `"""` (at `q`) to just past the closing
 /// `"""` (or EOF). Honors `\\` escapes.
-fn scan_text_block(b: &[u8], q: usize) -> usize {
+fn text_block(b: &[u8], q: usize) -> usize {
     let n = b.len();
     let mut i = q + 3;
     while i < n {
@@ -146,26 +61,15 @@ fn scan_text_block(b: &[u8], q: usize) -> usize {
     n
 }
 
-/// Scan a numeric literal beginning at the digit `i`; returns the index just past
-/// it. Accepts `0x`/`0b` radixes, `_` separators, a fractional `.`, an exponent,
-/// and a trailing type suffix (`L`/`l`/`f`/`F`/`d`/`D`). A `.` not followed by a
-/// digit (method call on an int literal) is NOT consumed.
-fn scan_number(b: &[u8], i: usize) -> usize {
-    super::scan_number(
-        b,
-        i,
-        super::NumOpts {
-            radix: b"xXbB",
-            radix_extra: b"",
-            dot_dot_stops: false,
-        },
-        is_ident_start,
-    )
+#[cfg(test)]
+fn spans(text: &str) -> super::Spans {
+    super::scanner::scan(&SPEC, text)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::syntax::SynKind;
     use crate::syntax::testutil::{at, has};
 
     #[test]

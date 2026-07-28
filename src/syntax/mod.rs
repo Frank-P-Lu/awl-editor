@@ -18,6 +18,7 @@ pub mod php;
 pub mod python;
 pub mod ruby;
 pub mod rust;
+mod scanner;
 pub mod sql;
 pub mod swift;
 pub mod toml;
@@ -215,11 +216,80 @@ impl Lang {
     }
 }
 
+/// What a lexer returns: styling spans in document byte coordinates.
+pub type Spans = Vec<(Range<usize>, SynKind)>;
+
+/// Which scanner a language's spans come from — the ONE place a language is
+/// wired in. The match below carries no wildcard, so a new [`Lang`] variant fails
+/// to compile until someone decides between the two.
+enum Lexer {
+    /// Data through the shared definition walk ([`scanner::scan`]) — the default,
+    /// and what a new C-family-shaped language must use.
+    Table(&'static scanner::LangSpec),
+    /// A scanner of its own, because the language's shape is not the definition
+    /// walk. Every member is listed with its reason in `BESPOKE`.
+    Own(fn(&str) -> Spans),
+}
+
+fn lexer(lang: Lang) -> Lexer {
+    match lang {
+        Lang::Rust => Lexer::Table(&rust::SPEC),
+        Lang::Python => Lexer::Table(&python::SPEC),
+        Lang::JavaScript => Lexer::Table(&javascript::SPEC),
+        Lang::TypeScript => Lexer::Table(&typescript::SPEC),
+        Lang::Go => Lexer::Table(&go::SPEC),
+        Lang::C => Lexer::Table(&c::SPEC),
+        Lang::Cpp => Lexer::Table(&cpp::SPEC),
+        Lang::Java => Lexer::Table(&java::SPEC),
+        Lang::CSharp => Lexer::Table(&csharp::SPEC),
+        Lang::Php => Lexer::Table(&php::SPEC),
+        Lang::Swift => Lexer::Table(&swift::SPEC),
+        Lang::Kotlin => Lexer::Table(&kotlin::SPEC),
+        Lang::Ruby => Lexer::Own(ruby::spans),
+        Lang::Bash => Lexer::Own(bash::spans),
+        Lang::Html => Lexer::Own(html::spans),
+        Lang::Css => Lexer::Own(css::spans),
+        Lang::Json => Lexer::Own(json::spans),
+        Lang::Yaml => Lexer::Own(yaml::spans),
+        Lang::Toml => Lexer::Own(toml::spans),
+        Lang::Sql => Lexer::Own(sql::spans),
+    }
+}
+
+/// The languages that do NOT run the shared definition walk, each with the reason
+/// its shape is different. This roster is the deliberate escape hatch: a new
+/// `syntax/<lang>.rs` that writes its own loop without appearing here trips
+/// [`tests::no_lexer_module_writes_its_own_definition_walk`], the law that reads
+/// it.
+#[cfg(test)]
+const BESPOKE: &[(&str, &str)] = &[
+    (
+        "ruby",
+        "heredoc bodies pend across lines; `?c`/`%w[]` disambiguate on the previous byte",
+    ),
+    (
+        "bash",
+        "`$`-expansion, `<<`-heredocs, and single-quote-is-raw have no C-family analogue",
+    ),
+    ("html", "tag/attribute grammar, not a token stream"),
+    (
+        "css",
+        "selector/property grammar; `-` is an identifier byte",
+    ),
+    ("json", "a closed grammar: keys vs values decide the role"),
+    ("yaml", "indentation- and key-driven, with block scalars"),
+    ("toml", "key/value/table grammar with date-time literals"),
+    (
+        "sql",
+        "case-insensitive multi-word introducers with skip-words; `\"…\"` is an identifier, not a string",
+    ),
+];
+
 /// THE DISPATCH: parse `text` into syntax styling spans for `lang`, in DOCUMENT
-/// byte coordinates. Each arm calls the matching `<lang>.rs::spans`, so language
-/// work touches only that one file. Spans may be returned in any order and may
-/// overlap; the renderer applies them in order (last-wins on overlap), so a lexer
-/// that pushes a coarse span then a finer one inside it gets the finer styling.
+/// byte coordinates. [`lexer`] picks the scanner; spans may be returned in any
+/// order and may overlap; the renderer applies them in order (last-wins on
+/// overlap), so a lexer that pushes a coarse span then a finer one inside it gets
+/// the finer styling.
 ///
 /// TWO-TIER COMMENT POST-PASS (the ONE owner of the split): the lexers keep
 /// emitting plain [`SynKind::Comment`]; after the per-language lexer returns,
@@ -228,28 +298,10 @@ impl Lang {
 /// [`SynKind::CommentCode`] when it reads as a DISABLED STATEMENT rather than
 /// prose. Central here — not per lexer — so all ~20 languages split identically,
 /// and markdown FENCES inherit it for free (`markdown/` calls this same fn).
-pub fn spans(lang: Lang, text: &str) -> Vec<(Range<usize>, SynKind)> {
-    let mut out = match lang {
-        Lang::Rust => rust::spans(text),
-        Lang::Python => python::spans(text),
-        Lang::JavaScript => javascript::spans(text),
-        Lang::TypeScript => typescript::spans(text),
-        Lang::Go => go::spans(text),
-        Lang::C => c::spans(text),
-        Lang::Cpp => cpp::spans(text),
-        Lang::Java => java::spans(text),
-        Lang::CSharp => csharp::spans(text),
-        Lang::Ruby => ruby::spans(text),
-        Lang::Php => php::spans(text),
-        Lang::Swift => swift::spans(text),
-        Lang::Kotlin => kotlin::spans(text),
-        Lang::Bash => bash::spans(text),
-        Lang::Html => html::spans(text),
-        Lang::Css => css::spans(text),
-        Lang::Json => json::spans(text),
-        Lang::Yaml => yaml::spans(text),
-        Lang::Toml => toml::spans(text),
-        Lang::Sql => sql::spans(text),
+pub fn spans(lang: Lang, text: &str) -> Spans {
+    let mut out = match lexer(lang) {
+        Lexer::Table(spec) => scanner::scan(spec, text),
+        Lexer::Own(f) => f(text),
     };
     for (r, k) in out.iter_mut() {
         if *k == SynKind::Comment
@@ -543,6 +595,7 @@ pub(super) fn scan_quoted(b: &[u8], open: usize, quote: u8, stop_at_newline: boo
 
 /// Per-language knobs for the shared [`scan_number`] — the small set of constants
 /// the otherwise-identical numeric scanners varied by.
+#[derive(Clone, Copy)]
 pub(super) struct NumOpts {
     /// Letters that, right after a leading `0`, open a radix-prefixed integer
     /// (e.g. `b"xXoObB"` for hex/octal/binary, `b"xXbB"` where there is no `0o`).
@@ -620,9 +673,121 @@ pub(crate) mod testutil {
     }
 }
 
+/// Every [`Lang`], for the sweeps below. Held complete by
+/// [`tests::no_lexer_module_writes_its_own_definition_walk`], which counts
+/// [`lexer`]'s wildcard-free arms against this length.
+#[cfg(test)]
+const ALL: &[Lang] = &[
+    Lang::Rust,
+    Lang::Python,
+    Lang::JavaScript,
+    Lang::TypeScript,
+    Lang::Go,
+    Lang::C,
+    Lang::Cpp,
+    Lang::Java,
+    Lang::CSharp,
+    Lang::Ruby,
+    Lang::Php,
+    Lang::Swift,
+    Lang::Kotlin,
+    Lang::Bash,
+    Lang::Html,
+    Lang::Css,
+    Lang::Json,
+    Lang::Yaml,
+    Lang::Toml,
+    Lang::Sql,
+];
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// LAW: the definition walk has exactly ONE owner. Every `syntax/<lang>.rs`
+    /// either drives [`scanner::scan`] through a `LangSpec` or is declared in
+    /// [`BESPOKE`] with the reason its shape differs. The sweep is over the
+    /// DIRECTORY rather than a roster, so a new lexer file that copy-pastes a loop
+    /// goes red before it is even wired into [`Lang`]; the roster is then tied
+    /// back to [`lexer`]'s wildcard-free match, which a new `Lang` variant cannot
+    /// compile past without choosing a side.
+    #[test]
+    fn no_lexer_module_writes_its_own_definition_walk() {
+        // The state variable every copy of the walk carries.
+        const WALK: &str = "expect_def";
+        // `mod.rs` holds the dispatch and `ident_role`; `scanner.rs` IS the walk.
+        const NOT_A_LANGUAGE: &[&str] = &["mod", "scanner"];
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/syntax");
+
+        let owner = std::fs::read_to_string(dir.join("scanner.rs")).unwrap();
+        assert!(
+            owner.contains(WALK),
+            "{WALK:?} no longer names the walk — this law would sweep nothing"
+        );
+
+        let mut modules: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|x| x == "rs"))
+            .map(|p| p.file_stem().unwrap().to_string_lossy().into_owned())
+            .filter(|s| !NOT_A_LANGUAGE.contains(&s.as_str()))
+            .collect();
+        modules.sort();
+        assert!(modules.len() >= ALL.len(), "{modules:?} missed lexer files");
+
+        let declared: Vec<&str> = BESPOKE.iter().map(|(m, _)| *m).collect();
+        for stem in &modules {
+            let src = std::fs::read_to_string(dir.join(format!("{stem}.rs"))).unwrap();
+            assert!(
+                !src.contains(WALK) || declared.contains(&stem.as_str()),
+                "{stem}.rs carries its own {WALK:?} walk: run the shared scanner \
+                 through a LangSpec instead, or declare it in syntax::BESPOKE with \
+                 the reason its shape differs"
+            );
+        }
+        for (m, why) in BESPOKE {
+            assert!(
+                modules.contains(&m.to_string()),
+                "BESPOKE names {m}, which is not a lexer module"
+            );
+            assert!(
+                !why.trim().is_empty(),
+                "BESPOKE entry {m} carries no reason"
+            );
+        }
+
+        for lang in ALL {
+            let bespoke = declared.contains(&lang.name());
+            match lexer(*lang) {
+                Lexer::Table(_) => assert!(
+                    !bespoke,
+                    "{} is table-driven but declared BESPOKE",
+                    lang.name()
+                ),
+                Lexer::Own(_) => assert!(
+                    bespoke,
+                    "{} dispatches to its own lexer but is not declared in BESPOKE",
+                    lang.name()
+                ),
+            }
+        }
+
+        // `lexer`'s match is exhaustive and wildcard-free, so its arm count IS the
+        // variant count — which is how `ALL` is held complete.
+        let src = std::fs::read_to_string(dir.join("mod.rs")).unwrap();
+        let body = src
+            .split_once("fn lexer(lang: Lang) -> Lexer {")
+            .expect("the dispatch moved")
+            .1
+            .split_once("\n}\n")
+            .unwrap()
+            .0;
+        assert_eq!(
+            body.matches("Lang::").count(),
+            ALL.len(),
+            "a Lang variant was added or removed; ALL has drifted out of sync"
+        );
+    }
 
     #[test]
     fn extension_detection_covers_all_languages() {
@@ -920,28 +1085,7 @@ mod tests {
         assert_eq!(Lang::Rust.name(), "rust");
         assert_eq!(Lang::Cpp.name(), "cpp");
         assert_eq!(Lang::CSharp.name(), "csharp");
-        for l in [
-            Lang::Rust,
-            Lang::Python,
-            Lang::JavaScript,
-            Lang::TypeScript,
-            Lang::Go,
-            Lang::C,
-            Lang::Cpp,
-            Lang::Java,
-            Lang::CSharp,
-            Lang::Ruby,
-            Lang::Php,
-            Lang::Swift,
-            Lang::Kotlin,
-            Lang::Bash,
-            Lang::Html,
-            Lang::Css,
-            Lang::Json,
-            Lang::Yaml,
-            Lang::Toml,
-            Lang::Sql,
-        ] {
+        for l in ALL {
             let n = l.name();
             assert!(
                 !n.is_empty() && n == n.to_ascii_lowercase(),
