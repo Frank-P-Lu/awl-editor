@@ -14,6 +14,10 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
 
 - 155 `src/app.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex),
   branch `codex/item-155-app`.
+- 107 enum-derived rosters — 🟡 IN PROGRESS, `item_107_rosters` (codex),
+  branch `codex/item-107-derived-rosters`.
+- 109 icon-ratchet subset erosion — 🟡 IN PROGRESS, `item_109_icon_ratchet`
+  (codex), branch `codex/item-109-icon-ratchet`.
 
 ## Ready — current user-visible wave
 
