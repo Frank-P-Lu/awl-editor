@@ -15,7 +15,6 @@ use super::ornament::{
     LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE, ORNAMENT_MARKS,
     ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, Ornaments,
 };
-
 const POSTER_BARS: ListStyle = ListStyle::Bars {
     radius: 6.0,
     gap: 10.0,
@@ -23,7 +22,6 @@ const POSTER_BARS: ListStyle = ListStyle::Bars {
     extent: super::model::BarExtent::HugLabel,
     coverage: super::model::BarCoverage::All,
 };
-
 pub const GUMTREE: Theme = Theme {
     name: "Gumtree",
     dark: false,
@@ -45,7 +43,8 @@ pub const GUMTREE: Theme = Theme {
         period_px: 170.0,
         amplitude_px: 60.0,
         angle: 0.26,
-        density: 0.40, banded: false,
+        density: 0.40,
+        banded: false,
     },
     font: "Literata",
     mono: "Monaspace Xenon",
@@ -77,7 +76,6 @@ pub const GUMTREE: Theme = Theme {
         ..RenderCaps::DEFAULT
     },
 };
-
 pub const POTOROO: Theme = Theme {
     name: "Potoroo",
     dark: true,
@@ -127,7 +125,6 @@ pub const POTOROO: Theme = Theme {
         ..RenderCaps::DEFAULT
     },
 };
-
 pub const BILBY: Theme = Theme {
     name: "Bilby",
     dark: false,
@@ -177,7 +174,6 @@ pub const BILBY: Theme = Theme {
         ..RenderCaps::DEFAULT
     },
 };
-
 pub const SALTPAN: Theme = Theme {
     name: "Saltpan",
     dark: false,
@@ -227,7 +223,6 @@ pub const SALTPAN: Theme = Theme {
         ..RenderCaps::DEFAULT
     },
 };
-
 pub const QUOKKA: Theme = Theme {
     name: "Quokka",
     dark: false,
@@ -249,7 +244,8 @@ pub const QUOKKA: Theme = Theme {
         period_px: 100.0,
         amplitude_px: 24.0,
         angle: 0.0,
-        density: 0.60, banded: true,
+        density: 0.60,
+        banded: true,
     },
     font: "Sour Gummy",
     mono: "IBM Plex Mono",
@@ -287,7 +283,6 @@ pub const QUOKKA: Theme = Theme {
         ..RenderCaps::DEFAULT
     },
 };
-
 pub const BOMBORA: Theme = Theme {
     name: "Bombora",
     dark: true,
@@ -493,8 +488,13 @@ pub const BOWERBIRD: Theme = Theme {
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
     selection: Srgb::rgba(0x3D, 0x6B, 0xC4, 0x52),
     background: Background::Organic {
-        tones: [Srgb::rgb(0x0C, 0x14, 0x26), Srgb::rgb(0x13, 0x1D, 0x33),
-            Srgb::rgb(0x1F, 0x2C, 0x49)], scale_px: 156.0, density: 0.46,
+        tones: [
+            Srgb::rgb(0x0C, 0x14, 0x26),
+            Srgb::rgb(0x13, 0x1D, 0x33),
+            Srgb::rgb(0x1F, 0x2C, 0x49),
+        ],
+        scale_px: 156.0,
+        density: 0.46,
     },
     font: "IBM Plex Sans",
     mono: "JetBrains Mono",

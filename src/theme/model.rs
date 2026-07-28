@@ -1,7 +1,6 @@
 use super::cjk::FontId;
 use super::color::Srgb;
 use super::ornament::Ornaments;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     pub def_fg: Option<Srgb>,
@@ -10,7 +9,6 @@ pub struct RoleOverrides {
     pub comment_wash: WashOverride,
     pub str_wash: WashOverride,
 }
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WashOverride {
     Default,
@@ -563,7 +561,9 @@ impl Background {
     pub fn is_waves(&self) -> bool {
         matches!(self, Background::Waves { .. })
     }
-    pub fn is_organic(&self) -> bool { matches!(self, Background::Organic { .. }) }
+    pub fn is_organic(&self) -> bool {
+        matches!(self, Background::Organic { .. })
+    }
     pub fn lava_params(&self) -> Option<(Srgb, Srgb, Srgb, LavaEdge, bool)> {
         match self {
             Background::Lava {

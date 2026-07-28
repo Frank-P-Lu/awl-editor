@@ -941,8 +941,11 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
 /// it `continue`s — no frost, byte-identical (the unaffected-worlds guarantee).
 fn frost_redmean(a: Srgb, b: Srgb) -> f32 {
     let rbar = (a.r as f32 + b.r as f32) * 0.5;
-    let (dr, dg, db) =
-        (a.r as f32 - b.r as f32, a.g as f32 - b.g as f32, a.b as f32 - b.b as f32);
+    let (dr, dg, db) = (
+        a.r as f32 - b.r as f32,
+        a.g as f32 - b.g as f32,
+        a.b as f32 - b.b as f32,
+    );
     let squared =
         (2.0 + rbar / 256.0) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - rbar) / 256.0) * db * db;
     squared.sqrt()
