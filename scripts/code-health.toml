@@ -307,7 +307,7 @@ lines = 402
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1863
+lines = 1534
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
@@ -676,7 +676,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/rects.rs"
-line = 1175
+line = 846
 message = "this function has too many lines (151/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
