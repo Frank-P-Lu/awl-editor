@@ -37,6 +37,8 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   `item_108_gumtree` (codex), branch `codex/item-122-quokka-bands`.
 - 127 fold-chevron optical centring — 🟡 IN PROGRESS,
   `item_127_fold_chevron` (codex), branch `codex/item-127-fold-chevron`.
+- 128 native macOS identity/About panel — 🟡 IN PROGRESS,
+  `item_155_layers` (codex), branch `codex/item-128-macos-identity`.
 
 ## Ready — current user-visible wave
 
