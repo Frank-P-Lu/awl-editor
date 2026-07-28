@@ -61,7 +61,6 @@ const EXPECTED: &[(&str, usize)] = &[
     ("buffers.rs", 1),
     // Headless capture harness diagnostics ("spell-check disabled for
     // capture: …") — CLI/test-harness output, not live-app chatter.
-    ("capture/animated.rs", 2),
     ("capture/policy.rs", 1),
     ("capture/oracle.rs", 1),
     ("config/model.rs", 1),
