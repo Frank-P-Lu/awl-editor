@@ -10,32 +10,7 @@ impl App {
         let height = self.gpu.as_ref().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.active.buffer.cursor_line_col();
-        // Re-run spell detection only when the buffer text changed. We detect a
-        // change via the cheap edit VERSION (a `u64` bump per content mutation)
-        // instead of cloning + comparing the whole rope string each keystroke. The
-        // preedit composition is deliberately NOT included, so composing text is
-        // never flagged.
-        //
-        // EAGER (the completed-word-lag fix's first half): recompute SYNCHRONOUSLY,
-        // right here, every time the version changed — no debounce window in which
-        // an old verdict could paint over text it never judged. The former ~150ms
-        // debounce existed so a word wasn't flagged while you were still typing it;
-        // that job now belongs entirely to the DISPLAY-side caret-word suppression
-        // (`word_at_caret` in `render/rects.rs`) — the word under the caret is
-        // checked exactly as eagerly as every other word, just not SHOWN while the
-        // caret sits in it. Every verdict is ALSO KEYED to the exact text it judged
-        // (`spell::keyed`/`SpellVerdict::still_valid`, filtered below when building
-        // `ViewState.misspelled`) as a second, independent guarantee: even within
-        // this one call, a verdict this rescan is ABOUT to replace can never be
-        // read as still describing the new text.
-        if self.spell.is_some()
-            && crate::view_policy::spell_recompute_needed(
-                self.active.extra.spell_checked_version,
-                self.active.buffer.version(),
-            )
-        {
-            self.recompute_spell_cache();
-        }
+        self.sync_spell_cache();
         // SAVE-FEEDBACK round: the window-title EDITED marker + the native
         // macOS titlebar dot, kept live WITHOUT re-titling every keystroke —
         // `sync_view` already runs on nearly every edit/cursor-move (gated on
@@ -436,6 +411,19 @@ impl App {
         // `sync_view`, so the peek falls back to the starter six and the footer hides).
         #[cfg(not(target_arch = "wasm32"))]
         self.sync_discoverability();
+    }
+
+    /// Re-run spell detection immediately when the text version changes. The cache
+    /// trigger is shared with capture, while this live-only effect owns cache mutation.
+    fn sync_spell_cache(&mut self) {
+        if self.spell.is_some()
+            && crate::view_policy::spell_recompute_needed(
+                self.active.extra.spell_checked_version,
+                self.active.buffer.version(),
+            )
+        {
+            self.recompute_spell_cache();
+        }
     }
 
     /// The document text for this sync — the ROPE-CLONE SHORT-CIRCUIT. `sync_view`

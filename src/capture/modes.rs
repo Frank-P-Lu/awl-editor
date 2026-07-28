@@ -62,29 +62,6 @@ pub(super) fn base_viewstate(
     }
 }
 
-/// Resolve a bare capture's initial cursor-follow through the same pure policy
-/// the live App consumes. Timeline and held captures keep this result fixed after
-/// initialization so their frame sequence moves only the caret.
-pub(super) fn capture_follow_scroll(
-    pipeline: &TextPipeline,
-    line: usize,
-    col: usize,
-    height: f32,
-) -> crate::render::ScrollPos {
-    let row = pipeline.visual_row_of(line, col);
-    match crate::view_policy::follow_scroll_strategy(crate::typewriter::typewriter_on(), false) {
-        crate::view_policy::FollowScroll::ShowRow => {
-            pipeline.scroll_to_show_row_pos(row, crate::render::ScrollPos::default(), height)
-        }
-        crate::view_policy::FollowScroll::CenterRow => {
-            pipeline.scroll_to_center_row_pos(row, height)
-        }
-        crate::view_policy::FollowScroll::Deferred => {
-            unreachable!("a bare capture has no primary-button drag; it still shares the policy")
-        }
-    }
-}
-
 /// How the caret is posed for a headless capture. Both modes are fully
 /// deterministic (no clock): the same input yields a byte-identical PNG.
 #[derive(Clone, Copy, PartialEq)]
@@ -232,7 +209,7 @@ pub(super) fn settled_viewstate(
     // Spell-check the buffer text for the headless capture too, so `--screenshot`
     // renders the squiggles. Deterministic (fixed text -> fixed spans). If the
     // bundled dictionary fails to parse, report it and render without squiggles.
-    let misspelled = capture_misspellings(buffer);
+    let misspelled = super::policy::misspellings(buffer);
 
     // --- Search panel (deterministic headless isearch) -------------------
     // Compute matches against the loaded buffer, pick current = first match at
@@ -560,7 +537,7 @@ pub(super) fn settled_viewstate(
             // SCROLL toggle on, the caret row is CENTERED, otherwise it's the
             // minimal-adjust — so a `--keys` capture with typewriter on verifies the
             // centered scroll deterministically.
-            capture_follow_scroll(pipeline, sc_line, sc_col, height as f32)
+            super::policy::follow_scroll(pipeline, sc_line, sc_col, height as f32)
         }
     };
     debug_assert!(settled_scroll.px_q >= 0);
@@ -568,22 +545,4 @@ pub(super) fn settled_viewstate(
     vstate.scroll = settled_scroll;
     pipeline.set_view(&vstate);
     vstate
-}
-
-/// Compute capture spell verdicts through the shared version trigger. Capture has
-/// no persistent cache, so every new bare pipeline starts at the same `None` state
-/// a newly activated live buffer does; checker construction remains capture-local.
-pub(super) fn capture_misspellings(buffer: &Buffer) -> Vec<crate::spell::Misspelling> {
-    let checked_version = None;
-    if crate::view_policy::spell_recompute_needed(checked_version, buffer.version()) {
-        match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
-            Ok(sc) => sc.misspellings_for(&buffer.text(), buffer.syntax_lang()),
-            Err(e) => {
-                eprintln!("spell-check disabled for capture: {e}");
-                Vec::new()
-            }
-        }
-    } else {
-        Vec::new()
-    }
 }

@@ -23,9 +23,7 @@ impl Drop for TypewriterRestore {
 fn typewriter_scroll_initial_viewport_is_shared_by_plain_timeline_and_held() {
     let _g = crate::testlock::serial();
     if !adapter_available() {
-        eprintln!(
-            "skipping typewriter_scroll_initial_viewport_is_shared_by_plain_timeline_and_held: no wgpu adapter"
-        );
+        eprintln!("skipping shared typewriter viewport test: no wgpu adapter");
         return;
     }
     let _restore = TypewriterRestore(crate::typewriter::typewriter_on());
@@ -240,37 +238,18 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// CONTRACT LOCK: the hand-rolled sidecar must be WELL-FORMED JSON (a real
-/// parser, not the substring scanners the other tests use, would catch a stray
-/// comma / unescaped value / duplicate key) AND carry the right SCHEMA + the
-/// blocks the whole verification path depends on. Covers all three shapes:
-/// plain (`crate::capture::schema_plain()`, no caret block), timeline (`crate::capture::schema_timeline()`, caret
-/// without `trail`), held (`crate::capture::schema_held()`, caret WITH `trail`).
-#[test]
-fn sidecar_is_wellformed_json_with_expected_schema() {
-    if !adapter_available() {
-        eprintln!("skipping sidecar_is_wellformed_json_with_expected_schema: no wgpu adapter");
-        return;
-    }
-    let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_json_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let mut buf = Buffer::from_str("# Title\n\nsome **bold** prose to fill a line\nsecond line\n");
-    buf.set_path(dir.join("doc.md")); // .md so md_spans populate
+fn sidecar_value(path: &std::path::Path, mode: &str) -> serde_json::Value {
+    let text = std::fs::read_to_string(path).expect("read sidecar");
+    serde_json::from_str(&text)
+        .unwrap_or_else(|e| panic!("{mode} sidecar is not valid JSON: {e}\n{text}"))
+}
 
-    // --- PLAIN single frame -----------------------------------------------
-    let png = dir.join("plain.png");
-    capture_with(&png, &buf, &CaptureOpts::default()).expect("plain capture");
-    let text = std::fs::read_to_string(png.with_extension("json")).unwrap();
-    let v: serde_json::Value = serde_json::from_str(&text)
-        .unwrap_or_else(|e| panic!("plain sidecar is not valid JSON: {e}\n{text}"));
-    let obj = v.as_object().expect("sidecar root is a JSON object");
+fn assert_plain_schema(obj: &serde_json::Map<String, serde_json::Value>) {
     assert_eq!(
         obj["schema"],
         serde_json::json!(crate::capture::schema_plain()),
         "plain schema"
     );
-    // The blocks the agent contract reads, present + the right JSON shape.
     for key in [
         "canvas",
         "font",
@@ -297,24 +276,11 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     ] {
         assert!(obj.contains_key(key), "plain sidecar missing {key:?}");
     }
-    // The persistent MARGIN OUTLINE block: an array of the doc's headings, and
-    // `current` = the nearest heading at/above the caret. This `.md` fixture has one
-    // heading ("# Title", line 0); the caret sits at (0,0), so current resolves to
-    // it. `on` is only STRUCTURALLY checked here (a bool): its default-ON value
-    // (flipped 2026-07-09, `outline.rs`'s module doc) is a residue-sensitive global
-    // the concurrent catalog sweep
-    // (`every_catalog_command_dispatches_without_panicking`) toggles mid-run, and
-    // holding `outline::TEST_LOCK` alongside this GPU-capture's `page` lock would
-    // risk a page↔outline lock tangle. The default-ON value is asserted by the
-    // dedicated outline tests (`outline.rs`, `config/`); well-formedness + block
-    // presence is THIS test's job.
     assert!(obj["outline"].is_object(), "outline is an object");
     assert!(obj["outline"]["on"].is_boolean(), "outline.on is a bool");
-    assert!(
-        obj["outline"]["headings"].is_array(),
-        "outline.headings is an array"
-    );
-    let headings = obj["outline"]["headings"].as_array().unwrap();
+    let headings = obj["outline"]["headings"]
+        .as_array()
+        .expect("outline.headings is an array");
     assert_eq!(
         headings.len(),
         1,
@@ -323,109 +289,99 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     assert_eq!(headings[0]["text"], serde_json::json!("Title"));
     assert_eq!(headings[0]["level"], serde_json::json!(1));
     assert_eq!(headings[0]["line"], serde_json::json!(0));
-    assert_eq!(
-        obj["outline"]["current"],
-        serde_json::json!(0),
-        "caret at (0,0) sits on the first heading"
-    );
-    // MULTI-BUFFER default (no `opts.buffers` wired): a single loaded buffer
-    // always reports `open: 1` and its own display name as `active`.
-    assert_eq!(
-        obj["buffers"]["open"],
-        serde_json::json!(1),
-        "single buffer by default"
-    );
-    assert_eq!(
-        obj["buffers"]["active"],
-        serde_json::json!("doc.md"),
-        "active reports the loaded buffer's display name when opts.buffers is unset"
-    );
-    // The WYSIWYG block: on by default, and an array of concealed ranges.
-    assert!(obj["wysiwyg"].is_object(), "wysiwyg is an object");
-    assert_eq!(
-        obj["wysiwyg"]["on"],
-        serde_json::json!(true),
-        "wysiwyg defaults ON"
-    );
+    assert_eq!(obj["outline"]["current"], serde_json::json!(0));
+}
+
+fn assert_plain_details(obj: &serde_json::Map<String, serde_json::Value>) {
+    assert_eq!(obj["buffers"]["open"], serde_json::json!(1));
+    assert_eq!(obj["buffers"]["active"], serde_json::json!("doc.md"));
+    assert_eq!(obj["wysiwyg"]["on"], serde_json::json!(true));
+    assert!(obj["wysiwyg"]["concealed"].is_array());
+    assert!(obj["gutter"].is_object());
+    assert!(obj["dim_overlay"].is_boolean());
+    assert!(obj["font"].get("cjk").is_some());
+    assert!(obj["font"]["cjk"].is_object());
+    assert_eq!(obj["font"]["zoom"].as_f64(), Some(1.0));
+    assert_eq!(obj["font"]["size"].as_f64(), Some(24.0));
+    assert_eq!(obj["font"]["line_height"].as_f64(), Some(32.0));
+    assert!(obj["hud"].is_object());
+    assert!(obj["hud"]["held"].is_boolean());
+    assert!(obj["hud"]["percent"].is_number());
+    assert!(obj["hud"].get("file_created").is_none());
+    assert!(obj["hud"].get("session").is_none());
     assert!(
-        obj["wysiwyg"]["concealed"].is_array(),
-        "wysiwyg.concealed is an array"
+        !obj["md_spans"]
+            .as_array()
+            .expect("md_spans is an array")
+            .is_empty()
     );
-    assert!(obj["gutter"].is_object(), "gutter is an object");
-    assert!(obj["dim_overlay"].is_boolean(), "dim_overlay is a bool");
-    // `font.cjk` (the Japanese-bundle round): present on every capture, an
-    // object (the DEFAULT world's bundled candidate resolves even for a
-    // buffer with zero CJK text — see `cjk_json`'s doc) rather than a bare
-    // `null`, since every normal build has the bundled Noto JP faces registered.
-    assert!(obj["font"].get("cjk").is_some(), "font.cjk key present");
-    assert!(
-        obj["font"]["cjk"].is_object(),
-        "font.cjk resolves in a normal build"
-    );
-    assert_eq!(obj["font"]["zoom"].as_f64(), Some(1.0), "default font.zoom");
-    assert_eq!(
-        obj["font"]["size"].as_f64(),
-        Some(24.0),
-        "effective default font.size"
-    );
-    assert_eq!(
-        obj["font"]["line_height"].as_f64(),
-        Some(32.0),
-        "effective default font.line_height"
-    );
-    // The HELD STATS HUD block: an object describing the figures, with `percent` an
-    // integer. `held` is only STRUCTURALLY checked (a bool) for the same reason as
-    // `outline.on` above — the catalog sweep drives ShowStatsHud concurrently, so
-    // its exact value is residue-sensitive; the default-false is asserted by the
-    // dedicated HUD tests.
-    assert!(obj["hud"].is_object(), "hud is an object");
-    assert!(obj["hud"]["held"].is_boolean(), "hud.held is a bool");
-    assert!(obj["hud"]["percent"].is_number(), "hud.percent is a number");
-    // The HUD was TRIMMED to the writer figures: file_created / session are gone.
-    assert!(
-        obj["hud"].get("file_created").is_none(),
-        "hud.file_created was dropped"
-    );
-    assert!(
-        obj["hud"].get("session").is_none(),
-        "hud.session was dropped"
-    );
-    assert!(obj["md_spans"].is_array(), "md_spans is an array");
-    assert!(
-        !obj["md_spans"].as_array().unwrap().is_empty(),
-        "markdown buffer has md spans"
-    );
-    assert!(obj["page"].is_object(), "page is an object");
-    assert!(obj["cursor"].is_object(), "cursor is an object");
-    // project / overlay are an object when present, JSON null when absent.
+    assert!(obj["page"].is_object());
+    assert!(obj["cursor"].is_object());
     assert!(obj["project"].is_object() || obj["project"].is_null());
     assert!(obj["overlay"].is_object() || obj["overlay"].is_null());
-    // A PLAIN frame carries NO caret block (that is the timeline/held shape).
     assert!(
         !obj.contains_key("caret"),
         "plain frame must omit the caret block"
     );
+}
+
+fn assert_timeline_schema(value: &serde_json::Value) {
+    assert_eq!(
+        value["schema"],
+        serde_json::json!(crate::capture::schema_timeline())
+    );
+    assert!(
+        value.get("caret").is_some(),
+        "timeline carries a caret block"
+    );
+    assert!(
+        value["caret"].get("trail").is_none(),
+        "timeline caret has no trail block"
+    );
+    assert!(value["caret"].get("cosmetic_trail").is_some());
+}
+
+fn assert_held_schema(value: &serde_json::Value) {
+    assert_eq!(
+        value["schema"],
+        serde_json::json!(crate::capture::schema_held())
+    );
+    assert!(
+        value["caret"].get("trail").is_some(),
+        "held caret carries a trail block"
+    );
+}
+
+/// CONTRACT LOCK: the hand-rolled sidecar must be WELL-FORMED JSON (a real
+/// parser, not the substring scanners the other tests use, would catch a stray
+/// comma / unescaped value / duplicate key) AND carry the right SCHEMA + the
+/// blocks the whole verification path depends on. Covers all three shapes:
+/// plain (`crate::capture::schema_plain()`, no caret block), timeline (`crate::capture::schema_timeline()`, caret
+/// without `trail`), held (`crate::capture::schema_held()`, caret WITH `trail`).
+#[test]
+fn sidecar_is_wellformed_json_with_expected_schema() {
+    if !adapter_available() {
+        eprintln!("skipping sidecar schema test: no wgpu adapter");
+        return;
+    }
+    let _g = crate::testlock::serial();
+    let dir = std::env::temp_dir().join(format!("awl_json_test_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut buf = Buffer::from_str("# Title\n\nsome **bold** prose to fill a line\nsecond line\n");
+    buf.set_path(dir.join("doc.md")); // .md so md_spans populate
+
+    // --- PLAIN single frame -----------------------------------------------
+    let png = dir.join("plain.png");
+    capture_with(&png, &buf, &CaptureOpts::default()).expect("plain capture");
+    let plain = sidecar_value(&png.with_extension("json"), "plain");
+    let obj = plain.as_object().expect("sidecar root is a JSON object");
+    assert_plain_schema(obj);
+    assert_plain_details(obj);
 
     // --- TIMELINE frame (caret block, no trail) ---------------------------
     let tl = dir.join("tl.png");
     capture_timeline(&tl, &buf, (0, 0), &[0, 30], &CaptureOpts::default()).expect("timeline");
-    let ttext = std::fs::read_to_string(dir.join("tl.t0.json")).unwrap();
-    let tv: serde_json::Value = serde_json::from_str(&ttext)
-        .unwrap_or_else(|e| panic!("timeline sidecar is not valid JSON: {e}\n{ttext}"));
-    assert_eq!(
-        tv["schema"],
-        serde_json::json!(crate::capture::schema_timeline()),
-        "timeline schema"
-    );
-    assert!(tv.get("caret").is_some(), "timeline carries a caret block");
-    assert!(
-        tv["caret"].get("trail").is_none(),
-        "timeline caret has no trail block"
-    );
-    assert!(
-        tv["caret"].get("cosmetic_trail").is_some(),
-        "timeline caret has cosmetic_trail"
-    );
+    assert_timeline_schema(&sidecar_value(&dir.join("tl.t0.json"), "timeline"));
 
     // --- HELD frame (caret block WITH trail) ------------------------------
     let hd = dir.join("hd.png");
@@ -438,18 +394,7 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
         &CaptureOpts::default(),
     )
     .expect("held");
-    let htext = std::fs::read_to_string(dir.join("hd.t30.json")).unwrap();
-    let hv: serde_json::Value = serde_json::from_str(&htext)
-        .unwrap_or_else(|e| panic!("held sidecar is not valid JSON: {e}\n{htext}"));
-    assert_eq!(
-        hv["schema"],
-        serde_json::json!(crate::capture::schema_held()),
-        "held schema"
-    );
-    assert!(
-        hv["caret"].get("trail").is_some(),
-        "held caret carries a trail block"
-    );
+    assert_held_schema(&sidecar_value(&dir.join("hd.t30.json"), "held"));
 
     let _ = std::fs::remove_dir_all(&dir);
 }

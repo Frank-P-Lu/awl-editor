@@ -28,6 +28,7 @@ pub(crate) mod gpu;
 mod modes;
 mod opts;
 mod oracle;
+mod policy;
 mod scroll_sidecar;
 mod sidecar;
 
