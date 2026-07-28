@@ -21,8 +21,10 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   `src/keymap.rs` — ⏭ action/default-policy ownership has no safe
   move-only seam; `src/render/chrome/mod.rs` — ⏭ already decomposed to
   sibling owners, remaining code is shared geometry/pipeline glue;
-  `src/app/input/mouse.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex),
-  branch `codex/item-155-mouse`.
+  `src/app/input/mouse.rs` — ⏭ one gesture-state transaction, no safe
+  move-only seam after item 147; `src/markdown/spans.rs` —
+  🟡 IN PROGRESS, `item_155_layers` (codex), branch
+  `codex/item-155-markdown-spans`.
 - 107 enum-derived rosters — ✅ LANDED @ `c3f7eb27`.
 - 109 icon-ratchet subset erosion — ✅ LANDED @ `d45d34f3`.
 - 108 Gumtree chevron visibility — ✅ LANDED @ `f8d384de`.
