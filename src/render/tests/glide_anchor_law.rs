@@ -42,13 +42,13 @@
 //! real code reference trips the law.
 
 /// The ONE production file allowed to call `overlay_band_drawn(`/
-/// `living_band_phase(` directly: `chrome/overlay_rows.rs`, the shared
+/// `living_band_phase(` directly: `chrome/overlay_selection.rs`, the shared
 /// Pane-family row-fill seam every `OverlayKind`'s render passes through
-/// (see `living_covered_rows`/`living_probe_geom` and the
-/// `BandResponse::Slide` fill arm). `pipeline_overlay.rs` itself (the two
+/// (see `overlay_pane_selection` / `overlay_selected_bar_rects`).
+/// `pipeline_overlay.rs` itself (the two
 /// fns' own definitions) is scanned too but excluded by NAME below, mirroring
 /// `float_surface_law`'s owner-file treatment.
-const ALLOWED_DIRECT_CALLER: &str = "chrome/overlay_rows.rs";
+const ALLOWED_DIRECT_CALLER: &str = "chrome/overlay_selection.rs";
 
 /// True iff `line` (real code, not a comment) calls `overlay_band_drawn(` or
 /// `living_band_phase(`.
@@ -121,14 +121,14 @@ fn glide_anchor_has_no_bypass_among_summoned_surfaces() {
             .join("\n")
     );
 
-    // NON-VACUOUS: `chrome/overlay_rows.rs` — the ONE legitimate production
+    // NON-VACUOUS: `chrome/overlay_selection.rs` — the ONE legitimate production
     // caller — really does carry calls (if a refactor ever routed the fill
     // through a different file without updating the allowlist, this pins the
     // expectation so the law's target stays explicit rather than silently
     // trivial).
     assert!(
         hits.iter().any(|(f, _)| f == ALLOWED_DIRECT_CALLER),
-        "chrome/overlay_rows.rs must be the real Pane-family row-fill seam \
+        "chrome/overlay_selection.rs must be the real Pane-family row-fill seam \
          (found no calls there at all — the scan itself may be broken)"
     );
 

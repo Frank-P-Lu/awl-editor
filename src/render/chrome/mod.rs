@@ -258,6 +258,7 @@ pub(in crate::render) use overlay::{
 // work. A cohesive physical carve, byte-identical pixels — see the file's own doc.
 mod overlay_draw;
 mod overlay_rows;
+mod overlay_selection;
 mod overlay_shape;
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;

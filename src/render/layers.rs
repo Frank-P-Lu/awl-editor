@@ -4,6 +4,8 @@
 
 use super::*;
 
+mod ornaments;
+
 /// The vertical page-frame bounds shared by preparation and its laws. A frame
 /// is a writing-surface boundary, not a bracket around the last glyph: its
 /// bottom therefore reaches the editor canvas even when the document is short.
@@ -907,324 +909,18 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let m = self.metrics;
-        let muted = theme::muted().to_glyphon();
-        let left = self.text_left();
-        let col_w = self.text_wrap_width().max(1.0);
-        let rule_marks = if self.md_enabled {
-            self.rule_marks()
-        } else {
-            Vec::new()
-        };
-
-        let rule_attrs = Attrs::new()
-            .family(Family::Name(theme::active().ornament_face))
-            .color(muted);
-        let bullet_attrs = Attrs::new()
-            .family(Family::Name(theme::active().ornament_face))
-            .color(muted);
-        let center = Some(glyphon::cosmic_text::Align::Center);
-
-        let ornament_scale = theme::active().ornament_scale;
-        let orn_line_h = m.line_height * ornament_scale;
-        let orn_metrics = GlyphMetrics::new(m.font_size * ornament_scale, orn_line_h);
-
-        let mut distinct: Vec<char> = Vec::new();
-        for (_, ch) in &rule_marks {
-            if !distinct.contains(ch) {
-                distinct.push(*ch);
-            }
-        }
-        let mut rule_buffers: Vec<GlyphBuffer> = Vec::with_capacity(distinct.len());
-        for &ch in &distinct {
-            let mut buf = GlyphBuffer::new(&mut self.font_system, orn_metrics);
-            buf.set_size(&mut self.font_system, Some(col_w), Some(orn_line_h));
-            buf.set_text(
-                &mut self.font_system,
-                &ch.to_string(),
-                &rule_attrs,
-                Shaping::Advanced,
-                center,
-            );
-            buf.shape_until_scroll(&mut self.font_system, false);
-            rule_buffers.push(buf);
-        }
-
-        let bullet_marks = if self.md_enabled {
-            self.bullet_marks()
-        } else {
-            Vec::new()
-        };
-        let bullet_scale = theme::active().bullet_scale;
-        let bullet_metrics = GlyphMetrics::new(m.font_size * bullet_scale, m.line_height);
-        let bullet_w = (m.char_width * 2.0).max(1.0);
-        let mut bullet_distinct: Vec<char> = Vec::new();
-        for (_, _, ch) in &bullet_marks {
-            if !bullet_distinct.contains(ch) {
-                bullet_distinct.push(*ch);
-            }
-        }
-        let mut bullet_buffers: Vec<GlyphBuffer> = Vec::with_capacity(bullet_distinct.len());
-        for &ch in &bullet_distinct {
-            let mut buf = GlyphBuffer::new(&mut self.font_system, bullet_metrics);
-            buf.set_size(&mut self.font_system, Some(bullet_w), Some(m.line_height));
-            buf.set_text(
-                &mut self.font_system,
-                &ch.to_string(),
-                &bullet_attrs,
-                Shaping::Advanced,
-                None,
-            );
-            buf.shape_until_scroll(&mut self.font_system, false);
-            bullet_buffers.push(buf);
-        }
-
-        // BLOCKQUOTE PULL-QUOTE MARKS: one big DIM opening quotation mark per
-        // blockquote block, shaped in the WORLD'S OWN DISPLAY SERIF (`Theme::font`, the
-        // pull-quote — NOT the ornament/symbol face) and hung in the LEFT MARGIN so its
-        // RIGHT edge hugs the writing column (the same margin/gap the outline + gutter
-        // use). Page-mode + WYSIWYG gated inside `quote_marks` (empty otherwise), so a
-        // non-page / off / non-md capture adds nothing. The glyph is identical across
-        // blocks, so it shapes ONCE; each block just reuses the buffer at its own top.
-        let quote_tops = self.quote_marks();
-        let quote_faint = theme::faint().to_glyphon();
-        let quote_metrics = GlyphMetrics::new(m.font_size * QUOTE_MARK_SCALE, m.line_height);
-        let quote_attrs = Attrs::new()
-            .family(Family::Name(theme::active().font))
-            .color(quote_faint);
-        let quote_box_w = (m.font_size * QUOTE_MARK_SCALE * 2.0).max(1.0);
-        let mut quote_buffer = GlyphBuffer::new(&mut self.font_system, quote_metrics);
-        let mut quote_left = 0.0f32;
-        if !quote_tops.is_empty() {
-            quote_buffer.set_size(
-                &mut self.font_system,
-                Some(quote_box_w),
-                Some(m.line_height),
-            );
-            quote_buffer.set_text(
-                &mut self.font_system,
-                &QUOTE_MARK_GLYPH.to_string(),
-                &quote_attrs,
-                Shaping::Advanced,
-                None,
-            );
-            quote_buffer.shape_until_scroll(&mut self.font_system, false);
-            let mut mark_w = 0.0f32;
-            for run in quote_buffer.layout_runs() {
-                mark_w = mark_w.max(run.line_w);
-            }
-            let gap = m.char_width * 0.3;
-            quote_left =
-                super::geometry::pull_quote_left(self.column_left(), self.text_left(), gap, mark_w);
-        }
-
-        let fence_lang_marks = if self.md_enabled {
-            self.fence_lang_marks()
-        } else {
-            Vec::new()
-        };
-        let label_scale = crate::markdown::type_scale::LABEL;
-        let fence_lang_metrics = GlyphMetrics::new(m.font_size * label_scale, m.line_height);
-        let fence_lang_attrs = panel_attrs().color(muted);
-        let mut fence_lang_distinct: Vec<crate::syntax::Lang> = Vec::new();
-        for (_, lang) in &fence_lang_marks {
-            if !fence_lang_distinct.contains(lang) {
-                fence_lang_distinct.push(*lang);
-            }
-        }
-        let mut fence_lang_buffers: Vec<GlyphBuffer> =
-            Vec::with_capacity(fence_lang_distinct.len());
-        let mut fence_lang_widths: Vec<f32> = Vec::with_capacity(fence_lang_distinct.len());
-        for &lang in &fence_lang_distinct {
-            let mut buf = GlyphBuffer::new(&mut self.font_system, fence_lang_metrics);
-            buf.set_size(&mut self.font_system, Some(col_w), Some(m.line_height));
-            buf.set_text(
-                &mut self.font_system,
-                lang.name(),
-                &fence_lang_attrs,
-                Shaping::Advanced,
-                None,
-            );
-            buf.shape_until_scroll(&mut self.font_system, false);
-            let mut w = 0.0f32;
-            for run in buf.layout_runs() {
-                w = w.max(run.line_w);
-            }
-            fence_lang_widths.push(w);
-            fence_lang_buffers.push(buf);
-        }
-        // Right-aligned to the fenced block's own text-wrap right edge (where the
-        // body's wrapped text would end), with a half-char inset so the label never
-        // touches the panel's own edge.
-        let fence_lang_right = self.text_left() + self.text_wrap_width();
-        let fence_lang_inset = m.char_width * 0.5;
-
-        let fold_tail_ink = theme::fold_afford_tail_ink().to_glyphon();
-        let fold_chevron_ink = theme::fold_afford_chevron_ink().to_glyphon();
-        let fold_tail_marks = self.fold_tail_marks();
-        let fold_chevron_marks = self.fold_chevron_marks();
-        let fold_label_scale = crate::markdown::type_scale::LABEL;
-        let fold_tail_attrs = panel_attrs().color(fold_tail_ink);
-        let fold_chevron_attrs = panel_attrs().color(fold_chevron_ink);
-        let fold_mark_h = m.line_height * fold_label_scale;
-        let fold_mark_metrics = GlyphMetrics::new(m.font_size * fold_label_scale, fold_mark_h);
-        let fold_mark_line_y = |buf: &GlyphBuffer| -> f32 {
-            buf.layout_runs()
-                .next()
-                .map(|r| r.line_y)
-                .unwrap_or(fold_mark_h * 0.8)
-        };
-        // Shape a small buffer per affordance; folds are few, so a per-mark buffer
-        // (no dedupe) stays O(visible). The tail's own SHAPED width (`run.line_w`,
-        // the same measurement `fence_lang_widths` above takes) is recorded per
-        // mark — item 73: it's the one thing the PLACEMENT clamp below needs that
-        // isn't knowable from geometry alone (the text is short but its pixel width
-        // still depends on the active world's own ornament face).
-        let mut fold_tail_buffers: Vec<GlyphBuffer> = Vec::with_capacity(fold_tail_marks.len());
-        let mut fold_tail_widths: Vec<f32> = Vec::with_capacity(fold_tail_marks.len());
-        for &(_, _, n, _line) in &fold_tail_marks {
-            let mut buf = GlyphBuffer::new(&mut self.font_system, fold_mark_metrics);
-            buf.set_size(&mut self.font_system, Some(col_w), Some(fold_mark_h));
-            buf.set_text(
-                &mut self.font_system,
-                &fold_tail_text(n),
-                &fold_tail_attrs,
-                Shaping::Advanced,
-                None,
-            );
-            buf.shape_until_scroll(&mut self.font_system, false);
-            let mut w = 0.0f32;
-            for run in buf.layout_runs() {
-                w = w.max(run.line_w);
-            }
-            fold_tail_widths.push(w);
-            fold_tail_buffers.push(buf);
-        }
-        let mut fold_chevron_buffers: Vec<GlyphBuffer> =
-            Vec::with_capacity(fold_chevron_marks.len());
-        for &(_, _, _line) in &fold_chevron_marks {
-            let mut buf = GlyphBuffer::new(&mut self.font_system, fold_mark_metrics);
-            buf.set_size(&mut self.font_system, Some(col_w), Some(fold_mark_h));
-            buf.set_text(
-                &mut self.font_system,
-                FOLD_CHEVRON,
-                &fold_chevron_attrs,
-                Shaping::Advanced,
-                None,
-            );
-            buf.shape_until_scroll(&mut self.font_system, false);
-            fold_chevron_buffers.push(buf);
-        }
-
-        // DIFF-AS-PREVIEW: ornament glyphs are document content — clip to the
-        // panel band exactly like the text layer.
-        let (o_top, o_bottom) = match self.doc_clip_band(height as f32) {
-            Some((t, b)) => (t as i32, b as i32),
+        let frame = ornaments::OrnamentFrame::shape(self);
+        let (top, bottom) = match self.doc_clip_band(height as f32) {
+            Some((top, bottom)) => (top as i32, bottom as i32),
             None => (0, height as i32),
         };
         let bounds = TextBounds {
             left: 0,
-            top: o_top,
+            top,
             right: width as i32,
-            bottom: o_bottom,
+            bottom,
         };
-        let mut areas: Vec<TextArea> = Vec::with_capacity(
-            rule_marks.len()
-                + bullet_marks.len()
-                + quote_tops.len()
-                + fence_lang_marks.len()
-                + fold_tail_marks.len()
-                + fold_chevron_marks.len(),
-        );
-        for (top, ch) in &rule_marks {
-            let idx = distinct
-                .iter()
-                .position(|c| c == ch)
-                .expect("char was deduped in");
-            areas.push(TextArea {
-                buffer: &rule_buffers[idx],
-                left,
-                top: *top,
-                scale: 1.0,
-                bounds,
-                default_color: muted,
-                custom_glyphs: &[],
-            });
-        }
-        for (top, bleft, ch) in &bullet_marks {
-            let idx = bullet_distinct
-                .iter()
-                .position(|c| c == ch)
-                .expect("char was deduped in");
-            areas.push(TextArea {
-                buffer: &bullet_buffers[idx],
-                left: *bleft,
-                top: *top,
-                scale: 1.0,
-                bounds,
-                default_color: muted,
-                custom_glyphs: &[],
-            });
-        }
-        for top in &quote_tops {
-            areas.push(TextArea {
-                buffer: &quote_buffer,
-                left: quote_left,
-                top: *top,
-                scale: 1.0,
-                bounds,
-                default_color: quote_faint,
-                custom_glyphs: &[],
-            });
-        }
-        for (top, lang) in &fence_lang_marks {
-            let idx = fence_lang_distinct
-                .iter()
-                .position(|l| l == lang)
-                .expect("lang was deduped in");
-            let w = fence_lang_widths[idx];
-            let left = (fence_lang_right - w - fence_lang_inset).max(self.text_left());
-            areas.push(TextArea {
-                buffer: &fence_lang_buffers[idx],
-                left,
-                top: *top,
-                scale: 1.0,
-                bounds,
-                default_color: muted,
-                custom_glyphs: &[],
-            });
-        }
-        let column_right = left + col_w;
-        for (i, &(baseline, desired_left, _n, line)) in fold_tail_marks.iter().enumerate() {
-            let w = fold_tail_widths[i];
-            let floor_left = self.fold_affordance_row_end_x(line);
-            let draw_left = desired_left.min(column_right - w);
-            if draw_left < floor_left {
-                continue;
-            }
-            let top = baseline - fold_mark_line_y(&fold_tail_buffers[i]);
-            areas.push(TextArea {
-                buffer: &fold_tail_buffers[i],
-                left: draw_left,
-                top,
-                scale: 1.0,
-                bounds,
-                default_color: fold_tail_ink,
-                custom_glyphs: &[],
-            });
-        }
-        for (i, &(baseline, left, _line)) in fold_chevron_marks.iter().enumerate() {
-            let top = baseline - fold_mark_line_y(&fold_chevron_buffers[i]);
-            areas.push(TextArea {
-                buffer: &fold_chevron_buffers[i],
-                left,
-                top,
-                scale: 1.0,
-                bounds,
-                default_color: fold_chevron_ink,
-                custom_glyphs: &[],
-            });
-        }
+        let areas = frame.text_areas(self, bounds);
         self.ornament_renderer
             .prepare(
                 device,
@@ -1235,7 +931,7 @@ impl TextPipeline {
                 areas,
                 &mut self.swash_cache,
             )
-            .map_err(|e| anyhow::anyhow!("glyphon ornament prepare failed: {e:?}"))?;
+            .map_err(|error| anyhow::anyhow!("glyphon ornament prepare failed: {error:?}"))?;
         Ok(())
     }
 
