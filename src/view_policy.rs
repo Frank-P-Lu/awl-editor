@@ -175,6 +175,10 @@ mod tests {
             "capture/film.rs",
             "capture/frames.rs",
             "capture/gpu.rs",
+            // Serializes the renderer's own `LayoutReport` and decides nothing:
+            // it holds none of the rostered policy identifiers, so it contributes
+            // zero to every count below rather than needing an owner of its own.
+            "capture/layout_sidecar.rs",
             "capture/modes.rs",
             "capture/opts.rs",
             "capture/oracle.rs",
