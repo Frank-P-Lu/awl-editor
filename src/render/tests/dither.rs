@@ -308,7 +308,12 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
         "test canvas must tile whole Bayer periods at cell {cell}"
     );
 
-    let mut sel = crate::selection::SelectionPipeline::new(&device, FMT, [255, 255, 255, 255]);
+    let mut sel = crate::selection::SelectionPipeline::new(
+        &device,
+        &crate::selection::selection_shader(&device),
+        FMT,
+        [255, 255, 255, 255],
+    );
     sel.set_dither(0.25);
     sel.set_dither_cell(cell as f32);
     let (w, h) = (64u32, 64u32);
@@ -425,7 +430,11 @@ fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
     let _g = crate::testlock::serial();
 
     let (w, h) = (32u32, 32u32);
-    let mut invert = crate::selection::SelectionPipeline::new_invert(&device, FMT);
+    let mut invert = crate::selection::SelectionPipeline::new_invert(
+        &device,
+        &crate::selection::selection_shader(&device),
+        FMT,
+    );
     invert.prepare(&device, &queue, w, h, &[[0.0, 0.0, w as f32, h as f32]]);
 
     for (clear, expect) in [
@@ -484,7 +493,11 @@ fn draw_invert_rect(
     rect: [f32; 4],
     corner: Option<f32>,
 ) -> Vec<[u8; 4]> {
-    let mut invert = crate::selection::SelectionPipeline::new_invert(device, FMT);
+    let mut invert = crate::selection::SelectionPipeline::new_invert(
+        device,
+        &crate::selection::selection_shader(device),
+        FMT,
+    );
     if let Some(c) = corner {
         invert.set_corner(c);
     }

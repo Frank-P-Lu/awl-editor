@@ -31,10 +31,17 @@ impl TextPipeline {
         // from the active world's margin tokens; re-tinted on a live theme switch.
         let background_pipeline = BackgroundPipeline::new(device, format, background_desc());
         let lava_pipeline = crate::lava::LavaPipeline::new(device, format);
-        let mut page_frame_pipeline =
-            SelectionPipeline::new(device, format, theme::page_frame_ink().rgba_bytes());
+        // One `selection.wgsl` module for the ~25 selection pipelines below —
+        // see `selection::selection_shader`.
+        let sel_shader = crate::selection::selection_shader(device);
+        let mut page_frame_pipeline = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::page_frame_ink().rgba_bytes(),
+        );
         page_frame_pipeline.set_dither(1.0);
-        let stars_pipeline = SelectionPipeline::new(device, format, [0, 0, 0, 0]);
+        let stars_pipeline = SelectionPipeline::new(device, &sel_shader, format, [0, 0, 0, 0]);
         // SYNTAX WASH quads (under selection, over the ground): the warm band
         // behind prose comments + the green band behind dark-world strings. The
         // tints come from THE role style provider (`role_style_for`, via
@@ -42,24 +49,33 @@ impl TextPipeline {
         // zero instances, so nothing draws.
         let wash_comment_pipeline = SelectionPipeline::new(
             device,
+            &sel_shader,
             format,
             wash_rgba_bytes(crate::syntax::SynKind::Comment),
         );
-        let wash_string_pipeline =
-            SelectionPipeline::new(device, format, wash_rgba_bytes(crate::syntax::SynKind::Str));
+        let wash_string_pipeline = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            wash_rgba_bytes(crate::syntax::SynKind::Str),
+        );
         let mut wash_highlight_pipeline =
-            SelectionPipeline::new(device, format, highlight_wash_rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, highlight_wash_rgba_bytes());
         wash_highlight_pipeline.set_dither(wagtail_dither_density());
         wash_highlight_pipeline.set_dither_cell(wagtail_stipple_cell_px(1.0));
         let fence_panel_pipeline =
-            SelectionPipeline::new(device, format, theme::base_200().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
         let code_pill_pipeline =
-            SelectionPipeline::new(device, format, theme::base_200().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
         let image_pipeline = crate::image_pipeline::ImageQuadPipeline::new(device, format);
         let image_placeholder_pipeline =
-            SelectionPipeline::new(device, format, theme::base_200().rgba_bytes());
-        let image_scrim_pipeline =
-            SelectionPipeline::new(device, format, theme::image_reveal_scrim().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
+        let image_scrim_pipeline = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::image_reveal_scrim().rgba_bytes(),
+        );
         let image_placeholder_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         // Translucent selection highlight quads, drawn under the text. On a
@@ -69,22 +85,23 @@ impl TextPipeline {
         // pipeline simply draws nothing there; its color still tracks
         // `theme::selection()` for the other 14 worlds, unchanged.
         let selection_pipeline =
-            SelectionPipeline::new(device, format, theme::selection().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::selection().rgba_bytes());
         // Search-match highlights: `theme::selection()` tint on every ordinary
         // world (unchanged). On a one-bit world this instead becomes THE ONE
         // WAGTAIL HIGHLIGHT TEXTURE — same dither mode + color as
         // `wash_highlight_pipeline` (search matches and `==highlight==` spans
         // deliberately share one texture, one meaning).
-        let mut match_pipeline = SelectionPipeline::new(device, format, search_match_rgba_bytes());
+        let mut match_pipeline =
+            SelectionPipeline::new(device, &sel_shader, format, search_match_rgba_bytes());
         match_pipeline.set_dither(wagtail_dither_density());
         match_pipeline.set_dither_cell(wagtail_stipple_cell_px(1.0));
-        let selection_invert = SelectionPipeline::new_invert(device, format);
+        let selection_invert = SelectionPipeline::new_invert(device, &sel_shader, format);
         // THE 1-BIT CARET ROUND: the caret's own true-inverse-video sibling —
         // same construction, own instance/instance-buffer so the caret's
         // per-frame rect can't collide with the selection's (see the field
         // doc + `prepare_caret_block` / `draw_document_layers`). Idle on
         // every other world.
-        let caret_invert = SelectionPipeline::new_invert(device, format);
+        let caret_invert = SelectionPipeline::new_invert(device, &sel_shader, format);
         // Markdown ORNAMENTS (section-break fleuron): a quiet DIM glyph renderer,
         // sharing the atlas + viewport. One single-glyph buffer per break, shaped
         // centered in the writing column. Empty / parked for a non-markdown buffer so
@@ -94,11 +111,16 @@ impl TextPipeline {
         let table_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let table_rule_pipeline =
-            SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
-        let panel_card = SelectionPipeline::new(device, format, initial_pane_face());
-        let panel_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let panel_border =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::muted().rgba_bytes());
+        let panel_card = SelectionPipeline::new(device, &sel_shader, format, initial_pane_face());
+        let panel_shadow =
+            SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
+        let panel_border = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
         let blur = blur::BlurBackdrop::new(device, format);
         // Second text renderer for the panel string, sharing the atlas + viewport.
         let panel_renderer =
@@ -113,34 +135,60 @@ impl TextPipeline {
             CaretPipeline::new(device, format, theme::primary().rgb_bytes());
         let caret_preview_glyph_pipeline =
             CaretGlyphPipeline::new(device, queue, format, theme::primary().rgb_bytes());
-        let float_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let float_border =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let float_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
-        let diffpanel_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let diffpanel_border =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let diffpanel_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
+        let float_shadow =
+            SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
+        let float_border = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
+        let float_card =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
+        let diffpanel_shadow =
+            SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
+        let diffpanel_border = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
+        let diffpanel_card =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
         let preview_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let preview_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         // The overlay's selected-row highlight: same rounded quad as selection,
         // tinted with the muted selection token (amber stays the caret's alone).
-        let overlay_rows = SelectionPipeline::new(device, format, theme::selection().rgba_bytes());
-        let overlay_bars =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let overlay_lens_underline =
-            SelectionPipeline::new(device, format, theme::base_content().rgba_bytes());
+        let overlay_rows =
+            SelectionPipeline::new(device, &sel_shader, format, theme::selection().rgba_bytes());
+        let overlay_bars = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
+        let overlay_lens_underline = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::base_content().rgba_bytes(),
+        );
         let overlay_facet_ghost =
-            SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
-        let overlay_cross =
-            SelectionPipeline::new(device, format, theme::overlay_band_overlap().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::muted().rgba_bytes());
+        let overlay_cross = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::overlay_band_overlap().rgba_bytes(),
+        );
         let overlay_range_track =
-            SelectionPipeline::new(device, format, theme::faint().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::faint().rgba_bytes());
         let overlay_range_thumb =
-            SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, theme::muted().rgba_bytes());
         let mut placard_stipple = SelectionPipeline::new(
             device,
+            &sel_shader,
             format,
             theme::placard_ink(theme::PlacardInk::Stipple).rgba_bytes(),
         );
@@ -166,36 +214,59 @@ impl TextPipeline {
         let outline_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let outline_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let menubar_bg = SelectionPipeline::new(device, format, theme::base_200().rgba_bytes());
-        let menubar_hi = SelectionPipeline::new(device, format, theme::selection().rgba_bytes());
+        let menubar_bg =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
+        let menubar_hi =
+            SelectionPipeline::new(device, &sel_shader, format, theme::selection().rgba_bytes());
         let menubar_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let menubar_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let menu_drop_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let menu_drop_border =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let menu_drop_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
-        let menu_drop_sep = SelectionPipeline::new(device, format, theme::muted().rgba_bytes());
+        let menu_drop_shadow =
+            SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
+        let menu_drop_border = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
+        let menu_drop_card =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
+        let menu_drop_sep =
+            SelectionPipeline::new(device, &sel_shader, format, theme::muted().rgba_bytes());
         let menu_drop_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let menu_drop_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let menu_chord_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let menu_chord_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let hud_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let hud_border =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let hud_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
-        let mut streak_cells =
-            SelectionPipeline::new(device, format, theme::base_content().rgba_bytes());
+        let hud_shadow = SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
+        let hud_border = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
+        let hud_card =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
+        let mut streak_cells = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::base_content().rgba_bytes(),
+        );
         streak_cells.set_corner(1.5);
         let hud_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let hud_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let wk_shadow = SelectionPipeline::new(device, format, float_shadow_srgba());
-        let wk_border =
-            SelectionPipeline::new(device, format, theme::surface_selected().rgba_bytes());
-        let wk_card = SelectionPipeline::new(device, format, theme::base_300().rgba_bytes());
+        let wk_shadow = SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
+        let wk_border = SelectionPipeline::new(
+            device,
+            &sel_shader,
+            format,
+            theme::surface_selected().rgba_bytes(),
+        );
+        let wk_card =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
         let wk_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let wk_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
@@ -204,9 +275,10 @@ impl TextPipeline {
         // `float_border`/`float_card` quads (`prepare_float_panel`) — no dedicated
         // trio of its own; see `render.rs`'s field doc. Empty/off until a mouse
         // selection summons it (or the `AWL_POPOVER` capture probe).
-        let popover_wash = SelectionPipeline::new(device, format, theme::base_200().rgba_bytes());
+        let popover_wash =
+            SelectionPipeline::new(device, &sel_shader, format, theme::base_200().rgba_bytes());
         let mut popover_hl_wash =
-            SelectionPipeline::new(device, format, highlight_wash_rgba_bytes());
+            SelectionPipeline::new(device, &sel_shader, format, highlight_wash_rgba_bytes());
         popover_hl_wash.set_dither(wagtail_dither_density());
         popover_hl_wash.set_dither_cell(wagtail_stipple_cell_px(1.0));
         let popover_strike = SpellUnderlinePipeline::new(device, format, strike_srgba_bytes());
