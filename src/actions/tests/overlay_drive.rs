@@ -1382,7 +1382,9 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
         let before_value = match row.id {
             crate::settings::SettingId::Zoom => zoom,
             crate::settings::SettingId::ScrollSensitivity => crate::settings::scroll_sensitivity(),
-            _ => unreachable!("range roster only contains owned scalars"),
+            crate::settings::SettingId::PageWidthProse
+            | crate::settings::SettingId::PageWidthCode => spec.value_of_step(before.step),
+            _ => unreachable!("range roster contains an unowned scalar"),
         };
         let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
         assert_eq!(
@@ -1404,7 +1406,9 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
                 crate::settings::SettingId::Zoom => zoom,
                 crate::settings::SettingId::ScrollSensitivity =>
                     crate::settings::scroll_sensitivity(),
-                _ => unreachable!("range roster only contains owned scalars"),
+                crate::settings::SettingId::PageWidthProse
+                | crate::settings::SettingId::PageWidthCode => spec.value_of_step(after.step),
+                _ => unreachable!("range roster contains an unowned scalar"),
             },
             before_value,
             "{}: the live scalar must move too",

@@ -18,6 +18,7 @@ pub fn set_scroll_sensitivity(value: f32) {
 pub enum SettingKind {
     Toggle,
     Picker,
+    #[allow(dead_code)] // retained grammar; all current bounded numerics use Range
     Value,
     Range,
     Path,
@@ -111,13 +112,13 @@ pub static SETTINGS: &[SettingRow] = &[
         id: SettingId::PageWidthProse,
         name: "Page width (prose)",
         category: "Editor",
-        kind: SettingKind::Value,
+        kind: SettingKind::Range,
     },
     SettingRow {
         id: SettingId::PageWidthCode,
         name: "Page width (code)",
         category: "Editor",
-        kind: SettingKind::Value,
+        kind: SettingKind::Range,
     },
     SettingRow {
         id: SettingId::Zoom,
@@ -424,8 +425,12 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::PageMode => on_off(crate::page::page_on()).to_string(),
         SettingId::TypewriterScroll => on_off(crate::typewriter::typewriter_on()).to_string(),
         SettingId::ReduceMotion => on_off(crate::motion::reduced()).to_string(),
-        SettingId::PageWidthProse => values.page_width_prose.to_string(),
-        SettingId::PageWidthCode => values.page_width_code.to_string(),
+        SettingId::PageWidthProse => {
+            crate::range::PAGE_WIDTH_PROSE.format(values.page_width_prose as f32)
+        }
+        SettingId::PageWidthCode => {
+            crate::range::PAGE_WIDTH_CODE.format(values.page_width_code as f32)
+        }
         // ZOOM (item 94): formatted by its own RANGE SPEC's display unit — the
         // SAME owner the rail, the sidecar and the exact-entry parse read, so the
         // cell and the thumb can never disagree about the value.
@@ -511,6 +516,8 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
 
 pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
     Some(match id {
+        SettingId::PageWidthProse => &crate::range::PAGE_WIDTH_PROSE,
+        SettingId::PageWidthCode => &crate::range::PAGE_WIDTH_CODE,
         SettingId::Zoom => &crate::range::ZOOM,
         SettingId::ScrollSensitivity => &crate::range::SCROLL_SENSITIVITY,
         _ => return None,
@@ -519,6 +526,8 @@ pub fn range_spec(id: SettingId) -> Option<&'static crate::range::RangeSpec> {
 
 pub fn range_value(id: SettingId, values: &SettingsValues) -> Option<f32> {
     Some(match id {
+        SettingId::PageWidthProse => values.page_width_prose as f32,
+        SettingId::PageWidthCode => values.page_width_code as f32,
         SettingId::Zoom => values.zoom,
         SettingId::ScrollSensitivity => values.scroll_sensitivity,
         _ => return None,
@@ -555,6 +564,11 @@ pub fn value_key(id: SettingId) -> Option<&'static str> {
     })
 }
 
+#[allow(dead_code)]
+pub const PAGE_WIDTH_MIN: usize = crate::range::PAGE_WIDTH_PROSE.min as usize;
+#[allow(dead_code)]
+pub const PAGE_WIDTH_MAX: usize = crate::range::PAGE_WIDTH_PROSE.max as usize;
+
 /// The config KEY a PATH row picks a folder for — the single owner of the
 /// [`SettingId`] → config-key map for the folder-navigator route. `None` for a
 /// non-path id. `App::setting_path_pick` writes this key (and for `project_root`
@@ -567,13 +581,6 @@ pub fn path_key(id: SettingId) -> Option<&'static str> {
         SettingId::ProjectRoot => "project_root",
         _ => return None,
     })
-}
-
-pub const PAGE_WIDTH_MIN: usize = 20;
-pub const PAGE_WIDTH_MAX: usize = 200;
-
-pub fn clamp_page_width(n: usize) -> usize {
-    n.clamp(PAGE_WIDTH_MIN, PAGE_WIDTH_MAX)
 }
 
 /// Parse a typed ZOOM field into a clamped zoom FACTOR, or `None` if it isn't a

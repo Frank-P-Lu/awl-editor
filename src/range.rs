@@ -62,6 +62,9 @@ pub enum Unit {
     /// retyping over the shown `"80%"` cell should do the obvious thing — an
     /// unsuffixed integer-ish value ≥ 10 as a percent (`"125"` → `1.25`).
     Percent,
+    /// A whole number of text columns (`70` → `"70"`). Exact entry accepts a
+    /// finite number and the range's authored step snaps it to a whole column.
+    Columns,
 }
 
 impl Unit {
@@ -69,6 +72,7 @@ impl Unit {
     pub fn format(self, v: f32) -> String {
         match self {
             Unit::Percent => format!("{:.0}%", v * 100.0),
+            Unit::Columns => format!("{v:.0}"),
         }
     }
 
@@ -88,6 +92,10 @@ impl Unit {
                     return None;
                 }
                 Some(if percent || v >= 10.0 { v / 100.0 } else { v })
+            }
+            Unit::Columns => {
+                let v: f32 = raw.trim().parse().ok()?;
+                v.is_finite().then_some(v)
             }
         }
     }
@@ -260,11 +268,14 @@ impl RangeSpec {
         self.unit.parse(raw).map(|v| self.quantize(v))
     }
 
-    /// The config RHS this value persists as (see `App::persist_pref`). Trimmed
-    /// to 3 places so the file stays tidy — the historical `zoom` format.
+    /// The config RHS this value persists as (see `App::persist_pref`):
+    /// percentages keep the historical three-decimal factor; columns are whole.
     pub fn persist_value(&self, v: f32) -> String {
         let v = self.quantize(v);
-        format!("{v:.3}")
+        match self.unit {
+            Unit::Percent => format!("{v:.3}"),
+            Unit::Columns => format!("{v:.0}"),
+        }
     }
 }
 
@@ -276,10 +287,21 @@ pub const ZOOM: RangeSpec = RangeSpec::new(0.5, 3.0, 0.1, 1.0, Unit::Percent, Ra
 pub const SCROLL_SENSITIVITY: RangeSpec =
     RangeSpec::new(0.25, 4.0, 0.05, 1.0, Unit::Percent, RailMap::Log);
 
+/// Prose and code measures share the same whole-column band but keep distinct
+/// authored defaults and config keys.
+pub const PAGE_WIDTH_PROSE: RangeSpec =
+    RangeSpec::new(20.0, 200.0, 1.0, 70.0, Unit::Columns, RailMap::Linear);
+pub const PAGE_WIDTH_CODE: RangeSpec =
+    RangeSpec::new(20.0, 200.0, 1.0, 100.0, Unit::Columns, RailMap::Linear);
+
 /// Every registered spec, for the pure sweep laws.
 #[cfg(test)]
-pub(crate) const REGISTERED: &[(&str, RangeSpec)] =
-    &[("zoom", ZOOM), ("scroll_sensitivity", SCROLL_SENSITIVITY)];
+pub(crate) const REGISTERED: &[(&str, RangeSpec)] = &[
+    ("page_width_prose", PAGE_WIDTH_PROSE),
+    ("page_width_code", PAGE_WIDTH_CODE),
+    ("zoom", ZOOM),
+    ("scroll_sensitivity", SCROLL_SENSITIVITY),
+];
 
 #[cfg(test)]
 mod tests {

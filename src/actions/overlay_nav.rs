@@ -661,10 +661,17 @@ pub(crate) fn stamp_return_to(
     }
 }
 
-fn range_ctx_value(id: crate::settings::SettingId, ctx: &ActionCtx) -> Option<f32> {
+fn range_ctx_value(
+    id: crate::settings::SettingId,
+    cell: crate::overlay::RangeCell,
+    ctx: &ActionCtx,
+) -> Option<f32> {
     Some(match id {
         crate::settings::SettingId::Zoom => *ctx.zoom,
         crate::settings::SettingId::ScrollSensitivity => crate::settings::scroll_sensitivity(),
+        crate::settings::SettingId::PageWidthProse | crate::settings::SettingId::PageWidthCode => {
+            crate::settings::range_spec(id)?.value_of_step(cell.step)
+        }
         _ => return None,
     })
 }
@@ -683,7 +690,7 @@ fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
     let cell = ctx.overlay.as_ref()?.selected_range()?;
     let spec = crate::settings::range_spec(cell.id)?;
     let key = crate::settings::value_key(cell.id)?;
-    let cur = range_ctx_value(cell.id, ctx)?;
+    let cur = range_ctx_value(cell.id, cell, ctx)?;
     let next = spec.stepped(cur, steps);
     range_ctx_set(cell.id, ctx, next);
     ctx.overlay

@@ -86,7 +86,7 @@ impl Capture {
 }
 
 /// The live inline VALUE-EDIT sub-state of the Settings menu (Enter on a
-/// [`crate::settings::SettingKind::Value`] row): which row is being edited, the
+/// numeric settings row): which row is being edited, the
 /// config key its commit writes, the text typed so far, and the ORIGINAL cell value
 /// to restore on cancel. Pure + serialisable, mirroring [`Capture`]. While it is
 /// `Some`, the Settings overlay OWNS every key at the intercept level (digits build

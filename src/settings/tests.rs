@@ -298,6 +298,54 @@ fn visible_range_cells_are_parallel_to_the_visible_rows() {
     );
 }
 
+/// Only bounded numeric continuous judgments get a rail. This no-wildcard
+/// roster makes every other row state why it is not a Range, so a future kind
+/// change cannot silently broaden the interaction grammar.
+#[test]
+fn the_complete_settings_roster_has_an_explicit_range_decision() {
+    let _g = crate::testlock::serial();
+    for row in SETTINGS {
+        let exclusion = match row.id {
+            SettingId::PageWidthProse
+            | SettingId::PageWidthCode
+            | SettingId::Zoom
+            | SettingId::ScrollSensitivity => None,
+            SettingId::CaretStyle
+            | SettingId::DateFormat
+            | SettingId::Theme
+            | SettingId::Dictionary
+            | SettingId::CjkReadsAs
+            | SettingId::Keymap => Some("discrete choice"),
+            SettingId::PageMode
+            | SettingId::TypewriterScroll
+            | SettingId::ReduceMotion
+            | SettingId::Wysiwyg
+            | SettingId::FormatPopover
+            | SettingId::InlineImages
+            | SettingId::CodeLigatures
+            | SettingId::Outline
+            | SettingId::MenuBar
+            | SettingId::Spellcheck
+            | SettingId::WritingNits
+            | SettingId::FileVisibility
+            | SettingId::Autosave
+            | SettingId::LocalHistory
+            | SettingId::SessionRestore => Some("boolean toggle"),
+            SettingId::DefaultFolder | SettingId::ProjectsFolder | SettingId::ProjectRoot => {
+                Some("path picker")
+            }
+            SettingId::Keybindings => Some("submenu"),
+            SettingId::ReportProblem | SettingId::EditConfigAsText => Some("action"),
+        };
+        assert_eq!(
+            row.kind == SettingKind::Range,
+            exclusion.is_none(),
+            "{}: Range suitability disagrees with its explicit decision ({exclusion:?})",
+            row.name
+        );
+    }
+}
+
 #[test]
 fn the_zoom_range_is_the_authored_fifty_to_three_hundred_percent_linear_rail() {
     let _g = crate::testlock::serial();
@@ -366,19 +414,15 @@ fn probe_values() -> SettingsValues {
     }
 }
 
-/// A typed page-width clamps into the sane band; a typed zoom parses BOTH the
-/// percent readout form and a bare factor, clamped through the one zoom owner.
+/// Typed numerics parse and clamp through their Range owners.
 #[test]
 fn value_parse_and_clamp_are_sane() {
-    assert_eq!(clamp_page_width(45), 45, "an in-range width is untouched");
+    let width = &crate::range::PAGE_WIDTH_PROSE;
+    assert_eq!(width.parse("45"), Some(45.0));
+    assert_eq!(width.parse("5"), Some(width.min), "a tiny width clamps up");
     assert_eq!(
-        clamp_page_width(5),
-        PAGE_WIDTH_MIN,
-        "a tiny width clamps up"
-    );
-    assert_eq!(
-        clamp_page_width(9000),
-        PAGE_WIDTH_MAX,
+        width.parse("9000"),
+        Some(width.max),
         "a huge width clamps down"
     );
 

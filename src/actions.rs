@@ -275,8 +275,8 @@ pub enum Effect {
     /// SETTINGS MENU: Enter COMMITTED an inline VALUE edit (page widths / zoom). The
     /// core built + committed the typed `value` for config `key`; it can't parse-clamp-
     /// apply-persist (no config path / GPU / zoom owner), so it signals the raw typed
-    /// string back for the caller to parse + clamp (`settings::clamp_page_width` /
-    /// `settings::parse_zoom`), apply LIVE (`page::set_measure` via `sync_page_measure`
+    /// string back for the caller to parse + clamp through its `RangeSpec`,
+    /// apply LIVE (`page::set_measure` via `sync_page_measure`
     /// / `set_zoom`), persist the NAMED key, and refresh the still-open menu's cell
     /// (`App::setting_value_commit`). The core already cleared the value-edit sub-state
     /// (the menu stays open). Headless replay reflects nothing (no live setter / config).

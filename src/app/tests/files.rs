@@ -1833,6 +1833,7 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
         ..Config::empty()
     };
     let mut app = app_on(None, "/proj", cfg);
+    let initial_measure = crate::page::measure();
 
     let range_rows: Vec<crate::settings::SettingRow> = crate::settings::visible_rows()
         .into_iter()
@@ -1874,4 +1875,5 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
             row.name
         );
     }
+    crate::page::set_measure(initial_measure);
 }
