@@ -879,7 +879,8 @@ fn apply_sticky_globals_restores_popover() {
 fn apply_sticky_globals_restores_code_ligatures() {
     // The remembered code_ligatures value lands on the `render::CODE_LIGATURES_ON`
     // process-global (no CLI flag, applies unconditionally) — mirrors the
-    // wysiwyg/writing_nits restore exactly. Only this test writes that global.
+    // wysiwyg/writing_nits restore exactly.
+    let _g = crate::testlock::serial();
     let saved = crate::render::code_ligatures_on();
     crate::render::set_code_ligatures_on(true);
     let cfg = Config {

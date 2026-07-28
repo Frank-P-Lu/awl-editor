@@ -25,26 +25,24 @@
 //! internals, so it sits beside them).
 
 use crate::keymap::Action;
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether the format popover is active. DEFAULT ON — a mouse selection in a
 /// markdown buffer floats the format row. OFF is a TOTAL no-op: no gesture ever
 /// summons it, and a capture is byte-identical to a build without the feature.
-/// Mirrors [`crate::markdown::wysiwyg_on`] exactly (a process-global read by the
-/// live App's mouse path + the capture probe, set once at launch from the config
-/// sticky pref, flipped live by the settings menu).
-static POPOVER_ON: AtomicBool = AtomicBool::new(true);
+/// A process-global read by the live App's mouse path + the capture probe, set
+/// once at launch from the config sticky pref, flipped live by the settings menu.
+static POPOVER_ON: Toggle = Toggle::new(true);
 
 /// True when the format popover is active (read by the live App's summon path +
 /// the capture force-summon probe).
 pub fn popover_on() -> bool {
-    POPOVER_ON.load(Ordering::Relaxed)
+    POPOVER_ON.on()
 }
 
-/// Set the format popover on/off explicitly — the config sticky-pref launch-apply
-/// (mirrors [`crate::markdown::set_wysiwyg_on`]).
+/// Set the format popover on/off explicitly — the config sticky-pref launch-apply.
 pub fn set_popover_on(on: bool) {
-    POPOVER_ON.store(on, Ordering::Relaxed);
+    POPOVER_ON.set(on);
 }
 
 /// The seven format buttons, LEFT-TO-RIGHT in the row. A no-wildcard enum: [`ALL`]

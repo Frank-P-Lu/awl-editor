@@ -459,6 +459,7 @@ fn nested_list_marker_dims_its_full_indent_prefix() {
 /// pushed, so it can never depend on what follows it.
 #[test]
 fn nested_list_marker_fix_is_content_independent() {
+    let _g = crate::testlock::serial();
     let plain = spans("- top\n  - plain nested\n");
     assert!(
         has(&plain, 6, 10, MdKind::ListMarker),

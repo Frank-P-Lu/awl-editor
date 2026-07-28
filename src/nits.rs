@@ -47,30 +47,28 @@
 //!     and other code-shaped spacing never nit. A prose/markdown buffer is
 //!     untouched.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether the writing-nits highlighter is active. DEFAULT ON: the app opens with
 /// the quiet underlines showing (like spellcheck); the toggle hides them all.
-static NITS_ON: AtomicBool = AtomicBool::new(true);
+static NITS_ON: Toggle = Toggle::new(true);
 
 /// True when the writing-nits highlighter is active (read each frame by the
 /// render pipeline to decide whether to build any nit underlines).
 pub fn nits_on() -> bool {
-    NITS_ON.load(Ordering::Relaxed)
+    NITS_ON.on()
 }
 
 /// Set the highlighter on/off explicitly (a settings write / the sticky-pref
 /// launch-apply). The render pipeline reads [`nits_on`] each frame.
 pub fn set_nits_on(on: bool) {
-    NITS_ON.store(on, Ordering::Relaxed);
+    NITS_ON.set(on);
 }
 
 /// Flip the highlighter and return the now-active state (the "Toggle writing nits"
-/// palette command). Mirrors [`crate::page::toggle`].
+/// palette command).
 pub fn toggle() -> bool {
-    let next = !nits_on();
-    NITS_ON.store(next, Ordering::Relaxed);
-    next
+    NITS_ON.toggle()
 }
 
 /// The punctuation a space must NOT immediately precede (English typography): a

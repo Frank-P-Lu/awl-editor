@@ -19,20 +19,20 @@
 //! only (no dedicated chord) — a picker-local ephemeral toggle was the old
 //! shape being retired; this is a sticky, app-wide preference instead.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether "All" is active (dotfiles + unsupported files both revealed).
 /// DEFAULT `false` (Text) — the calm, curated default a new install opens to.
-static ALL_ON: AtomicBool = AtomicBool::new(false);
+static ALL_ON: Toggle = Toggle::new(false);
 
 /// True when "All" visibility is active.
 pub fn all_on() -> bool {
-    ALL_ON.load(Ordering::Relaxed)
+    ALL_ON.on()
 }
 
 /// Set the live global directly (config load / capture `--config` seeding).
 pub fn set_all_on(on: bool) {
-    ALL_ON.store(on, Ordering::Relaxed);
+    ALL_ON.set(on);
 }
 
 /// Flip the global, returning the NEW value — the Settings menu's "File
@@ -41,9 +41,7 @@ pub fn set_all_on(on: bool) {
 /// test-only sugar (offered for symmetry with `page::toggle`/`spell::toggle`).
 #[allow(dead_code)]
 pub fn toggle() -> bool {
-    let next = !all_on();
-    set_all_on(next);
-    next
+    ALL_ON.toggle()
 }
 
 /// The setting row's calm VALUE-cell word: `"Text"` / `"All"`.

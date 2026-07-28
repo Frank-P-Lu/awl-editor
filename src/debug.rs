@@ -18,22 +18,20 @@
 //! BYTE-IDENTICAL; only an explicit `--debug` capture shows the placeholder
 //! lines plus the deterministic diagnostics.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
-static DEBUG_ON: AtomicBool = AtomicBool::new(false);
+static DEBUG_ON: Toggle = Toggle::new(false);
 
 pub fn debug_on() -> bool {
-    DEBUG_ON.load(Ordering::Relaxed)
+    DEBUG_ON.on()
 }
 
 pub fn set_debug_on(on: bool) {
-    DEBUG_ON.store(on, Ordering::Relaxed);
+    DEBUG_ON.set(on);
 }
 
 pub fn toggle() -> bool {
-    let next = !debug_on();
-    DEBUG_ON.store(next, Ordering::Relaxed);
-    next
+    DEBUG_ON.toggle()
 }
 
 /// The refresh the budget falls back to when winit cannot name the monitor's
