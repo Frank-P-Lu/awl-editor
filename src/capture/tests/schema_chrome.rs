@@ -7,6 +7,71 @@ use super::super::*;
 use super::{adapter_available, num_after};
 use crate::buffer::Buffer;
 
+struct TypewriterRestore(bool);
+
+impl Drop for TypewriterRestore {
+    fn drop(&mut self) {
+        crate::typewriter::set_typewriter_on(self.0);
+    }
+}
+
+/// A long document with the caret advanced twenty lines is the non-vacuous
+/// typewriter case: minimal reveal and centered pinning produce different scroll
+/// offsets. Plain, timeline, and held captures must choose the same initial
+/// viewport; the animated modes may then keep that viewport fixed.
+#[test]
+fn typewriter_scroll_initial_viewport_is_shared_by_plain_timeline_and_held() {
+    let _g = crate::testlock::serial();
+    if !adapter_available() {
+        eprintln!(
+            "skipping typewriter_scroll_initial_viewport_is_shared_by_plain_timeline_and_held: no wgpu adapter"
+        );
+        return;
+    }
+    let _restore = TypewriterRestore(crate::typewriter::typewriter_on());
+    crate::typewriter::set_typewriter_on(true);
+
+    let dir = std::env::temp_dir().join(format!("awl_typewriter_animated_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let text: String = (0..40).map(|line| format!("line {line:02}\n")).collect();
+    let mut buf = Buffer::from_str(&text);
+    buf.set_cursor(buf.line_col_to_char(20, 0));
+    let opts = CaptureOpts::default();
+
+    let plain = dir.join("plain.png");
+    capture_with(&plain, &buf, &opts).expect("plain typewriter capture");
+    let timeline = dir.join("timeline.png");
+    capture_timeline(&timeline, &buf, (19, 0), &[0], &opts).expect("typewriter timeline");
+    let held = dir.join("held.png");
+    capture_held(&held, &buf, (20, 0), HeldDir::Down, &[0], &opts)
+        .expect("typewriter held capture");
+
+    let scroll_top = |path: &std::path::Path| {
+        let text = std::fs::read_to_string(path).expect("read sidecar");
+        let value: serde_json::Value = serde_json::from_str(&text).expect("parse sidecar");
+        value["scroll_top_px"]
+            .as_f64()
+            .expect("numeric scroll_top_px")
+    };
+    let plain_top = scroll_top(&plain.with_extension("json"));
+    let timeline_top = scroll_top(&dir.join("timeline.t0.json"));
+    let held_top = scroll_top(&dir.join("held.t0.json"));
+    assert!(
+        plain_top > 0.0,
+        "precondition: line 20 in a 40-line document must require a real typewriter scroll"
+    );
+    assert_eq!(
+        timeline_top, plain_top,
+        "timeline initial viewport must use the shared typewriter policy"
+    );
+    assert_eq!(
+        held_top, plain_top,
+        "held initial viewport must use the shared typewriter policy"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The harness now reproduces the margin-class geometry: a capture at a REAL
 /// retina size (2400x1600 @ dpi 2.0) yields a page column CENTERED with a margin
 /// on BOTH sides (left == right within rounding, both > 0) — the assertion the old

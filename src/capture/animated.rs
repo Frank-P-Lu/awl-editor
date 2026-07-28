@@ -14,7 +14,7 @@ use crate::buffer::Buffer;
 use crate::render::{self, TextPipeline};
 
 use super::gpu::{headless_device, offscreen_target, read_frame};
-use super::modes::{base_viewstate, settled_scroll};
+use super::modes::base_viewstate;
 use super::opts::CaptureOpts;
 use super::sidecar::{CaretFrame, CosmeticReport, TrailReport, write_sidecar};
 use super::{CANVAS_HEIGHT, CANVAS_WIDTH, FORMAT};
@@ -111,7 +111,8 @@ async fn capture_timeline_async(
 
     // ONE fixed scroll for the whole timeline: follow the DESTINATION's visual row
     // (where the caret settles), mirroring capture_async's cursor-follow default.
-    vstate.scroll = settled_scroll(&pipeline, dest_line, dest_col, height as f32);
+    vstate.scroll =
+        super::modes::capture_follow_scroll(&pipeline, dest_line, dest_col, height as f32);
 
     // Pose the spring AT REST on the ORIGIN, then start the glide to the
     // DESTINATION. settle_caret() reads the pipeline's current cursor, so move the
@@ -239,7 +240,8 @@ async fn capture_held_async(
     // ONE fixed scroll for the whole run: follow the ORIGIN's visual row, mirroring
     // the timeline path. The held re-targets move at most a handful of cells, so the
     // viewport stays put (a mid-run rescroll would break determinism / the trail).
-    vstate.scroll = settled_scroll(&pipeline, orig_line, orig_col, height as f32);
+    vstate.scroll =
+        super::modes::capture_follow_scroll(&pipeline, orig_line, orig_col, height as f32);
 
     // Pose the spring AT REST on the ORIGIN (the initial key PRESS, not yet a
     // repeat): settle_caret reads the pipeline's current cursor, which set_view just

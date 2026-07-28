@@ -54,42 +54,104 @@ mod tests {
         assert!(!spell_recompute_needed(Some(4), 4));
     }
 
-    fn count_needle(dir: &Path, needle: &str, hits: &mut BTreeMap<String, usize>) {
+    fn production_calls(dir: &Path, needle: &str, hits: &mut BTreeMap<String, usize>) {
         for entry in std::fs::read_dir(dir).expect("read source directory") {
             let entry = entry.expect("read source entry");
             let path = entry.path();
             if path.is_dir() {
-                count_needle(&path, needle, hits);
+                production_calls(&path, needle, hits);
             } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs") {
                 let source = std::fs::read_to_string(&path).expect("read Rust source");
-                let count = source.matches(needle).count();
+                let production = source.split("#[cfg(test)]").next().unwrap_or(&source);
+                let count = production.matches(needle).count();
                 if count != 0 {
-                    hits.insert(path.display().to_string(), count);
+                    let relative = path
+                        .strip_prefix(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"))
+                        .expect("source lives under src")
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    hits.insert(relative, count);
                 }
             }
         }
     }
 
-    /// The policy expressions themselves belong only to this module. Consumers
-    /// call the owner; a hand-written branch makes this counted law fail.
-    #[test]
-    fn policy_needles_have_exactly_one_owner_repo_wide() {
+    fn assert_roster(needle: String, expected: &[(&str, usize)]) {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-        for needle in [
-            ["if !type", "writer {"].concat(),
-            ["checked_version != ", "Some(current_version)"].concat(),
+        let mut actual = BTreeMap::new();
+        production_calls(&root, &needle, &mut actual);
+        let expected: BTreeMap<String, usize> = expected
+            .iter()
+            .map(|(path, count)| ((*path).to_string(), *count))
+            .collect();
+        assert_eq!(
+            actual, expected,
+            "production consumer roster for `{needle}` changed; route a new consumer \
+             through the named owner and update this exhaustive roster consciously"
+        );
+    }
+
+    /// API ownership and consumer roster. This counts named policy doors rather
+    /// than one lexical spelling of their expressions: rewriting a bypass as
+    /// `matches!`, a `match`, or a reordered comparison cannot satisfy the law.
+    #[test]
+    fn every_live_and_capture_consumer_routes_through_the_policy_apis() {
+        assert_roster(
+            ["follow_scroll_", "strategy("].concat(),
+            &[
+                ("view_policy.rs", 1),
+                ("app/viewstate.rs", 1),
+                ("capture/modes.rs", 1),
+            ],
+        );
+        assert_roster(
+            ["capture_follow_", "scroll("].concat(),
+            &[("capture/animated.rs", 2), ("capture/modes.rs", 2)],
+        );
+        assert_roster(
+            ["spell_recompute_", "needed("].concat(),
+            &[
+                ("view_policy.rs", 1),
+                ("app/viewstate.rs", 1),
+                ("capture/modes.rs", 1),
+            ],
+        );
+        assert_roster(
+            ["capture_misspell", "ings("].concat(),
+            &[("capture/animated.rs", 2), ("capture/modes.rs", 2)],
+        );
+    }
+
+    /// The imperative primitives may appear only in their declared live/capture
+    /// wiring owners. An alternate hand-written policy branch necessarily adds a
+    /// raw input or primitive here even if it disguises the boolean expression.
+    #[test]
+    fn raw_policy_inputs_and_effects_have_an_exhaustive_owner_roster() {
+        let app = include_str!("app/viewstate.rs");
+        let capture = include_str!("capture/modes.rs");
+        let animated = include_str!("capture/animated.rs");
+
+        assert_eq!(app.matches("typewriter_on()").count(), 1);
+        assert_eq!(app.matches("spell_checked_version").count(), 1);
+        assert_eq!(app.matches("scroll_to_center_row_pos(").count(), 1);
+        assert_eq!(app.matches("recompute_spell_cache()").count(), 1);
+
+        assert_eq!(capture.matches("typewriter_on()").count(), 1);
+        assert_eq!(capture.matches("scroll_to_show_row_pos(").count(), 1);
+        assert_eq!(capture.matches("scroll_to_center_row_pos(").count(), 1);
+        assert_eq!(capture.matches("SpellChecker::new(").count(), 1);
+
+        for bypass in [
+            "typewriter_on()",
+            "scroll_to_show_row_pos(",
+            "scroll_to_center_row_pos(",
+            "SpellChecker::new(",
+            "spell_checked_version",
         ] {
-            let mut hits = BTreeMap::new();
-            count_needle(&root, &needle, &mut hits);
             assert_eq!(
-                hits.values().sum::<usize>(),
-                1,
-                "policy needle `{needle}` must have exactly one owner, found {hits:?}"
-            );
-            assert_eq!(
-                hits.keys().collect::<Vec<_>>(),
-                vec![&root.join("view_policy.rs").display().to_string()],
-                "policy needle `{needle}` escaped its owner: {hits:?}"
+                animated.matches(bypass).count(),
+                0,
+                "animated capture bypasses the shared capture policy via `{bypass}`"
             );
         }
     }
