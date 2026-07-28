@@ -82,6 +82,12 @@ pulldown-cmark = { version = "0.12", default-features = false }
 ropey = { version = "1.6.1", default-features = false, features = ["simd"] }
 spellbook = "0.4.2"
 toml = { version = "0.8", default-features = false, features = ["parse"] }
+# UAX #29 extended grapheme cluster boundaries — the ONE owner of the caret's
+# CHARACTER step (`src/grapheme.rs`), so `e`+U+0301 is one Right and one
+# Backspace, exactly like precomposed U+00E9. This exact version is already
+# locked in the graph through cosmic-text/rustybuzz, so making it direct adds no
+# second segmentation table to the build.
+unicode-segmentation = "1.13.3"
 wgpu = "=29.0.3"
 winit = "0.30"
 

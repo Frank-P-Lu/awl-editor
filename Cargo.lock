@@ -180,6 +180,7 @@ dependencies = [
  "spellbook",
  "toml",
  "ttf-parser",
+ "unicode-segmentation",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

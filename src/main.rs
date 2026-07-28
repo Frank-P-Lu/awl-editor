@@ -73,6 +73,7 @@ mod fold;
 mod frontmatter;
 mod fs;
 mod fuzzy;
+mod grapheme;
 mod guide;
 mod history;
 mod hud;

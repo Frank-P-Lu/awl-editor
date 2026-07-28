@@ -113,19 +113,23 @@ impl TextBox {
         self.caret += 1;
     }
 
-    /// Backspace: delete the char BEFORE the caret. A no-op at the start.
+    /// Backspace: delete the CHARACTER before the caret — one extended
+    /// grapheme cluster, through the same [`crate::grapheme`] owner the
+    /// document buffer's own Backspace uses. A no-op at the start.
     pub fn delete_back(&mut self) {
         if self.caret == 0 {
             return;
         }
+        let new_caret = self.prev_boundary();
         let end = self.byte_of(self.caret);
-        let start = self.byte_of(self.caret - 1);
+        let start = self.byte_of(new_caret);
         self.text.replace_range(start..end, "");
-        self.caret -= 1;
+        self.caret = new_caret;
     }
 
-    /// Forward-delete: remove the char AT the caret. A no-op at the end. Not
-    /// yet wired to a live surface (none of the 7 fields bind a plain
+    /// Forward-delete: remove the CHARACTER at the caret — one extended
+    /// grapheme cluster, same owner as [`Self::delete_back`]. A no-op at the
+    /// end. Not yet wired to a live surface (none of the 7 fields bind a plain
     /// forward-Delete — only the word-delete variant, `delete_word_forward`,
     /// is claimed); kept for API completeness + the boundary-safety test below.
     #[allow(dead_code)]
@@ -134,23 +138,35 @@ impl TextBox {
             return;
         }
         let start = self.byte_of(self.caret);
-        let end = self.byte_of(self.caret + 1);
+        let end = self.byte_of(self.next_boundary());
         self.text.replace_range(start..end, "");
         // Caret unchanged: the following char slides up to meet it.
     }
 
-    /// One char LEFT.
-    pub fn char_left(&mut self) {
-        if self.caret > 0 {
-            self.caret -= 1;
-        }
+    /// The next / previous extended-grapheme-cluster boundary around the caret,
+    /// from the ONE owner ([`crate::grapheme`]) the document
+    /// [`Buffer`](crate::buffer::Buffer) steps by — so a minibuffer's arrows
+    /// and Backspace cross a combining pair or an emoji ZWJ sequence exactly as
+    /// the document's do. The parity table below is where that agreement is
+    /// proven.
+    fn next_boundary(&self) -> usize {
+        let chars: Vec<char> = self.text.chars().collect();
+        crate::grapheme::next_cluster_boundary(self.caret, chars.len(), |i| chars[i])
     }
 
-    /// One char RIGHT.
+    fn prev_boundary(&self) -> usize {
+        let chars: Vec<char> = self.text.chars().collect();
+        crate::grapheme::prev_cluster_boundary(self.caret, |i| chars[i])
+    }
+
+    /// One CHARACTER left — one grapheme cluster.
+    pub fn char_left(&mut self) {
+        self.caret = self.prev_boundary();
+    }
+
+    /// One CHARACTER right — one grapheme cluster.
     pub fn char_right(&mut self) {
-        if self.caret < self.len_chars() {
-            self.caret += 1;
-        }
+        self.caret = self.next_boundary();
     }
 
     /// WORD motion right — delegates to the SAME boundary rule
@@ -283,10 +299,13 @@ mod tests {
     // --- B. UNICODE / BUFFER PARITY -----------------------------------------
 
     /// One (text, description) fixture per Unicode class the parity table
-    /// sweeps: plain ASCII, CJK (multibyte, no combining), a combining
-    /// grapheme cluster (base + U+0301 COMBINING ACUTE — two Rust `char`s,
-    /// ONE visual glyph, exercising that both models step by SCALAR not
-    /// grapheme), an emoji (multibyte, single scalar here), and a
+    /// sweeps: plain ASCII, CJK (multibyte, no combining), a DECOMPOSED
+    /// combining cluster (base + U+0301 COMBINING ACUTE — two Rust `char`s but
+    /// ONE visual glyph, so ONE caret step: the char step is a GRAPHEME step,
+    /// never a scalar step), its PRECOMPOSED twin (U+00E9 — the same `é` as a
+    /// single scalar, which must behave identically), an emoji ZWJ SEQUENCE and
+    /// a REGIONAL-INDICATOR flag pair (multi-scalar clusters that fall out of
+    /// the same rule rather than being special-cased), a lone BMP emoji, and a
     /// PUNCTUATION-ADJACENT fixture ending "word, " — its trailing char is
     /// whitespace immediately preceded by punctuation, the ONE shape where
     /// word MOTION (`word_backward_boundary`: collapse ALL non-word chars —
@@ -302,7 +321,13 @@ mod tests {
             ("ascii", "hello world foo"),
             ("cjk", "日本語 text 二つ目"),
             ("combining", "cafe\u{0301} au lait\u{0301} noir"),
+            ("precomposed", "caf\u{00e9} au lait\u{00e9} noir"),
             ("emoji", "hi 🎉 there 🚀 world"),
+            ("zwj", "hi 👨‍👩‍👧‍👦 there 🧑🏽‍🚀 world"),
+            ("flags", "go 🇯🇵 then 🇺🇸 home"),
+            // First and last cluster are BOTH multi-scalar: an end-only
+            // assertion is only as good as the fixture it runs on.
+            ("cluster edges", "e\u{0301} mid 🇯🇵"),
             ("punct", "abc, "),
         ]
     }
@@ -347,6 +372,125 @@ mod tests {
             tb.char_left();
             buf.backward_char();
             assert_eq!(tb.caret(), buf.cursor_char(), "{label}: char_left");
+        }
+    }
+
+    /// THE CHARACTER-STEP LAW: walking a fixture end to end one char step at a
+    /// time visits EXACTLY the extended-grapheme-cluster boundaries — in the
+    /// document [`Buffer`] and in a [`TextBox`], forward and backward, with no
+    /// stop inside a cluster and none skipped. A scalar step lands between a
+    /// base and its combining mark (and inside every emoji ZWJ sequence and
+    /// flag pair), so it fails here on the decomposed, zwj and flags fixtures
+    /// while still passing on ascii/cjk/precomposed — which is exactly the
+    /// shape of the defect: the two spellings of `é` behaved differently.
+    ///
+    /// The expectation is derived from UAX #29 over the fixture text rather
+    /// than hand-listed, so a fixture added above is swept without anyone
+    /// re-deriving its boundaries by eye.
+    #[test]
+    fn char_steps_visit_exactly_the_grapheme_boundaries_in_both_models() {
+        use unicode_segmentation::UnicodeSegmentation;
+        for (label, text) in fixtures() {
+            let expected: Vec<usize> = std::iter::once(0)
+                .chain(text.graphemes(true).scan(0usize, |acc, g| {
+                    *acc += g.chars().count();
+                    Some(*acc)
+                }))
+                .collect();
+            let len = text.chars().count();
+
+            let mut tb = TextBox::seeded(text);
+            tb.set_caret(0);
+            let mut buf = Buffer::from_str(text);
+            buf.set_cursor(0);
+            let mut visited = vec![0];
+            while tb.caret() < len {
+                let from = tb.caret();
+                tb.char_right();
+                buf.forward_char();
+                assert_eq!(tb.caret(), buf.cursor_char(), "{label}: char_right parity");
+                assert!(tb.caret() > from, "{label}: char_right stalled at {from}");
+                visited.push(tb.caret());
+            }
+            assert_eq!(visited, expected, "{label}: forward char steps");
+
+            let mut back = vec![len];
+            while tb.caret() > 0 {
+                let from = tb.caret();
+                tb.char_left();
+                buf.backward_char();
+                assert_eq!(tb.caret(), buf.cursor_char(), "{label}: char_left parity");
+                assert!(tb.caret() < from, "{label}: char_left stalled at {from}");
+                back.push(tb.caret());
+            }
+            back.reverse();
+            assert_eq!(back, expected, "{label}: backward char steps");
+        }
+    }
+
+    /// PARITY: CHARACTER delete removes exactly ONE CLUSTER and lands the same
+    /// caret in both models — swept over EVERY cluster boundary of every
+    /// fixture, in both directions.
+    ///
+    /// The sweep is the point. Deleting only at the ends would prove nothing:
+    /// every fixture above happens to begin and end on a plain ASCII char, so
+    /// an end-only version of this test stays green under scalar stepping while
+    /// the interior combining pairs and ZWJ sequences it names are being cut in
+    /// half.
+    #[test]
+    fn textbox_char_delete_matches_buffer_char_delete() {
+        use unicode_segmentation::UnicodeSegmentation;
+        for (label, text) in fixtures() {
+            // (byte offset, char offset) of every cluster boundary, plus the end.
+            let mut bounds = vec![(0usize, 0usize)];
+            for (b, g) in text.grapheme_indices(true) {
+                bounds.push((b + g.len(), bounds.last().unwrap().1 + g.chars().count()));
+            }
+
+            for w in bounds.windows(2) {
+                let ((lb, lc), (rb, rc)) = (w[0], w[1]);
+                let without = format!("{}{}", &text[..lb], &text[rb..]);
+
+                // Backspace from the cluster's END takes the whole cluster.
+                let mut tb = TextBox::seeded(text);
+                tb.set_caret(rc);
+                let mut buf = Buffer::from_str(text);
+                buf.set_cursor(rc);
+                tb.delete_back();
+                buf.delete_backward();
+                assert_eq!(tb.text(), buf.text(), "{label}@{rc}: delete_back parity");
+                assert_eq!(
+                    tb.caret(),
+                    buf.cursor_char(),
+                    "{label}@{rc}: delete_back caret parity"
+                );
+                assert_eq!(
+                    tb.text(),
+                    without,
+                    "{label}@{rc}: backspace took one cluster"
+                );
+                assert_eq!(tb.caret(), lc, "{label}@{rc}: backspace caret");
+
+                // Forward-delete from its START takes the same whole cluster.
+                let mut tb = TextBox::seeded(text);
+                tb.set_caret(lc);
+                let mut buf = Buffer::from_str(text);
+                buf.set_cursor(lc);
+                tb.delete_forward();
+                buf.delete_forward();
+                assert_eq!(tb.text(), buf.text(), "{label}@{lc}: delete_forward parity");
+                assert_eq!(
+                    tb.caret(),
+                    buf.cursor_char(),
+                    "{label}@{lc}: delete_forward caret parity"
+                );
+                assert_eq!(
+                    tb.text(),
+                    without,
+                    "{label}@{lc}: forward-delete took one cluster"
+                );
+                assert_eq!(tb.caret(), lc, "{label}@{lc}: forward-delete caret");
+            }
         }
     }
 
@@ -399,12 +543,12 @@ mod tests {
         assert_eq!(tb.text(), "日X本語");
         assert_eq!(tb.caret(), 2);
 
-        // Combining mark: backspace removes exactly the trailing combining
-        // scalar (ONE char step), not the whole cluster.
-        let mut tb = TextBox::seeded("e\u{0301}"); // e + combining acute
-        assert_eq!(tb.caret(), 2, "two scalars, two char steps");
+        // Combining mark: backspace removes the WHOLE cluster — the two
+        // scalars the reader sees as one `é` — leaving no bare base behind.
+        let mut tb = TextBox::seeded("ae\u{0301}"); // 'a', then e + combining acute
+        assert_eq!(tb.caret(), 3, "seeded at the end: three scalars");
         tb.delete_back();
-        assert_eq!(tb.text(), "e");
+        assert_eq!(tb.text(), "a");
         assert_eq!(tb.caret(), 1);
 
         // Emoji: forward-delete mid-string.
