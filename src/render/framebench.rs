@@ -1021,26 +1021,12 @@ mod tests {
     use super::*;
 
     fn headless_dqp() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-        pollster::block_on(async {
-            let instance =
-                wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions::default())
-                .await
-                .ok()?;
-            let (device, queue) = adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: Some("awl framebench test device"),
-                    ..Default::default()
-                })
-                .await
-                .ok()?;
-            let cache = Cache::new(&device);
-            let mut p = TextPipeline::new(&device, &queue, &cache, FORMAT);
-            p.set_size(WIDTH as f32, HEIGHT as f32);
-            p.set_dpi(DPI);
-            Some((device, queue, p))
-        })
+        let (device, queue) = crate::test_gpu::shared_device_queue()?;
+        let cache = Cache::new(&device);
+        let mut p = TextPipeline::new(&device, &queue, &cache, FORMAT);
+        p.set_size(WIDTH as f32, HEIGHT as f32);
+        p.set_dpi(DPI);
+        Some((device, queue, p))
     }
 
     /// A cheap, no-GPU-needed sanity check: both stages this rescue round named

@@ -12,25 +12,7 @@
 //! adapter, exactly like every other GPU-backed render test in this tree.
 
 use super::super::*;
-use super::view;
-
-/// Request a headless device/queue, or `None` on a GPU-less machine.
-fn headless_dq() -> Option<(wgpu::Device, wgpu::Queue)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl dither-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()
-    })
-}
+use super::{headless_dqp, view};
 
 pub(super) const FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
@@ -202,7 +184,7 @@ fn srgb_u8_to_linear(u: u8) -> f32 {
 /// the flat color, byte-for-byte. No tolerance: the one-bit law has none.
 #[test]
 fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
-    let Some((device, queue)) = headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping flat_gradient_renders_byte_identical_pure_pixels_end_to_end: no wgpu adapter"
         );
@@ -240,7 +222,7 @@ fn flat_gradient_renders_byte_identical_pure_pixels_end_to_end() {
 /// live, not a silent no-op bug.
 #[test]
 fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_active() {
-    let Some((device, queue)) = headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_active: no wgpu adapter"
         );
@@ -309,7 +291,7 @@ fn real_gradient_dither_stays_within_one_lsb_of_the_naive_value_and_is_actually_
 /// chunk this round lands) — proven at the real GPU-rendered pixel level.
 #[test]
 fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
-    let Some((device, queue)) = headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping dither_mode_paints_only_pure_values_at_roughly_the_configured_density: no wgpu adapter"
         );
@@ -434,7 +416,7 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
 /// alone.
 #[test]
 fn invert_pipeline_flips_pure_black_and_pure_white_exactly() {
-    let Some((device, queue)) = headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping invert_pipeline_flips_pure_black_and_pure_white_exactly: no wgpu adapter"
         );
@@ -548,7 +530,7 @@ fn draw_invert_rect(
 /// ALSO have inverted to white.
 #[test]
 fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
-    let Some((device, queue)) = headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette: no wgpu adapter"
         );
@@ -610,7 +592,7 @@ fn caret_invert_corner_radius_hard_discards_outside_the_rounded_silhouette() {
 /// distinguished per-pipeline-instance, not by some shared global.
 #[test]
 fn selection_invert_never_rounds_corners_stay_rectangular() {
-    let Some((device, queue)) = headless_dq() else {
+    let Some((device, queue)) = crate::test_gpu::shared_device_queue() else {
         eprintln!(
             "skipping selection_invert_never_rounds_corners_stay_rectangular: no wgpu adapter"
         );
@@ -650,25 +632,7 @@ fn selection_invert_never_rounds_corners_stay_rectangular() {
 /// test is the readability law the pixel law missed.
 #[test]
 fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl caret-readability device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(300.0, 160.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(300.0, 160.0) else {
         eprintln!(
             "skipping wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block: no wgpu adapter"
         );
@@ -764,25 +728,7 @@ fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
 /// by asserting no single non-pure color value repeats suspiciously often.
 #[test]
 fn wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active() {
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl pixel-law device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(500.0, 360.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(500.0, 360.0) else {
         eprintln!(
             "skipping wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active: no wgpu adapter"
         );
@@ -925,25 +871,7 @@ fn wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active() {
 ///   invert quad never leaks past the selection's own bottom edge.
 #[test]
 fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line() {
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl multiline-selection device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(500.0, 260.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(500.0, 260.0) else {
         eprintln!(
             "skipping wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line: no wgpu adapter"
         );
@@ -1084,25 +1012,7 @@ fn wagtail_multiline_selection_shows_inverted_text_and_solid_white_on_empty_line
 #[ignore]
 fn gallery_wagtail_selection_highlight_search() {
     let (w, h) = (900u32, 560u32);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl gallery device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(w as f32, h as f32);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping gallery_wagtail_selection_highlight_search: no wgpu adapter");
         return;
     };
@@ -1160,25 +1070,7 @@ fn gallery_wagtail_selection_highlight_search() {
 #[ignore]
 fn gallery_wagtail_caret() {
     let (w, h) = (900u32, 300u32);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl caret gallery device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(w as f32, h as f32);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping gallery_wagtail_caret: no wgpu adapter");
         return;
     };
@@ -1227,25 +1119,7 @@ fn gallery_wagtail_caret() {
 #[ignore]
 fn gallery_wagtail_multiline_selection() {
     let (w, h) = (700u32, 320u32);
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl multiline gallery device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(w as f32, h as f32);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
         eprintln!("skipping gallery_wagtail_multiline_selection: no wgpu adapter");
         return;
     };

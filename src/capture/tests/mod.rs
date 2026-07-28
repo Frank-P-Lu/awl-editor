@@ -114,13 +114,7 @@ pub(super) fn held_run_keeps_steady_streak(dir: HeldDir, lens: &[usize], origin:
 /// True when a wgpu adapter is present, so the GPU-dependent capture tests can
 /// skip gracefully on a headless/CI box (mirrors `render::tests::headless_pipeline`).
 pub(super) fn adapter_available() -> bool {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .is_ok()
-    })
+    crate::test_gpu::shared_device_queue().is_some()
 }
 
 /// Extract the integer/float that follows `"key":` AFTER the first occurrence of

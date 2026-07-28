@@ -3,7 +3,7 @@
 //! (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{headless_pipeline, view, view_md};
+use super::{headless_dqp, headless_pipeline, view, view_md};
 
 #[test]
 fn outline_headings_stashed_and_current_is_nearest_at_or_above_caret() {
@@ -888,25 +888,7 @@ fn outline_hit_test_stays_aligned_past_a_wide_glyph_heading() {
     let _o = crate::testlock::serial();
     let _page = crate::page::PagePin::snapshot();
     let _g = crate::testlock::serial();
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl outline hit-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1900.0, 900.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1900.0, 900.0) else {
         eprintln!(
             "skipping outline_hit_test_stays_aligned_past_a_wide_glyph_heading: no wgpu adapter"
         );

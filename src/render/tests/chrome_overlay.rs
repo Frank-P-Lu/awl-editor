@@ -686,25 +686,7 @@ fn caret_preview_panel_appears_below_picker_and_stops_on_close() {
     let _g = crate::testlock::serial();
     // Build a headless pipeline but KEEP the device/queue so we can drive `prepare`
     // (the elevation-quad instance counts are only set during prepare).
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl caret-preview test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping caret_preview_panel_appears_below_picker_and_stops_on_close: no wgpu adapter"
         );
@@ -915,25 +897,7 @@ fn list_style_override_reader_writer_are_serialized() {
 #[test]
 fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
     let _g = crate::testlock::serial();
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl overlay-park test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping closed_overlay_parks_text_and_quads_even_while_the_hud_is_held: no wgpu adapter"
         );
@@ -1018,25 +982,7 @@ fn closed_overlay_parks_text_and_quads_even_while_the_hud_is_held() {
 #[test]
 fn overlay_empty_state_draws_a_dim_message_row() {
     let _g = crate::testlock::serial();
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl empty-state test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping overlay_empty_state_draws_a_dim_message_row: no wgpu adapter");
         return;
     };
@@ -1102,25 +1048,7 @@ fn caret_preview_panel_morph_paints_the_glyph_silhouette() {
     // This preview test reaches the list-style reader through overlay preparation;
     // take the same guard before creating its device/pipeline.
     let _g = crate::testlock::serial();
-    let got = pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl caret-preview-morph test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
-        p.set_size(1200.0, 800.0);
-        Some((device, queue, p))
-    });
-    let Some((device, queue, mut p)) = got else {
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping caret_preview_panel_morph_paints_the_glyph_silhouette: no wgpu adapter"
         );

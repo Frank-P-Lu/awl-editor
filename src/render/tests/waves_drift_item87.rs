@@ -10,29 +10,8 @@
 //! determinism + liveness + boundedness in one sweep.
 
 use super::super::*;
-use super::dither::{FMT, offscreen, read_pixels};
-use super::view;
-
-fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
-    pollster::block_on(async {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .await
-            .ok()?;
-        let (device, queue) = adapter
-            .request_device(&wgpu::DeviceDescriptor {
-                label: Some("awl waves-drift-test device"),
-                ..Default::default()
-            })
-            .await
-            .ok()?;
-        let cache = Cache::new(&device);
-        let mut p = TextPipeline::new(&device, &queue, &cache, FMT);
-        p.set_size(w, h);
-        Some((device, queue, p))
-    })
-}
+use super::dither::{offscreen, read_pixels};
+use super::{headless_dqp, view};
 
 fn render_frame(
     device: &wgpu::Device,
