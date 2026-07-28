@@ -238,6 +238,7 @@ mod tests {
     /// The force-global round-trips (the `--whichkey` capture door).
     #[test]
     fn force_shown_round_trips() {
+        let _g = crate::testlock::serial();
         set_force_shown(true);
         assert!(force_shown());
         set_force_shown(false);

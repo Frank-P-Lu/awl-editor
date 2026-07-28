@@ -40,24 +40,24 @@
 //! `nits::NITS_ON` / `spell::SPELLCHECK_ON` exactly: a process-global read by the
 //! renderer, set once at launch from the config sticky pref (`config/`).
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use crate::toggle::Toggle;
 
 /// Whether the WYSIWYG markup conceal is active. DEFAULT ON — the editor opens
 /// with headings/emphasis/inline-code/highlight markup hiding off the caret's
 /// line (and a fenced block's markers hiding off the caret's whole block); OFF
 /// reproduces the always-visible markup this round shipped without, byte-for-byte
 /// (no conceal, no pill, no panel — just the pre-existing dim-the-markup styling).
-static WYSIWYG_ON: AtomicBool = AtomicBool::new(true);
+static WYSIWYG_ON: Toggle = Toggle::new(true);
 
 /// True when the WYSIWYG conceal is active (read by the renderer each reshape).
 pub fn wysiwyg_on() -> bool {
-    WYSIWYG_ON.load(Ordering::Relaxed)
+    WYSIWYG_ON.on()
 }
 
 /// Set the WYSIWYG conceal on/off explicitly — the config sticky-pref launch-
 /// apply (mirrors [`crate::nits::set_nits_on`]).
 pub fn set_wysiwyg_on(on: bool) {
-    WYSIWYG_ON.store(on, Ordering::Relaxed);
+    WYSIWYG_ON.set(on);
 }
 
 /// Whether INLINE IMAGES are active. DEFAULT ON — a markdown `![alt](path.png)`
@@ -73,7 +73,7 @@ pub fn set_wysiwyg_on(on: bool) {
 /// [`inline_images_on`] is unconditionally `false` on `wasm32`, making the
 /// whole feature vanish there (the source renders plain, byte-identical to the
 /// native-off case). Mirrors the daemon/session native-only gate.
-static INLINE_IMAGES_ON: AtomicBool = AtomicBool::new(true);
+static INLINE_IMAGES_ON: Toggle = Toggle::new(true);
 
 /// True when inline images are active (read by [`spans`] to gate the image
 /// span + by the renderer to gate the tall row / draw). Always `false` on wasm
@@ -85,7 +85,7 @@ pub fn inline_images_on() -> bool {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        INLINE_IMAGES_ON.load(Ordering::Relaxed)
+        INLINE_IMAGES_ON.on()
     }
 }
 
@@ -93,7 +93,7 @@ pub fn inline_images_on() -> bool {
 /// (mirrors [`set_wysiwyg_on`]). A no-op-in-effect on wasm, where
 /// [`inline_images_on`] ignores the flag and always reports `false`.
 pub fn set_inline_images_on(on: bool) {
-    INLINE_IMAGES_ON.store(on, Ordering::Relaxed);
+    INLINE_IMAGES_ON.set(on);
 }
 
 mod conceal;
