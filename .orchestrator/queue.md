@@ -18,12 +18,12 @@ CI-30360849276. 🟡 **FIX PUSHED, AWAITING THE REMOTE RUN.** Linux `Rust code h
   `src/app/apply.rs` — ⏭ one ordered apply transaction, no move-only seam;
   `src/render/caret.rs` — ✅ `ff350158`; `src/main/run.rs` —
   ⏭ launch/replay/capture dispatcher has no safe move-only seam;
-  `src/keymap.rs` — 🟡 IN PROGRESS, `item_155_layers` (codex), branch
-  `codex/item-155-keymap`.
+  `src/keymap.rs` — ⏭ action/default-policy ownership has no safe
+  move-only seam; `src/render/chrome/mod.rs` — 🟡 IN PROGRESS,
+  `item_155_layers` (codex), branch `codex/item-155-chrome`.
 - 107 enum-derived rosters — ✅ LANDED @ `c3f7eb27`.
 - 109 icon-ratchet subset erosion — ✅ LANDED @ `d45d34f3`.
-- 108 Gumtree chevron visibility — 🟡 IN PROGRESS, `item_108_gumtree`
-  (codex), branch `codex/item-108-gumtree-chevron`.
+- 108 Gumtree chevron visibility — ✅ LANDED @ `f8d384de`.
 - 127 fold-chevron optical centring — 🟡 IN PROGRESS,
   `item_127_fold_chevron` (codex), branch `codex/item-127-fold-chevron`.
 
