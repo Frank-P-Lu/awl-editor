@@ -80,13 +80,7 @@ async fn capture_timeline_async(
 
     // --- Text pipeline (shared with windowed) ----------------------------
     let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
-    let misspelled = match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
-        Ok(sc) => sc.misspellings_for(&buffer.text(), buffer.syntax_lang()),
-        Err(e) => {
-            eprintln!("spell-check disabled for capture: {e}");
-            Vec::new()
-        }
-    };
+    let misspelled = super::modes::capture_misspellings(buffer);
 
     // The buffer cursor rests at the DESTINATION; `origin` is where the glide
     // STARTS. Both poses share ONE stationary viewport so only the caret moves
@@ -210,13 +204,7 @@ async fn capture_held_async(
 
     // --- Text pipeline (shared with windowed) ----------------------------
     let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
-    let misspelled = match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
-        Ok(sc) => sc.misspellings_for(&buffer.text(), buffer.syntax_lang()),
-        Err(e) => {
-            eprintln!("spell-check disabled for capture: {e}");
-            Vec::new()
-        }
-    };
+    let misspelled = super::modes::capture_misspellings(buffer);
 
     // Per-line char lengths, so each held re-target clamps to a real document
     // position (one char/line at a time, like the OS auto-repeat) instead of

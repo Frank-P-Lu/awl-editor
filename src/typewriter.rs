@@ -11,8 +11,8 @@
 //! like the margin outline), a [`crate::toggle::Toggle`] — see that module for
 //! the shared mechanism. The PIN GEOMETRY is pure and lives on the render
 //! pipeline (`TextPipeline::scroll_to_center_row` — no parallel math); the DECISION
-//! of when to center is `app::viewstate::follow_scroll_strategy` (which reads this
-//! flag):
+//! of when to center is `view_policy::follow_scroll_strategy` (which reads this
+//! flag from both the live App and capture):
 //!
 //!   * [`TYPEWRITER_ON`] — whether typewriter scroll pins the caret row (DEFAULT OFF).
 //!   * [`typewriter_on`] / [`set_typewriter_on`] / [`toggle`] — the readers/writers.
