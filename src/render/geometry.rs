@@ -723,6 +723,8 @@ pub(super) fn assemble_glyph_xs(
     clusters: &[(usize, usize, f32, f32)],
     char_width: f32,
 ) -> Vec<f32> {
+    #[cfg(test)]
+    GLYPH_X_ASSEMBLIES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let char_count = line_text.chars().count();
     let mut byte_to_col = vec![char_count; line_text.len() + 1];
     for (col, (b, _)) in line_text.char_indices().enumerate() {
@@ -798,6 +800,19 @@ pub(super) fn assemble_glyph_xs(
         *last = last.max(max_right);
     }
     xs
+}
+
+#[cfg(test)]
+static GLYPH_X_ASSEMBLIES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
+pub(super) fn reset_glyph_x_assembly_count() {
+    GLYPH_X_ASSEMBLIES.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+#[cfg(test)]
+pub(super) fn glyph_x_assembly_count() -> usize {
+    GLYPH_X_ASSEMBLIES.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// The char SPAN of the glyph CLUSTER (a `(start_byte, end_byte)` pair — one
@@ -1422,17 +1437,29 @@ impl TextPipeline {
     /// the middle of it named the column BETWEEN the consonant and its vowel
     /// sign, a position that does not exist on screen. Devanagari conjuncts split
     /// the same way on faces without the ligature.
-    pub(super) fn col_in_run(run: &glyphon::cosmic_text::LayoutRun, target_x: f32) -> usize {
-        if run.glyphs.is_empty() {
-            return 0;
-        }
-        // The caret, selection, and all visual-row geometry already read these
-        // assembled boundaries. Reading the same row here means a multi-char
-        // glyph span (a prose `fi` ligature or Monaspace's `=>`) has the same
-        // fair interior split for pointing as it does for drawing a caret.
-        let row = visual_row_from_run(run.text, run, 0.0);
-        let raw = Self::col_in_row(&row, target_x);
+    pub(super) fn col_in_run(&self, run: &glyphon::cosmic_text::LayoutRun, target_x: f32) -> usize {
+        let line = run.line_i;
+        let row_top = run.line_top;
+        let raw = self
+            .row_geom
+            .with_cached_rows(line, |rows| {
+                Self::col_in_assembled_row(rows, row_top, target_x)
+            })
+            .unwrap_or_else(|| {
+                let rows = self.visual_rows(line);
+                Self::col_in_assembled_row(&rows, row_top, target_x)
+            });
         Self::cluster_col(run, raw, target_x)
+    }
+
+    /// Resolve x against the already-assembled visual row that owns `row_top`.
+    /// `row_top` comes from the same shaped run that produced the row, so equality
+    /// selects the exact wrap row rather than repeating the y-band policy.
+    fn col_in_assembled_row(rows: &[VisualRow], row_top: f32, target_x: f32) -> usize {
+        rows.iter()
+            .find(|row| row.line_top == row_top)
+            .map(|row| Self::col_in_row(row, target_x))
+            .unwrap_or(0)
     }
 
     /// `raw` — a column the assembled caret cells landed on — resolved against the INK of
