@@ -22,13 +22,17 @@ printf '%s\n' "$AWL_TEST_SWEEP_RESULT" >"$AWL_TEST_FREE_FILE"
 EOF
 chmod +x "$oracle" "$sweep"
 
+healthy_bytes=$((40 * 1024 * 1024 * 1024))
+insufficient_bytes=$((20 * 1024 * 1024 * 1024))
+ci_capacity_bytes=$((3 * 1024 * 1024 * 1024))
+
 run() {
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
   AWL_TEST_FREE_FILE="$WORK/free" \
   AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
-  AWL_TEST_SWEEP_RESULT="${1:-9663676416}" \
+  AWL_TEST_SWEEP_RESULT="${1:-$healthy_bytes}" \
   "${2:-$PREFLIGHT}"
 }
 
@@ -42,7 +46,7 @@ grep -Fq 'AWL_DISK_PREFLIGHT_CALLER=native-gate "$gate_root/.orchestrator/disk-p
 }
 
 # Healthy: no recovery owner executes.
-printf '%s\n' 9663676416 >"$WORK/free"
+printf '%s\n' "$healthy_bytes" >"$WORK/free"
 : >"$WORK/sweeps"
 healthy="$(run)"
 [[ "$healthy" == *'status=healthy'* && ! -s "$WORK/sweeps" ]] || {
@@ -52,7 +56,7 @@ healthy="$(run)"
 # Low space recovers through exactly the supplied sweep owner.
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
-recovered="$(run 9663676416)"
+recovered="$(run "$healthy_bytes")"
 [[ "$recovered" == *'status=recovered'* && "$(wc -l <"$WORK/sweeps")" -eq 1 ]] || {
   echo "test-disk-preflight: low disk did not recover through one sweep" >&2; exit 1;
 }
@@ -60,7 +64,7 @@ recovered="$(run 9663676416)"
 # An unsuccessful recovery is a truthful early failure, before any Cargo call.
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
-if run 1073741824 >"$WORK/insufficient.out" 2>"$WORK/insufficient.err"; then
+if run "$insufficient_bytes" >"$WORK/insufficient.out" 2>"$WORK/insufficient.err"; then
   echo "test-disk-preflight: insufficient recovery unexpectedly passed" >&2; exit 1
 fi
 grep -Fq 'insufficient space after sweep-1d' "$WORK/insufficient.err" || {
@@ -68,9 +72,14 @@ grep -Fq 'insufficient space after sweep-1d' "$WORK/insufficient.err" || {
 }
 
 # CI is portable capacity checking, not a second cleanup owner.
-printf '%s\n' 1073741824 >"$WORK/free"
+printf '%s\n' "$ci_capacity_bytes" >"$WORK/free"
 : >"$WORK/sweeps"
-if CI=1 run 9663676416 >"$WORK/ci.out" 2>"$WORK/ci.err"; then
+ci_capacity="$(CI=1 run "$healthy_bytes")"
+[[ "$ci_capacity" == *'status=ci-capacity'* && "$ci_capacity" == *'policy=ci'* && ! -s "$WORK/sweeps" ]] || {
+  echo "test-disk-preflight: ordinary CI capacity required the local reserve or swept" >&2; exit 1;
+}
+printf '%s\n' 1073741824 >"$WORK/free"
+if CI=1 run "$healthy_bytes" >"$WORK/ci.out" 2>"$WORK/ci.err"; then
   echo "test-disk-preflight: undersized CI unexpectedly passed" >&2; exit 1
 fi
 grep -Fq 'ci-no-sweep' "$WORK/ci.err" && [[ ! -s "$WORK/sweeps" ]] || {
@@ -82,7 +91,7 @@ grep -Fq 'ci-no-sweep' "$WORK/ci.err" && [[ ! -s "$WORK/sweeps" ]] || {
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
 for n in 1 2 3 4; do
-  AWL_TEST_SWEEP_DELAY=0.3 run 9663676416 >"$WORK/contender-$n.out" &
+  AWL_TEST_SWEEP_DELAY=0.3 run "$healthy_bytes" >"$WORK/contender-$n.out" &
 done
 wait
 [[ "$(wc -l <"$WORK/sweeps")" -eq 1 ]] || {
@@ -100,11 +109,61 @@ chmod +x "$mutated"
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
 for n in 1 2 3 4; do
-  AWL_TEST_SWEEP_DELAY=0.3 run 9663676416 "$mutated" >"$WORK/mutated-$n.out" &
+  AWL_TEST_SWEEP_DELAY=0.3 run "$healthy_bytes" "$mutated" >"$WORK/mutated-$n.out" &
 done
 wait
 [[ "$(wc -l <"$WORK/sweeps")" -gt 1 ]] || {
   echo "test-disk-preflight: mutation removing recheck did not fail contention law" >&2; exit 1;
 }
 
-echo "test-disk-preflight: healthy, recovery, insufficiency, contention, and recheck mutation proved"
+# A SIGKILL leaves a lock directory, but never a live owner. A dead PID in
+# structured metadata is reclaimed; the receipt makes recovery observable.
+stale_pid=$(( $$ + 100000000 ))
+while kill -0 "$stale_pid" 2>/dev/null; do
+  stale_pid=$((stale_pid + 100000000))
+done
+mkdir "$WORK/lock"
+printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock/owner"
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+stale_recovered="$(run "$healthy_bytes")"
+[[ "$stale_recovered" == *'status=recovered'* && "$stale_recovered" == *'stale_lock_reclaimed=1'* && ! -d "$WORK/lock" ]] || {
+  echo "test-disk-preflight: dead-owner lock was not safely reclaimed" >&2; exit 1;
+}
+
+# MUTATION PROOF: treating a dead owner as live must leave this fixture stuck.
+stale_mutated="$WORK/disk-preflight-without-stale-recovery.sh"
+cp "$PREFLIGHT" "$stale_mutated"
+perl -0pi -e 's/&& ! kill -0 "\$owner"/&& kill -0 "\$owner"/' "$stale_mutated"
+chmod +x "$stale_mutated"
+mkdir "$WORK/lock"
+printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock/owner"
+printf '%s\n' 1073741824 >"$WORK/free"
+if AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
+  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
+  AWL_TEST_FREE_FILE="$WORK/free" \
+  AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
+  AWL_TEST_SWEEP_RESULT="$healthy_bytes" \
+  perl -e '$pid = fork; if (!$pid) { exec @ARGV } $SIG{ALRM} = sub { kill "TERM", $pid; waitpid $pid, 0; exit 124 }; alarm 2; waitpid $pid, 0; exit 1' \
+  "$stale_mutated" >"$WORK/stale-mutated.out" 2>"$WORK/stale-mutated.err"; then
+  echo "test-disk-preflight: stale-owner mutation unexpectedly escaped the lock" >&2; exit 1
+fi
+rm -f "$WORK/lock/owner"
+rmdir "$WORK/lock"
+
+# The real df path consumes POSIX -P's 1 KiB Available field. This fixture is
+# the common macOS/Linux shape and proves Bash receives an integer byte count.
+fake_df="$WORK/df"
+cat >"$fake_df" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on'
+printf '%s\n' '/dev/fake 100000000 0 41943040 0% /'
+EOF
+chmod +x "$fake_df"
+df_receipt="$(PATH="$WORK:$PATH" CI=1 AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/df-lock" "$PREFLIGHT")"
+[[ "$df_receipt" == *'free_bytes=42949672960'* && "$df_receipt" == *'status=ci-capacity'* ]] || {
+  echo "test-disk-preflight: POSIX df fixture did not yield an integer byte count" >&2; exit 1;
+}
+
+echo "test-disk-preflight: healthy, recovery, CI, contention, stale-lock, and mutations proved"

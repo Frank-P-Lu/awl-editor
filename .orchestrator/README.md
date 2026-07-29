@@ -46,13 +46,17 @@ receipt with the gate outcome, for example:
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
 `worker-build.sh` invokes it before every concurrent worker command; the
 canonical native gate invokes the same owner for the root merge train. Above
-its 8 GiB healthy floor it only reads filesystem capacity. Below that floor it
+its 32 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
 locks, rechecks, and asks the sole traversal/deletion owner, `scripts/sweep.sh
-1`, for recovery. A post-sweep 2 GiB minimum is an early, truthful failure.
+1`, for recovery. A post-sweep 24 GiB minimum is an early, truthful failure.
+The lock records the owning PID and caller; a dead recorded owner from an
+interrupted process is reclaimed, while an unparseable or live owner is never
+stolen.
 
 CI is intentionally capacity-only: it does not install or run `cargo-sweep`,
-so an undersized CI runner fails before Cargo instead of attempting host
-cleanup. WebAssembly remains portable because its worker launch inherits the
+and uses an explicit 2 GiB capacity floor rather than the local four-lane
+reserve, so an undersized hosted runner fails before Cargo instead of attempting
+host cleanup. WebAssembly remains portable because its worker launch inherits the
 same preflight, while standalone `scripts/web-smoke.sh` stays a normal
 cross-platform build script with no macOS-specific disk policy.
 

@@ -17,7 +17,7 @@ printf 'child-cargo-jobs=%s\n' "${CARGO_BUILD_JOBS:-unset}"
 EOF
 cat >"$free_oracle" <<'EOF'
 #!/usr/bin/env bash
-printf '%s\n' 9663676416
+printf '%s\n' $((40 * 1024 * 1024 * 1024))
 EOF
 cat >"$never_sweep" <<'EOF'
 #!/usr/bin/env bash
