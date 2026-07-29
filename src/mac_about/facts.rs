@@ -10,7 +10,7 @@
 //!
 //! | line | source | when it is absent |
 //! |---|---|---|
-//! | Version | `CFBundleShortVersionString` (packaged) → `CARGO_PKG_VERSION` | never — the crate version always exists |
+//! | Version | `CFBundleShortVersionString` (packaged) → `CARGO_PKG_VERSION` | never |
 //! | Build | `CFBundleVersion` (packaged only) | unpackaged, or identical to the version |
 //! | Commit | `AWL_GIT_COMMIT`, stamped by `build.rs` from `git rev-parse` | no git at build time |
 //!
@@ -26,8 +26,8 @@
 pub const NAME: &str = "Awl";
 
 /// The one product line under the title. Verbatim from `README.md`'s opening
-/// sentence — the project's own words, kept in sync by [`tests::tagline_is_the_readmes_own_sentence`]
-/// rather than re-written here as marketing copy.
+/// sentence — the project's own words, pinned by the law of the same name in
+/// this file rather than re-written here as marketing copy.
 pub const TAGLINE: &str = "A calm, opinionated plain-text editor for prose and light code.";
 
 /// The credit line: who holds the copyright, and under which license. Both
