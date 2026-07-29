@@ -57,6 +57,25 @@ healthy="$(run)"
   echo "test-disk-preflight: healthy disk must not sweep" >&2; exit 1;
 }
 
+# Perl clears close-on-exec on FD 9 before it execs Bash. The hook runs from
+# that restarted Bash and proves the descriptor, rather than the lock pathname,
+# is the live serialization authority.
+fd_probe="$WORK/fd-probe.sh"
+cat >"$fd_probe" <<'EOF'
+#!/usr/bin/env bash
+test -e /dev/fd/9
+printf 'fd9-survived\n' >"$AWL_TEST_FD_PROBE"
+EOF
+chmod +x "$fd_probe"
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_AFTER_SERIALIZER_COMMAND="$fd_probe" \
+  AWL_TEST_FD_PROBE="$WORK/fd-probe.out" run "$healthy_bytes" >/dev/null
+[[ "$(cat "$WORK/fd-probe.out")" == fd9-survived ]] || {
+  echo "test-disk-preflight: serializer descriptor did not survive exec" >&2; exit 1;
+}
+
 # Low space recovers through exactly the supplied sweep owner.
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
@@ -105,6 +124,22 @@ grep -l 'status=reused-recovery' "$WORK"/contender-*.out >/dev/null || {
   echo "test-disk-preflight: contenders did not reuse the in-lock recovery" >&2; exit 1;
 }
 
+# MUTATION PROOF: closing the preserved descriptor before exec makes the
+# restarted Bashes race; the one-sweep contention law must turn red.
+fd_mutated="$WORK/disk-preflight-without-fd9.sh"
+cp "$PREFLIGHT" "$fd_mutated"
+perl -0pi -e 's/fcntl\(\$keep, F_SETFD, 0\)/fcntl(\$keep, F_SETFD, 1)/' "$fd_mutated"
+chmod +x "$fd_mutated"
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+for n in 1 2 3 4; do
+  AWL_TEST_SWEEP_DELAY=0.3 run "$healthy_bytes" "$fd_mutated" >"$WORK/fd-mutant-$n.out" &
+done
+wait
+[[ "$(wc -l <"$WORK/sweeps")" -gt 1 ]] || {
+  echo "test-disk-preflight: closing FD 9 mutation did not break contention" >&2; exit 1;
+}
+
 # Deterministic A/B/C stale handoff: every contender sees A's dead lock; the
 # elected reclaimer must publish C before the others can acquire the path.
 printf 'pid=%s caller=dead-owner\n' "$stale_pid" >"$WORK/lock"
@@ -121,9 +156,8 @@ grep -l 'status=reused-recovery' "$WORK"/stale-contender-*.out >/dev/null || {
   echo "test-disk-preflight: stale A/B/C contenders did not preserve C's lock" >&2; exit 1;
 }
 
-# A process killed after metadata is written but before the hard-link publish
-# leaves no lock path. The next owner proceeds instead of inheriting an empty
-# or unparseable acquisition artifact.
+# SIGKILL releases the kernel-held serializer; the next owner proceeds without
+# inferring stale state from a pathname or PID.
 kill_owner="$WORK/kill-owner.sh"
 cat >"$kill_owner" <<'EOF'
 #!/usr/bin/env bash
@@ -136,7 +170,7 @@ if env AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
-  AWL_DISK_PREFLIGHT_AFTER_METADATA_COMMAND="$kill_owner" \
+  AWL_DISK_PREFLIGHT_AFTER_SERIALIZER_COMMAND="$kill_owner" \
   AWL_TEST_FREE_FILE="$WORK/free" \
   AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
   AWL_TEST_SWEEP_RESULT="$healthy_bytes" \
@@ -147,11 +181,8 @@ else
   killed_owner=$?
 fi
 if [[ "$killed_owner" -ne 42 ]]; then
-  echo "test-disk-preflight: death-before-publish fixture unexpectedly returned" >&2; exit 1
+  echo "test-disk-preflight: serializer SIGKILL fixture unexpectedly returned" >&2; exit 1
 fi
-[[ ! -e "$WORK/lock" ]] || {
-  echo "test-disk-preflight: death-before-publish left an incomplete lock" >&2; exit 1;
-}
 run "$healthy_bytes" >/dev/null
 
 # MUTATION PROOF: deleting the in-lock recheck makes all stale contenders sweep.
@@ -169,33 +200,15 @@ wait
   echo "test-disk-preflight: mutation removing recheck did not fail contention law" >&2; exit 1;
 }
 
-# A SIGKILL can leave only a fully published lock file: there is no empty
-# directory/owner-file window. A dead owner is reclaimed observably.
+# Advisory lock contents are inert: a dead-looking file cannot block recovery.
 printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock"
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
 stale_recovered="$(run "$healthy_bytes")"
-[[ "$stale_recovered" == *'status=recovered'* && "$stale_recovered" == *'stale_lock_reclaimed=1'* && ! -e "$WORK/lock" ]] || {
-  echo "test-disk-preflight: dead-owner lock was not safely reclaimed" >&2; exit 1;
+[[ "$stale_recovered" == *'status=recovered'* && "$stale_recovered" == *'stale_lock_reclaimed=0'* ]] || {
+  echo "test-disk-preflight: inert lock contents affected serializer recovery" >&2; exit 1;
 }
 
-# MUTATION PROOF: treating a dead owner as live must leave this fixture stuck.
-stale_mutated="$WORK/disk-preflight-without-stale-recovery.sh"
-cp "$PREFLIGHT" "$stale_mutated"
-perl -0pi -e 's/&& ! kill -0 "\$owner"/&& kill -0 "\$owner"/' "$stale_mutated"
-chmod +x "$stale_mutated"
-printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock"
-printf '%s\n' 1073741824 >"$WORK/free"
-if AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
-  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
-  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
-  AWL_TEST_FREE_FILE="$WORK/free" \
-  AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
-  AWL_TEST_SWEEP_RESULT="$healthy_bytes" \
-  perl -e '$pid = fork; if (!$pid) { exec @ARGV } $SIG{ALRM} = sub { kill "TERM", $pid; waitpid $pid, 0; exit 124 }; alarm 2; waitpid $pid, 0; exit 1' \
-  "$stale_mutated" >"$WORK/stale-mutated.out" 2>"$WORK/stale-mutated.err"; then
-  echo "test-disk-preflight: stale-owner mutation unexpectedly escaped the lock" >&2; exit 1
-fi
 rm -f "$WORK/lock"
 
 # Cleanup is identity-safe. Replacing the published inode just before EXIT

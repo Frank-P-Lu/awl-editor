@@ -58,24 +58,13 @@ if [[ -n "${CI:-}" ]]; then
   exit 0
 fi
 
-if (( free_bytes >= HEALTHY_BYTES )); then
+if (( free_bytes >= HEALTHY_BYTES )) && [[ -z "${AWL_DISK_PREFLIGHT_SERIALIZED:-}" ]]; then
   STALE_LOCK_RECLAIMED=0
   receipt healthy fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
   exit 0
 fi
 
 STALE_LOCK_RECLAIMED=0
-OWNER_TEMP="$(mktemp "${LOCK}.owner.XXXXXX")"
-printf 'pid=%s caller=%s\n' "$$" "$CALLER" >"$OWNER_TEMP"
-RECLAIM_LOCK="${LOCK}.reclaimer"
-remove_own_lock() {
-  if [[ -e "$LOCK" && "$LOCK" -ef "$OWNER_TEMP" ]]; then
-    rm -f "$LOCK"
-  fi
-  rm -f "$OWNER_TEMP"
-}
-trap remove_own_lock EXIT
-
 test_hook() {
   local command_var="$1"
   shift
@@ -84,58 +73,16 @@ test_hook() {
   fi
 }
 
-release_own_reclaimer() {
-  if [[ -e "$RECLAIM_LOCK" && "$RECLAIM_LOCK" -ef "$RECLAIM_TEMP" ]]; then
-    rm -f "$RECLAIM_LOCK"
-  fi
-  rm -f "$RECLAIM_TEMP"
-}
+# Advisory flock is released by the kernel when its owner dies. The Perl core
+# wrapper keeps the locked descriptor across exec, so Bash never has to infer
+# or reclaim stale ownership from a PID or pathname.
+if [[ -z "${AWL_DISK_PREFLIGHT_SERIALIZED:-}" ]]; then
+  AWL_DISK_PREFLIGHT_LOCK_PATH="$LOCK" \
+    exec perl -e 'use Fcntl qw(:flock F_SETFD); use POSIX qw(dup2); open my $lock, ">>", $ENV{AWL_DISK_PREFLIGHT_LOCK_PATH} or die "disk-preflight: cannot open lock: $!\n"; flock($lock, LOCK_EX) or die "disk-preflight: cannot lock: $!\n"; dup2(fileno($lock), 9) >= 0 or die "disk-preflight: cannot preserve lock: $!\n"; open my $keep, ">&=9" or die "disk-preflight: cannot retain lock: $!\n"; fcntl($keep, F_SETFD, 0) or die "disk-preflight: cannot preserve lock: $!\n"; $ENV{AWL_DISK_PREFLIGHT_SERIALIZED} = 1; exec {$ARGV[0]} @ARGV or die "disk-preflight: cannot restart: $!\n";' \
+    /usr/bin/env bash "${BASH_SOURCE[0]}"
+fi
 
-claim_stale_reclaimer() {
-  local reclaimer_owner
-  RECLAIM_TEMP="$(mktemp "${RECLAIM_LOCK}.owner.XXXXXX")"
-  printf 'pid=%s caller=%s\n' "$$" "$CALLER" >"$RECLAIM_TEMP"
-  while ! ln "$RECLAIM_TEMP" "$RECLAIM_LOCK" 2>/dev/null; do
-    reclaimer_owner="$(sed -n 's/^pid=\([1-9][0-9]*\) caller=.*/\1/p' "$RECLAIM_LOCK" 2>/dev/null || true)"
-    if [[ "$reclaimer_owner" =~ ^[1-9][0-9]*$ ]] && ! kill -0 "$reclaimer_owner" 2>/dev/null; then
-      rm -f "$RECLAIM_LOCK"
-      continue
-    fi
-    rm -f "$RECLAIM_TEMP"
-    return 1
-  done
-  return 0
-}
-
-# The hard link publishes a complete metadata-bearing inode, or nothing. A
-# killed contender can therefore leave only a parseable dead-owner lock.
-test_hook AWL_DISK_PREFLIGHT_AFTER_METADATA_COMMAND "$$"
-while ! ln "$OWNER_TEMP" "$LOCK" 2>/dev/null; do
-  if ! claim_stale_reclaimer; then
-    sleep 0.1
-    continue
-  fi
-  # A reclaimer lease serializes stale deletion. While it is held, no other
-  # validated contender can unlink this path; re-read after acquiring it.
-  owner="$(sed -n 's/^pid=\([1-9][0-9]*\) caller=.*/\1/p' "$LOCK" 2>/dev/null || true)"
-  test_hook AWL_DISK_PREFLIGHT_AFTER_RECLAIMER_COMMAND "$LOCK" "$RECLAIM_LOCK"
-  if [[ "$owner" =~ ^[1-9][0-9]*$ ]] && ! kill -0 "$owner" 2>/dev/null \
-    && [[ "$RECLAIM_LOCK" -ef "$RECLAIM_TEMP" ]]; then
-    rm -f "$LOCK"
-    STALE_LOCK_RECLAIMED=1
-    test_hook AWL_DISK_PREFLIGHT_AFTER_STALE_UNLINK_COMMAND "$LOCK" "$RECLAIM_LOCK"
-    # Keep the exclusive reclaimer lease through the handoff: no contender can
-    # observe an absent main lock and publish itself between stale removal and
-    # this owner's replacement lock.
-    if ln "$OWNER_TEMP" "$LOCK" 2>/dev/null; then
-      test_hook AWL_DISK_PREFLIGHT_AFTER_STALE_HANDOFF_COMMAND "$LOCK" "$RECLAIM_LOCK"
-      release_own_reclaimer
-      break
-    fi
-  fi
-  release_own_reclaimer
-  sleep 0.1
-done
+test_hook AWL_DISK_PREFLIGHT_AFTER_SERIALIZER_COMMAND "$$"
 
 # A contender can have observed low space before the first owner recovered.
 # The in-lock read is the concurrency boundary: without it every waiter sweeps.
