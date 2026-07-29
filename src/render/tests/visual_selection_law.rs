@@ -545,3 +545,62 @@ fn the_source_scanner_reads_code_and_skips_prose() {
     ));
     assert!(!names_logical_row("let x = vis.reads_selected(row);"));
 }
+
+/// FACTUAL RECORD, not a taste law: how many rows read selected across a real
+/// glide. Item 164's brief asked for "exactly one row" at every intermediate
+/// frame, and the MEASURED answer on the shipped Morph voice, for a one-row
+/// pointer move, is `[1, 2, 1, 1, ...]` — one row at every frame but a single
+/// one, where the band's stretch majority-covers BOTH rows at once.
+///
+/// That one frame is kept deliberately. The >50%-coverage rule is a LEGIBILITY
+/// rule, not a decoration: a row with band fill under it must carry on-band ink
+/// or it goes invisible on an inverse-fill world. When the stretched band
+/// genuinely owns two rows, two rows genuinely have fill, so cardinality 1 and
+/// the authored living band are mutually exclusive — and the item's real defect
+/// was never straddling, it was the band on one row and the shortcut on
+/// another. This test pins the shape (never more than the two rows a one-row
+/// stretch can reach, settling on exactly one) so a regression that widened it
+/// would be caught, and so the number in the log is measured, not assumed.
+#[test]
+fn the_selected_row_count_across_a_glide_is_recorded_not_assumed() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p, saved)) = armed_dqp() else {
+        eprintln!("skipping selected_row_count_record: no wgpu adapter");
+        return;
+    };
+    theme::set_active_by_name("Wagtail").unwrap();
+    crate::render::set_list_style_test_override(Some(theme::ListStyle::Pane));
+    livingband::set_motion_test_override(Some(MotionForce {
+        choreo: Choreo::Morph,
+        phase: None,
+    }));
+    p.sync_theme();
+    let mut v = palette_view(true);
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    p.advance(4.0 * GLIDE_S);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    v.overlay_selected = 1;
+    p.set_view(&v);
+    let mut seen = Vec::new();
+    for step in 0..=24 {
+        if step > 0 {
+            p.advance(GLIDE_S / 12.0);
+        }
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        let (_, _, vis) = answers(&mut p);
+        seen.push(vis.len());
+    }
+    eprintln!("ITEM164 selected-row counts across the glide: {seen:?}");
+    assert!(
+        seen.iter().all(|&n| n <= 2),
+        "a one-row move must never light more than the two rows the stretched \
+         band can straddle: {seen:?}"
+    );
+    assert_eq!(
+        *seen.last().unwrap(),
+        1,
+        "the glide settles on exactly one row"
+    );
+    disarm(saved);
+}
