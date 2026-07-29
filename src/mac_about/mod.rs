@@ -270,12 +270,8 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
 
     let content = NSView::initWithFrame(NSView::alloc(mtm), content_rect);
 
-    // THE SHIPPED ICON, at real scale — deliberately the CANONICAL bundle icon
-    // (`assets/macos/Awl.icns`, i.e. the default world's), never
-    // `NSApplication.applicationIconImage`, which `app_icon::adopt` swaps to
-    // whichever world the user is writing in. This window is app identity, not
-    // a theme surface.
-    if let Some(icns) = crate::app_icon::icns_for(crate::app_icon::canonical_world().name)
+    // THE SHIPPED ICON, at real scale — see [`icon_bytes`].
+    if let Some(icns) = icon_bytes()
         && let Some(image) = NSImage::initWithData(NSImage::alloc(), &NSData::with_bytes(icns))
     {
         let view = NSImageView::imageViewWithImage(&image, mtm);
@@ -368,6 +364,19 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
     panel.setContentView(Some(&content));
     panel.center();
     Some(panel)
+}
+
+/// The artwork the About window shows: the CANONICAL bundle icon
+/// (`assets/macos/Awl.icns` — the default world's), and deliberately NOT
+/// `NSApplication.applicationIconImage`, which [`crate::app_icon::adopt`] swaps
+/// to whichever world the user is currently writing in. This window is app
+/// identity chrome; it must look the same whatever theme is active.
+///
+/// A named owner rather than an inline expression in [`build`] so the choice is
+/// the thing the law tests, not just the asset — and so a change of mind here
+/// has exactly one place to happen.
+fn icon_bytes() -> Option<&'static [u8]> {
+    crate::app_icon::icns_for(crate::app_icon::canonical_world().name)
 }
 
 /// A [`Frame`] as an AppKit rect.
@@ -496,8 +505,7 @@ mod tests {
     /// the bundle icon drift apart — goes red here.
     #[test]
     fn the_about_window_shows_the_canonical_bundle_icon() {
-        let embedded = crate::app_icon::icns_for(crate::app_icon::canonical_world().name)
-            .expect("the canonical world ships an embedded icon on macOS");
+        let embedded = icon_bytes().expect("the About window resolves an icon on macOS");
         let on_disk = std::fs::read(crate::app_icon::CANONICAL_ICNS)
             .expect("the canonical bundle icon is committed");
         assert_eq!(
