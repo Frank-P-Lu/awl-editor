@@ -126,7 +126,11 @@ and first known bad commit, and blocks further integration.
   failures with `CARGO_INCREMENTAL=0`. For `SIGKILL` with no test failure,
   check memory and rerun the gate alone.
 - **Terminate only owned processes.** Never kill `awl` by name; stop only the
-  exact PID this run created.
+  exact PID this run created. Identify them with `pgrep -f` plus `ps -ww`:
+  macOS `ps -o command=` truncates before arguments like `--user-data-dir`, so
+  it reports a confident "0 orphans" while orphans are running. Other agents
+  work in this repo concurrently — target windows by unique title, never by
+  process name.
 - **Establish input modality before diagnosis.** If a report does not say
   keyboard, pointer, or wheel, disambiguate first.
 
