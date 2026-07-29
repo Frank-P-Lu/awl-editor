@@ -862,8 +862,6 @@ pub const FIRETAIL: Theme = Theme {
     },
     font: "Monaspace Xenon",
     mono: "Monaspace Xenon",
-    // Item 121: the poster silhouette moved off the pill; the ground stays
-    // the inert base_100 default pending the user's A/B/C ground pick.
     icon_cursor: IconCursor::Block,
     icon_ground: IconGround::Base100,
     heading_bold: true,

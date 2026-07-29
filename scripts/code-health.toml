@@ -159,7 +159,10 @@ lines = 946
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1388
+# item 121: +14 lines, irreducibly one new CLI flag arm
+# (`--ground-audition`) in the flag match — the arm and its help line are
+# already trimmed to the minimum a new flag can cost.
+lines = 1402
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -391,7 +394,14 @@ lines = 535
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1099
+# item 121: one `icon_ground: IconGround::Base100,` field per shipped world
+# literal (the same per-world-explicit shape `icon_cursor` already has) —
+# irreducible without inventing a second, implicit default path the design
+# deliberately rejects (item 121's mechanism note: represent the capability
+# as theme-owned data, never a silent default a world could skip choosing).
+# Combined with item 158's Paperbark addition + Ornaments::of compaction
+# (1110 -> 1099) on top of the rebased tree.
+lines = REBASE_PLACEHOLDER
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -453,8 +463,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 line = 239
-message = "this function has too many lines (717/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (730/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -816,7 +826,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
-line = 1809
+# `roster_growth_does_not_dilute_a_known_erosion` — same function, same
+# size, position fixed up after the item-121/158/161/168 rebase.
+line = REBASE_PLACEHOLDER_2
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 

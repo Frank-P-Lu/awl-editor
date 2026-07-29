@@ -38,6 +38,7 @@ mod cjk;
 mod color;
 mod derive;
 mod ground;
+mod icon_ground;
 mod model;
 mod ornament;
 mod worlds;
@@ -84,15 +85,16 @@ pub use model::{Lens, RoleOverrides, ThemeTags};
 // THEME CAPABILITIES AS DATA: the declarative render-behavior bundle every
 // per-theme render decision reads instead of an ad hoc `is_one_bit()` branch.
 // See `model::RenderCaps`'s own module doc.
+pub use icon_ground::IconGround;
 #[allow(unused_imports)] // RenderCaps/ImageReveal: public API surface (the full
 // bundle type + one field's enum); every non-test in-crate caller today reaches
 // them through `Theme::render_caps.<field>` rather than this bare re-export.
 pub use model::{
     AmbientStyle, Backdrop, BandResponse, BarCoverage, BarExtent, CardAnchor, CardShape,
     CardTexture, CaretBlockStyle, ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle,
-    FoldAfford, Frost, HighlightTexture, HighlightTreatment, IconCursor, IconGround, ImageReveal,
-    ListBacking, ListStyle, MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner,
-    PlacardInk, RenderCaps, SelectionStyle, TitleStyle,
+    FoldAfford, Frost, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
+    ListStyle, MotionJuice, OverlayEntrance, PageFrame, PaneSplit, PlacardCorner, PlacardInk,
+    RenderCaps, SelectionStyle, TitleStyle,
 };
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.

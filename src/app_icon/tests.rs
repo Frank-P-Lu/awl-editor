@@ -436,23 +436,22 @@ fn confusable_pairs_never_share_a_logo_cursor() {
         world("Firetail").icon_cursor,
         "item 121: Potoroo and Firetail now deliberately share the Block preset"
     );
-    for (a, b, same_face, why) in [(
+    let (a, b, same_face, why) = (
         "Saltpan",
         "Bilby",
         false,
         "two different serifs, but both cream grounds with a brown/gold mark",
-    )] {
-        assert_eq!(
-            world(a).font == world(b).font,
-            same_face,
-            "{a}/{b}: the near-pair's face relationship changed — re-judge the split"
-        );
-        assert_ne!(
-            world(a).icon_cursor,
-            world(b).icon_cursor,
-            "{a} and {b} are a near-pair ({why}) — the preset split IS the separation"
-        );
-    }
+    );
+    assert_eq!(
+        world(a).font == world(b).font,
+        same_face,
+        "{a}/{b}: the near-pair's face relationship changed — re-judge the split"
+    );
+    assert_ne!(
+        world(a).icon_cursor,
+        world(b).icon_cursor,
+        "{a} and {b} are a near-pair ({why}) — the preset split IS the separation"
+    );
 }
 
 /// Two worlds are LAW-BOUND to the block, not re-judgeable taste: Wagtail

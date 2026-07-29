@@ -168,37 +168,40 @@ fn font_file_json(f: &FontFile) -> String {
     )
 }
 
-fn world_json(t: &Theme) -> String {
-    // The four tokens the lockup spends, named exactly as the theme names them
-    // so a reader can trace each straight back to `worlds.rs`: base_100 is the
-    // icon ground, base_content inks "aw", primary is the fake cursor,
-    // primary_content inks the "l" sitting on it.
+// The four tokens the lockup spends, named exactly as the theme names them so
+// a reader can trace each straight back to `worlds.rs`: base_100 is the raw
+// ground token, `ground` is the tile's ACTUAL ground
+// (`Theme::icon_ground_color` — `base_100` unless this world opted into an
+// item-121 blend toward `base_300`; every consumer painting the tile reads
+// THIS, never `base_100`), base_content inks "aw", primary is the fake
+// cursor, primary_content inks the "l" sitting on it. `cursor` is read
+// straight off the `Theme` (`worlds.rs`), so a new world cannot compile
+// without filling it in. `ambient_motion` records that a lava world's real
+// canvas MOVES and the icon — one still frame — flattens it away.
+//
+// Shared by the canonical manifest (`world_json`, named as the world itself)
+// and `ground_audition_json` (named per A/B/C row) — one owner for the JSON
+// shape instead of two format strings free to drift apart.
+fn world_entry_json(t: &Theme, name: &str) -> String {
     format!(
-        "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"ground\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
-        json_string(t.name),
+        "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"ground\": {}, \
+         \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \
+         \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
+        json_string(name),
         t.dark,
         json_string(&t.base_100.hex()),
-        // The tile's ACTUAL ground (item 121: `Theme::icon_ground_color`) —
-        // `base_100` for every world by default, or a bounded blend toward
-        // `base_300` for a world that has opted in. Every consumer that
-        // paints the tile's ground reads THIS field, never `base_100`.
         json_string(&t.icon_ground_color().hex()),
         json_string(&t.base_content.hex()),
         json_string(&t.primary.hex()),
         json_string(&t.primary_content.hex()),
         json_string(t.font),
-        // The SHIPPED logo-cursor for this world, straight off the `Theme`
-        // (`worlds.rs`) — so the exporter's shipped sheet and the packer that
-        // cuts the .icns both read the assignment from the world literal that
-        // a new world cannot compile without filling in.
         json_string(t.icon_cursor.slug()),
-        // Mangrove's and Firetail's lava grounds are the only worlds whose real
-        // canvas MOVES. An icon is one still frame, so the exporter flattens
-        // them to base_100 (or this world's `icon_ground` blend) — recorded
-        // here so that flattening is a declared fact rather than an
-        // undocumented omission.
         t.has_ambient_motion(),
     )
+}
+
+fn world_json(t: &Theme) -> String {
+    world_entry_json(t, t.name)
 }
 
 fn face_json(f: &Face) -> String {
@@ -268,29 +271,19 @@ pub fn ground_audition_json(world_name: &str, fonts_dir: &Path) -> anyhow::Resul
             let mut t = *theme;
             t.icon_ground = *ground;
             t.icon_cursor = IconCursor::Block;
-            format!(
-                "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"ground\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
-                json_string(&format!(
-                    "{} \u{2014} {letter} ({})",
-                    t.name,
-                    ground.slug()
-                )),
-                t.dark,
-                json_string(&t.base_100.hex()),
-                json_string(&t.icon_ground_color().hex()),
-                json_string(&t.base_content.hex()),
-                json_string(&t.primary.hex()),
-                json_string(&t.primary_content.hex()),
-                json_string(t.font),
-                json_string(t.icon_cursor.slug()),
-                t.has_ambient_motion(),
-            )
+            let name = format!("{} \u{2014} {letter} ({})", t.name, ground.slug());
+            world_entry_json(&t, &name)
         })
         .collect::<Vec<_>>()
         .join(",\n");
     let faces_json = faces.iter().map(face_json).collect::<Vec<_>>().join(",\n");
     Ok(format!(
-        "{{\n  \"schema\": {MANIFEST_SCHEMA},\n  \"generated_by\": \"awl --ground-audition {world_name}\",\n  \"source\": \"item 121 ground audition \u{2014} Theme::icon_ground_color() over {world_name}'s real base_100/base_300, never a hand-picked hex\",\n  \"worlds\": [\n{worlds}\n  ],\n  \"faces\": [\n{faces_json}\n  ]\n}}\n"
+        "{{\n  \"schema\": {MANIFEST_SCHEMA},\n  \
+         \"generated_by\": \"awl --ground-audition {world_name}\",\n  \
+         \"source\": \"item 121 ground audition \u{2014} \
+         Theme::icon_ground_color() over {world_name}'s real \
+         base_100/base_300, never a hand-picked hex\",\n  \
+         \"worlds\": [\n{worlds}\n  ],\n  \"faces\": [\n{faces_json}\n  ]\n}}\n"
     ))
 }
 
