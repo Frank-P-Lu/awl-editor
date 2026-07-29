@@ -2673,7 +2673,9 @@ fn regression_non_wrapped_doc_visual_equals_logical_byte_identical() {
         "non-wrapped short-line doc: visual + logical captures are byte-identical"
     );
     let _ = std::fs::remove_file(&pv);
+    let _ = std::fs::remove_file(pv.with_extension("json"));
     let _ = std::fs::remove_file(&pl);
+    let _ = std::fs::remove_file(pl.with_extension("json"));
 }
 
 #[test]
@@ -2964,7 +2966,9 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
             "mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between"
         );
         let _ = std::fs::remove_file(&base_png);
+        let _ = std::fs::remove_file(base_png.with_extension("json"));
         let _ = std::fs::remove_file(&detour_png);
+        let _ = std::fs::remove_file(detour_png.with_extension("json"));
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
