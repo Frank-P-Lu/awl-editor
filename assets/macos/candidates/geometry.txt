@@ -5,15 +5,15 @@ Tawny           IBM Plex Mono         block     64  (6, 19, 56, 42)     (42, 13,
 Tawny           IBM Plex Mono         block     44  (4, 13, 38, 29)     (29, 8, 40, 34)     (30, 13, 38, 28)    29
 Tawny           IBM Plex Mono         block     32  (3, 10, 25, 20)     (21, 6, 28, 24)     (24, 10, 25, 19)    20
 Tawny           IBM Plex Mono         block     24  (2, 4, 21, 15)      (16, 4, 21, 18)     (16, 4, 21, 4)      15
-Mopoke          Bitter                pill     256  (35, 76, 223, 171)  (188, 64, 229, 201) (195, 76, 223, 170) 171
-Mopoke          Bitter                pill     128  (17, 38, 111, 85)   (94, 33, 114, 100)  (97, 38, 111, 84)   85
-Mopoke          Bitter                pill      64  (8, 19, 55, 43)     (47, 15, 57, 49)    (49, 19, 55, 42)    43
-Mopoke          Bitter                pill      44  (6, 12, 38, 27)     (32, 10, 39, 34)    (34, 12, 38, 27)    27
-Mopoke          Bitter                pill      32  (4, 11, 26, 19)     (24, 7, 28, 24)     (26, 13, 26, 18)    19
-Mopoke          Bitter                pill      24  (3, 7, 19, 14)      (17, 5, 22, 18)     (19, 7, 19, 13)     14
-Currawong       Iosevka               pill     256  (43, 89, 213, 173)  (183, 71, 216, 201) (185, 89, 213, 172) 173
-Currawong       Iosevka               pill     128  (22, 44, 106, 86)   (91, 35, 107, 99)   (93, 44, 106, 85)   86
-Currawong       Iosevka               pill      64  (11, 23, 52, 44)    (46, 17, 53, 50)    (47, 23, 52, 43)    44
+Mopoke          Bitter                pill     256  (35, 76, 223, 171)  (188, 54, 229, 190) (195, 76, 223, 170) 171
+Mopoke          Bitter                pill     128  (17, 38, 111, 85)   (94, 28, 114, 95)   (97, 38, 111, 84)   85
+Mopoke          Bitter                pill      64  (8, 19, 55, 43)     (47, 12, 57, 46)    (49, 19, 55, 42)    43
+Mopoke          Bitter                pill      44  (6, 12, 38, 27)     (32, 8, 39, 32)     (34, 12, 38, 27)    27
+Mopoke          Bitter                pill      32  (4, 11, 26, 19)     (24, 6, 28, 23)     (26, 13, 26, 18)    19
+Mopoke          Bitter                pill      24  (3, 6, 19, 14)      (17, 4, 22, 17)     (19, 6, 19, 13)     14
+Currawong       Iosevka               pill     256  (43, 89, 213, 173)  (183, 69, 216, 199) (185, 89, 213, 172) 173
+Currawong       Iosevka               pill     128  (22, 44, 106, 86)   (91, 34, 107, 98)   (93, 44, 106, 85)   86
+Currawong       Iosevka               pill      64  (11, 23, 52, 44)    (46, 16, 53, 49)    (47, 23, 52, 43)    44
 Currawong       Iosevka               pill      44  (7, 15, 35, 28)     (31, 12, 36, 33)    (33, 15, 35, 28)    28
 Currawong       Iosevka               pill      32  (5, 11, 25, 20)     (23, 7, 26, 24)     (24, 11, 25, 20)    20
 Currawong       Iosevka               pill      24  (4, 8, 18, 15)      (17, 5, 19, 18)     (18, 8, 18, 15)     15
@@ -29,18 +29,18 @@ Gumtree         Literata              block     64  (7, 19, 56, 43)     (47, 8, 
 Gumtree         Literata              block     44  (5, 13, 38, 29)     (32, 5, 40, 35)     (34, 13, 38, 28)    29
 Gumtree         Literata              block     32  (4, 9, 27, 21)      (22, 5, 30, 25)     (25, 9, 27, 20)     21
 Gumtree         Literata              block     24  (3, 7, 20, 15)      (17, 2, 22, 19)     (19, 7, 20, 13)     15
-Bilby           Newsreader 16pt 16pt  block    256  (44, 84, 214, 173)  (180, 82, 220, 201) (186, 84, 214, 171) 173
-Bilby           Newsreader 16pt 16pt  block    128  (22, 42, 106, 86)   (90, 41, 110, 100)  (93, 42, 106, 85)   86
-Bilby           Newsreader 16pt 16pt  block     64  (11, 21, 53, 43)    (45, 20, 54, 49)    (47, 21, 53, 42)    43
-Bilby           Newsreader 16pt 16pt  block     44  (7, 14, 36, 29)     (31, 12, 37, 34)    (32, 14, 36, 28)    29
-Bilby           Newsreader 16pt 16pt  block     32  (5, 10, 25, 21)     (23, 10, 27, 24)    (23, 10, 25, 20)    21
+Bilby           Newsreader 16pt 16pt  block    256  (44, 84, 214, 173)  (180, 77, 220, 196) (186, 84, 214, 171) 173
+Bilby           Newsreader 16pt 16pt  block    128  (22, 42, 106, 86)   (90, 39, 110, 98)   (93, 42, 106, 85)   86
+Bilby           Newsreader 16pt 16pt  block     64  (11, 21, 53, 43)    (45, 18, 54, 48)    (47, 21, 53, 42)    43
+Bilby           Newsreader 16pt 16pt  block     44  (7, 14, 36, 29)     (31, 12, 37, 33)    (32, 14, 36, 28)    29
+Bilby           Newsreader 16pt 16pt  block     32  (5, 10, 25, 21)     (23, 10, 27, 23)    (23, 10, 25, 20)    21
 Bilby           Newsreader 16pt 16pt  block     24  (4, 7, 20, 14)      (17, 7, 20, 18)     (17, 7, 20, 14)     14
-Saltpan         Fraunces 9pt          pill     256  (32, 81, 225, 173)  (169, 61, 233, 199) (198, 81, 225, 171) 173
-Saltpan         Fraunces 9pt          pill     128  (16, 40, 112, 85)   (94, 30, 116, 99)   (99, 40, 112, 84)   85
-Saltpan         Fraunces 9pt          pill      64  (8, 20, 55, 43)     (47, 15, 58, 49)    (50, 20, 55, 42)    43
-Saltpan         Fraunces 9pt          pill      44  (5, 14, 37, 29)     (30, 10, 39, 33)    (34, 14, 37, 28)    29
-Saltpan         Fraunces 9pt          pill      32  (4, 10, 27, 21)     (22, 7, 28, 24)     (25, 10, 27, 20)    21
-Saltpan         Fraunces 9pt          pill      24  (3, 7, 20, 14)      (18, 5, 21, 17)     (19, 7, 20, 14)     14
+Saltpan         Fraunces 9pt          pill     256  (32, 81, 225, 173)  (169, 55, 233, 193) (198, 81, 225, 171) 173
+Saltpan         Fraunces 9pt          pill     128  (16, 40, 112, 85)   (94, 27, 116, 96)   (99, 40, 112, 84)   85
+Saltpan         Fraunces 9pt          pill      64  (8, 20, 55, 43)     (47, 14, 58, 48)    (50, 20, 55, 42)    43
+Saltpan         Fraunces 9pt          pill      44  (5, 14, 37, 29)     (30, 9, 39, 32)     (34, 14, 37, 28)    29
+Saltpan         Fraunces 9pt          pill      32  (4, 10, 27, 21)     (22, 7, 28, 23)     (25, 10, 27, 20)    21
+Saltpan         Fraunces 9pt          pill      24  (3, 7, 20, 14)      (18, 5, 21, 16)     (19, 7, 20, 14)     14
 Quokka          Sour Gummy            pill     256  (33, 93, 221, 172)  (202, 60, 228, 205) (209, 93, 221, 172) 172
 Quokka          Sour Gummy            pill     128  (17, 46, 110, 85)   (101, 30, 113, 103) (104, 46, 110, 85)  85
 Quokka          Sour Gummy            pill      64  (8, 24, 55, 43)     (51, 14, 56, 51)    (52, 24, 55, 43)    43

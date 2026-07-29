@@ -68,6 +68,18 @@ present locally. The script never downloads a browser — point
   to the complete inline run), and weight (which bundled FILE, regular or
   bold). The wordmark's size and the squircle corner are global — a face
   needing its own size would mean the lockup is wrong.
+- **One narrower layer, still not a world key.** A face may carry an
+  additional "seat" delta scoped to the one PRESET it's composed with, under
+  its own `presets` key (`tuning.json`'s `faces.<Family>.presets.<preset>`) —
+  e.g. `Bitter.presets.pill`. It exists because a shared face is worn by two
+  worlds at two DIFFERENT presets (Bitter: Mopoke=pill, Magpie=block; Iosevka:
+  Currawong=pill, Cassowary=block): a flat family delta cannot correct one of
+  those two worlds without moving the other, but the pair already differs on
+  the axis the base preset varies by, so keying the override there reaches
+  exactly one world. Composition is additive (preset base + face delta + seat
+  override, each still bounded), and it's inert by default — a face with no
+  `presets` key, or no entry for the preset actually in play, renders
+  byte-identical to having none.
 - **No glyph coordinates.** Every number is relative to the `l`'s own advance
   and font-derived content area, which is why one rule fits a wide mono `l` and
   a tight serif `l`.
