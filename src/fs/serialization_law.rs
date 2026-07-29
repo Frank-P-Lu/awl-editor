@@ -49,6 +49,7 @@
 //! globals.
 
 use crate::fs::{self, FileSystem, InMemoryFs};
+use crate::testscratch::ScratchDir;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
@@ -171,8 +172,8 @@ fn the_real_resolve_root_enforces_the_law() {
 /// only after we release.
 #[test]
 fn a_guarded_reader_never_sees_a_concurrent_backend_swap() {
-    let dir = std::env::temp_dir().join(format!("awl-fs-law-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-fs-law-{}", std::process::id())));
 
     let attempts = Arc::new(AtomicUsize::new(0));
     let installs = Arc::new(AtomicUsize::new(0));
@@ -234,7 +235,6 @@ fn a_guarded_reader_never_sees_a_concurrent_backend_swap() {
     stop.store(true, Ordering::SeqCst);
     drop(guard);
     flipper.join().unwrap();
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// LAW 2's other end: an `FsGuard` restores THE backend that was installed

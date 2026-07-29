@@ -4,6 +4,7 @@
 //! (the re-exported free functions included) exactly as before.
 
 use super::*;
+use crate::testscratch::ScratchDir;
 
 fn b(s: &str) -> Buffer {
     Buffer::from_str(s)
@@ -1663,12 +1664,12 @@ fn first_nonempty_line_skips_blanks() {
     assert_eq!(first_nonempty_line(""), None);
 }
 
-fn note_tmp(name: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168).
+fn note_tmp(name: &str) -> ScratchDir {
     let mut p = std::env::temp_dir();
     p.push(format!("awl_note_test_{}_{}", std::process::id(), name));
-    let _ = std::fs::remove_dir_all(&p);
-    std::fs::create_dir_all(&p).unwrap();
-    p
+    ScratchDir::new(p)
 }
 
 #[test]
@@ -2074,7 +2075,7 @@ fn note_is_markdown_from_first_keystroke() {
     // save derives a path. While you type the title, styling must already apply.
     let dir = note_tmp("md_gate");
     let mut note = Buffer::scratch();
-    note.start_fresh_doc(dir);
+    note.start_fresh_doc(dir.to_path_buf());
     assert!(note.path().is_none(), "a fresh note has no path yet");
     assert!(
         note.is_markdown(),

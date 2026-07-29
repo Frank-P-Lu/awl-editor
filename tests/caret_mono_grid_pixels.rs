@@ -48,6 +48,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 
 mod common;
+use common::ScratchDir;
 
 /// ASCENDER + X-HEIGHT + DESCENDER on row 0, then blank rows so the reference
 /// capture can park the caret far from the band being measured.
@@ -67,12 +68,14 @@ const PARK_KEYS: &str = "Down Down Down Down";
 /// adapter; six keeps the sweep to ~20s wall without thrashing the GPU.
 const PARALLEL: usize = 6;
 
-fn tmp_dir(tag: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168: the prior
+/// end-of-function `remove_dir_all` never ran when this sweep's own asserts
+/// failed).
+fn tmp_dir(tag: &str) -> ScratchDir {
     let dir =
         std::env::temp_dir().join(format!("awl-item97-caretgrid-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ScratchDir::new(dir)
 }
 
 /// One capture job: a world, the keys to replay, and an OPTIONAL explicit caret
@@ -394,6 +397,4 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
              caret grid (mono arm was {mono_worlds:?})"
         );
     }
-
-    let _ = std::fs::remove_dir_all(&sandbox);
 }

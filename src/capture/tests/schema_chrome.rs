@@ -6,6 +6,7 @@
 use super::super::*;
 use super::{adapter_available, num_after};
 use crate::buffer::Buffer;
+use crate::testscratch::ScratchDir;
 
 struct TypewriterRestore(bool);
 
@@ -29,8 +30,9 @@ fn typewriter_scroll_initial_viewport_is_shared_by_plain_timeline_and_held() {
     let _restore = TypewriterRestore(crate::typewriter::typewriter_on());
     crate::typewriter::set_typewriter_on(true);
 
-    let dir = std::env::temp_dir().join(format!("awl_typewriter_animated_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_typewriter_animated_{}", std::process::id())),
+    );
     let text: String = (0..40).map(|line| format!("line {line:02}\n")).collect();
     let mut buf = Buffer::from_str(&text);
     buf.set_cursor(buf.line_col_to_char(20, 0));
@@ -66,8 +68,6 @@ fn typewriter_scroll_initial_viewport_is_shared_by_plain_timeline_and_held() {
         held_top, plain_top,
         "held initial viewport must use the shared typewriter policy"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The harness now reproduces the margin-class geometry: a capture at a REAL
@@ -88,8 +88,9 @@ fn retina_capture_centers_page_column_symmetrically() {
         eprintln!("skipping retina_capture_centers_page_column_symmetrically: no wgpu adapter");
         return;
     }
-    let dir = std::env::temp_dir().join(format!("awl_capture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_capture_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str(
         "the quick brown fox jumps over the lazy dog\nsecond line of prose here\nand a third line to fill the page",
     );
@@ -149,8 +150,6 @@ fn retina_capture_centers_page_column_symmetrically() {
         !canvas_block.contains("\"dpi\""),
         "no-flag sidecar canvas block must omit dpi for byte-identity: {canvas_block:?}"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// THE GUTTER-ELISION BUG, end to end through the real capture path: a narrow
@@ -174,8 +173,9 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
     }
     let _g = crate::testlock::serial();
     let _page = crate::page::PagePin::snapshot();
-    let dir = std::env::temp_dir().join(format!("awl_gutter_narrow_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_gutter_narrow_test_{}", std::process::id())),
+    );
 
     // The same tight-but-real margin fixture as the pipeline unit test
     // (`render::tests::chrome_overlay::narrow_gutter_never_wraps_and_both_lines_elide_independently`):
@@ -191,7 +191,7 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
     let opts = CaptureOpts {
         canvas: Some((1700, 800)),
         project: Some(ProjectInfo {
-            root: dir.clone(),
+            root: dir.to_path_buf(),
             name: project.to_string(),
             branch: None,
             dirty: false,
@@ -234,8 +234,6 @@ fn narrow_margin_capture_gutter_never_wraps_and_both_lines_stay_visible() {
         serde_json::json!(project),
         "the project must keep showing alongside an eliding filename"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 fn sidecar_value(path: &std::path::Path, mode: &str) -> serde_json::Value {
@@ -366,8 +364,8 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_json_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl_json_test_{}", std::process::id())));
     let mut buf = Buffer::from_str("# Title\n\nsome **bold** prose to fill a line\nsecond line\n");
     buf.set_path(dir.join("doc.md")); // .md so md_spans populate
 
@@ -396,8 +394,6 @@ fn sidecar_is_wellformed_json_with_expected_schema() {
     )
     .expect("held");
     assert_held_schema(&sidecar_value(&dir.join("hd.t30.json"), "held"));
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// MULTI-BUFFER: an explicit `opts.buffers` (what the real `--screenshot`
@@ -410,8 +406,9 @@ fn buffers_block_reports_the_explicit_registry_snapshot() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_buffers_json_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_buffers_json_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("hello\n");
     let out = dir.join("out.png");
     let opts = CaptureOpts {
@@ -426,7 +423,6 @@ fn buffers_block_reports_the_explicit_registry_snapshot() {
     let v: serde_json::Value = serde_json::from_str(&text).expect("valid json");
     assert_eq!(v["buffers"]["open"], serde_json::json!(2));
     assert_eq!(v["buffers"]["active"], serde_json::json!("/proj/a.txt"));
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// SYNTAX HIGHLIGHTING regression: the capture sidecar's `syn_spans` block is
@@ -440,8 +436,8 @@ fn syntax_sidecar_gated_to_code() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_syn_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl_syn_test_{}", std::process::id())));
 
     // A Rust buffer: syn_spans must carry a "comment" role span for the PROSE
     // comment AND a "comment_code" span for the commented-out statement (the
@@ -507,8 +503,6 @@ fn syntax_sidecar_gated_to_code() {
         tjson.contains("\"syn_lang\": null"),
         ".txt syn_lang must be null"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -529,8 +523,9 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
     }
     let _g = crate::testlock::serial();
     let _page = crate::page::PagePin::snapshot();
-    let dir = std::env::temp_dir().join(format!("awl_pageclass_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_pageclass_test_{}", std::process::id())),
+    );
 
     crate::page::set_measure(crate::page::DEFAULT_MEASURE_CODE);
     let mut code = Buffer::from_str("fn main() {}\n");
@@ -569,8 +564,6 @@ fn page_sidecar_reports_class_and_measure_for_code_vs_prose() {
         serde_json::json!(crate::page::DEFAULT_MEASURE),
         "and the PROSE default measure"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// FENCED-CODE SYNTAX: a markdown buffer with a ```` ```rust ```` fence AND a
@@ -589,8 +582,9 @@ fn fenced_code_syntax_highlights_by_info_language() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_fence_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_fence_test_{}", std::process::id())),
+    );
 
     let doc = "# Demo\n\n```rust\n// hi\nlet s = \"x\";\n```\n\n```sh\n# note\necho hi\n```\n";
     let mut md = Buffer::from_str(doc);
@@ -630,8 +624,6 @@ fn fenced_code_syntax_highlights_by_info_language() {
         json.contains("\"syn_lang\": null"),
         "markdown syn_lang stays null"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// MARKDOWN `==highlight==`: a `.md` buffer's `==marked text==` yields a
@@ -647,8 +639,9 @@ fn markdown_highlight_tag_present_in_sidecar() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_highlight_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_highlight_test_{}", std::process::id())),
+    );
 
     let doc = "before ==marked text== after\n";
     let mut md = Buffer::from_str(doc);
@@ -666,8 +659,6 @@ fn markdown_highlight_tag_present_in_sidecar() {
         md_spans.contains("\"markup\""),
         "the == delimiters stay dim markup: {md_spans:.300}"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// THE WRITER'S DIFF — the read-only prose-diff view renders end-to-end: the
@@ -689,8 +680,9 @@ fn prose_diff_view_renders_wash_band_pixels_and_reports_state() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_diffview_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_diffview_test_{}", std::process::id())),
+    );
 
     // A deletion + a LONG inserted paragraph (wraps to the full prose column, so its
     // highlight wash fills a wide band of pixels) — exactly the serializer's output.
@@ -773,8 +765,6 @@ fn prose_diff_view_renders_wash_band_pixels_and_reports_state() {
         max_row_nonbg >= 300,
         "a filled highlight-wash band should paint a wide row of non-bg pixels; max row non-bg = {max_row_nonbg} (canvas {w}x{h})"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// GFM TABLE: a `.md` buffer with a table yields the three structural tags in the
@@ -790,8 +780,9 @@ fn markdown_table_tags_present_in_sidecar() {
         return;
     }
     let _g = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_table_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_table_test_{}", std::process::id())),
+    );
 
     let doc = "| Name  | Value |\n|-------|:-----:|\n| foo   | 1     |\n";
     let mut md = Buffer::from_str(doc);
@@ -807,6 +798,4 @@ fn markdown_table_tags_present_in_sidecar() {
             "table span {tag} present: {md_spans:.400}"
         );
     }
-
-    let _ = std::fs::remove_dir_all(&dir);
 }

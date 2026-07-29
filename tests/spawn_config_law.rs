@@ -30,8 +30,9 @@
 //!      `theme` — that bent the capture.
 
 mod common;
+use common::ScratchDir;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// A source file's CODE, with every `//`-comment cut away — the laws below are
 /// about what a test DOES, and both of them describe the banned idioms in
@@ -159,13 +160,13 @@ fn the_owner_pins_the_config_variable_rather_than_removing_it() {
     );
 }
 
-/// A fresh, uniquely-named tempdir under the OS temp root.
-fn tmp_dir(tag: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
+/// used to never remove it at all).
+fn tmp_dir(tag: &str) -> ScratchDir {
     let dir =
         std::env::temp_dir().join(format!("awl-spawn-config-law-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ScratchDir::new(dir)
 }
 
 /// One capture through the spawn owner, with `$XDG_CONFIG_HOME` pointed at

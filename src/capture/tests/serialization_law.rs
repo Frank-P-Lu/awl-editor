@@ -30,6 +30,7 @@
 
 use super::super::sidecar::{assert_capture_is_serialized, cjk_json, scripts_json};
 use crate::render::ScriptFontReports;
+use crate::testscratch::ScratchDir;
 use crate::theme::{ALL_FONT_IDS, FontId};
 
 /// LAW 1 (pure seam): the capture-serialization check PASSES on a thread
@@ -75,8 +76,9 @@ fn the_real_capture_path_enforces_the_law() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_capture_law_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_capture_law_test_{}", std::process::id())),
+    );
     let png = dir.join("unguarded.png");
 
     let unguarded = std::thread::spawn({
@@ -96,7 +98,6 @@ fn the_real_capture_path_enforces_the_law() {
         !png.with_extension("json").exists(),
         "the law fires BEFORE the sidecar is written, so no torn sidecar reaches disk"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// LAW 2: `font.cjk` is LITERALLY the `font.scripts.ja` entry — one snapshot,

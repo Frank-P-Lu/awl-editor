@@ -1,4 +1,5 @@
 use super::*;
+use crate::testscratch::ScratchDir;
 
 /// DEBUG-OFF LAW: a completed theme transaction is a diagnostic session value, not
 /// sticky App state. Turning the panel off reaches the App-owned reset boundary even
@@ -733,8 +734,8 @@ fn open_serves_the_new_files_text_despite_equal_buffer_versions() {
     // `~/.local/share/awl/session.toml` and parks his real open files into
     // this test's registry (the exact leak class `d93109e` fixed).
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-open-swap-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-open-swap-{}", std::process::id())));
     let old = dir.join("old.txt");
     let new = dir.join("new.txt");
     std::fs::write(&old, "the OLD document\n").unwrap();
@@ -743,7 +744,7 @@ fn open_serves_the_new_files_text_despite_equal_buffer_versions() {
         session_restore: Some(false),
         ..Config::empty()
     };
-    let mut app = App::new(Some(old), dir.clone(), None, None, cfg);
+    let mut app = App::new(Some(old), dir.to_path_buf(), None, None, cfg);
     // The first sync caches (version 0, old text) — the short-circuit at work.
     assert_eq!(app.view_text(), "the OLD document\n");
     assert_eq!(
@@ -759,7 +760,6 @@ fn open_serves_the_new_files_text_despite_equal_buffer_versions() {
         "the NEW document\n",
         "the opened file's text must reach the view despite the version collision"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -772,8 +772,8 @@ fn new_note_drops_the_stale_view_text_cache() {
     // and disable session restore for the same reason the sibling test
     // above does (can't build hermetically — this needs real file bytes).
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-note-swap-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-note-swap-{}", std::process::id())));
     let file = dir.join("doc.txt");
     std::fs::write(&file, "prior document\n").unwrap();
     let notes = dir.join("notes");
@@ -781,9 +781,8 @@ fn new_note_drops_the_stale_view_text_cache() {
         session_restore: Some(false),
         ..Config::empty()
     };
-    let mut app = App::new(Some(file), dir.clone(), None, Some(notes), cfg);
+    let mut app = App::new(Some(file), dir.to_path_buf(), None, Some(notes), cfg);
     assert_eq!(app.view_text(), "prior document\n");
     app.new_document();
     assert_eq!(app.view_text(), "", "the fresh note starts blank on screen");
-    let _ = std::fs::remove_dir_all(&dir);
 }

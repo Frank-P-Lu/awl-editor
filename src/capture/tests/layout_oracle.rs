@@ -1,6 +1,7 @@
 //! Capture-artifact proof for the shaped-frame layout oracle.
 
 use super::super::*;
+use crate::testscratch::ScratchDir;
 
 #[test]
 fn sidecar_layout_rows_locate_wrap_caret_and_selection() {
@@ -9,8 +10,9 @@ fn sidecar_layout_rows_locate_wrap_caret_and_selection() {
     crate::page::set_page_on(true);
     crate::page::set_measure(20);
     crate::theme::set_active_by_name("Gumtree").unwrap();
-    let dir = std::env::temp_dir().join(format!("awl_layout_oracle_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_layout_oracle_{}", std::process::id())),
+    );
     let png = dir.join("layout.png");
     let text = "iiiiWWWW proportional wrap witness ".repeat(10);
     let buffer = crate::buffer::Buffer::from_str(&text);
@@ -61,5 +63,4 @@ fn sidecar_layout_rows_locate_wrap_caret_and_selection() {
         row < rows.len() && segment["x1"].as_f64().unwrap() >= segment["x0"].as_f64().unwrap()
     }));
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }

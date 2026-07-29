@@ -26,29 +26,26 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod common;
+use common::ScratchDir;
 
-/// Atomically claim a fresh tempdir under the OS temp root (no `tempfile` dep).
+/// Atomically claim a fresh tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it recursively on drop — panic, early
+/// return, or happy path alike (queue item 168; the prior explicit
+/// end-of-function removal ran only when every assertion above it passed).
 ///
 /// This integration test is its own process, so the main binary's in-process
 /// `crate::testlock::serial()` cannot coordinate it with another Cargo test
 /// executable. A PID-only remove-then-create path is not ownership: another
 /// live/stale runner can already own that path, and deleting it makes the
-/// canary snapshot observe the other process's writes. `create_dir` is the
-/// cross-process claim; an occupied candidate is left untouched and we try the
-/// next deterministic suffix. The caller still removes its claimed tree only
-/// after success, leaving a failed run's tree available for diagnosis.
-fn tmp_dir(tag: &str) -> PathBuf {
-    let root = std::env::temp_dir();
+/// canary snapshot observe the other process's writes. [`ScratchDir::claim`]
+/// is the cross-process claim (`create_dir`, never wiping); an occupied
+/// candidate is left untouched and we try the next deterministic suffix.
+fn tmp_dir(tag: &str) -> ScratchDir {
     let pid = std::process::id();
-    for suffix in 0_u64.. {
-        let dir = root.join(format!("awl-hermetic-canary-{tag}-{pid}-{suffix}"));
-        match std::fs::create_dir(&dir) {
-            Ok(()) => return dir,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(e) => panic!("failed to claim canary tempdir {}: {e}", dir.display()),
-        }
-    }
-    unreachable!("the u64 tempdir suffix space is inexhaustible in one test run")
+    ScratchDir::claim(
+        &std::env::temp_dir(),
+        &format!("awl-hermetic-canary-{tag}-{pid}"),
+    )
 }
 
 /// Recursive snapshot of a tree: every path (relative to `root`) → its bytes
@@ -237,6 +234,4 @@ fn strict_scenario_under_a_canary_home_makes_zero_unexpected_writes() {
         "legacy plain capture writes nothing"
     );
     assert_eq!(tree_snapshot(&inputs), inputs_before);
-
-    let _ = std::fs::remove_dir_all(&root);
 }

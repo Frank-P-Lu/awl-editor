@@ -37,17 +37,18 @@
 //! `theme::tests::gutter_frost_pill_keeps_ink_contrast_on_every_lava_world`
 //! part (4): coverage is exactly 0 outside every pill.)
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 mod common;
+use common::ScratchDir;
 
-/// A fresh, uniquely-named tempdir under the OS temp root (no `tempfile` dep —
-/// mirrors `tests/hermetic_canary.rs`).
-fn tmp_dir(tag: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop — panic, early return, or
+/// happy path alike (queue item 168; this fixture used to never remove it at
+/// all, the largest single contributor to a 9.2 GB `$TMPDIR` backlog).
+fn tmp_dir(tag: &str) -> ScratchDir {
     let dir = std::env::temp_dir().join(format!("awl-frost-pixels-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ScratchDir::new(dir)
 }
 
 /// A headed markdown doc: four headings a fair way apart so the margin OUTLINE

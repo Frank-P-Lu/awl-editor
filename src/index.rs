@@ -428,6 +428,7 @@ pub fn list_dir_level(root: &Path, rel: Option<&str>) -> Vec<DirEntry> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testscratch::ScratchDir;
 
     #[test]
     fn walk_skips_junk_dirs() {
@@ -470,15 +471,14 @@ mod tests {
     #[test]
     fn git_index_lists_untracked_but_not_gitignored_files() {
         let _fs = crate::testlock::serial();
-        let base = std::env::temp_dir().join(format!(
+        let base = ScratchDir::new(std::env::temp_dir().join(format!(
             "awl-idx-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
-        ));
-        std::fs::create_dir_all(&base).unwrap();
+        )));
         let git = |args: &[&str]| {
             std::process::Command::new("git")
                 .arg("-C")
@@ -510,7 +510,6 @@ mod tests {
             !idx.contains(&"ignored.md".to_string()),
             "a gitignored file must still be excluded: {idx:?}"
         );
-        std::fs::remove_dir_all(&base).ok();
     }
 
     #[test]

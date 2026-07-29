@@ -12,6 +12,7 @@
 use super::super::*;
 use super::adapter_available;
 use crate::buffer::Buffer;
+use crate::testscratch::ScratchDir;
 
 /// IDENTICAL RESTORATION AFTER UNFOLD: capture (unfolded) -> collapse -> capture
 /// (must differ from the first — else this proves nothing) -> unfold -> capture
@@ -29,8 +30,9 @@ fn collapse_then_unfold_restores_the_capture_byte_identically() {
     }
     let _g = crate::testlock::serial();
 
-    let dir = std::env::temp_dir().join(format!("awl_fold_restore_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_fold_restore_test_{}", std::process::id())),
+    );
     let text =
         "# Alpha\n\nalpha body 1\nalpha body 2\n\n## Beta\n\nbeta body\n\n# Gamma\n\ngamma body\n";
     let mut buf = Buffer::from_str(text);
@@ -177,9 +179,9 @@ fn fold_afford_ink_clears_the_real_lava_ground_on_every_flagged_world() {
     let _world = crate::theme::WorldPin::snapshot();
 
     const FLOOR: f32 = 2.7; // just under the ~2.9-3.2:1 every calibrated mark actually hits, leaving AA-rounding slack.
-    let dir =
-        std::env::temp_dir().join(format!("awl_fold_afford_lava_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_fold_afford_lava_test_{}", std::process::id())),
+    );
     let text = "# Alpha\n\nalpha body 1\nalpha body 2\n\n## Beta\n\nbeta body\n";
 
     for world in ["Mangrove", "Firetail"] {
@@ -409,8 +411,9 @@ fn fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading() {
         },
     ];
 
-    let dir = std::env::temp_dir().join(format!("awl_fold_tail_clamp_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_fold_tail_clamp_test_{}", std::process::id())),
+    );
 
     for (i, case) in cases.iter().enumerate() {
         let text = format!("{}\n\nbody one\n\nbody two\n", case.heading);

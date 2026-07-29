@@ -8,6 +8,7 @@
 use super::super::*;
 use super::adapter_available;
 use crate::buffer::Buffer;
+use crate::testscratch::ScratchDir;
 
 fn json(png: &std::path::Path) -> serde_json::Value {
     let bytes = std::fs::read_to_string(png.with_extension("json")).expect("sidecar exists");
@@ -63,8 +64,9 @@ fn sidecar_line_height_matches_measured_png_row_pitch_at_multiple_zooms() {
     crate::page::set_page_on(true);
     crate::page::set_measure(40);
 
-    let dir = std::env::temp_dir().join(format!("awl-sidecar-metric-scale-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-sidecar-metric-scale-{}", std::process::id())),
+    );
     let mut buf =
         Buffer::from_str("MMMMMMMM\nMMMMMMMM\nMMMMMMMM\nMMMMMMMM\nMMMMMMMM\nMMMMMMMM\nMMMMMMMM\n");
     // Keep the amber caret off the seven measured text rows.

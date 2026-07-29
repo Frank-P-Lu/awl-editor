@@ -27,14 +27,13 @@ use std::path::{Path, PathBuf};
 use std::process::Output;
 
 mod common;
+use common::ScratchDir;
 
-/// A fresh, uniquely-named tempdir under the OS temp root (no `tempfile` dep —
-/// mirrors `tests/hermetic_canary.rs`).
-fn tmp_dir(tag: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168).
+fn tmp_dir(tag: &str) -> ScratchDir {
     let dir = std::env::temp_dir().join(format!("awl-storyboard-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ScratchDir::new(dir)
 }
 
 /// Spawn the real binary from the repo root (so `scenarios/…` resolves), with
@@ -186,9 +185,6 @@ fn demo_storyboard_emits_every_artifact_and_two_runs_are_byte_identical() {
         tree_snapshot(&run2),
         "two runs of the same storyboard are byte-identical (trace + frames + steps)"
     );
-
-    let _ = std::fs::remove_dir_all(&run1);
-    let _ = std::fs::remove_dir_all(&run2);
 }
 
 #[test]
@@ -236,7 +232,6 @@ fn abort_fixture_aborts_naming_the_unsupported_effect() {
     );
     // The pre-abort steps still produced their artifacts.
     assert!(out_dir.join("step-000.png").exists());
-    let _ = std::fs::remove_dir_all(&out_dir);
 }
 
 #[test]
@@ -286,6 +281,4 @@ fn film_encode_rides_a_local_ffmpeg_when_present() {
     );
     // Raw frames are retained even when encoding succeeded.
     assert!(out_dir.join("frames").join("frame-00000.png").exists());
-    let _ = std::fs::remove_dir_all(&bin_dir);
-    let _ = std::fs::remove_dir_all(&out_dir);
 }

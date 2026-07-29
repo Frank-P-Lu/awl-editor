@@ -34,10 +34,11 @@
 //! documentation of why it should.
 
 use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Child, Stdio};
 
 mod common;
+use common::ScratchDir;
 
 /// A run's deterministic payload for iteration `i` — MUST mirror `main.rs`'s
 /// `--fault-write-loop` loop body exactly, so this test can recognize which
@@ -46,17 +47,21 @@ fn payload(i: u32) -> String {
     format!("v{i}\n").repeat(64)
 }
 
-/// A fresh, uniquely-named tempdir under the OS temp root — no `tempfile`
-/// crate dependency needed for one throwaway directory per test run.
-fn tmp_dir(tag: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168). THE NAMED
+/// EXCEPTION lives here: the child this harness `SIGKILL`s below cannot clean
+/// up its own pre-rename `.awl-tmp` sibling file — that is the property under
+/// test — so ownership of the whole directory belongs to this PARENT process,
+/// which still wraps it in the same guard as every other fixture. The guard's
+/// recursive removal deletes the child's orphaned file along with everything
+/// else once this test function returns, panic or not.
+fn tmp_dir(tag: &str) -> ScratchDir {
     let dir = std::env::temp_dir().join(format!(
         "awl-fault-kill9-{tag}-{}-{}",
         std::process::id(),
         tag.len() * 7919 + tag.bytes().map(|b| b as usize).sum::<usize>() // cheap salt, no rand dep
     ));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ScratchDir::new(dir)
 }
 
 /// Spawn the real `awl` binary's `--fault-write-loop <target> <count>` with
@@ -154,7 +159,6 @@ fn run_one_trial(tag: &str, count: u32, kill_after_writes: u32, delay_ms: u64) {
             );
         }
     }
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -197,5 +201,4 @@ fn write_atomic_survives_a_kill_that_lands_after_the_loop_already_finished() {
         payload(COUNT - 1),
         "the file holds exactly the LAST iteration's payload"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }

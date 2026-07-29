@@ -117,13 +117,13 @@ pub fn install_hermetic_fs(file: Option<&Path>, config_arg: Option<&Path>, root:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testscratch::ScratchDir;
 
-    /// A fresh, uniquely-named real tempdir for arranging seed inputs.
-    fn tmp_dir(tag: &str) -> PathBuf {
+    /// A fresh, uniquely-named real tempdir for arranging seed inputs, owned
+    /// by a [`ScratchDir`] guard that removes it on drop (queue item 168).
+    fn tmp_dir(tag: &str) -> ScratchDir {
         let dir = std::env::temp_dir().join(format!("awl-scenario-{tag}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
+        ScratchDir::new(dir)
     }
 
     #[test]
@@ -148,7 +148,6 @@ mod tests {
         assert!(cli_seeds(Some(&missing), None).is_empty());
         assert_eq!(cli_seeds(None, Some(&cfg)).len(), 1);
         assert!(cli_seeds(None, None).is_empty());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -231,6 +230,5 @@ mod tests {
             "real bytes\n",
             "the REAL file keeps every byte"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

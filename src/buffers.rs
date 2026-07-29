@@ -279,6 +279,8 @@ impl<T> BufferRegistry<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    use crate::testscratch::ScratchDir;
 
     fn keyed(path: &str) -> BufferKey {
         BufferKey::path(Path::new(path))
@@ -387,7 +389,9 @@ mod tests {
         // spelling of the same file, and `normalize_path` now resolves it
         // (real `std::fs::canonicalize`, not just lexical `.`/`..` collapse)
         // rather than tracking the symlink's own name.
-        let base = std::env::temp_dir().join(format!("awl-buffers-symlink-{}", std::process::id()));
+        let base = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-buffers-symlink-{}", std::process::id())),
+        );
         let real_dir = base.join("real");
         let link_dir = base.join("link");
         std::fs::create_dir_all(&real_dir).unwrap();
@@ -400,8 +404,6 @@ mod tests {
             via_real, via_link,
             "the symlinked spelling must key identically to the real path"
         );
-
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -412,8 +414,9 @@ mod tests {
         // exist yet — a new file's key must match its real (not symlink)
         // parent identically whether reached via the link or the target, so
         // it normalizes the same before and after the file is created.
-        let base =
-            std::env::temp_dir().join(format!("awl-buffers-symlink-new-{}", std::process::id()));
+        let base = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-buffers-symlink-new-{}", std::process::id())),
+        );
         let real_dir = base.join("real");
         let link_dir = base.join("link");
         std::fs::create_dir_all(&real_dir).unwrap();
@@ -425,8 +428,6 @@ mod tests {
             via_real, via_link,
             "a not-yet-existing file under a symlinked ancestor still keys identically"
         );
-
-        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[test]
