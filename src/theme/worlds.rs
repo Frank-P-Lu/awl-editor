@@ -624,10 +624,17 @@ pub const GALAH: Theme = Theme {
     primary_content: Srgb::rgb(0xFB, 0xEA, 0xEE),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0x9A, 0x6B, 0x86, 0x52),
-    background: Background::Gradient {
-        from: Srgb::rgb(0xF8, 0xE0, 0xE6),
-        to: Srgb::rgb(0xF1, 0xCF, 0xD9),
-        dir: (0.7, 0.7),
+    // Sparse, fine plumage in Galah's existing mauve ladder. Fibres own their
+    // screen coordinates, so the anchor is deliberately inert for this weave.
+    background: Background::Deckle {
+        ground: Srgb::rgb(0xF8, 0xE0, 0xE6),
+        layer: Srgb::rgb(0xF1, 0xCF, 0xD9),
+        deckle: Srgb::rgb(0xA9, 0x92, 0x98),
+        weave: Weave::Fibres,
+        anchor: DeckleAnchor::Viewport,
+        period_px: 64.0,
+        wander_px: 8.0,
+        density: 0.10,
     },
     font: "Figtree",
     mono: "IBM Plex Mono",
