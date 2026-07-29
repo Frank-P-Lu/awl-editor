@@ -291,7 +291,7 @@ impl App {
         }
         // A Theme preview mutated the process-global active world: re-tint the baked GPU
         // pipelines + window title so the hover previews it live, mirroring the theme
-        // branch of `post_apply_effects` — colors instantly, the font reshape deferred
+        // branch of `post_transition_effects` — colors instantly, the font reshape deferred
         // to the settle (`retint_theme_preview`), so sweeping the pointer down the
         // list costs one recolor per row, not one reshape storm per row.
         if kind == crate::overlay::OverlayKind::Theme {
@@ -856,12 +856,12 @@ impl App {
             self.stamp_input();
             self.feed_peek(crate::peek::PeekStimulus::Interrupt);
         }
-        // SUMMONED ABOUT / LIFETIME STATS CARDS: like `apply_core`'s own
+        // SUMMONED ABOUT / LIFETIME STATS CARDS: like `apply_transition`'s own
         // top-of-function key intercept (`actions.rs`), ANY mouse press while
         // either modal card is open dismisses it and is otherwise fully swallowed
         // — never falls through to spell-suggest, an overlay click, or a document
         // press/selection. Routes through the SAME owner (`card::dismiss_summoned_card`)
-        // apply_core uses, so the key and click paths can't drift. See `card.rs`.
+        // apply_transition uses, so the key and click paths can't drift. See `card.rs`.
         if state == ElementState::Pressed
             && matches!(button, MouseButton::Left | MouseButton::Right)
             && crate::card::dismiss_summoned_card()

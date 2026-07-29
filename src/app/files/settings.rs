@@ -169,7 +169,7 @@ impl App {
     /// formatted per the active [`crate::dateformat::DateFormat`], as ONE
     /// undoable edit (`Buffer::insert_text` — sealed on both sides, so it
     /// never coalesces with adjacent typing). The real wall clock is read
-    /// HERE (the live-only half of the seam — `apply_core` never touches a
+    /// HERE (the live-only half of the seam — `apply_transition` never touches a
     /// clock); the headless `--keys` replay's own `Effect::InsertDate` arm
     /// performs the identical insert against the FIXED
     /// [`crate::dateformat::CAPTURE_PLACEHOLDER_YMD`] instead, so only the

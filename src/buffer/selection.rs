@@ -138,7 +138,7 @@ impl Buffer {
     }
 
     /// The remembered VISUAL goal-x for visual-line vertical motion (see the
-    /// `goal_x` field). `apply_core`'s layout oracle reads this at the start of a
+    /// `goal_x` field). `apply_transition`'s layout oracle reads this at the start of a
     /// C-n/C-p: `Some(x)` means a run of vertical moves is in progress and the
     /// caret should stay under `x`; `None` means recompute from the caret's current
     /// visual x.

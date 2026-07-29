@@ -1,5 +1,5 @@
 //! ITEM 104 — THE SETTINGS "EVERY SECOND ROW" LAW, the PIXEL/HIT-TEST half.
-//! `actions::tests::settings_reach` proves the `apply_core` seam steps
+//! `actions::tests::settings_reach` proves the `apply_transition` seam steps
 //! `selected` one row at a time through every facet/direction/parity/filter/
 //! scroll; this file proves the RENDERED half stays in lock-step with it — a
 //! pointer y-CENTER sweep over every drawn row of the Editor facet (the

@@ -73,7 +73,7 @@ impl CardView {
 /// The card's current page — `false` = heatmap (the default), `true` =
 /// cumulative. Process-global like the open flag above (the card is a
 /// singleton); written only by [`toggle_view`] (the ←/→ intercept in
-/// `actions::apply_core`) and reset by [`set_open`] on every summon.
+/// `actions::apply_transition`) and reset by [`set_open`] on every summon.
 static CUMULATIVE: AtomicBool = AtomicBool::new(false);
 
 /// The page the summoned card shows this frame.

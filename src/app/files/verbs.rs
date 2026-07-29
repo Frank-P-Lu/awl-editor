@@ -11,6 +11,26 @@ use crate::app::*;
 use std::path::Path;
 
 impl App {
+    /// Live interpreter for `PersistenceEffect::Save(Manual)`. The shared
+    /// transition describes the write; only this live owner may perform it.
+    pub(in crate::app) fn manual_save(&mut self) {
+        if self.active.buffer.path().is_none() && !self.active.buffer.is_unnamed_fresh() {
+            self.convert_scratch_and_save();
+        } else {
+            let result = self.active.buffer.save();
+            let (ok, message) = match result {
+                Ok(()) => (true, "saved".to_string()),
+                Err(error) => (false, format!("save failed: {error}")),
+            };
+            self.finish_manual_save(ok, message);
+        }
+        if self.active.buffer.path().is_some_and(|path| {
+            !self.config.path.as_os_str().is_empty() && path == self.config.path
+        }) {
+            self.reload_config();
+        }
+    }
+
     /// INLINE-IMAGE DRAG-RESIZE (v2) WRITE-BACK: stamp the settled `|NNN` width hint
     /// into the image's ALT text as ONE undoable edit — templated on
     /// [`Self::write_back_lang_tag_once`]'s single-`replace_char_range` shape. `range`
@@ -66,10 +86,10 @@ impl App {
         self.active.buffer.set_cursor(restored);
     }
 
-    /// SAVE-FEEDBACK round: finish an explicit manual save (`Effect::SaveDone`,
-    /// an already-pathed buffer's `C-x C-s` / `Cmd-S`) — the core already ran
-    /// the SAME `Buffer::save` call every save path uses, `ok`/`message` report
-    /// the outcome. On SUCCESS, capture a local-history point (the store's git
+    /// Finish the live interpreter's explicit manual save. The typed
+    /// persistence request carried no write; `manual_save` ran the one
+    /// `Buffer::save` call and passes its outcome here. On SUCCESS, capture a
+    /// local-history point (the store's git
     /// gate / history-off / dedup all decide what's kept) and follow the
     /// AUTOSAVE ENGINE's own bookkeeping (the buffer version is now on disk —
     /// no redundant idle write; the fresh mtime is the clobber guard's new
@@ -84,8 +104,8 @@ impl App {
     /// launch). Autosave stays SILENT too — only a failed explicit user action
     /// is acknowledged.
     ///
-    /// (item 76: `Effect::SaveDone{ok:true}` is emitted only right after a
-    /// SUCCESSFUL `Buffer::save`, which — one-shot naming — always leaves
+    /// This runs only after a successful `Buffer::save`, which — one-shot
+    /// naming — always leaves
     /// `is_unnamed_fresh()` false by the time this runs: either the buffer was
     /// already ordinary, or it just got named and its marker cleared in the
     /// same step. So there is no longer a distinct "note" dirty-marker branch
@@ -102,15 +122,15 @@ impl App {
             }
             // NOTES VERBS round: the held HUD's SAVED stat.
             self.last_saved_ok = Some(self.clock.now());
-            self.set_toast_notice("saved");
+            self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
         } else {
-            self.set_sticky_notice(message);
+            self.emit_notice(crate::actions::NoticeEffect::Sticky(message));
         }
     }
 
-    /// SAVE-FEEDBACK round: `Cmd-S` / `C-x C-s` on the TRUE scratch surface
-    /// (`Effect::ConvertScratchAndSave`) — convert the pathless buffer into a
-    /// real note, reusing the EXACT auto-name machinery
+    /// `Cmd-S` / `C-x C-s` on the TRUE scratch surface: interpret the typed
+    /// manual-save request by converting the pathless buffer into a real note,
+    /// reusing the exact auto-name machinery
     /// [`Self::ensure_note_named_before_paste`] already established for the
     /// paste-image door ([`crate::buffer::Buffer::save_into_folder`]: `set_note_dir`
     /// then `Buffer::save`, which derives the filename from the first line via
@@ -155,12 +175,14 @@ impl App {
                     self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
                     self.active.extra.doc_saved_version = Some(self.active.buffer.version());
                 }
-                self.set_toast_notice("saved");
+                self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
                 // NOTES VERBS round: the held HUD's SAVED stat.
                 self.last_saved_ok = Some(self.clock.now());
             }
             Err(e) => {
-                self.set_sticky_notice(format!("save failed: {e}"));
+                self.emit_notice(crate::actions::NoticeEffect::Sticky(format!(
+                    "save failed: {e}"
+                )));
             }
         }
         if let Some(gpu) = self.gpu.as_ref() {

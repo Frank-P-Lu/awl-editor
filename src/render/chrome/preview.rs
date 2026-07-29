@@ -49,7 +49,7 @@ impl TextPipeline {
     /// A floating card below the picker holds the sample line `watch me glide, jump,
     /// and morph`, on which the SELECTED caret look runs the choreographed demo
     /// ([`crate::caret::CaretDemo`]) — typing, gliding, jumping, deleting + gulping —
-    /// driven by a scripted `apply_core` timeline. Parked (nothing drawn) unless the
+    /// driven by a scripted `apply_transition` timeline. Parked (nothing drawn) unless the
     /// caret-style picker is open. The choreography FEEL is live-only; a headless
     /// capture renders the deterministic SETTLED end-state (the fully-typed line at
     /// rest), pinned by `settle_caret_preview`.
@@ -140,7 +140,7 @@ impl TextPipeline {
         } else if let Some(tick) = self.caret_demo.take_tick() {
             // Glide to the freshly-shaped cursor X on a real move, then arm the flinch
             // the fired beat earned (typing impact / delete squash / kill gulp / recoil)
-            // — the SAME juice the document caret gets through `apply_core`'s effects.
+            // — the SAME juice the document caret gets through `apply_transition`'s effects.
             use crate::actions::Effect;
             let is_edit = matches!(
                 tick.effect,

@@ -1569,7 +1569,7 @@ fn hud_mods_broken(summon: ModifiersState, now: ModifiersState) -> bool {
 ///     both the live key dispatch (`app/input/keys.rs`, passing the resolved logical
 ///     key) and the headless `--keys` replay
 ///     (`main/run.rs::ReplaySession::apply_chord`, passing the chord's key) derive
-///     their `apply_core` shift flag through this fn, so an `S-` chord in a spec
+///     their `apply_transition` shift flag through this fn, so an `S-` chord in a spec
 ///     signals select-intent exactly as a live held Shift does — never a parallel
 ///     copy of the rule.
 pub(crate) fn motion_honors_shift_select(action: &Action, key: &Key) -> bool {

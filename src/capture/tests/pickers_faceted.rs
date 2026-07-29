@@ -5,7 +5,9 @@
 
 use super::super::*;
 use super::adapter_available;
+use crate::actions;
 use crate::buffer::Buffer;
+use crate::keymap::Action;
 use crate::testscratch::ScratchDir;
 
 fn fixture_opts() -> CaptureOpts {
@@ -877,7 +879,7 @@ fn history_preview_folds_text_and_reports_preview_id() {
 }
 
 /// ITEM 94 — THE RANGE ROW THROUGH THE REAL REPLAY + SIDECAR SEAM: drive RIGHT on
-/// the Settings menu's Zoom row through the SAME `apply_core` a `--keys` replay
+/// the Settings menu's Zoom row through the SAME `apply_transition` a `--keys` replay
 /// runs, fold the still-open overlay through the SAME
 /// [`crate::run::overlay_capture_info`] owner the one-shot capture uses, and
 /// render it. The sidecar then reports the stepped value TWICE — as the row's
@@ -917,8 +919,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         .unwrap();
     ov.selected = zi;
 
-    // RIGHT, through the shared core — the exact seam `--keys` drives. The value
-    // change lands IN THE CORE (that is why the effect is replay-`Applied`), so a
+    // The value lands in the core (hence replay-`Applied`), so a
     // headless session observes it exactly as the live app does.
     let mut zoom = spec.default;
     let mut overlay = Some(ov);
@@ -938,7 +939,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
             browse_to: &mut browse,
             oracle: None,
         };
-        crate::actions::apply_core(&mut ctx, &crate::keymap::Action::ForwardChar, false)
+        actions::apply_transition(&mut ctx, &Action::ForwardChar, false).primary()
     };
     assert_eq!(
         eff,

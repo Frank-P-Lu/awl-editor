@@ -32,7 +32,7 @@ cargo run -- --screenshot OUT.png
 ### Scripting input before the frame (`--keys`)
 
 `--keys "<spec>"` replays a sequence of keystrokes through the **real keymap**
-(`KeymapState::resolve` → `Action` → `apply_core`) against the loaded buffer
+(`KeymapState::resolve` → `Action` → `apply_transition`) against the loaded buffer
 *before* the single frame is captured, so the PNG + sidecar reflect post-replay
 state. It composes with `--screenshot` and the motion variants:
 
@@ -52,7 +52,7 @@ Spec grammar — space-separated emacs chords:
   emacs mark. Shift-PageDown/PageUp deliberately do not extend (documented
   non-movers), and `M-<`/`M->`'s Shift stays incidental (pure motion).
 
-Because replay drives the same keymap + `apply_core` seam as live editing, a
+Because replay drives the same keymap + `apply_transition` seam as live editing, a
 capture exercises the real edit logic — not a parallel mock. The visual-line
 LAYOUT ORACLE (the offscreen-shaped pipeline wrapped motion consults) is
 RE-SHAPED from the current buffer / zoom / page-measure state before every
@@ -63,10 +63,12 @@ riding it) never leaves a later motion on stale wrap geometry.
 
 **Caveats — know these before trusting a replay:**
 
-- **Save writes to disk.** Replaying `C-x C-s` actually saves the target file
-  during a headless capture. Don't replay save/quit chords against files you
-  don't want mutated. (Under `--strict-replay` the save lands in the hermetic
-  in-memory sandbox instead and the real file keeps every byte — see below.)
+- **Ordinary replay never saves.** Save and Finish become typed persistence
+  requests, recorded as skipped in permissive replay because the ordinary
+  headless interpreter owns no filesystem-write capability. Opening an absent
+  config also leaves it absent. Under `--strict-replay`, the caller explicitly
+  grants an isolated in-memory filesystem capability, so Save lands only in
+  that sandbox and the real file keeps every byte.
 - **Unbound chords are silent no-ops** (e.g. `C-Q` → `Ignore`, dropped); only
   structurally invalid tokens (e.g. `frobnicate`) error. (Under
   `--strict-replay` an unbound chord aborts instead — see below.)

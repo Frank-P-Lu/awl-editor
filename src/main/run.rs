@@ -10,6 +10,10 @@ use crate::keymap::Action;
 use crate::replay_report::ReplayResult;
 use crate::{actions, app, bench};
 
+#[path = "run/effect_interpreter.rs"]
+mod effect_interpreter;
+mod replay_effects;
+
 /// Build the editor buffer. Refused files become unbound scratch buffers so a
 /// replayed save can never overwrite them.
 pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
@@ -100,7 +104,7 @@ fn park_active(buffer: &mut Buffer, registry: &mut crate::buffers::BufferRegistr
 /// Replay a parsed `--keys` CHORD stream against `buffer` — each chord either
 /// consumed by the SEARCH GUARD (the shared `crate::search::keys::intercept`
 /// seam, while the isearch panel is open) or resolved through `km` and applied
-/// THROUGH the shared `actions::apply_core` seam, so headless replay is
+/// THROUGH the shared `actions::apply_transition` seam, so headless replay is
 /// byte-for-byte identical to live editing. `corpus` is the active project's
 /// file index (Goto), `root` scopes the Browse navigator, and `workspace`
 /// supplies the switch-project children — so a replayed Cmd-O / Cmd-Shift-P /
@@ -120,6 +124,7 @@ fn replay_keys(
 ) -> ReplayResult {
     match replay_keys_mode(
         crate::replay::Mode::Permissive,
+        crate::replay::FilesystemCapability::None,
         buffer,
         keys,
         corpus,
@@ -143,6 +148,7 @@ fn replay_keys(
 #[allow(clippy::too_many_arguments)]
 fn replay_keys_mode(
     mode: crate::replay::Mode,
+    filesystem: crate::replay::FilesystemCapability,
     buffer: &mut Buffer,
     keys: &[crate::keyspec::Chord],
     corpus: &[String],
@@ -152,7 +158,9 @@ fn replay_keys_mode(
     oracle: Option<&mut capture::OraclePipeline>,
     km: &mut crate::keymap::KeymapState,
 ) -> Result<ReplayResult> {
-    let mut session = ReplaySession::new(mode, buffer, corpus, root, workspace, config, oracle, km);
+    let policy = ReplayPolicy { mode, filesystem };
+    let mut session =
+        ReplaySession::new(policy, buffer, corpus, root, workspace, config, oracle, km);
     for chord in keys {
         session.apply_chord(chord)?;
     }
@@ -169,6 +177,7 @@ fn replay_keys_mode(
 /// what a chord does.
 pub(crate) struct ReplaySession<'a> {
     mode: crate::replay::Mode,
+    filesystem: crate::replay::FilesystemCapability,
     buffer: &'a mut Buffer,
     corpus: &'a [String],
     root: &'a std::path::Path,
@@ -208,10 +217,25 @@ pub(crate) struct ReplaySession<'a> {
     cursor_px: (f32, f32),
 }
 
+pub(crate) struct ReplayPolicy {
+    mode: crate::replay::Mode,
+    filesystem: crate::replay::FilesystemCapability,
+}
+
+impl ReplayPolicy {
+    #[cfg(test)]
+    pub(crate) fn ordinary() -> Self {
+        Self {
+            mode: crate::replay::Mode::Permissive,
+            filesystem: crate::replay::FilesystemCapability::None,
+        }
+    }
+}
+
 impl<'a> ReplaySession<'a> {
     #[allow(clippy::too_many_arguments)] // mirrors replay_keys_mode's own surface
     pub(crate) fn new(
-        mode: crate::replay::Mode,
+        policy: ReplayPolicy,
         buffer: &'a mut Buffer,
         corpus: &'a [String],
         root: &'a std::path::Path,
@@ -220,9 +244,11 @@ impl<'a> ReplaySession<'a> {
         oracle: Option<&'a mut capture::OraclePipeline>,
         km: &'a mut crate::keymap::KeymapState,
     ) -> Self {
+        let ReplayPolicy { mode, filesystem } = policy;
         let resolver = crate::keyspec::ChordResolver::new(km, mode == crate::replay::Mode::Strict);
         Self {
             mode,
+            filesystem,
             buffer,
             corpus,
             root,
@@ -335,9 +361,16 @@ impl<'a> ReplaySession<'a> {
             .state()
             .contains(winit::keyboard::ModifiersState::SHIFT)
             && crate::app::motion_honors_shift_select(&resolved, &chord.key);
-        let mut current: Option<Action> = Some(resolved);
+        let mut work = actions::EffectWorklist::root(resolved);
         let mut pending_return_to: Option<crate::overlay::OverlayKind> = None;
-        while let Some(action) = current.take() {
+        while let Some(item) = work.next() {
+            let actions::EffectWorkItem::Action(action) = item else {
+                let actions::EffectWorkItem::Effect { owner, effect } = item else {
+                    unreachable!()
+                };
+                self.interpret_effect(&owner, chord, effect, &mut work, &mut pending_return_to)?;
+                continue;
+            };
             // FRESH LAYOUT ORACLE PER ACTION: re-shape the oracle from the CURRENT
             // buffer / zoom / page-measure state BEFORE the action consults it —
             // the live window's pipeline re-syncs between keystrokes, so the
@@ -458,247 +491,20 @@ impl<'a> ReplaySession<'a> {
                 browse_to: &mut browse_to,
                 oracle: self.oracle.as_deref().map(|op| op.as_oracle()),
             };
-            let effect = actions::apply_core(&mut ctx, &action, shift);
+            let transition = actions::apply_transition(&mut ctx, &action, shift);
             let _ = ctx;
-            let classified = crate::replay::classify(&effect);
-            self.records.push(crate::storyboard::ChordTrace {
-                chord: chord.spec.clone(),
-                action: Some(format!("{action:?}")),
-                effect: classified.name.to_string(),
-                class: match &classified.class {
-                    crate::replay::EffectClass::Applied => "applied",
-                    crate::replay::EffectClass::Intercepted { .. } => "intercepted",
-                    crate::replay::EffectClass::Unsupported { .. } => "unsupported",
-                },
-                detail: match &classified.class {
-                    crate::replay::EffectClass::Intercepted { detail } => detail.clone(),
-                    _ => String::new(),
-                },
-            });
-            if let crate::replay::EffectClass::Intercepted { detail } = &classified.class {
-                self.intercepts.push(crate::replay::Intercept {
-                    effect: classified.name,
-                    detail: detail.clone(),
-                });
-            }
-            if self.mode == crate::replay::Mode::Strict
-                && let crate::replay::EffectClass::Unsupported { .. } = classified.class
-            {
-                return Err(crate::replay::strict_error(&action, &classified));
-            }
-            if self.mode == crate::replay::Mode::Permissive
-                && let Some(skip) = crate::replay::permissive_skip(&action, &classified)
-            {
-                self.replay_skips.push(skip);
-            }
-            if self.mode == crate::replay::Mode::Permissive
-                && let Some(w) = crate::replay::warn_line(&action, &classified)
-            {
-                eprintln!("{w}");
-                self.warnings.push(w);
-            }
+            let primary = transition.primary();
+            let classified = crate::replay::classify_for(&primary, self.filesystem);
+            self.records.push(replay_effects::chord_trace(
+                &chord.spec,
+                &action,
+                &classified,
+            ));
+            // Apply a palette breadcrumb requested by the PREVIOUS action
+            // after this action's core transition has had the chance to open
+            // its child overlay, but before interpreting this action's effects.
             crate::actions::stamp_return_to(&mut self.overlay, pending_return_to.take());
-            match effect {
-            actions::Effect::NewDocument => {
-                park_active(self.buffer, &mut self.registry);
-                self.buffer.start_fresh_doc(self.root.to_path_buf());
-            }
-            actions::Effect::OpenSettings => {
-                if !self.config.path.as_os_str().is_empty() {
-                    if !crate::fs::active().exists(&self.config.path) {
-                        let _ = Config::write_default(&self.config.path);
-                    }
-                    *self.buffer = Buffer::from_file(&self.config.path);
-                }
-            }
-            // Credits: load the embedded CREDITS.md text directly into the buffer
-            // — no filesystem write at all (the headless capture path stays
-            // side-effect-light, mirroring OpenSettings' spirit without needing a
-            // disk round trip, since the text is compiled in rather than
-            // user-owned). No park needed here either: `replay_keys` never stashes
-            // scratch (structurally autosave-free), so there is nothing to protect.
-            actions::Effect::OpenCredits => {
-                *self.buffer = Buffer::from_str(crate::credits::CREDITS_MD);
-            }
-            actions::Effect::OpenGuide => {
-                *self.buffer = Buffer::from_str(&crate::guide::render(
-                    crate::convention::Convention::current(),
-                    crate::commands::Platform::current(),
-                ));
-            }
-            actions::Effect::InsertDate => {
-                let (y, m, d) = crate::dateformat::CAPTURE_PLACEHOLDER_YMD;
-                let text = crate::dateformat::active_format().format(y, m, d);
-                self.buffer.insert_text(&text);
-            }
-            // An overlay accepted (Goto file / Project / MoveDest / Theme): remember
-            // the chosen value for the caller to load before capturing. Persists
-            // across keys like the old out-param (later accepts overwrite).
-            //
-            // A Goto accept ALSO drives the real MULTI-BUFFER switch right here,
-            // inline in the replay loop (not deferred to the caller, which only
-            // ever sees the FINAL accepted value): opening a path already
-            // resident in `registry` (a previous Goto in this same `--keys` run)
-            // restores its live buffer — cursor, edits, undo intact — instead of
-            // re-reading disk, mirroring `App::load_path` exactly. This is what
-            // makes an A -> B -> A round trip verifiable from one `--keys` spec.
-            actions::Effect::OverlayAccept(kind, val) => {
-                if kind == crate::overlay::OverlayKind::Goto {
-                    let path = crate::index::resolve(self.root, &val);
-                    // Compared via the normalized registry identity, not raw
-                    // path equality — mirrors `App::load_path`'s "already
-                    // active" check (see `BufferKey::path`'s doc: a launch
-                    // file argument that stayed relative and this ALWAYS
-                    // root-joined Goto path must be recognized as the same
-                    // file, or the switch below re-reads it fresh from disk
-                    // and orphans the relative spelling's live edit).
-                    let new_key = crate::buffers::BufferKey::path(&path);
-                    if crate::buffers::BufferKey::of(self.buffer).as_ref() != Some(&new_key) {
-                        park_active(self.buffer, &mut self.registry);
-                        *self.buffer = match self.registry.take(&new_key) {
-                            Some(entry) => entry.buffer,
-                            None => Buffer::from_file(&path),
-                        };
-                        // STICKY PAGE WIDTH: re-apply the measure for the ARRIVING
-                        // buffer's own kind, mirroring `App::load_path`'s post-switch
-                        // resync (`App::sync_page_measure`) — a `--keys` Goto from a
-                        // `.md` to a `.rs` fixture (or back) picks up that file's own
-                        // configured/default measure, exactly like the live app.
-                        // (This made every Goto-replay TEST a page-global writer;
-                        // `set_measure` self-serializes under cfg(test) — see
-                        // `page::test_lock()` — so those tests need no lock of
-                        // their own and can never stomp a locked reader again.)
-                        crate::page::set_measure(self.config.measure_for(self.buffer.page_class()));
-                    }
-                }
-                self.accept = Some((kind, val));
-            }
-            actions::Effect::ConvertScratchAndSave => {
-                let _ = self.buffer.save_into_folder(self.root);
-            }
-            actions::Effect::JumpToLine(line) => {
-                let idx = self.buffer.line_col_to_char(line, 0);
-                self.buffer.set_cursor(idx);
-                // REVEALED PLACEMENT (folds): the headless twin of `App::jump_to_line`
-                // — route through the ONE placement owner so a heading jump onto a
-                // hidden line reveals it here exactly as it does live, keeping the
-                // sidecar's cursor + filtered mapping honest. A cheap no-op unless
-                // a section is folded.
-                self.buffer.reveal_placement();
-            }
-            actions::Effect::RunAction(a) => {
-                pending_return_to = Some(crate::overlay::OverlayKind::Command);
-                current = Some(a);
-            }
-            actions::Effect::RebindCommit { slug, binding, .. } => {
-                if let Some(ov) = self.overlay.as_mut() {
-                    ov.notice = format!("bound {slug} -> {binding}");
-                    ov.capture_abort();
-                }
-            }
-            actions::Effect::RebindReset { slug } => {
-                if let Some(ov) = self.overlay.as_mut()
-                    && ov.notice.is_empty() {
-                        ov.notice = format!("reset {slug}");
-                    }
-            }
-            // Quit / LastBuffer have nothing to do in the headless capture path.
-            // Recoil and the edit flinches (TypeImpact / DeleteSquash / Gulp /
-            // LineLand / CopyPulse) are LIVE-ONLY caret flourishes (a squash-pop /
-            // velocity kick / selection-tint brighten that self-settles) — the
-            // headless capture has no clock and renders the SETTLED caret + selection,
-            // so they are no-ops here and the frame stays byte-identical (CopyPulse
-            // never touches the buffer either way — the copy itself already ran).
-            // FinishBuffer (Finish file): the core already ran the SAME `buffer.save()` a
-            // headless `Action::Save` replay always has (writes through the active
-            // `fs` backend); the daemon-notify + buffer-swap are live-App-only (no
-            // daemon, no 2-deep buffer history, in a one-shot replay) — a no-op here,
-            // exactly like `LastBuffer`.
-            actions::Effect::LastBuffer
-            | actions::Effect::Quit
-            | actions::Effect::Recoil(_)
-            | actions::Effect::TypeImpact
-            | actions::Effect::DeleteSquash
-            | actions::Effect::Gulp
-            | actions::Effect::LineLand
-            | actions::Effect::CopyPulse
-            | actions::Effect::SettingToggle { .. }
-            // SETTINGS MENU inline VALUE commit / PATH pick: parse-clamp-apply-persist
-            // and folder-key writes are the live App's job (`App::setting_value_commit`
-            // / `setting_path_pick`) — the capture path has no live global setter it
-            // should mutate nor a config file to write, so both reflect nothing here
-            // (the value-edit round-trip is unit-tested at the apply seam instead). The
-            // pure inline-edit sub-state itself IS driven by the shared core, so the
-            // still-open menu's cell reflects the typed value; only the commit is inert.
-            | actions::Effect::SettingValueCommit { .. }
-            | actions::Effect::SettingPathPick { .. }
-            // ITEM 94 — a RANGE row's step: the value change ALREADY happened in the
-            // shared core (see `Effect::SettingRangeStep`'s doc), so the capture's
-            // still-open menu genuinely shows the stepped value + thumb; only the
-            // live tail (reflow + the sticky config write) is skipped here.
-            | actions::Effect::SettingRangeStep { .. }
-            | actions::Effect::FinishBuffer
-            | actions::Effect::KeepVersion { .. }
-            // FollowLink (C-c C-o): opening the OS browser is a live-App-only
-            // handoff (`App::follow_link`) — a capture must never spawn a browser,
-            // so it is a no-op here (the URL extraction itself is unit-tested pure).
-            | actions::Effect::FollowLink(_)
-            // REPORT A PROBLEM: composing the mailto: URL (which needs the
-            // crash-log directory) and opening it are both live-App-only
-            // concerns (`App::report_problem`) — a capture must never spawn a
-            // mail client, so this is a no-op here; the composition itself is
-            // unit-tested pure (`crashlog::report_problem_mailto`).
-            | actions::Effect::ReportProblem
-            // DOWNLOAD FILE (web-only): building a Blob/object-URL and clicking a
-            // synthetic download anchor is a live-App-only DOM handoff
-            // (`App::download_file`) — a capture must never touch the DOM, so this
-            // is a no-op here; the filename derivation itself is unit-tested pure
-            // (`web_export::filename_for`). Also gated off entirely on native by
-            // `commands::action_available` before this effect can even be signaled.
-            | actions::Effect::DownloadFile
-            // EXPORT: rendering the document + writing the `.docx`/`.html` sibling
-            // (or a web download) is a live-App-only concern (`App::export_document`)
-            // — a capture must never write an export file, so this is a documented
-            // no-op here; the exporter core itself is unit-tested pure (`export/`).
-            | actions::Effect::Export(_)
-            // CHECK FOR UPDATES: recording the local "last checked" marker and
-            // opening the site's `/check?v=…` page are both live-App-only
-            // concerns (`App::check_for_updates`) — a capture must never touch
-            // the marker file or spawn a browser, so this is a documented no-op
-            // here; the URL composition + marker round-trip are unit-tested pure
-            // (`updates.rs`). Matches `ReportProblem`'s own headless behavior
-            // exactly — see `updates.rs`'s module doc.
-            | actions::Effect::CheckForUpdates
-            // TRASH ASSET: moving an orphan to the OS Trash is a live-App-only
-            // concern (`App::trash_asset`) — a capture must never touch the real Trash,
-            // so this is a documented no-op here. The picker's orphan list therefore
-            // stays WHOLE in a `--keys` replay (the sidecar never claims a file was
-            // trashed that wasn't); the trash + row-removal wiring is unit-tested at
-            // the apply seam with a fake trash instead.
-            | actions::Effect::TrashAsset { .. }
-            | actions::Effect::SaveDone { .. }
-            // NOTES VERBS round: both the actual disk RENAME (`App::rename_current_file`
-            // — git-managed gate, no-clobber refusal, the one-owner path-keyed
-            // bookkeeping) and the DUPLICATE copy+swap (`App::duplicate_current_file`)
-            // are live-App-only, mirroring `MoveDest`'s own real-move precedent (its
-            // ACCEPT is reflected below via `accept`, but the actual `fs::rename` is
-            // live-only too) — a no-op here. The RENAME MINIBUFFER's typing/open/
-            // cancel flow IS driven by the shared core (`overlay_intercept`'s
-            // `rename_edit` block), so it stays fully `--keys`-drivable and sidecar-
-            // reflected via `overlay.hint` (`OverlayState::foot_hint`) up to the
-            // moment of commit; only the disk write itself is deferred here.
-            | actions::Effect::RenameNoteCommit { .. }
-            | actions::Effect::DuplicateNote
-            // ADD TO DICTIONARY (Cmd-`;` add row): silencing the word + APPENDING it
-            // to the on-disk personal dictionary is a live-App-only concern
-            // (`App::add_to_dictionary`) — a capture must never write the dictionary
-            // file (the same determinism gate `KeepVersion`/`Export` sit behind), so
-            // this is a documented no-op here; the load/persist itself is unit-tested
-            // at the App seam, and the picker's add-row select/accept flow IS
-            // core-driven and fully `--keys`-drivable up to this signal.
-            | actions::Effect::AddToDictionary(_)
-            | actions::Effect::None => {}
-        }
+            work.expand(action, transition);
         }
         // ITEM 106 — the headless twin of `App::apply`'s own stamp: re-anchor the
         // hover movement-slop gate to the replay's CURRENT pointer position after
@@ -841,21 +647,12 @@ fn capture_screenshot(
             folds: counts.folds,
         });
     }
-    // Replay `--keys` FIRST so the cursor/selection/search the spec
-    // produces are what the capture reflects. Fold the App-level state
-    // (zoom / selection / search) the replay produced into the capture
-    // opts — but never clobber an explicit verification hook.
-    // Default the switch-project workspace to the active root's PARENT
-    // when no explicit `--workspace` was given, so a replayed `Cmd-Shift-P`
-    // summons the picker listing the root's SIBLING projects (rather than
-    // silently doing nothing). An explicit `--workspace` still overrides.
-    //
-    // Visual-line motion ORACLE: when the spec has keys, build an offscreen
-    // pipeline shaped like the upcoming capture so headless motion reads the
-    // SAME wrap geometry the live window does (and is re-shaped from the
-    // current replay state before every action — `OraclePipeline::refresh`,
-    // called inside the replay loop). Skipped for an empty spec (no motion
-    // to resolve) and absent on GPU-less hosts (logical fallback).
+    // Replay first so its state is what capture reflects, without clobbering
+    // explicit verification hooks. The workspace already defaults to the
+    // active root's parent, making project siblings available to Cmd-Shift-P.
+    // With keys, shape an offscreen oracle like the upcoming capture so
+    // visual-line motion reads real wrap geometry. Empty specs skip it and
+    // GPU-less permissive captures retain the logical fallback.
     let mut oracle = if keys.is_empty() {
         None
     } else {
@@ -867,13 +664,8 @@ fn capture_screenshot(
     if strict && !keys.is_empty() && oracle.is_none() {
         return Err(crate::replay::missing_oracle_error());
     }
-    let mode = if strict {
-        crate::replay::Mode::Strict
-    } else {
-        crate::replay::Mode::Permissive
-    };
-    let res = replay_keys_mode(
-        mode,
+    let res = replay_effects::capture_replay(
+        strict,
         &mut buffer,
         &keys,
         &corpus,

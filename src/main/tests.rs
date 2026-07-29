@@ -33,7 +33,44 @@ fn replay_keys_mode(
     let mut km =
         crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
     super::replay_keys_mode(
-        mode, buffer, keys, corpus, root, workspace, config, oracle, &mut km,
+        mode,
+        crate::replay::FilesystemCapability::None,
+        buffer,
+        keys,
+        corpus,
+        root,
+        workspace,
+        config,
+        oracle,
+        &mut km,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_arch = "wasm32"))]
+fn replay_keys_mode_isolated(
+    mode: crate::replay::Mode,
+    buffer: &mut Buffer,
+    keys: &[crate::keyspec::Chord],
+    corpus: &[String],
+    root: &std::path::Path,
+    workspace: Option<&std::path::Path>,
+    config: &Config,
+    oracle: Option<&mut capture::OraclePipeline>,
+) -> Result<ReplayResult> {
+    let mut km =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    super::replay_keys_mode(
+        mode,
+        crate::replay::FilesystemCapability::Isolated,
+        buffer,
+        keys,
+        corpus,
+        root,
+        workspace,
+        config,
+        oracle,
+        &mut km,
     )
 }
 
@@ -81,7 +118,7 @@ fn replay_keys_builds_selection_from_mark_and_motion() {
 
 // ── REPLAY SHIFT-SELECT LAWS: `S-` on a motion is select-intent, exactly
 // as a live held Shift (the retired "replay is unshifted" hole). The
-// replay derives its `apply_core` shift flag through the ONE owner
+// replay derives its `apply_transition` shift flag through the ONE owner
 // (`crate::app::motion_honors_shift_select`), so these laws pin the
 // OUTCOME: a spec's `S-` chord builds the same selection live Shift+motion
 // does, and the documented non-movers stay non-movers. ──
@@ -382,7 +419,7 @@ fn hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk() {
             "the sandbox seeded the real input's bytes"
         );
         let keys = keyspec::parse_keys("X s-s").unwrap();
-        let res = replay_keys_mode(
+        let res = replay_keys_mode_isolated(
             crate::replay::Mode::Strict,
             &mut buffer,
             &keys,
@@ -474,6 +511,52 @@ fn replay_search_typing_extends_the_query_never_the_buffer() {
     );
     assert_eq!(res.search_query.as_deref(), Some("hi"));
     assert_eq!(buffer.cursor_char(), 4, "the caret sits on the first match");
+}
+
+#[test]
+fn query_input_live_delegate_and_headless_guard_have_identical_outcomes() {
+    let _guard = crate::testlock::serial();
+    crate::search::clear_last_query();
+    let original = "alpha beta alpha";
+    let root = PathBuf::from("/tmp");
+
+    let mut replay_buffer = Buffer::from_str(original);
+    let keys = keyspec::parse_keys("C-s a l p h a Tab X Enter").unwrap();
+    let replay = replay_keys(
+        &mut replay_buffer,
+        &keys,
+        &[],
+        &root,
+        None,
+        &Config::empty(),
+        None,
+    );
+
+    // `App::handle_search_key` is deliberately a thin delegate to this exact
+    // seam. Drive the same post-summon chords directly to pin the live
+    // delegate's model outcome against ReplaySession's search guard.
+    let mut live_buffer = Buffer::from_str(original);
+    let mut live_search = Some(crate::search::SearchState::start(
+        0,
+        crate::search::Direction::Forward,
+    ));
+    for chord in keyspec::parse_keys("a l p h a Tab X Enter").unwrap() {
+        let _ = crate::search::keys::intercept(
+            &mut live_search,
+            &mut live_buffer,
+            &chord.key,
+            chord.mods.state(),
+        );
+    }
+    let live = live_search
+        .as_ref()
+        .expect("replace-one keeps the panel open");
+    assert_eq!(replay_buffer.text(), live_buffer.text());
+    assert_eq!(replay_buffer.cursor_char(), live_buffer.cursor_char());
+    assert_eq!(replay.search_query.as_deref(), Some(live.query()));
+    assert_eq!(replay.replacement, live.replacement());
+    assert_eq!(replay.editing_replacement, live.is_editing_replacement());
+    crate::search::clear_last_query();
 }
 
 #[test]
@@ -612,7 +695,7 @@ fn strict_replay_allows_panel_consumed_chords_but_rejects_them_outside() {
 }
 
 #[test]
-fn replay_keys_cmd_s_on_scratch_buffer_converts_it_into_a_document_under_the_active_root() {
+fn ordinary_replay_save_on_scratch_is_nonmutating_and_records_the_skip() {
     use crate::fs::{FileSystem, InMemoryFs};
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
@@ -620,41 +703,147 @@ fn replay_keys_cmd_s_on_scratch_buffer_converts_it_into_a_document_under_the_act
     assert!(buffer.path().is_none() && !buffer.is_unnamed_fresh());
     let keys = keyspec::parse_keys("m e a d o w s-s").unwrap();
     let root = PathBuf::from("/tmp");
-    let _res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        !buffer.is_unnamed_fresh(),
-        "one-shot naming: an ordinary file immediately, not a lasting note identity"
+        buffer.path().is_none(),
+        "ordinary replay must not promote scratch into a real document"
     );
-    let p = buffer.path().expect("a real path was derived");
     assert!(
-        p.starts_with(&root),
-        "landed under the replay's ACTIVE ROOT: {p:?}"
+        !mem.exists(&root),
+        "ordinary replay must not create a file under the active root"
     );
-    assert_eq!(mem.read_to_string(p).unwrap(), "meadow");
+    assert_eq!(res.replay_skips.len(), 1);
+    assert_eq!(res.replay_skips[0].effect, "save");
 }
 
 #[test]
-fn replay_keys_cmd_s_on_an_already_pathed_buffer_is_a_plain_save() {
-    // The contrast case: an already-pathed buffer's Cmd-S is a PLAIN save
-    // (the pre-existing behavior) — never routed through the scratch
-    // conversion, never re-homed.
+fn ordinary_replay_paste_never_reads_or_writes_an_image_and_uses_text_fallback() {
     use crate::fs::{FileSystem, InMemoryFs};
-    let mem = InMemoryFs::new().with_dir("/proj");
+
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new()
+        .with_dir("/proj")
+        .with_file("/proj/a.md", "before\n");
     let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
-    let mut buffer = Buffer::scratch();
-    buffer.set_path(PathBuf::from("/proj/a.md"));
+    let mut buffer = Buffer::from_file(std::path::Path::new("/proj/a.md"));
+    buffer.set_kill("fallback");
+    let keys = keyspec::parse_keys("s-v").unwrap();
+    let res = replay_keys(
+        &mut buffer,
+        &keys,
+        &[],
+        std::path::Path::new("/proj"),
+        None,
+        &Config::empty(),
+        None,
+    );
+    assert_eq!(buffer.text(), "fallbackbefore\n");
+    assert!(
+        !mem.exists(std::path::Path::new("/proj/assets")),
+        "ordinary replay has no image-filesystem authority"
+    );
+    assert!(
+        res.intercepts
+            .iter()
+            .any(|effect| effect.effect == "clipboard_paste_image"),
+        "the external image probe is recorded, never performed"
+    );
+}
+
+#[test]
+fn ordinary_replay_save_on_pathed_buffer_never_writes() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new()
+        .with_dir("/proj")
+        .with_file("/proj/a.md", "before\n");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::from_file(std::path::Path::new("/proj/a.md"));
     let keys = keyspec::parse_keys("h i s-s").unwrap();
     let root = PathBuf::from("/proj");
-    let _res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(
-        !buffer.is_unnamed_fresh(),
-        "an already-pathed buffer never becomes a fresh document"
-    );
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert_eq!(buffer.path(), Some(std::path::Path::new("/proj/a.md")));
     assert_eq!(
         mem.read_to_string(std::path::Path::new("/proj/a.md"))
             .unwrap(),
-        "hi"
+        "before\n",
+        "the in-session edit must never escape through ordinary replay"
+    );
+    assert_eq!(res.replay_skips[0].effect, "save");
+}
+
+#[test]
+fn ordinary_replay_finish_never_writes_notifies_or_switches() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new()
+        .with_dir("/proj")
+        .with_file("/proj/a.md", "before\n");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::from_file(std::path::Path::new("/proj/a.md"));
+    let root = PathBuf::from("/proj");
+    let keys = keyspec::parse_keys("X C-j").unwrap();
+    let mut km = crate::keymap::KeymapState::with_overrides_and_convention(
+        &[("finish_file".into(), vec!["C-j".into()])],
+        crate::convention::Convention::Mac,
+    );
+    let res = super::replay_keys_mode(
+        crate::replay::Mode::Permissive,
+        crate::replay::FilesystemCapability::None,
+        &mut buffer,
+        &keys,
+        &[],
+        &root,
+        None,
+        &Config::empty(),
+        None,
+        &mut km,
+    )
+    .unwrap();
+    assert_eq!(
+        mem.read_to_string(std::path::Path::new("/proj/a.md"))
+            .unwrap(),
+        "before\n"
+    );
+    assert_eq!(buffer.text(), "Xbefore\n", "the in-session edit remains");
+    assert_eq!(
+        res.intercepts,
+        vec![crate::replay::Intercept {
+            effect: "daemon_notify_finished",
+            detail: String::new(),
+        }],
+        "the daemon request is observed, never performed"
+    );
+    let skipped: Vec<_> = res.replay_skips.iter().map(|s| s.effect).collect();
+    assert_eq!(skipped, ["finish_save", "finish_buffer"]);
+}
+
+#[test]
+fn ordinary_replay_open_settings_never_materializes_an_absent_config() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new().with_dir("/cfg");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut config = Config::empty();
+    config.path = PathBuf::from("/cfg/config.toml");
+    let mut buffer = Buffer::from_str("stay");
+    let root = PathBuf::from("/proj");
+    let mut km =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut session = ReplaySession::new(
+        ReplayPolicy::ordinary(),
+        &mut buffer,
+        &[],
+        &root,
+        None,
+        &config,
+        None,
+        &mut km,
+    );
+    assert!(session.interpret_headless_effect(&actions::Effect::Buffer(
+        actions::BufferEffect::OpenSettings
+    )));
+    assert_eq!(session.buffer().text(), "stay");
+    assert!(
+        !mem.exists(std::path::Path::new("/cfg/config.toml")),
+        "ordinary replay owns no authority to create config.toml"
     );
 }
 
@@ -995,7 +1184,7 @@ fn replay_keys_palette_theme_keep_closes_to_buffer_not_a_recent_menu() {
 }
 
 /// THE BUG this round fixes, end-to-end through the REAL `--keys` replay
-/// (the reported symptom's actual repro, not just the pure `apply_core`
+/// (the reported symptom's actual repro, not just the pure `apply_transition`
 /// unit — see `actions::tests::overlay_drive::
 /// caret_picker_cancel_from_auto_restores_auto_not_a_pin` for that
 /// purer-seam sibling). Riding AUTO on a PROPORTIONAL world (Gumtree ->
@@ -1356,6 +1545,7 @@ fn replay_keys_page_reset_restores_default_measure() {
     );
     let _ = super::replay_keys_mode(
         crate::replay::Mode::Permissive,
+        crate::replay::FilesystemCapability::None,
         &mut buffer,
         &keys,
         &[],
@@ -1379,7 +1569,7 @@ fn replay_keys_page_reset_restores_the_code_default_for_a_code_buffer() {
     // The prose/code page-width split: PageReset on a CODE buffer (a `.rs`
     // path) must snap to DEFAULT_MEASURE_CODE (100), never the prose default
     // (70) — `Action::PageReset` resolves via `ctx.buffer.page_class()` on
-    // the shared `apply_core` seam, so this is byte-identical to the live
+    // the shared `apply_transition` seam, so this is byte-identical to the live
     // App's own reset.
     let _pg = crate::testlock::serial();
     crate::page::set_measure(40);
@@ -1393,6 +1583,7 @@ fn replay_keys_page_reset_restores_the_code_default_for_a_code_buffer() {
     );
     let _ = super::replay_keys_mode(
         crate::replay::Mode::Permissive,
+        crate::replay::FilesystemCapability::None,
         &mut buffer,
         &keys,
         &[],
@@ -2250,7 +2441,7 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
         ordinary.clone(),
         Some(fixture.clone()),
         CaptureOpts::default(),
-        vec![],
+        keyspec::parse_keys("X s-s").unwrap(),
         keymap(),
         Some(dir.to_path_buf()),
         None,
@@ -2262,7 +2453,20 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
     let ordinary_sidecar: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(ordinary.with_extension("json")).unwrap())
             .unwrap();
-    assert_eq!(ordinary_sidecar["replay_skips"], serde_json::json!([]));
+    assert_eq!(
+        ordinary_sidecar["replay_skips"],
+        serde_json::json!([{ "effect": "save", "action": "Save" }])
+    );
+    assert_eq!(
+        ordinary_sidecar["text"].as_str(),
+        Some("Xnote\n"),
+        "the sidecar shows the in-session edit"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&fixture).unwrap(),
+        "note\n",
+        "ordinary capture records Save without mutating the input"
+    );
 
     let strict = dir.join("strict.png");
     let err = capture_screenshot(
@@ -2978,8 +3182,8 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
 /// ITEM 106 — THE POINTER-REPLAY SEAM, end to end through the REAL
 /// headless `--keys` engine (`ReplaySession`, the exact type
 /// `--screenshot --keys` constructs) — not a pure `OverlayState`
-/// simulation. Opens a real 40-row Goto picker, hovers a real row via a
-/// REAL hit-test against the oracle's own pipeline, drives a real
+/// simulation. Opens a real 40-row Goto picker, hovers a row via the oracle's
+/// real hit-test, drives a real
 /// keyboard scroll past the candidate window, then re-checks the SAME
 /// physical pixel: the row now under it (per the SAME real hit-test)
 /// must not steal the keyboard's selection. Proves the seam the scout
@@ -3006,7 +3210,7 @@ fn item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationa
     let mut km =
         crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
     let mut session = ReplaySession::new(
-        crate::replay::Mode::Permissive,
+        ReplayPolicy::ordinary(),
         &mut buffer,
         &corpus,
         &root,
@@ -3063,9 +3267,7 @@ fn item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationa
     );
     assert!(session.overlay().unwrap().scroll > 0, "the window scrolled");
 
-    // Re-locate whatever is NOW at the SAME physical pixel (px, py) — the
-    // hazard's premise: the window scrolled, so a DIFFERENT item sits
-    // there now, even though the pointer never moved a device pixel.
+    // The window scrolled, so a different item now sits at the same pixel.
     session.sync_oracle_overlay();
     let hit_now = session
         .oracle()

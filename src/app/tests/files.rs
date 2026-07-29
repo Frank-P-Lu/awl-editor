@@ -177,7 +177,7 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
 /// dispatch a live Enter/click actually goes through) fails here instead
 /// of shipping quietly. Companion:
 /// `actions::tests::overlay_drive::every_settings_toggle_row_signals_its_own_setting_toggle_key`
-/// (the pure `apply_core`-level half: Enter on the row signals the RIGHT
+/// (the pure `apply_transition`-level half: Enter on the row signals the RIGHT
 /// key in the first place). Each toggle is undone immediately after
 /// asserting it, so every process-global this sweep touches (page /
 /// typewriter / wysiwyg / inline images / ligatures / spellcheck /
@@ -756,10 +756,8 @@ fn convert_scratch_and_save_second_save_is_a_plain_save() {
 
     // A SECOND explicit save (the buffer is now an ordinary note) must
     // NOT re-run the scratch-conversion machinery — same path, same file,
-    // just the updated content. `Buffer::save()` here mirrors exactly
-    // what `apply_core`'s `Action::Save` arm does before signalling
-    // `Effect::SaveDone`; `finish_manual_save` is its post-save
-    // bookkeeping half (see `app::apply`'s `Effect::SaveDone` arm).
+    // just the updated content. This spells out the two live-interpreter
+    // halves: `Buffer::save()`, then `finish_manual_save` bookkeeping.
     app.active.buffer.set_text("first entry\nmore\n");
     app.active.buffer.save().unwrap();
     app.finish_manual_save(true, "saved".to_string());
@@ -1046,7 +1044,7 @@ fn finish_manual_save_clears_a_freshly_named_documents_dirty_marker_immediately(
     let mut app = app_on(None, "/notes", Config::empty());
 
     // Make the active buffer an UNNAMED FRESH DOCUMENT with content, then
-    // write it to disk the way `apply_core`'s `Action::Save` arm does before
+    // write it to disk the way `apply_transition`'s `Action::Save` arm does before
     // signalling SaveDone.
     app.active.buffer.start_fresh_doc(notes.clone());
     app.active.buffer.set_text("note body\n");

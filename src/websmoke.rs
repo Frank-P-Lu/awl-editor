@@ -173,14 +173,14 @@ fn visible_commands_exclude_the_hide_list_on_real_wasm() {
 }
 
 /// The DISPATCH gate actually no-ops a hidden command's `Action` through the real
-/// `apply_core` in the compiled wasm binary: `Action::Quit` — which normally signals
+/// `apply_transition` in the compiled wasm binary: `Action::Quit` — which normally signals
 /// `Effect::Quit` (see `actions.rs`'s `Action::Quit` arm) — returns `Effect::None`
 /// here instead, and leaves the buffer completely untouched (still just "hello",
 /// still at the same version) — a still-configured Cmd-Q chord can reach
-/// `apply_core` directly, bypassing the (already-filtered) palette entirely, so this
+/// `apply_transition` directly, bypassing the (already-filtered) palette entirely, so this
 /// is the belt the palette's brace alone can't prove.
 #[wasm_bindgen_test]
-fn quit_action_is_a_no_op_through_apply_core_on_real_wasm() {
+fn quit_action_is_a_no_op_through_apply_transition_on_real_wasm() {
     let mut buffer = crate::buffer::Buffer::from_str("hello");
     let version_before = buffer.version();
     let mut shift = false;
@@ -200,7 +200,7 @@ fn quit_action_is_a_no_op_through_apply_core_on_real_wasm() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let effect = crate::actions::apply_core(&mut ctx, &Action::Quit, false);
+    let effect = crate::actions::apply_transition(&mut ctx, &Action::Quit, false).primary();
     assert_eq!(
         effect,
         crate::actions::Effect::None,
@@ -357,10 +357,10 @@ fn config_keybinding_write_then_load_round_trips_on_real_wasm() {
 // that half is confirmed only by `cargo build --target wasm32-unknown-unknown`
 // (L1) compiling it at all, plus live/Playwright confirmation. What IS reachable
 // here, exactly like `visible_commands_exclude_the_hide_list_on_real_wasm` /
-// `quit_action_is_a_no_op_through_apply_core_on_real_wasm` above: the pure
+// `quit_action_is_a_no_op_through_apply_transition_on_real_wasm` above: the pure
 // filename derivation, the command's PRESENCE in the real wasm-filtered catalog
 // (the mirror image of the native-only hide list), and the dispatch gate
-// signaling the real `Effect::DownloadFile` through `apply_core`.
+// signaling the real `Effect::DownloadFile` through `apply_transition`.
 
 /// `web_export::filename_for` — pure, no DOM — derives the same name a save
 /// would, in the real wasm runtime (mirrors `web_export::tests` natively).
@@ -391,12 +391,12 @@ fn download_file_command_is_visible_on_real_wasm() {
 }
 
 /// `Action::DownloadFile` signals the real `Effect::DownloadFile` through
-/// `apply_core` in the compiled wasm binary, touching nothing in the buffer
+/// `apply_transition` in the compiled wasm binary, touching nothing in the buffer
 /// (the pure core has no DOM handoff seam — see `actions.rs`'s doc on the
 /// variant) — the reachable half of the dispatch gate this smoke tier can prove
 /// without a real `window`/`document`.
 #[wasm_bindgen_test]
-fn download_file_action_signals_the_effect_through_apply_core_on_real_wasm() {
+fn download_file_action_signals_the_effect_through_apply_transition_on_real_wasm() {
     let mut buffer = crate::buffer::Buffer::from_str("hello");
     let version_before = buffer.version();
     let mut shift = false;
@@ -416,7 +416,7 @@ fn download_file_action_signals_the_effect_through_apply_core_on_real_wasm() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let effect = crate::actions::apply_core(&mut ctx, &Action::DownloadFile, false);
+    let effect = crate::actions::apply_transition(&mut ctx, &Action::DownloadFile, false).primary();
     assert_eq!(
         effect,
         crate::actions::Effect::DownloadFile,

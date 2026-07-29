@@ -2,15 +2,10 @@
 
 use super::*;
 
-enum PreApply {
-    Continue,
-    Return(bool),
-}
-
 type SpellTarget = (Vec<String>, (usize, usize, usize), String);
 
 struct CoreRun {
-    effect: actions::Effect,
+    transition: actions::Transition,
     theme_overlay_before: bool,
     theme_before: crate::theme::Theme,
     history_overlay_before: bool,
@@ -232,11 +227,10 @@ impl App {
 
     /// PASTE-IMAGE (native, LIVE-only): if the OS clipboard holds an IMAGE rather
     /// than text, save it as a PNG into an `assets/` folder beside the doc and
-    /// insert a markdown image reference at the caret as ONE undoable edit — the
-    /// Typora/Obsidian convention. Returns `true` when it HANDLED an image paste
-    /// (the caller then SKIPS the normal text yank); `false` when the clipboard
-    /// held no image or any step failed gracefully, so the caller falls through
-    /// to the text paste unchanged. Mirrors the swallowed-error discipline of the
+    /// resolve the reference for a typed `InsertImageReference` continuation —
+    /// the Typora/Obsidian convention. Returns `None` when the clipboard held no
+    /// image or any step failed gracefully, so the interpreter feeds a typed
+    /// text-yank continuation through the same core. Mirrors the error discipline of the
     /// text clipboard bridge (`sync_kill_to_clipboard`) — NEVER panics on a bad
     /// image / a failed fs write / a mismatched buffer.
     ///
@@ -255,60 +249,29 @@ impl App {
     /// clock/random; and the whole path lives only on the live App, so a headless
     /// `--screenshot`/`--keys` capture never reaches a real clipboard image.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) fn try_paste_image(&mut self) -> bool {
+    pub(super) fn paste_image_reference(&mut self) -> Option<String> {
         use crate::paste_image;
         let Some(clip) = self.clipboard.as_mut() else {
-            return false;
+            return None;
         };
         let img = match clip.get_image() {
             Ok(img) => img,
-            Err(_) => return false,
+            Err(_) => return None,
         };
         let Some(png) = paste_image::encode_rgba_png(img.width, img.height, &img.bytes) else {
-            return false;
+            return None;
         };
         if self.active.buffer.path().is_none() {
             self.ensure_note_named_before_paste();
         }
-        let fs = crate::fs::active();
         let data_root = crate::fs::data_root();
         let doc_path = self.active.buffer.path().map(|p| p.to_path_buf());
-        let dir = paste_image::assets_dir(doc_path.as_deref(), &data_root);
-        if fs.create_dir_all(&dir).is_err() {
-            return false;
-        }
-        let existing: Vec<String> = fs
-            .read_dir(&dir)
-            .map(|entries| entries.into_iter().map(|e| e.name).collect())
-            .unwrap_or_default();
-        let filename = paste_image::next_pasted_name(&existing);
-        // Write the PNG ATOMICALLY (temp-sibling + rename via `write_atomic`)
-        // — the filename is always freshly probed/never-before-existing, so
-        // there's no pre-existing content at risk, but a kill-9 mid-write
-        // should still never leave a half-written PNG sitting at the exact
-        // path the inserted markdown reference will point to. A failure →
-        // fall back (never leave a partial insert).
-        if crate::fs::write_atomic(&dir.join(&filename), &png).is_err() {
-            return false;
-        }
-        // Insert the markdown ref at the caret as ONE undoable edit — doc-relative
-        // for a saved doc, absolute for a scratch buffer (nothing to be relative to
-        // yet). Cmd-Z removes the ref text (the PNG stays, see the undo note above).
-        let reference = paste_image::image_ref(doc_path.as_deref(), &data_root, &filename);
-        let (_, col) = self.active.buffer.cursor_line_col();
-        let text = paste_image::insert_text(col == 0, &reference);
-        let at = self.active.buffer.cursor_char();
-        self.active.buffer.replace_char_range(at, at, &text);
-        self.sync_view(true);
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
-        true
+        paste_image::persist_png(doc_path.as_deref(), &data_root, &png)
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(super) fn try_paste_image(&mut self) -> bool {
-        false
+    pub(super) fn paste_image_reference(&mut self) -> Option<String> {
+        None
     }
 
     pub(super) fn apply(
@@ -318,76 +281,76 @@ impl App {
         event_loop: &ActiveEventLoop,
         door: crate::stats::Door,
     ) -> bool {
-        if let PreApply::Return(result) = self.pre_apply(&action, door) {
-            return result;
-        }
+        self.pre_apply(&action, door);
 
         let CoreRun {
-            effect,
+            transition,
             theme_overlay_before,
             theme_before,
             history_overlay_before,
         } = self.run_action_core(&action, shift);
-        let quit = matches!(&effect, actions::Effect::Quit);
-        let theme_committed = matches!(
-            &effect,
-            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::Theme, _)
-        );
-        let history_accepted = matches!(
-            &effect,
-            actions::Effect::OverlayAccept(crate::overlay::OverlayKind::History, _)
-        );
-        match effect {
-            actions::Effect::RunAction(act) => {
-                // Feed the command palette's Recent lens: record the RUN command in the
-                // in-memory MRU. LIVE-ONLY (this handler is the App's, never the headless
-                // replay), so a capture never populates it — Recent stays inert there.
-                crate::commands::record_recent(&act);
-                let quit = self.apply(act, shift, event_loop, crate::stats::Door::Palette);
-                // BREADCRUMB: if the re-dispatched command OPENED an overlay (Switch
-                // theme / Caret style / Settings / …), stamp it with `return_to =
-                // Command` so a later POP (Esc, or a value-picking accept) re-summons
-                // the palette instead of closing to the buffer. The nested `apply`
-                // above has already put any opened overlay in `self.overlay`; a
-                // terminal command (Save / Quit) left it None, a no-op. Settings
-                // sub-pickers that set their own `return_to = Settings` are never
-                // overwritten (`stamp_return_to` only fills a `None` breadcrumb).
-                actions::stamp_return_to(
-                    &mut self.overlay,
-                    Some(crate::overlay::OverlayKind::Command),
-                );
-                return quit;
+        let quit = transition.contains(|effect| matches!(effect, actions::Effect::Quit));
+        let theme_committed = transition.contains(|effect| {
+            matches!(
+                effect,
+                actions::Effect::OverlayAccept(crate::overlay::OverlayKind::Theme, _)
+            )
+        });
+        let history_accepted = transition.contains(|effect| {
+            matches!(
+                effect,
+                actions::Effect::OverlayAccept(crate::overlay::OverlayKind::History, _)
+            )
+        });
+        let mut nested_quit = false;
+        actions::visit_transition_effects(transition, |effect| {
+            match effect {
+                actions::Effect::RunAction(act) => {
+                    // Run the nested transition at this exact position, then
+                    // continue the outer stream. Returning here used to drop
+                    // the outer SyncView + Redraw requests.
+                    crate::commands::record_recent(&act);
+                    nested_quit |= self.apply(act, shift, event_loop, crate::stats::Door::Palette);
+                    actions::stamp_return_to(
+                        &mut self.overlay,
+                        Some(crate::overlay::OverlayKind::Command),
+                    );
+                }
+                actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage) => {
+                    let continuation = match self.paste_image_reference() {
+                        Some(reference) => Action::InsertImageReference(reference),
+                        None => {
+                            self.refresh_kill_from_clipboard();
+                            Action::YankText
+                        }
+                    };
+                    nested_quit |=
+                        self.apply(continuation, false, event_loop, crate::stats::Door::Palette);
+                }
+                effect => self.apply_live_effect(effect),
             }
-            actions::Effect::LastBuffer => self.last_buffer_toggle(),
-            actions::Effect::NewDocument => self.new_document(),
-            actions::Effect::OpenSettings => self.open_settings(),
-            actions::Effect::OpenCredits => self.open_credits(),
-            actions::Effect::OpenGuide => self.open_guide(),
-            actions::Effect::InsertDate => self.insert_date(),
-            actions::Effect::OverlayAccept(kind, val) => self.apply_overlay_accept(kind, &val),
-            effect => self.apply_effect_tail(effect),
-        }
-        if matches!(action, Action::OpenHistory | Action::CompareVersion)
+        });
+        if !history_overlay_before
             && self
                 .overlay
                 .as_ref()
-                .map(|o| o.kind == crate::overlay::OverlayKind::History)
-                .unwrap_or(false)
+                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::History)
         {
             self.active.extra.history_scroll_before = Some(self.active.extra.scroll);
         }
         if history_overlay_before && self.overlay.is_none() {
             self.history_overlay_closed(history_accepted);
         }
-        self.post_apply_effects(&action, theme_overlay_before, theme_committed, theme_before);
+        self.post_transition_effects(theme_overlay_before, theme_committed, theme_before);
 
+        let quit = quit || nested_quit;
         if quit {
             event_loop.exit();
         }
         quit
     }
 
-    fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) -> PreApply {
+    fn pre_apply(&mut self, action: &Action, door: crate::stats::Door) {
         // SILENT USAGE LEDGER: record this dispatch by its door into the persisted
         // per-command counts (`app/stats.rs`) — the discoverability signal phase 2
         // surfaces (never a nudge). Native-only + config-gated inside; a non-catalog
@@ -398,58 +361,23 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.ledger_note_dispatch(action, door);
         #[cfg(target_arch = "wasm32")]
-        let _ = door;
-        // macOS: About opens awl's own NATIVE About window (`mac_about`) rather
-        // than the in-app `about.rs` card — for BOTH the App-menu "About Awl"
-        // item AND the Cmd-P palette "About" command, since both dispatch
-        // through this one seam. Intercept and return BEFORE `apply_core` ever
-        // flips the card's process-global, so the in-app card never opens on
-        // macOS; every other platform keeps the card exactly as is. (Not
-        // `exited` — the app keeps running.)
-        #[cfg(target_os = "macos")]
-        if crate::mac_about::intercepts(action) {
-            crate::mac_about::show();
-            return PreApply::Return(false);
-        }
-
+        let _ = (action, door);
         // DIFF-AS-PREVIEW note: the old Compare TAKEOVER's read-only gate lived
         // here. The takeover is RETIRED — the writer's diff now lives entirely
         // inside the History picker's live preview, whose read-only law is the
         // overlay's own modality (every key routes through `overlay_intercept`;
         // typing filters the QUERY, never the transcript or the buffer).
 
-        // The buffer/zoom/search core is shared with the headless `--keys`
-        // replay via `actions::apply_core`, so live editing and captured replay
-        // behave identically. Everything that core can't reach — the system
-        // clipboard mirroring and the GPU-measured page size — stays here.
+        // Buffer/zoom/search transitions are shared with headless `--keys` via
+        // `actions::apply_transition`. Work the core cannot own is returned in
+        // the closed typed-effect vocabulary and interpreted below.
         //
         // The render-only TOGGLES (caret look / page mode) flip a
-        // process-global. That flip now lives in `apply_core` (the shared seam),
+        // process-global. That flip lives in the shared core,
         // so BOTH this live path and the headless `--keys` replay flow through one
-        // place; what the core can't reach — the GPU re-wrap on a page-mode change,
-        // the view resync, the stderr log — runs as a POST-`apply_core` side effect
-        // below (keyed off `matches!(action, …)`, like the Save/clipboard steps),
-        // not as an interception that bypasses the core.
+        // place; GPU re-wrap, sync, persistence, and clipboard work arrive as
+        // typed effects rather than being inferred again from the Action.
         //
-        // PageScrollDown/PageScrollUp still intercept here: they need a screenful
-        // measured from the live viewport, and the core's `scroll_page_lines` is
-        // only the logical-line fallback — so we override those two with the
-        // GPU-aware `scroll_page` below.
-        // PgDn/PgUp page the BUFFER via the GPU-measured viewport — but ONLY when no
-        // overlay is open. While a picker is summoned they PAGE its selection instead,
-        // so fall through to `apply_core`'s shared overlay intercept in that case.
-        if let Some(handled) = self.page_scroll_intercept(action) {
-            return PreApply::Return(handled);
-        }
-
-        if matches!(action, Action::Yank) {
-            if self.try_paste_image() {
-                return PreApply::Return(false);
-            }
-            self.refresh_kill_from_clipboard();
-        }
-
-        PreApply::Continue
     }
 
     fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
@@ -588,6 +516,7 @@ impl App {
     }
 
     fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
+        let page_scroll_lines = self.page_scroll_rows();
         let mut shift_selecting = self.active.extra.shift_selecting;
         let mut zoom = self.zoom;
         let mut search = self.search.take();
@@ -605,7 +534,7 @@ impl App {
             .as_ref()
             .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
             .unwrap_or(false);
-        // The OUTGOING world, snapshotted BEFORE `apply_core` runs a theme-picker
+        // The OUTGOING world, snapshotted BEFORE the transition runs a theme-picker
         // live preview (which mutates the process-global active theme).
         // `retint_theme_preview` compares it against the now-active world to detect
         // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
@@ -692,7 +621,7 @@ impl App {
         };
         // The visual-line motion LAYOUT ORACLE: the live GPU pipeline, which owns
         // the shaped wrap geometry. A shared borrow of `self.gpu` (disjoint from the
-        // `&mut self.active.buffer` below), so the same `apply_core` seam sees the SAME
+        // `&mut self.active.buffer` below), so the same transition seam sees the SAME
         // geometry headless replay sees through its offscreen pipeline. `None` before
         // the window's GPU exists; motion then falls back to LOGICAL lines.
         let oracle = self
@@ -704,27 +633,22 @@ impl App {
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
             search: &mut search,
-            scroll_page_lines: 1,
+            scroll_page_lines: page_scroll_lines,
             overlay: &mut overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle,
         };
-        let effect = actions::apply_core(&mut ctx, action, shift);
+        let transition = actions::apply_transition(&mut ctx, action, shift);
         self.active.extra.shift_selecting = shift_selecting;
-        let zoom_changed = self.zoom != zoom;
         self.zoom = zoom;
-        if zoom_changed && matches!(action, Action::ZoomIn | Action::ZoomOut | Action::ZoomReset) {
-            self.arm_zoom_anchor_caret();
-            self.mark_zoom_dirty();
-        }
         self.search = search;
         let _ = make_overlay;
         let _ = browse_to;
         self.overlay = overlay;
         self.sync_overlay_after_core(overlay_was_open);
         CoreRun {
-            effect,
+            transition,
             theme_overlay_before,
             theme_before,
             history_overlay_before,
@@ -751,7 +675,7 @@ impl App {
         }
     }
 
-    fn apply_effect_tail(&mut self, effect: actions::Effect) {
+    pub(in crate::app) fn apply_live_effect(&mut self, effect: actions::Effect) {
         match effect {
             actions::Effect::JumpToLine(line) => self.jump_to_line(line),
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
@@ -774,10 +698,6 @@ impl App {
             actions::Effect::SettingPathPick { key, path } => self.setting_path_pick(&key, &path),
             actions::Effect::SettingRangeStep { key } => self.setting_range_step(&key),
             actions::Effect::TrashAsset { rel } => self.trash_asset(rel),
-            // C-x #: the core already saved; notify any daemon `--wait` client
-            // waiting on this buffer (native-only — no daemon on wasm) and switch
-            // to the previously-open buffer (the LastBuffer swap).
-            actions::Effect::FinishBuffer => self.finish_buffer(),
             actions::Effect::KeepVersion { name } => self.keep_version(name.as_deref()),
             actions::Effect::FollowLink(url) => self.follow_link(&url),
             actions::Effect::ReportProblem => self.report_problem(),
@@ -787,14 +707,22 @@ impl App {
             // app never fetches anything itself) and open the site's own
             // check page through the same OS-handoff seam.
             actions::Effect::CheckForUpdates => self.check_for_updates(),
-            actions::Effect::ConvertScratchAndSave => self.convert_scratch_and_save(),
-            // Manual save FINISHED (an already-pathed or already-note buffer):
-            // the core already wrote the file; raise the calm "saved" / "save
-            // failed: …" notice and finish the SAME bookkeeping the old
-            // trailing `matches!(action, Action::Save)` block used to do
-            // unconditionally (now folded into this one owner so it can't
-            // clobber a failure notice with `notice = None`).
-            actions::Effect::SaveDone { ok, message } => self.finish_manual_save(ok, message),
+            actions::Effect::Persistence(effect) => self.apply_persistence_effect(effect),
+            actions::Effect::Clipboard(actions::ClipboardEffect::WriteKillRing) => {
+                self.sync_kill_to_clipboard()
+            }
+            actions::Effect::Buffer(effect) => self.apply_buffer_effect(effect),
+            actions::Effect::Daemon(actions::DaemonEffect::NotifyFinished) => {
+                self.notify_finished_buffer()
+            }
+            actions::Effect::Surface(actions::SurfaceEffect::ShowAbout) => {
+                #[cfg(target_os = "macos")]
+                crate::mac_about::show();
+                #[cfg(not(target_os = "macos"))]
+                crate::about::set_open(true);
+            }
+            actions::Effect::Notice(effect) => self.apply_notice_effect(effect),
+            actions::Effect::Render(effect) => self.apply_render_effect(effect),
             // NOTES VERBS round: the RENAME minibuffer committed — perform the
             // actual disk rename + the one-owner path-keyed bookkeeping (refusing
             // calmly on a git-managed file or a name collision).
@@ -802,15 +730,15 @@ impl App {
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
             actions::Effect::Quit | actions::Effect::None => {}
             actions::Effect::RunAction(_)
-            | actions::Effect::LastBuffer
-            | actions::Effect::NewDocument
-            | actions::Effect::OpenSettings
-            | actions::Effect::OpenCredits
-            | actions::Effect::OpenGuide
+            | actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage)
             | actions::Effect::InsertDate
-            | actions::Effect::OverlayAccept(_, _) => {
-                unreachable!("effect handled before apply_effect_tail")
-            }
+            | actions::Effect::OverlayAccept(_, _) => match effect {
+                actions::Effect::InsertDate => self.insert_date(),
+                actions::Effect::OverlayAccept(kind, value) => {
+                    self.apply_overlay_accept(kind, &value)
+                }
+                _ => unreachable!("continuation effects handled before live interpretation"),
+            },
         }
     }
 
@@ -840,65 +768,6 @@ impl App {
             self.active.extra.scroll = s;
         }
         self.active.extra.history_preview = None;
-    }
-
-    /// The PgDn/PgUp intercept: page the BUFFER via the GPU-measured viewport (a
-    /// screenful from the live pipeline, which the core's logical-line
-    /// `scroll_page_lines` can't reach) — but ONLY with no overlay open. While a picker
-    /// is summoned, return `None` so `apply` falls through to `apply_core`'s overlay
-    /// intercept (PgDn/PgUp page the picker SELECTION there). `Some(false)` = handled
-    /// (the action never moves the app toward exit); a blocked page recoils the caret.
-    ///
-    /// DIFF-AS-PREVIEW exception: while the HISTORY picker is open WITH a live diff
-    /// preview, PgDn/PgUp SCROLL THE DIFF — handled here with the same GPU-measured
-    /// screenful the buffer paging uses (the core's own History arm applies its fixed
-    /// deterministic page headlessly; only the step SIZE differs, the documented
-    /// PageScroll precedent). The scroll itself lives on the OVERLAY
-    /// (`OverlayState::diff_scroll`), clamped at the next `sync_view`.
-    fn page_scroll_intercept(&mut self, action: &Action) -> Option<bool> {
-        if let Some(ov) = self.overlay.as_mut()
-            && ov.kind == crate::overlay::OverlayKind::History
-            && ov.selected_history_id().is_some()
-            && matches!(action, Action::PageScrollDown | Action::PageScrollUp)
-        {
-            let page = self.page_scroll_rows();
-            let ov = self.overlay.as_mut().unwrap();
-            ov.diff_scroll = match action {
-                Action::PageScrollDown => ov.diff_scroll.saturating_add(page),
-                _ => ov.diff_scroll.saturating_sub(page),
-            };
-            self.sync_view(false);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
-            return Some(false);
-        }
-        if self.overlay.is_none() {
-            match action {
-                Action::PageScrollDown => {
-                    if !self.scroll_page(1) {
-                        self.caret_recoil = Some(crate::caret::RecoilDir::Up);
-                    }
-                    self.active.buffer.seal_undo_group();
-                    if !self.active.buffer.has_selection() {
-                        self.active.extra.shift_selecting = false;
-                    }
-                    return Some(false);
-                }
-                Action::PageScrollUp => {
-                    if !self.scroll_page(-1) {
-                        self.caret_recoil = Some(crate::caret::RecoilDir::Down);
-                    }
-                    self.active.buffer.seal_undo_group();
-                    if !self.active.buffer.has_selection() {
-                        self.active.extra.shift_selecting = false;
-                    }
-                    return Some(false);
-                }
-                _ => {}
-            }
-        }
-        None
     }
 
     /// C-c C-o (follow-link-at-point): hand `url` off to the OS default browser.
@@ -961,7 +830,7 @@ impl App {
     /// [`crate::web_export::filename_for`] (reuses `Buffer::display_name()`,
     /// never re-derived), content the buffer's plain `text()`. On native this
     /// is a documented no-op: `Action::DownloadFile` is gated off entirely by
-    /// `commands::action_available` before `apply_core` ever signals the
+    /// `commands::action_available` before `apply_transition` ever signals the
     /// effect that reaches here, so the `#[cfg(not(wasm32))]` arm below is
     /// structurally unreachable in the shipped native binary — it exists only
     /// so this method compiles on every platform (mirrors `follow_link`'s /
@@ -1060,141 +929,92 @@ impl App {
         self.follow_link(&url);
     }
 
-    /// POST-`apply_core` side effects the pure core can't reach: the render-only toggle
-    /// window/GPU work (caret look / page mode / fps / HUD), the live config
-    /// reload on a Settings save, the theme-picker re-tint + sticky-theme write, the
-    /// OS-clipboard mirror after a cut/copy, and the delete-word caret streak. Keyed off
-    /// `action` (the Save/clipboard pattern), never an interception that bypasses the
-    /// core. Runs straight through with no early return.
-    fn post_view_action(&mut self, action: &Action) {
-        match action {
-            // Caret look: the buffer is untouched and the cached glyph masks stay
-            // valid (keyed by CacheKey), so the trailing `sync_view` + redraw in the
-            // caller suffice — just log the new mode.
-            Action::ToggleCaretMode => {
-                self.persist_caret_mode();
-            }
-            Action::TogglePageMode => {
-                if let Some(gpu) = self.gpu.as_mut() {
-                    let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
-                    gpu.pipeline.set_size(w, h);
-                }
-                self.sync_view(true);
-                self.persist_page_mode();
-            }
-            Action::PageWider | Action::PageNarrower => {
-                if let Some(gpu) = self.gpu.as_mut() {
-                    let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
-                    gpu.pipeline.set_size(w, h);
-                }
-                self.sync_view(true);
-                self.persist_page_width();
-            }
-            // RESET PAGE WIDTH: the core snapped the measure to DEFAULT_MEASURE, so
-            // re-wrap + re-push the view exactly like wider/narrower — but CLEAR the
-            // sticky override entirely (rather than writing the default back), so a
-            // future default change flows through instead of pinning a stale value.
-            Action::PageReset => {
-                if let Some(gpu) = self.gpu.as_mut() {
-                    let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
-                    gpu.pipeline.set_size(w, h);
-                }
-                self.sync_view(true);
-                self.persist_page_reset();
-            }
-            Action::ToggleDebug => {
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
-            }
-            Action::ToggleOutline => {
+    fn apply_persistence_effect(&mut self, effect: actions::PersistenceEffect) {
+        use actions::{PersistenceEffect::*, PreferenceEffect::*};
+        match effect {
+            Save(actions::SaveKind::Manual) => self.manual_save(),
+            Save(actions::SaveKind::Finish) => self.save_finished_buffer(),
+            Preference(CaretMode) => self.persist_caret_mode(),
+            Preference(PageMode) => self.persist_page_mode(),
+            Preference(PageWidth) => self.persist_page_width(),
+            Preference(PageReset) => self.persist_page_reset(),
+            Preference(Outline) => {
                 let on = crate::outline::outline_on();
                 self.persist_pref("outline", if on { "true" } else { "false" });
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
             }
-            Action::ToggleMenuBar => {
+            Preference(MenuBar) => {
                 let on = crate::menubar::menu_bar_on();
                 self.persist_pref("menu_bar", if on { "true" } else { "false" });
-                self.sync_view(true);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
             }
-            Action::ToggleTypewriter => {
+            Preference(Typewriter) => {
                 let on = crate::typewriter::typewriter_on();
                 self.persist_pref("typewriter_scroll", if on { "true" } else { "false" });
-                self.sync_view(true);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
             }
-            // SPELLCHECK global toggle: the core already flipped the process-global
-            // (the shared seam every `misspellings_for`/`suggest_at` call reads), so
-            // here we persist the sticky pref and force an IMMEDIATE rescan
-            // (`run_spellcheck_now`, which itself `sync_view`s) so existing squiggles
-            // vanish/reappear THIS frame rather than waiting for the next edit's
-            // debounce. Render-only: no buffer change.
-            Action::ToggleSpellcheck => {
+            Preference(Spellcheck) => {
                 self.persist_spellcheck();
                 self.run_spellcheck_now();
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
             }
-            Action::ToggleWritingNits => {
+            Preference(WritingNits) => {
                 let on = crate::nits::nits_on();
                 self.persist_pref("writing_nits", if on { "true" } else { "false" });
-                self.sync_view(false);
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
             }
-            Action::ShowStatsHud => {
-                if let Some(gpu) = self.gpu.as_ref() {
-                    gpu.window.request_redraw();
-                }
-            }
-            // WRITING STREAKS: summoning the card FLUSHES the pending word-delta
-            // first, so "written today" reads LIVE rather than up to ~1s stale (the
-            // idle flush may not have fired since the last keystroke). The trailing
-            // `sync_view` in the caller then re-pushes the now-current year-view via
-            // `streaks_sync_card`. Native-only (the recording engine is); a no-op
-            // arm on wasm, which draws only the synthetic placeholder card.
-            Action::WritingStreaks => {
+            Preference(WritingStreaks) => {
                 #[cfg(not(target_arch = "wasm32"))]
                 self.streaks_flush();
             }
-            _ => {}
         }
     }
 
-    pub(super) fn post_apply_effects(
+    fn apply_buffer_effect(&mut self, effect: actions::BufferEffect) {
+        match effect {
+            actions::BufferEffect::Previous { .. } => self.last_buffer_toggle(),
+            actions::BufferEffect::NewDocument => self.new_document(),
+            actions::BufferEffect::OpenSettings => self.open_settings(),
+            actions::BufferEffect::OpenCredits => self.open_credits(),
+            actions::BufferEffect::OpenGuide => self.open_guide(),
+        }
+    }
+
+    fn apply_notice_effect(&mut self, effect: actions::NoticeEffect) {
+        match effect {
+            actions::NoticeEffect::Toast(message) => self.set_toast_notice(message),
+            actions::NoticeEffect::Sticky(message) => self.set_sticky_notice(message),
+            actions::NoticeEffect::Clear => self.clear_notice(),
+        }
+    }
+
+    pub(in crate::app) fn emit_notice(&mut self, effect: actions::NoticeEffect) {
+        self.apply_live_effect(actions::Effect::Notice(effect));
+    }
+
+    fn apply_render_effect(&mut self, effect: actions::RenderEffect) {
+        match effect {
+            actions::RenderEffect::SyncView { follow } => self.sync_view(follow),
+            actions::RenderEffect::Reshape => {
+                if let Some(gpu) = self.gpu.as_mut() {
+                    let (w, h) = (gpu.config.width as f32, gpu.config.height as f32);
+                    gpu.pipeline.set_size(w, h);
+                }
+            }
+            actions::RenderEffect::ZoomChanged => {
+                self.arm_zoom_anchor_caret();
+                self.mark_zoom_dirty();
+            }
+            actions::RenderEffect::Redraw => {
+                if let Some(gpu) = self.gpu.as_ref() {
+                    gpu.window.request_redraw();
+                }
+            }
+            actions::RenderEffect::EditStreak => self.caret_edit_streaks = true,
+        }
+    }
+
+    pub(super) fn post_transition_effects(
         &mut self,
-        action: &Action,
         theme_overlay_before: bool,
         theme_committed: bool,
         theme_before: crate::theme::Theme,
     ) {
-        // RENDER-ONLY TOGGLES — post-`apply_core` side effects. The core already
-        // flipped the process-global (caret look / page mode) on the
-        // ONE shared seam, so live and `--keys` replay agree; here we do only the
-        // window/GPU work the core can't reach, keyed off the action (the
-        // Save/clipboard pattern) instead of intercepting before the core.
-        self.post_view_action(action);
-        if matches!(action, Action::Save)
-            && self
-                .active
-                .buffer
-                .path()
-                .map(|f| {
-                    !self.config.path.as_os_str().is_empty() && f == self.config.path.as_path()
-                })
-                .unwrap_or(false)
-        {
-            self.reload_config();
-        }
         // Re-tint for the THEME picker: a live preview (overlay still open) OR a
         // commit/revert (overlay just closed) changed the active theme, so reskin
         // the baked GPU pipelines and refresh the title to the now-active world.
@@ -1225,26 +1045,6 @@ impl App {
             #[cfg(not(target_arch = "wasm32"))]
             crate::app_icon::adopt(&crate::theme::active());
         }
-
-        match action {
-            Action::DeleteWordBackward
-            | Action::KillLine
-            | Action::CopyRegion
-            | Action::KillRegion => self.sync_kill_to_clipboard(),
-            _ => {}
-        }
-
-        if matches!(action, Action::DeleteWordBackward) {
-            self.caret_edit_streaks = true;
-        }
-
-        // TYPING IMPACT / DELETION SQUASH / KILL-LINE GULP are armed in `apply_core`
-        // (the shared seam, so `--keys` replay and live agree) as `Effect::TypeImpact`
-        // / `DeleteSquash` / `Gulp` and queued into `self.caret_impact` above. They
-        // fire in EVERY caret look — the old I-beam-only typing kick was folded into
-        // the universal `type_impact` (squash-pop + a velocity back-kick) — and are
-        // mutually exclusive with the blocked-action recoil (a no-op edit recoils, a
-        // successful one flinches), so no precedence gate is needed here.
     }
 }
 

@@ -2,10 +2,10 @@
 //! rather than text, awl saves it as a PNG into an `assets/` folder beside the
 //! document (the Typora/Obsidian convention) and inserts a markdown image
 //! reference at the caret as ONE undoable edit. The PURE pieces — the next free
-//! filename, the RGBA→PNG encode, the save-location resolution, and the inserted
-//! ref text — live here so they are testable without a real clipboard or disk;
-//! the LIVE glue (the arboard `get_image` read + the `FileSystem` write + the
-//! buffer insert) is `App::try_paste_image` in `app/apply.rs`.
+//! filename, the RGBA→PNG encode, and the save-location resolution live here so
+//! they are testable without a real clipboard or disk; the LIVE glue reads
+//! arboard and persists through [`persist_png`]; the returned reference
+//! re-enters the shared action core as a continuation.
 //!
 //! DETERMINISM: nothing here reads a clock or randomness — the unique filename
 //! is derived by PROBING the assets dir (`pasted-1.png`, `pasted-2.png`, …), a
@@ -14,7 +14,7 @@
 //! / `--keys`), so a default capture stays byte-identical.
 //!
 //! NO-PATH BUFFER (settled): a path-less buffer has no directory to hang
-//! `assets/` off of, so `App::try_paste_image` triggers the notes system's OWN
+//! `assets/` off of, so `App::paste_image_reference` triggers the notes system's OWN
 //! auto-name save FIRST (`App::ensure_note_named_before_paste`, `app/files/`)
 //! before ever reaching [`assets_dir`]/[`image_ref`] below — the paste lands
 //! beside a real, notes-root file rather than this module's absolute data-root
@@ -94,23 +94,19 @@ pub fn image_ref(doc_path: Option<&Path>, data_root: &Path, filename: &str) -> S
     }
 }
 
-/// The exact text inserted at the caret for a pasted image — the markdown ref on
-/// its OWN line so it block-renders as an inline image. A leading `\n` is added
-/// when the caret is NOT at the start of its line (so the ref never trails other
-/// prose), and a trailing `\n` always lands the caret on a fresh line after.
-///
-/// STAMPS NO `|W` WIDTH HINT (settled — image-sizing-sanity round): a retina
-/// screenshot's NATIVE pixel width is not a display size the user chose, so
-/// baking it into the ref would draw a full-bleed wall on a wide window. The
-/// bare `![](reference)` leaves `width_hint` unset
-/// ([`crate::markdown::parse_image_source`]'s `None` path), so the DISPLAY size
-/// falls back to fit-to-column (`render::spans::image_display_size`, further
-/// viewport-height-capped) exactly like any other hint-less image. A `|W` hint
-/// stays a deliberate USER gesture — only the drag-resize write-back
-/// (`markdown::image_width_hint_edit`) ever adds one.
-pub fn insert_text(at_line_start: bool, reference: &str) -> String {
-    let lead = if at_line_start { "" } else { "\n" };
-    format!("{lead}![]({reference})\n")
+/// Persist an already-encoded clipboard image and return the reference that a
+/// shared core continuation should insert. No buffer mutation happens here.
+pub fn persist_png(doc_path: Option<&Path>, data_root: &Path, png: &[u8]) -> Option<String> {
+    let fs = crate::fs::active();
+    let dir = assets_dir(doc_path, data_root);
+    fs.create_dir_all(&dir).ok()?;
+    let existing: Vec<String> = fs
+        .read_dir(&dir)
+        .map(|entries| entries.into_iter().map(|entry| entry.name).collect())
+        .unwrap_or_default();
+    let filename = next_pasted_name(&existing);
+    crate::fs::write_atomic(&dir.join(&filename), png).ok()?;
+    Some(image_ref(doc_path, data_root, &filename))
 }
 
 #[cfg(test)]
@@ -203,8 +199,43 @@ mod tests {
         );
     }
 
+    #[test]
+    fn persist_png_writes_only_the_image_and_returns_a_core_continuation_value() {
+        use crate::fs::FileSystem;
+        use std::sync::Arc;
+
+        let _guard = crate::testlock::serial();
+        let mem = crate::fs::InMemoryFs::new().with_dir("/notes");
+        crate::fs::with_fs(Arc::new(mem.clone()), || {
+            let reference = persist_png(Some(Path::new("/notes/a.md")), Path::new("/data"), b"png");
+            assert_eq!(reference.as_deref(), Some("assets/pasted-1.png"));
+            assert_eq!(
+                mem.read(Path::new("/notes/assets/pasted-1.png")).unwrap(),
+                b"png"
+            );
+            assert!(
+                !mem.exists(Path::new("/notes/a.md")),
+                "the external image transaction never edits or saves the document"
+            );
+        });
+    }
+
+    #[test]
+    fn persist_png_failure_returns_text_fallback_without_a_reference() {
+        use std::sync::Arc;
+
+        let _guard = crate::testlock::serial();
+        crate::fs::with_fs(Arc::new(crate::fs::UnwritableFs), || {
+            assert_eq!(
+                persist_png(Some(Path::new("/notes/a.md")), Path::new("/data"), b"png"),
+                None,
+                "a failed external write must select the text-yank fallback"
+            );
+        });
+    }
+
     /// The insert lands as ONE undoable edit through the real buffer seam
-    /// (`replace_char_range`, the exact call `App::try_paste_image` makes): the
+    /// (`replace_char_range`, the exact core continuation call makes): the
     /// ref text appears, and a single Cmd-Z (`undo`) restores the prior text +
     /// cursor. The live clipboard read is live-only; this proves the insert half.
     #[test]
@@ -214,7 +245,7 @@ mod tests {
         let mut b = Buffer::from_str("hello");
         b.set_cursor(5);
         let reference = image_ref(None, Path::new("/data"), "pasted-1.png");
-        let text = insert_text(false, &reference);
+        let text = crate::actions::image_reference_text(false, &reference);
         let at = b.cursor_char();
         b.replace_char_range(at, at, &text);
         assert_eq!(b.text(), "hello\n![](/data/assets/pasted-1.png)\n");
@@ -234,7 +265,7 @@ mod tests {
         // A retina screenshot's native width, the exact shape this round guards
         // against (`![|2241](assets/pasted-3.png)` was the reported bug).
         let reference = "assets/pasted-3.png";
-        let text = insert_text(true, reference);
+        let text = crate::actions::image_reference_text(true, reference);
         assert_eq!(text, "![](assets/pasted-3.png)\n");
         assert!(
             !text.contains('|'),
@@ -250,12 +281,12 @@ mod tests {
     fn insert_text_puts_the_ref_on_its_own_line() {
         // At line start: no leading newline, trailing newline for the fresh line.
         assert_eq!(
-            insert_text(true, "assets/pasted-1.png"),
+            crate::actions::image_reference_text(true, "assets/pasted-1.png"),
             "![](assets/pasted-1.png)\n"
         );
         // Mid-line: a leading newline pushes the ref onto its own line.
         assert_eq!(
-            insert_text(false, "assets/pasted-1.png"),
+            crate::actions::image_reference_text(false, "assets/pasted-1.png"),
             "\n![](assets/pasted-1.png)\n"
         );
     }

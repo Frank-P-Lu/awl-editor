@@ -9,7 +9,7 @@ use crate::overlay::OverlayKind;
 
 #[test]
 fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
-    // Action::AlignTable routes through the SAME apply_core seam a palette/menu
+    // Action::AlignTable routes through the SAME apply_transition seam a palette/menu
     // invocation uses, so `--keys` drives it identically. A no-path buffer is
     // markdown, so the table under the caret aligns.
     let src = "intro\n| Name | V |\n|---|---|\n| a | 100 |\ntail\n";
@@ -35,7 +35,7 @@ fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
         oracle: None,
     };
     let before = ctx.buffer.text();
-    apply_core(&mut ctx, &Action::AlignTable, false);
+    apply_transition(&mut ctx, &Action::AlignTable, false).primary();
     let after = ctx.buffer.text();
     assert_ne!(after, before, "align edited the buffer");
     assert!(
@@ -56,15 +56,15 @@ fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
     // NO-OP outside a table: caret on the prose intro line does nothing.
     ctx.buffer.set_cursor(0);
     let untouched = ctx.buffer.text();
-    let eff = apply_core(&mut ctx, &Action::AlignTable, false);
+    let eff = apply_transition(&mut ctx, &Action::AlignTable, false).primary();
     assert_eq!(eff, Effect::None, "align outside a table is a calm no-op");
     assert_eq!(ctx.buffer.text(), untouched, "…and edits nothing");
     assert!(!ctx.buffer.can_undo(), "…so there is nothing to undo");
 }
 
 #[test]
-fn bold_toggle_through_apply_core_is_one_undoable_edit() {
-    // Cmd-P → "Bold" routes Action::Bold through the SAME apply_core seam a key /
+fn bold_toggle_through_apply_transition_is_one_undoable_edit() {
+    // Cmd-P → "Bold" routes Action::Bold through the SAME apply_transition seam a key /
     // `--keys` invocation rides. Select "quick" (cols 4..9) and toggle bold.
     let mut b = drive_format("the quick fox", Some(4), 9, &Action::Bold);
     assert_eq!(b.text(), "the **quick** fox", "bold wrapped the selection");
@@ -77,7 +77,7 @@ fn bold_toggle_through_apply_core_is_one_undoable_edit() {
 }
 
 #[test]
-fn bullet_list_toggle_through_apply_core_round_trips_and_undoes() {
+fn bullet_list_toggle_through_apply_transition_round_trips_and_undoes() {
     // Select the two content lines (cols 0..4 over "a\nb\n") and toggle a bullet list.
     let mut b = drive_format("a\nb\nc\n", Some(0), 4, &Action::ToggleBulletList);
     assert_eq!(b.text(), "- a\n- b\nc\n", "every selected line is prefixed");
@@ -95,7 +95,7 @@ fn bullet_list_toggle_through_apply_core_round_trips_and_undoes() {
 }
 
 #[test]
-fn code_block_toggle_through_apply_core_wraps_and_undoes() {
+fn code_block_toggle_through_apply_transition_wraps_and_undoes() {
     let mut b = drive_format("let x = 1;\n", None, 3, &Action::ToggleCodeBlock);
     assert_eq!(
         b.text(),
@@ -131,7 +131,7 @@ fn heading_toggle_is_a_noop_on_a_code_buffer() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, &Action::ToggleHeading, false);
+    apply_transition(&mut ctx, &Action::ToggleHeading, false).primary();
     assert_eq!(
         ctx.buffer.text(),
         "fn main() {}\n",
@@ -625,7 +625,7 @@ fn kill_region_after_select_all_empties_the_buffer() {
     assert_eq!(b.text(), "", "select-all + cut empties the buffer");
     assert!(!b.has_selection());
     // The cut text is in the kill buffer, so a yank restores the whole doc.
-    drive_act(&mut b, &Action::Yank);
+    drive_act(&mut b, &Action::YankText);
     assert_eq!(
         b.text(),
         "one\ntwo\nthree\n",
@@ -665,7 +665,7 @@ fn copy_region_after_select_all_copies_all_and_keeps_text() {
     assert!(!b.has_selection(), "copy clears the mark");
     // Yanking at the end appends the copied whole document.
     b.buffer_end();
-    drive_act(&mut b, &Action::Yank);
+    drive_act(&mut b, &Action::YankText);
     assert_eq!(
         b.text(),
         "copy\nme\ncopy\nme\n",
@@ -689,7 +689,7 @@ fn dash_then_enter_leaves_a_writable_line_item_40() {
     // item. Decided semantics (2026-07-23): a lone `-` (no trailing space) is not
     // a list yet, so Enter falls through to a PLAIN newline — the dash stays a
     // literal `-` on its own line with a fresh blank line below. Drive the whole
-    // gesture through the REAL apply_core seam exactly as `--keys "- Enter x"`
+    // gesture through the REAL apply_transition seam exactly as `--keys "- Enter x"`
     // does (InsertChar → Newline → InsertChar), then assert the typed character
     // actually LANDED after the newline and the caret advanced onto it — i.e. the
     // new line is writable, not eaten. (`-` alone yields no `md_spans`, so nothing

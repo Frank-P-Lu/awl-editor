@@ -4,9 +4,9 @@ use crate::buffer::Buffer;
 use crate::keymap::Action;
 use crate::overlay::OverlayState;
 use crate::search::{Direction, SearchState};
-
 // Shared dispatch types stay here; cohesive action families live in submodules.
 mod edit; // the markdown smart-Enter edit (smart_newline + its pure decision)
+mod effects; // the closed typed-effect vocabulary + transition decoration
 mod flinch; // the caret-feedback triggers (impact_for / recoil_for)
 mod format; // the markdown formatting-command toggles (block + inline)
 mod link; // LINKS V2 — Cmd-K insert/edit-link (plan + commit, mirrors format.rs)
@@ -15,21 +15,21 @@ mod overlay_nav; // the modal overlay intercept + browse-path helpers + live pre
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
 mod rebind; // the game-style rebind-menu key handling
 use edit::*;
+pub use effects::*;
 use flinch::*;
 use format::*;
 use link::*;
 use motion::*;
 use overlay_nav::*;
-use rebind::*;
-
 pub(crate) use overlay_nav::{preview_move, preview_overlay};
+use rebind::*;
 
 // Shared by live and replay re-dispatch so overlay pops restore the palette.
 pub(crate) use overlay_nav::stamp_return_to;
 
-/// Renderer-owned visual-row geometry for shared motion. Columns are chars and x
-/// values are pixels relative to text left; affinity resolves soft-wrap boundaries.
+/// Renderer-owned visual-row geometry for shared motion.
 pub trait LayoutOracle {
+    fn visual_row_of(&self, line: usize, col: usize) -> usize;
     fn visual_x_of(&self, line: usize, col: usize, affinity: crate::caret::Affinity) -> f32;
     fn visual_line_up(
         &self,
@@ -64,9 +64,7 @@ pub struct ActionCtx<'a> {
     pub shift_selecting: &'a mut bool,
     pub zoom: &'a mut f32,
     pub search: &'a mut Option<SearchState>,
-    /// How many logical lines one PageScrollDown/PageScrollUp moves. The windowed
-    /// app passes a screenful computed from the live viewport; headless passes a
-    /// fixed value (no GPU to measure), keeping replay deterministic.
+    /// Measured page rows live; a fixed deterministic page headlessly.
     pub scroll_page_lines: usize,
     /// The SUMMONED navigation overlay. `None` = editing normally; `Some` = the
     /// go-to / switch-project overlay is open, and while it is, typed chars edit
@@ -84,271 +82,11 @@ pub struct ActionCtx<'a> {
     /// The visual-line motion LAYOUT ORACLE (the SHAPED text's wrap geometry),
     /// supplied by the live GPU pipeline (`app.rs`) and the headless offscreen
     /// pipeline (`capture.rs`) so the two flows can't drift. `None` in the pure
-    /// `apply_core` unit tests (no pipeline), where motion falls back to LOGICAL
+    /// `apply_transition` unit tests (no pipeline), where motion falls back to LOGICAL
     /// lines. Consulted by the vertical (C-n/C-p, Up/Down), line-edge (C-a/C-e,
     /// Home/End) and kill-line (C-k) motions, which follow the SHAPED visual rows
     /// whenever it is present (the flat default).
     pub oracle: Option<&'a dyn LayoutOracle>,
-}
-
-/// The single deferred side effect an `apply_core` call signals back to its
-/// caller. The pure core can't touch the filesystem, GPU, window, or the caller's
-/// buffer history, so rather than PERFORM those effects it RETURNS one of these
-/// for the caller to carry out. The signalling paths are mutually exclusive — at
-/// most one effect fires per call — so the caller matches ONCE and leans on
-/// exhaustiveness. This replaces the former cluster of `&mut` out-params.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Effect {
-    None,
-    Quit,
-    LastBuffer,
-    /// Cmd-N: swap in a fresh, unnamed document buffer IN THE ACTIVE FOLDER
-    /// (item 76 retired the old separate-notes-root jump). The buffer-swap is
-    /// caller-level (the core never touches the filesystem/window).
-    NewDocument,
-    OpenSettings,
-    OpenCredits,
-    OpenGuide,
-    RunAction(Action),
-    /// An overlay ACCEPTED (Enter on a selected item, or a Theme cancel-revert):
-    /// the chosen value — a root-relative path for Goto/Browse, an absolute dir for
-    /// Project, a notes-root-relative folder for MoveDest, or a world name for
-    /// Theme — for the caller to act on (load the file / switch the root / move the
-    /// note / re-tint). The core never touches the filesystem, GPU, or window.
-    OverlayAccept(crate::overlay::OverlayKind, String),
-    /// Go-to's HEADINGS lens accepted (Enter on a heading row): JUMP the cursor to
-    /// document line `.0` (0-based). The fold that retired the standalone Outline
-    /// picker — a heading row's accept is a cursor move, not a file open, so it rides
-    /// its own effect rather than `OverlayAccept(Goto, …)` (which opens a path). The
-    /// caller moves the cursor (live App + headless replay both); the core never
-    /// touches the buffer here.
-    JumpToLine(usize),
-    /// SPELL picker "Add '<word>' to dictionary" accepted (Enter on the add row):
-    /// add `.0` to the USER (personal) dictionary — the live App
-    /// ([`crate::app::App::add_to_dictionary`]) both silences the word in the live
-    /// checker AND appends it to the on-disk word list beside `config.toml`, then
-    /// rescans so the squiggle clears THIS frame. The pure core can't reach the fs
-    /// / the checker, so it signals this. LIVE-APP-ONLY: the headless `--keys`
-    /// replay no-ops it (a capture must never write the dictionary file — the same
-    /// determinism gate `KeepVersion`/`Export` sit behind); the load/persist itself
-    /// is unit-tested at the App seam, and the picker's own add-row select/accept
-    /// flow IS core-driven and fully `--keys`-drivable up to this signal. ZERO-
-    /// NETWORK: a file append, never a fetch.
-    AddToDictionary(String),
-    /// REBIND MENU committed a capture: write `binding` into the `[keys]` SLOT of the
-    /// command `slug` (the caller persists to config + live-reloads). `confirmed` is
-    /// true when the user already accepted a CONFLICT warning (Confirm stage), so the
-    /// caller must NOT re-gate on the clash. The core leaves the overlay open (the
-    /// menu stays up); the caller refreshes its bindings + notice after the reload.
-    RebindCommit {
-        slug: String,
-        binding: String,
-        confirmed: bool,
-    },
-    RebindReset {
-        slug: String,
-    },
-    /// A discrete action was REQUESTED but could NOT PROCEED (a motion into a wall,
-    /// a page that can't page further, an exhausted undo/redo, a delete with nothing
-    /// to remove). The caller bumps the VISUAL caret in `dir` — away from the wall —
-    /// via [`crate::caret::CaretAnim::recoil`]; the spring self-settles it back to
-    /// rest. The buffer/cursor are UNCHANGED (that's the whole point — it's a
-    /// blocked action), so a settled capture stays byte-identical; the headless
-    /// replay simply ignores it (no clock/animation). Mutually exclusive with the
-    /// real effects: a recoil only arms when the action produced no other effect.
-    Recoil(crate::caret::RecoilDir),
-    TypeImpact,
-    DeleteSquash,
-    Gulp,
-    /// PHASE 3 — ENTER JUICE / LINE LANDING: Enter SUCCESSFULLY inserted a newline
-    /// (including the markdown smart-Enter continue/end-block edits). The caller
-    /// gives the VISUAL caret a caret-level "touchdown" squash via
-    /// [`crate::caret::CaretAnim::line_land`] — CARET-LEVEL ONLY (no content
-    /// reflow / row animation; rows never dance). Live-only, byte-identical
-    /// settled; the headless replay ignores it (no clock).
-    LineLand,
-    /// C-x #: the core already SAVED the buffer (identically to [`Action::Save`]).
-    /// The caller notifies any daemon `--wait` client waiting on this buffer (a
-    /// live-App-only concern — the pure core can't reach the socket) and switches
-    /// to the previously-open buffer (the same swap `Effect::LastBuffer` performs).
-    /// Headless replay treats this exactly like `LastBuffer` — a no-op (no daemon,
-    /// no 2-deep history in a one-shot replay).
-    FinishBuffer,
-    /// THE CONSCIOUS MARK ("Keep version…"): the naming minibuffer COMMITTED —
-    /// record the current buffer as a PINNED, prune-EXEMPT local-history snapshot,
-    /// optionally NAMED (`Some("draft A")` when the user typed a name, `None` for
-    /// a blank Enter — the plain, zero-friction keep). The pure core can't reach
-    /// the store (no fs / config / buffer path), so it signals this for the live
-    /// App to perform ([`crate::app::App::keep_version`] →
-    /// [`crate::history::record_pinned`]). LIVE-APP-ONLY: the headless `--keys`
-    /// replay no-ops it (the history determinism gate — a capture never touches
-    /// the store), so a settled frame stays byte-identical; the naming
-    /// minibuffer's open/type/cancel flow itself IS core-driven and fully
-    /// `--keys`-drivable (see `overlay_nav`'s `keep_edit` block).
-    KeepVersion {
-        name: Option<String>,
-    },
-    /// C-c C-o (follow-link-at-point): the caret sat inside a markdown link, whose
-    /// destination URL is carried here for the caller to open in the OS default
-    /// browser (a user-initiated handoff — the app never fetches it, so the
-    /// zero-network invariant holds). LIVE-APP-ONLY: `App::follow_link` performs the
-    /// `open`/`xdg-open`/`window.open` launch; the headless `--keys` replay no-ops it
-    /// (a capture must never spawn a browser), so a settled frame stays byte-identical.
-    /// A caret OUTSIDE every link never produces this effect (`Effect::None`, the calm
-    /// no-op) — `Action::FollowLink` only arms it when `markdown::link_at` is `Some`.
-    FollowLink(String),
-    /// "Report a Problem": the pure core can't reach the crash-log directory or
-    /// the OS mail client (no fs / no OS handoff seam in `ActionCtx`), so it
-    /// signals a bare request for the live App to compose the `mailto:` URL
-    /// (`crashlog::report_problem_mailto`, pulling in the newest crash log's
-    /// PATH if one exists — native only) and open it through the SAME seam
-    /// [`Effect::FollowLink`] uses (`App::follow_link`). LIVE-APP-ONLY: headless
-    /// `--keys` replay no-ops it (never composes a URL, never spawns anything),
-    /// so a settled capture stays byte-identical. See `crashlog.rs`.
-    ReportProblem,
-    /// "Download file" (WEB-ONLY): the pure core can't touch `web_sys` (no DOM
-    /// handoff seam in `ActionCtx`), so it signals a bare request for the live App
-    /// to build a Blob + object URL from the active buffer's text and click a
-    /// synthetic `<a download>` (`App::download_file`, `web_export.rs`). Gated off
-    /// on native entirely (`commands::action_available`, `web_only: true` — see
-    /// `commands.rs`), so this variant can only ever be produced on the web
-    /// build. LIVE-APP-ONLY: headless `--keys` replay no-ops it (never touches the
-    /// DOM), so a settled capture stays byte-identical. See `web_export.rs`.
-    DownloadFile,
-    /// EXPORT (`Action::ExportWord` / `Action::ExportHtml` / `Action::ExportPdf`):
-    /// render the ACTIVE markdown buffer to a `.docx`, standalone `.html`, or
-    /// native `.pdf` document. The pure core can't reach the filesystem
-    /// (sibling-file write) or the DOM (web download),
-    /// and image embedding reads the doc's `assets/` off disk — all caller-level
-    /// concerns — so it signals the requested [`crate::export::Format`] for the
-    /// live App to perform (`App::export_document`, `export/`). Only produced for
-    /// a markdown buffer (the export action arms gate on
-    /// `Buffer::is_markdown`; a `.rs`/`.txt` buffer is a calm no-op, mirroring the
-    /// format toggles). LIVE-APP-ONLY: headless `--keys` replay never writes a
-    /// file or touches the DOM, so a settled capture stays byte-identical.
-    Export(crate::export::Format),
-    /// "Check for Updates": the pure core can't reach the fs marker or the OS
-    /// browser handoff, so it signals a bare request for the live App to (a)
-    /// record a LOCAL "last checked" marker (`updates::record_checked`,
-    /// best-effort, mirroring `crashlog::acknowledge`) and (b) compose
-    /// [`crate::updates::check_url`] and open it through the SAME seam
-    /// [`Effect::FollowLink`]/[`Effect::ReportProblem`] use
-    /// (`App::follow_link`) — never a fetch FROM this binary; the actual
-    /// version comparison happens in the browser. LIVE-APP-ONLY: headless
-    /// `--keys` replay no-ops it (never writes the marker, never spawns
-    /// anything), so a settled capture stays byte-identical. See `updates.rs`.
-    CheckForUpdates,
-    /// COPY PULSE: M-w / Cmd-C successfully copied a NON-EMPTY selection into the
-    /// kill ring — copy's one common but otherwise INVISIBLE result finally gets an
-    /// in-world confirmation. The caller plays a gentle caret kick
-    /// ([`crate::caret::CaretAnim::copy_pulse`], distinct from every edit flinch —
-    /// nothing was edited) AND brightens the selection quad's own tint, decaying
-    /// back over the live clock (`TextPipeline::copy_pulse`) — "obvious and
-    /// understated", never amber. Unlike the edit flinches this never touches the
-    /// buffer content, so it can't ride `impact_for`'s version-changed gate; see
-    /// `copy_pulse_for`. Live-only, byte-identical settled: the headless replay
-    /// ignores it (no clock), and `has_selection() == false` (an empty-selection
-    /// copy) never arms it — that stays the documented no-op.
-    ///
-    /// DESIGN CALL, logged: `DESIGN.md` §3 states "the caret is the only thing
-    /// allowed juice… selection, errors: Calm, geometric, precise. No juice." This
-    /// round is a deliberate, user-approved, NARROW exception — the selection
-    /// brightens only as a direct, one-shot REACTION to the caret's own copy
-    /// action (never ambient, never idle chrome), and decays back to the exact
-    /// same calm rendering within `COPY_PULSE_MS`. Flagged here rather than
-    /// silently widening the law; a future pass may want to fold this into an
-    /// explicit `DESIGN.md` amendment (mirroring the WYSIWYG conceal-on-cursor
-    /// round's own "settled 2026-07" `PHILOSOPHY.md` amendment) rather than
-    /// leaving it as an unstated one-off.
-    CopyPulse,
-    /// SETTINGS MENU: Enter on a TOGGLE row (page mode / wysiwyg / spellcheck / …).
-    /// The core can't flip a process-global-and-persist (no config path / GPU), so it
-    /// signals the sticky `key` back for the caller to (a) flip the live global +
-    /// re-render this frame, (b) `persist_pref` the negated value into `config.toml`,
-    /// and (c) refresh the STILL-OPEN menu's value cell (`App::setting_toggle`). The
-    /// core leaves the overlay open (the menu stays up); the `key` is the config key
-    /// from [`crate::settings::toggle_key`]. Headless replay reflects nothing (the
-    /// capture path has no live global setter / config write) — a no-op there.
-    SettingToggle {
-        key: String,
-    },
-    /// SETTINGS MENU: Enter COMMITTED an inline VALUE edit (page widths / zoom). The
-    /// core built + committed the typed `value` for config `key`; it can't parse-clamp-
-    /// apply-persist (no config path / GPU / zoom owner), so it signals the raw typed
-    /// string back for the caller to parse + clamp through its `RangeSpec`,
-    /// apply LIVE (`page::set_measure` via `sync_page_measure`
-    /// / `set_zoom`), persist the NAMED key, and refresh the still-open menu's cell
-    /// (`App::setting_value_commit`). The core already cleared the value-edit sub-state
-    /// (the menu stays open). Headless replay reflects nothing (no live setter / config).
-    SettingValueCommit {
-        key: String,
-        value: String,
-    },
-    SettingPathPick {
-        key: String,
-        path: String,
-    },
-    SettingRangeStep {
-        key: String,
-    },
-    /// ASSET CLEANER: Enter on an orphan row REQUESTED that its file (root-relative
-    /// `rel`) be moved to the OS Trash. The pure core can't reach the Trash / the
-    /// filesystem (no root, no [`crate::assets::TrashCan`]), so it signals `rel` back
-    /// for the live App to (a) trash `self.root.join(rel)` via the trash seam and (b),
-    /// on success, REMOVE that row from the still-open picker
-    /// ([`crate::overlay::OverlayState::remove_asset_row`]) — the picker stays open. The
-    /// core leaves the overlay OPEN and does NOT remove the row (the determinism gate:
-    /// a headless `--keys` replay no-ops this effect, so its orphan list stays whole
-    /// and the sidecar never claims a file was trashed that wasn't). A trash FAILURE
-    /// leaves the row + shows a calm notice. LIVE-APP-ONLY; a default `--screenshot`
-    /// never reaches it (the command is summon-by-name).
-    TrashAsset {
-        rel: String,
-    },
-    /// SAVE-FEEDBACK round: manual save (`Action::Save`) on the TRUE scratch
-    /// surface — no path, never named as a note — cannot be performed by the
-    /// core alone (converting it into a real document needs the ACTIVE
-    /// folder, which `ActionCtx` doesn't carry — a project-level concern, not
-    /// a buffer one). The caller (live App / headless `--keys` replay) calls
-    /// [`crate::buffer::Buffer::save_into_folder`] with its own active
-    /// folder — reusing the SAME auto-name machinery `App::ensure_note_named_before_paste`
-    /// already established for the paste-image door — then finishes the
-    /// bookkeeping a normal save would have (title, go-to index, sticky page
-    /// measure, a "saved"/"save failed: …" notice). A buffer that is ALREADY a
-    /// note (even unnamed) or already pathed never produces this — see the
-    /// `Action::Save` arm's own gate. USER-FLIPPABLE (logged): a future
-    /// preference could make this notice-only instead ("nothing to save yet —
-    /// start a note first") rather than silently promoting scratch to a note.
-    ConvertScratchAndSave,
-    SaveDone {
-        ok: bool,
-        message: String,
-    },
-    /// NOTES VERBS round: the RENAME minibuffer committed (Enter while the Rename
-    /// overlay's `rename_edit` sub-state was active) — the core already CLOSED the
-    /// overlay; `new_name` is the typed filename for the caller to act on. The pure
-    /// core can't touch the filesystem, so the caller ([`crate::app::App::rename_current_file`])
-    /// performs the actual disk rename + the ONE-owner path-keyed bookkeeping (buffer
-    /// path, history log, file index) — refusing calmly (a notice, no write) on a
-    /// git-managed file or a name collision, never clobbering. An UNCHANGED or blank
-    /// typed name is a quiet no-op (the caller's own gate). LIVE-APP-ONLY: the
-    /// headless `--keys` replay treats this like `MoveDest`'s own accept (reflected in
-    /// the sidecar via the overlay's live prompt while typing; the actual disk rename
-    /// is live-App-only, mirroring `move_current_file`'s own precedent), so a settled
-    /// capture never mutates the filesystem.
-    RenameNoteCommit {
-        new_name: String,
-    },
-    /// NOTES VERBS round: DUPLICATE the current file (`Action::DuplicateNote`) — the
-    /// pure core can't reach the filesystem, so it signals the request for the caller
-    /// to copy the CURRENT buffer content to an auto-named sibling (the same
-    /// no-clobber dedup [`crate::buffer::unique_path`] uses) and open the copy as the
-    /// active buffer (parking the original first, so its own live edits are never
-    /// lost — a fresh history timeline, since the copy is a genuinely new file). A
-    /// pathless buffer (scratch / an unnamed note) is a calm no-op — there is nothing
-    /// to duplicate yet. See [`crate::app::App::duplicate_current_file`].
-    DuplicateNote,
-    InsertDate,
 }
 
 /// Apply one resolved `action` to the editor core. `shift` is whether Shift was
@@ -358,61 +96,76 @@ pub enum Effect {
 /// pure core can't. Mutates only what `ActionCtx` exposes; no GPU, window, or
 /// clipboard.
 fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    match action {
+    let effect = match action {
         Action::ToggleCaretMode => {
             crate::caret::toggle_mode();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::CaretMode))
         }
         Action::TogglePageMode => {
             crate::page::toggle();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::PageMode))
         }
         Action::PageWider => {
             crate::page::widen();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::PageWidth))
         }
         Action::PageNarrower => {
             crate::page::narrow();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::PageWidth))
         }
         Action::PageReset => {
             crate::page::set_measure(ctx.buffer.page_class().default_measure());
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::PageReset))
         }
         Action::ToggleDebug => {
             crate::debug::toggle();
+            Effect::None
         }
         Action::ToggleOutline => {
             crate::outline::toggle();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::Outline))
         }
         Action::ToggleFold => {
             ctx.buffer.toggle_fold_at_cursor();
+            Effect::None
         }
         Action::CollapseOtherSections => {
             ctx.buffer.collapse_other_sections();
+            Effect::None
         }
         Action::ToggleMenuBar => {
             crate::menubar::toggle();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::MenuBar))
         }
         Action::ToggleTypewriter => {
             crate::typewriter::toggle();
+            Effect::Persistence(PersistenceEffect::Preference(PreferenceEffect::Typewriter))
         }
         Action::ShowStatsHud => {
             crate::hud::set_held(true);
+            Effect::None
         }
-        Action::About => {
-            crate::about::set_open(true);
-        }
+        Action::About => Effect::Surface(SurfaceEffect::ShowAbout),
         Action::LifetimeStats => {
             crate::lifetime::set_open(true);
+            Effect::None
         }
         Action::WritingStreaks => {
             crate::streaks::set_open(true);
+            Effect::Persistence(PersistenceEffect::Preference(
+                PreferenceEffect::WritingStreaks,
+            ))
         }
         Action::ConvertLineEndings => {
             ctx.buffer.set_eol(ctx.buffer.eol().toggled());
+            Effect::None
         }
-        Action::ReportProblem => return Some(Effect::ReportProblem),
-        Action::DownloadFile => return Some(Effect::DownloadFile),
-        Action::CheckForUpdates => return Some(Effect::CheckForUpdates),
+        Action::ReportProblem => Effect::ReportProblem,
+        Action::DownloadFile => Effect::DownloadFile,
+        Action::CheckForUpdates => Effect::CheckForUpdates,
         _ => return None,
-    }
-    Some(Effect::None)
+    };
+    Some(effect)
 }
 
 fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> bool {
@@ -460,7 +213,13 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::DeleteToLineStart => ctx.buffer.delete_to_line_start(),
         Action::DeleteForward => ctx.buffer.delete_forward(),
         Action::KillLine => kill_line_motion(ctx),
-        Action::Yank => ctx.buffer.yank(),
+        Action::YankText => ctx.buffer.yank(),
+        Action::InsertImageReference(reference) => {
+            let (_, col) = ctx.buffer.cursor_line_col();
+            let text = image_reference_text(col == 0, reference);
+            let at = ctx.buffer.cursor_char();
+            ctx.buffer.replace_char_range(at, at, &text);
+        }
         Action::Undo => {
             ctx.buffer.undo();
             *ctx.shift_selecting = false;
@@ -489,8 +248,8 @@ fn apply_viewport_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::ZoomIn => *ctx.zoom = crate::range::ZOOM.stepped(*ctx.zoom, 1),
         Action::ZoomOut => *ctx.zoom = crate::range::ZOOM.stepped(*ctx.zoom, -1),
         Action::ZoomReset => *ctx.zoom = crate::range::ZOOM.default,
-        Action::PageScrollDown => scroll_page(ctx.buffer, ctx.scroll_page_lines, true),
-        Action::PageScrollUp => scroll_page(ctx.buffer, ctx.scroll_page_lines, false),
+        Action::PageScrollDown => scroll_page(ctx, true),
+        Action::PageScrollUp => scroll_page(ctx, false),
         _ => return false,
     }
     true
@@ -498,22 +257,8 @@ fn apply_viewport_action(ctx: &mut ActionCtx, action: &Action) -> bool {
 
 fn apply_session_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let effect = match action {
-        Action::Save => {
-            if ctx.buffer.path().is_none() && !ctx.buffer.is_unnamed_fresh() {
-                Effect::ConvertScratchAndSave
-            } else {
-                match ctx.buffer.save() {
-                    Ok(()) => Effect::SaveDone {
-                        ok: true,
-                        message: "saved".to_string(),
-                    },
-                    Err(e) => Effect::SaveDone {
-                        ok: false,
-                        message: format!("save failed: {e}"),
-                    },
-                }
-            }
-        }
+        Action::Yank => Effect::Clipboard(ClipboardEffect::PasteImage),
+        Action::Save => Effect::Persistence(PersistenceEffect::Save(SaveKind::Manual)),
         Action::Quit => Effect::Quit,
         Action::Cancel => {
             ctx.buffer.clear_mark();
@@ -542,8 +287,8 @@ fn apply_session_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
 
 fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let effect = match action {
-        Action::LastBuffer => Effect::LastBuffer,
-        Action::NewDocument => Effect::NewDocument,
+        Action::LastBuffer => Effect::Buffer(BufferEffect::Previous { finished: false }),
+        Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
         Action::MoveFile => {
             *ctx.overlay = (ctx.browse_to)(crate::overlay::OverlayKind::MoveDest, None);
             Effect::None
@@ -559,17 +304,14 @@ fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
             Effect::None
         }
         Action::DuplicateNote => Effect::DuplicateNote,
-        Action::OpenSettings => Effect::OpenSettings,
-        Action::OpenCredits => Effect::OpenCredits,
-        Action::OpenGuide => Effect::OpenGuide,
+        Action::OpenSettings => Effect::Buffer(BufferEffect::OpenSettings),
+        Action::OpenCredits => Effect::Buffer(BufferEffect::OpenCredits),
+        Action::OpenGuide => Effect::Buffer(BufferEffect::OpenGuide),
         Action::OpenSettingsMenu => {
             *ctx.overlay = (ctx.make_overlay)(crate::overlay::OverlayKind::Settings);
             Effect::None
         }
-        Action::FinishBuffer => {
-            let _ = ctx.buffer.save();
-            Effect::FinishBuffer
-        }
+        Action::FinishBuffer => Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish)),
         Action::FollowLink => {
             crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
                 .map(Effect::FollowLink)
@@ -717,7 +459,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // Toggling spellcheck is a pure render/detection concern (no buffer change).
         // The process-global flip lives HERE on the shared seam (like the page/caret
         // toggles); `App::apply` persists the sticky pref + forces an immediate
-        // rescan as a post-`apply_core` side effect the core can't reach. A
+        // rescan as a post-`apply_transition` side effect the core can't reach. A
         // `--keys "..."` capture renders (and records in its sidecar) the toggled
         // state — every `misspellings_for`/`suggest_at` call already reads the
         // global fresh, so the flip is visible with no extra plumbing headlessly.
@@ -822,7 +564,8 @@ macro_rules! classify_action_family {
             | Action::DeleteToLineStart
             | Action::DeleteForward
             | Action::KillLine
-            | Action::Yank
+            | Action::YankText
+            | Action::InsertImageReference(_)
             | Action::Undo
             | Action::Redo
             | Action::SetMark
@@ -834,7 +577,8 @@ macro_rules! classify_action_family {
             | Action::ZoomReset
             | Action::PageScrollDown
             | Action::PageScrollUp => ActionFamily::Viewport,
-            Action::Save
+            Action::Yank
+            | Action::Save
             | Action::Quit
             | Action::Cancel
             | Action::SearchForward
@@ -983,7 +727,7 @@ fn dispatch_action(ctx: &mut ActionCtx, action: &Action) -> Effect {
     }
 }
 
-pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
+fn apply_transition_primary(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // Serializes this whole action against any other thread's global-touching
     // test, under test only (see [`crate::testlock`]): `about_open()` /
     // `lifetime_open()` are read unconditionally just below, for every action, so
@@ -1033,7 +777,7 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     // shared interception seam (`crate::search::keys::intercept`) — the live
     // window's search guard (`app/input/keys.rs`) and the headless replay's
     // guard (`main/run.rs::replay_keys_mode`) are the same code — so no key
-    // path can reach `apply_core` with `ctx.search` still `Some`. The old
+    // path can reach `apply_transition` with `ctx.search` still `Some`. The old
     // Action-level Tab/OpenReplace intercept that lived here (the partial
     // headless mirror from before the seam existed) was retired with it:
     // same behavior must be same code, not an aligned copy.
@@ -1060,6 +804,12 @@ pub fn apply_core(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Effect {
     let effect = dispatch_action(ctx, action);
 
     finish_action(ctx, action, snapshot, effect)
+}
+
+/// Apply the one shared editor transition and return every typed request.
+pub fn apply_transition(ctx: &mut ActionCtx, action: &Action, shift: bool) -> Transition {
+    let primary = apply_transition_primary(ctx, action, shift);
+    effects::complete(primary, action)
 }
 
 #[cfg(test)]

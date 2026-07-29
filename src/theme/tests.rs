@@ -3858,7 +3858,7 @@ fn unguarded_choke_point_probe_serializes_its_active_reads() {
 
 /// Production's own guarded action window is not a restore boundary. The theme
 /// picker preview is a real product write and must remain active after
-/// `apply_core` returns even when the caller did not already hold the test lock.
+/// `apply_transition` returns even when the caller did not already hold the test lock.
 #[test]
 fn a_world_a_production_action_sets_survives_that_action() {
     use crate::actions::ActionCtx;
@@ -3866,7 +3866,7 @@ fn a_world_a_production_action_sets_survives_that_action() {
     use crate::overlay::{OverlayKind, OverlayState};
 
     // Keep the ONE mutex held across arrange / action / observation / cleanup,
-    // while `apply_core` requests its own product guard reentrantly. This avoids
+    // while `apply_transition` requests its own product guard reentrantly. This avoids
     // the retired law's defect: it dropped the lock around its observation and
     // briefly exposed its deliberately changed world to compliant sibling tests.
     let _probe = crate::testlock::product();
@@ -3894,11 +3894,11 @@ fn a_world_a_production_action_sets_survives_that_action() {
         oracle: None,
     };
 
-    crate::actions::apply_core(&mut ctx, &Action::LineEnd, false);
+    crate::actions::apply_transition(&mut ctx, &Action::LineEnd, false).primary();
     assert_eq!(
         crate::testlock::product_requests(),
         product_requests_before + 1,
-        "apply_core must request the product door, not the checked test door"
+        "apply_transition must request the product door, not the checked test door"
     );
     let previewed = overlay
         .as_ref()

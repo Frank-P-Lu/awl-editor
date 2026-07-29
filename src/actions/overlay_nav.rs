@@ -1,9 +1,7 @@
 //! Modal navigation-overlay actions, shared by live input and `--keys` replay.
 
 use super::*;
-
 const OVERLAY_PAGE: isize = 12;
-
 fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.overlay.as_ref().unwrap().rename_edit.as_ref()?;
     let overlay = ctx.overlay.as_mut().unwrap();
@@ -120,7 +118,7 @@ fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
 /// than only in `App`) is exactly what makes the overlay drivable under `--keys` — the
 /// same mistake the isearch panel made (its query routing lives in `App`, so `--keys`
 /// can't type into it) is deliberately avoided here. Returns the one [`Effect`] the key
-/// signals back; `apply_core` returns it directly (the overlay is modal, so the key
+/// signals back; `apply_transition` returns it directly (the overlay is modal, so the key
 /// never reaches the buffer).
 pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect {
     if let Some(effect) = rename_edit_intercept(ctx, action) {
@@ -749,7 +747,9 @@ fn dispatch_settings_row(
             *ctx.overlay = None;
             match row.id {
                 crate::settings::SettingId::ReportProblem => Effect::ReportProblem,
-                crate::settings::SettingId::EditConfigAsText => Effect::OpenSettings,
+                crate::settings::SettingId::EditConfigAsText => {
+                    Effect::Buffer(BufferEffect::OpenSettings)
+                }
                 _ => Effect::None,
             }
         }

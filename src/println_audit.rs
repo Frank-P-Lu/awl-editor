@@ -81,12 +81,15 @@ const EXPECTED: &[(&str, usize)] = &[
     // an Unsupported/Intercepted effect; CLI diagnostic output by design, and the
     // same string is recorded in the replay result so tests pin it). (The 8th is the
     // virtual-clock frame-loop capture's own "wrote N frame(s)…" deliverable line.)
-    // ITEM 77 FOLLOW-UP: the 9th is `load_buffer`'s own refusal line — the
+    // ITEM 77 FOLLOW-UP: `load_buffer`'s own refusal line is the
     // headless capture door's analog of `App::new`'s sticky notice (there is
     // no live App/notice seam here to route through), reported the same way
     // every other CLI-only diagnostic in this file is: a stderr line naming
     // what happened before the capture proceeds on a scratch buffer instead.
-    ("main/run.rs", 9),
+    // Item 171 moved the permissive replay warning into the typed effect
+    // interpreter; the total count stays unchanged across the two files.
+    ("main/run.rs", 8),
+    ("main/run/effect_interpreter.rs", 1),
     // `--storyboard`'s deliverable output (the run summary + "wrote film…"),
     // plus the BEST-EFFORT film-encode notes ("no ffmpeg on PATH", a nonzero
     // ffmpeg exit, a non-UTF-8 output path) — CLI product + diagnostics by

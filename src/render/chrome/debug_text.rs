@@ -93,7 +93,7 @@ impl TextPipeline {
     /// parking the label off-screen. Called only by the live App's zoom debounce
     /// (`App::mark_zoom_dirty` arms it, `about_to_wait` clears it on settle); the
     /// headless capture/replay path never calls this (zoom mirrors through
-    /// `apply_core`, never `mark_zoom_dirty`), so a default capture — and every
+    /// `apply_transition`, never `mark_zoom_dirty`), so a default capture — and every
     /// `--keys` replay — stays byte-identical.
     pub fn set_zoom_readout(&mut self, r: Option<(f32, f32, f32)>) {
         self.zoom_readout = r;

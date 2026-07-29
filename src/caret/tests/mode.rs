@@ -138,7 +138,7 @@ fn caret_demo_choreography_types_edits_then_loops_and_settles() {
     assert_eq!(d.cursor_char(), 1);
     assert_eq!(d.beat_index(), 0, "the timeline starts on beat 0");
     // Drive the timeline: it should type the WHOLE sample line out (each beat a real
-    // apply_core InsertChar), reaching the full line char-by-char.
+    // apply_transition InsertChar), reaching the full line char-by-char.
     let mut typed_full = false;
     for _ in 0..4000 {
         d.step(0.016);

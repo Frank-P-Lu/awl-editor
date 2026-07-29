@@ -14,11 +14,11 @@ use crate::overlay::OverlayKind;
 fn tab_without_a_search_is_a_plain_soft_tab_through_core() {
     // With NO search live, Tab is a plain soft-tab insert. The IN-PANEL Tab
     // (reveal / flip the replace field) deliberately no longer lives in
-    // `apply_core` at all: while the panel is open EVERY key is consumed
+    // `apply_transition` at all: while the panel is open EVERY key is consumed
     // BEFORE keymap resolution by the ONE shared interception seam
     // (`crate::search::keys::intercept` — the live guard and the headless
     // replay guard are the same code, and its own tests cover the panel's
-    // whole operation set), so `apply_core` can never see an in-panel key.
+    // whole operation set), so `apply_transition` can never see an in-panel key.
     let mut b = Buffer::from_str("alpha beta alpha");
     b.set_cursor(0);
     let mut search = None;
@@ -37,7 +37,7 @@ fn cmd_r_opens_replace_revealed_with_focus_on_find_through_core() {
     // door, drivable through the core so `--keys "Cmd-r"` sets the sidecar.
     // (Cmd-R / Tab WITHIN the already-open panel are the search-key seam's job
     // — `crate::search::keys::tests::tab_and_cmd_r_move_between_the_two_fields`
-    // — never `apply_core`'s: the shared guard consumes them first.)
+    // — never `apply_transition`'s: the shared guard consumes them first.)
     let mut b = Buffer::from_str("alpha beta alpha");
     b.set_cursor(0);
     let mut search = None;
@@ -132,15 +132,15 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let eff = apply_core(&mut ctx, &Action::InsertTab, false);
+    let eff = apply_transition(&mut ctx, &Action::InsertTab, false).primary();
     assert_eq!(eff, Effect::None, "the focus shift is picker-internal");
     {
         let ov = ctx.overlay.as_ref().expect("Tab keeps the picker open");
         assert!(ov.diff_focus, "focus moved INTO the diff panel");
     }
     // Panel focus: ↑/↓ scroll the diff (never the version selection), PgDn pages.
-    apply_core(&mut ctx, &Action::NextLine, false);
-    apply_core(&mut ctx, &Action::NextLine, false);
+    apply_transition(&mut ctx, &Action::NextLine, false).primary();
+    apply_transition(&mut ctx, &Action::NextLine, false).primary();
     assert_eq!(
         ctx.overlay.as_ref().unwrap().diff_scroll,
         2,
@@ -151,7 +151,7 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
         1,
         "the version selection held"
     );
-    apply_core(&mut ctx, &Action::PageScrollDown, false);
+    apply_transition(&mut ctx, &Action::PageScrollDown, false).primary();
     assert_eq!(
         ctx.overlay.as_ref().unwrap().diff_scroll,
         2 + ctx.scroll_page_lines.max(1),
@@ -159,7 +159,7 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     );
     // Typing is swallowed under panel focus (a list affordance; the panel holds
     // the keys) — the query stays empty and the buffer is untouched.
-    apply_core(&mut ctx, &Action::InsertChar('q'), false);
+    apply_transition(&mut ctx, &Action::InsertChar('q'), false).primary();
     assert_eq!(
         ctx.overlay.as_ref().unwrap().query,
         "",
@@ -167,12 +167,12 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     );
     // Tab again returns focus to the LIST; ↑/↓ move the selection once more
     // (and the selection move re-tops the diff scroll).
-    apply_core(&mut ctx, &Action::InsertTab, false);
+    apply_transition(&mut ctx, &Action::InsertTab, false).primary();
     assert!(
         !ctx.overlay.as_ref().unwrap().diff_focus,
         "Tab toggles back to the list"
     );
-    apply_core(&mut ctx, &Action::PreviousLine, false);
+    apply_transition(&mut ctx, &Action::PreviousLine, false).primary();
     assert_eq!(
         ctx.overlay.as_ref().unwrap().selected,
         0,
@@ -222,7 +222,7 @@ fn history_picker_pgdn_scrolls_the_diff_from_list_focus_too() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, &Action::PageScrollDown, false);
+    apply_transition(&mut ctx, &Action::PageScrollDown, false).primary();
     {
         let ov = ctx.overlay.as_ref().unwrap();
         assert_eq!(
@@ -232,7 +232,7 @@ fn history_picker_pgdn_scrolls_the_diff_from_list_focus_too() {
         assert_eq!(ov.selected, 0, "the version selection never paged");
         assert!(!ov.diff_focus, "list focus retained");
     }
-    apply_core(&mut ctx, &Action::PageScrollUp, false);
+    apply_transition(&mut ctx, &Action::PageScrollUp, false).primary();
     assert_eq!(
         ctx.overlay.as_ref().unwrap().diff_scroll,
         0,
@@ -256,7 +256,7 @@ fn history_picker_empty_state_enter_is_a_no_op_close() {
 #[test]
 fn about_opens_and_any_key_dismisses_it() {
     // `Action::About` OPENS the summoned card (a process global, mirroring
-    // `hud`/`debug` — see `about.rs`); the VERY NEXT key through `apply_core`
+    // `hud`/`debug` — see `about.rs`); the VERY NEXT key through `apply_transition`
     // (ANY action at all — a plain motion here, deliberately not Esc) closes
     // it again and is otherwise consumed (no other effect: the cursor must
     // not move even though `ForwardChar` normally would).
@@ -266,8 +266,15 @@ fn about_opens_and_any_key_dismisses_it() {
     let mut sel = false;
     let cursor0 = b.cursor_char();
 
-    drive_shift(&mut b, &mut sel, &Action::About, false);
-    assert!(crate::about::about_open(), "Action::About opens the card");
+    let effect = drive_shift(&mut b, &mut sel, &Action::About, false);
+    assert_eq!(
+        effect,
+        Effect::Surface(SurfaceEffect::ShowAbout),
+        "Action::About describes the platform-owned surface"
+    );
+    // Exercise the non-macOS/headless interpreter's deterministic surface.
+    crate::about::set_open(true);
+    assert!(crate::about::about_open(), "the interpreter opens the card");
     assert_eq!(
         b.cursor_char(),
         cursor0,
@@ -300,7 +307,7 @@ fn about_opens_and_any_key_dismisses_it() {
 fn lifetime_stats_opens_and_any_key_dismisses_it() {
     // `Action::LifetimeStats` OPENS the summoned card (a process global,
     // mirroring About — see `lifetime.rs`); the VERY NEXT key through
-    // `apply_core` (ANY action — a plain motion here, deliberately not Esc)
+    // `apply_transition` (ANY action — a plain motion here, deliberately not Esc)
     // closes it again and is otherwise consumed (the cursor must not move even
     // though `ForwardChar` normally would).
     let _g = crate::testlock::serial();
@@ -347,7 +354,7 @@ fn lifetime_stats_opens_and_any_key_dismisses_it() {
 
 #[test]
 fn streaks_card_arrows_flip_the_view_and_any_other_key_dismisses() {
-    // THE VIEW-TOGGLE LAWS, through the REAL `apply_core` seam a `--keys
+    // THE VIEW-TOGGLE LAWS, through the REAL `apply_transition` seam a `--keys
     // "Left Right"` replay rides: while the Writing-streaks card is open, ←/→
     // FLIP its page (heatmap ⇄ cumulative) — consumed, the card stays open, the
     // caret never moves; ← then → lands back on the heatmap (the round-trip
@@ -544,7 +551,7 @@ fn cancel_clears_a_shift_selection() {
 #[test]
 fn every_classified_motion_extends_shift_selection_and_no_mover_is_missing() {
     // COMPLETENESS SWEEP over the hand-kept `Action::is_motion` list (the gate
-    // of `apply_core`'s selection-on-motion state machine). For EVERY variant
+    // of `apply_transition`'s selection-on-motion state machine). For EVERY variant
     // (the list is compile-time-complete — see `all_actions`), driven with
     // shift=true from a mid-document cursor:
     //   * a classified MOTION must set the mark at the pre-motion cursor,
@@ -556,10 +563,10 @@ fn every_classified_motion_extends_shift_selection_and_no_mover_is_missing() {
     // Several arms flip process-globals (page/caret/focus/debug/hud/about), so
     // hold those TEST_LOCKs and snapshot/restore the globals. `about` is in this
     // set because the sweep drives `Action::About` (which opens the card)
-    // through the SAME apply_core seam every other action rides — a concurrent
+    // through the SAME apply_transition seam every other action rides — a concurrent
     // test flipping the about global without this lock would otherwise leak its
     // state into (or steal it from) this sweep's iterations. Order is safe
-    // regardless: `apply_core` holds ONE reentrant process-wide lock for its
+    // regardless: `apply_transition` holds ONE reentrant process-wide lock for its
     // whole call, so there is no acquire ORDER left to invert — a
     // page-then-about sequence here can't ABBA no matter which comes first.
     let _pg = crate::testlock::serial();
@@ -630,7 +637,7 @@ fn every_classified_motion_extends_shift_selection_and_no_mover_is_missing() {
         }
         // `Action::About` OPENS the About card (a process global, unlike every
         // other sweep member here) — reset it after each iteration so it can
-        // never leak into the NEXT action in this same sweep (apply_core's
+        // never leak into the NEXT action in this same sweep (apply_transition's
         // top-of-function About-dismiss intercept would otherwise swallow it).
         // The Lifetime stats card's open-global has the SAME property (its own
         // dismiss intercept), so reset it too.
@@ -666,6 +673,32 @@ fn history_restore_via_set_text_is_one_undoable_edit() {
     assert_eq!(buffer.text(), "edited", "C-/ undoes the restore");
 }
 
+fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
+    match action {
+        Action::Quit => effect == &Effect::Quit,
+        Action::LastBuffer => effect == &Effect::Buffer(BufferEffect::Previous { finished: false }),
+        Action::NewDocument => effect == &Effect::Buffer(BufferEffect::NewDocument),
+        Action::OpenCredits => effect == &Effect::Buffer(BufferEffect::OpenCredits),
+        Action::OpenGuide => effect == &Effect::Buffer(BufferEffect::OpenGuide),
+        Action::FinishBuffer => {
+            effect == &Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish))
+        }
+        Action::FollowLink => matches!(effect, Effect::FollowLink(_)),
+        Action::ReportProblem => effect == &Effect::ReportProblem,
+        Action::DownloadFile => effect == &Effect::None,
+        Action::CheckForUpdates => effect == &Effect::CheckForUpdates,
+        Action::DuplicateNote => effect == &Effect::DuplicateNote,
+        Action::InsertDate => effect == &Effect::InsertDate,
+        Action::ExportWord => effect == &Effect::Export(crate::export::Format::Docx),
+        Action::ExportHtml => effect == &Effect::Export(crate::export::Format::Html),
+        #[cfg(not(target_arch = "wasm32"))]
+        Action::ExportPdf => effect == &Effect::Export(crate::export::Format::Pdf),
+        #[cfg(target_arch = "wasm32")]
+        Action::ExportPdf => effect == &Effect::None,
+        other => panic!("{other:?} classified Deferred but has no effect check"),
+    }
+}
+
 #[test]
 fn every_catalog_command_dispatches_without_panicking() {
     // Many catalog arms flip a process-global (page / caret / debug / hud / spell
@@ -673,8 +706,8 @@ fn every_catalog_command_dispatches_without_panicking() {
     // building an overlay, so hold each global's TEST_LOCK and snapshot /
     // restore every one, so this sweep leaves NO residue and never races a
     // concurrent reader. `about`/`lifetime` are in the set because the sweep
-    // drives `Action::About` / `Action::LifetimeStats` via the same apply_core
-    // seam. Order is safe regardless: `apply_core` holds ONE reentrant
+    // drives `Action::About` / `Action::LifetimeStats` via the same apply_transition
+    // seam. Order is safe regardless: `apply_transition` holds ONE reentrant
     // process-wide lock (`testlock::serial()`) for its whole call, so there is
     // no acquire ORDER left to invert — a page-then-about/lifetime sequence
     // here can't ABBA no matter which comes first.
@@ -728,7 +761,7 @@ fn every_catalog_command_dispatches_without_panicking() {
     };
 
     for c in crate::commands::COMMANDS.iter() {
-        // The About card's "open" global OWNS the very next key (apply_core's
+        // The About card's "open" global OWNS the very next key (apply_transition's
         // top-of-fn dismiss intercept), so reset it before EACH dispatch — else
         // a prior `Action::About` iteration would make the next command a no-op
         // dismiss instead of running it. The Lifetime stats and Writing streaks
@@ -760,7 +793,7 @@ fn every_catalog_command_dispatches_without_panicking() {
                 browse_to: &mut browse_to,
                 oracle: None,
             };
-            apply_core(&mut ctx, &c.action, false)
+            apply_transition(&mut ctx, &c.action, false).primary()
         };
 
         // COHERENCE: the buffer is still a valid rope and the cursor is in range
@@ -789,50 +822,20 @@ fn every_catalog_command_dispatches_without_panicking() {
                 "{}: an overlay-summoning command left no overlay open",
                 c.name
             ),
-            // The exact deferred effect the core signals back.
-            SmokeKind::Deferred => {
-                let ok = match &c.action {
-                    Action::Quit => eff == Effect::Quit,
-                    Action::LastBuffer => eff == Effect::LastBuffer,
-                    Action::NewDocument => eff == Effect::NewDocument,
-                    Action::OpenCredits => eff == Effect::OpenCredits,
-                    Action::OpenGuide => eff == Effect::OpenGuide,
-                    Action::FinishBuffer => eff == Effect::FinishBuffer,
-                    // Caret sits inside the fixture link, so a URL resolves.
-                    Action::FollowLink => matches!(eff, Effect::FollowLink(_)),
-                    Action::ReportProblem => eff == Effect::ReportProblem,
-                    // WEB-ONLY: this sweep drives the RAW `COMMANDS` catalog on
-                    // the native test binary, where `web_only: true` gates
-                    // `DownloadFile` off entirely at `apply_core`'s dispatch
-                    // belt (`commands::action_available`) — the effect is
-                    // structurally `None` here, never `Effect::DownloadFile`
-                    // (that only ever fires under `Platform::Web`; see
-                    // `commands.rs`'s `action_available` doc).
-                    Action::DownloadFile => eff == Effect::None,
-                    Action::CheckForUpdates => eff == Effect::CheckForUpdates,
-                    Action::DuplicateNote => eff == Effect::DuplicateNote,
-                    Action::InsertDate => eff == Effect::InsertDate,
-                    // The smoke fixture is a markdown buffer, so export signals
-                    // its format for the live App to render + write.
-                    Action::ExportWord => eff == Effect::Export(crate::export::Format::Docx),
-                    Action::ExportHtml => eff == Effect::Export(crate::export::Format::Html),
-                    // PDF export is native-only; on wasm `Format::Pdf` does not exist
-                    // and the apply arm yields no effect.
-                    #[cfg(not(target_arch = "wasm32"))]
-                    Action::ExportPdf => eff == Effect::Export(crate::export::Format::Pdf),
-                    #[cfg(target_arch = "wasm32")]
-                    Action::ExportPdf => eff == Effect::None,
-                    other => panic!("{other:?} classified Deferred but has no effect check"),
-                };
-                assert!(ok, "{}: unexpected deferred effect {:?}", c.name, eff);
-            }
-            // In-place commands: no panic is the assertion; About also flips its
-            // global (checked so a broken card summon is caught).
+            SmokeKind::Deferred => assert!(
+                deferred_effect_matches(&c.action, &eff),
+                "{}: unexpected deferred effect {:?}",
+                c.name,
+                eff
+            ),
+            // In-place commands: no panic is the assertion; About's platform
+            // request is pinned explicitly.
             SmokeKind::InPlace => {
                 if c.action == Action::About {
-                    assert!(
-                        crate::about::about_open(),
-                        "About must summon the card (its open global)"
+                    assert_eq!(
+                        eff,
+                        Effect::Surface(SurfaceEffect::ShowAbout),
+                        "About must request its platform-owned surface"
                     );
                 }
                 if c.action == Action::LifetimeStats {

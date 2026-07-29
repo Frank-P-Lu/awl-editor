@@ -105,7 +105,7 @@ fn blocked_recoil_leaves_buffer_and_cursor_untouched() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, &Action::ForwardChar, false);
+    apply_transition(&mut ctx, &Action::ForwardChar, false).primary();
     let _ = ctx;
     assert_eq!(buffer.text(), before_text);
     assert_eq!(buffer.cursor_char(), before_cursor);
@@ -309,7 +309,7 @@ fn boundary_motions_bump_only_when_blocked() {
     // below — the shift-selection sweep already proves every motion actually moves
     // the point from there) must NOT recoil and must actually move the cursor. This
     // pins "the bump fires only when the motion did not move the cursor" at the
-    // `apply_core` seam, for every wall on both sides.
+    // `apply_transition` seam, for every wall on both sides.
     let no_wall = "alpha beta\ngamma delta\nepsilon zeta\n";
     for action in all_actions() {
         if !action.is_motion() {

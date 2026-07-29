@@ -220,7 +220,7 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
         Action::NextLine,
         Action::DeleteBackward,
     ] {
-        app.apply_core_for_test(&act);
+        app.apply_transition_for_test(&act);
     }
     assert_eq!(
         app.active.buffer.text(),
@@ -234,15 +234,15 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
     );
     // Esc from panel focus returns to the LIST; a second Esc closes — two
     // Escs total from panel to home, and the buffer text is back untouched.
-    app.apply_core_for_test(&Action::InsertTab); // focus the panel
+    app.apply_transition_for_test(&Action::InsertTab); // focus the panel
     assert!(app.overlay.as_ref().unwrap().diff_focus);
-    app.apply_core_for_test(&Action::Cancel);
+    app.apply_transition_for_test(&Action::Cancel);
     assert!(
         app.overlay.is_some(),
         "first Esc: back to LIST focus, not home"
     );
     assert!(!app.overlay.as_ref().unwrap().diff_focus);
-    app.apply_core_for_test(&Action::Cancel);
+    app.apply_transition_for_test(&Action::Cancel);
     assert!(app.overlay.is_none(), "second Esc closes the picker");
     assert_eq!(
         app.active.buffer.version(),

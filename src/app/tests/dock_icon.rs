@@ -6,7 +6,7 @@
 //! adoption hung off the preview. It does not, and the reason is structural
 //! rather than careful — `crate::app_icon::adopt` is reachable from exactly two
 //! places, both settled: startup after the sticky theme is restored, and the
-//! `theme_committed` arm of [`App::post_apply_effects`], the same guard that
+//! `theme_committed` arm of [`App::post_transition_effects`], the same guard that
 //! decides whether the sticky preference is written at all. The preview path
 //! ([`App::retint_theme_preview`]) re-tints pipelines and defers a reshape; it
 //! has no route to `app_icon`.
@@ -19,7 +19,7 @@
 use super::*;
 
 /// A FULL PREVIEW SWEEP — every world, through both preview doors (the direct
-/// re-tint and `post_apply_effects`'s preview arm) — moves the Dock ZERO times.
+/// re-tint and `post_transition_effects`'s preview arm) — moves the Dock ZERO times.
 #[test]
 fn a_theme_preview_sweep_never_adopts_a_dock_icon() {
     let _g = crate::testlock::serial();
@@ -34,7 +34,7 @@ fn a_theme_preview_sweep_never_adopts_a_dock_icon() {
         app.retint_theme_preview(before);
         // (b) the post-apply arm a preview keypress actually lands in: the
         // picker is still OPEN (`theme_overlay_before`) and nothing committed.
-        app.post_apply_effects(&Action::NextLine, true, false, before);
+        app.post_transition_effects(true, false, before);
     }
 
     assert_eq!(
@@ -64,14 +64,14 @@ fn a_theme_commit_adopts_the_settled_world_once() {
     // Preview a couple of worlds first (still no adoption), then commit a third.
     let start = crate::theme::active();
     crate::theme::set_active_by_name("Mangrove").unwrap();
-    app.post_apply_effects(&Action::NextLine, true, false, start);
+    app.post_transition_effects(true, false, start);
     crate::theme::set_active_by_name("Galah").unwrap();
-    app.post_apply_effects(&Action::NextLine, true, false, start);
+    app.post_transition_effects(true, false, start);
     assert_eq!(crate::app_icon::adoptions(), 0, "still only previews");
 
     let before = crate::theme::active();
     crate::theme::set_active_by_name("Wagtail").unwrap();
-    app.post_apply_effects(&Action::Newline, true, true, before);
+    app.post_transition_effects(true, true, before);
     assert_eq!(crate::app_icon::adoptions(), 1, "the commit adopts, once");
     assert_eq!(
         crate::app_icon::adopted(),
@@ -83,7 +83,7 @@ fn a_theme_commit_adopts_the_settled_world_once() {
     // just the first one.
     let before = crate::theme::active();
     crate::theme::set_active_by_name("Tawny").unwrap();
-    app.post_apply_effects(&Action::Newline, true, true, before);
+    app.post_transition_effects(true, true, before);
     assert_eq!(crate::app_icon::adoptions(), 2);
     assert_eq!(crate::app_icon::adopted(), Some("Tawny"));
     crate::theme::set_active(restore);

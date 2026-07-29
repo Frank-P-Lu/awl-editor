@@ -178,7 +178,7 @@ impl App {
         }
     }
 
-    /// PASTE-IMAGE'S NO-PATH PRE-SAVE (`App::try_paste_image`, `app/apply.rs`): a
+    /// PASTE-IMAGE'S NO-PATH PRE-SAVE (`App::paste_image_reference`, `app/apply.rs`): a
     /// path-less buffer — the bare scratch surface, or an unnamed fresh
     /// document — has no directory to hang an `assets/` folder off of. Give it
     /// one FIRST by reusing the EXISTING fresh-document auto-name save
@@ -192,7 +192,7 @@ impl App {
     /// already-in-progress fresh document (`note_dir` already set) is left
     /// pointed at its own dir. An EMPTY buffer has no first line to derive a name
     /// from yet — `autosave_note` (via `Buffer::save`) errs quietly and the
-    /// buffer stays path-less; the caller (`try_paste_image`) falls back to its
+    /// buffer stays path-less; the caller (`paste_image_reference`) falls back to its
     /// pre-existing absolute data-root location rather than blocking the paste.
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn ensure_note_named_before_paste(&mut self) {

@@ -589,7 +589,7 @@ fn buffer_endpoints_shift_intent_keys_on_the_chord_not_the_action() {
 
 #[test]
 fn shift_cmd_up_down_extend_to_document_bounds_through_the_live_apply_seam() {
-    // LIVE-PATH pin (the resolve → derive-shift → apply_core chain the window
+    // LIVE-PATH pin (the resolve → derive-shift → apply_transition chain the window
     // runs, minus winit event plumbing): resolve the real chord through the
     // persistent keymap exactly as `dispatch_pressed_key` does, derive the
     // shift flag through the ONE owner keyed on the pressed KEY, then apply.
@@ -640,7 +640,7 @@ fn shift_cmd_up_down_extend_to_document_bounds_through_the_live_apply_seam() {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        crate::actions::apply_core(&mut ctx, &action, shift);
+        crate::actions::apply_transition(&mut ctx, &action, shift).primary();
         buffer.selection_line_col()
     }
 

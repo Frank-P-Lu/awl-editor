@@ -504,7 +504,7 @@ fn burst_doc(
             crate::theme::set_active_by_name(name);
             let face = crate::theme::active().font;
 
-            // The live apply path: post_apply_effects -> sync_theme (this is where
+            // The live apply path: post_transition_effects -> sync_theme (this is where
             // the font-branch reshape — restyle_all_lines over every line — runs).
             let t0 = Instant::now();
             p.sync_theme();
