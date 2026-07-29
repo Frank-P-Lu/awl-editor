@@ -112,7 +112,8 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
             concat!("{{\"kind\":\"deckle\",\"ground\":{},\"layer\":{},",
                 "\"deckle\":{},\"weave\":\"{}\",\"anchor\":\"{}\",\"period_px\":{},",
                 "\"wander_px\":{},\"density\":{},\"static\":true}}"),
-            hex(ground), hex(layer), hex(deckle), weave.as_str(), anchor.as_str(), period_px, wander_px, density
+            hex(ground), hex(layer), hex(deckle), weave.as_str(), anchor.as_str(),
+            period_px, wander_px, density
         ), _ => unreachable!("rich background helper received a simple ground"),
     }
 }

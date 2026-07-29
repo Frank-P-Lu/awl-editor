@@ -1031,9 +1031,8 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
 /// static handmade-paper field, dialled to [`Weave::Strata`]. The material
 /// stays entirely in the margins: the page is flat, opaque `base_100`, and
 /// nothing here moves (no ambient capability, so `has_ambient_tick` is false by
-/// construction). TEMPERATURE IS UNTAGGED ON PURPOSE — the picker's Warm band
-/// is already at `axis_coverage_ruler`'s curated cap of four; WORLDS.md says
-/// why.
+/// construction). TEMPERATURE IS UNTAGGED ON PURPOSE: the Warm band is already
+/// at `axis_coverage_ruler`'s curated cap of four; WORLDS.md says why.
 pub const PAPERBARK: Theme = Theme {
     name: "Paperbark",
     dark: false,

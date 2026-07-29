@@ -2314,7 +2314,6 @@ fn background_desc() -> BgDesc {
         deckle_anchor: bg.deckle_anchor_mode(),
     }
 }
-
 /// The visual-line motion LAYOUT ORACLE, implemented on the GPU pipeline because
 /// it owns the SHAPED text (and hence the wrap geometry). Every query is answered
 /// from the same [`TextPipeline::visual_rows`] / [`pick_row`] / per-char `xs` the
