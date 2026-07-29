@@ -101,6 +101,38 @@ grep -l 'status=reused-recovery' "$WORK"/contender-*.out >/dev/null || {
   echo "test-disk-preflight: contenders did not reuse the in-lock recovery" >&2; exit 1;
 }
 
+# A process killed after metadata is written but before the hard-link publish
+# leaves no lock path. The next owner proceeds instead of inheriting an empty
+# or unparseable acquisition artifact.
+kill_owner="$WORK/kill-owner.sh"
+cat >"$kill_owner" <<'EOF'
+#!/usr/bin/env bash
+kill -KILL "$1"
+EOF
+chmod +x "$kill_owner"
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+if env AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
+  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
+  AWL_DISK_PREFLIGHT_AFTER_METADATA_COMMAND="$kill_owner" \
+  AWL_TEST_FREE_FILE="$WORK/free" \
+  AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
+  AWL_TEST_SWEEP_RESULT="$healthy_bytes" \
+  perl -e '$pid = fork; if (!$pid) { exec @ARGV } waitpid $pid, 0; exit (($? & 127) == 9 ? 42 : 1)' \
+  "$PREFLIGHT" >/dev/null 2>&1; then
+  killed_owner=0
+else
+  killed_owner=$?
+fi
+if [[ "$killed_owner" -ne 42 ]]; then
+  echo "test-disk-preflight: death-before-publish fixture unexpectedly returned" >&2; exit 1
+fi
+[[ ! -e "$WORK/lock" ]] || {
+  echo "test-disk-preflight: death-before-publish left an incomplete lock" >&2; exit 1;
+}
+run "$healthy_bytes" >/dev/null
+
 # MUTATION PROOF: deleting the in-lock recheck makes all stale contenders sweep.
 mutated="$WORK/disk-preflight-without-recheck.sh"
 cp "$PREFLIGHT" "$mutated"
@@ -116,18 +148,17 @@ wait
   echo "test-disk-preflight: mutation removing recheck did not fail contention law" >&2; exit 1;
 }
 
-# A SIGKILL leaves a lock directory, but never a live owner. A dead PID in
-# structured metadata is reclaimed; the receipt makes recovery observable.
+# A SIGKILL can leave only a fully published lock file: there is no empty
+# directory/owner-file window. A dead owner is reclaimed observably.
 stale_pid=$(( $$ + 100000000 ))
 while kill -0 "$stale_pid" 2>/dev/null; do
   stale_pid=$((stale_pid + 100000000))
 done
-mkdir "$WORK/lock"
-printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock/owner"
+printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock"
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
 stale_recovered="$(run "$healthy_bytes")"
-[[ "$stale_recovered" == *'status=recovered'* && "$stale_recovered" == *'stale_lock_reclaimed=1'* && ! -d "$WORK/lock" ]] || {
+[[ "$stale_recovered" == *'status=recovered'* && "$stale_recovered" == *'stale_lock_reclaimed=1'* && ! -e "$WORK/lock" ]] || {
   echo "test-disk-preflight: dead-owner lock was not safely reclaimed" >&2; exit 1;
 }
 
@@ -136,8 +167,7 @@ stale_mutated="$WORK/disk-preflight-without-stale-recovery.sh"
 cp "$PREFLIGHT" "$stale_mutated"
 perl -0pi -e 's/&& ! kill -0 "\$owner"/&& kill -0 "\$owner"/' "$stale_mutated"
 chmod +x "$stale_mutated"
-mkdir "$WORK/lock"
-printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock/owner"
+printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock"
 printf '%s\n' 1073741824 >"$WORK/free"
 if AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
@@ -149,8 +179,24 @@ if AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   "$stale_mutated" >"$WORK/stale-mutated.out" 2>"$WORK/stale-mutated.err"; then
   echo "test-disk-preflight: stale-owner mutation unexpectedly escaped the lock" >&2; exit 1
 fi
-rm -f "$WORK/lock/owner"
-rmdir "$WORK/lock"
+rm -f "$WORK/lock"
+
+# Cleanup is identity-safe. Replacing the published inode just before EXIT
+# must leave the replacement behind for its new owner.
+replacement="$WORK/replacement.sh"
+cat >"$replacement" <<'EOF'
+#!/usr/bin/env bash
+rm -f "$1"
+printf 'pid=%s caller=replacement-owner\n' "$$" >"$1"
+EOF
+chmod +x "$replacement"
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND="$replacement" run "$healthy_bytes" >/dev/null
+grep -Fq 'caller=replacement-owner' "$WORK/lock" || {
+  echo "test-disk-preflight: old cleanup removed a replacement lock inode" >&2; exit 1;
+}
+rm -f "$WORK/lock"
 
 # The real df path consumes POSIX -P's 1 KiB Available field. This fixture is
 # the common macOS/Linux shape and proves Bash receives an integer byte count.

@@ -65,20 +65,40 @@ if (( free_bytes >= HEALTHY_BYTES )); then
 fi
 
 STALE_LOCK_RECLAIMED=0
-while ! mkdir "$LOCK" 2>/dev/null; do
-  owner="$(sed -n 's/^pid=\([1-9][0-9]*\) caller=.*/\1/p' "$LOCK/owner" 2>/dev/null || true)"
-  if [[ "$owner" =~ ^[1-9][0-9]*$ ]] && ! kill -0 "$owner" 2>/dev/null; then
-    # A SIGKILL can skip the EXIT trap. Only a recorded, dead PID is safe to
-    # reclaim; an unparseable or live lock remains another owner's boundary.
-    rm -f "$LOCK/owner"
-    rmdir "$LOCK" 2>/dev/null || true
-    STALE_LOCK_RECLAIMED=1
+OWNER_TEMP="$(mktemp "${LOCK}.owner.XXXXXX")"
+printf 'pid=%s caller=%s\n' "$$" "$CALLER" >"$OWNER_TEMP"
+remove_own_lock() {
+  if [[ -e "$LOCK" && "$LOCK" -ef "$OWNER_TEMP" ]]; then
+    rm -f "$LOCK"
+  fi
+  rm -f "$OWNER_TEMP"
+}
+trap remove_own_lock EXIT
+
+# The hard link publishes a complete metadata-bearing inode, or nothing. A
+# killed contender can therefore leave only a parseable dead-owner lock.
+if [[ -n "${AWL_DISK_PREFLIGHT_AFTER_METADATA_COMMAND:-}" ]]; then
+  "$AWL_DISK_PREFLIGHT_AFTER_METADATA_COMMAND" "$$"
+fi
+while ! ln "$OWNER_TEMP" "$LOCK" 2>/dev/null; do
+  stale_snapshot="$(mktemp "${LOCK}.stale.XXXXXX")"
+  rm -f "$stale_snapshot"
+  if ! ln "$LOCK" "$stale_snapshot" 2>/dev/null; then
+    rm -f "$stale_snapshot"
+    sleep 0.1
     continue
   fi
+  owner="$(sed -n 's/^pid=\([1-9][0-9]*\) caller=.*/\1/p' "$stale_snapshot" 2>/dev/null || true)"
+  if [[ "$owner" =~ ^[1-9][0-9]*$ ]] && ! kill -0 "$owner" 2>/dev/null \
+    && [[ "$LOCK" -ef "$stale_snapshot" ]]; then
+    # A SIGKILL can skip the EXIT trap. Only a recorded, dead PID is safe to
+    # reclaim; identity checks keep a later owner's inode out of this cleanup.
+    rm -f "$LOCK"
+    STALE_LOCK_RECLAIMED=1
+  fi
+  rm -f "$stale_snapshot"
   sleep 0.1
 done
-printf 'pid=%s caller=%s\n' "$$" "$CALLER" >"$LOCK/owner"
-trap 'rm -f "$LOCK/owner"; rmdir "$LOCK" 2>/dev/null || true' EXIT
 
 # A contender can have observed low space before the first owner recovered.
 # The in-lock read is the concurrency boundary: without it every waiter sweeps.
@@ -93,5 +113,8 @@ run_sweep
 free_bytes="$(available_bytes)"
 if (( free_bytes < MINIMUM_BYTES )); then
   fail_insufficient "$free_bytes" "sweep-1d" "$MINIMUM_BYTES" "$HEALTHY_BYTES" fleet
+fi
+if [[ -n "${AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND:-}" ]]; then
+  "$AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND" "$LOCK"
 fi
 receipt recovered fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
