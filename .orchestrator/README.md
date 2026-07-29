@@ -20,6 +20,27 @@ than the change. A bounded, already-diagnosed fix is not worth a dispatch.
 Give every worker an explicit model and effort chosen for the role. Inheritance
 is valid only when the brief records why the same model and effort fit.
 
+## Concurrent worker build budget
+
+The orchestration layer owns the CPU policy for concurrent workers. On this
+ten-core host, every concurrently dispatched worker runs build or gate commands
+through `.orchestrator/worker-build.sh`; it sets and receipts
+`CARGO_BUILD_JOBS=2`, so four workers schedule at most eight Cargo jobs in
+aggregate and leave interactive headroom. The wrapper is the sole budget owner:
+workers and repository gate scripts do not set a competing value.
+
+The root's isolated merge-train gate, CI, and a developer's lone build do not
+use the wrapper and remain hardware-adaptive. The wrapper is intentionally a
+launch seam, not `.cargo/config.toml`; it passes its environment through to
+native, wasm, and other scripts without changing what those gates run or claim.
+When dispatching, state the wrapper command in the worker brief and report its
+receipt with the gate outcome, for example:
+
+```sh
+.orchestrator/worker-build.sh scripts/native-gate.sh
+.orchestrator/worker-build.sh scripts/web-smoke.sh
+```
+
 ## Mutation proof is part of the deliverable
 
 **A law that was never watched failing is not evidence.** The author breaks the
