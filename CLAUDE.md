@@ -19,6 +19,8 @@ cargo build && cargo test        # from the repo root
 
 Incremental builds only (a clean rebuild is slow — no `cargo clean`). Edit in place, matching the file's own style. Judge feel in `--release`: dev frames are 10–20× slower, so perf claims are only honest there.
 
+To RUN it on macOS use `scripts/dev-app.sh`, not `cargo run`: a bare binary has no bundle, so the menu bar reads `awl` and Stage Manager draws the generic tile — two surfaces macOS will not honor without one (docs/platform.md).
+
 ## Verify headlessly
 
 ```sh
