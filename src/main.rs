@@ -103,6 +103,10 @@ mod lifetime;
 // like `mac_chrome` beside it (which owns every other AppKit door).
 mod mac_about;
 mod mac_chrome;
+// The macOS PRODUCT-IDENTITY laws (item 167): the bundle contract lives in
+// shell, and the surfaces it governs are live-only, so its structure is
+// asserted here. Test-only by its own inner `cfg`.
+mod macos_identity_law;
 mod markdown;
 // The MAS (Mac App Store / App Sandbox) flavor exists only in its supported
 // macOS configuration. `--all-features` on another target must not compile a

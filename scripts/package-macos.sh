@@ -77,13 +77,76 @@ if ! command -v cargo >/dev/null 2>&1; then
   export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
 fi
 
+# --- THE BUNDLE-IDENTITY CONTRACT (one owner) --------------------------------
+#
+# macOS reads a live app's product identity out of the bundle, not out of the
+# process. Everything the OS is willing to honor comes from these keys plus the
+# icon file they name, so they are asserted in ONE place — called by the
+# assembly path below AND by `--verify`, so the gate and the build can never
+# drift into checking different things.
+#
+# The split this exists to protect: Finder, the menu bar, Stage Manager and the
+# app switcher all display the CAPITALISED product name, while the executable —
+# and therefore the CLI command a person types — stays lowercase `awl`. A future
+# plist edit that merges those two contracts fails here.
+verify_bundle_identity() {
+  local app="$1"
+  local contents="$app/Contents"
+  local plist="$contents/Info.plist"
+  local root fail=0
+  root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+  if [ ! -f "$plist" ]; then
+    echo "!! $plist missing — not an assembled bundle" >&2
+    return 1
+  fi
+  bundle_value() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>/dev/null; }
+  check() { # <label> <actual> <expected>
+    if [ "$2" != "$3" ]; then
+      echo "!! bundle identity: $1 is '$2', expected '$3'" >&2
+      fail=1
+    fi
+  }
+
+  # DISPLAYED identity — capitalised, everywhere macOS shows a product name.
+  check CFBundleName "$(bundle_value CFBundleName)" "Awl"
+  check CFBundleDisplayName "$(bundle_value CFBundleDisplayName)" "Awl"
+  # TYPED identity — lowercase, the command and the executable on disk.
+  check CFBundleExecutable "$(bundle_value CFBundleExecutable)" "awl"
+  if [ ! -x "$contents/MacOS/awl" ]; then
+    echo "!! bundle identity: $contents/MacOS/awl is missing or not executable" >&2
+    fail=1
+  fi
+
+  # THE ICON macOS reads for the surfaces that ignore the running app's own
+  # `setApplicationIconImage` — Finder, and Stage Manager. Named by the plist,
+  # present in Resources/, and byte-identical to the committed canonical icon,
+  # so a stale copy can never ship in its place.
+  check CFBundleIconFile "$(bundle_value CFBundleIconFile)" "Awl.icns"
+  if [ ! -f "$contents/Resources/Awl.icns" ]; then
+    echo "!! bundle identity: Contents/Resources/Awl.icns is missing" >&2
+    fail=1
+  elif ! cmp -s "$root/assets/macos/Awl.icns" "$contents/Resources/Awl.icns"; then
+    echo "!! bundle identity: bundled Awl.icns differs from assets/macos/Awl.icns" >&2
+    fail=1
+  fi
+
+  if [ "$fail" -ne 0 ]; then
+    echo "!! bundle identity check FAILED for $app" >&2
+    return 1
+  fi
+  echo "==> bundle identity OK: Awl / Awl / awl / Awl.icns  ($app)"
+}
+
 MAS=0
 RECLAIM=0
+VERIFY_ONLY=0
 POSITIONAL=()
 for arg in "$@"; do
   case "$arg" in
     --mas) MAS=1 ;;
     --reclaim) RECLAIM=1 ;;
+    --verify) VERIFY_ONLY=1 ;;
     -h|--help)
       sed -n '2,68p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
@@ -92,6 +155,15 @@ for arg in "$@"; do
   esac
 done
 [ "${CI:-}" = "true" ] && RECLAIM=1
+
+# `--verify <path-to-Awl.app>`: assert an ALREADY-ASSEMBLED bundle's identity
+# and exit. This is the native packaging gate — it builds nothing, so it is
+# cheap enough to run against any bundle a dev or CI job has produced.
+if [[ "$VERIFY_ONLY" -eq 1 ]]; then
+  APP_TO_VERIFY="${POSITIONAL[0]:?usage: package-macos.sh --verify <path-to-Awl.app>}"
+  verify_bundle_identity "$APP_TO_VERIFY"
+  exit $?
+fi
 
 if [[ "$MAS" -eq 1 ]]; then
   command -v cargo >/dev/null 2>&1 || { echo "!! cargo not found on PATH" >&2; exit 1; }
@@ -228,15 +300,7 @@ cat >> "$CONTENTS/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# Package identity is deliberately separate from the command-line identity:
-# Finder/AppKit display the capitalised product name while the executable path
-# remains `awl`. Fail assembly if a future plist edit merges those contracts.
-bundle_value() {
-  /usr/libexec/PlistBuddy -c "Print :$1" "$CONTENTS/Info.plist"
-}
-test "$(bundle_value CFBundleName)" = "Awl"
-test "$(bundle_value CFBundleDisplayName)" = "Awl"
-test "$(bundle_value CFBundleExecutable)" = "awl"
+verify_bundle_identity "$APP"
 
 echo "==> Awl.app assembled"
 

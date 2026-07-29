@@ -63,6 +63,23 @@
 - **Not a theme surface.** The artwork is `icon_bytes()` — the canonical bundle icon — never `applicationIconImage`, which `app_icon::adopt` swaps per world.
 - **Capture gate:** the AppKit half is live-only (a `--screenshot` run has no window server). What IS mechanically checked: every word (`facts.rs` — the placeholder sweep over the whole knowledge lattice, plus the tagline/credit/URL pins to README, NOTICE, Cargo.toml and `site/`), every frame (`layout.rs` — swept over 0..=4 provenance lines for zero extents, bounds, overlap, centring, traffic-light clearance), every ink and the absence of any divider (`ink.rs`, over real captures), single-window reuse, the Esc / Cmd-W contract, the icon's identity, and the routing sweep across the full command roster. **Whether the composition reads as authored is human-confirmed, never claimed by the harness.**
 
+## Running awl on macOS in development (`scripts/dev-app.sh`) — macOS only
+
+- **The supported dev launch is `scripts/dev-app.sh`, not `cargo run`.** It builds (`--release` by default — feel is judged there), assembles `target/dev-app/Awl.app` through `scripts/package-macos.sh` (the same canonical `Info.plist` writer and the same committed `assets/macos/Awl.icns` a release uses — there is no second source of product identity), registers it with LaunchServices, verifies the identity contract, and opens it. `--debug`, `--no-launch`, and `-- <args to awl>` are the knobs.
+- **What a bare binary cannot do, measured 2026-07-29 (item 167).** macOS reads a live app's product identity out of its BUNDLE, not out of the process:
+
+  | surface | bare `target/release/awl` | `scripts/dev-app.sh` bundle | source macOS reads |
+  |---|---|---|---|
+  | menu bar (app menu title) | `awl` | `Awl` | `CFBundleName`, falling back to the process name |
+  | Stage Manager tile | **no icon at all** | the canonical Awl icon | the icon LaunchServices registered for the bundle |
+  | ⌘-Tab name | `awl` | `Awl` | same as the menu bar |
+  | ⌘-Tab / Dock icon | the active world | the active world | the running app's own `setApplicationIconImage` |
+
+- **The limitation is real and is not worked around.** The menu-bar name and the Stage Manager icon **cannot** be fixed on a bare binary: neither consults anything the process can set at runtime, and the only lever left would be spoofing the process title — which lies about what is running. awl does not do that; it ships the bundle instead. A bare `cargo run` is still perfectly good for everything except those two surfaces, and it is not advertised as equivalent.
+- **Tripwire: assembling the bundle is not enough for Stage Manager.** A locally built `.app` in a build directory is not somewhere LaunchServices has looked, and until `lsregister -f` runs, Stage Manager draws the **generic blueprint tile** — the exact defect item 167 was raised for, still present on a freshly assembled bundle. `dev-app.sh` registers it; a release never needs to, because dragging `Awl.app` out of the DMG into `/Applications` registers it. Dropping that call would silently regress the surface and nothing else in the repo would notice, which is why `macos_identity_law.rs` asserts it.
+- **The two icon consumers stay split (unchanged).** Stage Manager and Finder read the BUNDLE icon, so they always show the canonical default-world artwork and never follow the session. The Dock and ⌘-Tab tiles follow the active world through `app_icon::adopt`, exactly as before — a theme *commit* adopts once, a preview sweep adopts zero times (`app/tests/dock_icon.rs`).
+- **The identity contract has one owner:** `verify_bundle_identity` in `scripts/package-macos.sh`, called by the assembly path and by `scripts/package-macos.sh --verify <app>` (the native packaging gate). It asserts `CFBundleName`/`CFBundleDisplayName` = `Awl`, `CFBundleExecutable` = `awl` — the displayed name is capitalised, the typed command is not — plus `CFBundleIconFile` and that the bundled `Awl.icns` is byte-identical to the committed canonical one. `macos_identity_law.rs` guards the structure of all of it, since the surfaces themselves are live-only.
+
 ## Session restore (`session.rs` + `app/session.rs`) — native only
 
 - A plain relaunch reopens the previous session: open files, the active one, each file's cursor/scroll (small ints, never a content snapshot — disk is the source of truth), and the window frame. Composes with the scratch stash (which still owns the no-path scratch buffer).
