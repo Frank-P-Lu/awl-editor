@@ -1103,10 +1103,14 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Cassowary",
         baseline: 20.7490234375,
     },
+    // Item 121: Firetail's icon cursor moved Pill -> Block, which pulled it
+    // and Potoroo (both Block, same face, near-identical base_100 ground)
+    // closer on this axis — 32.87 -> 25.94, still inside the danger zone,
+    // reviewed and re-blessed at the new measured value.
     Blessed {
         a: "Potoroo",
         b: "Firetail",
-        baseline: 32.8740234375,
+        baseline: 25.939453125,
     },
     Blessed {
         a: "Galah",
@@ -1147,10 +1151,13 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Mulga",
         baseline: 67.619140625,
     },
+    // Item 121: Firetail's larger Block slab (vs the old Pill) shifted its
+    // mean channel distance from every other world's tile slightly — Tawny
+    // moved 69.75 -> 66.60, re-blessed at the new measured value.
     Blessed {
         a: "Tawny",
         b: "Firetail",
-        baseline: 69.74609375,
+        baseline: 66.6005859375,
     },
     // ITEM 158 — the same pale-warm ground cluster as DIFFERING_BLESSED's own
     // Paperbark note; Bilby/Galah and Bilby/Saltpan are already blessed here
@@ -1177,10 +1184,16 @@ const MEAN_BLESSED: &[Blessed] = &[
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
 const INK_BLESSED: &[Blessed] = &[
+    // Item 121: Firetail's Block cursor now shares Potoroo's exact silhouette
+    // as well as its face and near-black ground, closing more of their ink —
+    // 54.31% -> 49.81%, re-blessed at the new measured value. This is the
+    // pair's global-minimum status the module doc already names; see
+    // `confusable_pairs_never_share_a_logo_cursor`'s doc for why the
+    // preset-split strategy was retired for this pair on purpose.
     Blessed {
         a: "Potoroo",
         b: "Firetail",
-        baseline: 0.5430711610486891,
+        baseline: 0.4981132075471698,
     },
     // Item 161's restrained lift moved Bilby's rendered ink.
     Blessed {
@@ -1444,9 +1457,14 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 /// The stricter 20% tier the two hand-picked pairs used to carry is GONE, not
 /// weakened: its premise (same face ⇒ at risk) is false by measurement above,
 /// applying it to the computed same-face set would fail today, and the one real
-/// thing it pinned — Potoroo/Firetail's silhouette doing the work its palette
-/// does not — is now pinned harder and roster-wide by the `ink` axis, on which
-/// that pair IS the global minimum and sits first in `INK_BLESSED`.
+/// thing it pinned — Potoroo/Firetail told apart, back when their silhouettes
+/// (Block vs Pill) did work their near-identical palette did not — is now
+/// pinned harder and roster-wide by the `ink` axis, on which that pair IS the
+/// global minimum and sits first in `INK_BLESSED`. Item 121 moved Firetail
+/// onto Potoroo's own Block preset, retiring the silhouette split on purpose
+/// (`confusable_pairs_never_share_a_logo_cursor`'s doc); the pair crowded
+/// further on this axis (54.31% -> 49.81%, still the global minimum) and on
+/// `mean` (re-blessed in `MEAN_BLESSED`), which this law caught and named.
 ///
 /// Non-vacuity: adding a world that clones an existing palette and preset
 /// drives `differing` to ~1% and trips the floor and the danger zone, naming

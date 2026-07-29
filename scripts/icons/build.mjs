@@ -257,7 +257,7 @@ function overviewPage(manifest, tuning, surface, faceOf) {
       title: `awl icon candidates — ${surface}`,
       surface,
       body: `<div class="sheet"><h1>awl app icons — every candidate</h1>
-<p class="sub">${manifest.worlds.length} worlds &times; 3 logo-cursor presets, at 128px, on a ${surface} surface. Colors are the world's own ground / base_content / primary / primary_content.</p>
+<p class="sub">18 worlds &times; 3 logo-cursor presets, at 128px, on a ${surface} surface. Colors are the world's own base_100 / base_content / primary / primary_content.</p>
 <div class="strip">${rows}</div></div>`,
     }),
   };
