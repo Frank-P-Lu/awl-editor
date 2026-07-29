@@ -153,7 +153,7 @@ impl BackgroundPipeline {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, desc: BgDesc) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("background shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../../shaders/background.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../shaders/background.wgsl").into()),
         });
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
