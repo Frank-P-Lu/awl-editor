@@ -37,9 +37,8 @@ pub const LAVA_FROZEN_PHASE: f32 = 0.0;
 /// modest margin. TASTE TUNABLE — flagged for live review.
 pub const MARGIN_GAP_PX: f32 = 28.0;
 
-/// Maximum blobs the shader's uniform carries. Control deliberately leaves four
-/// slots unused: changing this capacity is invisible until the developer-only
-/// trial selector chooses the twelve-body arm.
+/// Maximum blobs the shader's uniform carries — exactly [`BACKDROP_BLOBS`]'s
+/// population, so every slot is authored and live.
 pub const MAX_BLOBS: usize = 12;
 
 /// ONE continuous backdrop field, authored in viewport UV and wholly independent
@@ -47,34 +46,22 @@ pub const MAX_BLOBS: usize = 12;
 /// radius as a fraction of viewport height, and field weight. Several blobs sit
 /// behind the ordinary page footprint on purpose; widening/narrowing the page
 /// only occludes/reveals this same composition instead of manufacturing two
-/// separately-sized side lamps.
-pub const BACKDROP_BLOBS: [[f32; 4]; 8] = [
-    // COMPOSITION-C2: radii shrunk ~15% (user — "starting lava lamp spots… kinda
-    // massive"). Centers/weights and the whole authored COMPOSITION are unchanged,
-    // so more calm ground shows between/around the lamps while the layout still
-    // reads as one continuous field. SHARED by both lava worlds (Firetail +
-    // Mangrove read the same field — a per-world fork for the identical "a tad
-    // smaller" ask would be machinery the design doesn't need; the shrink IS the
-    // data). Every lava LAW (figure/ground at worst phase, rail-flat, frost,
-    // seamless loop) re-verified green after the shrink.
-    [0.08, 0.18, 0.120, 0.90],
-    [0.16, 0.50, 0.153, 1.05],
-    [0.12, 0.82, 0.136, 0.95],
-    [0.38, 0.68, 0.178, 1.10],
-    [0.58, 0.30, 0.170, 1.00],
-    [0.86, 0.18, 0.120, 0.90],
-    [0.82, 0.50, 0.153, 1.05],
-    [0.88, 0.82, 0.136, 0.95],
-];
-
-/// The reversible twelve-body trial. Large masses remain legible, while the
-/// smaller satellites make each margin read as a field rather than two banks.
-/// Average radius is 10.1% below control; both lava worlds intentionally share
-/// this one authored layout.
-pub const TWELVE_BLOBS: [[f32; 4]; 12] = [
+/// separately-sized side lamps. SHARED by both lava worlds (Firetail + Mangrove
+/// read the same field — a per-world fork would be machinery the design doesn't
+/// need). The user-approved twelve-body population: a wide large/medium/
+/// satellite hierarchy (mean radius ~0.131, firmer than the prior eight-body
+/// field's ~0.146) keeps the large masses legible while the satellites make
+/// each margin read as a field rather than two banks, exposing a healthier
+/// population in both margins than the eight-body predecessor did.
+pub const BACKDROP_BLOBS: [[f32; 4]; 12] = [
     [0.06, 0.14, 0.130, 0.92],
     [0.18, 0.38, 0.165, 1.00],
-    [0.07, 0.67, 0.140, 0.95],
+    // cy calibrated to 0.75 (from the trial's 0.67) so this satellite's own
+    // reach seeds the bottom-left GUTTER's frost pocket — a fixed corner probe
+    // (`theme::tests::gutter_frost_pill_keeps_ink_contrast_on_every_lava_world`)
+    // the trial never exercised (it always read the eight-body control field).
+    // Radius/weight, and every other body, are the approved trial data verbatim.
+    [0.07, 0.75, 0.140, 0.95],
     [0.23, 0.86, 0.104, 0.86],
     [0.35, 0.58, 0.145, 1.00],
     [0.62, 0.29, 0.138, 1.00],
@@ -86,37 +73,12 @@ pub const TWELVE_BLOBS: [[f32; 4]; 12] = [
     [0.48, 0.50, 0.133, 0.95],
 ];
 
-/// Startup-only developer A/B selector. It is deliberately absent from normal
-/// configuration and CLI help: unset (or `control`) is the shipping field.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LavaFieldTrial {
-    Control,
-    Twelve,
-}
-
-pub fn field_trial() -> LavaFieldTrial {
-    static TRIAL: OnceLock<LavaFieldTrial> = OnceLock::new();
-    *TRIAL.get_or_init(
-        || match std::env::var("AWL_LAVA_FIELD_TRIAL").ok().as_deref() {
-            Some("twelve") => LavaFieldTrial::Twelve,
-            _ => LavaFieldTrial::Control,
-        },
-    )
-}
-
-pub fn active_blobs() -> &'static [[f32; 4]] {
-    match field_trial() {
-        LavaFieldTrial::Control => &BACKDROP_BLOBS,
-        LavaFieldTrial::Twelve => &TWELVE_BLOBS,
-    }
-}
-
-fn active_horizontal_sway() -> f32 {
-    match field_trial() {
-        LavaFieldTrial::Control => 1.0,
-        LavaFieldTrial::Twelve => 0.52,
-    }
-}
+/// The shader's horizontal-sway multiplier (`shaders/lava.wgsl`'s `blob_center`
+/// reads it as `g.anim.y`): firms the silhouette and keeps the lamp's ambient
+/// drift reading mainly VERTICAL, down from a prior field's full (1.0)
+/// horizontal amplitude. MUST match the same constant folded into
+/// [`animated_center`] below, the pure mirror every geometry law reads.
+pub const LAVA_HORIZONTAL_SWAY: f32 = 0.52;
 
 // --- FROST constants (the shipped headed-doc treatment) -----------------------
 //
@@ -367,7 +329,9 @@ pub fn lava_mask_2d(
 
 /// The ANIMATED center (UV space) of base blob `i` at `phase` (in cycles) — the
 /// slow lava bob, a per-blob sine keyed off the index so the lamps never move in
-/// unison. MUST match `shaders/lava.wgsl`'s `blob_center`. Pure.
+/// unison. Horizontal amplitude is scaled by [`LAVA_HORIZONTAL_SWAY`] so ambient
+/// drift reads mainly vertical. MUST match `shaders/lava.wgsl`'s `blob_center`
+/// (which reads the same multiplier off `g.anim.y`). Pure.
 #[allow(dead_code)]
 pub fn animated_center(
     i: usize,
@@ -382,32 +346,11 @@ pub fn animated_center(
     // Horizontal sway follows the authored viewport-relative radius, so the
     // whole backdrop scales coherently with the window, never with page width.
     let aspect = viewport.1.max(1.0) / viewport.0.max(1.0);
-    let amp_x = base_r * aspect * (0.18 + 0.08 * (fi * 0.61).fract());
+    let amp_x = base_r * aspect * (0.18 + 0.08 * (fi * 0.61).fract()) * LAVA_HORIZONTAL_SWAY;
     let off = fi * 1.7;
     let cy = base_cy + amp_y * (phase * TAU + off).sin();
     let cx = base_cx + amp_x * (phase * TAU * 0.5 + off * 1.3).sin();
     (cx, cy)
-}
-
-#[cfg(test)]
-fn animated_center_with_sway(
-    i: usize,
-    base_cx: f32,
-    base_cy: f32,
-    base_r: f32,
-    viewport: (f32, f32),
-    phase: f32,
-    sway: f32,
-) -> (f32, f32) {
-    let fi = i as f32;
-    let amp_y = 0.055 + 0.020 * (fi * 0.37).fract();
-    let aspect = viewport.1.max(1.0) / viewport.0.max(1.0);
-    let amp_x = base_r * aspect * (0.18 + 0.08 * (fi * 0.61).fract()) * sway;
-    let off = fi * 1.7;
-    (
-        base_cx + amp_x * (phase * TAU * 0.5 + off * 1.3).sin(),
-        base_cy + amp_y * (phase * TAU + off).sin(),
-    )
 }
 
 /// The summed metaball FIELD at pixel `px` (physical px), the Gaussian-falloff
@@ -925,18 +868,18 @@ impl LavaPipeline {
         };
         self.active = true;
         let mut blobs = [[0.0f32; 4]; MAX_BLOBS];
-        for (dst, src) in blobs.iter_mut().zip(active_blobs().iter()) {
+        for (dst, src) in blobs.iter_mut().zip(BACKDROP_BLOBS.iter()) {
             *dst = *src;
         }
         let globals = Globals {
             viewport: [width as f32, height as f32],
             field_viewport: field_viewport([width as f32, height as f32], settled_field_viewport),
-            blob_count: active_blobs().len() as u32,
+            blob_count: BACKDROP_BLOBS.len() as u32,
             dither: dithered as u32,
             rail: rail_carved as u32,
             gutter: gutter_rect.is_some() as u32,
             margin: [col_left, col_left + col_w, MARGIN_GAP_PX, edge.mask_mode()],
-            anim: [phase, active_horizontal_sway(), 0.0, 0.0],
+            anim: [phase, LAVA_HORIZONTAL_SWAY, 0.0, 0.0],
             ground: srgb_u8_to_linear(ground),
             blob_lo: srgb_u8_to_linear(blob_lo),
             blob_hi: srgb_u8_to_linear(blob_hi),
@@ -1055,86 +998,237 @@ mod tests {
     }
 
     #[test]
-    fn backdrop_layout_has_no_page_geometry_input() {
+    fn backdrop_layout_is_the_twelve_body_field_with_no_page_geometry_input() {
         let vp = (1200.0, 800.0);
         assert_eq!(
             BACKDROP_BLOBS.len(),
-            8,
-            "control remains the exact eight-body field"
-        );
-        assert!(
-            BACKDROP_BLOBS.len() < MAX_BLOBS,
-            "trial capacity does not make control bodies live"
+            MAX_BLOBS,
+            "the shipped field is the full twelve-body population"
         );
         for b in BACKDROP_BLOBS {
             assert!((0.0..=1.0).contains(&b[0]));
             assert!((0.0..=1.0).contains(&b[1]));
             assert!(
-                b[2] * vp.1 >= 90.0,
-                "backdrop blob is substantial at 1200×800 (floor lowered from 100 \
-                 to 90 for the COMPOSITION-C2 ~15% shrink — still a real lamp, not a dot)"
+                b[2] * vp.1 >= 75.0,
+                "backdrop blob is substantial at 1200×800 — still a real lamp, not a dot"
             );
         }
     }
 
     #[test]
-    fn twelve_trial_has_a_smaller_three_scale_population_and_quieter_sway() {
-        assert_eq!(
-            TWELVE_BLOBS.len(),
-            MAX_BLOBS,
-            "every trial uniform slot is authored"
-        );
-        let control_mean =
-            BACKDROP_BLOBS.iter().map(|b| b[2]).sum::<f32>() / BACKDROP_BLOBS.len() as f32;
-        let trial_mean = TWELVE_BLOBS.iter().map(|b| b[2]).sum::<f32>() / TWELVE_BLOBS.len() as f32;
+    fn lava_field_has_a_three_scale_population_and_a_firmer_mean_radius() {
+        let mean = BACKDROP_BLOBS.iter().map(|b| b[2]).sum::<f32>() / BACKDROP_BLOBS.len() as f32;
         assert!(
-            (trial_mean / control_mean - 0.90).abs() < 0.02,
-            "trial mean radius {trial_mean:.4} is not about 10% below control {control_mean:.4}"
+            (mean - 0.131).abs() < 0.01,
+            "mean radius {mean:.4} drifted off the approved firmer silhouette (target ~0.131, \
+             about 10% below the prior eight-body field's ~0.146)"
         );
-        let small = TWELVE_BLOBS.iter().filter(|b| b[2] <= 0.105).count();
-        let medium = TWELVE_BLOBS
+        let small = BACKDROP_BLOBS.iter().filter(|b| b[2] <= 0.105).count();
+        let medium = BACKDROP_BLOBS
             .iter()
             .filter(|b| (0.120..0.150).contains(&b[2]))
             .count();
-        let large = TWELVE_BLOBS.iter().filter(|b| b[2] >= 0.155).count();
+        let large = BACKDROP_BLOBS.iter().filter(|b| b[2] >= 0.155).count();
         assert!(
             small >= 3 && medium >= 5 && large >= 2,
-            "trial hierarchy vanished: {small} small, {medium} medium, {large} large"
-        );
-        let base = TWELVE_BLOBS[1];
-        let a =
-            animated_center_with_sway(1, base[0], base[1], base[2], (5120.0, 2756.0), 0.0, 0.52);
-        let b =
-            animated_center_with_sway(1, base[0], base[1], base[2], (5120.0, 2756.0), 0.5, 0.52);
-        assert!(
-            (a.0 - b.0).abs() < 0.04,
-            "trial horizontal sway is not contained"
+            "the large/medium/satellite hierarchy vanished: {small} small, {medium} medium, \
+             {large} large"
         );
     }
 
     #[test]
-    fn twelve_trial_contributes_to_both_margins_across_the_geometry_sweep() {
-        // A body contributes when its centre or nominal-radius disk reaches the
-        // visible margin; this is intentionally a geometry law, not a sidecar
-        // proxy for pixels.
-        for (w, h, left, right) in [
-            (1200.0, 800.0, 260.0, 940.0),
-            (800.0, 1200.0, 80.0, 720.0),
-            (2560.0, 1378.0, 570.0, 1990.0),
-            (5120.0, 2756.0, 1140.0, 3980.0),
-        ] {
-            let mut left_n = 0;
-            let mut right_n = 0;
-            for (i, b) in TWELVE_BLOBS.iter().enumerate() {
-                let (cx, _) = animated_center_with_sway(i, b[0], b[1], b[2], (w, h), 0.0, 0.52);
-                let radius_x = b[2] * h / w;
-                left_n += ((cx - radius_x) < left / w) as usize;
-                right_n += ((cx + radius_x) > right / w) as usize;
+    fn lava_ambient_drift_reads_mainly_vertical() {
+        // The horizontal excursion of every body over the full loop stays well
+        // under half its own vertical excursion, in real pixels — the reduced
+        // `LAVA_HORIZONTAL_SWAY` firming the silhouette so ambient drift reads
+        // mainly vertical. The bound sits comfortably above the shipped worst
+        // case (~0.32) but below what a reverted full-strength (1.0) sway would
+        // produce (~0.61) — the axis a wide-sway regression trips first.
+        for &(w, h) in &[(1200.0_f32, 800.0), (700.0, 1200.0)] {
+            for (i, b) in BACKDROP_BLOBS.iter().enumerate() {
+                let (mut min_x, mut max_x, mut min_y, mut max_y) =
+                    (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+                for step in 0..200 {
+                    let phase = step as f32 * LAVA_LOOP_CYCLES / 200.0;
+                    let (cx, cy) = animated_center(i, b[0], b[1], b[2], (w, h), phase);
+                    let (px, py) = (cx * w, cy * h);
+                    min_x = min_x.min(px);
+                    max_x = max_x.max(px);
+                    min_y = min_y.min(py);
+                    max_y = max_y.max(py);
+                }
+                let (range_x, range_y) = (max_x - min_x, max_y - min_y);
+                assert!(
+                    range_x < 0.5 * range_y,
+                    "{w}x{h} body {i}: horizontal excursion {range_x:.2}px is not comfortably \
+                     below vertical {range_y:.2}px (ratio {:.3}) — sway no longer reads contained",
+                    range_x / range_y
+                );
             }
-            assert!(
-                left_n >= 4 && right_n >= 4,
-                "{w}x{h}: trial population collapses ({left_n} left, {right_n} right)"
-            );
+        }
+    }
+
+    #[test]
+    fn lava_field_contributes_to_both_margins_across_the_full_geometry_sweep() {
+        // A body contributes when its animated centre (± its own nominal radius)
+        // reaches past the writing column's edge — a geometry law, not a
+        // sidecar proxy for pixels. The sweep spans short/tall AND narrow/wide
+        // windows, the full authored page-width range (`range::PAGE_WIDTH_PROSE`
+        // is 20..200 columns), and 1x/2x device DPI — the axis a single
+        // hand-picked geometry would miss (CLAUDE.md's headline lesson). Uses
+        // the SAME column formula the live app does (`render::column_left_for`/
+        // `column_width_for`), never a parallel computation.
+        const WINDOWS: [(f32, f32); 8] = [
+            (600.0, 900.0),   // small, narrow, tall
+            (700.0, 1200.0),  // narrow, very tall
+            (900.0, 500.0),   // wide, short
+            (1200.0, 800.0),  // baseline
+            (1600.0, 900.0),  // laptop widescreen
+            (2560.0, 1440.0), // wide desktop
+            (3840.0, 1200.0), // ultra-wide, short relative to width
+            (5120.0, 2756.0), // large HiDPI desktop
+        ];
+        const MEASURES: [usize; 6] = [20, 45, 70, 100, 140, 200];
+        const PHASES: [f32; 4] = [0.0, 0.5, 1.0, 1.5];
+
+        let mut contributed = [false; MAX_BLOBS];
+        for &(w, h) in &WINDOWS {
+            for &measure in &MEASURES {
+                for &dpi in &[1.0f32, 2.0] {
+                    let char_width = crate::render::Metrics::with_dpi(1.0, dpi).char_width;
+                    let col_left = crate::render::column_left_for(w, char_width, true, measure);
+                    let col_right = col_left
+                        + crate::render::column_width_for(w, char_width, true, measure);
+                    // Degenerate windows where the measure eats the whole width
+                    // leave no margin to fill — a floor of `column_width_for`'s
+                    // own formula, not a lava-population bug; those combos are
+                    // skipped for the "margin is non-empty" bar but still let
+                    // every body register its reach below.
+                    let has_left_margin = col_left > MARGIN_GAP_PX * 2.0;
+                    let has_right_margin = (w - col_right) > MARGIN_GAP_PX * 2.0;
+                    for &phase in &PHASES {
+                        let mut left_n = 0;
+                        let mut right_n = 0;
+                        for (i, b) in BACKDROP_BLOBS.iter().enumerate() {
+                            let (cx, _) = animated_center(i, b[0], b[1], b[2], (w, h), phase);
+                            let cx_px = cx * w;
+                            let r_px = b[2] * h;
+                            if (cx_px - r_px) < col_left {
+                                left_n += 1;
+                                contributed[i] = true;
+                            }
+                            if (cx_px + r_px) > col_right {
+                                right_n += 1;
+                                contributed[i] = true;
+                            }
+                        }
+                        assert!(
+                            !has_left_margin || left_n >= 1,
+                            "{w}x{h} measure={measure} dpi={dpi} phase={phase}: left margin is \
+                             empty (col_left={col_left:.1})"
+                        );
+                        assert!(
+                            !has_right_margin || right_n >= 1,
+                            "{w}x{h} measure={measure} dpi={dpi} phase={phase}: right margin is \
+                             empty (col_right={col_right:.1}, window={w})"
+                        );
+                    }
+                }
+            }
+        }
+        assert!(
+            contributed.iter().all(|&c| c),
+            "some body never reaches a margin anywhere in the swept geometry: {contributed:?}"
+        );
+    }
+
+    #[test]
+    fn lava_margin_field_never_reads_as_empty_or_a_solid_wall() {
+        // Field-VALUE law (not geometric overlap), using the SHARED edge-blend
+        // thresholds the shader itself renders through (`FROST_THRESHOLD` /
+        // `FROST_EDGE_WIDTH` mirror `shaders/lava.wgsl`'s `THRESHOLD` /
+        // `EDGE_WIDTH`, reused for both the plain lamp and the frost path):
+        // across the swept geometry, a real margin samples both a genuinely LIT
+        // point (field >= FROST_THRESHOLD, blended in) and a genuinely DARK
+        // point (field below `FROST_THRESHOLD - FROST_EDGE_WIDTH`, where
+        // `edge_t` is exactly 0 — the rendered pixel is bit-for-bit flat
+        // ground) — the twelve bodies read as a field breathing over ground,
+        // never a flat sheet of brightness nor a totally dark band.
+        const WINDOWS: [(f32, f32); 6] = [
+            (700.0, 1200.0),
+            (900.0, 500.0),
+            (1200.0, 800.0),
+            (1600.0, 900.0),
+            (2560.0, 1440.0),
+            (5120.0, 2756.0),
+        ];
+        const MEASURES: [usize; 4] = [20, 70, 100, 200];
+        const PHASES: [f32; 3] = [0.0, 0.7, 1.4];
+
+        fn margin_extent(x0: f32, x1: f32, viewport: (f32, f32), phase: f32) -> (f32, f32) {
+            let (w, h) = viewport;
+            let mut min_f = f32::MAX;
+            let mut max_f = f32::MIN;
+            // Coarse grid — the "ground shows somewhere" floor.
+            for xi in 0..12 {
+                let x = x0 + (x1 - x0) * (xi as f32 + 0.5) / 12.0;
+                for &yf in &[0.08_f32, 0.30, 0.50, 0.70, 0.92] {
+                    let f = metaball_field((x, yf * h), viewport, &BACKDROP_BLOBS, phase);
+                    min_f = min_f.min(f);
+                    max_f = max_f.max(f);
+                }
+            }
+            // Every animated centre landing inside this margin band — the
+            // guaranteed peak the coarse grid alone could straddle.
+            for (i, b) in BACKDROP_BLOBS.iter().enumerate() {
+                let (cx, cy) = animated_center(i, b[0], b[1], b[2], viewport, phase);
+                let (px, py) = (cx * w, cy * h);
+                if px >= x0 && px <= x1 {
+                    let f = metaball_field((px, py), viewport, &BACKDROP_BLOBS, phase);
+                    min_f = min_f.min(f);
+                    max_f = max_f.max(f);
+                }
+            }
+            (min_f, max_f)
+        }
+
+        for &(w, h) in &WINDOWS {
+            for &measure in &MEASURES {
+                for &dpi in &[1.0f32, 2.0] {
+                    let char_width = crate::render::Metrics::with_dpi(1.0, dpi).char_width;
+                    let col_left = crate::render::column_left_for(w, char_width, true, measure);
+                    let col_right = col_left
+                        + crate::render::column_width_for(w, char_width, true, measure);
+                    for &phase in &PHASES {
+                        if col_left > 200.0 {
+                            let (min_f, max_f) = margin_extent(0.0, col_left, (w, h), phase);
+                            assert!(
+                                max_f >= FROST_THRESHOLD,
+                                "{w}x{h} measure={measure} dpi={dpi} phase={phase}: left margin \
+                                 never lights up (max {max_f:.3})"
+                            );
+                            assert!(
+                                min_f < FROST_THRESHOLD - FROST_EDGE_WIDTH,
+                                "{w}x{h} measure={measure} dpi={dpi} phase={phase}: left margin \
+                                 never shows ground (min {min_f:.3})"
+                            );
+                        }
+                        if (w - col_right) > 200.0 {
+                            let (min_f, max_f) = margin_extent(col_right, w, (w, h), phase);
+                            assert!(
+                                max_f >= FROST_THRESHOLD,
+                                "{w}x{h} measure={measure} dpi={dpi} phase={phase}: right margin \
+                                 never lights up (max {max_f:.3})"
+                            );
+                            assert!(
+                                min_f < FROST_THRESHOLD - FROST_EDGE_WIDTH,
+                                "{w}x{h} measure={measure} dpi={dpi} phase={phase}: right margin \
+                                 never shows ground (min {min_f:.3})"
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1155,8 +1249,8 @@ mod tests {
     #[test]
     fn backdrop_continues_behind_the_page_while_the_page_stays_flat() {
         let vp = (1200.0, 800.0);
-        let b = BACKDROP_BLOBS[3]; // authored under the ordinary page footprint
-        let center = animated_center(3, b[0], b[1], b[2], vp, 0.0);
+        let b = BACKDROP_BLOBS[11]; // authored under the ordinary page footprint
+        let center = animated_center(11, b[0], b[1], b[2], vp, 0.0);
         let px = (center.0 * vp.0, center.1 * vp.1);
         assert!(metaball_field(px, vp, &BACKDROP_BLOBS, 0.0) >= b[3]);
         assert_eq!(column_mask(px.0, 300.0, 900.0, MARGIN_GAP_PX), 0.0);
