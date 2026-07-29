@@ -99,6 +99,9 @@ mod keytoken;
 // margins-only behind the page column). Machinery only: no world ships it yet.
 mod lava;
 mod lifetime;
+// The custom native About WINDOW — macOS-only by its own inner `cfg`, exactly
+// like `mac_chrome` beside it (which owns every other AppKit door).
+mod mac_about;
 mod mac_chrome;
 mod markdown;
 // The MAS (Mac App Store / App Sandbox) flavor exists only in its supported

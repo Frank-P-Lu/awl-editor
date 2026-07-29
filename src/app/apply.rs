@@ -399,16 +399,16 @@ impl App {
         self.ledger_note_dispatch(action, door);
         #[cfg(target_arch = "wasm32")]
         let _ = door;
-        // macOS: About opens the NATIVE standard About panel (the platform
-        // convention) rather than the in-app `about.rs` card — for BOTH the
-        // App-menu "About Awl" item AND the Cmd-P palette "About" command, since
-        // both dispatch through this one seam. Intercept and return BEFORE
-        // `apply_core` ever flips the card's process-global, so the in-app card
-        // never opens on macOS; every other platform keeps the card exactly as
-        // is. (Not `exited` — the app keeps running.)
+        // macOS: About opens awl's own NATIVE About window (`mac_about`) rather
+        // than the in-app `about.rs` card — for BOTH the App-menu "About Awl"
+        // item AND the Cmd-P palette "About" command, since both dispatch
+        // through this one seam. Intercept and return BEFORE `apply_core` ever
+        // flips the card's process-global, so the in-app card never opens on
+        // macOS; every other platform keeps the card exactly as is. (Not
+        // `exited` — the app keeps running.)
         #[cfg(target_os = "macos")]
-        if matches!(action, Action::About) {
-            crate::mac_chrome::show_about_panel();
+        if crate::mac_about::intercepts(action) {
+            crate::mac_about::show();
             return PreApply::Return(false);
         }
 

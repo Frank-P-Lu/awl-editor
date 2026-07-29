@@ -200,6 +200,25 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
     # category module (not just "NSWorkspace" — both are required).
     "NSWorkspace",
     "NSAccessibility",
+    # THE CUSTOM ABOUT WINDOW (`src/mac_about/`): a real `NSPanel` subclass
+    # whose content view is hand-laid AppKit views — `NSView` (the content
+    # canvas), `NSTextField` (every label, via `labelWithString:`) and its
+    # `NSControl` superclass (alignment/font), `NSImageView` (the shipped app
+    # icon at real scale), `NSBox` (the hairline rule, `NSBoxType::Separator`),
+    # `NSButton` + `NSButtonCell` (the two link buttons and `NSBezelStyle`),
+    # `NSFont`/`NSColor` (the semantic type ramp and label inks that make the
+    # panel correct in BOTH light and dark appearances), and `NSEvent` for the
+    # `performKeyEquivalent:` override that closes the panel on Cmd-W.
+    "NSView",
+    "NSControl",
+    "NSTextField",
+    "NSImageView",
+    "NSBox",
+    "NSButton",
+    "NSButtonCell",
+    "NSFont",
+    "NSColor",
+    "NSEvent",
 ] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "std",
@@ -223,6 +242,13 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
     # carries the failure message. Already-in-tree door, no new crate.
     "NSFileManager",
     "NSError",
+    # THE ABOUT WINDOW'S PACKAGED FACTS (`src/mac_about/facts.rs`):
+    # `NSBundle.mainBundle().objectForInfoDictionaryKey:` reads the REAL
+    # `CFBundleShortVersionString`/`CFBundleVersion` that
+    # `scripts/package-macos.sh` wrote into `Info.plist`. Outside a bundle
+    # there is no dictionary, the lookups answer `None`, and the window falls
+    # back to the compile-time crate version — never to an invented string.
+    "NSBundle",
     "objc2-core-foundation",
 ] }
 
