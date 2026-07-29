@@ -58,10 +58,6 @@ file = "src/app/window.rs"
 lines = 691
 
 [[file_size_mark]]
-file = "src/background.rs"
-lines = 394
-
-[[file_size_mark]]
 file = "src/buffer.rs"
 lines = 936
 
@@ -303,7 +299,7 @@ lines = 592
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 402
+lines = 400
 
 [[file_size_mark]]
 file = "src/render/rects.rs"

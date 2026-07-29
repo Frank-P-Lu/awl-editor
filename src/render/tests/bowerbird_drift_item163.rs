@@ -204,8 +204,7 @@ fn bowerbird_organic_drift_clears_a_perceptibility_floor_over_the_ambient_cycle(
     const H: u32 = 600;
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping bowerbird_organic_drift_clears_a_perceptibility_floor_over_the_ambient_cycle: \
-             no wgpu adapter"
+            "skipping bowerbird_organic_drift_clears_a_perceptibility_floor: no wgpu adapter"
         );
         return;
     };
@@ -243,6 +242,72 @@ fn bowerbird_organic_drift_clears_a_perceptibility_floor_over_the_ambient_cycle(
          perceptibility floor a writer glancing back after roughly a minute cannot register \
          the drift as real motion"
     );
+}
+
+/// LAW (the axis a single-scale check would miss): the perceptibility floor
+/// above only proves the fix at Bowerbird's shipped 156px `scale_px`.
+/// `organic_rgb`'s own defensive clamp (`s = max(g.params.x, 32.0)`) admits
+/// scales far smaller than that, and a PURE fraction-of-`s` formula goes
+/// back UNDER the floor there (`32.0 * ORGANIC_DRIFT_X_FRAC` ≈ 4.2px — a
+/// flashback to the pre-163 defect) — exactly why `organic_rgb` pairs the
+/// fraction with an `ORGANIC_DRIFT_MIN_X_PX`/`_Y` floor underneath it. This
+/// sweeps `s` from the shader's own defended minimum, through the shipped
+/// default, to a much larger hypothetical cell, using a literal
+/// `Background::Organic` value at each scale (the direct-drift-injection
+/// seam, not tied to any one world) so the claim is about the MECHANISM, not
+/// one hardcoded constant — the exact trap CLAUDE.md names for a green law
+/// that only checked the case its author already had in mind.
+#[test]
+fn bowerbird_organic_drift_clears_the_floor_at_every_reachable_cell_scale() {
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!(
+            "skipping bowerbird_organic_drift_clears_the_floor_at_every_reachable_cell_scale: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let (tones, density) = match theme::BOWERBIRD.background {
+        theme::Background::Organic { tones, density, .. } => (tones, density),
+        _ => panic!("Bowerbird must ship Background::Organic"),
+    };
+    const W: u32 = 900;
+    const H: u32 = 600;
+    const LEFT: f32 = 220.0;
+    const COL: f32 = 460.0;
+    // The shader's own defended floor, the shipped default, and a much
+    // larger hypothetical cell — the mechanism must hold at every one.
+    for scale_px in [32.0f32, 60.0, 156.0, 400.0] {
+        let bg = theme::Background::Organic {
+            tones,
+            scale_px,
+            density,
+        };
+        let frame_a = render_bg(&device, &queue, bg_desc_for(bg), W, H, LEFT, COL, 0.0);
+        let frame_b = render_bg(
+            &device,
+            &queue,
+            bg_desc_for(bg),
+            W,
+            H,
+            LEFT,
+            COL,
+            std::f32::consts::FRAC_PI_2,
+        );
+        let left_band = LEFT.floor().max(1.0) as u32;
+        let profile_a = blue_profile(&frame_a, W, H, 0, left_band);
+        let profile_b = blue_profile(&frame_b, W, H, 0, left_band);
+        // A search window past half the cell period would let an alias of
+        // the tiled field masquerade as a smaller true shift; keep it under
+        // that period's own half-width.
+        let max_shift = ((scale_px / 2.0 - 2.0).max(8.0)) as i32;
+        let shift = best_shift(&profile_a, &profile_b, max_shift).unsigned_abs() as f32;
+        assert!(
+            shift >= PERCEPTIBILITY_FLOOR_PX,
+            "scale_px {scale_px}: moved only {shift}px between drift=0 and drift=pi/2 — under \
+             the {PERCEPTIBILITY_FLOOR_PX}px perceptibility floor"
+        );
+    }
 }
 
 /// LAW (worst-phase value/hue/page bounds, re-verified at the NEW, larger
