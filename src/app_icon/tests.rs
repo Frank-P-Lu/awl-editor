@@ -1057,12 +1057,16 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Bilby",
         b: "Paperbark",
-        baseline: 0.203125,
+        // Re-blessed at integration: item 158 measured Paperbark against
+        // Bilby's PRE-LIFT cursor, item 161 then lifted it. 20.31% -> 20.12%.
+        baseline: 0.2012,
     },
     Blessed {
         a: "Saltpan",
         b: "Paperbark",
-        baseline: 0.234375,
+        // Re-blessed at integration, same cause as Bilby/Paperbark above:
+        // Saltpan's cursor moved in item 161. 23.44% -> 23.14%.
+        baseline: 0.2314,
     },
     Blessed {
         a: "Magpie",
@@ -1142,7 +1146,10 @@ const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
         a: "Bilby",
         b: "Paperbark",
-        baseline: 52.791015625,
+        // Re-blessed at integration (item 161 + item 158): 158 measured this
+        // against Bilby's PRE-LIFT pixels, then 161 lifted Bilby's cursor, so
+        // the pair moved 52.79 -> 52.47. Neither branch could see this alone.
+        baseline: 52.47,
     },
     Blessed {
         a: "Galah",
