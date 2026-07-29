@@ -83,7 +83,7 @@ lines = 548
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 927
+lines = 824
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -387,11 +387,11 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 735
+lines = 535
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1110
+lines = 1099
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

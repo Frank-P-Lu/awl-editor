@@ -3,12 +3,13 @@ use super::cjk::{
     CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 use super::color::Srgb;
+use super::ground::{Background, LavaEdge, Weave};
 use super::model::{
-    AmbientStyle, Backdrop, Background, CardAnchor, CardShape, CardTexture, CaretBlockStyle,
-    ChipVariant, ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost,
-    HighlightTexture, IconCursor, ImageReveal, LavaEdge, ListStyle, MotionJuice, PageFrame,
-    PaneSplit, PlacardCorner, PlacardInk, RenderCaps, RoleOverrides, SPELL_UNDERLINE_GAP_DEFAULT,
-    SelectionStyle, Theme, ThemeTags, TitleStyle, WashOverride,
+    AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
+    ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
+    IconCursor, ImageReveal, ListStyle, MotionJuice, PageFrame, PaneSplit, PlacardCorner,
+    PlacardInk, RenderCaps, RoleOverrides, SPELL_UNDERLINE_GAP_DEFAULT, SelectionStyle, Theme,
+    ThemeTags, TitleStyle, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, LIST_INDENT_SCALE_PLAIN,
@@ -54,11 +55,7 @@ pub const GUMTREE: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    ornaments: Ornaments {
-        dash: '\u{E67D}',
-        star: '\u{E270}',
-        underscore: '\u{E68A}',
-    },
+    ornaments: Ornaments::of('\u{E67D}', '\u{E270}', '\u{E68A}'),
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     bullets: ('❧', '☙', '❦'),
@@ -103,11 +100,7 @@ pub const POTOROO: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✶',
-        star: '✦',
-        underscore: '◆',
-    },
+    ornaments: Ornaments::of('✶', '✦', '◆'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -151,11 +144,7 @@ pub const BILBY: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    ornaments: Ornaments {
-        dash: '❧',
-        star: '☙',
-        underscore: '❦',
-    },
+    ornaments: Ornaments::of('❧', '☙', '❦'),
     ornament_face: ORNAMENT_GARAMOND,
     ornament_scale: ORNAMENT_SCALE_FLEURON,
     bullets: ('❧', '❦', '☙'),
@@ -201,11 +190,7 @@ pub const SALTPAN: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    ornaments: Ornaments {
-        dash: '\u{F01B}',
-        star: '\u{F01D}',
-        underscore: '\u{F01E}',
-    },
+    ornaments: Ornaments::of('\u{F01B}', '\u{F01D}', '\u{F01E}'),
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     bullets: ('❦', '❧', '☙'),
@@ -255,11 +240,7 @@ pub const QUOKKA: Theme = Theme {
     zh_hans: CJK_ZH_HANS_KLEE,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✿',
-        star: '❀',
-        underscore: '✽',
-    },
+    ornaments: Ornaments::of('✿', '❀', '✽'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -311,11 +292,7 @@ pub const BOMBORA: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    ornaments: Ornaments {
-        dash: '☙',
-        star: '❧',
-        underscore: '❦',
-    },
+    ornaments: Ornaments::of('☙', '❧', '❦'),
     ornament_face: ORNAMENT_GARAMOND,
     ornament_scale: ORNAMENT_SCALE_FLEURON,
     bullets: ('☞', '❧', '❦'),
@@ -358,11 +335,7 @@ pub const MULGA: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    ornaments: Ornaments {
-        dash: '⁑',
-        star: '⁂',
-        underscore: '❦',
-    },
+    ornaments: Ornaments::of('⁑', '⁂', '❦'),
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     bullets: ('☙', '❦', '❧'),
@@ -406,11 +379,7 @@ pub const TAWNY: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✦',
-        star: '✷',
-        underscore: '◈',
-    },
+    ornaments: Ornaments::of('✦', '✷', '◈'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -454,11 +423,7 @@ pub const MOPOKE: Theme = Theme {
     zh_hans: CJK_ZH_HANS_KLEE,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '\u{E670}',
-        star: '\u{F011}',
-        underscore: '\u{F014}',
-    },
+    ornaments: Ornaments::of('\u{E670}', '\u{F011}', '\u{F014}'),
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     bullets: ('\u{E670}', '\u{EF92}', '\u{E67D}'),
@@ -504,11 +469,7 @@ pub const BOWERBIRD: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '❂',
-        star: '✴',
-        underscore: '◈',
-    },
+    ornaments: Ornaments::of('❂', '✴', '◈'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -550,11 +511,7 @@ pub const CURRAWONG: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✷',
-        star: '✴',
-        underscore: '⬥',
-    },
+    ornaments: Ornaments::of('✷', '✴', '⬥'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -610,11 +567,7 @@ pub const MANGROVE: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '❖',
-        star: '◈',
-        underscore: '⬥',
-    },
+    ornaments: Ornaments::of('❖', '◈', '⬥'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -671,11 +624,7 @@ pub const GALAH: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '❁',
-        star: '❂',
-        underscore: '✿',
-    },
+    ornaments: Ornaments::of('❁', '❂', '✿'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -729,11 +678,7 @@ pub const MAGPIE: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SERIF,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO_SERIF,
-    ornaments: Ornaments {
-        dash: '\u{EF90}',
-        star: '\u{EF98}',
-        underscore: '\u{EF9A}',
-    },
+    ornaments: Ornaments::of('\u{EF90}', '\u{EF98}', '\u{EF9A}'),
     ornament_face: ORNAMENT_JUNICODE,
     ornament_scale: ORNAMENT_SCALE_ORNATE,
     bullets: ('❦', '☙', '❧'),
@@ -786,11 +731,7 @@ pub const BROLGA: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✧',
-        star: '✴',
-        underscore: '⬥',
-    },
+    ornaments: Ornaments::of('✧', '✴', '⬥'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -835,11 +776,7 @@ pub const WAGTAIL: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✧',
-        star: '⭑',
-        underscore: '❡',
-    },
+    ornaments: Ornaments::of('✧', '⭑', '❡'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -914,11 +851,7 @@ pub const FIRETAIL: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '✷',
-        star: '✶',
-        underscore: '✦',
-    },
+    ornaments: Ornaments::of('✷', '✶', '✦'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -977,11 +910,7 @@ pub const CASSOWARY: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '◆',
-        star: '✴',
-        underscore: '◈',
-    },
+    ornaments: Ornaments::of('◆', '✴', '◈'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -1039,11 +968,7 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
     zh_hans: CJK_ZH_HANS_SANS,
     zh_hant: CJK_ZH_HANT,
     ko: CJK_KO,
-    ornaments: Ornaments {
-        dash: '◆',
-        star: '✴',
-        underscore: '◈',
-    },
+    ornaments: Ornaments::of('◆', '✴', '◈'),
     ornament_face: ORNAMENT_MARKS,
     ornament_scale: ORNAMENT_SCALE_GEOMETRIC,
     bullets: BULLETS_PLAIN,
@@ -1072,9 +997,73 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
     },
 };
 
-pub const THEMES: [Theme; 18] = [
+/// PAPERBARK — the nineteenth world (item 158, graduated from item 133's
+/// material study). Handmade paper in a daylit studio: nested deckled contours
+/// gather around the writing page in cream and pale honey, the prose is deep
+/// bark-brown, and the one vermilion caret is the only accent.
+///
+/// Its ground is the ONE production assignee of [`Background::Deckle`] — the
+/// static handmade-paper field, dialled to [`Weave::Strata`]. The material
+/// stays entirely in the margins: the writing page is flat, opaque `base_100`,
+/// and nothing here moves (no ambient capability, so `has_ambient_tick` is
+/// false by construction).
+///
+/// TEMPERATURE IS DELIBERATELY UNTAGGED. Paperbark is plainly a warm world, but
+/// the picker's Temperature=Warm band already carries its curated maximum of
+/// four (Potoroo/Quokka/Galah/Firetail — see `axis_coverage_ruler`). A fifth
+/// entry would trade a curated band for a crowd, so this world headlines Time /
+/// Register / Voice and leaves Temperature to the four that were there first.
+pub const PAPERBARK: Theme = Theme {
+    name: "Paperbark",
+    dark: false,
+    base_100: Srgb::rgb(0xFF, 0xF8, 0xE9),
+    base_200: Srgb::rgb(0xF8, 0xEC, 0xD1),
+    base_300: Srgb::rgb(0xEB, 0xD8, 0xAE),
+    base_content: Srgb::rgb(0x38, 0x25, 0x1A),
+    muted: Srgb::rgb(0x80, 0x68, 0x50),
+    faint: Srgb::rgb(0xB3, 0x9B, 0x7C),
+    primary: Srgb::rgb(0xD8, 0x5A, 0x42),
+    primary_content: Srgb::rgb(0xFF, 0xF6, 0xE9),
+    error: Srgb::rgb(0xB9, 0x3A, 0x2E),
+    selection: Srgb::rgba(0xC7, 0x7A, 0x4B, 0x52),
+    background: Background::Deckle {
+        ground: Srgb::rgb(0xF0, 0xDF, 0xBA),
+        layer: Srgb::rgb(0xD8, 0xB7, 0x7A),
+        deckle: Srgb::rgb(0x9F, 0x69, 0x37),
+        weave: Weave::Strata,
+        period_px: 94.0,
+        wander_px: 13.0,
+        density: 0.20,
+    },
+    font: "EB Garamond",
+    mono: "Monaspace Xenon",
+    icon_cursor: IconCursor::Block,
+    heading_bold: false,
+    cjk: CJK_JA_SHIPPORI,
+    zh_hans: CJK_ZH_HANS_SERIF,
+    zh_hant: CJK_ZH_HANT,
+    ko: CJK_KO_SERIF,
+    // The third and last EB Garamond fleuron permutation (Bilby ❧ ☙ ❦, Bombora
+    // ☙ ❧ ❦); the face ships exactly these three, so the trio is a rotation.
+    ornaments: Ornaments::of('❦', '❧', '☙'),
+    ornament_face: ORNAMENT_GARAMOND,
+    ornament_scale: ORNAMENT_SCALE_FLEURON,
+    bullets: ('☙', '❦', '❧'),
+    bullet_scale: BULLET_SCALE_ORNAMENT,
+    list_indent_scale: LIST_INDENT_SCALE_WIDE,
+    tags: ThemeTags {
+        time: Some("Day"),
+        register: Some("Refined"),
+        voice: Some("Literary"),
+        temperature: None,
+    },
+    role_overrides: RoleOverrides::NONE,
+    render_caps: RenderCaps::DEFAULT,
+};
+
+pub const THEMES: [Theme; 19] = [
     TAWNY, MOPOKE, CURRAWONG, POTOROO, GUMTREE, BILBY, SALTPAN, QUOKKA, BOMBORA, BOWERBIRD, MULGA,
-    MANGROVE, GALAH, MAGPIE, BROLGA, WAGTAIL, FIRETAIL, CASSOWARY,
+    MANGROVE, GALAH, MAGPIE, BROLGA, WAGTAIL, FIRETAIL, CASSOWARY, PAPERBARK,
 ];
 
 const fn str_eq(a: &str, b: &str) -> bool {

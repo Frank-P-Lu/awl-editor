@@ -35,9 +35,8 @@ struct Globals {
     // stripe angle.
     dir: vec2<f32>,
     // Procedural margin ground: 0=plain gradient, 1=dots, 2=starfield,
-    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag, 8=organic.
-    // 9 is the isolated, disposable Paperbark A–E trial and is never returned
-    // by `Background::shader_id` or enrolled in the shipping world roster.
+    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag, 8=organic,
+    // 9=deckle. Matches `Background::shader_id` in src/theme/model.rs.
     shader: u32,
     // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
@@ -59,7 +58,9 @@ struct Globals {
     // chevron repeat wavelength `period_px` (item 86); params.y = the
     // Stripes/Bands angle (radians) OR shader 7's own chevron travel angle;
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
-    // shader 7's extra coverage multiplier `density`. All four are 0 for
+    // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
+    // 158) reads all four with its OWN meanings — lane pitch / wander
+    // amplitude / density / weave; see `deckle_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
     // the dedicated `drift` slot above.)
@@ -381,101 +382,136 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     return mix(with_island, g.c_from.rgb, hole * mass * 0.65);
 }
 
-// 9: DISPOSABLE PAPERBARK MATERIAL STUDY. `params.x` selects exactly one of
-// five fully-static treatments. All five consume the same three provisional
-// material tones and the same page-column mask; no clock, texture, asset, or
-// world identity enters this shader. This whole branch is deleted after the
-// user's A–E choice rather than becoming five permanent backgrounds.
-fn paperbark_broad_sheets(px: vec2<f32>) -> vec3<f32> {
-    let warp = sin(px.x * 0.0053) * 19.0 + sin(px.x * 0.017 + 1.7) * 6.0;
-    let q = (px.y + warp) / 190.0;
-    let lane = fract(q);
-    let body = smoothstep(0.035, 0.14, lane) * (1.0 - smoothstep(0.72, 0.97, lane));
-    let lift = 1.0 - smoothstep(0.018, 0.085, lane);
-    let alternating = mix(0.45, 0.72, hash21(vec2<f32>(floor(q), 3.0)));
-    let sheet = mix(g.c_from.rgb, g.c_to.rgb, body * alternating);
-    return mix(sheet, g.c_pat.rgb, lift * 0.22);
-}
+// --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD (item 158). ---
+//
+// A family of quasi-random CONTOUR LANES through the margins. Each lane is
+// seeded from its own index, so no two neighbours agree; a two-tone sine
+// profile WANDERS every lane, so none of them is a ruled line. Entirely
+// static: a pure function of the fragment position, the page column, three
+// authored tones and three authored dials. No clock, no texture, no asset, and
+// no world identity ever reaches this branch.
+//
+// ONE authored `weave` (params.w) picks which of two profiles a world wears.
+// Both read the SAME tones and the SAME dials; a second world adopts the other
+// profile by writing one word in its own theme literal (`theme::Weave`), which
+// is why there is no world name anywhere below:
+//
+//   * STRATA (weave 0) — lanes indexed on DISTANCE FROM THE PAGE COLUMN, so
+//     the contours gather around the writing page and mirror across it. Each
+//     lane is FILLED at its own seeded value and its boundary carries the torn
+//     deckle tint. Paperbark's ground.
+//   * FIBRES (weave 1) — lanes indexed on screen y, drawn as thin translucent
+//     STROKES with seeded dropouts, plus a sparser diagonal vein family.
+//     Reusable, currently unassigned.
+//
+// DIALS: params.x = the lane pitch (`period_px`), params.y = the wander
+// amplitude (`wander_px`), params.z = the ONE coverage/contrast multiplier
+// (`density`), params.w = the weave.
+//
+// `density == 0.0` collapses BOTH profiles to their flat ground EXACTLY — the
+// lane values converge on DECKLE_MID and every tint drops out. That is not a
+// nicety: it is the differential oracle every pixel law for this ground
+// measures against (item 86's `mark_field` idiom), so the gradient, dither and
+// 8-bit quantization cancel and what remains is the material alone.
 
-fn paperbark_deckled_strata(px: vec2<f32>) -> vec3<f32> {
-    var distance = g.col_left - px.x;
+// The lane-value midpoint `density == 0` flattens to, and the value half-range
+// per unit density. Together they reproduce the authored strata spread
+// (`mix(0.22, 0.70, seed)` at density 0.20) while keeping the flat-at-zero
+// property above. Mirrored by `theme::model`'s DECKLE_* consts.
+const DECKLE_MID: f32 = 0.46;
+const DECKLE_SPREAD_GAIN: f32 = 1.2;
+// The deckle EDGE, as a fraction of a lane — a torn boundary, not a rule.
+const DECKLE_EDGE_LO: f32 = 0.015;
+const DECKLE_EDGE_HI: f32 = 0.075;
+// The wander profile: a coarse tear plus a finer one that leans with distance
+// from the page, so the lanes never repeat exactly down a tall margin. FIXED
+// family character (the Waves-tier precedent) — only its AMPLITUDE is authored.
+const DECKLE_WANDER_FREQ: f32 = 0.017;
+const DECKLE_WANDER_FINE_FREQ: f32 = 0.053;
+const DECKLE_WANDER_FINE_FRAC: f32 = 0.34615385;
+const DECKLE_WANDER_SKEW: f32 = 0.011;
+// FIBRES: stroke frequency, half-width ramp, the seeded dropout gate, and the
+// two coverage gains that ride the shared `density` dial.
+const DECKLE_FIBRE_FREQ: f32 = 0.006;
+const DECKLE_FIBRE_HALF_LO: f32 = 0.7;
+const DECKLE_FIBRE_HALF_HI: f32 = 2.2;
+const DECKLE_FIBRE_KEEP: f32 = 0.34;
+const DECKLE_FIBRE_LIFT_GAIN: f32 = 1.9;
+const DECKLE_FIBRE_GROUND: f32 = 0.10;
+const DECKLE_FIBRE_WANDER_BASE: f32 = 0.36;
+const DECKLE_FIBRE_WANDER_SEED: f32 = 0.64;
+const DECKLE_VEIN_PITCH_FRAC: f32 = 1.6590909;
+const DECKLE_VEIN_SKEW: f32 = 0.24;
+const DECKLE_VEIN_KEEP: f32 = 0.64;
+const DECKLE_VEIN_GAIN: f32 = 1.3;
+const DECKLE_VEIN_HALF_LO: f32 = 0.5;
+const DECKLE_VEIN_HALF_HI: f32 = 1.45;
+const DECKLE_TAU: f32 = 6.2831855;
+// The lane pitch FLOOR. The deckle edge is a FRACTION of a lane, so below this
+// the boundary falls under a pixel and the field aliases into moire instead of
+// reading as paper. Enforced HERE (a property of the shader, not of the dial
+// pair — item 89's abutment lesson) and mirrored by `theme::DECKLE_MIN_PERIOD_PX`.
+const DECKLE_MIN_PITCH_PX: f32 = 40.0;
+// The weave threshold `theme::Weave::mode` writes either side of.
+const DECKLE_WEAVE_FIBRES: f32 = 0.5;
+
+// Distance from the fragment to the NEAR edge of the page column. Positive in
+// either margin, so the strata mirror across the page by construction.
+fn deckle_page_distance(px: vec2<f32>) -> f32 {
     if (px.x > g.col_left + g.col_w) {
-        distance = px.x - (g.col_left + g.col_w);
+        return px.x - (g.col_left + g.col_w);
     }
-    let torn = sin(px.y * 0.017) * 13.0 + sin(px.y * 0.053 + distance * 0.011) * 4.5;
-    let q = max(distance + torn, 0.0) / 94.0;
+    return g.col_left - px.x;
+}
+
+fn deckle_strata(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
+    let d = deckle_page_distance(px);
+    let torn = sin(px.y * DECKLE_WANDER_FREQ) * wander
+        + sin(px.y * DECKLE_WANDER_FINE_FREQ + d * DECKLE_WANDER_SKEW)
+            * wander * DECKLE_WANDER_FINE_FRAC;
+    let q = max(d + torn, 0.0) / pitch;
     let lane = fract(q);
-    let layer = floor(q);
-    let value = mix(0.22, 0.70, hash21(vec2<f32>(layer, 11.0)));
-    let edge = 1.0 - smoothstep(0.015, 0.075, min(lane, 1.0 - lane));
+    let seed = hash21(vec2<f32>(floor(q), 11.0));
+    let value = clamp(
+        DECKLE_MID + (seed - 0.5) * 2.0 * density * DECKLE_SPREAD_GAIN,
+        0.0,
+        1.0,
+    );
+    let edge = 1.0 - smoothstep(DECKLE_EDGE_LO, DECKLE_EDGE_HI, min(lane, 1.0 - lane));
     let strata = mix(g.c_from.rgb, g.c_to.rgb, value);
-    return mix(strata, g.c_pat.rgb, edge * 0.20);
+    return mix(strata, g.c_pat.rgb, edge * density);
 }
 
-fn paperbark_loose_fibres(px: vec2<f32>) -> vec3<f32> {
-    let row = floor(px.y / 88.0);
+fn deckle_fibres(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
+    let row = floor(px.y / pitch);
     let seed = hash21(vec2<f32>(row, 23.0));
-    let center = (row + 0.18 + seed * 0.64) * 88.0;
-    let fibre_y = center + sin(px.x * 0.006 + seed * 6.28318) * (9.0 + seed * 16.0);
-    let long_fibre = (1.0 - smoothstep(0.7, 2.2, abs(px.y - fibre_y))) * step(0.34, seed);
+    let center = (row + 0.18 + seed * 0.64) * pitch;
+    let fibre_y = center + sin(px.x * DECKLE_FIBRE_FREQ + seed * DECKLE_TAU)
+        * wander * (DECKLE_FIBRE_WANDER_BASE + seed * DECKLE_FIBRE_WANDER_SEED);
+    let fibre = (1.0 - smoothstep(DECKLE_FIBRE_HALF_LO, DECKLE_FIBRE_HALF_HI, abs(px.y - fibre_y)))
+        * step(DECKLE_FIBRE_KEEP, seed);
 
-    let diagonal_coord = px.y + px.x * 0.24;
-    let vein_row = floor(diagonal_coord / 146.0);
+    let vein_pitch = pitch * DECKLE_VEIN_PITCH_FRAC;
+    let along = px.y + px.x * DECKLE_VEIN_SKEW;
+    let vein_row = floor(along / vein_pitch);
     let vein_seed = hash21(vec2<f32>(vein_row, 47.0));
-    let vein_center = (vein_row + 0.28 + vein_seed * 0.44) * 146.0;
-    let vein = (1.0 - smoothstep(0.5, 1.45, abs(diagonal_coord - vein_center)))
-        * step(0.64, vein_seed);
+    let vein_center = (vein_row + 0.28 + vein_seed * 0.44) * vein_pitch;
+    let vein = (1.0 - smoothstep(DECKLE_VEIN_HALF_LO, DECKLE_VEIN_HALF_HI, abs(along - vein_center)))
+        * step(DECKLE_VEIN_KEEP, vein_seed);
 
-    let paper = mix(g.c_from.rgb, g.c_to.rgb, 0.10);
-    let translucent = mix(paper, g.c_to.rgb, long_fibre * 0.38);
-    return mix(translucent, g.c_pat.rgb, vein * 0.26);
+    let paper = mix(g.c_from.rgb, g.c_to.rgb, DECKLE_FIBRE_GROUND);
+    let lifted = mix(paper, g.c_to.rgb, fibre * density * DECKLE_FIBRE_LIFT_GAIN);
+    return mix(lifted, g.c_pat.rgb, vein * density * DECKLE_VEIN_GAIN);
 }
 
-fn paperbark_relief_print(px: vec2<f32>) -> vec3<f32> {
-    let cell_size = vec2<f32>(230.0, 176.0);
-    let cell = floor(px / cell_size);
-    let stagger = vec2<f32>(select(0.0, 0.47, i32(cell.y) % 2 == 1), 0.0);
-    let local = fract(px / cell_size + stagger) - vec2<f32>(0.5);
-    let jitter = vec2<f32>(
-        hash21(cell + vec2<f32>(3.0, 7.0)),
-        hash21(cell + vec2<f32>(13.0, 2.0)),
-    ) - vec2<f32>(0.5);
-    let p = local - jitter * 0.11;
-    let block_distance = max(abs(p.x) * 0.78, abs(p.y));
-    let block = 1.0 - smoothstep(0.31, 0.38, block_distance);
-    let grain = hash21(floor(px / 6.0) + cell * 5.0);
-    let dry = mix(0.48, 1.0, step(0.22, grain));
-    let print = block * dry;
-    let edge = smoothstep(0.28, 0.33, block_distance)
-        * (1.0 - smoothstep(0.37, 0.42, block_distance));
-    let ink = mix(g.c_from.rgb, g.c_to.rgb, print * 0.78);
-    return mix(ink, g.c_pat.rgb, edge * 0.16);
-}
-
-fn paperbark_peeling_curls(px: vec2<f32>) -> vec3<f32> {
-    let cell_size = vec2<f32>(310.0, 184.0);
-    let cell = floor(px / cell_size);
-    let local = fract(px / cell_size) - vec2<f32>(0.5);
-    let seed = hash21(cell + vec2<f32>(29.0, 5.0));
-    let x = local.x + (seed - 0.5) * 0.14;
-    let arch = -0.17 * (1.0 - clamp((x / 0.40) * (x / 0.40), 0.0, 1.0));
-    let curve = arch + sin(x * 8.0 + seed * 2.2) * 0.035 + (seed - 0.5) * 0.20;
-    let bounded = 1.0 - smoothstep(0.37, 0.44, abs(x));
-    let ribbon = (1.0 - smoothstep(0.016, 0.034, abs(local.y - curve))) * bounded;
-    let shadow = (1.0 - smoothstep(0.022, 0.052, abs(local.y - curve - 0.050))) * bounded;
-    let tip_center = vec2<f32>(select(-0.39, 0.39, seed > 0.5), curve);
-    let tip = 1.0 - smoothstep(0.025, 0.060, length(local - tip_center));
-    let paper = mix(g.c_from.rgb, g.c_to.rgb, ribbon * 0.72 + tip * 0.48);
-    return mix(paper, g.c_pat.rgb, shadow * (1.0 - ribbon) * 0.20);
-}
-
-fn paperbark_rgb(px: vec2<f32>) -> vec3<f32> {
-    let profile = u32(round(clamp(g.params.x, 0.0, 4.0)));
-    if (profile == 0u) { return paperbark_broad_sheets(px); }
-    if (profile == 1u) { return paperbark_deckled_strata(px); }
-    if (profile == 2u) { return paperbark_loose_fibres(px); }
-    if (profile == 3u) { return paperbark_relief_print(px); }
-    return paperbark_peeling_curls(px);
+fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
+    let pitch = max(g.params.x, DECKLE_MIN_PITCH_PX);
+    let wander = g.params.y;
+    let density = g.params.z;
+    if (g.params.w >= DECKLE_WEAVE_FIBRES) {
+        return deckle_fibres(px, pitch, wander, density);
+    }
+    return deckle_strata(px, pitch, wander, density);
 }
 
 // ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
@@ -606,7 +642,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         return vec4<f32>(waves_rgb(in.px), 1.0);
     }
     if (g.shader == 8u) { return vec4<f32>(organic_rgb(in.px), 1.0); }
-    if (g.shader == 9u) { return vec4<f32>(paperbark_rgb(in.px), 1.0); }
+    if (g.shader == 9u) { return vec4<f32>(deckle_rgb(in.px), 1.0); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;

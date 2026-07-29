@@ -1,13 +1,13 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::color::Srgb;
-use super::model::{Background, Elevation, ImageReveal, Lens, Theme};
+use super::model::{Elevation, ImageReveal, Lens, Theme};
 use super::worlds::{DEFAULT_THEME, THEMES};
 
 static ACTIVE: AtomicUsize = AtomicUsize::new(DEFAULT_THEME);
 
 pub fn active() -> Theme {
-    crate::paperbark_trial::theme_or(THEMES[ACTIVE.load(Ordering::Relaxed) % THEMES.len()])
+    THEMES[ACTIVE.load(Ordering::Relaxed) % THEMES.len()]
 }
 
 pub fn active_index() -> usize {
@@ -303,7 +303,7 @@ pub fn image_reveal_scrim() -> Srgb {
     }
     Srgb::rgba(b.r, b.g, b.b, IMAGE_REVEAL_SCRIM_ALPHA)
 }
-pub fn background() -> Background {
+pub fn background() -> super::ground::Background {
     active().background
 }
 

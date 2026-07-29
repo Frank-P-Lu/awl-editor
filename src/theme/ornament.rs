@@ -25,6 +25,17 @@ pub struct Ornaments {
 }
 
 impl Ornaments {
+    /// The trio in break-syntax order — `---` / `***` / `___`. A const
+    /// constructor so a world literal states its three marks on one line
+    /// instead of restating three field names it cannot reorder anyway.
+    pub const fn of(dash: char, star: char, underscore: char) -> Ornaments {
+        Ornaments {
+            dash,
+            star,
+            underscore,
+        }
+    }
+
     /// The ornament this world draws for a given break syntax.
     pub const fn pick(&self, kind: crate::markdown::BreakKind) -> char {
         match kind {
