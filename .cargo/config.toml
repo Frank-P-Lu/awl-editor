@@ -1,5 +1,19 @@
 # awl cargo config.
 #
+# Every worktree keeps its own target/ directory: Cargo locks it exclusively,
+# and the capture/package scripts intentionally resolve binaries below it. The
+# compiler-result cache is the shared layer instead. Install the pinned wrapper
+# once with scripts/install-sccache.sh; Cargo then applies it to every build in
+# this checkout, including wasm and CI, without a personal shell setting.
+[build]
+rustc-wrapper = "sccache"
+
+[env]
+# A bounded global cache is shared by a developer's worktrees. The default
+# location is platform-owned (for example ~/Library/Caches/Mozilla.sccache on
+# macOS), so the checked-in config never records a personal path.
+SCCACHE_CACHE_SIZE = { value = "5G", force = true }
+#
 # The wasm32 test runner. `cargo test --target wasm32-unknown-unknown` (L2 of
 # scripts/web-smoke.sh) drives the `src/websmoke.rs` `#[wasm_bindgen_test]`s
 # through this runner — it defaults to node (no browser needed). Install once

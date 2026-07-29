@@ -71,6 +71,7 @@ editing, yes; the IDE zoo, no.
 Requires a Rust stable toolchain. Run from the repo root:
 
 ```sh
+scripts/install-sccache.sh  # once; shared, bounded compiler-result cache
 cargo build          # debug build
 cargo run            # launch a scratch buffer
 cargo run -- FILE    # open a file
