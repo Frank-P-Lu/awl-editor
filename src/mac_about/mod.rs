@@ -307,15 +307,20 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
     rule.setBoxType(NSBoxType::Separator);
     content.addSubview(&rule);
 
-    // PROVENANCE — monospaced, small, quiet: build metadata that reads as
-    // build metadata. One label per known fact; unknown facts have no line.
+    // PROVENANCE — monospaced and small, so it reads as build metadata, but
+    // in the SECONDARY ink, not the tertiary one: measured on a packaged
+    // light-mode capture, 11pt mono at `tertiaryLabelColor` came out at
+    // 1.9:1 against the window background — decorative, not readable, and a
+    // commit hash exists to be read. The mono face and the hairline above it
+    // already separate this block from the identity above; value does not
+    // have to do that work too.
     // SAFETY: as above, an immutable AppKit weight constant.
     let regular = unsafe { NSFontWeightRegular };
     let mono = NSFont::monospacedSystemFontOfSize_weight(layout::FACT_FONT_SIZE, regular);
     for (line, frame) in lines.iter().zip(l.facts.iter()) {
         let label = NSTextField::labelWithString(&NSString::from_str(line), mtm);
         label.setFont(Some(&mono));
-        place(&content, &label, *frame, &NSColor::tertiaryLabelColor());
+        place(&content, &label, *frame, &NSColor::secondaryLabelColor());
     }
 
     // CREDIT.
@@ -362,6 +367,13 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
     }
 
     panel.setContentView(Some(&content));
+    // NOTHING IS PRESELECTED. Without this, AppKit makes the first button the
+    // key window's first responder and rings it blue — which reads as "Docs is
+    // the default action" and puts a link one Return away from a user who only
+    // meant to dismiss the window. A plain `NSView` refuses first-responder
+    // status, so naming the content view here leaves the ring off while Full
+    // Keyboard Access can still Tab to either button.
+    panel.setInitialFirstResponder(Some(&content));
     panel.center();
     Some(panel)
 }
