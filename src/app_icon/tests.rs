@@ -354,7 +354,10 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
         ("Magpie", IconCursor::Block),
         ("Brolga", IconCursor::Pill),
         ("Wagtail", IconCursor::Block),
-        ("Firetail", IconCursor::Pill),
+        // Item 121: the poster silhouette moved off the pill onto the shared
+        // Block preset — the ground stays the inert `base_100` default
+        // pending the user's A/B/C ground pick (see `IconGround`).
+        ("Firetail", IconCursor::Block),
         ("Cassowary", IconCursor::Block),
         // ITEM 158: EB Garamond's `l` is footed, so Narrow (which sits INSIDE
         // the glyph's advance) is out by the law two tests down; Block is the
@@ -378,8 +381,8 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
             count(IconCursor::Pill),
             count(IconCursor::Narrow)
         ),
-        (10, 8, 1),
-        "the judged tally: 10 block / 8 pill / 1 narrow"
+        (11, 7, 1),
+        "the judged tally: 11 block / 7 pill / 1 narrow"
     );
 }
 
@@ -409,28 +412,36 @@ fn the_narrow_pill_is_galahs_alone() {
     );
 }
 
-/// The two CONFUSABLE PAIRS the judge named: same display face, near-identical
-/// ground. Their palettes are world law and cannot move, so the icons are told
-/// apart by SILHOUETTE — which means the pair must never collapse onto one
-/// preset. Pixel proof that the silhouettes actually differ lives in
+/// A CONFUSABLE PAIR the judge named: same display face, near-identical
+/// ground, palette held as world law so the icons are told apart by
+/// SILHOUETTE — which means the pair must never collapse onto one preset.
+/// Pixel proof that the silhouettes actually differ lives in
 /// `small_sizes_keep_every_pair_of_worlds_apart`.
+///
+/// Potoroo/Firetail USED to be this list's other entry: same face, same
+/// preset-split strategy. Item 121 moved Firetail off Pill onto the shared
+/// Block preset — the poster silhouette the judge actually wants — so the
+/// two now share a preset ON PURPOSE, and the silhouette-split strategy is
+/// retired for this pair. Their separation is carried instead by the
+/// numeric palette-distinctness laws
+/// (`firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet`,
+/// `theme::tests`) and by the roster-wide crowding sweep below, which is
+/// free to name Potoroo/Firetail in its `Blessed` lists if they now crowd —
+/// that is a conscious, reviewed acceptance, not a silent regression.
 #[test]
 fn confusable_pairs_never_share_a_logo_cursor() {
     let _g = crate::testlock::serial();
-    for (a, b, same_face, why) in [
-        (
-            "Potoroo",
-            "Firetail",
-            true,
-            "Monaspace Xenon on near-identical warm-black grounds",
-        ),
-        (
-            "Saltpan",
-            "Bilby",
-            false,
-            "two different serifs, but both cream grounds with a brown/gold mark",
-        ),
-    ] {
+    assert_eq!(
+        world("Potoroo").icon_cursor,
+        world("Firetail").icon_cursor,
+        "item 121: Potoroo and Firetail now deliberately share the Block preset"
+    );
+    for (a, b, same_face, why) in [(
+        "Saltpan",
+        "Bilby",
+        false,
+        "two different serifs, but both cream grounds with a brown/gold mark",
+    )] {
         assert_eq!(
             world(a).font == world(b).font,
             same_face,
@@ -598,8 +609,9 @@ fn the_parser_rejects_a_malformed_container() {
 // ------------------------------------------------------------ the pixels ---
 
 /// THE FOUR TOKENS, asserted by arithmetic at the Dock's own 128px rep: the
-/// ground IS `base_100`, the slab IS `primary`, the `l` knocked out of it IS
-/// `primary_content`, and `aw` outside it IS `base_content`. Colour identity is
+/// ground IS `Theme::icon_ground_color()` (`base_100` unless the world opted
+/// into an item-121 blend), the slab IS `primary`, the `l` knocked out of it
+/// IS `primary_content`, and `aw` outside it IS `base_content`. Colour identity is
 /// checked against the world's real theme tokens at a tolerance that only
 /// admits antialiasing — so a palette retune that never reached the export
 /// fails here rather than shipping a wrong-coloured Dock icon.
@@ -631,7 +643,7 @@ fn every_icon_paints_its_own_four_theme_tokens() {
                 if !opaque(&p) {
                     continue;
                 }
-                if near(&p, rgb(t.base_100), 6) {
+                if near(&p, rgb(t.icon_ground_color()), 6) {
                     ground += 1;
                 }
                 if !slab_bbox.contains(x, y) && near(&p, rgb(t.base_content), 24) {
@@ -641,7 +653,7 @@ fn every_icon_paints_its_own_four_theme_tokens() {
         }
         assert!(
             ground as f64 >= area * 0.30,
-            "{}: base_100 is not the dominant ground ({ground}px of {area})",
+            "{}: icon_ground_color() is not the dominant ground ({ground}px of {area})",
             t.name
         );
         assert!(
@@ -787,7 +799,7 @@ fn no_ink_escapes_the_safe_area_and_the_corners_stay_clear() {
         for y in 0..h {
             for x in 0..w {
                 let p = img.get_pixel(x, y).0;
-                if !opaque(&p) || near(&p, rgb(t.base_100), 10) {
+                if !opaque(&p) || near(&p, rgb(t.icon_ground_color()), 10) {
                     continue;
                 }
                 let (x0, x1) = row[y as usize].expect("an opaque pixel has a row span");
@@ -832,7 +844,7 @@ fn the_mark_survives_at_app_switcher_size() {
         );
         let ink = img
             .pixels()
-            .filter(|p| opaque(&p.0) && !near(&p.0, rgb(t.base_100), 10))
+            .filter(|p| opaque(&p.0) && !near(&p.0, rgb(t.icon_ground_color()), 10))
             .count();
         assert!(
             ink as f64 >= area * 0.05,
@@ -925,10 +937,10 @@ fn all_real_pairs() -> Vec<Pair> {
             pairs.push(measure_pair(
                 ta.name,
                 a,
-                rgb(ta.base_100),
+                rgb(ta.icon_ground_color()),
                 tb.name,
                 b,
-                rgb(tb.base_100),
+                rgb(tb.icon_ground_color()),
             ));
         }
     }
@@ -1622,10 +1634,10 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
         pairs.push(measure_pair(
             "Ibis",
             &ibis_img,
-            rgb(galah.base_100),
+            rgb(galah.icon_ground_color()),
             t.name,
             &img,
-            rgb(t.base_100),
+            rgb(t.icon_ground_color()),
         ));
     }
 
@@ -1690,7 +1702,7 @@ fn ordinary_new_world_passes_the_danger_zone_guard() {
     let _g = crate::testlock::serial();
     let galah = world("Galah");
     let galah_img = rep_rgba(&icon_bytes(galah.name), 32);
-    let ground_from = rgb(galah.base_100);
+    let ground_from = rgb(galah.icon_ground_color());
     // A dark-teal ground (nowhere near any shipped world's `base_100`) and a
     // saturated magenta ink. Magenta, not the first-tried near-white: this
     // roster's `primary`/`primary_content`/`base_content` tokens are almost
@@ -1727,7 +1739,7 @@ fn ordinary_new_world_passes_the_danger_zone_guard() {
             new_ground,
             t.name,
             &img,
-            rgb(t.base_100),
+            rgb(t.icon_ground_color()),
         ));
     }
 
@@ -1760,7 +1772,7 @@ fn ground_clone_crowding_is_caught_regardless_of_rank() {
     for name in ["Potoroo", "Gumtree", "Mangrove", "Wagtail", "Firetail"] {
         let base = world(name);
         let base_img = rep_rgba(&icon_bytes(base.name), 32);
-        let ground = rgb(base.base_100);
+        let ground = rgb(base.icon_ground_color());
         let mut clone_img = image::RgbaImage::new(base_img.width(), base_img.height());
         for (x, y, out) in clone_img.enumerate_pixels_mut() {
             let px = base_img.get_pixel(x, y).0;
@@ -1780,7 +1792,7 @@ fn ground_clone_crowding_is_caught_regardless_of_rank() {
                 ground,
                 t.name,
                 &img,
-                rgb(t.base_100),
+                rgb(t.icon_ground_color()),
             ));
         }
 
@@ -1830,10 +1842,10 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
         pairs.push(measure_pair(
             "Ibis",
             &ibis_img,
-            rgb(galah.base_100),
+            rgb(galah.icon_ground_color()),
             t.name,
             &img,
-            rgb(t.base_100),
+            rgb(t.icon_ground_color()),
         ));
     }
 
@@ -1841,7 +1853,7 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
     // palette checked (by construction, large per-channel deltas) to crowd
     // nobody on its own — the point is to grow the pair population around
     // `Ibis`, not to also be a second attack.
-    let ground_from = rgb(galah.base_100);
+    let ground_from = rgb(galah.icon_ground_color());
     let growth_palettes: [([u8; 3], [u8; 3]); 6] = [
         ([0x0A, 0x2E, 0x33], [0xFF, 0x00, 0xC8]),
         ([0x33, 0x0A, 0x2E], [0x00, 0xC8, 0xFF]),
@@ -1874,7 +1886,7 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
                 *new_ground,
                 t.name,
                 &img,
-                rgb(t.base_100),
+                rgb(t.icon_ground_color()),
             ));
         }
         // Growth worlds also pair with each other and with Ibis, exactly as
@@ -1910,7 +1922,7 @@ fn roster_growth_does_not_dilute_a_known_erosion() {
         pairs.push(measure_pair(
             "Ibis",
             &ibis_img,
-            rgb(galah.base_100),
+            rgb(galah.icon_ground_color()),
             name,
             &growth_img,
             *new_ground,
@@ -2186,4 +2198,63 @@ fn the_cursor_slugs_are_the_exporters_preset_keys() {
             t.name
         );
     }
+}
+
+/// ITEM 121's icon-ground capability: every shipped world defaults to the
+/// INERT `Base100` state today — nobody has opted into a blend toward
+/// `base_300` yet, including Firetail (its Pill-to-Block move landed this
+/// round, but the user's A/B/C ground pick has not). A world opting in is a
+/// conscious edit to `worlds.rs`, not a default this law would miss.
+#[test]
+fn every_shipped_world_defaults_to_the_inert_base_100_ground() {
+    let _g = crate::testlock::serial();
+    for t in THEMES.iter() {
+        assert_eq!(
+            t.icon_ground,
+            crate::theme::IconGround::Base100,
+            "{}: icon_ground is not the inert default — was this opted in on purpose?",
+            t.name
+        );
+        assert_eq!(
+            t.icon_ground_color(),
+            t.base_100,
+            "{}: the inert default must render the tile's actual base_100, byte for byte",
+            t.name
+        );
+    }
+}
+
+/// `Theme::icon_ground_color` is the ONE owner of the blend arithmetic — this
+/// pins it against INDEPENDENTLY computed hexes for Firetail (the world item
+/// 121 is actually about), so a broken `Srgb::lerp` call or a swapped
+/// endpoint fails here rather than only showing up as an odd-looking tile.
+/// `base_100 = #17090c`, `base_300 = #521629` — hand-computed: 25%/40% of the
+/// way from `(0x17,0x09,0x0c)` to `(0x52,0x16,0x29)` is `(0x26,0x0c,0x13)` /
+/// `(0x2f,0x0e,0x18)`.
+#[test]
+fn icon_ground_color_blends_toward_base_300_by_the_named_fraction() {
+    let _g = crate::testlock::serial();
+    let firetail = world("Firetail");
+    assert_eq!(firetail.base_100.hex(), "#17090c");
+    assert_eq!(firetail.base_300.hex(), "#521629");
+
+    let mut a = *firetail;
+    a.icon_ground = crate::theme::IconGround::Base100;
+    assert_eq!(a.icon_ground_color().hex(), "#17090c", "A: base_100 itself");
+
+    let mut b = *firetail;
+    b.icon_ground = crate::theme::IconGround::Blend25;
+    assert_eq!(
+        b.icon_ground_color().hex(),
+        "#260c13",
+        "B: 25% toward base_300, hand-computed"
+    );
+
+    let mut c = *firetail;
+    c.icon_ground = crate::theme::IconGround::Blend40;
+    assert_eq!(
+        c.icon_ground_color().hex(),
+        "#2f0e18",
+        "C: 40% toward base_300, hand-computed"
+    );
 }

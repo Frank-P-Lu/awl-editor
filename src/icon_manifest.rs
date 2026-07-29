@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::capture::json_string;
-use crate::theme::{THEMES, Theme};
+use crate::theme::{IconCursor, IconGround, THEMES, Theme};
 
 /// Bumped when the JSON SHAPE changes (fields added/renamed/removed), so a
 /// stale exporter fails loudly instead of silently reading a missing key.
@@ -38,7 +38,12 @@ use crate::theme::{THEMES, Theme};
 /// * 2 — each world also carries the `cursor` its SHIPPED icon wears
 ///   ([`crate::theme::IconCursor`]), so the exporter's "what actually ships"
 ///   sheet reads the assignment from `worlds.rs` instead of a second list.
-pub const MANIFEST_SCHEMA: u32 = 2;
+/// * 3 — each world also carries `ground`, the tile's ACTUAL ground color
+///   ([`crate::theme::Theme::icon_ground_color`], item 121): `base_100`
+///   unless the world opts into a blend toward `base_300`. `base_100` still
+///   ships too (the same token under both names for every world that has not
+///   opted in), but every consumer painting the tile's ground reads `ground`.
+pub const MANIFEST_SCHEMA: u32 = 3;
 
 /// The default fonts directory, relative to the repo root.
 pub const DEFAULT_FONTS_DIR: &str = "assets/fonts";
@@ -169,10 +174,15 @@ fn world_json(t: &Theme) -> String {
     // icon ground, base_content inks "aw", primary is the fake cursor,
     // primary_content inks the "l" sitting on it.
     format!(
-        "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
+        "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"ground\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
         json_string(t.name),
         t.dark,
         json_string(&t.base_100.hex()),
+        // The tile's ACTUAL ground (item 121: `Theme::icon_ground_color`) —
+        // `base_100` for every world by default, or a bounded blend toward
+        // `base_300` for a world that has opted in. Every consumer that
+        // paints the tile's ground reads THIS field, never `base_100`.
+        json_string(&t.icon_ground_color().hex()),
         json_string(&t.base_content.hex()),
         json_string(&t.primary.hex()),
         json_string(&t.primary_content.hex()),
@@ -184,8 +194,9 @@ fn world_json(t: &Theme) -> String {
         json_string(t.icon_cursor.slug()),
         // Mangrove's and Firetail's lava grounds are the only worlds whose real
         // canvas MOVES. An icon is one still frame, so the exporter flattens
-        // them to base_100 — recorded here so that flattening is a declared
-        // fact rather than an undocumented omission.
+        // them to base_100 (or this world's `icon_ground` blend) — recorded
+        // here so that flattening is a declared fact rather than an
+        // undocumented omission.
         t.has_ambient_motion(),
     )
 }
@@ -221,6 +232,56 @@ pub fn manifest_json(fonts_dir: &Path) -> anyhow::Result<String> {
     let faces_json = faces.iter().map(face_json).collect::<Vec<_>>().join(",\n");
     Ok(format!(
         "{{\n  \"schema\": {MANIFEST_SCHEMA},\n  \"generated_by\": \"awl --icon-manifest\",\n  \"source\": \"src/theme/worlds.rs (palette + face) and assets/fonts/*.ttf (files + weights) — GENERATED, do not hand-edit\",\n  \"worlds\": [\n{worlds}\n  ],\n  \"faces\": [\n{faces_json}\n  ]\n}}\n"
+    ))
+}
+
+/// Item 121: a Block-cursor GROUND comparison for one named world, at the
+/// exact A/B/C states the item names (`IconGround::ALL` — `base_100`, 25%
+/// and 40% toward `base_300`). Every hex comes from
+/// [`crate::theme::Theme::icon_ground_color`], the SAME blend a world's real
+/// `icon_ground` field would compute if it opted in — never a hand-picked
+/// value. A generic CLI capability (`--ground-audition WORLD`), not a
+/// Firetail-name branch: any shipped world's name works, and this is a
+/// one-off DECISION AID fed through the same `build.mjs`/`render.mjs` the
+/// canonical export uses — it writes nothing under `assets/macos/`.
+///
+/// Forces the comparison onto the Block preset regardless of the named
+/// world's own shipped `icon_cursor`: item 121's whole point is auditioning
+/// candidate GROUNDS against the one silhouette already picked, not
+/// re-litigating the cursor shape mid-comparison.
+pub fn ground_audition_json(world_name: &str, fonts_dir: &Path) -> anyhow::Result<String> {
+    let theme = THEMES
+        .iter()
+        .find(|t| t.name == world_name)
+        .ok_or_else(|| {
+            anyhow::anyhow!("no shipped world named {world_name:?} (see `awl --list-worlds`)")
+        })?;
+    let faces = faces_for(std::slice::from_ref(theme), fonts_dir)?;
+    let worlds = IconGround::ALL
+        .iter()
+        .map(|ground| {
+            let mut t = *theme;
+            t.icon_ground = *ground;
+            t.icon_cursor = IconCursor::Block;
+            format!(
+                "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"ground\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
+                json_string(&format!("{} \u{2014} {}", t.name, ground.slug())),
+                t.dark,
+                json_string(&t.base_100.hex()),
+                json_string(&t.icon_ground_color().hex()),
+                json_string(&t.base_content.hex()),
+                json_string(&t.primary.hex()),
+                json_string(&t.primary_content.hex()),
+                json_string(t.font),
+                json_string(t.icon_cursor.slug()),
+                t.has_ambient_motion(),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",\n");
+    let faces_json = faces.iter().map(face_json).collect::<Vec<_>>().join(",\n");
+    Ok(format!(
+        "{{\n  \"schema\": {MANIFEST_SCHEMA},\n  \"generated_by\": \"awl --ground-audition {world_name}\",\n  \"source\": \"item 121 ground audition \u{2014} Theme::icon_ground_color() over {world_name}'s real base_100/base_300, never a hand-picked hex\",\n  \"worlds\": [\n{worlds}\n  ],\n  \"faces\": [\n{faces_json}\n  ]\n}}\n"
     ))
 }
 
@@ -341,5 +402,46 @@ mod tests {
             msg.contains("Nonesuch") && msg.contains("No Such Family"),
             "{msg}"
         );
+    }
+
+    /// Item 121's ground audition: names the world, forces every entry onto
+    /// Block, and carries the three A/B/C ground hexes computed by the SAME
+    /// `Theme::icon_ground_color` the manifest itself calls — never a second
+    /// copy of the blend math.
+    #[test]
+    fn ground_audition_names_three_block_entries_at_the_real_blend() {
+        let _g = crate::testlock::serial();
+        let json = ground_audition_json("Firetail", &fonts_dir()).expect("audition builds");
+        assert_eq!(json.matches("\"cursor\": \"block\"").count(), 3);
+        assert_eq!(json.matches("\"font\": \"Monaspace Xenon\"").count(), 3);
+        for hex in ["#17090c", "#260c13", "#2f0e18"] {
+            assert!(
+                json.contains(&format!("\"ground\": \"{hex}\"")),
+                "audition is missing ground {hex}:\n{json}"
+            );
+        }
+        // Firetail's actual palette tokens ride along unchanged — the
+        // audition never touches primary/primary_content/base_content.
+        let firetail = THEMES.iter().find(|t| t.name == "Firetail").unwrap();
+        for hex in [
+            firetail.base_content.hex(),
+            firetail.primary.hex(),
+            firetail.primary_content.hex(),
+        ] {
+            assert_eq!(
+                json.matches(&format!("\"{hex}\"")).count(),
+                3,
+                "expected {hex} on all three audition rows"
+            );
+        }
+    }
+
+    /// A world nobody ships stops the audition, naming it — the same
+    /// discipline `--icon-manifest` itself carries for a missing face.
+    #[test]
+    fn ground_audition_of_an_unshipped_world_is_an_error_not_a_fallback() {
+        let _g = crate::testlock::serial();
+        let err = ground_audition_json("Nonesuch", &fonts_dir()).expect_err("must fail");
+        assert!(err.to_string().contains("Nonesuch"), "{err}");
     }
 }

@@ -728,6 +728,25 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 print!("{}", crate::icon_manifest::manifest_json(&dir)?);
                 std::process::exit(0);
             }
+            // ITEM 121's GROUND AUDITION: a Block-cursor manifest naming one
+            // world three times, at the A/B/C ground states the item names
+            // (base_100 / 25% / 40% toward base_300) — fed through the same
+            // `build.mjs`/`render.mjs` the canonical export uses, so the
+            // comparison sheet is real rendered pixels, never a mockup. A
+            // generic CLI capability (any world name works), not a
+            // Firetail-name branch in the exporter.
+            #[cfg(not(target_arch = "wasm32"))]
+            "--ground-audition" => {
+                let world = args.next().ok_or_else(|| {
+                    anyhow::anyhow!("--ground-audition needs a WORLD name, e.g. Firetail")
+                })?;
+                let dir = PathBuf::from(crate::icon_manifest::DEFAULT_FONTS_DIR);
+                print!(
+                    "{}",
+                    crate::icon_manifest::ground_audition_json(&world, &dir)?
+                );
+                std::process::exit(0);
+            }
             // THE PACK STEP (item 92) — cut every shipped world's rendered
             // tiles into a real `.icns`, write the canonical bundle icon, and
             // regenerate the embedded table. Run from the repo root, AFTER the
@@ -779,6 +798,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      \x20 --theme NAME        set the active color theme ({world_names_csv})\n\
                      \x20 --list-worlds       print every theme name, one per line, then exit (the roster `--theme` accepts; see scripts/capture-worlds.sh)\n\
                      \x20 --icon-manifest     print the app-icon export manifest as JSON (per world: icon palette tokens + display face + its logo-cursor; per face: the bundled font files), then exit — run from the repo root; see scripts/icons/\n\
+                     \x20 --ground-audition W print a Block-cursor icon manifest naming world W three times at its base_100/25%/40%-toward-base_300 grounds (item 121's A/B/C decision aid), then exit — feed it through scripts/icons/build.mjs + render.mjs like the canonical manifest\n\
                      \x20 --pack-icns [DIR]   cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/<World>.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh\n\
                      \x20 --caret-mode MODE   caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph)\n\
                      \x20 --capture-size WxH  physical canvas size for the capture (default 1200x800)\n\

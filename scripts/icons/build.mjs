@@ -127,7 +127,7 @@ function tileStyle(world, face, geom, size) {
   const file = geom.weight === "bold" && face.bold ? face.bold : face.regular;
   return [
     `--s:${size}px`,
-    `--ground:${world.base_100}`,
+    `--ground:${world.ground}`,
     `--ink:${world.base_content}`,
     `--cursor:${world.primary}`,
     `--curink:${world.primary_content}`,
@@ -257,7 +257,7 @@ function overviewPage(manifest, tuning, surface, faceOf) {
       title: `awl icon candidates — ${surface}`,
       surface,
       body: `<div class="sheet"><h1>awl app icons — every candidate</h1>
-<p class="sub">19 worlds &times; 3 logo-cursor presets, at 128px, on a ${surface} surface. Colors are the world's own base_100 / base_content / primary / primary_content.</p>
+<p class="sub">${manifest.worlds.length} worlds &times; 3 logo-cursor presets, at 128px, on a ${surface} surface. Colors are the world's own ground / base_content / primary / primary_content.</p>
 <div class="strip">${rows}</div></div>`,
     }),
   };
@@ -405,7 +405,7 @@ function worldPage(manifest, tuning, world, faceOf) {
       title: `awl icon — ${world.name}`,
       surface: "dark",
       body: `<div style="padding:32px 32px 0"><h1>${esc(world.name)}</h1>
-<p class="sub">${esc(world.font)} &middot; ground ${world.base_100} &middot; ink ${world.base_content} &middot; cursor ${world.primary} &middot; cursor ink ${world.primary_content}</p></div>
+<p class="sub">${esc(world.font)} &middot; ground ${world.ground} &middot; ink ${world.base_content} &middot; cursor ${world.primary} &middot; cursor ink ${world.primary_content}</p></div>
 ${block("dark")}${block("light")}`,
     }),
   };
@@ -429,7 +429,7 @@ function main() {
   }
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const tuning = JSON.parse(fs.readFileSync(tuningPath, "utf8"));
-  if (manifest.schema !== 2) throw new Error(`manifest schema ${manifest.schema} is not the 2 this builder reads`);
+  if (manifest.schema !== 3) throw new Error(`manifest schema ${manifest.schema} is not the 3 this builder reads`);
   assertNoWorldKeys(tuning, manifest);
   const faceOf = (family) => {
     const f = manifest.faces.find((x) => x.family === family);
