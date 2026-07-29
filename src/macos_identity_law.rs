@@ -27,7 +27,11 @@
 //! to force them would be to spoof the process title — which lies about what is
 //! running. The supported answer is the bundle; see `docs/platform.md`.
 
-#![cfg(test)]
+// Not wasm: these laws read the repo's shell scripts off a real filesystem, and
+// the browser build has neither one. They are NOT gated to macOS, though — the
+// contract they guard is edited from any host, and a Linux CI run should still
+// catch a packaging script that drifts.
+#![cfg(all(test, not(target_arch = "wasm32")))]
 
 use std::path::{Path, PathBuf};
 
@@ -159,6 +163,11 @@ fn the_bare_binary_limitation_is_written_down() {
 /// The canonical bundle icon the plist names is actually committed, and it is
 /// the one `app_icon` calls canonical. Cheap, and it fails loudly if the asset
 /// is ever moved without the packaging script following.
+///
+/// macOS-only because `app_icon` itself is: naming the constant rather than
+/// re-spelling its path is the point, so this law follows it rather than
+/// keeping a second copy of the string that could drift.
+#[cfg(target_os = "macos")]
 #[test]
 fn the_named_bundle_icon_is_committed_where_the_script_looks() {
     let icon = root().join(crate::app_icon::CANONICAL_ICNS);
