@@ -84,10 +84,13 @@ once, at landing.
 
 - **While working:** rustfmt, the narrowest affected clippy/health arm, the
   targeted tests. Expected to run often, so keep it small.
-- **Before landing, on the exact combined-main candidate:** code health, the
-  full native suite under **both** conventions, wasm smoke, and the item's
-  required captures. Repair failures on the candidate, rerun the failed slice,
-  then the full set once.
+- **Before landing, on the exact combined-main candidate:** code health,
+  `scripts/native-gate.sh`, wasm smoke, and the item's required captures. Only
+  that script's receipt authorizes “full native suite”; it names the exact
+  commit and both conventions. `cargo test --bin awl` is “binary unit tests”;
+  every filtered Cargo invocation is “targeted tests.” Counts never prove
+  scope. Repair failures on the candidate, rerun the failed slice, then the
+  full set once.
 - **Push after two or three landed items.** Board- or docs-only changes ride
   the next train. Push immediately for a CI repair, a correctness or data-loss
   fix, or a requested checkpoint.

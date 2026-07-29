@@ -62,20 +62,11 @@ jobs:
       - name: cargo build
         run: cargo build
 
-      # Linux-convention gate (settled): this job's `cargo test` runs under
-      # `Convention::Linux` (a real `cfg(target_os)` fact on this runner — see
-      # `Convention::current()`), which reads Ctrl-chords as the native slot
-      # instead of macOS's ⌘-chords. Earlier rounds ran this step allow-failure
-      # while the suite's tests — largely written against a Mac-only ambient
-      # keymap — caught up; the whole convention-blindness sweep (pinning
-      # hardcoded mac-literal test expectations to `Convention::Mac` explicitly,
-      # or making chord-label assertions convention-parametric via the same
-      # resolvers production code uses) is complete and the suite is genuinely
-      # green under both conventions (verified via the `AWL_CONVENTION_FORCE`
-      # dev knob locally, matching this runner's real `cfg(target_os)` path).
-      # So this step is now a REAL, BLOCKING gate — no more allow-failure.
-      - name: cargo test
-        run: cargo test
+      # The canonical native gate owns its integration canary, both supported
+      # conventions, and exact-commit receipt. Do not reconstruct this here:
+      # `cargo test --bin awl` is binary unit tests, not the full native suite.
+      - name: native full suite
+        run: scripts/native-gate.sh
 
       # A push is the combined-main train. Pull requests/worktree landings keep
       # the fast dev-only loop; once the train is assembled, compare one real
@@ -143,8 +134,8 @@ jobs:
       - name: cargo build
         run: cargo build
 
-      - name: cargo test
-        run: cargo test
+      - name: native full suite
+        run: scripts/native-gate.sh
 
   # ── The mac live-probe (free mac-VM tier — now GATING) ──────────────────────
   # GitHub's macos-latest runners are real macOS VMs with a WindowServer, and

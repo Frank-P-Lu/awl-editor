@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -235,6 +236,57 @@ def check_structural(
     return failures
 
 
+def native_gate_audit(script: str, ci: str) -> list[str]:
+    """Pin the one full-native definition outside Cargo's selectable targets.
+
+    This intentionally lives in the Python health gate, not a Rust test: a
+    `cargo test --bin awl` invocation cannot exclude the auditor that would
+    otherwise catch its own scope loss.
+    """
+    failures: list[str] = []
+    required_script_lines = {
+        'canary_command=(cargo test --test native_gate_canary)':
+            "native-gate-audit: missing named integration-only canary",
+        'mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)':
+            "native-gate-audit: native suite command for mac must be unfiltered",
+        'linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)':
+            "native-gate-audit: missing Linux full-suite convention",
+        'start_commit="$(git rev-parse HEAD)"':
+            "native-gate-audit: receipt must capture HEAD before the suites",
+        'end_commit="$(git rev-parse HEAD)"':
+            "native-gate-audit: receipt must resolve HEAD after both suites",
+        "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n' \"$end_commit\"":
+            "native-gate-audit: receipt must name the exact commit, both conventions, and all-target scope",
+    }
+    for required, failure in required_script_lines.items():
+        if required not in script:
+            failures.append(failure)
+
+    canary = script.find('"${canary_command[@]}"')
+    mac = script.find('"${mac_command[@]}"')
+    linux = script.find('"${linux_command[@]}"')
+    receipt = script.find("native-gate-receipt")
+    if min(canary, mac, linux, receipt) < 0 or not canary < mac < linux < receipt:
+        failures.append(
+            "native-gate-audit: canary, mac suite, Linux suite, and receipt must run in that order"
+        )
+    if "if (( $# != 0 )); then" not in script:
+        failures.append("native-gate-audit: gate must reject target-selection and test-name arguments")
+
+    for job in ("linux", "mac"):
+        marker = f"  {job}:\n"
+        start = ci.find(marker)
+        if start < 0:
+            failures.append(f"native-gate-audit: CI lacks the {job} native job")
+            continue
+        next_job = re.search(r"\n  [A-Za-z][^:\n]*:", ci[start + len(marker):])
+        end = start + len(marker) + next_job.start() if next_job else len(ci)
+        body = ci[start:end]
+        if "run: scripts/native-gate.sh" not in body:
+            failures.append(f"native-gate-audit: CI {job} job must call scripts/native-gate.sh")
+    return failures
+
+
 def self_test() -> int:
     main = (ROOT / "src/main.rs").read_text()
     mas_gate = '#[cfg(all(feature = "mas", target_os = "macos"))]\nmod mas;'
@@ -325,6 +377,42 @@ def self_test() -> int:
             globals()["ROOT"] = root
             globals()["tracked_rust"] = original_tracked_rust
             globals()["baseline"] = original_baseline
+    script = '''if (( $# != 0 )); then
+canary_command=(cargo test --test native_gate_canary)
+mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
+linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
+start_commit="$(git rev-parse HEAD)"
+"${canary_command[@]}"
+"${mac_command[@]}"
+"${linux_command[@]}"
+end_commit="$(git rev-parse HEAD)"
+printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n' "$end_commit"
+'''
+    ci = '''  linux:
+    steps:
+      - run: scripts/native-gate.sh
+  mac:
+    steps:
+      - run: scripts/native-gate.sh
+'''
+    if native_gate_audit(script, ci):
+        raise AssertionError("canonical native-gate shape must pass its external audit")
+    mutations = {
+        "--bin": (script.replace("env AWL_CONVENTION_FORCE=mac cargo test", "cargo test --bin awl"), ci,
+                   "native suite command for mac must be unfiltered"),
+        "omitted Linux convention": (script.replace("linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)\n", ""), ci,
+                                       "missing Linux full-suite convention"),
+        "skipped canary": (script.replace("canary_command=(cargo test --test native_gate_canary)\n", ""), ci,
+                           "missing named integration-only canary"),
+        "stale SHA": (script.replace('end_commit="$(git rev-parse HEAD)"', 'end_commit="$start_commit"'), ci,
+                      "receipt must resolve HEAD after both suites"),
+        "CI bypass": (script, ci.replace("scripts/native-gate.sh", "cargo test"),
+                      "CI linux job must call scripts/native-gate.sh"),
+    }
+    for mutation, (bad_script, bad_ci, expected) in mutations.items():
+        failures = native_gate_audit(bad_script, bad_ci)
+        if not any(expected in failure for failure in failures):
+            raise AssertionError(f"native-gate audit mutation {mutation!r} did not fail by name: {failures}")
     print("code-health: self-test clean")
     return 0
 
@@ -332,9 +420,20 @@ def self_test() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--native-gate-audit", action="store_true")
     args = parser.parse_args()
     if args.self_test:
         return self_test()
+    if args.native_gate_audit:
+        failures = native_gate_audit(
+            (ROOT / "scripts/native-gate.sh").read_text(),
+            (ROOT / ".github/workflows/ci.yml").read_text(),
+        )
+        if failures:
+            print("\n".join(failures), file=sys.stderr)
+            return 1
+        print("native-gate-audit: canonical gate and CI wiring clean")
+        return 0
     try:
         git("cat-file", "-e", f"{BASELINE}^{{commit}}")
     except subprocess.CalledProcessError as error:
@@ -345,6 +444,12 @@ def main() -> int:
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
     failures.extend(check_structural(allowed, file_size_marks))
+    failures.extend(
+        native_gate_audit(
+            (ROOT / "scripts/native-gate.sh").read_text(),
+            (ROOT / ".github/workflows/ci.yml").read_text(),
+        )
+    )
     failures.extend(check_clippy(run_metric_clippy(), expected))
     if failures:
         print("code-health: policy check failed", file=sys.stderr)
