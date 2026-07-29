@@ -581,7 +581,7 @@ block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 `page.background`'s `zigzag` arm (item 86's light-worlds taste round — Quokka
 and Gumtree both moved to a repeating chevron ground, `/183`);
 `page.background`'s `deckle` arm (item 158's Paperbark — `{kind, ground, layer,
-deckle, weave, period_px, wander_px, density, static}`, where `weave` is the
+deckle, weave, anchor, period_px, wander_px, density, static}`, where `weave` is the
 theme-owned profile `"strata"`/`"fibres"`, `/189`); and
 `overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range

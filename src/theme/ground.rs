@@ -62,8 +62,36 @@ pub enum Background {
     Zigzag { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb,
         period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool },
     Organic { tones: [Srgb; 3], scale_px: f32, density: f32 },
-    Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave,
+    Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave, anchor: DeckleAnchor,
         period_px: f32, wander_px: f32, density: f32 },
+}
+
+/// The coordinate owner for Deckle's `Strata` weave. The material belongs to
+/// the Room, not to a movable page edge: `Viewport` keeps every exposed screen
+/// point on the same handmade-paper field while a page-width drag merely masks
+/// or reveals it. `Page` exists only as the explicit legacy/mutation arm; it
+/// remains useful to prove the law can name the regression. `Fibres` is
+/// screen-coordinate already and deliberately ignores this dial.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeckleAnchor {
+    Viewport,
+    Page,
+}
+
+impl DeckleAnchor {
+    pub fn mode(self) -> f32 {
+        match self {
+            Self::Viewport => 0.0,
+            Self::Page => 1.0,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Viewport => "viewport",
+            Self::Page => "page",
+        }
+    }
 }
 
 /// DECKLE's one theme-owned profile dial (item 158). The handmade-paper field
@@ -252,6 +280,14 @@ impl Background {
     pub fn weave_mode(&self) -> f32 {
         match self {
             Background::Deckle { weave, .. } => weave.mode(),
+            _ => 0.0,
+        }
+    }
+    /// Deckle's coordinate owner. Inert `0.0` off Deckle; Fibres deliberately
+    /// keeps its screen-space field regardless of an authored anchor.
+    pub fn deckle_anchor_mode(&self) -> f32 {
+        match self {
+            Background::Deckle { anchor, .. } => anchor.mode(),
             _ => 0.0,
         }
     }

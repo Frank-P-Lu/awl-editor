@@ -27,7 +27,7 @@
 use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
 use super::backgrounds_item89::{SWEEP, margins, mark_field};
 use super::{headless_dqp, view};
-use crate::theme::{self, Background, Weave};
+use crate::theme::{self, Background, DeckleAnchor, Weave};
 
 /// Per-pixel total-channel deviation from the mark-free pass that counts as
 /// real material. The differential oracle cancels the dither exactly, so this
@@ -53,15 +53,42 @@ fn with_weave(weave: Weave, period_px: f32, wander_px: f32) -> Background {
             ground,
             layer,
             deckle,
+            anchor,
             ..
         } => Background::Deckle {
             ground,
             layer,
             deckle,
             weave,
+            anchor,
             period_px,
             wander_px,
             density: 0.20,
+        },
+        _ => unreachable!("Paperbark ships Background::Deckle"),
+    }
+}
+
+fn with_anchor(anchor: DeckleAnchor) -> Background {
+    match paperbark_bg() {
+        Background::Deckle {
+            ground,
+            layer,
+            deckle,
+            weave,
+            period_px,
+            wander_px,
+            density,
+            ..
+        } => Background::Deckle {
+            ground,
+            layer,
+            deckle,
+            weave,
+            anchor,
+            period_px,
+            wander_px,
+            density,
         },
         _ => unreachable!("Paperbark ships Background::Deckle"),
     }
@@ -118,6 +145,19 @@ fn deckle_is_paperbarks_alone_and_fibres_has_no_assignee_no_wildcard() {
     }
     assert_eq!(Weave::Strata.mode(), 0.0);
     assert_eq!(Weave::Fibres.mode(), 1.0);
+    for t in theme::THEMES {
+        let want = if t.name == "Paperbark" {
+            DeckleAnchor::Viewport.mode()
+        } else {
+            0.0
+        };
+        assert_eq!(
+            t.background.deckle_anchor_mode(),
+            want,
+            "{}: Deckle anchor is inert outside its one assignee",
+            t.name
+        );
+    }
 }
 
 /// THE PAGE STAYS FLAT AND OPAQUE. Not one pixel of material may enter the
@@ -345,42 +385,97 @@ fn deckle_strata_never_collapses_to_one_flat_tone_in_a_margin_that_can_hold_a_la
     p.sync_theme();
 }
 
-/// THE CONTOURS GATHER AROUND THE PAGE, AND MIRROR ACROSS IT. Strata are a
-/// function of |distance to the near page edge| and of y alone, so two pixels
-/// equidistant from opposite page edges on the same row are the SAME material
-/// value. That is what makes the field read as layers laid around the page
-/// rather than a texture sliding under it, and it is a property of the shader
-/// that no dial can switch off.
+/// THE WALLPAPER LAW (item 175): a page-width drag changes only the opaque page
+/// mask. Any screen point exposed before AND after the drag is the SAME fixed
+/// Room wallpaper pixel. The `Page` mutation arm restores the old near-edge
+/// sampling and must produce a named mismatch, proving this is not a vacuous
+/// byte-identity assertion over a wholly-covered region.
 #[test]
-fn deckle_strata_mirror_across_the_writing_page() {
+fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags() {
     let Some((device, queue)) = headless_dq() else {
         eprintln!("skipping deckle_strata_mirror_across_the_writing_page: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
-    let bg = paperbark_bg();
-    for (w, h, cl, cw) in [
-        (1600u32, 900u32, 400.0f32, 800.0f32),
-        (1200, 800, 350.0, 500.0),
-    ] {
-        let field = mark_field(&device, &queue, bg, w, h, cl, cw);
-        let right_edge = cl + cw;
-        let reach = cl.min(w as f32 - right_edge) as u32;
-        assert!(reach > 40, "{w}x{h}: both margins must be real ({reach}px)");
+    let geometry = [
+        (1600u32, 900u32, (400.0f32, 800.0f32), (300.0f32, 1000.0f32)),
+        (1200, 800, (350.0, 500.0), (210.0, 780.0)),
+    ];
+    for (w, h, first_col, second_col) in geometry {
+        let stable = with_anchor(DeckleAnchor::Viewport);
+        let a = render_bg(
+            &device,
+            &queue,
+            bg_desc_for(stable),
+            w,
+            h,
+            first_col.0,
+            first_col.1,
+            0.0,
+        );
+        let b = render_bg(
+            &device,
+            &queue,
+            bg_desc_for(stable),
+            w,
+            h,
+            second_col.0,
+            second_col.1,
+            0.0,
+        );
+        let exposed = |x: f32| {
+            (x < first_col.0 || x >= first_col.0 + first_col.1)
+                && (x < second_col.0 || x >= second_col.0 + second_col.1)
+        };
         let mut checked = 0usize;
-        for y in (0..h).step_by(37) {
-            for d in (1..reach).step_by(7) {
-                let l = field[(y * w + (cl as u32 - d)) as usize];
-                let r = field[(y * w + (right_edge as u32 + d - 1)) as usize];
-                assert!(
-                    (l - r).abs() <= 2,
-                    "{w}x{h}: strata at distance {d} on row {y} differ across the page \
-                     ({l} vs {r}) — the field must be a function of the page distance"
+        for (i, (left, right)) in a.iter().zip(&b).enumerate() {
+            let x = (i as u32 % w) as f32;
+            if exposed(x) {
+                assert_eq!(
+                    left,
+                    right,
+                    "{w}x{h}: exposed wallpaper moved at ({x},{}) across page-width drag",
+                    i as u32 / w
                 );
                 checked += 1;
             }
         }
-        assert!(checked > 200, "the mirror law must sample broadly");
+        assert!(
+            checked > (w * h / 4) as usize,
+            "{w}x{h}: intersection must be substantial"
+        );
+
+        let legacy = with_anchor(DeckleAnchor::Page);
+        let legacy_a = render_bg(
+            &device,
+            &queue,
+            bg_desc_for(legacy),
+            w,
+            h,
+            first_col.0,
+            first_col.1,
+            0.0,
+        );
+        let legacy_b = render_bg(
+            &device,
+            &queue,
+            bg_desc_for(legacy),
+            w,
+            h,
+            second_col.0,
+            second_col.1,
+            0.0,
+        );
+        let moved = legacy_a
+            .iter()
+            .zip(&legacy_b)
+            .enumerate()
+            .filter(|(i, (left, right))| exposed((*i as u32 % w) as f32) && left != right)
+            .count();
+        assert!(
+            moved > (w * h / 100) as usize,
+            "mutation witness at {w}x{h}: page-relative Deckle moved only {moved} exposed pixels"
+        );
     }
 }
 
@@ -468,6 +563,7 @@ fn deckle_pitch_floor_holds_the_field_smooth_below_its_own_minimum() {
                 layer,
                 deckle,
                 weave,
+                anchor,
                 wander_px,
                 density,
                 ..
@@ -476,6 +572,7 @@ fn deckle_pitch_floor_holds_the_field_smooth_below_its_own_minimum() {
                 layer,
                 deckle,
                 weave,
+                anchor,
                 period_px: pitch,
                 wander_px,
                 density,
@@ -770,8 +867,14 @@ fn deckle_shader_constants_match_their_host_mirrors() {
          property of the shader, not of a dial pair"
     );
     assert!(
-        wgsl.contains("if (g.params.w >= DECKLE_WEAVE_FIBRES) {"),
-        "deckle_rgb must branch on the theme-owned weave scalar"
+        wgsl.contains("g.params.w >= DECKLE_WEAVE_FIBRES && g.params.w < 1.5"),
+        "deckle_rgb must branch on the theme-owned weave scalar while reserving the legacy \
+         page-relative arm for this law's mutation proof"
+    );
+    assert!(
+        wgsl.contains("deckle_viewport_distance(px), deckle_page_distance(px), g.params.w >= 1.5"),
+        "Strata must default to stable viewport coordinates; page-relative sampling belongs only \
+         to the explicit mutation arm"
     );
     // And no world name reaches the DECKLE branch. (The file's older sections
     // name worlds in prose comments; this is the new ground's own contract.)
