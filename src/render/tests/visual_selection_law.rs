@@ -119,8 +119,8 @@ fn pointer_switch_never_splits_the_band_from_the_shortcut_ink() {
     // PRECONDITION: this world genuinely flips BOTH inks, so a disagreement is
     // observable at all. A world with no flip would make the law vacuous.
     let (prim_ink, sec_ink) = (
-        crate::render::overlay_selected_primary_ink(),
-        crate::render::overlay_selected_secondary_ink(),
+        crate::render::chrome::overlay_selected_primary_ink(),
+        crate::render::chrome::overlay_selected_secondary_ink(),
     );
     assert!(
         prim_ink.is_some() && sec_ink.is_some(),
@@ -137,7 +137,8 @@ fn pointer_switch_never_splits_the_band_from_the_shortcut_ink() {
     let (prim, sec, vis) = answers(&mut p);
     assert!(
         prim == sec && sec == vis && !vis.is_empty(),
-        "at rest every visual must already agree (primary {prim:?}, secondary {sec:?}, transaction {vis:?})"
+        "at rest every visual must already agree \
+         (primary {prim:?}, secondary {sec:?}, transaction {vis:?})"
     );
     let start_rows = vis.clone();
 
@@ -362,7 +363,8 @@ fn the_shortcut_column_never_flips_ahead_of_its_own_band_in_real_pixels() {
     let (covered, target, first_top, lh, band) = p.living_probe_geom(&geom);
     assert!(
         !covered.is_empty() && !covered.contains(&target),
-        "mid-flight the band must cover rows but NOT the target (covered {covered:?}, target {target})"
+        "mid-flight the band must cover rows but NOT the target \
+         (covered {covered:?}, target {target})"
     );
     // The secondary column must actually be drawn, or there is nothing to assert.
     let (_, secondary_flipped) = p.overlay_ink_flip_probe(&geom);

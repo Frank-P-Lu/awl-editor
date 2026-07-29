@@ -42,7 +42,6 @@ impl TextPipeline {
         // band, both ink columns, the accessory plates and the sidecar give ONE
         // answer to "which row is selected" at every intermediate frame.
         let vis = self.resolve_visual_selection(&geom);
-        self.overlay_visual_rows = vis.rows().to_vec();
         let has_right = self.overlay_shape_text(&geom, ink, muted, selected_ink, &vis, true);
         self.overlay_upload_text(
             device, queue, width, height, &geom, has_right, ink, muted, placard,
@@ -78,9 +77,6 @@ impl TextPipeline {
         self.panel_card.prepare(device, queue, width, height, &[]);
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);
-        // ITEM 164: the frame's visual-selection answer parks with the card, so a
-        // closed overlay never reports a stale selected row into the sidecar.
-        self.overlay_visual_rows.clear();
         self.overlay_rows.prepare(device, queue, width, height, &[]);
         // PER-ITEM LIST SURFACES: the bar surfaces park empty too, so a closed
         // picker carries no stale bar quads into the next frame.

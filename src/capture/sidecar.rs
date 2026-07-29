@@ -246,21 +246,6 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
         ),
         None => "null".to_string(),
     };
-    // ITEM 164 — the display rows the last prepared frame actually DREW as
-    // selected, from the one visual-selection transaction. Equal to
-    // `[window.sel_row]` on every settled frame (so every ordinary capture);
-    // a pinned-phase living-band capture (`AWL_LIVING_BAND=morph:<t>`) is the
-    // one deterministic still where the band is mid-flight and they differ.
-    // Reported so the sidecar cannot become a THIRD answer beside the band and
-    // the ink: `selected_index` says what Enter runs, this says what the pixels
-    // currently claim.
-    let visual_selected = pipeline
-        .overlay_visual_selected_report()
-        .unwrap_or_default()
-        .iter()
-        .map(|r| r.to_string())
-        .collect::<Vec<_>>()
-        .join(", ");
     match &opts.overlay {
         Some(o) => {
             let items = o
@@ -349,7 +334,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .map(|m| json_string(m))
                 .unwrap_or_else(|| "null".into());
             format!(
-                "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, \"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, \"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, \"lens_strip\": [{}], \"sections\": [{}], \"preview_id\": {}, \"diff_focus\": {}, \"diff_scroll\": {}, \"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, \"visual_selected\": [{}], \"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], \"git\": [{}] }}",
+                "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, \"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, \"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, \"lens_strip\": [{}], \"sections\": [{}], \"preview_id\": {}, \"diff_focus\": {}, \"diff_scroll\": {}, \"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, \"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], \"git\": [{}] }}",
                 o.active,
                 json_string(o.mode),
                 json_string(o.title),
@@ -370,14 +355,13 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 capture,
                 empty,
                 window,
-                visual_selected,
                 items,
                 bindings,
                 ranges,
                 git
             )
         }
-        None => "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", \"selected_index\": null, \"browse_dir\": null, \"return_to\": null, \"spell_target\": null, \"hint\": null, \"notice\": \"\", \"lens\": null, \"lens_strip\": [], \"sections\": [], \"preview_id\": null, \"diff_focus\": false, \"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, \"empty\": null, \"window\": null, \"visual_selected\": [], \"items\": [], \"bindings\": [], \"ranges\": [], \"git\": [] }".to_string(),
+        None => "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", \"selected_index\": null, \"browse_dir\": null, \"return_to\": null, \"spell_target\": null, \"hint\": null, \"notice\": \"\", \"lens\": null, \"lens_strip\": [], \"sections\": [], \"preview_id\": null, \"diff_focus\": false, \"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, \"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], \"ranges\": [], \"git\": [] }".to_string(),
     }
 }
 

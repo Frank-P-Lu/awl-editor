@@ -589,19 +589,6 @@ impl TextPipeline {
         Some((geom.top_idx, lines, sel_row, geom.card_h, canvas_h))
     }
 
-    /// ITEM 164 — the display rows that READ as selected on the last PREPARED
-    /// overlay frame, for the sidecar. On every settled frame (all captures,
-    /// Reduce Motion, an unarmed pipeline) this is exactly
-    /// `[overlay_window_report().sel_row]`; it diverges only mid-glide, and a
-    /// pinned-phase capture (`AWL_LIVING_BAND=morph:<t>`) is where a deterministic
-    /// still can show it. Reporting it keeps the sidecar from becoming a THIRD
-    /// answer beside the band and the ink: `selected_index` says what Enter runs,
-    /// this says what the pixels currently claim.
-    pub fn overlay_visual_selected_report(&self) -> Option<&[usize]> {
-        self.overlay_active
-            .then_some(self.overlay_visual_rows.as_slice())
-    }
-
     /// ITEM 94 — the `overlay_items` INDEX drawn at display row `k`, or `None` when
     /// that row is a section HEADER / past the window. The ONE display-row→item map:
     /// the rail draw and the rail hit-test both read it, so a clicked rail and a
@@ -790,14 +777,11 @@ impl TextPipeline {
     /// `None` iff there are no items.
     ///
     /// ITEM 164 — THIS IS NOT "WHICH ROW LOOKS SELECTED". The bands are ANIMATED,
-    /// so during a glide the logical row and the row that visually reads selected
-    /// are DIFFERENT rows; a visual that colours itself from this index while its
-    /// neighbours ride the band puts two answers on the card at once (the reported
-    /// palette defect: the shortcut recoloured a row ahead of its own band and
-    /// label). Every rendering decision goes through
-    /// [`TextPipeline::resolve_visual_selection`] instead, which is why this is
-    /// `pub(super)` and why `render::tests::visual_selection_law` sweeps the whole
-    /// crate for a second caller.
+    /// so mid-glide the logical row and the row that visually reads selected are
+    /// DIFFERENT; a visual colouring itself from this index while its neighbours
+    /// ride the band puts two answers on one card. Rendering decisions go through
+    /// [`TextPipeline::resolve_visual_selection`] — hence `pub(super)`, and hence
+    /// `render::tests::visual_selection_law`'s sweep for a second caller.
     pub(super) fn overlay_selected_display_line(&self, geom: &OverlayGeom) -> Option<usize> {
         if geom.n_items == 0 {
             None

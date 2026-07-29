@@ -596,14 +596,8 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
         }
         w
     };
-    p.overlay_shape_text(
-        &geom,
-        ink,
-        muted,
-        None,
-        &crate::render::VisualSelection::default(),
-        true,
-    );
+    let vs = super::no_vis();
+    p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
     let plain_w = widest(&p);
     assert!(plain_w > 0.0);
 
@@ -612,14 +606,8 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
         px_per_row: 40.0,
         italic: false,
     }));
-    p.overlay_shape_text(
-        &geom,
-        ink,
-        muted,
-        None,
-        &crate::render::VisualSelection::default(),
-        true,
-    );
+    let vs = super::no_vis();
+    p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
     let slanted_w = widest(&p);
     set_slant_test_override(None);
 

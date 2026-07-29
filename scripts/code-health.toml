@@ -243,7 +243,7 @@ lines = 612
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1268
+lines = 1267
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -251,19 +251,19 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 811
+lines = 803
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 475
+lines = 466
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 386
+lines = 382
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 832
+lines = 830
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
@@ -275,7 +275,7 @@ lines = 634
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 649
+lines = 646
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -550,15 +550,8 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 197
+line = 188
 message = "this function has too many lines (179/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/chrome/overlay_shape.rs"
-line = 574
-message = "this function has too many lines (102/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
@@ -600,7 +593,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
 line = 406
-message = "this function has too many lines (127/100)"
+message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
@@ -951,7 +944,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_panels.rs"
 line = 1315
-message = "this function has too many lines (118/100)"
+message = "this function has too many lines (121/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
@@ -1050,7 +1043,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_personality.rs"
-line = 1276
+line = 1278
 message = "this function has too many lines (120/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 

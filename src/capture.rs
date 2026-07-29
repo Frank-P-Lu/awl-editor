@@ -5,10 +5,9 @@ pub const CANVAS_HEIGHT: u32 = 800;
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/187` — shaped-frame `layout` rows.
 /// `/188` — permissive replay `replay_skips`.
-/// `/189` — overlay `visual_selected` rows.
 /// History lives in Git. Bump this row with the const.
 /// Sidecar schema base; timeline and held use the next two versions.
-pub const SCHEMA_VERSION: u32 = 189;
+pub const SCHEMA_VERSION: u32 = 188;
 /// Plain single-frame schema.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

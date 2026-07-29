@@ -111,6 +111,12 @@ pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue,
     Some((device, queue, p))
 }
 
+/// ITEM 164 — an EMPTY visual selection, for the shaping/width probes that pass
+/// no selected ink and so cannot flip any row.
+pub(super) fn no_vis() -> crate::render::chrome::VisualSelection {
+    crate::render::chrome::VisualSelection::default()
+}
+
 pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {
     ViewState {
         text: text.to_string(),

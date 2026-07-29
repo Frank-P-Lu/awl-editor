@@ -23,8 +23,8 @@
 //! selected visual. [`TextPipeline::resolve_visual_selection`] runs the band
 //! animators exactly once, keeps the drawn geometry, and derives the rows that
 //! READ as selected from that geometry — never from the logical index. The
-//! shapers, the band/plate emitters, the rail ink, and the sidecar all consume
-//! the resulting [`VisualSelection`]; nothing downstream calls a band animator or
+//! shapers, the band/plate emitters and the rail ink all consume the resulting
+//! [`VisualSelection`]; nothing downstream calls a band animator or
 //! `overlay_selected_display_line` again.
 //!
 //! THE DIRECTION OF THE WAIT: the secondaries wait for the BAND, rather than the
@@ -43,11 +43,58 @@
 use super::*;
 use crate::render::livingband::{self, BandRect, MotionForce};
 
+/// Whether the secondary column flips onto the band at all. Both families do
+/// today; the split is kept because it is a per-family question, not a global.
+fn selected_secondary_on_band() -> bool {
+    match crate::render::effective_list_style() {
+        theme::ListStyle::Bars { .. } => true,
+        theme::ListStyle::Pane => true,
+    }
+}
+
+/// The PRIMARY label's on-band ink, or `None` when the world's band needs no
+/// flip (the glyph keeps `base_content` and reads fine on the fill). ONE owner
+/// so the shaper, the theme picker's own shaper, and the item-164 probe cannot
+/// disagree about what "this row's label reads selected" looks like.
+pub(in crate::render) fn overlay_selected_primary_ink() -> Option<glyphon::Color> {
+    match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
+        theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink.to_glyphon()),
+        theme::HighlightTreatment::ValueBand(band) => {
+            let flipped = theme::selected_row_ink(band);
+            (flipped != theme::base_content()).then(|| flipped.to_glyphon())
+        }
+    }
+}
+
+/// The SECONDARY column's on-band ink (the shortcut / time / git value beside a
+/// name, and the range rail's thumb), or `None` when the band needs no flip.
+/// The recessive twin of [`overlay_selected_primary_ink`], through the same
+/// `theme::selected_row_secondary_ink` owner the rail already used — ONE
+/// resolution shared by the shaped GLYPHS and the drawn rail QUAD, which
+/// previously computed the same match arm twice.
+pub(in crate::render) fn overlay_selected_secondary_srgb() -> Option<theme::Srgb> {
+    if !selected_secondary_on_band() {
+        return None;
+    }
+    match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
+        theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink),
+        theme::HighlightTreatment::ValueBand(b) => {
+            let flipped = theme::selected_row_secondary_ink(b);
+            (flipped != theme::muted()).then_some(flipped)
+        }
+    }
+}
+
+/// [`overlay_selected_secondary_srgb`] as a text colour, for the shapers.
+pub(in crate::render) fn overlay_selected_secondary_ink() -> Option<glyphon::Color> {
+    overlay_selected_secondary_srgb().map(|c| c.to_glyphon())
+}
+
 /// THE ONE answer to "which overlay display rows currently READ as selected".
 ///
 /// Resolved once per frame by [`TextPipeline::resolve_visual_selection`] and
-/// threaded to every consumer, so the band, the primary ink, the secondary ink,
-/// the accessory plates and the sidecar cannot disagree within a frame.
+/// threaded to every consumer, so the band, the primary ink, the secondary ink
+/// and the accessory plates cannot disagree within a frame.
 #[derive(Clone, Debug, Default)]
 pub(in crate::render) struct VisualSelection {
     logical: Option<usize>,
