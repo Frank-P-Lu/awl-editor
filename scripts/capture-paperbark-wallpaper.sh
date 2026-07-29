@@ -8,8 +8,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
-export CARGO_BUILD_JOBS=2
-
 BIN="$ROOT/target/release/awl"
 RUN_DIR="$ROOT/gallery/paperbark-wallpaper"
 CAPTURES="$RUN_DIR/captures"

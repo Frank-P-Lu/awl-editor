@@ -9,6 +9,9 @@ if (( $# != 0 )); then
   exit 2
 fi
 
+gate_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+AWL_DISK_PREFLIGHT_CALLER=native-gate "$gate_root/.orchestrator/disk-preflight.sh"
+
 start_commit="$(git rev-parse HEAD)"
 
 # This is deliberately an integration target, outside the binary unit-test

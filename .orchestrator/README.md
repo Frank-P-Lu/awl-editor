@@ -41,6 +41,21 @@ receipt with the gate outcome, for example:
 .orchestrator/worker-build.sh scripts/web-smoke.sh
 ```
 
+## Disk-pressure preflight
+
+`.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
+`worker-build.sh` invokes it before every concurrent worker command; the
+canonical native gate invokes the same owner for the root merge train. Above
+its 8 GiB healthy floor it only reads filesystem capacity. Below that floor it
+locks, rechecks, and asks the sole traversal/deletion owner, `scripts/sweep.sh
+1`, for recovery. A post-sweep 2 GiB minimum is an early, truthful failure.
+
+CI is intentionally capacity-only: it does not install or run `cargo-sweep`,
+so an undersized CI runner fails before Cargo instead of attempting host
+cleanup. WebAssembly remains portable because its worker launch inherits the
+same preflight, while standalone `scripts/web-smoke.sh` stays a normal
+cross-platform build script with no macOS-specific disk policy.
+
 ## Mutation proof is part of the deliverable
 
 **A law that was never watched failing is not evidence.** The author breaks the
