@@ -1,7 +1,6 @@
-use super::cjk::FontId;
-use super::color::Srgb;
 use super::ground::Background;
-use super::ornament::Ornaments;
+pub use super::icon_ground::IconGround;
+use super::{cjk::FontId, color::Srgb, ornament::Ornaments};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     pub def_fg: Option<Srgb>,
@@ -415,6 +414,7 @@ pub struct Theme {
     pub font: &'static str,
     pub mono: &'static str,
     pub icon_cursor: IconCursor,
+    pub icon_ground: IconGround,
     pub heading_bold: bool,
     pub cjk: &'static [&'static str],
     pub zh_hans: &'static [&'static str],

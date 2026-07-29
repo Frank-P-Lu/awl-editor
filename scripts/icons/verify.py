@@ -13,7 +13,8 @@ export makes is asserted here by counting pixels:
   cursor ink the "l" reads INSIDE that cursor's bounding box, in
              `primary_content` — the knocked-out letter, not a blank slab
   wordmark   `base_content` ink exists OUTSIDE the cursor box: "aw" is there
-  ground     `base_100` is the dominant colour
+  ground     the tile's `ground` (`base_100`, or a world's blend toward
+             `base_300`) is the dominant colour
 
 Deliberately bbox-relative rather than palette-nearest, because Wagtail's four
 tokens collapse to two values (black/white): "which colour is this pixel" cannot
@@ -225,7 +226,10 @@ def geometry(path, world):
     the real glyph hole from the tile ground.
     """
     w, h, bpp, buf = decode_png(path)
-    ground = hexrgb(world["base_100"])
+    # The tile's ACTUAL ground (item 121: `base_100` unless the world opted
+    # into a blend toward `base_300`) — never `base_100` directly, since the
+    # rendered pixels follow `ground`, not the raw token.
+    ground = hexrgb(world["ground"])
     ink = hexrgb(world["base_content"])
     cursor = hexrgb(world["primary"])
     curink = hexrgb(world["primary_content"])
@@ -308,7 +312,10 @@ def geometry(path, world):
 
 def analyse(path, world):
     w, h, bpp, buf = decode_png(path)
-    ground = hexrgb(world["base_100"])
+    # The tile's ACTUAL ground (item 121: `base_100` unless the world opted
+    # into a blend toward `base_300`) — never `base_100` directly, since the
+    # rendered pixels follow `ground`, not the raw token.
+    ground = hexrgb(world["ground"])
     ink = hexrgb(world["base_content"])
     cursor = hexrgb(world["primary"])
     curink = hexrgb(world["primary_content"])

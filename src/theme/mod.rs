@@ -38,6 +38,7 @@ mod cjk;
 mod color;
 mod derive;
 mod ground;
+mod icon_ground;
 mod model;
 mod ornament;
 mod worlds;
@@ -84,6 +85,10 @@ pub use model::{Lens, RoleOverrides, ThemeTags};
 // THEME CAPABILITIES AS DATA: the declarative render-behavior bundle every
 // per-theme render decision reads instead of an ad hoc `is_one_bit()` branch.
 // See `model::RenderCaps`'s own module doc.
+#[allow(unused_imports)] // public API surface; every in-crate caller today
+// reaches it through `Theme::icon_ground` / `icon_ground_color()`, and on
+// wasm (no native icon exporter) nothing outside `theme` names it directly.
+pub use icon_ground::IconGround;
 #[allow(unused_imports)] // RenderCaps/ImageReveal: public API surface (the full
 // bundle type + one field's enum); every non-test in-crate caller today reaches
 // them through `Theme::render_caps.<field>` rather than this bare re-export.

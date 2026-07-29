@@ -95,12 +95,12 @@ Wagtail         JetBrains Mono        block     64  (6, 21, 57, 43)     (42, 14,
 Wagtail         JetBrains Mono        block     44  (4, 14, 39, 29)     (29, 9, 40, 34)     (33, 14, 39, 28)    29
 Wagtail         JetBrains Mono        block     32  (3, 11, 28, 20)     (21, 7, 29, 25)     (24, 11, 28, 20)    20
 Wagtail         JetBrains Mono        block     24  (2, 8, 18, 15)      (16, 5, 21, 18)     (16, 8, 18, 14)     15
-Firetail        Monaspace Xenon       pill     256  (21, 77, 233, 173)  (168, 63, 240, 193) (175, 77, 233, 171) 173
-Firetail        Monaspace Xenon       pill     128  (10, 38, 116, 85)   (84, 31, 119, 96)   (86, 38, 116, 84)   85
-Firetail        Monaspace Xenon       pill      64  (5, 19, 59, 43)     (42, 15, 59, 47)    (44, 19, 59, 43)    43
-Firetail        Monaspace Xenon       pill      44  (3, 14, 40, 29)     (29, 10, 40, 32)    (29, 14, 40, 29)    29
-Firetail        Monaspace Xenon       pill      32  (2, 9, 28, 21)      (21, 6, 30, 23)     (22, 9, 28, 20)     21
-Firetail        Monaspace Xenon       pill      24  (2, 6, 21, 16)      (16, 6, 22, 17)     (16, 6, 21, 16)     15
+Firetail        Monaspace Xenon       block    256  (21, 77, 233, 173)  (168, 63, 240, 193) (175, 77, 233, 171) 173
+Firetail        Monaspace Xenon       block    128  (10, 38, 116, 85)   (84, 31, 119, 96)   (87, 38, 116, 84)   85
+Firetail        Monaspace Xenon       block     64  (5, 19, 58, 43)     (42, 15, 59, 47)    (44, 19, 58, 42)    43
+Firetail        Monaspace Xenon       block     44  (3, 13, 39, 29)     (29, 10, 40, 32)    (30, 13, 39, 28)    29
+Firetail        Monaspace Xenon       block     32  (2, 9, 28, 21)      (20, 6, 29, 23)     (22, 9, 28, 20)     21
+Firetail        Monaspace Xenon       block     24  (2, 8, 19, 15)      (16, 6, 22, 17)     (18, 8, 19, 14)     15
 Cassowary       Iosevka               block    256  (43, 89, 213, 173)  (183, 71, 216, 201) (185, 89, 213, 172) 173
 Cassowary       Iosevka               block    128  (22, 44, 106, 86)   (91, 35, 107, 99)   (93, 44, 106, 85)   86
 Cassowary       Iosevka               block     64  (11, 23, 52, 44)    (46, 17, 53, 50)    (47, 23, 52, 43)    44
