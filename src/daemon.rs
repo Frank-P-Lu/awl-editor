@@ -99,9 +99,8 @@ pub enum BindOutcome {
 ///   * bind fails, connect SUCCEEDS → `Handoff` (a live instance owns it).
 ///   * bind fails, connect REFUSED  → a crash left a stale socket file with
 ///     nobody listening: unlink it and reclaim the address → `Instance`.
-///
-/// Any I/O error surviving the reclaim attempt propagates to the caller
-/// (surfaces as "give up the singleton dance, launch anyway" — see `startup`).
+///     Any I/O error surviving the reclaim attempt propagates to the caller
+///     (surfaces as "give up the singleton dance, launch anyway" — see `startup`).
 pub fn bind_or_connect(path: &Path) -> std::io::Result<BindOutcome> {
     match UnixListener::bind(path) {
         Ok(l) => Ok(BindOutcome::Instance(l)),
