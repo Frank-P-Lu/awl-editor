@@ -25,6 +25,10 @@ chmod +x "$oracle" "$sweep"
 healthy_bytes=$((40 * 1024 * 1024 * 1024))
 insufficient_bytes=$((20 * 1024 * 1024 * 1024))
 ci_capacity_bytes=$((3 * 1024 * 1024 * 1024))
+stale_pid=$(( $$ + 100000000 ))
+while kill -0 "$stale_pid" 2>/dev/null; do
+  stale_pid=$((stale_pid + 100000000))
+done
 
 run() {
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
@@ -101,6 +105,22 @@ grep -l 'status=reused-recovery' "$WORK"/contender-*.out >/dev/null || {
   echo "test-disk-preflight: contenders did not reuse the in-lock recovery" >&2; exit 1;
 }
 
+# Deterministic A/B/C stale handoff: every contender sees A's dead lock; the
+# elected reclaimer must publish C before the others can acquire the path.
+printf 'pid=%s caller=dead-owner\n' "$stale_pid" >"$WORK/lock"
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+for n in 1 2 3 4; do
+  AWL_TEST_SWEEP_DELAY=0.3 run "$healthy_bytes" >"$WORK/stale-contender-$n.out" &
+done
+wait
+[[ "$(wc -l <"$WORK/sweeps")" -eq 1 ]] || {
+  echo "test-disk-preflight: stale A/B/C handoff launched more than one sweep" >&2; exit 1;
+}
+grep -l 'status=reused-recovery' "$WORK"/stale-contender-*.out >/dev/null || {
+  echo "test-disk-preflight: stale A/B/C contenders did not preserve C's lock" >&2; exit 1;
+}
+
 # A process killed after metadata is written but before the hard-link publish
 # leaves no lock path. The next owner proceeds instead of inheriting an empty
 # or unparseable acquisition artifact.
@@ -115,6 +135,7 @@ printf '%s\n' 1073741824 >"$WORK/free"
 if env AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_AFTER_METADATA_COMMAND="$kill_owner" \
   AWL_TEST_FREE_FILE="$WORK/free" \
   AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
@@ -150,10 +171,6 @@ wait
 
 # A SIGKILL can leave only a fully published lock file: there is no empty
 # directory/owner-file window. A dead owner is reclaimed observably.
-stale_pid=$(( $$ + 100000000 ))
-while kill -0 "$stale_pid" 2>/dev/null; do
-  stale_pid=$((stale_pid + 100000000))
-done
 printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock"
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
@@ -192,7 +209,8 @@ EOF
 chmod +x "$replacement"
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
-AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND="$replacement" run "$healthy_bytes" >/dev/null
+AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND="$replacement" run "$healthy_bytes" >/dev/null
 grep -Fq 'caller=replacement-owner' "$WORK/lock" || {
   echo "test-disk-preflight: old cleanup removed a replacement lock inode" >&2; exit 1;
 }
