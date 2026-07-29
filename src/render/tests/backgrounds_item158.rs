@@ -42,9 +42,8 @@ fn galah_bg() -> Background {
     theme::GALAH.background
 }
 
-/// The DORMANT `Weave::Fibres` profile under test here. Item 159 gives it a
-/// world; until then this literal is what keeps the arm honest — a variant
-/// nothing constructs is a variant nobody has proven draws anything.
+/// A controlled `Weave::Fibres` fixture whose dials match the paired Strata
+/// fixture below. Galah uses its own authored dials; this one isolates weave.
 fn fibres_bg() -> Background {
     with_weave(Weave::Fibres, 88.0, 25.0)
 }
@@ -911,12 +910,9 @@ fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
     );
 }
 
-/// THE DORMANT ARM IS REAL. `Weave::Fibres` has no world, so nothing else in
-/// the suite would ever draw it — and a variant nobody draws is a variant that
-/// silently rots until item 159 tries to use it. This law renders it through
-/// the SAME pipeline and asserts it produces a genuinely DIFFERENT field from
-/// `Strata` at identical tones and dials: the weave is a real profile pick,
-/// not a slot that happens to be read.
+/// Fibres and Strata remain genuinely different profiles. Render both through
+/// the same pipeline with identical tones and dials so this grades the weave
+/// choice itself rather than Galah and Paperbark's authored parameters.
 #[test]
 fn weave_fibres_draws_a_real_field_distinct_from_strata() {
     let Some((device, queue)) = headless_dq() else {
@@ -958,8 +954,7 @@ fn weave_fibres_draws_a_real_field_distinct_from_strata() {
     }
     assert!(
         fib_peak >= INK_FLOOR,
-        "Weave::Fibres must draw real material (peak {fib_peak}) — a dormant arm that \
-         renders nothing is not reusable infrastructure, it is dead code"
+        "Weave::Fibres must draw real material (peak {fib_peak})"
     );
     let frac = differing as f32 / total.max(1) as f32;
     assert!(
