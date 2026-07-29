@@ -9,10 +9,6 @@ if (( $# != 0 )); then
   exit 2
 fi
 
-# Keep concurrent worker gates within the agreed disk/CPU budget unless a
-# caller deliberately supplies a narrower limit.
-export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
-
 start_commit="$(git rev-parse HEAD)"
 
 # This is deliberately an integration target, outside the binary unit-test
