@@ -17,8 +17,11 @@ if ! cargo machete --version 2>/dev/null | grep -Fxq "$CARGO_MACHETE_VERSION"; t
 fi
 
 cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-python3 scripts/code-health.py
+# Clippy drives rustc through clippy-driver rather than producing reusable
+# compiler artifacts. Keep it outside the shared rustc cache: sccache's
+# jobserver handshake with clippy-driver is not portable across local runners.
+RUSTC_WRAPPER= cargo clippy --all-targets --all-features -- -D warnings
+RUSTC_WRAPPER= python3 scripts/code-health.py
 # The scan covers every tracked Rust source file, including native/macOS/wasm/
 # feature-gated paths. Never let a target directory's generated output make a
 # dependency look live. awl has no renamed dependency packages, so the
