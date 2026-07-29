@@ -816,7 +816,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
-line = 1792
+line = 1755
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
