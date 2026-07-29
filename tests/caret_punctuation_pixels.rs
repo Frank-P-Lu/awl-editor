@@ -147,7 +147,30 @@ fn hex_rgb(value: &serde_json::Value) -> [u8; 3] {
     ]
 }
 
-fn glyph_mask(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> Vec<usize> {
+/// THE ONE OWNER of "which pixels inside the caret footprint are the glyph's".
+///
+/// The target glyph is centred in the caret body. Probe its middle half, leaving
+/// the body edge out: on the literal `a,` fixture the widened comma body
+/// legitimately overlaps the preceding `a`'s antialiased fringe, and the body's
+/// own antialiased rim is not glyph ink either.
+fn probe(rect: (u32, u32, u32, u32), w: u32) -> impl Iterator<Item = usize> {
+    let inset_x = ((rect.2 - rect.0 + 1) / 4).max(2);
+    (rect.1 + 2..=rect.3 - 2).flat_map(move |y| {
+        (rect.0 + inset_x..=rect.2 - inset_x).map(move |x| ((y * w + x) * 4) as usize)
+    })
+}
+
+/// HOW MUCH ink this punctuation carries with the caret parked elsewhere.
+///
+/// A SCALAR, and deliberately only a scalar. The caret-free capture may be asked
+/// how much ink the glyph has; it must NEVER be asked WHERE that ink sits. The
+/// caret re-lays the row it lands on — `render::caret_body::caret_visual_body_dims`
+/// widens a thin glyph's cell to the authored minimum body, which moves the glyph
+/// INSIDE that cell — so a pixel index harvested from the caret-free capture stops
+/// landing on the glyph in the caret-bearing one. Reading positions across the two
+/// captures is what made this law platform-fragile: it scored a coincidence of
+/// position, not the visibility of a glyph.
+fn glyph_ink_off_caret(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> usize {
     let (w, _, pixels) = reference;
     // The outer top-left is inside the padded body bbox but outside the glyph; it
     // is the real page colour for this exact capture, so patterned worlds and
@@ -157,73 +180,102 @@ fn glyph_mask(reference: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> Ve
         pixels[((rect.1 * *w + rect.0) * 4) as usize + 1],
         pixels[((rect.1 * *w + rect.0) * 4) as usize + 2],
     ];
-    // The target glyph is centred in the caret body. Probe its middle half,
-    // leaving the body edge out: on the literal `a,` fixture the widened comma
-    // body legitimately overlaps the preceding `a`'s antialiased fringe.
-    let inset_x = ((rect.2 - rect.0 + 1) / 4).max(2);
-    let mut mask = Vec::new();
-    for y in rect.1 + 2..=rect.3 - 2 {
-        for x in rect.0 + inset_x..=rect.2 - inset_x {
-            let i = ((y * *w + x) * 4) as usize;
-            if pixels[i..i + 3] != page {
-                mask.push(i);
-            }
-        }
-    }
-    mask
+    probe(rect, *w)
+        .filter(|&i| pixels[i..i + 3] != page)
+        .count()
 }
 
-fn body_only_control(
-    reference: &(u32, u32, Vec<u8>),
-    rendered: &(u32, u32, Vec<u8>),
-    rect: (u32, u32, u32, u32),
-    body: [u8; 3],
-) -> ((u32, u32, Vec<u8>), Vec<usize>) {
-    let mask = glyph_mask(reference, rect);
-    let mut body_only = rendered.clone();
-    for &i in &mask {
-        body_only.2[i..i + 3].copy_from_slice(&body);
+/// HOW MUCH of the caret's own footprint is not a flat slab — read out of the
+/// RENDERED capture alone, so no cross-capture position can enter the oracle.
+///
+/// A swallowed glyph leaves the body one uniform colour, so the modal colour is
+/// the whole probe and the relief is nil. Surviving punctuation always shows as a
+/// second population, whichever way the world draws it: knocked back through a
+/// support body in `primary_content` (Filled block, settled Morph — see
+/// `render::caret_body::prepare_morph_body_or_empty`), or left in its own ink over
+/// a block painted beneath the text. Taking the MODAL colour rather than naming the
+/// body colour is what makes those cases one rule — including a bodyless Morph,
+/// where the modal colour is the page and the accent silhouette is the minority.
+fn caret_body_relief(rendered: &(u32, u32, Vec<u8>), rect: (u32, u32, u32, u32)) -> usize {
+    let (w, _, pixels) = rendered;
+    let mut hist: std::collections::HashMap<[u8; 3], usize> = std::collections::HashMap::new();
+    let mut total = 0;
+    for i in probe(rect, *w) {
+        total += 1;
+        *hist
+            .entry([pixels[i], pixels[i + 1], pixels[i + 2]])
+            .or_default() += 1;
     }
-    (body_only, mask)
+    total - hist.values().copied().max().unwrap_or(0)
+}
+
+/// The floor a surviving glyph must clear: half the ink it carries off-caret, and
+/// never fewer than 4 pixels.
+///
+/// Both halves are measured, not guessed. Over the full 200-cell sweep this test
+/// already walks (5 worlds x 2 scale products x 10 punctuation classes x 2 caret
+/// looks) the relief never falls below 0.95x the off-caret ink and never below 10
+/// pixels absolute, so the floor keeps about a 2x margin on every cell — while a
+/// body that genuinely swallows its glyph scores 0.
+fn survival_floor(off_caret_ink: usize) -> usize {
+    (off_caret_ink / 2).max(4)
 }
 
 fn assert_punctuation_glyph_contribution(
     reference: &(u32, u32, Vec<u8>),
     rendered: &(u32, u32, Vec<u8>),
-    body_only: &(u32, u32, Vec<u8>),
     rect: (u32, u32, u32, u32),
     world: &str,
     ch: char,
     mode: &str,
 ) {
-    let mask = glyph_mask(reference, rect);
+    let off_caret = glyph_ink_off_caret(reference, rect);
     assert!(
-        mask.len() >= 2,
+        off_caret >= 2,
         "{world} {ch:?} {mode}: fixture must contain punctuation ink"
     );
+    let relief = caret_body_relief(rendered, rect);
+    let floor = survival_floor(off_caret);
     assert!(
-        mask.iter()
-            .filter(|&&i| rendered.2[i..i + 4] != body_only.2[i..i + 4])
-            .count()
-            >= 2,
-        "{world} {ch:?} {mode}: covered punctuation swallowed into uniform body"
+        relief >= floor,
+        "{world} {ch:?} {mode}: covered punctuation swallowed into uniform body \
+         (relief {relief} < floor {floor}, off-caret ink {off_caret})"
     );
 }
 
-fn assert_body_only_mutation_red(
+/// The synthetic swallow: the caret body painted flat across the whole probe,
+/// which is exactly what "swallowed into uniform body" looks like in pixels.
+fn swallowed_control(
+    rendered: &(u32, u32, Vec<u8>),
+    rect: (u32, u32, u32, u32),
+    body: [u8; 3],
+) -> (u32, u32, Vec<u8>) {
+    let mut swallowed = rendered.clone();
+    for i in probe(rect, rendered.0) {
+        swallowed.2[i..i + 3].copy_from_slice(&body);
+    }
+    swallowed
+}
+
+/// NON-VACUITY, run against the ACTUAL production assertion: feed it a capture in
+/// which the glyph really has been swallowed and require it to go red. Silence the
+/// panic hook first — this panic is the expected result, and printing it into a
+/// green run's stderr has already been read as a failure once.
+fn assert_swallowed_control_is_red(
     reference: &(u32, u32, Vec<u8>),
-    body_only: &(u32, u32, Vec<u8>),
+    swallowed: &(u32, u32, Vec<u8>),
     rect: (u32, u32, u32, u32),
 ) {
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
     let mutation_failed = std::panic::catch_unwind(|| {
-        assert_punctuation_glyph_contribution(
-            reference, body_only, body_only, rect, "Mopoke", ',', "block",
-        );
+        assert_punctuation_glyph_contribution(reference, swallowed, rect, "Mopoke", ',', "block");
     })
     .is_err();
+    std::panic::set_hook(hook);
     assert!(
         mutation_failed,
-        "body-only control must fail the production glyph assertion"
+        "swallowed control must fail the production glyph assertion"
     );
 }
 
@@ -302,13 +354,12 @@ fn proportional_punctuation_has_a_real_pixel_body() {
                         "{world} {ch:?} {mode}: caret clipped by row band"
                     );
                     let rect = (left, outer_top, right, outer_bottom);
-                    let (body_only, _) = body_only_control(&refimg, &rendered, rect, caret_rgb);
                     assert_punctuation_glyph_contribution(
-                        &refimg, &rendered, &body_only, rect, world, ch, mode,
+                        &refimg, &rendered, rect, world, ch, mode,
                     );
                     if world == "Mopoke" && ch == ',' && mode == "block" {
-                        // Run the ACTUAL production assertion against the mutation.
-                        assert_body_only_mutation_red(&refimg, &body_only, rect);
+                        let swallowed = swallowed_control(&rendered, rect, caret_rgb);
+                        assert_swallowed_control_is_red(&refimg, &swallowed, rect);
                     }
                     assert!(
                         area as f32 >= 96.0 * scale * scale * 0.25,
