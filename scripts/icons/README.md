@@ -41,6 +41,7 @@ Four programs, each runnable alone:
 | 1 | `cargo run -- --icon-manifest` (`src/icon_manifest.rs`) | the palette + face facts, derived from `theme::THEMES` and the `assets/fonts/*.ttf` name tables |
 | 2 | `scripts/icons/build.mjs` | HTML pages + `fonts.css` (fonts inlined as base64 `data:` URLs) |
 | 3 | `scripts/icons/render.mjs` | one pinned Chromium over CDP, writing every PNG |
+| 3a | `scripts/icons/render-laws.mjs` | the renderer's guards, held to their word against the real browser |
 | 4 | `scripts/icons/verify.py` | pixel arithmetic over the result |
 | 5 | `cargo run -- --pack-icns` (`src/app_icon/icns.rs`) | cuts each world's tiles into a real `.icns` + the canonical bundle icon |
 
@@ -77,6 +78,30 @@ present locally. The script never downloads a browser — point
   a page's last column rasterized their corner antialiasing ±3/255 differently
   between runs, which is why `render.mjs` grows the viewport past the document
   instead of capturing beyond it.
+- **A stall must name its stage.** Every wait in `render.mjs` is bounded and
+  named — launch, page target, websocket, navigate, load event, fonts, measure,
+  and each `capture <file>` — so a run that stops says which one, with the
+  browser's own last words attached. `--timeout-ms` sets the budget (60s
+  default); raise it on a loaded machine. This is not hypothetical: the exporter
+  spent a round hung inside `Page.captureScreenshot` with nothing to report, and
+  the reason it had nothing to report is that the browser's stderr was piped to
+  a reader that did not exist. An unread pipe is a deadlock with a fuse: once
+  the OS buffer fills, the browser blocks mid-write and answers no CDP request
+  again, and the explanation is stuck in the pipe nobody drained.
+- **Nothing outlives the run.** The browser is spawned into its own process
+  group and torn down through one idempotent `shutdown()` — wired to the normal
+  exit, to signals, and to every failure path including the ones that used to
+  `throw` past cleanup and strand a scratch profile in `$TMPDIR`. The exporter
+  never selects a process by NAME, so a browser some other tool is running is
+  never collateral.
+- **The guards are tested, not asserted.** `node scripts/icons/render-laws.mjs`
+  drives the shipped `launch`/`connect`/`stage`/`shutdown` against a real
+  Chromium: the unread-pipe deadlock still bites (so the drain is load-bearing),
+  the drain is live, a renderer wedged on its main thread makes a real
+  `Page.captureScreenshot` stall and that stall names the shot, teardown leaves
+  no process group and no profile, and a launch that times out leaks nothing.
+  `export-icons.sh` runs them before it renders — twenty seconds against a hang
+  at 03:00.
 
 ## Output
 

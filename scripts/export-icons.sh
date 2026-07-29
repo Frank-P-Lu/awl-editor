@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # THE OFFLINE ICON EXPORT — the whole per-world app-icon pipeline, ahead of time.
 #
-#   scripts/export-icons.sh [--out DIR] [--check] [--only SUBSTR]
+#   scripts/export-icons.sh [--out DIR] [--check] [--only SUBSTR] [--timeout-ms N]
 #
 # Four steps, each one a separate program so each can be re-run alone:
 #
@@ -12,7 +12,9 @@
 #   2. `scripts/icons/build.mjs`        manifest + tuning -> self-contained HTML
 #      with the fonts inlined as data: URLs.
 #   3. `scripts/icons/render.mjs`       one pinned, offline Chromium renders
-#      every tile and gallery sheet.
+#      every tile and gallery sheet. Every wait in it is named and bounded;
+#      `scripts/icons/render-laws.mjs` runs first (below) and holds it to that.
+#      This step once stopped answering mid-capture and said nothing at all.
 #   4. `cargo run -- --pack-icns`       cut each world's tiles, at the ONE
 #      preset its world literal assigns, into a real `.icns`; write the
 #      canonical bundle icon; regenerate `src/app_icon/embedded.rs`. Pure
@@ -36,13 +38,17 @@ OUT="assets/macos/candidates"
 BUILD="target/icon-export"
 CHECK=0
 ONLY=""
+# Per-stage budget for the renderer's named waits; raise it on a loaded machine
+# rather than going back to a run that can hang without saying where.
+TIMEOUT_MS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --out) OUT="$2"; shift 2 ;;
     --build) BUILD="$2"; shift 2 ;;
     --only) ONLY="$2"; shift 2 ;;
+    --timeout-ms) TIMEOUT_MS="$2"; shift 2 ;;
     --check) CHECK=1; shift ;;
-    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,27p' "$0"; exit 0 ;;
     *) echo "unknown flag: $1" >&2; exit 2 ;;
   esac
 done
@@ -50,6 +56,12 @@ done
 command -v node >/dev/null || { echo "node is required (Node 22+ for global WebSocket)" >&2; exit 1; }
 
 mkdir -p "$BUILD" "$OUT"
+
+# The renderer's guards, proven before a minutes-long export leans on them:
+# a drained browser stderr, a named stall on the call that hangs, a teardown
+# that leaves no process and no scratch profile. Twenty seconds.
+echo "==> renderer laws"
+node scripts/icons/render-laws.mjs
 
 echo "==> manifest (from theme::THEMES + assets/fonts)"
 cargo run --quiet -- --icon-manifest > "$BUILD/manifest.json"
@@ -59,9 +71,9 @@ node scripts/icons/build.mjs --manifest "$BUILD/manifest.json" --out "$BUILD/htm
 
 echo "==> render"
 if [ -n "$ONLY" ]; then
-  node scripts/icons/render.mjs --build "$BUILD/html" --out "$OUT" --only "$ONLY"
+  node scripts/icons/render.mjs --build "$BUILD/html" --out "$OUT" --only "$ONLY" ${TIMEOUT_MS:+--timeout-ms "$TIMEOUT_MS"}
 else
-  node scripts/icons/render.mjs --build "$BUILD/html" --out "$OUT"
+  node scripts/icons/render.mjs --build "$BUILD/html" --out "$OUT" ${TIMEOUT_MS:+--timeout-ms "$TIMEOUT_MS"}
 fi
 
 echo "==> pixel checks"
@@ -88,7 +100,7 @@ if [ "$CHECK" = "1" ]; then
   echo "==> determinism: second render into a scratch tree, hashes compared"
   SECOND="$BUILD/recheck"
   rm -rf "$SECOND"
-  node scripts/icons/render.mjs --build "$BUILD/html" --out "$SECOND" ${ONLY:+--only "$ONLY"}
+  node scripts/icons/render.mjs --build "$BUILD/html" --out "$SECOND" ${ONLY:+--only "$ONLY"} ${TIMEOUT_MS:+--timeout-ms "$TIMEOUT_MS"}
   ( cd "$OUT" && find . -name '*.png' | sort | xargs shasum -a 256 ) > "$BUILD/hashes-a.txt"
   ( cd "$SECOND" && find . -name '*.png' | sort | xargs shasum -a 256 ) > "$BUILD/hashes-b.txt"
   if diff -q "$BUILD/hashes-a.txt" "$BUILD/hashes-b.txt" >/dev/null; then
