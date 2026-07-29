@@ -413,6 +413,7 @@ fn mulga_star_conceals_to_the_literal_asterism_item_88() {
             "Wagtail" => ('✧', '⭑', '❡'),
             "Firetail" => ('✷', '✶', '✦'),
             "Cassowary" => ('◆', '✴', '◈'),
+            "Paperbark" => ('❦', '❧', '☙'), // item 158 — the third Garamond rotation
             other => panic!(
                 "unenrolled world {other:?} in theme::THEMES — add its expected ornament \
                  trio to this exhaustive law before it can ship"

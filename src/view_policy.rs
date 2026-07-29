@@ -172,6 +172,7 @@ mod tests {
         let expected_files = [
             "capture.rs",
             "capture/animated.rs",
+            "capture/background_sidecar.rs",
             "capture/film.rs",
             "capture/frames.rs",
             "capture/gpu.rs",

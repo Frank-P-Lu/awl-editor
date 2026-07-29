@@ -12,9 +12,10 @@ use super::model::{
     ThemeTags, TitleStyle, WashOverride,
 };
 use super::ornament::{
-    BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, LIST_INDENT_SCALE_PLAIN,
-    LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE, ORNAMENT_MARKS,
-    ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, Ornaments,
+    BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
+    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE,
+    ORNAMENT_MARKS, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
+    Ornaments,
 };
 const POSTER_BARS: ListStyle = ListStyle::Bars {
     radius: 6.0,
@@ -296,7 +297,7 @@ pub const BOMBORA: Theme = Theme {
     ornament_face: ORNAMENT_GARAMOND,
     ornament_scale: ORNAMENT_SCALE_FLEURON,
     bullets: ('☞', '❧', '❦'),
-    bullet_scale: 0.35,
+    bullet_scale: BULLET_SCALE_GARAMOND,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Night"),
@@ -1049,7 +1050,7 @@ pub const PAPERBARK: Theme = Theme {
     ornament_face: ORNAMENT_GARAMOND,
     ornament_scale: ORNAMENT_SCALE_FLEURON,
     bullets: ('☙', '❦', '❧'),
-    bullet_scale: BULLET_SCALE_ORNAMENT,
+    bullet_scale: BULLET_SCALE_GARAMOND,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
     tags: ThemeTags {
         time: Some("Day"),
@@ -1058,7 +1059,10 @@ pub const PAPERBARK: Theme = Theme {
         temperature: None,
     },
     role_overrides: RoleOverrides::NONE,
-    render_caps: RenderCaps::DEFAULT,
+    render_caps: RenderCaps {
+        elevation: Elevation::Bordered,
+        ..RenderCaps::DEFAULT
+    },
 };
 
 pub const THEMES: [Theme; 19] = [

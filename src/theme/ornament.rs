@@ -185,11 +185,22 @@ pub const BULLET_SCALE_PLAIN: f32 = 1.0;
 /// against EB Garamond's narrow punctuation advance (the glyph's ink reached,
 /// and on some rows touched, the following text) and Mopoke's rosette against
 /// iA Writer Quattro S's wide duospaced advance (too small to fill the gap).
-/// Both worlds carry their OWN literal (`worlds.rs::BOMBORA`/`MOPOKE`) instead
-/// of this constant — every other characterful world stays on the shared tier,
-/// byte-identical. See `render::tests::markdown::
+/// Mopoke's retired with its face change; Garamond's became
+/// [`BULLET_SCALE_GARAMOND`] below. Every other characterful world stays on
+/// this shared tier, byte-identical. See `render::tests::markdown::
 /// bullet_glyph_never_touches_the_following_text_in_any_world`.
 pub const BULLET_SCALE_ORNAMENT: f32 = 0.55;
+
+/// The EB-GARAMOND-BODY bullet scale. This was a one-world literal on Bombora
+/// until item 158 added a SECOND world with EB Garamond as its BODY face and
+/// the padding law failed on it the same way, for the same reason — the
+/// shared tier is scaled against the concealed `"- "` prefix's advance in the
+/// world's own body font, and EB Garamond's punctuation advance is narrow
+/// enough that a half-body fleuron crowds out the text that follows. So it is
+/// a FACE rule, not a taste exception on one world: a world whose body face is
+/// EB Garamond carries this tier, and `theme::tests::every_world_has_a_bullet_pair`
+/// derives the allowance from the face rather than a world-name list.
+pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
 
 // --- The per-world LIST-ITEM INDENT scale (item 15, the other half of bullet-
 // level readability) ---------------------------------------------------------

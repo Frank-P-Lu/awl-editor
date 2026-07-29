@@ -18,7 +18,7 @@ mod common;
 /// The roster as of item 68, in `theme::THEMES` cycle order. Update this list
 /// (and `scripts/capture-worlds.sh`'s expectations, and CAPTURE.md if the
 /// count changes) the moment this test fails — that failure IS the law.
-const EXPECTED_WORLDS: [&str; 18] = [
+const EXPECTED_WORLDS: [&str; 19] = [
     "Tawny",
     "Mopoke",
     "Currawong",
@@ -37,6 +37,7 @@ const EXPECTED_WORLDS: [&str; 18] = [
     "Wagtail",
     "Firetail",
     "Cassowary",
+    "Paperbark",
 ];
 
 /// The real binary with its config ladder pinned inside a test-owned sandbox

@@ -41,6 +41,7 @@ const WORLD_NAMES: &[&str] = &[
     "Firetail",
     "Brolga",
     "Cassowary",
+    "Paperbark",
 ];
 
 /// True iff `line` (already known to be OUTSIDE a skipped cfg(test) block)

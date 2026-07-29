@@ -89,6 +89,7 @@ const WORLD_FACES: &[(&str, &str, &str)] = &[
     ("Wagtail", "JetBrains Mono", "JetBrains Mono"),
     ("Firetail", "Monaspace Xenon", "Monaspace Xenon"),
     ("Cassowary", "Iosevka", "Iosevka"),
+    ("Paperbark", "EB Garamond", "Monaspace Xenon"),
 ];
 
 /// The seven MONO-DISPLAY worlds — the ones whose caret must hold the uniform
