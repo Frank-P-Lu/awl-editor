@@ -1,8 +1,9 @@
 //! The About window's GEOMETRY — pure arithmetic, no AppKit.
 //!
 //! One centred column with generous vertical rhythm: the shipped app icon at
-//! real scale, the name, one product line, a hairline rule, the provenance
-//! block, the credit, and the two link buttons. Every element is horizontally
+//! real scale, the name, one product line, the provenance block, the credit,
+//! and the two link buttons — separated by air alone, with nothing drawn
+//! between them. Every element is horizontally
 //! centred and the window's HEIGHT is derived from its contents, so a build
 //! that knows fewer facts gets a shorter window rather than a gap where a line
 //! would have been.
@@ -43,30 +44,29 @@ pub const ICON_SIZE: f64 = 128.0;
 pub const GAP_ICON_TITLE: f64 = 22.0;
 /// The name's line box, sized for [`TITLE_FONT_SIZE`].
 pub const TITLE_HEIGHT: f64 = 40.0;
-/// The name's point size — the one loud element in the window.
+/// The name's point size — the one loud element in the window. It is a SIZE
+/// step, not an ink step: the name is set in the same body ink as the product
+/// line, the credit and the buttons (see [`super::Ink`]).
 pub const TITLE_FONT_SIZE: f64 = 30.0;
 
 /// The name sits close to its product line: they are one unit.
 pub const GAP_TITLE_TAGLINE: f64 = 4.0;
 /// The product line's line box.
 pub const TAGLINE_HEIGHT: f64 = 18.0;
-/// The product line's point size.
-pub const TAGLINE_FONT_SIZE: f64 = 13.0;
 
-/// The identity block above and the fact block below are separated by air
-/// first, a hairline second.
-pub const GAP_TAGLINE_RULE: f64 = 28.0;
-/// The hairline's width — deliberately far narrower than the content, so it
-/// reads as punctuation rather than as a divider bar.
-pub const RULE_WIDTH: f64 = 156.0;
-/// The hairline's height (an `NSBox` separator draws its own 1pt line).
-pub const RULE_HEIGHT: f64 = 1.0;
+/// The ONE body point size — the product line, the credit and the button
+/// labels all use it. Only the name steps away from it, and only in size.
+pub const BODY_FONT_SIZE: f64 = 13.0;
 
-/// Air under the hairline, before the provenance block.
-pub const GAP_RULE_FACTS: f64 = 26.0;
+/// THE ONLY THING SEPARATING the identity block above from the provenance
+/// block below: air. There is deliberately no rule, no box and no line here —
+/// grouping in this window is whitespace and rhythm, nothing drawn. This gap is
+/// the largest in the composition precisely because it does that work alone.
+pub const GAP_IDENTITY_FACTS: f64 = 40.0;
 /// One provenance line's height, at [`FACT_FONT_SIZE`].
 pub const FACT_LINE_HEIGHT: f64 = 17.0;
-/// The provenance block's point size — small, monospaced, quiet.
+/// The provenance block's point size — small and monospaced. The ONE place the
+/// secondary ink is spent (see [`super::Ink`]).
 pub const FACT_FONT_SIZE: f64 = 11.0;
 
 /// Air between the provenance block and the credit line. Only spent when
@@ -74,8 +74,6 @@ pub const FACT_FONT_SIZE: f64 = 11.0;
 pub const GAP_FACTS_ATTRIBUTION: f64 = 16.0;
 /// The credit line's height.
 pub const ATTRIBUTION_HEIGHT: f64 = 17.0;
-/// The credit line's point size.
-pub const ATTRIBUTION_FONT_SIZE: f64 = 11.5;
 
 /// Air between the credit and the buttons — the largest interior gap, because
 /// the buttons are the only interactive thing in the window and everything
@@ -87,8 +85,6 @@ pub const BUTTON_WIDTH: f64 = 92.0;
 pub const BUTTON_HEIGHT: f64 = 24.0;
 /// The gap between the two buttons.
 pub const BUTTON_GAP: f64 = 10.0;
-/// The link buttons' point size.
-pub const BUTTON_FONT_SIZE: f64 = 12.0;
 
 /// Air below the buttons.
 pub const BOTTOM_PADDING: f64 = 34.0;
@@ -130,7 +126,6 @@ pub struct Layout {
     pub icon: Frame,
     pub title: Frame,
     pub tagline: Frame,
-    pub rule: Frame,
     /// One frame per provenance line, top to bottom. Empty when nothing about
     /// the build is knowable.
     pub facts: Vec<Frame>,
@@ -145,7 +140,7 @@ impl Layout {
     /// Law-test surface; the builder walks the named fields directly.
     #[allow(dead_code)]
     pub fn frames(&self) -> Vec<Frame> {
-        let mut all = vec![self.icon, self.title, self.tagline, self.rule];
+        let mut all = vec![self.icon, self.title, self.tagline];
         all.extend(self.facts.iter().copied());
         all.push(self.attribution);
         all.extend(self.buttons.iter().copied());
@@ -165,9 +160,7 @@ pub fn content_height(fact_count: usize) -> f64 {
         + TITLE_HEIGHT
         + GAP_TITLE_TAGLINE
         + TAGLINE_HEIGHT
-        + GAP_TAGLINE_RULE
-        + RULE_HEIGHT
-        + GAP_RULE_FACTS
+        + GAP_IDENTITY_FACTS
         + facts_block_height(fact_count)
         + ATTRIBUTION_HEIGHT
         + GAP_ATTRIBUTION_BUTTONS
@@ -200,10 +193,7 @@ pub fn layout(fact_count: usize) -> Layout {
     top = title.y - GAP_TITLE_TAGLINE;
 
     let tagline = Frame::centred(WIDTH, TAGLINE_HEIGHT, top);
-    top = tagline.y - GAP_TAGLINE_RULE;
-
-    let rule = Frame::centred(RULE_WIDTH, RULE_HEIGHT, top);
-    top = rule.y - GAP_RULE_FACTS;
+    top = tagline.y - GAP_IDENTITY_FACTS;
 
     let mut facts = Vec::with_capacity(fact_count);
     for _ in 0..fact_count {
@@ -241,7 +231,6 @@ pub fn layout(fact_count: usize) -> Layout {
         icon,
         title,
         tagline,
-        rule,
         facts,
         attribution,
         buttons,
@@ -380,8 +369,8 @@ mod tests {
             );
         }
         assert!(
-            l.facts[0].top() <= l.rule.y,
-            "the fact block must sit BELOW the hairline"
+            l.facts[0].top() <= l.tagline.y - GAP_IDENTITY_FACTS + 0.001,
+            "the fact block must sit below the identity block, separated by air alone"
         );
         assert!(
             l.attribution.top() <= l.facts.last().unwrap().y,

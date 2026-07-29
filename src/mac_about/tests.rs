@@ -133,3 +133,186 @@ fn the_about_window_shows_the_canonical_bundle_icon() {
         on_disk.len()
     );
 }
+
+// --- THE TWO-INK LAW, over real rendered pixels -----------------------------
+//
+// The window is a live `NSPanel`: awl's headless harness cannot render it (no
+// window server in a `--screenshot` run, no main thread in a `cargo test`
+// worker), so these laws read COMMITTED CAPTURES of the packaged app instead of
+// rendering their own. The captures are produced by `CGWindowListCreateImage`
+// at native (2x) resolution against `Awl.app`, one per system appearance.
+//
+// The staleness that a fixture invites is closed from two directions:
+//
+//   * `fixture_geometry_still_matches_the_layout` pins each capture's pixel
+//     size to `layout::content_height`'s own arithmetic, so ANY change to the
+//     composition's geometry fails here until the capture is retaken.
+//   * `the_window_has_exactly_two_ink_roles` pins the SOURCE side — `Ink` has
+//     two variants and `ink_color` is the only resolver — so a third colour
+//     cannot be introduced even by an edit that leaves geometry alone.
+//
+// Neither is claimed to be sufficient alone, and that is stated rather than
+// glossed: a pure colour change to an existing role would pass both until the
+// fixture is retaken.
+
+/// How many provenance lines the committed captures were taken with.
+const FIXTURE_FACT_LINES: usize = 2;
+/// The captures are retina self-captures: one layout point is two pixels.
+const FIXTURE_SCALE: f64 = 2.0;
+
+fn fixture(name: &str) -> image::RgbaImage {
+    let path = format!("tests/fixtures/about/{name}.png");
+    image::open(&path)
+        .unwrap_or_else(|e| panic!("committed About capture {path} is unreadable: {e}"))
+        .to_rgba8()
+}
+
+/// Both appearances, so every law below sweeps the axis that actually differs.
+const FIXTURES: [&str; 2] = ["light", "dark"];
+
+#[test]
+fn fixture_geometry_still_matches_the_layout() {
+    let l = layout::layout(FIXTURE_FACT_LINES);
+    let want = (
+        (l.content.0 * FIXTURE_SCALE) as u32,
+        (l.content.1 * FIXTURE_SCALE) as u32,
+    );
+    for name in FIXTURES {
+        let img = fixture(name);
+        assert_eq!(
+            (img.width(), img.height()),
+            want,
+            "the committed {name} capture is {}x{} but the current layout wants \
+             {}x{} — the composition changed and the capture no longer shows \
+             what this code renders. Retake it (packaged Awl.app, \
+             CGWindowListCreateImage) before trusting the ink laws below.",
+            img.width(),
+            img.height(),
+            want.0,
+            want.1
+        );
+    }
+}
+
+/// THE LAW THE ITEM ASKS FOR, pixel side: every visible piece of text in the
+/// rendered window belongs to exactly two ink roles — one body ink and one
+/// secondary grey — with the provenance lines carrying the grey and everything
+/// else the body ink; and no divider survives anywhere between the artwork and
+/// the buttons.
+///
+/// Read PER ELEMENT off the committed captures, so the assertion is about what
+/// each label actually drew rather than about a constant in this crate. Swept
+/// across both system appearances, because a hardcoded colour passes in one and
+/// fails in the other.
+#[test]
+fn the_rendered_window_uses_two_text_inks_and_draws_no_divider() {
+    let l = layout::layout(FIXTURE_FACT_LINES);
+    // A layout frame as a top-down pixel region in the capture.
+    let region = |f: &layout::Frame| {
+        let px = |p: f64| (p * FIXTURE_SCALE) as u32;
+        (
+            px(f.x),
+            px(l.content.1 - f.top()),
+            px(f.x + f.w),
+            px(l.content.1 - f.y),
+        )
+    };
+
+    for name in FIXTURES {
+        let img = fixture(name);
+        let read = |label: &str, f: &layout::Frame| {
+            ink::element_ink(&img, region(f))
+                .unwrap_or_else(|| panic!("{name}: the {label} frame rendered no text at all"))
+        };
+
+        // BODY ink: everything that states something about the product.
+        let mut body = vec![
+            read("name", &l.title),
+            read("product line", &l.tagline),
+            read("credit", &l.attribution),
+            read("Docs button", &l.buttons[0]),
+            read("GitHub button", &l.buttons[1]),
+        ];
+        // SECONDARY ink: the provenance block, and only it.
+        let facts: Vec<_> = l
+            .facts
+            .iter()
+            .enumerate()
+            .map(|(i, f)| read(&format!("provenance line {i}"), f))
+            .collect();
+
+        assert_eq!(
+            ink::distinct_roles(&body).len(),
+            1,
+            "{name}: the name, product line, credit and button labels must all \
+             be the SAME body ink; the render used {:?}",
+            ink::distinct_roles(&body)
+        );
+        assert_eq!(
+            ink::distinct_roles(&facts).len(),
+            1,
+            "{name}: every provenance line must share one grey; got {facts:?}"
+        );
+
+        let mut all = body.clone();
+        all.extend(facts.iter().copied());
+        let roles = ink::distinct_roles(&all);
+        assert_eq!(
+            roles.len(),
+            2,
+            "{name}: the About window's whole visible type must resolve into \
+             exactly two ink roles — body and one secondary grey. The render \
+             used {}: {roles:?} (body {body:?}, provenance {facts:?})",
+            roles.len()
+        );
+
+        // Two roles the eye can actually tell apart, with the grey the quieter
+        // of the two — otherwise "two inks" is satisfied by a distinction
+        // nobody can see, or by the provenance shouting over the product.
+        body.dedup();
+        let bg = ink::luminance(ink::background(&img, region(&l.tagline)));
+        let (body_l, grey_l) = (ink::luminance(body[0]), ink::luminance(facts[0]));
+        assert!(
+            (grey_l - body_l).abs() >= 24.0,
+            "{name}: the two inks are visually the same (body {body_l:.0}, \
+             grey {grey_l:.0}) — one role wearing two hats"
+        );
+        assert!(
+            (grey_l - bg).abs() < (body_l - bg).abs(),
+            "{name}: the provenance grey must be the ink CLOSER to the \
+             background (bg {bg:.0}, body {body_l:.0}, grey {grey_l:.0}); it is \
+             the quiet role, not the loud one"
+        );
+
+        // NO DIVIDER, anywhere between the artwork and the buttons — the whole
+        // band where a rule could plausibly have been drawn.
+        let px = |p: f64| (p * FIXTURE_SCALE) as u32;
+        let band = (
+            0,
+            px(l.content.1 - l.icon.y),
+            img.width(),
+            px(l.content.1 - l.buttons[0].top()),
+        );
+        let dividers = ink::divider_rows(&img, band, ink::background(&img, band));
+        assert!(
+            dividers.is_empty(),
+            "{name}: the About window draws no rule; found divider-shaped \
+             row(s) at y={dividers:?}. Grouping here is whitespace and rhythm \
+             alone."
+        );
+    }
+}
+
+/// The SOURCE side of the same law: the vocabulary is two roles, full stop.
+/// `ink_color`'s match has no wildcard arm, so a third colour cannot be spent
+/// without adding a variant here — which this refuses.
+#[test]
+fn the_window_has_exactly_two_ink_roles() {
+    assert_eq!(
+        Ink::ALL,
+        &[Ink::Body, Ink::Secondary],
+        "the About window's whole typographic hierarchy is body ink and one \
+         secondary grey; adding a role is a product decision, not a detail"
+    );
+    assert_ne!(Ink::Body, Ink::Secondary);
+}

@@ -51,6 +51,10 @@
 #![cfg(target_os = "macos")]
 
 pub mod facts;
+/// The rendered-pixel side of the two-ink law. Test-only: it exists to audit
+/// captures of the window, never to run inside it.
+#[cfg(test)]
+pub mod ink;
 pub mod layout;
 
 use std::cell::RefCell;
@@ -59,10 +63,10 @@ use objc2::rc::Retained;
 use objc2::runtime::{AnyObject, Bool};
 use objc2::{AnyThread, MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
 use objc2_app_kit::{
-    NSBackingStoreType, NSBezelStyle, NSBox, NSBoxType, NSButton, NSColor, NSEvent,
-    NSEventModifierFlags, NSFont, NSFontWeightRegular, NSFontWeightSemibold, NSImage, NSImageView,
-    NSPanel, NSResponder, NSTextAlignment, NSTextField, NSView, NSWindow, NSWindowStyleMask,
-    NSWindowTitleVisibility, NSWorkspace,
+    NSBackingStoreType, NSBezelStyle, NSButton, NSColor, NSEvent, NSEventModifierFlags, NSFont,
+    NSFontWeightRegular, NSFontWeightSemibold, NSImage, NSImageView, NSPanel, NSResponder,
+    NSTextAlignment, NSTextField, NSView, NSWindow, NSWindowStyleMask, NSWindowTitleVisibility,
+    NSWorkspace,
 };
 use objc2_foundation::{NSBundle, NSData, NSPoint, NSRect, NSSize, NSString, NSURL};
 
@@ -279,7 +283,8 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
         content.addSubview(&view);
     }
 
-    // NAME — the one loud element. Semibold, large, in the primary label ink.
+    // NAME — the one loud element, and loud by SIZE AND WEIGHT ONLY: it is the
+    // same body ink as the sentence beneath it.
     let title = NSTextField::labelWithString(&NSString::from_str(facts::NAME), mtm);
     // SAFETY: reading AppKit's `&'static NSFontWeight` constants is a plain
     // immutable static load (same pattern as `mac_chrome`'s weight constant).
@@ -288,52 +293,35 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
         layout::TITLE_FONT_SIZE,
         semibold,
     )));
-    place(&content, &title, l.title, &NSColor::labelColor());
+    place(&content, &title, l.title, Ink::Body);
 
-    // PRODUCT LINE — one sentence, one step down the value ladder.
+    // PRODUCT LINE — one sentence, body ink, the shared body size.
     let tagline = NSTextField::labelWithString(&NSString::from_str(facts::TAGLINE), mtm);
-    tagline.setFont(Some(&NSFont::systemFontOfSize(layout::TAGLINE_FONT_SIZE)));
-    place(
-        &content,
-        &tagline,
-        l.tagline,
-        &NSColor::secondaryLabelColor(),
-    );
+    tagline.setFont(Some(&NSFont::systemFontOfSize(layout::BODY_FONT_SIZE)));
+    place(&content, &tagline, l.tagline, Ink::Body);
 
-    // HAIRLINE — the identity above, the provenance below. An NSBox separator
-    // draws the system's own hairline, so it is correct in both appearances
-    // and on both integer and fractional backing scales.
-    let rule = NSBox::initWithFrame(NSBox::alloc(mtm), rect(l.rule));
-    rule.setBoxType(NSBoxType::Separator);
-    content.addSubview(&rule);
+    // NOTHING IS DRAWN between the identity block and the provenance block.
+    // The separation is `layout::GAP_IDENTITY_FACTS` — air, and only air.
 
-    // PROVENANCE — monospaced and small, so it reads as build metadata, but
-    // in the SECONDARY ink, not the tertiary one: measured on a packaged
-    // light-mode capture, 11pt mono at `tertiaryLabelColor` came out at
-    // 1.9:1 against the window background — decorative, not readable, and a
-    // commit hash exists to be read. The mono face and the hairline above it
-    // already separate this block from the identity above; value does not
-    // have to do that work too.
+    // PROVENANCE — the window's ONLY secondary ink, monospaced and small so it
+    // reads as build metadata. Secondary, not fainter: measured on a packaged
+    // light-mode capture, 11pt mono a step below this came out at 1.9:1
+    // against the window background — decorative, not readable, and a commit
+    // hash exists to be read.
     // SAFETY: as above, an immutable AppKit weight constant.
     let regular = unsafe { NSFontWeightRegular };
     let mono = NSFont::monospacedSystemFontOfSize_weight(layout::FACT_FONT_SIZE, regular);
     for (line, frame) in lines.iter().zip(l.facts.iter()) {
         let label = NSTextField::labelWithString(&NSString::from_str(line), mtm);
         label.setFont(Some(&mono));
-        place(&content, &label, *frame, &NSColor::secondaryLabelColor());
+        place(&content, &label, *frame, Ink::Secondary);
     }
 
-    // CREDIT.
+    // CREDIT — a statement about the product, so body ink at the body size,
+    // exactly like the product line above it.
     let attribution = NSTextField::labelWithString(&NSString::from_str(facts::ATTRIBUTION), mtm);
-    attribution.setFont(Some(&NSFont::systemFontOfSize(
-        layout::ATTRIBUTION_FONT_SIZE,
-    )));
-    place(
-        &content,
-        &attribution,
-        l.attribution,
-        &NSColor::secondaryLabelColor(),
-    );
+    attribution.setFont(Some(&NSFont::systemFontOfSize(layout::BODY_FONT_SIZE)));
+    place(&content, &attribution, l.attribution, Ink::Body);
 
     // THE TWO ACTIONS. Their target is the panel itself — unretained by
     // AppKit, owned by `PANEL`, so no dangle and no cycle (module doc). The
@@ -360,7 +348,10 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
             )
         };
         button.setBezelStyle(NSBezelStyle::Push);
-        button.setFont(Some(&NSFont::systemFontOfSize(layout::BUTTON_FONT_SIZE)));
+        // Body size; AppKit draws a push button's title in the control text
+        // ink, which IS the body label ink — the third role a custom colour
+        // here would smuggle in is simply never introduced.
+        button.setFont(Some(&NSFont::systemFontOfSize(layout::BODY_FONT_SIZE)));
         button.setFrame(rect(frame));
         button.setToolTip(Some(&NSString::from_str(url)));
         content.addSubview(&button);
@@ -376,6 +367,48 @@ fn build(mtm: MainThreadMarker) -> Option<Retained<AboutPanel>> {
     panel.setInitialFirstResponder(Some(&content));
     panel.center();
     Some(panel)
+}
+
+/// THE WINDOW'S COMPLETE INK VOCABULARY — two roles, and there is no third.
+///
+/// This is the whole typographic hierarchy: everything that states something
+/// about the product is [`Ink::Body`]; the build's provenance, which exists to
+/// be findable rather than read first, is [`Ink::Secondary`]. Size and weight
+/// separate the name from the sentence under it; ink does not.
+///
+/// Enforced from BOTH ends, because either alone can go green over the wrong
+/// render:
+///
+/// * From the source: [`ink_color`] is the only place in this module that
+///   resolves an `NSColor`, and it matches on `Ink` with no wildcard arm, so a
+///   third role cannot be introduced without adding a variant here — which
+///   [`tests::the_window_has_exactly_two_ink_roles`] refuses.
+/// * From the pixels: [`ink::audit`] counts the distinct text inks in a REAL
+///   capture of the rendered window and fails on a third, so a colour applied
+///   behind `ink_color`'s back is caught by what actually drew.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ink {
+    /// The product's own voice: the name, the product line, the credit, and
+    /// the button labels. AppKit's primary label ink.
+    Body,
+    /// Build provenance only — version, build, commit. AppKit's secondary
+    /// label ink, the one grey in the window.
+    Secondary,
+}
+
+impl Ink {
+    /// Every role, for the roster laws. A no-wildcard match keeps it honest:
+    /// a new variant fails to compile until it is listed.
+    pub const ALL: &'static [Ink] = &[Ink::Body, Ink::Secondary];
+}
+
+/// The ONE resolver from a role to an AppKit colour. Module-private on purpose
+/// — no other line in this module may name an `NSColor`.
+fn ink_color(ink: Ink) -> Retained<NSColor> {
+    match ink {
+        Ink::Body => NSColor::labelColor(),
+        Ink::Secondary => NSColor::secondaryLabelColor(),
+    }
 }
 
 /// The artwork the About window shows: the CANONICAL bundle icon
@@ -396,12 +429,14 @@ fn rect(f: Frame) -> NSRect {
     NSRect::new(NSPoint::new(f.x, f.y), NSSize::new(f.w, f.h))
 }
 
-/// Place a centred label: frame, colour, alignment, and into the tree. Every
-/// text element goes through this, so none can quietly differ from the others.
-fn place(content: &NSView, label: &NSTextField, frame: Frame, color: &NSColor) {
+/// Place a centred label: frame, INK ROLE, alignment, and into the tree. Every
+/// text element goes through this, so none can quietly differ from the others
+/// — and because it takes an [`Ink`] rather than an `NSColor`, no caller can
+/// reach for a colour that is not one of the two roles.
+fn place(content: &NSView, label: &NSTextField, frame: Frame, ink: Ink) {
     label.setFrame(rect(frame));
     label.setAlignment(NSTextAlignment::Center);
-    label.setTextColor(Some(color));
+    label.setTextColor(Some(&ink_color(ink)));
     content.addSubview(label);
 }
 
