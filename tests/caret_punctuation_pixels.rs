@@ -8,17 +8,19 @@
 use std::path::{Path, PathBuf};
 
 mod common;
+use common::ScratchDir;
 
 const WORLDS: [&str; 5] = ["Mopoke", "Gumtree", "Bilby", "Bombora", "Saltpan"];
 const PUNCT: [char; 10] = [',', '.', '\'', ':', ';', '-', '(', '[', '—', '。'];
 const SCALES: [(f32, f32); 2] = [(1.0, 1.0), (2.0, 1.5)];
 const DOC: &str = "a, . ' : ; - ( [ — 。 z\n\n\nreference\n";
 
-fn temp() -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
+/// used to never remove it at all).
+fn temp() -> ScratchDir {
     let p = std::env::temp_dir().join(format!("awl-item126-pixels-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&p);
-    std::fs::create_dir_all(&p).unwrap();
-    p
+    ScratchDir::new(p)
 }
 
 fn fixture(dir: &Path) -> PathBuf {

@@ -79,6 +79,7 @@ mod tests {
     use super::*;
     use crate::buffer::Buffer;
     use crate::capture::{CaptureOpts, capture_with};
+    use crate::testscratch::ScratchDir;
 
     fn capture(
         dir: &std::path::Path,
@@ -112,8 +113,9 @@ mod tests {
     #[test]
     fn subpixel_sidecar_keeps_semantics_but_reports_settled_pixels() {
         let _g = crate::testlock::serial();
-        let dir = std::env::temp_dir().join(format!("awl_scroll_px_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl_scroll_px_{}", std::process::id())),
+        );
         let text = "visible raster witness abcdefghijklmnopqrstuvwxyz\n".repeat(80);
         let (zero_png, zero) = capture(&dir, "zero", &text, false, ScrollPos::default());
         let (sub_png, sub) = capture(&dir, "sub", &text, false, ScrollPos { row: 0, px_q: 17 });
@@ -131,14 +133,14 @@ mod tests {
             image.pixels().any(|pixel| *pixel != ground),
             "pixel identity witness must contain real glyph ink"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn table_sidecar_reports_rounded_rendered_top() {
         let _g = crate::testlock::serial();
-        let dir = std::env::temp_dir().join(format!("awl_table_scroll_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl_table_scroll_{}", std::process::id())),
+        );
         let table = "| left | right |\n| --- | --- |\n| cell | value |\n\n".repeat(80);
         let (_, json) = capture(&dir, "table", &table, true, ScrollPos { row: 0, px_q: 48 });
         assert_eq!(json["scroll_px"], serde_json::json!(0.75));
@@ -153,6 +155,5 @@ mod tests {
                 .is_some_and(|tables| !tables.is_empty()),
             "fixture must exercise the table render surface"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

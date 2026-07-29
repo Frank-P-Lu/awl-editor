@@ -6,6 +6,7 @@
 use super::super::*;
 use super::adapter_available;
 use crate::buffer::Buffer;
+use crate::testscratch::ScratchDir;
 
 /// THE JAPANESE-BUNDLE ROUND's headline guarantee, made assertable: with the
 /// bundled Noto Serif/Sans JP faces registered (`render::FONT_CJK_FACES`) and
@@ -27,8 +28,9 @@ fn japanese_fixture_resolves_bundled_cjk_face_deterministically() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_jpcapture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_jpcapture_test_{}", std::process::id())),
+    );
 
     let jp_text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/japanese.md"),
@@ -72,7 +74,6 @@ fn japanese_fixture_resolves_bundled_cjk_face_deterministically() {
     assert_eq!(j2["font"]["cjk"]["bundled"], serde_json::json!(true));
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// PHASE 2 "JP face variety" round: the reassigned worlds resolve their NEW
@@ -91,8 +92,9 @@ fn ja_variety_worlds_resolve_bundled_faces_deterministically() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_jpvariety_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_jpvariety_test_{}", std::process::id())),
+    );
     let jp_text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/japanese.md"),
     )
@@ -127,7 +129,6 @@ fn ja_variety_worlds_resolve_bundled_faces_deterministically() {
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// WYSIWYG TABLE GRID + THE X-RAY: `samples/tables.md`'s one GFM table renders as
@@ -148,8 +149,9 @@ fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_tblcapture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_tblcapture_test_{}", std::process::id())),
+    );
     let md = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/tables.md"),
     )
@@ -242,8 +244,6 @@ fn table_fixture_renders_grid_and_reveals_source_on_cursor() {
         line_count_off,
         "the document never reflowed when the caret entered the table"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// WYSIWYG LINKS (the last markup family to lose its visible plumbing): a markdown
@@ -258,8 +258,9 @@ fn link_source_conceals_off_cursor_and_reveals_on() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_linkcapture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_linkcapture_test_{}", std::process::id())),
+    );
     // The link sits on line 2; line 0 is where the off-cursor caret rests.
     let md = "prose\n\nsee [the essay](http://x) now\n";
     let link_open = md.find('[').unwrap();
@@ -299,8 +300,6 @@ fn link_source_conceals_off_cursor_and_reveals_on() {
         "link source revealed on-cursor: {}",
         j2["wysiwyg"]
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// THE CHINESE ROUND's headline guarantee, made assertable exactly like the
@@ -321,8 +320,9 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_zhcapture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_zhcapture_test_{}", std::process::id())),
+    );
 
     let zh_text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/chinese.md"),
@@ -368,7 +368,6 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
     );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// MIXED-SCRIPT FACE-RESOLUTION LAW: `samples/mixed-cjk.md` is one `zh-Hans`
@@ -381,9 +380,9 @@ fn chinese_fixture_resolves_bundled_zh_hans_face_deterministically() {
 #[test]
 fn mixed_cjk_fixture_resolves_each_script_run_to_its_own_face() {
     let _tg = crate::testlock::serial();
-    let dir =
-        std::env::temp_dir().join(format!("awl_mixed_cjk_capture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_mixed_cjk_capture_test_{}", std::process::id())),
+    );
     let text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/mixed-cjk.md"),
     )
@@ -426,7 +425,6 @@ fn mixed_cjk_fixture_resolves_each_script_run_to_its_own_face() {
         eprintln!(
             "skipping mixed CJK capture half: no wgpu adapter (per-run resolution law still ran)"
         );
-        let _ = std::fs::remove_dir_all(&dir);
         return;
     }
 
@@ -451,7 +449,6 @@ fn mixed_cjk_fixture_resolves_each_script_run_to_its_own_face() {
     );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The Klee-worlds' CHARACTERFUL zh-Hans override: Mopoke + Quokka resolve
@@ -468,8 +465,9 @@ fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_zhklee_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_zhklee_test_{}", std::process::id())),
+    );
     let zh_text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/chinese.md"),
     )
@@ -511,7 +509,6 @@ fn klee_worlds_zh_hans_resolves_wenkai_characterful_face() {
     );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// THE KO RIDER's headline guarantee, now with the CJK-companions round's
@@ -531,8 +528,9 @@ fn korean_fixture_resolves_bundled_ko_face_deterministically() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_kocapture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_kocapture_test_{}", std::process::id())),
+    );
     let ko_text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/korean.md"),
     )
@@ -564,7 +562,6 @@ fn korean_fixture_resolves_bundled_ko_face_deterministically() {
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// HAN-AMBIGUITY, pinned with the bundled SC face now present (task's own
@@ -587,8 +584,9 @@ fn ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_hanambig_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_hanambig_test_{}", std::process::id())),
+    );
 
     // Saltpan: a serif world whose zh_hans is Noto Serif SC (the face this test
     // guards against hijacking ja text) but whose ja is the NEUTRAL Noto Serif
@@ -617,7 +615,6 @@ fn ja_tagged_han_only_doc_resolves_jp_face_never_bundled_zh_hans() {
     );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// THE i18n ROUND's sidecar contract: a top-level `doc_lang` field (the
@@ -637,8 +634,9 @@ fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
     // THE guard every capture test takes (queue item 98: this one didn't, and
     // raced the theme-flipping tests). Now also enforced by `write_sidecar`.
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_i18n_sidecar_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_i18n_sidecar_test_{}", std::process::id())),
+    );
 
     // TAGGED: doc_lang reports the frontmatter tag.
     let mut tagged = Buffer::from_str("---\nlang: ja\n---\nこんにちは\n");
@@ -680,8 +678,6 @@ fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
         serde_json::from_str(&std::fs::read_to_string(png2.with_extension("json")).unwrap())
             .unwrap();
     assert_eq!(j2["doc_lang"], serde_json::json!(null));
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The HELD STATS HUD's i18n `lang` field: mirrors `doc_lang` exactly (a
@@ -694,8 +690,9 @@ fn hud_reports_the_doc_lang_tag() {
         return;
     }
     let _hg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_i18n_hud_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_i18n_hud_test_{}", std::process::id())),
+    );
     let mut tagged = Buffer::from_str("---\nlang: ko\n---\n안녕하세요\n");
     tagged.set_path(dir.join("tagged.md"));
 
@@ -708,5 +705,4 @@ fn hud_reports_the_doc_lang_tag() {
     assert_eq!(j["hud"]["lang"], serde_json::json!("ko"));
 
     crate::hud::set_held(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }

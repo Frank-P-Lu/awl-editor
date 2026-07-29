@@ -159,6 +159,8 @@ pub fn checked_line(state: Option<UpdateChecked>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(target_arch = "wasm32"))]
+    use crate::testscratch::ScratchDir;
 
     // --- check_url: pure URL composition ------------------------------------
 
@@ -246,9 +248,18 @@ mod tests {
     /// the read finds nothing, or vice versa. Handing the guard back WITH the
     /// dir makes "arranged a temp dir but forgot to serialize" unrepresentable
     /// here; the caller binds it for the test's whole life.
+    /// A fresh real temp dir — owned by a [`ScratchDir`] guard that removes it
+    /// on drop (queue item 168) — PLUS the process-wide test guard, returned
+    /// together (queue item 101). Every test in this block writes and reads its
+    /// marker through `crate::fs::active()` — the swappable process-global
+    /// backend — so running off-guard means a sibling test's `InMemoryFs` can
+    /// be installed for part of the round trip: the write lands in the fake and
+    /// the read finds nothing, or vice versa. Handing the guard back WITH the
+    /// dir makes "arranged a temp dir but forgot to serialize" unrepresentable
+    /// here; the caller binds it for the test's whole life.
     #[cfg(not(target_arch = "wasm32"))]
     #[must_use]
-    fn tmp_dir(tag: &str) -> (PathBuf, crate::testlock::SerialGuard) {
+    fn tmp_dir(tag: &str) -> (ScratchDir, crate::testlock::SerialGuard) {
         let guard = crate::testlock::serial();
         let dir = std::env::temp_dir().join(format!(
             "awl_updates_test_{tag}_{}_{}",
@@ -258,8 +269,7 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        std::fs::create_dir_all(&dir).unwrap();
-        (dir, guard)
+        (ScratchDir::new(dir), guard)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -267,7 +277,6 @@ mod tests {
     fn last_checked_is_none_before_the_first_record() {
         let (dir, _tg) = tmp_dir("empty");
         assert_eq!(last_checked(&dir), None);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -279,7 +288,6 @@ mod tests {
         // A later record overwrites, never appends.
         record_checked(&dir, 1_700_000_500);
         assert_eq!(last_checked(&dir), Some(1_700_000_500));
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -290,7 +298,6 @@ mod tests {
         assert!(!dir.exists());
         record_checked(&dir, 42);
         assert_eq!(last_checked(&dir), Some(42));
-        let _ = std::fs::remove_dir_all(dir.parent().unwrap());
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -299,7 +306,6 @@ mod tests {
         let (dir, _tg) = tmp_dir("corrupt");
         let _ = crate::fs::write_atomic(&marker_path(&dir), b"not-a-number");
         assert_eq!(last_checked(&dir), None);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -312,6 +318,5 @@ mod tests {
             update_checked_state(&dir, 1090),
             UpdateChecked::CheckedAgo(90)
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

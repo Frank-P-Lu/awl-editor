@@ -177,6 +177,11 @@ mod theme;
 // live App. Absent from every headless capture (see the module doc).
 #[cfg(test)]
 mod testlock;
+// THE one owner of an on-disk scratch directory a test creates under
+// `std::env::temp_dir()` — Drop-based removal so cleanup survives a panic or
+// an early return, not just the happy path (queue item 168).
+#[cfg(test)]
+mod testscratch;
 mod themeswitch;
 mod toggle;
 mod typewriter;

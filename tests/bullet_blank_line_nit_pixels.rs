@@ -28,18 +28,18 @@
 //! axis — this bug lives entirely in ordinary document-body rendering, with no
 //! overlay open, so that axis does not apply here.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 mod common;
+use common::ScratchDir;
 
-/// A fresh, uniquely-named tempdir under the OS temp root (mirrors
-/// `tests/frost_rail_pixels.rs`'s `tmp_dir`).
-fn tmp_dir(tag: &str) -> PathBuf {
+/// A fresh, uniquely-named tempdir under the OS temp root, owned by a
+/// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
+/// used to never remove it at all).
+fn tmp_dir(tag: &str) -> ScratchDir {
     let dir =
         std::env::temp_dir().join(format!("awl-bullet72-pixels-{tag}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    ScratchDir::new(dir)
 }
 
 /// The bug fixture: an off-cursor EMPTY unordered marker (`"- "` alone), a

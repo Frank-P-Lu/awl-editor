@@ -332,6 +332,8 @@ pub fn install_hook() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(not(target_arch = "wasm32"))]
+    use crate::testscratch::ScratchDir;
 
     #[test]
     fn url_encode_escapes_reserved_and_whitespace_leaves_unreserved_bare() {
@@ -383,15 +385,13 @@ mod tests {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn tmp_dir(tag: &str) -> PathBuf {
+    fn tmp_dir(tag: &str) -> ScratchDir {
         let dir = std::env::temp_dir().join(format!(
             "awl-crashlog-test-{tag}-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
+        ScratchDir::new(dir)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -465,7 +465,6 @@ mod tests {
         let sub = dir.join("crashes");
         let path = write_log(&sub, "awl-crash-2026-01-01T00-00-00Z.log", "hello crash").unwrap();
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "hello crash");
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -495,7 +494,6 @@ mod tests {
             ],
             "the two NEWEST survive"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -511,7 +509,6 @@ mod tests {
         let dir = tmp_dir("empty");
         assert_eq!(newest_log(&dir), None);
         assert_eq!(newest_log(&dir.join("nonexistent-nested")), None);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -535,7 +532,6 @@ mod tests {
             pending_notice(&dir).as_deref(),
             Some("awl-crash-2026-06-01T00-00-00Z.log")
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(not(target_arch = "wasm32"))]

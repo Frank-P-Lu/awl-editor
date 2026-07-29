@@ -1,4 +1,5 @@
 use super::*;
+use crate::testscratch::ScratchDir;
 
 #[test]
 fn set_test_override_installs_a_whole_struct_directly() {
@@ -160,11 +161,10 @@ fn render_overrides_env_read_law() {
 
 #[test]
 fn scan_file_skips_comment_lines() {
-    let dir = std::env::temp_dir().join(format!(
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
         "awl_render_overrides_law_test_{}",
         std::process::id()
-    ));
-    std::fs::create_dir_all(&dir).unwrap();
+    )));
     let path = dir.join("fixture.rs");
     std::fs::write(
         &path,
@@ -177,5 +177,4 @@ fn scan_file_skips_comment_lines() {
         out.is_empty(),
         "a comment line must not count as a code read"
     );
-    std::fs::remove_dir_all(&dir).ok();
 }

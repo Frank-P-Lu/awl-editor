@@ -6,6 +6,7 @@
 use super::super::*;
 use super::adapter_available;
 use crate::buffer::Buffer;
+use crate::testscratch::ScratchDir;
 
 fn fixture_opts() -> CaptureOpts {
     CaptureOpts::default()
@@ -24,8 +25,9 @@ fn theme_picker_is_flat_and_reports_no_lens() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_themepick_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_themepick_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
 
     // Build the REAL flat overlay: open on Potoroo, the active world. The swap is
@@ -105,8 +107,6 @@ fn theme_picker_is_flat_and_reports_no_lens() {
         items[o["selected_index"].as_u64().unwrap() as usize],
         serde_json::json!("Potoroo")
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// EMPTY-STATE (pass 3): a picker whose query filters every row out renders + reports
@@ -120,8 +120,9 @@ fn overlay_empty_state_renders_and_reports() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_emptystate_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_emptystate_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
 
     let fold = |ov: &crate::overlay::OverlayState| OverlayInfo {
@@ -202,8 +203,6 @@ fn overlay_empty_state_renders_and_reports() {
         serde_json::json!(null),
         "rows → no empty-state"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// FILE PICKERS faceted lens strips: the go-to (Headings) + browse (Git repos)
@@ -218,8 +217,9 @@ fn file_pickers_faceted_lens_render_and_report() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_filepick_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_filepick_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
     use crate::overlay::{OverlayKind, OverlayState};
 
@@ -334,8 +334,6 @@ fn file_pickers_faceted_lens_render_and_report() {
         "only the git repo under Git repos: {bitems:?}"
     );
     assert!(bitems[0].as_str().unwrap().contains("repo"));
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// GROUPED/FACETED WINDOW BOUND: a faceted picker under a SECTIONED lens on a LARGE
@@ -355,8 +353,9 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     }
     let _tg = crate::testlock::serial();
     use crate::overlay::{OverlayKind, OverlayState};
-    let dir = std::env::temp_dir().join(format!("awl_gwindow_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_gwindow_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
 
     let fold = |ov: &OverlayState| {
@@ -494,8 +493,6 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         fw["card_h"].as_f64().unwrap() <= fw["canvas_h"].as_f64().unwrap(),
         "flat card fits the canvas"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The COMMAND palette + HISTORY timeline gain the same ←/→ lens strip: the picker
@@ -513,8 +510,9 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_cmdhist_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_cmdhist_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
     use crate::overlay::OverlayState;
 
@@ -676,8 +674,6 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         hj2["overlay"]["items"].as_array().unwrap().is_empty(),
         "Session groups nothing without a clock — the determinism gate"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// THE BYTE-IDENTICAL LAW, as a durable test: the capture harness has NO clock /
@@ -720,8 +716,9 @@ fn double_capture_is_byte_identical() {
     let _lf = crate::testlock::serial();
     let _ol = crate::testlock::serial();
     let _tw = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_double_capture_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_double_capture_test_{}", std::process::id())),
+    );
 
     // Markdown + a heading + bold (md spans), a rust fence (syntax roles), and
     // misspelled words ("Ttile" / "mispeled" / "strng") for the squiggle layer.
@@ -777,8 +774,6 @@ fn double_capture_is_byte_identical() {
             "timeline step t{ms} must write a byte-identical sidecar across runs"
         );
     }
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// HISTORY TIMELINE preview, sidecar half: a plain default capture reports
@@ -792,8 +787,9 @@ fn preview_id_null_by_default() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_previewid_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_previewid_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("now text\n");
     let png = dir.join("plain.png");
     capture_with(&png, &buf, &CaptureOpts::default()).expect("plain capture");
@@ -810,7 +806,6 @@ fn preview_id_null_by_default() {
         serde_json::Value::Null,
         "no preview in a default capture"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// HISTORY TIMELINE preview, capture half: `preview_text` folds over the render
@@ -826,8 +821,9 @@ fn history_preview_folds_text_and_reports_preview_id() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_histprev_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_histprev_test_{}", std::process::id())),
+    );
     // The buffer is the CURRENT text; the preview is a shorter OLDER version.
     let mut buf = Buffer::from_str("now line one\nnow line two\nnow line three\n");
     buf.set_cursor(buf.text().chars().count()); // cursor deep in the buffer
@@ -878,7 +874,6 @@ fn history_preview_folds_text_and_reports_preview_id() {
     let col = j["cursor"]["col"].as_u64().unwrap();
     assert!(line <= 1, "cursor clamped into the preview's rows: {line}");
     assert!(col <= 3, "cursor clamped into the preview's cols: {col}");
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// ITEM 94 — THE RANGE ROW THROUGH THE REAL REPLAY + SIDECAR SEAM: drive RIGHT on
@@ -896,8 +891,9 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         "range sidecar law requires a wgpu adapter"
     );
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_rangerow_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_rangerow_test_{}", std::process::id())),
+    );
     let mut buf = Buffer::from_str("preview me\n");
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
 
@@ -1018,5 +1014,4 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
             "{name}: range identity and sidecar cell must agree"
         );
     }
-    let _ = std::fs::remove_dir_all(&dir);
 }

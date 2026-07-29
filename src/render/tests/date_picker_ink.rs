@@ -27,6 +27,7 @@
 use super::super::*;
 use super::{headless_dqp, view};
 use crate::capture::CaptureOpts;
+use crate::testscratch::ScratchDir;
 
 fn fixture_opts() -> CaptureOpts {
     CaptureOpts::default()
@@ -284,8 +285,9 @@ fn date_picker_examples_render_one_ink_across_worlds_and_states() {
     }
     let _g = crate::testlock::serial();
     let orig_theme = crate::theme::active_index();
-    let dir = std::env::temp_dir().join(format!("awl_item66_ink_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_item66_ink_{}", std::process::id())),
+    );
 
     let (items, _) = date_examples();
     assert!(

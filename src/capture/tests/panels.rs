@@ -6,6 +6,7 @@
 use super::super::*;
 use super::adapter_available;
 use crate::buffer::Buffer;
+use crate::testscratch::ScratchDir;
 
 fn fixture_opts() -> CaptureOpts {
     CaptureOpts::default()
@@ -30,8 +31,9 @@ fn debug_panel_absent_by_default_and_toggles() {
     // this never races a page/debug test in another thread.
     let _pg = crate::testlock::serial();
     let _fg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_debug_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_debug_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("hello frame counter\n");
 
     // DEFAULT (panel OFF): absent — empty readout text + enabled=false (the
@@ -109,7 +111,6 @@ fn debug_panel_absent_by_default_and_toggles() {
 
     // Restore the default so later tests see the panel off.
     crate::debug::set_debug_on(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// WHICH-KEY PANEL: a default capture draws no panel (`shown:false`, byte-stable),
@@ -126,8 +127,9 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
         return;
     }
     let _pg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_whichkey_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_whichkey_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("prose under the panel\n");
 
     // DEFAULT (panel down): shown:false with an empty row list, so the capture path
@@ -177,8 +179,6 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
         on_json.contains("[\"n\", \"New document\"]"),
         "note row: {on_json}"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// FIND-AND-REPLACE PANEL: a `--search` renders the labeled find panel, and adding
@@ -193,8 +193,9 @@ fn replace_panel_reports_labeled_fields_and_find_focus() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_replace_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_replace_test_{}", std::process::id())),
+    );
     // A .txt buffer (no markdown spans) with several "the" matches.
     let mut buf = Buffer::from_str("the quick brown fox\njumped over the lazy dog\n");
     buf.set_path(dir.join("doc.txt"));
@@ -250,8 +251,6 @@ fn replace_panel_reports_labeled_fields_and_find_focus() {
         serde_json::json!(""),
         "replacement empty headlessly"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// HELD STATS HUD: the panel is ABSENT from a default capture (`held=false`, so the
@@ -269,8 +268,8 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
     }
     let _pg = crate::testlock::serial();
     let _hg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_hud_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl_hud_test_{}", std::process::id())));
     let mut md = Buffer::from_str("# Title\n\nsome prose with several words here\n");
     md.set_path(dir.join("doc.md"));
 
@@ -356,7 +355,6 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
     );
 
     crate::hud::set_held(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// WEB/LINUX MENU BAR (`menubar.rs` + `render/chrome/menubar.rs`): the sidecar `menubar`
@@ -377,8 +375,9 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
     // the menubar lock FIRST, then page — matching `menubar::tests`' own order.
     let _mg = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_menubar_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_menubar_test_{}", std::process::id())),
+    );
     let mut md = Buffer::from_str("# Title\n\nsome prose here\n");
     md.set_path(dir.join("doc.md"));
 
@@ -453,7 +452,6 @@ fn menu_bar_hidden_by_default_shown_by_global_and_reports_dropdown() {
 
     crate::menubar::set_open(None);
     crate::menubar::set_menu_bar_on(cfg!(not(target_os = "macos")));
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// LINE ENDINGS (the VS Code EOL model's UI half): the held-stats `hud` block gains
@@ -474,8 +472,9 @@ fn hud_reports_the_buffer_eol_and_convert_flips_it() {
     let _pg = crate::testlock::serial();
     let _hg = crate::testlock::serial();
     crate::hud::set_held(false);
-    let dir = std::env::temp_dir().join(format!("awl_hud_eol_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_hud_eol_test_{}", std::process::id())),
+    );
 
     // LF fixture: a plain buffer defaults to LF => the sidecar reports "LF".
     let lf = Buffer::from_str("alpha\nbeta\n");
@@ -522,8 +521,6 @@ fn hud_reports_the_buffer_eol_and_convert_flips_it() {
         serde_json::json!("LF"),
         "convert flips CRLF -> LF"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// SUMMONED ABOUT CARD (`about.rs` + `menu.rs`'s routed item, replacing muda's
@@ -544,8 +541,9 @@ fn about_card_absent_by_default_and_open_reports_true() {
     }
     let _pg = crate::testlock::serial();
     let _ag = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_about_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_about_test_{}", std::process::id())),
+    );
     let md = Buffer::from_str("hello\n");
 
     // DEFAULT (About closed): a byte-identical capture, same as the HUD released.
@@ -601,7 +599,6 @@ fn about_card_absent_by_default_and_open_reports_true() {
     assert_eq!(pending["about"]["pending_crash"], serde_json::json!(true));
 
     crate::about::set_open(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// LIFETIME STATS CARD: absent from a default capture (`lifetime.open=false`, a
@@ -620,8 +617,9 @@ fn lifetime_card_absent_by_default_and_summoned_shows_placeholders() {
     }
     let _pg = crate::testlock::serial();
     let _lg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_lifetime_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_lifetime_test_{}", std::process::id())),
+    );
     let md = Buffer::from_str("hello\n");
 
     // DEFAULT (card closed): a byte-identical capture.
@@ -665,7 +663,6 @@ fn lifetime_card_absent_by_default_and_summoned_shows_placeholders() {
     }
 
     crate::lifetime::set_open(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// HOLD-⌘ SHORTCUT PEEK: absent from a default capture (`peek.open=false`, a
@@ -683,8 +680,8 @@ fn peek_card_absent_by_default_and_summoned_shows_the_starter_six() {
     }
     let _pg = crate::testlock::serial();
     let _kg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_peek_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl_peek_test_{}", std::process::id())));
     let md = Buffer::from_str("hello\n");
 
     // DEFAULT (peek closed): a byte-identical capture; even closed, the sidecar reports
@@ -732,7 +729,6 @@ fn peek_card_absent_by_default_and_summoned_shows_the_starter_six() {
     assert_eq!(rows[5]["name"], serde_json::json!("Switch theme"));
 
     crate::peek::set_open(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// WRITING STREAKS CARD: absent from a default capture (`streaks.open=false`, a
@@ -751,8 +747,9 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
         return;
     }
     let _pg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_streaks_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_streaks_test_{}", std::process::id())),
+    );
     let md = Buffer::from_str("hello\n");
 
     // DEFAULT (card closed): the frame is BYTE-IDENTICAL across two runs (no live
@@ -872,7 +869,6 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 
     crate::streaks::set_open(false);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// CARET-STYLE PICKER: absent from a default capture (no overlay), and when the
@@ -891,8 +887,9 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     }
     let _pg = crate::testlock::serial();
     let _cg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_caretpick_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_caretpick_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
 
     // DEFAULT: no overlay -> the overlay block is inert.
@@ -960,7 +957,6 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
     assert_eq!(on["caret_mode"], serde_json::json!("ibeam"));
 
     crate::caret::set_mode(crate::caret::CaretMode::Block);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// CARET-STYLE PICKER, MORPH highlighted: the settled preview demo actually PAINTS
@@ -976,8 +972,9 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     }
     let _pg = crate::testlock::serial();
     let _cg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_caretpick_morph_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_caretpick_morph_test_{}", std::process::id())),
+    );
     // The sample line the preview always types is `crate::caret::SAMPLE`
     // ("...and morph"), so the settled anchor (one char back of the insertion
     // point) is a real letter regardless of the loaded buffer's own text.
@@ -1040,7 +1037,6 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
     );
 
     crate::caret::set_mode(crate::caret::CaretMode::Block);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// DICTIONARY PICKER: absent from a default capture (no overlay, `dictionary` ==
@@ -1062,8 +1058,9 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     let _g = crate::testlock::serial();
     let saved = crate::spell::active_variant();
     crate::spell::set_active_variant(crate::spell::DictVariant::EnUs);
-    let dir = std::env::temp_dir().join(format!("awl_dictpick_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_dictpick_test_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("preview me\n");
 
     // DEFAULT: no overlay, en_US.
@@ -1157,7 +1154,6 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
     assert_eq!(committed["dictionary"], serde_json::json!("en_AU"));
 
     crate::spell::set_active_variant(saved);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// FORMAT POPOVER — the CARD-FITS law (the "fat chin" cure). The card must HUG the
@@ -1200,8 +1196,9 @@ fn popover_card_hugs_the_button_row() {
     // corrected convention a few tests down.
     crate::theme::set_active_by_name("Mulga").unwrap();
 
-    let dir = std::env::temp_dir().join(format!("awl_popover_chin_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_popover_chin_{}", std::process::id())),
+    );
     // A no-path scratch buffer reads as markdown; select the plain word "bold" on a
     // NON-heading line so all seven buttons render MUTED (pure glyph ink on the flat
     // card, no lit-button wash to widen the measured band).
@@ -1355,7 +1352,6 @@ fn popover_card_hugs_the_button_row() {
 
     crate::popover::set_popover_on(saved);
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// FORMAT POPOVER — the LIT-BUTTON WASH PILL sits INSIDE the card, vertically
@@ -1380,8 +1376,9 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
     // happens to be.
     crate::theme::set_active_by_name("Mulga").unwrap();
 
-    let dir = std::env::temp_dir().join(format!("awl_popover_pill_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_popover_pill_{}", std::process::id())),
+    );
     let buf = Buffer::from_str("# Hello world\n\nThis is some **bold** text.\n");
 
     // The fixed capture matrix keeps DPI and canvas coupled for readable test labels.
@@ -1466,7 +1463,6 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
 
     crate::popover::set_popover_on(saved);
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// FORMAT POPOVER — SELF-DEMONSTRATING LABELS (the "a user would not know what
@@ -1494,8 +1490,9 @@ fn popover_labels_demonstrate_their_own_effects() {
     crate::popover::set_popover_on(true);
     crate::theme::set_active_by_name("Mulga").unwrap();
 
-    let dir = std::env::temp_dir().join(format!("awl_popover_demo_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_popover_demo_{}", std::process::id())),
+    );
     // Plain selection => every button UNLIT (no lit wash competing with the
     // always-on demo pills). Same fixture as the card-hug law.
     let buf = Buffer::from_str("# Hello world\n\nThis is some bold text.\n");
@@ -1624,7 +1621,6 @@ fn popover_labels_demonstrate_their_own_effects() {
 
     crate::popover::set_popover_on(saved);
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// DIFF-AS-PREVIEW card dressing (the pixel law): while the History picker's
@@ -1646,8 +1642,9 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_diffpanel_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_diffpanel_test_{}", std::process::id())),
+    );
 
     // A real writer's-diff transcript, tall enough to fill the panel vertically.
     let old = "The opening paragraph stands unchanged across both drafts here.\n\nThe middle paragraph gets entirely rewritten in the newer draft below.\n\nA third paragraph the newer draft drops out of the manuscript wholesale.\n";
@@ -1800,7 +1797,6 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
     // serial()-ordered test runs next (it broke `popover_lit_wash_pill…`, whose
     // pill-contrast threshold clears on the default world but not on Tawny).
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// WCAG relative luminance of an sRGB byte pixel — the same formula
@@ -1927,9 +1923,9 @@ fn dark_world_card_casts_no_brightening_slab_below_it() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir =
-        std::env::temp_dir().join(format!("awl_darkdepth_noslab_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_darkdepth_noslab_test_{}", std::process::id())),
+    );
 
     // SAMPLED, not exhaustive (the standing audit policy): Currawong is the
     // world the bug was originally measured on (OLED-black, TopLeft anchor,
@@ -1958,7 +1954,6 @@ fn dark_world_card_casts_no_brightening_slab_below_it() {
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// DARK-DEPTH OPTION C — LIGHT WORLDS STILL READ ELEVATED: DESIGN §5 never
@@ -1977,8 +1972,9 @@ fn light_world_card_still_reads_elevated_without_a_drop_shadow() {
         return;
     }
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl_darkdepth_light_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_darkdepth_light_test_{}", std::process::id())),
+    );
 
     // SAMPLED: two light worlds (Saltpan is DEFAULT_THEME; Bilby carries its
     // own `Bordered` elevation cap on the CENTERED-overlay family, a taste
@@ -2008,7 +2004,6 @@ fn light_world_card_still_reads_elevated_without_a_drop_shadow() {
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// ITEM 80 — LAW: the find/replace panel's CARD never widens (or narrows) as the
@@ -2033,8 +2028,9 @@ fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() 
     }
     let _tg = crate::testlock::serial();
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
-    let dir = std::env::temp_dir().join(format!("awl_panel_width_test_{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_panel_width_test_{}", std::process::id())),
+    );
 
     // Neither "cat"/"qqq" nor the long fixture appear in this haystack — every
     // capture below reports hit_count 0 ("0/0"), holding the counter's own
@@ -2122,8 +2118,6 @@ fn find_replace_panel_card_width_is_invariant_across_short_long_short_queries() 
         "a replacement far longer than the fixed field must NOT widen the card \
          (left edge: short={r_short1}px long={r_long}px)"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// The panel card's own LEFT edge on row `y`, found by walking LEFT from a

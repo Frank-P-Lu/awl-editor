@@ -261,6 +261,7 @@ pub fn startup(file: Option<&Path>, wait: bool) -> std::io::Result<StartupOutcom
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testscratch::ScratchDir;
 
     // --- protocol parse/serialize (pure) ------------------------------------
 
@@ -375,9 +376,9 @@ mod tests {
         // A relative launch argument must be sent to the server as its
         // cwd-joined, normalized (mirrors `BufferKey::path`) absolute form —
         // the server cannot ever recover the client's cwd on its own.
-        let dir =
-            std::env::temp_dir().join(format!("awl-daemon-handoff-canon-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-daemon-handoff-canon-{}", std::process::id())),
+        );
         std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
@@ -418,7 +419,6 @@ mod tests {
             "the server must receive the CANONICAL absolute path, not the relative spelling"
         );
         let _ = std::fs::remove_file(&sock);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // --- single-process loopback: listener thread -> channel -> DaemonEvent -
@@ -430,9 +430,9 @@ mod tests {
         // `EventLoopProxy::send_event` (no winit event loop in a unit test) —
         // the honestly-testable slice of `spawn_accept_thread`. The real
         // winit hop (`App::handle_daemon_event`) is live-only; see the module doc.
-        let dir =
-            std::env::temp_dir().join(format!("awl-daemon-accept-thread-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-daemon-accept-thread-{}", std::process::id())),
+        );
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
 
@@ -486,7 +486,6 @@ mod tests {
         assert_eq!(done_line, format_done(&target));
 
         let _ = std::fs::remove_file(&sock);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -495,9 +494,9 @@ mod tests {
         // DROPPED (never explicitly `notify_done`d — e.g. the app quit, or the
         // buffer was evicted) still unblocks the client's blocking read with a
         // clean EOF rather than hanging forever.
-        let dir =
-            std::env::temp_dir().join(format!("awl-daemon-drop-waiter-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-daemon-drop-waiter-{}", std::process::id())),
+        );
         let sock = dir.join("awl.sock");
         let listener = UnixListener::bind(&sock).unwrap();
 
@@ -532,7 +531,6 @@ mod tests {
 
         server.join().unwrap();
         let _ = std::fs::remove_file(&sock);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // --- the headless capture gate (structural + runtime) -------------------
@@ -548,10 +546,10 @@ mod tests {
         // or otherwise: `main::run`'s capture modes never call `app::run`),
         // then assert nothing ever appeared at the overridden socket path.
         let _lock = crate::testlock::serial();
-        let dir =
-            std::env::temp_dir().join(format!("awl-daemon-capture-gate-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        set_socket_dir_for_test(Some(dir.clone()));
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-daemon-capture-gate-{}", std::process::id())),
+        );
+        set_socket_dir_for_test(Some(dir.to_path_buf()));
 
         let mut buffer = crate::buffer::Buffer::scratch();
         let mut shift_selecting = false;
@@ -587,6 +585,5 @@ mod tests {
             !dir.join("awl.sock").exists(),
             "editing + saving through the pure core must never bind or connect the daemon socket"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

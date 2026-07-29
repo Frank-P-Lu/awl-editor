@@ -1,4 +1,5 @@
 use super::*;
+use crate::testscratch::ScratchDir;
 
 // ── MULTI-BUFFER REGISTRY (App-level: open/switch preserves everything) ──
 
@@ -413,8 +414,8 @@ fn load_path_opens_a_relative_launch_path_then_finds_it_again_via_absolute_path(
     // both the fs TEST_LOCK (real-disk reads race a sibling's InMemoryFs
     // swap) and the CWD_LOCK (chdir is process-global too).
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-relabs-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-relabs-{}", std::process::id())));
     std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
     let _cwd = crate::fs::CwdGuard::enter(&dir);
 
@@ -431,7 +432,13 @@ fn load_path_opens_a_relative_launch_path_then_finds_it_again_via_absolute_path(
         ..Config::empty()
     };
     // The launch argument stays exactly as typed: relative, no directory.
-    let mut app = App::new(Some(PathBuf::from("a.txt")), dir.clone(), None, None, cfg);
+    let mut app = App::new(
+        Some(PathBuf::from("a.txt")),
+        dir.to_path_buf(),
+        None,
+        None,
+        cfg,
+    );
     app.active.buffer.set_text("ALPHA EDITED\n");
     app.active.buffer.set_cursor(3);
     assert_eq!(
@@ -458,8 +465,6 @@ fn load_path_opens_a_relative_launch_path_then_finds_it_again_via_absolute_path(
         1,
         "one entry, not two — the relative and absolute spellings key identically"
     );
-
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

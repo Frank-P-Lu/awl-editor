@@ -105,6 +105,7 @@ impl App {
 #[cfg(all(test, not(target_arch = "wasm32"), not(feature = "mas")))]
 mod tests {
     use super::*;
+    use crate::testscratch::ScratchDir;
     use std::io::{BufRead, BufReader};
     use std::os::unix::net::UnixStream;
 
@@ -156,9 +157,9 @@ mod tests {
         // never reads the developer's real `~/.local/share/awl/session.toml`
         // and parks his real open files into this test's registry.
         let _fs = crate::testlock::serial();
-        let dir =
-            std::env::temp_dir().join(format!("awl-finish-buffer-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-finish-buffer-test-{}", std::process::id())),
+        );
         let a = dir.join("a.txt");
         let b = dir.join("b.txt");
         std::fs::write(&a, "alpha\n").unwrap();
@@ -168,7 +169,7 @@ mod tests {
             session_restore: Some(false),
             ..Config::empty()
         };
-        let mut app = App::new(Some(a.clone()), dir.clone(), None, None, cfg);
+        let mut app = App::new(Some(a.clone()), dir.to_path_buf(), None, None, cfg);
         app.load_path(b.clone());
         assert_eq!(app.active.buffer.path(), Some(b.as_path()), "B is active");
         assert_eq!(
@@ -222,8 +223,6 @@ mod tests {
                 .contains_key(&crate::buffers::BufferKey::path(&b)),
             "the notified waiter entry is drained"
         );
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -239,13 +238,13 @@ mod tests {
         // scratch-stash doors (it takes `fs::TEST_LOCK` internally for the
         // scope of construction, so don't ALSO hold it here — a plain
         // `Mutex` isn't reentrant).
-        let dir =
-            std::env::temp_dir().join(format!("awl-daemon-shutdown-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-daemon-shutdown-test-{}", std::process::id())),
+        );
         let sock = dir.join("awl.sock");
         std::fs::write(&sock, b"").unwrap(); // stand-in for a bound socket file
 
-        let mut app = App::new_hermetic(None, dir.clone(), Config::empty());
+        let mut app = App::new_hermetic(None, dir.to_path_buf(), Config::empty());
         app.daemon_socket_path = Some(sock.clone());
         let (_mine, theirs) = UnixStream::pair().unwrap();
         app.wait_conns.insert(
@@ -261,7 +260,5 @@ mod tests {
             "the socket file is unlinked on clean shutdown"
         );
         assert!(app.daemon_socket_path.is_none());
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

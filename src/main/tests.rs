@@ -1,4 +1,5 @@
 use super::*;
+use crate::testscratch::ScratchDir;
 
 // CONVENTION-PROOF SHADOWS: this whole file's `--keys` replay tests hardcode
 // MAC-form literal specs ("Cmd-S-h", "s-p", a bare "C-n"/"C-x" whose letter
@@ -366,9 +367,9 @@ fn a_fully_applied_replay_stays_warning_and_intercept_free() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk() {
-    let dir = std::env::temp_dir().join(format!("awl-hermetic-save-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-hermetic-save-{}", std::process::id())),
+    );
     let input = dir.join("doc.md");
     std::fs::write(&input, "alpha\n").unwrap();
     {
@@ -404,15 +405,14 @@ fn hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk() {
         "alpha\n",
         "the REAL file keeps every byte a hermetic scenario 'saved'"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn hermetic_scenario_witnesses_the_url_handoff_as_an_intercept() {
-    let dir = std::env::temp_dir().join(format!("awl-hermetic-link-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-hermetic-link-{}", std::process::id())),
+    );
     let input = dir.join("linked.md");
     let body = "[a](https://awl.example/doc) tail\n";
     std::fs::write(&input, body).unwrap();
@@ -451,7 +451,6 @@ fn hermetic_scenario_witnesses_the_url_handoff_as_an_intercept() {
         body,
         "the real file too"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 // ── SHARED SEARCH/REPLACE INPUT ROUTING: the replay-side search guard ──
@@ -1417,8 +1416,9 @@ fn replay_keys_goto_switch_reapplies_measure_per_buffer_kind() {
     let _fs = crate::testlock::serial();
     let _pg = crate::testlock::serial();
     let measure0 = crate::page::measure();
-    let dir = std::env::temp_dir().join(format!("awl-mb-measure-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-mb-measure-{}", std::process::id())),
+    );
     std::fs::write(dir.join("a.md"), "# hello\n").unwrap();
     std::fs::write(dir.join("b.rs"), "fn main() {}\n").unwrap();
     let cfg = Config {
@@ -1447,7 +1447,6 @@ fn replay_keys_goto_switch_reapplies_measure_per_buffer_kind() {
     );
 
     crate::page::set_measure(measure0);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -1464,8 +1463,8 @@ fn replay_scrolled_deep_then_open_swaps_to_the_short_file() {
     // Reads the REAL disk through the fs seam → hold the fs TEST_LOCK so a
     // parallel InMemoryFs installation can't swallow the temp files.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-goto-swap-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-goto-swap-{}", std::process::id())));
     let long: String = (0..300).map(|i| format!("line {i}\n")).collect();
     std::fs::write(dir.join("long.txt"), &long).unwrap();
     std::fs::write(dir.join("short.txt"), "just one line\n").unwrap();
@@ -1489,7 +1488,6 @@ fn replay_scrolled_deep_then_open_swaps_to_the_short_file() {
     let swapped = Buffer::from_file(&crate::index::resolve(&dir, &val));
     assert_eq!(swapped.text(), "just one line\n");
     assert_eq!(swapped.cursor_line_col(), (0, 0));
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -1501,8 +1499,8 @@ fn replay_keys_goto_a_then_b_then_a_preserves_edits_and_cursor() {
     // disk re-read — with A's own cursor. This is what makes "assert preserved
     // cursor after an A -> B -> A switch" a headless, agent-verifiable capture.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-mb-replay-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-mb-replay-{}", std::process::id())));
     std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
     std::fs::write(dir.join("b.txt"), "beta\n").unwrap();
     let mut buffer = Buffer::scratch();
@@ -1532,7 +1530,6 @@ fn replay_keys_goto_a_then_b_then_a_preserves_edits_and_cursor() {
         res.buffers_open, 3,
         "the launch scratch + A (active) + B (backgrounded, still holding its own edit)"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -1540,8 +1537,9 @@ fn replay_keys_reopening_the_active_file_is_a_noop() {
     // Guards the same "already active" short-circuit the live `App::load_path`
     // takes: Goto-ing the file that's ALREADY active must not disturb its edit.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-mb-replay-noop-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-mb-replay-noop-{}", std::process::id())),
+    );
     std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
     let mut buffer = Buffer::from_file(&dir.join("a.txt"));
     let corpus = vec!["a.txt".to_string()];
@@ -1561,7 +1559,6 @@ fn replay_keys_reopening_the_active_file_is_a_noop() {
         "the edit survives a no-op reopen of the active file"
     );
     assert_eq!(res.buffers_open, 1, "nothing was ever backgrounded");
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -1576,7 +1573,8 @@ fn replay_keys_goto_recognizes_the_active_file_under_a_differently_spelled_but_e
     // instead, so the test is deterministic and independent of the test
     // process's real cwd.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-mb-relid-{}", std::process::id()));
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-mb-relid-{}", std::process::id())));
     std::fs::create_dir_all(dir.join("sub")).unwrap();
     std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
     std::fs::write(dir.join("b.txt"), "beta\n").unwrap();
@@ -1604,7 +1602,6 @@ fn replay_keys_goto_recognizes_the_active_file_under_a_differently_spelled_but_e
         "a.txt (active) + b.txt (backgrounded) — no orphaned duplicate entry for the messy \
              spelling"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -1619,8 +1616,9 @@ fn replay_keys_new_note_parks_the_leaving_buffer_instead_of_discarding_it() {
     // has NO stable identity to register; see `BufferKey::of`. Only A's
     // survival is under test.)
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-mb-newnote-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-mb-newnote-{}", std::process::id())),
+    );
     std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
     let mut buffer = Buffer::from_file(&dir.join("a.txt"));
     let corpus = vec!["a.txt".to_string()];
@@ -1644,7 +1642,6 @@ fn replay_keys_new_note_parks_the_leaving_buffer_instead_of_discarding_it() {
         "A active again; the still-unnamed note was never registered (no stable identity), \
              not lost from anywhere else A could be found"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -1983,12 +1980,12 @@ fn resolve_root_explicit_flag_wins_over_file() {
 #[test]
 fn resolve_root_file_argument_resolves_from_its_own_directory() {
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-resolve-root-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-resolve-root-{}", std::process::id())),
+    );
     let file = dir.join("note.txt");
     std::fs::write(&file, "hi").unwrap();
-    assert_eq!(resolve_root(&None, &Some(file)), dir);
-    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(resolve_root(&None, &Some(file)), dir.to_path_buf());
 }
 
 #[test]
@@ -2028,15 +2025,15 @@ fn resolve_launch_context_file_argument_wins_over_remembered() {
     let _tg = crate::testlock::serial();
     let remembered = PathBuf::from("/remembered/root");
     let default_folder = PathBuf::from("/home/me/notes");
-    let dir = std::env::temp_dir().join(format!("awl-launch-ctx-file-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-launch-ctx-file-{}", std::process::id())),
+    );
     let file = dir.join("note.txt");
     std::fs::write(&file, "hi").unwrap();
     assert_eq!(
         resolve_launch_context(&None, &Some(file), Some(&remembered), &default_folder),
-        dir
+        dir.to_path_buf()
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -2052,20 +2049,20 @@ fn resolve_launch_context_dir_argument_awl_dot_is_explicit_not_remembered() {
     // false, the dir argument decayed to its PARENT (`/tmp`), and the
     // assertion below failed under parallel load.
     let _tg = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-launch-ctx-dot-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-launch-ctx-dot-{}", std::process::id())),
+    );
     let remembered = PathBuf::from("/remembered/root");
     let default_folder = PathBuf::from("/home/me/notes");
     assert_eq!(
         resolve_launch_context(
             &None,
-            &Some(dir.clone()),
+            &Some(dir.to_path_buf()),
             Some(&remembered),
             &default_folder
         ),
-        dir
+        dir.to_path_buf()
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -2104,8 +2101,9 @@ fn capture_mode_bare_invocation_never_restores_a_remembered_folder() {
     // it) -> hold the fs TEST_LOCK like the other real-fs test in this
     // module.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-capture-bare-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-capture-bare-{}", std::process::id())),
+    );
     let _cwd_guard = crate::fs::CwdGuard::enter(&dir);
     let cwd = crate::fs::current_dir().unwrap();
     let config = Config {
@@ -2134,7 +2132,6 @@ fn capture_mode_bare_invocation_never_restores_a_remembered_folder() {
         cwd.to_string_lossy(),
         "sidecar project.root reflects cwd, never the config default_folder"
     );
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -2146,8 +2143,9 @@ fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
     // block + `text` — the round's done-criteria witness. Real disk +
     // capture -> hold the fs TEST_LOCK like the sticky-root test above.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-search-replay-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-search-replay-{}", std::process::id())),
+    );
     let fixture = dir.join("doc.txt");
     std::fs::write(&fixture, "line one\nline two\nline three\n").unwrap();
     let out = dir.join("cap.png");
@@ -2158,7 +2156,7 @@ fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
         CaptureOpts::default(),
         keys,
         crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac),
-        Some(dir.clone()),
+        Some(dir.to_path_buf()),
         None,
         dir.join("notes"),
         Config::empty(),
@@ -2198,7 +2196,6 @@ fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
         "caret advanced to the next match"
     );
     assert_eq!(v["cursor"]["col"].as_u64().unwrap(), 0);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -2207,13 +2204,14 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
     // real Move accept through the same screenshot door users invoke: its
     // settled overlay otherwise looks exactly like a successful live move.
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-replay-skips-{}", std::process::id()));
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-replay-skips-{}", std::process::id())),
+    );
     std::fs::create_dir_all(dir.join("archive")).unwrap();
     let fixture = dir.join("note.md");
     std::fs::write(&fixture, "note\n").unwrap();
     if capture::build_oracle(&Buffer::from_file(&fixture), &CaptureOpts::default()).is_none() {
         eprintln!("skipping replay-skip sidecar capture: no wgpu adapter");
-        let _ = std::fs::remove_dir_all(&dir);
         return;
     }
     let keys = keyspec::parse_keys("s-p m o v e Enter Enter").unwrap();
@@ -2227,7 +2225,7 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
         CaptureOpts::default(),
         keys.clone(),
         keymap(),
-        Some(dir.clone()),
+        Some(dir.to_path_buf()),
         None,
         dir.join("notes"),
         Config::empty(),
@@ -2254,7 +2252,7 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
         CaptureOpts::default(),
         vec![],
         keymap(),
-        Some(dir.clone()),
+        Some(dir.to_path_buf()),
         None,
         dir.join("notes"),
         Config::empty(),
@@ -2273,7 +2271,7 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
         CaptureOpts::default(),
         keys,
         keymap(),
-        Some(dir.clone()),
+        Some(dir.to_path_buf()),
         None,
         dir.join("notes"),
         Config::empty(),
@@ -2282,7 +2280,6 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
     .expect_err("strict replay aborts at the same move seam");
     assert!(err.to_string().contains("`overlay_accept`"), "{err}");
     assert!(!strict.exists() && !strict.with_extension("json").exists());
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -2343,8 +2340,9 @@ fn lava_backdrop_pixels_are_page_width_invariant_and_page_interior_is_flat() {
     crate::theme::set_active_by_name("Mangrove").unwrap();
     crate::page::set_page_on(true);
 
-    let dir = std::env::temp_dir().join(format!("awl-lava-width-law-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-lava-width-law-{}", std::process::id())),
+    );
     let render = |measure, stem: &str| {
         crate::page::set_measure(measure);
         let out = dir.join(format!("{stem}.png"));
@@ -2358,9 +2356,9 @@ fn lava_backdrop_pixels_are_page_width_invariant_and_page_interior_is_flat() {
             opts,
             Vec::new(),
             crate::keymap::KeymapState::new(),
-            Some(dir.clone()),
-            Some(dir.clone()),
-            dir.clone(),
+            Some(dir.to_path_buf()),
+            Some(dir.to_path_buf()),
+            dir.to_path_buf(),
             Config::empty(),
             false, // permissive (the legacy default)
         )
@@ -2413,7 +2411,6 @@ fn lava_backdrop_pixels_are_page_width_invariant_and_page_interior_is_flat() {
     crate::theme::set_active(old_theme);
     crate::page::set_measure(old_measure);
     crate::page::set_page_on(old_page);
-    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
@@ -2676,7 +2673,9 @@ fn regression_non_wrapped_doc_visual_equals_logical_byte_identical() {
         "non-wrapped short-line doc: visual + logical captures are byte-identical"
     );
     let _ = std::fs::remove_file(&pv);
+    let _ = std::fs::remove_file(pv.with_extension("json"));
     let _ = std::fs::remove_file(&pl);
+    let _ = std::fs::remove_file(pl.with_extension("json"));
 }
 
 #[test]
@@ -2803,8 +2802,9 @@ fn goto_switch_mid_replay_reshapes_the_oracle_to_the_arriving_buffer() {
     // the oracle for Down to stay on b.md's wrapped line 0. The pre-phase
     // oracle stayed shaped on a.rs, so Down crossed into line 1 at (1, 0).
     let _fs = crate::testlock::serial();
-    let dir = std::env::temp_dir().join(format!("awl-oracle-goto-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-oracle-goto-{}", std::process::id())),
+    );
     std::fs::write(dir.join("a.rs"), "fn main() {}\n").unwrap();
     std::fs::write(dir.join("b.md"), "the quick brown fox jumps over\ntail\n").unwrap();
     let cfg = Config {
@@ -2819,7 +2819,6 @@ fn goto_switch_mid_replay_reshapes_the_oracle_to_the_arriving_buffer() {
     let opts = CaptureOpts::default();
     let Some(mut op) = capture::build_oracle(&buffer, &opts) else {
         crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-        let _ = std::fs::remove_dir_all(&dir);
         eprintln!("skipping goto_switch_mid_replay_reshapes_the_oracle: no wgpu adapter");
         return;
     };
@@ -2827,7 +2826,6 @@ fn goto_switch_mid_replay_reshapes_the_oracle_to_the_arriving_buffer() {
     replay_keys(&mut buffer, &keys, &corpus, &dir, None, &cfg, Some(&mut op));
     let (line, col) = buffer.cursor_line_col();
     crate::page::set_measure(crate::page::DEFAULT_MEASURE);
-    let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(
         buffer.path(),
         Some(dir.join("b.md").as_path()),
@@ -2968,7 +2966,9 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
             "mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between"
         );
         let _ = std::fs::remove_file(&base_png);
+        let _ = std::fs::remove_file(base_png.with_extension("json"));
         let _ = std::fs::remove_file(&detour_png);
+        let _ = std::fs::remove_file(detour_png.with_extension("json"));
     }
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
