@@ -319,14 +319,18 @@ fn ground_params(desc: &BgDesc) -> [f32; 4] {
     match desc.shader {
         // ORGANIC (item 117): cell scale + density.
         8 => [desc.period_px, desc.density, 0.0, 0.0],
-        // DECKLE: lane pitch / wander amplitude / density / weave plus its
-        // coordinate owner. The mode is one scalar because only Deckle reads
-        // it: 0=viewport Strata, 1=Fibres, 2=legacy page-relative Strata.
+        // DECKLE: lane pitch / wander amplitude / density / mode. The mode is
+        // total over Weave × DeckleAnchor: 0=viewport Strata, 1=Fibres (the
+        // anchor is intentionally ignored), 2=page-relative Strata.
         9 => [
             desc.period_px,
             desc.amplitude_px,
             desc.density,
-            desc.weave + 2.0 * desc.deckle_anchor,
+            if desc.weave >= 0.5 {
+                1.0
+            } else {
+                2.0 * desc.deckle_anchor
+            },
         ],
         _ => {
             let edge_period = if desc.edge { 1.0 } else { 0.0 } + desc.period_px;

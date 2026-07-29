@@ -94,6 +94,30 @@ fn with_anchor(anchor: DeckleAnchor) -> Background {
     }
 }
 
+fn with_weave_and_anchor(weave: Weave, anchor: DeckleAnchor) -> Background {
+    match paperbark_bg() {
+        Background::Deckle {
+            ground,
+            layer,
+            deckle,
+            period_px,
+            wander_px,
+            density,
+            ..
+        } => Background::Deckle {
+            ground,
+            layer,
+            deckle,
+            weave,
+            anchor,
+            period_px,
+            wander_px,
+            density,
+        },
+        _ => unreachable!("Paperbark ships Background::Deckle"),
+    }
+}
+
 /// DATA-LEVEL ROSTER, NO WILDCARD: a future ground variant must decide its
 /// Deckle story here, and a second Deckle world must be a deliberate edit.
 #[test]
@@ -476,6 +500,84 @@ fn deckle_strata_stays_fixed_at_exposed_viewport_points_across_page_width_drags(
             moved > (w * h / 100) as usize,
             "mutation witness at {w}x{h}: page-relative Deckle moved only {moved} exposed pixels"
         );
+    }
+}
+
+/// Deckle's packed mode is total over the two independent controls: Fibres is
+/// a screen-space material regardless of anchor, while Strata alone selects a
+/// coordinate owner. The exhaustive match is deliberately wildcard-free, so a
+/// future Weave or DeckleAnchor variant cannot silently miss this law.
+#[test]
+fn deckle_mode_sweeps_every_weave_anchor_combination() {
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!("skipping deckle_mode_sweeps_every_weave_anchor_combination: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let (w, h, cl, cw) = (1400, 800, 350.0, 700.0);
+    let strata_viewport = render_bg(
+        &device,
+        &queue,
+        bg_desc_for(with_weave_and_anchor(Weave::Strata, DeckleAnchor::Viewport)),
+        w,
+        h,
+        cl,
+        cw,
+        0.0,
+    );
+    let strata_page = render_bg(
+        &device,
+        &queue,
+        bg_desc_for(with_weave_and_anchor(Weave::Strata, DeckleAnchor::Page)),
+        w,
+        h,
+        cl,
+        cw,
+        0.0,
+    );
+    let fibres_viewport = render_bg(
+        &device,
+        &queue,
+        bg_desc_for(with_weave_and_anchor(Weave::Fibres, DeckleAnchor::Viewport)),
+        w,
+        h,
+        cl,
+        cw,
+        0.0,
+    );
+    let fibres_page = render_bg(
+        &device,
+        &queue,
+        bg_desc_for(with_weave_and_anchor(Weave::Fibres, DeckleAnchor::Page)),
+        w,
+        h,
+        cl,
+        cw,
+        0.0,
+    );
+
+    for ((weave, anchor), pixels) in [
+        ((Weave::Strata, DeckleAnchor::Viewport), &strata_viewport),
+        ((Weave::Strata, DeckleAnchor::Page), &strata_page),
+        ((Weave::Fibres, DeckleAnchor::Viewport), &fibres_viewport),
+        ((Weave::Fibres, DeckleAnchor::Page), &fibres_page),
+    ] {
+        match (weave, anchor) {
+            (Weave::Strata, DeckleAnchor::Viewport) => assert_ne!(
+                pixels, &strata_page,
+                "viewport Strata must not fall through to page-relative Strata"
+            ),
+            (Weave::Strata, DeckleAnchor::Page) => assert_ne!(
+                pixels, &strata_viewport,
+                "page-relative Strata must select its own coordinate owner"
+            ),
+            (Weave::Fibres, DeckleAnchor::Viewport) => {
+                assert_eq!(pixels, &fibres_page, "Fibres must ignore its anchor")
+            }
+            (Weave::Fibres, DeckleAnchor::Page) => {
+                assert_eq!(pixels, &fibres_viewport, "Fibres must ignore its anchor")
+            }
+        }
     }
 }
 
