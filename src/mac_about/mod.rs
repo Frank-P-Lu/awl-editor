@@ -397,8 +397,10 @@ pub enum Ink {
 }
 
 impl Ink {
-    /// Every role, for the roster laws. A no-wildcard match keeps it honest:
-    /// a new variant fails to compile until it is listed.
+    /// Every role, for the roster law. A no-wildcard match keeps it honest: a
+    /// new variant fails to compile until it is listed. Law surface only — the
+    /// running window names its roles one at a time.
+    #[allow(dead_code)]
     pub const ALL: &'static [Ink] = &[Ink::Body, Ink::Secondary];
 }
 

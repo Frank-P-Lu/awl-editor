@@ -114,7 +114,7 @@ pub fn element_ink(img: &RgbaImage, region: (u32, u32, u32, u32)) -> Option<(u8,
     if covered.len() < MIN_COVERED_PIXELS {
         return None;
     }
-    covered.sort_by(|a, b| b.1.cmp(&a.1));
+    covered.sort_by_key(|c| std::cmp::Reverse(c.1));
     Some(covered[(covered.len() as f64 * INK_CORE_PERCENTILE) as usize].0)
 }
 
