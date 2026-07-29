@@ -66,7 +66,9 @@ pub use derive::{
     primary, selected_row_ink, selected_row_secondary_ink, selection, set_active,
     set_active_by_name, surface_selected,
 };
-pub use ground::{Background, LavaEdge};
+#[allow(unused_imports)]
+// DeckleAnchor is public theme data; production literals use ground directly.
+pub use ground::{Background, DeckleAnchor, LavaEdge};
 pub use model::{Theme, WashOverride};
 // ITEM 89's ZIGZAG geometry mirror — `cfg(test)` at the source (see their own
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state

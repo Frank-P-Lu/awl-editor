@@ -455,8 +455,10 @@ const DECKLE_MIN_PITCH_PX: f32 = 40.0;
 // The weave threshold `theme::Weave::mode` writes either side of.
 const DECKLE_WEAVE_FIBRES: f32 = 0.5;
 
-// Distance from the fragment to the NEAR edge of the page column. Positive in
-// either margin, so the strata mirror across the page by construction.
+// Legacy mutation arm only: distance to the page edge is precisely the
+// border-decoration behaviour item 175 rejects. `deckle_strata` chooses the
+// stable viewport coordinate by default; this stays named so the pixel law can
+// restore the defect and prove it goes red.
 fn deckle_page_distance(px: vec2<f32>) -> f32 {
     if (px.x > g.col_left + g.col_w) {
         return px.x - (g.col_left + g.col_w);
@@ -464,8 +466,16 @@ fn deckle_page_distance(px: vec2<f32>) -> f32 {
     return g.col_left - px.x;
 }
 
+// The Room/viewport owner: a page-width drag moves only the opaque mask above
+// this field. The viewport centre is stable under page-width dragging and under
+// the adaptive-column shift, so an exposed screen point cannot translate,
+// stretch, reseed, or reflow its paper contours.
+fn deckle_viewport_distance(px: vec2<f32>) -> f32 {
+    return abs(px.x - g.viewport.x * 0.5);
+}
+
 fn deckle_strata(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
-    let d = deckle_page_distance(px);
+    let d = select(deckle_viewport_distance(px), deckle_page_distance(px), g.params.w >= 1.5);
     let torn = sin(px.y * DECKLE_WANDER_FREQ) * wander
         + sin(px.y * DECKLE_WANDER_FINE_FREQ + d * DECKLE_WANDER_SKEW)
             * wander * DECKLE_WANDER_FINE_FRAC;
@@ -508,7 +518,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
     let pitch = max(g.params.x, DECKLE_MIN_PITCH_PX);
     let wander = g.params.y;
     let density = g.params.z;
-    if (g.params.w >= DECKLE_WEAVE_FIBRES) {
+    if (g.params.w >= DECKLE_WEAVE_FIBRES && g.params.w < 1.5) {
         return deckle_fibres(px, pitch, wander, density);
     }
     return deckle_strata(px, pitch, wander, density);

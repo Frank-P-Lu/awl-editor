@@ -34,6 +34,8 @@ pub struct BgDesc {
     pub banded: bool,
     /// DECKLE's weave scalar; INERT `0.0` off that ground (`Background::weave_mode`).
     pub weave: f32,
+    /// Deckle's stable-room coordinate owner; inert off that ground.
+    pub deckle_anchor: f32,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -317,8 +319,19 @@ fn ground_params(desc: &BgDesc) -> [f32; 4] {
     match desc.shader {
         // ORGANIC (item 117): cell scale + density.
         8 => [desc.period_px, desc.density, 0.0, 0.0],
-        // DECKLE (item 158): lane pitch / wander amplitude / density / weave.
-        9 => [desc.period_px, desc.amplitude_px, desc.density, desc.weave],
+        // DECKLE: lane pitch / wander amplitude / density / mode. The mode is
+        // total over Weave × DeckleAnchor: 0=viewport Strata, 1=Fibres (the
+        // anchor is intentionally ignored), 2=page-relative Strata.
+        9 => [
+            desc.period_px,
+            desc.amplitude_px,
+            desc.density,
+            if desc.weave >= 0.5 {
+                1.0
+            } else {
+                2.0 * desc.deckle_anchor
+            },
+        ],
         _ => {
             let edge_period = if desc.edge { 1.0 } else { 0.0 } + desc.period_px;
             let signed_density = if desc.banded { -1.0 } else { 1.0 } * desc.density;

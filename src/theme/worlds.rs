@@ -3,7 +3,7 @@ use super::cjk::{
     CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 use super::color::Srgb;
-use super::ground::{Background, LavaEdge, Weave};
+use super::ground::{Background, DeckleAnchor, LavaEdge, Weave};
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
@@ -1052,6 +1052,7 @@ pub const PAPERBARK: Theme = Theme {
         layer: Srgb::rgb(0xD8, 0xB7, 0x7A),
         deckle: Srgb::rgb(0x9F, 0x69, 0x37),
         weave: Weave::Strata,
+        anchor: DeckleAnchor::Viewport,
         period_px: 94.0,
         wander_px: 13.0,
         density: 0.20,

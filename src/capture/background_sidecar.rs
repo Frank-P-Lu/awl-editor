@@ -107,12 +107,12 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
             ),
             hex(tones[0]), hex(tones[1]), hex(tones[2]), scale_px, density, lava_phase
         ), Background::Deckle {
-            ground, layer, deckle, weave, period_px, wander_px, density
+            ground, layer, deckle, weave, anchor, period_px, wander_px, density
         } => format!(
             concat!("{{\"kind\":\"deckle\",\"ground\":{},\"layer\":{},",
-                "\"deckle\":{},\"weave\":\"{}\",\"period_px\":{},",
+                "\"deckle\":{},\"weave\":\"{}\",\"anchor\":\"{}\",\"period_px\":{},",
                 "\"wander_px\":{},\"density\":{},\"static\":true}}"),
-            hex(ground), hex(layer), hex(deckle), weave.as_str(), period_px, wander_px, density
+            hex(ground), hex(layer), hex(deckle), weave.as_str(), anchor.as_str(), period_px, wander_px, density
         ), _ => unreachable!("rich background helper received a simple ground"),
     }
 }
