@@ -427,6 +427,7 @@ impl TextPipeline {
             overlay_theme_facet_ghosts: Vec::new(),
             overlay_strip_tab_plates: Vec::new(),
             overlay_right_shown: false,
+            overlay_visual_rows: Vec::new(),
             wordcount_renderer,
             wordcount_buffer,
             notice_renderer,

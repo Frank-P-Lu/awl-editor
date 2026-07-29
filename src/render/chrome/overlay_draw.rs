@@ -35,27 +35,19 @@ impl TextPipeline {
         };
         self.placard_stipple
             .prepare(device, queue, width, height, &stipple_rects);
-        let sel_band = crate::render::effective_overlay_selrow_band();
-        let selected_ink = match theme::active().highlight_treatment(sel_band) {
-            theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink.to_glyphon()),
-            theme::HighlightTreatment::ValueBand(band) => {
-                let flipped = theme::selected_row_ink(band);
-                (flipped != theme::base_content()).then(|| flipped.to_glyphon())
-            }
-        };
-        let living_covered = self.living_covered_rows(&geom);
-        let has_right = self.overlay_shape_text(
-            &geom,
-            ink,
-            muted,
-            selected_ink,
-            living_covered.as_deref(),
-            true,
-        );
+        let selected_ink = super::overlay_selected_primary_ink();
+        // ITEM 164 — RESOLVE THE VISUAL-SELECTION TRANSACTION ONCE, here, before
+        // anything is shaped or emitted. This is the ONLY call that runs a band
+        // animator for this frame; every consumer below reads the result, so the
+        // band, both ink columns, the accessory plates and the sidecar give ONE
+        // answer to "which row is selected" at every intermediate frame.
+        let vis = self.resolve_visual_selection(&geom);
+        self.overlay_visual_rows = vis.rows().to_vec();
+        let has_right = self.overlay_shape_text(&geom, ink, muted, selected_ink, &vis, true);
         self.overlay_upload_text(
             device, queue, width, height, &geom, has_right, ink, muted, placard,
         )?;
-        self.overlay_draw_card(device, queue, width, height, &geom);
+        self.overlay_draw_card(device, queue, width, height, &geom, &vis);
         self.overlay_place_caret(queue, width, height, &geom);
         Ok(())
     }
@@ -86,6 +78,9 @@ impl TextPipeline {
         self.panel_card.prepare(device, queue, width, height, &[]);
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);
+        // ITEM 164: the frame's visual-selection answer parks with the card, so a
+        // closed overlay never reports a stale selected row into the sidecar.
+        self.overlay_visual_rows.clear();
         self.overlay_rows.prepare(device, queue, width, height, &[]);
         // PER-ITEM LIST SURFACES: the bar surfaces park empty too, so a closed
         // picker carries no stale bar quads into the next frame.

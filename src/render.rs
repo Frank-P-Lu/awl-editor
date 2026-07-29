@@ -31,6 +31,10 @@ mod chrome;
 #[cfg(test)]
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
+/// ITEM 164 — the overlay's one visual-selection transaction (`chrome::
+/// overlay_visual_sel`), re-exported so the render-side laws can name it.
+#[cfg(test)]
+pub(in crate::render) use chrome::VisualSelection;
 
 /// The `AWL_*_FORCE` dev-only render/theme override knobs, consolidated into
 /// ONE [`overrides::RenderOverrides`] struct. See that module's doc.
@@ -2092,6 +2096,12 @@ pub struct TextPipeline {
     overlay_theme_facet_ghosts: Vec<[f32; 4]>,
     overlay_strip_tab_plates: Vec<[f32; 4]>,
     overlay_right_shown: bool,
+    /// ITEM 164 — the display rows that READ as selected on the last prepared
+    /// overlay frame, as resolved by the ONE visual-selection transaction
+    /// ([`chrome::VisualSelection`]). Cached only so the sidecar can report what
+    /// the frame actually DREW instead of re-deriving it from state and becoming
+    /// a third answer; `park_overlay` clears it.
+    overlay_visual_rows: Vec<usize>,
     pub wordcount_renderer: TextRenderer,
     pub wordcount_buffer: GlyphBuffer,
     pub notice_renderer: TextRenderer,

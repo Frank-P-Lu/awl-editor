@@ -318,12 +318,12 @@ impl TextPipeline {
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        covered: Option<&[usize]>,
+        vis: &VisualSelection,
         elide: bool,
     ) -> bool {
         self.overlay_right_shown = false;
         if geom.theme {
-            return self.shape_faceted(geom, ink, muted, selected_ink, covered, elide);
+            return self.shape_faceted(geom, ink, muted, selected_ink, vis, elide);
         }
         let visible = geom.visible;
         let top_idx = geom.top_idx;
@@ -380,7 +380,7 @@ impl TextPipeline {
                     _ => String::new(),
                 })
                 .collect();
-            self.shape_overlay_names(geom, ink, muted, selected_ink, covered, &rows, &trailing);
+            self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &trailing);
             return false;
         }
         let widest_right = if has_right {
@@ -413,11 +413,11 @@ impl TextPipeline {
                 }
             })
             .collect();
-        self.shape_overlay_names(geom, ink, muted, selected_ink, covered, &rows, &[]);
+        self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &[]);
         if !has_right {
             return false;
         }
-        self.shape_overlay_right(geom, ink, muted, &bind_strs);
+        self.shape_overlay_right(geom, ink, muted, vis, &bind_strs);
 
         let name_px = self.widest_candidate_px(geom);
         let right_px = self.widest_right_px();
@@ -433,7 +433,7 @@ impl TextPipeline {
         let rows: Vec<String> = (0..visible)
             .map(|row| rowlayout::fit_primary(&self.overlay_items[top_idx + row], full))
             .collect();
-        self.shape_overlay_names(geom, ink, muted, selected_ink, covered, &rows, &[]);
+        self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &[]);
         false
     }
 
@@ -442,7 +442,11 @@ impl TextPipeline {
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(self.window_w as u32);
         self.overlay_remetric();
-        let has_right = self.overlay_shape_text(&geom, ink, muted, None, None, false);
+        // A pure WIDTH measurement: `selected_ink: None` means no row can flip at
+        // all, so this pass wants NO visual selection — and must not touch the
+        // band's chase state (measuring may never advance an animation).
+        let vis = VisualSelection::default();
+        let has_right = self.overlay_shape_text(&geom, ink, muted, None, &vis, false);
         let mut left = 0.0_f32;
         for run in self.panel_buffer.layout_runs() {
             left = left.max(run.line_w);
@@ -468,7 +472,7 @@ impl TextPipeline {
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        covered: Option<&[usize]>,
+        vis: &VisualSelection,
         elide: bool,
     ) -> bool {
         let right_labels = self.overlay_right_labels();
@@ -501,11 +505,11 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        self.overlay_shape_theme(geom, ink, muted, selected_ink, covered, &trailing, elide);
+        self.overlay_shape_theme(geom, ink, muted, selected_ink, vis, &trailing, elide);
         if !has_right || hug_inline {
             return false;
         }
-        self.shape_overlay_right(geom, ink, muted, &bind_strs);
+        self.shape_overlay_right(geom, ink, muted, vis, &bind_strs);
 
         // ITEM 83 — THE NO-OVERLAP LAW, extended to the faceted path: unlike the
         // flat shaper, `shape_theme_spans`'s primary NEVER reserves budget for a
@@ -577,7 +581,7 @@ impl TextPipeline {
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        covered: Option<&[usize]>,
+        vis: &VisualSelection,
         rows: &[String],
         trailing: &[String],
     ) {
@@ -613,7 +617,6 @@ impl TextPipeline {
             }
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
-        let sel_vis = self.overlay_selected.saturating_sub(geom.top_idx);
         let slant_italic = crate::render::overlay_slant()
             .map(|s| s.italic)
             .unwrap_or(false);
@@ -628,10 +631,7 @@ impl TextPipeline {
             if has_query || row != 0 {
                 spans.push(("\n", mk(ink)));
             }
-            let flip = match covered {
-                Some(rows) => rows.contains(&row),
-                None => row == sel_vis,
-            };
+            let flip = vis.reads_selected(row);
             // ITEM 64 — the spell popup's fixed, terminal "Add '<word>' to
             // dictionary" row recedes to MUTED ink (unselected) so it reads as
             // VISUALLY SEPARATED from the ranked corrections above it — the same
@@ -701,33 +701,31 @@ impl TextPipeline {
             .shape_until_scroll(&mut self.font_system, false);
     }
 
+    /// The SECONDARY column (shortcut chord / time / git value), one right-aligned
+    /// label per display row.
+    ///
+    /// ITEM 164 — its on-band recolor reads the shared [`VisualSelection`], NOT
+    /// the logical selected row. Reading the logical row here was the split that
+    /// let a pointer move recolor "Switch project…"'s shortcut while the band and
+    /// the label it annotates were still on "Go to file…" — two simultaneous
+    /// answers to "which command is selected". The secondary now WAITS for the
+    /// band, exactly as the primary label already did.
     fn shape_overlay_right(
         &mut self,
         geom: &OverlayGeom,
         ink: glyphon::Color,
         muted: glyphon::Color,
+        vis: &VisualSelection,
         bind_strs: &[String],
     ) {
         let base = panel_attrs();
         let mono = |c| Attrs::new().family(Family::Monospace).color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-        let sel_line = self.overlay_selected_display_line(geom);
-        let sel_muted = if !super::selected_secondary_on_band() {
-            None
-        } else {
-            let band = crate::render::effective_overlay_selrow_band();
-            match theme::active().highlight_treatment(band) {
-                theme::HighlightTreatment::InverseFill { ink, .. } => Some(ink.to_glyphon()),
-                theme::HighlightTreatment::ValueBand(b) => {
-                    let flipped = theme::selected_row_secondary_ink(b);
-                    (flipped != theme::muted()).then(|| flipped.to_glyphon())
-                }
-            }
-        };
+        let sel_muted = super::overlay_selected_secondary_ink();
         let mut bind_spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
         for (li, s) in bind_strs.iter().enumerate() {
-            let c = match (sel_line, sel_muted) {
-                (Some(sl), Some(flip)) if sl == li => flip,
+            let c = match sel_muted {
+                Some(flip) if vis.reads_selected(li) => flip,
                 _ => muted,
             };
             push_symbol_split(&mut bind_spans, s, || mono(c), || sym(c));

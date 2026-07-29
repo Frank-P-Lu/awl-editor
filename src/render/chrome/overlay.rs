@@ -577,26 +577,29 @@ impl TextPipeline {
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let canvas_h = self.window_h;
-        if geom.theme {
-            let sel_row = geom
-                .plan
-                .iter()
-                .position(|l| matches!(l, ThemeLine::Item(i) if *i == self.overlay_selected))
-                .unwrap_or(0);
-            Some((
-                geom.top_idx,
-                geom.plan.len(),
-                sel_row,
-                geom.card_h,
-                canvas_h,
-            ))
+        // `sel_row` is the LOGICAL selected display line, through the one owner —
+        // this used to re-derive both families' arithmetic inline and drift was
+        // only ever a matter of time (item 164).
+        let sel_row = self.overlay_selected_display_line(&geom).unwrap_or(0);
+        let lines = if geom.theme {
+            geom.plan.len()
         } else {
-            let sel_row = self
-                .overlay_selected
-                .saturating_sub(geom.top_idx)
-                .min(geom.visible.saturating_sub(1));
-            Some((geom.top_idx, geom.visible, sel_row, geom.card_h, canvas_h))
-        }
+            geom.visible
+        };
+        Some((geom.top_idx, lines, sel_row, geom.card_h, canvas_h))
+    }
+
+    /// ITEM 164 — the display rows that READ as selected on the last PREPARED
+    /// overlay frame, for the sidecar. On every settled frame (all captures,
+    /// Reduce Motion, an unarmed pipeline) this is exactly
+    /// `[overlay_window_report().sel_row]`; it diverges only mid-glide, and a
+    /// pinned-phase capture (`AWL_LIVING_BAND=morph:<t>`) is where a deterministic
+    /// still can show it. Reporting it keeps the sidecar from becoming a THIRD
+    /// answer beside the band and the ink: `selected_index` says what Enter runs,
+    /// this says what the pixels currently claim.
+    pub fn overlay_visual_selected_report(&self) -> Option<&[usize]> {
+        self.overlay_active
+            .then_some(self.overlay_visual_rows.as_slice())
     }
 
     /// ITEM 94 — the `overlay_items` INDEX drawn at display row `k`, or `None` when
@@ -778,19 +781,24 @@ impl TextPipeline {
             && py < geom.text_top + lh
     }
 
-    /// THE ONE owner of the selected candidate's DISPLAY-line index (0-based
-    /// among the shown candidate lines, past the header). The selected-row band
-    /// ([`overlay_draw_card`]) and the secondary right-column recolor
-    /// ([`shape_overlay_right`]) both read it, so they can never disagree on which
-    /// row is highlighted. Two layout families: a faceted/theme plan's selected
+    /// THE ONE owner of the LOGICAL selected candidate's DISPLAY-line index
+    /// (0-based among the shown candidate lines, past the header) — the row Enter
+    /// or a click activates. Two layout families: a faceted/theme plan's selected
     /// world sits at its POSITION in the plan (section headers push it down); a
     /// flat picker's selection is its offset in the visible window (saturated +
     /// clamped defensively so a transient list-shrink can never over/underflow).
     /// `None` iff there are no items.
-    pub(in crate::render) fn overlay_selected_display_line(
-        &self,
-        geom: &OverlayGeom,
-    ) -> Option<usize> {
+    ///
+    /// ITEM 164 — THIS IS NOT "WHICH ROW LOOKS SELECTED". The bands are ANIMATED,
+    /// so during a glide the logical row and the row that visually reads selected
+    /// are DIFFERENT rows; a visual that colours itself from this index while its
+    /// neighbours ride the band puts two answers on the card at once (the reported
+    /// palette defect: the shortcut recoloured a row ahead of its own band and
+    /// label). Every rendering decision goes through
+    /// [`TextPipeline::resolve_visual_selection`] instead, which is why this is
+    /// `pub(super)` and why `render::tests::visual_selection_law` sweeps the whole
+    /// crate for a second caller.
+    pub(super) fn overlay_selected_display_line(&self, geom: &OverlayGeom) -> Option<usize> {
         if geom.n_items == 0 {
             None
         } else if geom.theme {

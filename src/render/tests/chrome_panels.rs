@@ -1339,7 +1339,14 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         v.overlay_bindings = vec!["⌘S".into(), "⌘Z".into(), "⌘⇧Z".into()];
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
-        let has_right = p.overlay_shape_text(&geom, ink, muted, None, None, true);
+        let has_right = p.overlay_shape_text(
+            &geom,
+            ink,
+            muted,
+            None,
+            &crate::render::VisualSelection::default(),
+            true,
+        );
 
         assert!(
             has_right,
@@ -1405,7 +1412,14 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
         assert!(
-            p.overlay_shape_text(&geom, ink, muted, None, None, true),
+            p.overlay_shape_text(
+                &geom,
+                ink,
+                muted,
+                None,
+                &crate::render::VisualSelection::default(),
+                true
+            ),
             "still builds a right column with headers"
         );
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
@@ -1440,7 +1454,14 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         // no bindings / times / git — the literal Theme picker
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
-        let has_right = p.overlay_shape_text(&geom, ink, muted, None, None, true);
+        let has_right = p.overlay_shape_text(
+            &geom,
+            ink,
+            muted,
+            None,
+            &crate::render::VisualSelection::default(),
+            true,
+        );
         assert!(
             !has_right,
             "the literal Theme picker builds no right column"

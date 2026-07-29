@@ -200,7 +200,7 @@ impl TextPipeline {
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        covered: Option<&[usize]>,
+        vis: &VisualSelection,
         trailing: &[String],
         elide: bool,
     ) -> bool {
@@ -238,7 +238,7 @@ impl TextPipeline {
             active_ink,
             muted,
             selected_ink,
-            covered,
+            vis,
             &strip_s,
             &label_ranges,
             &sep_ranges,
@@ -255,7 +255,7 @@ impl TextPipeline {
                 active_ink,
                 muted,
                 selected_ink,
-                covered,
+                vis,
                 &strip_s,
                 &label_ranges,
                 &sep_ranges,
@@ -410,7 +410,7 @@ impl TextPipeline {
         active_ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
-        covered: Option<&[usize]>,
+        vis: &VisualSelection,
         strip_s: &str,
         label_ranges: &[(std::ops::Range<usize>, bool)],
         sep_ranges: &[std::ops::Range<usize>],
@@ -537,11 +537,8 @@ impl TextPipeline {
                 ThemeLine::Header(h) => {
                     spans.push((h.as_str(), mk(faint).metrics(header_metrics)));
                 }
-                ThemeLine::Item(i) => {
-                    let flip = match covered {
-                        Some(rows) => rows.contains(&idx),
-                        None => *i == self.overlay_selected,
-                    };
+                ThemeLine::Item(_) => {
+                    let flip = vis.reads_selected(idx);
                     let c = match selected_ink {
                         Some(c) if flip => c,
                         _ => ink,
