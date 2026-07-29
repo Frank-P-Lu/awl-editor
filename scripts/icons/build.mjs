@@ -207,7 +207,7 @@ function tilesPage(manifest, tuning, size, faceOf) {
   };
 }
 
-/** Every candidate at one glance: 18 worlds x 3 presets, on one dock surface. */
+/** Every candidate at one glance: 19 worlds x 3 presets, on one dock surface. */
 function overviewPage(manifest, tuning, surface, faceOf) {
   const presets = Object.keys(tuning.presets);
   let rows = `<div class="grid" style="grid-template-columns: 110px repeat(${presets.length}, auto); justify-content: start">`;
@@ -228,7 +228,7 @@ function overviewPage(manifest, tuning, surface, faceOf) {
       title: `awl icon candidates — ${surface}`,
       surface,
       body: `<div class="sheet"><h1>awl app icons — every candidate</h1>
-<p class="sub">18 worlds &times; 3 logo-cursor presets, at 128px, on a ${surface} surface. Colors are the world's own base_100 / base_content / primary / primary_content.</p>
+<p class="sub">19 worlds &times; 3 logo-cursor presets, at 128px, on a ${surface} surface. Colors are the world's own base_100 / base_content / primary / primary_content.</p>
 <div class="strip">${rows}</div></div>`,
     }),
   };
@@ -260,7 +260,7 @@ function sizesPage(manifest, tuning, preset, surface, faceOf) {
   };
 }
 
-/** A literal Dock row: all 18 worlds at 56 / 44 / 24 px, one preset. */
+/** A literal Dock row: all 19 worlds at 56 / 44 / 24 px, one preset. */
 function dockPage(manifest, tuning, preset, surface, faceOf) {
   let body = "";
   for (const size of DOCK_SIZES) {

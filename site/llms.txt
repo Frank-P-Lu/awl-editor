@@ -10,7 +10,7 @@ awl is for people who want to create Markdown files, especially people who enjoy
 - [Philosophy](https://github.com/Frank-P-Lu/awl-next/blob/main/PHILOSOPHY.md): the identity, priorities, and product boundary — fun, beauty, calm; WYSIWYG plain text; offline single-player; no word-processor or IDE machinery.
 - [Design](https://github.com/Frank-P-Lu/awl-next/blob/main/DESIGN.md): the visual and interaction contract — coherent worlds, typography, tactile performance, one-primary-task surfaces, and keyboard-native pointer support.
 - [Themes](https://github.com/Frank-P-Lu/awl-next/blob/main/THEMES.md): the world contract — every measurable law a theme must satisfy, the ink-ladder / role-tint derivation, and the add-a-world process.
-- [Worlds](https://github.com/Frank-P-Lu/awl-next/blob/main/WORLDS.md): the human reference for the fourteen theme worlds — each one's flavour, faces, and section-break ornament.
+- [Worlds](https://github.com/Frank-P-Lu/awl-next/blob/main/WORLDS.md): the human reference for the nineteen theme worlds — each one's flavour, faces, and section-break ornament.
 
 ## Concepts
 

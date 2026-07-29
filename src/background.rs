@@ -32,6 +32,8 @@ pub struct BgDesc {
     pub amplitude_px: f32,
     pub density: f32,
     pub banded: bool,
+    /// DECKLE's weave scalar; INERT `0.0` off that ground (`Background::weave_mode`).
+    pub weave: f32,
 }
 
 /// The margin-gradient render pipeline: a single fullscreen triangle alpha-blended
@@ -309,22 +311,20 @@ fn pattern_tint(c: [u8; 3]) -> [f32; 4] {
     [lin[0], lin[1], lin[2], PATTERN_MAX_COVERAGE]
 }
 
-/// Pack the per-ground params the shader reads: `x` = the Dots proximity flag
-/// Pack the mutually exclusive ground controls into the shared parameter slots.
+/// Pack the mutually exclusive per-ground controls into the shared param slots
+/// (exactly one ground is active at a time, so the reuse cannot collide).
 fn ground_params(desc: &BgDesc) -> [f32; 4] {
-    if desc.shader == 8 {
-        return [desc.period_px, desc.density, 0.0, 0.0];
+    match desc.shader {
+        // ORGANIC (item 117): cell scale + density.
+        8 => [desc.period_px, desc.density, 0.0, 0.0],
+        // DECKLE (item 158): lane pitch / wander amplitude / density / weave.
+        9 => [desc.period_px, desc.amplitude_px, desc.density, desc.weave],
+        _ => {
+            let edge_period = if desc.edge { 1.0 } else { 0.0 } + desc.period_px;
+            let signed_density = if desc.banded { -1.0 } else { 1.0 } * desc.density;
+            [edge_period, desc.angle, desc.amplitude_px, signed_density]
+        }
     }
-    [
-        if desc.edge { 1.0 } else { 0.0 } + desc.period_px,
-        desc.angle,
-        desc.amplitude_px,
-        if desc.banded {
-            -desc.density
-        } else {
-            desc.density
-        },
-    ]
 }
 // ---------------------------------------------------------------------------
 // Minimal local Pod/bytemuck shim (same approach as selection.rs, no extra crate).

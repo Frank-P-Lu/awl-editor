@@ -35,8 +35,8 @@ struct Globals {
     // stripe angle.
     dir: vec2<f32>,
     // Procedural margin ground: 0=plain gradient, 1=dots, 2=starfield,
-    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag. Matches
-    // `Background::shader_id` in src/theme/model.rs.
+    // 3=pinstripe, 4=stripes, 5=bands, 6=waves, 7=zigzag, 8=organic,
+    // 9=deckle. Matches `Background::shader_id` in src/theme/model.rs.
     shader: u32,
     // WAVES phase-drift, in radians (item 87) — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
@@ -58,7 +58,9 @@ struct Globals {
     // chevron repeat wavelength `period_px` (item 86); params.y = the
     // Stripes/Bands angle (radians) OR shader 7's own chevron travel angle;
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
-    // shader 7's extra coverage multiplier `density`. All four are 0 for
+    // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
+    // 158) reads all four with its OWN meanings — lane pitch / wander
+    // amplitude / density / weave; see `deckle_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
     // the dedicated `drift` slot above.)
@@ -380,6 +382,138 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     return mix(with_island, g.c_from.rgb, hole * mass * 0.65);
 }
 
+// --- 9: DECKLE — THE HANDMADE-PAPER MATERIAL FIELD (item 158). ---
+//
+// A family of quasi-random CONTOUR LANES through the margins. Each lane is
+// seeded from its own index, so no two neighbours agree; a two-tone sine
+// profile WANDERS every lane, so none of them is a ruled line. Entirely
+// static: a pure function of the fragment position, the page column, three
+// authored tones and three authored dials. No clock, no texture, no asset, and
+// no world identity ever reaches this branch.
+//
+// ONE authored `weave` (params.w) picks which of two profiles a world wears.
+// Both read the SAME tones and the SAME dials; a second world adopts the other
+// profile by writing one word in its own theme literal (`theme::Weave`), which
+// is why there is no world name anywhere below:
+//
+//   * STRATA (weave 0) — lanes indexed on DISTANCE FROM THE PAGE COLUMN, so
+//     the contours gather around the writing page and mirror across it. Each
+//     lane is FILLED at its own seeded value and its boundary carries the torn
+//     deckle tint. Paperbark's ground.
+//   * FIBRES (weave 1) — lanes indexed on screen y, drawn as thin translucent
+//     STROKES with seeded dropouts, plus a sparser diagonal vein family.
+//     Reusable, currently unassigned.
+//
+// DIALS: params.x = the lane pitch (`period_px`), params.y = the wander
+// amplitude (`wander_px`), params.z = the ONE coverage/contrast multiplier
+// (`density`), params.w = the weave.
+//
+// `density == 0.0` collapses BOTH profiles to their flat ground EXACTLY — the
+// lane values converge on DECKLE_MID and every tint drops out. That is not a
+// nicety: it is the differential oracle every pixel law for this ground
+// measures against (item 86's `mark_field` idiom), so the gradient, dither and
+// 8-bit quantization cancel and what remains is the material alone.
+
+// The lane-value midpoint `density == 0` flattens to, and the value half-range
+// per unit density. Together they reproduce the authored strata spread
+// (`mix(0.22, 0.70, seed)` at density 0.20) while keeping the flat-at-zero
+// property above. Mirrored by `theme::model`'s DECKLE_* consts.
+const DECKLE_MID: f32 = 0.46;
+const DECKLE_SPREAD_GAIN: f32 = 1.2;
+// The deckle EDGE, as a fraction of a lane — a torn boundary, not a rule.
+const DECKLE_EDGE_LO: f32 = 0.015;
+const DECKLE_EDGE_HI: f32 = 0.075;
+// The wander profile: a coarse tear plus a finer one that leans with distance
+// from the page, so the lanes never repeat exactly down a tall margin. FIXED
+// family character (the Waves-tier precedent) — only its AMPLITUDE is authored.
+const DECKLE_WANDER_FREQ: f32 = 0.017;
+const DECKLE_WANDER_FINE_FREQ: f32 = 0.053;
+const DECKLE_WANDER_FINE_FRAC: f32 = 0.34615385;
+const DECKLE_WANDER_SKEW: f32 = 0.011;
+// FIBRES: stroke frequency, half-width ramp, the seeded dropout gate, and the
+// two coverage gains that ride the shared `density` dial.
+const DECKLE_FIBRE_FREQ: f32 = 0.006;
+const DECKLE_FIBRE_HALF_LO: f32 = 0.7;
+const DECKLE_FIBRE_HALF_HI: f32 = 2.2;
+const DECKLE_FIBRE_KEEP: f32 = 0.34;
+const DECKLE_FIBRE_LIFT_GAIN: f32 = 1.9;
+const DECKLE_FIBRE_GROUND: f32 = 0.10;
+const DECKLE_FIBRE_WANDER_BASE: f32 = 0.36;
+const DECKLE_FIBRE_WANDER_SEED: f32 = 0.64;
+const DECKLE_VEIN_PITCH_FRAC: f32 = 1.6590909;
+const DECKLE_VEIN_SKEW: f32 = 0.24;
+const DECKLE_VEIN_KEEP: f32 = 0.64;
+const DECKLE_VEIN_GAIN: f32 = 1.3;
+const DECKLE_VEIN_HALF_LO: f32 = 0.5;
+const DECKLE_VEIN_HALF_HI: f32 = 1.45;
+const DECKLE_TAU: f32 = 6.2831855;
+// The lane pitch FLOOR. The deckle edge is a FRACTION of a lane, so below this
+// the boundary falls under a pixel and the field aliases into moire instead of
+// reading as paper. Enforced HERE (a property of the shader, not of the dial
+// pair — item 89's abutment lesson) and mirrored by `theme::DECKLE_MIN_PERIOD_PX`.
+const DECKLE_MIN_PITCH_PX: f32 = 40.0;
+// The weave threshold `theme::Weave::mode` writes either side of.
+const DECKLE_WEAVE_FIBRES: f32 = 0.5;
+
+// Distance from the fragment to the NEAR edge of the page column. Positive in
+// either margin, so the strata mirror across the page by construction.
+fn deckle_page_distance(px: vec2<f32>) -> f32 {
+    if (px.x > g.col_left + g.col_w) {
+        return px.x - (g.col_left + g.col_w);
+    }
+    return g.col_left - px.x;
+}
+
+fn deckle_strata(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
+    let d = deckle_page_distance(px);
+    let torn = sin(px.y * DECKLE_WANDER_FREQ) * wander
+        + sin(px.y * DECKLE_WANDER_FINE_FREQ + d * DECKLE_WANDER_SKEW)
+            * wander * DECKLE_WANDER_FINE_FRAC;
+    let q = max(d + torn, 0.0) / pitch;
+    let lane = fract(q);
+    let seed = hash21(vec2<f32>(floor(q), 11.0));
+    let value = clamp(
+        DECKLE_MID + (seed - 0.5) * 2.0 * density * DECKLE_SPREAD_GAIN,
+        0.0,
+        1.0,
+    );
+    let edge = 1.0 - smoothstep(DECKLE_EDGE_LO, DECKLE_EDGE_HI, min(lane, 1.0 - lane));
+    let strata = mix(g.c_from.rgb, g.c_to.rgb, value);
+    return mix(strata, g.c_pat.rgb, edge * density);
+}
+
+fn deckle_fibres(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
+    let row = floor(px.y / pitch);
+    let seed = hash21(vec2<f32>(row, 23.0));
+    let center = (row + 0.18 + seed * 0.64) * pitch;
+    let fibre_y = center + sin(px.x * DECKLE_FIBRE_FREQ + seed * DECKLE_TAU)
+        * wander * (DECKLE_FIBRE_WANDER_BASE + seed * DECKLE_FIBRE_WANDER_SEED);
+    let fibre = (1.0 - smoothstep(DECKLE_FIBRE_HALF_LO, DECKLE_FIBRE_HALF_HI, abs(px.y - fibre_y)))
+        * step(DECKLE_FIBRE_KEEP, seed);
+
+    let vein_pitch = pitch * DECKLE_VEIN_PITCH_FRAC;
+    let along = px.y + px.x * DECKLE_VEIN_SKEW;
+    let vein_row = floor(along / vein_pitch);
+    let vein_seed = hash21(vec2<f32>(vein_row, 47.0));
+    let vein_center = (vein_row + 0.28 + vein_seed * 0.44) * vein_pitch;
+    let vein = (1.0 - smoothstep(DECKLE_VEIN_HALF_LO, DECKLE_VEIN_HALF_HI, abs(along - vein_center)))
+        * step(DECKLE_VEIN_KEEP, vein_seed);
+
+    let paper = mix(g.c_from.rgb, g.c_to.rgb, DECKLE_FIBRE_GROUND);
+    let lifted = mix(paper, g.c_to.rgb, fibre * density * DECKLE_FIBRE_LIFT_GAIN);
+    return mix(lifted, g.c_pat.rgb, vein * density * DECKLE_VEIN_GAIN);
+}
+
+fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
+    let pitch = max(g.params.x, DECKLE_MIN_PITCH_PX);
+    let wander = g.params.y;
+    let density = g.params.z;
+    if (g.params.w >= DECKLE_WEAVE_FIBRES) {
+        return deckle_fibres(px, pitch, wander, density);
+    }
+    return deckle_strata(px, pitch, wander, density);
+}
+
 // ITEM 69 FOLLOW-UP (audit finding): the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a
@@ -508,6 +642,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         return vec4<f32>(waves_rgb(in.px), 1.0);
     }
     if (g.shader == 8u) { return vec4<f32>(organic_rgb(in.px), 1.0); }
+    if (g.shader == 9u) { return vec4<f32>(deckle_rgb(in.px), 1.0); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;

@@ -34,7 +34,8 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   into a **true 1-bit world** ("only black or white, no gray") — see "The
   1-bit law" immediately below the monochrome law.
 - **A ground** (`Background`): the procedural margin pattern (Dots / Gradient /
-  Starfield / Pinstripe / Stripes) drawn only in the page-mode margins, never the
+  Starfield / Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle)
+  drawn only in the page-mode margins, never the
   document column itself (`every_world_has_a_valid_background`,
   `every_world_has_a_real_margin_gradient`). The sixteenth ground is **`Lava`** —
   awl's first TIME-VARYING background, a slow metaball "lava lamp" in the margins
@@ -120,6 +121,23 @@ own point in the crowded pale band. It carries only the light-world card border
 user's live verdict on Bilby's 1px frame was "the frame is so weird" on a light
 world). No new law: Brolga rides the shared ink/role/selection derivations and
 is enrolled in every sweep the moment it joins `THEMES`.
+
+The nineteenth world, **Paperbark** (item 158, graduated from item 133's
+material study), is the MATERIAL world: the only room whose ground is a thing
+rather than a pattern. Nested deckled contours of handmade paper gather around
+the writing page in cream and pale honey, the prose is deep bark-brown, and one
+coral-vermilion caret is the sole accent. It ships the roster's tenth ground,
+**`Background::Deckle`** — quasi-random contour lanes, seeded per lane and torn
+by a fixed wander profile, with a single theme-owned `Weave` dial choosing
+between `Strata` (lanes indexed on distance from the page column, so the field
+gathers around and mirrors across the page — Paperbark's) and `Fibres` (lanes
+indexed on screen `y`, drawn as thin strokes plus a diagonal vein family —
+reusable, currently DORMANT, the `Bands` / `Dots { edge: true }` shape). The
+ground is entirely STATIC, so the world joins no ambient tick. `density: 0.0`
+collapses either weave to a flat ground exactly, which is what lets every pixel
+law here be differential. Paperbark leaves Temperature untagged: it is plainly
+warm, but the picker's Warm band is already at its curated cap of four.
+Laws: `render::tests::backgrounds_item158`.
 
 The eighteenth world, **Cassowary**, is the dark-technical statement — a NERV
 operations terminal (an Evangelion wink): green phosphor data on near-black
@@ -1530,7 +1548,7 @@ Checklist:
    `assets/macos/`, the canonical `Awl.icns` and `src/app_icon/embedded.rs`) and
    commit them with the world; the bijection law fails until you do.
 7. Add the const to `THEMES`; run `cargo test` — the structural laws
-   (`worlds_eleven_dark_seven_light` will need its counts updated), the role-style
+   (`worlds_eleven_dark_eight_light` will need its counts updated), the role-style
    laws, and the ink-ladder/selection laws all sweep `THEMES` automatically, so a
    new world is enrolled in every law the moment it's in the array. A new WORLD
    CLASS (Wagtail's monochrome one) may also need its own new law, per §2/§3's

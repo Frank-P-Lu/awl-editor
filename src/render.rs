@@ -2296,8 +2296,7 @@ fn srgb_u8_to_linear3(c: [u8; 4]) -> [f32; 3] {
 }
 
 fn background_desc() -> BgDesc {
-    // The lava gallery override supplies its real flat ground; otherwise this is
-    // the authored background verbatim, keeping ordinary captures byte-identical.
+    // Lava's gallery override wins; otherwise the authored ground, verbatim.
     let bg = crate::lava::env_override().unwrap_or_else(theme::background);
     BgDesc {
         from: bg.from().rgba_bytes(),
@@ -2311,6 +2310,7 @@ fn background_desc() -> BgDesc {
         amplitude_px: bg.amplitude_px(),
         density: bg.density(),
         banded: bg.zigzag_banded(),
+        weave: bg.weave_mode(),
     }
 }
 

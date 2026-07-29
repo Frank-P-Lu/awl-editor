@@ -704,7 +704,7 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 // Machine-readable roster dump — one world name per line, in
                 // `theme::THEMES` cycle order — read straight off the ONE
                 // code-owned source (item 68: `--help` once drifted to only
-                // ten of the eighteen shipped worlds; a script that shells
+                // ten of the nineteen shipped worlds; a script that shells
                 // out to THIS flag can never drift the same way, since it
                 // never keeps its own copy of the list). See
                 // `scripts/capture-worlds.sh`.

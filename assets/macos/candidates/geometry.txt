@@ -107,3 +107,9 @@ Cassowary       Iosevka               block     64  (11, 23, 52, 44)    (46, 17,
 Cassowary       Iosevka               block     44  (7, 15, 35, 28)     (26, 12, 36, 33)    (33, 15, 35, 28)    28
 Cassowary       Iosevka               block     32  (5, 11, 25, 20)     (19, 7, 26, 24)     (24, 11, 25, 20)    20
 Cassowary       Iosevka               block     24  (4, 8, 18, 15)      (14, 5, 19, 18)     (18, 8, 18, 15)     15
+Paperbark       EB Garamond           block    256  (52, 85, 205, 173)  (175, 56, 211, 203) (181, 85, 205, 170) 173
+Paperbark       EB Garamond           block    128  (26, 42, 102, 86)   (88, 28, 105, 101)  (91, 42, 102, 84)   86
+Paperbark       EB Garamond           block     64  (13, 22, 50, 43)    (44, 14, 52, 50)    (46, 22, 50, 42)    43
+Paperbark       EB Garamond           block     44  (9, 14, 34, 29)     (30, 10, 35, 34)    (32, 14, 34, 28)    29
+Paperbark       EB Garamond           block     32  (6, 9, 24, 20)      (22, 7, 25, 24)     (23, 9, 24, 19)     20
+Paperbark       EB Garamond           block     24  (5, 8, 18, 15)      (16, 5, 19, 18)     (17, 8, 18, 15)     15

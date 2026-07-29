@@ -147,18 +147,20 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
 }
 
 #[test]
-fn worlds_eleven_dark_seven_light() {
-    assert_eq!(THEMES.len(), 18);
+fn worlds_eleven_dark_eight_light() {
+    assert_eq!(THEMES.len(), 19);
     let dark = THEMES.iter().filter(|t| t.dark).count();
     let light = THEMES.iter().filter(|t| !t.dark).count();
     // 11 dark (Tawny/Mopoke/Currawong/Potoroo/Bombora/Bowerbird/Mulga/
-    // Mangrove/Wagtail/Firetail/Cassowary) / 7 light (Gumtree/Bilby/Saltpan/
-    // Quokka/Galah/Magpie/Brolga). Brolga (the COOL LIGHT POLE) is a pale
-    // sky-blue light world filling the cool-light-blue hole the DAWN round
+    // Mangrove/Wagtail/Firetail/Cassowary) / 8 light (Gumtree/Bilby/Saltpan/
+    // Quokka/Galah/Magpie/Brolga/Paperbark). Brolga (the COOL LIGHT POLE) is a
+    // pale sky-blue light world filling the cool-light-blue hole the DAWN round
     // vacated when Bilby turned warm rose-gold; Cassowary (the NERV-terminal
-    // statement world) is the eighteenth, an additive dark entry.
+    // statement world) was the eighteenth, an additive dark entry; Paperbark
+    // (item 158) is the nineteenth, an additive LIGHT one — the handmade-paper
+    // studio, and the roster's only `Background::Deckle` ground.
     assert_eq!(dark, 11);
-    assert_eq!(light, 7);
+    assert_eq!(light, 8);
 }
 
 /// `world_names()` (item 68's one code-owned roster source, read by `--help`,
@@ -223,8 +225,9 @@ fn every_world_has_a_valid_background() {
             t.name
         );
         // 0..=4 the five original static grounds (Lava also degrades to 0 for
-        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic.
-        assert!(bg.shader_id() <= 8, "{} bad shader id", t.name);
+        // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic,
+        // 9=Deckle.
+        assert!(bg.shader_id() <= 9, "{} bad shader id", t.name);
     }
     // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
     // Bands is dormant infrastructure since item 86 moved Gumtree to Zigzag
@@ -418,7 +421,7 @@ fn exactly_firetail_and_mangrove_ship_lava() {
     );
     for t in THEMES.iter().filter(|t| !t.background.is_lava()) {
         assert!(
-            t.background.shader_id() <= 8,
+            t.background.shader_id() <= 9,
             "{}: a non-lava world stays a non-lava ground",
             t.name
         );
@@ -430,7 +433,7 @@ fn exactly_firetail_and_mangrove_ship_lava() {
         fg, f.base_100,
         "Firetail lava ground == base_100 (seamless margin↔page)"
     );
-    assert_eq!(fe, model::LavaEdge::Glow, "Firetail default edge is Glow");
+    assert_eq!(fe, ground::LavaEdge::Glow, "Firetail default edge is Glow");
     assert!(!fd, "Firetail is the SMOOTH warm lamp (undithered)");
     // Mangrove: COOL deepsea, DITHERED, Glow edge; ground == its own base_100.
     let m = set_active_by_name("Mangrove").unwrap();
@@ -439,7 +442,7 @@ fn exactly_firetail_and_mangrove_ship_lava() {
         mg, m.base_100,
         "Mangrove lava ground == base_100 (seamless margin↔page)"
     );
-    assert_eq!(me, model::LavaEdge::Glow, "Mangrove default edge is Glow");
+    assert_eq!(me, ground::LavaEdge::Glow, "Mangrove default edge is Glow");
     assert!(md, "Mangrove is the DITHERED cool lamp (print-grain)");
     set_active(DEFAULT_THEME);
 }
@@ -818,7 +821,8 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             | Background::Bands { .. }
             | Background::Waves { .. }
             | Background::Zigzag { .. }
-            | Background::Organic { .. } => continue,
+            | Background::Organic { .. }
+            | Background::Deckle { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -965,7 +969,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             | Background::Bands { .. }
             | Background::Waves { .. }
             | Background::Zigzag { .. }
-            | Background::Organic { .. } => continue,
+            | Background::Organic { .. }
+            | Background::Deckle { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -1274,7 +1279,7 @@ fn firetail_is_oxblood_wine_and_ember_not_potoroo_rust_or_bombora_violet() {
     );
     assert_eq!(
         edge,
-        model::LavaEdge::Glow,
+        ground::LavaEdge::Glow,
         "Firetail keeps its authored glow"
     );
     assert!(
@@ -1409,7 +1414,7 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
         ground,
         blob_lo: lo,
         blob_hi: hi,
-        edge: model::LavaEdge::Glow,
+        edge: ground::LavaEdge::Glow,
         dithered: true,
     };
     // Degrades to a FLAT ground of the lava `ground`, shader 0 (no margin marks).
@@ -1434,7 +1439,7 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
     );
     assert_eq!(
         bg.lava_params(),
-        Some((ground, lo, hi, model::LavaEdge::Glow, true))
+        Some((ground, lo, hi, ground::LavaEdge::Glow, true))
     );
     assert_eq!(
         Background::Gradient {
@@ -1446,10 +1451,10 @@ fn lava_background_accessors_are_a_flat_ground_plus_metaball_params() {
         None
     );
     // LavaEdge contract (the shader mask-mode selector + sidecar names).
-    assert_eq!(model::LavaEdge::Hard.mask_mode(), 1.0);
-    assert_eq!(model::LavaEdge::Glow.mask_mode(), 2.0);
-    assert_eq!(model::LavaEdge::Hard.as_str(), "hard");
-    assert_eq!(model::LavaEdge::Glow.as_str(), "glow");
+    assert_eq!(ground::LavaEdge::Hard.mask_mode(), 1.0);
+    assert_eq!(ground::LavaEdge::Glow.mask_mode(), 2.0);
+    assert_eq!(ground::LavaEdge::Hard.as_str(), "hard");
+    assert_eq!(ground::LavaEdge::Glow.as_str(), "glow");
 }
 
 /// The JetBrains-Mono world (Mangrove) reports that font — the second bundled
@@ -1540,7 +1545,7 @@ fn every_world_has_a_bundled_mono() {
 /// `zh_hans_ladder_matches_world_character_with_klee_override`.
 #[test]
 fn cjk_fallback_matches_world_character() {
-    let shippori = ["Gumtree", "Bilby", "Bombora"];
+    let shippori = ["Gumtree", "Bilby", "Bombora", "Paperbark"];
     let zenmaru = ["Galah", "Bowerbird"];
     let klee = ["Mopoke", "Quokka"];
     let mincho = ["Saltpan", "Mulga", "Magpie"]; // neutral serif (Noto Serif JP)
@@ -1794,10 +1799,14 @@ fn every_world_has_a_bullet_pair() {
         // Bitter, whose narrower marker advance lets the rosette sit right on the
         // shared tier; that exception retired with the old face.) Every other
         // world stays on a shared tier.
-        let off_tier_exception = match t.name {
-            "Bombora" => Some(BOMBORA.bullet_scale),
-            _ => None,
-        };
+        // FACE-DERIVED, not a world list (item 158). The shared tier is scaled
+        // against the concealed `"- "` prefix's advance in the world's OWN BODY
+        // font, so the world that needs a tighter dial is decided by that face:
+        // EB Garamond's narrow punctuation advance crowds a half-body fleuron
+        // into the following text. It read as a Bombora quirk while Bombora was
+        // the only EB-Garamond-BODY world; the nineteenth world reproduced it
+        // exactly, which is what turned it into a rule.
+        let off_tier_exception = (t.font == ORNAMENT_GARAMOND).then_some(BULLET_SCALE_GARAMOND);
         assert!(
             matches!(t.bullet_scale, BULLET_SCALE_PLAIN | BULLET_SCALE_ORNAMENT)
                 || off_tier_exception == Some(t.bullet_scale),
@@ -1925,7 +1934,15 @@ fn latin_candidates_is_the_worlds_own_display_face() {
 /// no serif/sans split yet — both documented taste calls, logged above).
 #[test]
 fn zh_hans_ladder_matches_world_character_with_klee_override() {
-    let mincho = ["Gumtree", "Saltpan", "Bilby", "Bombora", "Mulga", "Magpie"];
+    let mincho = [
+        "Gumtree",
+        "Saltpan",
+        "Bilby",
+        "Bombora",
+        "Mulga",
+        "Magpie",
+        "Paperbark",
+    ];
     let klee = ["Mopoke", "Quokka"];
     let gothic = [
         "Tawny",
@@ -1999,7 +2016,15 @@ fn zh_hant_uniform_ko_splits_serif_from_sans() {
     // The SERIF worlds — exactly the ones whose zh_hans is CJK_ZH_HANS_SERIF
     // (Theme::cjk is a mincho-family ja ladder). Kept as an explicit roster so
     // a world silently switching character fails HERE, not as a tofu box.
-    let serif = ["Gumtree", "Bilby", "Bombora", "Saltpan", "Mulga", "Magpie"];
+    let serif = [
+        "Gumtree",
+        "Bilby",
+        "Bombora",
+        "Saltpan",
+        "Mulga",
+        "Magpie",
+        "Paperbark",
+    ];
     for t in THEMES.iter() {
         assert_eq!(t.zh_hant, CJK_ZH_HANT, "{}: zh-Hant stays uniform", t.name);
         if serif.contains(&t.name) {
@@ -3080,6 +3105,15 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // SPLIT-PANE COMPOSITION round: the NERV console is the ONE Pane
                 // exception — a UNIFIED room (dormant under its poster Bars list).
                 pane_split: model::PaneSplit::Unified,
+                ..RenderCaps::DEFAULT
+            },
+            // PAPERBARK (item 158, the handmade-paper studio): a LIGHT world, so
+            // it carries the composition round's light-world card border and
+            // nothing else — no placard, no rail move, no frame. The room's whole
+            // personality is its material ground; the summoned chrome stays out
+            // of the way. Deliberately otherwise DEFAULT.
+            "Paperbark" => RenderCaps {
+                elevation: Elevation::Bordered,
                 ..RenderCaps::DEFAULT
             },
             other => panic!(

@@ -75,7 +75,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 100
+lines = 50
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -83,7 +83,7 @@ lines = 548
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 927
+lines = 824
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -387,11 +387,11 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 735
+lines = 535
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1110
+lines = 1099
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -816,7 +816,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
-line = 1745
+line = 1792
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -1002,7 +1002,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/markdown.rs"
 line = 260
-message = "this function has too many lines (130/100)"
+message = "this function has too many lines (131/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
@@ -1099,36 +1099,36 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 209
+line = 211
 message = "the function has a cognitive complexity of (30/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 209
+line = 211
 message = "this function has too many lines (154/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 618
+line = 621
 message = "this function has too many lines (130/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 1758
-message = "the function has a cognitive complexity of (28/25)"
+line = 1763
+message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 2853
-message = "this function has too many lines (153/100)"
+line = 2878
+message = "this function has too many lines (157/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 # Add structural exceptions only for intentional URL/unbreakable/rustfmt-skip/generated/architectural cases.

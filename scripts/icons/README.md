@@ -133,7 +133,7 @@ cannot drift silently:
 
 | preset | worlds |
 |---|---|
-| block | Tawny, Potoroo, Gumtree, Bilby, Bombora, Mangrove, Magpie, Wagtail, Cassowary |
+| block | Tawny, Potoroo, Gumtree, Bilby, Bombora, Mangrove, Magpie, Wagtail, Cassowary, Paperbark |
 | pill | Mopoke, Currawong, Saltpan, Quokka, Bowerbird, Mulga, Brolga, Firetail |
 | super-narrow pill | Galah |
 

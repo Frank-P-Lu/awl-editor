@@ -95,7 +95,7 @@ const INK_FLOOR: i32 = 3;
 /// because it — not the window width — is what sets how much margin there is
 /// to fill: at a fixed 1400px window a 60-char measure leaves 236px margins and
 /// a 100-char one leaves 16px slivers.
-const SWEEP: [(u32, u32, usize); 12] = [
+pub(super) const SWEEP: [(u32, u32, usize); 12] = [
     (1600, 600, 86), // VERIFIED DEFECT: right margin x=[1418,1600), 80px blank band.
     (1400, 700, 86), // VERIFIED DEFECT: left margin cell x=[53,80) y=[233,467), zero ink.
     (1500, 500, 86), // the shortest swept viewport — the sweep's smallest cells.
@@ -294,7 +294,7 @@ fn cell_stats(field: &[i32], w: u32, cell: (u32, u32, u32, u32)) -> (usize, i32)
 
 /// The two page margins `(x0, x1)` a column at `[col_left, col_left+col_w)`
 /// leaves in a `w`-wide canvas.
-fn margins(w: u32, col_left: f32, col_w: f32) -> [(u32, u32); 2] {
+pub(super) fn margins(w: u32, col_left: f32, col_w: f32) -> [(u32, u32); 2] {
     let l = col_left.max(0.0) as u32;
     let r = ((col_left + col_w).ceil() as u32).min(w);
     [(0, l.min(w)), (r, w)]

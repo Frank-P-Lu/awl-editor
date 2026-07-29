@@ -21,7 +21,7 @@
 //! the one organic accent (the caret), `error` is the signal color, and
 //! `selection` is a custom token (DaisyUI has no selection role).
 //!
-//! There are eighteen [`Theme`]s ("worlds"), eleven dark and seven light. Two are
+//! There are nineteen [`Theme`]s ("worlds"), eleven dark and eight light. Two are
 //! DESIGN.md §3 statement worlds: Wagtail (awl's first true MONOCHROME/1-bit
 //! world — zero saturation everywhere, the caret included) and Firetail (awl's
 //! first LAVA-LAMP world — a slow metaball ground whose living warmth IS the
@@ -37,6 +37,7 @@
 mod cjk;
 mod color;
 mod derive;
+mod ground;
 mod model;
 mod ornament;
 mod worlds;
@@ -64,16 +65,22 @@ pub use derive::{
     primary, selected_row_ink, selected_row_secondary_ink, selection, set_active,
     set_active_by_name, surface_selected,
 };
-pub use model::{Background, LavaEdge, Theme, WashOverride};
+pub use ground::{Background, LavaEdge};
+pub use model::{Theme, WashOverride};
 // ITEM 89's ZIGZAG geometry mirror — `cfg(test)` at the source (see their own
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state
 // the field's laws), so the re-export is gated identically rather than carrying
 // an `allow(dead_code)` a future genuinely-dead constant could hide behind.
-#[allow(unused_imports)] // Lens/RoleOverrides/ThemeTags: public API surface, no
-// NON-TEST in-crate caller today.
-pub use model::{Lens, RoleOverrides, ThemeTags};
+#[allow(unused_imports)] // Weave/Lens/RoleOverrides/ThemeTags: public API
+// surface, no NON-TEST in-crate caller today (the world literals reach `Weave`
+// through `super::ground` directly).
+pub use ground::Weave;
 #[cfg(test)]
-pub use model::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
+pub use ground::{DECKLE_MAX_PERIOD_PX, DECKLE_MID, DECKLE_MIN_PERIOD_PX, DECKLE_SPREAD_GAIN};
+#[cfg(test)]
+pub use ground::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
+#[allow(unused_imports)]
+pub use model::{Lens, RoleOverrides, ThemeTags};
 // THEME CAPABILITIES AS DATA: the declarative render-behavior bundle every
 // per-theme render decision reads instead of an ad hoc `is_one_bit()` branch.
 // See `model::RenderCaps`'s own module doc.
@@ -90,17 +97,17 @@ pub use model::{
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.
 pub use ornament::{
-    BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN, LIST_INDENT_SCALE_PLAIN,
-    LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE, ORNAMENT_MARKS,
-    ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE, ORNAMENTS_DEFAULT,
-    Ornaments,
+    BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
+    LIST_INDENT_SCALE_PLAIN, LIST_INDENT_SCALE_WIDE, ORNAMENT_GARAMOND, ORNAMENT_JUNICODE,
+    ORNAMENT_MARKS, ORNAMENT_SCALE_FLEURON, ORNAMENT_SCALE_GEOMETRIC, ORNAMENT_SCALE_ORNATE,
+    ORNAMENTS_DEFAULT, Ornaments,
 };
 #[allow(unused_imports)] // the seventeen individually named world consts: public
 // API surface (each usable individually, e.g. `theme::TAWNY.mono`); non-test code
 // always reaches them through the `THEMES` array instead (Cassowary among them).
 pub use worlds::{
     BILBY, BOMBORA, BOWERBIRD, BROLGA, CURRAWONG, FIRETAIL, GALAH, GUMTREE, MAGPIE, MANGROVE,
-    MOPOKE, MULGA, POTOROO, QUOKKA, SALTPAN, TAWNY, WAGTAIL,
+    MOPOKE, MULGA, PAPERBARK, POTOROO, QUOKKA, SALTPAN, TAWNY, WAGTAIL,
 };
 pub use worlds::{DEFAULT_THEME, THEMES, world_names};
 
