@@ -279,8 +279,6 @@ impl<T> BufferRegistry<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(unix)]
-    use crate::testscratch::ScratchDir;
 
     fn keyed(path: &str) -> BufferKey {
         BufferKey::path(Path::new(path))
@@ -389,7 +387,7 @@ mod tests {
         // spelling of the same file, and `normalize_path` now resolves it
         // (real `std::fs::canonicalize`, not just lexical `.`/`..` collapse)
         // rather than tracking the symlink's own name.
-        let base = ScratchDir::new(
+        let base = crate::testscratch::ScratchDir::new(
             std::env::temp_dir().join(format!("awl-buffers-symlink-{}", std::process::id())),
         );
         let real_dir = base.join("real");
@@ -414,7 +412,7 @@ mod tests {
         // exist yet — a new file's key must match its real (not symlink)
         // parent identically whether reached via the link or the target, so
         // it normalizes the same before and after the file is created.
-        let base = ScratchDir::new(
+        let base = crate::testscratch::ScratchDir::new(
             std::env::temp_dir().join(format!("awl-buffers-symlink-new-{}", std::process::id())),
         );
         let real_dir = base.join("real");
