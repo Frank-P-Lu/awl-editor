@@ -32,9 +32,12 @@ mod chrome;
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
 /// ITEM 164 — the overlay's one visual-selection transaction (`chrome::
-/// overlay_visual_sel`), re-exported so the render-side laws can name it.
+/// overlay_visual_sel`) plus the two selected-ink owners, re-exported so the
+/// render-side laws can name what the shapers actually committed.
 #[cfg(test)]
-pub(in crate::render) use chrome::VisualSelection;
+pub(in crate::render) use chrome::{
+    VisualSelection, overlay_selected_primary_ink, overlay_selected_secondary_ink,
+};
 
 /// The `AWL_*_FORCE` dev-only render/theme override knobs, consolidated into
 /// ONE [`overrides::RenderOverrides`] struct. See that module's doc.

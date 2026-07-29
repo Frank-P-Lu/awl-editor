@@ -75,6 +75,7 @@ mod syntax_roles;
 mod tables;
 mod theme;
 mod theme_caps_law;
+mod visual_selection_law;
 mod washes;
 mod waves_drift_item87;
 #[cfg(not(target_arch = "wasm32"))]

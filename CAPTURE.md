@@ -589,6 +589,17 @@ row's `bindings` cell already carried; empty for every mode but `settings`,
 `font.zoom` was added. Every one of these bumps preserved byte-identical
 DEFAULT captures apart from the named field — see the table.
 
+Schema `/189` adds `overlay.visual_selected` — the array of candidate DISPLAY
+ROWS the last prepared frame actually DREW as selected, from the one
+visual-selection transaction (item 164, `render/chrome/overlay_visual_sel.rs`).
+`overlay.selected_index` remains the STATE oracle (what Enter or a click
+activates); `visual_selected` is the RENDER answer, and the two are distinct
+questions only while a selection band is mid-glide. Every ordinary capture is a
+settled frame, so it reads exactly `[overlay.window.sel_row]`; the one
+deterministic still where they differ is a pinned-phase living band
+(`AWL_LIVING_BAND=morph:<t>`), which dumps a mid-flight frame with no clock. An
+empty array means no overlay is open.
+
 Schema `/99` (was `/98`; timeline `/100`, held `/101`) is the **SUMMONED
 ABOUT CARD** (`about.rs` + `menu.rs`'s routed About item, which replaced
 muda's predefined About dialog): a top-level `about` block, `{ "open": bool

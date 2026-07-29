@@ -201,4 +201,12 @@ impl TextPipeline {
             rows_of(&self.panel_bind_buffer, secondary_flip),
         )
     }
+
+    /// TEST PROBE — whether this frame actually GRANTED the secondary column
+    /// (`rowlayout` yields it whole when a card is too narrow). A law about
+    /// shortcut ink is vacuous on a card that drew no shortcuts.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_right_column_shown(&self) -> bool {
+        self.overlay_right_shown
+    }
 }
