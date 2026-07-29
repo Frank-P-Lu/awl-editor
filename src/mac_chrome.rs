@@ -1,42 +1,39 @@
-//! Native macOS chrome: the two MENU items whose macOS convention is a real
-//! AppKit panel rather than an in-app overlay (File ▸ "Open…" — the standard
-//! `NSOpenPanel` file picker — and About — the standard `NSApplication` About
-//! window), plus the small objc2/AppKit surface the menu-icon set and the
-//! Asset Cleaner's recoverable trash lean on. All live ONLY here, behind
-//! `cfg(target_os = "macos")` — every other platform keeps the existing
-//! in-app behavior (the `Action::OpenBrowse` overlay / the `about.rs` card),
-//! so this module is the single place the objc2/AppKit surface is touched.
+//! Native macOS chrome: the MENU item whose macOS convention is a real AppKit
+//! panel rather than an in-app overlay (File ▸ "Open…" — the standard
+//! `NSOpenPanel` file picker), plus the small objc2/AppKit surface the
+//! menu-icon set, the Dock icon and the Asset Cleaner's recoverable trash lean
+//! on. All live ONLY here, behind `cfg(target_os = "macos")` — every other
+//! platform keeps the existing in-app behavior (the `Action::OpenBrowse`
+//! overlay).
+//!
+//! The one AppKit door NOT here is the About WINDOW: it constructs and owns an
+//! object graph rather than making a call, and its pure halves are
+//! unit-testable, so it has its own module — [`crate::mac_about`]. Those two
+//! files are together the whole objc2/AppKit surface of this crate.
 //!
 //! **Main-thread law:** every function here MUST be called from the process
 //! main thread (`MainThreadMarker::new()` returns `None` otherwise and the
 //! call becomes a calm no-op). Every call site satisfies this — a menu event
 //! is posted into winit's `user_event`, which runs on the winit/main thread
-//! (`App::handle_menu_event`), `Action::About` is intercepted in
-//! `App::apply` (also main-thread), and [`mark_menu_icons_as_templates`] is
-//! called straight out of `resumed()` right after `crate::menu::install`.
+//! (`App::handle_menu_event`), and [`mark_menu_icons_as_templates`] is called
+//! straight out of `resumed()` right after `crate::menu::install`.
 //!
 //! **LIVE-ONLY:** none of this is reachable from the headless capture harness
-//! (a real NSMenu click / NSOpenPanel modal / NSAboutPanel is AppKit chrome
-//! the harness cannot drive), so nothing here is unit-tested — it is
+//! (a real NSMenu click / NSOpenPanel modal is AppKit chrome the harness
+//! cannot drive), so nothing here is unit-tested — it is
 //! structural-by-construction and flagged for human confirmation.
 #![cfg(target_os = "macos")]
 
 use std::path::PathBuf;
 
-use objc2::rc::Retained;
-use objc2::runtime::AnyObject;
 use objc2::{AnyThread, MainThreadMarker};
 use objc2_app_kit::{
-    NSAboutPanelOptionApplicationName, NSAboutPanelOptionApplicationVersion,
-    NSAboutPanelOptionCredits, NSApplication, NSBitmapFormat, NSBitmapImageRep,
-    NSCompositingOperation, NSDeviceRGBColorSpace, NSFontWeightRegular, NSGraphicsContext, NSImage,
-    NSImageSymbolConfiguration, NSImageSymbolScale, NSMenu, NSModalResponseOK,
-    NSMutableParagraphStyle, NSOpenPanel, NSParagraphStyleAttributeName, NSTextAlignment,
-    NSWorkspace,
+    NSApplication, NSBitmapFormat, NSBitmapImageRep, NSCompositingOperation, NSDeviceRGBColorSpace,
+    NSFontWeightRegular, NSGraphicsContext, NSImage, NSImageSymbolConfiguration,
+    NSImageSymbolScale, NSMenu, NSModalResponseOK, NSOpenPanel, NSWorkspace,
 };
 use objc2_foundation::{
-    NSAttributedString, NSAttributedStringKey, NSData, NSDictionary, NSFileManager, NSInteger,
-    NSPoint, NSRect, NSSize, NSString, NSURL,
+    NSData, NSFileManager, NSInteger, NSPoint, NSRect, NSSize, NSString, NSURL,
 };
 
 /// Run the standard macOS OPEN panel (files only, single selection) modally
@@ -122,60 +119,6 @@ pub fn trash_path(path: &std::path::Path) -> Result<(), String> {
         Ok(()) => Ok(()),
         Err(err) => Err(err.localizedDescription().to_string()),
     }
-}
-
-/// Show the standard macOS About window (`orderFrontStandardAboutPanel…`),
-/// populated with the app NAME, VERSION, and a centred credits line via the
-/// options dictionary. The macOS-only replacement for the in-app About card
-/// (`about.rs`) — the native panel is the platform convention.
-///
-/// NOTE: the panel's icon comes from the `.app` bundle's `CFBundleIconFile`.
-/// A bare CLI launch keeps AppKit's generic process icon; packaging supplies
-/// `Awl.icns` without changing the lowercase `awl` command name.
-pub fn show_about_panel() {
-    let Some(mtm) = MainThreadMarker::new() else {
-        return;
-    };
-    let app = NSApplication::sharedApplication(mtm);
-
-    let name = NSString::from_str("Awl");
-    let version = NSString::from_str(env!("CARGO_PKG_VERSION"));
-    // Credits must be attributed for the native panel to honour the paragraph
-    // alignment. This is intentionally its complete content: the panel itself
-    // supplies icon/name/version, and the license is a declaration, not a
-    // copyright notice.
-    let paragraph = NSMutableParagraphStyle::new();
-    paragraph.setAlignment(NSTextAlignment::Center);
-    // SAFETY: AppKit exports this immutable attribute-name static.
-    let credit_attribute_keys: [&NSAttributedStringKey; 1] =
-        unsafe { [NSParagraphStyleAttributeName] };
-    let credit_attribute_values: [&AnyObject; 1] = [paragraph.as_ref()];
-    let credit_attributes: Retained<NSDictionary<NSAttributedStringKey, AnyObject>> =
-        NSDictionary::from_slices(&credit_attribute_keys, &credit_attribute_values);
-    // SAFETY: the paragraph-style value is valid for NSParagraphStyleAttributeName.
-    let credits = unsafe {
-        NSAttributedString::new_with_attributes(
-            &NSString::from_str("Frank Lu · GPL-3.0"),
-            &credit_attributes,
-        )
-    };
-
-    // SAFETY: these are AppKit's own `&'static NSString` option keys — reading
-    // them is a plain static-ref load; they are immutable, never data-raced.
-    let keys: [&NSString; 3] = unsafe {
-        [
-            NSAboutPanelOptionApplicationName,
-            NSAboutPanelOptionApplicationVersion,
-            NSAboutPanelOptionCredits,
-        ]
-    };
-    let values: [&AnyObject; 3] = [name.as_ref(), version.as_ref(), credits.as_ref()];
-    let options: Retained<NSDictionary<NSString, AnyObject>> =
-        NSDictionary::from_slices(&keys, &values);
-
-    // SAFETY: the options dictionary holds the exact key/value types the
-    // About panel expects (name/version = NSString, credits = NSAttributedString).
-    unsafe { app.orderFrontStandardAboutPanelWithOptions(&options) };
 }
 
 /// Set the live DOCK / app-switcher image from a complete `.icns` in memory —
