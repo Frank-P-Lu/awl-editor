@@ -92,6 +92,11 @@ python3 scripts/icons/verify.py \
 if [ -z "$ONLY" ]; then
   echo "==> pack (.icns per world + the canonical bundle icon)"
   cargo run --quiet -- --pack-icns "$OUT/tiles"
+  # The pack writes its table one entry per line; rustfmt wraps the longer ones.
+  # Without this the export is not idempotent — the .icns bytes come back
+  # identical while `embedded.rs` shows an 18-line diff that is pure formatting,
+  # and a re-export looks like a change nobody made.
+  rustfmt --edition 2024 src/app_icon/embedded.rs
 else
   echo "==> pack SKIPPED (--only renders a subset; the pack needs every size)"
 fi
