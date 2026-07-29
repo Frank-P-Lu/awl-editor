@@ -44,6 +44,17 @@
 
 158. **Graduate Paperbark with Deckled Strata, and delete the rejected material trial arms.** **Build:** Turn item 133’s B profile into Paperbark’s one production background: nested deckled handmade-paper contours gather around the writing page in the provisional cream/pale-honey palette, with deep bark-brown prose and the coral/vermilion caret kept as the sole accent. Preserve the quiet static treatment the user approved; do not add raking light, motion, stock texture, or a second material mode in this item. Remove A Broad Sheets, C Loose Fibres, D Relief Print, E Peeling Curls, and the temporary trial selector from the Paperbark branch. C is not discarded: item 159 gives the reusable mechanism a different theme-owned assignment. **Scope:** Enroll Paperbark normally as a candidate world only after font licensing, roster distinctness, icon, dashboard, and zero-network requirements are satisfied; do not ship disposable review machinery. **Done:** Paperbark has one coherent material identity rather than five dormant treatments, reads as deckled paper around a calm opaque writing page, and does not collapse toward Saltpan’s regular pinstripes or Bilby’s quiet gradient. **Verify:** wide/narrow/short/tall and 1×/2× captures; page exclusion, contour continuity, contrast and no-moiré pixel laws; exact rejection-arm absence; world/icon/dashboard roster enrollment; nearest-world vision smoke; native, both conventions, wasm. **User choice 2026-07-29.** ✅ **LANDED — merge `73d6fd75`; display face confirmed as EB Garamond on 2026-07-29.**
 
+**Kite recovery audit 2026-07-30.** The old core (`673d2758`) and integration
+(`fc5337a9`) branches are design/test prototypes, not merge candidates: they are
+155/144 commits behind main, main deliberately reverted the implementation, and
+the current `theme::ground`/Deckle ownership replaced their background model.
+Do not rebase or cherry-pick them. After item 159 leaves the shared theme and
+background-test files, start item 132 fresh from current main; salvage only the
+route specification, Fira Sans choice/license facts, gallery poses, and test
+intent. The exporter blocker is cleared on main. Fresh native Metal,
+WebGPU/WebGL release benches and the multi-minute human motion review remain
+mandatory.
+
 🟢 **VERIFIED AND LANDED** — branch `claude/item-158-paperbark`, 7 commits, merge `73d6fd75`. Gates: 3211 under both conventions, wasm, code health, canonical icon export, 75-card dashboard on a 19-world roster.
 
 **Paperbark ships as the nineteenth world.** Trial file, scripts and env knob are `git rm`'d — a repo-wide grep for every arm name and the env var returns one hit, this board line. Runtime proof: `AWL_PAPERBARK_TRIAL=B` now renders Gumtree.
