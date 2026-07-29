@@ -14,7 +14,7 @@ awl is a WYSIWYG editor on the Obsidian Live-Preview model: the file stays plain
 
 ```sh
 export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
-cargo build && cargo test        # from the repo root
+cargo build && scripts/native-gate.sh  # from the repo root; emits full-suite receipt
 ```
 
 Incremental builds only (a clean rebuild is slow — no `cargo clean`). Edit in place, matching the file's own style. Judge feel in `--release`: dev frames are 10–20× slower, so perf claims are only honest there.
@@ -89,7 +89,7 @@ User-facing docs (CREDITS, GUIDE, welcome/tour, site pages) are matter-of-fact: 
 
 ## Branches & pushing
 
-Development happens on local `main` (it may run ahead of origin; `git remote show origin` is the default-branch truth). A green train — full suite, both conventions, wasm — authorizes a push; CI minutes are a non-concern (user rule 2026-07-15). Tags and releases wait for the user's explicit word, every time. Worktree branches never push; a worktree agent verifies its base with `git merge --ff-only main` and stops to report if it won't fast-forward. The merge train integrates one branch at a time, gated on the full suite; for structs with per-call-site initializers, grep the construction sites before declaring a merge done (git merges a missing field cleanly and fails to compile later). A genuine product/taste conflict is grounds to abort and hand back.
+Development happens on local `main` (it may run ahead of origin; `git remote show origin` is the default-branch truth). A green train — a receipt from `scripts/native-gate.sh`, wasm — authorizes a push; CI minutes are a non-concern (user rule 2026-07-15). The receipt is the only authorization to call the native tier “full native suite”: `cargo test --bin awl` is binary unit tests and any filtered invocation is targeted tests; counts never prove scope. Tags and releases wait for the user's explicit word, every time. Worktree branches never push; a worktree agent verifies its base with `git merge --ff-only main` and stops to report if it won't fast-forward. The merge train integrates one branch at a time, gated on the full suite; for structs with per-call-site initializers, grep the construction sites before declaring a merge done (git merges a missing field cleanly and fails to compile later). A genuine product/taste conflict is grounds to abort and hand back.
 
 ## Open decisions & known divergences (do not re-discover)
 
