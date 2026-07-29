@@ -21,7 +21,7 @@
 //! the one organic accent (the caret), `error` is the signal color, and
 //! `selection` is a custom token (DaisyUI has no selection role).
 //!
-//! There are eighteen [`Theme`]s ("worlds"), eleven dark and seven light. Two are
+//! There are nineteen [`Theme`]s ("worlds"), eleven dark and eight light. Two are
 //! DESIGN.md §3 statement worlds: Wagtail (awl's first true MONOCHROME/1-bit
 //! world — zero saturation everywhere, the caret included) and Firetail (awl's
 //! first LAVA-LAMP world — a slow metaball ground whose living warmth IS the

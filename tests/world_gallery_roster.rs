@@ -6,11 +6,11 @@
 //! CLI door, `awl --list-worlds` — itself a thin printer over the one
 //! code-owned source, `theme::world_names()` (`src/theme/worlds.rs`), which
 //! `--help`'s theme line and the unknown-`--theme` error also read. This test
-//! is the EXPECTED-ROSTER SNAPSHOT: a hard-coded 18-name list that fails
+//! is the EXPECTED-ROSTER SNAPSHOT: a hard-coded 19-name list that fails
 //! LOUDLY the moment `theme::THEMES` gains, loses, or reorders a world, until
 //! a human consciously updates this list (and, by extension, remembers the
 //! gallery command that depends on it). That duplication is deliberate — the
-//! same shape as `theme::tests::worlds_eleven_dark_seven_light`'s hard-coded
+//! same shape as `theme::tests::worlds_eleven_dark_eight_light`'s hard-coded
 //! `18` — never read `theme::THEMES` directly from here; the whole point is a
 //! snapshot independent of the roster's own source.
 mod common;
@@ -89,7 +89,7 @@ fn help_text_names_every_world_and_advertises_list_worlds() {
     assert!(out.status.success(), "--help should exit 0");
     let stdout = String::from_utf8(out.stdout).expect("--help stdout is UTF-8");
 
-    // The historical bug (item 68): --help advertised only ten of eighteen
+    // The historical bug (item 68): --help advertised only ten of nineteen
     // worlds because its theme line was a separately hand-copied list. Every
     // name in the roster must appear in the help text now that both routes
     // read the same `theme::world_names()`.

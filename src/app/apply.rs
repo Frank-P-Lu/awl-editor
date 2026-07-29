@@ -1214,7 +1214,7 @@ impl App {
         //
         // THE DOCK ICON rides this exact guard, for the same reason and one more:
         // a preview must not churn the Dock. Arrowing or sweeping the pointer
-        // through eighteen worlds re-tints pipelines through
+        // through nineteen worlds re-tints pipelines through
         // `retint_theme_preview`, which has no route to `app_icon` at all — so the
         // "no churn" property is structural, not a rule anybody has to remember.
         // The two doors that DO adopt are both settled states: this commit/revert,
