@@ -981,25 +981,29 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Cassowary",
         baseline: 0.130859375,
     },
+    // Item 161's restrained optical lift moved Bilby's rendered cursor body
+    // without changing palette, preset, or containment.
     Blessed {
         a: "Bilby",
         b: "Galah",
-        baseline: 0.19921875,
+        baseline: 0.197265625,
     },
     Blessed {
         a: "Mopoke",
         b: "Mulga",
         baseline: 0.2119140625,
     },
+    // Item 161.
     Blessed {
         a: "Bilby",
         b: "Magpie",
-        baseline: 0.2421875,
+        baseline: 0.240234375,
     },
+    // Item 161: Saltpan's own restrained lift.
     Blessed {
         a: "Saltpan",
         b: "Quokka",
-        baseline: 0.2373046875,
+        baseline: 0.236328125,
     },
     Blessed {
         a: "Galah",
@@ -1008,11 +1012,13 @@ const DIFFERING_BLESSED: &[Blessed] = &[
     },
     // Item 110 aligned every face's rendered baseline; the intentional seat
     // change moved this cream-ground near-pair without changing palette or
-    // its deliberately split block/pill silhouettes.
+    // its deliberately split block/pill silhouettes. Item 161's optical lift
+    // — applied to both Bilby and Saltpan, restrained on each — moved it
+    // again.
     Blessed {
         a: "Bilby",
         b: "Saltpan",
-        baseline: 0.2294921875,
+        baseline: 0.2236328125,
     },
     Blessed {
         a: "Tawny",
@@ -1101,22 +1107,24 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Mangrove",
         baseline: 57.84375,
     },
+    // Item 161's restrained lift moved Saltpan's rendered ink.
     Blessed {
         a: "Saltpan",
         b: "Galah",
-        baseline: 68.361328125,
+        baseline: 68.1943359375,
     },
     // Item 110's vertical-seat correction moves Bilby's rendered ink while
-    // preserving every palette and cursor assignment.
+    // preserving every palette and cursor assignment. Item 161's further
+    // optical lift moved it again.
     Blessed {
         a: "Bilby",
         b: "Galah",
-        baseline: 60.611328125,
+        baseline: 60.4755859375,
     },
     Blessed {
         a: "Bilby",
         b: "Saltpan",
-        baseline: 63.974609375,
+        baseline: 62.83203125,
     },
     Blessed {
         a: "Bowerbird",
@@ -1146,7 +1154,7 @@ const MEAN_BLESSED: &[Blessed] = &[
 /// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
 /// today — the roster's own cluster tops out at 88.39% (Bowerbird/Firetail)
 /// before a cliff to 94.22%; 92% sits between the two so the axis still
-/// catches a scenario shaped like `Ibis` (85.57% after item 110, see
+/// catches a scenario shaped like `Ibis` (85.43% after item 161, see
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
 const INK_BLESSED: &[Blessed] = &[
@@ -1155,10 +1163,11 @@ const INK_BLESSED: &[Blessed] = &[
         b: "Firetail",
         baseline: 0.5430711610486891,
     },
+    // Item 161's restrained lift moved Bilby's rendered ink.
     Blessed {
         a: "Bilby",
         b: "Wagtail",
-        baseline: 0.7222222222222222,
+        baseline: 0.7058823529411765,
     },
     Blessed {
         a: "Magpie",
@@ -1568,7 +1577,7 @@ fn check_pair_axes(pairs: &[Pair]) -> Vec<String> {
 /// silence: `Ibis` never displaces Currawong/Cassowary (differing, mean) or
 /// Potoroo/Firetail (ink) as the incumbent minimum. Under
 /// `check_pair_axes`'s danger-zone guard it must fail on all three axes —
-/// `Ibis`'s own values (currently 16.80%, 18.77, 85.57%) fall under
+/// `Ibis`'s own values (currently 16.60%, 18.72, 85.43%) fall under
 /// every axis's `danger` threshold without ever leading any of them, and the
 /// guard checks it by value, not by whether it happens to be the champion.
 #[test]
@@ -1614,26 +1623,27 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
     }
 
     // Sanity: replay the same Ibis-vs-Galah construction before asking
-    // whether the law catches it. Item 110 moved Bilby's rendered seat, so
-    // today's 16.80% / 18.77 / 85.57% differ from item 102's historical
-    // 18.16% / 20.46 / 90.73% without weakening the probe.
+    // whether the law catches it. Item 110 moved Bilby's rendered seat to
+    // 16.80% / 18.77 / 85.57% from item 102's historical 18.16% / 20.46 /
+    // 90.73%; item 161's further restrained lift on Bilby moves it again, to
+    // today's 16.60% / 18.72 / 85.43%, without weakening the probe.
     let ibis_vs_galah = pairs
         .iter()
         .find(|p| (p.a == "Ibis" && p.b == "Galah") || (p.a == "Galah" && p.b == "Ibis"))
         .expect("Ibis vs Galah is in the extended set");
     assert!(
-        (ibis_vs_galah.differing - 0.167969).abs() < 1e-3,
-        "differing = {} (item 110 geometry expects 16.80%)",
+        (ibis_vs_galah.differing - 0.166016).abs() < 1e-3,
+        "differing = {} (item 161 geometry expects 16.60%)",
         ibis_vs_galah.differing
     );
     assert!(
-        (ibis_vs_galah.mean - 18.7686).abs() < 0.5,
-        "mean = {} (item 110 geometry expects 18.77)",
+        (ibis_vs_galah.mean - 18.7168).abs() < 0.5,
+        "mean = {} (item 161 geometry expects 18.72)",
         ibis_vs_galah.mean
     );
     assert!(
-        (ibis_vs_galah.ink - 0.855721).abs() < 1e-3,
-        "ink = {} (item 110 geometry expects 85.57%)",
+        (ibis_vs_galah.ink - 0.854271).abs() < 1e-3,
+        "ink = {} (item 161 geometry expects 85.43%)",
         ibis_vs_galah.ink
     );
 

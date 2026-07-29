@@ -43,6 +43,7 @@ const esc = (s) =>
 function assertNoWorldKeys(tuning, manifest) {
   const families = new Set(manifest.faces.map((f) => f.family));
   const worlds = new Set(manifest.worlds.map((w) => w.name));
+  const presetNames = new Set(Object.keys(tuning.presets));
   for (const key of Object.keys(tuning.faces)) {
     if (worlds.has(key)) {
       throw new Error(
@@ -51,6 +52,33 @@ function assertNoWorldKeys(tuning, manifest) {
     }
     if (!families.has(key)) {
       throw new Error(`tuning.json keys ${key}, which no shipped world wears`);
+    }
+    const face = tuning.faces[key];
+    for (const k of Object.keys(face)) {
+      if (k === "presets" || k.startsWith("_")) continue; // "_seat" etc: inline documentation, JSON has no comments
+      if (!tuning.allowed.includes(k)) {
+        throw new Error(`tuning.json: ${key}.${k} is not one of ${tuning.allowed.join("/")}`);
+      }
+    }
+    // The SEAT override: a face may carry an additional delta that only
+    // applies to worlds wearing this face AT ONE PRESET. This is what makes
+    // Bitter (Mopoke=pill, Magpie=block) and Iosevka (Currawong=pill,
+    // Cassowary=block) correctable independently without a world key — the
+    // override is keyed by the shape the base already varies by, not by
+    // world. Absent `presets`, or an absent entry for the preset actually in
+    // play, composes to zero: every face that doesn't need this is untouched.
+    for (const presetName of Object.keys(face.presets ?? {})) {
+      if (!presetNames.has(presetName)) {
+        throw new Error(
+          `tuning.json: ${key}.presets.${presetName} is not one of ${[...presetNames].join("/")}`
+        );
+      }
+      const override = face.presets[presetName];
+      for (const k of Object.keys(override)) {
+        if (!tuning.allowed.includes(k)) {
+          throw new Error(`tuning.json: ${key}.presets.${presetName}.${k} is not one of ${tuning.allowed.join("/")}`);
+        }
+      }
     }
   }
 }
@@ -61,24 +89,25 @@ function clamp(v, [lo, hi], what) {
   return v;
 }
 
-/** Compose preset + per-family delta into the four numbers a tile needs. */
+/** Compose preset + per-family delta + per-(family,preset) seat override into
+ * the four numbers a tile needs. The seat override is the SAME bounded delta
+ * mechanism as the flat face delta, just scoped one level narrower — it lands
+ * on top of the face's flat delta rather than replacing it, so a face keeps
+ * exactly one flat tuning plus, only where named, one further correction for
+ * the single preset that needs it. */
 function geometry(tuning, preset, family) {
   const p = tuning.presets[preset];
   const face = tuning.faces[family] ?? {};
-  for (const k of Object.keys(face)) {
-    if (!tuning.allowed.includes(k)) {
-      throw new Error(`tuning.json: ${family}.${k} is not one of ${tuning.allowed.join("/")}`);
-    }
-  }
+  const seat = (face.presets ?? {})[preset] ?? {};
   const add = (key) => {
-    const d = face[key] ?? 0;
-    clamp(d, tuning.bounds.delta, `${family}.${key} delta`);
+    const d = (face[key] ?? 0) + (seat[key] ?? 0);
+    clamp(d, tuning.bounds.delta, `${family}[.presets.${preset}].${key} combined delta`);
     return clamp(p[key] + d, tuning.bounds.final, `${family}.${key} final`);
   };
-  let radius = face.radius ?? p.radius;
+  let radius = seat.radius ?? face.radius ?? p.radius;
   if (p.radius === "capsule") radius = "capsule";
   if (radius !== "capsule") clamp(radius, tuning.bounds.radius, `${family}.radius`);
-  const weight = face.weight ?? "regular";
+  const weight = seat.weight ?? face.weight ?? "regular";
   if (!tuning.bounds.weight.includes(weight)) {
     throw new Error(`tuning.json: ${family}.weight must be regular|bold, got ${weight}`);
   }
@@ -86,7 +115,7 @@ function geometry(tuning, preset, family) {
     ix: add("insetX"),
     it: add("insetTop"),
     ib: add("insetBottom"),
-    sy: clamp(face.seatY ?? 0, tuning.bounds.delta, `${family}.seatY`),
+    sy: clamp((face.seatY ?? 0) + (seat.seatY ?? 0), tuning.bounds.delta, `${family}[.presets.${preset}].seatY combined delta`),
     radius: radius === "capsule" ? "999px" : `${radius}em`,
     weight,
   };
