@@ -234,6 +234,11 @@ impl Background {
             _ => 0.0,
         }
     }
+    /// DECKLE's wander amplitude, by its own name (the shared slot is
+    /// `amplitude_px`, which Zigzag's chevron profile also rides).
+    pub fn wander_px(&self) -> f32 {
+        self.amplitude_px()
+    }
     pub fn amplitude_px(&self) -> f32 {
         match self {
             Background::Zigzag { amplitude_px, .. } => *amplitude_px,

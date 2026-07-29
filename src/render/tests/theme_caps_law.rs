@@ -44,6 +44,25 @@ const WORLD_NAMES: &[&str] = &[
     "Paperbark",
 ];
 
+/// THE LIST IS CHECKED AGAINST THE ROSTER (item 158's audit finding). Every
+/// other hand-maintained per-world list in the suite fails loudly when a world
+/// is added; this one did not — it is a BAN list, so a missing name makes the
+/// law quietly permit exactly the thing it exists to forbid, and nothing goes
+/// red. A grep-law that silently stops grepping is worse than no grep-law, so
+/// the drift is now a failure like everywhere else.
+#[test]
+fn the_banned_name_list_is_exactly_the_world_roster() {
+    let mut banned: Vec<&str> = WORLD_NAMES.to_vec();
+    let mut roster: Vec<&str> = crate::theme::THEMES.iter().map(|t| t.name).collect();
+    banned.sort_unstable();
+    roster.sort_unstable();
+    assert_eq!(
+        banned, roster,
+        "WORLD_NAMES and theme::THEMES have drifted — a world added here without a \
+         line in the ban list is a world this grep-law would let a renderer hardcode"
+    );
+}
+
 /// True iff `line` (already known to be OUTSIDE a skipped cfg(test) block)
 /// contains a banned pattern: `.is_one_bit(` as a real call, or a quoted
 /// per-world name.
