@@ -192,6 +192,7 @@ impl TextPipeline {
         self.overlay_pane_fills(&geom)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_draw_card(
         &mut self,
         device: &wgpu::Device,
@@ -199,6 +200,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        vis: &VisualSelection,
     ) {
         let list_style = crate::render::effective_list_style();
         let spell = self.overlay_spell.is_some();
@@ -207,20 +209,13 @@ impl TextPipeline {
         self.overlay_prepare_card_backing(
             device, queue, width, height, geom, backing, spell, card_rect,
         );
-        let selected_row = self.overlay_selected_display_line(geom);
         self.overlay_prepare_selection(
-            device,
-            queue,
-            width,
-            height,
-            geom,
-            list_style,
-            backing,
-            selected_row,
+            device, queue, width, height, geom, list_style, backing, vis,
         );
-        self.overlay_prepare_range_rails(device, queue, width, height, geom, selected_row);
+        self.overlay_prepare_range_rails(device, queue, width, height, geom, vis);
         self.overlay_prepare_facet_marks(device, queue, width, height, geom);
     }
+    #[allow(clippy::too_many_arguments)]
     fn overlay_prepare_range_rails(
         &mut self,
         device: &wgpu::Device,
@@ -228,7 +223,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
-        sel_disp: Option<usize>,
+        vis: &VisualSelection,
     ) {
         // ITEM 94 — THE RANGE ROW'S RAIL. Every visible range row's track / fill /
         // thumb, resolved by the ONE rail owner (`overlay_rails`, which the pointer
@@ -241,6 +236,10 @@ impl TextPipeline {
         // the ONE `theme::selected_row_secondary_ink` owner — the SAME mechanism the
         // value TEXT beside it already uses, so rail and number stay legible together
         // on every world rather than either growing its own contrast rule.
+        //
+        // ITEM 164: WHICH row's rail flips is the shared visual-selection
+        // transaction's answer, not the logical row's — the thumb is a secondary
+        // ink like the value beside it, and both now wait for the band.
         let rails = self.overlay_rails(geom);
         let (mut track_rects, mut thumb_rects): (Vec<[f32; 4]>, Vec<[f32; 4]>) =
             (Vec::new(), Vec::new());
@@ -251,18 +250,15 @@ impl TextPipeline {
             }
             thumb_rects.push(rail.thumb);
         }
-        let selected_rail = rails.iter().any(|(item, _)| {
-            Some(*item) == sel_disp.and_then(|k| self.overlay_item_at_row(geom, k))
-        });
-        let thumb_ink = if selected_rail && super::selected_secondary_on_band() {
-            match theme::active()
-                .highlight_treatment(crate::render::effective_overlay_selrow_band())
-            {
-                theme::HighlightTreatment::InverseFill { ink, .. } => ink,
-                theme::HighlightTreatment::ValueBand(b) => theme::selected_row_secondary_ink(b),
-            }
-        } else {
-            theme::muted()
+        let on_band: Vec<usize> = vis
+            .rows()
+            .iter()
+            .filter_map(|&k| self.overlay_item_at_row(geom, k))
+            .collect();
+        let selected_rail = rails.iter().any(|(item, _)| on_band.contains(item));
+        let thumb_ink = match super::overlay_selected_secondary_srgb() {
+            Some(flip) if selected_rail => flip,
+            _ => theme::muted(),
         };
         self.overlay_range_track
             .set_color(theme::faint().rgba_bytes());

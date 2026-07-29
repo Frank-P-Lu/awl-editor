@@ -46,10 +46,16 @@ impl OverlayBarLayout {
         )
     }
 
+    /// ITEM 164 — the shortcut PLATE behind a `Bars` chord is an ACCESSORY of the
+    /// selected row's own bar, so it reads the shared [`VisualSelection`] (never
+    /// the logical row) for WHICH plate carries the band colour, and rides the
+    /// band's DRAWN top for WHERE that plate sits. Before the transaction it took
+    /// both from state: on a sliding world the chord plate recoloured and held
+    /// still a whole glide before the bar it belongs to arrived under it.
     fn append_chord_plates(
         &self,
         geom: &OverlayGeom,
-        selected_row: Option<usize>,
+        vis: &VisualSelection,
         selected: &mut Vec<[f32; 4]>,
         unselected: &mut Vec<[f32; 4]>,
     ) {
@@ -66,13 +72,18 @@ impl OverlayBarLayout {
             let right = (chord_right + BAR_TEXT_PAD).min(full_right);
             let plate_width = width + 2.0 * BAR_TEXT_PAD;
             let left = (right - plate_width).max(full_x);
+            let on_band = vis.reads_selected(row);
+            let top = match (on_band, vis.band_top()) {
+                (true, Some(drawn)) => drawn,
+                _ => self.row_top(geom, row),
+            };
             let rect = [
                 left,
-                self.row_top(geom, row) + self.bar_offset,
+                top + self.bar_offset,
                 (right - left).max(1.0),
                 self.bar_height,
             ];
-            if Some(row) == selected_row {
+            if on_band {
                 selected.push(rect);
             } else if self.coverage == theme::BarCoverage::All {
                 unselected.push(rect);
@@ -82,65 +93,16 @@ impl OverlayBarLayout {
 }
 
 impl TextPipeline {
-    /// Display rows covered by the living Pane band this frame. The shaper
-    /// reads this same selection owner, so on-band ink and fill share one phase.
-    pub(in crate::render) fn living_covered_rows(
-        &mut self,
-        geom: &OverlayGeom,
-    ) -> Option<Vec<usize>> {
-        let motion = crate::render::livingband::overlay_motion_force()?;
-        if !matches!(
-            crate::render::effective_list_style(),
-            theme::ListStyle::Pane
-        ) {
-            return None;
-        }
-        let selected_row = self.overlay_selected_display_line(geom)?;
-        let line_height = self.overlay_lh();
-        let target = overlay_row_top(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            selected_row,
-            line_height,
-        );
-        let (from, to, t) = self.living_band_phase(motion, target, line_height);
-        let (primary, echo, _) =
-            self.living_band_rects(motion, from, to, t, geom.card_x, geom.card_w, line_height);
-        let bands = primary
-            .iter()
-            .chain(echo.iter())
-            .map(|rect| crate::render::livingband::BandRect {
-                top: rect[1],
-                height: rect[3],
-            })
-            .collect::<Vec<_>>();
-        let first_top = overlay_row_top(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            0,
-            line_height,
-        );
-        Some(crate::render::livingband::covered_rows(
-            &bands,
-            first_top,
-            line_height,
-            geom.visible,
-        ))
-    }
-
     #[cfg(test)]
     pub(in crate::render) fn living_probe_geom(
         &mut self,
         geom: &OverlayGeom,
     ) -> (Vec<usize>, usize, f32, f32, [f32; 4]) {
-        let motion = crate::render::livingband::overlay_motion_force()
-            .expect("living_probe_geom needs the motion probe armed");
-        let covered = self.living_covered_rows(geom).unwrap_or_default();
-        let selected_row = self
-            .overlay_selected_display_line(geom)
-            .expect("a selected row");
+        let vis = self.resolve_visual_selection(geom);
+        let (motion, from, to, t) = vis
+            .living()
+            .expect("living_probe_geom needs the motion probe armed on a Pane world");
+        let selected_row = vis.logical().expect("a selected row");
         let line_height = self.overlay_lh();
         let first_top = overlay_row_top(
             geom.text_top,
@@ -149,17 +111,15 @@ impl TextPipeline {
             0,
             line_height,
         );
-        let selected_top = overlay_row_top(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            selected_row,
-            line_height,
-        );
-        let (from, to, t) = self.living_band_phase(motion, selected_top, line_height);
         let (primary, _, _) =
             self.living_band_rects(motion, from, to, t, geom.card_x, geom.card_w, line_height);
-        (covered, selected_row, first_top, line_height, primary[0])
+        (
+            vis.rows().to_vec(),
+            selected_row,
+            first_top,
+            line_height,
+            primary[0],
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -172,7 +132,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         list_style: theme::ListStyle,
         backing: theme::ListBacking,
-        selected_row: Option<usize>,
+        vis: &VisualSelection,
     ) {
         let band_color = match theme::active()
             .highlight_treatment(crate::render::effective_overlay_selrow_band())
@@ -182,22 +142,14 @@ impl TextPipeline {
         };
         self.overlay_rows.set_color(band_color.rgba_bytes());
         let rects = match list_style {
-            theme::ListStyle::Pane => self.overlay_pane_selection(geom, selected_row),
+            theme::ListStyle::Pane => self.overlay_pane_selection(geom, vis),
             theme::ListStyle::Bars {
                 radius,
                 gap,
                 grow_px,
                 extent,
                 coverage,
-            } => self.overlay_bar_selection(
-                geom,
-                selected_row,
-                radius,
-                gap,
-                grow_px,
-                extent,
-                coverage,
-            ),
+            } => self.overlay_bar_selection(geom, vis, radius, gap, grow_px, extent, coverage),
         };
         if backing == theme::ListBacking::BarePlates {
             self.overlay_prepare_bar_scrims(device, queue, width, height, list_style, &rects);
@@ -210,25 +162,17 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &rects.cross);
     }
 
+    /// ITEM 164 — the Pane band's quads for this frame, from the ALREADY-RESOLVED
+    /// [`VisualSelection`]. It re-runs no animator: the travel/phase and the drawn
+    /// top were decided once, at the transaction, so the fill cannot land on a
+    /// different row from the ink that was shaped against it.
     fn overlay_pane_selection(
         &mut self,
         geom: &OverlayGeom,
-        selected_row: Option<usize>,
+        vis: &VisualSelection,
     ) -> OverlaySelectionRects {
         let line_height = self.overlay_lh();
-        let target = selected_row.map(|row| {
-            overlay_row_top(
-                geom.text_top,
-                geom.header_rows,
-                geom.header_gap,
-                row,
-                line_height,
-            )
-        });
-        if let (Some(force), Some(target)) =
-            (crate::render::livingband::overlay_motion_force(), target)
-        {
-            let (from, to, t) = self.living_band_phase(force, target, line_height);
+        if let Some((force, from, to, t)) = vis.living() {
             let (selected, unselected, cross) =
                 self.living_band_rects(force, from, to, t, geom.card_x, geom.card_w, line_height);
             self.overlay_bars.set_corner(2.5);
@@ -243,9 +187,8 @@ impl TextPipeline {
                 cross,
             };
         }
-        let selected = match (selected_row, target) {
-            (Some(row), Some(target)) => {
-                let top = self.overlay_band_drawn(target);
+        let selected = match (vis.logical(), vis.band_top()) {
+            (Some(row), Some(top)) => {
                 let dx = self.overlay_slant_dx(row);
                 vec![[geom.card_x + dx, top, geom.card_w - dx, line_height]]
             }
@@ -261,7 +204,7 @@ impl TextPipeline {
     fn overlay_bar_selection(
         &mut self,
         geom: &OverlayGeom,
-        selected_row: Option<usize>,
+        vis: &VisualSelection,
         radius: f32,
         gap: f32,
         grow_px: f32,
@@ -275,9 +218,9 @@ impl TextPipeline {
         self.overlay_bars.set_stroke(0.0);
         self.overlay_bars
             .set_color(theme::overlay_bar_unselected().rgba_bytes());
-        let mut unselected = self.overlay_unselected_bar_rects(geom, &layout, selected_row);
-        let mut selected = self.overlay_selected_bar_rects(geom, &layout, selected_row);
-        layout.append_chord_plates(geom, selected_row, &mut selected, &mut unselected);
+        let mut unselected = self.overlay_unselected_bar_rects(geom, &layout, vis);
+        let mut selected = self.overlay_selected_bar_rects(geom, &layout, vis);
+        layout.append_chord_plates(geom, vis, &mut selected, &mut unselected);
         OverlaySelectionRects {
             selected,
             unselected,
@@ -335,7 +278,7 @@ impl TextPipeline {
         &self,
         geom: &OverlayGeom,
         layout: &OverlayBarLayout,
-        selected_row: Option<usize>,
+        vis: &VisualSelection,
     ) -> Vec<[f32; 4]> {
         let mut rects = match layout.coverage {
             theme::BarCoverage::SelectedOnly => Vec::new(),
@@ -343,7 +286,7 @@ impl TextPipeline {
                 .item_rows
                 .iter()
                 .copied()
-                .filter(|row| Some(*row) != selected_row)
+                .filter(|row| !vis.reads_selected(*row))
                 .map(|row| self.overlay_bar_plate(geom, layout, row))
                 .collect(),
         };
@@ -396,17 +339,19 @@ impl TextPipeline {
         [x, top + layout.bar_offset, width, layout.bar_height]
     }
 
+    /// ITEM 164 — the selected BAR's quad. Its `y` is the transaction's already
+    /// eased [`VisualSelection::band_top`] (this path re-runs no animator); its
+    /// `x`/width still hug the LOGICAL row's own shaped label, because a hug span
+    /// is a property of the row the bar is travelling TO.
     fn overlay_selected_bar_rects(
         &mut self,
         geom: &OverlayGeom,
         layout: &OverlayBarLayout,
-        selected_row: Option<usize>,
+        vis: &VisualSelection,
     ) -> Vec<[f32; 4]> {
-        let Some(row) = selected_row else {
+        let (Some(row), Some(top)) = (vis.logical(), vis.band_top()) else {
             return Vec::new();
         };
-        let target = layout.row_top(geom, row);
-        let top = self.overlay_band_drawn(target);
         let (x, width) = layout.span(geom, row);
         let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), self.overlay_slant_dx(row));
         let grow = layout.grow_px * self.overlay_grow_progress();

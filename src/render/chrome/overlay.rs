@@ -577,26 +577,16 @@ impl TextPipeline {
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let canvas_h = self.window_h;
-        if geom.theme {
-            let sel_row = geom
-                .plan
-                .iter()
-                .position(|l| matches!(l, ThemeLine::Item(i) if *i == self.overlay_selected))
-                .unwrap_or(0);
-            Some((
-                geom.top_idx,
-                geom.plan.len(),
-                sel_row,
-                geom.card_h,
-                canvas_h,
-            ))
+        // `sel_row` is the LOGICAL selected display line, through the one owner —
+        // this used to re-derive both families' arithmetic inline and drift was
+        // only ever a matter of time (item 164).
+        let sel_row = self.overlay_selected_display_line(&geom).unwrap_or(0);
+        let lines = if geom.theme {
+            geom.plan.len()
         } else {
-            let sel_row = self
-                .overlay_selected
-                .saturating_sub(geom.top_idx)
-                .min(geom.visible.saturating_sub(1));
-            Some((geom.top_idx, geom.visible, sel_row, geom.card_h, canvas_h))
-        }
+            geom.visible
+        };
+        Some((geom.top_idx, lines, sel_row, geom.card_h, canvas_h))
     }
 
     /// ITEM 94 — the `overlay_items` INDEX drawn at display row `k`, or `None` when
@@ -778,19 +768,21 @@ impl TextPipeline {
             && py < geom.text_top + lh
     }
 
-    /// THE ONE owner of the selected candidate's DISPLAY-line index (0-based
-    /// among the shown candidate lines, past the header). The selected-row band
-    /// ([`overlay_draw_card`]) and the secondary right-column recolor
-    /// ([`shape_overlay_right`]) both read it, so they can never disagree on which
-    /// row is highlighted. Two layout families: a faceted/theme plan's selected
+    /// THE ONE owner of the LOGICAL selected candidate's DISPLAY-line index
+    /// (0-based among the shown candidate lines, past the header) — the row Enter
+    /// or a click activates. Two layout families: a faceted/theme plan's selected
     /// world sits at its POSITION in the plan (section headers push it down); a
     /// flat picker's selection is its offset in the visible window (saturated +
     /// clamped defensively so a transient list-shrink can never over/underflow).
     /// `None` iff there are no items.
-    pub(in crate::render) fn overlay_selected_display_line(
-        &self,
-        geom: &OverlayGeom,
-    ) -> Option<usize> {
+    ///
+    /// ITEM 164 — THIS IS NOT "WHICH ROW LOOKS SELECTED". The bands are ANIMATED,
+    /// so mid-glide the logical row and the row that visually reads selected are
+    /// DIFFERENT; a visual colouring itself from this index while its neighbours
+    /// ride the band puts two answers on one card. Rendering decisions go through
+    /// [`TextPipeline::resolve_visual_selection`] — hence `pub(super)`, and hence
+    /// `render::tests::visual_selection_law`'s sweep for a second caller.
+    pub(super) fn overlay_selected_display_line(&self, geom: &OverlayGeom) -> Option<usize> {
         if geom.n_items == 0 {
             None
         } else if geom.theme {

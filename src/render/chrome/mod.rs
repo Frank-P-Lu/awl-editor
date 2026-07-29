@@ -260,8 +260,14 @@ mod overlay_draw;
 mod overlay_rows;
 mod overlay_selection;
 mod overlay_shape;
+// ITEM 164 — the ONE visual-selection transaction every selected visual reads.
+mod overlay_visual_sel;
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;
+pub(in crate::render) use overlay_visual_sel::{
+    VisualSelection, overlay_selected_primary_ink, overlay_selected_secondary_ink,
+    overlay_selected_secondary_srgb,
+};
 mod gutter;
 mod menubar;
 mod outline;
@@ -647,13 +653,6 @@ pub(super) fn bars_inline_shortcut() -> bool {
         crate::render::effective_list_style(),
         theme::ListStyle::Bars { extent, .. } if extent.inline_shortcut()
     )
-}
-
-pub(super) fn selected_secondary_on_band() -> bool {
-    match crate::render::effective_list_style() {
-        theme::ListStyle::Bars { .. } => true,
-        theme::ListStyle::Pane => true,
-    }
 }
 
 pub(super) fn bar_full_span(card_x: f32, card_w: f32) -> (f32, f32) {

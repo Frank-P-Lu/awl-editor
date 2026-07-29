@@ -42,13 +42,20 @@
 //! real code reference trips the law.
 
 /// The ONE production file allowed to call `overlay_band_drawn(`/
-/// `living_band_phase(` directly: `chrome/overlay_selection.rs`, the shared
-/// Pane-family row-fill seam every `OverlayKind`'s render passes through
-/// (see `overlay_pane_selection` / `overlay_selected_bar_rects`).
-/// `pipeline_overlay.rs` itself (the two
-/// fns' own definitions) is scanned too but excluded by NAME below, mirroring
+/// `living_band_phase(` directly: `chrome/overlay_visual_sel.rs`, the ONE
+/// visual-selection transaction every `OverlayKind`'s render passes through
+/// (`resolve_visual_selection`). `pipeline_overlay.rs` itself (the two fns' own
+/// definitions) is scanned too but excluded by NAME below, mirroring
 /// `float_surface_law`'s owner-file treatment.
-const ALLOWED_DIRECT_CALLER: &str = "chrome/overlay_selection.rs";
+///
+/// ITEM 164 MOVED THIS. It used to be `chrome/overlay_selection.rs`, where the
+/// band emitters ran the animators themselves — and that was exactly the
+/// structure that let OTHER selected visuals (the shortcut ink, the rail thumb)
+/// answer from state instead. The animators now run once, at the transaction,
+/// and the emitters consume its result; this law and
+/// `visual_selection_law::no_render_path_reads_the_logical_selected_row_outside_the_transaction`
+/// are the two halves that keep both ends of that funnel closed.
+const ALLOWED_DIRECT_CALLER: &str = "chrome/overlay_visual_sel.rs";
 
 /// True iff `line` (real code, not a comment) calls `overlay_band_drawn(` or
 /// `living_band_phase(`.
@@ -111,7 +118,7 @@ fn glide_anchor_has_no_bypass_among_summoned_surfaces() {
     scan_dir(&render_root, &render_root, &mut hits);
     assert!(
         hits.iter().all(|(f, _)| f == ALLOWED_DIRECT_CALLER),
-        "only `{ALLOWED_DIRECT_CALLER}` (the shared Pane-family row-fill seam) may call \
+        "only `{ALLOWED_DIRECT_CALLER}` (the ONE visual-selection transaction) may call \
          `overlay_band_drawn`/`living_band_phase` — a second call site could reintroduce \
          the 2026-07-22 stale-anchor selection-desync bug independently. offending lines:\n{}",
         hits.iter()
@@ -121,14 +128,13 @@ fn glide_anchor_has_no_bypass_among_summoned_surfaces() {
             .join("\n")
     );
 
-    // NON-VACUOUS: `chrome/overlay_selection.rs` — the ONE legitimate production
-    // caller — really does carry calls (if a refactor ever routed the fill
-    // through a different file without updating the allowlist, this pins the
-    // expectation so the law's target stays explicit rather than silently
-    // trivial).
+    // NON-VACUOUS: the allowed owner — the ONE legitimate production caller —
+    // really does carry calls (if a refactor ever routed the animators through a
+    // different file without updating the allowlist, this pins the expectation so
+    // the law's target stays explicit rather than silently trivial).
     assert!(
         hits.iter().any(|(f, _)| f == ALLOWED_DIRECT_CALLER),
-        "chrome/overlay_selection.rs must be the real Pane-family row-fill seam \
+        "{ALLOWED_DIRECT_CALLER} must be the real visual-selection transaction \
          (found no calls there at all — the scan itself may be broken)"
     );
 

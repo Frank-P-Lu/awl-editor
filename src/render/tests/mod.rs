@@ -75,6 +75,7 @@ mod syntax_roles;
 mod tables;
 mod theme;
 mod theme_caps_law;
+mod visual_selection_law;
 mod washes;
 mod waves_drift_item87;
 #[cfg(not(target_arch = "wasm32"))]
@@ -108,6 +109,12 @@ pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue,
     let mut p = TextPipeline::new(&device, &queue, &cache, wgpu::TextureFormat::Rgba8UnormSrgb);
     p.set_size(w, h);
     Some((device, queue, p))
+}
+
+/// ITEM 164 — an EMPTY visual selection, for the shaping/width probes that pass
+/// no selected ink and so cannot flip any row.
+pub(super) fn no_vis() -> crate::render::chrome::VisualSelection {
+    crate::render::chrome::VisualSelection::default()
 }
 
 pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {
