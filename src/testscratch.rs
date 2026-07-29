@@ -122,6 +122,32 @@ mod tests {
     }
 
     #[test]
+    fn drop_removes_the_directory_when_the_caller_returns_early() {
+        // Distinct from the happy-path test above: this models the exact
+        // shape most fixtures use — `let dir = ScratchDir::new(..); if guard {
+        // return; }` — an early `?`/`return` this guard must survive, not
+        // just a normal fall-through. (Rust's `Drop` does not actually
+        // distinguish an early `return` from falling off a function's end —
+        // both are ordinary, non-unwinding scope exits — so this and the
+        // happy-path test above jointly cover every non-panicking exit; the
+        // panic test above covers the third, unwinding one.)
+        fn early_return_after_creating(path: &Path) -> &'static str {
+            let _dir = ScratchDir::new(path.to_path_buf());
+            if true {
+                return "returned early";
+            }
+            unreachable!()
+        }
+        let path = stem("early-return");
+        assert_eq!(early_return_after_creating(&path), "returned early");
+        assert!(
+            !path.exists(),
+            "the guard must drop (and remove its directory) across an early return, \
+             not only at the end of the function"
+        );
+    }
+
+    #[test]
     fn new_wipes_a_stale_leftover_directory_first() {
         let path = stem("stale");
         std::fs::create_dir_all(&path).unwrap();
