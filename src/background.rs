@@ -110,6 +110,29 @@ pub fn waves_drift_radians(phase: f32) -> f32 {
     phase * std::f32::consts::TAU * WAVE_DRIFT_CYCLES / crate::lava::LAVA_LOOP_CYCLES
 }
 
+// The dev-only gallery knob (AWL_WAVES_PHASE=<f32>): mirrors `AWL_LAVA`/
+// `AWL_STARS_PHASE` exactly (read once, memoized, a total no-op unless set —
+// a headless capture never ticks the clock, so this never touches
+// determinism there). Drives BOTH consumers of `waves_render_phase` — Bombora's
+// wave drift AND Bowerbird's organic drift (item 163) — one shared clock, one
+// knob. Lets a gallery/before-after shot reach a real mid-drift composition.
+fn parse_waves_phase(raw: &str) -> Option<f32> {
+    let p: f32 = raw.trim().parse().ok()?;
+    p.is_finite().then_some(p)
+}
+
+/// `AWL_WAVES_PHASE`'s parsed value, or `None` (every normal + headless run).
+/// Consumed by `TextPipeline::waves_render_phase` (env wins outright).
+pub fn env_phase() -> Option<f32> {
+    static ONCE: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
+    *ONCE.get_or_init(|| {
+        std::env::var("AWL_WAVES_PHASE")
+            .ok()
+            .as_deref()
+            .and_then(parse_waves_phase)
+    })
+}
+
 /// The Rust MIRROR of `shaders/background.wgsl`'s `waves_rgb` boundary math —
 /// the top/middle boundary `b1` (top third of the viewport height, plus the
 /// scallop sine, phase-ADVANCED by `drift`) and the middle/bottom boundary
@@ -324,71 +347,4 @@ mod bytemuck_lite {
 unsafe impl bytemuck_lite::Pod for Globals {}
 
 #[cfg(test)]
-mod waves_drift_tests {
-    use super::*;
-
-    #[test]
-    fn drift_is_zero_at_the_settled_phase() {
-        assert_eq!(waves_drift_radians(0.0), 0.0);
-    }
-
-    #[test]
-    fn drift_wraps_seamlessly_at_the_shared_clocks_loop_endpoint() {
-        let h = 900.0;
-        for x in [0.0, 137.0, 512.0, 1801.0_f32] {
-            let start = waves_boundaries(x, h, waves_drift_radians(0.0));
-            let end = waves_boundaries(x, h, waves_drift_radians(crate::lava::LAVA_LOOP_CYCLES));
-            assert!(
-                (start.0 - end.0).abs() < 1e-2,
-                "b1 seamless at the wrap: {start:?} vs {end:?}"
-            );
-            assert!(
-                (start.1 - end.1).abs() < 1e-2,
-                "b2 seamless at the wrap: {start:?} vs {end:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn boundaries_never_cross_at_any_drift_phase() {
-        let h = 900.0;
-        for step in 0..20 {
-            let phase = step as f32 * crate::lava::LAVA_LOOP_CYCLES / 20.0;
-            let drift = waves_drift_radians(phase);
-            for x in (0..2000).step_by(97) {
-                let (b1, b2) = waves_boundaries(x as f32, h, drift);
-                assert!(
-                    b1 < b2,
-                    "tiers never cross at drift={drift}, x={x}: b1={b1} b2={b2}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn drift_is_not_a_rigid_one_sheet_translation() {
-        let h = 900.0;
-        let d = 0.7_f32;
-        let shift = d / WAVE_FREQ;
-        let (b1_d, b2_d) = waves_boundaries(123.0, h, d);
-        let (b1_static_shifted, b2_static_shifted) = waves_boundaries(123.0 + shift, h, 0.0);
-        assert!(
-            (b1_d - b1_static_shifted).abs() < 1e-2,
-            "b1 alone is a pure phase shift by d/FREQ: {b1_d} vs {b1_static_shifted}"
-        );
-        assert!(
-            (b2_d - b2_static_shifted).abs() > 1.0,
-            "b2 does NOT follow b1's shift -- the field is genuinely layered \
-             (counter-moving), not one rigid sheet: {b2_d} vs {b2_static_shifted}"
-        );
-    }
-
-    #[test]
-    fn nonzero_drift_actually_moves_the_boundaries() {
-        let h = 900.0;
-        let (b1_0, b2_0) = waves_boundaries(50.0, h, 0.0);
-        let (b1_d, b2_d) = waves_boundaries(50.0, h, 1.1);
-        assert!((b1_0 - b1_d).abs() > 0.5, "b1 moves under drift");
-        assert!((b2_0 - b2_d).abs() > 0.5, "b2 moves under drift");
-    }
-}
+mod tests;

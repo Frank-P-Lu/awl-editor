@@ -298,23 +298,21 @@ impl TextPipeline {
     }
 
     pub fn lava_render_phase(&self) -> f32 {
-        crate::lava::lava_phase_for(
-            self.lava_phase,
-            crate::motion::reduced(),
-            crate::lava::env_phase(),
-        )
+        let env = crate::lava::env_phase();
+        crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), env)
     }
 
     pub fn stars_render_phase(&self) -> f32 {
-        crate::lava::lava_phase_for(
-            self.lava_phase,
-            crate::motion::reduced(),
-            crate::stars::env_phase(),
-        )
+        let env = crate::stars::env_phase();
+        crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), env)
     }
 
+    // Item 163: the third consumer of the same shared-clock env-override door
+    // (mirrors the two above — see `crate::background::env_phase`'s own doc for
+    // why one knob drives both Waves and Organic).
     pub fn waves_render_phase(&self) -> f32 {
-        crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), None)
+        let env = crate::background::env_phase();
+        crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), env)
     }
 
     /// Advance the lava lamp's animation phase by `dt` seconds — called ONLY by
