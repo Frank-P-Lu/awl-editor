@@ -56,6 +56,10 @@ mod blur;
 mod geometry;
 use geometry::*;
 pub use geometry::{ImageHandle, ResizeEdge, visible_lines_z};
+// Test-only: lets `crate::lava`'s geometry-sweep laws read the SAME column
+// formula the live app does, never a parallel computation.
+#[cfg(test)]
+pub use geometry::{column_left_for, column_width_for};
 
 mod layout_report;
 pub(crate) use layout_report::LayoutReport;

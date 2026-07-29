@@ -60,7 +60,7 @@ struct Globals {
     // BASE blob layout: xy = center in UV [0,1] (0,0 = top-left); z = radius as a
     // fraction of viewport HEIGHT (round regardless of aspect); w = field weight.
     // The shader animates each blob's position from `anim.x` (see `blob_center`).
-    blobs: array<vec4<f32>, 8>,
+    blobs: array<vec4<f32>, 12>,
     // The GUTTER's local corner carve rect [left, top, right, bottom] (px), used
     // when `gutter == 1`. All-zero otherwise.
     gutter_rect: vec4<f32>,
@@ -132,7 +132,7 @@ fn blob_center(i: u32, base: vec4<f32>) -> vec2<f32> {
     // `lava::animated_center`.
     let amp_y = 0.055 + 0.020 * fract(fi * 0.37);
     let aspect = g.field_viewport.y / max(g.field_viewport.x, 1.0);
-    let amp_x = base.z * aspect * (0.18 + 0.08 * fract(fi * 0.61));
+    let amp_x = base.z * aspect * (0.18 + 0.08 * fract(fi * 0.61)) * g.anim.y;
     let off = fi * 1.7;
     let cy = base.y + amp_y * sin(phase * TAU + off);
     let cx = base.x + amp_x * sin(phase * TAU * 0.5 + off * 1.3);
