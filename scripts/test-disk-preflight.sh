@@ -25,12 +25,9 @@ chmod +x "$oracle" "$sweep"
 healthy_bytes=$((40 * 1024 * 1024 * 1024))
 insufficient_bytes=$((20 * 1024 * 1024 * 1024))
 ci_capacity_bytes=$((3 * 1024 * 1024 * 1024))
-stale_pid=$(( $$ + 100000000 ))
-while kill -0 "$stale_pid" 2>/dev/null; do
-  stale_pid=$((stale_pid + 100000000))
-done
 
 run() {
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
@@ -38,6 +35,18 @@ run() {
   AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
   AWL_TEST_SWEEP_RESULT="${1:-$healthy_bytes}" \
   "${2:-$PREFLIGHT}"
+}
+
+wait_for_file() {
+  local path="$1" attempts=0
+  until [[ -e "$path" ]]; do
+    attempts=$((attempts + 1))
+    if (( attempts > 200 )); then
+      echo "test-disk-preflight: timed out waiting for $path" >&2
+      exit 1
+    fi
+    sleep 0.01
+  done
 }
 
 grep -Fq 'AWL_DISK_PREFLIGHT_CALLER=worker-build "$ROOT/.orchestrator/disk-preflight.sh"' \
@@ -124,11 +133,29 @@ grep -l 'status=reused-recovery' "$WORK"/contender-*.out >/dev/null || {
   echo "test-disk-preflight: contenders did not reuse the in-lock recovery" >&2; exit 1;
 }
 
-# MUTATION PROOF: closing the preserved descriptor before exec makes the
-# restarted Bashes race; the one-sweep contention law must turn red.
+# Old marker variables and an unrelated inherited FD 9 are forgeable inputs,
+# not capabilities. All four contenders must still serialize to one sweep.
+printf '%s\n' 1073741824 >"$WORK/free"
+: >"$WORK/sweeps"
+: >"$WORK/not-the-lock"
+for n in 1 2 3 4; do
+  AWL_DISK_PREFLIGHT_SERIALIZED=1 \
+    AWL_TEST_SWEEP_DELAY=0.3 run "$healthy_bytes" >"$WORK/forged-$n.out" \
+    9>"$WORK/not-the-lock" &
+done
+wait
+[[ "$(wc -l <"$WORK/sweeps")" -eq 1 ]] || {
+  echo "test-disk-preflight: forgeable environment or FD bypassed flock" >&2; exit 1;
+}
+grep -l 'status=reused-recovery' "$WORK"/forged-*.out >/dev/null || {
+  echo "test-disk-preflight: forged contenders did not reuse serialized recovery" >&2; exit 1;
+}
+
+# MUTATION PROOF: omitting both blocking and capability-probe flock calls makes
+# the restarted Bashes race; the one-sweep contention law must turn red.
 fd_mutated="$WORK/disk-preflight-without-fd9.sh"
 cp "$PREFLIGHT" "$fd_mutated"
-perl -0pi -e 's/fcntl\(\$keep, F_SETFD, 0\)/fcntl(\$keep, F_SETFD, 1)/' "$fd_mutated"
+perl -0pi -e 's/flock\(\$lock, LOCK_EX \| LOCK_NB\) or exit 1;/1;/; s/flock\(\$lock, LOCK_EX\) or die "disk-preflight: cannot lock: \$!\\n";/1;/' "$fd_mutated"
 chmod +x "$fd_mutated"
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
@@ -137,53 +164,38 @@ for n in 1 2 3 4; do
 done
 wait
 [[ "$(wc -l <"$WORK/sweeps")" -gt 1 ]] || {
-  echo "test-disk-preflight: closing FD 9 mutation did not break contention" >&2; exit 1;
+  echo "test-disk-preflight: omitting flock mutation did not break contention" >&2; exit 1;
 }
 
-# Deterministic A/B/C stale handoff: every contender sees A's dead lock; the
-# elected reclaimer must publish C before the others can acquire the path.
-printf 'pid=%s caller=dead-owner\n' "$stale_pid" >"$WORK/lock"
+# A waiter is already blocked behind an independently held kernel lock when the
+# owner is killed. The kernel releases it and that exact waiter performs the
+# sole sweep; no PID or pathname reclamation participates.
 printf '%s\n' 1073741824 >"$WORK/free"
 : >"$WORK/sweeps"
-for n in 1 2 3 4; do
-  AWL_TEST_SWEEP_DELAY=0.3 run "$healthy_bytes" >"$WORK/stale-contender-$n.out" &
-done
-wait
-[[ "$(wc -l <"$WORK/sweeps")" -eq 1 ]] || {
-  echo "test-disk-preflight: stale A/B/C handoff launched more than one sweep" >&2; exit 1;
+perl -e 'use Fcntl qw(:flock); open my $lock, ">>", $ARGV[0] or die $!; flock($lock, LOCK_EX) or die $!; open my $ready, ">", $ARGV[1] or die $!; print {$ready} "$$\n"; close $ready; sleep 60' \
+  "$WORK/lock" "$WORK/owner-ready" &
+killed_owner_job=$!
+wait_for_file "$WORK/owner-ready"
+killed_owner="$(cat "$WORK/owner-ready")"
+run "$healthy_bytes" >"$WORK/takeover-waiter.out" &
+takeover_waiter=$!
+sleep 0.1
+[[ ! -s "$WORK/sweeps" ]] || {
+  echo "test-disk-preflight: waiter swept before owning flock" >&2; exit 1;
 }
-grep -l 'status=reused-recovery' "$WORK"/stale-contender-*.out >/dev/null || {
-  echo "test-disk-preflight: stale A/B/C contenders did not preserve C's lock" >&2; exit 1;
-}
-
-# SIGKILL releases the kernel-held serializer; the next owner proceeds without
-# inferring stale state from a pathname or PID.
-kill_owner="$WORK/kill-owner.sh"
-cat >"$kill_owner" <<'EOF'
-#!/usr/bin/env bash
-kill -KILL "$1"
-EOF
-chmod +x "$kill_owner"
-printf '%s\n' 1073741824 >"$WORK/free"
-: >"$WORK/sweeps"
-if env AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$oracle" \
-  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$sweep" \
-  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/lock" \
-  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
-  AWL_DISK_PREFLIGHT_AFTER_SERIALIZER_COMMAND="$kill_owner" \
-  AWL_TEST_FREE_FILE="$WORK/free" \
-  AWL_TEST_SWEEP_LOG="$WORK/sweeps" \
-  AWL_TEST_SWEEP_RESULT="$healthy_bytes" \
-  perl -e '$pid = fork; if (!$pid) { exec @ARGV } waitpid $pid, 0; exit (($? & 127) == 9 ? 42 : 1)' \
-  "$PREFLIGHT" >/dev/null 2>&1; then
-  killed_owner=0
-else
-  killed_owner=$?
-fi
-if [[ "$killed_owner" -ne 42 ]]; then
+kill -KILL "$killed_owner"
+if wait "$killed_owner_job"; then
   echo "test-disk-preflight: serializer SIGKILL fixture unexpectedly returned" >&2; exit 1
+else
+  killed_owner_status=$?
 fi
-run "$healthy_bytes" >/dev/null
+[[ "$killed_owner_status" -eq 137 ]] || {
+  echo "test-disk-preflight: serializer owner did not die by SIGKILL" >&2; exit 1;
+}
+wait "$takeover_waiter"
+[[ "$(wc -l <"$WORK/sweeps")" -eq 1 ]] || {
+  echo "test-disk-preflight: SIGKILL waiter takeover did not run one sweep" >&2; exit 1;
+}
 
 # MUTATION PROOF: deleting the in-lock recheck makes all stale contenders sweep.
 mutated="$WORK/disk-preflight-without-recheck.sh"
@@ -200,35 +212,6 @@ wait
   echo "test-disk-preflight: mutation removing recheck did not fail contention law" >&2; exit 1;
 }
 
-# Advisory lock contents are inert: a dead-looking file cannot block recovery.
-printf 'pid=%s caller=interrupted-worker\n' "$stale_pid" >"$WORK/lock"
-printf '%s\n' 1073741824 >"$WORK/free"
-: >"$WORK/sweeps"
-stale_recovered="$(run "$healthy_bytes")"
-[[ "$stale_recovered" == *'status=recovered'* && "$stale_recovered" == *'stale_lock_reclaimed=0'* ]] || {
-  echo "test-disk-preflight: inert lock contents affected serializer recovery" >&2; exit 1;
-}
-
-rm -f "$WORK/lock"
-
-# Cleanup is identity-safe. Replacing the published inode just before EXIT
-# must leave the replacement behind for its new owner.
-replacement="$WORK/replacement.sh"
-cat >"$replacement" <<'EOF'
-#!/usr/bin/env bash
-rm -f "$1"
-printf 'pid=%s caller=replacement-owner\n' "$$" >"$1"
-EOF
-chmod +x "$replacement"
-printf '%s\n' 1073741824 >"$WORK/free"
-: >"$WORK/sweeps"
-AWL_DISK_PREFLIGHT_TEST_MODE=1 \
-  AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND="$replacement" run "$healthy_bytes" >/dev/null
-grep -Fq 'caller=replacement-owner' "$WORK/lock" || {
-  echo "test-disk-preflight: old cleanup removed a replacement lock inode" >&2; exit 1;
-}
-rm -f "$WORK/lock"
-
 # The real df path consumes POSIX -P's 1 KiB Available field. This fixture is
 # the common macOS/Linux shape and proves Bash receives an integer byte count.
 fake_df="$WORK/df"
@@ -238,9 +221,10 @@ printf '%s\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on'
 printf '%s\n' '/dev/fake 100000000 0 41943040 0% /'
 EOF
 chmod +x "$fake_df"
-df_receipt="$(PATH="$WORK:$PATH" CI=1 AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/df-lock" "$PREFLIGHT")"
+df_receipt="$(PATH="$WORK:$PATH" CI=1 AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/df-lock" "$PREFLIGHT")"
 [[ "$df_receipt" == *'free_bytes=42949672960'* && "$df_receipt" == *'status=ci-capacity'* ]] || {
   echo "test-disk-preflight: POSIX df fixture did not yield an integer byte count" >&2; exit 1;
 }
 
-echo "test-disk-preflight: healthy, recovery, CI, contention, stale-lock, and mutations proved"
+echo "test-disk-preflight: healthy, recovery, CI, flock contention, SIGKILL takeover, and mutations proved"

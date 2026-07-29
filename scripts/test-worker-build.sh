@@ -28,6 +28,7 @@ chmod +x "$probe"
 chmod +x "$free_oracle" "$never_sweep"
 
 output="$(CARGO_BUILD_JOBS=99 \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$free_oracle" \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$never_sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock" \
@@ -46,6 +47,7 @@ if [[ -n "${CARGO_BUILD_JOBS:-}" ]]; then
   exit 1
 fi
 if ! AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$free_oracle" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$never_sweep" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/native-disk-lock" \
   "$ROOT/scripts/native-gate.sh" --bin >/dev/null 2>"$WORK/native-gate.err"; then

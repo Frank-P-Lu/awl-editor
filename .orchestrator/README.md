@@ -49,9 +49,9 @@ canonical native gate invokes the same owner for the root merge train. Above
 its 32 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
 locks, rechecks, and asks the sole traversal/deletion owner, `scripts/sweep.sh
 1`, for recovery. A post-sweep 24 GiB minimum is an early, truthful failure.
-The lock records the owning PID and caller; a dead recorded owner from an
-interrupted process is reclaimed, while an unparseable or live owner is never
-stolen.
+The serializer is a kernel advisory lock held through inherited file descriptor
+9. The lock file may persist, but its contents carry no authority; the kernel
+releases ownership when a process exits or is killed.
 
 CI is intentionally capacity-only: it does not install or run `cargo-sweep`,
 and uses an explicit 2 GiB capacity floor rather than the local four-lane

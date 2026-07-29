@@ -14,10 +14,14 @@ readonly MINIMUM_BYTES=$((24 * 1024 * 1024 * 1024))
 readonly CI_MINIMUM_BYTES=$((2 * 1024 * 1024 * 1024))
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CALLER="${AWL_DISK_PREFLIGHT_CALLER:-build}"
-LOCK="${AWL_DISK_PREFLIGHT_LOCK_DIR:-${TMPDIR:-/tmp}/awl-disk-preflight.lock}"
+LOCK="${TMPDIR:-/tmp}/awl-disk-preflight.lock"
+if [[ "${AWL_DISK_PREFLIGHT_TEST_MODE:-}" == 1 && -n "${AWL_DISK_PREFLIGHT_LOCK_DIR:-}" ]]; then
+  LOCK="$AWL_DISK_PREFLIGHT_LOCK_DIR"
+fi
 
 available_bytes() {
-  if [[ -n "${AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND:-}" ]]; then
+  if [[ "${AWL_DISK_PREFLIGHT_TEST_MODE:-}" == 1 \
+    && -n "${AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND:-}" ]]; then
     "${AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND}"
     return
   fi
@@ -27,8 +31,8 @@ available_bytes() {
 }
 
 receipt() {
-  printf 'disk-preflight caller=%s status=%s policy=%s free_bytes=%s healthy_bytes=%s minimum_bytes=%s stale_lock_reclaimed=%s\n' \
-    "$CALLER" "$1" "$2" "$3" "$4" "$5" "$STALE_LOCK_RECLAIMED"
+  printf 'disk-preflight caller=%s status=%s policy=%s serializer=flock free_bytes=%s healthy_bytes=%s minimum_bytes=%s\n' \
+    "$CALLER" "$1" "$2" "$3" "$4" "$5"
 }
 
 fail_insufficient() {
@@ -39,12 +43,29 @@ fail_insufficient() {
 }
 
 run_sweep() {
-  if [[ -n "${AWL_DISK_PREFLIGHT_SWEEP_COMMAND:-}" ]]; then
+  if [[ "${AWL_DISK_PREFLIGHT_TEST_MODE:-}" == 1 \
+    && -n "${AWL_DISK_PREFLIGHT_SWEEP_COMMAND:-}" ]]; then
     "${AWL_DISK_PREFLIGHT_SWEEP_COMMAND}"
   else
     "$ROOT/scripts/sweep.sh" 1
   fi
 }
+
+serializer_fd_is_authoritative() {
+  AWL_DISK_PREFLIGHT_LOCK_PATH="$LOCK" perl -e '
+    use Fcntl qw(:flock);
+    open my $lock, ">&=9" or exit 1;
+    my @held = stat($lock);
+    my @path = stat($ENV{AWL_DISK_PREFLIGHT_LOCK_PATH});
+    exit 1 unless @held && @path && $held[0] == $path[0] && $held[1] == $path[1];
+    flock($lock, LOCK_EX | LOCK_NB) or exit 1;
+  ' 2>/dev/null
+}
+
+SERIALIZER_HELD=0
+if serializer_fd_is_authoritative; then
+  SERIALIZER_HELD=1
+fi
 
 free_bytes="$(available_bytes)"
 # CI runners normally have a single fresh checkout and deliberately do not
@@ -53,18 +74,15 @@ if [[ -n "${CI:-}" ]]; then
   if (( free_bytes < CI_MINIMUM_BYTES )); then
     fail_insufficient "$free_bytes" "ci-no-sweep" "$CI_MINIMUM_BYTES" "$CI_MINIMUM_BYTES" ci
   fi
-  STALE_LOCK_RECLAIMED=0
   receipt ci-capacity ci "$free_bytes" "$CI_MINIMUM_BYTES" "$CI_MINIMUM_BYTES"
   exit 0
 fi
 
-if (( free_bytes >= HEALTHY_BYTES )) && [[ -z "${AWL_DISK_PREFLIGHT_SERIALIZED:-}" ]]; then
-  STALE_LOCK_RECLAIMED=0
+if (( free_bytes >= HEALTHY_BYTES )) && (( SERIALIZER_HELD == 0 )); then
   receipt healthy fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
   exit 0
 fi
 
-STALE_LOCK_RECLAIMED=0
 test_hook() {
   local command_var="$1"
   shift
@@ -76,9 +94,9 @@ test_hook() {
 # Advisory flock is released by the kernel when its owner dies. The Perl core
 # wrapper keeps the locked descriptor across exec, so Bash never has to infer
 # or reclaim stale ownership from a PID or pathname.
-if [[ -z "${AWL_DISK_PREFLIGHT_SERIALIZED:-}" ]]; then
+if (( SERIALIZER_HELD == 0 )); then
   AWL_DISK_PREFLIGHT_LOCK_PATH="$LOCK" \
-    exec perl -e 'use Fcntl qw(:flock F_SETFD); use POSIX qw(dup2); open my $lock, ">>", $ENV{AWL_DISK_PREFLIGHT_LOCK_PATH} or die "disk-preflight: cannot open lock: $!\n"; flock($lock, LOCK_EX) or die "disk-preflight: cannot lock: $!\n"; dup2(fileno($lock), 9) >= 0 or die "disk-preflight: cannot preserve lock: $!\n"; open my $keep, ">&=9" or die "disk-preflight: cannot retain lock: $!\n"; fcntl($keep, F_SETFD, 0) or die "disk-preflight: cannot preserve lock: $!\n"; $ENV{AWL_DISK_PREFLIGHT_SERIALIZED} = 1; exec {$ARGV[0]} @ARGV or die "disk-preflight: cannot restart: $!\n";' \
+    exec perl -e 'use Fcntl qw(:flock F_SETFD); use POSIX qw(dup2); open my $lock, ">>", $ENV{AWL_DISK_PREFLIGHT_LOCK_PATH} or die "disk-preflight: cannot open lock: $!\n"; flock($lock, LOCK_EX) or die "disk-preflight: cannot lock: $!\n"; dup2(fileno($lock), 9) >= 0 or die "disk-preflight: cannot preserve lock: $!\n"; open my $keep, ">&=9" or die "disk-preflight: cannot retain lock: $!\n"; fcntl($keep, F_SETFD, 0) or die "disk-preflight: cannot preserve lock: $!\n"; exec {$ARGV[0]} @ARGV or die "disk-preflight: cannot restart: $!\n";' \
     /usr/bin/env bash "${BASH_SOURCE[0]}"
 fi
 
@@ -98,5 +116,4 @@ free_bytes="$(available_bytes)"
 if (( free_bytes < MINIMUM_BYTES )); then
   fail_insufficient "$free_bytes" "sweep-1d" "$MINIMUM_BYTES" "$HEALTHY_BYTES" fleet
 fi
-test_hook AWL_DISK_PREFLIGHT_BEFORE_CLEANUP_COMMAND "$LOCK"
 receipt recovered fleet "$free_bytes" "$HEALTHY_BYTES" "$MINIMUM_BYTES"
