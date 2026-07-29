@@ -355,8 +355,9 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
         ("Brolga", IconCursor::Pill),
         ("Wagtail", IconCursor::Block),
         // Item 121: the poster silhouette moved off the pill onto the shared
-        // Block preset — the ground stays the inert `base_100` default
-        // pending the user's A/B/C ground pick (see `IconGround`).
+        // Block preset; the ground is the user's C pick (`IconGround::
+        // Blend40`), asserted by name in
+        // `every_shipped_world_defaults_to_the_inert_base_100_ground_except_firetail`.
         ("Firetail", IconCursor::Block),
         ("Cassowary", IconCursor::Block),
         // ITEM 158: EB Garamond's `l` is footed, so Narrow (which sits INSIDE
@@ -1102,14 +1103,15 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Cassowary",
         baseline: 20.7490234375,
     },
-    // Item 121: Firetail's icon cursor moved Pill -> Block, which pulled it
-    // and Potoroo (both Block, same face, near-identical base_100 ground)
-    // closer on this axis — 32.87 -> 25.94, still inside the danger zone,
-    // reviewed and re-blessed at the new measured value.
+    // Item 121: Firetail's icon cursor moved Pill -> Block (32.87 -> 25.94),
+    // then its ground moved to the user's C pick, `IconGround::Blend40`
+    // (25.94 -> 44.89) — the wine ground pulls it noticeably further from
+    // Potoroo's rust, but not out of this axis's danger zone, so it stays
+    // blessed at the new measured value.
     Blessed {
         a: "Potoroo",
         b: "Firetail",
-        baseline: 25.939453125,
+        baseline: 44.88671875,
     },
     Blessed {
         a: "Galah",
@@ -1150,14 +1152,12 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Mulga",
         baseline: 67.619140625,
     },
-    // Item 121: Firetail's larger Block slab (vs the old Pill) shifted its
-    // mean channel distance from every other world's tile slightly — Tawny
-    // moved 69.75 -> 66.60, re-blessed at the new measured value.
-    Blessed {
-        a: "Tawny",
-        b: "Firetail",
-        baseline: 66.6005859375,
-    },
+    // Item 121: Tawny/Firetail was blessed here through two Firetail changes
+    // (69.75 -> 66.60 for Block; see git history) — the user's C ground pick
+    // (`IconGround::Blend40`) then widened it PAST the danger zone entirely
+    // (66.60 -> 71.49, >= the 70.0 threshold), so the entry is REMOVED, not
+    // re-blessed: `stale_blessed_entry_for_a_widened_pair_is_flagged` is the
+    // law that would catch a stale entry left behind here.
     // ITEM 158 — the same pale-warm ground cluster as DIFFERING_BLESSED's own
     // Paperbark note; Bilby/Galah and Bilby/Saltpan are already blessed here
     // for the identical reason.
@@ -1183,16 +1183,17 @@ const MEAN_BLESSED: &[Blessed] = &[
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
 const INK_BLESSED: &[Blessed] = &[
-    // Item 121: Firetail's Block cursor now shares Potoroo's exact silhouette
-    // as well as its face and near-black ground, closing more of their ink —
-    // 54.31% -> 49.81%, re-blessed at the new measured value. This is the
-    // pair's global-minimum status the module doc already names; see
+    // Item 121: Firetail's Block cursor first closed Potoroo/Firetail's ink
+    // to 49.81% (from 54.31%, briefly the roster's global minimum) — then
+    // the user's C ground pick (`IconGround::Blend40`) reopened it to
+    // 66.42%, re-blessed at the new measured value. See
     // `confusable_pairs_never_share_a_logo_cursor`'s doc for why the
-    // preset-split strategy was retired for this pair on purpose.
+    // preset-split strategy was retired for this pair on purpose; the ground
+    // change is what actually repairs the crowding it introduced.
     Blessed {
         a: "Potoroo",
         b: "Firetail",
-        baseline: 0.4981132075471698,
+        baseline: 0.6641509433962264,
     },
     // Item 161's restrained lift moved Bilby's rendered ink.
     Blessed {
@@ -1462,8 +1463,12 @@ fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
 /// global minimum and sits first in `INK_BLESSED`. Item 121 moved Firetail
 /// onto Potoroo's own Block preset, retiring the silhouette split on purpose
 /// (`confusable_pairs_never_share_a_logo_cursor`'s doc); the pair crowded
-/// further on this axis (54.31% -> 49.81%, still the global minimum) and on
-/// `mean` (re-blessed in `MEAN_BLESSED`), which this law caught and named.
+/// further on this axis (54.31% -> 49.81%) and on `mean`, which this law
+/// caught and named — the very crowding the item exists to fix. The user's
+/// follow-up ground pick (`IconGround::Blend40`, item 121's C) then REPAIRS
+/// it: ink reopens to 66.42% and mean to 44.89 (still each axis's SECOND
+/// tightest pair after Currawong/Cassowary, and still the `ink` global
+/// minimum, but no longer the crowding the item was filed over).
 ///
 /// Non-vacuity: adding a world that clones an existing palette and preset
 /// drives `differing` to ~1% and trips the floor and the danger zone, naming
@@ -2218,26 +2223,43 @@ fn the_cursor_slugs_are_the_exporters_preset_keys() {
 }
 
 /// ITEM 121's icon-ground capability: every shipped world defaults to the
-/// INERT `Base100` state today — nobody has opted into a blend toward
-/// `base_300` yet, including Firetail (its Pill-to-Block move landed this
-/// round, but the user's A/B/C ground pick has not). A world opting in is a
-/// conscious edit to `worlds.rs`, not a default this law would miss.
+/// INERT `Base100` state — EXCEPT Firetail, the one world the user actually
+/// chose a blend for (`Blend40`, from the A/B/C comparison sheet), pinned
+/// here by NAME so a change of which world opted in is a conscious edit to
+/// this test, not a silent roster drift. Every OTHER world opting in — now
+/// or later — is exactly the silent regression this law exists to catch: a
+/// no-wildcard sweep over `THEMES` with one named exception, not a loop that
+/// happens to pass because nothing else has changed yet.
 #[test]
-fn every_shipped_world_defaults_to_the_inert_base_100_ground() {
+fn every_shipped_world_defaults_to_the_inert_base_100_ground_except_firetail() {
     let _g = crate::testlock::serial();
     for t in THEMES.iter() {
+        let expect = if t.name == "Firetail" {
+            crate::theme::IconGround::Blend40
+        } else {
+            crate::theme::IconGround::Base100
+        };
         assert_eq!(
-            t.icon_ground,
-            crate::theme::IconGround::Base100,
-            "{}: icon_ground is not the inert default — was this opted in on purpose?",
+            t.icon_ground, expect,
+            "{}: icon_ground doesn't match its expected state — a second world opted \
+             into a non-default ground, or Firetail's own pick moved, without this law \
+             being updated on purpose",
             t.name
         );
-        assert_eq!(
-            t.icon_ground_color(),
-            t.base_100,
-            "{}: the inert default must render the tile's actual base_100, byte for byte",
-            t.name
-        );
+        if t.name == "Firetail" {
+            assert_ne!(
+                t.icon_ground_color(),
+                t.base_100,
+                "Firetail's ground should be a real blend toward base_300, not base_100 itself"
+            );
+        } else {
+            assert_eq!(
+                t.icon_ground_color(),
+                t.base_100,
+                "{}: the inert default must render the tile's actual base_100, byte for byte",
+                t.name
+            );
+        }
     }
 }
 

@@ -100,7 +100,7 @@ Firetail        Monaspace Xenon       block    128  (10, 38, 116, 85)   (84, 31,
 Firetail        Monaspace Xenon       block     64  (5, 19, 58, 43)     (42, 15, 59, 47)    (44, 19, 58, 42)    43
 Firetail        Monaspace Xenon       block     44  (3, 13, 39, 29)     (29, 10, 40, 32)    (30, 13, 39, 28)    29
 Firetail        Monaspace Xenon       block     32  (2, 9, 28, 21)      (20, 6, 29, 23)     (22, 9, 28, 20)     21
-Firetail        Monaspace Xenon       block     24  (2, 7, 21, 15)      (16, 6, 22, 17)     (17, 7, 21, 15)     15
+Firetail        Monaspace Xenon       block     24  (2, 8, 19, 15)      (16, 6, 22, 17)     (18, 8, 19, 14)     15
 Cassowary       Iosevka               block    256  (43, 89, 213, 173)  (183, 71, 216, 201) (185, 89, 213, 172) 173
 Cassowary       Iosevka               block    128  (22, 44, 106, 86)   (91, 35, 107, 99)   (93, 44, 106, 85)   86
 Cassowary       Iosevka               block     64  (11, 23, 52, 44)    (46, 17, 53, 50)    (47, 23, 52, 43)    44

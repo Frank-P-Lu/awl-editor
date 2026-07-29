@@ -863,7 +863,12 @@ pub const FIRETAIL: Theme = Theme {
     font: "Monaspace Xenon",
     mono: "Monaspace Xenon",
     icon_cursor: IconCursor::Block,
-    icon_ground: IconGround::Base100,
+    // Item 121: the user's A/B/C pick, from one Block-cursor comparison
+    // sheet — C reads burgundy at every size down to 24px, where A stays
+    // near-black/cream/gold (no wine identity) and B's wine fades out by
+    // 32px. Firetail is the one shipped exception to the inert default;
+    // see `every_shipped_world_defaults_to_the_inert_base_100_ground_except_firetail`.
+    icon_ground: IconGround::Blend40,
     heading_bold: true,
     cjk: CJK_GOTHIC,
     zh_hans: CJK_ZH_HANS_SANS,
@@ -1054,6 +1059,7 @@ pub const PAPERBARK: Theme = Theme {
     font: "EB Garamond",
     mono: "Monaspace Xenon",
     icon_cursor: IconCursor::Block,
+    icon_ground: IconGround::Base100,
     heading_bold: false,
     cjk: CJK_JA_SHIPPORI,
     zh_hans: CJK_ZH_HANS_SERIF,

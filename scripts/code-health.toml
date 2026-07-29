@@ -401,7 +401,7 @@ file = "src/theme/worlds.rs"
 # as theme-owned data, never a silent default a world could skip choosing).
 # Combined with item 158's Paperbark addition + Ornaments::of compaction
 # (1110 -> 1099) on top of the rebased tree.
-lines = REBASE_PLACEHOLDER
+lines = 1124
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -828,7 +828,7 @@ lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
 # `roster_growth_does_not_dilute_a_known_erosion` — same function, same
 # size, position fixed up after the item-121/158/161/168 rebase.
-line = REBASE_PLACEHOLDER_2
+line = 1843
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
