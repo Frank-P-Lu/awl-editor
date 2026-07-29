@@ -257,15 +257,24 @@ pub fn ground_audition_json(world_name: &str, fonts_dir: &Path) -> anyhow::Resul
             anyhow::anyhow!("no shipped world named {world_name:?} (see `awl --list-worlds`)")
         })?;
     let faces = faces_for(std::slice::from_ref(theme), fonts_dir)?;
+    // The A/B/C lettering is the audition's own framing (item 121's board
+    // text), not a fact `IconGround` itself carries — `IconGround::ALL` is
+    // already in A/B/C order (`Base100`, `Blend25`, `Blend40`).
+    let letters = ["A", "B", "C"];
     let worlds = IconGround::ALL
         .iter()
-        .map(|ground| {
+        .zip(letters)
+        .map(|(ground, letter)| {
             let mut t = *theme;
             t.icon_ground = *ground;
             t.icon_cursor = IconCursor::Block;
             format!(
                 "    {{ \"name\": {}, \"dark\": {}, \"base_100\": {}, \"ground\": {}, \"base_content\": {}, \"primary\": {}, \"primary_content\": {}, \"font\": {}, \"cursor\": {}, \"ambient_motion\": {} }}",
-                json_string(&format!("{} \u{2014} {}", t.name, ground.slug())),
+                json_string(&format!(
+                    "{} \u{2014} {letter} ({})",
+                    t.name,
+                    ground.slug()
+                )),
                 t.dark,
                 json_string(&t.base_100.hex()),
                 json_string(&t.icon_ground_color().hex()),
