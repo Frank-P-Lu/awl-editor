@@ -325,13 +325,38 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
     return mix(tone01, g.c_to.rgb, m2);
 }
 
+// ITEM 163: the shipped drift translated the whole field by only ~5x4px
+// (`sin(g.drift)*5.0, cos(g.drift*0.73)*4.0`) — against a `scale_px` cell of
+// 156px that reads as under 4% of a cell, so a live user glancing back after
+// a minute genuinely could not see it move even though every phase-motion
+// law (below) already passed: those laws proved SOME pixel changed, never
+// that the change was big enough to register. `ORGANIC_DRIFT_X_FRAC`/`_Y`
+// scale the drift to a FRACTION of the cell size `s` instead of a fixed
+// pixel count, so the authored displacement stays proportionate if a future
+// Organic world ever ships a different `scale_px`. Both fractions stay well
+// under 0.5 (never sliding a whole cell's width in one throw) and the two
+// axes keep DIFFERENT magnitudes/frequencies (`sin(g.drift)` vs
+// `cos(g.drift * 0.73)`, unchanged) so the composition reads as one cohesive
+// collage sliding a lazy, slightly elliptical path — never a rigid ping-pong
+// on a single line. `cell`/`local` are translated TOGETHER (both read
+// `px + drift`), the same "pan an infinite tiled field" shape as before: a
+// blob's identity is a hash of its (translated) integer cell, so panning
+// only ever reveals more of the SAME static authored composition — no blob
+// spawns, dissolves, or deforms; the shapes are pure functions of position,
+// exactly as before, just sampled through a bigger window.
+const ORGANIC_DRIFT_X_FRAC: f32 = 0.13;
+const ORGANIC_DRIFT_Y_FRAC: f32 = 0.10;
+
 // 8: cut-paper blobs. Three differently-offset rounded cell fields make
 // large masses, islands, and droplets; subtracting a small inner field leaves
 // occasional holes. The only time input is the shared, slow ambient phase.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     let s = max(g.params.x, 32.0);
     let d = clamp(g.params.y, 0.0, 1.0);
-    let drift = vec2<f32>(sin(g.drift) * 5.0, cos(g.drift * 0.73) * 4.0);
+    let drift = vec2<f32>(
+        sin(g.drift) * s * ORGANIC_DRIFT_X_FRAC,
+        cos(g.drift * 0.73) * s * ORGANIC_DRIFT_Y_FRAC,
+    );
     let cell = floor((px + drift) / s);
     let local = fract((px + drift) / s) - vec2<f32>(0.5);
     let jitter = vec2<f32>(hash21(cell), hash21(cell + vec2<f32>(7.0, 3.0))) - vec2<f32>(0.5);
