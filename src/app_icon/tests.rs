@@ -329,7 +329,7 @@ fn the_canonical_bundle_icon_is_the_default_worlds_icon() {
     );
 }
 
-/// The taste verdict, PINNED. These eighteen assignments were judged by eye
+/// The taste verdict, PINNED. These nineteen assignments were judged by eye
 /// against each face's own `l` at Dock and app-switcher sizes; a silent change
 /// to one is a change of the product's face, so it fails here and has to be
 /// argued for. The tally is asserted too, because "everything drifted to the
@@ -337,7 +337,7 @@ fn the_canonical_bundle_icon_is_the_default_worlds_icon() {
 #[test]
 fn the_shipped_preset_roster_is_the_judged_assignment() {
     let _g = crate::testlock::serial();
-    let expected: [(&str, IconCursor); 18] = [
+    let expected: [(&str, IconCursor); 19] = [
         ("Tawny", IconCursor::Block),
         ("Mopoke", IconCursor::Pill),
         ("Currawong", IconCursor::Pill),
@@ -356,6 +356,11 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
         ("Wagtail", IconCursor::Block),
         ("Firetail", IconCursor::Pill),
         ("Cassowary", IconCursor::Block),
+        // ITEM 158: EB Garamond's `l` is footed, so Narrow (which sits INSIDE
+        // the glyph's advance) is out by the law two tests down; Block is the
+        // preset the same face already carries on Bombora, and it splits
+        // Paperbark from Saltpan, the other warm-cream world, in a dock row.
+        ("Paperbark", IconCursor::Block),
     ];
     for (name, want) in expected {
         assert_eq!(
@@ -373,8 +378,8 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
             count(IconCursor::Pill),
             count(IconCursor::Narrow)
         ),
-        (9, 8, 1),
-        "the judged tally: 9 block / 8 pill / 1 narrow"
+        (10, 8, 1),
+        "the judged tally: 10 block / 8 pill / 1 narrow"
     );
 }
 
@@ -1029,6 +1034,35 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Wagtail",
         baseline: 0.2958984375,
     },
+    // ITEM 158 (Paperbark, the nineteenth world). At 32px the tile is mostly
+    // GROUND — this axis's own doc says so — and Paperbark joins awl's existing
+    // pale-warm light cluster, whose members already bless each other here
+    // (Bilby/Galah 19.9%, Bilby/Saltpan 22.9%, Bilby/Magpie 24.2%). Its page
+    // colour is world law, authored with the room, not an icon choice. What
+    // separates these tiles at Dock size is the mark and the silhouette, and
+    // that is the `ink` axis — on which Paperbark crowds NOBODY (it appears in
+    // no INK_BLESSED entry). It does not become the champion on any axis
+    // either: the roster minimum stays Currawong/Cassowary at 13.1%.
+    Blessed {
+        a: "Galah",
+        b: "Paperbark",
+        baseline: 0.2021484375,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Paperbark",
+        baseline: 0.203125,
+    },
+    Blessed {
+        a: "Saltpan",
+        b: "Paperbark",
+        baseline: 0.234375,
+    },
+    Blessed {
+        a: "Magpie",
+        b: "Paperbark",
+        baseline: 0.26953125,
+    },
     Blessed {
         a: "Wagtail",
         b: "Cassowary",
@@ -1093,6 +1127,19 @@ const MEAN_BLESSED: &[Blessed] = &[
         a: "Tawny",
         b: "Firetail",
         baseline: 69.74609375,
+    },
+    // ITEM 158 — the same pale-warm ground cluster as DIFFERING_BLESSED's own
+    // Paperbark note; Bilby/Galah and Bilby/Saltpan are already blessed here
+    // for the identical reason.
+    Blessed {
+        a: "Bilby",
+        b: "Paperbark",
+        baseline: 52.791015625,
+    },
+    Blessed {
+        a: "Galah",
+        b: "Paperbark",
+        baseline: 64.453125,
     },
 ];
 

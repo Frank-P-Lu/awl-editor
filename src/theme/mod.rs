@@ -71,14 +71,15 @@ pub use model::{Theme, WashOverride};
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state
 // the field's laws), so the re-export is gated identically rather than carrying
 // an `allow(dead_code)` a future genuinely-dead constant could hide behind.
-#[allow(unused_imports)] // Lens/RoleOverrides/ThemeTags/Weave: public API
+#[allow(unused_imports)] // Weave/Lens/RoleOverrides/ThemeTags: public API
 // surface, no NON-TEST in-crate caller today (the world literals reach `Weave`
-// through `super::model` directly).
+// through `super::ground` directly).
 pub use ground::Weave;
 #[cfg(test)]
 pub use ground::{DECKLE_MAX_PERIOD_PX, DECKLE_MID, DECKLE_MIN_PERIOD_PX, DECKLE_SPREAD_GAIN};
 #[cfg(test)]
 pub use ground::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
+#[allow(unused_imports)]
 pub use model::{Lens, RoleOverrides, ThemeTags};
 // THEME CAPABILITIES AS DATA: the declarative render-behavior bundle every
 // per-theme render decision reads instead of an ad hoc `is_one_bit()` branch.

@@ -53,3 +53,6 @@ Firetail        Monaspace Xenon       narrow   32px
 Cassowary       Iosevka               block    64px
 Cassowary       Iosevka               pill     64px
 Cassowary       Iosevka               narrow   64px
+Paperbark       EB Garamond           block    64px
+Paperbark       EB Garamond           pill     64px
+Paperbark       EB Garamond           narrow   64px
