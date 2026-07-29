@@ -56,7 +56,8 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
             edge,
             dithered,
         } => format!(
-            "{{ \"kind\": \"lava\", \"ground\": {}, \"blob_lo\": {}, \"blob_hi\": {}, \"edge\": \"{}\", \"dithered\": {}, \"phase\": {} }}",
+            concat!("{{ \"kind\": \"lava\", \"ground\": {}, \"blob_lo\": {}, \"blob_hi\": {}, ",
+                "\"edge\": \"{}\", \"dithered\": {}, \"phase\": {} }}"),
             hex(ground),
             hex(blob_lo),
             hex(blob_hi),
@@ -105,9 +106,12 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
                 "\"scale_px\":{},\"density\":{},\"phase\":{}}}"
             ),
             hex(tones[0]), hex(tones[1]), hex(tones[2]), scale_px, density, lava_phase
-        ), Background::Deckle { ground, layer, deckle, weave, period_px, wander_px, density } => format!(
-            concat!("{{\"kind\":\"deckle\",\"ground\":{},\"layer\":{},\"deckle\":{},\"weave\":\"{}\",",
-                "\"period_px\":{},\"wander_px\":{},\"density\":{},\"static\":true}}"),
+        ), Background::Deckle {
+            ground, layer, deckle, weave, period_px, wander_px, density
+        } => format!(
+            concat!("{{\"kind\":\"deckle\",\"ground\":{},\"layer\":{},",
+                "\"deckle\":{},\"weave\":\"{}\",\"period_px\":{},",
+                "\"wander_px\":{},\"density\":{},\"static\":true}}"),
             hex(ground), hex(layer), hex(deckle), weave.as_str(), period_px, wander_px, density
         ), _ => unreachable!("rich background helper received a simple ground"),
     }

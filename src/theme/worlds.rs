@@ -1005,15 +1005,11 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
 ///
 /// Its ground is the ONE production assignee of [`Background::Deckle`] — the
 /// static handmade-paper field, dialled to [`Weave::Strata`]. The material
-/// stays entirely in the margins: the writing page is flat, opaque `base_100`,
-/// and nothing here moves (no ambient capability, so `has_ambient_tick` is
-/// false by construction).
-///
-/// TEMPERATURE IS DELIBERATELY UNTAGGED. Paperbark is plainly a warm world, but
-/// the picker's Temperature=Warm band already carries its curated maximum of
-/// four (Potoroo/Quokka/Galah/Firetail — see `axis_coverage_ruler`). A fifth
-/// entry would trade a curated band for a crowd, so this world headlines Time /
-/// Register / Voice and leaves Temperature to the four that were there first.
+/// stays entirely in the margins: the page is flat, opaque `base_100`, and
+/// nothing here moves (no ambient capability, so `has_ambient_tick` is false by
+/// construction). TEMPERATURE IS UNTAGGED ON PURPOSE — the picker's Warm band
+/// is already at `axis_coverage_ruler`'s curated cap of four; WORLDS.md says
+/// why.
 pub const PAPERBARK: Theme = Theme {
     name: "Paperbark",
     dark: false,

@@ -22,6 +22,7 @@ mod metric_scale;
 mod panels;
 mod pickers_faceted;
 mod schema_chrome;
+mod schema_ledger;
 mod serialization_law;
 
 /// Re-derive the DRAWN streak length (px) for the caret's current spring state

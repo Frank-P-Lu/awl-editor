@@ -211,7 +211,7 @@ fn margin_stats(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32) -> MarginStat
         let mut last: Option<i32> = None;
         let mut run = 0u32;
         let mut row = 0usize;
-        let mut close = |v: i32, len: u32, tones: &mut std::collections::HashSet<i32>| {
+        let close = |v: i32, len: u32, tones: &mut std::collections::HashSet<i32>| {
             // A LANE INTERIOR, not a boundary feather: the deckled edge is a
             // few percent of a lane, so anything this long is lane body.
             if len >= 15 {
@@ -512,6 +512,78 @@ fn deckle_pitch_floor_holds_the_field_smooth_below_its_own_minimum() {
     );
 }
 
+/// The COMPARISON GEOMETRY the done-clause law measures all three worlds at.
+const CMP: (u32, u32, f32, f32) = (1600, 900, 400.0, 800.0);
+
+/// Mark POSITIONS along the one axis all three grounds are crossed by (x:
+/// Deckle's lanes run parallel to the page edge, Saltpan's pinstripes are
+/// vertical rules). A mark is a local luminance MINIMUM with real prominence,
+/// so dither and 8-bit quantization cannot invent one.
+fn marks_in_row(px: &[[u8; 4]], y: u32, x0: u32, x1: u32) -> Vec<f32> {
+    let w = CMP.0;
+    let lum = |x: u32| {
+        let c = px[(y * w + x) as usize];
+        0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32
+    };
+    let mut out: Vec<f32> = Vec::new();
+    for x in (x0 + 3)..x1.saturating_sub(3) {
+        let here = lum(x);
+        let around = (x - 3..=x + 3).map(lum).fold(f32::MIN, f32::max);
+        let is_min = (x - 3..=x + 3).all(|k| lum(k) >= here - 0.01);
+        if is_min && around - here >= 3.0 && !out.last().is_some_and(|p| x as f32 - p < 4.0) {
+            out.push(x as f32);
+        }
+    }
+    out
+}
+
+/// The rows and the left-margin span every measurement below shares.
+fn cmp_rows() -> (Vec<u32>, u32, u32) {
+    let (_, h, cl, _) = CMP;
+    ((80..h - 80).step_by(17).collect(), 8, cl as u32 - 8)
+}
+
+/// HOW BROAD: the mean gap between boundary marks, and how many were found at
+/// all. A layered handmade sheet lays down wide lanes; a ledger rule is fine
+/// and frequent.
+fn mean_gap(px: &[[u8; 4]]) -> (f32, usize) {
+    let (rows, x0, x1) = cmp_rows();
+    let mut gaps = Vec::new();
+    let mut seen = 0usize;
+    for y in rows {
+        let m = marks_in_row(px, y, x0, x1);
+        seen += m.len();
+        gaps.extend(m.windows(2).map(|p| p[1] - p[0]));
+    }
+    let g = if gaps.is_empty() {
+        0.0
+    } else {
+        gaps.iter().sum::<f32>() / gaps.len() as f32
+    };
+    (g, seen)
+}
+
+/// HOW STRAIGHT: track the boundary nearest the margin's midpoint down the rows
+/// and measure how far its x wanders. THIS is "deckled" as a number — a torn
+/// edge moves, a printed rule does not.
+fn boundary_wander(px: &[[u8; 4]]) -> f32 {
+    let (rows, x0, x1) = cmp_rows();
+    let mid = (x0 + x1) as f32 * 0.5;
+    let xs: Vec<f32> = rows
+        .iter()
+        .filter_map(|&y| {
+            marks_in_row(px, y, x0, x1)
+                .into_iter()
+                .min_by(|a, b| (a - mid).abs().total_cmp(&(b - mid).abs()))
+        })
+        .collect();
+    if xs.len() < 8 {
+        return 0.0;
+    }
+    let mean = xs.iter().sum::<f32>() / xs.len() as f32;
+    (xs.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / xs.len() as f32).sqrt()
+}
+
 /// THE DONE CLAUSE, AS PIXELS. Paperbark must not read as Saltpan's regular
 /// pinstripes or Bilby's quiet gradient.
 ///
@@ -537,70 +609,7 @@ fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
         return;
     };
     let _g = crate::testlock::serial();
-    let (w, h, cl, cw) = (1600u32, 900u32, 400.0f32, 800.0f32);
-
-    // Mark POSITIONS along the one axis all three grounds are crossed by (x:
-    // Deckle's lanes run parallel to the page edge, Saltpan's pinstripes are
-    // vertical rules). A mark is a local luminance MINIMUM with real
-    // prominence, so dither and 8-bit quantization cannot invent one.
-    let marks_in_row = |px: &Vec<[u8; 4]>, y: u32, x0: u32, x1: u32| -> Vec<f32> {
-        let lum = |x: u32| {
-            let c = px[(y * w + x) as usize];
-            0.2126 * c[0] as f32 + 0.7152 * c[1] as f32 + 0.0722 * c[2] as f32
-        };
-        let mut out: Vec<f32> = Vec::new();
-        for x in (x0 + 3)..x1.saturating_sub(3) {
-            let here = lum(x);
-            let around = (x - 3..=x + 3).map(lum).fold(f32::MIN, f32::max);
-            let is_min = (x - 3..=x + 3).all(|k| lum(k) >= here - 0.01);
-            if is_min && around - here >= 3.0 {
-                if out.last().is_some_and(|p| x as f32 - p < 4.0) {
-                    continue;
-                }
-                out.push(x as f32);
-            }
-        }
-        out
-    };
-    let (sx0, sx1) = (8u32, cl as u32 - 8);
-    let rows: Vec<u32> = (80..h - 80).step_by(17).collect();
-
-    // (1) HOW BROAD: the mean gap between boundary marks. A layered handmade
-    // sheet lays down wide lanes; a ledger rule is fine and frequent.
-    let mean_gap = |px: &Vec<[u8; 4]>| -> (f32, usize) {
-        let mut gaps = Vec::new();
-        let mut seen = 0usize;
-        for &y in &rows {
-            let m = marks_in_row(px, y, sx0, sx1);
-            seen += m.len();
-            gaps.extend(m.windows(2).map(|p| p[1] - p[0]));
-        }
-        let g = if gaps.is_empty() {
-            0.0
-        } else {
-            gaps.iter().sum::<f32>() / gaps.len() as f32
-        };
-        (g, seen)
-    };
-    // (2) HOW STRAIGHT: track the boundary nearest the margin's midpoint down
-    // the rows and measure how far its x wanders. THIS is "deckled" as a
-    // number — a torn edge moves, a printed rule does not.
-    let boundary_wander = |px: &Vec<[u8; 4]>| -> f32 {
-        let mid = (sx0 + sx1) as f32 * 0.5;
-        let xs: Vec<f32> = rows
-            .iter()
-            .filter_map(|&y| {
-                marks_in_row(px, y, sx0, sx1)
-                    .into_iter()
-                    .min_by(|a, b| (a - mid).abs().total_cmp(&(b - mid).abs()))
-            })
-            .collect();
-        if xs.len() < 8 {
-            return 0.0;
-        }
-        let mean = xs.iter().sum::<f32>() / xs.len() as f32;
-        (xs.iter().map(|x| (x - mean).powi(2)).sum::<f32>() / xs.len() as f32).sqrt()
-    };
+    let (w, h, cl, cw) = CMP;
 
     let shot = |bg| render_bg(&device, &queue, bg_desc_for(bg), w, h, cl, cw, 0.0);
     let (pb, sp, bi) = (
