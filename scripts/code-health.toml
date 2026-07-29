@@ -119,7 +119,7 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 526
+lines = 524
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
