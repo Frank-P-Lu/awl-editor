@@ -41,6 +41,15 @@ receipt with the gate outcome, for example:
 .orchestrator/worker-build.sh scripts/web-smoke.sh
 ```
 
+**Tell the worker to run gates in the foreground, with an explicit long
+timeout.** A worker that launches a multi-minute gate in the background has
+nothing left to do and ends its turn, so the orchestrator must wake it once per
+gate; on 2026-07-31 three lanes in one wave each burned two or three round trips
+this way, and one of them ended a turn holding uncommitted work. The brief
+should name the timeout, because the default is shorter than a cold gate.
+A gate that genuinely exceeds the tool's maximum is a finding to report, not a
+reason to background it.
+
 ## Disk-pressure preflight
 
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
