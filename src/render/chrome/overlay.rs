@@ -300,20 +300,6 @@ impl TextPipeline {
         let pad = 12.0;
         let margin = 12.0;
         let n_items = self.overlay_items.len();
-        // The scroll window rides the ONE shared `scroll_window` owner (also used by the
-        // spell popup and the faceted/grouped path); the CAP is the per-kind
-        // `overlay_window_rows` (12 for the flat pickers — the former inline `MAX_ROWS`),
-        // and the WINDOW POSITION is owned by `OverlayState::scroll` (which keeps the
-        // selection visible on keyboard nav, holds still on hover, and advances on the
-        // wheel), passed as the hint. For a flat list the hint already keeps
-        // `overlay_selected` in view, so the slide is inert and `(top_idx, visible)` are
-        // byte-identical to the previous inline `min` math.
-        let (top_idx, visible) = scroll_window(
-            n_items,
-            self.overlay_selected,
-            self.overlay_scroll,
-            self.overlay_window_rows.max(1),
-        );
 
         let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
@@ -337,6 +323,13 @@ impl TextPipeline {
         // candidate list (negative space as the divider). Grows the card by exactly
         // this and offsets the candidate band/hit-test through `overlay_row_top`.
         let header_gap = self.overlay_header_gap();
+        let card_y = margin + 40.0 + self.menubar_reserve();
+        // ITEM 181 — cap the item window to what the canvas fits, same owner the
+        // grouped family reads (`theme_overlay_geometry`).
+        let avail_px =
+            (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh());
+        let chrome_rows = header_rows + hint_rows + empty_rows + footer_rows;
+        let (top_idx, visible) = self.overlay_flat_window(n_items, avail_px, chrome_rows);
         let total_rows = header_rows + visible + empty_rows + hint_rows + footer_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
@@ -344,7 +337,7 @@ impl TextPipeline {
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, pad);
-        let card_y = margin + 40.0 + self.menubar_reserve() + self.overlay_entrance_offset();
+        let card_y = card_y + self.overlay_entrance_offset();
         let text_left = card_x + hpad;
         let text_top = card_y + pad;
         OverlayGeom {
@@ -416,12 +409,6 @@ impl TextPipeline {
         let margin = 8.0;
         let gap = 6.0; // the breath between the word and the panel
         let n_items = self.overlay_items.len();
-        let (top_idx, visible) = scroll_window(
-            n_items,
-            self.overlay_selected,
-            self.overlay_scroll,
-            self.overlay_window_rows.max(1),
-        );
         let header_rows = 0;
         let hint = String::new();
         let hint_rows = 0;
@@ -432,6 +419,14 @@ impl TextPipeline {
         };
 
         let (word_x, word_top, _word_w, word_h) = self.spell_word_rect(line, start_col, end_col);
+
+        // ITEM 181 — the popup's own budget: whichever side (above/below the
+        // word) is roomier.
+        let below_avail = self.window_h - (word_top + word_h + gap) - margin;
+        let above_avail = word_top - gap - margin;
+        let avail_px = below_avail.max(above_avail).max(self.overlay_lh());
+        let (top_idx, visible) =
+            self.overlay_flat_window(n_items, avail_px, header_rows + hint_rows);
 
         // Width: fit the WIDEST suggestion ROW — its real SHAPED width, measured into
         // `overlay_spell_w` at sync — plus padding, NOT the anchor word. So a short

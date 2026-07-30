@@ -28,12 +28,20 @@
 //! Shaping and cache ownership stay where they were: this module measures
 //! nothing and shapes nothing. It is handed the metrics the measured stage
 //! already produced.
+//!
+//! **THE HEIGHT CLAMP (item 181)** — `fit_item_rows` — is the one owner of
+//! "how many candidate item rows fit the canvas", shared by both families
+//! (`render/chrome/overlay.rs`'s flat window and `render/chrome/theme_picker.rs`'s
+//! grouped window) so a picker with a big corpus cannot draw a card taller than
+//! its canvas whichever geometry path it takes. It is plain arithmetic over
+//! already-resolved floats (an available-pixel budget, a row pitch, an overhead
+//! row count) — no device, no shaping, no clock — so it keeps the planner pure.
 
 mod overlay_rows;
 
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, fit_item_rows, plan_overlay_rows,
 };
 #[cfg(test)]
 pub(in crate::render) use overlay_rows::{test_row_top, test_rows};

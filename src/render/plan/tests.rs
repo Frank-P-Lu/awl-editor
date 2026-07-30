@@ -6,7 +6,7 @@
 //! the real pipeline and the real world roster) live in
 //! `render/tests/overlay_plan_law.rs`.
 
-use super::overlay_rows::{OverlayRowPlanInput, PlanLine, plan_overlay_rows};
+use super::overlay_rows::{OverlayRowPlanInput, PlanLine, fit_item_rows, plan_overlay_rows};
 
 const CARD_X: f32 = 420.0;
 const CARD_W: f32 = 360.0;
@@ -275,6 +275,55 @@ fn a_zero_row_pitch_answers_no_pointer() {
     let plan = plan_overlay_rows(&input);
     assert_eq!(plan.display_at(plan.first_top() + 1.0), None);
     assert_eq!(plan.row_at(CARD_X + 1.0, plan.first_top() + 1.0), None);
+}
+
+// --- ITEM 181 — the height-clamp owner ---------------------------------------
+
+/// The ordinary case: enough `avail_px` for some rows but not the whole ask,
+/// after the overhead (non-item) rows are paid for.
+#[test]
+fn fit_item_rows_divides_the_budget_after_overhead() {
+    // 10 rows of pitch 20 fit in 200px; 3 are overhead, so 7 items fit.
+    assert_eq!(fit_item_rows(200.0, 20.0, 3), 7);
+    // A partial row's pixels don't count — floor, not round.
+    assert_eq!(fit_item_rows(199.9, 20.0, 3), 6);
+}
+
+/// THE FLOOR: a card always attempts at least one item row, however small
+/// `avail_px` is — this is the theme-picker regression itself (item 181): a
+/// big flat corpus must lose rows to the clamp, never collapse to zero and
+/// never keep every row regardless of the canvas.
+#[test]
+fn fit_item_rows_floors_at_one_even_when_nothing_fits() {
+    assert_eq!(fit_item_rows(0.0, 20.0, 0), 1);
+    assert_eq!(fit_item_rows(5.0, 20.0, 0), 1);
+    assert_eq!(fit_item_rows(20.0, 20.0, 10), 1); // overhead alone exceeds the budget
+}
+
+/// A degenerate row pitch cannot be divided by; the clamp still answers a
+/// usable (non-zero, non-panicking) row count.
+#[test]
+fn fit_item_rows_guards_a_zero_row_pitch() {
+    assert_eq!(fit_item_rows(500.0, 0.0, 2), 1);
+}
+
+/// NON-VACUITY: the clamp genuinely BINDS below a big per-kind row cap once
+/// the corpus and the canvas disagree — the shape `OverlayKind::Theme` hits
+/// (`window_rows() == THEMES.len()`, 19, with no canvas awareness at all
+/// before item 181: `card_h: 934` against `canvas_h: 800` at the theme
+/// picker's own default geometry). A row pitch and overhead in the same
+/// ballpark as the real overlay metrics, on the default 800px canvas.
+#[test]
+fn fit_item_rows_binds_below_a_big_per_kind_cap_once_the_canvas_cannot_hold_it() {
+    let per_kind_cap = 19usize; // `OverlayKind::Theme::window_rows()` == THEMES.len()
+    let avail_px = 550.0; // canvas minus card_y/margin/pad/header_gap, in the real overlay's range
+    let fit = fit_item_rows(avail_px, 27.0, 3); // lh, chrome_rows in the real overlay's range
+    assert!(
+        fit < per_kind_cap,
+        "the canvas-derived fit ({fit}) must bind below the per-kind cap \
+         ({per_kind_cap}) — otherwise this fixture no longer reproduces the \
+         reported regression"
+    );
 }
 
 /// DETERMINISM: the planner is a pure function of its inputs — the same input
