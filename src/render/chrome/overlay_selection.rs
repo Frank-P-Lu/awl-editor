@@ -110,6 +110,32 @@ impl TextPipeline {
         )
     }
 
+    /// TEST PROBE — the `(selected, unselected)` row-surface quads this frame
+    /// ACTUALLY emits under a `Bars` world, read from the emitter rather than
+    /// rebuilt: the only oracle for "where did the footer plate land" that cannot
+    /// be satisfied by a parallel reimplementation. Empty on a `Pane` world.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_bar_rects_probe(&mut self) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let vis = self.resolve_visual_selection(&geom, &plan);
+        match crate::render::effective_list_style() {
+            theme::ListStyle::Bars {
+                radius,
+                gap,
+                grow_px,
+                extent,
+                coverage,
+            } => {
+                let r = self.overlay_bar_selection(
+                    &geom, &plan, &vis, radius, gap, grow_px, extent, coverage,
+                );
+                (r.selected, r.unselected)
+            }
+            theme::ListStyle::Pane => (Vec::new(), Vec::new()),
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_prepare_selection(
         &mut self,

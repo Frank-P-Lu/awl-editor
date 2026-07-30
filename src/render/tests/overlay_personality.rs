@@ -794,7 +794,9 @@ fn overlay_row_region(p: &TextPipeline, header_rows: usize, row: usize) -> Regio
     // Fold in the PALETTE-COMPOSITION round's header gap (the divider after the
     // query/strip header) through the SAME owner the renderer uses, so the
     // sampled band tracks the shaped selected row.
-    let row_top = text_top + lh * header_rows as f32 + p.overlay_header_gap() + lh * row as f32;
+    // ITEM 174 — through the one row-position owner, never a local copy.
+    let row_top =
+        crate::render::plan::test_row_top(text_top, header_rows, p.overlay_header_gap(), row, lh);
     Region::new(card_x, row_top, card_w, lh)
 }
 

@@ -604,7 +604,7 @@ impl TextPipeline {
     /// `prepare_overlay` and threaded down, and freshly (still O(visible)) by the
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
-        plan_overlay_rows(&OverlayRowPlanInput {
+        let plan = plan_overlay_rows(&OverlayRowPlanInput {
             card_x: geom.card_x,
             card_w: geom.card_w,
             text_top: geom.text_top,
@@ -617,7 +617,11 @@ impl TextPipeline {
             selected: self.overlay_selected,
             empty_rows: geom.empty.is_some() as usize,
             lines: geom.theme.then_some(geom.plan.as_slice()),
-        })
+        });
+        self.overlay_plans.set(self.overlay_plans.get() + 1);
+        self.overlay_planned_rows
+            .set(self.overlay_planned_rows.get() + plan.candidate_rows() as u64);
+        plan
     }
 
     /// ITEM 94 — THE RAIL GEOMETRY OWNER for the whole card: every VISIBLE range

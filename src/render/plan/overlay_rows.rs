@@ -241,13 +241,24 @@ impl OverlayRowPlan {
     }
 
     /// THE INVERSE — the display line a pointer at canvas `py` falls in,
-    /// ignoring the card's horizontal bounds. `None` above the band; a value past
-    /// the last planned row resolves to `None` through [`Self::row`].
+    /// ignoring the card's horizontal bounds. `None` above, below, or outside the
+    /// planned band.
+    ///
+    /// It SCANS THE PLANNED SLOTS rather than inverting the forward formula. The
+    /// scan is exact where a division is not: `(py - first_top) / lh` truncated at
+    /// a row's own top edge lands on the row ABOVE whenever `k * lh` is not
+    /// representable (the pure law caught `lh = 12`, `header_gap = 63.55`, row 11 —
+    /// a pointer on row 11's first pixel selecting row 10). Comparing against the
+    /// same `f32` `top` values the band was DRAWN from cannot disagree with the
+    /// draw by construction, which is the whole point of planning the rows. It is
+    /// O(visible) over a band that is at most a couple of dozen rows.
     pub(in crate::render) fn display_at(&self, py: f32) -> Option<usize> {
-        if self.lh <= 0.0 || py < self.first_top {
+        if self.lh <= 0.0 {
             return None;
         }
-        Some(((py - self.first_top) / self.lh) as usize)
+        self.rows
+            .iter()
+            .position(|r| py >= r.top && py < r.bottom())
     }
 
     /// THE INTERACTION GEOMETRY — the `overlay_items` index a pointer at

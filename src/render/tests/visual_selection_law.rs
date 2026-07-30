@@ -488,6 +488,10 @@ fn scan(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, us
         if path.extension().and_then(|e| e.to_str()) != Some("rs") {
             continue;
         }
+        // A sibling `tests.rs` is the test tier, not a render path.
+        if path.file_name().and_then(|n| n.to_str()) == Some("tests.rs") {
+            continue;
+        }
         let Ok(text) = std::fs::read_to_string(&path) else {
             continue;
         };

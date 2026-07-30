@@ -405,6 +405,8 @@ impl TextPipeline {
             #[cfg(test)]
             last_table_cell_lines: std::cell::RefCell::new(Vec::new()),
             reshape_count: 0,
+            overlay_plans: std::cell::Cell::new(0),
+            overlay_planned_rows: std::cell::Cell::new(0),
             search_active: false,
             search_matches: Vec::new(),
             search_query: String::new(),

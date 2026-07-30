@@ -384,9 +384,15 @@ fn apply_search_view(cx: &mut Cx, s: &SearchState, query: &str) -> Result<()> {
 /// PALETTE OPEN: build the real command palette (catalog ∪ settings rows, the
 /// same `overlay::build` the live app and the replay share) and draw it over
 /// the document — scrim, frosted backdrop, card, rows. WITNESS: the palette
-/// has rows, the row pipeline uploaded instances, and the card visibly drew.
+/// has rows, the row pipeline uploaded instances, the card visibly drew, and
+/// (item 174) the SCENE PLANNER actually ran and stayed O(visible): each frame's
+/// candidate-row plans are counted and their rows summed, so a planner that
+/// walked the whole 100+-row catalog instead of the drawn window would blow the
+/// per-plan mean rather than hide inside a flat frame time.
 fn palette(cx: &mut Cx) -> Result<CellOut> {
     const SAMPLES: usize = 5;
+    let plans_before = cx.p.overlay_plans.get();
+    let planned_rows_before = cx.p.overlay_planned_rows.get();
     let baseline_frame = cx.snapshot()?;
     let keep = cx.config.effective_linux_keep();
     let temp_root = std::env::temp_dir();
@@ -450,6 +456,26 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
     }
     ensure!(items_len > 0, "the command palette must carry rows");
     ensure!(instances > 0, "the palette rows must upload row instances");
+    let plans = cx.p.overlay_plans.get() - plans_before;
+    let planned_rows = cx.p.overlay_planned_rows.get() - planned_rows_before;
+    ensure!(
+        plans >= SAMPLES as u64,
+        "the scene planner must run at least once per timed palette frame \
+         ({plans} plans over {SAMPLES} samples) — a bench that measures an overlay \
+         while nothing plans is measuring nothing"
+    );
+    let window_rows = cx.view.overlay_window_rows.max(1) as u64;
+    let mean_rows = planned_rows / plans.max(1);
+    ensure!(
+        mean_rows <= window_rows,
+        "each palette plan must hold at most the drawn window ({mean_rows} planned rows \
+         per plan vs a {window_rows}-row window over {items_len} catalog items) — the \
+         per-frame plan is O(visible), never O(doc)"
+    );
+    ensure!(
+        mean_rows > 0,
+        "the palette's plans must actually carry rows ({planned_rows} rows over {plans} plans)"
+    );
     let changed = differing_pixels(&baseline_frame, &open_frame.expect("snapshotted above"));
     ensure!(
         changed > 0,
@@ -461,6 +487,7 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
             ("items", items_len),
             ("row_instances", instances),
             ("pixels_changed", changed),
+            ("plan_rows_per_plan", mean_rows),
         ],
     })
 }

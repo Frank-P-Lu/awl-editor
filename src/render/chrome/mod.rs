@@ -193,7 +193,7 @@ pub(super) struct OverlayGeom {
     /// query line — just suggestion rows). Candidate row 0 therefore begins at
     /// the scene planner's first planned row, whose slot both the selected-row band
     /// and the pointer hit-test read, so they can't drift from the shaped rows.
-    header_rows: usize,
+    pub(super) header_rows: usize,
     /// PALETTE-COMPOSITION round: extra VERTICAL negative space (device px)
     /// inserted AFTER the header rows (the `› query` line, plus the lens strip on
     /// a faceted card) and BEFORE the candidate list — the calm "divider" that
@@ -202,14 +202,14 @@ pub(super) struct OverlayGeom {
     /// selected-row highlight, the pointer hit-test, and the card height all fold
     /// it in through the scene planner, so they can't drift; the shaper realizes it
     /// by inflating the last header line's height by exactly this.
-    header_gap: f32,
+    pub(super) header_gap: f32,
     empty: Option<String>,
     card_x: f32,
     pub(super) card_y: f32,
     card_w: f32,
     pub(super) card_h: f32,
     pub(super) text_left: f32,
-    text_top: f32,
+    pub(super) text_top: f32,
     text_w: f32,
     card_narrow: bool,
 }

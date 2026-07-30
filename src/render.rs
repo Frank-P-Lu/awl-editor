@@ -2038,6 +2038,16 @@ pub struct TextPipeline {
     /// instrumentation counter (cursor-only / scroll-only / selection-only updates
     /// do NOT increment it); used by tests to prove non-typing events don't reshape.
     pub reshape_count: u64,
+    /// ITEM 174 — PLAN WORK WITNESSES, so a bench cannot "measure" the overlay
+    /// while the planner does nothing (the theme bench that once reported ~5 ms
+    /// with zero reshapes). `overlay_plans` counts how many candidate-row plans
+    /// this pipeline has built; `overlay_planned_rows` sums the `PlannedRow`s
+    /// across them. Their ratio is the O(visible) claim, checkable at runtime: a
+    /// planner that started walking the corpus would blow the per-plan mean while
+    /// the frame time stayed flat. Pure instrumentation, incremented on the one
+    /// planning seam.
+    pub overlay_plans: std::cell::Cell<u64>,
+    pub overlay_planned_rows: std::cell::Cell<u64>,
     search_active: bool,
     search_matches: Vec<((usize, usize), (usize, usize))>,
     search_query: String,

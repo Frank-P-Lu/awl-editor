@@ -57,6 +57,8 @@ mod outline;
 mod overlay_align_law;
 mod overlay_hover_stability_law;
 mod overlay_personality;
+mod overlay_plan_law;
+pub(super) mod overlay_probe;
 mod overlay_rail_thirds_law;
 mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
