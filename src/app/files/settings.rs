@@ -354,14 +354,6 @@ impl App {
         ));
         self.keymap.apply_overrides(&keys_with_web_alt);
         self.keymap.apply_linux_keep(&cfg.effective_linux_keep());
-        self.default_folder = crate::resolve_default_folder(
-            &self
-                .cli_default_folder
-                .clone()
-                .or_else(|| cfg.default_folder.clone()),
-        );
-        let workspace_opt = self.cli_workspace.clone().or_else(|| cfg.workspace.clone());
-        self.workspace_root = Some(crate::resolve_workspace(&workspace_opt, &self.root));
         // CACHE-KEY DISCIPLINE with `Config::apply_sticky_globals`: an ABSENT
         // key must leave the global AS-IS (the built-in default already
         // carries it), never force it back to ON. The old `unwrap_or(true)`
@@ -377,6 +369,13 @@ impl App {
             crate::spell::set_spellcheck_on(on);
         }
         self.config = cfg;
+        self.default_folder = crate::resolve_default_folder(
+            &self
+                .cli_default_folder
+                .clone()
+                .or_else(|| self.config.default_folder.clone()),
+        );
+        self.resync_project_location(); // root's unchanged; config.workspace may not be
         self.sync_page_measure();
         self.run_spellcheck_now();
     }

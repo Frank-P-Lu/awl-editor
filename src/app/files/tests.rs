@@ -725,3 +725,201 @@ fn app_new_loads_the_persisted_recent_projects() {
         );
     });
 }
+
+// ── ITEM 180 — `ProjectLocation`'s ONE DERIVATION: `resync_project_location` ──
+//
+// Before this round, `set_root` re-derived `project` + `file_index` but not
+// `workspace_root`, and `reload_config` re-derived `workspace_root` but not
+// the other two — two half-owners of one derived value. Since
+// `resolve_workspace` falls back to `root.parent()` whenever nothing
+// overrides it, a Switch-project into a tree whose parent differs from the
+// old one left `workspace_root` — and so the Project picker (`C-x p`), which
+// browses it directly (`app/apply.rs`'s `browse_to` closure) — pointed at the
+// OLD workspace until something unrelated happened to call `reload_config`.
+//
+// These tests read the SAME oracle the live picker does:
+// `crate::overlay::browse_level(OverlayKind::Project, ..)`'s resulting rows —
+// a state oracle, never a pixel (docs/platform.md's sidecar tripwire: a
+// picker's LISTING is state, not appearance). `--keys`/`--screenshot` cannot
+// reach this bug at all: that capture path replays through `ReplaySession`
+// (`src/main/run.rs`), which resolves its own fixed `root`/`workspace` ONCE
+// before replay and never touches `App::set_root`/`reload_config` — the two
+// half-owners live ONLY on the real, event-loop-driven `App`. Calling
+// `App::switch_project`/`set_root` directly (as `switch_project_pushes_and_
+// persists_the_recent_root` above already does) is therefore the PUREST
+// reachable seam, ahead of a sidecar this bug cannot surface in.
+
+/// The names the Project picker (`C-x p`) would list for `app`'s CURRENT
+/// `workspace_root`, in the exact shape `app/apply.rs`'s live `browse_to`
+/// closure builds them (`self.root.clone()`, `self.workspace_root.clone()`,
+/// the persisted recents) — minus the leading "." self-entry every level
+/// carries, which is never one of the project siblings this bug is about.
+fn project_picker_rows(app: &App) -> Vec<String> {
+    let ov = crate::overlay::browse_level(
+        crate::overlay::OverlayKind::Project,
+        None,
+        &app.root,
+        app.workspace_root.as_deref(),
+        &[],
+    )
+    .expect("workspace_root is always Some on a live App, so the picker always builds");
+    ov.rows
+        .into_iter()
+        .map(|r| r.accept)
+        .filter(|name| name != ".")
+        .collect()
+}
+
+/// THE REPORTED REPRO: switching into a tree whose PARENT DIFFERS from the
+/// old one must re-point the picker at the NEW workspace immediately — no
+/// dependency on a later config reload. `switch_project` is the ONE owner
+/// every real Switch-project door (an accepted Project-picker row, the
+/// Recent Projects picker) routes through, so driving it directly here is the
+/// same transition either door takes.
+#[test]
+fn switch_project_into_a_different_parent_repoints_the_picker_at_the_new_workspace() {
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/old-ws/proj-a")
+            .with_dir("/old-ws/sibling")
+            .with_dir("/new-ws/proj-b")
+            .with_dir("/new-ws/other"),
+    );
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(
+            None,
+            PathBuf::from("/old-ws/proj-a"),
+            None,
+            None,
+            Config::empty(),
+        );
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/old-ws")));
+        assert_eq!(project_picker_rows(&app), vec!["proj-a", "sibling"]);
+
+        app.switch_project(PathBuf::from("/new-ws/proj-b"));
+
+        assert_eq!(
+            app.project.root,
+            PathBuf::from("/new-ws/proj-b"),
+            "project agrees with root"
+        );
+        assert_eq!(
+            app.workspace_root,
+            Some(PathBuf::from("/new-ws")),
+            "workspace_root must follow the switch, never stay pinned to the OLD parent"
+        );
+        assert_eq!(
+            project_picker_rows(&app),
+            vec!["other", "proj-b"],
+            "the picker must list the NEW workspace's siblings, not the old \
+             workspace's leftover ['proj-a', 'sibling'] — that would be the \
+             stale-sibling bug back"
+        );
+    });
+}
+
+/// Axis value: the SAME-parent switch. Two projects share a parent, so the
+/// derivation must be a no-op on `workspace_root` — proving the fix doesn't
+/// merely always re-run `root.parent()` blindly without landing on the right
+/// value.
+#[test]
+fn switch_project_within_the_same_parent_leaves_the_picker_on_the_shared_workspace() {
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/proj-a")
+            .with_dir("/ws/proj-b"),
+    );
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(
+            None,
+            PathBuf::from("/ws/proj-a"),
+            None,
+            None,
+            Config::empty(),
+        );
+        app.switch_project(PathBuf::from("/ws/proj-b"));
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/ws")));
+        assert_eq!(project_picker_rows(&app), vec!["proj-a", "proj-b"]);
+    });
+}
+
+/// Axis value: the filesystem-root edge. Switching INTO a root with no
+/// parent (`/`) must fall back to the root itself
+/// ([`crate::resolve_workspace`]'s own no-parent arm), not panic or leave a
+/// stale value from before the switch.
+#[test]
+fn switch_project_into_the_filesystem_root_falls_back_to_the_root_itself() {
+    let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/somewhere/proj"));
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(
+            None,
+            PathBuf::from("/somewhere/proj"),
+            None,
+            None,
+            Config::empty(),
+        );
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/somewhere")));
+
+        app.switch_project(PathBuf::from("/"));
+
+        assert_eq!(
+            app.workspace_root,
+            Some(PathBuf::from("/")),
+            "no parent to fall back to — the root itself is the workspace"
+        );
+    });
+}
+
+/// Axis value: a workspace EXPLICITLY named in config must keep winning over
+/// the `root.parent()` fallback across a switch into a different-parent tree
+/// — the derivation folding two call sites into one must never silently drop
+/// the CLI/config precedence `resolve_workspace` itself already encodes.
+#[test]
+fn switch_project_never_overrides_an_explicitly_configured_workspace() {
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/a/proj")
+            .with_dir("/x/y/proj2"),
+    );
+    crate::fs::with_fs(fake, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/explicit-ws"));
+        let mut app = App::new(None, PathBuf::from("/a/proj"), None, None, config);
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/explicit-ws")));
+
+        app.switch_project(PathBuf::from("/x/y/proj2"));
+
+        assert_eq!(
+            app.workspace_root,
+            Some(PathBuf::from("/explicit-ws")),
+            "an explicit config workspace must survive a switch into a \
+             different-parent tree, never fall back to root.parent()"
+        );
+    });
+}
+
+/// Axis value: A → B → A. A stale value from the FIRST switch must not
+/// survive the ROUND TRIP back — the exact shape a half-derivation that only
+/// updates "sometimes" would get wrong on a second switch.
+#[test]
+fn switch_project_a_to_b_and_back_never_leaves_a_stale_workspace() {
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/aa/proj")
+            .with_dir("/bb/cc/proj2"),
+    );
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(None, PathBuf::from("/aa/proj"), None, None, Config::empty());
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/aa")));
+
+        app.switch_project(PathBuf::from("/bb/cc/proj2"));
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/bb/cc")));
+
+        app.switch_project(PathBuf::from("/aa/proj"));
+        assert_eq!(
+            app.workspace_root,
+            Some(PathBuf::from("/aa")),
+            "the round trip back to A must not leave B's workspace behind"
+        );
+    });
+}
