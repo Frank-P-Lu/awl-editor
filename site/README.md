@@ -49,6 +49,20 @@ scripts/hero-image.sh --install Firetail   # or Wagtail, or any world in the ros
 (`scripts/hero-image.sh` writes `site/img/social.png` directly; no other file
 needs to change.)
 
+**The social tags are absolute, and they have to be.** `og:image`, `twitter:image`
+and `og:url` carry a full `https://` URL. Facebook, X/Twitter, LinkedIn and Slack
+drop a card whose image URL is relative rather than resolving it against the
+page, so a relative path shows no image anywhere while still pointing at a real
+file on disk.
+
+The canonical origin has one owner: **`site/fly.toml`'s `app` name**. A Fly app
+serves at `<app>.fly.dev` and this site sets `force_https`, so `app = "awl-editor"`
+means `https://awl-editor.fly.dev`. `scripts/site-links.sh` derives the expected
+origin from that file and fails if any page disagrees with it, so the pages and
+the deploy config cannot drift apart silently. To move to a custom domain:
+change `fly.toml`, then update the absolute URLs on the four hand-authored pages
+— the check names every page still pointing at the old origin.
+
 ### Web analytics — GoatCounter (configured)
 
 The landing `<head>` (and the editor page) carry a **GoatCounter** cookieless
