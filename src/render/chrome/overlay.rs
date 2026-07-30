@@ -577,39 +577,47 @@ impl TextPipeline {
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let canvas_h = self.window_h;
-        // `sel_row` is the LOGICAL selected display line, through the one owner —
-        // this used to re-derive both families' arithmetic inline and drift was
-        // only ever a matter of time (item 164).
-        let sel_row = self.overlay_selected_display_line(&geom).unwrap_or(0);
-        let lines = if geom.theme {
-            geom.plan.len()
-        } else {
-            geom.visible
-        };
-        Some((geom.top_idx, lines, sel_row, geom.card_h, canvas_h))
+        // ITEM 174 — the sidecar reports the PLAN, not a parallel count: `lines`
+        // is the planned candidate band's own length and `sel_row` its planned
+        // selected display line. A report can no longer claim a window the drawn
+        // rows and the hit-test don't share.
+        let plan = self.overlay_row_plan(&geom);
+        Some((
+            geom.top_idx,
+            plan.candidate_rows(),
+            plan.selected_display().unwrap_or(0),
+            geom.card_h,
+            canvas_h,
+        ))
     }
 
-    /// ITEM 94 — the `overlay_items` INDEX drawn at display row `k`, or `None` when
-    /// that row is a section HEADER / past the window. The ONE display-row→item map:
-    /// the rail draw and the rail hit-test both read it, so a clicked rail and a
-    /// drawn rail always belong to the same row (the faceted card interleaves
-    /// headers, so `k` is NOT `top_idx + k` there).
-    pub(in crate::render) fn overlay_item_at_row(
-        &self,
-        geom: &OverlayGeom,
-        k: usize,
-    ) -> Option<usize> {
-        if geom.theme {
-            return match geom.plan.get(k) {
-                Some(ThemeLine::Item(i)) => Some(*i),
-                _ => None,
-            };
-        }
-        if k >= geom.visible {
-            return None;
-        }
-        let idx = geom.top_idx + k;
-        (idx < geom.n_items).then_some(idx)
+    /// ITEM 174 — THE ONE PLANNING SEAM for the candidate-row band. Hands the
+    /// already-resolved [`OverlayGeom`] (card box + window + header metrics) and
+    /// the row pitch to the device-free scene planner, which emits one
+    /// [`PlannedRow`] per candidate DISPLAY LINE plus that band's interaction
+    /// geometry.
+    ///
+    /// Every downstream consumer — the selected band, the bar plates, the chord
+    /// plates, the footer plate, the range rails, the text clip bands, the pointer
+    /// hit-test, and the sidecar window report — reads the resulting plan; none of
+    /// them may compute a row's y. It is built once per overlay frame in
+    /// `prepare_overlay` and threaded down, and freshly (still O(visible)) by the
+    /// standalone pointer/report entry points, which have no frame to ride.
+    pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
+        plan_overlay_rows(&OverlayRowPlanInput {
+            card_x: geom.card_x,
+            card_w: geom.card_w,
+            text_top: geom.text_top,
+            lh: self.overlay_lh(),
+            header_gap: geom.header_gap,
+            header_rows: geom.header_rows,
+            visible: geom.visible,
+            top_idx: geom.top_idx,
+            n_items: geom.n_items,
+            selected: self.overlay_selected,
+            empty_rows: geom.empty.is_some() as usize,
+            lines: geom.theme.then_some(geom.plan.as_slice()),
+        })
     }
 
     /// ITEM 94 — THE RAIL GEOMETRY OWNER for the whole card: every VISIBLE range
@@ -626,34 +634,29 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_rails(
         &self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
     ) -> Vec<(usize, crate::render::rowlayout::Rail)> {
         if self.overlay_ranges.is_empty() || !self.overlay_right_shown {
             return Vec::new();
         }
-        let lh = self.overlay_lh();
         let secondary = self.overlay_row_secondary_px(geom);
         let primary = self.overlay_row_primary_px(geom);
-        let rows = if geom.theme {
-            geom.plan.len()
-        } else {
-            geom.visible
-        };
         let mut out = Vec::new();
-        for k in 0..rows {
-            let Some(item) = self.overlay_item_at_row(geom, k) else {
+        for row in plan.rows() {
+            let Some(item) = row.item else {
                 continue;
             };
             let Some(Some(frac)) = self.overlay_ranges.get(item).copied() else {
                 continue;
             };
+            let k = row.display;
             let value_w = secondary.get(&k).copied().unwrap_or(0.0);
             let label_w = primary.get(&k).copied().unwrap_or(0.0);
             let text_right = geom.text_left + geom.text_w;
             let avail = (text_right - value_w) - (geom.text_left + label_w);
-            let top = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, k, lh);
-            if let Some(rail) =
-                crate::render::rowlayout::rail_geom(text_right, value_w, avail, top, lh, frac)
-            {
+            if let Some(rail) = crate::render::rowlayout::rail_geom(
+                text_right, value_w, avail, row.top, row.height, frac,
+            ) {
                 out.push((item, rail));
             }
         }
@@ -665,7 +668,8 @@ impl TextPipeline {
             return None;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        self.overlay_rails(&geom)
+        let plan = self.overlay_row_plan(&geom);
+        self.overlay_rails(&geom, &plan)
             .into_iter()
             .find_map(|(item, rail)| {
                 crate::render::rowlayout::rail_hit(&rail, px, py).then(|| {
@@ -682,45 +686,28 @@ impl TextPipeline {
             return None;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        self.overlay_rails(&geom)
+        let plan = self.overlay_row_plan(&geom);
+        self.overlay_rails(&geom, &plan)
             .into_iter()
             .find_map(|(i, rail)| (i == item).then_some((rail.x0, rail.x1)))
     }
 
+    /// The `overlay_items` index a pointer at PHYSICAL `(px, py)` selects — the
+    /// value to assign to [`crate::overlay::OverlayState::selected`] — resolved by
+    /// INVERTING the very [`PlannedRow`] slots the rows are drawn from. Both card
+    /// families answer through the one planner, so a hovered/clicked row can never
+    /// disagree with the highlighted one, and the faceted card's section headers
+    /// (which carry no item) reject a click by construction.
+    ///
+    /// Deliberately NOT part of the item-164 visual-selection transaction: a click
+    /// accepts the row under the pointer on the frame it lands, however far behind
+    /// the animated band happens to be.
     pub fn overlay_row_at(&self, px: f32, py: f32) -> Option<usize> {
         if !self.overlay_active {
             return None;
         }
         let geom = self.overlay_geometry(self.window_w as u32);
-        if geom.theme {
-            if px < geom.card_x || px > geom.card_x + geom.card_w {
-                return None;
-            }
-            let k = overlay_row_of(
-                geom.text_top,
-                geom.header_rows,
-                geom.header_gap,
-                self.overlay_lh(),
-                py,
-            )?;
-            return match geom.plan.get(k) {
-                Some(ThemeLine::Item(i)) => Some(*i),
-                _ => None,
-            };
-        }
-        overlay_row_index(
-            geom.card_x,
-            geom.card_w,
-            geom.text_top,
-            self.overlay_lh(),
-            geom.header_rows,
-            geom.header_gap,
-            geom.visible,
-            geom.top_idx,
-            geom.n_items,
-            px,
-            py,
-        )
+        self.overlay_row_plan(&geom).row_at(px, py)
     }
 
     /// ITEM 106 — THE ONE HOVER-RESOLUTION SEAM: hit-test `(px, py)` against
@@ -766,38 +753,5 @@ impl TextPipeline {
             && px <= geom.card_x + geom.card_w
             && py >= geom.text_top
             && py < geom.text_top + lh
-    }
-
-    /// THE ONE owner of the LOGICAL selected candidate's DISPLAY-line index
-    /// (0-based among the shown candidate lines, past the header) — the row Enter
-    /// or a click activates. Two layout families: a faceted/theme plan's selected
-    /// world sits at its POSITION in the plan (section headers push it down); a
-    /// flat picker's selection is its offset in the visible window (saturated +
-    /// clamped defensively so a transient list-shrink can never over/underflow).
-    /// `None` iff there are no items.
-    ///
-    /// ITEM 164 — THIS IS NOT "WHICH ROW LOOKS SELECTED". The bands are ANIMATED,
-    /// so mid-glide the logical row and the row that visually reads selected are
-    /// DIFFERENT; a visual colouring itself from this index while its neighbours
-    /// ride the band puts two answers on one card. Rendering decisions go through
-    /// [`TextPipeline::resolve_visual_selection`] — hence `pub(super)`, and hence
-    /// `render::tests::visual_selection_law`'s sweep for a second caller.
-    pub(super) fn overlay_selected_display_line(&self, geom: &OverlayGeom) -> Option<usize> {
-        if geom.n_items == 0 {
-            None
-        } else if geom.theme {
-            Some(
-                geom.plan
-                    .iter()
-                    .position(|l| matches!(l, ThemeLine::Item(i) if *i == self.overlay_selected))
-                    .unwrap_or(0),
-            )
-        } else {
-            Some(
-                self.overlay_selected
-                    .saturating_sub(geom.top_idx)
-                    .min(geom.visible.saturating_sub(1)),
-            )
-        }
     }
 }

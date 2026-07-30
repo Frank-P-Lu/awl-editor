@@ -44,7 +44,7 @@ fn split_bounds_carve_the_query_beat_above_the_first_row() {
         );
         // The whole gap sits ABOVE the first candidate row's top (nothing below
         // the beat is touched) and BELOW the query line's own top.
-        let first_row_top = chrome::overlay_row_top(text_top, header_rows, hg, 0, lh);
+        let first_row_top = crate::render::plan::test_row_top(text_top, header_rows, hg, 0, lh);
         assert!(
             gb <= first_row_top + 1e-3,
             "gap ends at/above the first row"

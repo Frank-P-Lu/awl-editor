@@ -85,7 +85,8 @@ fn disarm(saved: bool) {
 fn answers(p: &mut TextPipeline) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
     let geom = p.overlay_geometry(1200);
     let (primary, secondary) = p.overlay_ink_flip_probe(&geom);
-    let visual = p.resolve_visual_selection(&geom).rows().to_vec();
+    let row_plan = p.overlay_row_plan(&geom);
+    let visual = p.resolve_visual_selection(&geom, &row_plan).rows().to_vec();
     (primary, secondary, visual)
 }
 
@@ -295,7 +296,8 @@ fn a_click_activates_the_row_under_the_pointer_however_far_behind_the_band_is() 
         }
         p.prepare(&device, &queue, 1200, 800).unwrap();
         let geom = p.overlay_geometry(1200);
-        let vis = p.resolve_visual_selection(&geom);
+        let row_plan = p.overlay_row_plan(&geom);
+        let vis = p.resolve_visual_selection(&geom, &row_plan);
         // Row tops come from the SHAPED buffer (`overlay_row_y_probe`), not from
         // row arithmetic — so the pointer is aimed at glyphs that genuinely exist.
         let yp = p.overlay_row_y_probe();
@@ -445,11 +447,13 @@ fn the_shortcut_column_never_flips_ahead_of_its_own_band_in_real_pixels() {
 
 // --- The no-wildcard source sweep -------------------------------------------
 
-/// The ONLY production files that may name the LOGICAL selected display row.
+/// The ONLY production files that may READ the LOGICAL selected display row off
+/// the scene plan ([`crate::render::plan::OverlayRowPlan::selected_display`],
+/// which item 174 made the single owner of that derivation).
 ///
-/// * `chrome/overlay.rs` — its definition, plus `overlay_window_report`, which
-///   is the sidecar's STATE oracle (`sel_row` answers "what does Enter run"),
-///   deliberately not a rendering decision.
+/// * `chrome/overlay.rs` — `overlay_window_report`, the sidecar's STATE oracle
+///   (`sel_row` answers "what does Enter run"), deliberately not a rendering
+///   decision.
 /// * `chrome/overlay_visual_sel.rs` — the ONE visual-selection transaction, the
 ///   single place a render path is allowed to convert state into a drawn row.
 ///
@@ -462,7 +466,8 @@ fn names_logical_row(line: &str) -> bool {
     if trimmed.starts_with("//") {
         return false; // prose, not code
     }
-    line.contains("overlay_selected_display_line(")
+    // A CALL, not the planner's own definition (`fn selected_display(`).
+    line.contains(".selected_display()")
 }
 
 fn scan(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize)>) {
@@ -526,7 +531,7 @@ fn no_render_path_reads_the_logical_selected_row_outside_the_transaction() {
     for owner in LOGICAL_ROW_OWNERS {
         assert!(
             hits.iter().any(|(f, _)| f == owner),
-            "{owner} must actually call `overlay_selected_display_line` — found none, \
+            "{owner} must actually call `plan.selected_display()` — found none, \
              so this law is scanning for something that no longer exists"
         );
     }
@@ -535,13 +540,14 @@ fn no_render_path_reads_the_logical_selected_row_outside_the_transaction() {
 #[test]
 fn the_source_scanner_reads_code_and_skips_prose() {
     assert!(names_logical_row(
-        "        let logical = self.overlay_selected_display_line(geom);"
+        "        let logical = plan.selected_display();"
     ));
     assert!(!names_logical_row(
-        "/// reads `overlay_selected_display_line(` — a prose reference"
+        "/// reads `.selected_display()` — a prose reference"
     ));
+    assert!(!names_logical_row("// .selected_display() in a note"));
     assert!(!names_logical_row(
-        "// overlay_selected_display_line( in a note"
+        "    pub(in crate::render) fn selected_display(&self) -> Option<usize> {"
     ));
     assert!(!names_logical_row("let x = vis.reads_selected(row);"));
 }

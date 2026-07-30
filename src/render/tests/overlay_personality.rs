@@ -951,7 +951,8 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
         p.set_view(v);
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
-        p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
+        let row_plan = p.overlay_row_plan(&geom);
+        p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
         p.panel_buffer
             .layout_runs()
             .find(|r| r.line_i == 0)
@@ -1057,7 +1058,8 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
         let placard = p.overlay_shape_placard(&geom);
         // Shape the card text so line 0 (the query row) reports the prefix state.
         let vs = super::no_vis();
-        p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
+        let row_plan = p.overlay_row_plan(&geom);
+        p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
         let query = p
             .panel_buffer
             .layout_runs()

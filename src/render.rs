@@ -51,6 +51,12 @@ pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
 mod rowlayout;
 pub use rowlayout::rail_frac_at;
 
+/// ITEM 174 — THE SCENE PLANNER: the deterministic, device-free layout stage
+/// between the measured inputs and the GPU. Drawing, hit-testing and the sidecar
+/// read its planned objects instead of each deriving geometry of their own; see
+/// the module doc.
+mod plan;
+
 mod blur;
 
 mod geometry;

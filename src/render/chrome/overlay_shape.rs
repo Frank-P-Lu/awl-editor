@@ -315,6 +315,7 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_shape_text(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
@@ -323,18 +324,27 @@ impl TextPipeline {
     ) -> bool {
         self.overlay_right_shown = false;
         if geom.theme {
-            return self.shape_faceted(geom, ink, muted, selected_ink, vis, elide);
+            return self.shape_faceted(geom, plan, ink, muted, selected_ink, vis, elide);
         }
-        let visible = geom.visible;
-        let top_idx = geom.top_idx;
+        // ITEM 174 — the shaped line `k` and the PLANNED row `k` are the same
+        // object: the row's item comes off the plan, never from a second
+        // `top_idx + k` computed here.
+        let items: Vec<Option<usize>> = plan.rows().iter().map(|r| r.item).collect();
+        let row_labels: Vec<String> = items
+            .iter()
+            .map(|item| {
+                item.and_then(|i| self.overlay_items.get(i))
+                    .cloned()
+                    .unwrap_or_default()
+            })
+            .collect();
 
         let right_labels = self.overlay_right_labels();
         let has_right = !right_labels.is_empty();
         let bind_strs = right_bind_lines(
             geom.header_rows,
-            (0..visible).map(|row| {
-                right_labels
-                    .get(top_idx + row)
+            items.iter().map(|item| {
+                item.and_then(|i| right_labels.get(i))
                     .map(|s| s.as_str())
                     .unwrap_or("")
             }),
@@ -353,7 +363,7 @@ impl TextPipeline {
         // law is untouched; only the width it budgets against shrinks.
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
-            .map(|s| crate::render::slant_max_offset(&s, visible))
+            .map(|s| crate::render::slant_max_offset(&s, plan.candidate_rows()))
             .unwrap_or(0.0);
         let slant_text_w = (geom.text_w - slant_tax).max(0.0);
         let char_w = self.overlay_char_width();
@@ -364,18 +374,19 @@ impl TextPipeline {
         };
         if has_right && super::bars_inline_shortcut() {
             let full = rowlayout::full_budget(total_chars);
-            let rows: Vec<String> = (0..visible)
-                .map(|row| {
-                    let item = &self.overlay_items[top_idx + row];
+            let rows: Vec<String> = row_labels
+                .iter()
+                .map(|label| {
                     if elide {
-                        rowlayout::fit_primary(item, full)
+                        rowlayout::fit_primary(label, full)
                     } else {
-                        item.clone()
+                        label.clone()
                     }
                 })
                 .collect();
-            let trailing: Vec<String> = (0..visible)
-                .map(|row| match right_labels.get(top_idx + row) {
+            let trailing: Vec<String> = items
+                .iter()
+                .map(|item| match item.and_then(|i| right_labels.get(i)) {
                     Some(s) if !s.is_empty() => format!("{}{}", super::INLINE_SHORTCUT_GAP, s),
                     _ => String::new(),
                 })
@@ -404,13 +415,11 @@ impl TextPipeline {
                 rowlayout::Plan::Measure => None,
             }
         };
-        let rows: Vec<String> = (0..visible)
-            .map(|row| {
-                let item = &self.overlay_items[top_idx + row];
-                match budget {
-                    Some(b) => rowlayout::fit_primary(item, b),
-                    None => item.clone(),
-                }
+        let rows: Vec<String> = row_labels
+            .iter()
+            .map(|label| match budget {
+                Some(b) => rowlayout::fit_primary(label, b),
+                None => label.clone(),
             })
             .collect();
         self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &[]);
@@ -430,8 +439,9 @@ impl TextPipeline {
             return false;
         }
         let full = rowlayout::full_budget(total_chars);
-        let rows: Vec<String> = (0..visible)
-            .map(|row| rowlayout::fit_primary(&self.overlay_items[top_idx + row], full))
+        let rows: Vec<String> = row_labels
+            .iter()
+            .map(|label| rowlayout::fit_primary(label, full))
             .collect();
         self.shape_overlay_names(geom, ink, muted, selected_ink, vis, &rows, &[]);
         false
@@ -446,7 +456,8 @@ impl TextPipeline {
         // all, so this pass wants NO visual selection — and must not touch the
         // band's chase state (measuring may never advance an animation).
         let vis = VisualSelection::default();
-        let has_right = self.overlay_shape_text(&geom, ink, muted, None, &vis, false);
+        let plan = self.overlay_row_plan(&geom);
+        let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, None, &vis, false);
         let mut left = 0.0_f32;
         for run in self.panel_buffer.layout_runs() {
             left = left.max(run.line_w);
@@ -469,6 +480,7 @@ impl TextPipeline {
     fn shape_faceted(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         ink: glyphon::Color,
         muted: glyphon::Color,
         selected_ink: Option<glyphon::Color>,
@@ -482,13 +494,13 @@ impl TextPipeline {
             geom.plan
                 .iter()
                 .map(|line| match line {
-                    ThemeLine::Item(i) => match right_labels.get(*i) {
+                    PlanLine::Item(i) => match right_labels.get(*i) {
                         Some(s) if !s.is_empty() => {
                             format!("{}{}", super::INLINE_SHORTCUT_GAP, s)
                         }
                         _ => String::new(),
                     },
-                    ThemeLine::Header(_) => String::new(),
+                    PlanLine::Header(_) => String::new(),
                 })
                 .collect()
         } else {
@@ -498,8 +510,8 @@ impl TextPipeline {
             right_bind_lines(
                 geom.header_rows,
                 geom.plan.iter().map(|line| match line {
-                    ThemeLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
-                    ThemeLine::Header(_) => "",
+                    PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
+                    PlanLine::Header(_) => "",
                 }),
             )
         } else {
@@ -526,7 +538,7 @@ impl TextPipeline {
         let right_px = self.widest_right_px();
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
-            .map(|s| crate::render::slant_max_offset(&s, geom.plan.len()))
+            .map(|s| crate::render::slant_max_offset(&s, plan.candidate_rows()))
             .unwrap_or(0.0);
         let slant_text_w = (geom.text_w - slant_tax).max(0.0);
         let gap_px = rowlayout::GAP_CHARS as f32 * self.overlay_char_width();
@@ -751,7 +763,7 @@ impl TextPipeline {
 
     fn widest_candidate_px(&self, geom: &OverlayGeom) -> f32 {
         let first = geom.header_rows;
-        let last = first + geom.visible;
+        let last = first + self.overlay_row_plan(geom).candidate_rows();
         let mut w = 0.0f32;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i >= first && run.line_i < last {
@@ -817,13 +829,15 @@ impl TextPipeline {
     /// over the shaped GLYPHS (the Wagtail tripwire: appearance from pixels, not
     /// from the hint STRING). Reads the private `geom.visible`/`text_w` inside the
     /// chrome module and routes the width through the ONE footer-measure owner
-    /// [`Self::overlay_footer_content_px`]. Flat cards only (the narrowest card, so
-    /// the tightest clip budget); call after a frame has shaped `panel_buffer`.
+    /// [`Self::overlay_footer_content_px`], fed the PLANNED content-row count.
+    /// Flat cards only (the narrowest card, so the tightest clip budget); call
+    /// after a frame has shaped `panel_buffer`.
     #[cfg(test)]
     pub(in crate::render) fn overlay_footer_fit_probe(&self, width: u32) -> (f32, f32) {
         let geom = self.overlay_geometry(width);
+        let plan = self.overlay_row_plan(&geom);
         (
-            self.overlay_footer_content_px(&geom, geom.visible),
+            self.overlay_footer_content_px(&geom, plan.content_rows()),
             geom.text_w,
         )
     }

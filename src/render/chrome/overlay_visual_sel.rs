@@ -156,13 +156,19 @@ impl TextPipeline {
     pub(in crate::render) fn resolve_visual_selection(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
     ) -> VisualSelection {
-        let logical = self.overlay_selected_display_line(geom);
-        let lh = self.overlay_lh();
+        // ITEM 174 — the transaction's target is the PLANNED row's own top, and
+        // the coverage grid is the plan's own band origin/pitch/length. The band
+        // therefore starts from the same object the hit-test inverts.
+        let logical = plan.selected_display();
+        let lh = plan.lh();
         let Some(sel) = logical else {
             return VisualSelection::default();
         };
-        let target = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, sel, lh);
+        let Some(target) = plan.row_top(sel) else {
+            return VisualSelection::default();
+        };
         // The Pane living band, when it is in play: its rects genuinely STRETCH
         // across rows mid-flight, so the covered set is read off the drawn quads.
         let living = matches!(
@@ -199,8 +205,7 @@ impl TextPipeline {
                 (Some(top), vec![BandRect { top, height: lh }])
             }
         };
-        let first_top = overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, 0, lh);
-        let rows = livingband::covered_rows(&bands, first_top, lh, geom.visible);
+        let rows = livingband::covered_rows(&bands, plan.first_top(), lh, plan.candidate_rows());
         VisualSelection {
             logical,
             band_top,
@@ -221,6 +226,7 @@ impl TextPipeline {
         &self,
         geom: &OverlayGeom,
     ) -> (Vec<usize>, Vec<usize>) {
+        let candidate_rows = self.overlay_row_plan(geom).candidate_rows();
         let primary_flip = super::overlay_selected_primary_ink();
         let secondary_flip = super::overlay_selected_secondary_ink();
         let rows_of = |buf: &GlyphBuffer, want: Option<glyphon::Color>| -> Vec<usize> {
@@ -233,7 +239,7 @@ impl TextPipeline {
                     continue;
                 }
                 let row = run.line_i - geom.header_rows;
-                if row >= geom.visible {
+                if row >= candidate_rows {
                     continue;
                 }
                 if run.glyphs.iter().any(|g| g.color_opt == Some(want)) && !out.contains(&row) {

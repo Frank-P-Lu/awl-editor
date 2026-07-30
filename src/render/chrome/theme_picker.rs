@@ -13,13 +13,13 @@ const UNDERLINE_BASELINE_DROP: f32 = 2.0;
 /// the most-recent header until an in-window item consumes it — yields the correct
 /// header→rows grouping for the visible slice. A window at the start of a section shows
 /// that section's header at the top (`a section header at the window top is fine`).
-fn window_plan(full: &[ThemeLine], lo: usize, hi: usize) -> Vec<ThemeLine> {
-    let mut out: Vec<ThemeLine> = Vec::new();
-    let mut pending: Option<&ThemeLine> = None;
+fn window_plan(full: &[PlanLine], lo: usize, hi: usize) -> Vec<PlanLine> {
+    let mut out: Vec<PlanLine> = Vec::new();
+    let mut pending: Option<&PlanLine> = None;
     for line in full {
         match line {
-            ThemeLine::Header(_) => pending = Some(line),
-            ThemeLine::Item(i) => {
+            PlanLine::Header(_) => pending = Some(line),
+            PlanLine::Item(i) => {
                 if *i >= lo && *i < hi {
                     if let Some(h) = pending.take() {
                         out.push(h.clone());
@@ -39,7 +39,7 @@ impl TextPipeline {
     /// get one header each); the All lens / non-grouped rows emit no headers. Section
     /// labels are uppercased for the faint header display. Shared by the geometry,
     /// shaping, selected-band, and hit-test so they can never disagree.
-    pub(in crate::render) fn theme_plan(&self) -> Vec<ThemeLine> {
+    pub(in crate::render) fn theme_plan(&self) -> Vec<PlanLine> {
         let mut out = Vec::with_capacity(self.overlay_items.len());
         let mut prev: Option<String> = None;
         for i in 0..self.overlay_items.len() {
@@ -49,9 +49,9 @@ impl TextPipeline {
                 .map(|s| s.as_str())
                 .unwrap_or("");
             if !sect.is_empty() && prev.as_deref() != Some(sect) {
-                out.push(ThemeLine::Header(sect.to_uppercase()));
+                out.push(PlanLine::Header(sect.to_uppercase()));
             }
-            out.push(ThemeLine::Item(i));
+            out.push(PlanLine::Item(i));
             prev = if sect.is_empty() {
                 None
             } else {
@@ -448,8 +448,8 @@ impl TextPipeline {
             .plan
             .iter()
             .map(|line| match line {
-                ThemeLine::Header(_) => None,
-                ThemeLine::Item(i) => {
+                PlanLine::Header(_) => None,
+                PlanLine::Item(i) => {
                     let name = self.overlay_items.get(*i).map(|s| s.as_str()).unwrap_or("");
                     Some(if elide {
                         rowlayout::fit_primary(name, row_budget).to_string()
@@ -534,10 +534,10 @@ impl TextPipeline {
         for (idx, (line, fit)) in geom.plan.iter().zip(fitted.iter()).enumerate() {
             spans.push(("\n", mk(ink)));
             match line {
-                ThemeLine::Header(h) => {
+                PlanLine::Header(h) => {
                     spans.push((h.as_str(), mk(faint).metrics(header_metrics)));
                 }
-                ThemeLine::Item(_) => {
+                PlanLine::Item(_) => {
                     let flip = vis.reads_selected(idx);
                     let c = match selected_ink {
                         Some(c) if flip => c,
@@ -587,25 +587,25 @@ impl TextPipeline {
 
 #[cfg(test)]
 mod tests {
-    use super::{ThemeLine, window_plan};
+    use super::{PlanLine, window_plan};
 
-    fn sample_plan() -> Vec<ThemeLine> {
+    fn sample_plan() -> Vec<PlanLine> {
         vec![
-            ThemeLine::Header("A".into()),
-            ThemeLine::Item(0),
-            ThemeLine::Item(1),
-            ThemeLine::Item(2),
-            ThemeLine::Header("B".into()),
-            ThemeLine::Item(3),
-            ThemeLine::Item(4),
+            PlanLine::Header("A".into()),
+            PlanLine::Item(0),
+            PlanLine::Item(1),
+            PlanLine::Item(2),
+            PlanLine::Header("B".into()),
+            PlanLine::Item(3),
+            PlanLine::Item(4),
         ]
     }
 
-    fn shape(plan: &[ThemeLine]) -> Vec<String> {
+    fn shape(plan: &[PlanLine]) -> Vec<String> {
         plan.iter()
             .map(|l| match l {
-                ThemeLine::Header(h) => format!("#{h}"),
-                ThemeLine::Item(i) => format!("i{i}"),
+                PlanLine::Header(h) => format!("#{h}"),
+                PlanLine::Item(i) => format!("i{i}"),
             })
             .collect()
     }

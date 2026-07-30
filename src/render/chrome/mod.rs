@@ -4,6 +4,14 @@
 
 use super::*;
 
+// ITEM 174 — the scene planner owns the candidate-row geometry every overlay
+// consumer here reads. The forward `row -> y` arithmetic and its inverse are
+// private to `crate::render::plan`, so nothing in this module can re-derive a
+// row's position; it asks the plan that drew it.
+pub(super) use crate::render::plan::{
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, plan_overlay_rows,
+};
+
 const PREFIX_HEADER: &str = "C-x";
 
 pub(in crate::render) const MARGIN_COLUMN_GAP_CHARS: f32 = 1.5;
@@ -160,16 +168,6 @@ pub(super) fn strip_gap() -> &'static str {
     }
 }
 
-/// One DISPLAY line in the THEME picker's candidate area (below the query + lens
-/// strip): either a faint uppercase SECTION header, or a world ROW (carrying its
-/// index into `overlay_items`). Built by [`TextPipeline::theme_plan`] from the
-/// parallel `overlay_sections`, so the render + hit-test share one line sequence.
-#[derive(Clone)]
-pub(super) enum ThemeLine {
-    Header(String),
-    Item(usize),
-}
-
 pub(super) struct OverlayGeom {
     visible: usize,
     top_idx: usize,
@@ -184,13 +182,17 @@ pub(super) struct OverlayGeom {
     footer_rows: usize,
     theme: bool,
     strip: Vec<(String, bool)>,
-    plan: Vec<ThemeLine>,
+    /// The GROUPED family's candidate DISPLAY-LINE sequence — section headers
+    /// interleaved with item rows, built by [`TextPipeline::theme_plan`] from the
+    /// parallel `overlay_sections` and windowed to what the card shows. Handed
+    /// verbatim to the scene planner, so the shaper's line `k` and the planner's
+    /// row `k` are the same line by construction.
+    plan: Vec<PlanLine>,
     /// Rows occupied ABOVE the candidate list: `1` for the query line the flat/nav
     /// pickers show at the top (`› query`), `0` for the contextual SPELL panel (no
     /// query line — just suggestion rows). Candidate row 0 therefore begins at
-    /// [`overlay_row_top`]`(text_top, header_rows, 0, line_height)`, which both the
-    /// selected-row band and the pointer hit-test read, so they can't drift from the
-    /// shaped rows.
+    /// the scene planner's first planned row, whose slot both the selected-row band
+    /// and the pointer hit-test read, so they can't drift from the shaped rows.
     header_rows: usize,
     /// PALETTE-COMPOSITION round: extra VERTICAL negative space (device px)
     /// inserted AFTER the header rows (the `› query` line, plus the lens strip on
@@ -198,8 +200,8 @@ pub(super) struct OverlayGeom {
     /// separates chrome from the list without a drawn rule. `0.0` for the
     /// contextual spell popup (no header to divide from). The candidate band, the
     /// selected-row highlight, the pointer hit-test, and the card height all fold
-    /// it in through [`overlay_row_top`], so they can't drift; the shaper realizes
-    /// it by inflating the last header line's height by exactly this.
+    /// it in through the scene planner, so they can't drift; the shaper realizes it
+    /// by inflating the last header line's height by exactly this.
     header_gap: f32,
     empty: Option<String>,
     card_x: f32,
@@ -564,16 +566,6 @@ fn preview_glyph_key_at(buf: &GlyphBuffer, text: &str, idx: usize) -> Option<Cac
     None
 }
 
-pub(super) fn overlay_row_top(
-    text_top: f32,
-    header_rows: usize,
-    header_gap: f32,
-    row: usize,
-    line_height: f32,
-) -> f32 {
-    text_top + header_rows as f32 * line_height + header_gap + row as f32 * line_height
-}
-
 /// SPLIT-PANE COMPOSITION — the vertical bounds `(gap_top, gap_bottom)` (device
 /// px) of the visible-BACKGROUND strip between a split Pane card's two surfaces,
 /// or `None` when there is no header to split off (the contextual spell popup, or
@@ -587,8 +579,8 @@ pub(super) fn overlay_row_top(
 /// change:
 ///   - FLAT picker (`header_rows == 1`): the query line 0 is inflated by
 ///     `header_gap`, so its glyph centres LOW; the clear band is the query box's
-///     BOTTOM half, ending at the first candidate box top (`overlay_row_top(..,
-///     0, ..)` == `text_top + lh + header_gap`).
+///     BOTTOM half, ending at the first candidate box top (the planner's
+///     `first_top` == `text_top + lh + header_gap`).
 ///   - FACETED picker (`header_rows == 2`): the query line 0 is plain `lh` (its
 ///     glyph sits HIGH) and the lens STRIP (line 1) is inflated by `header_gap`,
 ///     so the strip labels centre LOW; the clear band is the strip box's TOP
@@ -723,19 +715,17 @@ pub(super) fn bar_rect_selected(
     [x, top, w.max(1.0), bar_h]
 }
 
-#[allow(clippy::too_many_arguments)]
+/// The `Bars` footer PLATE, seated at the planned footer top
+/// ([`crate::render::plan::OverlayRowPlan::footer_top`]) — never at a row index
+/// this function re-derives, so the plate and the footer glyphs it backs cannot
+/// land on different rows.
 pub(super) fn footer_plate_rect(
-    text_top: f32,
-    header_rows: usize,
-    header_gap: f32,
-    content_rows: usize,
-    line_height: f32,
+    hint_top: f32,
     card_x: f32,
     card_w: f32,
     card_bottom: f32,
     hug: Option<(f32, f32)>,
 ) -> [f32; 4] {
-    let hint_top = overlay_row_top(text_top, header_rows, header_gap, content_rows, line_height);
     let (x, w) = match hug {
         Some((text_left, content_px)) => bar_hug_span(card_x, card_w, text_left, content_px),
         None => bar_full_span(card_x, card_w),
@@ -745,14 +735,14 @@ pub(super) fn footer_plate_rect(
 
 /// The device-px TOP a uniform-line-height RIGHT-COLUMN buffer must be uploaded
 /// at so its chord/time labels — which lead with `header_rows` empty lines —
-/// land EXACTLY on the candidate band [`overlay_row_top`] draws. The secondary
+/// land EXACTLY on the candidate band the scene planner lays out. The secondary
 /// column and the band therefore share ONE y-origin, by the invariant
-/// `overlay_secondary_top(..) + header_rows*lh + r*lh == overlay_row_top(.., r,
-/// ..)` (the leading empties supply `header_rows*lh`, this supplies the gap).
+/// `overlay_secondary_top(..) + header_rows*lh + r*lh == plan.row_top(r)` (the
+/// leading empties supply `header_rows*lh`, this supplies the gap).
 ///
 /// THE COMPOSITION-ROUND BUG this closes: the header GAP is folded into the
 /// primary column (its inflated header line) AND the band/hit-test (through
-/// [`overlay_row_top`]), but the right column was still uploaded flush at
+/// the planned row slots), but the right column was still uploaded flush at
 /// `text_top` — so every shortcut rode `header_gap` HIGH of its row. No element
 /// may compute its own row y; the right column now reads the same gap the band
 /// does. Pure; the y-agreement law pins the invariant.
@@ -838,62 +828,6 @@ pub(super) fn scroll_window(
     // Clamp so the window never runs past the end (`len >= count`, so this can't wrap).
     top = top.min(len - count);
     (top, count)
-}
-
-pub(super) fn overlay_row_of(
-    text_top: f32,
-    header_rows: usize,
-    header_gap: f32,
-    line_height: f32,
-    py: f32,
-) -> Option<usize> {
-    if line_height <= 0.0 {
-        return None;
-    }
-    let first_top = overlay_row_top(text_top, header_rows, header_gap, 0, line_height);
-    if py < first_top {
-        return None;
-    }
-    Some(((py - first_top) / line_height) as usize)
-}
-
-/// PURE row hit-test math for the summoned overlay: map a pointer `(px, py)` to the
-/// `items` index of the candidate row it lands on, given the card box (`card_x`,
-/// `card_w`), the inner text origin (`text_top`), the row `line_height`, the count of
-/// `header_rows` ABOVE the list (`1` = the flat/nav pickers' query line, `0` = the
-/// contextual spell panel), and the visible WINDOW (`visible` rows from `top_idx`,
-/// `n_items` total). Returns `None` when the pointer is off the card horizontally,
-/// above the first candidate row (which begins `header_rows` lines below `text_top`),
-/// or past the last visible row. Split out of [`TextPipeline::overlay_row_at`] so the
-/// mapping is unit-testable without a GPU pipeline — the rendered rows and this
-/// hit-test share the exact same geometry (via [`overlay_row_of`]), so they cannot
-/// drift.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn overlay_row_index(
-    card_x: f32,
-    card_w: f32,
-    text_top: f32,
-    line_height: f32,
-    header_rows: usize,
-    header_gap: f32,
-    visible: usize,
-    top_idx: usize,
-    n_items: usize,
-    px: f32,
-    py: f32,
-) -> Option<usize> {
-    if n_items == 0 || visible == 0 || line_height <= 0.0 {
-        return None;
-    }
-    if px < card_x || px > card_x + card_w {
-        return None;
-    }
-    let vis = overlay_row_of(text_top, header_rows, header_gap, line_height, py)?;
-    if vis >= visible {
-        return None;
-    }
-    let idx = top_idx + vis;
-    (idx < n_items).then_some(idx)
 }
 
 pub struct HudReport {
@@ -1144,124 +1078,6 @@ mod field_view_window_tests {
                     );
                 }
             }
-        }
-    }
-}
-
-#[cfg(test)]
-mod hit_tests {
-    use super::{overlay_row_index, overlay_row_of, overlay_row_top};
-
-    const CARD_X: f32 = 420.0;
-    const CARD_W: f32 = 360.0;
-    const TEXT_TOP: f32 = 64.0;
-    const LH: f32 = 24.0;
-
-    fn hit(px: f32, py: f32, visible: usize, top_idx: usize, n: usize) -> Option<usize> {
-        overlay_row_index(
-            CARD_X, CARD_W, TEXT_TOP, LH, 1, 0.0, visible, top_idx, n, px, py,
-        )
-    }
-
-    fn hit_spell(px: f32, py: f32, visible: usize, top_idx: usize, n: usize) -> Option<usize> {
-        overlay_row_index(
-            CARD_X, CARD_W, TEXT_TOP, LH, 0, 0.0, visible, top_idx, n, px, py,
-        )
-    }
-
-    #[test]
-    fn pointer_maps_to_the_row_under_it() {
-        assert_eq!(hit(500.0, 88.0, 5, 2, 8), Some(2)); // top of row 0
-        assert_eq!(hit(500.0, 100.0, 5, 2, 8), Some(2)); // mid row 0
-        assert_eq!(hit(500.0, 112.0, 5, 2, 8), Some(3)); // row 1
-        assert_eq!(hit(500.0, 200.0, 5, 2, 8), Some(6));
-    }
-
-    #[test]
-    fn query_row_and_above_are_not_rows() {
-        assert_eq!(hit(500.0, 70.0, 5, 2, 8), None);
-        assert_eq!(hit(500.0, 0.0, 5, 2, 8), None);
-    }
-
-    #[test]
-    fn below_the_last_visible_row_is_none() {
-        assert_eq!(hit(500.0, 210.0, 5, 2, 8), None);
-    }
-
-    #[test]
-    fn off_the_card_horizontally_is_none() {
-        assert_eq!(hit(419.0, 100.0, 5, 2, 8), None); // left of card
-        assert_eq!(hit(781.0, 100.0, 5, 2, 8), None); // right of card
-        assert_eq!(hit(420.0, 100.0, 5, 2, 8), Some(2));
-        assert_eq!(hit(780.0, 100.0, 5, 2, 8), Some(2));
-    }
-
-    #[test]
-    fn empty_list_never_hits() {
-        assert_eq!(hit(500.0, 100.0, 0, 0, 0), None);
-    }
-
-    #[test]
-    fn spell_panel_rows_start_at_the_top_no_query_line() {
-        assert_eq!(hit_spell(500.0, 64.0, 4, 0, 4), Some(0)); // top of row 0
-        assert_eq!(hit_spell(500.0, 70.0, 4, 0, 4), Some(0)); // still row 0 (query line for the others)
-        assert_eq!(hit_spell(500.0, 88.0, 4, 0, 4), Some(1)); // row 1
-        assert_eq!(hit_spell(500.0, 63.0, 4, 0, 4), None); // above the panel text
-    }
-
-    #[test]
-    fn a_visible_row_past_the_corpus_end_clamps_to_none() {
-        assert_eq!(hit(500.0, 88.0, 5, 2, 5), Some(2)); // vis 0 → idx 2
-        assert_eq!(hit(500.0, 150.0, 5, 2, 5), Some(4)); // vis 2 → idx 4 (last valid)
-        assert_eq!(hit(500.0, 160.0, 5, 2, 5), None); // vis 3 → idx 5 ≥ 5
-    }
-
-    fn theme_row(py: f32) -> Option<usize> {
-        overlay_row_of(TEXT_TOP, 2, 0.0, LH, py)
-    }
-
-    #[test]
-    fn theme_picker_maps_pointer_to_a_display_row_below_the_header() {
-        assert_eq!(theme_row(70.0), None); // the query line
-        assert_eq!(theme_row(100.0), None); // the lens strip
-        assert_eq!(theme_row(63.0), None); // above the card text
-        assert_eq!(theme_row(112.0), Some(0)); // top of display row 0
-        assert_eq!(theme_row(120.0), Some(0)); // mid display row 0
-        assert_eq!(theme_row(136.0), Some(1)); // display row 1 (a header or a world)
-        assert_eq!(theme_row(160.0), Some(2)); // display row 2
-    }
-
-    #[test]
-    fn overlay_row_of_inverts_overlay_row_top_for_a_sweep_of_rows_and_headers() {
-        // The forward `row → y` owner and the inverse `y → row` snap to the same band:
-        // sampling the exact top of display row `r` (for any header config) maps back
-        // to `r`. Sweeps the three real header counts (0 spell, 1 flat/nav, 2 theme).
-        // Also sweep a range of header GAPS (the PALETTE-COMPOSITION round's
-        // divider): the forward/inverse owners must agree for ANY gap, since the
-        // rendered candidate rows and the hit-test both fold it in identically.
-        for &header_rows in &[0usize, 1, 2] {
-            for &gap in &[0.0f32, 5.0, 13.0] {
-                for r in 0usize..8 {
-                    let top = overlay_row_top(TEXT_TOP, header_rows, gap, r, LH);
-                    assert_eq!(overlay_row_of(TEXT_TOP, header_rows, gap, LH, top), Some(r));
-                    assert_eq!(
-                        overlay_row_of(TEXT_TOP, header_rows, gap, LH, top + LH * 0.5),
-                        Some(r)
-                    );
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn overlay_row_index_round_trips_the_forward_owner() {
-        // The full items-index door round-trips too: with `top_idx == 0`, clicking the
-        // top of display row `r` resolves item index `r` (`overlay_row_index` wraps the
-        // same `overlay_row_of` inverse), so `overlay_row_top` and the hit-test agree.
-        let n = 8;
-        for r in 0usize..n {
-            let top = overlay_row_top(TEXT_TOP, 1, 0.0, r, LH);
-            assert_eq!(hit(500.0, top, n, 0, n), Some(r));
         }
     }
 }
