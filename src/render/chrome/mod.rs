@@ -316,8 +316,8 @@ impl TextPipeline {
     ///
     /// SAFE to share one buffer set because the four callers are STRUCTURALLY
     /// mutually exclusive (`viewstate.rs` gates the popover on
-    /// `overlay.card().is_none() && search.is_none()`; the preview panel and the spell
-    /// popup are two different `OverlayKind`s; the search panel requires
+    /// `WorkspaceState::pickers_clear`; the preview panel and the spell popup
+    /// are two different `OverlayKind`s; the search panel requires
     /// `search_active`, itself exclusive with any overlay) — each call site
     /// parks (`rect: None`) on every frame it isn't the active one. That alone
     /// is NOT sufficient, though: with four INDEPENDENTLY gated calls each
