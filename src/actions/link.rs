@@ -151,7 +151,8 @@ pub(super) fn open_insert_link(ctx: &mut ActionCtx) {
     let cursor = ctx.buffer.cursor_char();
     let kill = ctx.buffer.kill_buffer().to_string();
     let (mode, prefill) = plan(&text, anchor, cursor, &kill);
-    *ctx.overlay = Some(OverlayState::new_link_edit(prefill, mode));
+    ctx.journey
+        .enter(Some(OverlayState::new_link_edit(prefill, mode)));
 }
 
 #[cfg(test)]
@@ -274,11 +275,7 @@ mod tests {
 
     // --- open_insert_link(): the full apply_transition dispatch ---------------------
 
-    fn drive_open(
-        text: &str,
-        anchor: Option<usize>,
-        cursor: usize,
-    ) -> Option<crate::overlay::OverlayState> {
+    fn drive_open(text: &str, anchor: Option<usize>, cursor: usize) -> crate::overlay::Journey {
         let mut buffer = Buffer::from_str(text);
         buffer.set_cursor(cursor);
         if let Some(a) = anchor {
@@ -287,7 +284,7 @@ mod tests {
         let mut shift_selecting = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay = None;
+        let mut journey = crate::overlay::Journey::default();
         let mut make_overlay = |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
         let mut browse_to =
             |_k: OverlayKind, _r: Option<String>| -> Option<crate::overlay::OverlayState> { None };
@@ -297,18 +294,19 @@ mod tests {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
         apply_transition(&mut ctx, &Action::InsertLink, false).primary();
-        overlay
+        journey
     }
 
     #[test]
     fn insert_link_opens_the_minibuffer_on_a_markdown_buffer() {
-        let ov = drive_open("hello world", None, 5).expect("overlay must open");
+        let journey = drive_open("hello world", None, 5);
+        let ov = journey.card().expect("overlay must open");
         assert_eq!(ov.kind, OverlayKind::InsertLink);
         assert!(ov.link_edit.is_some());
     }
@@ -322,7 +320,7 @@ mod tests {
         let mut shift_selecting = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay = None;
+        let mut journey = crate::overlay::Journey::default();
         let mut make_overlay = |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
         let mut browse_to =
             |_k: OverlayKind, _r: Option<String>| -> Option<crate::overlay::OverlayState> { None };
@@ -332,14 +330,14 @@ mod tests {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
         apply_transition(&mut ctx, &Action::InsertLink, false).primary();
         assert!(
-            overlay.is_none(),
+            journey.card().is_none(),
             "a non-markdown buffer must not open the link minibuffer"
         );
     }
@@ -355,7 +353,7 @@ mod tests {
         let mut shift_selecting = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay = None;
+        let mut overlay = crate::overlay::Journey::default();
         {
             let mut make_overlay =
                 |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
@@ -368,14 +366,14 @@ mod tests {
                 zoom: &mut zoom,
                 search: &mut search,
                 scroll_page_lines: 1,
-                overlay: &mut overlay,
+                journey: &mut overlay,
                 make_overlay: &mut make_overlay,
                 browse_to: &mut browse_to,
                 oracle: None,
             };
             apply_transition(&mut ctx, &Action::InsertLink, false).primary();
         }
-        let ov = overlay.as_mut().expect("overlay must open");
+        let ov = overlay.card_mut().expect("overlay must open");
         for c in "https://example.com".chars() {
             ov.link_edit_push(c);
         }
@@ -392,14 +390,14 @@ mod tests {
                 zoom: &mut zoom,
                 search: &mut search,
                 scroll_page_lines: 1,
-                overlay: &mut overlay,
+                journey: &mut overlay,
                 make_overlay: &mut make_overlay,
                 browse_to: &mut browse_to,
                 oracle: None,
             };
             apply_transition(&mut ctx, &Action::Newline, false).primary();
         }
-        assert!(overlay.is_none(), "commit closes the overlay");
+        assert!(overlay.card().is_none(), "commit closes the overlay");
         assert_eq!(buffer.text(), "[hello](https://example.com) world");
         assert!(
             buffer.version() > before_version,
@@ -432,7 +430,7 @@ mod tests {
         let mut shift_selecting = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay = None;
+        let mut journey = crate::overlay::Journey::default();
         let mut make_overlay = |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
         let mut browse_to =
             |_k: OverlayKind, _r: Option<String>| -> Option<crate::overlay::OverlayState> { None };
@@ -442,15 +440,18 @@ mod tests {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
         apply_transition(&mut ctx, &Action::InsertLink, false).primary();
-        assert!(ctx.overlay.is_some());
+        assert!(ctx.journey.card().is_some());
         apply_transition(&mut ctx, &Action::Cancel, false).primary();
-        assert!(ctx.overlay.is_none(), "Esc/Cancel closes the minibuffer");
+        assert!(
+            ctx.journey.card().is_none(),
+            "Esc/Cancel closes the minibuffer"
+        );
         let _ = ctx;
         assert_eq!(
             buffer.text(),

@@ -141,7 +141,7 @@ fn overlay_empty_state_renders_and_reports() {
         selected_index: ov.selected,
         hint: ov.foot_hint(),
         browse_dir: ov.browse_dir.clone(),
-        return_to: ov.return_to.map(|k| k.as_str()),
+        return_to: None,
         spell_target: None,
         capture: None,
         notice: String::new(),
@@ -242,7 +242,7 @@ fn file_pickers_faceted_lens_render_and_report() {
             selected_index: ov.selected,
             hint: ov.foot_hint(),
             browse_dir: ov.browse_dir.clone(),
-            return_to: ov.return_to.map(|k| k.as_str()),
+            return_to: None,
             spell_target: None,
             capture: None,
             notice: String::new(),
@@ -377,7 +377,7 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
             selected_index: ov.selected,
             hint: ov.foot_hint(),
             browse_dir: ov.browse_dir.clone(),
-            return_to: ov.return_to.map(|k| k.as_str()),
+            return_to: None,
             spell_target: None,
             capture: None,
             notice: String::new(),
@@ -535,7 +535,7 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
             selected_index: ov.selected,
             hint: ov.foot_hint(),
             browse_dir: ov.browse_dir.clone(),
-            return_to: ov.return_to.map(|k| k.as_str()),
+            return_to: None,
             spell_target: None,
             capture: None,
             notice: String::new(),
@@ -922,7 +922,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // The value lands in the core (hence replay-`Applied`), so a
     // headless session observes it exactly as the live app does.
     let mut zoom = spec.default;
-    let mut overlay = Some(ov);
+    let mut overlay = crate::overlay::Journey::seeded(Some(ov));
     let mut shift = false;
     let mut search = None;
     let mut make = |_k: crate::overlay::OverlayKind| None;
@@ -934,7 +934,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 10,
-            overlay: &mut overlay,
+            journey: &mut overlay,
             make_overlay: &mut make,
             browse_to: &mut browse,
             oracle: None,
@@ -954,8 +954,8 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     );
 
     // Fold + render through the SAME owner the one-shot `--keys` capture uses.
-    let ov = overlay.as_ref().unwrap();
-    let (info, _preview, _diff) = crate::run::overlay_capture_info(ov, &buf);
+    let (info, _preview, _diff) =
+        crate::run::overlay_capture_info(&overlay, &buf).expect("the menu is still open");
     let mut opts = fixture_opts();
     opts.overlay = Some(info);
     let png = dir.join("range.png");

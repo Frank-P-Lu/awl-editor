@@ -207,7 +207,7 @@ impl CaretDemo {
         let mut shift = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay = None;
+        let mut journey = crate::overlay::Journey::default();
         let mut make_overlay =
             |_k: crate::overlay::OverlayKind| -> Option<crate::overlay::OverlayState> { None };
         let mut browse_to = |_k: crate::overlay::OverlayKind,
@@ -219,7 +219,7 @@ impl CaretDemo {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,

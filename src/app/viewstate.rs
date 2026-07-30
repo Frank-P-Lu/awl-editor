@@ -227,7 +227,7 @@ impl App {
             eol: self.active.buffer.eol(),
             popover,
             diff_panel: preview.is_some(),
-            diff_panel_focus: ov.map(|o| o.diff_focus).unwrap_or(false),
+            diff_panel_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
             folds: Vec::new(),
             fold_tails: Vec::new(),
         };

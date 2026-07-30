@@ -91,7 +91,7 @@ fn blocked_recoil_leaves_buffer_and_cursor_untouched() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -100,7 +100,7 @@ fn blocked_recoil_leaves_buffer_and_cursor_untouched() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,

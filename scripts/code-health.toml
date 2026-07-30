@@ -15,7 +15,7 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 883
+lines = 783
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -23,7 +23,7 @@ lines = 1798
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1040
+lines = 1037
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -166,7 +166,7 @@ lines = 1402
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1188
+lines = 1111
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -190,7 +190,7 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 306
+lines = 302
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -469,21 +469,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 310
+line = 315
 message = "this function has too many lines (152/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 598
+line = 609
 message = "this function has too many lines (122/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 853
+line = 776
 message = "this function has too many lines (321/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -777,35 +777,35 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 703
+line = 705
 message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 502
+line = 503
 message = "this function has too many lines (109/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/actions/tests/mod.rs"
-line = 707
-message = "this function has too many lines (220/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
 line = 708
+message = "this function has too many lines (220/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/actions/tests/mod.rs"
+line = 709
 message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 959
+line = 960
 message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -1190,21 +1190,21 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3130
+line = 3212
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
 reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3170
+line = 3252
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
 reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3204
+line = 3286
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
 reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
 

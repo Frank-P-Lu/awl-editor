@@ -84,9 +84,9 @@ pub struct OverlayState {
     pub selected: usize,
     pub scroll: usize,
     pub browse_dir: Option<String>,
-    pub original_theme: Option<usize>,
-    pub original_caret: Option<crate::caret::CaretMode>,
-    pub original_caret_was_auto: bool,
+    /// WHAT A CANCEL MUST UNDO while this card auditions something live; the
+    /// lifecycle owns the payload and the revert (`journey::Audition`).
+    pub audition: super::Audition,
     pub spell_target: Option<(usize, usize, usize)>,
     pub add_word: Option<String>,
     pub capture: Option<Capture>,
@@ -95,13 +95,13 @@ pub struct OverlayState {
     pub facet_now: Option<u64>,
     pub facet_session_start: Option<u64>,
     pub item_sections: Vec<String>,
-    pub return_to: Option<OverlayKind>,
     pub value_edit: Option<ValueEdit>,
-    pub setting_path_key: Option<String>,
     pub rename_edit: Option<RenameEdit>,
     pub link_edit: Option<LinkEdit>,
     pub keep_edit: Option<KeepEdit>,
-    pub diff_focus: bool,
+    /// Does the workspace's DETAIL stage hold focus? Storage only: every WRITE
+    /// goes through `journey::Journey`, which owns what Esc/Tab mean here.
+    pub detail_focus: bool,
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,
 }
@@ -162,9 +162,7 @@ impl OverlayState {
             selected: 0,
             scroll: 0,
             browse_dir,
-            original_theme: None,
-            original_caret: None,
-            original_caret_was_auto: false,
+            audition: super::Audition::None,
             spell_target: None,
             add_word: None,
             capture: None,
@@ -173,13 +171,11 @@ impl OverlayState {
             facet_now: None,
             facet_session_start: None,
             item_sections: Vec::new(),
-            return_to: None,
             value_edit: None,
-            setting_path_key: None,
             rename_edit: None,
             link_edit: None,
             keep_edit: None,
-            diff_focus: false,
+            detail_focus: false,
             diff_scroll: 0,
             last_hover_px: None,
         };
@@ -228,7 +224,9 @@ impl OverlayState {
             Vec::new(),
             None,
         );
-        s.original_theme = Some(active_index);
+        s.audition = super::Audition::Theme {
+            original: active_index,
+        };
         s.facet_lens = 0;
         s.refilter();
         if let Some(pos) = s.items.iter().position(|&i| i == active_index) {
@@ -258,8 +256,10 @@ impl OverlayState {
             None,
         );
         s.set_secondaries(descriptions);
-        s.original_caret = Some(active);
-        s.original_caret_was_auto = crate::caret::is_auto();
+        s.audition = super::Audition::Caret {
+            original: active,
+            was_auto: crate::caret::is_auto(),
+        };
         if let Some(active_index) = crate::caret::CaretMode::ALL
             .iter()
             .position(|&m| m == active)
@@ -463,7 +463,7 @@ impl OverlayState {
         if !self.notice.is_empty() {
             return self.notice.clone();
         }
-        if self.diff_focus {
+        if self.detail_focus {
             return super::format_hint(&[
                 super::HintAction {
                     glyph: "\u{2191}/\u{2193}",

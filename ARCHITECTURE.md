@@ -52,8 +52,9 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `viewstate` (view sync + paging), `input` (mouse/key event handling), `apply`
   (the `App::apply` wrapper around `apply_transition` + live effects), `daemon`
   (the App-side half of the single-instance daemon below), `workspace`
-  (`WorkspaceState` — the summoned-UI layer LADDER: overlay > search > popover >
-  editor, with private fields and named transitions), `persistence`
+  (`WorkspaceState` — the summoned-UI layer LADDER: overlay > workspace > search
+  > popover > editor, with private fields and named transitions; the fourth rung
+  reads `overlay::Journey`), `persistence`
   (`PersistenceRuntime` — the app-global save ledger: the fresh-document
   autosave debounce+version pair, the save-feedback clocks, the title dirty
   cache).
@@ -115,6 +116,16 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   row to its spec; `render::clamp_zoom` delegates here. Keyboard, pointer, render,
   sidecar and persistence all route through it, so no input path computes a
   parallel value. See docs/render.md.
+- `overlay/journey/` — THE SUMMONED-UI LIFECYCLE (`Journey`): one closed state
+  set (`Surface × Beneath`), one closed event set, and one wildcard-free table
+  (`journey/table.rs`) saying where every Esc/Back/accept lands. Owns the
+  suspend/return of a sustained workspace into a child audition — the parked
+  parent's exact return position (`journey/parked.rs`: `Parked`/`Resume`), the
+  child's typed write-back (`Bind`), and the revert payload a cancel undoes
+  (`Audition`). Lives in the shared core, not in `crate::app`, so the headless
+  `--keys` replay reaches the identical transitions; `app/workspace` owns the
+  one live instance and derives its ladder rung from it. Scoped to Settings and
+  Version History — it is not a route stack. See `docs/app-domains.md`.
 - `search.rs` — incremental search (isearch) state + match finding.
 - `spell.rs` / `spellunderline.rs` — spellcheck (spellbook) + underline data.
 

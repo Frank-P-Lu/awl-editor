@@ -230,8 +230,9 @@ fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo
         opts.search_replacement = s.replacement().to_string();
         opts.search_editing_replacement = s.is_editing_replacement();
     }
-    if let Some(ov) = session.overlay() {
-        let (info, preview_text, diff) = crate::run::overlay_capture_info(ov, session.buffer());
+    if let Some((info, preview_text, diff)) =
+        crate::run::overlay_capture_info(session.journey(), session.buffer())
+    {
         opts.overlay = Some(info);
         opts.preview_text = preview_text;
         // DIFF-AS-PREVIEW: mirror the one-shot capture's fold (diff state block
@@ -241,7 +242,8 @@ fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo
             opts.diff = diff;
         }
         if opts.scroll.is_none() && opts.preview_text.is_some() {
-            opts.scroll = Some(crate::render::ScrollPos::at_row(ov.diff_scroll));
+            let diff_scroll = session.overlay().map(|o| o.diff_scroll).unwrap_or(0);
+            opts.scroll = Some(crate::render::ScrollPos::at_row(diff_scroll));
         }
     }
     opts.buffers = Some(capture::BuffersInfo {

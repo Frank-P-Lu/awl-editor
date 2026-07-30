@@ -520,7 +520,11 @@ fn the_root_app_field_parser_is_not_vacuous() {
 /// The files that NAME the two escape hatches without calling them: the owner
 /// module (declaration + doc) and this law's own prose.
 #[cfg(test)]
-const DECLARING_FILES: &[&str] = &["app/workspace.rs", "app/tests/domains.rs"];
+const DECLARING_FILES: &[&str] = &[
+    "app/workspace/mod.rs",
+    "app/workspace/tests.rs",
+    "app/tests/domains.rs",
+];
 
 #[test]
 fn the_summoned_layer_bypasses_have_the_call_sites_they_claim() {

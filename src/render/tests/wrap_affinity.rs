@@ -223,7 +223,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
             let mut shift_selecting = false;
             let mut zoom = 1.0;
             let mut search = None;
-            let mut overlay = None;
+            let mut overlay = crate::overlay::Journey::default();
             let mut make_overlay =
                 |_k: crate::overlay::OverlayKind| -> Option<crate::overlay::OverlayState> { None };
             let mut browse_to = |_k: crate::overlay::OverlayKind,
@@ -236,7 +236,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
                     zoom: &mut zoom,
                     search: &mut search,
                     scroll_page_lines: 1,
-                    overlay: &mut overlay,
+                    journey: &mut overlay,
                     make_overlay: &mut make_overlay,
                     browse_to: &mut browse_to,
                     oracle: Some(p as &dyn crate::actions::LayoutOracle),

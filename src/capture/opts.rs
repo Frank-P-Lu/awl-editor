@@ -144,7 +144,7 @@ pub struct OverlayInfo {
     pub preview_id: Option<String>,
     /// DIFF-AS-PREVIEW (History only): whether keyboard FOCUS sits in the diff
     /// PANEL (Tab pressed — ↑/↓ then scroll the diff; the panel border
-    /// strengthens). Emitted as `overlay.diff_focus`; always false elsewhere.
+    /// strengthens). Emitted as `overlay.detail_focus`; always false elsewhere.
     pub diff_focus: bool,
     /// DIFF-AS-PREVIEW (History only): the diff panel's scroll in VISUAL ROWS
     /// (PgUp/PgDn / panel ↑/↓ / the wheel over the page). Emitted as

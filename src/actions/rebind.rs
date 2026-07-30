@@ -23,13 +23,13 @@ use super::*;
 /// for the caller (live App / headless replay) to persist + reload.
 pub(super) fn keybindings_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let stage = ctx
-        .overlay
-        .as_ref()
+        .journey
+        .card()
         .unwrap()
         .capture
         .as_ref()
         .map(|c| c.stage);
-    let ov = ctx.overlay.as_mut().unwrap();
+    let ov = ctx.journey.card_mut().unwrap();
     match stage {
         // BROWSING the command list: Enter starts a capture, Delete resets the
         // highlighted command; everything else (nav / filter / Esc) falls through.

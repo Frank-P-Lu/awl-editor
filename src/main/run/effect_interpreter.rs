@@ -91,13 +91,13 @@ impl<'a> ReplaySession<'a> {
                 work.descend(action);
             }
             actions::Effect::RebindCommit { slug, binding, .. } => {
-                if let Some(overlay) = self.overlay.as_mut() {
+                if let Some(overlay) = self.journey.card_mut() {
                     overlay.notice = format!("bound {slug} -> {binding}");
                     overlay.capture_abort();
                 }
             }
             actions::Effect::RebindReset { slug } => {
-                if let Some(overlay) = self.overlay.as_mut()
+                if let Some(overlay) = self.journey.card_mut()
                     && overlay.notice.is_empty()
                 {
                     overlay.notice = format!("reset {slug}");

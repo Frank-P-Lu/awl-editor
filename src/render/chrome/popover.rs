@@ -14,7 +14,7 @@
 //! (`float_shadow`/`float_border`/`float_card`) the contextual SPELL popup, the
 //! caret-style preview panel, and the search panel already share, never a
 //! popover-only duplicate. Safe because [`ViewState::popover`]'s own gate
-//! (`app/viewstate.rs`) requires `overlay.is_none() && search.is_none()` — the
+//! (`app/viewstate.rs`) requires `WorkspaceState::pickers_clear` — the
 //! popover can NEVER be the summoned surface at the same time as any of the
 //! other three, so at most one ever supplies real content on a given frame —
 //! this fn's own GUARD below (not call order) is what makes that safe. See
@@ -133,7 +133,7 @@ impl TextPipeline {
                 // at every scale (the card rect measured tight while the slab
                 // painted OUTSIDE it). See [`FloatElevation::Rimmed`]. `geom` is
                 // `Some` only when `touch_float` is already true (the SAME
-                // `overlay.is_none() && search.is_none()` gate `popover_model`
+                // `WorkspaceState::pickers_clear` gate `popover_model`
                 // itself requires), so this call is never actually skipped here —
                 // the guard's real job is the `None` arm below.
                 if touch_float {

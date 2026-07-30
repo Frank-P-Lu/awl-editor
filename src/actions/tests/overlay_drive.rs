@@ -32,7 +32,8 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
     // SUMMON the caret picker (remembering Block as original), then NAVIGATE down:
     // the live preview applies the highlighted look to the process-global so the
     // document caret + the preview switch immediately.
-    let mut overlay = Some(OverlayState::new_caret(CaretMode::Block));
+    let mut overlay =
+        crate::overlay::Journey::seeded(Some(OverlayState::new_caret(CaretMode::Block)));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // -> Morph
     assert_eq!(crate::caret::mode(), CaretMode::Morph);
@@ -42,20 +43,21 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
     // ENTER COMMITS: emits OverlayAccept(Caret, "I-beam") (the caller persists it)
     // and closes the picker; the previewed look stays active.
     drive(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.is_none(), "Enter closes the caret picker");
+    assert!(overlay.card().is_none(), "Enter closes the caret picker");
     assert_eq!(accept, Some((OverlayKind::Caret, "I-beam".to_string())));
     assert_eq!(crate::caret::mode(), CaretMode::Ibeam);
 
     // CANCEL REVERTS: open again (original = I-beam now), preview Block, then Esc
     // restores the look active when it opened — and emits NO accept (no persist).
     crate::caret::set_mode(CaretMode::Ibeam);
-    let mut overlay = Some(OverlayState::new_caret(CaretMode::Ibeam));
+    let mut overlay =
+        crate::overlay::Journey::seeded(Some(OverlayState::new_caret(CaretMode::Ibeam)));
     let mut accept2 = None;
     drive(&mut overlay, &mut accept2, &Action::PreviousLine); // preview moves up
     drive(&mut overlay, &mut accept2, &Action::PreviousLine); // -> Block previewed
     assert_eq!(crate::caret::mode(), CaretMode::Block);
     drive(&mut overlay, &mut accept2, &Action::Cancel);
-    assert!(overlay.is_none(), "Esc closes the caret picker");
+    assert!(overlay.card().is_none(), "Esc closes the caret picker");
     assert_eq!(
         accept2, None,
         "a revert must not persist (no accept emitted)"
@@ -94,12 +96,13 @@ fn caret_picker_cancel_from_auto_restores_auto_not_a_pin() {
 
     // Open the picker (mirrors the real call site: `new_caret(caret::mode())`),
     // preview a different look, then Cancel WITHOUT committing.
-    let mut overlay = Some(OverlayState::new_caret(crate::caret::mode()));
+    let mut overlay =
+        crate::overlay::Journey::seeded(Some(OverlayState::new_caret(crate::caret::mode())));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview -> I-beam
     assert_eq!(crate::caret::mode(), CaretMode::Ibeam);
     drive(&mut overlay, &mut accept, &Action::Cancel);
-    assert!(overlay.is_none(), "Esc closes the caret picker");
+    assert!(overlay.card().is_none(), "Esc closes the caret picker");
     assert_eq!(accept, None, "a revert must not persist");
 
     // THE LAW: Cancel restored AUTO ITSELF, not a pin at Morph (what auto
@@ -141,10 +144,10 @@ fn asset_cleaner_enter_arms_trash_and_keeps_the_picker_open() {
             .unwrap_or_default(),
         size: Some(10),
     };
-    let mut overlay = Some(OverlayState::new_assets(vec![
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_assets(vec![
         mk("assets/orphan-a.png"),
         mk("assets/orphan-b.png"),
-    ]));
+    ])));
     // ENTER on the highlighted orphan ARMS TrashAsset with its root-relative path.
     let eff = drive_eff(&mut overlay, &Action::Newline);
     assert_eq!(
@@ -156,11 +159,11 @@ fn asset_cleaner_enter_arms_trash_and_keeps_the_picker_open() {
     // The picker STAYS OPEN — the core never closes it or removes the row (the App
     // does that only after a successful trash; a headless replay no-ops the trash).
     assert!(
-        overlay.is_some(),
+        overlay.card().is_some(),
         "the asset cleaner stays open after Enter"
     );
     assert_eq!(
-        overlay.as_ref().unwrap().items.len(),
+        overlay.card().unwrap().items.len(),
         2,
         "the core leaves the list whole"
     );
@@ -168,33 +171,33 @@ fn asset_cleaner_enter_arms_trash_and_keeps_the_picker_open() {
 
 #[test]
 fn asset_cleaner_enter_on_empty_state_is_a_calm_no_op() {
-    let mut overlay = Some(OverlayState::new_assets(vec![]));
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_assets(vec![])));
     // Empty list → nothing selected → Enter is Effect::None, picker stays open.
     assert_eq!(drive_eff(&mut overlay, &Action::Newline), Effect::None);
-    assert!(overlay.is_some());
+    assert!(overlay.card().is_some());
 }
 
 #[test]
 fn rebind_menu_summon_capture_key_and_reset() {
     // SUMMON the rebind menu via the core (OpenKeybindings → make_overlay).
-    let mut overlay = None;
+    let mut overlay = crate::overlay::Journey::default();
     drive_eff(&mut overlay, &Action::OpenKeybindings);
-    assert_eq!(overlay.as_ref().unwrap().kind, OverlayKind::Keybindings);
+    assert_eq!(overlay.card().unwrap().kind, OverlayKind::Keybindings);
     // NAVIGATE: fuzzy-filter to "Undo".
     for c in "undo".chars() {
         drive_eff(&mut overlay, &Action::InsertChar(c));
     }
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("Undo"));
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Undo"));
     // ENTER → ChooseMode (no commit yet).
     assert_eq!(drive_eff(&mut overlay, &Action::Newline), Effect::None);
     assert_eq!(
-        overlay.as_ref().unwrap().capture.as_ref().unwrap().stage,
+        overlay.card().unwrap().capture.as_ref().unwrap().stage,
         crate::overlay::CaptureStage::ChooseMode
     );
     // ENTER again → begin recording (KEY mode, default).
     drive_eff(&mut overlay, &Action::Newline);
     assert_eq!(
-        overlay.as_ref().unwrap().capture.as_ref().unwrap().stage,
+        overlay.card().unwrap().capture.as_ref().unwrap().stage,
         crate::overlay::CaptureStage::Recording
     );
     // CAPTURE a plain key 'j' → KEY mode finishes instantly → RebindCommit.
@@ -210,7 +213,7 @@ fn rebind_menu_summon_capture_key_and_reset() {
 
     // RESET: with no capture active, Delete on the highlighted command signals
     // a reset-to-default for that slug.
-    let mut overlay = None;
+    let mut overlay = crate::overlay::Journey::default();
     drive_eff(&mut overlay, &Action::OpenKeybindings);
     for c in "redo".chars() {
         drive_eff(&mut overlay, &Action::InsertChar(c));
@@ -224,18 +227,15 @@ fn rebind_menu_summon_capture_key_and_reset() {
     );
     // Esc closes the menu (generic intercept), capture stays absent.
     drive_eff(&mut overlay, &Action::Cancel);
-    assert!(overlay.is_none(), "Esc closes the rebind menu");
+    assert!(overlay.card().is_none(), "Esc closes the rebind menu");
 }
 
 #[test]
 fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
     // Row 0 is "Caret style" (a Picker); NextLine → row 1, "Page mode" (a Toggle).
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     settings_drive(&mut overlay, &Action::NextLine);
-    assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
-        Some("Page mode")
-    );
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Page mode"));
     // Enter on a TOGGLE row signals SettingToggle for its config key and leaves
     // the menu OPEN (the App flips + persists + refreshes the cell).
     let eff = settings_drive(&mut overlay, &Action::Newline);
@@ -246,7 +246,7 @@ fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
         }
     );
     assert_eq!(
-        overlay.as_ref().map(|o| o.kind),
+        overlay.card().map(|o| o.kind),
         Some(OverlayKind::Settings),
         "a toggle keeps the settings menu open"
     );
@@ -279,14 +279,14 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
         "the toggle roster changed size — update this sweep deliberately"
     );
     for row in toggle_rows {
-        let mut overlay = Some(settings_overlay());
+        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
         let idx = crate::settings::visible_rows()
             .iter()
             .position(|r| r.name == row.name)
             .unwrap();
-        overlay.as_mut().unwrap().selected = idx;
+        overlay.card_mut().unwrap().selected = idx;
         assert_eq!(
-            overlay.as_ref().unwrap().selected_value(),
+            overlay.card().unwrap().selected_value(),
             Some(row.name),
             "index {idx} must select {:?} itself",
             row.name
@@ -302,7 +302,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
             row.name
         );
         assert_eq!(
-            overlay.as_ref().map(|o| o.kind),
+            overlay.card().map(|o| o.kind),
             Some(OverlayKind::Settings),
             "a toggle keeps the settings menu open (row {:?})",
             row.name
@@ -334,7 +334,7 @@ fn command_overlay_with_settings() -> OverlayState {
 
 /// A make_overlay for the union-round tests: the Command palette (settings
 /// attached) plus the sub-pickers a settings Picker/Submenu row can open.
-fn command_drive(overlay: &mut Option<OverlayState>, action: &Action) -> Effect {
+fn command_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effect {
     let mut buffer = Buffer::scratch();
     let mut shift = false;
     let mut zoom = 1.0;
@@ -367,7 +367,7 @@ fn command_drive(overlay: &mut Option<OverlayState>, action: &Action) -> Effect 
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -426,22 +426,22 @@ fn union_palette_lists_settings_rows_with_marker_and_current_value() {
 /// in `settings.rs`.
 #[test]
 fn palette_settings_toggle_row_signals_setting_toggle_and_closes_the_palette() {
-    let mut ov = Some(command_overlay_with_settings());
+    let mut ov = crate::overlay::Journey::seeded(Some(command_overlay_with_settings()));
     let idx = ov
-        .as_ref()
+        .card()
         .unwrap()
         .rows
         .iter()
         .position(|r| r.accept == "Reduce motion")
         .unwrap();
-    ov.as_mut().unwrap().selected = ov
-        .as_ref()
+    ov.card_mut().unwrap().selected = ov
+        .card()
         .unwrap()
         .items
         .iter()
         .position(|&i| i == idx)
         .unwrap();
-    assert_eq!(ov.as_ref().unwrap().selected_value(), Some("Reduce motion"));
+    assert_eq!(ov.card().unwrap().selected_value(), Some("Reduce motion"));
     let eff = command_drive(&mut ov, &Action::Newline);
     assert_eq!(
         eff,
@@ -449,7 +449,10 @@ fn palette_settings_toggle_row_signals_setting_toggle_and_closes_the_palette() {
             key: "reduce_motion".to_string()
         }
     );
-    assert!(ov.is_none(), "activating a settings row closes the palette");
+    assert!(
+        ov.card().is_none(),
+        "activating a settings row closes the palette"
+    );
 }
 
 /// A settings PICKER row with NO covering command ("Ambiguous CJK reads as" —
@@ -460,16 +463,16 @@ fn palette_settings_toggle_row_signals_setting_toggle_and_closes_the_palette() {
 /// for the reported duplication.
 #[test]
 fn palette_settings_picker_row_opens_sub_picker_with_command_breadcrumb() {
-    let mut ov = Some(command_overlay_with_settings());
+    let mut ov = crate::overlay::Journey::seeded(Some(command_overlay_with_settings()));
     let idx = ov
-        .as_ref()
+        .card()
         .unwrap()
         .rows
         .iter()
         .position(|r| r.accept == "Ambiguous CJK reads as")
         .unwrap();
-    ov.as_mut().unwrap().selected = ov
-        .as_ref()
+    ov.card_mut().unwrap().selected = ov
+        .card()
         .unwrap()
         .items
         .iter()
@@ -477,12 +480,12 @@ fn palette_settings_picker_row_opens_sub_picker_with_command_breadcrumb() {
         .unwrap();
     let eff = command_drive(&mut ov, &Action::Newline);
     assert_eq!(eff, Effect::None);
-    let next = ov.as_ref().expect("a sub-picker opened");
+    let next = ov.card().expect("a sub-picker opened");
     assert_eq!(next.kind, OverlayKind::CjkLang);
     assert_eq!(
-        next.return_to,
+        ov.parked_kind(),
         Some(OverlayKind::Command),
-        "breadcrumb points back to the palette"
+        "the palette is parked beneath the sub-picker"
     );
 }
 
@@ -521,16 +524,16 @@ fn covered_settings_row_is_absent_from_the_palette_corpus() {
 /// still runs it via `Effect::RunAction`.
 #[test]
 fn union_palette_ordinary_command_row_still_runs() {
-    let mut ov = Some(command_overlay_with_settings());
+    let mut ov = crate::overlay::Journey::seeded(Some(command_overlay_with_settings()));
     let idx = ov
-        .as_ref()
+        .card()
         .unwrap()
         .rows
         .iter()
         .position(|r| r.accept == "Save")
         .unwrap();
-    ov.as_mut().unwrap().selected = ov
-        .as_ref()
+    ov.card_mut().unwrap().selected = ov
+        .card()
         .unwrap()
         .items
         .iter()
@@ -543,79 +546,79 @@ fn union_palette_ordinary_command_row_still_runs() {
 #[test]
 fn settings_action_row_opens_config_as_text_and_closes() {
     // Fuzzy-filter to the Advanced "Edit config as text" ACTION row.
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "edit config".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some("Edit config as text")
     );
     // Enter emits OpenSettings (open config.toml) and CLOSES the menu.
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(eff, Effect::Buffer(BufferEffect::OpenSettings));
-    assert!(overlay.is_none(), "the action row closes the menu");
+    assert!(overlay.card().is_none(), "the action row closes the menu");
 }
 
 #[test]
 fn settings_report_problem_row_reuses_the_report_effect_and_closes() {
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "report problem".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some("Report a Problem")
     );
     assert_eq!(
         settings_drive(&mut overlay, &Action::Newline),
         Effect::ReportProblem
     );
-    assert!(overlay.is_none());
+    assert!(overlay.card().is_none());
 }
 
 #[test]
 fn settings_picker_row_opens_sub_picker_with_breadcrumb_then_returns() {
     // Row 0 "Caret style" is a Picker → Enter swaps to the Caret sub-picker,
     // stamping a return_to = Settings breadcrumb (single-level).
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(eff, Effect::None);
     {
-        let ov = overlay.as_ref().unwrap();
+        let ov = overlay.card().unwrap();
         assert_eq!(ov.kind, OverlayKind::Caret, "opened the caret sub-picker");
+    }
+    {
         assert_eq!(
-            ov.return_to,
+            overlay.parked_kind(),
             Some(OverlayKind::Settings),
-            "the sub-picker remembers its way back to Settings"
+            "Settings is parked beneath the sub-picker"
         );
     }
     // Esc (cancel) on the sub-picker RE-SUMMONS Settings via the breadcrumb —
     // NOT close-to-buffer — and the re-summoned parent carries no breadcrumb.
     settings_drive(&mut overlay, &Action::Cancel);
-    let ov = overlay
-        .as_ref()
-        .expect("returned to Settings, did not close");
-    assert_eq!(ov.kind, OverlayKind::Settings);
-    assert_eq!(ov.return_to, None, "single-level: no N-deep stack");
+    let kind = overlay.card().map(|o| o.kind);
+    assert_eq!(kind, Some(OverlayKind::Settings), "returned, did not close");
+    assert_eq!(overlay.parked_kind(), None, "single-level: no N-deep stack");
 }
 
 #[test]
 fn settings_value_row_arms_inline_edit_then_commits_typed_value() {
     // Fuzzy-filter to "Page width (prose)" (a Value row).
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "prose".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some("Page width (prose)")
     );
     // Enter ARMS the inline edit sub-state (menu stays open, no effect yet).
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(eff, Effect::None);
     assert!(
-        overlay.as_ref().unwrap().value_edit.is_some(),
+        overlay.card().unwrap().value_edit.is_some(),
         "a Value row arms an inline edit"
     );
     // Clear the seeded value, then type a fresh number — routed into the EDIT
@@ -627,7 +630,7 @@ fn settings_value_row_arms_inline_edit_then_commits_typed_value() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().value_edit.as_ref().unwrap().input,
+        overlay.card().unwrap().value_edit.as_ref().unwrap().input,
         "45"
     );
     // Enter COMMITS: signals SettingValueCommit(named key, typed value), clears the
@@ -641,11 +644,11 @@ fn settings_value_row_arms_inline_edit_then_commits_typed_value() {
         }
     );
     assert!(
-        overlay.as_ref().unwrap().value_edit.is_none(),
+        overlay.card().unwrap().value_edit.is_none(),
         "commit clears the inline edit"
     );
     assert_eq!(
-        overlay.as_ref().map(|o| o.kind),
+        overlay.card().map(|o| o.kind),
         Some(OverlayKind::Settings),
         "the menu stays open after a value commit"
     );
@@ -653,32 +656,32 @@ fn settings_value_row_arms_inline_edit_then_commits_typed_value() {
 
 #[test]
 fn settings_value_edit_cancel_restores_the_cell_and_keeps_menu_open() {
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "prose".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
-    let ci = overlay.as_ref().unwrap().selected_corpus_index().unwrap();
-    let orig_cell = overlay.as_ref().unwrap().rows[ci].secondary.clone();
+    let ci = overlay.card().unwrap().selected_corpus_index().unwrap();
+    let orig_cell = overlay.card().unwrap().rows[ci].secondary.clone();
     settings_drive(&mut overlay, &Action::Newline); // arm
     for c in "999".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_ne!(
-        overlay.as_ref().unwrap().rows[ci].secondary,
+        overlay.card().unwrap().rows[ci].secondary,
         orig_cell,
         "the row's cell shows the live typed value"
     );
     // Esc CANCELS: drop the sub-state and revert the cell to its original value.
     let eff = settings_drive(&mut overlay, &Action::Cancel);
     assert_eq!(eff, Effect::None);
-    assert!(overlay.as_ref().unwrap().value_edit.is_none());
+    assert!(overlay.card().unwrap().value_edit.is_none());
     assert_eq!(
-        overlay.as_ref().unwrap().rows[ci].secondary,
+        overlay.card().unwrap().rows[ci].secondary,
         orig_cell,
         "cancel restores the cell"
     );
     assert_eq!(
-        overlay.as_ref().map(|o| o.kind),
+        overlay.card().map(|o| o.kind),
         Some(OverlayKind::Settings),
         "cancel keeps the settings menu open (does not close to the buffer)"
     );
@@ -687,12 +690,12 @@ fn settings_value_edit_cancel_restores_the_cell_and_keeps_menu_open() {
 #[test]
 fn settings_path_row_opens_navigator_with_breadcrumb_then_picks_the_named_key() {
     // Fuzzy-filter to "Default folder" (a Path row).
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "default folder".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some("Default folder")
     );
     // Enter opens the folder NAVIGATOR (Project), with a Settings breadcrumb AND
@@ -700,17 +703,19 @@ fn settings_path_row_opens_navigator_with_breadcrumb_then_picks_the_named_key() 
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(eff, Effect::None);
     {
-        let ov = overlay.as_ref().unwrap();
+        let ov = overlay.card().unwrap();
         assert_eq!(ov.kind, OverlayKind::Project, "opened the folder navigator");
+    }
+    {
         assert_eq!(
-            ov.return_to,
+            overlay.parked_kind(),
             Some(OverlayKind::Settings),
-            "breadcrumb back to Settings"
+            "Settings is parked beneath the navigator"
         );
         assert_eq!(
-            ov.setting_path_key.as_deref(),
+            overlay.path_key(),
             Some("default_folder"),
-            "stamped the named path key"
+            "the navigator is bound to the named path key"
         );
     }
     // Now that Project FACETS, Enter on a FOLDER descends; the pick affordance is
@@ -718,14 +723,14 @@ fn settings_path_row_opens_navigator_with_breadcrumb_then_picks_the_named_key() 
     // there signals SettingPathPick for that key (the App writes it), returning to
     // Settings via the breadcrumb.
     settings_drive(&mut overlay, &Action::PreviousLine);
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("."));
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("."));
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert!(
         matches!(&eff, Effect::SettingPathPick { key, .. } if key == "default_folder"),
         "the navigator accept writes the named key, got {eff:?}"
     );
     assert_eq!(
-        overlay.as_ref().map(|o| o.kind),
+        overlay.card().map(|o| o.kind),
         Some(OverlayKind::Settings),
         "the navigator returns to Settings via the breadcrumb"
     );
@@ -737,32 +742,31 @@ fn settings_path_navigator_keeps_breadcrumb_across_descend() {
     // breadcrumb), then DESCEND into a folder (Enter, now that Project facets).
     // The breadcrumb must survive the rebuild so the eventual "." pick still
     // writes the named key and returns to Settings.
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "default folder".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     settings_drive(&mut overlay, &Action::Newline); // opens Project w/ key+breadcrumb
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some("sub"),
         "on a folder"
     );
     settings_drive(&mut overlay, &Action::Newline); // Enter DESCENDS (rebuilds the level)
-    let ov = overlay.as_ref().unwrap();
     assert_eq!(
-        ov.kind,
-        OverlayKind::Project,
+        overlay.card().map(|o| o.kind),
+        Some(OverlayKind::Project),
         "still the navigator after descend"
     );
     assert_eq!(
-        ov.setting_path_key.as_deref(),
+        overlay.path_key(),
         Some("default_folder"),
         "the named path key survives a descend"
     );
     assert_eq!(
-        ov.return_to,
+        overlay.parked_kind(),
         Some(OverlayKind::Settings),
-        "the Settings breadcrumb survives a descend"
+        "the parked Settings parent survives a descend"
     );
 }
 
@@ -772,12 +776,12 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
 
     // "Ambiguous CJK reads as" is now a PICKER row (the List row grown up).
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "ambiguous".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some("Ambiguous CJK reads as")
     );
 
@@ -786,15 +790,17 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(eff, Effect::None);
     {
-        let ov = overlay.as_ref().unwrap();
+        let ov = overlay.card().unwrap();
         assert_eq!(
             ov.kind,
             OverlayKind::CjkLang,
             "opened the CJK language sub-picker"
         );
-        assert_eq!(ov.return_to, Some(OverlayKind::Settings));
         // Pre-selected on the current front language ("Japanese", the default).
         assert_eq!(ov.selected_value(), Some("Japanese"));
+    }
+    {
+        assert_eq!(overlay.parked_kind(), Some(OverlayKind::Settings));
     }
 
     // Move to "Korean" and commit: PROMOTES it to the front of the live
@@ -803,7 +809,7 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
     settings_drive(&mut overlay, &Action::NextLine);
     settings_drive(&mut overlay, &Action::NextLine);
     settings_drive(&mut overlay, &Action::NextLine);
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("Korean"));
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Korean"));
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(
         eff,
@@ -819,11 +825,12 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
         ],
         "Korean promoted to front, rest keep relative order"
     );
-    let ov = overlay
-        .as_ref()
-        .expect("returned to Settings, did not close");
-    assert_eq!(ov.kind, OverlayKind::Settings);
-    assert_eq!(ov.return_to, None, "single-level: no N-deep stack");
+    assert_eq!(
+        overlay.card().map(|o| o.kind),
+        Some(OverlayKind::Settings),
+        "returned to Settings, did not close"
+    );
+    assert_eq!(overlay.parked_kind(), None, "single-level: no N-deep stack");
     // The re-summoned Settings menu's value cell is FRESH (reads the live
     // global, just promoted).
     assert_eq!(
@@ -849,7 +856,7 @@ fn open_settings_signals_caller() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -858,7 +865,7 @@ fn open_settings_signals_caller() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -869,7 +876,7 @@ fn open_settings_signals_caller() {
         Effect::Buffer(BufferEffect::OpenSettings),
         "OpenSettings must signal the caller"
     );
-    assert!(overlay.is_none(), "OpenSettings opens no overlay");
+    assert!(journey.card().is_none(), "OpenSettings opens no overlay");
 }
 
 #[test]
@@ -884,7 +891,7 @@ fn keep_version_opens_the_naming_minibuffer_and_enter_commits_the_name() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -893,7 +900,7 @@ fn keep_version_opens_the_naming_minibuffer_and_enter_commits_the_name() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -906,8 +913,8 @@ fn keep_version_opens_the_naming_minibuffer_and_enter_commits_the_name() {
     );
     {
         let ov = ctx
-            .overlay
-            .as_ref()
+            .journey
+            .card()
             .expect("Keep version… opens the naming minibuffer");
         assert_eq!(ov.kind, OverlayKind::KeepName);
         assert!(
@@ -940,7 +947,7 @@ fn keep_version_opens_the_naming_minibuffer_and_enter_commits_the_name() {
         },
         "Enter commits the typed name"
     );
-    assert!(overlay.is_none(), "commit closes the minibuffer");
+    assert!(journey.card().is_none(), "commit closes the minibuffer");
     assert_eq!(buffer.text(), before, "pinning never edits the buffer");
     assert!(!buffer.can_undo(), "a pin is not an undoable edit");
 }
@@ -954,7 +961,7 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -963,7 +970,7 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -977,13 +984,16 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
         Effect::KeepVersion { name: None },
         "a blank (whitespace-only) Enter is the plain, nameless keep"
     );
-    assert!(ctx.overlay.is_none());
+    assert!(ctx.journey.card().is_none());
     // Esc → cancels: the overlay closes and NOTHING is signalled.
     apply_transition(&mut ctx, &Action::KeepVersion, false).primary();
     apply_transition(&mut ctx, &Action::InsertChar('x'), false).primary();
     let effect = apply_transition(&mut ctx, &Action::Cancel, false).primary();
     assert_eq!(effect, Effect::None, "Esc keeps nothing");
-    assert!(ctx.overlay.is_none(), "Esc closes the minibuffer outright");
+    assert!(
+        ctx.journey.card().is_none(),
+        "Esc closes the minibuffer outright"
+    );
 }
 
 #[test]
@@ -999,7 +1009,7 @@ fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let text_before = buffer.text();
@@ -1012,7 +1022,7 @@ fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -1057,7 +1067,7 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     // Caret inside the link text `essay`.
@@ -1069,7 +1079,7 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -1101,23 +1111,23 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
 fn palette_query_word_delete_routes_through_apply_transition() {
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
-    let mut overlay = Some(OverlayState::new_command(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_command(
         names,
         crate::commands::bindings(),
         hidden,
-    ));
+    )));
     for c in "foo bar baz".chars() {
         drive_eff(&mut overlay, &Action::InsertChar(c));
     }
-    assert_eq!(overlay.as_ref().unwrap().query, "foo bar baz");
+    assert_eq!(overlay.card().unwrap().query, "foo bar baz");
     // ⌥⌫ / C-⌫ resolve to DeleteWordBackward: a whole trailing word goes.
     drive_eff(&mut overlay, &Action::DeleteWordBackward);
-    assert_eq!(overlay.as_ref().unwrap().query, "foo bar ");
+    assert_eq!(overlay.card().unwrap().query, "foo bar ");
     // Plain ⌫ (DeleteBackward) still removes exactly one char.
     drive_eff(&mut overlay, &Action::DeleteBackward);
-    assert_eq!(overlay.as_ref().unwrap().query, "foo bar");
+    assert_eq!(overlay.card().unwrap().query, "foo bar");
     drive_eff(&mut overlay, &Action::DeleteWordBackward);
-    assert_eq!(overlay.as_ref().unwrap().query, "foo ");
+    assert_eq!(overlay.card().unwrap().query, "foo ");
 }
 
 /// ITEM 10 — END-TO-END: `Action::ForwardWord`/`BackwardWord` move the
@@ -1130,32 +1140,32 @@ fn palette_query_word_delete_routes_through_apply_transition() {
 fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched() {
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
-    let mut overlay = Some(OverlayState::new_command(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_command(
         names,
         crate::commands::bindings(),
         hidden,
-    ));
+    )));
     for c in "foo bar".chars() {
         drive_eff(&mut overlay, &Action::InsertChar(c));
     }
     assert_eq!(
-        overlay.as_ref().unwrap().query.caret(),
+        overlay.card().unwrap().query.caret(),
         7,
         "caret sits at the end after typing"
     );
     drive_eff(&mut overlay, &Action::BackwardWord);
     assert_eq!(
-        overlay.as_ref().unwrap().query.caret(),
+        overlay.card().unwrap().query.caret(),
         4,
         "word_left lands before \"bar\""
     );
     // A subsequent insert splices at the mid-string caret, not the end.
     drive_eff(&mut overlay, &Action::InsertChar('X'));
-    assert_eq!(overlay.as_ref().unwrap().query, "foo Xbar");
+    assert_eq!(overlay.card().unwrap().query, "foo Xbar");
     drive_eff(&mut overlay, &Action::ForwardWord);
     assert_eq!(
-        overlay.as_ref().unwrap().query.caret(),
-        overlay.as_ref().unwrap().query.text().chars().count(),
+        overlay.card().unwrap().query.caret(),
+        overlay.card().unwrap().query.text().chars().count(),
         "word_right walks back to the end"
     );
     // Clear the query back to empty (the full command list ranks, > 1 row) so
@@ -1164,17 +1174,17 @@ fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched
     for _ in 0..8 {
         drive_eff(&mut overlay, &Action::DeleteBackward);
     }
-    assert_eq!(overlay.as_ref().unwrap().query, "");
-    let caret_before = overlay.as_ref().unwrap().query.caret();
-    let selected_before = overlay.as_ref().unwrap().selected;
+    assert_eq!(overlay.card().unwrap().query, "");
+    let caret_before = overlay.card().unwrap().query.caret();
+    let selected_before = overlay.card().unwrap().selected;
     drive_eff(&mut overlay, &Action::NextLine);
     assert_eq!(
-        overlay.as_ref().unwrap().query.caret(),
+        overlay.card().unwrap().query.caret(),
         caret_before,
         "list move never touches the caret"
     );
     assert_ne!(
-        overlay.as_ref().unwrap().selected,
+        overlay.card().unwrap().selected,
         selected_before,
         "NextLine still moves the selection (more than one command exists)"
     );
@@ -1183,12 +1193,12 @@ fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched
 // ── ITEM 94 — SETTINGS RANGE ROWS (the keyboard half, at the REAL apply seam) ──
 
 /// Fuzzy-filter the Settings menu down to the Zoom row and return the overlay.
-fn zoom_row_overlay() -> Option<OverlayState> {
-    let mut overlay = Some(settings_overlay());
+fn zoom_row_overlay() -> crate::overlay::Journey {
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "zoom".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("Zoom"));
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Zoom"));
     overlay
 }
 
@@ -1213,13 +1223,13 @@ fn right_on_a_range_row_steps_one_authored_increment_and_mirrors_its_cell() {
         "one authored step, not a parallel number"
     );
     // The row's own cell + rail step moved with it, in the same call.
-    let ci = overlay.as_ref().unwrap().selected_corpus_index().unwrap();
+    let ci = overlay.card().unwrap().selected_corpus_index().unwrap();
     assert_eq!(
-        overlay.as_ref().unwrap().rows[ci].secondary,
+        overlay.card().unwrap().rows[ci].secondary,
         spec.format(zoom)
     );
     assert_eq!(
-        overlay.as_ref().unwrap().selected_range().unwrap().step,
+        overlay.card().unwrap().selected_range().unwrap().step,
         spec.step_of(zoom),
         "the drawn thumb tracks the value it stepped to"
     );
@@ -1255,20 +1265,17 @@ fn a_range_row_saturates_at_both_ends_of_its_authored_band() {
 #[test]
 fn left_right_still_cycle_the_lens_on_every_non_range_row() {
     let _g = crate::testlock::serial();
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     for c in "page mode".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
-    assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
-        Some("Page mode")
-    );
-    let lens0 = overlay.as_ref().unwrap().facet_lens;
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Page mode"));
+    let lens0 = overlay.card().unwrap().facet_lens;
     let mut zoom = 1.0f32;
     let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
     assert_eq!(eff, Effect::None, "a non-range row signals no range step");
     assert_ne!(
-        overlay.as_ref().unwrap().facet_lens,
+        overlay.card().unwrap().facet_lens,
         lens0,
         "the lens still cycles"
     );
@@ -1291,14 +1298,14 @@ fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
         "the sweep includes both widths and percentages"
     );
     for row in rows {
-        let mut overlay = Some(settings_overlay());
+        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
         for c in row.name.to_lowercase().chars() {
             settings_drive(&mut overlay, &Action::InsertChar(c));
         }
-        assert_eq!(overlay.as_ref().unwrap().selected_value(), Some(row.name));
+        assert_eq!(overlay.card().unwrap().selected_value(), Some(row.name));
         assert_eq!(settings_drive(&mut overlay, &Action::Newline), Effect::None);
         assert!(
-            overlay.as_ref().unwrap().value_edit.is_some(),
+            overlay.card().unwrap().value_edit.is_some(),
             "{}: a Range row arms exact entry",
             row.name
         );
@@ -1373,13 +1380,13 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
     for row in range_rows {
         let key = crate::settings::value_key(row.id).expect("a Range row always has a key");
         let spec = crate::settings::range_spec(row.id).expect("a Range row always has a spec");
-        let mut overlay = Some(settings_overlay());
+        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
         for c in row.name.to_lowercase().chars() {
             settings_drive(&mut overlay, &Action::InsertChar(c));
         }
-        assert_eq!(overlay.as_ref().unwrap().selected_value(), Some(row.name));
+        assert_eq!(overlay.card().unwrap().selected_value(), Some(row.name));
         let before = overlay
-            .as_ref()
+            .card()
             .unwrap()
             .selected_range()
             .expect("the row carries a rail");
@@ -1400,7 +1407,7 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
             "{}: RIGHT must signal this row's own key",
             row.name
         );
-        let after = overlay.as_ref().unwrap().selected_range().unwrap();
+        let after = overlay.card().unwrap().selected_range().unwrap();
         assert_ne!(
             after.step, before.step,
             "{}: the drawn step must move",
@@ -1449,11 +1456,11 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
     for i in 0..rows {
         // A FRESH overlay per row: a lens cycle regroups the list, so each row is
         // judged from the same clean start rather than from the last row's aftermath.
-        let mut overlay = Some(settings_overlay());
+        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
         for _ in 0..i {
             settings_drive(&mut overlay, &Action::NextLine);
         }
-        let ov = overlay.as_ref().unwrap();
+        let ov = overlay.card().unwrap();
         let name = ov.selected_value().unwrap_or("").to_string();
         let hint = ov.foot_hint();
         let lens_before = ov.facet_lens;
@@ -1468,7 +1475,7 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
         let mut zoom = 1.0f32;
         let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
         let stepped_value = matches!(eff, Effect::SettingRangeStep { .. });
-        let cycled_lens = overlay.as_ref().unwrap().facet_lens != lens_before;
+        let cycled_lens = overlay.card().unwrap().facet_lens != lens_before;
         assert!(
             stepped_value ^ cycled_lens,
             "{name}: RIGHT must do exactly one of step-the-value / cycle-the-lens \
@@ -1488,7 +1495,7 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
                      (it said {advertised:?}) — full line: {hint:?}"
                 );
                 let step_after = overlay
-                    .as_ref()
+                    .card()
                     .unwrap()
                     .selected_range()
                     .map(|cell| cell.step);

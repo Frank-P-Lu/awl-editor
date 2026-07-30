@@ -734,9 +734,9 @@ fn theme_picker_is_flat_and_lists_every_world_with_active_selected() {
     let mut ov = OverlayState::new_theme(names.clone(), gum);
     assert_eq!(ov.kind.as_str(), "theme");
     assert_eq!(
-        ov.original_theme,
-        Some(gum),
-        "the opening theme is remembered for revert"
+        ov.audition,
+        crate::overlay::Audition::Theme { original: gum },
+        "the opening world is remembered for revert"
     );
     // FLAT: no facet scheme, no lens strip, no section labels.
     assert!(!ov.is_faceting(), "the theme picker does not facet");
@@ -861,9 +861,14 @@ fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
     // Opens highlighting the ACTIVE look, and `original_caret` remembers it.
     assert_eq!(ov.selected_value(), Some("Block"));
     assert_eq!(ov.selected_caret_mode(), Some(CaretMode::Block));
-    assert_eq!(ov.original_caret, Some(CaretMode::Block));
     // An explicit override was active at open — not auto.
-    assert!(!ov.original_caret_was_auto);
+    assert_eq!(
+        ov.audition,
+        crate::overlay::Audition::Caret {
+            original: CaretMode::Block,
+            was_auto: false
+        }
+    );
     // NAVIGATE down the list -> the selected look maps back via from_label.
     let mut ov = ov;
     ov.move_sel(1);
@@ -874,8 +879,13 @@ fn caret_picker_lists_three_styles_navigates_and_maps_modes() {
     crate::caret::set_mode(CaretMode::Ibeam);
     let ov2 = OverlayState::new_caret(CaretMode::Ibeam);
     assert_eq!(ov2.selected_value(), Some("I-beam"));
-    assert_eq!(ov2.original_caret, Some(CaretMode::Ibeam));
-    assert!(!ov2.original_caret_was_auto);
+    assert_eq!(
+        ov2.audition,
+        crate::overlay::Audition::Caret {
+            original: CaretMode::Ibeam,
+            was_auto: false
+        }
+    );
     // The hint leads with the universal jump cluster (move + type-to-filter) then
     // names ↵'s action; flat picker (no descend).
     assert_eq!(OverlayKind::Caret.hint(), "type to filter   \u{21B5} apply");
@@ -993,22 +1003,24 @@ fn caret_picker_captures_whether_it_opened_while_auto() {
     assert_eq!(crate::caret::mode(), CaretMode::Block);
     let ov = OverlayState::new_caret(crate::caret::mode());
     assert_eq!(
-        ov.original_caret,
-        Some(CaretMode::Block),
-        "records the RESOLVED look"
-    );
-    assert!(
-        ov.original_caret_was_auto,
-        "but flags it as auto's resolution, not a pin"
+        ov.audition,
+        crate::overlay::Audition::Caret {
+            original: CaretMode::Block,
+            was_auto: true
+        },
+        "records the RESOLVED look, flagged as auto's resolution not a pin"
     );
 
     // EXPLICIT: an actual pin, even one that resolves to the exact same
     // concrete mode, is NOT auto.
     crate::caret::set_mode(CaretMode::Block);
     let ov2 = OverlayState::new_caret(crate::caret::mode());
-    assert_eq!(ov2.original_caret, Some(CaretMode::Block));
-    assert!(
-        !ov2.original_caret_was_auto,
+    assert_eq!(
+        ov2.audition,
+        crate::overlay::Audition::Caret {
+            original: CaretMode::Block,
+            was_auto: false
+        },
         "an explicit pin is never reported as auto"
     );
 
@@ -1961,12 +1973,15 @@ fn breadcrumb_kinds_are_value_based_never_positional() {
         OverlayKind::ALL.len(),
         "every kind has a distinct name"
     );
-    // Exactly ONE parent retains a value-pick child on commit: Settings.
+    // Exactly TWO kinds are SUSTAINED workspaces — the shared workspace's whole
+    // declared scope (Settings, item 114; Version History, item 131). Everything
+    // else is a brief contextual overlay, and a value-pick child returns to its
+    // parent exactly when that parent is one of these two.
     for k in OverlayKind::ALL {
         assert_eq!(
-            k.retains_value_pick_child(),
-            k == OverlayKind::Settings,
-            "{k:?}: only Settings re-summons a value-pick child on accept"
+            k.sustained(),
+            matches!(k, OverlayKind::Settings | OverlayKind::History),
+            "{k:?}: the sustained-workspace roster is Settings + History"
         );
     }
 }

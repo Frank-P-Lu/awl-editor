@@ -24,12 +24,19 @@
 mod build;
 mod capture;
 mod facet;
+mod journey;
 mod kind;
 mod nav;
 mod state;
 
 pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
+#[allow(unused_imports)]
+// the table's own vocabulary is consumed by the lifecycle law + item 114
+pub use journey::{
+    Audition, Beneath, Bind, Event, Journey, Landing, Parked, Resume, Rung, State, Surface,
+    landing_of,
+};
 #[allow(unused_imports)]
 // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
 pub use kind::{

@@ -860,7 +860,8 @@ fn replay_keys_drives_the_rename_minibuffer_prompt_and_sidecar_reflects_typing()
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res
-        .overlay
+        .journey
+        .card()
         .expect("Rename note… opens the minibuffer overlay");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Rename);
     assert_eq!(
@@ -883,7 +884,7 @@ fn replay_keys_rename_minibuffer_esc_cancels_with_no_overlay_left() {
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "Esc closes the minibuffer outright, no breadcrumb pop"
     );
     assert_eq!(
@@ -900,7 +901,7 @@ fn replay_keys_rename_minibuffer_does_not_open_on_a_pathless_buffer() {
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "nothing to rename on a pathless buffer"
     );
 }
@@ -917,7 +918,8 @@ fn replay_keys_drives_the_keep_version_minibuffer_prompt_and_sidecar_reflects_ty
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res
-        .overlay
+        .journey
+        .card()
         .expect("Keep version… opens the naming minibuffer");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::KeepName);
     assert_eq!(
@@ -939,7 +941,7 @@ fn replay_keys_keep_version_minibuffer_esc_cancels_with_no_overlay_left() {
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "Esc closes the minibuffer outright, nothing kept"
     );
 }
@@ -956,7 +958,7 @@ fn replay_keys_keep_version_commit_closes_and_defers_the_store_write() {
     let keys = keyspec::parse_keys("h i s-p k e e p RET d r a f t RET").unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(res.overlay.is_none(), "commit closes the minibuffer");
+    assert!(res.journey.card().is_none(), "commit closes the minibuffer");
     assert_eq!(buffer.text(), "hi", "the keep never edits the buffer");
 }
 
@@ -974,7 +976,7 @@ fn replay_keys_cmd_k_wraps_a_selection_as_a_markdown_link() {
     .unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(res.overlay.is_none(), "commit closes the minibuffer");
+    assert!(res.journey.card().is_none(), "commit closes the minibuffer");
     assert_eq!(buffer.text(), "[hello](https://x.test)");
 }
 
@@ -986,7 +988,7 @@ fn replay_keys_cmd_k_prompt_is_sidecar_visible_while_typing() {
             .unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    let ov = res.overlay.expect("Cmd-K opens the link minibuffer");
+    let ov = res.journey.card().expect("Cmd-K opens the link minibuffer");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::InsertLink);
     assert_eq!(ov.accepts(), vec!["https://"]);
     assert_eq!(
@@ -1004,7 +1006,10 @@ fn replay_keys_cmd_k_esc_cancels_with_no_buffer_change() {
         keyspec::parse_keys("h e l l o C-Space Left Left Left Left Left s-k x x x Esc").unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(res.overlay.is_none(), "Esc closes the minibuffer outright");
+    assert!(
+        res.journey.card().is_none(),
+        "Esc closes the minibuffer outright"
+    );
     assert_eq!(buffer.text(), "hello", "cancel never edits the buffer");
 }
 
@@ -1017,7 +1022,7 @@ fn replay_keys_cmd_k_no_selection_inserts_empty_markup_caret_between_brackets() 
     let keys = keyspec::parse_keys("h i s-k RET").unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(res.overlay.is_none());
+    assert!(res.journey.card().is_none());
     assert_eq!(buffer.text(), "hi[]()");
 }
 
@@ -1032,7 +1037,7 @@ fn replay_keys_cmd_k_on_a_non_markdown_buffer_is_a_calm_no_op() {
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "Cmd-K is a calm no-op on a non-markdown buffer"
     );
     assert_eq!(buffer.text(), "a");
@@ -1045,7 +1050,7 @@ fn replay_keys_runs_palette_chain_into_overlay() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert_eq!(
-        res.overlay.map(|o| o.kind),
+        res.journey.card().map(|o| o.kind),
         Some(crate::overlay::OverlayKind::Goto),
         "palette Enter on 'Go to file' chains into the Goto overlay",
     );
@@ -1058,7 +1063,7 @@ fn replay_keys_drives_palette_guide_and_opens_the_guide_buffer() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "the palette closed itself on accept, no overlay left open"
     );
     let expected = crate::guide::render(
@@ -1086,7 +1091,7 @@ fn replay_keys_palette_filter_surfaces_the_marked_settings_row() {
     let keys = keyspec::parse_keys("s-p k e y m a p").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    let ov = res.overlay.expect("the palette is still open");
+    let ov = res.journey.card().expect("the palette is still open");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Command);
     assert!(
         ov.item_strings().iter().any(|s| s == "§ Keymap"),
@@ -1113,7 +1118,7 @@ fn replay_keys_palette_filters_to_a_settings_row_and_toggles_it() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "activating a settings row closes the palette"
     );
 }
@@ -1130,12 +1135,15 @@ fn replay_keys_palette_sub_picker_stamps_command_breadcrumb() {
     let keys = keyspec::parse_keys("s-p t h e m e RET").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    let ov = res.overlay.expect("palette chained into the theme picker");
+    let ov = res
+        .journey
+        .card()
+        .expect("palette chained into the theme picker");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Theme);
     assert_eq!(
-        ov.return_to,
+        res.journey.parked_kind(),
         Some(crate::overlay::OverlayKind::Command),
-        "a palette-opened sub-picker remembers its way back to the palette",
+        "the palette is parked beneath a palette-opened sub-picker",
     );
     crate::theme::set_active(0);
 }
@@ -1149,7 +1157,8 @@ fn replay_keys_palette_theme_esc_pops_back_to_palette() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res
-        .overlay
+        .journey
+        .card()
         .expect("Esc pops back to the palette, not the buffer");
     assert_eq!(
         ov.kind,
@@ -1157,8 +1166,9 @@ fn replay_keys_palette_theme_esc_pops_back_to_palette() {
         "back at the command palette"
     );
     assert_eq!(
-        ov.return_to, None,
-        "single-level: the palette carries no breadcrumb"
+        res.journey.parked_kind(),
+        None,
+        "single-level: the resumed palette parks nothing itself"
     );
     crate::theme::set_active(0);
 }
@@ -1172,7 +1182,7 @@ fn replay_keys_palette_theme_keep_closes_to_buffer_not_a_recent_menu() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "keeping a palette-launched theme lands in the buffer"
     );
     assert!(
@@ -1210,7 +1220,7 @@ fn replay_keys_caret_picker_cancel_from_auto_does_not_pin_it() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "the whole journey lands back in the buffer"
     );
     assert_eq!(
@@ -1250,7 +1260,7 @@ fn replay_keys_goto_open_file_closes_all_no_overlay() {
         None,
     );
     assert!(
-        res.overlay.is_none(),
+        res.journey.card().is_none(),
         "opening a file closes the overlay to the buffer"
     );
     assert_eq!(
@@ -1286,7 +1296,7 @@ fn replay_keys_goto_hides_dotfiles_until_file_visibility_is_all() {
         &Config::empty(),
         None,
     );
-    let ov = res.overlay.expect("goto overlay open");
+    let ov = res.journey.card().expect("goto overlay open");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Goto);
     assert!(!crate::file_visibility::all_on());
     let shown = ov.item_strings();
@@ -1311,7 +1321,7 @@ fn replay_keys_goto_hides_dotfiles_until_file_visibility_is_all() {
         &Config::empty(),
         None,
     );
-    let ov = res.overlay.expect("goto overlay open under All");
+    let ov = res.journey.card().expect("goto overlay open under All");
     assert!(
         crate::file_visibility::all_on(),
         "File visibility All reveals dotfiles"
@@ -1350,7 +1360,8 @@ fn replay_keys_asset_cleaner_lists_only_the_orphans_from_the_scan() {
             None,
         );
         let ov = res
-            .overlay
+            .journey
+            .card()
             .expect("asset cleaner open after the palette chain");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Assets);
         assert_eq!(ov.item_strings(), vec!["orphan.png"]);
@@ -1384,7 +1395,7 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             &Config::empty(),
             None,
         );
-        let ov = res.overlay.expect("switch-project overlay open");
+        let ov = res.journey.card().expect("switch-project overlay open");
         assert_eq!(ov.kind, crate::overlay::OverlayKind::Project);
         assert!(!crate::file_visibility::all_on());
         let shown = ov.item_strings();
@@ -1431,7 +1442,7 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             &Config::empty(),
             None,
         );
-        let ov = res.overlay.expect("project overlay open under All");
+        let ov = res.journey.card().expect("project overlay open under All");
         assert!(
             crate::file_visibility::all_on(),
             "File visibility All reveals dotfolders"
@@ -1460,7 +1471,8 @@ fn replay_keys_drives_rebind_menu_capture() {
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res
-        .overlay
+        .journey
+        .card()
         .expect("the rebind menu stays open after a commit");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Keybindings);
     assert!(
@@ -1479,8 +1491,8 @@ fn replay_keys_rebind_menu_recording_state_visible() {
     let keys = keyspec::parse_keys("s-p k e y b RET s a v e RET Down RET").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    let ov = res.overlay.expect("menu open");
-    let cap = ov.capture.expect("a capture is in progress");
+    let ov = res.journey.card().expect("menu open");
+    let cap = ov.capture.clone().expect("a capture is in progress");
     assert_eq!(cap.cmd_name, "Save");
     assert_eq!(cap.stage, crate::overlay::CaptureStage::Recording);
     assert!(
@@ -1512,14 +1524,19 @@ fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
     );
 
     let ov = res
-        .overlay
+        .journey
+        .card()
         .expect("popped back to the Settings menu, not closed");
     assert_eq!(
         ov.kind,
         crate::overlay::OverlayKind::Settings,
         "back at Settings"
     );
-    assert_eq!(ov.return_to, None, "single-level: no N-deep stack");
+    assert_eq!(
+        res.journey.parked_kind(),
+        None,
+        "single-level: no N-deep stack"
+    );
     let row_idx = crate::settings::SETTINGS
         .iter()
         .position(|r| r.name == "Ambiguous CJK reads as")
@@ -1530,6 +1547,71 @@ fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
     );
 
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
+}
+
+/// ITEM 173 — THE SUSPEND/RETURN JOURNEY, DRIVEN ENTIRELY BY `--keys`. Open the
+/// Settings workspace from the palette, filter DOWN THE LIST to a row that is
+/// not row 0, descend into its child audition, and cancel: the workspace
+/// resumes ON THAT ROW, with the filter that found it.
+///
+/// The pre-item-173 breadcrumb re-summoned the parent FRESH and dropped both,
+/// so this replay used to land on "Caret style" with an empty query no matter
+/// which row you came from. The action path and the replay path are the same
+/// seam, so this is the parity witness as well as the restoration one.
+#[test]
+fn replay_keys_a_cancelled_settings_child_resumes_on_the_row_it_left() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET Esc").unwrap();
+    let root = PathBuf::from("/tmp");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+
+    let ov = res
+        .journey
+        .card()
+        .expect("the workspace resumed rather than closing to the buffer");
+    assert_eq!(ov.kind, crate::overlay::OverlayKind::Settings);
+    assert_eq!(
+        ov.selected_value(),
+        Some("Theme"),
+        "resumed on the row the child was opened from, not on row 0"
+    );
+    assert_eq!(
+        ov.query.text(),
+        "theme",
+        "and with the filter that found it"
+    );
+    assert_eq!(res.journey.parked_kind(), None, "single-level");
+    crate::theme::set_active(0);
+}
+
+/// The SAME journey stopped one chord earlier: while the child audition is up,
+/// the SIDECAR reports which surface is parked beneath it. `overlay.return_to`
+/// keeps its published name and now reads the lifecycle's parked parent, so an
+/// agent probe can see the suspension without a new schema field.
+#[test]
+fn replay_keys_the_sidecar_reports_the_parked_workspace_under_a_child() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET").unwrap();
+    let root = PathBuf::from("/tmp");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    assert_eq!(
+        res.journey.card().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Theme),
+        "the child audition is up"
+    );
+    let (info, _preview, _diff) =
+        crate::run::overlay_capture_info(&res.journey, &buffer).expect("a card is up");
+    assert_eq!(
+        info.return_to,
+        Some("settings"),
+        "the sidecar names the parked workspace"
+    );
+    assert_eq!(info.mode, "theme");
+    crate::theme::set_active(0);
 }
 
 #[test]
@@ -2133,7 +2215,7 @@ fn replay_history_esc_leaves_buffer_text_exact() {
         let keys = keyspec::parse_keys("Cmd-S-h C-n Esc").unwrap();
         let root = PathBuf::from("/notes");
         let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-        assert!(res.overlay.is_none(), "Esc closed the timeline");
+        assert!(res.journey.card().is_none(), "Esc closed the timeline");
         assert!(res.accept.is_none(), "nothing was accepted");
         assert_eq!(buffer.text(), before, "Esc leaves the buffer text exact");
     });
