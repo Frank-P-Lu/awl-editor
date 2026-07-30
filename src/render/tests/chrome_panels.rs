@@ -1094,7 +1094,7 @@ fn query_input_beat_reads_as_more_than_a_full_row_flat_and_faceted() {
     // header line (`lh`) PLUS the gap below the card's text origin.
     let [_, cy, ..] = p.overlay_card_rect().expect("the flat overlay has a card");
     let text_top = cy + 12.0; // centered-overlay inner padding (overlay_geometry)
-    let row0_top = chrome::overlay_row_top(text_top, 1, gap, 0, lh);
+    let row0_top = crate::render::plan::test_row_top(text_top, 1, gap, 0, lh);
     assert!(
         (row0_top - (text_top + lh + gap)).abs() < 0.01,
         "row 0's shaped top folds in the widened gap exactly once"
@@ -1340,7 +1340,8 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
-        let has_right = p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
+        let row_plan = p.overlay_row_plan(&geom);
+        let has_right = p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
 
         assert!(
             has_right,
@@ -1406,8 +1407,9 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
+        let row_plan = p.overlay_row_plan(&geom);
         assert!(
-            p.overlay_shape_text(&geom, ink, muted, None, &vs, true),
+            p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true),
             "still builds a right column with headers"
         );
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
@@ -1443,7 +1445,8 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         p.set_view(&v);
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
-        let has_right = p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
+        let row_plan = p.overlay_row_plan(&geom);
+        let has_right = p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
         assert!(
             !has_right,
             "the literal Theme picker builds no right column"

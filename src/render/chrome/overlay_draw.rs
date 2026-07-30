@@ -21,6 +21,9 @@ impl TextPipeline {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(width);
+        // ITEM 174 — PLAN THE CANDIDATE BAND ONCE, before anything is shaped,
+        // resolved or emitted; nothing downstream computes a row's y.
+        let plan = self.overlay_row_plan(&geom);
         let placard = self.overlay_shape_placard(&geom);
         let stipple = matches!(
             crate::render::effective_title_style(),
@@ -41,12 +44,12 @@ impl TextPipeline {
         // animator for this frame; every consumer below reads the result, so the
         // band, both ink columns, the accessory plates and the sidecar give ONE
         // answer to "which row is selected" at every intermediate frame.
-        let vis = self.resolve_visual_selection(&geom);
-        let has_right = self.overlay_shape_text(&geom, ink, muted, selected_ink, &vis, true);
+        let vis = self.resolve_visual_selection(&geom, &plan);
+        let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
         self.overlay_upload_text(
-            device, queue, width, height, &geom, has_right, ink, muted, placard,
+            device, queue, width, height, &geom, &plan, has_right, ink, muted, placard,
         )?;
-        self.overlay_draw_card(device, queue, width, height, &geom, &vis);
+        self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
         self.overlay_place_caret(queue, width, height, &geom);
         Ok(())
     }
@@ -192,6 +195,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         has_right: bool,
         ink: glyphon::Color,
         muted: glyphon::Color,
@@ -305,14 +309,8 @@ impl TextPipeline {
                 areas.push(panel_area);
             }
             Some(_) => {
-                let lh = self.overlay_lh();
-                let n_lines = if geom.theme {
-                    geom.plan.len()
-                } else {
-                    geom.visible
-                };
-                let first_top =
-                    overlay_row_top(geom.text_top, geom.header_rows, geom.header_gap, 0, lh);
+                // ITEM 174 — one clip band PER PLANNED ROW, off the plan's own
+                // slots (this loop used to re-derive `first_top + k * lh`).
                 let clip = |top: f32, bottom: f32| TextBounds {
                     left: bounds.left,
                     top: top.max(0.0) as i32,
@@ -324,23 +322,22 @@ impl TextPipeline {
                     left: text_left,
                     top: text_top,
                     scale: 1.0,
-                    bounds: clip(0.0, first_top),
+                    bounds: clip(0.0, plan.first_top()),
                     default_color: ink,
                     custom_glyphs: &[],
                 });
-                for k in 0..n_lines {
-                    let row_top = first_top + k as f32 * lh;
+                for row in plan.rows() {
                     areas.push(TextArea {
                         buffer: &self.panel_buffer,
-                        left: text_left + self.overlay_slant_dx(k),
+                        left: text_left + self.overlay_slant_dx(row.display),
                         top: text_top,
                         scale: 1.0,
-                        bounds: clip(row_top, row_top + lh),
+                        bounds: clip(row.top, row.bottom()),
                         default_color: ink,
                         custom_glyphs: &[],
                     });
                 }
-                let tail_top = first_top + n_lines as f32 * lh;
+                let tail_top = plan.band_bottom();
                 areas.push(TextArea {
                     buffer: &self.panel_buffer,
                     left: text_left,

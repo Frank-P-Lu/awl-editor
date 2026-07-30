@@ -14,12 +14,10 @@ struct OverlayBarLayout {
     grow_px: f32,
     extent: theme::BarExtent,
     coverage: theme::BarCoverage,
-    line_height: f32,
     bar_height: f32,
     bar_offset: f32,
     primary_px: std::collections::BTreeMap<usize, f32>,
     chord_px: std::collections::BTreeMap<usize, f32>,
-    item_rows: Vec<usize>,
 }
 
 impl OverlayBarLayout {
@@ -36,25 +34,19 @@ impl OverlayBarLayout {
         }
     }
 
-    fn row_top(&self, geom: &OverlayGeom, row: usize) -> f32 {
-        overlay_row_top(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            row,
-            self.line_height,
-        )
-    }
-
     /// ITEM 164 — the shortcut PLATE behind a `Bars` chord is an ACCESSORY of the
     /// selected row's own bar, so it reads the shared [`VisualSelection`] (never
     /// the logical row) for WHICH plate carries the band colour, and rides the
     /// band's DRAWN top for WHERE that plate sits. Before the transaction it took
     /// both from state: on a sliding world the chord plate recoloured and held
     /// still a whole glide before the bar it belongs to arrived under it.
+    ///
+    /// ITEM 174 — the fallback top (an unselected plate) is the PLANNED row's own
+    /// slot, read off the plan the bar under it was placed from.
     fn append_chord_plates(
         &self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         vis: &VisualSelection,
         selected: &mut Vec<[f32; 4]>,
         unselected: &mut Vec<[f32; 4]>,
@@ -65,7 +57,8 @@ impl OverlayBarLayout {
         let (full_x, full_width) = bar_full_span(geom.card_x, geom.card_w);
         let full_right = full_x + full_width;
         let chord_right = geom.text_left + geom.text_w;
-        for &row in &self.item_rows {
+        for planned in plan.rows().iter().filter(|r| r.item.is_some()) {
+            let row = planned.display;
             let Some(width) = self.chord_px.get(&row).copied() else {
                 continue;
             };
@@ -75,7 +68,7 @@ impl OverlayBarLayout {
             let on_band = vis.reads_selected(row);
             let top = match (on_band, vis.band_top()) {
                 (true, Some(drawn)) => drawn,
-                _ => self.row_top(geom, row),
+                _ => planned.top,
             };
             let rect = [
                 left,
@@ -98,19 +91,14 @@ impl TextPipeline {
         &mut self,
         geom: &OverlayGeom,
     ) -> (Vec<usize>, usize, f32, f32, [f32; 4]) {
-        let vis = self.resolve_visual_selection(geom);
+        let plan = self.overlay_row_plan(geom);
+        let vis = self.resolve_visual_selection(geom, &plan);
         let (motion, from, to, t) = vis
             .living()
             .expect("living_probe_geom needs the motion probe armed on a Pane world");
         let selected_row = vis.logical().expect("a selected row");
-        let line_height = self.overlay_lh();
-        let first_top = overlay_row_top(
-            geom.text_top,
-            geom.header_rows,
-            geom.header_gap,
-            0,
-            line_height,
-        );
+        let line_height = plan.lh();
+        let first_top = plan.first_top();
         let (primary, _, _) =
             self.living_band_rects(motion, from, to, t, geom.card_x, geom.card_w, line_height);
         (
@@ -122,6 +110,32 @@ impl TextPipeline {
         )
     }
 
+    /// TEST PROBE — the `(selected, unselected)` row-surface quads this frame
+    /// ACTUALLY emits under a `Bars` world, read from the emitter rather than
+    /// rebuilt: the only oracle for "where did the footer plate land" that cannot
+    /// be satisfied by a parallel reimplementation. Empty on a `Pane` world.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_bar_rects_probe(&mut self) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let vis = self.resolve_visual_selection(&geom, &plan);
+        match crate::render::effective_list_style() {
+            theme::ListStyle::Bars {
+                radius,
+                gap,
+                grow_px,
+                extent,
+                coverage,
+            } => {
+                let r = self.overlay_bar_selection(
+                    &geom, &plan, &vis, radius, gap, grow_px, extent, coverage,
+                );
+                (r.selected, r.unselected)
+            }
+            theme::ListStyle::Pane => (Vec::new(), Vec::new()),
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_prepare_selection(
         &mut self,
@@ -130,6 +144,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         list_style: theme::ListStyle,
         backing: theme::ListBacking,
         vis: &VisualSelection,
@@ -142,14 +157,16 @@ impl TextPipeline {
         };
         self.overlay_rows.set_color(band_color.rgba_bytes());
         let rects = match list_style {
-            theme::ListStyle::Pane => self.overlay_pane_selection(geom, vis),
+            theme::ListStyle::Pane => self.overlay_pane_selection(geom, plan, vis),
             theme::ListStyle::Bars {
                 radius,
                 gap,
                 grow_px,
                 extent,
                 coverage,
-            } => self.overlay_bar_selection(geom, vis, radius, gap, grow_px, extent, coverage),
+            } => {
+                self.overlay_bar_selection(geom, plan, vis, radius, gap, grow_px, extent, coverage)
+            }
         };
         if backing == theme::ListBacking::BarePlates {
             self.overlay_prepare_bar_scrims(device, queue, width, height, list_style, &rects);
@@ -169,9 +186,10 @@ impl TextPipeline {
     fn overlay_pane_selection(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         vis: &VisualSelection,
     ) -> OverlaySelectionRects {
-        let line_height = self.overlay_lh();
+        let line_height = plan.lh();
         if let Some((force, from, to, t)) = vis.living() {
             let (selected, unselected, cross) =
                 self.living_band_rects(force, from, to, t, geom.card_x, geom.card_w, line_height);
@@ -204,6 +222,7 @@ impl TextPipeline {
     fn overlay_bar_selection(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         vis: &VisualSelection,
         radius: f32,
         gap: f32,
@@ -211,16 +230,16 @@ impl TextPipeline {
         extent: theme::BarExtent,
         coverage: theme::BarCoverage,
     ) -> OverlaySelectionRects {
-        let layout = self.overlay_bar_layout(geom, radius, gap, grow_px, extent, coverage);
+        let layout = self.overlay_bar_layout(geom, plan, radius, gap, grow_px, extent, coverage);
         self.overlay_rows.set_corner(layout.radius);
         self.overlay_bars.set_corner(layout.radius);
         self.overlay_rows.set_stroke(0.0);
         self.overlay_bars.set_stroke(0.0);
         self.overlay_bars
             .set_color(theme::overlay_bar_unselected().rgba_bytes());
-        let mut unselected = self.overlay_unselected_bar_rects(geom, &layout, vis);
+        let mut unselected = self.overlay_unselected_bar_rects(geom, plan, &layout, vis);
         let mut selected = self.overlay_selected_bar_rects(geom, &layout, vis);
-        layout.append_chord_plates(geom, vis, &mut selected, &mut unselected);
+        layout.append_chord_plates(geom, plan, vis, &mut selected, &mut unselected);
         OverlaySelectionRects {
             selected,
             unselected,
@@ -232,13 +251,14 @@ impl TextPipeline {
     fn overlay_bar_layout(
         &self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         radius: f32,
         gap: f32,
         grow_px: f32,
         extent: theme::BarExtent,
         coverage: theme::BarCoverage,
     ) -> OverlayBarLayout {
-        let line_height = self.overlay_lh();
+        let line_height = plan.lh();
         let gap = gap.max(0.0);
         let hugs = extent.hugs();
         let primary_px = if hugs {
@@ -251,51 +271,41 @@ impl TextPipeline {
         } else {
             std::collections::BTreeMap::new()
         };
-        let item_rows = if geom.theme {
-            geom.plan
-                .iter()
-                .enumerate()
-                .filter_map(|(row, line)| matches!(line, ThemeLine::Item(_)).then_some(row))
-                .collect()
-        } else {
-            (0..geom.visible).collect()
-        };
         OverlayBarLayout {
             radius: radius.max(0.0),
             grow_px,
             extent,
             coverage,
-            line_height,
             bar_height: (line_height - gap).max(1.0),
             bar_offset: gap * 0.5,
             primary_px,
             chord_px,
-            item_rows,
         }
     }
 
     fn overlay_unselected_bar_rects(
         &self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         layout: &OverlayBarLayout,
         vis: &VisualSelection,
     ) -> Vec<[f32; 4]> {
         let mut rects = match layout.coverage {
             theme::BarCoverage::SelectedOnly => Vec::new(),
-            theme::BarCoverage::All => layout
-                .item_rows
+            theme::BarCoverage::All => plan
+                .rows()
                 .iter()
-                .copied()
-                .filter(|row| !vis.reads_selected(*row))
-                .map(|row| self.overlay_bar_plate(geom, layout, row))
+                .filter(|r| r.item.is_some() && !vis.reads_selected(r.display))
+                .map(|r| self.overlay_bar_plate(geom, layout, r))
                 .collect(),
         };
         if geom.hint_rows + geom.footer_rows > 0 {
-            let content_rows = if geom.theme {
-                geom.plan.len()
-            } else {
-                geom.visible + geom.empty.is_some() as usize
-            };
+            // ITEM 174 — ONE owner of "how many content rows precede the footer"
+            // ([`OverlayRowPlan::content_rows`]): the candidate band PLUS an
+            // empty-state notice line. The measured hug width and the plate's own
+            // top now read the same number, so the plate can no longer sit a row
+            // above the glyphs it backs on a card that shows a notice.
+            let content_rows = plan.content_rows();
             let footer_hug = layout.extent.hugs().then(|| {
                 (
                     geom.text_left,
@@ -303,11 +313,7 @@ impl TextPipeline {
                 )
             });
             rects.push(footer_plate_rect(
-                geom.text_top,
-                geom.header_rows,
-                geom.header_gap,
-                content_rows,
-                layout.line_height,
+                plan.footer_top(),
                 geom.card_x,
                 geom.card_w,
                 geom.card_y + geom.card_h,
@@ -315,12 +321,9 @@ impl TextPipeline {
             ));
         }
         if geom.theme {
-            for (row, line) in geom.plan.iter().enumerate() {
-                if matches!(line, ThemeLine::Header(_)) {
-                    let top = layout.row_top(geom, row);
-                    let (x, width) = layout.span(geom, row);
-                    rects.push([x, top + layout.bar_offset, width, layout.bar_height]);
-                }
+            for r in plan.rows().iter().filter(|r| r.item.is_none()) {
+                let (x, width) = layout.span(geom, r.display);
+                rects.push([x, r.top + layout.bar_offset, width, layout.bar_height]);
             }
             rects.extend(self.overlay_strip_tab_plates.iter().copied());
         }
@@ -331,12 +334,12 @@ impl TextPipeline {
         &self,
         geom: &OverlayGeom,
         layout: &OverlayBarLayout,
-        row: usize,
+        planned: &PlannedRow,
     ) -> [f32; 4] {
-        let top = layout.row_top(geom, row);
+        let row = planned.display;
         let (x, width) = layout.span(geom, row);
         let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), self.overlay_slant_dx(row));
-        [x, top + layout.bar_offset, width, layout.bar_height]
+        [x, planned.top + layout.bar_offset, width, layout.bar_height]
     }
 
     /// ITEM 164 — the selected BAR's quad. Its `y` is the transaction's already

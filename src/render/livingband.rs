@@ -220,27 +220,26 @@ pub fn two_shape_band(from_top: f32, to_top: f32, h: f32, t: f32, p: &MorphParam
 /// sees the fill sitting on. Pure; unit-tested over flight phases.
 ///
 /// The OLD (state-tied) behaviour is recovered by passing the single settled
-/// target rect: `covered_rows(&[target_band], first_top, lh, n)` returns exactly
-/// `[target_disp]`, so the env-unset path stays byte-identical.
-pub fn covered_rows(bands: &[BandRect], first_top: f32, lh: f32, n: usize) -> Vec<usize> {
+/// target rect: `covered_rows(&[target_band], plan.rows())` returns exactly
+/// `[target_disp]`. ITEM 174 — the grid is the SCENE PLAN's own rows, not an
+/// origin and a pitch this fn steps off itself: a band's covered rows are
+/// compared against the very `f32` slots the draw used.
+pub(in crate::render) fn covered_rows(
+    bands: &[BandRect],
+    rows: &[crate::render::plan::PlannedRow],
+) -> Vec<usize> {
     let mut out = Vec::new();
-    if lh <= 0.0 {
-        return out;
-    }
-    for k in 0..n {
-        let row_top = first_top + k as f32 * lh;
-        let row_bot = row_top + lh;
-        // Max single-band overlap: for two separated shapes each owns a
-        // different row, and where they cross the two coincide — so MAX (not
-        // sum) is the true covered depth for this row.
+    for row in rows.iter().filter(|r| r.height > 0.0) {
+        // Max single-band overlap: two separated shapes each own a different row,
+        // and where they cross the two coincide — so MAX (not sum) is the depth.
         let mut cov = 0.0f32;
         for b in bands {
-            let top = row_top.max(b.top);
-            let bot = row_bot.min(b.top + b.height);
+            let top = row.top.max(b.top);
+            let bot = row.bottom().min(b.top + b.height);
             cov = cov.max((bot - top).max(0.0));
         }
-        if cov > lh * 0.5 {
-            out.push(k);
+        if cov > row.height * 0.5 {
+            out.push(row.display);
         }
     }
     out
@@ -485,10 +484,11 @@ mod tests {
 
     #[test]
     fn covered_ink_rides_the_band_not_the_state() {
-        // Rows: 8 rows of `lh` from `first_top`; the SELECTED (target) row is #2.
-        let (first_top, lh, h) = (100.0f32, 24.0f32, 24.0f32);
+        // Eight planned rows of `lh`; the SELECTED (target) row is #2.
+        let (lh, h) = (24.0f32, 24.0f32);
+        let rows = crate::render::plan::test_rows(100.0, lh, 8);
         let target_disp = 2usize;
-        let target_top = first_top + target_disp as f32 * lh; // 148
+        let target_top = rows[target_disp].top; // 148
         let params = Choreo::Morph.params();
         // The band flies from PIN_JUMP_ROWS below the target, sliding UP to it.
         let from = target_top + PIN_JUMP_ROWS * lh; // 3 rows below
@@ -497,7 +497,7 @@ mod tests {
         // flip is byte-identical to the old state-tied `[sel_disp]`.
         let b1 = morph_band(from, target_top, h, 1.0, &params);
         assert_eq!(
-            covered_rows(&[b1], first_top, lh, 8),
+            covered_rows(&[b1], &rows),
             vec![target_disp],
             "settled band covers exactly the target row"
         );
@@ -505,7 +505,7 @@ mod tests {
         // EARLY (t = 0.1): the band is still down near its start row — the
         // TARGET keeps its off-band ink (NOT covered), and a LOWER row is.
         let b_early = morph_band(from, target_top, h, 0.1, &params);
-        let cov_early = covered_rows(&[b_early], first_top, lh, 8);
+        let cov_early = covered_rows(&[b_early], &rows);
         assert!(
             !cov_early.contains(&target_disp),
             "target keeps unselected ink until the band arrives (t=0.1: {cov_early:?})"

@@ -50,8 +50,8 @@ pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
 
 mod rowlayout;
 pub use rowlayout::rail_frac_at;
-
 mod blur;
+mod plan;
 
 mod geometry;
 use geometry::*;

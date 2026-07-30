@@ -122,7 +122,10 @@ name); behavior is byte-identical. Submodules are listed under each root below.
 - `render.rs` — all wgpu drawing: glyph atlas + shaping (glyphon), buffer text,
   the caret block, selection highlights, spell underlines, and the isearch panel
   card. The big file (still the largest in the tree).
-  → `render/`: `caret`, `chrome` (status strip / HUD card / readout), `geometry`,
+  → `render/`: `plan` (the deterministic, device-free SCENE PLANNER — drawing,
+    hit-testing and the sidecar read its planned objects instead of each deriving
+    geometry of their own; see docs/render.md), `caret`, `chrome` (status strip /
+    HUD card / readout), `geometry`,
   `rowgeom` (per-row geometry table for variable heading heights), `spans`
   (md/CJK/syntax/focus `AttrsList` layering), `text`, `focus`, `rects`, `layers`,
   `facepitch` (is a bundled family monospaced? — measured from each face's own

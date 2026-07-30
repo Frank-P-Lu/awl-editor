@@ -598,7 +598,7 @@ fn bars_draw_a_findable_surface_per_row() {
     // Sample column x: inside the bar's left inset (8px) but LEFT of text_left
     // (12px) — pure surface, no glyphs.
     let sx = (card_x + 9.0) as i64;
-    let row_top = |r: usize| chrome::overlay_row_top(text_top, 1, hg, r, lh);
+    let row_top = |r: usize| crate::render::plan::test_row_top(text_top, 1, hg, r, lh);
     let px = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
     let (wi, hi) = (w as i64, h as i64);
 
@@ -812,7 +812,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                 // reads as a floating object over the live document even without a
                 // room. Sample the selected (row-0) plate + its glyph. row 0 top = the
                 // popup's inner pad (10) + the bar's own gap/2 offset.
-                let row0 = chrome::overlay_row_top(cy + 10.0, 0, 0.0, 0, lh);
+                let row0 = crate::render::plan::test_row_top(cy + 10.0, 0, 0.0, 0, lh);
                 let sel_top = row0 + gap * 0.5;
                 let sel = avg(
                     &pb,
@@ -1506,7 +1506,7 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
     let hg = p.overlay_header_gap();
     // Flat picker: 8 item rows above the hint (content_rows), then the hint.
     let content_rows = 8usize;
-    let hint_top = chrome::overlay_row_top(card_y + 12.0, 1, hg, content_rows, lh);
+    let hint_top = crate::render::plan::test_row_top(card_y + 12.0, 1, hg, content_rows, lh);
     let card_bottom = card_y + card_h;
 
     // CONTROL: no placard at all.
@@ -1616,23 +1616,14 @@ fn footer_plate_hugs_content_under_hug_bars() {
     let text_left = card_x + chrome::BAR_SIDE_INSET + chrome::BAR_TEXT_PAD;
     let content_px = 240.0; // a footer narrower than the full card width
 
-    let full = chrome::footer_plate_rect(
-        text_top,
-        header_rows,
-        header_gap,
-        content_rows,
-        lh,
-        card_x,
-        card_w,
-        card_bottom,
-        None,
-    );
+    // ITEM 174 — the plate's TOP is the planned footer seam, read through the one
+    // owner rather than re-derived here.
+    let hint_top =
+        crate::render::plan::test_row_top(text_top, header_rows, header_gap, content_rows, lh);
+
+    let full = chrome::footer_plate_rect(hint_top, card_x, card_w, card_bottom, None);
     let hug = chrome::footer_plate_rect(
-        text_top,
-        header_rows,
-        header_gap,
-        content_rows,
-        lh,
+        hint_top,
         card_x,
         card_w,
         card_bottom,
@@ -2116,7 +2107,7 @@ fn facet_chips_leave_a_breathing_gap_between_pills() {
 
 /// ITEM 46 — the faceted grouped-lens SECTION HEADERS sit on a plate (the wave-2
 /// "floating commands" class, header edition). Item 35 plated the bare shortcut
-/// chords; the section-header plan lines ([`ThemeLine::Header`], e.g. "FILE") were
+/// chords; the section-header plan lines ([`PlanLine::Header`], e.g. "FILE") were
 /// still the ONE candidate-area line the Bars draw skipped ("a header is a label"),
 /// so on a Bars world a header floated BARE over the blurred backdrop while every
 /// item row sat on a plate. This is the OUTCOME proof over REAL pixels, swept across
@@ -2204,7 +2195,8 @@ fn faceted_section_header_sits_on_a_plate_on_every_bars_world() {
         };
         // The faceted card carries two header lines (query + strip), so the plan
         // begins on display line 2 — `overlay_row_top` folds that in for plan line k.
-        let row_top = |plan_line: usize| chrome::overlay_row_top(text_top, 2, hg, plan_line, lh);
+        let row_top =
+            |plan_line: usize| crate::render::plan::test_row_top(text_top, 2, hg, plan_line, lh);
         let header = sample(row_top(0)); // the section-header plate (plan line 0)
         let wash = sample(row_top(1)); // an unselected item-row plate (Item0, plan line 1)
         // A bare backdrop AT THE HEADER'S OWN Y: the header plate hugs only the short
@@ -2312,7 +2304,8 @@ fn faceted_lens_strip_tabs_sit_on_plates_on_every_bars_world() {
         let bar_h = (lh - gap).max(1.0);
         let (wi, hi) = (w as i64, h as i64);
         let sx = (card_x + 9.0) as i64;
-        let row_top = |plan_line: usize| chrome::overlay_row_top(text_top, 2, hg, plan_line, lh);
+        let row_top =
+            |plan_line: usize| crate::render::plan::test_row_top(text_top, 2, hg, plan_line, lh);
 
         // The recorded tab plate rects — LOCATION only; the pixels below prove they
         // are truly drawn (the recorded-but-undrawn tripwire).

@@ -10,22 +10,6 @@ use super::*;
 
 const FACET_CHIP_RADIUS: f32 = 6.0;
 
-#[cfg(test)]
-pub(in crate::render) struct OverlayYProbe {
-    pub lh: f32,
-    pub band_top: f32,
-    pub sel_disp: usize,
-    pub caret_center: f32,
-    pub query_line_top: f32,
-    pub query_line_height: f32,
-    pub query_baseline: f32,
-    pub primary: std::collections::BTreeMap<usize, f32>,
-    pub secondary: std::collections::BTreeMap<usize, f32>,
-    pub strip_baseline: Option<f32>,
-    pub strip_line_bottom: Option<f32>,
-    pub strip_underline_y: Option<f32>,
-}
-
 impl TextPipeline {
     /// TEST HOOK: total shaped glyphs the overlay text renderer would draw this
     /// frame (summed across the name buffer's layout runs). `0` once
@@ -79,82 +63,11 @@ impl TextPipeline {
         ])
     }
 
-    #[cfg(test)]
-    pub(in crate::render) fn overlay_row_y_probe(&self) -> OverlayYProbe {
-        use std::collections::BTreeMap;
-        let geom = self.overlay_geometry(self.window_w as u32);
-        let lh = self.overlay_lh();
-        let header_rows = geom.header_rows;
-        let last = header_rows
-            + if geom.theme {
-                geom.plan.len()
-            } else {
-                geom.visible
-            };
-        let mut primary = BTreeMap::new();
-        for run in self.panel_buffer.layout_runs() {
-            let li = run.line_i;
-            if li >= header_rows && li < last {
-                primary.insert(li - header_rows, geom.text_top + run.line_top);
-            }
-        }
-        let sec_top = overlay_secondary_top(geom.text_top, geom.header_gap);
-        let mut secondary = BTreeMap::new();
-        for run in self.panel_bind_buffer.layout_runs() {
-            let li = run.line_i;
-            if li >= header_rows && li < last {
-                secondary.insert(li - header_rows, sec_top + run.line_top);
-            }
-        }
-        let sel_disp = if geom.theme {
-            geom.plan
-                .iter()
-                .position(|l| matches!(l, ThemeLine::Item(i) if *i == self.overlay_selected))
-                .unwrap_or(0)
-        } else {
-            self.overlay_selected.saturating_sub(geom.top_idx)
-        };
-        let band_top = overlay_row_top(geom.text_top, header_rows, geom.header_gap, sel_disp, lh);
-        let mut strip_baseline = None;
-        let mut strip_line_bottom = None;
-        for run in self.panel_buffer.layout_runs() {
-            if run.line_i == 1 {
-                strip_baseline = Some(geom.text_top + run.line_y);
-                strip_line_bottom = Some(geom.text_top + run.line_top + run.line_height);
-                break;
-            }
-        }
-        let strip_underline_y = self.overlay_theme_underline.map(|q| q[1]);
-        let query_run = self.panel_buffer.layout_runs().next();
-        let query_line_height = query_run
-            .as_ref()
-            .map(|r| r.line_height)
-            .unwrap_or_else(|| self.overlay_lh());
-        let query_line_top = query_run
-            .as_ref()
-            .map(|r| geom.text_top + r.line_top)
-            .unwrap_or(geom.text_top);
-        let query_baseline = query_run
-            .as_ref()
-            .map(|r| geom.text_top + r.line_y)
-            .unwrap_or(geom.text_top);
-        OverlayYProbe {
-            lh,
-            band_top,
-            sel_disp,
-            caret_center: overlay_query_center(geom.text_top, query_line_height),
-            query_line_top,
-            query_line_height,
-            query_baseline,
-            primary,
-            secondary,
-            strip_baseline,
-            strip_line_bottom,
-            strip_underline_y,
-        }
-    }
-
-    pub(in crate::render) fn overlay_pane_fills(&self, geom: &OverlayGeom) -> Vec<[f32; 4]> {
+    pub(in crate::render) fn overlay_pane_fills(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
         if !matches!(
             crate::render::effective_pane_split(),
@@ -166,7 +79,7 @@ impl TextPipeline {
             geom.text_top,
             geom.header_rows,
             geom.header_gap,
-            self.overlay_lh(),
+            plan.lh(),
         ) else {
             return vec![full];
         };
@@ -189,7 +102,8 @@ impl TextPipeline {
     #[cfg(test)]
     pub(in crate::render) fn overlay_pane_fills_probe(&self) -> Vec<[f32; 4]> {
         let geom = self.overlay_geometry(self.window_w as u32);
-        self.overlay_pane_fills(&geom)
+        let plan = self.overlay_row_plan(&geom);
+        self.overlay_pane_fills(&geom, &plan)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -200,6 +114,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         vis: &VisualSelection,
     ) {
         let list_style = crate::render::effective_list_style();
@@ -207,12 +122,12 @@ impl TextPipeline {
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
         let backing = list_style.list_backing(spell);
         self.overlay_prepare_card_backing(
-            device, queue, width, height, geom, backing, spell, card_rect,
+            device, queue, width, height, geom, plan, backing, spell, card_rect,
         );
         self.overlay_prepare_selection(
-            device, queue, width, height, geom, list_style, backing, vis,
+            device, queue, width, height, geom, plan, list_style, backing, vis,
         );
-        self.overlay_prepare_range_rails(device, queue, width, height, geom, vis);
+        self.overlay_prepare_range_rails(device, queue, width, height, geom, plan, vis);
         self.overlay_prepare_facet_marks(device, queue, width, height, geom);
     }
     #[allow(clippy::too_many_arguments)]
@@ -223,6 +138,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         vis: &VisualSelection,
     ) {
         // ITEM 94 — THE RANGE ROW'S RAIL. Every visible range row's track / fill /
@@ -240,7 +156,7 @@ impl TextPipeline {
         // ITEM 164: WHICH row's rail flips is the shared visual-selection
         // transaction's answer, not the logical row's — the thumb is a secondary
         // ink like the value beside it, and both now wait for the band.
-        let rails = self.overlay_rails(geom);
+        let rails = self.overlay_rails(geom, plan);
         let (mut track_rects, mut thumb_rects): (Vec<[f32; 4]>, Vec<[f32; 4]>) =
             (Vec::new(), Vec::new());
         for (_item, rail) in &rails {
@@ -250,11 +166,7 @@ impl TextPipeline {
             }
             thumb_rects.push(rail.thumb);
         }
-        let on_band: Vec<usize> = vis
-            .rows()
-            .iter()
-            .filter_map(|&k| self.overlay_item_at_row(geom, k))
-            .collect();
+        let on_band: Vec<usize> = vis.rows().iter().filter_map(|&k| plan.item_at(k)).collect();
         let selected_rail = rails.iter().any(|(item, _)| on_band.contains(item));
         let thumb_ink = match super::overlay_selected_secondary_srgb() {
             Some(flip) if selected_rail => flip,
@@ -357,6 +269,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         backing: theme::ListBacking,
         spell: bool,
         card_rect: [f32; 4],
@@ -374,7 +287,7 @@ impl TextPipeline {
                 self.panel_border.prepare(device, queue, width, height, &[]);
             }
             theme::ListBacking::Card => {
-                let fills = self.overlay_pane_fills(geom);
+                let fills = self.overlay_pane_fills(geom, plan);
                 self.prepare_panel_card_elevation(device, queue, width, height, &fills);
             }
         }

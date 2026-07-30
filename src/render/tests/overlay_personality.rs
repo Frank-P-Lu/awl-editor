@@ -794,7 +794,9 @@ fn overlay_row_region(p: &TextPipeline, header_rows: usize, row: usize) -> Regio
     // Fold in the PALETTE-COMPOSITION round's header gap (the divider after the
     // query/strip header) through the SAME owner the renderer uses, so the
     // sampled band tracks the shaped selected row.
-    let row_top = text_top + lh * header_rows as f32 + p.overlay_header_gap() + lh * row as f32;
+    // ITEM 174 — through the one row-position owner, never a local copy.
+    let row_top =
+        crate::render::plan::test_row_top(text_top, header_rows, p.overlay_header_gap(), row, lh);
     Region::new(card_x, row_top, card_w, lh)
 }
 
@@ -951,7 +953,8 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
         p.set_view(v);
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
-        p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
+        let row_plan = p.overlay_row_plan(&geom);
+        p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
         p.panel_buffer
             .layout_runs()
             .find(|r| r.line_i == 0)
@@ -1057,7 +1060,8 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
         let placard = p.overlay_shape_placard(&geom);
         // Shape the card text so line 0 (the query row) reports the prefix state.
         let vs = super::no_vis();
-        p.overlay_shape_text(&geom, ink, muted, None, &vs, true);
+        let row_plan = p.overlay_row_plan(&geom);
+        p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
         let query = p
             .panel_buffer
             .layout_runs()

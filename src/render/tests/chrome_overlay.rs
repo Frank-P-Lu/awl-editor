@@ -25,7 +25,7 @@ fn overlay_secondary_column_shares_the_band_row_origin() {
             for r in 0usize..8 {
                 // Label N sits at `sec_top + (header_rows + r) leading lines`.
                 let label_top = sec_top + (header_rows as f32 + r as f32) * LH;
-                let band_top = chrome::overlay_row_top(TEXT_TOP, header_rows, gap, r, LH);
+                let band_top = crate::render::plan::test_row_top(TEXT_TOP, header_rows, gap, r, LH);
                 assert!(
                     (label_top - band_top).abs() < 1e-3,
                     "secondary label row {r} (hdr={header_rows}, gap={gap}) at {label_top} \
