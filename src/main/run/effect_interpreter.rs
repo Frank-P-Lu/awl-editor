@@ -7,7 +7,7 @@ impl<'a> ReplaySession<'a> {
         chord: &crate::keyspec::Chord,
         effect: &actions::Effect,
     ) -> Result<bool> {
-        let classified = crate::replay::classify_for(&effect, self.filesystem);
+        let classified = crate::replay::classify_for(effect, self.filesystem);
         if !matches!(classified.class, crate::replay::EffectClass::Applied) {
             *self.records.last_mut().expect("this chord has a trace") =
                 replay_effects::chord_trace(&chord.spec, action, &classified);

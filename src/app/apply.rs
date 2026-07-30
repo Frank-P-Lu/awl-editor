@@ -251,16 +251,12 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn paste_image_reference(&mut self) -> Option<String> {
         use crate::paste_image;
-        let Some(clip) = self.clipboard.as_mut() else {
-            return None;
-        };
+        let clip = self.clipboard.as_mut()?;
         let img = match clip.get_image() {
             Ok(img) => img,
             Err(_) => return None,
         };
-        let Some(png) = paste_image::encode_rgba_png(img.width, img.height, &img.bytes) else {
-            return None;
-        };
+        let png = paste_image::encode_rgba_png(img.width, img.height, &img.bytes)?;
         if self.active.buffer.path().is_none() {
             self.ensure_note_named_before_paste();
         }

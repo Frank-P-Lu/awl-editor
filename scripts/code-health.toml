@@ -23,7 +23,7 @@ lines = 1800
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1053
+lines = 1049
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
