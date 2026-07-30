@@ -99,10 +99,13 @@ def load_manifest(
     return expected, failures
 
 
-def load_file_size_marks(path: Path = MANIFEST) -> tuple[dict[str, int], list[str]]:
+def load_file_size_marks(
+    path: Path = MANIFEST,
+) -> tuple[dict[str, int], dict[str, str], list[str]]:
     data = tomllib.loads(path.read_text())
     failures: list[str] = []
     marks: dict[str, int] = {}
+    reasons: dict[str, str] = {}
     for entry in data.get("file_size_mark", []):
         missing = {"file", "lines"} - entry.keys()
         if missing:
@@ -119,8 +122,68 @@ def load_file_size_marks(path: Path = MANIFEST) -> tuple[dict[str, int], list[st
         if file in marks:
             failures.append(f"code-health: duplicate file-size mark for {file}")
             continue
+        reason = entry.get("reason")
+        if reason is not None:
+            if not isinstance(reason, str) or not reason.strip():
+                failures.append(f"code-health: empty file-size-mark reason for {file}")
+            else:
+                reasons[file] = reason
         marks[file] = lines
-    return marks, failures
+    return marks, reasons, failures
+
+
+def previous_marks(manifest_path: str = "scripts/code-health.toml") -> dict[str, int] | None:
+    """The file-size-mark table already committed on `main` — the reference a
+    raise is measured against.
+
+    Deliberately not the frozen BASELINE commit: marks did not exist that far
+    back (`git show BASELINE:scripts/code-health.toml` has no such path), and
+    BASELINE's own file sizes are the separate, much larger ceiling
+    `check_structural` enforces directly against history. `main` (or its
+    remote-tracking ref) may be unresolvable in a shallow or detached
+    checkout; that skips this one audit rather than failing every worker's
+    gate — the same tolerance code-health.sh already grants its own
+    Linux-target Clippy arm when that target isn't installed.
+    """
+    for ref in ("main", "origin/main"):
+        try:
+            text = git("show", f"{ref}:{manifest_path}")
+        except subprocess.CalledProcessError:
+            continue
+        data = tomllib.loads(text)
+        return {
+            entry["file"]: entry["lines"]
+            for entry in data.get("file_size_mark", [])
+            if isinstance(entry.get("file"), str) and isinstance(entry.get("lines"), int)
+        }
+    return None
+
+
+def check_mark_raises(
+    marks: dict[str, int], reasons: dict[str, str], previous: dict[str, int] | None
+) -> list[str]:
+    """A mark may rise only with a reason recorded for that raise.
+
+    Never exceeding the frozen baseline is `check_structural`'s job, checked
+    directly against that fixed commit. This is the other half of the real
+    invariant: a raise below that baseline is only legitimate when growth is
+    unavoidable at a single-owner seam, and that judgment must be recorded,
+    not silent. `previous` is `None` when `main` could not be resolved (see
+    `previous_marks`); an unresolvable reference cannot prove a raise
+    happened, so it is not treated as one.
+    """
+    if previous is None:
+        return []
+    failures: list[str] = []
+    for file, lines in sorted(marks.items()):
+        prior = previous.get(file)
+        if prior is not None and lines > prior and not reasons.get(file, "").strip():
+            failures.append(
+                f"{file}: file-size mark raised from {prior} to {lines} lines with no "
+                "recorded reason (a raise is legitimate only below the frozen baseline, "
+                "for growth unavoidable at a single-owner seam, named by a `reason`)"
+            )
+    return failures
 
 
 def clippy_diagnostics(output: str) -> set[tuple[str, str, int, str]]:
@@ -366,7 +429,23 @@ def self_test() -> int:
                 raise AssertionError("a legitimate shrink with a lowered mark must pass")
             failures = check_structural(set(), {"src/large.rs": 501})
             if not any("stored file-size mark is 501 lines but current file is 500" in failure for failure in failures):
-                raise AssertionError("a hand-raised file-size mark must fail")
+                raise AssertionError(
+                    "a mark that overstates the file's real current size (the manifest was not "
+                    "lowered to match a shrink) must fail"
+                )
+            # This is NOT a general "raises are forbidden" check — see the point
+            # below. A mark raised in lockstep with matching growth, staying
+            # under the frozen baseline (600 here), is the exact technique item
+            # 132 used, and check_structural alone accepts it: requiring a
+            # reason for that is check_mark_raises's job, not this function's.
+            large.write_text("x\n" * 501)
+            failures = check_structural(set(), {"src/large.rs": 501})
+            if failures != ["src/absent.rs: tracked Rust file is absent"]:
+                raise AssertionError(
+                    "a mark raised in lockstep with matching growth, still under the frozen "
+                    "baseline, is structurally legitimate on its own"
+                )
+            large.write_text("x\n" * 500)
             new = ROOT / "src/new.rs"
             new.write_text("x\n" * 501)
             globals()["tracked_rust"] = lambda: ["src/large.rs", "src/absent.rs", "src/new.rs"]
@@ -377,6 +456,42 @@ def self_test() -> int:
             globals()["ROOT"] = root
             globals()["tracked_rust"] = original_tracked_rust
             globals()["baseline"] = original_baseline
+    # check_mark_raises is the half of the invariant check_structural does not
+    # cover: a raise below the frozen baseline is only legitimate with a
+    # recorded reason. Pure and directly testable, unlike previous_marks
+    # (which shells out to git for the `main` reference).
+    raised_no_reason = check_mark_raises({"src/x.rs": 105}, {}, {"src/x.rs": 100})
+    if not any("raised from 100 to 105" in failure for failure in raised_no_reason):
+        raise AssertionError("a mark raised on this branch with no recorded reason must fail")
+    if check_mark_raises(
+        {"src/x.rs": 105},
+        {"src/x.rs": "item X: the one dispatch call site, irreducible"},
+        {"src/x.rs": 100},
+    ):
+        raise AssertionError("a mark raised with a recorded reason must pass")
+    if check_mark_raises({"src/x.rs": 95}, {}, {"src/x.rs": 100}):
+        raise AssertionError("a lowered mark needs no reason")
+    if check_mark_raises({"src/x.rs": 105}, {}, {"src/y.rs": 100}):
+        raise AssertionError("a brand-new mark absent from main's table is not a raise")
+    if check_mark_raises({"src/x.rs": 105}, {}, None):
+        raise AssertionError("an unresolvable `main` reference must skip the raise audit, not fail closed")
+    with tempfile.TemporaryDirectory() as directory:
+        manifest = Path(directory) / "marks.toml"
+        manifest.write_text(
+            '[[file_size_mark]]\n'
+            'file = "src/reasoned.rs"\n'
+            'lines = 600\n'
+            'reason = "item X: the one dispatch call site"\n\n'
+            '[[file_size_mark]]\n'
+            'file = "src/blank.rs"\n'
+            'lines = 600\n'
+            'reason = "   "\n'
+        )
+        _, reasons, failures = load_file_size_marks(manifest)
+        if reasons.get("src/reasoned.rs") != "item X: the one dispatch call site":
+            raise AssertionError("a non-empty file-size-mark reason must be captured")
+        if not any("empty file-size-mark reason for src/blank.rs" in failure for failure in failures):
+            raise AssertionError("a blank file-size-mark reason must fail")
     script = '''if (( $# != 0 )); then
 canary_command=(cargo test --test native_gate_canary)
 mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
@@ -439,11 +554,19 @@ def main() -> int:
     except subprocess.CalledProcessError as error:
         raise SystemExit(f"code-health: stale baseline {BASELINE}; refresh it deliberately") from error
     expected, failures = load_manifest()
-    file_size_marks, mark_failures = load_file_size_marks()
+    file_size_marks, mark_reasons, mark_failures = load_file_size_marks()
     failures.extend(mark_failures)
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
     failures.extend(check_structural(allowed, file_size_marks))
+    previous = previous_marks()
+    if previous is None:
+        print(
+            "code-health: SKIPPED the file-size-mark raise audit (`main`/`origin/main` not "
+            "resolvable in this checkout; a raise is not verified against a reason this run).",
+            file=sys.stderr,
+        )
+    failures.extend(check_mark_raises(file_size_marks, mark_reasons, previous))
     failures.extend(
         native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),
