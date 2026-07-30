@@ -215,7 +215,8 @@ fn deckle_ink_never_enters_the_writing_page_at_any_swept_geometry() {
                     assert_eq!(
                         field[(y * ww + x) as usize],
                         0,
-                        "{name} {ww}x{wh}@{measure}: deckle material entered the writing page at ({x},{y})"
+                        "{name} {ww}x{wh}@{measure}: deckle material entered \
+                         the writing page at ({x},{y})"
                     );
                 }
             }

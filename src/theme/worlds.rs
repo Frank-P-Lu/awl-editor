@@ -1029,17 +1029,10 @@ pub const CASSOWARY_LIGHT: Theme = Theme {
     },
 };
 
-/// PAPERBARK — the nineteenth world (item 158, graduated from item 133's
-/// material study). Handmade paper in a daylit studio: nested deckled contours
-/// gather around the writing page in cream and pale honey, the prose is deep
-/// bark-brown, and the one vermilion caret is the only accent.
-///
-/// Its ground is the ONE production assignee of [`Background::Deckle`] — the
-/// static handmade-paper field, dialled to [`Weave::Strata`]. The material
-/// stays entirely in the margins: the page is flat, opaque `base_100`, and
-/// nothing here moves (no ambient capability, so `has_ambient_tick` is false by
-/// construction). TEMPERATURE IS UNTAGGED ON PURPOSE: the Warm band is already
-/// at `axis_coverage_ruler`'s curated cap of four; WORLDS.md says why.
+/// PAPERBARK — handmade paper in a daylit studio. Static deckled contours in
+/// [`Weave::Strata`] gather around the flat writing page; deep bark-brown prose
+/// and the vermilion caret sit above cream and pale honey. Temperature stays
+/// untagged because the Warm band is at its curated cap; WORLDS.md says why.
 pub const PAPERBARK: Theme = Theme {
     name: "Paperbark",
     dark: false,
