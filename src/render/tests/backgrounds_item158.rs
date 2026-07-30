@@ -38,9 +38,12 @@ fn paperbark_bg() -> Background {
     theme::PAPERBARK.background
 }
 
-/// The DORMANT `Weave::Fibres` profile under test here. Item 159 gives it a
-/// world; until then this literal is what keeps the arm honest — a variant
-/// nothing constructs is a variant nobody has proven draws anything.
+fn galah_bg() -> Background {
+    theme::GALAH.background
+}
+
+/// A controlled `Weave::Fibres` fixture whose dials match the paired Strata
+/// fixture below. Galah uses its own authored dials; this one isolates weave.
 fn fibres_bg() -> Background {
     with_weave(Weave::Fibres, 88.0, 25.0)
 }
@@ -118,10 +121,11 @@ fn with_weave_and_anchor(weave: Weave, anchor: DeckleAnchor) -> Background {
     }
 }
 
-/// DATA-LEVEL ROSTER, NO WILDCARD: a future ground variant must decide its
-/// Deckle story here, and a second Deckle world must be a deliberate edit.
+/// DATA-LEVEL ROSTER, NO WILDCARD: each Deckle weave has one deliberate
+/// assignee. Galah's Fibres prove the reusable profile is a real theme-owned
+/// material rather than dormant renderer infrastructure.
 #[test]
-fn deckle_is_paperbarks_alone_and_fibres_has_no_assignee_no_wildcard() {
+fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
     for t in theme::THEMES {
         let weave = match t.background {
             Background::Gradient { .. } => None,
@@ -136,18 +140,14 @@ fn deckle_is_paperbarks_alone_and_fibres_has_no_assignee_no_wildcard() {
             Background::Organic { .. } => None,
             Background::Deckle { weave, .. } => Some(weave),
         };
+        let want = match t.name {
+            "Paperbark" => Some(Weave::Strata),
+            "Galah" => Some(Weave::Fibres),
+            _ => None,
+        };
         assert_eq!(
-            weave.is_some(),
-            t.name == "Paperbark",
-            "{}: Deckle is Paperbark's alone",
-            t.name
-        );
-        assert_ne!(
-            weave,
-            Some(Weave::Fibres),
-            "{}: Weave::Fibres is reusable infrastructure with NO assignee until \
-             a world deliberately claims it (item 159) — this is the `Bands` / \
-             `Dots {{ edge: true }}` shape, and claiming it is an edit, not a drift",
+            weave, want,
+            "{}: deliberate Deckle roster assignment",
             t.name
         );
     }
@@ -155,10 +155,10 @@ fn deckle_is_paperbarks_alone_and_fibres_has_no_assignee_no_wildcard() {
     // other ground reports — the shader's own `params.w` slot never changes
     // shape for a world that has no weave.
     for t in theme::THEMES {
-        let want = if t.name == "Paperbark" {
-            Weave::Strata.mode()
-        } else {
-            0.0
+        let want = match t.name {
+            "Paperbark" => Weave::Strata.mode(),
+            "Galah" => Weave::Fibres.mode(),
+            _ => 0.0,
         };
         assert_eq!(
             t.background.weave_mode(),
@@ -170,10 +170,9 @@ fn deckle_is_paperbarks_alone_and_fibres_has_no_assignee_no_wildcard() {
     assert_eq!(Weave::Strata.mode(), 0.0);
     assert_eq!(Weave::Fibres.mode(), 1.0);
     for t in theme::THEMES {
-        let want = if t.name == "Paperbark" {
-            DeckleAnchor::Viewport.mode()
-        } else {
-            0.0
+        let want = match t.name {
+            "Paperbark" | "Galah" => DeckleAnchor::Viewport.mode(),
+            _ => 0.0,
         };
         assert_eq!(
             t.background.deckle_anchor_mode(),
@@ -200,25 +199,25 @@ fn deckle_ink_never_enters_the_writing_page_at_any_swept_geometry() {
         theme::active().name,
     );
     crate::page::set_page_on(true);
-    theme::set_active_by_name("Paperbark").unwrap();
-    p.sync_theme();
-
-    let bg = paperbark_bg();
-    for (ww, wh, measure) in SWEEP {
-        crate::page::set_measure(measure);
-        p.set_size(ww as f32, wh as f32);
-        p.set_view(&view("some plain prose here, no headings at all\n", 0, 0));
-        let (col_left, col_w) = (p.column_left(), p.column_width());
-        let field = mark_field(&device, &queue, bg, ww, wh, col_left, col_w);
-        let x0 = col_left.max(0.0).ceil() as u32;
-        let x1 = ((col_left + col_w).floor() as u32).min(ww);
-        for y in 0..wh {
-            for x in x0..x1 {
-                assert_eq!(
-                    field[(y * ww + x) as usize],
-                    0,
-                    "{ww}x{wh}@{measure}: deckle material entered the writing page at ({x},{y})"
-                );
+    for (name, bg) in [("Paperbark", paperbark_bg()), ("Galah", galah_bg())] {
+        theme::set_active_by_name(name).unwrap();
+        p.sync_theme();
+        for (ww, wh, measure) in SWEEP {
+            crate::page::set_measure(measure);
+            p.set_size(ww as f32, wh as f32);
+            p.set_view(&view("some plain prose here, no headings at all\n", 0, 0));
+            let (col_left, col_w) = (p.column_left(), p.column_width());
+            let field = mark_field(&device, &queue, bg, ww, wh, col_left, col_w);
+            let x0 = col_left.max(0.0).ceil() as u32;
+            let x1 = ((col_left + col_w).floor() as u32).min(ww);
+            for y in 0..wh {
+                for x in x0..x1 {
+                    assert_eq!(
+                        field[(y * ww + x) as usize],
+                        0,
+                        "{name} {ww}x{wh}@{measure}: deckle material entered the writing page at ({x},{y})"
+                    );
+                }
             }
         }
     }
@@ -226,6 +225,56 @@ fn deckle_ink_never_enters_the_writing_page_at_any_swept_geometry() {
     crate::page::set_page_on(was_page);
     theme::set_active_by_name(was_theme).unwrap();
     p.sync_theme();
+}
+
+/// Galah's assigned Fibres must stay present but sparse across window size and
+/// physical-pixel density. The field is read differentially from a density-zero
+/// pass, so this grades plumage rather than its pink gradient.
+#[test]
+fn galah_fibres_are_sparse_present_and_deterministic_across_size_and_dpi() {
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!("skipping galah_fibres_are_sparse_present_and_deterministic: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    for (w, h, cl, cw) in [
+        (900, 600, 225.0, 450.0),
+        (1400, 800, 350.0, 700.0),
+        (2800, 1600, 700.0, 1400.0),
+    ] {
+        let a = mark_field(&device, &queue, galah_bg(), w, h, cl, cw);
+        let b = mark_field(&device, &queue, galah_bg(), w, h, cl, cw);
+        assert_eq!(a, b, "Galah {w}x{h}: static Fibres must be deterministic");
+        let mut marked = 0usize;
+        let mut margin = 0usize;
+        let mut peak = 0i32;
+        for y in 0..h {
+            for x in 0..w {
+                let i = (y * w + x) as usize;
+                if x as f32 >= cl && (x as f32) < cl + cw {
+                    assert_eq!(a[i], 0, "Galah {w}x{h}: fibres entered page at ({x},{y})");
+                } else {
+                    margin += 1;
+                    peak = peak.max(a[i].abs());
+                    marked += usize::from(a[i].abs() >= INK_FLOOR);
+                }
+            }
+        }
+        let share = marked as f32 / margin as f32;
+        assert!(
+            peak >= INK_FLOOR,
+            "Galah {w}x{h}: fibres must leave visible plumage"
+        );
+        assert!(
+            share > 0.01 && share < 0.55,
+            "Galah {w}x{h}: fibres must remain sparse (marked {:.1}%)",
+            share * 100.0
+        );
+        eprintln!(
+            "Galah fibres {w}x{h}: {:.1}% marked, peak {peak}",
+            share * 100.0
+        );
+    }
 }
 
 /// A margin's own material statistics: how many distinct strata VALUES a
@@ -861,12 +910,9 @@ fn paperbark_reads_as_neither_saltpans_pinstripes_nor_bilbys_gradient() {
     );
 }
 
-/// THE DORMANT ARM IS REAL. `Weave::Fibres` has no world, so nothing else in
-/// the suite would ever draw it — and a variant nobody draws is a variant that
-/// silently rots until item 159 tries to use it. This law renders it through
-/// the SAME pipeline and asserts it produces a genuinely DIFFERENT field from
-/// `Strata` at identical tones and dials: the weave is a real profile pick,
-/// not a slot that happens to be read.
+/// Fibres and Strata remain genuinely different profiles. Render both through
+/// the same pipeline with identical tones and dials so this grades the weave
+/// choice itself rather than Galah and Paperbark's authored parameters.
 #[test]
 fn weave_fibres_draws_a_real_field_distinct_from_strata() {
     let Some((device, queue)) = headless_dq() else {
@@ -908,8 +954,7 @@ fn weave_fibres_draws_a_real_field_distinct_from_strata() {
     }
     assert!(
         fib_peak >= INK_FLOOR,
-        "Weave::Fibres must draw real material (peak {fib_peak}) — a dormant arm that \
-         renders nothing is not reusable infrastructure, it is dead code"
+        "Weave::Fibres must draw real material (peak {fib_peak})"
     );
     let frac = differing as f32 / total.max(1) as f32;
     assert!(

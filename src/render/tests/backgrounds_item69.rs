@@ -650,19 +650,12 @@ fn bands_and_waves_render_byte_identically_across_two_independent_draws() {
 // BYTE-IDENTITY OF EVERY UNRELATED WORLD (roster sweep)
 // ---------------------------------------------------------------------------
 
-/// Every OTHER shipping world's background renders through the SAME
-/// unmodified `pattern_coverage`/gradient path (shader ids 0..=4) this round
-/// never touched — proven by construction (shader 5/6 are NEW early-return
-/// branches in `fs_main`, taken only when `shader` is 5 or 6) but pinned here
-/// as a real-pixel regression guard: Potoroo's Stripes, Mulga's Starfield, and
-/// every Dots/Pinstripe/Gradient world render EXACTLY what their own
-/// `pattern_coverage` formula predicts, with the SAME shader entry every
-/// pre-item-69 capture already exercised. Currawong's separate ambient
-/// lifecycle stars are a distinct live-only mechanism (not this pipeline) and
-/// its base ground stays `Gradient`, untouched data — see
-/// `theme::tests::ambient_stars_laws_hold_for_every_world` for its own law.
+/// Every shipping world's authored shader assignment stays pinned while new
+/// shared background capabilities join the roster. Currawong's separate
+/// ambient lifecycle stars are not part of this pipeline; its base ground
+/// remains a Gradient.
 #[test]
-fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
+fn every_world_reports_its_authored_shader_id() {
     // Pins the EXACT roster of shader ids item 69 could plausibly have
     // disturbed, one line per world, so a future accidental edit to any of
     // these worlds' `background` field fails HERE first. Quokka and Gumtree
@@ -675,7 +668,7 @@ fn every_other_world_still_reports_its_original_pre_item69_shader_id() {
         ("Bilby", 0),
         ("Magpie", 3),
         ("Saltpan", 3),
-        ("Galah", 0),
+        ("Galah", 9), // Deckle/Fibres
         ("Mopoke", 1),
         ("Bowerbird", 8), // Organic cutout field
         ("Brolga", 0),
