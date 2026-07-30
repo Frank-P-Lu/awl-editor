@@ -785,8 +785,8 @@ mod tests {
 
     #[test]
     fn misspellings_for_honors_the_user_dictionary() {
-        // The ONE spell-scope owner must respect the user dictionary too, so the
-        // DRAWN squiggle disappears — not just the `check` primitive.
+        let _g = crate::testlock::serial();
+        // The spell-scope owner must remove the drawn squiggle too.
         let mut sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "wrold peace\n";
         assert!(
@@ -870,19 +870,17 @@ mod tests {
 
     #[test]
     fn real_dictionary_never_squiggles_pure_japanese_prose() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // A real, ordinary Japanese sentence — nothing "misspelled" about it, but
-        // the point is the scanner never even considers it (no Latin letters).
+        // The Latin-word scanner never considers Japanese text.
         let text = "今日は天気がいいですね。散歩に行きましょう。";
         assert!(
             sc.misspellings(text).is_empty(),
             "pure JP prose must never squiggle"
         );
-        // Same guarantee through the buffer-aware entry point every render/capture
-        // call site actually uses.
+        // Pin the buffer-aware entry point used by render and capture.
         assert!(sc.misspellings_for(text, None).is_empty());
-        // ...and identically for a JP comment inside a recognized code buffer (the
-        // scoped comment/string path), so JP developer comments never squiggle.
+        // Japanese code comments stay silent through the scoped path too.
         let code = format!("// {text}\nfn f() {{}}\n");
         assert!(
             sc.misspellings_for(&code, Some(crate::syntax::Lang::Rust))
@@ -1039,8 +1037,8 @@ mod tests {
 
     #[test]
     fn misspellings_for_none_is_exactly_the_unscoped_scan() {
-        // PROSE BYTE-IDENTITY: `lang == None` must equal `misspellings` by value,
-        // including the markdown fence / inline-code / URL skips.
+        let _g = crate::testlock::serial();
+        // Prose remains byte-identical to the unscoped scanner.
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "This sentance has a typo.\n```\nfenced zzz\n```\nsee `wgpu` and www.x.com ok";
         assert_eq!(sc.misspellings_for(text, None), sc.misspellings(text));
@@ -1048,12 +1046,10 @@ mod tests {
 
     #[test]
     fn misspellings_for_excludes_a_leading_frontmatter_block() {
-        // i18n: a frontmatter block is metadata, not manuscript — its own text
-        // is never spell-checked, and the BODY's misspellings still land at
-        // the correct line (shifted UP by the block's line count).
+        let _g = crate::testlock::serial();
+        // Frontmatter is metadata; body results retain whole-document lines.
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // "notalang" would itself misspell if scanned; the body's "sentance"
-        // (line 0 of the body, line 3 of the whole doc) must still be found.
+        // Only the body's line-3 "sentance" may appear.
         let text = "---\nlang: notalang\n---\nThis sentance has a typo.\n";
         let ms = sc.misspellings_for(text, None);
         assert!(
@@ -1070,10 +1066,9 @@ mod tests {
 
     #[test]
     fn misspellings_for_scopes_code_buffers_to_comments_and_strings() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
-        // A rust buffer: a typo in a PROSE comment, a typo in a STRING, an
-        // un-word identifier, code vocabulary in a comment, and a typo inside
-        // COMMENTED-OUT CODE (which must stay silent).
+        // Only prose comments and prose-shaped strings are in scope.
         let text = "// This sentance explains the plan.\n\
                     // SelInstance WGSL px sizes here.\n\
                     fn zzxqv() { let s = \"definately a typo\"; }\n\
@@ -1183,6 +1178,7 @@ mod tests {
 
     #[test]
     fn string_prose_gate_silences_single_token_code_strings() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "const DEF_KEYWORDS: &[&str] = &[\n    \
                     \"fn\", \"struct\", \"enum\", \"trait\", \"type\", \"union\", \
@@ -1197,6 +1193,7 @@ mod tests {
 
     #[test]
     fn string_prose_gate_keeps_the_real_rust_lexer_silent() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = include_str!("syntax/rust.rs");
         let ms = sc.misspellings_for(text, Some(crate::syntax::Lang::Rust));
@@ -1223,6 +1220,7 @@ mod tests {
 
     #[test]
     fn misspellings_for_still_checks_multi_word_prose_strings_in_code() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "fn f() { let msg = \"this has a typo teh\"; }\n";
         let ms = sc.misspellings_for(text, Some(crate::syntax::Lang::Rust));
@@ -1338,6 +1336,7 @@ mod tests {
 
     #[test]
     fn suggest_at_resolves_word_and_suggestions() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         let text = "Please recieve this.";
         let t = sc
@@ -1486,11 +1485,11 @@ mod tests {
 mod verifier_probe {
     use super::*;
 
-    /// Adversarial scoped-spell probe with the REAL bundled dictionary over a
-    /// realistic code buffer: typos flag ONLY in prose comments + strings,
-    /// never in identifiers, commented-out code, or code-vocabulary strings.
+    /// Real-dictionary probe: typos flag only in prose comments and strings,
+    /// never identifiers, commented-out code, or code-vocabulary strings.
     #[test]
     fn verifier_scoped_spell_real_dict() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).expect("bundled dictionary");
         let text = "\
 // The SelInstance atlas uses WGSL px offsets and must recieve the update.\n\
@@ -1577,6 +1576,7 @@ fn recieve_stuff(definately: &str) -> &str {\n\
 
     #[test]
     fn verifier_real_dict_code_corpus() {
+        let _g = crate::testlock::serial();
         let sc = SpellChecker::new(DictVariant::EnUs).unwrap();
         for f in [
             "src/render/rects.rs",
