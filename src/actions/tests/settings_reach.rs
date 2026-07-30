@@ -41,18 +41,18 @@ fn goto_facet(ov: &mut OverlayState, fid: &str) {
 /// (`settings_drive`), asserting every step advances by EXACTLY one row and
 /// recording every visited row's NAME. Returns the visited names in walk
 /// order (length == rows walked, including the start).
-fn walk(overlay: &mut Option<OverlayState>, action: &Action, steps: usize) -> Vec<String> {
+fn walk(overlay: &mut crate::overlay::Journey, action: &Action, steps: usize) -> Vec<String> {
     let mut names =
-        vec![overlay.as_ref().unwrap().item_strings()[overlay.as_ref().unwrap().selected].clone()];
+        vec![overlay.card().unwrap().item_strings()[overlay.card().unwrap().selected].clone()];
     for step in 0..steps {
-        let before = overlay.as_ref().unwrap().selected;
+        let before = overlay.card().unwrap().selected;
         let eff = settings_drive(overlay, action);
         assert!(
             matches!(eff, Effect::None),
             "step {step}: {action:?} on an ordinary row must not open a sub-overlay \
              or otherwise signal ({eff:?})"
         );
-        let after = overlay.as_ref().unwrap().selected;
+        let after = overlay.card().unwrap().selected;
         let delta = after as isize - before as isize;
         let expected = if matches!(action, Action::NextLine) {
             1
@@ -65,9 +65,8 @@ fn walk(overlay: &mut Option<OverlayState>, action: &Action, steps: usize) -> Ve
              (before={before} after={after}) — a delta of 0 or ±2 IS the \
              \"every second row\" bug"
         );
-        names.push(
-            overlay.as_ref().unwrap().item_strings()[overlay.as_ref().unwrap().selected].clone(),
-        );
+        names
+            .push(overlay.card().unwrap().item_strings()[overlay.card().unwrap().selected].clone());
     }
     names
 }
@@ -106,8 +105,8 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
     for fid in facets {
         // FORWARD from index 0 (even) and index 1 (odd, when present) to the end.
         for start in [0usize, 1usize] {
-            let mut overlay = Some(settings_overlay());
-            let ov = overlay.as_mut().unwrap();
+            let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+            let ov = overlay.card_mut().unwrap();
             goto_facet(ov, fid);
             let n = ov.items.len();
             assert!(n > 0, "facet {fid:?} has no rows");
@@ -128,8 +127,8 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
         // single step is caught here, not just in the (editor-only) Zoom
         // adjacency test.
         for end_offset in [0usize, 1usize] {
-            let mut overlay = Some(settings_overlay());
-            let ov = overlay.as_mut().unwrap();
+            let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+            let ov = overlay.card_mut().unwrap();
             goto_facet(ov, fid);
             let n = ov.items.len();
             let start = (n - 1).saturating_sub(end_offset);
@@ -152,18 +151,18 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
 #[test]
 fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
     let _g = crate::testlock::serial();
-    let mut overlay = Some(settings_overlay());
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
     // "Page" fuzzy-matches "Page mode", "Page width (prose)", "Page width
     // (code)" — a real, non-trivial multi-row filter within the All home.
     for c in "page".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
-    let n = overlay.as_ref().unwrap().items.len();
+    let n = overlay.card().unwrap().items.len();
     assert!(
         n >= 2,
         "the \"page\" filter should match more than one row (got {n})"
     );
-    overlay.as_mut().unwrap().selected = 0;
+    overlay.card_mut().unwrap().selected = 0;
     let names = walk(&mut overlay, &Action::NextLine, n - 1);
     assert_eq!(
         names.len(),
@@ -185,8 +184,8 @@ fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
 #[test]
 fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
     let _g = crate::testlock::serial();
-    let mut overlay = Some(settings_overlay());
-    let ov = overlay.as_mut().unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let ov = overlay.card_mut().unwrap();
     let n = ov.items.len();
     let window = ov.window_rows();
     assert!(
@@ -214,8 +213,8 @@ fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
 #[test]
 fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
     let _g = crate::testlock::serial();
-    let mut overlay = Some(settings_overlay());
-    let ov = overlay.as_mut().unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let ov = overlay.card_mut().unwrap();
     goto_facet(ov, "editor");
     let zoom_row = ov
         .items
@@ -235,44 +234,44 @@ fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
     assert_eq!(names[1], "Zoom");
     assert_eq!(
         names[2],
-        overlay.as_ref().unwrap().item_strings()[zoom_row + 1],
+        overlay.card().unwrap().item_strings()[zoom_row + 1],
         "stepping DOWN off the Zoom row must land on exactly the next row, not skip it"
     );
 
     // Approach from BELOW: land on Zoom via PreviousLine, then step off UP.
-    let mut overlay = Some(settings_overlay());
-    let ov = overlay.as_mut().unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let ov = overlay.card_mut().unwrap();
     goto_facet(ov, "editor");
     ov.selected = zoom_row + 1;
     let names = walk(&mut overlay, &Action::PreviousLine, 2); // +1 -> zoom -> -1
     assert_eq!(names[1], "Zoom");
     assert_eq!(
         names[2],
-        overlay.as_ref().unwrap().item_strings()[zoom_row - 1],
+        overlay.card().unwrap().item_strings()[zoom_row - 1],
         "stepping UP off the Zoom row must land on exactly the previous row, not skip it"
     );
 
     // LEFT/RIGHT on the Zoom row steps its VALUE, not the selection — confirm
     // it stays selected (range_step's claim), then Up/Down off it still work.
-    let mut overlay = Some(settings_overlay());
-    let ov = overlay.as_mut().unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let ov = overlay.card_mut().unwrap();
     goto_facet(ov, "editor");
     ov.selected = zoom_row;
-    let before = overlay.as_ref().unwrap().selected;
+    let before = overlay.card().unwrap().selected;
     let eff = settings_drive(&mut overlay, &Action::ForwardChar);
     assert!(
         matches!(eff, Effect::SettingRangeStep { .. }),
         "Right on Zoom must step its value: {eff:?}"
     );
     assert_eq!(
-        overlay.as_ref().unwrap().selected,
+        overlay.card().unwrap().selected,
         before,
         "Right on Zoom must not move the selection"
     );
     let names = walk(&mut overlay, &Action::NextLine, 1);
     assert_eq!(
         names[1],
-        overlay.as_ref().unwrap().item_strings()[zoom_row + 1],
+        overlay.card().unwrap().item_strings()[zoom_row + 1],
         "after stepping its value, Down off Zoom must still land on exactly the next row"
     );
 }

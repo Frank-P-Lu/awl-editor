@@ -205,7 +205,7 @@ pub(crate) struct ReplaySession<'a> {
     shift_selecting: bool,
     zoom: f32,
     search: Option<crate::search::SearchState>,
-    overlay: Option<crate::overlay::OverlayState>,
+    journey: crate::overlay::Journey,
     accept: Option<(crate::overlay::OverlayKind, String)>,
     // MULTI-BUFFER REGISTRY: the same `crate::buffers::BufferRegistry` the live
     // App uses, so a `--keys` spec that Goes-to file A, edits, Goes-to file B,
@@ -264,7 +264,7 @@ impl<'a> ReplaySession<'a> {
             shift_selecting: false,
             zoom: 1.0,
             search: None,
-            overlay: None,
+            journey: crate::overlay::Journey::default(),
             accept: None,
             registry: crate::buffers::BufferRegistry::default(),
             cursor_px: (0.0, 0.0),
@@ -292,7 +292,7 @@ impl<'a> ReplaySession<'a> {
         // exactly like the live GPU pipeline's `sync_view` does every frame.
         self.sync_oracle_overlay();
         if let Some(pipeline) = self.oracle.as_deref()
-            && let Some(ov) = self.overlay.as_mut()
+            && let Some(ov) = self.journey.card_mut()
         {
             pipeline.resolve_overlay_hover(ov, px, py);
         }
@@ -300,7 +300,7 @@ impl<'a> ReplaySession<'a> {
 
     #[allow(dead_code)]
     fn sync_oracle_overlay(&mut self) {
-        if let Some(ov) = self.overlay.as_ref()
+        if let Some(ov) = self.journey.card()
             && let Some(op) = self.oracle.as_deref_mut()
         {
             op.sync_overlay(self.buffer, self.zoom, ov);
@@ -486,7 +486,7 @@ impl<'a> ReplaySession<'a> {
                 zoom: &mut self.zoom,
                 search: &mut self.search,
                 scroll_page_lines: 20,
-                overlay: &mut self.overlay,
+                journey: &mut self.journey,
                 make_overlay: &mut make_overlay,
                 browse_to: &mut browse_to,
                 oracle: self.oracle.as_deref().map(|op| op.as_oracle()),
@@ -503,7 +503,7 @@ impl<'a> ReplaySession<'a> {
             // Apply a palette breadcrumb requested by the PREVIOUS action
             // after this action's core transition has had the chance to open
             // its child overlay, but before interpreting this action's effects.
-            crate::actions::stamp_return_to(&mut self.overlay, pending_return_to.take());
+            self.journey.attribute_launch(pending_return_to.take());
             work.expand(action, transition);
         }
         // ITEM 106 — the headless twin of `App::apply`'s own stamp: re-anchor the
@@ -512,7 +512,7 @@ impl<'a> ReplaySession<'a> {
         // applied, so a scripted keyboard nav step never leaves a stale (or
         // `None`) hover baseline for a LATER `move` step to read as unconditional
         // real motion. See `OverlayState::arm_hover_baseline`'s doc.
-        if let Some(ov) = self.overlay.as_mut() {
+        if let Some(ov) = self.journey.card_mut() {
             ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
         }
         Ok(())
@@ -555,7 +555,7 @@ impl<'a> ReplaySession<'a> {
             replace_active,
             replacement,
             editing_replacement,
-            overlay: self.overlay,
+            journey: self.journey,
             accept: self.accept,
             buffers_open,
             intercepts: self.intercepts,
@@ -577,7 +577,13 @@ impl<'a> ReplaySession<'a> {
     }
 
     pub(crate) fn overlay(&self) -> Option<&crate::overlay::OverlayState> {
-        self.overlay.as_ref()
+        self.journey.card()
+    }
+
+    /// The whole summoned-UI JOURNEY, for the sidecar fold (a parked parent is
+    /// lifecycle state, not card content, so `overlay()` cannot answer it).
+    pub(crate) fn journey(&self) -> &crate::overlay::Journey {
+        &self.journey
     }
 
     #[cfg(test)]
@@ -724,15 +730,15 @@ fn capture_screenshot(
             _ => {}
         }
     }
-    if let Some(ov) = &res.overlay {
-        let (info, preview_text, diff) = overlay_capture_info(ov, &buffer);
+    if let Some((info, preview_text, diff)) = overlay_capture_info(&res.journey, &buffer) {
+        let diff_scroll = res.journey.card().map(|o| o.diff_scroll).unwrap_or(0);
         opts.overlay = Some(info);
         opts.preview_text = preview_text;
         if opts.diff.is_none() {
             opts.diff = diff;
         }
         if opts.scroll.is_none() && opts.preview_text.is_some() {
-            opts.scroll = Some(crate::render::ScrollPos::at_row(ov.diff_scroll));
+            opts.scroll = Some(crate::render::ScrollPos::at_row(diff_scroll));
         }
     }
     if keys.is_empty()
@@ -769,13 +775,14 @@ fn capture_screenshot(
 /// one-shot `--keys` capture share ONE owner of "what does an open overlay
 /// report" — the two can never drift.
 pub(crate) fn overlay_capture_info(
-    ov: &crate::overlay::OverlayState,
+    journey: &crate::overlay::Journey,
     buffer: &Buffer,
-) -> (
+) -> Option<(
     capture::OverlayInfo,
     Option<String>,
     Option<capture::DiffInfo>,
-) {
+)> {
+    let ov = journey.card()?;
     let preview = history_preview_for(ov, buffer);
     let preview_text = preview
         .as_ref()
@@ -805,10 +812,10 @@ pub(crate) fn overlay_capture_info(
         selected_index: ov.selected,
         hint: ov.foot_hint(),
         browse_dir: ov.browse_dir.clone(),
-        return_to: ov.return_to.map(|k| k.as_str()),
+        return_to: journey.parked().map(|p| p.kind().as_str()),
         spell_target: ov.spell_target,
         preview_id: preview.map(|(id, _, _)| id),
-        diff_focus: ov.diff_focus,
+        diff_focus: ov.detail_focus,
         diff_scroll: ov.diff_scroll,
         show_hidden: ov.kind.hides_dotfiles() && crate::file_visibility::all_on(),
         capture: ov.capture.as_ref().map(|c| capture::CaptureInfo {
@@ -828,7 +835,7 @@ pub(crate) fn overlay_capture_info(
         sections: ov.item_sections(),
         title: ov.kind.title(),
     };
-    (info, preview_text, diff)
+    Some((info, preview_text, diff))
 }
 
 /// The HISTORY timeline's headless live preview: when the replay left the History

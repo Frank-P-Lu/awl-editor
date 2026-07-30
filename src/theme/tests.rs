@@ -3875,7 +3875,7 @@ fn a_world_a_production_action_sets_survives_that_action() {
     let product_requests_before = crate::testlock::product_requests();
 
     let names: Vec<String> = world_names().iter().map(|n| n.to_string()).collect();
-    let mut overlay = Some(OverlayState::new_theme(names, 0));
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_theme(names, 0)));
     let mut buffer = crate::buffer::Buffer::scratch();
     let mut shift = false;
     let mut zoom = 1.0f32;
@@ -3888,7 +3888,7 @@ fn a_world_a_production_action_sets_survives_that_action() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut overlay,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -3901,7 +3901,7 @@ fn a_world_a_production_action_sets_survives_that_action() {
         "apply_transition must request the product door, not the checked test door"
     );
     let previewed = overlay
-        .as_ref()
+        .card()
         .and_then(|ov| ov.selected_value())
         .expect("the theme picker has a selected world")
         .to_string();

@@ -117,14 +117,14 @@ mod tests {
         let mut zoom = app.zoom;
         let mut make_overlay = |_: crate::overlay::OverlayKind| None;
         let mut browse_to = |_: crate::overlay::OverlayKind, _: Option<String>| None;
-        let (search, overlay) = app.workspace_state.core_slots();
+        let (search, journey) = app.workspace_state.core_slots();
         let mut ctx = actions::ActionCtx {
             buffer: &mut app.active.buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
             search,
             scroll_page_lines: 20,
-            overlay,
+            journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,

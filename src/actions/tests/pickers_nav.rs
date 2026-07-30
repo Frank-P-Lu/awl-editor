@@ -7,19 +7,34 @@ use super::super::*;
 use super::{browse_level, drive, drive_bt, drive_run, proj_tree, project_browse, theme_overlay};
 use crate::overlay::OverlayKind;
 
+/// Park `parent` beneath whatever card this journey is standing on, the way a
+/// real Descend does — the typed replacement for the tests that used to stamp a
+/// `return_to` breadcrumb field by hand.
+fn park_under(journey: &mut crate::overlay::Journey, parent: OverlayKind) {
+    let child = journey.card().cloned().expect("a card to park under");
+    let mut parked = crate::overlay::Journey::seeded(Some(OverlayState::new(
+        parent,
+        vec!["placeholder".to_string()],
+        vec![],
+        vec![],
+    )));
+    parked.descend(child, crate::overlay::Bind::Value);
+    *journey = parked;
+}
+
 #[test]
 fn command_palette_opens_then_filters() {
     // OpenCommandPalette summons the palette via make_overlay.
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::OpenCommandPalette);
-    let ov = overlay.as_ref().expect("palette opened");
+    let ov = overlay.card().expect("palette opened");
     assert_eq!(ov.kind, OverlayKind::Command);
     // Typing "theme" fuzzy-narrows to "Switch theme…" at/near the top.
     for c in "theme".chars() {
         drive(&mut overlay, &mut accept, &Action::InsertChar(c));
     }
-    let ov = overlay.as_ref().unwrap();
+    let ov = overlay.card().unwrap();
     assert_eq!(ov.selected_value(), Some("Switch theme…"));
 }
 
@@ -27,14 +42,14 @@ fn command_palette_opens_then_filters() {
 fn command_palette_enter_dispatches_selected_action() {
     // Open, filter to "Go to file", Enter -> run_action == OpenGoto and the
     // palette closed (so the caller can re-dispatch into the goto overlay).
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::OpenCommandPalette);
     for c in "goto".chars() {
         drive(&mut overlay, &mut accept, &Action::InsertChar(c));
     }
     let run = drive_run(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.is_none(), "palette closes on accept");
+    assert!(overlay.card().is_none(), "palette closes on accept");
     assert_eq!(run, Some(Action::OpenGoto));
     assert!(
         accept.is_none(),
@@ -54,11 +69,13 @@ fn accepting_a_date_row_sets_the_active_format_and_emits_accept() {
     let saved = crate::dateformat::active_format();
     crate::dateformat::set_active_format(DateFormat::DdMmYy);
 
-    let mut overlay: Option<OverlayState> =
-        Some(OverlayState::new_date(DateFormat::DdMmYy, (2009, 3, 7)));
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_date(
+        DateFormat::DdMmYy,
+        (2009, 3, 7),
+    )));
     let mut accept = None;
     // Select the ISO row (corpus index 2) and accept it.
-    overlay.as_mut().unwrap().selected = 2;
+    overlay.card_mut().unwrap().selected = 2;
     drive(&mut overlay, &mut accept, &Action::Newline);
     assert_eq!(
         crate::dateformat::active_format(),
@@ -83,18 +100,21 @@ fn clicking_a_palette_row_runs_that_command() {
     // `selected` directly, then assert Newline runs the command on THAT row — so a
     // click is byte-for-byte "Enter on the clicked row". Empty query => `items` is
     // in catalog order, so the row maps straight to `COMMANDS[idx]`.
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::OpenCommandPalette);
     let idx = 3usize; // a deterministic "clicked" row
-    overlay.as_mut().unwrap().selected = idx;
+    overlay.card_mut().unwrap().selected = idx;
     let ran = drive_run(&mut overlay, &mut accept, &Action::Newline);
     assert_eq!(
         ran,
         Some(crate::commands::COMMANDS[idx].action.clone()),
         "a click runs the catalog command on the clicked row"
     );
-    assert!(overlay.is_none(), "accepting a palette row closes it");
+    assert!(
+        overlay.card().is_none(),
+        "accepting a palette row closes it"
+    );
     assert!(
         accept.is_none(),
         "the palette runs an action, it does not accept a value"
@@ -111,18 +131,18 @@ fn clicking_a_spell_suggestion_replaces_the_word() {
     // text swapped "teh" -> the clicked suggestion. Mirror of the keyboard Enter.
     let mut buffer = Buffer::from_str("teh quick brown\n");
     // The word "teh" is at line 0, char cols [0, 3): the panel's spell_target.
-    let mut overlay: Option<OverlayState> = Some(OverlayState::new_spell(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_spell(
         vec!["the".into(), "tea".into(), "ten".into()],
         (0, 0, 3),
         "teh".into(),
-    ));
+    )));
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
     let mut make_overlay = |_: OverlayKind| None;
     let mut browse_to = |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
     // "Click" the second suggestion row ("tea") by setting the selection there.
-    overlay.as_mut().unwrap().selected = 1;
+    overlay.card_mut().unwrap().selected = 1;
     {
         let mut ctx = ActionCtx {
             buffer: &mut buffer,
@@ -130,7 +150,7 @@ fn clicking_a_spell_suggestion_replaces_the_word() {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
@@ -141,7 +161,10 @@ fn clicking_a_spell_suggestion_replaces_the_word() {
             "a spell replace edits in-core, no effect"
         );
     }
-    assert!(overlay.is_none(), "accepting a suggestion closes the panel");
+    assert!(
+        overlay.card().is_none(),
+        "accepting a suggestion closes the panel"
+    );
     assert_eq!(
         buffer.text(),
         "tea quick brown\n",
@@ -157,11 +180,11 @@ fn accepting_the_add_to_dictionary_row_signals_add_and_never_edits_the_buffer() 
     // word + appends it to the personal dictionary file) and closes the panel, the
     // buffer untouched. One surface, no new chrome class.
     let mut buffer = Buffer::from_str("teh quick brown\n");
-    let mut overlay: Option<OverlayState> = Some(OverlayState::new_spell(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_spell(
         vec!["the".into(), "tea".into(), "ten".into()],
         (0, 0, 3),
         "teh".into(),
-    ));
+    )));
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
@@ -169,10 +192,10 @@ fn accepting_the_add_to_dictionary_row_signals_add_and_never_edits_the_buffer() 
     let mut browse_to = |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
     // The add row is the LAST row (after the 3 suggestions) and is the ONLY one
     // `selected_is_add_to_dictionary` flags.
-    let last = overlay.as_ref().unwrap().items.len() - 1;
+    let last = overlay.card().unwrap().items.len() - 1;
     assert_eq!(last, 3, "3 suggestions + 1 add row");
-    overlay.as_mut().unwrap().selected = last;
-    assert!(overlay.as_ref().unwrap().selected_is_add_to_dictionary());
+    overlay.card_mut().unwrap().selected = last;
+    assert!(overlay.card().unwrap().selected_is_add_to_dictionary());
     let eff = {
         let mut ctx = ActionCtx {
             buffer: &mut buffer,
@@ -180,7 +203,7 @@ fn accepting_the_add_to_dictionary_row_signals_add_and_never_edits_the_buffer() 
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
@@ -191,7 +214,10 @@ fn accepting_the_add_to_dictionary_row_signals_add_and_never_edits_the_buffer() 
         matches!(&eff, Effect::AddToDictionary(w) if w == "teh"),
         "the add row emits AddToDictionary(word): {eff:?}"
     );
-    assert!(overlay.is_none(), "accepting the add row closes the panel");
+    assert!(
+        overlay.card().is_none(),
+        "accepting the add row closes the panel"
+    );
     assert_eq!(
         buffer.text(),
         "teh quick brown\n",
@@ -276,11 +302,11 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
     let mut buffer = Buffer::from_str("teh quick brown\n");
     let suggestions = vec!["the".to_string(), "tea".to_string(), "ten".to_string()];
     let n = suggestions.len();
-    let mut overlay: Option<OverlayState> = Some(OverlayState::new_spell(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_spell(
         suggestions,
         (0, 0, 3),
         "teh".into(),
-    ));
+    )));
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
@@ -292,13 +318,13 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut overlay,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
     };
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().selected_value(),
+        ctx.journey.card().unwrap().selected_value(),
         Some("the"),
         "initial focus is the top suggestion"
     );
@@ -308,28 +334,23 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
         apply_transition(&mut ctx, &Action::NextLine, false).primary();
     }
     assert!(
-        ctx.overlay
-            .as_ref()
-            .unwrap()
-            .selected_is_add_to_dictionary(),
+        ctx.journey.card().unwrap().selected_is_add_to_dictionary(),
         "after {n} Down presses (one per correction) the add row is selected"
     );
     // One more Down is a no-op (clamped at the list end) — the add row stays reachable
     // and selected, never scrolling past it into nothing.
     apply_transition(&mut ctx, &Action::NextLine, false).primary();
-    assert!(
-        ctx.overlay
-            .as_ref()
-            .unwrap()
-            .selected_is_add_to_dictionary()
-    );
+    assert!(ctx.journey.card().unwrap().selected_is_add_to_dictionary());
     // Enter on it ADDS, never replaces.
     let eff = apply_transition(&mut ctx, &Action::Newline, false).primary();
     assert!(
         matches!(&eff, Effect::AddToDictionary(w) if w == "teh"),
         "{eff:?}"
     );
-    assert!(overlay.is_none(), "accepting the add row closes the panel");
+    assert!(
+        overlay.card().is_none(),
+        "accepting the add row closes the panel"
+    );
     assert_eq!(
         buffer.text(),
         "teh quick brown\n",
@@ -408,7 +429,7 @@ fn command_palette_run_action_reopens_into_overlay() {
     // The re-dispatch: feeding the run_action (OpenGoto) back through the core
     // with the slot empty opens the goto overlay, proving run-on-Enter chains
     // into another overlay.
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     // make_overlay here returns a real Goto overlay so the re-dispatch opens.
     let mut buffer = Buffer::scratch();
     let mut shift = false;
@@ -430,14 +451,14 @@ fn command_palette_run_action_reopens_into_overlay() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut overlay,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
     };
     // Re-dispatch OpenGoto (the palette already closed) -> goto overlay opens.
     apply_transition(&mut ctx, &Action::OpenGoto, false).primary();
-    assert_eq!(overlay.as_ref().map(|o| o.kind), Some(OverlayKind::Goto));
+    assert_eq!(overlay.card().map(|o| o.kind), Some(OverlayKind::Goto));
 }
 
 #[test]
@@ -445,7 +466,7 @@ fn go_to_heading_opens_filters_and_jumps_to_line() {
     // "Go to heading…" (the retired Outline picker) opens GO-TO pre-lensed onto
     // its HEADINGS lens; Enter on the filtered heading row emits Effect::JumpToLine
     // for the caller to move the cursor — NOT an OverlayAccept file-open.
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut jumped: Option<usize> = None;
     let mut buffer = Buffer::scratch();
     let mut shift = false;
@@ -472,14 +493,14 @@ fn go_to_heading_opens_filters_and_jumps_to_line() {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
         // "Go to heading…" -> Go-to opens pre-lensed onto the Headings lens.
         apply_transition(&mut ctx, &Action::OpenOutline, false).primary();
-        let ov = ctx.overlay.as_ref().unwrap();
+        let ov = ctx.journey.card().unwrap();
         assert_eq!(ov.kind, OverlayKind::Goto);
         assert_eq!(ov.active_facet_id(), Some("headings"));
         // Filter to "Details" ...
@@ -487,7 +508,7 @@ fn go_to_heading_opens_filters_and_jumps_to_line() {
             apply_transition(&mut ctx, &Action::InsertChar(c), false).primary();
         }
         assert_eq!(
-            ctx.overlay.as_ref().unwrap().selected_value(),
+            ctx.journey.card().unwrap().selected_value(),
             Some("Details")
         );
         // Enter JUMPS to its line (7) and closes.
@@ -497,7 +518,7 @@ fn go_to_heading_opens_filters_and_jumps_to_line() {
             jumped = Some(line);
         }
     }
-    assert!(overlay.is_none(), "go-to closes on a heading accept");
+    assert!(overlay.card().is_none(), "go-to closes on a heading accept");
     assert_eq!(jumped, Some(7));
 }
 
@@ -505,7 +526,7 @@ fn go_to_heading_opens_filters_and_jumps_to_line() {
 fn spell_picker_replaces_word_with_chosen_suggestion() {
     // A buffer with a misspelling on line 1 at char cols 4..11 ("recieve").
     let mut buffer = Buffer::from_str("hello\nyou recieve it\n");
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
@@ -528,25 +549,22 @@ fn spell_picker_replaces_word_with_chosen_suggestion() {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
         // Summon -> the spell picker opens over the suggestions.
         apply_transition(&mut ctx, &Action::OpenSpellSuggest, false).primary();
+        assert_eq!(ctx.journey.card().map(|o| o.kind), Some(OverlayKind::Spell));
         assert_eq!(
-            ctx.overlay.as_ref().map(|o| o.kind),
-            Some(OverlayKind::Spell)
-        );
-        assert_eq!(
-            ctx.overlay.as_ref().unwrap().selected_value(),
+            ctx.journey.card().unwrap().selected_value(),
             Some("receive")
         );
         // Enter REPLACES the word with the top suggestion as ONE edit, closes.
         apply_transition(&mut ctx, &Action::Newline, false).primary();
     }
-    assert!(overlay.is_none(), "spell picker closes on accept");
+    assert!(overlay.card().is_none(), "spell picker closes on accept");
     // The misspelled "recieve" became "receive"; nothing else changed.
     assert_eq!(buffer.text(), "hello\nyou receive it\n");
     // It is a SINGLE undoable edit: one undo restores the original word.
@@ -563,11 +581,11 @@ fn right_press_retarget_dismisses_first_menu_then_opens_the_second() {
     // this drives the pure core sequence the press routes through.)
     let mut buffer = Buffer::from_str("one recieve two seperate three\n");
     // Start with the FIRST word's spell menu already open (target span A).
-    let mut overlay: Option<OverlayState> = Some(OverlayState::new_spell(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_spell(
         vec!["receive".into()],
         (0, 4, 11),
         "recieve".into(),
-    ));
+    )));
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
@@ -588,22 +606,22 @@ fn right_press_retarget_dismisses_first_menu_then_opens_the_second() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut overlay,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
     };
     // The first menu is open on word A.
-    assert_eq!(ctx.overlay.as_ref().unwrap().spell_target, Some((0, 4, 11)));
+    assert_eq!(ctx.journey.card().unwrap().spell_target, Some((0, 4, 11)));
     // RE-TARGET: dismiss the open overlay FIRST …
     apply_transition(&mut ctx, &Action::Cancel, false).primary();
     assert!(
-        ctx.overlay.is_none(),
+        ctx.journey.card().is_none(),
         "the first menu must be dismissed first"
     );
     // … then open the second word's menu.
     apply_transition(&mut ctx, &Action::OpenSpellSuggest, false).primary();
-    let ov = ctx.overlay.as_ref().expect("second menu opens");
+    let ov = ctx.journey.card().expect("second menu opens");
     assert_eq!(ov.kind, OverlayKind::Spell);
     assert_eq!(ov.spell_target, Some((0, 16, 24)), "re-targeted to word B");
     assert_eq!(ov.selected_value(), Some("separate"));
@@ -613,21 +631,24 @@ fn right_press_retarget_dismisses_first_menu_then_opens_the_second() {
 fn spell_picker_summon_is_noop_off_a_misspelling() {
     // make_overlay returns None (the cursor isn't on a flagged word), so the
     // binding is a calm no-op: no overlay opens, the buffer is untouched.
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut accept: Option<(OverlayKind, String)> = None;
     drive(&mut overlay, &mut accept, &Action::OpenSpellSuggest);
-    assert!(overlay.is_none(), "no misspelling at cursor -> no picker");
+    assert!(
+        overlay.card().is_none(),
+        "no misspelling at cursor -> no picker"
+    );
     assert!(accept.is_none());
 }
 
 #[test]
 fn browse_descends_into_folder_then_opens_file() {
     // Open at root level.
-    let mut overlay: Option<OverlayState> = browse_level(OverlayKind::Browse, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::Browse, None));
     let mut accept: Option<(OverlayKind, String)> = None;
     // Selected row is `docs` (a folder) -> Enter DESCENDS, not closes.
     drive(&mut overlay, &mut accept, &Action::Newline);
-    let ov = overlay.as_ref().expect("still open after descend");
+    let ov = overlay.card().expect("still open after descend");
     assert_eq!(ov.browse_dir.as_deref(), Some("docs"));
     let items = ov.item_strings();
     assert!(
@@ -638,7 +659,7 @@ fn browse_descends_into_folder_then_opens_file() {
     // Move selection past the `api` folder onto guide.md, then Enter opens it.
     drive(&mut overlay, &mut accept, &Action::NextLine);
     drive(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.is_none(), "overlay closes on file open");
+    assert!(overlay.card().is_none(), "overlay closes on file open");
     assert_eq!(
         accept,
         Some((OverlayKind::Goto, "docs/guide.md".to_string()))
@@ -649,15 +670,17 @@ fn browse_descends_into_folder_then_opens_file() {
 fn browse_arrows_cycle_the_lens_ascend_is_backspace() {
     // Browse is now a FACETED explorer: ←/→ switch the lens (they no longer
     // ascend/descend — that moved to ⌫ / Enter). Start one level deep (docs/).
-    let mut overlay: Option<OverlayState> =
-        browse_level(OverlayKind::Browse, Some("docs".to_string()));
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(
+        OverlayKind::Browse,
+        Some("docs".to_string()),
+    ));
     let mut accept = None;
     // Opens on the flat All landing.
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     // RIGHT steps into the first refinement lens (Folders) — WITHOUT ascending
     // or descending: the directory level is unchanged.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    let ov = overlay.as_ref().expect("still open after lens step");
+    let ov = overlay.card().expect("still open after lens step");
     assert_eq!(ov.active_facet_id(), Some("folders"));
     assert_eq!(
         ov.browse_dir.as_deref(),
@@ -667,17 +690,17 @@ fn browse_arrows_cycle_the_lens_ascend_is_backspace() {
     assert!(accept.is_none(), "a lens switch never accepts");
     // LEFT steps back to All (clamped there — Left at All is a no-op).
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("all"),
         "Left at All clamps"
     );
     // ASCEND is now Backspace (empty query): docs/ -> root.
     drive(&mut overlay, &mut accept, &Action::DeleteBackward);
     assert_eq!(
-        overlay.as_ref().unwrap().browse_dir,
+        overlay.card().unwrap().browse_dir,
         None,
         "Backspace ascends docs -> root"
     );
@@ -695,27 +718,29 @@ fn goto_arrows_cycle_the_lens() {
         "src/main.rs".to_string(),
         "notes.txt".to_string(),
     ];
-    let mut overlay = Some(OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]));
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
+        OverlayKind::Goto,
+        corpus,
+        vec![],
+        vec![],
+    )));
     let mut accept = None;
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("all"),
         "lands on All"
     );
     // RIGHT steps along the strip, never accepting.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("recent"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("recent"));
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("folder"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("folder"));
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
-        Some("headings")
-    );
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("headings"));
     // RIGHT at the last lens clamps.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("headings"),
         "clamp at last lens"
     );
@@ -723,7 +748,7 @@ fn goto_arrows_cycle_the_lens() {
     for _ in 0..3 {
         drive(&mut overlay, &mut accept, &Action::BackwardChar);
     }
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     assert!(accept.is_none(), "a lens switch never accepts");
 }
 
@@ -734,32 +759,32 @@ fn command_arrows_cycle_the_lens() {
     // `--keys "C-p <right>"` capture reaches the same code).
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
-    let mut overlay = Some(OverlayState::new_command(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_command(
         names,
         crate::commands::effective_bindings(&[], &[]),
         hidden,
-    ));
+    )));
     let mut accept = None;
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("all"),
         "lands on All"
     );
     for expect in ["file", "edit", "view", "recent"] {
         drive(&mut overlay, &mut accept, &Action::ForwardChar);
-        assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some(expect));
+        assert_eq!(overlay.card().unwrap().active_facet_id(), Some(expect));
     }
     // RIGHT at the last lens clamps; LEFT walks back to All.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("recent"),
         "clamp"
     );
     for _ in 0..4 {
         drive(&mut overlay, &mut accept, &Action::BackwardChar);
     }
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     assert!(accept.is_none(), "a lens switch never runs a command");
 }
 
@@ -777,40 +802,40 @@ fn history_arrows_cycle_the_lens() {
         pinned: false,
         name: None,
     };
-    let mut overlay = Some(OverlayState::new_history(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_history(
         vec![row("300"), row("200"), row("100")],
         None,
         None,
-    ));
+    )));
     let mut accept = None;
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("all"),
         "lands on All"
     );
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("session"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("session"));
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("today"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("today"));
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("today"),
         "clamp"
     );
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     assert!(accept.is_none(), "a lens switch never restores a version");
 }
 
 #[test]
 fn move_dest_right_descends_left_ascends() {
     // MoveDest opens at root; Right DESCENDS into the highlighted folder.
-    let mut overlay: Option<OverlayState> = browse_level(OverlayKind::MoveDest, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    let ov = overlay.as_ref().expect("still open after descend");
+    let ov = overlay.card().expect("still open after descend");
     assert_eq!(
         ov.kind,
         OverlayKind::MoveDest,
@@ -820,7 +845,7 @@ fn move_dest_right_descends_left_ascends() {
     assert!(accept.is_none(), "descend must not accept");
     // Left ASCENDS back to the root.
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
-    assert_eq!(overlay.as_ref().unwrap().browse_dir, None);
+    assert_eq!(overlay.card().unwrap().browse_dir, None);
 }
 
 #[test]
@@ -830,7 +855,7 @@ fn recent_projects_opens_switch_project_on_the_recent_lens() {
     // retired the standalone RecentProjects picker. Driven through the real
     // `apply_transition` seam with the shared `project_browse` navigator hook.
     let (ws, _fs) = proj_tree();
-    let mut overlay: Option<OverlayState> = None;
+    let mut overlay = crate::overlay::Journey::default();
     let mut buffer = Buffer::scratch();
     let mut shift = false;
     let mut zoom = 1.0;
@@ -844,16 +869,14 @@ fn recent_projects_opens_switch_project_on_the_recent_lens() {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
         apply_transition(&mut ctx, &Action::OpenRecentProjects, false).primary();
     }
-    let ov = overlay
-        .as_ref()
-        .expect("Recent projects opens the navigator");
+    let ov = overlay.card().expect("Recent projects opens the navigator");
     assert_eq!(
         ov.kind,
         OverlayKind::Project,
@@ -877,11 +900,11 @@ fn switch_project_enter_descends_into_folder() {
     // first real folder (child-a). Now that Project FACETS (←/→ = lens), Enter
     // on a FOLDER DESCENDS into it (Browse-style) — it does NOT accept. The
     // overlay stays open with child-a's contents (its subfolder `sub`).
-    let mut overlay = browse_to(OverlayKind::Project, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("child-a"));
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("child-a"));
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
-    let ov = overlay.as_ref().expect("still open after Enter descends");
+    let ov = overlay.card().expect("still open after Enter descends");
     assert_eq!(
         ov.browse_dir.as_deref(),
         Some(ws.join("child-a").to_string_lossy().as_ref())
@@ -895,14 +918,14 @@ fn switch_project_enter_descends_into_folder() {
     // Enter again descends (into `sub`).
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
     assert_eq!(
-        overlay.as_ref().unwrap().browse_dir.as_deref(),
+        overlay.card().unwrap().browse_dir.as_deref(),
         Some(ws.join("child-a/sub").to_string_lossy().as_ref())
     );
     // `sub` has no subfolders, so selection rests on the "." row; Enter there
     // SELECTS the drilled-in current directory (child-a/sub) as the root.
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
     assert!(
-        overlay.is_none(),
+        overlay.card().is_none(),
         "Enter on '.' selects the drilled-in directory"
     );
     assert_eq!(
@@ -924,16 +947,16 @@ fn switch_project_arrows_cycle_lens_not_descend() {
     };
     // Open at ws, selection on child-a. → (ForwardChar) now CYCLES THE LENS to
     // Recent — it does NOT descend: browse_dir stays at ws.
-    let mut overlay = browse_to(OverlayKind::Project, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     drive_bt(
         &mut overlay,
         &mut accept,
         &mut browse_to,
         &Action::ForwardChar,
     );
-    let ov = overlay.as_ref().expect("still open after lens cycle");
+    let ov = overlay.card().expect("still open after lens cycle");
     assert_eq!(
         ov.active_facet_id(),
         Some("recent"),
@@ -953,7 +976,7 @@ fn switch_project_arrows_cycle_lens_not_descend() {
         &Action::BackwardChar,
     );
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("all"),
         "← cycles back to All"
     );
@@ -996,12 +1019,12 @@ fn switch_project_c_f_c_b_cycle_the_lens() {
 
     let (ws, _fs) = proj_tree();
     let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
-    let mut overlay = browse_to(OverlayKind::Project, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), Some("all"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
     // C-f (ForwardChar) cycles the lens forward to Recent, overlay still at ws.
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &c_f);
-    let ov = overlay.as_ref().expect("still open after C-f lens cycle");
+    let ov = overlay.card().expect("still open after C-f lens cycle");
     assert_eq!(ov.active_facet_id(), Some("recent"), "C-f cycles to Recent");
     assert_eq!(
         ov.browse_dir.as_deref(),
@@ -1011,7 +1034,7 @@ fn switch_project_c_f_c_b_cycle_the_lens() {
     // C-b (BackwardChar) cycles the lens back to All.
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &c_b);
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         Some("all"),
         "C-b cycles back to All"
     );
@@ -1021,7 +1044,7 @@ fn switch_project_c_f_c_b_cycle_the_lens() {
 fn switch_project_ascends_to_parent() {
     let (ws, _fs) = proj_tree();
     let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
-    let mut overlay = browse_to(OverlayKind::Project, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
     // Backspace (empty query) ASCENDS to ws's PARENT — ABOVE the workspace.
     // (Ascend is Backspace now that ←/→ belong to the lens strip.)
@@ -1032,7 +1055,7 @@ fn switch_project_ascends_to_parent() {
         &Action::DeleteBackward,
     );
     let parent = ws.parent().unwrap().to_string_lossy().to_string();
-    let ov = overlay.as_ref().unwrap();
+    let ov = overlay.card().unwrap();
     assert_eq!(ov.browse_dir.as_deref(), Some(parent.as_str()));
     // ws itself now appears as a child folder of its parent.
     let ws_name = ws.file_name().unwrap().to_str().unwrap();
@@ -1052,7 +1075,7 @@ fn switch_project_ascends_to_parent() {
         .to_string_lossy()
         .to_string();
     assert_eq!(
-        overlay.as_ref().unwrap().browse_dir.as_deref(),
+        overlay.card().unwrap().browse_dir.as_deref(),
         Some(grandparent.as_str())
     );
 }
@@ -1062,7 +1085,7 @@ fn switch_project_accept_current_dir_sets_root() {
     let (ws, _fs) = proj_tree();
     let ws_str = ws.to_string_lossy().to_string();
     let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
-    let mut overlay = browse_to(OverlayKind::Project, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
     // Up moves from the first folder onto the synthetic "." accept row...
     drive_bt(
@@ -1071,21 +1094,24 @@ fn switch_project_accept_current_dir_sets_root() {
         &mut browse_to,
         &Action::PreviousLine,
     );
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("."));
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("."));
     // ...and Enter ACCEPTS the current directory (ws) as the new root.
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
-    assert!(overlay.is_none(), "accept closes the explorer");
+    assert!(overlay.card().is_none(), "accept closes the explorer");
     assert_eq!(accept, Some((OverlayKind::Project, ws_str)));
 }
 
 #[test]
 fn browse_backspace_ascends() {
     // Backspace (empty query) ascends in Browse, same as Left.
-    let mut overlay = browse_level(OverlayKind::Browse, Some("docs".to_string()));
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(
+        OverlayKind::Browse,
+        Some("docs".to_string()),
+    ));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::DeleteBackward);
     assert_eq!(
-        overlay.as_ref().unwrap().browse_dir,
+        overlay.card().unwrap().browse_dir,
         None,
         "Backspace ascends docs -> root"
     );
@@ -1093,11 +1119,14 @@ fn browse_backspace_ascends() {
 
 #[test]
 fn move_dest_backspace_ascends() {
-    let mut overlay = browse_level(OverlayKind::MoveDest, Some("docs".to_string()));
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(
+        OverlayKind::MoveDest,
+        Some("docs".to_string()),
+    ));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::DeleteBackward);
     assert_eq!(
-        overlay.as_ref().unwrap().browse_dir,
+        overlay.card().unwrap().browse_dir,
         None,
         "Backspace ascends docs -> root"
     );
@@ -1107,11 +1136,14 @@ fn move_dest_backspace_ascends() {
 fn browse_backspace_pops_filter_before_ascending() {
     // With a non-empty fuzzy query, Backspace pops a CHAR (keeps the level);
     // only an EMPTY query ascends. Preserves type-to-filter within a level.
-    let mut overlay = browse_level(OverlayKind::Browse, Some("docs".to_string()));
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(
+        OverlayKind::Browse,
+        Some("docs".to_string()),
+    ));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::InsertChar('g'));
     drive(&mut overlay, &mut accept, &Action::DeleteBackward);
-    let ov = overlay.as_ref().unwrap();
+    let ov = overlay.card().unwrap();
     assert_eq!(ov.query, "");
     assert_eq!(
         ov.browse_dir.as_deref(),
@@ -1120,7 +1152,7 @@ fn browse_backspace_pops_filter_before_ascending() {
     );
     drive(&mut overlay, &mut accept, &Action::DeleteBackward);
     assert_eq!(
-        overlay.as_ref().unwrap().browse_dir,
+        overlay.card().unwrap().browse_dir,
         None,
         "now-empty query ascends"
     );
@@ -1129,17 +1161,17 @@ fn browse_backspace_pops_filter_before_ascending() {
 #[test]
 fn move_dest_enter_accepts_highlighted_folder() {
     // Enter on the highlighted `docs` folder accepts it as the destination.
-    let mut overlay: Option<OverlayState> = browse_level(OverlayKind::MoveDest, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.is_none(), "accept closes the picker");
+    assert!(overlay.card().is_none(), "accept closes the picker");
     assert_eq!(accept, Some((OverlayKind::MoveDest, "docs".to_string())));
 }
 
 #[test]
 fn move_dest_type_to_create_folder() {
     // Type a name that matches no listed folder -> accept CREATES that folder.
-    let mut overlay: Option<OverlayState> = browse_level(OverlayKind::MoveDest, None);
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
     let mut accept = None;
     for c in "ideas".chars() {
         drive(&mut overlay, &mut accept, &Action::InsertChar(c));
@@ -1154,17 +1186,17 @@ fn theme_move_previews_live() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0); // Tawny
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
     // Opens on the flat All lens, highlighting the active world (Tawny).
     assert_eq!(crate::theme::active().name, "Tawny");
-    assert_eq!(overlay.as_ref().unwrap().selected_value(), Some("Tawny"));
-    let start = overlay.as_ref().unwrap().selected;
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Tawny"));
+    let start = overlay.card().unwrap().selected;
     // Down moves through the flat list and previews the NEW highlighted world
     // IMMEDIATELY (the whole editor re-themes to it).
     drive(&mut overlay, &mut accept, &Action::NextLine);
     let after1 = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
@@ -1177,13 +1209,13 @@ fn theme_move_previews_live() {
     );
     drive(&mut overlay, &mut accept, &Action::NextLine);
     let after2 = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
         .to_string();
     assert_eq!(crate::theme::active().name, after2);
-    assert_eq!(overlay.as_ref().unwrap().selected, start + 2);
+    assert_eq!(overlay.card().unwrap().selected, start + 2);
     crate::theme::set_active(0);
 }
 
@@ -1199,12 +1231,12 @@ fn theme_keyboard_crossing_reanchors_to_destination_world() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::render::set_card_anchor_test_override(None); // world data drives the anchor
     crate::theme::set_active(0); // Tawny (TopCenter)
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
 
     // At summon the frozen alignment == the opening world's own rail.
     assert_eq!(
-        overlay.as_ref().unwrap().align,
+        overlay.card().unwrap().align,
         crate::theme::active().render_caps.card_anchor,
         "the card freezes the opening world's rail at summon"
     );
@@ -1215,7 +1247,7 @@ fn theme_keyboard_crossing_reanchors_to_destination_world() {
         let world = crate::theme::active();
         // Each keyboard crossing snaps the card into the destination world's rail.
         assert_eq!(
-            overlay.as_ref().unwrap().align,
+            overlay.card().unwrap().align,
             world.render_caps.card_anchor,
             "a keyboard crossing re-anchors the card into {}'s rail",
             world.name
@@ -1254,11 +1286,11 @@ fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::render::set_card_anchor_test_override(None);
     crate::theme::set_active(0); // Tawny (TopCenter)
-    let mut overlay = theme_overlay();
-    let frozen = overlay.as_ref().unwrap().align;
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
+    let frozen = overlay.card().unwrap().align;
 
     // Find a world whose rail DIFFERS from the frozen one (a real crossing).
-    let ov = overlay.as_mut().unwrap();
+    let ov = overlay.card_mut().unwrap();
     let target_ci = ov
         .rows
         .iter()
@@ -1282,7 +1314,7 @@ fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
         "the hover crossed to a world with a DIFFERENT rail"
     );
     assert_eq!(
-        overlay.as_ref().unwrap().align,
+        overlay.card().unwrap().align,
         frozen,
         "a passive hover must NOT re-anchor the card (item 52 — no spatial chase)"
     );
@@ -1291,7 +1323,7 @@ fn theme_hover_previews_world_but_does_not_reanchor_the_card() {
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::PreviousLine);
     assert_eq!(
-        overlay.as_ref().unwrap().align,
+        overlay.card().unwrap().align,
         crate::theme::active().render_caps.card_anchor,
         "a deliberate keyboard move re-anchors (the contrast to hover)"
     );
@@ -1319,21 +1351,26 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
             (Action::LineEnd, Action::LineStart), // End / Home, C-e / C-a, Cmd-→/←
             (Action::BufferEnd, Action::BufferStart), // Cmd-↓/↑, Ctrl-End/Home
         ] {
-            let mut overlay = Some(OverlayState::new(k, corpus(), vec![], vec![]));
-            let last = overlay.as_ref().unwrap().item_strings().len() - 1;
+            let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
+                k,
+                corpus(),
+                vec![],
+                vec![],
+            )));
+            let last = overlay.card().unwrap().item_strings().len() - 1;
             assert!(last >= 1, "{k:?}: sweep corpus lists multiple rows");
             let mut accept = None;
             // Start in the middle so each jump is a real, observable move.
             drive(&mut overlay, &mut accept, &Action::NextLine);
             drive(&mut overlay, &mut accept, &to_last);
             assert_eq!(
-                overlay.as_ref().unwrap().selected,
+                overlay.card().unwrap().selected,
                 last,
                 "{k:?}: {to_last:?} jumps to the LAST row"
             );
             drive(&mut overlay, &mut accept, &to_first);
             assert_eq!(
-                overlay.as_ref().unwrap().selected,
+                overlay.card().unwrap().selected,
                 0,
                 "{k:?}: {to_first:?} jumps to the FIRST row"
             );
@@ -1350,23 +1387,23 @@ fn theme_picker_jump_previews_the_end_worlds_live() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0); // open on Tawny (index 0)
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
     assert_eq!(
-        overlay.as_ref().unwrap().selected,
+        overlay.card().unwrap().selected,
         0,
         "opens on the active world"
     );
     // END → last world, previewed LIVE (the process-global theme flips to it).
     drive(&mut overlay, &mut accept, &Action::LineEnd);
     let last = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
         .to_string();
     assert_eq!(
-        overlay.as_ref().unwrap().selected,
+        overlay.card().unwrap().selected,
         crate::theme::THEMES.len() - 1
     );
     assert_ne!(last, "Tawny", "the jump moved off the first world");
@@ -1377,7 +1414,7 @@ fn theme_picker_jump_previews_the_end_worlds_live() {
     );
     // HOME → first world, previewed LIVE.
     drive(&mut overlay, &mut accept, &Action::LineStart);
-    assert_eq!(overlay.as_ref().unwrap().selected, 0);
+    assert_eq!(overlay.card().unwrap().selected, 0);
     assert_eq!(
         crate::theme::active().name,
         "Tawny",
@@ -1391,17 +1428,17 @@ fn theme_enter_commits_previewed_world() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview the next grouped world
     let previewed = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
         .to_string();
     drive(&mut overlay, &mut accept, &Action::Newline); // COMMIT
-    assert!(overlay.is_none(), "Enter closes the picker");
+    assert!(overlay.card().is_none(), "Enter closes the picker");
     assert_eq!(
         crate::theme::active().name,
         previewed,
@@ -1416,7 +1453,7 @@ fn theme_cancel_reverts_to_starting_world() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0); // start on Tawny
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview a different world
     drive(&mut overlay, &mut accept, &Action::NextLine);
@@ -1426,7 +1463,7 @@ fn theme_cancel_reverts_to_starting_world() {
         "moved off the start world"
     );
     drive(&mut overlay, &mut accept, &Action::Cancel); // REVERT
-    assert!(overlay.is_none(), "Cancel closes the picker");
+    assert!(overlay.card().is_none(), "Cancel closes the picker");
     assert_eq!(
         crate::theme::active().name,
         "Tawny",
@@ -1453,7 +1490,7 @@ fn theme_picker_preview_commit_cancel_never_touch_spellcheck_global() {
     for &start_on in &[true, false] {
         crate::spell::set_spellcheck_on(start_on);
         crate::theme::set_active(0);
-        let mut overlay = theme_overlay();
+        let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
         let mut accept = None;
         // Arrow through EVERY world, previewing each in turn.
         for _ in 0..crate::theme::THEMES.len() {
@@ -1467,7 +1504,7 @@ fn theme_picker_preview_commit_cancel_never_touch_spellcheck_global() {
         }
         // COMMIT.
         drive(&mut overlay, &mut accept, &Action::Newline);
-        assert!(overlay.is_none(), "Enter closes the picker");
+        assert!(overlay.card().is_none(), "Enter closes the picker");
         assert_eq!(
             crate::spell::spellcheck_on(),
             start_on,
@@ -1476,11 +1513,11 @@ fn theme_picker_preview_commit_cancel_never_touch_spellcheck_global() {
 
         // CANCEL path: open again, preview away, Esc reverts the WORLD but must
         // leave spellcheck alone too.
-        let mut overlay2 = theme_overlay();
+        let mut overlay2 = crate::overlay::Journey::seeded(theme_overlay());
         let mut accept2 = None;
         drive(&mut overlay2, &mut accept2, &Action::NextLine);
         drive(&mut overlay2, &mut accept2, &Action::Cancel);
-        assert!(overlay2.is_none(), "Esc closes the picker");
+        assert!(overlay2.card().is_none(), "Esc closes the picker");
         assert_eq!(
             crate::spell::spellcheck_on(),
             start_on,
@@ -1501,23 +1538,21 @@ fn theme_from_palette_pops_back_to_palette_on_esc() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
-    let mut overlay = theme_overlay();
-    overlay.as_mut().unwrap().return_to = Some(OverlayKind::Command);
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
+    park_under(&mut overlay, OverlayKind::Command);
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview off Tawny
     assert_ne!(crate::theme::active().name, "Tawny");
     drive(&mut overlay, &mut accept, &Action::Cancel); // Esc → POP, not close
-    let ov = overlay
-        .as_ref()
-        .expect("Esc pops back to the palette, not the buffer");
     assert_eq!(
-        ov.kind,
-        OverlayKind::Command,
-        "re-summoned the command palette"
+        overlay.card().map(|o| o.kind),
+        Some(OverlayKind::Command),
+        "Esc resumes the parked palette, not the buffer"
     );
     assert_eq!(
-        ov.return_to, None,
-        "single-level: the palette carries no breadcrumb"
+        overlay.parked_kind(),
+        None,
+        "single-level: the resumed palette parks nothing itself"
     );
     assert_eq!(
         crate::theme::active().name,
@@ -1539,19 +1574,19 @@ fn theme_from_palette_closes_to_buffer_on_keep_not_a_recent_menu() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
-    let mut overlay = theme_overlay();
-    overlay.as_mut().unwrap().return_to = Some(OverlayKind::Command);
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
+    park_under(&mut overlay, OverlayKind::Command);
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview the next world
     let previewed = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
         .to_string();
     drive(&mut overlay, &mut accept, &Action::Newline); // keep → CLOSE to buffer
     assert!(
-        overlay.is_none(),
+        overlay.card().is_none(),
         "keeping a palette-launched theme lands in the buffer"
     );
     assert_eq!(
@@ -1571,28 +1606,26 @@ fn theme_from_settings_pops_back_to_settings_on_keep() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
-    let mut overlay = theme_overlay();
-    overlay.as_mut().unwrap().return_to = Some(OverlayKind::Settings);
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
+    park_under(&mut overlay, OverlayKind::Settings);
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // preview the next world
     let previewed = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
         .to_string();
     drive(&mut overlay, &mut accept, &Action::Newline); // keep → POP back to Settings
-    let ov = overlay
-        .as_ref()
-        .expect("keep from Settings pops back, not to the buffer");
     assert_eq!(
-        ov.kind,
-        OverlayKind::Settings,
-        "re-summoned the Settings menu"
+        overlay.card().map(|o| o.kind),
+        Some(OverlayKind::Settings),
+        "keep from Settings resumes it, not the buffer"
     );
     assert_eq!(
-        ov.return_to, None,
-        "single-level: the re-summoned parent carries no crumb"
+        overlay.parked_kind(),
+        None,
+        "single-level: the resumed parent parks nothing itself"
     );
     assert_eq!(
         accept,
@@ -1609,57 +1642,50 @@ fn theme_from_settings_pops_back_to_settings_on_keep() {
 /// a navigator still closes-all — per `OverlayKind::accept_disposition`.
 #[test]
 fn goto_from_palette_closes_all_on_open_not_pop() {
-    let mut overlay = Some(OverlayState::new(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
         OverlayKind::Goto,
         vec!["README.md".to_string()],
         vec![],
         vec![],
-    ));
-    overlay.as_mut().unwrap().return_to = Some(OverlayKind::Command);
+    )));
+    park_under(&mut overlay, OverlayKind::Command);
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::Newline); // open the file
     assert!(
-        overlay.is_none(),
+        overlay.card().is_none(),
         "a navigating accept closes the whole stack to the buffer"
     );
     assert_eq!(accept, Some((OverlayKind::Goto, "README.md".to_string())));
 }
 
-/// [`stamp_return_to`] fills ONLY an empty breadcrumb (never overwriting a Settings
-/// sub-picker's own `return_to = Settings`), stamps only when an overlay is open,
-/// and is a no-op for a `None` parent (a terminal command opened nothing).
+/// `Journey::attribute_launch` parks a launcher UNDER an already-open card —
+/// the palette's re-dispatch seam, which learns about the launcher only after
+/// it closed. It never overwrites an existing parent (a Settings sub-picker
+/// keeps Settings), is a no-op for a `None` parent (a terminal command opened
+/// nothing), and is a no-op with no card at all.
 #[test]
-fn stamp_return_to_fills_only_an_empty_breadcrumb() {
-    // Fresh overlay (no breadcrumb) + Command parent → stamped Command.
-    let mut ov = Some(OverlayState::new(
-        OverlayKind::Theme,
-        vec!["Tawny".into()],
-        vec![],
-        vec![],
-    ));
-    stamp_return_to(&mut ov, Some(OverlayKind::Command));
-    assert_eq!(ov.as_ref().unwrap().return_to, Some(OverlayKind::Command));
-    // A pre-set breadcrumb (Settings sub-picker) is NEVER overwritten.
-    ov.as_mut().unwrap().return_to = Some(OverlayKind::Settings);
-    stamp_return_to(&mut ov, Some(OverlayKind::Command));
+fn attributing_a_launch_fills_only_an_empty_parent_slot() {
+    let card = || OverlayState::new(OverlayKind::Theme, vec!["Tawny".into()], vec![], vec![]);
+    // Fresh card (nothing parked) + Command parent → the palette is parked.
+    let mut ov = crate::overlay::Journey::seeded(Some(card()));
+    ov.attribute_launch(Some(OverlayKind::Command));
+    assert_eq!(ov.parked_kind(), Some(OverlayKind::Command));
+    // An already-parked parent (a Settings sub-picker) is NEVER overwritten.
+    ov.attribute_launch(Some(OverlayKind::Settings));
     assert_eq!(
-        ov.as_ref().unwrap().return_to,
-        Some(OverlayKind::Settings),
-        "existing breadcrumb kept"
+        ov.parked_kind(),
+        Some(OverlayKind::Command),
+        "an existing parked parent wins"
     );
-    // A None parent (terminal command) is a no-op even on an empty breadcrumb.
-    let mut ov2 = Some(OverlayState::new(
-        OverlayKind::Theme,
-        vec!["Tawny".into()],
-        vec![],
-        vec![],
-    ));
-    stamp_return_to(&mut ov2, None);
-    assert_eq!(ov2.as_ref().unwrap().return_to, None);
-    // No overlay open → no-op, no panic.
-    let mut none: Option<OverlayState> = None;
-    stamp_return_to(&mut none, Some(OverlayKind::Command));
-    assert!(none.is_none());
+    // A None parent (terminal command) is a no-op even with nothing parked.
+    let mut ov2 = crate::overlay::Journey::seeded(Some(card()));
+    ov2.attribute_launch(None);
+    assert_eq!(ov2.parked_kind(), None);
+    // No card open → no-op, no panic.
+    let mut none = crate::overlay::Journey::default();
+    none.attribute_launch(Some(OverlayKind::Command));
+    assert!(none.card().is_none());
+    assert_eq!(none.parked_kind(), None);
 }
 
 #[test]
@@ -1670,15 +1696,15 @@ fn theme_arrows_move_the_selection_and_preview() {
     // selection row like every other flat picker, with live preview on each move —
     // NOT a lens switch. Open with Tawny (THEMES index 0) active + selected.
     crate::theme::set_active(0);
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
     assert!(
-        !overlay.as_ref().unwrap().is_faceting(),
+        !overlay.card().unwrap().is_faceting(),
         "the theme picker is flat"
     );
-    assert_eq!(overlay.as_ref().unwrap().active_facet_id(), None, "no lens");
+    assert_eq!(overlay.card().unwrap().active_facet_id(), None, "no lens");
     let first = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
@@ -1686,7 +1712,7 @@ fn theme_arrows_move_the_selection_and_preview() {
     // RIGHT moves the selection DOWN a row and previews the newly-highlighted world.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     let second = overlay
-        .as_ref()
+        .card()
         .unwrap()
         .selected_value()
         .unwrap()
@@ -1696,7 +1722,7 @@ fn theme_arrows_move_the_selection_and_preview() {
         "→ moved to the next world (not a lens switch)"
     );
     assert_eq!(
-        overlay.as_ref().unwrap().active_facet_id(),
+        overlay.card().unwrap().active_facet_id(),
         None,
         "still no lens"
     );
@@ -1708,7 +1734,7 @@ fn theme_arrows_move_the_selection_and_preview() {
     // LEFT moves back UP to the first world (and previews it).
     drive(&mut overlay, &mut accept, &Action::BackwardChar);
     assert_eq!(
-        overlay.as_ref().unwrap().selected_value(),
+        overlay.card().unwrap().selected_value(),
         Some(first.as_str())
     );
     assert_eq!(crate::theme::active().name, first);
@@ -1722,7 +1748,7 @@ fn theme_typing_filters_and_previews() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::theme::set_active(0);
-    let mut overlay = theme_overlay();
+    let mut overlay = crate::overlay::Journey::seeded(theme_overlay());
     let mut accept = None;
     // Type "quo" -> Quokka is the top match, previewed immediately.
     drive(&mut overlay, &mut accept, &Action::InsertChar('q'));

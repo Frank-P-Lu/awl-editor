@@ -99,7 +99,7 @@ fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
         let mut shift_selecting = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay = None;
+        let mut journey = crate::overlay::Journey::default();
         let mut make_overlay = |_| None;
         let mut browse_to = |_, _| None;
         let mut ctx = crate::actions::ActionCtx {
@@ -108,7 +108,7 @@ fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,

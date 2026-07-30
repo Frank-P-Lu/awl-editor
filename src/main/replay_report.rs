@@ -8,7 +8,7 @@ pub(crate) struct ReplayResult {
     pub(crate) replace_active: bool,
     pub(crate) replacement: String,
     pub(crate) editing_replacement: bool,
-    pub(crate) overlay: Option<crate::overlay::OverlayState>,
+    pub(crate) journey: crate::overlay::Journey,
     pub(crate) accept: Option<(crate::overlay::OverlayKind, String)>,
     pub(crate) buffers_open: usize,
     #[allow(dead_code)]

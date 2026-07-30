@@ -3,8 +3,8 @@
 use super::*;
 const OVERLAY_PAGE: isize = 12;
 fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    ctx.overlay.as_ref().unwrap().rename_edit.as_ref()?;
-    let overlay = ctx.overlay.as_mut().unwrap();
+    ctx.journey.card().unwrap().rename_edit.as_ref()?;
+    let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.rename_edit_push(*c),
         Action::DeleteBackward => overlay.rename_edit_pop(),
@@ -16,22 +16,24 @@ fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
         Action::DeleteWordForward => overlay.rename_edit_delete_word_forward(),
         Action::Newline => {
             let target = overlay.rename_edit_target();
-            *ctx.overlay = None;
+            ctx.journey.dismiss();
             return Some(
                 target
                     .map(|new_name| Effect::RenameNoteCommit { new_name })
                     .unwrap_or(Effect::None),
             );
         }
-        Action::Cancel => *ctx.overlay = None,
+        Action::Cancel => {
+            ctx.journey.dismiss();
+        }
         _ => {}
     }
     Some(Effect::None)
 }
 
 fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    ctx.overlay.as_ref().unwrap().link_edit.as_ref()?;
-    let overlay = ctx.overlay.as_mut().unwrap();
+    ctx.journey.card().unwrap().link_edit.as_ref()?;
+    let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.link_edit_push(*c),
         Action::DeleteBackward => overlay.link_edit_pop(),
@@ -43,7 +45,7 @@ fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::DeleteWordForward => overlay.link_edit_delete_word_forward(),
         Action::Newline => {
             let target = overlay.link_edit_target();
-            *ctx.overlay = None;
+            ctx.journey.dismiss();
             if let Some((url, mode)) = target {
                 let text = ctx.buffer.text();
                 let result = crate::actions::link::commit(&text, &mode, &url);
@@ -51,15 +53,17 @@ fn link_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
                     .apply_format(&result.text, result.anchor, result.cursor);
             }
         }
-        Action::Cancel => *ctx.overlay = None,
+        Action::Cancel => {
+            ctx.journey.dismiss();
+        }
         _ => {}
     }
     Some(Effect::None)
 }
 
 fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    ctx.overlay.as_ref().unwrap().keep_edit.as_ref()?;
-    let overlay = ctx.overlay.as_mut().unwrap();
+    ctx.journey.card().unwrap().keep_edit.as_ref()?;
+    let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.keep_edit_push(*c),
         Action::DeleteBackward => overlay.keep_edit_pop(),
@@ -71,22 +75,24 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::DeleteWordForward => overlay.keep_edit_delete_word_forward(),
         Action::Newline => {
             let target = overlay.keep_edit_target();
-            *ctx.overlay = None;
+            ctx.journey.dismiss();
             return Some(
                 target
                     .map(|name| Effect::KeepVersion { name })
                     .unwrap_or(Effect::None),
             );
         }
-        Action::Cancel => *ctx.overlay = None,
+        Action::Cancel => {
+            ctx.journey.dismiss();
+        }
         _ => {}
     }
     Some(Effect::None)
 }
 
 fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    ctx.overlay.as_ref().unwrap().value_edit.as_ref()?;
-    let overlay = ctx.overlay.as_mut().unwrap();
+    ctx.journey.card().unwrap().value_edit.as_ref()?;
+    let overlay = ctx.journey.card_mut().unwrap();
     match action {
         Action::InsertChar(c) => overlay.value_edit_push(*c),
         Action::DeleteBackward => overlay.value_edit_pop(),
@@ -133,7 +139,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     if let Some(effect) = value_edit_intercept(ctx, action) {
         return effect;
     }
-    if ctx.overlay.as_ref().unwrap().kind == crate::overlay::OverlayKind::Keybindings
+    if ctx.journey.card().unwrap().kind == crate::overlay::OverlayKind::Keybindings
         && let Some(eff) = keybindings_intercept(ctx, action)
     {
         return eff;
@@ -146,12 +152,12 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     }
     match action {
         Action::InsertChar(c) => {
-            ctx.overlay.as_mut().unwrap().push(*c);
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().push(*c);
+            preview_move(ctx.journey.card_mut().unwrap());
             Effect::None
         }
         Action::DeleteBackward | Action::DeleteWordBackward => {
-            let ov = ctx.overlay.as_ref().unwrap();
+            let ov = ctx.journey.card().unwrap();
             let navigable = matches!(
                 ov.kind,
                 crate::overlay::OverlayKind::Browse
@@ -159,32 +165,30 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
                     | crate::overlay::OverlayKind::Project
             );
             if navigable && ov.query.is_empty() {
-                let bc = Breadcrumb::of(ov);
                 if let Some(parent) = ascend_target(ov)
-                    && let Some(mut next) = (ctx.browse_to)(ov.kind, parent)
+                    && let Some(next) = (ctx.browse_to)(ov.kind, parent)
                 {
-                    bc.apply(&mut next);
-                    *ctx.overlay = Some(next);
+                    ctx.journey.relevel(next);
                 }
                 return Effect::None;
             }
             if matches!(action, Action::DeleteWordBackward) {
-                ctx.overlay.as_mut().unwrap().pop_word();
+                ctx.journey.card_mut().unwrap().pop_word();
             } else {
-                ctx.overlay.as_mut().unwrap().pop();
+                ctx.journey.card_mut().unwrap().pop();
             }
-            preview_move(ctx.overlay.as_mut().unwrap());
+            preview_move(ctx.journey.card_mut().unwrap());
             Effect::None
         }
         Action::Newline => accept_overlay(ctx),
         Action::ForwardWord => {
-            ctx.overlay.as_mut().unwrap().query_word_right();
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().query_word_right();
+            preview_move(ctx.journey.card_mut().unwrap());
             Effect::None
         }
         Action::BackwardWord => {
-            ctx.overlay.as_mut().unwrap().query_word_left();
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().query_word_left();
+            preview_move(ctx.journey.card_mut().unwrap());
             Effect::None
         }
         Action::Cancel => cancel_overlay(ctx),
@@ -192,67 +196,62 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     }
 }
 
+/// ESC / C-g — routed straight to the ONE lifecycle door
+/// ([`crate::overlay::Journey::cancel`]), which reverts whatever the card was
+/// auditioning and then lands wherever the table says: the editor, back on a
+/// workspace's primary list, or on the parked parent at its exact position.
+/// The only thing left here is the theme REPORT — the live App re-tints its GPU
+/// pipelines and window title from `OverlayAccept`, and a revert changes the
+/// active world just as a commit does.
 fn cancel_overlay(ctx: &mut ActionCtx) -> Effect {
-    let ov = ctx.overlay.as_ref().unwrap();
-    let effect = if ov.kind == crate::overlay::OverlayKind::Theme {
-        if let Some(theme) = ov.original_theme {
-            crate::theme::set_active(theme);
-        }
+    let was_theme = ctx.journey.card().map(|o| o.kind) == Some(crate::overlay::OverlayKind::Theme);
+    ctx.journey.cancel(ctx.make_overlay);
+    if was_theme {
         Effect::OverlayAccept(
             crate::overlay::OverlayKind::Theme,
             crate::theme::active().name.to_string(),
         )
-    } else if ov.kind == crate::overlay::OverlayKind::Caret {
-        if ov.original_caret_was_auto {
-            crate::caret::clear_override();
-        } else if let Some(caret) = ov.original_caret {
-            crate::caret::set_mode(caret);
-        }
-        Effect::None
     } else {
         Effect::None
-    };
-    close_overlay(ctx);
-    effect
+    }
 }
 fn history_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    let ov = ctx.overlay.as_ref().unwrap();
+    let ov = ctx.journey.card().unwrap();
     if ov.kind != crate::overlay::OverlayKind::History || ov.selected_history_id().is_none() {
         return None;
     }
     let page = ctx.scroll_page_lines.max(1);
-    let focused = ov.diff_focus;
+    let focused = ov.detail_focus;
     match action {
         Action::PageScrollDown => {
-            let ov = ctx.overlay.as_mut().unwrap();
+            let ov = ctx.journey.card_mut().unwrap();
             ov.diff_scroll = ov.diff_scroll.saturating_add(page);
             Some(Effect::None)
         }
         Action::PageScrollUp => {
-            let ov = ctx.overlay.as_mut().unwrap();
+            let ov = ctx.journey.card_mut().unwrap();
             ov.diff_scroll = ov.diff_scroll.saturating_sub(page);
             Some(Effect::None)
         }
         Action::CompareVersion | Action::InsertTab => {
-            let ov = ctx.overlay.as_mut().unwrap();
-            ov.diff_focus = !ov.diff_focus;
+            ctx.journey.toggle_detail();
             Some(Effect::None)
         }
         _ if focused => match action {
             Action::NextLine => {
-                let ov = ctx.overlay.as_mut().unwrap();
+                let ov = ctx.journey.card_mut().unwrap();
                 ov.diff_scroll = ov.diff_scroll.saturating_add(1);
                 Some(Effect::None)
             }
             Action::PreviousLine => {
-                let ov = ctx.overlay.as_mut().unwrap();
+                let ov = ctx.journey.card_mut().unwrap();
                 ov.diff_scroll = ov.diff_scroll.saturating_sub(1);
                 Some(Effect::None)
             }
-            Action::Cancel => {
-                ctx.overlay.as_mut().unwrap().diff_focus = false;
-                Some(Effect::None)
-            }
+            // Esc and Enter both fall through to the shared owners: the table
+            // already says a cancel on the detail stage lands on the primary
+            // list, and an accept there restores the version.
+            Action::Cancel => None,
             Action::Newline => None,
             _ => Some(Effect::None),
         },
@@ -263,68 +262,68 @@ fn history_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
 fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     match action {
         Action::NextLine => {
-            ctx.overlay.as_mut().unwrap().move_sel(1);
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().move_sel(1);
+            preview_move(ctx.journey.card_mut().unwrap());
         }
         Action::PreviousLine => {
-            ctx.overlay.as_mut().unwrap().move_sel(-1);
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().move_sel(-1);
+            preview_move(ctx.journey.card_mut().unwrap());
         }
         Action::PageScrollDown => {
-            ctx.overlay.as_mut().unwrap().move_sel(OVERLAY_PAGE);
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().move_sel(OVERLAY_PAGE);
+            preview_move(ctx.journey.card_mut().unwrap());
         }
         Action::PageScrollUp => {
-            ctx.overlay.as_mut().unwrap().move_sel(-OVERLAY_PAGE);
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().move_sel(-OVERLAY_PAGE);
+            preview_move(ctx.journey.card_mut().unwrap());
         }
         Action::LineStart | Action::BufferStart => {
-            ctx.overlay.as_mut().unwrap().select_first();
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().select_first();
+            preview_move(ctx.journey.card_mut().unwrap());
         }
         Action::LineEnd | Action::BufferEnd => {
-            ctx.overlay.as_mut().unwrap().select_last();
-            preview_move(ctx.overlay.as_mut().unwrap());
+            ctx.journey.card_mut().unwrap().select_last();
+            preview_move(ctx.journey.card_mut().unwrap());
         }
         Action::ForwardChar => {
             if let Some(effect) = range_step(ctx, 1) {
                 return Some(effect);
             }
-            let ov = ctx.overlay.as_ref().unwrap();
+            let ov = ctx.journey.card().unwrap();
             if ov.is_faceting() {
-                ctx.overlay.as_mut().unwrap().cycle_lens(1);
-                preview_move(ctx.overlay.as_mut().unwrap());
+                ctx.journey.card_mut().unwrap().cycle_lens(1);
+                preview_move(ctx.journey.card_mut().unwrap());
             } else if ov.kind == crate::overlay::OverlayKind::MoveDest {
                 if ov.selected_is_dir()
                     && let Some(name) = ov.selected_value().map(str::to_string)
                 {
                     let child = descend_target(ov, &name);
                     if let Some(next) = (ctx.browse_to)(ov.kind, Some(child)) {
-                        *ctx.overlay = Some(next);
+                        ctx.journey.relevel(next);
                     }
                 }
             } else {
-                ctx.overlay.as_mut().unwrap().move_sel(1);
-                preview_move(ctx.overlay.as_mut().unwrap());
+                ctx.journey.card_mut().unwrap().move_sel(1);
+                preview_move(ctx.journey.card_mut().unwrap());
             }
         }
         Action::BackwardChar => {
             if let Some(effect) = range_step(ctx, -1) {
                 return Some(effect);
             }
-            let ov = ctx.overlay.as_ref().unwrap();
+            let ov = ctx.journey.card().unwrap();
             if ov.is_faceting() {
-                ctx.overlay.as_mut().unwrap().cycle_lens(-1);
-                preview_move(ctx.overlay.as_mut().unwrap());
+                ctx.journey.card_mut().unwrap().cycle_lens(-1);
+                preview_move(ctx.journey.card_mut().unwrap());
             } else if ov.kind == crate::overlay::OverlayKind::MoveDest {
                 if let Some(parent) = ascend_target(ov)
                     && let Some(next) = (ctx.browse_to)(ov.kind, parent)
                 {
-                    *ctx.overlay = Some(next);
+                    ctx.journey.relevel(next);
                 }
             } else {
-                ctx.overlay.as_mut().unwrap().move_sel(-1);
-                preview_move(ctx.overlay.as_mut().unwrap());
+                ctx.journey.card_mut().unwrap().move_sel(-1);
+                preview_move(ctx.journey.card_mut().unwrap());
             }
         }
         _ => return None,
@@ -333,7 +332,7 @@ fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
 }
 
 fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
-    let ov = ctx.overlay.as_ref().unwrap();
+    let ov = ctx.journey.card().unwrap();
     match ov.kind {
         crate::overlay::OverlayKind::Browse => {
             let effect = match ov.selected_value().map(str::to_string) {
@@ -341,7 +340,7 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
                     if let Some(next) =
                         (ctx.browse_to)(ov.kind, Some(join_browse(ov.browse_dir.as_deref(), &name)))
                     {
-                        *ctx.overlay = Some(next);
+                        ctx.journey.relevel(next);
                     }
                     return Some(Effect::None);
                 }
@@ -363,31 +362,42 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
         }
         crate::overlay::OverlayKind::Project => {
             if ov.selected_is_dir() {
-                let breadcrumb = Breadcrumb::of(ov);
                 if let Some(name) = ov.selected_value().map(str::to_string)
-                    && let Some(mut next) =
-                        (ctx.browse_to)(ov.kind, Some(descend_target(ov, &name)))
+                    && let Some(next) = (ctx.browse_to)(ov.kind, Some(descend_target(ov, &name)))
                 {
-                    breadcrumb.apply(&mut next);
-                    *ctx.overlay = Some(next);
+                    // A LEVEL, not a rung: `relevel` keeps whatever parent is
+                    // parked and whatever config key this navigator is filling
+                    // in, so a descend/ascend can no longer silently drop them.
+                    ctx.journey.relevel(next);
                 }
                 return Some(Effect::None);
             }
-            let path_key = ov.setting_path_key.clone();
-            let result = match ov.browse_dir.clone().filter(|dir| !dir.is_empty()) {
-                Some(path) if path_key.is_some() => {
-                    close_overlay(ctx);
-                    Effect::SettingPathPick {
-                        key: path_key.unwrap(),
-                        path,
-                    }
+            let path_key = match ctx.journey.bind() {
+                Some(crate::overlay::Bind::Path { key }) => Some(key.clone()),
+                Some(crate::overlay::Bind::Value) | None => None,
+            };
+            let dir = ctx
+                .journey
+                .card()
+                .and_then(|o| o.browse_dir.clone())
+                .filter(|dir| !dir.is_empty());
+            let result = match (dir, path_key) {
+                // A folder picked FOR A CONFIG KEY is a value commit, so it
+                // lands wherever the table sends a value commit — back on the
+                // Settings row you left, or in the document.
+                (Some(path), Some(key)) => {
+                    ctx.journey.accept(
+                        crate::overlay::AcceptDisposition::ValuePick,
+                        ctx.make_overlay,
+                    );
+                    Effect::SettingPathPick { key, path }
                 }
-                Some(path) => {
-                    close_to_buffer(ctx);
+                (Some(path), None) => {
+                    ctx.journey.navigate_away();
                     Effect::OverlayAccept(crate::overlay::OverlayKind::Project, path)
                 }
-                None => {
-                    close_overlay(ctx);
+                (None, _) => {
+                    ctx.journey.cancel(ctx.make_overlay);
                     Effect::None
                 }
             };
@@ -398,7 +408,7 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
 }
 
 fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
-    let ov = ctx.overlay.as_ref().unwrap();
+    let ov = ctx.journey.card().unwrap();
     if ov.kind == crate::overlay::OverlayKind::Command {
         // RUN the highlighted command. The corpus is `commands::visible()`
         // (the platform-filtered view — see `commands.rs`'s "PLATFORM-SCOPED
@@ -521,7 +531,7 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
 
 fn accept_overlay(ctx: &mut ActionCtx) -> Effect {
     {
-        let ov = ctx.overlay.as_ref().unwrap();
+        let ov = ctx.journey.card().unwrap();
         if ov.kind == crate::overlay::OverlayKind::Spell {
             // "Add '<word>' to dictionary" row: SIGNAL the add (the live App
             // silences the word + appends it to the on-disk personal
@@ -560,7 +570,7 @@ fn accept_overlay(ctx: &mut ActionCtx) -> Effect {
         if ov.kind == crate::overlay::OverlayKind::Command
             && let Some(row) = ov.selected_setting_row()
         {
-            return dispatch_settings_row(ctx, row, crate::overlay::OverlayKind::Command, true);
+            return dispatch_settings_row(ctx, row);
         }
     }
     if let Some(effect) = accept_path_overlay(ctx) {
@@ -569,91 +579,19 @@ fn accept_overlay(ctx: &mut ActionCtx) -> Effect {
     accept_value_overlay(ctx)
 }
 
-/// POP the summoned overlay — if it carries a `return_to` BREADCRUMB (opened as a
-/// sub-picker from Settings, or run from the command palette), RE-SUMMON that parent
-/// instead of closing to the buffer. The ONE owner of the breadcrumb POP, so every
-/// Esc/cancel path and every VALUE-PICKING accept honors the breadcrumb identically.
-/// SINGLE-LEVEL: the re-summoned parent (built fresh via `make_overlay`, so its value
-/// cells reflect the change the sub-picker just committed) carries no breadcrumb of
-/// its own, so there is no N-deep stack and no A→B→A loop. A `None` breadcrumb (every
-/// normal top-level summon) closes to the buffer exactly as `*ctx.overlay = None`
-/// always did.
-pub(super) fn close_overlay(ctx: &mut ActionCtx) {
-    let back = ctx.overlay.as_ref().and_then(|o| o.return_to);
-    *ctx.overlay = match back {
-        Some(kind) => (ctx.make_overlay)(kind),
-        None => None,
-    };
-}
-
-/// CLOSE the whole overlay stack to the buffer, IGNORING any `return_to` breadcrumb —
-/// the disposition of a NAVIGATING accept (open a file, jump to a heading, switch the
-/// project, restore a version, move a note, run a command). You asked to go somewhere,
-/// so you land there, never back in the overlay that summoned this one. The
-/// counterpart to [`close_overlay`] (which pops); the two are the pop-vs-close-all
-/// pair the breadcrumb rule turns on.
-pub(super) fn close_to_buffer(ctx: &mut ActionCtx) {
-    *ctx.overlay = None;
-}
-
-/// Dispose of the overlay after an ACCEPT, per the highlighted kind's declared
-/// [`crate::overlay::AcceptDisposition`] — the ONE owner routing every ordinary
-/// accept through the single pop-vs-close-all classification. `Navigate` closes the
-/// whole stack ([`close_to_buffer`]); `ValuePick` pops to the summoning overlay
-/// ([`close_overlay`]) ONLY when that overlay
-/// [retains its value-pick child](crate::overlay::OverlayKind::retains_value_pick_child)
-/// (Settings), else closes to the buffer (a palette-launched or direct value-pick is
-/// complete on commit); `StayOpen` leaves it untouched (the caller keeps the picker
-/// up). A no-op with no overlay. (The `Project` navigator's Settings-PATH override —
-/// pop back to Settings rather than close-all — is handled at that one accept seam,
-/// not here, since it depends on `setting_path_key`, not the kind.)
+/// Dispose of the card after an ACCEPT, per the highlighted kind's declared
+/// [`crate::overlay::AcceptDisposition`] — the one place the accept
+/// classification meets the lifecycle. Where each disposition LANDS is the
+/// table's business, not this function's: `Navigate` ends the journey,
+/// `ValuePick` returns to a parked parent or completes the errand depending on
+/// what that parent was, and `StayOpen` leaves the card up. A no-op with no
+/// card, since the table's editor row is all `Stay` but `Dismiss`.
 pub(super) fn dispose_after_accept(ctx: &mut ActionCtx) {
-    let Some(kind) = ctx.overlay.as_ref().map(|o| o.kind) else {
+    let Some(kind) = ctx.journey.card().map(|o| o.kind) else {
         return;
     };
-    match kind.accept_disposition() {
-        crate::overlay::AcceptDisposition::Navigate => close_to_buffer(ctx),
-        // A VALUE-PICK accept POPS back to the summoning overlay ONLY when that
-        // overlay wants its value-pick child re-summoned on commit — true just for
-        // SETTINGS (keep configuring). A value-pick launched from the COMMAND palette
-        // (a one-shot launcher) or summoned DIRECTLY (no breadcrumb) COMPLETES the
-        // action, so it lands in the buffer rather than re-opening the launcher (which
-        // re-appears on its Recent lens — the reported "Switch theme → recent files
-        // menu" bug). Gated on the stored `return_to` VALUE, never enum position, so a
-        // retired sibling variant can never re-aim this. (Esc still pops back
-        // universally via `close_overlay`; only ACCEPT differs.)
-        crate::overlay::AcceptDisposition::ValuePick => {
-            let pop_back = ctx
-                .overlay
-                .as_ref()
-                .and_then(|o| o.return_to)
-                .is_some_and(|parent| parent.retains_value_pick_child());
-            if pop_back {
-                close_overlay(ctx);
-            } else {
-                close_to_buffer(ctx);
-            }
-        }
-        crate::overlay::AcceptDisposition::StayOpen => {}
-    }
-}
-
-/// Stamp a `return_to` breadcrumb onto an overlay opened by palette re-dispatch.
-/// This lets a later pop return to the palette. Only stamps when an overlay actually
-/// opened AND it carries
-/// no breadcrumb of its own yet (a Settings sub-picker sets its own `return_to =
-/// Settings` in place and must not be overwritten); a terminal command (no overlay)
-/// or a `None` parent is a calm no-op. Shared by both re-dispatch seams so they can't
-/// drift.
-pub(crate) fn stamp_return_to(
-    overlay: &mut Option<OverlayState>,
-    parent: Option<crate::overlay::OverlayKind>,
-) {
-    if let (Some(parent), Some(ov)) = (parent, overlay.as_mut())
-        && ov.return_to.is_none()
-    {
-        ov.return_to = Some(parent);
-    }
+    ctx.journey
+        .accept(kind.accept_disposition(), ctx.make_overlay);
 }
 
 fn range_ctx_value(
@@ -678,14 +616,14 @@ fn range_ctx_set(id: crate::settings::SettingId, ctx: &mut ActionCtx, v: f32) {
     }
 }
 fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
-    let cell = ctx.overlay.as_ref()?.selected_range()?;
+    let cell = ctx.journey.card()?.selected_range()?;
     let spec = crate::settings::range_spec(cell.id)?;
     let key = crate::settings::value_key(cell.id)?;
     let cur = range_ctx_value(cell.id, cell, ctx)?;
     let next = spec.stepped(cur, steps);
     range_ctx_set(cell.id, ctx, next);
-    ctx.overlay
-        .as_mut()?
+    ctx.journey
+        .card_mut()?
         .set_selected_range(spec.step_of(next), spec.format(next));
     Some(Effect::SettingRangeStep {
         key: key.to_string(),
@@ -693,41 +631,32 @@ fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
 }
 
 fn settings_accept(ctx: &mut ActionCtx) -> Effect {
-    let Some(ci) = ctx.overlay.as_ref().unwrap().selected_corpus_index() else {
-        close_overlay(ctx);
+    let Some(ci) = ctx.journey.card().unwrap().selected_corpus_index() else {
+        ctx.journey.cancel(ctx.make_overlay);
         return Effect::None;
     };
     let row = *crate::settings::visible_rows()[ci];
-    dispatch_settings_row(ctx, row, crate::overlay::OverlayKind::Settings, false)
+    dispatch_settings_row(ctx, row)
 }
 
-/// THE UNION ROUND: the SHARED settings-row dispatcher — the ONE owner both
-/// [`settings_accept`] (Enter inside the Settings menu itself) AND the Command
-/// palette's own settings-row accept (see the `OverlayKind::Command` arm below) call,
-/// so the two can never drift (dispatch parity BY CONSTRUCTION, never a second copy).
-/// `breadcrumb` is the overlay a Picker/Submenu/Path row's sub-picker pops back to on
-/// Esc (`Settings` from the Settings menu itself; `Command` from the palette, so
-/// canceling a theme-pick reached via the palette returns to the palette, mirroring
-/// how running "Switch theme…" from the palette itself behaves via `stamp_return_to`).
-/// `close_on_toggle` additionally CLOSES the overlay outright after a Toggle/Action —
-/// `false` for the Settings menu (a persistent surface you keep configuring), `true`
-/// for the palette (its own "activation closes it" convention, matching how running an
-/// ordinary command row closes it).
-fn dispatch_settings_row(
-    ctx: &mut ActionCtx,
-    row: crate::settings::SettingRow,
-    breadcrumb: crate::overlay::OverlayKind,
-    close_on_toggle: bool,
-) -> Effect {
+/// THE SHARED settings-row dispatcher — the ONE owner both [`settings_accept`]
+/// (Enter inside the Settings menu itself) and the Command palette's own
+/// settings-row accept call, so the two can never drift.
+///
+/// It used to take a `breadcrumb` kind and a `close_on_toggle` flag, because
+/// the caller was the only thing that knew whether it was the Settings menu or
+/// the palette. Both are gone: the journey already knows what surface it is
+/// standing on, so a Picker/Submenu/Path row DESCENDS (parking the caller at
+/// its exact row) and a Toggle asks the table, which keeps a workspace open and
+/// completes a launcher's errand.
+fn dispatch_settings_row(ctx: &mut ActionCtx, row: crate::settings::SettingRow) -> Effect {
     match row.kind {
         crate::settings::SettingKind::Toggle => {
             let key = crate::settings::toggle_key(row.id).expect(
                 "Toggle row always resolves its config key — settings law \
                  every_toggle_has_a_config_key_and_nothing_else_does",
             );
-            if close_on_toggle {
-                *ctx.overlay = None;
-            }
+            ctx.journey.toggled(ctx.make_overlay);
             Effect::SettingToggle {
                 key: key.to_string(),
             }
@@ -737,14 +666,13 @@ fn dispatch_settings_row(
                 "Picker/Submenu row always resolves its sub-overlay — settings law \
                  pickers_and_submenus_open_a_sub_overlay_and_nothing_else_does",
             );
-            if let Some(mut next) = (ctx.make_overlay)(target) {
-                next.return_to = Some(breadcrumb);
-                *ctx.overlay = Some(next);
+            if let Some(next) = (ctx.make_overlay)(target) {
+                ctx.journey.descend(next, crate::overlay::Bind::Value);
             }
             Effect::None
         }
         crate::settings::SettingKind::Action => {
-            *ctx.overlay = None;
+            ctx.journey.navigate_away();
             match row.id {
                 crate::settings::SettingId::ReportProblem => Effect::ReportProblem,
                 crate::settings::SettingId::EditConfigAsText => {
@@ -758,8 +686,8 @@ fn dispatch_settings_row(
                 "Value/Range row always resolves its config key — settings law \
                  value_and_path_keys_track_their_kinds",
             );
-            ctx.overlay
-                .as_mut()
+            ctx.journey
+                .card_mut()
                 .unwrap()
                 .start_value_edit(key.to_string(), row.name.to_string());
             Effect::None
@@ -769,10 +697,11 @@ fn dispatch_settings_row(
                 "Path row always resolves its config key — settings law \
                  value_and_path_keys_track_their_kinds",
             );
-            if let Some(mut nav) = (ctx.browse_to)(crate::overlay::OverlayKind::Project, None) {
-                nav.return_to = Some(breadcrumb);
-                nav.setting_path_key = Some(key.to_string());
-                *ctx.overlay = Some(nav);
+            if let Some(nav) = (ctx.browse_to)(crate::overlay::OverlayKind::Project, None) {
+                let bind = crate::overlay::Bind::Path {
+                    key: key.to_string(),
+                };
+                ctx.journey.descend(nav, bind);
             }
             Effect::None
         }
@@ -793,35 +722,6 @@ pub(super) fn browse_parent(dir: Option<&str>) -> Option<Option<String>> {
             Some((parent, _)) => Some(Some(parent.to_string())),
             None => Some(None), // one level deep -> back to root
         },
-    }
-}
-
-/// A folder navigator's Settings BREADCRUMB (`return_to` + `setting_path_key`),
-/// SNAPSHOTTED off the current level so it can be re-applied to a freshly-rebuilt
-/// one AFTER the previous overlay's borrow has ended (the borrow checker forbids
-/// reading `prev` while writing `*ctx.overlay`). A navigator opened FROM a Settings
-/// PATH row must keep writing THAT config key (and return to Settings) even as you
-/// descend / ascend to find the folder — a rebuilt level starts with both fields
-/// `None`, so without carrying them a descend/ascend would silently drop the
-/// breadcrumb. A plain navigator (both already `None`) carries nothing — a no-op.
-/// The ONE owner of this carry-forward: applied at the Project descend (Enter) seam
-/// and the shared ascend (Backspace) seam — the only rebuilds a Settings-opened
-/// navigator can reach (Browse / MoveDest are never opened from a Settings row).
-struct Breadcrumb {
-    return_to: Option<crate::overlay::OverlayKind>,
-    setting_path_key: Option<String>,
-}
-
-impl Breadcrumb {
-    fn of(ov: &OverlayState) -> Self {
-        Self {
-            return_to: ov.return_to,
-            setting_path_key: ov.setting_path_key.clone(),
-        }
-    }
-    fn apply(self, next: &mut OverlayState) {
-        next.return_to = self.return_to;
-        next.setting_path_key = self.setting_path_key;
     }
 }
 

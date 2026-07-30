@@ -1,13 +1,16 @@
-//! src/app/workspace.rs — THE SUMMONED-UI LAYER OWNER (`WorkspaceState`,
-//! queue item 172's first slice; the map is `docs/app-domains.md`).
+//! src/app/workspace/ — THE SUMMONED-UI LAYER OWNER (`WorkspaceState`, queue
+//! item 172's first slice, extended by item 173; map: `docs/app-domains.md`).
 //!
-//! awl summons three surfaces over the editor, and they form a strict
+//! awl summons four surfaces over the editor, and they form a strict
 //! PRECEDENCE LADDER:
 //!
 //! ```text
-//!   Overlay   a modal picker (Cmd-P / go-to / browse / theme / history /
-//!             keybindings / settings / spell) — owns the keyboard and the
-//!             pointer while it is up
+//!   Overlay   a modal picker (Cmd-P / go-to / browse / theme / keybindings /
+//!             spell), or a CHILD AUDITION over a parked workspace — owns the
+//!             keyboard and the pointer while it is up
+//!     ▲
+//!   Workspace a SUSTAINED summoned workspace (Settings, Version History): you
+//!             stay in it and navigate within it
 //!     ▲
 //!   Search    the summoned find/replace panel — owns every key, but not the
 //!             pointer outside its own card
@@ -36,13 +39,19 @@
 //! error is the enforcement, and `app/tests/domains.rs` guards the fields from
 //! being re-added to root `App`.
 //!
-//! Item 173 builds the typed summoned-workspace lifecycle (a fourth rung above
-//! `Overlay`, with suspend/return into child auditions) inside this type. That
-//! is why the ladder is an enum rather than a bool trio: a new rung is a new
-//! `Layer` variant, and every no-wildcard match over `Layer` — here and in the
-//! law test below — fails to compile until it is placed.
+//! Item 173 added the fourth rung. The LIFECYCLE behind it —  which surface is
+//! up, what is parked beneath it, and where every Esc/Back/accept lands — is
+//! [`crate::overlay::Journey`], in the core the live App and the headless
+//! `--keys` replay share; `WorkspaceState` owns the one live instance and asks
+//! it for a single closed fact ([`crate::overlay::Rung`]). The ladder therefore
+//! reads the lifecycle instead of re-deriving it, which is what keeps
+//! "one owner" true across two owners of two different rules.
+//!
+//! The ladder is an enum rather than a bool trio precisely so that adding that
+//! rung was a compile error at every no-wildcard match over `Layer` until it
+//! was placed.
 
-use crate::overlay::OverlayState;
+use crate::overlay::{Journey, OverlayState, Rung};
 use crate::search::SearchState;
 
 /// Which summoned surface currently holds attention. Ordered LOW to HIGH so
@@ -55,6 +64,11 @@ pub(in crate::app) enum Layer {
     Popover,
     /// The find/replace panel is up and consuming every key.
     Search,
+    /// A SUSTAINED summoned workspace is up and owns both keyboard and pointer.
+    /// It sits BELOW `Overlay` because a child audition summoned out of a
+    /// workspace is modal over it — the workspace is parked while the child
+    /// holds attention, and "highest present rung wins" then names the child.
+    Workspace,
     /// A modal picker is up and owns both keyboard and pointer.
     Overlay,
 }
@@ -63,18 +77,24 @@ impl Layer {
     /// Every rung, low to high. Paired with the no-wildcard matches below: a
     /// new rung must be added here to be swept by the ladder law.
     #[cfg(test)]
-    pub(in crate::app) const ROSTER: &'static [Layer] =
-        &[Layer::Editor, Layer::Popover, Layer::Search, Layer::Overlay];
+    pub(in crate::app) const ROSTER: &'static [Layer] = &[
+        Layer::Editor,
+        Layer::Popover,
+        Layer::Search,
+        Layer::Workspace,
+        Layer::Overlay,
+    ];
 }
 
 /// THE SUMMONED-UI LAYER STATE. Fields are private on purpose: every write is
 /// a named transition below, so the ladder cannot be violated by assignment.
 #[derive(Default)]
 pub(in crate::app) struct WorkspaceState {
-    /// The summoned modal picker, or `None`. Content mutation goes through
-    /// [`Self::overlay_mut`]; the slot itself is only ever replaced by the
-    /// shared action core via [`Self::core_slots`].
-    overlay: Option<OverlayState>,
+    /// THE SUMMONED-UI JOURNEY: which card is up, what is parked beneath it,
+    /// and the closed lifecycle that owns every Esc/Back/accept outcome.
+    /// Content mutation goes through [`Self::overlay_mut`]; the journey itself
+    /// is only ever advanced by the shared action core via [`Self::core_slots`].
+    journey: Journey,
     /// The summoned find/replace panel, or `None`.
     search: Option<SearchState>,
     /// The format popover's SUMMON BIT. Not "is the popover visible" — the
@@ -100,37 +120,41 @@ impl WorkspaceState {
     /// four the author happened to imagine.
     pub(in crate::app) fn layer(&self) -> Layer {
         match (
-            self.overlay.is_some(),
+            self.journey.rung(),
             self.search.is_some(),
             self.popover_summoned,
         ) {
-            (true, true, true) => Layer::Overlay,
-            (true, true, false) => Layer::Overlay,
-            (true, false, true) => Layer::Overlay,
-            (true, false, false) => Layer::Overlay,
-            (false, true, true) => Layer::Search,
-            (false, true, false) => Layer::Search,
-            (false, false, true) => Layer::Popover,
-            (false, false, false) => Layer::Editor,
+            (Rung::Modal, true, true) => Layer::Overlay,
+            (Rung::Modal, true, false) => Layer::Overlay,
+            (Rung::Modal, false, true) => Layer::Overlay,
+            (Rung::Modal, false, false) => Layer::Overlay,
+            (Rung::Sustained, true, true) => Layer::Workspace,
+            (Rung::Sustained, true, false) => Layer::Workspace,
+            (Rung::Sustained, false, true) => Layer::Workspace,
+            (Rung::Sustained, false, false) => Layer::Workspace,
+            (Rung::Nothing, true, true) => Layer::Search,
+            (Rung::Nothing, true, false) => Layer::Search,
+            (Rung::Nothing, false, true) => Layer::Popover,
+            (Rung::Nothing, false, false) => Layer::Editor,
         }
     }
 
     /// Is a modal picker up? (The top rung.) Replaces every
-    /// `self.overlay.is_some()`.
+    /// `self.overlay.card().is_some()`.
     pub(in crate::app) fn overlay_open(&self) -> bool {
-        matches!(self.layer(), Layer::Overlay)
+        matches!(self.layer(), Layer::Overlay | Layer::Workspace)
     }
 
     /// Is NO picker up — i.e. does the document (possibly with its format
     /// popover) still own the pointer? Replaces the
-    /// `overlay.is_none() && search.is_none()` conjunction.
+    /// `overlay.card().is_none() && search.is_none()` conjunction.
     pub(in crate::app) fn pickers_clear(&self) -> bool {
         matches!(self.layer(), Layer::Editor | Layer::Popover)
     }
 
     /// Is the format popover the rung holding attention — i.e. summoned AND
     /// unshadowed? Replaces the
-    /// `popover_open && overlay.is_none() && search.is_none()` conjunction.
+    /// `popover_open && overlay.card().is_none() && search.is_none()` conjunction.
     pub(in crate::app) fn popover_holds_attention(&self) -> bool {
         matches!(self.layer(), Layer::Popover)
     }
@@ -165,7 +189,7 @@ impl WorkspaceState {
 
     /// Read the summoned picker's content.
     pub(in crate::app) fn overlay(&self) -> Option<&OverlayState> {
-        self.overlay.as_ref()
+        self.journey.card()
     }
 
     /// Mutate the summoned picker's CONTENT (selection, scroll, notice, query,
@@ -173,7 +197,7 @@ impl WorkspaceState {
     /// module owns only whether a picker is up at all, which is why this hands
     /// out `&mut OverlayState` and never `&mut Option<OverlayState>`.
     pub(in crate::app) fn overlay_mut(&mut self) -> Option<&mut OverlayState> {
-        self.overlay.as_mut()
+        self.journey.card_mut()
     }
 
     /// Dismiss EVERY picker at once, dropping straight to the editor (or to
@@ -182,7 +206,7 @@ impl WorkspaceState {
     /// bar's title press: opening a menu-bar dropdown must clear whatever was
     /// summoned underneath it.
     pub(in crate::app) fn dismiss_pickers(&mut self) {
-        self.overlay = None;
+        self.journey.dismiss();
         self.search = None;
     }
 
@@ -214,10 +238,8 @@ impl WorkspaceState {
     /// mutable borrows of this type, and — unlike the `take()` … `= put_back`
     /// pair this replaced — there is nothing to forget to give back: the slots
     /// are borrowed in place, never moved out.
-    pub(in crate::app) fn core_slots(
-        &mut self,
-    ) -> (&mut Option<SearchState>, &mut Option<OverlayState>) {
-        (&mut self.search, &mut self.overlay)
+    pub(in crate::app) fn core_slots(&mut self) -> (&mut Option<SearchState>, &mut Journey) {
+        (&mut self.search, &mut self.journey)
     }
 
     // ─── POPOVER TRANSITIONS ─────────────────────────────────────────────
@@ -246,173 +268,9 @@ impl WorkspaceState {
     /// answerable with a grep.
     #[cfg(test)]
     pub(in crate::app) fn install_overlay_for_test(&mut self, overlay: OverlayState) {
-        self.overlay = Some(overlay);
+        self.journey.install_for_test(overlay);
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Build a `WorkspaceState` at an arbitrary cell of the three-fact space.
-    /// Constructs the private fields directly — the whole point is to reach
-    /// combinations the public transitions REFUSE to produce, so that the
-    /// ladder is pinned over the entire space rather than over the reachable
-    /// corner of it.
-    fn cell(overlay: bool, search: bool, popover: bool) -> WorkspaceState {
-        WorkspaceState {
-            overlay: overlay.then(|| {
-                OverlayState::new(
-                    crate::overlay::OverlayKind::Goto,
-                    vec!["README.md".to_string()],
-                    vec![],
-                    vec![],
-                )
-            }),
-            search: search.then(|| SearchState::start(0, crate::search::Direction::Forward)),
-            popover_summoned: popover,
-        }
-    }
-
-    /// THE LADDER LAW, swept over ALL EIGHT cells of the (overlay, search,
-    /// popover) space — not the four single-surface cases anyone would think
-    /// to write.
-    ///
-    /// The expectation column is the ladder stated independently of
-    /// `WorkspaceState::layer`'s own match (highest present rung wins), so this
-    /// is a real second opinion rather than the implementation restated.
-    #[test]
-    fn the_summoned_layer_ladder_resolves_every_combination() {
-        let mut seen = std::collections::BTreeSet::new();
-        for overlay in [false, true] {
-            for search in [false, true] {
-                for popover in [false, true] {
-                    // The ladder, independently derived: take the HIGHEST rung
-                    // whose fact is present.
-                    let expect = if overlay {
-                        Layer::Overlay
-                    } else if search {
-                        Layer::Search
-                    } else if popover {
-                        Layer::Popover
-                    } else {
-                        Layer::Editor
-                    };
-                    let ws = cell(overlay, search, popover);
-                    let got = ws.layer();
-                    assert_eq!(
-                        got, expect,
-                        "layer() disagrees with the ladder at \
-                         (overlay={overlay}, search={search}, popover={popover})"
-                    );
-                    seen.insert(got);
-
-                    // Every derived predicate must equal the conjunction it
-                    // replaced, at EVERY cell. These four conjunctions are the
-                    // exact text that used to be re-typed across five files.
-                    assert_eq!(
-                        ws.overlay_open(),
-                        overlay,
-                        "overlay_open must equal `overlay.is_some()` at \
-                         ({overlay}, {search}, {popover})"
-                    );
-                    assert_eq!(
-                        ws.pickers_clear(),
-                        !overlay && !search,
-                        "pickers_clear must equal `overlay.is_none() && search.is_none()` at \
-                         ({overlay}, {search}, {popover})"
-                    );
-                    assert_eq!(
-                        ws.popover_holds_attention(),
-                        popover && !overlay && !search,
-                        "popover_holds_attention must equal the old \
-                         `popover_open && overlay.is_none() && search.is_none()` at \
-                         ({overlay}, {search}, {popover})"
-                    );
-                    assert_eq!(
-                        ws.search_active(),
-                        search,
-                        "search_active must equal `search.is_some()` at \
-                         ({overlay}, {search}, {popover})"
-                    );
-                }
-            }
-        }
-        // Non-vacuity: the sweep must actually have visited every rung. A
-        // ladder law that only ever observed `Editor` would pass every
-        // assertion above and guard nothing.
-        assert_eq!(
-            seen.iter().copied().collect::<Vec<_>>(),
-            Layer::ROSTER.to_vec(),
-            "the sweep must reach every rung of the ladder"
-        );
-    }
-
-    /// The ladder is a total ORDER, and `layer()` always reports the maximum
-    /// present rung. Stated separately from the table above because this is
-    /// the property item 173's fourth rung must preserve: inserting a rung
-    /// between `Overlay` and the editor must not require re-deriving anything.
-    #[test]
-    fn the_ladder_is_ordered_lowest_to_highest() {
-        assert!(Layer::Editor < Layer::Popover);
-        assert!(Layer::Popover < Layer::Search);
-        assert!(Layer::Search < Layer::Overlay);
-        // And the roster is in that same order, so a variant inserted in the
-        // wrong place is caught here rather than silently reordering the ladder.
-        let mut sorted = Layer::ROSTER.to_vec();
-        sorted.sort();
-        assert_eq!(sorted, Layer::ROSTER.to_vec());
-    }
-
-    /// THE SUMMON GATE: the popover bit can never be armed under a picker, no
-    /// matter what the caller claims about eligibility. This is the invariant
-    /// that used to live in the caller (`on_mouse_input`'s release arm spelled
-    /// the ladder out itself) and is now unreachable by assignment.
-    #[test]
-    fn the_popover_cannot_be_summoned_underneath_a_picker() {
-        for overlay in [false, true] {
-            for search in [false, true] {
-                let mut ws = cell(overlay, search, false);
-                ws.summon_popover(true);
-                assert_eq!(
-                    ws.popover_summon_bit(),
-                    !overlay && !search,
-                    "summon_popover(true) armed the bit with (overlay={overlay}, search={search})"
-                );
-                // An ineligible gesture always dismisses, at every cell.
-                ws.summon_popover(false);
-                assert!(!ws.popover_summon_bit());
-            }
-        }
-    }
-
-    /// Dismissing the pickers drops to the editor — or back to a popover that
-    /// was summoned before a picker shadowed it. Pins the pre-item-172
-    /// behavior (the menu-bar title press cleared overlay + search and left
-    /// `popover_open` alone) so a future tidy-up cannot change it silently.
-    #[test]
-    fn dismissing_pickers_reveals_whatever_was_underneath() {
-        let mut ws = cell(true, true, false);
-        ws.dismiss_pickers();
-        assert_eq!(ws.layer(), Layer::Editor);
-
-        let mut ws = cell(true, true, true);
-        ws.dismiss_pickers();
-        assert_eq!(
-            ws.layer(),
-            Layer::Popover,
-            "dismiss_pickers must not touch the popover bit"
-        );
-    }
-
-    /// A buffer swap closes the panel and leaves the picker alone — the two
-    /// call sites (`load_path`, `start_fresh_document`) used to write
-    /// `self.search = None` directly.
-    #[test]
-    fn closing_the_search_panel_leaves_the_picker_alone() {
-        let mut ws = cell(true, true, false);
-        ws.close_search();
-        assert!(!ws.search_active());
-        assert!(ws.overlay_open());
-    }
-}
+mod tests;

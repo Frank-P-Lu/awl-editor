@@ -52,7 +52,7 @@ pub(super) fn browse_level(kind: OverlayKind, rel: Option<String>) -> Option<Ove
 /// Drive a single action through `apply_transition` with a browse_to backed by
 /// `browse_level`, returning the resulting (overlay, accept).
 pub(super) fn drive(
-    overlay: &mut Option<OverlayState>,
+    journey: &mut crate::overlay::Journey,
     accept: &mut Option<(OverlayKind, String)>,
     action: &Action,
 ) {
@@ -82,7 +82,7 @@ pub(super) fn drive(
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -97,7 +97,7 @@ pub(super) fn drive(
 /// Like [`drive`], but also returns the palette's `run_action` out-param so a
 /// test can assert which command Enter dispatched.
 pub(super) fn drive_run(
-    overlay: &mut Option<OverlayState>,
+    journey: &mut crate::overlay::Journey,
     accept: &mut Option<(OverlayKind, String)>,
     action: &Action,
 ) -> Option<Action> {
@@ -124,7 +124,7 @@ pub(super) fn drive_run(
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -143,7 +143,7 @@ pub(super) fn drive_run(
 
 /// Drive one action against a mutable overlay through `apply_transition`, returning the
 /// raw [`Effect`] — for the rebind-menu flow assertions.
-pub(super) fn drive_eff(overlay: &mut Option<OverlayState>, action: &Action) -> Effect {
+pub(super) fn drive_eff(journey: &mut crate::overlay::Journey, action: &Action) -> Effect {
     let mut buffer = Buffer::scratch();
     let mut shift = false;
     let mut zoom = 1.0;
@@ -167,7 +167,7 @@ pub(super) fn drive_eff(overlay: &mut Option<OverlayState>, action: &Action) -> 
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -196,7 +196,7 @@ pub(super) fn settings_overlay() -> OverlayState {
 /// threaded through `ActionCtx`, so a test can assert what a rail step did to the
 /// live value (the same field the live App mirrors back after `apply_transition`).
 pub(super) fn settings_drive_zoom(
-    overlay: &mut Option<OverlayState>,
+    journey: &mut crate::overlay::Journey,
     action: &Action,
     zoom: &mut f32,
 ) -> Effect {
@@ -214,7 +214,7 @@ pub(super) fn settings_drive_zoom(
         zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -224,7 +224,7 @@ pub(super) fn settings_drive_zoom(
 
 /// A make_overlay for the settings interaction tests: re-summons Settings (the
 /// breadcrumb target) and builds the Caret sub-picker; everything else is None.
-pub(super) fn settings_drive(overlay: &mut Option<OverlayState>, action: &Action) -> Effect {
+pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effect {
     let mut buffer = Buffer::scratch();
     let mut shift = false;
     let mut zoom = 1.0;
@@ -255,7 +255,7 @@ pub(super) fn settings_drive(overlay: &mut Option<OverlayState>, action: &Action
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -282,7 +282,7 @@ pub(super) fn drive_format(
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     {
@@ -292,7 +292,7 @@ pub(super) fn drive_format(
             zoom: &mut zoom,
             search: &mut search,
             scroll_page_lines: 1,
-            overlay: &mut overlay,
+            journey: &mut journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
@@ -305,7 +305,7 @@ pub(super) fn drive_format(
 /// Drive one action with a CUSTOM `browse_to` (the project explorer tests use
 /// a real temp-dir tree so absolute-path ascend/descend exercise the FS).
 pub(super) fn drive_bt(
-    overlay: &mut Option<OverlayState>,
+    journey: &mut crate::overlay::Journey,
     accept: &mut Option<(OverlayKind, String)>,
     browse_to: &mut dyn FnMut(OverlayKind, Option<String>) -> Option<OverlayState>,
     action: &Action,
@@ -321,7 +321,7 @@ pub(super) fn drive_bt(
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay,
+        journey,
         make_overlay: &mut make_overlay,
         browse_to,
         oracle: None,
@@ -377,7 +377,7 @@ pub(super) fn drive_newline(buffer: &mut Buffer) {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -386,7 +386,7 @@ pub(super) fn drive_newline(buffer: &mut Buffer) {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -408,7 +408,7 @@ pub(super) fn drive_act(buffer: &mut Buffer, action: &Action) {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -417,7 +417,7 @@ pub(super) fn drive_act(buffer: &mut Buffer, action: &Action) {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -430,7 +430,7 @@ pub(super) fn drive_act(buffer: &mut Buffer, action: &Action) {
 pub(super) fn drive_search(buffer: &mut Buffer, search: &mut Option<SearchState>, action: &Action) {
     let mut shift = false;
     let mut zoom = 1.0;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -439,7 +439,7 @@ pub(super) fn drive_search(buffer: &mut Buffer, search: &mut Option<SearchState>
         zoom: &mut zoom,
         search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -463,7 +463,7 @@ pub(super) fn drive_effect_and_cursor(
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -472,7 +472,7 @@ pub(super) fn drive_effect_and_cursor(
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -623,7 +623,7 @@ pub(super) fn drive_act_effect(buffer: &mut Buffer, action: &Action) -> Effect {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -632,7 +632,7 @@ pub(super) fn drive_act_effect(buffer: &mut Buffer, action: &Action) -> Effect {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -682,7 +682,7 @@ pub(super) fn drive_shift(
 ) -> Effect {
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
     let mut ctx = ActionCtx {
@@ -691,7 +691,7 @@ pub(super) fn drive_shift(
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,

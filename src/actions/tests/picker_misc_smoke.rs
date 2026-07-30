@@ -77,11 +77,12 @@ fn history_picker_enter_emits_restore_id_of_the_highlighted_version() {
         row("2 min ago", "edited \"B\"", "+0 −1", "200"),
         row("1 hr ago", "", "+1 −2", "100"),
     ];
-    let mut overlay = Some(OverlayState::new_history(rows, None, None));
+    let mut overlay =
+        crate::overlay::Journey::seeded(Some(OverlayState::new_history(rows, None, None)));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine); // highlight "2 min ago"
     drive(&mut overlay, &mut accept, &Action::Newline);
-    assert!(overlay.is_none(), "Enter closes the history picker");
+    assert!(overlay.card().is_none(), "Enter closes the history picker");
     assert_eq!(accept, Some((OverlayKind::History, "200".to_string())));
 }
 
@@ -108,11 +109,11 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
         pinned: true,
         ..row("200")
     };
-    let mut overlay = Some(OverlayState::new_history(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_history(
         vec![row("300"), named, row("100")],
         None,
         None,
-    ));
+    )));
     // Highlight the middle row, then TAB (Action::InsertTab) to compare it.
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::NextLine);
@@ -127,7 +128,7 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut overlay,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -135,25 +136,25 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     let eff = apply_transition(&mut ctx, &Action::InsertTab, false).primary();
     assert_eq!(eff, Effect::None, "the focus shift is picker-internal");
     {
-        let ov = ctx.overlay.as_ref().expect("Tab keeps the picker open");
-        assert!(ov.diff_focus, "focus moved INTO the diff panel");
+        let ov = ctx.journey.card().expect("Tab keeps the picker open");
+        assert!(ov.detail_focus, "focus moved INTO the diff panel");
     }
     // Panel focus: ↑/↓ scroll the diff (never the version selection), PgDn pages.
     apply_transition(&mut ctx, &Action::NextLine, false).primary();
     apply_transition(&mut ctx, &Action::NextLine, false).primary();
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().diff_scroll,
+        ctx.journey.card().unwrap().diff_scroll,
         2,
         "arrow-scrolls the diff"
     );
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().selected,
+        ctx.journey.card().unwrap().selected,
         1,
         "the version selection held"
     );
     apply_transition(&mut ctx, &Action::PageScrollDown, false).primary();
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().diff_scroll,
+        ctx.journey.card().unwrap().diff_scroll,
         2 + ctx.scroll_page_lines.max(1),
         "PgDn pages the diff under panel focus"
     );
@@ -161,7 +162,7 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     // the keys) — the query stays empty and the buffer is untouched.
     apply_transition(&mut ctx, &Action::InsertChar('q'), false).primary();
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().query,
+        ctx.journey.card().unwrap().query,
         "",
         "typing swallowed in panel focus"
     );
@@ -169,17 +170,17 @@ fn history_picker_tab_shifts_focus_into_the_diff_panel() {
     // (and the selection move re-tops the diff scroll).
     apply_transition(&mut ctx, &Action::InsertTab, false).primary();
     assert!(
-        !ctx.overlay.as_ref().unwrap().diff_focus,
+        !ctx.journey.card().unwrap().detail_focus,
         "Tab toggles back to the list"
     );
     apply_transition(&mut ctx, &Action::PreviousLine, false).primary();
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().selected,
+        ctx.journey.card().unwrap().selected,
         0,
         "list focus moves versions again"
     );
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().diff_scroll,
+        ctx.journey.card().unwrap().diff_scroll,
         0,
         "a new version tops the diff"
     );
@@ -202,11 +203,11 @@ fn history_picker_pgdn_scrolls_the_diff_from_list_focus_too() {
         pinned: false,
         name: None,
     };
-    let mut overlay = Some(OverlayState::new_history(
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_history(
         vec![row("300"), row("200"), row("100")],
         None,
         None,
-    ));
+    )));
     let mut buffer = Buffer::scratch();
     let (mut shift, mut zoom, mut search) = (false, 1.0f32, None);
     let mut make_overlay = |_k: OverlayKind| None;
@@ -217,24 +218,24 @@ fn history_picker_pgdn_scrolls_the_diff_from_list_focus_too() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 20,
-        overlay: &mut overlay,
+        journey: &mut overlay,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
     };
     apply_transition(&mut ctx, &Action::PageScrollDown, false).primary();
     {
-        let ov = ctx.overlay.as_ref().unwrap();
+        let ov = ctx.journey.card().unwrap();
         assert_eq!(
             ov.diff_scroll, 20,
             "PgDn scrolls the DIFF, list focus or not"
         );
         assert_eq!(ov.selected, 0, "the version selection never paged");
-        assert!(!ov.diff_focus, "list focus retained");
+        assert!(!ov.detail_focus, "list focus retained");
     }
     apply_transition(&mut ctx, &Action::PageScrollUp, false).primary();
     assert_eq!(
-        ctx.overlay.as_ref().unwrap().diff_scroll,
+        ctx.journey.card().unwrap().diff_scroll,
         0,
         "PgUp scrolls back (floored)"
     );
@@ -243,11 +244,12 @@ fn history_picker_pgdn_scrolls_the_diff_from_list_focus_too() {
 #[test]
 fn history_picker_empty_state_enter_is_a_no_op_close() {
     // The "no history yet" row has an empty id: Enter emits NO accept, just closes.
-    let mut overlay = Some(OverlayState::new_history(Vec::new(), None, None));
+    let mut overlay =
+        crate::overlay::Journey::seeded(Some(OverlayState::new_history(Vec::new(), None, None)));
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::Newline);
     assert!(
-        overlay.is_none(),
+        overlay.card().is_none(),
         "Enter closes even the empty-state picker"
     );
     assert_eq!(accept, None, "empty-state row restores nothing");
@@ -775,7 +777,7 @@ fn every_catalog_command_dispatches_without_panicking() {
         let mut shift = false;
         let mut zoom = 1.0;
         let mut search = None;
-        let mut overlay: Option<OverlayState> = None;
+        let mut overlay = crate::overlay::Journey::default();
 
         // Dispatch through the REAL seam in an inner scope so `ctx`'s borrows of
         // `buffer`/`overlay` end before the coherence reads below.
@@ -788,7 +790,7 @@ fn every_catalog_command_dispatches_without_panicking() {
                 zoom: &mut zoom,
                 search: &mut search,
                 scroll_page_lines: 1,
-                overlay: &mut overlay,
+                journey: &mut overlay,
                 make_overlay: &mut make_overlay,
                 browse_to: &mut browse_to,
                 oracle: None,
@@ -818,7 +820,7 @@ fn every_catalog_command_dispatches_without_panicking() {
         match kind {
             // A summon must have opened an overlay this frame.
             SmokeKind::Opener => assert!(
-                overlay.is_some(),
+                overlay.card().is_some(),
                 "{}: an overlay-summoning command left no overlay open",
                 c.name
             ),

@@ -79,10 +79,6 @@ impl OverlayKind {
         }
     }
 
-    pub fn retains_value_pick_child(self) -> bool {
-        matches!(self, OverlayKind::Settings)
-    }
-
     #[allow(dead_code)] // consumed only by overlay::tests's runtime roster sweep today.
     pub fn row_meta_roster(self) -> &'static [super::RowMetaTag] {
         use super::RowMetaTag::*;

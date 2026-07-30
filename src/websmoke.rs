@@ -186,7 +186,7 @@ fn quit_action_is_a_no_op_through_apply_transition_on_real_wasm() {
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_: crate::overlay::OverlayKind| None;
     let mut browse_to = |_: crate::overlay::OverlayKind, _: Option<String>| None;
     let mut ctx = crate::actions::ActionCtx {
@@ -195,7 +195,7 @@ fn quit_action_is_a_no_op_through_apply_transition_on_real_wasm() {
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,
@@ -402,7 +402,7 @@ fn download_file_action_signals_the_effect_through_apply_transition_on_real_wasm
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut overlay = None;
+    let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_: crate::overlay::OverlayKind| None;
     let mut browse_to = |_: crate::overlay::OverlayKind, _: Option<String>| None;
     let mut ctx = crate::actions::ActionCtx {
@@ -411,7 +411,7 @@ fn download_file_action_signals_the_effect_through_apply_transition_on_real_wasm
         zoom: &mut zoom,
         search: &mut search,
         scroll_page_lines: 1,
-        overlay: &mut overlay,
+        journey: &mut journey,
         make_overlay: &mut make_overlay,
         browse_to: &mut browse_to,
         oracle: None,

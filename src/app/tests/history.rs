@@ -236,13 +236,13 @@ fn diff_preview_read_only_law_typing_edits_the_query_never_the_buffer() {
     // Esc from panel focus returns to the LIST; a second Esc closes — two
     // Escs total from panel to home, and the buffer text is back untouched.
     app.apply_transition_for_test(&Action::InsertTab); // focus the panel
-    assert!(app.workspace_state.overlay().unwrap().diff_focus);
+    assert!(app.workspace_state.overlay().unwrap().detail_focus);
     app.apply_transition_for_test(&Action::Cancel);
     assert!(
         app.workspace_state.overlay_open(),
         "first Esc: back to LIST focus, not home"
     );
-    assert!(!app.workspace_state.overlay().unwrap().diff_focus);
+    assert!(!app.workspace_state.overlay().unwrap().detail_focus);
     app.apply_transition_for_test(&Action::Cancel);
     assert!(
         !app.workspace_state.overlay_open(),

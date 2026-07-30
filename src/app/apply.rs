@@ -317,11 +317,8 @@ impl App {
                     // the outer SyncView + Redraw requests.
                     crate::commands::record_recent(&act);
                     nested_quit |= self.apply(act, shift, event_loop, crate::stats::Door::Palette);
-                    let (_, overlay_slot) = self.workspace_state.core_slots();
-                    actions::stamp_return_to(
-                        overlay_slot,
-                        Some(crate::overlay::OverlayKind::Command),
-                    );
+                    let (_, journey) = self.workspace_state.core_slots();
+                    journey.attribute_launch(Some(crate::overlay::OverlayKind::Command));
                 }
                 actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage) => {
                     let continuation = match self.paste_image_reference() {
@@ -616,14 +613,14 @@ impl App {
             .gpu
             .as_ref()
             .map(|g| &g.pipeline as &dyn actions::LayoutOracle);
-        let (search, overlay) = self.workspace_state.core_slots();
+        let (search, journey) = self.workspace_state.core_slots();
         let mut ctx = actions::ActionCtx {
             buffer: &mut self.active.buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
             search,
             scroll_page_lines: page_scroll_lines,
-            overlay,
+            journey,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle,
