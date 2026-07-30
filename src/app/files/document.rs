@@ -31,7 +31,7 @@ impl App {
         // placeholder — start the fresh document in place on that
         // already-complete slot, targeting the ACTIVE folder.
         self.active.buffer.start_fresh_doc(self.root.clone());
-        self.search = None;
+        self.workspace_state.close_search();
         self.preedit.clear();
         self.active.extra.caret_synced_version = self.active.buffer.version();
         self.autosave_saved_version = None;

@@ -41,7 +41,10 @@ impl App {
     }
 
     pub(in crate::app) fn setting_range_step(&mut self, key: &str) {
-        if let Some(cell) = self.overlay.as_ref().and_then(|o| o.selected_range())
+        if let Some(cell) = self
+            .workspace_state
+            .overlay()
+            .and_then(|o| o.selected_range())
             && crate::settings::value_key(cell.id) == Some(key)
         {
             let spec = crate::settings::range_spec(cell.id).unwrap();

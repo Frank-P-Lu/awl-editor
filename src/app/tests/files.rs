@@ -1534,7 +1534,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     app.zoom = spec.default;
     let (ov, zi) = settings_overlay_with_rail(&app);
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
 
     // Arm the scrub exactly as a rail press does (the press-time track scale is
     // snapshotted; here it is supplied directly, since the hit-test needs a GPU).
@@ -1564,7 +1564,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         );
         applied.push(app.zoom);
         // …and the row's own readout + thumb track it in the same move.
-        let ov = app.overlay.as_ref().unwrap();
+        let ov = app.workspace_state.overlay().unwrap();
         assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
         assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
         // …while NOTHING is written to disk mid-gesture.
@@ -1639,7 +1639,7 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     app.zoom = spec.default;
     let (ov, zi) = settings_overlay_with_rail(&app);
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
     let (x0, x1) = (100.0f32, 300.0f32);
     app.range_drag = Some(crate::app::input::RangeDrag {
         id: crate::settings::SettingId::Zoom,
@@ -1764,7 +1764,7 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     let mut app = app_on(None, "/proj", cfg);
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     let (ov, zi) = settings_overlay_with_rail(&app);
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
 
     // The core already stepped the value (see the `actions` half of this pair);
     // the App owns the live tail. Drive the EXACT door `Effect::SettingRangeStep`
@@ -1784,7 +1784,7 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     );
     // The still-open menu was refreshed from the LIVE values through the one
     // owner, so its cell and its thumb both show the stepped value.
-    let ov = app.overlay.as_ref().unwrap();
+    let ov = app.workspace_state.overlay().unwrap();
     assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
     assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
 }

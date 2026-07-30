@@ -187,10 +187,11 @@ fn trash_asset_moves_the_file_and_removes_the_row_via_the_fake_seam() {
             .unwrap_or_default(),
         size: Some(42),
     };
-    app.overlay = Some(crate::overlay::OverlayState::new_assets(vec![
-        mk("assets/keep.png"),
-        mk("assets/drop.png"),
-    ]));
+    app.workspace_state
+        .install_overlay_for_test(crate::overlay::OverlayState::new_assets(vec![
+            mk("assets/keep.png"),
+            mk("assets/drop.png"),
+        ]));
 
     let fake = Arc::new(crate::assets::FakeTrash::default());
     let recorder = fake.clone();
@@ -205,8 +206,8 @@ fn trash_asset_moves_the_file_and_removes_the_row_via_the_fake_seam() {
     );
     // The picker STAYS OPEN and the trashed row LEAVES the list.
     let ov = app
-        .overlay
-        .as_ref()
+        .workspace_state
+        .overlay()
         .expect("picker stays open after a trash");
     assert_eq!(ov.item_strings(), vec!["keep.png"]);
     assert!(
@@ -227,18 +228,19 @@ fn trash_asset_failure_keeps_the_row_and_notes_the_error() {
         }
     }
     let mut app = App::new_hermetic(None, PathBuf::from("/proj"), Config::empty());
-    app.overlay = Some(crate::overlay::OverlayState::new_assets(vec![
-        crate::assets::Orphan {
-            rel: "assets/x.png".into(),
-            name: "x.png".into(),
-            parent: "assets".into(),
-            size: Some(1),
-        },
-    ]));
+    app.workspace_state
+        .install_overlay_for_test(crate::overlay::OverlayState::new_assets(vec![
+            crate::assets::Orphan {
+                rel: "assets/x.png".into(),
+                name: "x.png".into(),
+                parent: "assets".into(),
+                size: Some(1),
+            },
+        ]));
     crate::assets::with_trash(Arc::new(FailTrash), || {
         app.trash_asset("assets/x.png".to_string());
     });
-    let ov = app.overlay.as_ref().unwrap();
+    let ov = app.workspace_state.overlay().unwrap();
     assert_eq!(
         ov.item_strings(),
         vec!["x.png"],

@@ -197,7 +197,7 @@ impl App {
             self.zoom,
             crate::dateformat::today_from_system_clock(),
         );
-        if let Some(ov) = self.overlay.as_mut()
+        if let Some(ov) = self.workspace_state.overlay_mut()
             && ov.kind == crate::overlay::OverlayKind::Settings
         {
             ov.set_secondaries(crate::settings::visible_value_cells(&values));
@@ -211,7 +211,7 @@ impl App {
     /// one active-folder-context owner + recent-MRU, the ONE `switch_project`
     /// owner — item 76 retired the separate `project_root` config key it used to
     /// write); for `default_folder`/`workspace` we persist the key then
-    /// `reload_config`, which re-folds `self.default_folder`/`self.workspace`
+    /// `reload_config`, which re-folds `self.default_folder`/`self.workspace_root`
     /// (flag > config > default) so the NEXT first-run launch / `C-x p` uses the
     /// new folder. Either way the still-open (re-summoned) menu's cell is
     /// refreshed.
@@ -361,7 +361,7 @@ impl App {
                 .or_else(|| cfg.default_folder.clone()),
         );
         let workspace_opt = self.cli_workspace.clone().or_else(|| cfg.workspace.clone());
-        self.workspace = Some(crate::resolve_workspace(&workspace_opt, &self.root));
+        self.workspace_root = Some(crate::resolve_workspace(&workspace_opt, &self.root));
         // CACHE-KEY DISCIPLINE with `Config::apply_sticky_globals`: an ABSENT
         // key must leave the global AS-IS (the built-in default already
         // carries it), never force it back to ON. The old `unwrap_or(true)`

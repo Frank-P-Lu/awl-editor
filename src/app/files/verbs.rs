@@ -245,13 +245,13 @@ impl App {
         let abs = self.root.join(&rel);
         match crate::assets::active_trash().trash(&abs) {
             Ok(()) => {
-                if let Some(ov) = self.overlay.as_mut() {
+                if let Some(ov) = self.workspace_state.overlay_mut() {
                     ov.remove_asset_row(&rel);
                     ov.notice.clear();
                 }
             }
             Err(msg) => {
-                if let Some(ov) = self.overlay.as_mut() {
+                if let Some(ov) = self.workspace_state.overlay_mut() {
                     ov.notice = format!("couldn't move to Trash: {msg}");
                 }
             }

@@ -71,12 +71,16 @@ impl App {
         };
         // Select the row the rail belongs to (a rail press is also a selection —
         // the same row Enter would then act on).
-        if let Some(ov) = self.overlay.as_mut()
+        if let Some(ov) = self.workspace_state.overlay_mut()
             && item < ov.items.len()
         {
             ov.selected = item;
         }
-        let Some(cell) = self.overlay.as_ref().and_then(|ov| ov.range_of_item(item)) else {
+        let Some(cell) = self
+            .workspace_state
+            .overlay()
+            .and_then(|ov| ov.range_of_item(item))
+        else {
             return false;
         };
         // The track's own px ends, snapshotted for the whole gesture (see the
@@ -122,7 +126,7 @@ impl App {
         let value = spec.value_at_frac(frac);
         self.range_apply_live(drag.id, value);
         let (step, readout) = (spec.step_of(value), spec.format(value));
-        if let Some(ov) = self.overlay.as_mut() {
+        if let Some(ov) = self.workspace_state.overlay_mut() {
             // The scrubbed row STAYS the selected row for the whole gesture (the
             // drag owns the pointer, so no hover can steal the highlight
             // mid-scrub) — re-pinned from the press-time snapshot, never

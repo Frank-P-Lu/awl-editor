@@ -357,6 +357,9 @@ mod schedule;
 mod startup;
 mod viewstate;
 mod window;
+/// The SUMMONED-UI LAYER owner (item 172): the overlay/search/popover
+/// precedence ladder, behind one type with private fields.
+mod workspace;
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) use schedule::RecordingScheduler;
 mod apply;
@@ -380,6 +383,14 @@ pub struct App {
     /// — no accessor method (a whole-self borrow would reintroduce the exact
     /// friction this slot design avoids).
     active: crate::buffers::Entry<files::BufferExtra>,
+    /// THE SUMMONED-UI LAYER (item 172's first owner — `app/workspace.rs`):
+    /// the modal picker, the find/replace panel, and the format popover's
+    /// summon bit, with their PRECEDENCE LADDER. The three former `App`
+    /// fields (`overlay`/`search`/`popover_open`) are private to that module
+    /// now, so the ladder cannot be re-derived by a consumer — it used to be
+    /// the same conjunction hand-written across five files. Item 173 grows the
+    /// typed summoned-workspace lifecycle inside this type.
+    workspace_state: workspace::WorkspaceState,
     keymap: KeymapState,
     mods: Modifiers,
     prefix_pending_at: Option<Instant>,
@@ -486,18 +497,6 @@ pub struct App {
     scroll_px_accum: f32,
     preedit: String,
     ime_enabled: bool,
-    search: Option<crate::search::SearchState>,
-    /// THE FORMAT POPOVER (`crate::popover`): `true` while the reveal-on-select
-    /// format toolbar is summoned. Set ONLY by a MOUSE selection gesture (a
-    /// drag-release with a non-empty selection / a double-click word-select) in a
-    /// markdown buffer — a KEYBOARD selection never summons it (the spec's
-    /// mouse-only rule). Cleared when the selection collapses, on Esc / a keyboard
-    /// selection extend / a click off its buttons / a buffer swap / a caret move
-    /// with no selection. The render MODEL (which buttons lit, the `H` level) is
-    /// recomputed each `sync_view` from the live selection (`actions::popover::plan`),
-    /// so it stays open + reflective across format applies. LIVE-ONLY: the headless
-    /// capture force-summons via the `AWL_POPOVER` probe instead of this flag.
-    popover_open: bool,
     /// The spell-check engine (bundled en_US Hunspell), loaded ONCE at startup.
     /// `None` if the dictionary failed to parse (reported to stderr); spell-check
     /// then no-ops rather than crashing the editor. App-GLOBAL (not buffer-scoped
@@ -520,7 +519,11 @@ pub struct App {
     root: PathBuf,
     project: crate::project::Project,
     file_index: Vec<String>,
-    workspace: Option<PathBuf>,
+    /// The WORKSPACE folder — the parent directory `Switch project…` browses.
+    /// Renamed from `workspace` by item 172 so it can never be misread for
+    /// `workspace_state` (the summoned-UI owner above); it is the
+    /// `ProjectLocation` domain, a different thing entirely.
+    workspace_root: Option<PathBuf>,
     recent_projects: Vec<PathBuf>,
     /// The persisted RECENTLY-OPENED FILES MRU (ABSOLUTE paths, most-recent FIRST,
     /// capped + deduped — see [`crate::recent_files`]). Loaded once at launch,
@@ -531,7 +534,6 @@ pub struct App {
     /// never constructs an `App`, so it never reads or writes this store.
     recent_files: Vec<PathBuf>,
     prev_file: Option<PathBuf>,
-    overlay: Option<crate::overlay::OverlayState>,
     /// The DEFAULT FOLDER: the fallback active folder used ONLY when a launch has
     /// nothing else to go on — no explicit `--root`/file/dir argument AND no
     /// remembered active-folder context (first run, or session restore off).
@@ -900,7 +902,7 @@ impl App {
                 .or_else(|| config.default_folder.clone()),
         );
         let workspace_opt = cli_workspace.clone().or_else(|| config.workspace.clone());
-        let workspace = Some(crate::resolve_workspace(&workspace_opt, &root));
+        let workspace_root = Some(crate::resolve_workspace(&workspace_opt, &root));
         // Load the persisted RECENT PROJECT ROOTS (the Recent Projects picker's
         // MRU). Through the `FileSystem` seam, so it degrades to an empty list on a
         // fresh install (missing file) and works on wasm (WebFs) too. Only ever
@@ -943,6 +945,7 @@ impl App {
         };
         let mut app = Self {
             active,
+            workspace_state: workspace::WorkspaceState::default(),
             keymap,
             clock,
             mods: Modifiers::default(),
@@ -995,8 +998,6 @@ impl App {
             scroll_px_accum: 0.0,
             preedit: String::new(),
             ime_enabled: false,
-            search: None,
-            popover_open: false,
             spell: match crate::spell::SpellChecker::new(crate::spell::active_variant()) {
                 Ok(sc) => Some(sc),
                 Err(e) => {
@@ -1019,11 +1020,10 @@ impl App {
             root,
             project,
             file_index,
-            workspace,
+            workspace_root,
             recent_projects,
             recent_files,
             prev_file: None,
-            overlay: None,
             default_folder,
             autosave_dirty_at: None,
             autosave_saved_version: None,
@@ -1407,7 +1407,7 @@ impl App {
                     };
                     let _ = self.apply(action, false, event_loop, crate::stats::Door::Chord);
                     if !open
-                        && self.overlay.is_none()
+                        && !self.workspace_state.overlay_open()
                         && let Some(s) = self.soak.as_mut()
                     {
                         s.observe_overlay_cycle();

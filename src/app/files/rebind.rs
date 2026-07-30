@@ -69,7 +69,7 @@ impl App {
             && let Some(other) =
                 crate::commands::binding_conflict(&binding, &slug, &self.config.keys)
         {
-            if let Some(ov) = self.overlay.as_mut() {
+            if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.capture_into_confirm(other.to_string());
                 ov.notice = format!("'{binding}' already bound to {other}");
             }
@@ -114,7 +114,7 @@ impl App {
     pub(in crate::app) fn refresh_rebind_overlay(&mut self, notice: String) {
         let keys = self.config.keys.clone();
         let keep = self.config.effective_linux_keep();
-        if let Some(ov) = self.overlay.as_mut()
+        if let Some(ov) = self.workspace_state.overlay_mut()
             && ov.kind == crate::overlay::OverlayKind::Keybindings
         {
             ov.capture = None;
@@ -127,8 +127,8 @@ impl App {
     /// routes the next press into the capture (a chord-level interception) rather than
     /// through the keymap. Enter / Esc are excluded by the caller (they finish / abort).
     pub(in crate::app) fn capture_recording(&self) -> bool {
-        self.overlay
-            .as_ref()
+        self.workspace_state
+            .overlay()
             .map(|o| {
                 o.kind == crate::overlay::OverlayKind::Keybindings
                     && matches!(

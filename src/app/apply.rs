@@ -18,14 +18,15 @@ struct CoreBefore {
 }
 
 impl CoreBefore {
-    fn of(overlay: &Option<crate::overlay::OverlayState>) -> Self {
+    /// Takes `Option<&OverlayState>` — the shape `WorkspaceState::overlay`
+    /// hands out (item 172), so the summoned-layer owner never has to lend the
+    /// whole slot just to be asked which picker is up.
+    fn of(overlay: Option<&crate::overlay::OverlayState>) -> Self {
         Self {
             theme_overlay_before: overlay
-                .as_ref()
                 .is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
             theme_before: crate::theme::active(),
             history_overlay_before: overlay
-                .as_ref()
                 .is_some_and(|o| o.kind == crate::overlay::OverlayKind::History),
         }
     }
@@ -311,8 +312,9 @@ impl App {
                     // the outer SyncView + Redraw requests.
                     crate::commands::record_recent(&act);
                     nested_quit |= self.apply(act, shift, event_loop, crate::stats::Door::Palette);
+                    let (_, overlay_slot) = self.workspace_state.core_slots();
                     actions::stamp_return_to(
-                        &mut self.overlay,
+                        overlay_slot,
                         Some(crate::overlay::OverlayKind::Command),
                     );
                 }
@@ -332,13 +334,13 @@ impl App {
         });
         if !history_overlay_before
             && self
-                .overlay
-                .as_ref()
+                .workspace_state
+                .overlay()
                 .is_some_and(|o| o.kind == crate::overlay::OverlayKind::History)
         {
             self.active.extra.history_scroll_before = Some(self.active.extra.scroll);
         }
-        if history_overlay_before && self.overlay.is_none() {
+        if history_overlay_before && !self.workspace_state.overlay_open() {
             self.history_overlay_closed(history_accepted);
         }
         self.post_transition_effects(theme_overlay_before, theme_committed, theme_before);
@@ -519,14 +521,18 @@ impl App {
         let page_scroll_lines = self.page_scroll_rows();
         let mut shift_selecting = self.active.extra.shift_selecting;
         let mut zoom = self.zoom;
-        let mut search = self.search.take();
-        let mut overlay = self.overlay.take();
-        let overlay_was_open = overlay.is_some();
+        // THE SUMMONED-LAYER SLOTS, borrowed IN PLACE from their owner for the
+        // one `apply_transition` run (item 172): the shared action core is the
+        // only thing allowed to open or close a picker/panel, because opening
+        // one is an `Action` outcome the headless `--keys` replay must reach
+        // through the identical code. This replaced a `take()` … `= put_back`
+        // pair whose halves were 120 lines apart.
+        let overlay_was_open = self.workspace_state.overlay_open();
         let CoreBefore {
             theme_overlay_before,
             theme_before,
             history_overlay_before,
-        } = CoreBefore::of(&overlay);
+        } = CoreBefore::of(self.workspace_state.overlay());
         /* // Whether the Theme picker is open BEFORE the core runs: live preview
         // (move / filter) mutates the process-global active theme while it stays
         // open, so the GPU pipelines must be re-tinted even with no accept.
@@ -604,7 +610,7 @@ impl App {
         // workspace by absolute path. Cloned roots dodge the &mut self.active.buffer
         // borrow.
         let browse_root = self.root.clone();
-        let workspace = self.workspace.clone();
+        let workspace = self.workspace_root.clone();
         let recent_projects: Vec<String> = self
             .recent_projects
             .iter()
@@ -628,13 +634,14 @@ impl App {
             .gpu
             .as_ref()
             .map(|g| &g.pipeline as &dyn actions::LayoutOracle);
+        let (search, overlay) = self.workspace_state.core_slots();
         let mut ctx = actions::ActionCtx {
             buffer: &mut self.active.buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
-            search: &mut search,
+            search,
             scroll_page_lines: page_scroll_lines,
-            overlay: &mut overlay,
+            overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle,
@@ -642,10 +649,8 @@ impl App {
         let transition = actions::apply_transition(&mut ctx, action, shift);
         self.active.extra.shift_selecting = shift_selecting;
         self.zoom = zoom;
-        self.search = search;
         let _ = make_overlay;
         let _ = browse_to;
-        self.overlay = overlay;
         self.sync_overlay_after_core(overlay_was_open);
         CoreRun {
             transition,
@@ -667,10 +672,10 @@ impl App {
         // `hover_at` always treats as real motion on a `None` baseline — would
         // then silently steal the keyboard's selection out from under a
         // motionless hand. See `OverlayState::arm_hover_baseline`'s doc.
-        if let Some(ov) = self.overlay.as_mut() {
+        if let Some(ov) = self.workspace_state.overlay_mut() {
             ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
         }
-        if self.overlay.is_some() != overlay_was_open {
+        if self.workspace_state.overlay_open() != overlay_was_open {
             self.sync_cursor_icon();
         }
     }
@@ -1022,7 +1027,7 @@ impl App {
         // selection settles (`retint_theme_preview`); a COMMIT/REVERT applies the
         // full switch synchronously and cancels any pending deferral, so Esc can
         // never leave a stray reshape to land after the picker closed.
-        if theme_committed || (theme_overlay_before && self.overlay.is_none()) {
+        if theme_committed || (theme_overlay_before && !self.workspace_state.overlay_open()) {
             self.retint_theme_now();
         } else if theme_overlay_before {
             self.retint_theme_preview(theme_before);

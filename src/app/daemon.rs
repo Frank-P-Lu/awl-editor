@@ -115,25 +115,21 @@ mod tests {
     fn drive_finish_buffer(app: &mut App) -> actions::Transition {
         let mut shift_selecting = false;
         let mut zoom = app.zoom;
-        let mut search = app.search.take();
-        let mut overlay = app.overlay.take();
         let mut make_overlay = |_: crate::overlay::OverlayKind| None;
         let mut browse_to = |_: crate::overlay::OverlayKind, _: Option<String>| None;
+        let (search, overlay) = app.workspace_state.core_slots();
         let mut ctx = actions::ActionCtx {
             buffer: &mut app.active.buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
-            search: &mut search,
+            search,
             scroll_page_lines: 20,
-            overlay: &mut overlay,
+            overlay,
             make_overlay: &mut make_overlay,
             browse_to: &mut browse_to,
             oracle: None,
         };
-        let transition = actions::apply_transition(&mut ctx, &Action::FinishBuffer, false);
-        app.search = search;
-        app.overlay = overlay;
-        transition
+        actions::apply_transition(&mut ctx, &Action::FinishBuffer, false)
     }
 
     #[test]
