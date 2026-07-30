@@ -428,7 +428,7 @@ impl TextPipeline {
         }
         self.shape_overlay_right(geom, ink, muted, vis, &bind_strs);
 
-        let name_px = self.widest_candidate_px(geom);
+        let name_px = self.widest_candidate_px(geom, plan);
         let right_px = self.widest_right_px();
         let gap_px = rowlayout::GAP_CHARS as f32 * char_w;
         if rowlayout::fits(slant_text_w, gap_px, name_px, right_px) {
@@ -462,7 +462,7 @@ impl TextPipeline {
         for run in self.panel_buffer.layout_runs() {
             left = left.max(run.line_w);
         }
-        let primary = self.widest_candidate_px(&geom) + self.overlay_char_width();
+        let primary = self.widest_candidate_px(&geom, &plan) + self.overlay_char_width();
         let secondary = if has_right {
             self.widest_right_px()
         } else {
@@ -534,7 +534,7 @@ impl TextPipeline {
         // YIELDS (whole column dropped, `false`) rather than ever painting
         // toward a name — the primary stays exactly as already shaped (it never
         // budgeted FOR a secondary, so it needs no re-shape on yield).
-        let name_px = self.widest_candidate_px(geom);
+        let name_px = self.widest_candidate_px(geom, plan);
         let right_px = self.widest_right_px();
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
@@ -761,9 +761,9 @@ impl TextPipeline {
             .shape_until_scroll(&mut self.font_system, false);
     }
 
-    fn widest_candidate_px(&self, geom: &OverlayGeom) -> f32 {
+    fn widest_candidate_px(&self, geom: &OverlayGeom, plan: &OverlayRowPlan) -> f32 {
         let first = geom.header_rows;
-        let last = first + self.overlay_row_plan(geom).candidate_rows();
+        let last = first + plan.candidate_rows();
         let mut w = 0.0f32;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i >= first && run.line_i < last {

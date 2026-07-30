@@ -459,10 +459,11 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
     let plans = cx.p.overlay_plans.get() - plans_before;
     let planned_rows = cx.p.overlay_planned_rows.get() - planned_rows_before;
     ensure!(
-        plans >= SAMPLES as u64,
-        "the scene planner must run at least once per timed palette frame \
-         ({plans} plans over {SAMPLES} samples) — a bench that measures an overlay \
-         while nothing plans is measuring nothing"
+        plans == SAMPLES as u64,
+        "the scene planner must run EXACTLY once per timed palette frame ({plans} plans \
+         over {SAMPLES} samples). Zero means the bench is measuring an overlay while \
+         nothing plans; more than one means a consumer started building its own plan \
+         instead of reading the frame's"
     );
     let window_rows = cx.view.overlay_window_rows.max(1) as u64;
     let mean_rows = planned_rows / plans.max(1);
@@ -487,6 +488,7 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
             ("items", items_len),
             ("row_instances", instances),
             ("pixels_changed", changed),
+            ("plans_per_frame", plans / SAMPLES as u64),
             ("plan_rows_per_plan", mean_rows),
         ],
     })
