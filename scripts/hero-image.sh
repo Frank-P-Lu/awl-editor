@@ -6,7 +6,7 @@
 #
 # It renders `scripts/hero-specimen.md` — the product's own thesis sentence
 # (PHILOSOPHY.md's opening line, minus the blockquote marker) under its own
-# "# awl" wordmark — through THREE candidate worlds, each a genuinely different
+# "# awl" wordmark — through FOUR candidate worlds, each a genuinely different
 # taste answer (see the queue-item report for the argument):
 #
 #   Saltpan  — the app's actual DEFAULT world (`theme::DEFAULT_THEME`): the
@@ -16,9 +16,53 @@
 #              ember caret, the boldest/most "intriguing" answer.
 #   Wagtail  — the true 1-bit world: maximum contrast, structurally immune to
 #              getting muddy under heavy downscale/crop.
+#   Bombora  — the roster's own "dark hero" reference (`site/style.css`'s
+#              "dark is the default room (the Bombora hero is dark)" comment):
+#              wave-tier ground, book serif, a genuine fourth contender, not a
+#              substitute for the three the user named.
+#
+# item 157 ROUND 2 (this pass) fixed a real defect the first round shipped:
+# the image was an EDITOR SCREENSHOT, not a composed image — CAPTURE.md's own
+# page-mode chrome leaked into a "marketing" asset. Two leaks, one composition
+# fix, all from REAL product settings (never a hand-picked filename or a
+# pixel hack):
+#
+#   1. The bottom-left ORIENTATION GUTTER (render/chrome/gutter.rs) drew the
+#      fixture's own filename ("hero-specimen.md") over its directory
+#      ("scripts") — a scratch file's name has no business in a public asset.
+#      `Buffer::display_name()` never actually returns an empty string
+#      (verified, not assumed — CAPTURE.md's "an unnamed buffer" hint doesn't
+#      hold up over the real CLI path), so the honest lever is the SAME hard
+#      floor the gutter and the persistent OUTLINE share on purpose
+#      (`GUTTER_MIN_NAME_CHARS`/`OUTLINE_MIN_CHARS`, `render/rowlayout.rs`):
+#      below it, the margin is too narrow to bother, and the whole gutter
+#      hides rather than draw a stub. Widening the writing column (MEASURE)
+#      shrinks the margin below that floor — see the mutation-proof
+#      calibration in `scripts/hero-verify.py --calibrate`.
+#   2. A small second "awl" sat top-of-margin, next to the column — the
+#      persistent margin OUTLINE (`src/outline.rs`, DEFAULT ON), echoing the
+#      specimen's own "# awl" H1 as a nav label. Orientation chrome for
+#      finding your place in a document has no job in a one-screen marketing
+#      image, so it's turned off through its own real, documented config
+#      sticky-pref (`outline = false`, `$HERO_CONFIG` below) — never a
+#      rendering hack. Turning it off has a second, free effect: the
+#      persistent-outline RAIL PUSH (`render/geometry.rs`'s
+#      `adaptive_column_left`) stops shifting the column off-centre to grant
+#      the outline its own rail, so the page recentres for free.
+#   3. Composition: the previous MEASURE/ZOOM (40/1.5) left the column
+#      off-centre with dead space and a wordmark too small to read at real
+#      unfurl sizes (the first round's own arithmetic found Saltpan's body
+#      text at 2.7:1 under heavy downscale — below WCAG AA). MEASURE 61 /
+#      ZOOM 1.9 is the smallest column width (searched empirically across all
+#      four worlds' own fonts, not just Saltpan's) that both clears the
+#      gutter/outline hide floor above AND leaves >=50px of vertical breathing
+#      room under the widest wrap (the monospace worlds wrap the sentence one
+#      line longer than the serif ones at the same measure) — see
+#      `scripts/hero-verify.py`'s legibility report for the resulting numbers,
+#      re-run every invocation, honestly, including where it's still weak.
 #
 # Usage:
-#   scripts/hero-image.sh                  # release build, render all 3 + comparison sheet
+#   scripts/hero-image.sh                  # release build, render all 4 + comparison sheet
 #   scripts/hero-image.sh --debug          # same, using the debug build
 #   scripts/hero-image.sh --install World  # ALSO copy that one world's render to
 #                                           # site/img/social.png (the wired asset) —
@@ -29,7 +73,7 @@
 #   gallery/hero/comparison.png + .json            — labeled side-by-side sheet,
 #                                                      itself an awl capture of
 #                                                      a small markdown doc
-#                                                      embedding the three PNGs
+#                                                      embedding the four PNGs
 #                                                      (same technique as
 #                                                      capture-worlds.sh's
 #                                                      contact sheets — no new
@@ -92,30 +136,40 @@ CAND_DIR="$RUN_DIR/candidates"
 rm -rf "$RUN_DIR"
 mkdir -p "$CAND_DIR"
 
-# Pure built-in defaults regardless of the operator's own config (CAPTURE.md).
-NO_CONFIG="$RUN_DIR/.unseeded-config.toml"
+# Pure built-in defaults regardless of the operator's own config (CAPTURE.md),
+# EXCEPT the one deliberate override this item needs: the persistent margin
+# OUTLINE off, through its own real sticky-pref config key (`src/outline.rs`,
+# `Config::apply_sticky_globals`) — never a rendering hack. This is what
+# removes the leaked second "awl" label AND recentres the column (the
+# outline's own rail-push in `adaptive_column_left` stops firing once it's
+# off) for free.
+HERO_CONFIG="$RUN_DIR/.hero-config.toml"
+printf 'outline = false\n' > "$HERO_CONFIG"
 
-# The OG-canonical aspect ratio (1200x630, ~1.905:1 — "roughly 1.91:1"), at a
-# narrow measure so the world's own ground pattern shows generously on both
-# sides (the roster's most distinctive asset, per DESIGN.md/THEMES.md), and a
-# zoom that makes the wordmark + one sentence + caret read at real size rather
-# than swimming in the 630px-tall frame. The caret parks at buffer end
-# (`s-Down`, the same convention capture-worlds.sh uses for its Room shot) so
-# the "# awl" heading line is off-caret and renders fully WYSIWYG-styled, not
-# raw markdown.
+# The OG-canonical aspect ratio (1200x630, ~1.905:1 — "roughly 1.91:1").
+# MEASURE 61 / ZOOM 1.9 replaced the first round's 40/1.5 (item 157 round 2 —
+# see the header comment for the full argument): it's the narrowest column
+# that (a) shrinks the margin below the gutter/outline's shared hide floor on
+# EVERY candidate world's own font (the monospace worlds wrap one line longer
+# than the serif ones at a given measure, so the check was run against all
+# four, not just Saltpan) and (b) still leaves >=50px of vertical breathing
+# room under that widest wrap — both searched empirically and asserted below,
+# never eyeballed. The caret parks at buffer end (`s-Down`, the same
+# convention capture-worlds.sh uses for its Room shot) so the "# awl" heading
+# line is off-caret and renders fully WYSIWYG-styled, not raw markdown.
 CANVAS="1200x630"
-MEASURE=40
-ZOOM=1.5
+MEASURE=61
+ZOOM=1.9
 KEYS="s-Down"
 
-CANDIDATES=(Saltpan Firetail Wagtail)
+CANDIDATES=(Saltpan Firetail Wagtail Bombora)
 
 for world in "${CANDIDATES[@]}"; do
   out_png="$CAND_DIR/$world.png"
   echo "==> candidate — $world"
   if ! "$BIN" --screenshot "$out_png" \
        --capture-size "$CANVAS" --measure "$MEASURE" --zoom "$ZOOM" --page on \
-       --theme "$world" --config "$NO_CONFIG" --keys "$KEYS" \
+       --theme "$world" --config "$HERO_CONFIG" --keys "$KEYS" \
        "$SPECIMEN" >/dev/null; then
     echo "error: capture failed for candidate world '$world'" >&2
     exit 1
@@ -125,6 +179,33 @@ for world in "${CANDIDATES[@]}"; do
     echo "error: candidate '$world' sidecar reports theme '$got'" >&2
     exit 1
   fi
+
+  # STATE + PIXEL verification (item 157 round 2): the sidecar's gutter.visible
+  # is the state oracle, but the sidecar is never trusted alone for appearance
+  # (CAPTURE.md's own tripwire — `selected_index: 2` once rendered on a fully
+  # invisible row) — hero-verify.py backs it with real pixel arithmetic over
+  # the exact region that leaked, calibrated non-vacuously against the actual
+  # pre-fix candidates (`--calibrate`), plus reports (never gates — taste
+  # stays the user's call) the OG/square-safe-area/thumbnail-contrast figures.
+  if ! python3 "$SCRIPT_DIR/hero-verify.py" "$out_png" "$CAND_DIR/$world.json" "$world"; then
+    echo "error: hero-verify.py failed for candidate '$world' — see the report above" >&2
+    exit 1
+  fi
+
+  # Two-run byte-identical determinism: the same replay through the same real
+  # keymap seam must be byte-for-byte reproducible (CAPTURE.md's determinism
+  # contract) — asserted here, not assumed.
+  rerun_png="$CAND_DIR/.$world.rerun.png"
+  "$BIN" --screenshot "$rerun_png" \
+       --capture-size "$CANVAS" --measure "$MEASURE" --zoom "$ZOOM" --page on \
+       --theme "$world" --config "$HERO_CONFIG" --keys "$KEYS" \
+       "$SPECIMEN" >/dev/null
+  if ! cmp -s "$out_png" "$rerun_png"; then
+    echo "error: candidate '$world' is NOT byte-identical across two runs" >&2
+    exit 1
+  fi
+  rm -f "$rerun_png" "${rerun_png%.png}.json"
+  echo "    two-run determinism: byte-identical (PASS)"
 done
 
 echo "==> building comparison sheet"
@@ -151,7 +232,7 @@ BLOCK_H=$(( (THUMB_W * 630 / 1200) + 170 ))
 COMPARE_H=$((160 + BLOCK_H * ${#CANDIDATES[@]} + 80))
 "$BIN" --screenshot "$RUN_DIR/comparison.png" \
   --capture-size "${COMPARE_W}x${COMPARE_H}" --page off \
-  --theme Saltpan --config "$NO_CONFIG" \
+  --theme Saltpan --config "$HERO_CONFIG" \
   "$COMPARE_MD" >/dev/null
 
 echo
