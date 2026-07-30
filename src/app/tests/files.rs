@@ -313,7 +313,7 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     assert!(
-        app.autosave_last_ok.is_none(),
+        app.persistence.engine_last_write_at().is_none(),
         "the debug panel's autosave clock is untouched before any write"
     );
     app.active.buffer.set_text("v2\n");
@@ -330,7 +330,7 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
     );
     assert!(app.notice.is_none(), "a clean write raises no notice");
     assert!(
-        app.autosave_last_ok.is_some(),
+        app.persistence.engine_last_write_at().is_some(),
         "a real engine write stamps the debug panel's autosave clock"
     );
     // The debug panel's pure composer agrees: enabled + not held + a stamped
@@ -378,7 +378,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
         "a calm notice is raised"
     );
     assert!(
-        app.autosave_last_ok.is_none(),
+        app.persistence.engine_last_write_at().is_none(),
         "a HELD write must never stamp the debug panel's autosave clock — no write happened"
     );
     // The debug panel's pure composer agrees: held wins over "nothing written yet".
@@ -414,7 +414,7 @@ fn autosave_off_disables_flush() {
     );
     assert!(app.notice.is_none());
     assert!(
-        app.autosave_last_ok.is_none(),
+        app.persistence.engine_last_write_at().is_none(),
         "a disabled engine never stamps the debug panel's autosave clock"
     );
     // The debug panel's pure composer agrees: disabled wins over everything.
@@ -1116,7 +1116,10 @@ fn sync_view_retitles_only_on_an_actual_dirty_flip() {
     let mem = InMemoryFs::new().with_dir("/proj");
     let _g = crate::fs::FsGuard::install(Arc::new(mem));
     let mut app = app_on(None, "/proj", Config::empty());
-    assert!(!app.title_dirty, "a fresh scratch buffer starts clean");
+    assert!(
+        !app.persistence.title_cache_stale(false),
+        "a fresh scratch buffer starts clean"
+    );
     // No gpu/window in a hermetic App: `sync_view` bails before the title
     // comparison (its own gpu-present gate) — this proves the flip-tracking
     // logic itself is reachable + correct via `is_document_dirty` directly,
@@ -1534,7 +1537,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     app.zoom = spec.default;
     let (ov, zi) = settings_overlay_with_rail(&app);
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
 
     // Arm the scrub exactly as a rail press does (the press-time track scale is
     // snapshotted; here it is supplied directly, since the hit-test needs a GPU).
@@ -1564,7 +1567,7 @@ fn a_pointer_scrub_applies_every_step_and_persists_exactly_once_on_release() {
         );
         applied.push(app.zoom);
         // …and the row's own readout + thumb track it in the same move.
-        let ov = app.overlay.as_ref().unwrap();
+        let ov = app.workspace_state.overlay().unwrap();
         assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
         assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
         // …while NOTHING is written to disk mid-gesture.
@@ -1639,7 +1642,7 @@ fn a_paused_mid_drag_persists_nothing_until_the_release() {
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     app.zoom = spec.default;
     let (ov, zi) = settings_overlay_with_rail(&app);
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
     let (x0, x1) = (100.0f32, 300.0f32);
     app.range_drag = Some(crate::app::input::RangeDrag {
         id: crate::settings::SettingId::Zoom,
@@ -1764,7 +1767,7 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     let mut app = app_on(None, "/proj", cfg);
     let spec = crate::settings::range_spec(crate::settings::SettingId::Zoom).unwrap();
     let (ov, zi) = settings_overlay_with_rail(&app);
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
 
     // The core already stepped the value (see the `actions` half of this pair);
     // the App owns the live tail. Drive the EXACT door `Effect::SettingRangeStep`
@@ -1784,7 +1787,7 @@ fn a_keyboard_range_step_persists_discretely_through_the_live_door() {
     );
     // The still-open menu was refreshed from the LIVE values through the one
     // owner, so its cell and its thumb both show the stepped value.
-    let ov = app.overlay.as_ref().unwrap();
+    let ov = app.workspace_state.overlay().unwrap();
     assert_eq!(ov.item_bindings()[zi], spec.format(app.zoom));
     assert_eq!(ov.range_of_item(zi).unwrap().step, spec.step_of(app.zoom));
 }

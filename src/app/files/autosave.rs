@@ -28,7 +28,8 @@ impl App {
     /// conventional editor's own dirty-dot behavior.
     pub(in crate::app) fn is_document_dirty(&self) -> bool {
         if self.active.buffer.is_unnamed_fresh() {
-            self.autosave_saved_version != Some(self.active.buffer.version())
+            self.persistence
+                .note_write_owed(self.active.buffer.version())
         } else if self.active.buffer.path().is_some() {
             self.active.extra.doc_saved_version != Some(self.active.buffer.version())
         } else {
@@ -39,7 +40,7 @@ impl App {
     /// NOTES VERBS round: push the held HUD's SAVED stat state into the pipeline —
     /// `Dirty` while the buffer has unsaved changes RIGHT NOW (`is_document_dirty`,
     /// the SAME check the window title's dirty-dot uses), else `Saved(secs)` from
-    /// `last_saved_ok` (the last successful write of ANY kind — manual save, the
+    /// `persistence.last_save_at()` (the last successful write of ANY kind — manual save, the
     /// scratch→note conversion, a note's own autosave, or the document autosave
     /// engine), else `None` when nothing has ever saved yet this session (renders
     /// the fixed placeholder). Called every `sync_view`, mirroring `stats_sync_hud`
@@ -50,7 +51,8 @@ impl App {
         let state = if self.is_document_dirty() {
             Some(crate::hud::HudSaved::Dirty)
         } else {
-            self.last_saved_ok
+            self.persistence
+                .last_save_at()
                 .map(|t| crate::hud::HudSaved::Saved(self.clock.now().duration_since(t).as_secs()))
         };
         let Some(gpu) = self.gpu.as_mut() else {
@@ -82,12 +84,12 @@ impl App {
     }
 
     pub(in crate::app) fn update_title(&mut self) {
-        // SAVE-FEEDBACK round: keep `title_dirty` (the cache `sync_view`
+        // SAVE-FEEDBACK round: keep the title dirty-cache (which `sync_view`
         // compares against for its "only re-title on a real flip" gate — see
         // its own doc) in step with whatever this call actually renders, no
         // matter which caller reached here.
         let dirty = self.is_document_dirty();
-        self.title_dirty = dirty;
+        self.persistence.record_title(dirty);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.set_title(&window_title(
                 self.active.buffer.path(),
@@ -119,9 +121,11 @@ impl App {
     /// or an already-saved version is a no-op.
     pub(in crate::app) fn flush_note(&mut self) {
         if self.active.buffer.is_unnamed_fresh()
-            && self.autosave_saved_version != Some(self.active.buffer.version())
+            && self
+                .persistence
+                .note_write_owed(self.active.buffer.version())
         {
-            self.autosave_dirty_at = None;
+            self.persistence.disarm_note_debounce();
             self.autosave_note();
         }
     }
@@ -146,7 +150,8 @@ impl App {
     /// now being false) sees a freshly-saved, clean baseline rather than a
     /// stale/absent one that would misreport dirty.
     pub(in crate::app) fn autosave_note(&mut self) {
-        self.autosave_saved_version = Some(self.active.buffer.version());
+        self.persistence
+            .record_note_write(self.active.buffer.version());
         if !self.active.buffer.is_unnamed_fresh() {
             return;
         }
@@ -174,7 +179,8 @@ impl App {
             // skipped inside).
             self.snapshot_after_save();
             // NOTES VERBS round: the held HUD's SAVED stat.
-            self.last_saved_ok = Some(self.clock.now());
+            let now = self.clock.now();
+            self.persistence.record_save(now);
         }
     }
 
@@ -308,11 +314,12 @@ impl App {
                 if self.clobber_notice_active() {
                     self.clear_notice();
                 }
-                // DEBUG PANEL: stamp the engine's own "last wrote successfully"
-                // clock, the ONLY place it is ever written (see `autosave_last_ok`).
-                self.autosave_last_ok = Some(self.clock.now());
-                // NOTES VERBS round: the held HUD's SAVED stat.
-                self.last_saved_ok = Some(self.clock.now());
+                // DEBUG PANEL + the held HUD's SAVED stat, in ONE transition:
+                // the engine's own "last wrote successfully" clock and the
+                // any-kind save clock moved in lockstep at both engine sites,
+                // so `record_engine_write` is now the only spelling.
+                let now = self.clock.now();
+                self.persistence.record_engine_write(now);
                 // Every save records a snapshot (dedup + the git gate live inside).
                 self.snapshot_after_save();
             }
@@ -352,11 +359,12 @@ impl App {
                 if self.clobber_notice_active() {
                     self.clear_notice();
                 }
-                // DEBUG PANEL: stamp the engine's own "last wrote successfully"
-                // clock, the ONLY place it is ever written (see `autosave_last_ok`).
-                self.autosave_last_ok = Some(self.clock.now());
-                // NOTES VERBS round: the held HUD's SAVED stat.
-                self.last_saved_ok = Some(self.clock.now());
+                // DEBUG PANEL + the held HUD's SAVED stat, in ONE transition:
+                // the engine's own "last wrote successfully" clock and the
+                // any-kind save clock moved in lockstep at both engine sites,
+                // so `record_engine_write` is now the only spelling.
+                let now = self.clock.now();
+                self.persistence.record_engine_write(now);
                 // The persistent scratch grows a timeline of its own.
                 crate::history::record(&path, &text, &self.config);
             }

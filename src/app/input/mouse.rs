@@ -272,7 +272,7 @@ impl App {
         // moves the scroll window either, so hovering the top/bottom edge can't
         // auto-scroll the list.
         let Some(gpu) = self.gpu.as_ref() else { return };
-        let kind = match self.overlay.as_mut() {
+        let kind = match self.workspace_state.overlay_mut() {
             Some(ov) => {
                 if !gpu.pipeline.resolve_overlay_hover(ov, px, py) {
                     return;
@@ -282,7 +282,7 @@ impl App {
             None => return,
         };
         let prev = crate::theme::active();
-        if let Some(ov) = self.overlay.as_ref() {
+        if let Some(ov) = self.workspace_state.overlay() {
             // BARE preview — NOT `preview_move`: a passive HOVER re-tints the world but
             // must NOT re-anchor the card (item 52 — no spatial chase under a wandering
             // pointer; the item-45 freeze holds the card put). Deliberate crossings
@@ -308,7 +308,7 @@ impl App {
         if delta == 0 {
             return;
         }
-        let kind = match self.overlay.as_mut() {
+        let kind = match self.workspace_state.overlay_mut() {
             Some(ov) => {
                 ov.move_sel(delta);
                 ov.kind
@@ -316,7 +316,7 @@ impl App {
             None => return,
         };
         let prev = crate::theme::active();
-        if let Some(ov) = self.overlay.as_mut() {
+        if let Some(ov) = self.workspace_state.overlay_mut() {
             crate::actions::preview_move(ov);
         }
         // ITEM 106: the wheel drives `move_sel` exactly like a keyboard press (it
@@ -332,7 +332,7 @@ impl App {
         // redraw-duplicate `CursorMoved` at the pointer's unmoved position — as
         // unconditional real motion, silently overriding the wheel's selection
         // with whatever row now sits under the stationary pointer.
-        if let Some(ov) = self.overlay.as_mut() {
+        if let Some(ov) = self.workspace_state.overlay_mut() {
             ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
         }
         if kind == crate::overlay::OverlayKind::Theme {
@@ -389,11 +389,11 @@ impl App {
         // selection), then previews + re-tints — the pointing counterpart to LEFT/RIGHT.
         // Handled before the row hit-test (the strip sits above the rows, never overlaps).
         if let Some(lens_idx) = lens_hit {
-            if let Some(ov) = self.overlay.as_mut() {
+            if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.set_facet_lens(lens_idx);
             }
             let prev = crate::theme::active();
-            if let Some(ov) = self.overlay.as_ref() {
+            if let Some(ov) = self.workspace_state.overlay() {
                 crate::actions::preview_overlay(ov);
             }
             self.retint_theme_preview(prev);
@@ -415,7 +415,7 @@ impl App {
         if let Some(idx) = row_hit {
             // ON a row: ACCEPT through the shared apply path — byte-for-byte the same
             // as Enter on the highlighted row (open / run / commit / descend / replace).
-            if let Some(ov) = self.overlay.as_mut()
+            if let Some(ov) = self.workspace_state.overlay_mut()
                 && idx < ov.items.len()
             {
                 ov.selected = idx;
@@ -427,8 +427,8 @@ impl App {
             // rail above is where a pointer changes the value; everywhere else on
             // the row is a plain selection.
             let is_range = self
-                .overlay
-                .as_ref()
+                .workspace_state
+                .overlay()
                 .map(|ov| ov.range_of_item(idx).is_some())
                 .unwrap_or(false);
             if is_range {
@@ -478,7 +478,7 @@ impl App {
         match hit {
             Some(crate::render::PanelHit::CaseToggle) => {
                 let hay = self.active.buffer.text();
-                let target = self.search.as_mut().map(|st| {
+                let target = self.workspace_state.search_mut().map(|st| {
                     st.toggle_case(&hay);
                     st.current_match()
                 });
@@ -487,12 +487,12 @@ impl App {
                 }
             }
             Some(crate::render::PanelHit::Find) => {
-                if let Some(st) = self.search.as_mut() {
+                if let Some(st) = self.workspace_state.search_mut() {
                     st.focus_query();
                 }
             }
             Some(crate::render::PanelHit::Replace) => {
-                if let Some(st) = self.search.as_mut() {
+                if let Some(st) = self.workspace_state.search_mut() {
                     st.focus_replacement();
                 }
             }
@@ -558,8 +558,7 @@ impl App {
         }
         if let Some(i) = title_hit {
             crate::menubar::toggle_open(i);
-            self.overlay = None;
-            self.search = None;
+            self.workspace_state.dismiss_pickers();
             self.sync_view(true);
             return true;
         }
@@ -577,7 +576,7 @@ impl App {
         event_loop: &ActiveEventLoop,
         over_writing_column: bool,
     ) {
-        if self.overlay.is_some() {
+        if self.workspace_state.overlay_open() {
             let _ = self.apply(Action::Cancel, false, event_loop, crate::stats::Door::Chord);
         }
         // A margin right-click may dismiss an open spell picker, but it never
@@ -660,7 +659,7 @@ impl App {
     /// the current mouse position + interaction state, and flip `Window::set_cursor`
     /// ONLY when it actually changed (`cursor_shape::cursor_icon_change` — no per-move
     /// winit chatter). Every context flag reads an EXISTING hit-test — `page_resizing`
-    /// (the live drag flag), `self.overlay.is_some()`, `page_resize_hover` (the same
+    /// (the live drag flag), `workspace_state.overlay_open()`, `page_resize_hover`
     /// proximity test the page-edge press/hover already uses), and
     /// `over_writing_column` (the same column bounds `page_resize_hover` reads) — so
     /// this never invents parallel geometry, it only arbitrates priority among the
@@ -669,7 +668,7 @@ impl App {
     /// Called on every `CursorMoved`, and again from the two doors that change this
     /// context WITHOUT any mouse motion: a page-edge drag beginning/ending
     /// (`begin_page_resize_if_hovering` / `end_page_resize`) and a summoned overlay
-    /// opening/closing (`App::apply`'s one `self.overlay = overlay` assignment).
+    /// opening/closing (`App::apply`'s one shared-core slot lend — item 172).
     ///
     /// COMPOSES with pointer auto-hide: while the OS pointer is `Hidden`
     /// (`pointer_hide::PointerHide`), the `set_cursor` call is skipped outright (there
@@ -687,7 +686,7 @@ impl App {
         // hovered row can never disagree with a clickable one. `overlay_row_at`
         // already returns `None` off a row (the query line, foot hint, scrim, empty
         // gaps), so this lights up only on a real actionable row.
-        let overlay_open = self.overlay.is_some();
+        let overlay_open = self.workspace_state.overlay_open();
         let over_clickable_overlay_row =
             overlay_open && gpu.pipeline.overlay_row_at(px, py).is_some();
         // A clickable LENS-STRIP facet (Time/Register/… of a FACETING picker) earns
@@ -721,7 +720,9 @@ impl App {
                 gpu.pipeline.panel_hit(px, py),
                 Some(crate::render::PanelHit::CaseToggle)
             );
-        let over_popover_button = self.popover_open && gpu.pipeline.popover_hit(px, py).is_some();
+        // The RAW summon bit, deliberately ladder-free — see its own doc.
+        let summoned = self.workspace_state.popover_summon_bit();
+        let over_popover_button = summoned && gpu.pipeline.popover_hit(px, py).is_some();
         // item 81: a REVEALED fold chevron (any foldable heading, expanded OR
         // collapsed) reads as click-to-toggle (the pointing hand) — reuses the SAME
         // `fold_chevron_hit` the press path uses, so a hover can never disagree with
@@ -786,7 +787,7 @@ impl App {
             // spec, and the hover below must NOT also re-select rows under the
             // travelling pointer mid-gesture.
             self.on_range_drag();
-        } else if self.overlay.is_some() {
+        } else if self.workspace_state.overlay_open() {
             self.overlay_hover();
         } else if self.page_resizing {
             self.on_page_resize_drag();
@@ -893,8 +894,7 @@ impl App {
                 }
                 // Cmd-click follows a bare-document link and swallows the press.
                 if self.mods.state().contains(ModifiersState::SUPER)
-                    && self.overlay.is_none()
-                    && self.search.is_none()
+                    && self.workspace_state.pickers_clear()
                     && self.pointer_over_writing_column()
                     && self.follow_link_at_pointer()
                 {
@@ -902,7 +902,7 @@ impl App {
                 }
                 // Format-popover buttons use the shared action path; off-card presses
                 // dismiss, while in-card gaps are swallowed.
-                if self.popover_open && self.overlay.is_none() && self.search.is_none() {
+                if self.workspace_state.popover_holds_attention() {
                     let (px, py) = self.cursor_px;
                     let hit = self
                         .gpu
@@ -928,7 +928,7 @@ impl App {
                     {
                         return;
                     }
-                    self.popover_open = false;
+                    self.workspace_state.dismiss_popover();
                 }
                 // A summoned picker OWNS the click (modal): a click ON a row
                 // ACCEPTS it (same as Enter), a click OUTSIDE the card DISMISSES
@@ -937,9 +937,9 @@ impl App {
                 // card. Otherwise: a press ON a page-column edge begins a DIRECT
                 // width resize (symmetric about center) instead of a text
                 // selection; else it's a normal click / selection start.
-                if self.overlay.is_some() {
+                if self.workspace_state.overlay_open() {
                     self.overlay_click(event_loop);
-                } else if self.search.is_some() && self.panel_click() {
+                } else if self.workspace_state.search_active() && self.panel_click() {
                     // CLICK-TO-SWITCH-FIELD: a press on the find/replace panel
                     // focused a field (or was an in-card no-op); it never falls
                     // through to a document press. A press OFF the panel returns
@@ -987,11 +987,11 @@ impl App {
                 // summon (the mouse-only rule); a plain click (no selection) leaves
                 // it down. A popover-button press returned early above, so its own
                 // release just re-affirms `true` here (stays open across applies).
-                self.popover_open = crate::popover::popover_on()
+                // The LADDER half lives in `summon_popover`.
+                let eligible = crate::popover::popover_on()
                     && self.active.buffer.has_selection()
-                    && self.active.buffer.is_markdown()
-                    && self.overlay.is_none()
-                    && self.search.is_none();
+                    && self.active.buffer.is_markdown();
+                self.workspace_state.summon_popover(eligible);
                 self.sync_view(true);
             }
         }
@@ -1004,7 +1004,7 @@ impl App {
         self.stamp_input();
         // Zoom modifier: Cmd/Super only. (Ctrl must NOT zoom on mac.)
         let zoom_mod = scroll_zoom_intent(self.mods.state());
-        if !zoom_mod && self.overlay.is_none() {
+        if !zoom_mod && !self.workspace_state.overlay_open() {
             let (dx, dy) = match delta {
                 MouseScrollDelta::LineDelta(x, y) => {
                     (x * WHEEL_PIXELS_PER_LINE, y * WHEEL_PIXELS_PER_LINE)
@@ -1030,11 +1030,11 @@ impl App {
                 accumulate_picker_pixels(&mut self.scroll_px_accum, p.y as f32)
             }
         };
-        if self.overlay.is_some() {
+        if self.workspace_state.overlay_open() {
             if lines.abs() >= 1.0 {
                 let diff_wheel = self
-                    .overlay
-                    .as_ref()
+                    .workspace_state
+                    .overlay()
                     .map(|o| {
                         o.kind == crate::overlay::OverlayKind::History
                             && o.selected_history_id().is_some()
@@ -1051,7 +1051,7 @@ impl App {
                         .unwrap_or(false);
                 if diff_wheel {
                     let delta = -lines.round() as isize; // wheel up = toward the top
-                    if let Some(ov) = self.overlay.as_mut() {
+                    if let Some(ov) = self.workspace_state.overlay_mut() {
                         ov.diff_scroll = if delta >= 0 {
                             ov.diff_scroll.saturating_add(delta as usize)
                         } else {

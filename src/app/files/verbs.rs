@@ -121,7 +121,8 @@ impl App {
                 self.active.extra.caret_synced_version = self.active.buffer.version();
             }
             // NOTES VERBS round: the held HUD's SAVED stat.
-            self.last_saved_ok = Some(self.clock.now());
+            let now = self.clock.now();
+            self.persistence.record_save(now);
             self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
         } else {
             self.emit_notice(crate::actions::NoticeEffect::Sticky(message));
@@ -168,8 +169,8 @@ impl App {
                 // mark the version we just wrote as already-saved so the
                 // next idle tick doesn't immediately rewrite it (mirrors
                 // `autosave_note`'s own post-save bookkeeping).
-                self.autosave_saved_version = Some(self.active.buffer.version());
-                self.autosave_dirty_at = None;
+                self.persistence
+                    .record_note_write(self.active.buffer.version());
                 self.snapshot_after_save();
                 if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
                     self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
@@ -177,7 +178,8 @@ impl App {
                 }
                 self.emit_notice(crate::actions::NoticeEffect::Toast("saved".to_string()));
                 // NOTES VERBS round: the held HUD's SAVED stat.
-                self.last_saved_ok = Some(self.clock.now());
+                let now = self.clock.now();
+                self.persistence.record_save(now);
             }
             Err(e) => {
                 self.emit_notice(crate::actions::NoticeEffect::Sticky(format!(
@@ -245,13 +247,13 @@ impl App {
         let abs = self.root.join(&rel);
         match crate::assets::active_trash().trash(&abs) {
             Ok(()) => {
-                if let Some(ov) = self.overlay.as_mut() {
+                if let Some(ov) = self.workspace_state.overlay_mut() {
                     ov.remove_asset_row(&rel);
                     ov.notice.clear();
                 }
             }
             Err(msg) => {
-                if let Some(ov) = self.overlay.as_mut() {
+                if let Some(ov) = self.workspace_state.overlay_mut() {
                     ov.notice = format!("couldn't move to Trash: {msg}");
                 }
             }

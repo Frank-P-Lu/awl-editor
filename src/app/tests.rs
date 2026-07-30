@@ -4,6 +4,10 @@ use super::*;
 
 mod buffers;
 mod common;
+/// ITEM 172's STRUCTURAL GATES: the `App` ownership map as executable data —
+/// every root field classified, extracted domains kept off root `App`, and the
+/// field-count ratchet. Prose map: `docs/app-domains.md`.
+mod domains;
 // THE DOCK-CHURN LAW: a theme PREVIEW must never restamp the app icon; only a
 // commit (and startup) may. Counts adoptions across a full preview sweep.
 // Native-only, like `crate::app_icon` itself — a browser tab has no Dock.

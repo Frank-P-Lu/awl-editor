@@ -21,13 +21,14 @@ impl App {
         let mut zoom = self.zoom;
         let mut make = |_k: crate::overlay::OverlayKind| None;
         let mut browse = |_k: crate::overlay::OverlayKind, _p: Option<String>| None;
+        let (search, overlay) = self.workspace_state.core_slots();
         let mut ctx = crate::actions::ActionCtx {
             buffer: &mut self.active.buffer,
             shift_selecting: &mut shift,
             zoom: &mut zoom,
-            search: &mut self.search,
+            search,
             scroll_page_lines: 10,
-            overlay: &mut self.overlay,
+            overlay,
             make_overlay: &mut make,
             browse_to: &mut browse,
             oracle: None,

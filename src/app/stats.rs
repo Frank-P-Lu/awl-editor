@@ -188,8 +188,8 @@ impl App {
     /// the gate for pushing the footer tips (the footer belongs to that one picker).
     #[cfg(not(target_arch = "wasm32"))]
     fn overlay_is_keybindings(&self) -> bool {
-        self.overlay
-            .as_ref()
+        self.workspace_state
+            .overlay()
             .map(|o| o.kind == crate::overlay::OverlayKind::Keybindings)
             .unwrap_or(false)
     }

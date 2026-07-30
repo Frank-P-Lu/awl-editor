@@ -121,11 +121,12 @@ impl App {
         }
     }
 
-    /// Route a key to the active search surface (only called while `self.search`
-    /// is `Some`). A thin delegate to the ONE renderer-independent interception
-    /// seam — [`crate::search::keys::intercept`], shared verbatim with the
-    /// headless `--keys` replay's search guard (`main/run.rs`), so the live
-    /// panel and a replayed capture cannot drift. The seam consumes EVERY key
+    /// Route a key to the active search surface (only called while
+    /// `workspace_state.search_active()`). A thin delegate to the ONE
+    /// renderer-independent interception seam
+    /// — [`crate::search::keys::intercept`], shared verbatim with the headless
+    /// `--keys` replay's search guard (`main/run.rs`), so the live panel and a
+    /// replayed capture cannot drift. The seam consumes EVERY key
     /// (query/replacement typing, Backspace, C-s/C-r/arrow steps, M-c case
     /// toggle, Tab/Cmd-R field moves, Enter accept/replace, Cmd-Enter
     /// replace-all, Esc/C-g abort) and moves the REAL buffer cursor onto the
@@ -138,12 +139,9 @@ impl App {
         mods: &Modifiers,
         _event_loop: &ActiveEventLoop,
     ) {
-        if let Some(dir) = crate::search::keys::intercept(
-            &mut self.search,
-            &mut self.active.buffer,
-            logical,
-            mods.state(),
-        ) {
+        let (search, _) = self.workspace_state.core_slots();
+        let buffer = &mut self.active.buffer;
+        if let Some(dir) = crate::search::keys::intercept(search, buffer, logical, mods.state()) {
             self.caret_recoil = Some(dir);
         }
     }
@@ -399,7 +397,7 @@ impl App {
         // Inert when already down. A popover BUTTON click never routes through here
         // (it fires its Action directly via `App::apply`), so the popover stays open
         // across its own applies.
-        self.popover_open = false;
+        self.workspace_state.dismiss_popover();
         // WEB/LINUX MENU BAR: a real (non-modifier) key press dismisses an open
         // dropdown — the awl bar's dropdown is mouse-driven (no keyboard nav in v1), so
         // any key closes it (and is otherwise processed normally, exactly like clicking
@@ -441,7 +439,7 @@ impl App {
         // the query instead of inserting into the rope. Placed AFTER the
         // lone-modifier filter (so a bare Shift/Ctrl tap during search is
         // dropped) and AFTER the preedit guard, but BEFORE keymap.resolve.
-        if self.search.is_some() {
+        if self.workspace_state.search_active() {
             let mods = self.mods;
             self.handle_search_key(&raw, &mods, event_loop);
             self.sync_view(true);
@@ -467,13 +465,15 @@ impl App {
             if !is_ctrl_key {
                 let combo = crate::keyspec::format_chord(&bare, self.mods.state());
                 let finished = self
-                    .overlay
-                    .as_mut()
+                    .workspace_state
+                    .overlay_mut()
                     .map(|o| o.capture_record(combo))
                     .unwrap_or(false);
                 if finished
-                    && let Some((slug, binding)) =
-                        self.overlay.as_ref().and_then(|o| o.capture_target())
+                    && let Some((slug, binding)) = self
+                        .workspace_state
+                        .overlay()
+                        .and_then(|o| o.capture_target())
                 {
                     self.rebind_commit(slug, binding, false);
                 }

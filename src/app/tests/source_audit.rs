@@ -317,7 +317,7 @@ fn source_audit_the_active_slot_has_one_owner() {
 /// Records PER-FILE hit counts (relative to `base`), so a failing assertion
 /// names exactly where the unexpected occurrence lives.
 #[cfg(test)]
-fn scan_dir_collapsed(
+pub(super) fn scan_dir_collapsed(
     base: &std::path::Path,
     dir: &std::path::Path,
     needle: &str,

@@ -588,7 +588,7 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
         ov.last_hover_px, None,
         "cold start: the pointer has never hovered a row"
     );
-    app.overlay = Some(ov);
+    app.workspace_state.install_overlay_for_test(ov);
     // The pointer is resting somewhere (its OS position is always something;
     // it just hasn't generated a hover check on this overlay yet).
     app.cursor_px = (123.0, 45.0);
@@ -597,8 +597,8 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     // 12; 22 notches lands `selected` at 22, well past the first page).
     app.overlay_wheel(-22.0);
     let ov = app
-        .overlay
-        .as_mut()
+        .workspace_state
+        .overlay_mut()
         .expect("overlay stays open across a wheel scroll");
     assert_eq!(
         ov.selected, 22,

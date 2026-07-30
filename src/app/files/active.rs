@@ -17,13 +17,15 @@
 //! (the Wagtail/version-0 class of bug this round retires — see
 //! `CLAUDE.md`'s cache-key-discipline tripwire).
 //!
-//! NOT carried here (deliberately): the fresh-document debounce fields
-//! (`autosave_dirty_at` / `autosave_saved_version`) stay App-global — they only
-//! ever matter while `buffer.is_unnamed_fresh()`, and a fresh document only
-//! becomes registry-keyable once it has been named (given a real path), at
-//! which point it is an ordinary pathed buffer for every OTHER purpose here; a
-//! stale value simply re-triggers one redundant (harmless) autosave on
-//! reactivation.
+//! NOT carried here (deliberately): the fresh-document autosave LEDGER (the
+//! debounce stamp + the version it wrote) stays App-global, owned by
+//! `app/persistence.rs`'s `PersistenceRuntime` since item 172 — it only ever
+//! matters while `buffer.is_unnamed_fresh()`, and a fresh document only becomes
+//! registry-keyable once it has been named (given a real path), at which point
+//! it is an ordinary pathed buffer for every OTHER purpose here; a stale value
+//! simply re-triggers one redundant (harmless) autosave on reactivation. See
+//! that module's doc for the two-call-site argument that keeps its
+//! version-only cache key safe, and the law that pins it.
 
 use crate::app::*;
 
