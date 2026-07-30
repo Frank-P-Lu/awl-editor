@@ -10,9 +10,13 @@ light/dark).
 ```
 site/
   index.html      the landing page (single document, links style.css)
+  guide.html      the user guide page
+  credits.html    third-party assets and dependencies
+  check.html      the "Check for updates" page
   style.css       all styles — tokens lifted from DESIGN.md's ink ladder + amber
   llms.txt        the Answer.AI llms.txt index (markdown at a .txt name)
   fonts/          local OFL faces used by the page (EB Garamond, Literata, JetBrains Mono)
+  img/            social-sharing image(s) — see below
 ```
 
 ### Page sections (`index.html`)
@@ -24,6 +28,26 @@ site/
 
 Human navigation is deliberately limited to GitHub, Try, Philosophy, and Guide.
 `llms.txt` remains available to machines but is not linked from human pages.
+
+### Social image (`img/social.png`)
+
+`img/social.png` is the Open Graph / Twitter Card image for every hand-authored
+page (`index.html`, `guide.html`, `credits.html`, `check.html`), wired via each
+page's `og:image`/`twitter:image` meta. It is a real headless capture, not an
+HTML mockup — produced by `scripts/hero-image.sh` from `scripts/hero-specimen.md`
+(the app's own thesis sentence under its own "# awl" wordmark), rendered through
+the real product exactly like every other captured asset (see CAPTURE.md).
+That script also renders the other candidate worlds it was chosen from and a
+comparison sheet, under gitignored `gallery/hero/` — regenerate on demand,
+nothing there is committed. To swap the shipped world, re-render and install in
+one command, e.g.:
+
+```sh
+scripts/hero-image.sh --install Firetail   # or Wagtail, or any world in the roster
+```
+
+(`scripts/hero-image.sh` writes `site/img/social.png` directly; no other file
+needs to change.)
 
 ### Web analytics — GoatCounter (configured)
 
