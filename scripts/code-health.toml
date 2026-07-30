@@ -15,7 +15,7 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 883
+lines = 783
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -23,7 +23,7 @@ lines = 1798
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1040
+lines = 1037
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -166,7 +166,7 @@ lines = 1402
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1188
+lines = 1111
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -190,7 +190,7 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 306
+lines = 302
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"

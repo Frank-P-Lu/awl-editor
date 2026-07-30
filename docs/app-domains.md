@@ -81,8 +81,21 @@ popover-button press, the summon-on-release, and the overlay-before-search
 
 Highest dispersion per field in the whole struct: 33 production references per
 field, spread over 14 files (`gpu` has more references but is one repeated
-shape, see `RenderRuntime`). This is the slice item 173 builds its typed
-summoned-UI lifecycle inside.
+shape, see `RenderRuntime`).
+
+**Item 173 replaced the `overlay` slot with `overlay::Journey`** — the closed
+summoned-UI LIFECYCLE — and added the ladder's fourth rung, `Layer::Workspace`,
+between `Search` and `Overlay`. The lifecycle deliberately does NOT live inside
+`crate::app`: `WorkspaceState` is `pub(in crate::app)` and the headless `--keys`
+replay (`main/run.rs::ReplaySession`) cannot see it, so an app-private lifecycle
+would have forced the replay to keep a second copy — the exact defect this map
+exists to close. `WorkspaceState` owns the one live instance and asks it for a
+single closed fact (`overlay::Rung`), so the ladder reads the lifecycle instead
+of re-deriving it. Six loose `OverlayState` fields retired into typed payloads:
+`return_to` + `setting_path_key` → `Parked` + `Bind`, `original_theme` +
+`original_caret` + `original_caret_was_auto` → `Audition`, and `diff_focus` →
+the `Surface::WorkspaceDetail` stage (the field is storage; the lifecycle is the
+sole writer, fenced by a law).
 
 ### `PersistenceRuntime` — save feedback and the autosave debounce
 

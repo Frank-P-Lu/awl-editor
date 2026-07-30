@@ -2,7 +2,7 @@
 
 use crate::buffer::Buffer;
 use crate::keymap::Action;
-use crate::overlay::OverlayState;
+use crate::overlay::{OverlayKind, OverlayState};
 use crate::search::{Direction, SearchState};
 // Shared dispatch types stay here; cohesive action families live in submodules.
 mod edit; // the markdown smart-Enter edit (smart_newline + its pure decision)
@@ -63,20 +63,18 @@ pub struct ActionCtx<'a> {
     pub search: &'a mut Option<SearchState>,
     /// Measured page rows live; a fixed deterministic page headlessly.
     pub scroll_page_lines: usize,
-    /// THE SUMMONED-UI JOURNEY (`overlay::Journey`, item 173): which surface is
-    /// up, what is parked beneath it, and the one table saying where every
-    /// Esc/Back/accept lands. While a card is up, typed chars edit its query
-    /// (NOT the buffer), Up/Down move the selection, Enter accepts, Esc/C-g
-    /// cancels. Putting the whole lifecycle in the shared core (not just `App`)
-    /// is what keeps it drivable from the headless `--keys` replay.
+    /// THE SUMMONED-UI JOURNEY (`overlay::Journey`): which surface is up, what
+    /// is parked beneath it, and the one table saying where every Esc/Back/
+    /// accept lands. While a card is up, typed chars edit its query (NOT the
+    /// buffer), Up/Down move the selection, Enter accepts, Esc/C-g cancels.
+    /// Keeping the lifecycle in the shared core keeps it `--keys`-drivable.
     pub journey: &'a mut crate::overlay::Journey,
     /// The active project context the overlay needs when it OPENS: a builder that
     /// produces a fresh `OverlayState` for a given kind. The core can't read the
     /// filesystem itself (and headless replay must stay deterministic), so the
     /// caller injects this; `OpenGoto`/`OpenProject` invoke it.
-    pub make_overlay: &'a mut dyn FnMut(crate::overlay::OverlayKind) -> Option<OverlayState>,
-    pub browse_to:
-        &'a mut dyn FnMut(crate::overlay::OverlayKind, Option<String>) -> Option<OverlayState>,
+    pub make_overlay: &'a mut dyn FnMut(OverlayKind) -> Option<OverlayState>,
+    pub browse_to: &'a mut dyn FnMut(OverlayKind, Option<String>) -> Option<OverlayState>,
     /// The visual-line motion LAYOUT ORACLE (the SHAPED text's wrap geometry),
     /// supplied by the live GPU pipeline (`app.rs`) and the headless offscreen
     /// pipeline (`capture.rs`) so the two flows can't drift. `None` in the pure
@@ -289,7 +287,7 @@ fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
         Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
         Action::MoveFile => {
             ctx.journey
-                .enter((ctx.browse_to)(crate::overlay::OverlayKind::MoveDest, None));
+                .enter((ctx.browse_to)(OverlayKind::MoveDest, None));
             Effect::None
         }
         Action::OpenRenameNote => {
@@ -307,8 +305,7 @@ fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
         Action::OpenCredits => Effect::Buffer(BufferEffect::OpenCredits),
         Action::OpenGuide => Effect::Buffer(BufferEffect::OpenGuide),
         Action::OpenSettingsMenu => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Settings));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Settings));
             Effect::None
         }
         Action::FinishBuffer => Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish)),
@@ -394,10 +391,8 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     if crate::card::dismiss_summoned_card() {
         return Some(Effect::None);
     }
-    ctx.journey
-        .card()
-        .is_some()
-        .then(|| overlay_intercept(ctx, action))
+    let up = ctx.journey.card().is_some();
+    up.then(|| overlay_intercept(ctx, action))
 }
 
 fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
@@ -436,31 +431,28 @@ fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
 fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
     match action {
         Action::OpenGoto => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Goto));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Goto));
         }
         Action::OpenProject => {
             ctx.journey
-                .enter((ctx.browse_to)(crate::overlay::OverlayKind::Project, None));
+                .enter((ctx.browse_to)(OverlayKind::Project, None));
         }
         Action::OpenRecentProjects => {
-            let mut ov = (ctx.browse_to)(crate::overlay::OverlayKind::Project, None);
+            let mut ov = (ctx.browse_to)(OverlayKind::Project, None);
             if let Some(o) = ov.as_mut() {
                 o.focus_facet_id("recent");
             }
             ctx.journey.enter(ov);
         }
         Action::OpenThemeMenu => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Theme));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Theme));
         }
         Action::OpenCaretMenu => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Caret));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Caret));
         }
         Action::OpenDictionaryMenu => {
             ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Dictionary));
+                .enter((ctx.make_overlay)(OverlayKind::Dictionary));
         }
         // Toggling spellcheck is a pure render/detection concern (no buffer change).
         // The process-global flip lives HERE on the shared seam (like the page/caret
@@ -476,12 +468,11 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
             crate::nits::toggle();
         }
         Action::OpenCommandPalette => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Command));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Command));
         }
         Action::OpenKeybindings => {
             ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Keybindings));
+                .enter((ctx.make_overlay)(OverlayKind::Keybindings));
         }
         // "Go to heading…" (palette): open GO-TO pre-lensed onto its HEADINGS lens —
         // the fold that retired the standalone Outline picker. `make_overlay` builds
@@ -491,15 +482,14 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // the file list is still there behind the other lenses; also reachable via
         // ⌘O → ←/→).
         Action::OpenOutline => {
-            let mut ov = (ctx.make_overlay)(crate::overlay::OverlayKind::Goto);
+            let mut ov = (ctx.make_overlay)(OverlayKind::Goto);
             if let Some(o) = ov.as_mut() {
                 o.focus_facet_id("headings");
             }
             ctx.journey.enter(ov);
         }
         Action::OpenSpellSuggest => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Spell));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Spell));
         }
         // Cmd-Shift-H: summon the HISTORY TIMELINE picker for the current file. The
         // caller's `make_overlay` gathers the file's versions (via
@@ -507,8 +497,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // history yet" row), so this is never a silent no-op. Enter then RESTORES the
         // highlighted version into the buffer as an undoable edit.
         Action::OpenHistory => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::History));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::History));
         }
         // Cmd-P → "Clean unused assets…": summon the ASSET CLEANER. The caller's
         // `make_overlay` builds it from the scanned orphan list (`assets::scan`,
@@ -516,8 +505,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // unused assets" row), so this is never a silent no-op. Enter then requests the
         // highlighted orphan be trashed (`Effect::TrashAsset`), keeping the picker open.
         Action::OpenAssetClean => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::Assets));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Assets));
         }
         Action::KeepVersion => {
             ctx.journey.enter(Some(OverlayState::new_keep_name()));
@@ -530,12 +518,11 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // picker this action is intercepted earlier (`overlay_nav`'s Tab arm — the
         // focus shift into the diff panel) and never reaches here.
         Action::CompareVersion => {
-            ctx.journey
-                .enter((ctx.make_overlay)(crate::overlay::OverlayKind::History));
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::History));
         }
         Action::OpenBrowse => {
             ctx.journey
-                .enter((ctx.browse_to)(crate::overlay::OverlayKind::Browse, None));
+                .enter((ctx.browse_to)(OverlayKind::Browse, None));
         }
         _ => return false,
     }

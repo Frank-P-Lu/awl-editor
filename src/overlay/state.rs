@@ -84,10 +84,8 @@ pub struct OverlayState {
     pub selected: usize,
     pub scroll: usize,
     pub browse_dir: Option<String>,
-    /// WHAT A CANCEL MUST UNDO while this card auditions something live — one
-    /// closed payload owned by the lifecycle (`journey::Audition`), replacing
-    /// the `original_theme` / `original_caret` / `original_caret_was_auto` trio
-    /// whose inconsistent combinations were representable.
+    /// WHAT A CANCEL MUST UNDO while this card auditions something live; the
+    /// lifecycle owns the payload and the revert (`journey::Audition`).
     pub audition: super::Audition,
     pub spell_target: Option<(usize, usize, usize)>,
     pub add_word: Option<String>,
@@ -101,9 +99,8 @@ pub struct OverlayState {
     pub rename_edit: Option<RenameEdit>,
     pub link_edit: Option<LinkEdit>,
     pub keep_edit: Option<KeepEdit>,
-    /// Does the workspace's DETAIL stage hold focus (History's diff transcript
-    /// today)? Storage only: every WRITE goes through `journey::Journey`, which
-    /// owns what Esc/Tab mean here — fenced by `overlay::focus_law`.
+    /// Does the workspace's DETAIL stage hold focus? Storage only: every WRITE
+    /// goes through `journey::Journey`, which owns what Esc/Tab mean here.
     pub detail_focus: bool,
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,

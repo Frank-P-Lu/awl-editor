@@ -622,37 +622,46 @@ fn the_workspace_focus_stage_is_written_only_by_the_lifecycle() {
     );
 }
 
-/// The retired fields must STAY retired. A `return_to` breadcrumb or an
-/// `original_theme` / `original_caret` triple growing back on `OverlayState`
-/// would be a second, untyped copy of what [`Parked`] and [`Audition`] own.
+/// The retired fields must STAY RETIRED as `OverlayState` fields. A `return_to`
+/// breadcrumb, an `original_theme`/`original_caret` pair or a loose
+/// `setting_path_key` growing back on the card would be a second, untyped copy
+/// of what [`Parked`], [`Audition`] and [`Bind`] own — and the compiler cannot
+/// object, because a new field is always legal.
 ///
-/// Two files legitimately keep the NAME `return_to` and are excluded by name
-/// rather than by a substring dodge: it is the sidecar's published field
-/// (`capture/opts.rs` declares it, `capture/sidecar.rs` emits it), and the
-/// schema is a contract with every agent probe. Its VALUE now comes from
+/// Scoped to the card's DECLARATION (`overlay/state.rs`) rather than to every
+/// mention of the name: `return_to` is also the sidecar's published field, and
+/// the schema is a contract with every agent probe. Its VALUE now comes from
 /// `Journey::parked()`, which is exactly the point.
 #[test]
-fn the_loose_lifecycle_fields_do_not_grow_back() {
-    const SIDECAR_CONTRACT: &[&str] = &["capture/opts.rs", "capture/sidecar.rs"];
+fn the_loose_lifecycle_fields_do_not_grow_back_on_the_card() {
+    let declaration =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/overlay/state.rs");
+    let text: String = std::fs::read_to_string(&declaration)
+        .expect("the card's declaration")
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
     for retired in [
         "return_to",
         "original_theme",
         "original_caret",
+        "original_caret_was_auto",
         "setting_path_key",
     ] {
-        let hits = scan(&[".", retired].concat());
-        let outside: Vec<&String> = hits
-            .keys()
-            .filter(|f| {
-                f.as_str() != "overlay/journey/tests.rs"
-                    && f.as_str() != "overlay/journey/mod.rs"
-                    && !SIDECAR_CONTRACT.contains(&f.as_str())
-            })
-            .collect();
+        let needle = ["pub", retired, ":"].concat();
         assert!(
-            outside.is_empty(),
-            "`{retired}` came back as a field access in {outside:?} — the lifecycle \
-             owns the parked parent (`Parked`) and the revert payload (`Audition`)"
+            !text.contains(&needle),
+            "`{retired}` came back as an `OverlayState` field — the lifecycle owns \
+             the parked parent, the revert payload and the child's write-back"
+        );
+    }
+    // NON-VACUITY FLOOR: the scanner must be reading the real declaration with a
+    // needle shape that actually matches, or the loop above is checking nothing.
+    for present in ["pubaudition:", "pubdetail_focus:", "pubkind:"] {
+        assert!(
+            text.contains(present),
+            "the scanner did not find `{present}` — it is reading the wrong file, \
+             or the needle shape stopped matching, and this law is vacuous"
         );
     }
 }

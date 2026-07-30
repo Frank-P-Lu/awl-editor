@@ -1549,6 +1549,71 @@ fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
 }
 
+/// ITEM 173 — THE SUSPEND/RETURN JOURNEY, DRIVEN ENTIRELY BY `--keys`. Open the
+/// Settings workspace from the palette, filter DOWN THE LIST to a row that is
+/// not row 0, descend into its child audition, and cancel: the workspace
+/// resumes ON THAT ROW, with the filter that found it.
+///
+/// The pre-item-173 breadcrumb re-summoned the parent FRESH and dropped both,
+/// so this replay used to land on "Caret style" with an empty query no matter
+/// which row you came from. The action path and the replay path are the same
+/// seam, so this is the parity witness as well as the restoration one.
+#[test]
+fn replay_keys_a_cancelled_settings_child_resumes_on_the_row_it_left() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET Esc").unwrap();
+    let root = PathBuf::from("/tmp");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+
+    let ov = res
+        .journey
+        .card()
+        .expect("the workspace resumed rather than closing to the buffer");
+    assert_eq!(ov.kind, crate::overlay::OverlayKind::Settings);
+    assert_eq!(
+        ov.selected_value(),
+        Some("Theme"),
+        "resumed on the row the child was opened from, not on row 0"
+    );
+    assert_eq!(
+        ov.query.text(),
+        "theme",
+        "and with the filter that found it"
+    );
+    assert_eq!(res.journey.parked_kind(), None, "single-level");
+    crate::theme::set_active(0);
+}
+
+/// The SAME journey stopped one chord earlier: while the child audition is up,
+/// the SIDECAR reports which surface is parked beneath it. `overlay.return_to`
+/// keeps its published name and now reads the lifecycle's parked parent, so an
+/// agent probe can see the suspension without a new schema field.
+#[test]
+fn replay_keys_the_sidecar_reports_the_parked_workspace_under_a_child() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys("s-p s e t t i n g s RET t h e m e RET").unwrap();
+    let root = PathBuf::from("/tmp");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    assert_eq!(
+        res.journey.card().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Theme),
+        "the child audition is up"
+    );
+    let (info, _preview, _diff) =
+        crate::run::overlay_capture_info(&res.journey, &buffer).expect("a card is up");
+    assert_eq!(
+        info.return_to,
+        Some("settings"),
+        "the sidecar names the parked workspace"
+    );
+    assert_eq!(info.mode, "theme");
+    crate::theme::set_active(0);
+}
+
 #[test]
 fn replay_keys_page_reset_restores_default_measure() {
     let _pg = crate::testlock::serial();
