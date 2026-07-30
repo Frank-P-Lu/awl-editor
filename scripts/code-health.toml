@@ -18,7 +18,12 @@
 # raise is only legitimate with a `reason` field naming the seam and the size
 # delta; it is never a substitute for extraction the file can actually afford.
 # A raise recorded relative to `main` with no `reason` fails the gate
-# (code-health.py: check_mark_raises).
+# (code-health.py: check_mark_raises). That comparison only has force where
+# HEAD differs from `main` — a worker's worktree branch, checked before
+# landing. HEAD-is-`main` (CI's push-to-`main` job, and the merge train's
+# post-merge candidate) is a vacuous comparison-to-itself and is reported as
+# SKIPPED, not as a clean audit (code-health.py: previous_marks). Do not read
+# "the ledger enforces raise reasons" as something CI verifies generally.
 
 [[file_size_mark]]
 file = "src/actions.rs"
