@@ -4,7 +4,7 @@
 //! The overlay is NOT a sidebar/tree/tabs: it appears, is used, and VANISHES on
 //! pick. While it is `Some`, typed chars edit the overlay QUERY (never the
 //! buffer), Up/Down move the selection, Enter opens the highlighted item, and
-//! Esc/C-g cancels. All of that is driven through `actions::apply_core`, so the
+//! Esc/C-g cancels. All of that is driven through `actions::apply_transition`, so the
 //! `--keys` headless replay can open it, type to filter, move, and accept — the
 //! whole flow stays agent-verifiable and serializable to the capture sidecar.
 //!

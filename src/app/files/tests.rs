@@ -251,7 +251,7 @@ fn trash_asset_failure_keeps_the_row_and_notes_the_error() {
 }
 
 // ── NO-PATH PASTE SAVES FIRST (the paste-image seam, `app/apply.rs::
-// try_paste_image`) ──────────────────────────────────────────────────────
+// paste_image_reference`) ────────────────────────────────────────────────
 
 /// A bare SCRATCH buffer (never summoned via Cmd-N) with real text in it: the
 /// pre-paste save promotes it into an unnamed fresh document rooted at the
@@ -353,7 +353,7 @@ fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
 }
 
 /// An EMPTY buffer (no first line to derive a name from) fails the save
-/// quietly and stays path-less — the caller (`try_paste_image`) falls back to
+/// quietly and stays path-less — the caller (`paste_image_reference`) falls back to
 /// its pre-existing absolute data-root location rather than blocking the
 /// paste. Also proves the promotion side effect (now a fresh document)
 /// survives the failed save, matching what typing-then-pausing would do from

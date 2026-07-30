@@ -13,7 +13,7 @@
 //! at every space-less wrap (the lower-row `pick_row` bias won the boundary column),
 //! while a dropped-space prose wrap masked it. The two laws below assert the OUTCOME
 //! over REAL PIXELS (the caret's own `primary` colour, DESIGN §3) AND the end-to-end
-//! motion wiring (`apply_core(LineEnd)` sets `Upstream`), on a CJK fixture AND a
+//! motion wiring (`apply_transition(LineEnd)` sets `Upstream`), on a CJK fixture AND a
 //! space-less Latin URL. C-e / End / Cmd-Right all resolve to `Action::LineEnd`
 //! (pinned by the keymap tests `c_e_kept` / the Cmd-arrow + Home/End arms), so
 //! driving `LineEnd` covers all three advertised chords.
@@ -194,7 +194,7 @@ fn wrap_end_caret_renders_on_the_upper_visual_row_real_pixels() {
 #[test]
 fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
     // The MOTION half of the law: driving `Action::LineEnd` (the shared funnel of
-    // C-e / End / Cmd-Right) through the REAL `apply_core` with the shaped pipeline
+    // C-e / End / Cmd-Right) through the REAL `apply_transition` with the shaped pipeline
     // as the visual-line ORACLE lands the caret at the shared boundary AND stamps
     // `Upstream`; a plain rightward motion to the same column leaves `Downstream`.
     let _g = crate::testlock::serial();
@@ -215,7 +215,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
     for (label, text) in [("CJK", CJK), ("URL", URL)] {
         let boundary = shared_boundary(&mut p, text);
         // Shape the oracle pipeline on THIS fixture (its internal buffer answers the
-        // wrap queries `apply_core` asks).
+        // wrap queries `apply_transition` asks).
         p.set_view(&view(text, 0, 0));
 
         let drive = |p: &TextPipeline, actions: &[crate::keymap::Action]| -> Buffer {
@@ -241,7 +241,7 @@ fn visual_line_end_motion_sets_upstream_affinity_end_to_end() {
                     browse_to: &mut browse_to,
                     oracle: Some(p as &dyn crate::actions::LayoutOracle),
                 };
-                crate::actions::apply_core(&mut ctx, a, false);
+                crate::actions::apply_transition(&mut ctx, a, false).primary();
             }
             buffer
         };

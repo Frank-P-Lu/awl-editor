@@ -1,4 +1,4 @@
-//! ITEM 104 — THE SETTINGS "EVERY SECOND ROW" LAW, the `apply_core`-seam half.
+//! ITEM 104 — THE SETTINGS "EVERY SECOND ROW" LAW, the `apply_transition`-seam half.
 //! User report (2026-07-26, world Mopoke): Settings → Editor visibly contains
 //! every row, but moving/selecting through it reaches only ALTERNATING rows
 //! ("every second item being selectable bug is back" — a recurrence of the
@@ -10,7 +10,7 @@
 //! just Editor), BOTH directions, BOTH starting parities (even/odd start
 //! index), a FILTERED list, a WINDOW-SCROLLED list (the full `All` home
 //! exceeds `window_rows()`), and the Zoom RANGE row's enter/exit adjacency —
-//! through the exact `apply_core` seam the live keymap resolves into
+//! through the exact `apply_transition` seam the live keymap resolves into
 //! (`Action::NextLine`/`PreviousLine`/`ForwardChar`/`BackwardChar`), so a
 //! `--keys` replay and this law can never disagree.
 //!
@@ -37,7 +37,7 @@ fn goto_facet(ov: &mut OverlayState, fid: &str) {
 }
 
 /// Walk `ov.selected` from `start` to one end via repeated `action`
-/// (`NextLine`/`PreviousLine`), through the REAL `apply_core` seam
+/// (`NextLine`/`PreviousLine`), through the REAL `apply_transition` seam
 /// (`settings_drive`), asserting every step advances by EXACTLY one row and
 /// recording every visited row's NAME. Returns the visited names in walk
 /// order (length == rows walked, including the start).

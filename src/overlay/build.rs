@@ -225,18 +225,18 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // Navigable explorers open via `browse_level` (they need a dir level).
         OverlayKind::Browse | OverlayKind::MoveDest | OverlayKind::Project => None,
         // NOTES VERBS round: the Rename minibuffer is built directly at its
-        // `Action::OpenRenameNote` apply_core arm (`OverlayState::new_rename`) — it
+        // `Action::OpenRenameNote` apply_transition arm (`OverlayState::new_rename`) — it
         // needs only the buffer's own path, no caller-gathered context — so this
         // generic builder never constructs one. This arm exists for exhaustiveness.
         OverlayKind::Rename => None,
         // LINKS V2: the InsertLink minibuffer is built directly at its
-        // `Action::InsertLink` apply_core arm (`link::open_insert_link` →
+        // `Action::InsertLink` apply_transition arm (`link::open_insert_link` →
         // `OverlayState::new_link_edit`) — it needs only the buffer's own
         // selection/cursor/text, no caller-gathered context — so this generic
         // builder never constructs one. This arm exists for exhaustiveness.
         OverlayKind::InsertLink => None,
         // NAMED SAVE POINTS: the Keep-version minibuffer is built directly at
-        // its `Action::KeepVersion` apply_core arm (`OverlayState::new_keep_name`)
+        // its `Action::KeepVersion` apply_transition arm (`OverlayState::new_keep_name`)
         // — it needs no caller-gathered context at all (the prompt opens empty) —
         // so this generic builder never constructs one. Exhaustiveness arm.
         OverlayKind::KeepName => None,

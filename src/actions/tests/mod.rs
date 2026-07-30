@@ -49,7 +49,7 @@ pub(super) fn browse_level(kind: OverlayKind, rel: Option<String>) -> Option<Ove
     ))
 }
 
-/// Drive a single action through `apply_core` with a browse_to backed by
+/// Drive a single action through `apply_transition` with a browse_to backed by
 /// `browse_level`, returning the resulting (overlay, accept).
 pub(super) fn drive(
     overlay: &mut Option<OverlayState>,
@@ -89,7 +89,7 @@ pub(super) fn drive(
     };
     // Mirror the old `overlay_accept` out-param: an accept effect writes the
     // chosen value into `accept`, accumulating across calls like before.
-    if let Effect::OverlayAccept(kind, val) = apply_core(&mut ctx, action, false) {
+    if let Effect::OverlayAccept(kind, val) = apply_transition(&mut ctx, action, false).primary() {
         *accept = Some((kind, val));
     }
 }
@@ -131,7 +131,7 @@ pub(super) fn drive_run(
     };
     // Surface BOTH the palette's run-on-Enter (returned) and any accept value
     // (mirrored into `accept`), matching the former two out-params.
-    match apply_core(&mut ctx, action, false) {
+    match apply_transition(&mut ctx, action, false).primary() {
         Effect::RunAction(a) => Some(a),
         Effect::OverlayAccept(kind, val) => {
             *accept = Some((kind, val));
@@ -141,7 +141,7 @@ pub(super) fn drive_run(
     }
 }
 
-/// Drive one action against a mutable overlay through `apply_core`, returning the
+/// Drive one action against a mutable overlay through `apply_transition`, returning the
 /// raw [`Effect`] — for the rebind-menu flow assertions.
 pub(super) fn drive_eff(overlay: &mut Option<OverlayState>, action: &Action) -> Effect {
     let mut buffer = Buffer::scratch();
@@ -172,7 +172,7 @@ pub(super) fn drive_eff(overlay: &mut Option<OverlayState>, action: &Action) -> 
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false)
+    apply_transition(&mut ctx, action, false).primary()
 }
 
 /// A fresh SETTINGS overlay (table-order corpus + value cells), for the
@@ -194,7 +194,7 @@ pub(super) fn settings_overlay() -> OverlayState {
 
 /// ITEM 94 — like [`settings_drive`], but with the caller's OWN zoom scalar
 /// threaded through `ActionCtx`, so a test can assert what a rail step did to the
-/// live value (the same field the live App mirrors back after `apply_core`).
+/// live value (the same field the live App mirrors back after `apply_transition`).
 pub(super) fn settings_drive_zoom(
     overlay: &mut Option<OverlayState>,
     action: &Action,
@@ -219,7 +219,7 @@ pub(super) fn settings_drive_zoom(
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false)
+    apply_transition(&mut ctx, action, false).primary()
 }
 
 /// A make_overlay for the settings interaction tests: re-summons Settings (the
@@ -260,10 +260,10 @@ pub(super) fn settings_drive(overlay: &mut Option<OverlayState>, action: &Action
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false)
+    apply_transition(&mut ctx, action, false).primary()
 }
 
-/// Drive one action through the REAL `apply_core` seam over a fresh markdown
+/// Drive one action through the REAL `apply_transition` seam over a fresh markdown
 /// buffer (a no-path scratch buffer is markdown), seeding the cursor + optional
 /// mark first, and return the buffer for assertions. Mirrors `align_table`'s
 /// harness — the same seam a key / palette / `--keys` invocation rides.
@@ -297,7 +297,7 @@ pub(super) fn drive_format(
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_core(&mut ctx, action, false);
+        apply_transition(&mut ctx, action, false).primary();
     }
     buffer
 }
@@ -327,7 +327,7 @@ pub(super) fn drive_bt(
         oracle: None,
     };
     // Mirror the old `overlay_accept` out-param into `accept` (accumulating).
-    if let Effect::OverlayAccept(kind, val) = apply_core(&mut ctx, action, false) {
+    if let Effect::OverlayAccept(kind, val) = apply_transition(&mut ctx, action, false).primary() {
         *accept = Some((kind, val));
     }
 }
@@ -370,7 +370,7 @@ pub(super) fn theme_overlay() -> Option<OverlayState> {
     Some(OverlayState::new_theme(names, crate::theme::active_index()))
 }
 
-/// Drive one `Newline` through the REAL `apply_core` seam on `buffer` (with the
+/// Drive one `Newline` through the REAL `apply_transition` seam on `buffer` (with the
 /// caret already placed), so a test exercises the smart-Enter wiring end-to-end
 /// exactly as `--keys "RET"` would.
 pub(super) fn drive_newline(buffer: &mut Buffer) {
@@ -391,7 +391,7 @@ pub(super) fn drive_newline(buffer: &mut Buffer) {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, &Action::Newline, false);
+    apply_transition(&mut ctx, &Action::Newline, false).primary();
 }
 
 /// A markdown buffer (`.md` path) holding `text` with the caret at char `cursor`.
@@ -402,7 +402,7 @@ pub(super) fn md(text: &str, cursor: usize) -> Buffer {
     b
 }
 
-/// Drive one action through the REAL `apply_core` seam on `buffer` (no overlay /
+/// Drive one action through the REAL `apply_transition` seam on `buffer` (no overlay /
 /// search), exactly as `--keys` would — for the Tab / Shift-Tab list-edit tests.
 pub(super) fn drive_act(buffer: &mut Buffer, action: &Action) {
     let mut shift = false;
@@ -422,10 +422,10 @@ pub(super) fn drive_act(buffer: &mut Buffer, action: &Action) {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false);
+    apply_transition(&mut ctx, action, false).primary();
 }
 
-/// Drive one action through `apply_core` against a real buffer + a (possibly
+/// Drive one action through `apply_transition` against a real buffer + a (possibly
 /// live) search panel, so a test can step the find/replace surface.
 pub(super) fn drive_search(buffer: &mut Buffer, search: &mut Option<SearchState>, action: &Action) {
     let mut shift = false;
@@ -444,10 +444,10 @@ pub(super) fn drive_search(buffer: &mut Buffer, search: &mut Option<SearchState>
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false);
+    apply_transition(&mut ctx, action, false).primary();
 }
 
-/// Drive one action through `apply_core` against a fresh buffer seeded with
+/// Drive one action through `apply_transition` against a fresh buffer seeded with
 /// `text` and the cursor at char `cursor`, returning the resulting `(Effect,
 /// cursor_char)` — the cursor is exposed too so a caller can pin the "bump
 /// fires only when the motion did NOT move the cursor" rule alongside the
@@ -477,7 +477,7 @@ pub(super) fn drive_effect_and_cursor(
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let effect = apply_core(&mut ctx, action, false);
+    let effect = apply_transition(&mut ctx, action, false).primary();
     let _ = ctx;
     (effect, buffer.cursor_char())
 }
@@ -525,6 +525,8 @@ pub(super) fn delete_flinch_fixture(
         | Action::Outdent
         | Action::KillLine
         | Action::Yank
+        | Action::YankText
+        | Action::InsertImageReference(_)
         | Action::Undo
         | Action::Redo
         | Action::SetMark
@@ -616,7 +618,7 @@ pub(super) fn delete_flinch_fixture(
 /// tests need to `set_mark`/`set_cursor` on the buffer BEFORE dispatch
 /// (unlike [`drive_effect`], which only ever seeds a bare cursor position),
 /// so they build the buffer themselves and drive it through the REAL
-/// `apply_core` seam directly.
+/// `apply_transition` seam directly.
 pub(super) fn drive_act_effect(buffer: &mut Buffer, action: &Action) -> Effect {
     let mut shift = false;
     let mut zoom = 1.0;
@@ -635,7 +637,7 @@ pub(super) fn drive_act_effect(buffer: &mut Buffer, action: &Action) -> Effect {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false)
+    apply_transition(&mut ctx, action, false).primary()
 }
 
 /// Per-MOTION boundary FIXTURE for the boundary-bump completeness sweep below:
@@ -669,7 +671,7 @@ pub(super) fn motion_boundary_fixture(
     }
 }
 
-/// Drive one action through the REAL `apply_core` seam with an EXPLICIT
+/// Drive one action through the REAL `apply_transition` seam with an EXPLICIT
 /// `shift` flag and a PERSISTENT `shift_selecting` slot, so a test can walk a
 /// whole Shift+motion run (set → extend → collapse) across calls.
 pub(super) fn drive_shift(
@@ -694,7 +696,7 @@ pub(super) fn drive_shift(
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, shift)
+    apply_transition(&mut ctx, action, shift).primary()
 }
 
 /// EVERY `Action` variant, one representative each, for the completeness
@@ -726,6 +728,8 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::DeleteForward
             | Action::KillLine
             | Action::Yank
+            | Action::YankText
+            | Action::InsertImageReference(_)
             | Action::Undo
             | Action::Redo
             | Action::SetMark
@@ -834,6 +838,8 @@ pub(super) fn all_actions() -> Vec<Action> {
         Action::DeleteForward,
         Action::KillLine,
         Action::Yank,
+        Action::YankText,
+        Action::InsertImageReference("assets/pasted-1.png".into()),
         Action::Undo,
         Action::Redo,
         Action::SetMark,
@@ -1087,6 +1093,8 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::DeleteToLineStart
         | Action::DeleteForward
         | Action::KillLine
+        | Action::YankText
+        | Action::InsertImageReference(_)
         | Action::SetMark
         | Action::PageScrollDown
         | Action::PageScrollUp

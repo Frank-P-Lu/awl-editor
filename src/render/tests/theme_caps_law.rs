@@ -174,7 +174,7 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
             continue;
         }
         // The CLI perf-bench harnesses (`--bench-frame`/`--bench-perf`, driven
-        // by `main.rs`, never by `apply_core`/the live render decisions this
+        // by `main.rs`, never by `apply_transition`/the live render decisions this
         // law is about) legitimately CYCLE by concrete world NAME to force a
         // font-reshape/switch-cost measurement — that's a bench DRIVER
         // picking which worlds to visit, not a per-theme render branch. Not a

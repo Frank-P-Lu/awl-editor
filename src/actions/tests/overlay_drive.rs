@@ -79,7 +79,7 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
 /// font-derived look, so it stopped tracking LATER theme switches. Reproduced
 /// end-to-end (headlessly, via `--keys`) in
 /// `main::run::tests::replay_keys_caret_picker_cancel_from_auto_does_not_pin_it`;
-/// this is the pure `apply_core`-level regression at its purest seam.
+/// this is the pure `apply_transition`-level regression at its purest seam.
 #[test]
 fn caret_picker_cancel_from_auto_restores_auto_not_a_pin() {
     use crate::caret::CaretMode;
@@ -256,7 +256,7 @@ fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
 /// corpus marks `SettingKind::Toggle` — enumerated straight off
 /// `settings::visible_rows()`, never hand-copied, so a row added to the
 /// corpus later is swept automatically — resolves through the REAL
-/// `apply_core` seam (Enter on that exact row, selected directly by its own
+/// `apply_transition` seam (Enter on that exact row, selected directly by its own
 /// corpus index rather than a fuzzy query, so an ambiguous filter can never
 /// mis-select a neighbor) to `Effect::SettingToggle` carrying its OWN named
 /// key. This is the "does Enter even signal the right thing" half of the
@@ -372,7 +372,7 @@ fn command_drive(overlay: &mut Option<OverlayState>, action: &Action) -> Effect 
         browse_to: &mut browse_to,
         oracle: None,
     };
-    apply_core(&mut ctx, action, false)
+    apply_transition(&mut ctx, action, false).primary()
 }
 
 /// The palette's corpus is the UNION of commands + NON-COVERED settings — a
@@ -553,7 +553,7 @@ fn settings_action_row_opens_config_as_text_and_closes() {
     );
     // Enter emits OpenSettings (open config.toml) and CLOSES the menu.
     let eff = settings_drive(&mut overlay, &Action::Newline);
-    assert_eq!(eff, Effect::OpenSettings);
+    assert_eq!(eff, Effect::Buffer(BufferEffect::OpenSettings));
     assert!(overlay.is_none(), "the action row closes the menu");
 }
 
@@ -863,10 +863,10 @@ fn open_settings_signals_caller() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let effect = apply_core(&mut ctx, &Action::OpenSettings, false);
+    let effect = apply_transition(&mut ctx, &Action::OpenSettings, false).primary();
     assert_eq!(
         effect,
-        Effect::OpenSettings,
+        Effect::Buffer(BufferEffect::OpenSettings),
         "OpenSettings must signal the caller"
     );
     assert!(overlay.is_none(), "OpenSettings opens no overlay");
@@ -898,7 +898,7 @@ fn keep_version_opens_the_naming_minibuffer_and_enter_commits_the_name() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let effect = apply_core(&mut ctx, &Action::KeepVersion, false);
+    let effect = apply_transition(&mut ctx, &Action::KeepVersion, false).primary();
     assert_eq!(
         effect,
         Effect::None,
@@ -928,11 +928,11 @@ fn keep_version_opens_the_naming_minibuffer_and_enter_commits_the_name() {
     // Type a name, then Enter: the intercept closes the overlay and commits.
     for c in "draft A".chars() {
         assert_eq!(
-            apply_core(&mut ctx, &Action::InsertChar(c), false),
+            apply_transition(&mut ctx, &Action::InsertChar(c), false).primary(),
             Effect::None
         );
     }
-    let effect = apply_core(&mut ctx, &Action::Newline, false);
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
     assert_eq!(
         effect,
         Effect::KeepVersion {
@@ -969,9 +969,9 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
         oracle: None,
     };
     // Blank Enter → the plain keep (name: None). A whitespace-only name too.
-    apply_core(&mut ctx, &Action::KeepVersion, false);
-    apply_core(&mut ctx, &Action::InsertChar(' '), false);
-    let effect = apply_core(&mut ctx, &Action::Newline, false);
+    apply_transition(&mut ctx, &Action::KeepVersion, false).primary();
+    apply_transition(&mut ctx, &Action::InsertChar(' '), false).primary();
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
     assert_eq!(
         effect,
         Effect::KeepVersion { name: None },
@@ -979,9 +979,9 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
     );
     assert!(ctx.overlay.is_none());
     // Esc → cancels: the overlay closes and NOTHING is signalled.
-    apply_core(&mut ctx, &Action::KeepVersion, false);
-    apply_core(&mut ctx, &Action::InsertChar('x'), false);
-    let effect = apply_core(&mut ctx, &Action::Cancel, false);
+    apply_transition(&mut ctx, &Action::KeepVersion, false).primary();
+    apply_transition(&mut ctx, &Action::InsertChar('x'), false).primary();
+    let effect = apply_transition(&mut ctx, &Action::Cancel, false).primary();
     assert_eq!(effect, Effect::None, "Esc keeps nothing");
     assert!(ctx.overlay.is_none(), "Esc closes the minibuffer outright");
 }
@@ -990,7 +990,7 @@ fn keep_version_blank_enter_is_the_plain_keep_and_esc_cancels() {
 fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
     use crate::buffer::Eol;
     // The palette "Line endings…" command routes Action::ConvertLineEndings
-    // through the SAME apply_core seam a key/menu invocation uses. A fresh buffer
+    // through the SAME apply_transition seam a key/menu invocation uses. A fresh buffer
     // is LF; each dispatch flips the on-disk ending (LF <-> CRLF) WITHOUT touching
     // the rope (always pure `\n`), so the change is document METADATA — it marks
     // the buffer dirty + bumps `version` (so autosave rewrites) but is NOT an
@@ -1018,7 +1018,7 @@ fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
         oracle: None,
     };
     let version_before = ctx.buffer.version();
-    let eff = apply_core(&mut ctx, &Action::ConvertLineEndings, false);
+    let eff = apply_transition(&mut ctx, &Action::ConvertLineEndings, false).primary();
     assert_eq!(
         eff,
         Effect::None,
@@ -1041,13 +1041,13 @@ fn convert_line_endings_toggles_the_buffer_eol_as_metadata() {
     );
 
     // A second dispatch flips back to LF (the toggle is total over the two endings).
-    apply_core(&mut ctx, &Action::ConvertLineEndings, false);
+    apply_transition(&mut ctx, &Action::ConvertLineEndings, false).primary();
     assert_eq!(ctx.buffer.eol(), Eol::Lf, "second toggle: CRLF -> LF");
 }
 
 #[test]
 fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
-    // Action::FollowLink routes through the SAME apply_core seam a key/palette/menu
+    // Action::FollowLink routes through the SAME apply_transition seam a key/palette/menu
     // invocation uses. When the caret sits inside a markdown link the pure core
     // extracts its URL and signals `Effect::FollowLink(url)` for the caller to open
     // in the browser (a LIVE-App-only handoff; the headless replay no-ops the
@@ -1074,7 +1074,7 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
         browse_to: &mut browse_to,
         oracle: None,
     };
-    let eff = apply_core(&mut ctx, &Action::FollowLink, false);
+    let eff = apply_transition(&mut ctx, &Action::FollowLink, false).primary();
     assert_eq!(
         eff,
         Effect::FollowLink("http://x/y".to_string()),
@@ -1086,7 +1086,7 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
     // Caret in the leading prose (byte 1) — outside every link — is a no-op.
     ctx.buffer.set_cursor(1);
     assert_eq!(
-        apply_core(&mut ctx, &Action::FollowLink, false),
+        apply_transition(&mut ctx, &Action::FollowLink, false).primary(),
         Effect::None,
         "caret outside a link is the calm no-op"
     );
@@ -1094,11 +1094,11 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
 
 /// WORD-OPS ROUND (b) — the END-TO-END routing proof: ⌥⌫ (`DeleteWordBackward`)
 /// drives a WHOLE-word delete of the palette's fuzzy query through the real
-/// `apply_core` → `overlay_intercept` seam, while plain ⌫ (`DeleteBackward`)
+/// `apply_transition` → `overlay_intercept` seam, while plain ⌫ (`DeleteBackward`)
 /// still removes a single char. This pins the match-arm SPLIT the round added
 /// (before it, both actions shared one arm that popped a single char).
 #[test]
-fn palette_query_word_delete_routes_through_apply_core() {
+fn palette_query_word_delete_routes_through_apply_transition() {
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
     let mut overlay = Some(OverlayState::new_command(
@@ -1121,13 +1121,13 @@ fn palette_query_word_delete_routes_through_apply_core() {
 }
 
 /// ITEM 10 — END-TO-END: `Action::ForwardWord`/`BackwardWord` move the
-/// PALETTE QUERY's caret through the real `apply_core` → `overlay_intercept`
+/// PALETTE QUERY's caret through the real `apply_transition` → `overlay_intercept`
 /// seam (previously a swallowed no-op), while plain `Action::NextLine` /
 /// `PreviousLine` (Up/Down — the list-move actions every kind shares) still
 /// move the SELECTED ROW, never the query caret. Proves the routing this item
 /// added without disturbing the pre-existing list-navigation arms.
 #[test]
-fn palette_query_word_motion_routes_through_apply_core_list_move_untouched() {
+fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched() {
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
     let mut overlay = Some(OverlayState::new_command(
@@ -1437,7 +1437,7 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
 ///
 /// The law is an OUTCOME sweep over EVERY visible Settings row, never a string check
 /// on one: select the row, read the foot line, then drive the REAL `ForwardChar`
-/// through `apply_core` and see what actually happened. Whichever of the two things
+/// through `apply_transition` and see what actually happened. Whichever of the two things
 /// the key did, the line must have said so beforehand — and exactly one of them may
 /// happen. A future range row, or a row that gains a rail, is swept in automatically.
 #[test]

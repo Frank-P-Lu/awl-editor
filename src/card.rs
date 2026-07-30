@@ -11,7 +11,7 @@
 //!    unchanged.
 //!  * [`dismiss_summoned_card`] — the any-key / any-click DISMISS intercept for
 //!    the two MODAL cards (About + Lifetime stats, which OWN the next key). Both
-//!    `actions::apply_core`'s top-of-function arm and the live App's mouse-press
+//!    `actions::apply_transition`'s top-of-function arm and the live App's mouse-press
 //!    handler dismiss through this ONE door instead of a per-card check+close.
 //!
 //! All three render through the SAME float-card pipeline
@@ -45,12 +45,12 @@ impl CardFlag {
 /// Dismiss whichever MODAL summoned card (About, Lifetime stats, or Writing
 /// streaks) is open, returning `true` iff one WAS open (and is now closed). THE
 /// one owner of the "a modal card OWNS the next key/click" intercept:
-/// `actions::apply_core`'s top-of-function arm and the live App's mouse-press
+/// `actions::apply_transition`'s top-of-function arm and the live App's mouse-press
 /// handler both call this instead of duplicating a per-card check+close. They are
 /// mutually exclusive (each opens only after the palette that summoned it closed,
 /// and each dismisses on the first key), so closing "the open one" is the whole
 /// contract. One carve-out lives UPSTREAM of this door: while the streaks card
-/// is open, `apply_core` intercepts ←/→ to flip its heatmap⇄cumulative page
+/// is open, `apply_transition` intercepts ←/→ to flip its heatmap⇄cumulative page
 /// (`streaks::toggle_view`) before ever reaching here — every other key still
 /// dismisses. The
 /// hold-⌘ peek is deliberately absent — it is not modal (it closes when the hold

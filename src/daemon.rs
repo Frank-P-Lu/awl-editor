@@ -540,7 +540,7 @@ mod tests {
         // Mirrors `main::run::tests::headless_replay_never_arms_autosave_or_
         // stashes_scratch`'s shape: point the socket at a throwaway dir via
         // the test-only override, drive a few edits + a Save THROUGH THE REAL
-        // `actions::apply_core` seam every headless `--keys` replay rides
+        // `actions::apply_transition` seam every headless `--keys` replay rides
         // (`crate::app::run` / `crate::daemon::startup` — the only doors that
         // ever touch a socket — are never on this call path at all, headless
         // or otherwise: `main::run`'s capture modes never call `app::run`),
@@ -570,14 +570,13 @@ mod tests {
                 browse_to: &mut browse_to,
                 oracle: None,
             };
-            let _ = crate::actions::apply_core(
-                &mut ctx,
-                &crate::keymap::Action::InsertChar('h'),
-                false,
-            );
-            let _ = crate::actions::apply_core(&mut ctx, &crate::keymap::Action::Save, false);
-            let _ =
-                crate::actions::apply_core(&mut ctx, &crate::keymap::Action::FinishBuffer, false);
+            for action in [
+                crate::keymap::Action::InsertChar('h'),
+                crate::keymap::Action::Save,
+                crate::keymap::Action::FinishBuffer,
+            ] {
+                let _transition = crate::actions::apply_transition(&mut ctx, &action, false);
+            }
         }
 
         set_socket_dir_for_test(None);

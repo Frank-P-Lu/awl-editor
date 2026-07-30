@@ -2318,7 +2318,7 @@ fn background_desc() -> BgDesc {
 /// it owns the SHAPED text (and hence the wrap geometry). Every query is answered
 /// from the same [`TextPipeline::visual_rows`] / [`pick_row`] / per-char `xs` the
 /// caret + hit-test already use, so live motion and the visual placement of the
-/// caret can't disagree. `apply_core` reaches these through the renderer-agnostic
+/// caret can't disagree. `apply_transition` reaches these through the renderer-agnostic
 /// [`crate::actions::LayoutOracle`] trait, keeping the motion logic itself free of
 /// any GPU type. Columns are CHAR columns; `goal_x` and the returned x are pixels
 /// relative to TEXT_LEFT (the space `xs` lives in).
@@ -2349,12 +2349,12 @@ fn col_on_row(rows: &[VisualRow], target: usize, goal_x: f32) -> usize {
 }
 
 impl crate::actions::LayoutOracle for TextPipeline {
+    fn visual_row_of(&self, line: usize, col: usize) -> usize {
+        TextPipeline::visual_row_of(self, line, col)
+    }
+
     fn visual_x_of(&self, line: usize, col: usize, affinity: crate::caret::Affinity) -> f32 {
-        // O(line): the oracle needs only per-char xs + row cols, so read this line's
-        // OWN wrap rows (see `line_rows_local`), not the whole-doc `visual_rows`.
-        // Affinity resolves a caret parked at a shared boundary to the row it sits
-        // on, so its goal-x seeds from THAT row's x (the UPPER row's right edge for
-        // an `Upstream` caret) — `Downstream` is byte-identical to the old bias.
+        // Read this line's local rows; affinity resolves shared wrap boundaries.
         let rows = self.line_rows_local(line);
         let row = pick_row_aff(&rows, col, affinity);
         let c = col.min(row.xs.len().saturating_sub(1));

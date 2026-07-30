@@ -271,40 +271,6 @@ impl App {
         visible.saturating_sub(2).max(1)
     }
 
-    pub(in crate::app) fn scroll_page(&mut self, dir: isize) -> bool {
-        let cursor_before = self.active.buffer.cursor_line_col();
-        let target_rows = self.page_scroll_rows();
-        let start_row = match self.gpu.as_ref() {
-            Some(gpu) => {
-                let (l, c) = self.active.buffer.cursor_line_col();
-                Some(gpu.pipeline.visual_row_of(l, c))
-            }
-            None => None,
-        };
-        // Hard cap on logical-line steps so we can never loop unbounded: at most
-        // target_rows logical lines (each logical line is >= 1 visual row).
-        for _ in 0..target_rows {
-            let before = self.active.buffer.cursor_line_col();
-            if dir > 0 {
-                self.active.buffer.next_line();
-            } else {
-                self.active.buffer.previous_line();
-            }
-            let after = self.active.buffer.cursor_line_col();
-            if after == before {
-                break;
-            }
-            if let (Some(start), Some(gpu)) = (start_row, self.gpu.as_ref()) {
-                let row = gpu.pipeline.visual_row_of(after.0, after.1);
-                let moved = (row as isize - start as isize).unsigned_abs();
-                if moved >= target_rows {
-                    break;
-                }
-            }
-        }
-        self.active.buffer.cursor_line_col() != cursor_before
-    }
-
     /// Handle a platform IME event (Japanese/CJK composition lifecycle).
     ///
     /// * `Enabled`/`Disabled` track whether the IME is active; a Disable clears
@@ -488,10 +454,10 @@ impl App {
         // IS the binding — intercepted at the CHORD level, BEFORE keymap
         // resolution, so any combo (C-t / M-f / a bare key) is recorded verbatim
         // rather than run. Enter / Esc are EXCLUDED (they finish / abort the
-        // capture via the normal resolve → apply_core path below). Option
+        // capture via the normal resolve → apply_transition path below). Option
         // composition is undone (like the dead-key fix) so Option-f records as
         // M-f, not the composed glyph. The headless replay records PLAIN keys
-        // through `apply_core` instead; both call `OverlayState::capture_record`.
+        // through `apply_transition` instead; both call `OverlayState::capture_record`.
         if self.capture_recording() {
             let is_ctrl_key = matches!(
                 &raw,
@@ -549,7 +515,7 @@ impl App {
         // summon, so its RELEASE dismisses the HUD — either the key lifting
         // (`on_key_release`) or a summoning modifier dropping (`hud_release_on_mods`,
         // the macOS case where the letter's key-UP never arrives while Cmd is down).
-        // The press itself summons it via `apply_core` (sets the process-global); an
+        // The press itself summons it via `apply_transition` (sets the process-global); an
         // OS auto-repeat re-affirms the same key/mods.
         if action == Action::ShowStatsHud {
             self.hud_key = Some(logical.clone());
@@ -565,17 +531,6 @@ impl App {
         // shape; the headless `--keys` replay derives its flag through the same fn.
         let shift = self.mods.state().contains(ModifiersState::SHIFT)
             && motion_honors_shift_select(&action, &logical);
-        let defer_zoom_sync =
-            matches!(action, Action::ZoomIn | Action::ZoomOut | Action::ZoomReset);
-        let exited = self.apply(action, shift, event_loop, crate::stats::Door::Chord);
-        if exited {
-            return;
-        }
-        if !defer_zoom_sync {
-            self.sync_view(true);
-        }
-        if let Some(gpu) = self.gpu.as_ref() {
-            gpu.window.request_redraw();
-        }
+        self.apply(action, shift, event_loop, crate::stats::Door::Chord);
     }
 }

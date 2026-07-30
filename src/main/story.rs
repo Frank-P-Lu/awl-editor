@@ -59,9 +59,7 @@ pub(crate) fn run_storyboard(
             )
         })?;
     }
-    // Project context — the same resolution capture_screenshot performs, inside
-    // the hermetic sandbox (a seeded root resolves as non-git; the index walk
-    // sees exactly the seeded files).
+    // Same project resolution as capture_screenshot, inside the sandbox.
     let active_root = crate::run::resolve_root(&root, &file);
     let proj = crate::project::Project::resolve(&active_root);
     let corpus = crate::index::build_index(&active_root);
@@ -90,7 +88,7 @@ pub(crate) fn run_storyboard(
     std::fs::create_dir_all(&out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
     let mut renderer = capture::FilmRenderer::new(&out_dir)?;
     let mut session = crate::run::ReplaySession::new(
-        crate::replay::Mode::Strict,
+        crate::run::ReplayPolicy::isolated(),
         &mut buffer,
         &corpus,
         &active_root,

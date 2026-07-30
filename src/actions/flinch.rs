@@ -1,10 +1,10 @@
 //! The CARET FEEDBACK triggers — the pure decisions that turn a just-applied
 //! `Action` into a visual caret flinch. Both read the cheap pre/post snapshots
-//! `apply_core` takes around the dispatch (the cursor char index, the content
+//! `apply_transition` takes around the dispatch (the cursor char index, the content
 //! version, the undo/redo availability) and return the ONE [`Effect`] the caller
 //! carries out on the VISUAL caret. They are mutually exclusive — a blocked
 //! action recoils ([`recoil_for`]); a successful edit flinches ([`impact_for`]) —
-//! and `apply_core` only consults each when no real effect already fired. Pure
+//! and `apply_transition` only consults each when no real effect already fired. Pure
 //! over the buffer + the snapshots, so the triggers are unit-testable without a
 //! GPU/clock. Carved out of `actions.rs` VERBATIM.
 
@@ -50,7 +50,7 @@ pub(super) fn impact_for(action: &Action, version_before: u64, ctx: &ActionCtx) 
 /// [`impact_for`] above: `Action::CopyRegion` never mutates the buffer, so it can
 /// never pass `impact_for`'s content-version-changed gate — a separate,
 /// selection-keyed check is the only way to see it. `had_selection_before` MUST be
-/// snapshotted by the caller BEFORE `apply_core` dispatches the action:
+/// snapshotted by the caller BEFORE `apply_transition` dispatches the action:
 /// `Buffer::copy_region` unconditionally clears the mark (even on a no-op copy
 /// with nothing selected), so reading the selection AFTER the call always reads
 /// false. An empty-selection copy (no mark, or mark == cursor) stays the

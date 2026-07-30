@@ -186,7 +186,7 @@ fn normalize_priority(langs: &[Lang]) -> [Lang; 4] {
 /// `spell::ACTIVE_VARIANT` / `caret::MODE_OVERRIDE`: seeded from the config
 /// `cjk_priority` pref at launch ([`crate::config::Config::apply_sticky_globals`]),
 /// read by the Settings menu's "Ambiguous CJK reads as" row, and SET by the CJK
-/// language picker's Enter — inside the shared `apply_core` seam
+/// language picker's Enter — inside the shared `apply_transition` seam
 /// (`actions::overlay_nav`), exactly like the Theme/Caret/Dictionary pickers —
 /// so both the live App AND a headless `--keys` replay observe the promotion
 /// identically (the whole reason this is a process global rather than a plain

@@ -3,8 +3,8 @@
 //! surface both replay modes share.
 //!
 //! The headless replay (`main/run.rs::replay_keys`) drives the REAL
-//! `apply_core` seam, but the core defers its filesystem/OS/window work as an
-//! [`Effect`] for the caller — and the capture caller can only honestly perform
+//! `apply_transition` seam, which returns filesystem/OS/window requests as
+//! typed [`Effect`] values — and the capture caller can only honestly perform
 //! SOME of them. This module names that honesty in data:
 //!
 //!   * [`EffectClass::Applied`] — the replay performs the effect FOR REAL
@@ -25,7 +25,7 @@
 //! the same keys would do live. Truthfulness means the strict runner refuses to
 //! continue past a divergence rather than verify a fiction.
 //!
-//! [`classify`] is a NO-WILDCARD match over [`Effect`] (and, for
+//! [`classify_for`] is a NO-WILDCARD match over [`Effect`] (and, for
 //! [`Effect::OverlayAccept`], over [`OverlayKind`]): a future variant fails to
 //! compile here until someone consciously classifies it. `main/run.rs`'s
 //! replay loop consults this classification; the two can only drift if a human
@@ -48,7 +48,9 @@ use crate::keymap::Action;
 use crate::overlay::OverlayKind;
 
 mod skip;
+mod typed;
 pub use skip::{SkippedEffect, permissive_skip};
+use typed::{classify_buffer, classify_clipboard, classify_persistence, named};
 
 /// How a replay treats the effects (and chords) it cannot honestly apply.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +64,16 @@ pub enum Mode {
     /// recorded silently — observing a handoff without performing it IS the
     /// strict contract, not a compromise of it.
     Strict,
+}
+
+/// Filesystem authority handed explicitly to one headless replay. Ordinary
+/// replay owns none. A strict scenario/storyboard may own an isolated sandbox
+/// installed by its caller; the interpreter never infers this from global
+/// filesystem state or from [`Mode`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilesystemCapability {
+    None,
+    Isolated,
 }
 
 /// The truthfulness class of one [`Effect`] under headless replay. See the
@@ -92,7 +104,7 @@ pub struct Classified {
 /// scenario trace: a stable effect name plus the observed payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Intercept {
-    /// The effect's stable name ([`classify`]'s `name`), e.g. `"follow_link"`.
+    /// The effect's stable name ([`classify_for`]'s `name`), e.g. `"follow_link"`.
     pub effect: &'static str,
     /// The observed handoff payload (URL / trash path / …); `""` when the
     /// effect carries none.
@@ -103,7 +115,13 @@ pub struct Intercept {
 /// Unsupported truth, consulted by the replay loop in `main/run.rs`. A
 /// NO-WILDCARD match: a future `Effect` or [`OverlayKind`] fails to compile
 /// until it is consciously classified.
+#[cfg(test)]
 pub fn classify(effect: &Effect) -> Classified {
+    classify_for(effect, FilesystemCapability::None)
+}
+
+/// Classify with the filesystem authority the caller explicitly owns.
+pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classified {
     let c = |name, class| Classified { name, class };
     let applied = EffectClass::Applied;
     let unsupported = |why| EffectClass::Unsupported { why };
@@ -111,23 +129,33 @@ pub fn classify(effect: &Effect) -> Classified {
         // ── APPLIED: the replay performs these for real (see the matching
         // arms in `main/run.rs::replay_keys_mode` / `capture_screenshot`). ──
         Effect::None => c("none", applied),
-        Effect::NewDocument => c("new_document", applied),
-        Effect::OpenSettings => c("open_settings", applied),
-        Effect::OpenCredits => c("open_credits", applied),
-        Effect::OpenGuide => c("open_guide", applied),
+        Effect::Buffer(buffer) => classify_buffer(buffer),
         Effect::RunAction(_) => c("run_action", applied),
         Effect::OverlayAccept(kind, _) => c("overlay_accept", accept_class(*kind)),
         Effect::JumpToLine(_) => c("jump_to_line", applied),
-        Effect::ConvertScratchAndSave => c("convert_scratch_and_save", applied),
+        Effect::Persistence(persistence) => classify_persistence(persistence, filesystem),
+        Effect::Clipboard(clipboard) => classify_clipboard(clipboard),
+        Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished) => {
+            intercepted("daemon_notify_finished", String::new())
+        }
+        Effect::Surface(crate::actions::SurfaceEffect::ShowAbout) => c("show_about", applied),
+        Effect::Notice(notice) => match notice {
+            crate::actions::NoticeEffect::Toast(_) => c("notice_toast", applied),
+            crate::actions::NoticeEffect::Sticky(_) => c("notice_sticky", applied),
+            crate::actions::NoticeEffect::Clear => c("notice_clear", applied),
+        },
+        Effect::Render(render) => match render {
+            crate::actions::RenderEffect::SyncView { .. } => c("sync_view", applied),
+            crate::actions::RenderEffect::Reshape => c("reshape", applied),
+            crate::actions::RenderEffect::ZoomChanged => c("zoom_changed", applied),
+            crate::actions::RenderEffect::Redraw => c("redraw", applied),
+            crate::actions::RenderEffect::EditStreak => c("edit_streak", applied),
+        },
         // INSERT DATE: the headless replay performs the SAME insert live does
         // (against the fixed placeholder date instead of the real clock — see
         // `dateformat::CAPTURE_PLACEHOLDER_YMD`), so this is honestly Applied,
         // not a divergence.
         Effect::InsertDate => c("insert_date", applied),
-        // The save already ran inside `apply_core` (`Buffer::save`, through the
-        // active fs backend); only the live bottom-center NOTICE is skipped —
-        // chrome, not session state.
-        Effect::SaveDone { .. } => c("save_done", applied),
         // Cosmetic caret one-shots: the underlying edit/copy already applied in
         // the core, and the flourish's settled frame is byte-identical BY
         // CONTRACT (each variant's own doc in `actions.rs`), so the skipped
@@ -142,45 +170,15 @@ pub fn classify(effect: &Effect) -> Classified {
         // ── INTERCEPTED: external handoffs, observed + recorded, safely not
         // performed — skipping them leaves the editor state exactly as live
         // (the handoff target is OUTSIDE the app). ──
-        Effect::FollowLink(url) => c(
-            "follow_link",
-            EffectClass::Intercepted {
-                detail: url.clone(),
-            },
-        ),
-        Effect::ReportProblem => c(
-            "report_problem",
-            EffectClass::Intercepted {
-                detail: String::new(),
-            },
-        ),
-        Effect::DownloadFile => c(
-            "download_file",
-            EffectClass::Intercepted {
-                detail: String::new(),
-            },
-        ),
+        Effect::FollowLink(url) => intercepted("follow_link", url.clone()),
+        Effect::ReportProblem => intercepted("report_problem", String::new()),
+        Effect::DownloadFile => intercepted("download_file", String::new()),
         // The export renders the document + writes a sibling file (or a web
         // download) — a live-App-only external write the replay/capture safely
         // skips, leaving the editor state exactly as live. Recorded, not performed.
-        Effect::Export(format) => c(
-            "export",
-            EffectClass::Intercepted {
-                detail: format.ext().to_string(),
-            },
-        ),
-        Effect::CheckForUpdates => c(
-            "check_for_updates",
-            EffectClass::Intercepted {
-                detail: String::new(),
-            },
-        ),
-        Effect::TrashAsset { rel } => c(
-            "trash_asset",
-            EffectClass::Intercepted {
-                detail: rel.clone(),
-            },
-        ),
+        Effect::Export(format) => intercepted("export", format.ext().to_string()),
+        Effect::CheckForUpdates => intercepted("check_for_updates", String::new()),
+        Effect::TrashAsset { rel } => intercepted("trash_asset", rel.clone()),
 
         // ── UNSUPPORTED: live-App-only work whose skip diverges the session
         // from what the same keys do live — strict replay aborts here. ──
@@ -190,18 +188,6 @@ pub fn classify(effect: &Effect) -> Classified {
             // applying LATER keys past the "exit" — a real divergence. A
             // future scenario runner may promote this to a clean stop instead.
             unsupported("live exits the event loop; a replay would keep applying keys past it"),
-        ),
-        Effect::LastBuffer => c(
-            "last_buffer",
-            unsupported(
-                "the 2-deep buffer history is live-App-only; the buffer switch would not happen",
-            ),
-        ),
-        Effect::FinishBuffer => c(
-            "finish_buffer",
-            unsupported(
-                "the daemon notify + switch-away are live-App-only (the save itself already ran)",
-            ),
         ),
         Effect::KeepVersion { .. } => c(
             "keep_version",
@@ -246,7 +232,7 @@ pub fn classify(effect: &Effect) -> Classified {
             ),
         ),
         // ITEM 94 — a RANGE row's step: unlike its Toggle/Value siblings above, the
-        // VALUE CHANGE ITSELF already happened in the shared core (`apply_core`
+        // VALUE CHANGE ITSELF already happened in the shared core (`apply_transition`
         // stepped `ActionCtx::zoom` through the range spec and mirrored the row's
         // readout + thumb), so the replay session observes exactly what live does —
         // the SAME reason the Theme/Caret/Date accepts are Applied. What the replay
@@ -263,6 +249,10 @@ pub fn classify(effect: &Effect) -> Classified {
             unsupported("the sibling copy + buffer swap are live-App-only"),
         ),
     }
+}
+
+fn intercepted(name: &'static str, detail: String) -> Classified {
+    named(name, EffectClass::Intercepted { detail })
 }
 
 /// The per-[`OverlayKind`] class of an [`Effect::OverlayAccept`] — accepts are
@@ -361,249 +351,9 @@ pub fn strict_error(action: &Action, c: &Classified) -> anyhow::Error {
 pub fn missing_oracle_error() -> anyhow::Error {
     anyhow::anyhow!(
         "strict replay: layout oracle unavailable (no GPU adapter) — \
-         visual-line motion would fall back to logical lines instead of the shaped wrap geometry"
+     visual-line motion would fall back to logical lines instead of the shaped wrap geometry"
     )
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::caret::RecoilDir;
-
-    /// One sample instance of EVERY `Effect` variant (the compile-time
-    /// exhaustiveness law lives in `classify`'s own no-wildcard match; this
-    /// roster makes each variant's BUCKET explicit and reviewed).
-    fn roster() -> Vec<Effect> {
-        vec![
-            Effect::None,
-            Effect::Quit,
-            Effect::LastBuffer,
-            Effect::NewDocument,
-            Effect::OpenSettings,
-            Effect::OpenCredits,
-            Effect::OpenGuide,
-            Effect::RunAction(Action::Save),
-            Effect::OverlayAccept(OverlayKind::Goto, "a.md".into()),
-            Effect::JumpToLine(3),
-            Effect::RebindCommit {
-                slug: "save".into(),
-                binding: "C-t".into(),
-                confirmed: false,
-            },
-            Effect::RebindReset {
-                slug: "save".into(),
-            },
-            Effect::Recoil(RecoilDir::Left),
-            Effect::TypeImpact,
-            Effect::DeleteSquash,
-            Effect::Gulp,
-            Effect::LineLand,
-            Effect::FinishBuffer,
-            Effect::KeepVersion {
-                name: Some("draft A".into()),
-            },
-            Effect::FollowLink("https://example.com".into()),
-            Effect::ReportProblem,
-            Effect::DownloadFile,
-            Effect::Export(crate::export::Format::Docx),
-            Effect::CheckForUpdates,
-            Effect::CopyPulse,
-            Effect::SettingToggle {
-                key: "wysiwyg".into(),
-            },
-            Effect::SettingValueCommit {
-                key: "page_width_prose".into(),
-                value: "66".into(),
-            },
-            Effect::SettingPathPick {
-                key: "default_folder".into(),
-                path: "/tmp/n".into(),
-            },
-            Effect::SettingRangeStep { key: "zoom".into() },
-            Effect::TrashAsset {
-                rel: "assets/orphan.png".into(),
-            },
-            Effect::ConvertScratchAndSave,
-            Effect::SaveDone {
-                ok: true,
-                message: "saved".into(),
-            },
-            Effect::RenameNoteCommit {
-                new_name: "new.md".into(),
-            },
-            Effect::DuplicateNote,
-            Effect::InsertDate,
-        ]
-    }
-
-    #[test]
-    fn every_effect_lands_in_its_documented_bucket() {
-        // The bucket each variant belongs to, pinned by NAME (the classify
-        // match is the compile-time sweep; this is the reviewed membership).
-        let applied = [
-            "none",
-            "new_document",
-            "open_settings",
-            "open_credits",
-            "open_guide",
-            "run_action",
-            "overlay_accept",
-            "jump_to_line",
-            "convert_scratch_and_save",
-            "save_done",
-            "recoil",
-            "type_impact",
-            "delete_squash",
-            "gulp",
-            "line_land",
-            "copy_pulse",
-            "insert_date",
-            // ITEM 94: a range STEP applies in the shared core (unlike its
-            // Toggle/Value siblings, which are Unsupported below) — see its arm.
-            "setting_range_step",
-        ];
-        let intercepted = [
-            "follow_link",
-            "report_problem",
-            "download_file",
-            "export",
-            "check_for_updates",
-            "trash_asset",
-        ];
-        let unsupported = [
-            "quit",
-            "last_buffer",
-            "finish_buffer",
-            "keep_version",
-            "rebind_commit",
-            "rebind_reset",
-            "setting_toggle",
-            "setting_value_commit",
-            "setting_path_pick",
-            "rename_note_commit",
-            "duplicate_note",
-        ];
-        for e in roster() {
-            let c = classify(&e);
-            let expected: &[&str] = match c.class {
-                EffectClass::Applied => &applied,
-                EffectClass::Intercepted { .. } => &intercepted,
-                EffectClass::Unsupported { .. } => &unsupported,
-            };
-            assert!(
-                expected.contains(&c.name),
-                "`{}` classified off its documented bucket",
-                c.name
-            );
-        }
-        // The three buckets partition the roster exactly (no name missing/extra).
-        assert_eq!(
-            roster().len(),
-            applied.len() + intercepted.len() + unsupported.len()
-        );
-    }
-
-    #[test]
-    fn effect_names_are_unique_and_stable() {
-        let mut names: Vec<&'static str> = roster().iter().map(|e| classify(e).name).collect();
-        let total = names.len();
-        names.sort_unstable();
-        names.dedup();
-        assert_eq!(names.len(), total, "duplicate effect name in classify");
-    }
-
-    #[test]
-    fn intercepted_effects_carry_their_payload_as_detail() {
-        let follow = classify(&Effect::FollowLink("https://awl.example/g".into()));
-        assert_eq!(
-            follow.class,
-            EffectClass::Intercepted {
-                detail: "https://awl.example/g".into()
-            }
-        );
-        let trash = classify(&Effect::TrashAsset {
-            rel: "assets/o.png".into(),
-        });
-        assert_eq!(
-            trash.class,
-            EffectClass::Intercepted {
-                detail: "assets/o.png".into()
-            }
-        );
-        // Payload-free handoffs record an empty detail, not a placeholder.
-        let report = classify(&Effect::ReportProblem);
-        assert_eq!(
-            report.class,
-            EffectClass::Intercepted {
-                detail: String::new()
-            }
-        );
-    }
-
-    #[test]
-    fn overlay_accepts_are_classified_per_kind() {
-        // The headlessly-real accepts stay Applied…
-        for kind in [
-            OverlayKind::Goto,
-            OverlayKind::Project,
-            OverlayKind::History,
-            OverlayKind::Theme,
-            OverlayKind::Caret,
-            OverlayKind::Dictionary,
-            OverlayKind::CjkLang,
-        ] {
-            let c = classify(&Effect::OverlayAccept(kind, "v".into()));
-            assert_eq!(
-                c.class,
-                EffectClass::Applied,
-                "{kind:?} accept should be Applied"
-            );
-        }
-        // …the live-only note move is Unsupported…
-        let mv = classify(&Effect::OverlayAccept(
-            OverlayKind::MoveDest,
-            "inbox".into(),
-        ));
-        assert!(matches!(mv.class, EffectClass::Unsupported { .. }));
-        // …and a kind that never emits an accept fails safe (Unsupported), so a
-        // new emission aborts a strict run until consciously classified.
-        let odd = classify(&Effect::OverlayAccept(OverlayKind::Spell, "word".into()));
-        assert!(matches!(odd.class, EffectClass::Unsupported { .. }));
-    }
-
-    #[test]
-    fn strict_error_and_warn_line_name_the_exact_action_and_effect() {
-        let c = classify(&Effect::Quit);
-        let err = strict_error(&Action::Quit, &c).to_string();
-        assert!(err.contains("`quit`"), "effect named: {err}");
-        assert!(err.contains("Quit"), "action named: {err}");
-        assert!(err.starts_with("strict replay:"), "strict prefix: {err}");
-
-        let warn = warn_line(&Action::Quit, &c).expect("unsupported warns");
-        assert!(
-            warn.contains("`quit`") && warn.contains("Quit"),
-            "warn names both: {warn}"
-        );
-        assert!(
-            warn.starts_with("--keys replay:"),
-            "permissive prefix: {warn}"
-        );
-
-        // Intercepted warning carries the payload; Applied warns about nothing.
-        let f = classify(&Effect::FollowLink("https://x.y/z".into()));
-        let warn = warn_line(&Action::FollowLink, &f).expect("intercepted warns");
-        assert!(
-            warn.contains("`follow_link`") && warn.contains("https://x.y/z"),
-            "{warn}"
-        );
-        assert_eq!(warn_line(&Action::Save, &classify(&Effect::None)), None);
-    }
-
-    #[test]
-    fn missing_oracle_error_names_the_fallback_it_refuses() {
-        let msg = missing_oracle_error().to_string();
-        assert!(msg.starts_with("strict replay:"), "{msg}");
-        assert!(msg.contains("layout oracle"), "{msg}");
-        assert!(msg.contains("logical lines"), "{msg}");
-    }
-}
+mod tests;

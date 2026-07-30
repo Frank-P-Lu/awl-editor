@@ -7,7 +7,7 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 1066
+lines = 816
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -23,7 +23,7 @@ lines = 1800
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1253
+lines = 1053
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -35,7 +35,7 @@ lines = 645
 
 [[file_size_mark]]
 file = "src/app/input/keys.rs"
-lines = 581
+lines = 536
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
@@ -111,7 +111,7 @@ lines = 1028
 
 [[file_size_mark]]
 file = "src/daemon.rs"
-lines = 589
+lines = 588
 
 [[file_size_mark]]
 file = "src/debug.rs"
@@ -147,7 +147,7 @@ lines = 841
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 1135
+lines = 1133
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
@@ -166,7 +166,7 @@ lines = 1402
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1396
+lines = 1188
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -326,7 +326,7 @@ lines = 1440
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 609
+lines = 359
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -469,21 +469,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 284
-message = "this function has too many lines (266/100)"
+line = 310
+message = "this function has too many lines (152/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 792
-message = "this function has too many lines (127/100)"
+line = 598
+message = "this function has too many lines (122/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 1061
+line = 853
 message = "this function has too many lines (321/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -734,13 +734,6 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/replay.rs"
-line = 106
-message = "this function has too many lines (125/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "src/selection.rs"
 line = 198
 message = "this function has too many lines (106/100)"
@@ -784,42 +777,42 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 670
-message = "this function has too many lines (139/100)"
+line = 703
+message = "this function has too many lines (122/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
 line = 502
-message = "this function has too many lines (107/100)"
+message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 705
-message = "this function has too many lines (216/100)"
+line = 707
+message = "this function has too many lines (220/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 706
-message = "this function has too many lines (107/100)"
+line = 708
+message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 953
-message = "this function has too many lines (107/100)"
+line = 959
+message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/tests/files.rs"
-line = 1626
+line = 1624
 message = "this function has too many lines (106/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
@@ -870,28 +863,28 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 214
+line = 216
 message = "this function has too many lines (112/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 347
+line = 349
 message = "this function has too many lines (127/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 505
+line = 507
 message = "this function has too many lines (156/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 888
+line = 890
 message = "this function has too many lines (113/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
 
@@ -1197,23 +1190,23 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 2926
+line = 3130
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, which removed lines earlier in the file."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 2966
+line = 3170
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, which removed lines earlier in the file."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3000
+line = 3204
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, which removed lines earlier in the file."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"

@@ -1,4 +1,4 @@
-//! FOLD action-seam laws: fold/unfold + collapse-others through `apply_core`, and
+//! FOLD action-seam laws: fold/unfold + collapse-others through `apply_transition`, and
 //! the AUTO-EXPAND rules (an edit / motion landing inside a fold reveals it; a
 //! selection never spans a fold invisibly; folds are never on the undo timeline).
 //! Folds are VIEW state on the buffer, so they drive through the shared core
@@ -157,7 +157,7 @@ fn auto_expand_when_an_edit_lands_inside_a_fold() {
     let mut buffer = Buffer::from_str(OUTLINE);
     buffer.set_cursor(0);
     drive_act(&mut buffer, &Action::ToggleFold); // fold # A
-    // Place the caret on a hidden line WITHOUT going through apply_core (set_cursor
+    // Place the caret on a hidden line WITHOUT going through apply_transition (set_cursor
     // does not reveal), then type — the edit must reveal the fold.
     buffer.set_cursor(buffer.line_col_to_char(3, 0));
     assert!(buffer.folds().contains(&0), "still folded before the edit");

@@ -201,7 +201,7 @@ fn cmd_option_c_toggles_case_sensitivity_and_reanchors() {
 
 /// Tab reveals the replace row then flips focus; Cmd-R forces focus into the
 /// replacement; Cmd-Option-F rides the same toggle — the affordances the
-/// retired `apply_core` search intercept used to cover at the Action level.
+/// retired `apply_transition` search intercept used to cover at the Action level.
 #[test]
 fn tab_and_cmd_r_move_between_the_two_fields() {
     let (mut search, mut buffer) = open("alpha beta alpha");

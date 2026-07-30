@@ -12,7 +12,7 @@
 //! Unlike the HELD stats HUD (`hud.rs`), this is NOT a hold: it OPENS and stays
 //! open until dismissed by ANY key or mouse click — the SAME modal-summon pattern
 //! the About card (`about.rs`) uses, just with different content. It reuses the
-//! About wiring verbatim across every seam (open-flag global, the `apply_core`
+//! About wiring verbatim across every seam (open-flag global, the `apply_transition`
 //! top-of-function any-key dismissal, the live App's any-mouse-press dismissal).
 //!
 //! One process-global mirrors the `about`/`debug`/`focus`/`hud` pattern:
@@ -25,12 +25,12 @@
 //! machines. The open-flag defaults false, so a default `--screenshot` is
 //! byte-identical.
 //!
-//! **Why `apply_core` itself acquires [`crate::testlock::serial`] under test:**
+//! **Why `apply_transition` itself acquires [`crate::testlock::serial`] under test:**
 //! identical to the reasoning in `about.rs`'s module doc — `lifetime_open()` is
-//! checked at the very TOP of `apply_core`, UNCONDITIONALLY, for every action (the
+//! checked at the very TOP of `apply_transition`, UNCONDITIONALLY, for every action (the
 //! any-key dismissal), so a test that has never heard of this module could
-//! otherwise have its own unrelated `apply_core` call walk into the dismissal
-//! intercept and silently swallow its action. `apply_core` acquires the ONE
+//! otherwise have its own unrelated `apply_transition` call walk into the dismissal
+//! intercept and silently swallow its action. `apply_transition` acquires the ONE
 //! process-wide guard itself under `cfg(test)`, reentrant per thread, so it can
 //! never self-deadlock. Because a SINGLE guard now covers every process-global,
 //! there is no lock ORDER left to invert — the about↔lifetime ABBA (a real 3-way

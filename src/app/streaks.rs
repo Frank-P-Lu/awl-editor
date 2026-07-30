@@ -297,14 +297,11 @@ mod tests {
                 0,
                 "precondition: the pending delta is not yet in the store"
             );
-            // Summoning the card runs the same post-`apply_core` side effect the
-            // live app dispatches for `Action::WritingStreaks`.
-            app.post_apply_effects(
-                &crate::keymap::Action::WritingStreaks,
-                false,
-                false,
-                crate::theme::active(),
-            );
+            app.apply_live_effect(crate::actions::Effect::Persistence(
+                crate::actions::PersistenceEffect::Preference(
+                    crate::actions::PreferenceEffect::WritingStreaks,
+                ),
+            ));
             assert_eq!(
                 app.streaks.view(today).today_words,
                 6,

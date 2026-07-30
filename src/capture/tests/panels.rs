@@ -806,7 +806,7 @@ fn streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year() {
     }
 
     // THE VIEW TOGGLE (outcome tier — the ←/→ key path itself is law-tested at
-    // the `apply_core` seam in `actions/tests/picker_misc_smoke.rs`): a summon
+    // the `apply_transition` seam in `actions/tests/picker_misc_smoke.rs`): a summon
     // opens on the HEATMAP page; flipped to CUMULATIVE the sidecar reports the
     // page + the synthetic running total, the capture stays byte-stable across
     // runs, and the pixels actually CHANGE (the flip is a real render, not just
@@ -1045,7 +1045,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
 /// — UNLIKE the caret/theme pickers, merely navigating the Dictionary picker
 /// (no commit) must NOT change the top-level `dictionary` field, since there is
 /// no live preview (a re-parse is real work, so it happens once, on Enter — see
-/// `overlay/`). A subsequent commit (mirroring the real `apply_core` seam)
+/// `overlay/`). A subsequent commit (mirroring the real `apply_transition` seam)
 /// DOES flip it, and the switch is picked up by a fresh capture with no flags.
 #[test]
 fn dictionary_picker_absent_by_default_and_open_does_not_preview() {

@@ -13,17 +13,17 @@
 //! history, session, scratch stash, autosave; the crash hook and daemon are
 //! live-App-only doors no capture opens). External handoffs (URL open, mailto,
 //! Trash, download) are already observed-not-performed via
-//! [`crate::replay::classify`]'s Intercepted class — together the two seams
+//! [`crate::replay::classify_for`]'s Intercepted class — together the two seams
 //! make a scenario run's only real side effects the PNG + JSON it was asked to
 //! write (the harness deliverable itself deliberately bypasses the app seam:
 //! `capture` writes it with `std::fs`/`image`, so the sandbox can't swallow
 //! the artifact the caller named).
 //!
-//! The LEGACY paths keep their behavior byte-for-byte: a plain `--screenshot`
-//! (or motion/timeline/held capture) still reads the named file — and the
-//! user's own config — straight off the real disk, and a replayed save really
-//! writes it (CAPTURE.md's documented caveat). Hermeticity is the SCENARIO
-//! default, not a regression of the one-off harness.
+//! The ordinary paths still read their explicitly named file and config, but
+//! replay owns no filesystem-write capability: typed Save/Finish requests are
+//! skipped and opening an absent config never materializes it. A strict
+//! scenario is the only replay door explicitly granted isolated write
+//! capability, and that capability targets this sandbox.
 //!
 //! STRUCTURAL hermeticity: [`install_hermetic_fs`] has exactly ONE production
 //! call site — `args::parse_args`'s strict-replay arm, BEFORE `Config::load`

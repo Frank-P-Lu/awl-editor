@@ -1,6 +1,6 @@
 //! CARET-STYLE PICKER PREVIEW — the CHOREOGRAPHED demo that drives the caret-style
 //! picker's floating preview PANEL. It runs a scripted TIMELINE of edits + motions
-//! through the SAME layout-free [`crate::actions::apply_core`] the real editor uses,
+//! through the SAME layout-free [`crate::actions::apply_transition`] the real editor uses,
 //! on a TINY throwaway [`Buffer`], so the highlighted caret look actually types,
 //! glides, jumps, deletes and gulps on a real sample line — the spirit of the
 //! `--keys` capture replay, looped.
@@ -34,10 +34,10 @@ const EDIT_DWELL: f32 = 0.13; // per backspace / kill (delete-squash, gulp)
 const SHORT_PAUSE: f32 = 0.55; // the brief pause between choreography phases
 const LONG_PAUSE: f32 = 1.15; // the longer idle before the loop clears + restarts
 
-/// One beat of the choreographed timeline: a keystroke driven through `apply_core`,
+/// One beat of the choreographed timeline: a keystroke driven through `apply_transition`,
 /// a hard CLEAR (wipe the line before looping), or a pure PAUSE (dwell, no change).
 enum Beat {
-    /// Apply this action to the preview buffer via `apply_core`; its returned
+    /// Apply this action to the preview buffer via `apply_transition`; its returned
     /// [`Effect`] arms the matching caret flinch (type impact / squash / gulp / recoil).
     Key(Action),
     /// Wipe the preview buffer empty (the loop's reset before it types the line again).
@@ -55,7 +55,7 @@ pub struct Tick {
 }
 
 /// The CHOREOGRAPHED caret-style picker preview: a throwaway [`Buffer`] driven by a
-/// scripted `(action, dwell)` [`Beat`] timeline through [`apply_core`], plus the
+/// scripted `(action, dwell)` [`Beat`] timeline through [`apply_transition`], plus the
 /// wrapped [`CaretAnim`] spring the renderer positions on the sample line. PURE (no
 /// GPU/clock/font): the caller supplies `dt` and the shaped caret X; the renderer
 /// reads `anim` for geometry. LIVE-ONLY feel, deterministic settled state ([`settle`]).
@@ -187,17 +187,23 @@ impl CaretDemo {
                 self.buf.set_text("");
                 (Effect::None, true) // re-home the caret to the empty line's start
             }
-            Beat::Key(action) => (self.drive(action.clone()), false),
+            Beat::Key(action) => {
+                let transition = self.drive(action.clone());
+                // The preview owns its own renderer and persistence-free
+                // throwaway buffer. It consumes the primary flourish here;
+                // the typed render requests are intentionally inapplicable.
+                (transition.primary(), false)
+            }
         };
         let moved = forced_move || self.buf.cursor_char() != before;
         Tick { effect, moved }
     }
 
-    /// Drive one action through the shared, layout-free [`apply_core`] on the throwaway
+    /// Drive one action through the shared, layout-free [`apply_transition`] on the throwaway
     /// buffer — the exact seam the live editor + `--keys` replay use, so the preview's
     /// edits/motions behave identically. No overlay, no oracle, no filesystem: a bare
     /// preview buffer with inert hooks.
-    fn drive(&mut self, action: Action) -> Effect {
+    fn drive(&mut self, action: Action) -> actions::Transition {
         let mut shift = false;
         let mut zoom = 1.0;
         let mut search = None;
@@ -218,7 +224,7 @@ impl CaretDemo {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        actions::apply_core(&mut ctx, &action, false)
+        actions::apply_transition(&mut ctx, &action, false)
     }
 
     /// Reset to the UN-SEEDED state (the picker closed): the next summon re-primes on

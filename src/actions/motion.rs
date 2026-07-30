@@ -4,7 +4,7 @@
 //! and the incremental-search OPEN. Each follows the SHAPED visual rows when an
 //! oracle is present and falls back to the buffer's LOGICAL lines when it is absent
 //! (the pure unit tests), so a non-wrapped document behaves identically either way.
-//! `apply_core`'s dispatch routes its motion arms here. Carved out of `actions.rs`
+//! `apply_transition`'s dispatch routes its motion arms here. Carved out of `actions.rs`
 //! VERBATIM.
 
 use super::*;
@@ -106,11 +106,17 @@ pub(super) fn kill_line_motion(ctx: &mut ActionCtx) {
     ctx.buffer.kill_line();
 }
 
-/// Move the cursor by `scroll_page_lines` logical lines up or down, stopping at
-/// the buffer boundary. The windowed app's richer visual-row paging lives in
-/// `App::scroll_page` (it needs the GPU to measure a screenful); this is the
-/// pure, deterministic fallback shared by replay and the no-GPU path.
-pub(super) fn scroll_page(buffer: &mut Buffer, scroll_page_lines: usize, down: bool) {
+/// Move by one measured page, stopping when the visual-row distance reaches
+/// the caller-supplied viewport measurement. With no layout oracle, each
+/// logical line is one row: the deterministic replay and pre-GPU fallback.
+pub(super) fn scroll_page(ctx: &mut super::ActionCtx, down: bool) {
+    let oracle = ctx.oracle;
+    let scroll_page_lines = ctx.scroll_page_lines;
+    let buffer = &mut *ctx.buffer;
+    let start_row = oracle.map(|oracle| {
+        let (line, col) = buffer.cursor_line_col();
+        oracle.visual_row_of(line, col)
+    });
     for _ in 0..scroll_page_lines.max(1) {
         let before = buffer.cursor_line_col();
         if down {
@@ -120,6 +126,13 @@ pub(super) fn scroll_page(buffer: &mut Buffer, scroll_page_lines: usize, down: b
         }
         if buffer.cursor_line_col() == before {
             break; // hit a buffer boundary
+        }
+        if let (Some(start), Some(oracle)) = (start_row, oracle) {
+            let (line, col) = buffer.cursor_line_col();
+            let row = oracle.visual_row_of(line, col);
+            if (row as isize - start as isize).unsigned_abs() >= scroll_page_lines.max(1) {
+                break;
+            }
         }
     }
 }

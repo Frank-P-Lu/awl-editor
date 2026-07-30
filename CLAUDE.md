@@ -72,7 +72,7 @@ Audit agents run at the production tier: Sonnet medium on Claude or `gpt-5.6-ter
 
 ## Conventions
 
-- Input path: keys → `keymap.rs` (`Action`) → `actions.rs::apply_core`. Every interaction stays drivable by `--keys` and visible in the sidecar.
+- Input path: keys → `keymap.rs` (`Action`) → `actions.rs::apply_transition`. Every interaction stays drivable by `--keys` and visible in the sidecar.
 - Determinism: the headless path has no clock, animation, or randomness; live-only animation captures its settled state.
 - Per-frame work is O(visible), not O(doc) — follow the proto-cache shape in `render/rects.rs`.
 - Picker rows go through `render/rowlayout` (docs/render.md), never hand-placed.

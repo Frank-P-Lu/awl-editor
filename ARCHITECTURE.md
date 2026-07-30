@@ -13,9 +13,10 @@ with native and selectable keymaps (see `PHILOSOPHY.md` §4).
 The one path everything flows through:
 
 ```
-key event ──▶ keymap ──▶ Action ──▶ apply_core ──▶ buffer / selection / search
- (winit       keymap.rs            actions.rs       buffer.rs, selection.rs,
-  or --keys)                                         search.rs
+key event ──▶ keymap ──▶ Action ──▶ apply_transition ──▶ state + typed Effects
+ (winit       keymap.rs            actions.rs             │
+  or --keys)                                             ├─ live interpreter
+                                                        └─ headless interpreter
 ```
 
 - A keystroke (a live winit event, or a chord from `--keys`) resolves to a single
@@ -23,9 +24,10 @@ key event ──▶ keymap ──▶ Action ──▶ apply_core ──▶ buffe
 - `Action` is the editor's command vocabulary — motions, edits, region ops, view
   ops, file ops. It is the seam between "what key was pressed" and "what the
   editor does."
-- `apply_core` is the pure, GPU-/winit-/clipboard-free function that mutates
-  document state for an `Action`. Both the live app and headless replay call it,
-  so live and verified behavior cannot drift.
+- `apply_transition` is the GPU-/winit-/clipboard-/filesystem-free seam. It
+  mutates editor state and returns a closed, ordered `Transition` of typed
+  requests for persistence, clipboard, buffer, daemon, notice, and render work.
+  Live and headless callers interpret that same transition explicitly.
 
 ## Modules
 
@@ -44,11 +46,11 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   → `main/`: `args` (CLI / `Mode` parsing + folder resolution), `run` (the
   interactive + headless run paths).
 - `app.rs` — the winit `ApplicationHandler`: window + event loop, owns the GPU
-  renderer, mouse handling, and the live glue around `apply_core` (clipboard
-  mirroring, GPU-measured page sizing, animation/redraw scheduling).
+  renderer, mouse handling, and the live transition interpreter (persistence,
+  clipboard mirroring, GPU-measured page sizing, animation/redraw scheduling).
   → `app/`: `gpu` (device/surface setup), `files` (open/save/project glue),
   `viewstate` (view sync + paging), `input` (mouse/key event handling), `apply`
-  (the `App::apply` wrapper around `apply_core` + app-only effects), `daemon`
+  (the `App::apply` wrapper around `apply_transition` + live effects), `daemon`
   (the App-side half of the single-instance daemon below).
 - `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only,
   `cfg(not(target_arch = "wasm32"))`): a Unix domain socket beside the scratch
@@ -66,7 +68,10 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   capture-gate argument and CLAUDE.md's Daemon section for the doors.
 
 **Editor core (renderer-agnostic logic)**
-- `actions.rs` — `ActionCtx` + `apply_core`: the shared apply seam (above).
+- `actions.rs` — `ActionCtx` + `apply_transition`: the sole shared
+  state-transition seam and closed typed-effect vocabulary (above). Every
+  caller receives the complete ordered transition; focused tests select its
+  primary effect explicitly.
   → `actions/`: `edit` (markdown smart-Enter), `flinch` (caret-feedback
   triggers), `motion` (oracle-aware motions + page scroll + search open),
   `overlay_nav` (modal overlay intercept + browse-path + live preview), `rebind`
@@ -129,24 +134,20 @@ name); behavior is byte-identical. Submodules are listed under each root below.
 ## Two flows, one engine
 
 1. **Live:** winit event → `app.rs` → `keymap::resolve` → `Action` →
-   `actions::apply_core` (+ app-only concerns) → `render.rs` draws the next frame.
+   `actions::apply_transition` → the live effect interpreter → `render.rs`.
 2. **Headless verify:** `--keys "spec"` → `keyspec::parse_keys` → `Vec<Action>` →
-   `replay_keys` / `apply_core` (same seam) → `capture.rs` renders one
+   `replay_keys` / `apply_transition` (same seam) → the headless effect
+   interpreter → `capture.rs` renders one
    deterministic frame → PNG + sidecar.
 
-Because both flows share `keymap` + `apply_core`, a headless capture exercises the
-real edit logic rather than a mock.
+Because both flows share `keymap` + `apply_transition`, a headless capture
+exercises the real edit logic rather than a mock. Search-panel chords also use
+one renderer-independent interception seam in both flows.
 
-## Known gaps — behavior that lives ONLY in `app.rs`, so it doesn't replay yet
-
-- **Search-query input** routes to the buffer in headless replay (the
-  query-routing still lives in `App::apply`, not `apply_core`).
-- **Save side effect:** replaying `C-x C-s` writes the file to disk during a
-  capture.
-- **Finish Buffer (C-x #):** replaying it writes the file to disk (same
-  `Buffer::save` call as `C-x C-s`, above), but the daemon-notify + buffer-swap
-  half is App-only — a headless replay treats the `Effect::FinishBuffer` it
-  signals as a no-op (mirrors `LastBuffer`; no daemon, no 2-deep buffer history
-  in a one-shot replay). See `daemon.rs`'s module doc.
-- **Clipboard + GPU-measured paging** intentionally stay in `app.rs` (they need
-  the OS / window); headless paging uses a fixed page size.
+Ordinary headless replay owns no filesystem-write capability: Save and Finish
+are recorded/skipped without touching disk, opening an absent config does not
+create it, clipboard/daemon handoffs are intercepted, and render requests
+settle without a window. Strict scenarios and storyboards explicitly receive
+an isolated in-memory filesystem capability, so their typed Save requests can
+land in the sandbox. GPU-measured paging remains live-only; oracle-less
+headless tests use their documented fixed page size.

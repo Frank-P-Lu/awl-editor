@@ -85,29 +85,49 @@ fn escape_and_command_w_dismiss_and_nothing_else_does() {
     }
 }
 
-/// MENU ROUTING, swept across the whole command roster: every menu and
-/// palette command still reaches the shared `apply_core`, and exactly one
-/// — About — is diverted to this window. The axis that matters is the one
-/// a future "let's route Credits natively too" edit moves; a second
-/// diverted command silently loses its in-app behaviour on macOS and
-/// nowhere else.
+/// MENU ROUTING, swept across the whole command roster: every command reaches
+/// the shared transition, and exactly About describes the platform surface.
 #[test]
-fn exactly_one_command_is_diverted_to_the_native_window() {
-    let diverted: Vec<&str> = crate::commands::COMMANDS
-        .iter()
-        .filter(|c| intercepts(&c.action))
-        .map(|c| c.name)
-        .collect();
+fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
+    let _guard = crate::testlock::serial();
+    let page_on = crate::page::page_on();
+    let measure = crate::page::measure();
+    let mut requesting = Vec::new();
+    for command in crate::commands::COMMANDS.iter() {
+        let mut buffer = crate::buffer::Buffer::scratch();
+        let mut shift_selecting = false;
+        let mut zoom = 1.0;
+        let mut search = None;
+        let mut overlay = None;
+        let mut make_overlay = |_| None;
+        let mut browse_to = |_, _| None;
+        let mut ctx = crate::actions::ActionCtx {
+            buffer: &mut buffer,
+            shift_selecting: &mut shift_selecting,
+            zoom: &mut zoom,
+            search: &mut search,
+            scroll_page_lines: 1,
+            overlay: &mut overlay,
+            make_overlay: &mut make_overlay,
+            browse_to: &mut browse_to,
+            oracle: None,
+        };
+        let transition = crate::actions::apply_transition(&mut ctx, &command.action, false);
+        if transition.contains(|effect| {
+            matches!(
+                effect,
+                crate::actions::Effect::Surface(crate::actions::SurfaceEffect::ShowAbout)
+            )
+        }) {
+            requesting.push(command.name);
+        }
+    }
+    crate::page::set_page_on(page_on);
+    crate::page::set_measure(measure);
     assert_eq!(
-        diverted,
+        requesting,
         vec!["About"],
-        "macOS diverts exactly the About command to the native window; \
-         every other command must still reach apply_core"
-    );
-    assert!(
-        intercepts(&crate::keymap::Action::About),
-        "the App menu's 'About Awl' item and Cmd-P 'About' both dispatch \
-         Action::About through this one seam"
+        "exactly About requests the platform surface through apply_transition"
     );
 }
 

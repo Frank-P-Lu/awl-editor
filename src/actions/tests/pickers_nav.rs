@@ -135,7 +135,7 @@ fn clicking_a_spell_suggestion_replaces_the_word() {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        let eff = apply_core(&mut ctx, &Action::Newline, false);
+        let eff = apply_transition(&mut ctx, &Action::Newline, false).primary();
         assert!(
             matches!(eff, Effect::None),
             "a spell replace edits in-core, no effect"
@@ -185,7 +185,7 @@ fn accepting_the_add_to_dictionary_row_signals_add_and_never_edits_the_buffer() 
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_core(&mut ctx, &Action::Newline, false)
+        apply_transition(&mut ctx, &Action::Newline, false).primary()
     };
     assert!(
         matches!(&eff, Effect::AddToDictionary(w) if w == "teh"),
@@ -305,7 +305,7 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
     // Press Down exactly `n` times: from suggestion 0, that lands on item index
     // `n` — the add row, immediately after the last (`n`-th) correction.
     for _ in 0..n {
-        apply_core(&mut ctx, &Action::NextLine, false);
+        apply_transition(&mut ctx, &Action::NextLine, false).primary();
     }
     assert!(
         ctx.overlay
@@ -316,7 +316,7 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
     );
     // One more Down is a no-op (clamped at the list end) — the add row stays reachable
     // and selected, never scrolling past it into nothing.
-    apply_core(&mut ctx, &Action::NextLine, false);
+    apply_transition(&mut ctx, &Action::NextLine, false).primary();
     assert!(
         ctx.overlay
             .as_ref()
@@ -324,7 +324,7 @@ fn arrow_key_down_reaches_the_add_row_and_enter_adds_the_word() {
             .selected_is_add_to_dictionary()
     );
     // Enter on it ADDS, never replaces.
-    let eff = apply_core(&mut ctx, &Action::Newline, false);
+    let eff = apply_transition(&mut ctx, &Action::Newline, false).primary();
     assert!(
         matches!(&eff, Effect::AddToDictionary(w) if w == "teh"),
         "{eff:?}"
@@ -436,7 +436,7 @@ fn command_palette_run_action_reopens_into_overlay() {
         oracle: None,
     };
     // Re-dispatch OpenGoto (the palette already closed) -> goto overlay opens.
-    apply_core(&mut ctx, &Action::OpenGoto, false);
+    apply_transition(&mut ctx, &Action::OpenGoto, false).primary();
     assert_eq!(overlay.as_ref().map(|o| o.kind), Some(OverlayKind::Goto));
 }
 
@@ -478,20 +478,22 @@ fn go_to_heading_opens_filters_and_jumps_to_line() {
             oracle: None,
         };
         // "Go to heading…" -> Go-to opens pre-lensed onto the Headings lens.
-        apply_core(&mut ctx, &Action::OpenOutline, false);
+        apply_transition(&mut ctx, &Action::OpenOutline, false).primary();
         let ov = ctx.overlay.as_ref().unwrap();
         assert_eq!(ov.kind, OverlayKind::Goto);
         assert_eq!(ov.active_facet_id(), Some("headings"));
         // Filter to "Details" ...
         for c in "deta".chars() {
-            apply_core(&mut ctx, &Action::InsertChar(c), false);
+            apply_transition(&mut ctx, &Action::InsertChar(c), false).primary();
         }
         assert_eq!(
             ctx.overlay.as_ref().unwrap().selected_value(),
             Some("Details")
         );
         // Enter JUMPS to its line (7) and closes.
-        if let Effect::JumpToLine(line) = apply_core(&mut ctx, &Action::Newline, false) {
+        if let Effect::JumpToLine(line) =
+            apply_transition(&mut ctx, &Action::Newline, false).primary()
+        {
             jumped = Some(line);
         }
     }
@@ -532,7 +534,7 @@ fn spell_picker_replaces_word_with_chosen_suggestion() {
             oracle: None,
         };
         // Summon -> the spell picker opens over the suggestions.
-        apply_core(&mut ctx, &Action::OpenSpellSuggest, false);
+        apply_transition(&mut ctx, &Action::OpenSpellSuggest, false).primary();
         assert_eq!(
             ctx.overlay.as_ref().map(|o| o.kind),
             Some(OverlayKind::Spell)
@@ -542,7 +544,7 @@ fn spell_picker_replaces_word_with_chosen_suggestion() {
             Some("receive")
         );
         // Enter REPLACES the word with the top suggestion as ONE edit, closes.
-        apply_core(&mut ctx, &Action::Newline, false);
+        apply_transition(&mut ctx, &Action::Newline, false).primary();
     }
     assert!(overlay.is_none(), "spell picker closes on accept");
     // The misspelled "recieve" became "receive"; nothing else changed.
@@ -594,13 +596,13 @@ fn right_press_retarget_dismisses_first_menu_then_opens_the_second() {
     // The first menu is open on word A.
     assert_eq!(ctx.overlay.as_ref().unwrap().spell_target, Some((0, 4, 11)));
     // RE-TARGET: dismiss the open overlay FIRST …
-    apply_core(&mut ctx, &Action::Cancel, false);
+    apply_transition(&mut ctx, &Action::Cancel, false).primary();
     assert!(
         ctx.overlay.is_none(),
         "the first menu must be dismissed first"
     );
     // … then open the second word's menu.
-    apply_core(&mut ctx, &Action::OpenSpellSuggest, false);
+    apply_transition(&mut ctx, &Action::OpenSpellSuggest, false).primary();
     let ov = ctx.overlay.as_ref().expect("second menu opens");
     assert_eq!(ov.kind, OverlayKind::Spell);
     assert_eq!(ov.spell_target, Some((0, 16, 24)), "re-targeted to word B");
@@ -686,7 +688,7 @@ fn goto_arrows_cycle_the_lens() {
     // The FLAT file picker gains the ←/→ lens strip: All (the current doc's headings
     // mixed with files, item 11's unified default) -> Recent -> This folder ->
     // Headings (the fold that retired the Outline picker; "By type" was CUT — the
-    // redundant facet item 11 removed), driven through the real `apply_core` overlay
+    // redundant facet item 11 removed), driven through the real `apply_transition` overlay
     // intercept (so a `--keys "C-x f <right>"` capture reaches the same code).
     let corpus = vec![
         "README.md".to_string(),
@@ -728,7 +730,7 @@ fn goto_arrows_cycle_the_lens() {
 #[test]
 fn command_arrows_cycle_the_lens() {
     // The command palette gains the ←/→ lens strip: All -> File -> Edit -> View ->
-    // Recent, driven through the real `apply_core` overlay intercept (so a
+    // Recent, driven through the real `apply_transition` overlay intercept (so a
     // `--keys "C-p <right>"` capture reaches the same code).
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
@@ -764,7 +766,7 @@ fn command_arrows_cycle_the_lens() {
 #[test]
 fn history_arrows_cycle_the_lens() {
     // The history timeline gains the ←/→ lens strip: All -> Session -> Today,
-    // driven through the real `apply_core` intercept. (Reference clocks None here,
+    // driven through the real `apply_transition` intercept. (Reference clocks None here,
     // so the time lenses group nothing — the cycle itself is what's under test.)
     let row = |id: &str| crate::history::TimelineRow {
         when: "x".to_string(),
@@ -826,7 +828,7 @@ fn recent_projects_opens_switch_project_on_the_recent_lens() {
     // THE FOLD: "Recent projects…" (Action::OpenRecentProjects) opens the
     // SWITCH-PROJECT navigator pre-lensed onto its Recent lens — the fold that
     // retired the standalone RecentProjects picker. Driven through the real
-    // `apply_core` seam with the shared `project_browse` navigator hook.
+    // `apply_transition` seam with the shared `project_browse` navigator hook.
     let (ws, _fs) = proj_tree();
     let mut overlay: Option<OverlayState> = None;
     let mut buffer = Buffer::scratch();
@@ -847,7 +849,7 @@ fn recent_projects_opens_switch_project_on_the_recent_lens() {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_core(&mut ctx, &Action::OpenRecentProjects, false);
+        apply_transition(&mut ctx, &Action::OpenRecentProjects, false).primary();
     }
     let ov = overlay
         .as_ref()

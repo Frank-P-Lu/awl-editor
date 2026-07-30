@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(r.text, "see [the text](https://new.example/path) here");
     }
 
-    // --- open_insert_link(): the full apply_core dispatch ---------------------
+    // --- open_insert_link(): the full apply_transition dispatch ---------------------
 
     fn drive_open(
         text: &str,
@@ -302,7 +302,7 @@ mod tests {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_core(&mut ctx, &Action::InsertLink, false);
+        apply_transition(&mut ctx, &Action::InsertLink, false).primary();
         overlay
     }
 
@@ -337,7 +337,7 @@ mod tests {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_core(&mut ctx, &Action::InsertLink, false);
+        apply_transition(&mut ctx, &Action::InsertLink, false).primary();
         assert!(
             overlay.is_none(),
             "a non-markdown buffer must not open the link minibuffer"
@@ -373,7 +373,7 @@ mod tests {
                 browse_to: &mut browse_to,
                 oracle: None,
             };
-            apply_core(&mut ctx, &Action::InsertLink, false);
+            apply_transition(&mut ctx, &Action::InsertLink, false).primary();
         }
         let ov = overlay.as_mut().expect("overlay must open");
         for c in "https://example.com".chars() {
@@ -397,7 +397,7 @@ mod tests {
                 browse_to: &mut browse_to,
                 oracle: None,
             };
-            apply_core(&mut ctx, &Action::Newline, false);
+            apply_transition(&mut ctx, &Action::Newline, false).primary();
         }
         assert!(overlay.is_none(), "commit closes the overlay");
         assert_eq!(buffer.text(), "[hello](https://example.com) world");
@@ -447,9 +447,9 @@ mod tests {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_core(&mut ctx, &Action::InsertLink, false);
+        apply_transition(&mut ctx, &Action::InsertLink, false).primary();
         assert!(ctx.overlay.is_some());
-        apply_core(&mut ctx, &Action::Cancel, false);
+        apply_transition(&mut ctx, &Action::Cancel, false).primary();
         assert!(ctx.overlay.is_none(), "Esc/Cancel closes the minibuffer");
         let _ = ctx;
         assert_eq!(

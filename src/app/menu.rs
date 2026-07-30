@@ -43,11 +43,8 @@ impl App {
     /// handlers' trailing `sync_view` + `request_redraw`. So MIRROR the keyboard
     /// path's exact post-`apply` work here (`on_keyboard_input`, `app/input/keys.rs`):
     /// `sync_view(true)` rebuilds the ViewState the pipeline draws, and
-    /// `request_redraw()` schedules the frame — WITHOUT them a menu item that
-    /// opens an overlay (File ▸ Browse files, View ▸ Switch theme, …) fires its
-    /// Action but the screen never repaints, so the overlay stays invisible
-    /// until some later keystroke happens to paint. `exited` (App quit, e.g. a
-    /// menu-fired Quit) short-circuits exactly like the keyboard path.
+    /// The transition's typed render requests own the sync + redraw, exactly
+    /// as on the keyboard door; this handler adds no trailing repaint path.
     pub(super) fn handle_menu_event(&mut self, id: String, event_loop: &ActiveEventLoop) {
         // File ▸ "Open…" (`awl.open`, routed to `Action::OpenBrowse` on other
         // platforms) opens the NATIVE `NSOpenPanel` file picker instead — the
@@ -68,14 +65,7 @@ impl App {
         if let Some(action) = crate::menu::resolve(&id) {
             // MENU door: a click in the macOS menu bar (a SLOW discovery surface) —
             // attributed to `Door::Menu` in the silent usage ledger.
-            let exited = self.apply(action, false, event_loop, crate::stats::Door::Menu);
-            if exited {
-                return;
-            }
-            self.sync_view(true);
-            if let Some(gpu) = self.gpu.as_ref() {
-                gpu.window.request_redraw();
-            }
+            self.apply(action, false, event_loop, crate::stats::Door::Menu);
         }
     }
 }

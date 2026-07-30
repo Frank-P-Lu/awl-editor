@@ -12,14 +12,14 @@
 //! wash-cache/geometry flake).
 //!
 //! The cure is STRUCTURAL: ONE lock for all of it. Every test — and every
-//! `cfg(test)` global WRITER: the `page` measure setters, `apply_core`'s
+//! `cfg(test)` global WRITER: the `page` measure setters, `apply_transition`'s
 //! card-dismissal intercepts, `fs::FsGuard` / `fs::CwdGuard` / `assets`'s
 //! `with_trash`, `daemon`'s socket-dir gate — acquires [`serial`]. With a
 //! single lock there is no acquire order left to invert, so the ABBA class is
 //! UNREPRESENTABLE.
 //!
 //! The one subtlety a single lock forces is REENTRANCY: a test holds the guard
-//! across its whole window and then calls a writer (or drives `apply_core`,
+//! across its whole window and then calls a writer (or drives `apply_transition`,
 //! which acquires it too) on the SAME thread — so acquisition is keyed on a
 //! thread-local "this thread already holds it" flag, and a nested acquire
 //! returns a no-op guard instead of self-deadlocking. Only the OUTERMOST guard
@@ -126,7 +126,7 @@ pub(crate) fn serial() -> SerialGuard {
 }
 
 /// The same mutex and reentrancy, for a production function whose active-world
-/// write is its result (the theme preview in `actions::apply_core`). Only an
+/// write is its result (the theme preview in `actions::apply_transition`). Only an
 /// OUTERMOST product window skips the test-exit cleanliness check; nested under
 /// [`serial`], the enclosing test window still owns and checks the outcome.
 pub(crate) fn product() -> SerialGuard {
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn an_inner_guard_drop_never_releases_the_outer_hold_for_a_following_writer() {
-        // Models `apply_core` (and any writer): while a test holds the guard,
+        // Models `apply_transition` (and any writer): while a test holds the guard,
         // a nested acquire+drop must NOT release the test's outer hold, so a
         // FOLLOWING nested writer still serializes under the same outer window.
         let outer = serial();

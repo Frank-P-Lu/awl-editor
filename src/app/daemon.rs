@@ -51,25 +51,23 @@ impl App {
         }
     }
 
-    /// C-x # (`Action::FinishBuffer`): the core already SAVED the active
-    /// buffer (the same `Buffer::save` call `Action::Save` makes). Mirror
-    /// `Action::Save`'s history-snapshot + mtime/clobber-guard bookkeeping
-    /// HERE — BEFORE the buffer swap below — because `post_apply_effects`
-    /// (keyed by the ACTION, which runs AFTER this effect) would otherwise
-    /// stamp the WRONG buffer (the one just switched TO, not the one that was
-    /// saved). Then notify any daemon `--wait` client waiting on this buffer
-    /// and switch to the previously-open buffer (`LastBuffer`'s swap) — the
-    /// "most-recently-open OTHER buffer" the spec asks for.
-    pub(super) fn finish_buffer(&mut self) {
+    /// Live persistence interpreter for Finish file. It runs before the
+    /// separately typed daemon-notify and previous-buffer effects.
+    pub(super) fn save_finished_buffer(&mut self) {
+        let _ = self.active.buffer.save();
         self.snapshot_after_save();
         if let Some(p) = self.active.buffer.path().map(|p| p.to_path_buf()) {
             self.active.extra.disk_mtime = Self::disk_mtime_of(&p);
             self.active.extra.doc_saved_version = Some(self.active.buffer.version());
-            self.clear_notice();
+            self.emit_notice(crate::actions::NoticeEffect::Clear);
         }
+    }
+
+    /// Live daemon interpreter. Headless replay classifies and records this
+    /// request but has no socket capability.
+    pub(super) fn notify_finished_buffer(&mut self) {
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
         self.notify_daemon_waiters();
-        self.last_buffer_toggle();
     }
 
     /// Notify + drop every daemon connection waiting on the buffer we are
@@ -109,12 +107,12 @@ mod tests {
     use std::io::{BufRead, BufReader};
     use std::os::unix::net::UnixStream;
 
-    /// Drive `Action::FinishBuffer` through the REAL `actions::apply_core` seam
+    /// Drive `Action::FinishBuffer` through the REAL `actions::apply_transition` seam
     /// against `app.active.buffer` (mirroring exactly how `App::apply` wires
     /// `ActionCtx`, minus the `ActiveEventLoop` a live keypress carries — no
     /// window/GPU/quit path is exercised by this action), returning the
     /// resulting `Effect`.
-    fn drive_finish_buffer(app: &mut App) -> actions::Effect {
+    fn drive_finish_buffer(app: &mut App) -> actions::Transition {
         let mut shift_selecting = false;
         let mut zoom = app.zoom;
         let mut search = app.search.take();
@@ -132,10 +130,10 @@ mod tests {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        let effect = actions::apply_core(&mut ctx, &Action::FinishBuffer, false);
+        let transition = actions::apply_transition(&mut ctx, &Action::FinishBuffer, false);
         app.search = search;
         app.overlay = overlay;
-        effect
+        transition
     }
 
     #[test]
@@ -187,13 +185,21 @@ mod tests {
             .push(crate::daemon::Waiter::new(b.clone(), theirs));
 
         app.active.buffer.set_text("beta\nedited\n");
-        let effect = drive_finish_buffer(&mut app);
+        let transition = drive_finish_buffer(&mut app);
         assert_eq!(
-            effect,
-            actions::Effect::FinishBuffer,
-            "the core signals FinishBuffer"
+            &transition.effects()[..3],
+            &[
+                actions::Effect::Persistence(actions::PersistenceEffect::Save(
+                    actions::SaveKind::Finish,
+                )),
+                actions::Effect::Daemon(actions::DaemonEffect::NotifyFinished),
+                actions::Effect::Buffer(actions::BufferEffect::Previous { finished: true }),
+            ],
+            "the core orders finish-save, daemon notification, then buffer switch"
         );
-        app.finish_buffer();
+        app.save_finished_buffer();
+        app.notify_finished_buffer();
+        app.last_buffer_toggle();
 
         // SAVED: the edit landed on disk.
         assert_eq!(

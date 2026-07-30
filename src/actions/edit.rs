@@ -1,5 +1,5 @@
 //! The MARKDOWN smart-Enter edit — the one dispatch arm whose behavior is richer
-//! than a bare buffer call. `apply_core`'s `Newline` arm asks [`smart_newline`] to
+//! than a bare buffer call. `apply_transition`'s `Newline` arm asks [`smart_newline`] to
 //! continue a list / blockquote (ordered lists AUTO-INCREMENT), unconditionally END
 //! the block on an empty BLOCKQUOTE, PRESERVE-or-END an empty LIST item (bullet /
 //! numbered / task) by provenance (item 78, generalizing item 63), or carry leading

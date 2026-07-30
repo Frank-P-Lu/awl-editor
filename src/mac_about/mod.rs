@@ -9,9 +9,9 @@
 //! — and because its pure halves ([`facts`], [`layout`]) are unit-testable
 //! while nothing in `mac_chrome` is.
 //!
-//! Routing is unchanged: App menu ▸ "About Awl" and Cmd-P ▸ "About" both reach
-//! `Action::About`, which `App::apply` intercepts on macOS and answers with
-//! [`show`]. Every other platform keeps the in-app `about.rs` card untouched.
+//! App menu ▸ "About Awl" and Cmd-P ▸ "About" both reach the shared action
+//! transition. Its typed About-surface request is interpreted here on macOS;
+//! every other platform keeps the in-app `about.rs` card untouched.
 //!
 //! # Who owns the window
 //!
@@ -156,21 +156,8 @@ fn open_url(url: &str) {
     NSWorkspace::sharedWorkspace().openURL(&url);
 }
 
-/// Whether this action is the one `App::apply` diverts to the native window on
-/// macOS, instead of letting `apply_core` open the in-app `about.rs` card.
-///
-/// A named predicate rather than an inline `matches!` at the call site so the
-/// diversion can be swept against the whole COMMAND roster: exactly one command
-/// leaves the shared core, and every other menu and palette entry still reaches
-/// it. Deliberately does NOT call [`show`] — a test that touched AppKit would
-/// open a real window on whichever thread libtest happened to use.
-pub fn intercepts(action: &crate::keymap::Action) -> bool {
-    matches!(action, crate::keymap::Action::About)
-}
-
 /// Show the About window, building it the first time and RE-SHOWING it every
-/// time after. The one door; `App::apply`'s macOS [`intercepts`] arm calls
-/// this and nothing else.
+/// time after. The live typed-effect interpreter calls this and nothing else.
 pub fn show() {
     let Some(mtm) = MainThreadMarker::new() else {
         return;

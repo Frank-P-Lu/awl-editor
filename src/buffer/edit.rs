@@ -478,7 +478,7 @@ impl Buffer {
     }
 
     /// VISUAL C-k: kill from the cursor to char index `end` — the end of the
-    /// current VISUAL row, supplied by `apply_core`'s layout oracle. If the cursor
+    /// current VISUAL row, supplied by `apply_transition`'s layout oracle. If the cursor
     /// is already AT (or past) `end`, fall back to [`Self::kill_line`] so C-k still
     /// kills the trailing newline and joins the next line, exactly as in logical
     /// mode. Because a soft-wrap boundary biases the caret onto the FOLLOWING

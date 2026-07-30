@@ -4,7 +4,6 @@ use winit::event::Modifiers;
 use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
 
 use crate::convention::Convention;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     ForwardChar,
@@ -28,6 +27,8 @@ pub enum Action {
     DeleteForward,
     KillLine,
     Yank,
+    YankText,
+    InsertImageReference(String),
     /// Undo the last edit group (Cmd+Z / C-/).
     Undo,
     Redo,
@@ -233,7 +234,6 @@ pub enum Action {
     BeginPrefix,
     Ignore,
 }
-
 impl Action {
     pub fn is_motion(&self) -> bool {
         matches!(
@@ -251,11 +251,7 @@ impl Action {
         )
     }
 
-    /// True when this action MUTATES buffer content (and therefore records undo
-    /// history). Undo/Redo themselves are NOT edits — they manage the history and
-    /// must not seal a group. The app uses this to decide when to seal the open
-    /// undo group: any non-edit, non-undo/redo command (motion, save, mark, …)
-    /// seals it so one Cmd+Z undoes a sensible chunk.
+    /// True when this action mutates buffer content and records undo history.
     pub fn is_edit(&self) -> bool {
         matches!(
             self,
@@ -270,6 +266,8 @@ impl Action {
                 | Action::DeleteForward
                 | Action::KillLine
                 | Action::Yank
+                | Action::YankText
+                | Action::InsertImageReference(_)
                 | Action::KillRegion
                 | Action::AlignTable
                 | Action::ToggleBlockquote
