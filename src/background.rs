@@ -35,8 +35,8 @@ pub struct BgDesc {
     pub amplitude_px: f32,
     pub density: f32,
     pub banded: bool,
-    /// DECKLE's weave scalar; INERT `0.0` off that ground (`Background::weave_mode`).
-    pub weave: f32,
+    /// The ground's theme-owned profile dial (`Background::profile_mode`).
+    pub profile: f32,
     /// Deckle's stable-room coordinate owner; inert off that ground.
     pub deckle_anchor: f32,
 }

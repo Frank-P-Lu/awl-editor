@@ -18,6 +18,7 @@ mod backgrounds_item69;
 mod backgrounds_item86;
 mod backgrounds_item89;
 mod bowerbird_drift_item163;
+mod bowerbird_finds_item176;
 mod build_integrity;
 mod card_texture_shape;
 mod caret;
