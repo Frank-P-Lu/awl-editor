@@ -10,6 +10,22 @@ if [[ "${1:-}" == "--cargo-machete-version" ]]; then
   exit 0
 fi
 
+# CI's mac job wants exactly the coverage it structurally lacks: clippy
+# compiled for real against the ambient macOS host target, so any
+# `#[cfg(target_os = "macos")]` arm (About window, dock-icon adoption, menu
+# bar, packaging/bundle-identity paths) is actually linted instead of being
+# invisible to every CI job (item 179). `cargo fmt`, code-health.py and
+# cargo-machete already run once, tree-wide, in the linux job — repeating
+# them here would just burn CI minutes on a runner that costs multiples of
+# a Linux one for zero new coverage. Also skip the Darwin
+# cross-to-linux blind-spot arm below: CI's linux job already compiles that
+# arm for real and natively, which is strictly more coverage than a
+# clippy-only cross-check could add on this runner.
+if [[ "${1:-}" == "--clippy-only" ]]; then
+  RUSTC_WRAPPER= cargo clippy --all-targets --all-features -- -D warnings
+  exit 0
+fi
+
 if ! cargo machete --version 2>/dev/null | grep -Fxq "$CARGO_MACHETE_VERSION"; then
   echo "error: cargo-machete $CARGO_MACHETE_VERSION is required; install with:" >&2
   echo "  cargo install cargo-machete --version $CARGO_MACHETE_VERSION --locked" >&2
