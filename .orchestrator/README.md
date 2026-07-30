@@ -113,6 +113,15 @@ on a routine refactor means the brief was wrong, not the code.
    it.
 6. **Reclaim stale claims** older than about a day with no branch activity,
    with a takeover note.
+7. **Never block on the user.** A decision only the user can make becomes a
+   `🔵` board item carrying the exact question, the options with their real
+   measured tradeoffs, and a recommendation — then unrelated work keeps
+   moving. Do not stop the wave to ask interactively; the user may be away,
+   and a taste pick is not a gate. Leave the current state landable so the
+   answer costs one command rather than a rebuild. This is the same rule as
+   §Design sessions' parked decision, repeated here because it is needed at
+   integration time, not only in a design session — where it was filed, it
+   read as scoped to brainstorming and got missed.
 
 Only the orchestrator writes the board, from the main working tree. Workers
 report shas and outcomes.
