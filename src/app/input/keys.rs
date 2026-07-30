@@ -137,7 +137,7 @@ impl App {
         &mut self,
         logical: &Key,
         mods: &Modifiers,
-        _event_loop: &ActiveEventLoop,
+        _exit: &dyn schedule::Exit,
     ) {
         let (search, _) = self.workspace_state.core_slots();
         let buffer = &mut self.active.buffer;
@@ -339,7 +339,7 @@ impl App {
     /// early-return exactly.
     pub(in crate::app) fn on_keyboard_input(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
         event: winit::event::KeyEvent,
     ) {
         if event.state != ElementState::Pressed {
@@ -367,7 +367,7 @@ impl App {
         } else {
             event.logical_key.clone()
         };
-        self.dispatch_pressed_key(event_loop, event.logical_key.clone(), bare, event.repeat);
+        self.dispatch_pressed_key(exit, event.logical_key.clone(), bare, event.repeat);
     }
 
     /// THE SHARED PRESS-DISPATCH TAIL — everything a real (non-modifier,
@@ -386,7 +386,7 @@ impl App {
     /// flag (drives the held-caret trail).
     pub(in crate::app) fn dispatch_pressed_key(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
         raw: Key,
         bare: Key,
         repeat: bool,
@@ -441,7 +441,7 @@ impl App {
         // dropped) and AFTER the preedit guard, but BEFORE keymap.resolve.
         if self.workspace_state.search_active() {
             let mods = self.mods;
-            self.handle_search_key(&raw, &mods, event_loop);
+            self.handle_search_key(&raw, &mods, exit);
             self.sync_view(true);
             if let Some(gpu) = self.gpu.as_ref() {
                 gpu.window.request_redraw();
@@ -531,6 +531,6 @@ impl App {
         // shape; the headless `--keys` replay derives its flag through the same fn.
         let shift = self.mods.state().contains(ModifiersState::SHIFT)
             && motion_honors_shift_select(&action, &logical);
-        self.apply(action, shift, event_loop, crate::stats::Door::Chord);
+        self.apply(action, shift, exit, crate::stats::Door::Chord);
     }
 }

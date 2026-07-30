@@ -14,7 +14,7 @@ impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn handle_probe_event(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
         event: crate::probe::ProbeEvent,
     ) {
         match event {
@@ -23,7 +23,7 @@ impl App {
                 // press would have delivered it as `ModifiersChanged` first);
                 // it is already un-composed, so `raw` and `bare` coincide.
                 self.mods = chord.mods;
-                self.dispatch_pressed_key(event_loop, chord.key.clone(), chord.key, false);
+                self.dispatch_pressed_key(exit, chord.key.clone(), chord.key, false);
                 self.mods = winit::event::Modifiers::default();
             }
             crate::probe::ProbeEvent::MouseMove(x, y) => {
@@ -52,14 +52,14 @@ impl App {
                 let exited = self.apply(
                     crate::keymap::Action::Quit,
                     false,
-                    event_loop,
+                    exit,
                     crate::stats::Door::Chord,
                 );
                 // A modal surface (an open picker consumes ordinary actions)
                 // may swallow the Quit; a probe run must still terminate, and
                 // `event_loop.exit()` runs the same `exiting()` teardown.
                 if !exited {
-                    event_loop.exit();
+                    exit.exit();
                 }
             }
         }

@@ -318,3 +318,90 @@ fn missing_oracle_error_names_the_fallback_it_refuses() {
     assert!(msg.contains("layout oracle"), "{msg}");
     assert!(msg.contains("logical lines"), "{msg}");
 }
+
+// ── ITEM 183 — the harness-reach map is DERIVED, never hand-copied ───────
+//
+// `docs/harness-reach.md` publishes, for a brief author, exactly what a
+// `--keys` capture can and cannot witness. The half of that map covering the
+// item-171 effect boundary is already owned in production by [`classify_for`]
+// (and [`accept_class`] for the per-picker accepts), so the doc must be a VIEW
+// of that owner rather than a second list beside it. A hand-copied table that
+// drifts from the function it describes is the defect queue item 185 exists to
+// fix elsewhere; the map's whole value is that a brief author can trust it.
+
+/// The `(name, bucket)` pairs the production classifier actually produces —
+/// the effect roster above, with `overlay_accept` expanded over the whole
+/// `OverlayKind` roster (a no-wildcard `ALL`, so a new picker joins this map
+/// automatically).
+fn reach_rows() -> std::collections::BTreeMap<String, &'static str> {
+    fn bucket(class: &EffectClass) -> &'static str {
+        match class {
+            EffectClass::Applied => "Applied",
+            EffectClass::Intercepted { .. } => "Intercepted",
+            EffectClass::Unsupported { .. } => "Unsupported",
+        }
+    }
+    let mut rows: std::collections::BTreeMap<String, &'static str> = Default::default();
+    for effect in roster() {
+        if matches!(effect, Effect::OverlayAccept(..)) {
+            continue; // expanded per picker below
+        }
+        let c = classify(&effect);
+        rows.insert(c.name.to_string(), bucket(&c.class));
+    }
+    for kind in OverlayKind::ALL {
+        let c = classify(&Effect::OverlayAccept(kind, String::new()));
+        rows.insert(format!("{}:{kind:?}", c.name), bucket(&c.class));
+    }
+    rows
+}
+
+/// The map's effect table equals what production classifies, row for row.
+#[test]
+fn the_harness_reach_map_matches_the_production_classifier() {
+    let doc = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("docs/harness-reach.md"),
+    )
+    .expect("docs/harness-reach.md is part of the deliverable");
+    let mut in_table = false;
+    let mut found: std::collections::BTreeMap<String, &'static str> = Default::default();
+    for line in doc.lines() {
+        if line.starts_with("<!-- reach-table:begin -->") {
+            in_table = true;
+            continue;
+        }
+        if line.starts_with("<!-- reach-table:end -->") {
+            in_table = false;
+            continue;
+        }
+        if !in_table || !line.starts_with("| `") {
+            continue;
+        }
+        let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
+        let name = cells[0].trim_matches('`').to_string();
+        let bucket = match cells[1] {
+            "Applied" => "Applied",
+            "Intercepted" => "Intercepted",
+            "Unsupported" => "Unsupported",
+            other => panic!("unknown bucket {other:?} in the reach table row {line:?}"),
+        };
+        found.insert(name, bucket);
+    }
+    let expected = reach_rows();
+    if found != expected {
+        let rendered: String = expected
+            .iter()
+            .map(|(n, b)| format!("| `{n}` | {b} |\n"))
+            .collect();
+        panic!(
+            "docs/harness-reach.md's effect table has drifted from \
+             `replay::classify_for`/`accept_class`. Replace the rows between the \
+             reach-table markers with exactly:\n{rendered}"
+        );
+    }
+    assert!(
+        found.len() >= 60,
+        "the map must cover the whole effect + picker roster, not a sample; got {}",
+        found.len()
+    );
+}

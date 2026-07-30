@@ -172,7 +172,7 @@ impl App {
     /// test + measure math + the reset action itself are unit-tested.
     pub(in crate::app) fn begin_page_resize_if_hovering(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
     ) -> bool {
         let edge = self
             .gpu
@@ -193,7 +193,7 @@ impl App {
             self.apply(
                 crate::keymap::Action::PageReset,
                 false,
-                event_loop,
+                exit,
                 crate::stats::Door::Chord,
             );
             return true;

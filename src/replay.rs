@@ -262,12 +262,13 @@ fn intercepted(name: &'static str, detail: String) -> Classified {
 /// honestly applied headlessly.
 fn accept_class(kind: OverlayKind) -> EffectClass {
     match kind {
-        // Applied for real: Goto drives the multi-buffer registry switch
-        // inline in the replay loop; Project re-roots and History restores in
-        // `capture_screenshot`'s accept stage; Theme / Caret / Dictionary /
-        // CjkLang / Date set their process-global CORE-level
-        // (`actions/overlay_nav.rs`), so the replay session observes them exactly
-        // as live does.
+        // Applied for real: Goto drives the multi-buffer registry switch inline in the
+        // replay loop; Project re-roots (whole sidecar block re-derived from the accepted
+        // root by the ONE builder `run::project_info` — item 183; its residue, that a
+        // LATER chord is not re-scoped, is in `docs/harness-reach.md`) and History
+        // restores, both in `capture_screenshot`'s accept stage; Theme / Caret /
+        // Dictionary / CjkLang / Date set their process-global CORE-level, so the replay
+        // observes them exactly as live (`actions/overlay_nav.rs`).
         OverlayKind::Goto
         | OverlayKind::Project
         | OverlayKind::History
@@ -281,12 +282,11 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         OverlayKind::MoveDest => EffectClass::Unsupported {
             why: "the note move (mkdir + rename) is live-App-only; the buffer would keep its old path",
         },
-        // These pickers never EMIT an `OverlayAccept` today (Browse re-routes
-        // files through Goto; Command runs via `RunAction`; Spell edits in the
-        // core; Keybindings/Settings/Assets/Rename/InsertLink ride their own
-        // effects or core-internal edits — see `actions/overlay_nav.rs`).
-        // Defaulted to Unsupported so a NEW emission aborts a strict run
-        // loudly until someone classifies it, rather than silently passing.
+        // These pickers never EMIT an `OverlayAccept` today (Browse re-routes files
+        // through Goto; Command runs via `RunAction`; Spell edits in the core;
+        // Keybindings/Settings/Assets/Rename/InsertLink ride their own effects or
+        // core-internal edits — see `actions/overlay_nav.rs`). Defaulted to Unsupported
+        // so a NEW emission aborts a strict run loudly rather than silently passing.
         OverlayKind::Browse
         | OverlayKind::Command
         | OverlayKind::Spell

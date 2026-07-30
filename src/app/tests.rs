@@ -17,6 +17,9 @@ mod files;
 mod history;
 mod lifecycle;
 mod openable;
+/// ITEM 183's HEADLESS PRESS DOOR: drive real chords into the real live
+/// `App` off-window. Reach map: `docs/harness-reach.md`.
+mod press;
 mod source_audit;
 mod spell;
 mod which_key;

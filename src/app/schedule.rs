@@ -41,6 +41,57 @@ impl Scheduler for ActiveEventLoop {
     }
 }
 
+/// The winit SHUTDOWN SINK the input-dispatch chain writes its one quit request
+/// into. `App::apply` — and every door that reaches it (keyboard, menu, palette
+/// re-dispatch, pointer, drag, the `--live-script` probe) — took a full
+/// `&ActiveEventLoop` for exactly ONE call, `exit()`, which made the whole live
+/// effect-interpretation surface unreachable from any headless caller: an
+/// `ActiveEventLoop` can only be borrowed from inside a running winit loop, and
+/// there is no way to construct one. Abstracting exactly that one capability is
+/// the same move [`Scheduler`] made for `about_to_wait_impl` — one body, two
+/// sinks, so the harness can never drift from the live path. See
+/// `docs/harness-reach.md` for what it opened up.
+pub(crate) trait Exit {
+    fn exit(&self);
+}
+
+impl Exit for ActiveEventLoop {
+    #[inline]
+    fn exit(&self) {
+        ActiveEventLoop::exit(self)
+    }
+}
+
+/// A headless [`Exit`] that RECORDS the quit request instead of stopping a loop
+/// there is none of — the sink a test or capture hands to
+/// [`App::dispatch_pressed_key`](crate::app::App::dispatch_pressed_key) /
+/// `App::apply`. `App::apply` already returns the quit bool, so this exists for
+/// the doors that swallow it (menu, pointer, probe) and to make "did this key
+/// ask the process to end?" observable off-window.
+#[cfg(test)]
+#[derive(Default)]
+pub(crate) struct RecordingExit {
+    requested: std::cell::Cell<bool>,
+}
+
+#[cfg(test)]
+impl RecordingExit {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+    /// Whether any door driven through this sink asked the loop to exit.
+    pub(crate) fn exit_requested(&self) -> bool {
+        self.requested.get()
+    }
+}
+
+#[cfg(test)]
+impl Exit for RecordingExit {
+    fn exit(&self) {
+        self.requested.set(true);
+    }
+}
+
 /// A headless [`Scheduler`] that RECORDS the control flow the scheduling body set,
 /// so the frame-loop capture + the scheduling law can assert what a live winit idle
 /// WOULD have been told: which `WaitUntil` deadline was armed this step, or that

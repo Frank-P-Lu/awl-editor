@@ -31,6 +31,8 @@ Flags compose: `--keys` (chord replay through the real keymap), `--theme <World>
 
 The sidecar is the source of truth for state; the PNG for geometry and appearance. The harness verifies state, geometry, colors, and deterministic single-frame trajectories; it cannot verify timing, feel over real time, or taste — flag those for live human confirmation rather than claiming them verified.
 
+A capture drives the shared core, not the live `App` — so a transition the `App` owns (settings writes, buffer switching, config reload) may be classified Unsupported and silently skipped. `docs/harness-reach.md` maps the exact edge, per effect and per picker; check it before a brief promises a capture over live-`App` state (item 180 asked for one that could not exist).
+
 Tripwire: the sidecar is a state oracle, not an appearance oracle — it once reported `selected_index: 2` while the row rendered fully invisible (Wagtail). Appearance claims (visible, distinct, legible) are asserted by arithmetic over the PNG's pixels.
 
 ## Spot-check audits (standing policy)
@@ -46,6 +48,7 @@ Audit agents run at the production tier: Sonnet medium on Claude or `gpt-5.6-ter
 - `docs/render.md` — adaptive column, RenderCaps (themes as data), overlay/chrome personality, settings-in-palette, rowlayout.
 - `docs/platform.md` — debug panel/HUD/copy pulse, autosave + history, line endings, daemon/EDITOR=awl, menu bar, session restore, updates, GPU faults + `--soak-gpu`.
 - `docs/licensing.md` — GPL-3.0-only, asset licenses, generated third-party list, audit cadence + standing advisories.
+- `docs/harness-reach.md` — how far the headless harness reaches: the three verification tiers, the live-only census, the per-effect capture table. **Read before writing a Verify clause that asks for a capture.**
 
 ## Tripwires (hard-won facts; mechanisms in the docs)
 
