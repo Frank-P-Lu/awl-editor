@@ -7,6 +7,14 @@ opened, nothing animates, and the same input produces the same output. An agent
 verifies a change by reading the sidecar JSON (and, if it must, eyeballing the
 PNG) — never by driving a GUI.
 
+**Where this contract STOPS: `docs/harness-reach.md`.** A capture drives the
+shared core (`actions::apply_transition`), never the live winit `App`, so a
+transition the `App` owns can be classified Unsupported and skipped — and a
+Verify clause that asks for a capture over one of those is asking for something
+that cannot exist (queue items 180, 183). That map names the boundary per
+effect and per picker, lists what stays live-only, and says which tier to use
+instead. Read it before promising a capture oracle over `App` state.
+
 ## How to invoke a capture (non-interactively)
 
 The cargo invocation must be prefixed with the toolchain PATH on this machine:

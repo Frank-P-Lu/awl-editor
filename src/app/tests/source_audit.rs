@@ -114,8 +114,13 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `fs::with_fs(fake, ..)` closure with an `InMemoryFs` handle — they
         // exist specifically to prove what `App::switch_project` leaves
         // `workspace_root` pointing at, so they need the same CONTROL +
-        // INSPECT access `new_hermetic` hides.
-        ("app/files/tests.rs", 16),
+        // INSPECT access `new_hermetic` hides. Plus item 183's 2: the live/
+        // headless PARITY law (it must compare a live `App`'s derivation against
+        // the capture builder's over the SAME injected tree) and the real-chord
+        // Switch-project law (it drives `App::apply` through the whole picker
+        // journey, so it needs a controlled workspace to navigate) — same
+        // CONTROL + INSPECT need, same `fs::with_fs` + `InMemoryFs` treatment.
+        ("app/files/tests.rs", 18),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's
@@ -521,6 +526,91 @@ fn resync_project_location_is_the_sole_derivation_of_project_location_fields() {
             "`self.{field} = ..` must appear exactly once — a second site is \
              the exact half-derivation shape that caused the stale-Project- \
              picker bug; found: {hits:?}"
+        );
+    }
+}
+
+// ── ITEM 183 — THE EVENT-LOOP CENSUS: what stays live-only, exactly ──────
+//
+// An `&ActiveEventLoop` can only be borrowed from inside a running winit loop
+// and cannot be constructed, so ANY `App` transition whose signature demands
+// one is, by construction, unreachable from every headless entry point — no
+// test, no capture, no sidecar. That made the census below the honest measure
+// of the blind region `docs/harness-reach.md` maps, and it is mechanical:
+// the parameter position is a fact of the source text, not a judgement call.
+//
+// Before this round the census included `App::apply` — the ONE seam a
+// keypress, a menu item, a palette command, an overlay click and the
+// `--live-script` probe all funnel through — for a single `event_loop.exit()`
+// call. Everything `apply` interprets therefore inherited the blindness,
+// including `switch_project` -> `set_root` (queue item 180, whose Verify
+// clause asked for a capture that structurally could not exist) and
+// `reload_config`. Narrowing that one borrow to `app::Exit` moved the entire
+// input-dispatch chain out of the census; what remains is genuinely about
+// owning a window, a surface, or the loop's own control flow.
+
+/// The census is EXACT, per file, and the input-dispatch chain is EMPTY.
+///
+/// The second assertion is the load-bearing one: re-typing `&ActiveEventLoop`
+/// onto any door in that chain would re-blind the whole live effect surface in
+/// one line, and nothing else in the suite would notice.
+#[test]
+fn the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    // Whitespace-collapsed, so a rustfmt line break across the parameter
+    // cannot hide a new one. Built at runtime so this file's own prose about
+    // the type never counts as a hit.
+    let needle = [":&Active", "EventLoop"].concat();
+    let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+    scan_dir_collapsed(&root, &root, &needle, &mut hits);
+
+    // Every remaining site, with the window/surface/control-flow capability it
+    // genuinely needs — none of them is a pass-through for `exit()`.
+    let expected: &[(&str, usize)] = &[
+        // `rebuild_gpu` calls `create_window` + `owned_display_handle`;
+        // `drive_gpu_soak` (`--soak-gpu`) drives a real window and sets its
+        // own control flow.
+        ("app.rs", 2),
+        // The winit `ApplicationHandler` trait's own six callbacks — their
+        // signatures are winit's, not ours: `user_event`, `resumed`,
+        // `suspended`, `window_event`, `exiting`, `about_to_wait`. The
+        // clock-steppable half of `about_to_wait` already escaped through
+        // `Scheduler`/`RecordingScheduler` (`app/schedule.rs`).
+        ("app/lifecycle.rs", 6),
+        // Surface reconfigure + GPU-fault recovery + redraw: `handle_gpu_fault`,
+        // `handle_gpu_frame_outcome`, `on_resized`, `on_redraw_requested`.
+        // Each rebuilds a surface or sets `ControlFlow` directly.
+        ("app/window.rs", 4),
+    ];
+    assert_eq!(
+        hits,
+        expected
+            .iter()
+            .map(|(f, n)| ((*f).to_string(), *n))
+            .collect::<std::collections::BTreeMap<_, _>>(),
+        "the event-loop census changed. A NEW site makes that transition \
+         unreachable from every headless entry point — take the narrow \
+         capability it actually needs (`app::Exit`, `app::Scheduler`) instead, \
+         or account for it here AND in docs/harness-reach.md. Found: {hits:?}"
+    );
+
+    // THE INPUT-DISPATCH CHAIN, named file by file rather than swept by a
+    // wildcard: these are the doors a user's keypress, menu pick, palette
+    // command, click, drag or scripted probe chord travels, and they are the
+    // reason the live effect-interpretation surface is reachable at all.
+    for file in [
+        "app/apply.rs",
+        "app/input/keys.rs",
+        "app/input/mouse.rs",
+        "app/input/drags.rs",
+        "app/menu.rs",
+        "app/probe.rs",
+    ] {
+        assert_eq!(
+            hits.get(file),
+            None,
+            "{file} must never take an `&ActiveEventLoop` again — one such \
+             parameter re-blinds every transition reachable through it"
         );
     }
 }

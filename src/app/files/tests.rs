@@ -740,14 +740,16 @@ fn app_new_loads_the_persisted_recent_projects() {
 // These tests read the SAME oracle the live picker does:
 // `crate::overlay::browse_level(OverlayKind::Project, ..)`'s resulting rows —
 // a state oracle, never a pixel (docs/platform.md's sidecar tripwire: a
-// picker's LISTING is state, not appearance). `--keys`/`--screenshot` cannot
-// reach this bug at all: that capture path replays through `ReplaySession`
-// (`src/main/run.rs`), which resolves its own fixed `root`/`workspace` ONCE
-// before replay and never touches `App::set_root`/`reload_config` — the two
-// half-owners live ONLY on the real, event-loop-driven `App`. Calling
-// `App::switch_project`/`set_root` directly (as `switch_project_pushes_and_
-// persists_the_recent_root` above already does) is therefore the PUREST
-// reachable seam, ahead of a sidecar this bug cannot surface in.
+// picker's LISTING is state, not appearance). Calling `App::switch_project` /
+// `set_root` directly is the PUREST reachable seam for the derivation itself
+// (CLAUDE.md's unit > sidecar > capture ladder).
+//
+// ITEM 183 CORRECTION: item 180 recorded that the whole live-`App` transition
+// class was structurally unreachable from any headless entry point, because
+// `App::apply` demanded an `&ActiveEventLoop` no headless caller can produce.
+// That was true then and is no longer. The last test in this block drives the
+// same switch END TO END from real chords through the real live `App`; the
+// exact boundary that remains is mapped in `docs/harness-reach.md`.
 
 /// The names the Project picker (`C-x p`) would list for `app`'s CURRENT
 /// `workspace_root`, in the exact shape `app/apply.rs`'s live `browse_to`
@@ -920,6 +922,218 @@ fn switch_project_a_to_b_and_back_never_leaves_a_stale_workspace() {
             app.workspace_root,
             Some(PathBuf::from("/aa")),
             "the round trip back to A must not leave B's workspace behind"
+        );
+    });
+}
+
+/// ITEM 183 — THE LIVE/HEADLESS PARITY LAW for the project location.
+///
+/// The harness carries its OWN derivation of "what does this root imply": a
+/// capture reports the location in its sidecar, once from the launch root and
+/// again after a Project-picker accept. That second site re-derived
+/// `name`/`branch`/`dirty` from the accepted root while carrying the LAUNCH
+/// root's `workspace` forward — item 180's defect, alive in the harness's copy
+/// of the rule long after item 180 fixed the App's. Reproduced before the fix
+/// on a real capture: `--keys "s-S-p Backspace Enter Enter Enter"` into
+/// `/new-ws/proj-b` reported `root: /new-ws/proj-b` beside
+/// `workspace: /old-ws`. The oracle lied about the exact transition it was
+/// asked to witness.
+///
+/// One builder now serves both capture sites (`run::project_info`), and this
+/// law pins it to the live `App`'s own derivation across item 180's whole axis
+/// — different parent, same parent, the filesystem-root edge, an explicitly
+/// configured workspace that must beat the `root.parent()` fallback, and a
+/// switch away and back. Neither side is allowed to be "close": the sidecar
+/// must report exactly what a live editor at that root would hold.
+#[test]
+fn the_capture_sidecars_project_location_equals_the_live_apps() {
+    // The axis is item 180's own, value for value.
+    let axis: &[(&str, &[&str], &str, &str)] = &[
+        (
+            "different parent",
+            &["/old-ws/proj-a", "/new-ws/proj-b"],
+            "/old-ws/proj-a",
+            "/new-ws/proj-b",
+        ),
+        (
+            "same parent",
+            &["/ws/proj-a", "/ws/proj-b"],
+            "/ws/proj-a",
+            "/ws/proj-b",
+        ),
+        (
+            "filesystem-root edge",
+            &["/somewhere/proj"],
+            "/somewhere/proj",
+            "/",
+        ),
+        (
+            "A -> B -> A round trip returns to A's own workspace",
+            &["/aa/proj", "/bb/cc/proj2"],
+            "/bb/cc/proj2",
+            "/aa/proj",
+        ),
+    ];
+    let mut checked = 0usize;
+    for (label, dirs, launch, switch_to) in axis {
+        assert_live_and_capture_locations_agree(label, dirs, launch, switch_to, None, None);
+        checked += 1;
+    }
+    // The two precedence values, where the fallback must NOT win.
+    let ws_dirs: &[&str] = &["/x/y/proj1", "/x/y/proj2"];
+    assert_live_and_capture_locations_agree(
+        "configured workspace beats root.parent()",
+        ws_dirs,
+        "/x/y/proj1",
+        "/x/y/proj2",
+        None,
+        Some("/x"),
+    );
+    assert_live_and_capture_locations_agree(
+        "cli workspace beats config",
+        ws_dirs,
+        "/x/y/proj1",
+        "/x/y/proj2",
+        Some("/x/y"),
+        Some("/x"),
+    );
+    checked += 2;
+    assert_eq!(checked, 6, "every axis value must be graded, not skipped");
+}
+
+/// One axis value: build the tree, launch a live `App` at `launch`, switch it to
+/// `switch_to`, and demand that the capture's own builder reports exactly what
+/// that live `App` now holds.
+fn assert_live_and_capture_locations_agree(
+    label: &str,
+    dirs: &[&str],
+    launch: &str,
+    switch_to: &str,
+    cli_ws: Option<&str>,
+    cfg_ws: Option<&str>,
+) {
+    let mut fake = crate::fs::InMemoryFs::new();
+    for d in dirs {
+        fake = fake.with_dir(d);
+    }
+    crate::fs::with_fs(Arc::new(fake), || {
+        // `Config` is not `Clone`; both sides get their own identical one.
+        let workspace_of = || Config {
+            workspace: cfg_ws.map(PathBuf::from),
+            ..Config::empty()
+        };
+        let config = workspace_of();
+        let cli = cli_ws.map(PathBuf::from);
+        let mut app = App::new(
+            None,
+            PathBuf::from(launch),
+            cli.clone(),
+            None,
+            workspace_of(),
+        );
+        app.switch_project(PathBuf::from(switch_to));
+
+        // The capture's builder, called exactly as `capture_screenshot` calls it
+        // on an accepted Project row: the already-folded flag-over-config
+        // workspace, and the accepted root.
+        let folded = cli.or_else(|| config.workspace.clone());
+        let info =
+            crate::run::project_info(std::path::Path::new(switch_to), &folded, None, &config);
+
+        assert_eq!(info.root, app.root, "{label}: sidecar root == live root");
+        assert_eq!(
+            info.name, app.project.name,
+            "{label}: sidecar project name == live project name"
+        );
+        assert_eq!(
+            info.workspace, app.workspace_root,
+            "{label}: the sidecar's workspace must be the live workspace — a \
+             capture that reports a workspace the running editor does not have \
+             is item 180's bug living on in the harness"
+        );
+    });
+}
+
+/// ITEM 183 — THE SAME BUG, DRIVEN FROM REAL KEYS THROUGH THE LIVE `App`.
+///
+/// Every test above calls `App::switch_project` directly, because until this
+/// round nothing else could: `App::apply` — the ONE seam a keypress, a menu
+/// item, a palette command and an overlay click all funnel through — demanded
+/// an `&ActiveEventLoop`, which exists only inside a running winit loop and
+/// cannot be constructed. So item 180's Verify clause ("drive Switch-project
+/// through the real keymap and assert the picker's contents") named a capture
+/// that structurally could not exist. Narrowing that borrow to the ONE
+/// capability `apply` actually used (`app::Exit` — `event_loop.exit()`, nothing
+/// else) is what made this test possible.
+///
+/// Nothing here stands in for the live path; it IS the live path minus the
+/// window. The chords take `App::press_chord_headless` →
+/// `dispatch_pressed_key` (the same owner `WindowEvent::KeyboardInput` and the
+/// `--live-script` probe call) → keymap resolve → `App::apply` →
+/// `Effect::OverlayAccept(Project, ..)` → `switch_project` → `set_root` →
+/// `resync_project_location`. The picker is a REAL summoned overlay built by
+/// the real `browse_to` closure, navigated by real Backspace/Down/Enter.
+///
+/// The spec branches on the running convention rather than hardcoding one, so
+/// `native-gate.sh`'s mac AND linux passes each drive their own real chord for
+/// "Switch project…" — the axis a hardcoded `s-S-p` would have skipped.
+#[test]
+fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/old-ws/proj-a")
+            .with_dir("/old-ws/sibling")
+            .with_dir("/new-ws/other")
+            .with_dir("/new-ws/proj-b"),
+    );
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(
+            None,
+            PathBuf::from("/old-ws/proj-a"),
+            None,
+            None,
+            Config::empty(),
+        );
+        assert_eq!(app.workspace_root, Some(PathBuf::from("/old-ws")));
+        assert_eq!(project_picker_rows(&app), vec!["proj-a", "sibling"]);
+
+        // "Switch project…" — the real binding of the convention this pass runs.
+        let open_project = match crate::convention::Convention::current() {
+            crate::convention::Convention::Mac => "s-S-p",
+            crate::convention::Convention::Linux => "C-S-p",
+        };
+        app.press_spec_headless(open_project)
+            .expect("the switch-project chord parses");
+        assert_eq!(
+            app.workspace_state
+                .overlay()
+                .map(|o| o.kind)
+                .expect("the chord summoned a real Project picker"),
+            crate::overlay::OverlayKind::Project,
+        );
+
+        // Backspace ascends above the old workspace to `/`; Enter descends into
+        // `new-ws`; Down moves off `other` onto `proj-b`; Enter descends into
+        // it; the last Enter accepts the drilled-in directory as the new root.
+        app.press_spec_headless("Backspace Enter Down Enter Enter")
+            .expect("the navigation chords parse");
+
+        assert!(
+            !app.workspace_state.overlay_open(),
+            "accepting the row closes the picker, exactly as live"
+        );
+        assert_eq!(app.root, PathBuf::from("/new-ws/proj-b"));
+        assert_eq!(
+            app.workspace_root,
+            Some(PathBuf::from("/new-ws")),
+            "the workspace must follow a switch driven by real keys, not only \
+             one driven by a direct call to switch_project"
+        );
+        assert_eq!(
+            project_picker_rows(&app),
+            vec!["other", "proj-b"],
+            "the picker must now list the NEW workspace's siblings — the \
+             stale ['proj-a', 'sibling'] here is item 180's reported bug"
         );
     });
 }

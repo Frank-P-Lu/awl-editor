@@ -39,7 +39,7 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1093
+lines = 1083
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -166,7 +166,7 @@ lines = 1402
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1111
+lines = 1054
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -413,9 +413,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 848
-message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call."
+line = 843
+message = "this function has too many lines (107/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call. Item 183 narrowed the &ActiveEventLoop parameter to app::Exit, collapsing the wrapped signatures (-5)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -469,23 +469,23 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 315
+line = 260
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 183 lifting the launch/location resolvers into run/location.rs."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 609
-message = "this function has too many lines (122/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+line = 554
+message = "this function has too many lines (113/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 183 routed both project-location sites through the one builder run::project_info (-9)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 776
+line = 719
 message = "this function has too many lines (321/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 183 lifting the launch/location resolvers into run/location.rs."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -533,8 +533,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/story.rs"
 line = 42
-message = "this function has too many lines (127/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (123/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 183 routed its ProjectInfo through the one builder run::project_info (-4)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

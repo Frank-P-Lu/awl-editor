@@ -14,10 +14,14 @@ use crate::{actions, app, bench};
 mod capture_fold;
 #[path = "run/effect_interpreter.rs"]
 mod effect_interpreter;
+/// WHERE AM I WORKING — the launch/project-location resolvers, one owner each.
+#[path = "run/location.rs"]
+mod location;
 mod replay_effects;
 #[cfg(test)]
 use capture_fold::history_preview_for;
 pub(crate) use capture_fold::overlay_capture_info;
+pub(crate) use location::{project_info, resolve_launch_context, resolve_root, resolve_workspace};
 
 /// Build the editor buffer. Refused files become unbound scratch buffers so a
 /// replayed save can never overwrite them.
@@ -31,65 +35,6 @@ pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
             None => Buffer::from_file(p),
         },
         None => Buffer::scratch(),
-    }
-}
-
-pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> PathBuf {
-    if let Some(r) = root {
-        return r.clone();
-    }
-    if let Some(f) = file {
-        if crate::fs::active().is_dir(f) {
-            return f.clone();
-        }
-        if let Some(p) = f.parent()
-            && !p.as_os_str().is_empty()
-        {
-            return p.to_path_buf();
-        }
-    }
-    crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
-
-/// THE ONE launch-precedence law (item 76), for the WINDOWED launch door
-/// only (`Mode::Windowed` in [`run`]):
-///
-/// 1. **EXPLICIT TARGET WINS** — `--root`, or a file/dir argument (`awl .`
-///    included) — delegates to [`resolve_root`], unaffected by anything
-///    remembered.
-/// 2. **ARGUMENT-FREE LAUNCH RESTORES** — bare `awl`: the remembered active
-///    folder (`remembered`, from `crate::session::remembered_root`, gated by
-///    the caller on `Config::session_restore_on()`) wins if there is one.
-/// 3. **FIRST RUN** — bare launch, nothing remembered (a fresh install, or
-///    the session kill-switch is off): `default_folder` (the resolved
-///    `--default-folder`/config/`~/notes` value).
-///
-/// The DOCUMENT half of a bare launch (which file becomes active, the rest
-/// parked behind it) is owned by `App::apply_session_restore`, reading the
-/// SAME underlying session state — see `app/session.rs`'s module doc for why
-/// the two halves can never disagree.
-pub(crate) fn resolve_launch_context(
-    root: &Option<PathBuf>,
-    file: &Option<PathBuf>,
-    remembered: Option<&std::path::Path>,
-    default_folder: &std::path::Path,
-) -> PathBuf {
-    if root.is_some() || file.is_some() {
-        return resolve_root(root, file);
-    }
-    match remembered {
-        Some(p) => p.to_path_buf(),
-        None => default_folder.to_path_buf(),
-    }
-}
-
-pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::Path) -> PathBuf {
-    if let Some(w) = workspace {
-        return w.clone();
-    }
-    match root.parent() {
-        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-        _ => root.to_path_buf(),
     }
 }
 
@@ -624,18 +569,14 @@ fn capture_screenshot(
     // law) — `resolve_root` only ever consults the EXPLICIT `--root`/file,
     // never a "first run" default either (that's a windowed-launch concern).
     let active_root = resolve_root(&root, &file);
-    let proj = crate::project::Project::resolve(&active_root);
     let corpus = crate::index::build_index(&active_root);
     let effective_workspace = resolve_workspace(&workspace, &active_root);
-    opts.project = Some(capture::ProjectInfo {
-        root: active_root.clone(),
-        name: proj.name.clone(),
-        branch: proj.branch.clone(),
-        dirty: proj.dirty,
-        default_folder: Some(default_folder.clone()),
-        workspace: Some(effective_workspace.clone()),
-        keymap_flavor: config.keymap_flavor().config_name(),
-    });
+    opts.project = Some(project_info(
+        &active_root,
+        &workspace,
+        Some(default_folder.as_path()),
+        &config,
+    ));
 
     let mut buffer = load_buffer(&file);
     if let Some((md, counts, label)) = crate::prosediff::env_capture_render() {
@@ -707,18 +648,20 @@ fn capture_screenshot(
     if let Some((kind, val)) = &res.accept {
         match kind {
             crate::overlay::OverlayKind::Goto => {}
+            // SWITCH-PROJECT: re-derive the WHOLE location from the accepted
+            // root through the one builder, never a subset of it — see
+            // [`project_info`] for the half-derivation this replaced. The
+            // replay itself still ran every chord against the LAUNCH root
+            // (`ReplaySession` holds `root`/`workspace`/`corpus` fixed for its
+            // lifetime), so a chord AFTER the accept is not re-scoped the way
+            // live is; that residue is named in `docs/harness-reach.md`.
             crate::overlay::OverlayKind::Project => {
-                let new_root = std::path::PathBuf::from(val);
-                let proj = crate::project::Project::resolve(&new_root);
-                opts.project = Some(capture::ProjectInfo {
-                    root: new_root,
-                    name: proj.name.clone(),
-                    branch: proj.branch.clone(),
-                    dirty: proj.dirty,
-                    default_folder: Some(default_folder.clone()),
-                    workspace: Some(effective_workspace.clone()),
-                    keymap_flavor: config.keymap_flavor().config_name(),
-                });
+                opts.project = Some(project_info(
+                    std::path::Path::new(val),
+                    &workspace,
+                    Some(default_folder.as_path()),
+                    &config,
+                ));
             }
             // History: RESTORE the accepted version into the buffer (an undoable
             // edit), so a `--keys "Cmd-S-h <down> <enter>"` capture reflects the

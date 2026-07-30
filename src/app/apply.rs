@@ -284,7 +284,7 @@ impl App {
         &mut self,
         action: Action,
         shift: bool,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
         door: crate::stats::Door,
     ) -> bool {
         self.pre_apply(&action, door);
@@ -316,7 +316,7 @@ impl App {
                     // continue the outer stream. Returning here used to drop
                     // the outer SyncView + Redraw requests.
                     crate::commands::record_recent(&act);
-                    nested_quit |= self.apply(act, shift, event_loop, crate::stats::Door::Palette);
+                    nested_quit |= self.apply(act, shift, exit, crate::stats::Door::Palette);
                     let (_, journey) = self.workspace_state.core_slots();
                     journey.attribute_launch(Some(crate::overlay::OverlayKind::Command));
                 }
@@ -329,7 +329,7 @@ impl App {
                         }
                     };
                     nested_quit |=
-                        self.apply(continuation, false, event_loop, crate::stats::Door::Palette);
+                        self.apply(continuation, false, exit, crate::stats::Door::Palette);
                 }
                 effect => self.apply_live_effect(effect),
             }
@@ -349,7 +349,7 @@ impl App {
 
         let quit = quit || nested_quit;
         if quit {
-            event_loop.exit();
+            exit.exit();
         }
         quit
     }

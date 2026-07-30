@@ -371,7 +371,7 @@ impl App {
     /// gesture, so a press/release pair over a world-jump-relaid-out card can never
     /// activate two different rows depending on which edge you read — there is only
     /// the one edge this fires on.
-    pub(in crate::app) fn overlay_click(&mut self, event_loop: &ActiveEventLoop) {
+    pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.cursor_px;
         let (row_hit, lens_hit, card) = self
             .gpu
@@ -438,12 +438,7 @@ impl App {
                 }
                 return;
             }
-            self.apply(
-                Action::Newline,
-                false,
-                event_loop,
-                crate::stats::Door::Chord,
-            );
+            self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
         } else {
             let inside = card
                 .map(|[x, y, w, h]| px >= x && px <= x + w && py >= y && py <= y + h)
@@ -451,7 +446,7 @@ impl App {
             if inside {
                 return;
             }
-            self.apply(Action::Cancel, false, event_loop, crate::stats::Door::Chord);
+            self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
         }
         self.sync_view(true);
         if let Some(gpu) = self.gpu.as_ref() {
@@ -520,7 +515,7 @@ impl App {
     ///   * a press ANYWHERE else while a dropdown is open closes it (click-away);
     ///   * a press on the bar's dead strip (no dropdown) is swallowed, so it never moves
     ///     the caret in the document beneath the bar.
-    pub(in crate::app) fn menubar_press(&mut self, event_loop: &ActiveEventLoop) -> bool {
+    pub(in crate::app) fn menubar_press(&mut self, exit: &dyn schedule::Exit) -> bool {
         if !crate::menubar::menu_bar_on() {
             return false;
         }
@@ -548,7 +543,7 @@ impl App {
                     })
             };
             if let Some(action) = action {
-                let exited = self.apply(action, false, event_loop, crate::stats::Door::Menu);
+                let exited = self.apply(action, false, exit, crate::stats::Door::Menu);
                 if exited {
                     return true;
                 }
@@ -573,11 +568,11 @@ impl App {
 
     pub(in crate::app) fn on_right_press(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
         over_writing_column: bool,
     ) {
         if self.workspace_state.overlay_open() {
-            let _ = self.apply(Action::Cancel, false, event_loop, crate::stats::Door::Chord);
+            let _ = self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
         }
         // A margin right-click may dismiss an open spell picker, but it never
         // retargets the caret/selection to the clamped edge of document text.
@@ -604,7 +599,7 @@ impl App {
         let _ = self.apply(
             Action::OpenSpellSuggest,
             false,
-            event_loop,
+            exit,
             crate::stats::Door::Chord,
         );
         self.sync_view(true);
@@ -847,7 +842,7 @@ impl App {
 
     pub(in crate::app) fn on_mouse_input(
         &mut self,
-        event_loop: &ActiveEventLoop,
+        exit: &dyn schedule::Exit,
         state: ElementState,
         button: MouseButton,
     ) {
@@ -876,7 +871,7 @@ impl App {
         if button == MouseButton::Right {
             if state == ElementState::Pressed {
                 let over_writing_column = self.pointer_over_writing_column();
-                self.on_right_press(event_loop, over_writing_column);
+                self.on_right_press(exit, over_writing_column);
             }
             return;
         }
@@ -885,7 +880,7 @@ impl App {
         }
         match state {
             ElementState::Pressed => {
-                if self.menubar_press(event_loop) {
+                if self.menubar_press(exit) {
                     self.sync_cursor_icon();
                     if let Some(gpu) = self.gpu.as_ref() {
                         gpu.window.request_redraw();
@@ -909,12 +904,7 @@ impl App {
                         .as_ref()
                         .and_then(|g| g.pipeline.popover_hit(px, py));
                     if let Some(button) = hit {
-                        let _ = self.apply(
-                            button.action(),
-                            false,
-                            event_loop,
-                            crate::stats::Door::Chord,
-                        );
+                        let _ = self.apply(button.action(), false, exit, crate::stats::Door::Chord);
                         self.sync_view(true);
                         if let Some(gpu) = self.gpu.as_ref() {
                             gpu.window.request_redraw();
@@ -938,14 +928,14 @@ impl App {
                 // width resize (symmetric about center) instead of a text
                 // selection; else it's a normal click / selection start.
                 if self.workspace_state.overlay_open() {
-                    self.overlay_click(event_loop);
+                    self.overlay_click(exit);
                 } else if self.workspace_state.search_active() && self.panel_click() {
                     // CLICK-TO-SWITCH-FIELD: a press on the find/replace panel
                     // focused a field (or was an in-card no-op); it never falls
                     // through to a document press. A press OFF the panel returns
                     // false and continues to the page-resize / doc-click path.
                 } else if self.begin_image_resize_if_hovering() {
-                } else if !self.begin_page_resize_if_hovering(event_loop) {
+                } else if !self.begin_page_resize_if_hovering(exit) {
                     // Outline activation and document presses are separate gestures.
                     if !self.outline_click() {
                         let shift = self.mods.state().contains(ModifiersState::SHIFT);
