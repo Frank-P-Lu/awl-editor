@@ -177,7 +177,7 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
         assert_eq!(
             t.background.deckle_anchor_mode(),
             want,
-            "{}: Deckle anchor is inert outside its one assignee",
+            "{}: Deckle anchor is inert outside Deckle assignees",
             t.name
         );
     }
