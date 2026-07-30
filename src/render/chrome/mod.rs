@@ -210,7 +210,7 @@ pub(super) struct OverlayGeom {
     pub(super) card_h: f32,
     pub(super) text_left: f32,
     pub(super) text_top: f32,
-    text_w: f32,
+    pub(super) text_w: f32,
     card_narrow: bool,
 }
 

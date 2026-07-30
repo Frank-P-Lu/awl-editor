@@ -78,6 +78,22 @@ pub(in crate::render) struct OverlayRowPlan {
     selected_display: Option<usize>,
 }
 
+/// PLAN WORK WITNESSES, counted by the planner itself so no consumer can dodge
+/// them: plans built, and `PlannedRow`s across those plans. Their ratio is the
+/// O(visible) claim, checkable at runtime — a planner that started walking the
+/// corpus would blow the per-plan mean while the frame time stayed flat, which is
+/// exactly how a bench "measures" work that never happened. Read by
+/// `--bench-suite`'s palette cell; never by the render or capture paths, so no
+/// frame's output depends on them.
+static PLANS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static PLANNED_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// `(plans built, rows planned)` since process start.
+pub(in crate::render) fn plan_witness() -> (u64, u64) {
+    use std::sync::atomic::Ordering::Relaxed;
+    (PLANS.load(Relaxed), PLANNED_ROWS.load(Relaxed))
+}
+
 /// THE FORWARD ROW-Y ARITHMETIC. Deliberately PRIVATE to this module: the whole
 /// point of item 174 is that a consumer cannot re-derive a row's y from loose
 /// scalars, only read it off the plan that drew it.
@@ -113,6 +129,29 @@ pub(in crate::render) fn test_row_top(
         lines: None,
     });
     plan.row_top(row).expect("row is inside the planned window")
+}
+
+/// TEST-ONLY: `n` planned rows of pitch `lh` seated at `text_top` with no header,
+/// built by the REAL planner — for a law whose subject is a row band rather than a
+/// card (the living band's own coverage sweep).
+#[cfg(test)]
+pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<PlannedRow> {
+    plan_overlay_rows(&OverlayRowPlanInput {
+        card_x: 0.0,
+        card_w: 0.0,
+        text_top,
+        lh,
+        header_gap: 0.0,
+        header_rows: 0,
+        visible: n,
+        top_idx: 0,
+        n_items: n,
+        selected: 0,
+        empty_rows: 0,
+        lines: None,
+    })
+    .rows()
+    .to_vec()
 }
 
 /// Build the plan. Pure: no clock, no randomness, no device, no allocation per
@@ -174,6 +213,9 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                 .min(input.visible.saturating_sub(1)),
         )
     };
+    use std::sync::atomic::Ordering::Relaxed;
+    PLANS.fetch_add(1, Relaxed);
+    PLANNED_ROWS.fetch_add(rows.len() as u64, Relaxed);
     OverlayRowPlan {
         card_x: input.card_x,
         card_w: input.card_w,

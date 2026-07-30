@@ -100,6 +100,54 @@ fn overlay_view(kind: OverlayKind, n: usize) -> ViewState {
     v
 }
 
+/// Grade every planned row of one rendered frame: DRAWN (the shaped line's own
+/// top, read off the buffer the draw pass uploads) == PLANNED slot, and
+/// INTERACTIVE (`overlay_row_at` at the slot's centre and both card edges) ==
+/// that row's own item. Returns `(item rows, header lines)` graded.
+fn grade_rows(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    probe: &super::overlay_probe::OverlayYProbe,
+    ctx: &str,
+) -> (usize, usize) {
+    let (x0, x1) = plan.card_x_span();
+    let mid_x = (x0 + x1) * 0.5;
+    let (mut items, mut headers) = (0usize, 0usize);
+    for row in plan.rows() {
+        let drawn = *probe.primary.get(&row.display).unwrap_or_else(|| {
+            panic!(
+                "{ctx}: display row {} must have a shaped line — the plan claims {} \
+                 candidate rows",
+                row.display,
+                plan.candidate_rows()
+            )
+        });
+        assert!(
+            (drawn - row.top).abs() < 0.75,
+            "{ctx}: display row {} is DRAWN at y {drawn} but PLANNED at {} (slot height {})",
+            row.display,
+            row.top,
+            row.height
+        );
+        let mid_y = row.top + row.height * 0.5;
+        for x in [x0, mid_x, x1] {
+            assert_eq!(
+                p.overlay_row_at(x, mid_y),
+                row.item,
+                "{ctx}: display row {} draws item {:?} but the pointer at ({x}, {mid_y}) \
+                 resolves differently",
+                row.display,
+                row.item
+            );
+        }
+        match row.item {
+            Some(_) => items += 1,
+            None => headers += 1,
+        }
+    }
+    (items, headers)
+}
+
 /// THE HEADLINE LAW. For every planned row of every picker kind, in both list
 /// styles, at four window geometries and both DPIs: the SHAPED glyph line sits in
 /// the planned slot, the pointer hit-test at that slot's own centre accepts that
@@ -109,8 +157,7 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind: \
-             no wgpu adapter"
+            "skipping drawn_hit_test_and_sidecar_agree_on_every_planned_row: no wgpu adapter"
         );
         return;
     };
@@ -191,46 +238,9 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
                         v.overlay_selected
                     );
 
-                    let (x0, x1) = plan.card_x_span();
-                    let mid_x = (x0 + x1) * 0.5;
-                    for row in plan.rows() {
-                        // DRAWN == PLAN: the shaped candidate line's own top,
-                        // read off the buffer the draw pass uploads.
-                        let drawn = *probe.primary.get(&row.display).unwrap_or_else(|| {
-                            panic!(
-                                "{ctx}: display row {} must have a shaped line — the plan \
-                                 claims {} candidate rows",
-                                row.display,
-                                plan.candidate_rows()
-                            )
-                        });
-                        assert!(
-                            (drawn - row.top).abs() < 0.75,
-                            "{ctx}: display row {} is DRAWN at y {drawn} but PLANNED at \
-                             {} (slot height {})",
-                            row.display,
-                            row.top,
-                            row.height
-                        );
-
-                        // INTERACTIVE == PLAN, at the slot's own centre and at
-                        // both card edges.
-                        let mid_y = row.top + row.height * 0.5;
-                        for x in [x0, mid_x, x1] {
-                            assert_eq!(
-                                p.overlay_row_at(x, mid_y),
-                                row.item,
-                                "{ctx}: display row {} draws item {:?} but the pointer at \
-                                 ({x}, {mid_y}) resolves differently",
-                                row.display,
-                                row.item
-                            );
-                        }
-                        match row.item {
-                            Some(_) => checked_rows += 1,
-                            None => checked_headers += 1,
-                        }
-                    }
+                    let (rows, headers) = grade_rows(&p, &plan, &probe, &ctx);
+                    checked_rows += rows;
+                    checked_headers += headers;
                 }
             }
         }
@@ -410,16 +420,9 @@ fn a_huge_picker_corpus_still_plans_only_the_rows_on_screen() {
 ///    non-empty. Arm 1 covers the rest.
 #[test]
 fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bars_world() {
-    /// The luminance gap, against the card's own top-pad ground, at which the
-    /// footer plate becomes visible to an absolute pixel oracle. Below it the
-    /// pale worlds' plate is a whisper and only arm 1 can speak.
-    const VISIBLE_PLATE_LUMA: f64 = 15.0;
-
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!(
-            "skipping an_empty_states_notice_row_carries_no_footer_plate_on_any_bars_world: no wgpu adapter"
-        );
+        eprintln!("skipping an_empty_states_notice_row_carries_no_footer_plate: no wgpu adapter");
         return;
     };
 
@@ -500,45 +503,9 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bars_world() {
         );
 
         // ARM 2 — the pixels.
-        let (texture, tview) = super::dither::offscreen(&device, 1200, 800);
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("awl item174 empty-card encoder"),
-        });
-        p.render(&mut encoder, &tview).unwrap();
-        queue.submit(Some(encoder.finish()));
-        let pixels = super::dither::read_pixels(&device, &queue, &texture, 1200, 800);
-
-        let (cx0, cx1) = plan.card_x_span();
-        let x_lo = (cx0 + 2.0).max(0.0) as u32;
-        let x_hi = (cx1 - 2.0).min(1199.0) as u32;
-        let mean_luma = |y0: f32, y1: f32| -> f64 {
-            let (a, b) = (y0.ceil().max(0.0) as u32, y1.floor().min(800.0) as u32);
-            let mut sum = 0.0f64;
-            let mut n = 0u32;
-            for y in a..b {
-                for x in x_lo..x_hi {
-                    let px = pixels[(y * 1200 + x) as usize];
-                    sum += 0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64;
-                    n += 1;
-                }
-            }
-            sum / n.max(1) as f64
-        };
-        // The card's own TOP PAD: pure ground, no glyph ink, on every world.
-        let ground = mean_luma(geom.card_y + 1.0, geom.card_y + 10.0);
-        let pad = (lh * 0.25).max(4.0);
-        let notice = mean_luma(notice_top + pad, notice_top + lh - pad);
-        let footer = mean_luma(footer_top + pad, footer_top + lh - pad);
-        let plate_delta = (footer - ground).abs();
-        let notice_delta = (notice - ground).abs();
-        if plate_delta > VISIBLE_PLATE_LUMA {
-            assert!(
-                notice_delta * 3.0 < plate_delta,
-                "{world}: the empty-state NOTICE row reads as a plated footer band rather \
-                 than plain card ground (ground {ground:.2}, notice {notice:.2}, footer \
-                 {footer:.2}; notice delta {notice_delta:.2} vs plate delta \
-                 {plate_delta:.2})"
-            );
+        let pixels = shoot(&device, &queue, &mut p);
+        let bands = (geom.card_y, notice_top, footer_top, lh);
+        if notice_reads_as_ground(&pixels, plan.card_x_span(), bands, world) {
             pixel_graded.push(world);
         }
     }
@@ -549,6 +516,66 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bars_world() {
         "at least one Bars world's plate must be visible enough to grade from pixels; \
          otherwise arm 2 is vacuous across the whole roster"
     );
+}
+
+/// Render the current frame offscreen and read it back.
+fn shoot(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline) -> Vec<[u8; 4]> {
+    let (texture, tview) = super::dither::offscreen(device, 1200, 800);
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("awl item174 empty-card encoder"),
+    });
+    p.render(&mut encoder, &tview).unwrap();
+    queue.submit(Some(encoder.finish()));
+    super::dither::read_pixels(device, queue, &texture, 1200, 800)
+}
+
+/// ARM 2 of the empty-state law: does the NOTICE row's band read as plain card
+/// ground rather than as the footer's plate? `bands` is `(card_y, notice_top,
+/// footer_top, lh)`. Returns whether this world's plate was visible enough for the
+/// absolute oracle to grade at all; a `false` here means arm 1 carries the world.
+fn notice_reads_as_ground(
+    pixels: &[[u8; 4]],
+    card_x: (f32, f32),
+    bands: (f32, f32, f32, f32),
+    world: &str,
+) -> bool {
+    /// The luminance gap, against the card's own top-pad ground, at which the
+    /// footer plate becomes visible to an absolute pixel oracle. Below it a pale
+    /// world's plate is a whisper and only arm 1 can speak.
+    const VISIBLE_PLATE_LUMA: f64 = 15.0;
+
+    let (card_y, notice_top, footer_top, lh) = bands;
+    let x_lo = (card_x.0 + 2.0).max(0.0) as u32;
+    let x_hi = (card_x.1 - 2.0).min(1199.0) as u32;
+    let mean_luma = |y0: f32, y1: f32| -> f64 {
+        let (a, b) = (y0.ceil().max(0.0) as u32, y1.floor().min(800.0) as u32);
+        let (mut sum, mut n) = (0.0f64, 0u32);
+        for y in a..b {
+            for x in x_lo..x_hi {
+                let px = pixels[(y * 1200 + x) as usize];
+                sum += 0.2126 * px[0] as f64 + 0.7152 * px[1] as f64 + 0.0722 * px[2] as f64;
+                n += 1;
+            }
+        }
+        sum / n.max(1) as f64
+    };
+    // The card's own TOP PAD: pure ground, no glyph ink, on every world.
+    let ground = mean_luma(card_y + 1.0, card_y + 10.0);
+    let pad = (lh * 0.25).max(4.0);
+    let notice = mean_luma(notice_top + pad, notice_top + lh - pad);
+    let footer = mean_luma(footer_top + pad, footer_top + lh - pad);
+    let plate_delta = (footer - ground).abs();
+    let notice_delta = (notice - ground).abs();
+    if plate_delta <= VISIBLE_PLATE_LUMA {
+        return false;
+    }
+    assert!(
+        notice_delta * 3.0 < plate_delta,
+        "{world}: the empty-state NOTICE row reads as a plated footer band rather than \
+         plain card ground (ground {ground:.2}, notice {notice:.2}, footer {footer:.2}; \
+         notice delta {notice_delta:.2} vs plate delta {plate_delta:.2})"
+    );
+    true
 }
 
 // --- The retired-arithmetic source law ---------------------------------------

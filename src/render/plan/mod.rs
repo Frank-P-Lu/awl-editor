@@ -31,11 +31,12 @@
 
 mod overlay_rows;
 
-#[cfg(test)]
-pub(in crate::render) use overlay_rows::test_row_top;
+pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
     OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, plan_overlay_rows,
 };
+#[cfg(test)]
+pub(in crate::render) use overlay_rows::{test_row_top, test_rows};
 
 #[cfg(test)]
 mod tests;

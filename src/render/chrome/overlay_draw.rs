@@ -21,11 +21,8 @@ impl TextPipeline {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(width);
-        // ITEM 174 — PLAN THE CANDIDATE BAND ONCE, here, before anything is
-        // shaped, resolved or emitted. Every consumer below reads these
-        // `PlannedRow`s: the visual-selection transaction's target, the shaped
-        // rows' item mapping, the band/bar/chord/footer plates, the rails, and the
-        // slant clip bands. Nothing downstream computes a row's y.
+        // ITEM 174 — PLAN THE CANDIDATE BAND ONCE, before anything is shaped,
+        // resolved or emitted; nothing downstream computes a row's y.
         let plan = self.overlay_row_plan(&geom);
         let placard = self.overlay_shape_placard(&geom);
         let stipple = matches!(
@@ -312,10 +309,8 @@ impl TextPipeline {
                 areas.push(panel_area);
             }
             Some(_) => {
-                // ITEM 174 — one clip band PER PLANNED ROW, read off the plan's own
-                // slots. This loop used to re-derive `first_top + k * lh` for every
-                // row, a second copy of the row-y arithmetic the band beneath it
-                // was placed with.
+                // ITEM 174 — one clip band PER PLANNED ROW, off the plan's own
+                // slots (this loop used to re-derive `first_top + k * lh`).
                 let clip = |top: f32, bottom: f32| TextBounds {
                     left: bounds.left,
                     top: top.max(0.0) as i32,

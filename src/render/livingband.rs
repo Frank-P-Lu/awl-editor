@@ -221,35 +221,25 @@ pub fn two_shape_band(from_top: f32, to_top: f32, h: f32, t: f32, p: &MorphParam
 ///
 /// The OLD (state-tied) behaviour is recovered by passing the single settled
 /// target rect: `covered_rows(&[target_band], plan.rows())` returns exactly
-/// `[target_disp]`, so the env-unset path stays byte-identical.
-///
-/// ITEM 174 — the coverage grid is the SCENE PLAN's own rows, not an origin and a
-/// pitch this function steps off itself: the rows a band reads as covering are the
-/// rows that were DRAWN, compared against the very `f32` slots the draw used.
+/// `[target_disp]`. ITEM 174 — the grid is the SCENE PLAN's own rows, not an
+/// origin and a pitch this fn steps off itself: a band's covered rows are
+/// compared against the very `f32` slots the draw used.
 pub(in crate::render) fn covered_rows(
     bands: &[BandRect],
     rows: &[crate::render::plan::PlannedRow],
 ) -> Vec<usize> {
     let mut out = Vec::new();
-    for row in rows {
-        let lh = row.height;
-        if lh <= 0.0 {
-            continue;
-        }
-        let k = row.display;
-        let row_top = row.top;
-        let row_bot = row.bottom();
-        // Max single-band overlap: for two separated shapes each owns a
-        // different row, and where they cross the two coincide — so MAX (not
-        // sum) is the true covered depth for this row.
+    for row in rows.iter().filter(|r| r.height > 0.0) {
+        // Max single-band overlap: two separated shapes each own a different row,
+        // and where they cross the two coincide — so MAX (not sum) is the depth.
         let mut cov = 0.0f32;
         for b in bands {
-            let top = row_top.max(b.top);
-            let bot = row_bot.min(b.top + b.height);
+            let top = row.top.max(b.top);
+            let bot = row.bottom().min(b.top + b.height);
             cov = cov.max((bot - top).max(0.0));
         }
-        if cov > lh * 0.5 {
-            out.push(k);
+        if cov > row.height * 0.5 {
+            out.push(row.display);
         }
     }
     out
@@ -492,33 +482,11 @@ mod tests {
         );
     }
 
-    /// Eight planned candidate rows of `lh`, seated at `text_top` with no header —
-    /// built by the REAL planner, so this law's coverage grid is the same object
-    /// the renderer's is (item 174).
-    fn planned(text_top: f32, lh: f32, n: usize) -> Vec<crate::render::plan::PlannedRow> {
-        crate::render::plan::plan_overlay_rows(&crate::render::plan::OverlayRowPlanInput {
-            card_x: 0.0,
-            card_w: 0.0,
-            text_top,
-            lh,
-            header_gap: 0.0,
-            header_rows: 0,
-            visible: n,
-            top_idx: 0,
-            n_items: n,
-            selected: 0,
-            empty_rows: 0,
-            lines: None,
-        })
-        .rows()
-        .to_vec()
-    }
-
     #[test]
     fn covered_ink_rides_the_band_not_the_state() {
         // Eight planned rows of `lh`; the SELECTED (target) row is #2.
         let (lh, h) = (24.0f32, 24.0f32);
-        let rows = planned(100.0, lh, 8);
+        let rows = crate::render::plan::test_rows(100.0, lh, 8);
         let target_disp = 2usize;
         let target_top = rows[target_disp].top; // 148
         let params = Choreo::Morph.params();
