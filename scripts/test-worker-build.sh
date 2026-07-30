@@ -9,13 +9,30 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-worker-build-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 probe="$WORK/probe.sh"
+free_oracle="$WORK/free-oracle.sh"
+never_sweep="$WORK/never-sweep.sh"
 cat >"$probe" <<'EOF'
 #!/usr/bin/env bash
 printf 'child-cargo-jobs=%s\n' "${CARGO_BUILD_JOBS:-unset}"
 EOF
+cat >"$free_oracle" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' $((40 * 1024 * 1024 * 1024))
+EOF
+cat >"$never_sweep" <<'EOF'
+#!/usr/bin/env bash
+echo "test-worker-build: healthy preflight attempted a sweep" >&2
+exit 1
+EOF
 chmod +x "$probe"
+chmod +x "$free_oracle" "$never_sweep"
 
-output="$(CARGO_BUILD_JOBS=99 "$ROOT/.orchestrator/worker-build.sh" "$probe")"
+output="$(CARGO_BUILD_JOBS=99 \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$free_oracle" \
+  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$never_sweep" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock" \
+  "$ROOT/.orchestrator/worker-build.sh" "$probe")"
 [[ "$output" == *"orchestrator-worker-budget cargo_jobs=2 command="* ]] \
   || { echo "test-worker-build: wrapper did not issue its budget receipt" >&2; exit 1; }
 [[ "$output" == *"child-cargo-jobs=2"* ]] \
@@ -29,7 +46,11 @@ if [[ -n "${CARGO_BUILD_JOBS:-}" ]]; then
   echo "test-worker-build: isolated root gate caller retained a worker cap" >&2
   exit 1
 fi
-if ! "$ROOT/scripts/native-gate.sh" --bin >/dev/null 2>"$WORK/native-gate.err"; then
+if ! AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$free_oracle" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_SWEEP_COMMAND="$never_sweep" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/native-disk-lock" \
+  "$ROOT/scripts/native-gate.sh" --bin >/dev/null 2>"$WORK/native-gate.err"; then
   if ! grep -Fq 'target selection and test-name arguments are forbidden' "$WORK/native-gate.err"; then
     echo "test-worker-build: canonical native gate did not reject its probe argument" >&2
     exit 1
