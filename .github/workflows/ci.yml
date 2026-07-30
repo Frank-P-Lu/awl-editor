@@ -140,6 +140,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # This job is the only one that ever compiles `cfg(target_os = "macos")`
+      # arms for real (About window, dock-icon adoption, menu bar,
+      # packaging/bundle-identity paths) — the linux job's cross-clippy arm
+      # only reaches the non-mac side. `--clippy-only` runs just the clippy
+      # pass: cargo fmt, code-health.py and cargo-machete already run
+      # tree-wide in the linux job, and repeating them on this pricier
+      # runner would buy no new coverage (item 179).
+      - name: Rust code health (clippy, mac-only cfg arms)
+        run: bash scripts/code-health.sh --clippy-only
+
       - name: cargo build
         run: cargo build
 
