@@ -322,18 +322,53 @@ impl App {
     /// launched or last scanned is never missing. No cache TTL, no watcher: a
     /// summoned overlay is transient and the walk is disk-cheap for a real
     /// project tree (measured on this repo: see `index::tests::build_index_on_this_repo_is_fast`).
+    ///
+    /// Narrower than [`Self::resync_project_location`] on purpose: a rename/
+    /// move/first-save re-scans the SAME root's index without touching
+    /// `project` or `workspace_root`, which haven't changed.
     pub(in crate::app) fn rescan_file_index(&mut self) {
         self.file_index = crate::index::build_index(&self.root);
     }
 
-    /// Make `new_root` the ACTIVE project: re-resolve the project, rebuild the
-    /// file index, reset the MRU, and re-sync the view. Shared by switch-project
-    /// (C-x p) and the new-note jump (C-x n) so both re-scope the go-to list the
-    /// same way. No buffer is opened here (that is the caller's concern).
-    /// Returns `false` ONLY when a MAS sandbox grant panel was cancelled (see
-    /// the gate below) — every other path always switches and returns `true`;
-    /// callers that persist a "switched to" fact (the sticky root, the recent-
-    /// projects MRU) must check this before doing so.
+    /// THE ONE OWNER of "what does `self.root` imply" (docs/app-domains.md's
+    /// `ProjectLocation` section): `project`, `file_index`, and `workspace_root`
+    /// are all pure functions of `(self.root, self.cli_workspace,
+    /// self.config.workspace)`, and this is the only place that derives any of
+    /// the three — every entry point that changes one of those inputs calls
+    /// this rather than re-deriving a subset by hand.
+    ///
+    /// Before this fn existed, `set_root` re-derived `project` + `file_index`
+    /// (via [`Self::rescan_file_index`]) but not `workspace_root`, while
+    /// `reload_config` re-derived `workspace_root` but not the other two — two
+    /// half-owners of one derived value, agreeing only by accident. Because
+    /// [`crate::resolve_workspace`] falls back to `root.parent()` when neither
+    /// the CLI flag nor `config.workspace` names one, a Switch-project into a
+    /// tree whose parent differs from the old one used to leave
+    /// `workspace_root` pointing at the OLD parent — and the Project picker
+    /// (`C-x p`) browses `workspace_root` — until something unrelated called
+    /// `reload_config`. Folding the derivation into one fn, called by both
+    /// sites, makes that disagreement structurally impossible: there is no
+    /// window where `project`/`file_index` reflect the new root while
+    /// `workspace_root` still reflects the old one.
+    pub(in crate::app) fn resync_project_location(&mut self) {
+        self.project = crate::project::Project::resolve(&self.root);
+        self.rescan_file_index();
+        let workspace_opt = self
+            .cli_workspace
+            .clone()
+            .or_else(|| self.config.workspace.clone());
+        self.workspace_root = Some(crate::resolve_workspace(&workspace_opt, &self.root));
+    }
+
+    /// Make `new_root` the ACTIVE project: re-derive everything `root` implies
+    /// ([`Self::resync_project_location`]), reset the MRU, and re-sync the
+    /// view. Shared by switch-project (C-x p) and the new-note jump (C-x n) so
+    /// both re-scope the go-to list — AND the workspace the Project picker
+    /// itself browses — the same way. No buffer is opened here (that is the
+    /// caller's concern). Returns `false` ONLY when a MAS sandbox grant panel
+    /// was cancelled (see the gate below) — every other path always switches
+    /// and returns `true`; callers that persist a "switched to" fact (the
+    /// sticky root, the recent-projects MRU) must check this before doing so.
     pub(in crate::app) fn set_root(&mut self, new_root: PathBuf) -> bool {
         // MAS SANDBOX GRANT GATE (native macOS `mas` builds only — see
         // `src/mas.rs`'s module doc): a project root reaches outside the
@@ -351,8 +386,7 @@ impl App {
         self.flush_note();
         self.autosave_flush();
         self.root = new_root;
-        self.project = crate::project::Project::resolve(&self.root);
-        self.rescan_file_index();
+        self.resync_project_location();
         self.sync_view(false);
         if let Some(gpu) = self.gpu.as_ref() {
             gpu.window.request_redraw();

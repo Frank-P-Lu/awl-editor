@@ -27,7 +27,7 @@ lines = 1040
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
-lines = 383
+lines = 382
 
 [[file_size_mark]]
 file = "src/app/gpu.rs"
