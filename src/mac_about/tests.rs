@@ -92,6 +92,7 @@ fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
     let _guard = crate::testlock::serial();
     let page_on = crate::page::page_on();
     let measure = crate::page::measure();
+    let spellcheck_on = crate::spell::spellcheck_on();
     let mut requesting = Vec::new();
     for command in crate::commands::COMMANDS.iter() {
         let mut buffer = crate::buffer::Buffer::scratch();
@@ -124,6 +125,7 @@ fn exactly_about_requests_the_native_surface_through_the_shared_transition() {
     }
     crate::page::set_page_on(page_on);
     crate::page::set_measure(measure);
+    crate::spell::set_spellcheck_on(spellcheck_on);
     assert_eq!(
         requesting,
         vec!["About"],

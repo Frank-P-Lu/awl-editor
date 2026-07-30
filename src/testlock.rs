@@ -65,6 +65,7 @@ pub(crate) struct SerialGuard {
     inner: Option<MutexGuard<'static, ()>>,
     world_at_entry: Option<usize>,
     page_at_entry: Option<(bool, usize)>,
+    spellcheck_at_entry: Option<bool>,
 }
 
 impl Drop for SerialGuard {
@@ -72,6 +73,7 @@ impl Drop for SerialGuard {
         if self.inner.is_some() {
             let mut world_leak = None;
             let mut page_leak = None;
+            let mut spellcheck_leak = None;
             if let Some(before) = self.world_at_entry {
                 let after = crate::theme::active_index();
                 if after != before {
@@ -97,6 +99,15 @@ impl Drop for SerialGuard {
                     }
                 }
             }
+            if let Some(before) = self.spellcheck_at_entry {
+                let after = crate::spell::spellcheck_on();
+                if after != before {
+                    crate::spell::set_spellcheck_on(before);
+                    if !std::thread::panicking() {
+                        spellcheck_leak = Some((before, after));
+                    }
+                }
+            }
             HELD.with(|h| h.set(false));
             if let Some((before, after)) = world_leak {
                 panic!(
@@ -111,6 +122,12 @@ impl Drop for SerialGuard {
                 panic!(
                     "test left page inputs dirty: entered at page_on={} measure={} and exited at page_on={} measure={}",
                     on_before, measure_before, on_after, measure_after
+                );
+            }
+            if let Some((before, after)) = spellcheck_leak {
+                panic!(
+                    "test left spellcheck dirty: entered at {} and exited at {}",
+                    before, after
                 );
             }
         }
@@ -145,6 +162,7 @@ fn acquire(check_world: bool) -> SerialGuard {
             inner: None,
             world_at_entry: None,
             page_at_entry: None,
+            spellcheck_at_entry: None,
         };
     }
     let guard = TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
@@ -153,6 +171,7 @@ fn acquire(check_world: bool) -> SerialGuard {
         inner: Some(guard),
         world_at_entry: check_world.then(crate::theme::active_index),
         page_at_entry: check_world.then(|| (crate::page::page_on(), crate::page::measure())),
+        spellcheck_at_entry: check_world.then(crate::spell::spellcheck_on),
     }
 }
 
@@ -317,6 +336,28 @@ mod tests {
             (crate::page::page_on(), crate::page::measure()),
             before,
             "the failed page window restores before its next reader enters"
+        );
+    }
+
+    #[test]
+    fn a_deliberately_dirty_spellcheck_window_fails_and_restores_before_the_next_reader() {
+        let before = {
+            let _g = serial();
+            crate::spell::spellcheck_on()
+        };
+        let leaked = std::panic::catch_unwind(|| {
+            let _g = serial();
+            crate::spell::set_spellcheck_on(!before);
+        });
+        assert!(
+            leaked.is_err(),
+            "a checked window must reject dirty spellcheck state"
+        );
+        let _g = serial();
+        assert_eq!(
+            crate::spell::spellcheck_on(),
+            before,
+            "the failed spellcheck window restores before its next reader enters"
         );
     }
 
