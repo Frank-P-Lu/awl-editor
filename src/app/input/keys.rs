@@ -122,10 +122,11 @@ impl App {
     }
 
     /// Route a key to the active search surface (only called while
-    /// `workspace_state.search_active()`). A thin delegate to the ONE renderer-independent interception
-    /// seam — [`crate::search::keys::intercept`], shared verbatim with the
-    /// headless `--keys` replay's search guard (`main/run.rs`), so the live
-    /// panel and a replayed capture cannot drift. The seam consumes EVERY key
+    /// `workspace_state.search_active()`). A thin delegate to the ONE
+    /// renderer-independent interception seam
+    /// — [`crate::search::keys::intercept`], shared verbatim with the headless
+    /// `--keys` replay's search guard (`main/run.rs`), so the live panel and a
+    /// replayed capture cannot drift. The seam consumes EVERY key
     /// (query/replacement typing, Backspace, C-s/C-r/arrow steps, M-c case
     /// toggle, Tab/Cmd-R field moves, Enter accept/replace, Cmd-Enter
     /// replace-all, Esc/C-g abort) and moves the REAL buffer cursor onto the
@@ -138,13 +139,9 @@ impl App {
         mods: &Modifiers,
         _event_loop: &ActiveEventLoop,
     ) {
-        let (search_slot, _) = self.workspace_state.core_slots();
-        if let Some(dir) = crate::search::keys::intercept(
-            search_slot,
-            &mut self.active.buffer,
-            logical,
-            mods.state(),
-        ) {
+        let (search, _) = self.workspace_state.core_slots();
+        let buffer = &mut self.active.buffer;
+        if let Some(dir) = crate::search::keys::intercept(search, buffer, logical, mods.state()) {
             self.caret_recoil = Some(dir);
         }
     }

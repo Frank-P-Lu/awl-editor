@@ -19,11 +19,11 @@ lines = 883
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1800
+lines = 1798
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 1053
+lines = 1044
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -51,11 +51,11 @@ lines = 500
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 576
+lines = 533
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 691
+lines = 690
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -413,37 +413,37 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 847
-message = "this function has too many lines (114/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+line = 848
+message = "this function has too many lines (112/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (286/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (240/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/window.rs"
 line = 485
-message = "this function has too many lines (133/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (132/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 routed the autosave clock through PersistenceRuntime (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 830
-message = "this function has too many lines (223/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+line = 834
+message = "this function has too many lines (217/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1338
+line = 1336
 message = "this function has too many lines (106/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -455,9 +455,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1597
+line = 1595
 message = "this function has too many lines (102/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -812,9 +812,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/tests/files.rs"
-line = 1624
+line = 1627
 message = "this function has too many lines (106/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by item 172's summoned-layer accessor migration; count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

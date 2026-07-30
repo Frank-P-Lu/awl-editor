@@ -137,6 +137,10 @@ impl App {
             crate::spell::visible(&self.active.extra.spell_cache, &text)
         };
 
+        // The summoned picker, bound ONCE for the whole projection below (item
+        // 172): fourteen `overlay_*` fields read it, and asking its owner
+        // fourteen times made rustfmt break every one across five lines.
+        let ov = self.workspace_state.overlay();
         let mut view = ViewState {
             text,
             cursor_line,
@@ -167,10 +171,8 @@ impl App {
             // ITEM 45: carry the alignment FROZEN at summon (`OverlayState::align`)
             // straight through — read verbatim every frame, so a live theme-preview
             // crossing never recomputes it and the open card holds its placement.
-            overlay_align: self.workspace_state.overlay().map(|o| o.align),
-            overlay_crisp: self
-                .workspace_state
-                .overlay()
+            overlay_align: ov.map(|o| o.align),
+            overlay_crisp: ov
                 .map(|o| {
                     matches!(
                         o.kind,
@@ -180,94 +182,31 @@ impl App {
                     )
                 })
                 .unwrap_or(false),
-            overlay_query: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.query.text().to_string())
-                .unwrap_or_default(),
-            overlay_query_caret: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.query.caret())
-                .unwrap_or(0),
-            overlay_title: self
-                .workspace_state
-                .overlay()
+            overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
+            overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
+            overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())
                 .map(|o| o.kind.title())
                 .unwrap_or(""),
-            overlay_row_path_splits: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.kind.row_path_splits())
-                .unwrap_or(false),
-            overlay_items: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.item_strings())
-                .unwrap_or_default(),
+            overlay_row_path_splits: ov.map(|o| o.kind.row_path_splits()).unwrap_or(false),
+            overlay_items: ov.map(|o| o.item_strings()).unwrap_or_default(),
             // EMPTY STATE: the shared calm message when the overlay has no rows (empty
             // corpus / query matched nothing); `None` when there are rows or no overlay.
-            overlay_empty: self
-                .workspace_state
-                .overlay()
-                .and_then(|o| o.empty_notice()),
-            overlay_bindings: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.item_bindings())
-                .unwrap_or_default(),
-            overlay_ranges: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.item_range_fracs())
-                .unwrap_or_default(),
-            overlay_times: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.item_times())
-                .unwrap_or_default(),
-            overlay_git: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.item_git_tags())
-                .unwrap_or_default(),
-            overlay_selected: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.selected)
-                .unwrap_or(0),
-            overlay_scroll: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.scroll)
-                .unwrap_or(0),
+            overlay_empty: ov.and_then(|o| o.empty_notice()),
+            overlay_bindings: ov.map(|o| o.item_bindings()).unwrap_or_default(),
+            overlay_ranges: ov.map(|o| o.item_range_fracs()).unwrap_or_default(),
+            overlay_times: ov.map(|o| o.item_times()).unwrap_or_default(),
+            overlay_git: ov.map(|o| o.item_git_tags()).unwrap_or_default(),
+            overlay_selected: ov.map(|o| o.selected).unwrap_or(0),
+            overlay_scroll: ov.map(|o| o.scroll).unwrap_or(0),
             // The per-kind visible-row cap (item 64's MAX_SUGGESTIONS + 1 for spell /
             // 12 flat+faceted / more for theme), the ONE owner the pipeline windows
             // against so the drawn rows match the hover/keyboard item-window exactly.
-            overlay_window_rows: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.window_rows())
-                .unwrap_or(12),
-            overlay_hint: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.foot_hint())
-                .unwrap_or_default(),
-            overlay_lens: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.lens_strip())
-                .unwrap_or_default(),
-            overlay_sections: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.item_sections())
-                .unwrap_or_default(),
-            caret_preview: self
-                .workspace_state
-                .overlay()
+            overlay_window_rows: ov.map(|o| o.window_rows()).unwrap_or(12),
+            overlay_hint: ov.map(|o| o.foot_hint()).unwrap_or_default(),
+            overlay_lens: ov.map(|o| o.lens_strip()).unwrap_or_default(),
+            overlay_sections: ov.map(|o| o.item_sections()).unwrap_or_default(),
+            caret_preview: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
                 .and_then(|o| o.selected_caret_mode()),
             gutter_name: self.active.buffer.display_name(),
@@ -280,9 +219,7 @@ impl App {
                 .and_then(|p| p.parent())
                 .map(|d| d.to_path_buf()),
             syn_lang: self.active.buffer.syntax_lang(),
-            overlay_spell: self
-                .workspace_state
-                .overlay()
+            overlay_spell: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
             notice: self.notice.clone().unwrap_or_default(),
@@ -290,11 +227,7 @@ impl App {
             eol: self.active.buffer.eol(),
             popover,
             diff_panel: preview.is_some(),
-            diff_panel_focus: self
-                .workspace_state
-                .overlay()
-                .map(|o| o.diff_focus)
-                .unwrap_or(false),
+            diff_panel_focus: ov.map(|o| o.diff_focus).unwrap_or(false),
             folds: Vec::new(),
             fold_tails: Vec::new(),
         };

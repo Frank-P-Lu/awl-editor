@@ -73,9 +73,10 @@ compile until it is described.
 The three summoned surfaces. Not one field is independent: they form a
 **precedence ladder** — a modal overlay outranks the find/replace panel, which
 outranks the reveal-on-select format popover, which outranks the editor. Before
-this round the ladder was five hand-written conjunctions
-(`app/viewstate.rs:93`, `app/input/mouse.rs:896`, `:905`, `:993`, and the
-overlay-before-search `else if` at `:940`) plus five independent writers of
+this round the ladder was five hand-written conjunctions — `sync_view`'s
+popover gate, and in `app/input/mouse.rs` the Cmd-click link follow, the
+popover-button press, the summon-on-release, and the overlay-before-search
+`else if` in the press dispatch — plus five independent writers of
 `self.overlay = None` / `self.search = None` / `self.popover_open = false`.
 
 Highest dispersion per field in the whole struct: 33 production references per
@@ -147,17 +148,22 @@ position than by moving 27 fields.
 
 ### `ProjectLocation` — "where am I working"
 
-`root` · `project` · `file_index` · `workspace` · `recent_projects` ·
+`root` · `project` · `file_index` · `workspace_root` · `recent_projects` ·
 `recent_files` · `default_folder` · `cli_workspace` · `cli_default_folder`
 
 The real derived-state domain: `project` and `file_index` are *functions of*
-`root`, and `workspace` is a function of `(cli_workspace, config.workspace,
-root)`. Today `switch_project` (`app/files/open.rs:353`) re-derives `project`
-and calls `rescan_file_index`, while `reload_config`
-(`app/files/settings.rs:364`) re-derives `workspace` — so the two re-derivation
-sites disagree about what `root` implies, and a root switch leaves `workspace`
-resolved against the *previous* root until the next config reload. See "Premise"
-below.
+`root`, and `workspace_root` is a function of `(cli_workspace, config.workspace,
+root)`. Today `App::set_root` re-derives `project` and calls
+`rescan_file_index`, while `App::reload_config` re-derives `workspace_root` — so
+the two re-derivation sites disagree about what `root` implies. **Confirmed
+consequence:** `resolve_workspace` falls back to `root.parent()` when neither
+the CLI flag nor `config.workspace` names one, so after a Switch-project into a
+tree with a different parent, `workspace_root` still points at the OLD parent
+until something calls `reload_config`. The Project picker (`C-x p`) browses
+`workspace_root`, so it lists the previous workspace's siblings. Not fixed here
+— the fix changes behavior, and this round is identity-preserving; it wants its
+own queue item alongside the `ProjectLocation` slice, whose `set_root`
+transition is the one obvious place for it.
 
 `cli_default_folder` and `cli_workspace` have exactly one read each, both in
 `reload_config` — the CLI override correctly wins over the reloaded config.

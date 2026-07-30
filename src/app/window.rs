@@ -545,10 +545,8 @@ impl App {
                 // anything the engine didn't just do. The only clock read
                 // here (`now - persistence.engine_last_write_at()`) is gated on
                 // `debug_on()` like every other perf read this block makes.
-                let since_secs = self
-                    .persistence
-                    .engine_last_write_at()
-                    .map(|t| (self.clock.now() - t).as_secs());
+                let engine_wrote = self.persistence.engine_last_write_at();
+                let since_secs = engine_wrote.map(|t| (self.clock.now() - t).as_secs());
                 let autosave = crate::debug::autosave_state(
                     self.config.autosave_on(),
                     self.notice.is_some(),

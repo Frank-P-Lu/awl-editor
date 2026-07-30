@@ -18,9 +18,18 @@ struct CoreBefore {
 }
 
 impl CoreBefore {
-    /// Takes `Option<&OverlayState>` — the shape `WorkspaceState::overlay`
-    /// hands out (item 172), so the summoned-layer owner never has to lend the
-    /// whole slot just to be asked which picker is up.
+    /// The three facts that must be snapshotted BEFORE the core runs, because
+    /// the core mutates them: whether the THEME picker is open (its live preview
+    /// mutates the process-global active theme while open, so the GPU pipelines
+    /// need a re-tint even with no accept), the OUTGOING world (so
+    /// `retint_theme_preview` can detect a heavyweight-pipeline boundary
+    /// crossing — the present-race bracket), and whether the HISTORY timeline is
+    /// open (its derived preview + saved scroll must be put down the moment the
+    /// overlay closes, accept or not).
+    ///
+    /// Takes `Option<&OverlayState>` — the shape `WorkspaceState::overlay` hands
+    /// out (item 172), so the summoned-layer owner never lends the whole slot
+    /// just to be asked which picker is up.
     fn of(overlay: Option<&crate::overlay::OverlayState>) -> Self {
         Self {
             theme_overlay_before: overlay
@@ -521,38 +530,15 @@ impl App {
         let page_scroll_lines = self.page_scroll_rows();
         let mut shift_selecting = self.active.extra.shift_selecting;
         let mut zoom = self.zoom;
-        // THE SUMMONED-LAYER SLOTS, borrowed IN PLACE from their owner for the
-        // one `apply_transition` run (item 172): the shared action core is the
-        // only thing allowed to open or close a picker/panel, because opening
-        // one is an `Action` outcome the headless `--keys` replay must reach
-        // through the identical code. This replaced a `take()` … `= put_back`
-        // pair whose halves were 120 lines apart.
+        // THE SUMMONED-LAYER SLOTS are borrowed IN PLACE from their owner for
+        // the one `apply_transition` run (item 172) — see `core_slots`. This
+        // replaced a `take()` … `= put_back` pair 120 lines apart.
         let overlay_was_open = self.workspace_state.overlay_open();
         let CoreBefore {
             theme_overlay_before,
             theme_before,
             history_overlay_before,
         } = CoreBefore::of(self.workspace_state.overlay());
-        /* // Whether the Theme picker is open BEFORE the core runs: live preview
-        // (move / filter) mutates the process-global active theme while it stays
-        // open, so the GPU pipelines must be re-tinted even with no accept.
-        let theme_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::Theme)
-            .unwrap_or(false);
-        // The OUTGOING world, snapshotted BEFORE the transition runs a theme-picker
-        // live preview (which mutates the process-global active theme).
-        // `retint_theme_preview` compares it against the now-active world to detect
-        // a heavyweight-pipeline boundary crossing (lava OR one-bit) — the
-        // present-race bracket. `Theme` is Copy; only read on the preview branch below.
-        let theme_before = crate::theme::active();
-        // Whether the HISTORY timeline is open BEFORE the core runs: its live
-        // preview state (the derived document preview + the saved scroll) must be
-        // put down the moment the overlay closes, accept or not.
-        let history_overlay_before = overlay
-            .as_ref()
-            .map(|o| o.kind == crate::overlay::OverlayKind::History)
-            .unwrap_or(false); */
         let config_keys = self.config.keys.clone();
         let config_linux_keep = self.config.effective_linux_keep();
         // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer

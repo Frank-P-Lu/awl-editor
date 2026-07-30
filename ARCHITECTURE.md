@@ -51,7 +51,17 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   → `app/`: `gpu` (device/surface setup), `files` (open/save/project glue),
   `viewstate` (view sync + paging), `input` (mouse/key event handling), `apply`
   (the `App::apply` wrapper around `apply_transition` + live effects), `daemon`
-  (the App-side half of the single-instance daemon below).
+  (the App-side half of the single-instance daemon below), `workspace`
+  (`WorkspaceState` — the summoned-UI layer LADDER: overlay > search > popover >
+  editor, with private fields and named transitions), `persistence`
+  (`PersistenceRuntime` — the app-global save ledger: the fresh-document
+  autosave debounce+version pair, the save-feedback clocks, the title dirty
+  cache).
+  `App` is being decomposed into owned state domains (queue item 172): read
+  `docs/app-domains.md` — the ownership map — before adding a field to `App` or
+  an `impl App` block in a new module. `app/tests/domains.rs` is the gate: every
+  root `App` field is classified to exactly one owner, and the field count is a
+  ratchet that may only go down.
 - `daemon.rs` — the SINGLE-INSTANCE DAEMON (native only,
   `cfg(not(target_arch = "wasm32"))`): a Unix domain socket beside the scratch
   stash (`fs::data_root().join("awl.sock")`). Owns the bind-or-handoff startup

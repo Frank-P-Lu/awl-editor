@@ -659,7 +659,7 @@ impl App {
     /// the current mouse position + interaction state, and flip `Window::set_cursor`
     /// ONLY when it actually changed (`cursor_shape::cursor_icon_change` — no per-move
     /// winit chatter). Every context flag reads an EXISTING hit-test — `page_resizing`
-    /// (the live drag flag), `workspace_state.overlay_open()`, `page_resize_hover` (the same
+    /// (the live drag flag), `workspace_state.overlay_open()`, `page_resize_hover`
     /// proximity test the page-edge press/hover already uses), and
     /// `over_writing_column` (the same column bounds `page_resize_hover` reads) — so
     /// this never invents parallel geometry, it only arbitrates priority among the
@@ -720,12 +720,9 @@ impl App {
                 gpu.pipeline.panel_hit(px, py),
                 Some(crate::render::PanelHit::CaseToggle)
             );
-        // The RAW summon bit, deliberately ladder-free — see
-        // `WorkspaceState::popover_summon_bit`'s doc for the one-call-site
-        // argument (the pipeline's popover model is already cleared under a
-        // picker, so the combination cannot change the resulting icon).
-        let over_popover_button =
-            self.workspace_state.popover_summon_bit() && gpu.pipeline.popover_hit(px, py).is_some();
+        // The RAW summon bit, deliberately ladder-free — see its own doc.
+        let summoned = self.workspace_state.popover_summon_bit();
+        let over_popover_button = summoned && gpu.pipeline.popover_hit(px, py).is_some();
         // item 81: a REVEALED fold chevron (any foldable heading, expanded OR
         // collapsed) reads as click-to-toggle (the pointing hand) — reuses the SAME
         // `fold_chevron_hit` the press path uses, so a hover can never disagree with
@@ -990,8 +987,7 @@ impl App {
                 // summon (the mouse-only rule); a plain click (no selection) leaves
                 // it down. A popover-button press returned early above, so its own
                 // release just re-affirms `true` here (stays open across applies).
-                // The LADDER half of this rule lives in `summon_popover`; the
-                // caller supplies only its own non-ladder eligibility.
+                // The LADDER half lives in `summon_popover`.
                 let eligible = crate::popover::popover_on()
                     && self.active.buffer.has_selection()
                     && self.active.buffer.is_markdown();
