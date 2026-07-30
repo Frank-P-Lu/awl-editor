@@ -4,6 +4,16 @@
 > (`git log -p .orchestrator/queue.md`). Protocol, claiming, worktrees, and
 > execution hygiene live in `.orchestrator/README.md`.
 
+## Latest integration receipt
+
+Items 177, 159, and 171 are landed on `main` in that order. The final combined
+train is `18b4b7fff638761e6f692061a8a4ebe7d834d9fa`; web/wasm is 16/16 and the
+canonical receipt is `conventions=mac,linux scope=all-targets`. Integration
+caught and repaired Galah's stale health ratchets plus a parallel spellcheck
+state leak in the macOS About command-roster sweep; the latter now has a
+process-wide cleanliness law. This note supersedes their older waiting-for-
+approval annotations below.
+
 ## Ready — current user-visible wave
 
 113. **Run the final live release verification for the integrated theme-switch flight recorder (`1f2e89d`).** The implementation and automated gates are complete: latest and worst completed theme-switch transactions remain available for five seconds with phase breakdowns; frame cost history stays independent; Debug-off clears through the App-owned reset seam; headless remains numberless; fake-clock, long-window, zero-redraw, capture, mutation, full native integration (3,070 passed, 11 ignored), and wasm 16/16 are green. **Run:** In an active unlocked macOS session, compare `--live-script` events with flight-recorder timestamps and inspect onscreen readability in `--release`. This is verification only; diagnose or repair only if the live result fails. **Done:** Timing correspondence and readability are recorded, or a concrete defect is returned to the queue. **Routing:** live verification=`gpt-5.6-terra` medium; any repair=`gpt-5.6-terra` medium; final integration=root only if a repair is needed. 🔵 **BLOCKED ON AN INTERACTIVE UNLOCKED SESSION** — the 2026-07-29 release probe built and registered `Awl.app`, but the app never signalled ready and macOS returned `Connection Invalid` for `com.apple.hiservices-xpcservice`; the recorder contained only its armed header, so no product verdict is claimed. The same session boundary blocks the Lava and Bowerbird real-time checks; release-GPU headless capture remains healthy.
