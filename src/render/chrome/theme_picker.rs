@@ -80,13 +80,9 @@ impl TextPipeline {
         let card_y = margin + 40.0 + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         let chrome_rows = header_rows + hint_rows + empty_rows;
+        // ITEM 181 — THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
-        let fit_lines = (avail_px / lh).floor() as usize;
-        let fit_items = fit_lines
-            .saturating_sub(chrome_rows)
-            .saturating_sub(total_headers)
-            .max(1);
-        let item_cap = self.overlay_window_rows.max(1).min(fit_items);
+        let item_cap = self.overlay_item_cap(avail_px, lh, chrome_rows + total_headers);
         let (item_top, item_visible) = scroll_window(
             n_items,
             self.overlay_selected,

@@ -101,6 +101,41 @@ fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f
     text_top + header_rows as f32 * lh + header_gap + row as f32 * lh
 }
 
+/// THE ONE HEIGHT-CLAMP OWNER (item 181). Before item 181 the GROUPED family
+/// (`theme_overlay_geometry`) alone divided its own available pixels by the row
+/// pitch to bound its item window; the FLAT family (`overlay_geometry`) capped
+/// its window only at a per-kind row COUNT (`OverlayKind::window_rows`) that
+/// knows nothing about the canvas. A flat picker whose kind sets that count to
+/// its whole corpus — the theme picker, `window_rows() ==
+/// crate::theme::THEMES.len()`, once its runtime lens strip retired (making it
+/// flat) — drew a card taller than the canvas at ordinary sizes (`card_h: 934`
+/// against `canvas_h: 800`, 19 world rows). This is now the ONE place either
+/// family divides `avail_px` by `lh`; a caller may not re-derive the floor
+/// division or the overhead subtraction itself, only ask this how many item
+/// rows fit.
+///
+/// `avail_px` is the vertical space the caller has already resolved for the
+/// candidate band (canvas height minus margins/padding/the query beat — the
+/// SAME arithmetic every geometry owner already performed; this function does
+/// not know about card_y, margin, or pad, only the pixel budget those leave
+/// behind). `overhead_rows` is every display line in the card that is NOT a
+/// candidate item — header/hint/footer/empty-state rows for a flat card,
+/// PLUS the section-header count for a grouped card (its caller's own
+/// concern; this function is generic over what counts as overhead).
+///
+/// Floors at 1: a card always attempts to show its own selection. Below that
+/// floor no amount of item-count clamping can help — the fixed overhead alone
+/// already exceeds `avail_px` — and that residual is a chrome-overhead sizing
+/// question, not a row-count one (see `render/tests/overlay_height_clamp_law.rs`
+/// for the swept bound this floor is proven against).
+pub(in crate::render) fn fit_item_rows(avail_px: f32, lh: f32, overhead_rows: usize) -> usize {
+    if lh <= 0.0 {
+        return 1;
+    }
+    let fit_lines = (avail_px / lh).floor() as usize;
+    fit_lines.saturating_sub(overhead_rows).max(1)
+}
+
 /// TEST-ONLY: the planned top of candidate display row `row` for a card with
 /// these header metrics. It BUILDS A REAL PLAN and reads the row's slot off it,
 /// so a law written against synthetic numbers still measures the one owner rather

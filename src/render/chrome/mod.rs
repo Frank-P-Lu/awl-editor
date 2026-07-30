@@ -5,11 +5,10 @@
 use super::*;
 
 // ITEM 174 — the scene planner owns the candidate-row geometry every overlay
-// consumer here reads. The forward `row -> y` arithmetic and its inverse are
-// private to `crate::render::plan`, so nothing in this module can re-derive a
-// row's position; it asks the plan that drew it.
+// consumer here reads (its forward/inverse row<->y arithmetic stays private to
+// `crate::render::plan`); item 181 adds the shared item-row HEIGHT clamp.
 pub(super) use crate::render::plan::{
-    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, plan_overlay_rows,
+    OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, fit_item_rows, plan_overlay_rows,
 };
 
 const PREFIX_HEADER: &str = "C-x";
@@ -248,6 +247,7 @@ impl OverlayGeom {
 // the panel/overlay geometry structs, the float-quad primitive, the overlay row<->Y
 // owner, the sidecar report structs — plus the hit-test unit sweep.
 mod overlay;
+mod overlay_clamp;
 mod panel;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]

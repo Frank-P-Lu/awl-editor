@@ -254,7 +254,7 @@ lines = 894
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 757
+lines = 752
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
@@ -278,7 +278,7 @@ lines = 634
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 646
+lines = 642
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -595,14 +595,14 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 197
+line = 193
 message = "this function has too many lines (167/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
-line = 406
+line = 402
 message = "this function has too many lines (124/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
