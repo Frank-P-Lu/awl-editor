@@ -205,7 +205,7 @@ impl TextPipeline {
                 (Some(top), vec![BandRect { top, height: lh }])
             }
         };
-        let rows = livingband::covered_rows(&bands, plan.first_top(), lh, plan.candidate_rows());
+        let rows = livingband::covered_rows(&bands, plan.rows());
         VisualSelection {
             logical,
             band_top,

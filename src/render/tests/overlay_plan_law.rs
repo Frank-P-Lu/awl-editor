@@ -176,6 +176,20 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
                         sel_row < plan.candidate_rows(),
                         "{ctx}: the planned selection must stay inside the planned window"
                     );
+                    // …and INDEPENDENTLY of the derivation: the reported row must
+                    // genuinely carry the selected ITEM. Without this the sidecar
+                    // arm above is tautological — both sides read the same
+                    // accessor, so a planner that forgot the grouped family's
+                    // section headers would keep them in perfect agreement while
+                    // pointing at the wrong row (watched failing).
+                    assert_eq!(
+                        plan.item_at(sel_row),
+                        Some(v.overlay_selected),
+                        "{ctx}: display line {sel_row} is reported as selected but carries \
+                         item {:?}, not the selected item {}",
+                        plan.item_at(sel_row),
+                        v.overlay_selected
+                    );
 
                     let (x0, x1) = plan.card_x_span();
                     let mid_x = (x0 + x1) * 0.5;
@@ -550,6 +564,16 @@ const RETIRED_TERMS: &[&str] = &[
     "header_rows as f32",
 ];
 
+/// The OTHER shape of the same mistake: stepping off the plan's own band origin by
+/// a row COUNT instead of reading the row's slot. `plan.first_top() + k as f32 *
+/// plan.lh()` is arithmetically the answer today and drifts the moment a row's
+/// height stops being uniform — and the plate that used to be seated this way was
+/// a row too high for two years. Production may name `first_top` (the band's top
+/// edge is a legitimate clip bound) but never multiply off it.
+fn steps_off_the_band_origin(line: &str) -> bool {
+    line.contains("first_top") && line.contains("as f32")
+}
+
 /// The ONLY place the arithmetic may live.
 const ARITHMETIC_OWNER: &str = "plan/overlay_rows.rs";
 
@@ -558,7 +582,7 @@ fn re_derives_a_row_y(line: &str) -> bool {
     if trimmed.starts_with("//") {
         return false; // prose, not code
     }
-    RETIRED_TERMS.iter().any(|t| line.contains(t))
+    RETIRED_TERMS.iter().any(|t| line.contains(t)) || steps_off_the_band_origin(line)
 }
 
 fn scan(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize)>) {
@@ -643,4 +667,10 @@ fn the_source_scanner_reads_code_and_skips_prose() {
     ));
     assert!(!re_derives_a_row_y("// header_rows as f32 in a note"));
     assert!(!re_derives_a_row_y("        let top = plan.row_top(k);"));
+    assert!(re_derives_a_row_y(
+        "        let t = plan.first_top() + k as f32 * plan.lh();"
+    ));
+    assert!(!re_derives_a_row_y(
+        "                    bounds: clip(0.0, plan.first_top()),"
+    ));
 }
