@@ -543,10 +543,11 @@ impl App {
                 // `autosave_on()`, the clobber guard's `notice`, and the
                 // engine's own last-write clock — so it can never say
                 // anything the engine didn't just do. The only clock read
-                // here (`self.clock.now() - autosave_last_ok`) is gated on
+                // here (`now - persistence.engine_last_write_at()`) is gated on
                 // `debug_on()` like every other perf read this block makes.
                 let since_secs = self
-                    .autosave_last_ok
+                    .persistence
+                    .engine_last_write_at()
                     .map(|t| (self.clock.now() - t).as_secs());
                 let autosave = crate::debug::autosave_state(
                     self.config.autosave_on(),

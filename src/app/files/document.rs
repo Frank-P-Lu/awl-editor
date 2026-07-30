@@ -34,8 +34,7 @@ impl App {
         self.workspace_state.close_search();
         self.preedit.clear();
         self.active.extra.caret_synced_version = self.active.buffer.version();
-        self.autosave_saved_version = None;
-        self.autosave_dirty_at = None;
+        self.persistence.reset_for_fresh_document();
         // STICKY PAGE WIDTH: a fresh document is always markdown (PROSE), so this
         // re-applies `page_width_prose` regardless of what the leaving buffer's
         // kind was — mirrors `load_path`'s own resync.

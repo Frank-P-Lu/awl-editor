@@ -15,10 +15,10 @@ impl App {
         // macOS titlebar dot, kept live WITHOUT re-titling every keystroke —
         // `sync_view` already runs on nearly every edit/cursor-move (gated on
         // the gpu-present check above, the cheapest honest hook), so compare
-        // against the cached `title_dirty` and only call `update_title` (a
+        // against `persistence`'s title cache and only call `update_title` (a
         // string format + a `set_title`/`set_document_edited` OS call) on an
         // ACTUAL clean↔dirty flip.
-        if self.is_document_dirty() != self.title_dirty {
+        if self.persistence.title_cache_stale(self.is_document_dirty()) {
             self.update_title();
         }
         // Schedule a debounced AUTO-SAVE for the active quick note when its text
@@ -27,9 +27,12 @@ impl App {
         // — the determinism + no-fixture-mutation guarantee. The write fires in
         // `about_to_wait` after a quiet period.
         if self.active.buffer.is_unnamed_fresh()
-            && self.autosave_saved_version != Some(self.active.buffer.version())
+            && self
+                .persistence
+                .note_write_owed(self.active.buffer.version())
         {
-            self.autosave_dirty_at = Some(self.clock.now());
+            let now = self.clock.now();
+            self.persistence.arm_note_debounce(now);
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
         // non-note buffer's text changed since its last write — a pathed document

@@ -365,6 +365,9 @@ pub(crate) use schedule::RecordingScheduler;
 mod apply;
 mod daemon;
 mod menu;
+/// The APP-GLOBAL SAVE LEDGER (item 172): the fresh-document autosave
+/// debounce+version pair, the save-feedback clocks, the title dirty cache.
+mod persistence;
 mod probe;
 mod session;
 mod stats;
@@ -391,6 +394,13 @@ pub struct App {
     /// the same conjunction hand-written across five files. Item 173 grows the
     /// typed summoned-workspace lifecycle inside this type.
     workspace_state: workspace::WorkspaceState,
+    /// THE APP-GLOBAL SAVE LEDGER (item 172's second owner —
+    /// `app/persistence.rs`): the fresh-document autosave debounce + the
+    /// version it last wrote (one ledger, not two fields), the two
+    /// save-feedback clocks, and the window title's dirty cache. The
+    /// per-buffer half of saving stays in `files::BufferExtra`, travelling
+    /// with the active slot.
+    persistence: persistence::PersistenceRuntime,
     keymap: KeymapState,
     mods: Modifiers,
     prefix_pending_at: Option<Instant>,
@@ -541,11 +551,6 @@ pub struct App {
     /// is running, "where does New document / Move… land" is always the ACTIVE
     /// folder (`self.root`), never this field again — see item 76.
     default_folder: PathBuf,
-    /// When the active NOTE last changed and an auto-save is pending; the debounced
-    /// write fires after `AUTOSAVE_DEBOUNCE` of quiet in `about_to_wait` (live
-    /// only — headless never schedules this). `None` = nothing pending.
-    autosave_dirty_at: Option<Instant>,
-    autosave_saved_version: Option<u64>,
     /// When the open DOCUMENT last changed and an idle AUTOSAVE is pending, the
     /// buffer version known ON DISK, the CLOBBER-GUARD stat baselines (doc +
     /// scratch), and the scratch-stash's own saved-version — ALL buffer-scoped
@@ -560,8 +565,6 @@ pub struct App {
     /// engine didn't just make. `None` before the first successful write. Feeds
     /// `crate::debug::autosave_state` at redraw time (gated on `debug_on()`, like
     /// every other clock read the panel takes) — never read otherwise.
-    autosave_last_ok: Option<Instant>,
-    last_saved_ok: Option<Instant>,
     notice: Option<String>,
     notice_kind: NoticeKind,
     notice_expires_at: Option<Instant>,
@@ -580,7 +583,6 @@ pub struct App {
     /// clean↔dirty actually changes. `App::update_title` is the ONE place
     /// that writes it back in step (so ANY caller of `update_title`, not just
     /// `sync_view`'s own comparison, keeps this cache honest).
-    title_dirty: bool,
     /// DIFF-AS-PREVIEW cache (`history_preview`) + the pre-open scroll
     /// (`history_scroll_before`): buffer-scoped (item 56), folded into
     /// `files::BufferExtra` (`self.active.extra`) — see that type for the full
@@ -946,6 +948,7 @@ impl App {
         let mut app = Self {
             active,
             workspace_state: workspace::WorkspaceState::default(),
+            persistence: persistence::PersistenceRuntime::default(),
             keymap,
             clock,
             mods: Modifiers::default(),
@@ -1025,15 +1028,10 @@ impl App {
             recent_files,
             prev_file: None,
             default_folder,
-            autosave_dirty_at: None,
-            autosave_saved_version: None,
-            autosave_last_ok: None,
-            last_saved_ok: None,
             notice: None,
             notice_kind: NoticeKind::Sticky,
             notice_expires_at: None,
             pending_crash: None,
-            title_dirty: false,
             zoom_persist_at: None,
             zoom_reflow: ZoomReflow::default(),
             zoom_anchor: None,

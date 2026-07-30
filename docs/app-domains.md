@@ -92,11 +92,24 @@ The App-global half of saving. (The per-buffer half — `doc_saved_version`,
 `scratch_saved_version`, `disk_mtime`, `scratch_mtime`, `doc_autosave_at` —
 correctly lives in `files::BufferExtra`, travelling with the active slot;
 item 56 got that cut right.) The invariant nothing held: **an armed debounce
-stamp and a stale saved-version must be retired together.** `autosave_saved_version`
-is keyed by `buffer.version()` with no buffer identity — exactly CLAUDE.md's
-cache-key tripwire — and the only reason it is safe is that its two writers
-(`start_fresh_document`, `autosave_note`) happen to clear it in step. That
-"happen to" is what an owner removes.
+stamp and a stale saved-version must be retired together.** Six copies of two
+rules over two fields that only make sense as one ledger: the "is a write
+owed" comparison at `viewstate.rs`'s arming check, `is_document_dirty`'s fresh
+branch and `flush_note`'s skip check; the "record the version and disarm"
+pairing at `autosave_note`+`flush_note`, `convert_scratch_and_save` and
+`start_fresh_document`. Plus two more in the engine, where
+`autosave_last_ok`/`last_saved_ok` were stamped as separate statements at both
+`Ok` arms and had to stay in lockstep.
+
+`autosave_saved_version` is keyed by `buffer.version()` with no buffer identity
+— exactly CLAUDE.md's cache-key tripwire, and versions restart at 0 per open.
+It IS safe today, and the argument is worth recording because it is not
+obvious: a buffer becomes "unnamed fresh" only through `Buffer::start_fresh_doc`
+(one caller, which resets the ledger in the same breath) or
+`Buffer::set_note_dir` (one caller, which records a write immediately). That is
+a two-call-site argument, not an invariant — so `PersistenceRuntime`'s reset
+clears the version as well as the timer, and its law sweeps the version values
+that collide.
 
 ### `DocumentSession`
 

@@ -113,10 +113,9 @@ impl App {
     }
 
     fn schedule_autosaves(&mut self, event_loop: &impl Scheduler) {
-        if let Some(dirty) = self.autosave_dirty_at {
-            let deadline = dirty + AUTOSAVE_DEBOUNCE;
+        if let Some(deadline) = self.persistence.note_debounce_deadline(AUTOSAVE_DEBOUNCE) {
             if self.clock.now() >= deadline {
-                self.autosave_dirty_at = None;
+                self.persistence.disarm_note_debounce();
                 self.autosave_note();
                 if let Some(gpu) = self.gpu.as_ref() {
                     gpu.window.request_redraw();

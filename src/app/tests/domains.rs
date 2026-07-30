@@ -25,7 +25,8 @@
 pub(crate) enum Domain {
     /// The summoned-UI layer ladder — EXTRACTED (`app::workspace::WorkspaceState`).
     WorkspaceState,
-    /// App-global save feedback + the autosave debounce.
+    /// App-global save feedback + the autosave debounce — EXTRACTED
+    /// (`app::persistence::PersistenceRuntime`).
     PersistenceRuntime,
     /// The active document slot, the registry, the checker.
     DocumentSession,
@@ -78,7 +79,7 @@ impl Domain {
     pub(crate) fn owner_handle(self) -> Option<&'static str> {
         match self {
             Domain::WorkspaceState => Some("workspace_state"),
-            Domain::PersistenceRuntime => None,
+            Domain::PersistenceRuntime => Some("persistence"),
             Domain::DocumentSession
             | Domain::InputState
             | Domain::ProjectLocation
@@ -97,16 +98,11 @@ impl Domain {
             // `WorkspaceState`'s transitions; the precedence ladder that used
             // to be five hand-written conjunctions is `WorkspaceState::layer`.
             Domain::WorkspaceState => (Extraction::Extracted, &[]),
-            Domain::PersistenceRuntime => (
-                Extraction::OnRootApp,
-                &[
-                    "autosave_dirty_at",
-                    "autosave_saved_version",
-                    "autosave_last_ok",
-                    "last_saved_ok",
-                    "title_dirty",
-                ],
-            ),
+            // `autosave_dirty_at` / `autosave_saved_version` /
+            // `autosave_last_ok` / `last_saved_ok` / `title_dirty` now live
+            // behind `PersistenceRuntime`'s transitions; the debounce stamp and
+            // the version it wrote are ONE ledger, not two fields.
+            Domain::PersistenceRuntime => (Extraction::Extracted, &[]),
 
             // ── MAPPED, STILL ON ROOT `App` ──────────────────────────────
             Domain::DocumentSession => (
@@ -423,9 +419,9 @@ fn an_extracted_domain_keeps_nothing_on_root_app() {
         "every domain in the roster must be visited by this sweep"
     );
     assert!(
-        extracted >= 1,
-        "item 172 landed an owner extraction; a regression that folds it back \
-         onto root `App` must fail here"
+        extracted >= 2,
+        "item 172 landed two owner extractions; a regression that folds either \
+         back onto root `App` must fail here"
     );
 }
 
@@ -437,7 +433,13 @@ fn an_extracted_domain_keeps_nothing_on_root_app() {
 fn retired_field_names(domain: Domain) -> &'static [&'static str] {
     match domain {
         Domain::WorkspaceState => &["overlay", "search", "popover_open"],
-        Domain::PersistenceRuntime => &[],
+        Domain::PersistenceRuntime => &[
+            "autosave_dirty_at",
+            "autosave_saved_version",
+            "autosave_last_ok",
+            "last_saved_ok",
+            "title_dirty",
+        ],
         Domain::DocumentSession
         | Domain::InputState
         | Domain::ProjectLocation
@@ -457,9 +459,9 @@ fn retired_field_names(domain: Domain) -> &'static [&'static str] {
 #[test]
 fn root_app_does_not_grow() {
     // Item 172 baseline: 107 fields. Slice 1 removed 3 (`overlay`, `search`,
-    // `popover_open`) and added 1 owner field (`workspace_state`):
-    // 107 - 3 + 1 = 105.
-    const CEILING: usize = 105;
+    // `popover_open`) and added 1 owner handle (`workspace_state`); slice 2
+    // removed 5 and added 1 (`persistence`). 107 - 3 + 1 - 5 + 1 = 101.
+    const CEILING: usize = 101;
     let fields = root_app_fields();
     assert_eq!(
         fields.len(),

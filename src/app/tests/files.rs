@@ -313,7 +313,7 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
     let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
     assert!(
-        app.autosave_last_ok.is_none(),
+        app.persistence.engine_last_write_at().is_none(),
         "the debug panel's autosave clock is untouched before any write"
     );
     app.active.buffer.set_text("v2\n");
@@ -330,7 +330,7 @@ fn autosave_flush_writes_doc_and_snapshots_loose_file() {
     );
     assert!(app.notice.is_none(), "a clean write raises no notice");
     assert!(
-        app.autosave_last_ok.is_some(),
+        app.persistence.engine_last_write_at().is_some(),
         "a real engine write stamps the debug panel's autosave clock"
     );
     // The debug panel's pure composer agrees: enabled + not held + a stamped
@@ -378,7 +378,7 @@ fn autosave_flush_skips_and_notices_when_disk_changed_externally() {
         "a calm notice is raised"
     );
     assert!(
-        app.autosave_last_ok.is_none(),
+        app.persistence.engine_last_write_at().is_none(),
         "a HELD write must never stamp the debug panel's autosave clock — no write happened"
     );
     // The debug panel's pure composer agrees: held wins over "nothing written yet".
@@ -414,7 +414,7 @@ fn autosave_off_disables_flush() {
     );
     assert!(app.notice.is_none());
     assert!(
-        app.autosave_last_ok.is_none(),
+        app.persistence.engine_last_write_at().is_none(),
         "a disabled engine never stamps the debug panel's autosave clock"
     );
     // The debug panel's pure composer agrees: disabled wins over everything.
@@ -1116,7 +1116,10 @@ fn sync_view_retitles_only_on_an_actual_dirty_flip() {
     let mem = InMemoryFs::new().with_dir("/proj");
     let _g = crate::fs::FsGuard::install(Arc::new(mem));
     let mut app = app_on(None, "/proj", Config::empty());
-    assert!(!app.title_dirty, "a fresh scratch buffer starts clean");
+    assert!(
+        !app.persistence.title_cache_stale(false),
+        "a fresh scratch buffer starts clean"
+    );
     // No gpu/window in a hermetic App: `sync_view` bails before the title
     // comparison (its own gpu-present gate) — this proves the flip-tracking
     // logic itself is reachable + correct via `is_document_dirty` directly,
