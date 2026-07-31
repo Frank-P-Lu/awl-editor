@@ -192,8 +192,8 @@ reason = "item 121: +14 lines, irreducibly one new CLI flag arm (`--ground-audit
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1085
-reason = "item 189: +31 lines net — the owned `root`/`workspace`/`workspace_flag`/`corpus` fields and their doc comments, replacing the fixed `&'a` borrows. `resync_project_location` itself (the re-scoping owner these fields exist for) moved to run/location.rs, the module item 183 created for exactly this class of derivation — see its impl block there."
+lines = 1087
+reason = "item 190: +2 lines — the `#[path] mod settings_effects;` declaration wiring in the settings trio's capability grant. The interpretation itself lives in the new run/settings_effects.rs, kept out of this file precisely to avoid growing it further."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -364,8 +364,8 @@ lines = 1440
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 360
-reason = "item 189: +1 line, accept_class's Project-arm comment updated now that ReplaySession's own resync closes the residue it named."
+lines = 385
+reason = "item 190: +25 lines — classify_for's SettingToggle/SettingValueCommit/SettingPathPick arms now branch on `FilesystemCapability` (mirroring Save's own item-171 shape) and, for SettingToggle, on the one excluded key (`\"keymap\"`, which needs a live keymap rebuild no capability grant can supply); this is the one owner of that classification, so the growth is the doc comments + match arms themselves, not extractable elsewhere."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"

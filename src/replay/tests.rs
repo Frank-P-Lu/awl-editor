@@ -194,8 +194,16 @@ fn effect_names_are_unique_and_stable() {
     assert_eq!(names.len(), total, "duplicate effect name in classify");
 }
 
+/// ITEM 190 — the settings trio joins `Save`/`Finish` as effects an Isolated
+/// filesystem promotes: `SettingToggle` (every key except `"keymap"`),
+/// `SettingValueCommit` and `SettingPathPick` all go Unsupported → Applied
+/// the identical way `save`/`finish_save` did in item 171. Everything else in
+/// the roster — including a `SettingToggle{key:"keymap"}` sample, which
+/// stays Unsupported even WITH the capability (a live keymap rebuild, not a
+/// filesystem write) — must be untouched by the capability, so this is also
+/// the law that would catch a future grant leaking into unrelated routing.
 #[test]
-fn isolated_filesystem_authority_promotes_only_typed_save_requests() {
+fn isolated_filesystem_authority_promotes_only_save_and_setting_requests() {
     for kind in [
         crate::actions::SaveKind::Manual,
         crate::actions::SaveKind::Finish,
@@ -210,15 +218,62 @@ fn isolated_filesystem_authority_promotes_only_typed_save_requests() {
             EffectClass::Applied
         );
     }
+    let promoted = [
+        Effect::SettingToggle {
+            key: "wysiwyg".into(),
+        },
+        Effect::SettingValueCommit {
+            key: "page_width_prose".into(),
+            value: "66".into(),
+        },
+        Effect::SettingPathPick {
+            key: "default_folder".into(),
+            path: "/tmp/n".into(),
+        },
+    ];
+    for effect in &promoted {
+        assert!(
+            matches!(
+                classify_for(effect, FilesystemCapability::None).class,
+                EffectClass::Unsupported { .. }
+            ),
+            "{effect:?}: ordinary replay (no capability) must still be Unsupported"
+        );
+        assert_eq!(
+            classify_for(effect, FilesystemCapability::Isolated).class,
+            EffectClass::Applied,
+            "{effect:?}: Isolated must promote it, the same shape as Save"
+        );
+    }
+    // The one deliberate exception: keymap-flavor toggle needs a LIVE keymap
+    // rebuild, not a filesystem write, so Isolated does not promote it.
+    let keymap_toggle = Effect::SettingToggle {
+        key: "keymap".into(),
+    };
+    for filesystem in [FilesystemCapability::None, FilesystemCapability::Isolated] {
+        assert!(
+            matches!(
+                classify_for(&keymap_toggle, filesystem).class,
+                EffectClass::Unsupported { .. }
+            ),
+            "{keymap_toggle:?} under {filesystem:?}: keymap-flavor toggle stays \
+             Unsupported regardless of filesystem authority"
+        );
+    }
     for effect in roster() {
-        if !matches!(
+        let is_save = matches!(
             effect,
             Effect::Persistence(crate::actions::PersistenceEffect::Save(_))
-        ) {
+        );
+        let is_promoted_setting = matches!(
+            &effect,
+            Effect::SettingToggle { key } if key != "keymap"
+        ) || matches!(effect, Effect::SettingValueCommit { .. } | Effect::SettingPathPick { .. });
+        if !is_save && !is_promoted_setting {
             assert_eq!(
                 classify_for(&effect, FilesystemCapability::None).class,
                 classify_for(&effect, FilesystemCapability::Isolated).class,
-                "filesystem authority must not change non-save routing for {effect:?}"
+                "filesystem authority must not change routing for {effect:?}"
             );
         }
     }

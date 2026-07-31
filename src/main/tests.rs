@@ -694,6 +694,65 @@ fn strict_replay_allows_panel_consumed_chords_but_rejects_them_outside() {
     assert_eq!(res.search_query.as_deref(), Some("h"));
 }
 
+/// ITEM 190 — the settings trio's own hermetic proof, mirroring
+/// `hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk`'s shape
+/// for `save`: a STRICT replay (which owns Isolated filesystem authority, per
+/// `ReplayPolicy::isolated`) opens the Settings picker with the real chord,
+/// filters to a real row, and presses Enter — crossing no Unsupported seam —
+/// then the isolated config.toml is read back to prove the write landed for
+/// real, not just that the classifier says it would.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn isolated_strict_replay_toggles_a_settings_row_and_persists_it_for_real() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new().with_dir("/cfg");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::scratch();
+    let before = crate::markdown::wysiwyg_on();
+    // The real Settings-menu chord (`s-,` → `Action::OpenSettingsMenu`,
+    // `keymap::tests` pins this exact binding), then typing "wysiwyg" — which
+    // both filters the rail to the row AND hands focus to it, the workspace's
+    // own type-to-search gesture (`actions/workspace_nav.rs`) — then Enter,
+    // the row's own toggle key.
+    let keys = keyspec::parse_keys("s-, w y s i w y g Enter").unwrap();
+    let root = PathBuf::from("/proj");
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
+    let res = replay_keys_mode_isolated(
+        crate::replay::Mode::Strict,
+        &mut buffer,
+        &keys,
+        &[],
+        &root,
+        None,
+        &cfg,
+        None,
+    )
+    .expect("opening Settings and toggling a row crosses no unsupported seam under Isolated");
+    assert!(
+        res.replay_skips.is_empty(),
+        "a genuinely Applied toggle must not record a skip: {:?}",
+        res.replay_skips
+    );
+    assert_ne!(
+        crate::markdown::wysiwyg_on(),
+        before,
+        "the picker door must flip the SAME live global its command twin flips"
+    );
+    let written = mem
+        .read_to_string(std::path::Path::new("/cfg/config.toml"))
+        .expect("the isolated config file exists");
+    let expected = format!("wysiwyg = {}", !before);
+    assert!(
+        written.lines().any(|l| l.trim() == expected),
+        "the isolated config must carry {expected:?} — config was:\n{written}"
+    );
+    crate::markdown::set_wysiwyg_on(before);
+}
+
 #[test]
 fn ordinary_replay_save_on_scratch_is_nonmutating_and_records_the_skip() {
     use crate::fs::{FileSystem, InMemoryFs};
@@ -714,6 +773,170 @@ fn ordinary_replay_save_on_scratch_is_nonmutating_and_records_the_skip() {
     );
     assert_eq!(res.replay_skips.len(), 1);
     assert_eq!(res.replay_skips[0].effect, "save");
+}
+
+/// ITEM 190's Unsupported half: ORDINARY `--keys` (no capability) still
+/// cannot witness a settings change — the same real chord as the isolated
+/// proof above, replayed PERMISSIVE/`FilesystemCapability::None`, must skip
+/// and warn rather than silently pretend the value moved.
+#[test]
+fn ordinary_replay_settings_toggle_is_nonmutating_and_records_the_skip() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new().with_dir("/cfg");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::scratch();
+    let before = crate::markdown::wysiwyg_on();
+    let keys = keyspec::parse_keys("s-, w y s i w y g Enter").unwrap();
+    let root = PathBuf::from("/proj");
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &cfg, None);
+    assert_eq!(
+        crate::markdown::wysiwyg_on(),
+        before,
+        "ordinary replay owns no filesystem capability; the global must not move"
+    );
+    assert!(
+        mem.read_to_string(std::path::Path::new("/cfg/config.toml"))
+            .is_err(),
+        "ordinary replay must not write the config file at all"
+    );
+    assert_eq!(res.replay_skips.len(), 1);
+    assert_eq!(res.replay_skips[0].effect, "setting_toggle");
+}
+
+/// ITEM 190 — the CONFIG-ONLY toggle branch (`autosave`/`history`/
+/// `session_restore` have no live process global — the disk write IS the
+/// whole effect, per `App::setting_toggle`'s own doc). A companion to the
+/// `wysiwyg` proof above, which only exercises the global-backed branch.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn isolated_strict_replay_toggles_a_config_only_settings_row_and_persists_it() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new().with_dir("/cfg");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys("s-, a u t o s a v e Enter").unwrap();
+    let root = PathBuf::from("/proj");
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
+    let res = replay_keys_mode_isolated(
+        crate::replay::Mode::Strict,
+        &mut buffer,
+        &keys,
+        &[],
+        &root,
+        None,
+        &cfg,
+        None,
+    )
+    .expect("toggling a config-only row crosses no unsupported seam under Isolated");
+    assert!(res.replay_skips.is_empty(), "{:?}", res.replay_skips);
+    let written = mem
+        .read_to_string(std::path::Path::new("/cfg/config.toml"))
+        .expect("the isolated config file exists");
+    assert!(
+        written.lines().any(|l| l.trim() == "autosave = false"),
+        "the isolated config must carry the negated value — config was:\n{written}"
+    );
+}
+
+/// ITEM 190 — `SettingValueCommit`'s own hermetic proof: the Zoom row's exact
+/// numeric entry (Enter opens it seeded with the current readout — retyping
+/// over it is the point, per `settings::SettingsValues`'s own doc — so the
+/// field is cleared with Backspaces first, mirroring item 114's own sweep).
+/// A Strict/Isolated replay commits it for real: the process-global zoom AND
+/// the persisted config key both move, onto the SAME authored step grid the
+/// live `App::setting_value_commit` clamps onto.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn isolated_strict_replay_commits_a_range_rows_exact_value_and_persists_it() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new().with_dir("/cfg");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys(
+        "s-, z o o m Enter Backspace Backspace Backspace Backspace 1 2 5 Enter",
+    )
+    .unwrap();
+    let root = PathBuf::from("/proj");
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
+    let res = replay_keys_mode_isolated(
+        crate::replay::Mode::Strict,
+        &mut buffer,
+        &keys,
+        &[],
+        &root,
+        None,
+        &cfg,
+        None,
+    )
+    .expect("committing an exact zoom value crosses no unsupported seam under Isolated");
+    assert!(res.replay_skips.is_empty(), "{:?}", res.replay_skips);
+    let written = mem
+        .read_to_string(std::path::Path::new("/cfg/config.toml"))
+        .expect("the isolated config file exists");
+    assert!(
+        written.lines().any(|l| l.trim().starts_with("zoom = ")),
+        "the isolated config must carry a zoom line — config was:\n{written}"
+    );
+}
+
+/// ITEM 190 — `SettingPathPick`'s own hermetic proof, over its simplest key
+/// (`default_folder`: a plain persisted path, no further live re-scope). The
+/// `.` row at the top of the real folder navigator accepts the level you are
+/// standing in — the exact interaction item 114's `sweep_path` drives live.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn isolated_strict_replay_picks_a_settings_path_and_persists_it() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _guard = crate::testlock::serial();
+    let mem = InMemoryFs::new()
+        .with_dir("/cfg")
+        .with_dir("/ws")
+        .with_dir("/ws/proj");
+    let _g = crate::fs::FsGuard::install(std::sync::Arc::new(mem.clone()));
+    let mut buffer = Buffer::scratch();
+    // Filter the rail to "Default folder", Enter opens the real folder
+    // navigator standing at the WORKSPACE (the project root's parent — the
+    // same level item 114's own `sweep_path` picks from); `Up` reaches its
+    // synthetic `.` row (the level you are standing in), `Enter` accepts it.
+    let keys =
+        keyspec::parse_keys("s-, d e f a u l t Space f o l d e r Enter Up Enter").unwrap();
+    let root = PathBuf::from("/ws/proj");
+    let cfg = Config {
+        path: PathBuf::from("/cfg/config.toml"),
+        ..Config::empty()
+    };
+    let res = replay_keys_mode_isolated(
+        crate::replay::Mode::Strict,
+        &mut buffer,
+        &keys,
+        &[],
+        &root,
+        None,
+        &cfg,
+        None,
+    )
+    .expect("picking a default-folder path crosses no unsupported seam under Isolated");
+    assert!(res.replay_skips.is_empty(), "{:?}", res.replay_skips);
+    let written = mem
+        .read_to_string(std::path::Path::new("/cfg/config.toml"))
+        .expect("the isolated config file exists");
+    assert!(
+        written.lines().any(|l| l.trim() == "default_folder = \"/ws\""),
+        "the isolated config must carry the picked workspace folder — config was:\n{written}"
+    );
 }
 
 #[test]
@@ -2692,6 +2915,103 @@ fn resync_project_location_same_parent_switch_still_rebuilds_the_corpus() {
              the stale ['keep.md'] here would be a half-fix that only watches workspace"
         );
     });
+}
+
+/// ITEM 190 — `SettingPathPick{key: "project_root"}` re-scopes root/workspace/
+/// corpus through the SAME `resync_project_location` owner a Project-picker
+/// accept already uses (item 189) — a white-box companion to the black-box
+/// hermetic proofs above, exercising the interpreter directly (mirroring
+/// `resync_project_location_same_parent_switch_still_rebuilds_the_corpus`'s
+/// own construction) since `ReplayResult` carries no root/workspace/corpus
+/// field to assert against through the public `--keys` door.
+#[test]
+fn setting_path_pick_project_root_resyncs_root_workspace_and_corpus() {
+    use std::sync::Arc;
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_file("/ws/proj-a/keep.md", "keep")
+            .with_file("/ws/proj-b/target.md", "target"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut buffer = Buffer::scratch();
+        let root = PathBuf::from("/ws/proj-a");
+        let config = Config::empty();
+        let mut km =
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+        let mut session = ReplaySession::new(
+            ReplayPolicy::isolated(),
+            &mut buffer,
+            &["keep.md".to_string()],
+            &root,
+            None,
+            &config,
+            None,
+            &mut km,
+        );
+        session.interpret_setting_path_pick("project_root", "/ws/proj-b");
+        assert_eq!(session.root, PathBuf::from("/ws/proj-b"));
+        assert_eq!(session.workspace, PathBuf::from("/ws"));
+        assert_eq!(
+            session.corpus,
+            vec!["target.md".to_string()],
+            "the corpus must be rebuilt from the NEW root, exactly like a Project accept"
+        );
+    });
+}
+
+/// ITEM 190 — `SettingPathPick{key: "workspace"}` persists the picked folder
+/// AND re-derives this session's own `workspace` (root unchanged) so a chord
+/// applied afterward reads the new scope — the one observable slice of live
+/// `App::reload_config`'s work for this key.
+#[test]
+fn setting_path_pick_workspace_persists_and_resyncs_the_workspace_field() {
+    use crate::fs::FileSystem;
+    use std::sync::Arc;
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_file("/ws/proj-a/keep.md", "keep")
+            .with_dir("/elsewhere"),
+    );
+    crate::fs::with_fs(mem.clone(), || {
+        let mut buffer = Buffer::scratch();
+        let root = PathBuf::from("/ws/proj-a");
+        let config = Config {
+            path: PathBuf::from("/cfg/config.toml"),
+            ..Config::empty()
+        };
+        let mut km =
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+        let mut session = ReplaySession::new(
+            ReplayPolicy::isolated(),
+            &mut buffer,
+            &["keep.md".to_string()],
+            &root,
+            None,
+            &config,
+            None,
+            &mut km,
+        );
+        assert_eq!(session.workspace, PathBuf::from("/ws"));
+        session.interpret_setting_path_pick("workspace", "/elsewhere");
+        assert_eq!(
+            session.workspace,
+            PathBuf::from("/elsewhere"),
+            "the session's own workspace scope must move to the picked folder"
+        );
+        assert_eq!(
+            session.root,
+            PathBuf::from("/ws/proj-a"),
+            "picking the workspace folder must not re-scope the active project root"
+        );
+    });
+    let written = mem
+        .read_to_string(std::path::Path::new("/cfg/config.toml"))
+        .expect("the isolated config file exists");
+    assert!(
+        written.lines().any(|l| l.trim() == "workspace = \"/elsewhere\""),
+        "the isolated config must carry the picked workspace — config was:\n{written}"
+    );
 }
 
 /// NO-PARENT / FILESYSTEM-ROOT EDGE (item 180 named it, item 189 must sweep it

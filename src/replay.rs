@@ -213,23 +213,48 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
                 "the config write + live keymap reload are live-App-only; the reset would not take effect",
             ),
         ),
-        Effect::SettingToggle { .. } => c(
+        // ITEM 190 — the same grant item 171 gave `save`/`finish_save`: under an
+        // Isolated filesystem, `main/run/settings_effects.rs::ReplaySession`
+        // performs the SAME process-global flip + `Config::write_pref` the live
+        // `App` door does, so the replay session ends in the identical state.
+        // `"keymap"` is the one key excluded EVEN under Isolated: flipping it
+        // needs a LIVE keymap rebuild (`App::toggle_keymap_flavor`) so a LATER
+        // chord in the same replay resolves against the new flavor — a replay
+        // session owns no such capability, the identical reason
+        // `RebindCommit`/`RebindReset` stay Unsupported below.
+        Effect::SettingToggle { key } => c(
             "setting_toggle",
-            unsupported(
-                "flipping the live global + persisting it are live-App-only; the setting would not change",
-            ),
+            if key.as_str() == "keymap" {
+                unsupported(
+                    "the live keymap reload is live-App-only; a later chord in the same \
+                     replay would keep resolving against the OLD flavor",
+                )
+            } else {
+                match filesystem {
+                    FilesystemCapability::None => unsupported(
+                        "flipping the live global + persisting it are live-App-only; the setting would not change",
+                    ),
+                    FilesystemCapability::Isolated => applied,
+                }
+            },
         ),
         Effect::SettingValueCommit { .. } => c(
             "setting_value_commit",
-            unsupported(
-                "parse-clamp-apply-persist is live-App-only; the value would not take effect",
-            ),
+            match filesystem {
+                FilesystemCapability::None => unsupported(
+                    "parse-clamp-apply-persist is live-App-only; the value would not take effect",
+                ),
+                FilesystemCapability::Isolated => applied,
+            },
         ),
         Effect::SettingPathPick { .. } => c(
             "setting_path_pick",
-            unsupported(
-                "the config folder-key write is live-App-only; the path would not take effect",
-            ),
+            match filesystem {
+                FilesystemCapability::None => unsupported(
+                    "the config folder-key write is live-App-only; the path would not take effect",
+                ),
+                FilesystemCapability::Isolated => applied,
+            },
         ),
         // ITEM 94 — a RANGE row's step: unlike its Toggle/Value siblings above, the
         // VALUE CHANGE ITSELF already happened in the shared core (`apply_transition`

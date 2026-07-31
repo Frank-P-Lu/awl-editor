@@ -58,7 +58,10 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::Daemon(_)
             | actions::Effect::Surface(_)
             | actions::Effect::Notice(_)
-            | actions::Effect::Render(_) => {
+            | actions::Effect::Render(_)
+            | actions::Effect::SettingToggle { .. }
+            | actions::Effect::SettingValueCommit { .. }
+            | actions::Effect::SettingPathPick { .. } => {
                 unreachable!("typed effects are owned by interpret_headless_effect")
             }
             actions::Effect::InsertDate => {
@@ -118,9 +121,6 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::Gulp
             | actions::Effect::LineLand
             | actions::Effect::CopyPulse
-            | actions::Effect::SettingToggle { .. }
-            | actions::Effect::SettingValueCommit { .. }
-            | actions::Effect::SettingPathPick { .. }
             | actions::Effect::SettingRangeStep { .. }
             | actions::Effect::KeepVersion { .. }
             | actions::Effect::FollowLink(_)

@@ -175,14 +175,24 @@ fails if these rows drift from them, so this table cannot go stale.
 
 ### Two asymmetries the table will not shout at you
 
-**The same setting has two doors with two different reaches.** Flipping
-typewriter scroll through its own command emits `persist_typewriter`
-(**Applied** — the global flip happens in the shared core, so a capture sees
-it). Flipping the *same* setting from a row in the Settings picker emits
-`setting_toggle` (**Unsupported** — the live global flip and the config write
-are both `App`-side). `setting_value_commit` and `setting_path_pick` are
-Unsupported for the same reason; only `setting_range_step` is Applied, because
-the value change itself already happened in the core.
+**The same setting has two doors with two different reaches — narrower now,
+closed by item 190.** Flipping typewriter scroll through its own command
+emits `persist_typewriter` (**Applied** — the global flip happens in the
+shared core, so an ORDINARY capture sees it, no capability needed).
+Flipping the *same* setting from a row in the Settings picker emits
+`setting_toggle`: still **Unsupported** for the table above (which classifies
+under `FilesystemCapability::None`, the ordinary `--keys` door — the live
+global flip and the config write are both `App`-side, so an ordinary replay
+cannot honestly perform them), but **Applied** under `FilesystemCapability::
+Isolated` (`main/run/settings_effects.rs`, the item-171 shape: only a strict/
+scenario capture ever owns that capability, per `ReplayPolicy::isolated`).
+`setting_value_commit` and `setting_path_pick` are promoted the identical
+way. One key stays Unsupported even under Isolated: `SettingToggle{key:
+"keymap"}` needs a LIVE keymap rebuild so a later chord in the same replay
+resolves against the new flavor, a capability no filesystem grant supplies —
+the same reason `rebind_commit`/`rebind_reset` never promote either.
+`setting_range_step` was already Applied before this item, because the value
+change itself already happened in the core.
 
 **`overlay_accept:Project` is Applied, no residue (closed — item 189).** The
 accepted root re-derives the sidecar's whole project block through one builder
@@ -265,14 +275,22 @@ before starting:
   Entry, focus transfer, child suspend/return, Back, exit and the parked-parent
   position all replay under `--keys` and land in the sidecar's overlay block.
   Every state/focus/back law item 114 wants is a real capture.
-- **Setting *changes* are not.** `SettingToggle` / `SettingValueCommit` /
-  `SettingPathPick` are Unsupported: a `--keys` capture will show the Settings
-  row selected and the query typed, and will **not** show the value changed or
-  persisted. "Preserve every setting's live apply, persistence, range,
-  exact-entry, toggle and sub-picker behavior" is a tier-2 obligation. Drive it
-  with `App::press_spec_headless` on a hermetic `App` over an `InMemoryFs` and
-  assert `App`/config state directly. Budget for that; do not write a brief
-  that asks for a sidecar over it.
+- **Setting *changes* were not, when item 114 was written.** `SettingToggle` /
+  `SettingValueCommit` / `SettingPathPick` were Unsupported outright: a
+  `--keys` capture would show the Settings row selected and the query typed,
+  and would **not** show the value changed or persisted. "Preserve every
+  setting's live apply, persistence, range, exact-entry, toggle and
+  sub-picker behavior" was a tier-2 obligation. Item 114 landed against
+  exactly that framing (`App::press_spec_headless` on a hermetic `App` over an
+  `InMemoryFs`, asserting `App`/config state directly), and item 190
+  (afterward) granted the trio Isolated-filesystem capability — see "Two
+  asymmetries" above. That grant does not retire item 114's tier-2 laws (a
+  hermetic `App` sweep is still the purest seam for "every `SettingId ×
+  SettingKind`", and the anti-vacuity law there still bans the sweep from
+  reaching the App-side doors directly); it opens a SECOND, narrower route —
+  a strict/scenario capture over an isolated sandbox — for the specific claim
+  "the picker door writes for real", with its own hermetic proof in
+  `main/tests.rs`.
 - **Theme and Caret audition are tier 1** (`overlay_accept:Theme` / `:Caret`
   are Applied — they set their process-global in the core), so the
   suspend-audition-return journey and the commit/revert parity are capturable
@@ -304,9 +322,10 @@ Named here rather than quietly absorbed:
    it — the identical defect shape, one call site removed. No storyboard
    fixture drives a Switch-project today, so this is undiagnosed rather than
    reproduced; flag it before writing one.
-3. **The Unsupported bucket is a work list, not a verdict.** Each row above is
-   Unsupported because the replay owns no capability for it, not because the
-   behaviour is unobservable in principle — item 171's `FilesystemCapability`
-   already shows the shape for granting one (`save`/`finish_save` become
-   Applied under an isolated filesystem). The settings trio is the most
-   valuable next grant, because item 114 needs it.
+3. ~~**The Unsupported bucket is a work list, not a verdict.**~~ The settings
+   trio's own grant closed by item 190 — see "Two asymmetries" above and
+   `main/run/settings_effects.rs`. **Still true in general:** a row in the
+   table above is Unsupported because the replay owns no capability for it,
+   not because the behaviour is unobservable in principle — item 171's
+   `FilesystemCapability` shows the shape (`save`/`finish_save`, then the
+   settings trio) for granting one to a future effect that needs it.
