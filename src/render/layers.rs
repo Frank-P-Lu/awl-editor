@@ -89,10 +89,6 @@ impl TextPipeline {
         } else {
             0.0
         };
-        // ITEM 186: the ground's COMPOSITION is authored in logical pixels, so
-        // the shader needs the display's device ratio to put it back on the
-        // glass. `self.dpi` alone, NOT `metrics.scale` (zoom x dpi): the ground
-        // belongs to the Room and has never scaled with the text size.
         self.background_pipeline
             .prepare(queue, width, height, bg_left, bg_w, drift, self.dpi);
     }

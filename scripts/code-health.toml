@@ -79,7 +79,7 @@ lines = 690
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 340
+lines = 263
 
 [[file_size_mark]]
 file = "src/buffer.rs"

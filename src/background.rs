@@ -178,8 +178,8 @@ impl BackgroundPipeline {
     /// `scale` (item 186) is the display's device ratio — PHYSICAL pixels per
     /// LOGICAL pixel, `1.0` on a 1:1 screen, `2.0` on a Retina one. It is the
     /// window's own `scale_factor` (`--capture-dpi` headlessly) and deliberately
-    /// NOT folded with the user's text zoom: the ground belongs to the Room, not
-    /// to the type size, and has never scaled with zoom.
+    /// NOT the pipeline's `metrics.scale` (zoom x dpi): the ground belongs to the
+    /// Room, not to the type size, and has never scaled with the user's zoom.
     #[allow(clippy::too_many_arguments)]
     pub fn prepare(
         &mut self,

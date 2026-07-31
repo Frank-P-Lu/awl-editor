@@ -76,7 +76,9 @@ pub(super) fn render_bg(
     col_w: f32,
     drift: f32,
 ) -> Vec<[u8; 4]> {
-    render_bg_scaled(device, queue, desc, width, height, col_left, col_w, drift, 1.0)
+    render_bg_scaled(
+        device, queue, desc, width, height, col_left, col_w, drift, 1.0,
+    )
 }
 
 /// [`render_bg`] with the item-186 device ratio (PHYSICAL px per LOGICAL px)
@@ -592,7 +594,8 @@ fn bands_boundary_scales_proportionally_with_physical_resolution() {
 fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
-            "skipping bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled: no wgpu adapter"
+            "skipping bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled: \
+             no wgpu adapter"
         );
         return;
     };

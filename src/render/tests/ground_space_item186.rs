@@ -68,9 +68,14 @@ fn roster() -> Vec<Ground> {
 }
 
 fn dormant() -> Vec<Ground> {
-    let quokka_zigzag = theme::QUOKKA.background;
-    let bowerbird = theme::BOWERBIRD.background;
-    let paperbark = theme::PAPERBARK.background;
+    let mut out = dormant_bands_and_dots();
+    out.extend(dormant_profile_arms());
+    out
+}
+
+/// The variants no world wears at all: `Bands` (zero assignees since Gumtree
+/// moved to Zigzag) and proximity-scaled `Dots`.
+fn dormant_bands_and_dots() -> Vec<Ground> {
     let mut out = vec![Ground {
         label: "dormant:bands",
         // Gumtree's retired grass tones, the literal `backgrounds_item69`
@@ -85,7 +90,11 @@ fn dormant() -> Vec<Ground> {
         },
     }];
     if let Background::Dots {
-        from, to, dir, tint, ..
+        from,
+        to,
+        dir,
+        tint,
+        ..
     } = theme::MULGA.background
     {
         out.push(Ground {
@@ -99,6 +108,17 @@ fn dormant() -> Vec<Ground> {
             },
         });
     }
+    out
+}
+
+/// The PROFILE arms — a shipping ground's other face, adopted by writing one
+/// word in a world literal. Each is a distinct branch of the shader, so each is
+/// swept on its own rather than riding its sibling's proof.
+fn dormant_profile_arms() -> Vec<Ground> {
+    let bowerbird = theme::BOWERBIRD.background;
+    let paperbark = theme::PAPERBARK.background;
+    let quokka_zigzag = theme::QUOKKA.background;
+    let mut out: Vec<Ground> = Vec::new();
     if let Background::Organic {
         tones,
         scale_px,
@@ -234,7 +254,7 @@ fn normalize(two: &[[u8; 4]]) -> Vec<[u8; 4]> {
 /// Only the MARGINS carry a ground: the page column is punched transparent, so
 /// including it would dilute every measurement with identical zeroes.
 fn is_margin(x: u32) -> bool {
-    x < COL_LEFT || x >= COL_LEFT + COL_W
+    !(COL_LEFT..COL_LEFT + COL_W).contains(&x)
 }
 
 /// The composition difference between a 1x render and a scale-normalized 2x
@@ -330,7 +350,9 @@ const MIN_COMPOSITION_CORRELATION: f32 = 0.90;
 #[test]
 fn every_procedural_ground_composes_identically_at_1x_and_2x() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping every_procedural_ground_composes_identically_at_1x_and_2x: no wgpu adapter");
+        eprintln!(
+            "skipping every_procedural_ground_composes_identically_at_1x_and_2x: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -351,8 +373,8 @@ fn every_procedural_ground_composes_identically_at_1x_and_2x() {
         }
         assert!(
             corr >= MIN_COMPOSITION_CORRELATION,
-            "world {label} / family {family}: the 1x field and the scale-normalized 2x field \
-             correlate at only {corr:.3} (floor {MIN_COMPOSITION_CORRELATION:.2}) — they are not \
+            "world {label} / family {family}: the 1x field and the scale-normalized 2x \
+             field correlate at only {corr:.3} (floor {MIN_COMPOSITION_CORRELATION:.2}) — not \
              the same picture. This metric is deliberately blind to a mark reading a little \
              lighter or crisper at 2x, so a score this low means the marks are in DIFFERENT \
              PLACES: a pitch, cell or size of this family is still authored in PHYSICAL pixels, \
@@ -361,12 +383,13 @@ fn every_procedural_ground_composes_identically_at_1x_and_2x() {
         );
         assert!(
             delta <= MAX_COMPOSITION_DELTA,
-            "world {label} / family {family}: the ground's COMPOSITION is not the same at 1x and 2x — \
-             a 1x render and a scale-normalized 2x render of the identical {W}x{H} LOGICAL canvas \
-             differ by {delta:.2} levels (bound {MAX_COMPOSITION_DELTA:.2}). A composition quantity \
+            "world {label} / family {family}: the ground's COMPOSITION is not the same at \
+             1x and 2x — a 1x render and a scale-normalized 2x render of the identical \
+             {W}x{H} LOGICAL canvas differ by {delta:.2} levels (bound \
+             {MAX_COMPOSITION_DELTA:.2}). A composition quantity \
              of this family is still authored in PHYSICAL pixels, so the user's display density is \
-             deciding how many elements they see. See `Background::authored_quantities` for which of \
-             this family's numbers are composition and which are sampling.",
+             deciding how many elements they see. See `Background::authored_quantities` for \
+             which of this family's numbers are composition and which are sampling.",
             label = g.label,
         );
     }
@@ -384,7 +407,7 @@ fn every_procedural_ground_composes_identically_at_1x_and_2x() {
 /// enrolled in `roster()`, so a newly added ground cannot ride in unswept.
 #[test]
 fn the_sweep_covers_every_member_of_the_background_roster() {
-    let mut seen = vec![false; Background::ROSTER_LEN];
+    let mut seen = [false; Background::ROSTER_LEN];
     for g in roster() {
         seen[g.bg.roster_index()] = true;
     }
@@ -479,7 +502,8 @@ fn mean_edge_ramp_px(pixels: &[[u8; 4]], w: u32, h: u32, col_left: u32, col_w: u
 fn the_crisp_edge_feather_stays_physical_so_2x_resolves_the_same_composition_more_finely() {
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
-            "skipping the_crisp_edge_feather_stays_physical_so_2x_resolves_the_same_composition_more_finely: no wgpu adapter"
+            "skipping the_crisp_edge_feather_stays_physical_so_2x_resolves_the_same_\
+             composition_more_finely: no wgpu adapter"
         );
         return;
     };
@@ -512,7 +536,8 @@ fn the_crisp_edge_feather_stays_physical_so_2x_resolves_the_same_composition_mor
         class = GroundSpace::Physical.as_str(),
     );
     eprintln!(
-        "item-186 feather: mean edge ramp {r1:.2} device px at 1x vs {r2:.2} at 2x (ratio {ratio:.2})"
+        "item-186 feather: mean edge ramp {r1:.2} device px at 1x vs {r2:.2} at 2x \
+         (ratio {ratio:.2})"
     );
 }
 

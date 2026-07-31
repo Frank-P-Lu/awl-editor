@@ -2,8 +2,8 @@
 //! inline `mod waves_drift_tests` (item 163's code-health pass, to make room
 //! under the file's own size ratchet without touching the drift math itself);
 //! every test's NAME is unchanged, only which file its source lives in moved.
-use super::*;
 use super::waves::{WAVE_FREQ, waves_boundaries};
+use super::*;
 
 #[test]
 fn drift_is_zero_at_the_settled_phase() {
