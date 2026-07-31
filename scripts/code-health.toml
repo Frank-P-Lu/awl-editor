@@ -381,8 +381,8 @@ lines = 855
 
 [[file_size_mark]]
 file = "src/selection.rs"
-lines = 768
-reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through, so the growth cannot live elsewhere. Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
+lines = 771
+reason = "RAISED +3 by 3d5666f4 (fmt: rustfmt the item 131b selection helpers), a formatting-only commit that landed on main AFTER item 131b’s train was gated: rustfmt broke narrowed_spine_corner_px’s single-expression method chain across four lines. Nothing else changed and no behavior moved, so there is nothing to extract — the three lines are rustfmt’s own wrapping of one expression. 771 is exactly the frozen f12d04a baseline, so this adds no debt against the pinned inventory and it cannot rise again. Found by item 24’s branch, which merged main and could not go green until the ledger matched the tree. Previously — item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through, so the growth cannot live elsewhere. Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
 
 [[file_size_mark]]
 file = "src/session.rs"
