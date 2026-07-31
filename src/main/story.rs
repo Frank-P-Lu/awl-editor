@@ -210,45 +210,11 @@ fn state_view(session: &crate::run::ReplaySession) -> StateView {
 /// Fold the CURRENT session state into the per-step [`CaptureOpts`] — the same
 /// zoom / selection / search / overlay / buffers fold `capture_screenshot`
 /// performs on a finished replay, evaluated mid-run so every step's frame +
-/// sidecar reflect the state at that step.
+/// sidecar reflect the state at that step. The fold itself moved to
+/// `run::fold_capture_state` (item 188), where the live-`App` capture mode
+/// shares it; this is the storyboard's call into that one owner.
 fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo) -> CaptureOpts {
-    let mut opts = CaptureOpts {
-        project: Some(project.clone()),
-        zoom: (session.zoom() != 1.0).then(|| session.zoom()),
-        selection: session.buffer().selection_line_col(),
-        ..CaptureOpts::default()
-    };
-    if let Some(s) = session.search() {
-        opts.search = Some(s.query().to_string());
-        opts.search_case_sensitive = s.is_case_sensitive();
-        opts.search_replace_active = s.is_replace_active();
-        opts.search_replacement = s.replacement().to_string();
-        opts.search_editing_replacement = s.is_editing_replacement();
-    }
-    if let Some((info, preview_text, diff)) =
-        crate::run::overlay_capture_info(session.journey(), session.buffer())
-    {
-        opts.overlay = Some(info);
-        opts.preview_text = preview_text;
-        // DIFF-AS-PREVIEW: mirror the one-shot capture's fold (diff state block
-        // + the overlay-owned diff scroll), so a storyboard step reports the
-        // same preview the single-frame path would.
-        if opts.diff.is_none() {
-            opts.diff = diff;
-        }
-        if opts.scroll.is_none() && opts.preview_text.is_some() {
-            let diff_scroll = session.overlay().map(|o| o.diff_scroll).unwrap_or(0);
-            opts.scroll = Some(crate::render::ScrollPos::at_row(diff_scroll));
-        }
-    }
-    opts.buffers = Some(capture::BuffersInfo {
-        open: session.buffers_open(),
-        active: match session.buffer().path() {
-            Some(p) => p.display().to_string(),
-            None => "scratch".to_string(),
-        },
-    });
-    opts
+    crate::run::fold_capture_state(session, project.clone())
 }
 
 /// Write (or overwrite) `trace.json` — `std::fs`, the deliverable seam.

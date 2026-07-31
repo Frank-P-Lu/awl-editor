@@ -90,6 +90,11 @@ const EXPECTED: &[(&str, usize)] = &[
     // interpreter; the total count stays unchanged across the two files.
     ("main/run.rs", 8),
     ("main/run/effect_interpreter.rs", 1),
+    // Item 188's live-`App` capture mode: the one "wrote OUT.png (+ sidecar
+    // .json)" deliverable line, worded identically to `capture_screenshot`'s in
+    // `main/run.rs` above. CLI product output, not a diagnostic — a capture
+    // mode's whole job is to say where it put the artifact.
+    ("main/run/live_app.rs", 1),
     // `--storyboard`'s deliverable output (the run summary + "wrote film…"),
     // plus the BEST-EFFORT film-encode notes ("no ffmpeg on PATH", a nonzero
     // ffmpeg exit, a non-UTF-8 output path) — CLI product + diagnostics by

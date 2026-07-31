@@ -192,6 +192,16 @@ impl WorkspaceState {
         self.journey.card()
     }
 
+    /// Read the WHOLE summoned-overlay journey, for the sidecar fold (item 188):
+    /// a parked parent is lifecycle state, not card content, so `overlay()`
+    /// cannot answer it — the same reason `ReplaySession::journey` exists.
+    /// Read-only; `core_slots` stays the only way to mutate it. Native/test only,
+    /// like the `--screenshot-app` capture that is its consumer.
+    #[cfg(any(test, not(target_arch = "wasm32")))]
+    pub(in crate::app) fn journey(&self) -> &Journey {
+        &self.journey
+    }
+
     /// Mutate the summoned picker's CONTENT (selection, scroll, notice, query,
     /// captured binding, …). The picker's own type owns those rules; this
     /// module owns only whether a picker is up at all, which is why this hands

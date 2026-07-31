@@ -67,14 +67,16 @@ impl Exit for ActiveEventLoop {
 /// [`App::dispatch_pressed_key`](crate::app::App::dispatch_pressed_key) /
 /// `App::apply`. `App::apply` already returns the quit bool, so this exists for
 /// the doors that swallow it (menu, pointer, probe) and to make "did this key
-/// ask the process to end?" observable off-window.
-#[cfg(test)]
+/// ask the process to end?" observable off-window. Gated exactly like
+/// [`RecordingScheduler`] below — test builds plus every NATIVE build, because
+/// item 188's `--screenshot-app` capture mode is a production caller.
+#[cfg(any(test, not(target_arch = "wasm32")))]
 #[derive(Default)]
 pub(crate) struct RecordingExit {
     requested: std::cell::Cell<bool>,
 }
 
-#[cfg(test)]
+#[cfg(any(test, not(target_arch = "wasm32")))]
 impl RecordingExit {
     pub(crate) fn new() -> Self {
         Self::default()
@@ -85,7 +87,7 @@ impl RecordingExit {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, not(target_arch = "wasm32")))]
 impl Exit for RecordingExit {
     fn exit(&self) {
         self.requested.set(true);

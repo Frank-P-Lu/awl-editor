@@ -196,6 +196,40 @@ pub struct CaptureInfo {
     pub prompt: String,
 }
 
+/// WHICH EDITOR PRODUCED THIS SIDECAR (item 188) — the tier, per
+/// `docs/harness-reach.md`, that the capture was driven at. Two sidecars with
+/// identical fields can mean different things: a tier-1 capture replays the
+/// SHARED CORE and skips the live-`App`-only effects it owns no capability for
+/// (they show up in `replay_skips`), while a tier-2 capture drives a real `App`
+/// and performs them for real. An oracle that cannot say which it was is an
+/// oracle a reader has to guess about, so the sidecar says so itself.
+// `LiveApp` is constructed only by the native-only `--screenshot-app` mode; the
+// field itself, and `Replay`, are carried on every target.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum CaptureDriver {
+    /// The SHARED CORE (`actions::apply_transition`) — every `--screenshot`,
+    /// `--keys`, `--storyboard`, `--capture-timeline`/`-held` and
+    /// `--screenshot-frames` capture. Tier 1.
+    #[default]
+    Replay,
+    /// A real headless live [`crate::app::App`] (`--screenshot-app`), driven by
+    /// real chords through `dispatch_pressed_key` → the keymap → `App::apply`.
+    /// Tier 2 — nothing is skipped, because nothing is stood in for.
+    LiveApp,
+}
+
+impl CaptureDriver {
+    /// The sidecar's own `driver` string. Hyphenated, matching the flag that
+    /// selects it, so a reader can grep one for the other.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            CaptureDriver::Replay => "replay",
+            CaptureDriver::LiveApp => "live-app",
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct CaptureOpts {
     /// Zoom factor (None = 1.0).
@@ -281,6 +315,10 @@ pub struct CaptureOpts {
     /// False by default; ordinary/headless captures never inspect ambient crash
     /// files and remain deterministic.
     pub pending_crash: bool,
+    /// WHICH DRIVER produced this capture ([`CaptureDriver`]) — emitted as the
+    /// top-level `driver` field. Defaults to `Replay`, so every existing capture
+    /// path is unchanged; only `--screenshot-app` sets `LiveApp`.
+    pub driver: CaptureDriver,
     /// FORCE the format popover over the current `selection` (the deterministic
     /// in-test equivalent of the CLI's `AWL_POPOVER` env probe — the live summon is
     /// a mouse gesture the headless path has no pointer for). Default false, so an

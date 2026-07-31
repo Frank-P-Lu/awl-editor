@@ -41,7 +41,8 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1798
+lines = 1805
+reason = "item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
@@ -99,8 +100,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 52
-reason = "item 114: +2 lines — the schema `/191` history row, which the ledger law requires to move with the const."
+lines = 55
+reason = "item 188: +3 lines — the schema `/193` history row, which the ledger law requires to move with the const, plus the two lines rustfmt wraps `pub use opts::{..}` onto once `CaptureDriver` joins the re-export (the line passes 100 columns)."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -109,8 +110,8 @@ reason = "item 114: +4 lines net — the workspace/detail-focus projection, minu
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 841
-reason = "item 114: +17 lines. The one sidecar format string and the one no-overlay literal were split through `concat!` so neither is a 450+/500+ column line any more — debt removed rather than extended, output byte-identical, at the cost of the line count that removal spends."
+lines = 843
+reason = "item 188: +2 lines — the `driver` argument and its comment at the ONE sidecar format call. A second format site is exactly what this file exists to prevent."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -187,13 +188,13 @@ lines = 946
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1402
-reason = "item 121: +14 lines, irreducibly one new CLI flag arm (`--ground-audition`) in the flag match — the arm and its help line are already trimmed to the minimum a new flag can cost."
+lines = 1437
+reason = "item 188: +31 lines net for one new capture mode in the one CLI parser — the `--screenshot-app` flag arm, the `Mode::ScreenshotApp` variant, its `live_app` flag and its Mode-selection arm, minus 5 lines from MERGING the strict-replay and storyboard hermetic-fs installs into the single call `scenario.rs`'s module doc already claimed was there. The mode's own body lives in `main/run/live_app.rs`; nothing here is extractable without splitting the single-owner arg parser."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1087
-reason = "item 190: +2 lines — the `#[path] mod settings_effects;` declaration wiring in the settings trio's capability grant. The interpretation itself lives in the new run/settings_effects.rs, kept out of this file precisely to avoid growing it further."
+lines = 1104
+reason = "item 188: +17 lines — the `#[path] mod live_app;` declaration (+4), the `Mode::ScreenshotApp` dispatch arm (+9, a struct destructure plus a one-line delegate), and the `CaptureSubject` re-export split onto its own native-only line (+4) so the wasm build gains no unused-import warning. The mode itself lives in the new run/live_app.rs, kept out of this file for the same reason item 190 kept settings_effects.rs out."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -473,16 +474,16 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 834
+line = 841
 message = "this function has too many lines (217/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1336
+line = 1343
 message = "this function has too many lines (106/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -494,37 +495,37 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1595
+line = 1602
 message = "this function has too many lines (102/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
-line = 239
-message = "this function has too many lines (730/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines)."
+line = 251
+message = "this function has too many lines (749/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 289
+line = 297
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export landing earlier in the file (+8); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 583
+line = 591
 message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export (+8); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 752
-message = "this function has too many lines (321/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
+line = 760
+message = "this function has too many lines (330/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -537,15 +538,15 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 line = 53
-message = "this function has too many lines (104/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (105/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 188 added the one `driver` argument to the one sidecar format call (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
-line = 242
+line = 244
 message = "this function has too many lines (140/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1). Line/size moved by queue item 114's summoned Settings workspace."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1). Line/size moved by queue item 114's summoned Settings workspace. Line shifted by item 188's `driver` argument + its comment (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

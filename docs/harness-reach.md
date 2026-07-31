@@ -28,7 +28,7 @@ rather than leaving a brief author to discover it the way item 180 did.
 | Tier | What runs | Driven by | Oracle |
 | --- | --- | --- | --- |
 | 1 — shared core | `actions::apply_transition` | `--keys`, `--storyboard`, `ReplaySession` | sidecar JSON + PNG pixels |
-| 2 — live effect interpretation | `App::apply` → `apply_live_effect` / `apply_overlay_accept` | `App::press_spec_headless` (Rust tests) | Rust assertions on `App` state |
+| 2 — live effect interpretation | `App::apply` → `apply_live_effect` / `apply_overlay_accept` | `App::press_chords_headless` — `--screenshot-app`, or `press_spec_headless` in a Rust test | **sidecar JSON + PNG pixels** (item 188), or Rust assertions on `App` state |
 | 3 — window / surface / loop | the winit callbacks below | a real window only | live human, `--live-script`, `--soak-gpu` |
 
 **Tier 1 is the tier CAPTURE.md documents.** A capture replays real chords
@@ -44,12 +44,41 @@ Enter")` goes `dispatch_pressed_key` → keymap resolve → `apply` → the live
 effect interpreter, the same code a physical keypress takes. Nothing stands in
 for the live path there; it *is* the live path, minus the window.
 
-**Tier 2 has no sidecar.** `App` never calls `write_sidecar`, and this item did
-not change that. Tier-2 facts are asserted in Rust, which is the purest
-reachable seam anyway (CLAUDE.md's unit > sidecar > capture ladder) — but it
-means a tier-2 claim cannot be handed to a vision smoke or a pixel oracle. If
-your Verify clause needs a *picture* of live-`App` state, that route does not
-exist yet; see "Left for a follow-up" below.
+**Tier 2 has a sidecar as of item 188 — `--screenshot-app`.** It was the half
+item 183 left open: a real `App` was drivable but unphotographable, so every
+live-`App`-only outcome had to be asserted in Rust rather than read from the one
+oracle the rest of the project uses. `awl --screenshot-app OUT.png [file] --keys
+"SPEC"` drives the SAME chord stream into a real headless `App` and writes an
+ORDINARY PNG + sidecar from its state — same schema, same
+`capture::sidecar::write_sidecar`, same blocks. The one difference in the
+artifact is the top-level `driver` field: `"live-app"` here, `"replay"` for every
+tier-1 capture. Mechanism: `main/run/live_app.rs` (the mode),
+`app/capture_state.rs` (the `App`'s side of the fold + its capture constructor),
+`run::fold_capture_state` (the ONE per-frame fold, shared with the storyboard
+stepper), `run::project_info` (the ONE project-block builder, item 183).
+CAPTURE.md's "Live-`App` capture" section is the contract.
+
+Three properties worth knowing before you reach for it:
+
+- **It is hermetic, unconditionally.** A live `App` PERFORMS the writes a replay
+  only records, so the mode is a `crate::scenario` door: `args::parse_args` swaps
+  the process fs to the seeded sandbox before the config loads, exactly as a
+  storyboard run does.
+- **It skips nothing.** `replay_skips` is empty by construction — there is no
+  capability to lack, because the effect interpreter that runs is the live one.
+  A live-`App` capture of a spec whose tier-1 twin warns on stderr is the point
+  of the mode.
+- **It does not reach tier 3.** No window, no surface, no event loop (`gpu` is
+  `None`; the harness renders the App's buffer through its own offscreen
+  pipeline, as `--screenshot-frames` does). And it is still a STATE oracle:
+  appearance claims are asserted over the PNG's pixels, per CLAUDE.md's Wagtail
+  tripwire, exactly as at tier 1.
+
+Rust assertions on `App` state remain the purest seam for a sweep
+(CLAUDE.md's unit > sidecar > capture ladder) — item 114's tier-2 settings sweep
+is not retired by this. What is new is that a tier-2 claim can now be handed to a
+sidecar oracle, a pixel oracle or a vision smoke when that is what the claim
+needs.
 
 ## Tier 3 — the live-only census, exactly
 
@@ -190,7 +219,10 @@ scenario capture ever owns that capability, per `ReplayPolicy::isolated`).
 way. One key stays Unsupported even under Isolated: `SettingToggle{key:
 "keymap"}` needs a LIVE keymap rebuild so a later chord in the same replay
 resolves against the new flavor, a capability no filesystem grant supplies —
-the same reason `rebind_commit`/`rebind_reset` never promote either.
+the same reason `rebind_commit`/`rebind_reset` never promote either. That key
+is precisely what item 188's `--screenshot-app` was proved on: the door with
+no possible capability grant is the one where a live-`App` capture is the only
+sidecar there will ever be.
 `setting_range_step` was already Applied before this item, because the value
 change itself already happened in the core.
 
@@ -290,7 +322,16 @@ before starting:
   reaching the App-side doors directly); it opens a SECOND, narrower route —
   a strict/scenario capture over an isolated sandbox — for the specific claim
   "the picker door writes for real", with its own hermetic proof in
-  `main/tests.rs`.
+  `main/tests.rs`. Item 188 opens a THIRD, and the widest: `--screenshot-app`
+  photographs the LIVE `App`'s own state, so a settings change is readable from
+  an ordinary sidecar (`overlay.bindings[row]`, plus whatever block the setting
+  feeds — `project.keymap_flavor` for the Keymap row). That route needs no
+  capability grant at all, because nothing is being stood in for. The worked
+  example is `run::live_app::tests::
+  a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see`,
+  which asserts BOTH sides: the live-`App` sidecar reports the flip, and the
+  same spec through the ordinary `--keys` door still reports the old flavor and
+  records the skip.
 - **Theme and Caret audition are tier 1** (`overlay_accept:Theme` / `:Caret`
   are Applied — they set their process-global in the core), so the
   suspend-audition-return journey and the commit/revert parity are capturable
@@ -307,12 +348,18 @@ before starting:
 
 Named here rather than quietly absorbed:
 
-1. **No sidecar from a live `App`.** Tier 2 is drivable but not photographable:
-   `App` still never calls `write_sidecar`, so live-`App` state has no
-   machine-readable artifact and no vision-smoke route. The shape that would
-   close it is a capture mode that drives a real headless `App`
-   (`App::new_headless_scheduler` already exists for `--screenshot-frames`) and
-   folds its state through the existing sidecar writer.
+1. ~~**No sidecar from a live `App`.**~~ Closed by item 188 — `--screenshot-app`,
+   see "Tier 2 has a sidecar" above. **What that item left, named rather than
+   absorbed:** the mode captures ONE frame at the END of its chord stream, like
+   `--screenshot` does. There is no per-step live-`App` film (the storyboard's
+   `--storyboard` equivalent) and no `--strict-replay` analogue, because a live
+   `App` has nothing to be strict about — it skips nothing. A mid-stream
+   live-`App` trajectory would need the storyboard runner taught a second driver;
+   nothing asks for it yet. The mode also drives the chord stream only —
+   `--sel`/`--scroll`/`--search`/`--preedit`, the deterministic verification
+   hooks that OVERRIDE replayed state, are deliberately not folded in, because on
+   this door the App owns that state and an override would be the harness lying
+   about the editor it is photographing.
 2. ~~**`ReplaySession` re-scoping.**~~ Closed by item 189 — see
    `overlay_accept:Project`'s entry above. **Still open:** the storyboard
    runner (`main/story.rs::run_storyboard`) computes its own `capture::

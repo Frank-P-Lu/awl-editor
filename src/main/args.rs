@@ -122,6 +122,18 @@ pub(crate) enum Mode {
         frames: u32,
         step_ms: u64,
     },
+    /// ITEM 188 — THE LIVE-`App` CAPTURE (`--screenshot-app OUT.png [file]`): the
+    /// only capture door that can photograph a live-`App`-only transition. Hermetic
+    /// and native-only; contract in `main/run/live_app.rs`.
+    #[cfg(not(target_arch = "wasm32"))]
+    ScreenshotApp {
+        out: PathBuf,
+        file: Option<PathBuf>,
+        keys: Vec<keyspec::Chord>,
+        root: Option<PathBuf>,
+        workspace: Option<PathBuf>,
+        config: Config,
+    },
     /// DETERMINISTIC TIMELINE capture: after the `--keys` replay sets up a
     /// NAVIGATION caret move (a glide, not an edit-snap), advance a VIRTUAL clock
     /// by the given cumulative-ms `steps` with an INJECTED dt, writing a frame
@@ -248,6 +260,10 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // so the flag + its Mode do not exist on the CLI-less wasm target.
     #[cfg(not(target_arch = "wasm32"))]
     let mut frames: Option<u32> = None;
+    // `--screenshot-app OUT.png`: the LIVE-`App` capture (item 188) — hermetic,
+    // native-only, and the only door that photographs live-`App`-only state.
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut live_app = false;
     #[cfg(not(target_arch = "wasm32"))]
     let mut frame_step_ms: Option<u64> = None;
     // Every capture-mode flag seen, in order. More than one is a conflict (each
@@ -405,6 +421,15 @@ pub(crate) fn parse_args() -> Result<Mode> {
                 out = Some(PathBuf::from(p));
                 motion_d = true;
                 capture_modes.push("--screenshot-motion-d");
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            "--screenshot-app" => {
+                let p = args
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("--screenshot-app requires an output path"))?;
+                out = Some(PathBuf::from(p));
+                live_app = true;
+                capture_modes.push("--screenshot-app");
             }
             #[cfg(not(target_arch = "wasm32"))]
             "--screenshot-frames" => {
@@ -779,6 +804,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
                      awl --screenshot-motion OUT.png [file]  caret mid-glide (centred trailing streak)\n\
                      awl --screenshot-motion-v OUT.png [file] caret mid-glide vertical (left-edge bar)\n\
                      awl --screenshot-motion-d OUT.png [file] caret mid-glide diagonal (slanted tracer)\n\
+                     awl --screenshot-app OUT.png [file]     drive --keys into a REAL \
+                     headless App (hermetic) and capture ITS state — the only door that sees a \
+                     live-App-only transition; sidecar carries driver: \"live-app\"\n\
                      awl --capture-timeline \"0,16,50,150\" OUT.png [file]  deterministic timeline: step the caret glide by injected ms, frame per step (OUT.t<ms>.png)\n\
                      awl --capture-held DIR \"0,30,60,90\" OUT.png [file]  deterministic HELD arrow (DIR=left|right|up|down): re-target one char/line per step (held=true), frame per step with trail geometry\n\
                      \n\
@@ -989,26 +1017,24 @@ pub(crate) fn parse_args() -> Result<Mode> {
             _ => PathBuf::from(f),
         })
     });
-    // HERMETIC SCENARIO FILESYSTEM — the ONE production door (`crate::scenario`'s
-    // module doc is the contract): a strict (scenario) run swaps the process fs
-    // to an in-memory sandbox seeded from exactly the CLI-named inputs BEFORE
-    // the config loads, so the load below — and every fs consumer after it —
-    // reads the sandbox, never the user's real files. The legacy permissive
-    // paths never install it (real-fs behavior kept byte-for-byte). A
-    // storyboard run is hermetic UNCONDITIONALLY, through its own door (the
-    // same sandbox, plus the document's parent-directory marker).
+    // HERMETIC SCENARIO FILESYSTEM — the ONE production call (`crate::scenario`'s
+    // module doc is the contract): a scenario run swaps the process fs to an
+    // in-memory sandbox seeded from exactly the CLI-named inputs BEFORE the
+    // config loads, so the load below — and every fs consumer after it — reads
+    // the sandbox, never the user's real files. The legacy permissive paths
+    // never install it (real-fs behavior kept byte-for-byte). Three doors select
+    // it: `--strict-replay`, `--storyboard` (which seeds the BOARD's document,
+    // resolved above, plus its parent-directory marker), and item 188's
+    // `--screenshot-app`, whose claim is the strongest — it drives a real `App`,
+    // which PERFORMS the writes a replay only records.
     #[cfg(not(target_arch = "wasm32"))]
-    if strict_replay {
+    if strict_replay || storyboard.is_some() || live_app {
         crate::scenario::install_hermetic_fs(
-            file.as_deref(),
-            config_arg.as_deref(),
-            root.as_deref(),
-        );
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    if storyboard.is_some() {
-        crate::scenario::install_hermetic_fs(
-            storyboard_file.as_deref(),
+            crate::scenario::seed_document(
+                storyboard.is_some(),
+                storyboard_file.as_deref(),
+                file.as_deref(),
+            ),
             config_arg.as_deref(),
             root.as_deref(),
         );
@@ -1125,6 +1151,15 @@ pub(crate) fn parse_args() -> Result<Mode> {
             root,
             canvas: capture_size,
             dpi: capture_dpi,
+        },
+        #[cfg(not(target_arch = "wasm32"))]
+        Some(out) if live_app => Mode::ScreenshotApp {
+            out,
+            file,
+            keys,
+            root,
+            workspace: workspace_folded,
+            config,
         },
         #[cfg(not(target_arch = "wasm32"))]
         Some(out) if frames.is_some() => Mode::ScreenshotFrames {

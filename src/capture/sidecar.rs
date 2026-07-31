@@ -93,6 +93,8 @@ pub(super) fn write_sidecar(
     let (font_zoom, font_size, line_height) = pipeline.effective_font_metrics();
     let json = super::scroll_sidecar::sidecar_format!(
         schema_json = json_string(&schema),
+        // WHICH TIER DROVE THIS FRAME (item 188) — see `capture::CaptureDriver`.
+        driver = json_string(opts.driver.as_str()),
         caret_extra = caret_extra,
         cjk = cjk_json(&script_fonts),
         scripts = scripts_json(&script_fonts),
