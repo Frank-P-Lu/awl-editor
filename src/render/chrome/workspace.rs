@@ -42,7 +42,7 @@ const WORKSPACE_MARGIN_MAX: f32 = 72.0;
 /// character widths — the same currency `rowlayout::GAP_CHARS` spends between a
 /// row's primary and secondary cells, so the workspace's internal rhythm is the
 /// picker's own.
-const RAIL_GAP_CHARS: f32 = 3.0;
+pub(in crate::render) const RAIL_GAP_CHARS: f32 = 3.0;
 
 /// The workspace's inner padding, between its own edge and its regions.
 pub(in crate::render) const WORKSPACE_PAD: f32 = 12.0;
@@ -265,23 +265,25 @@ impl TextPipeline {
     /// place to float.
     pub(in crate::render) fn workspace_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
-        let cw = self.overlay_char_width();
         let pad = WORKSPACE_PAD;
-        let margin = self.workspace_margin();
         let n_items = self.overlay_items.len();
-        let wide = self.workspace_is_wide(width);
-        let rows_focused = self.overlay_detail_focus;
+        // ITEM 116b — the POSITIONAL half lives in `comparison.rs`, so the row
+        // geometry below and the relocated document viewport read ONE
+        // derivation of the card box, the primary column and the content pane.
+        let regions = self.workspace_regions(width);
+        let rows_focused = regions.content_focused;
 
         // ITEM 116a — THE ONE FACT THE TWO REGIONS' ROLES REDUCE TO.
         // `RailOverRows` (Settings, today) keeps the row list in the CONTENT
         // pane behind a PRIMARY column of labels; `TimelineOverComparison`
         // (item 116d, unreached) keeps it in the PRIMARY column instead,
-        // behind a content region this module never draws into (item 116b).
+        // behind a content region this module never draws into — item 116b's
+        // `comparison_viewport`, which the document layer itself relocates to.
         // `primary_visible`/`content_visible` are which REGION is on screen —
         // unchanged by the shape; `show_rows` is whichever owns the rows.
         let rows_primary = self.overlay_rows_primary;
-        let primary_visible = wide || !rows_focused;
-        let content_visible = wide || rows_focused;
+        let primary_visible = regions.primary_visible();
+        let content_visible = regions.content_visible();
         let show_rows = if rows_primary {
             primary_visible
         } else {
@@ -302,28 +304,8 @@ impl TextPipeline {
         let header_rows = 1; // the `settings › query` search line
         let header_gap = self.overlay_header_gap();
 
-        let card_x = margin;
-        let card_w = (width as f32 - 2.0 * margin).max(0.0);
-        let card_y = margin + self.menubar_reserve();
-        let card_h = (self.window_h - card_y - margin).max(lh);
-
-        // ── THE TWO REGIONS' BOXES ─────────────────────────────────────────
-        // Positional only, and the same regardless of which one shows rows:
-        // wide seats the PRIMARY column at its measured width and the CONTENT
-        // region beside it; narrow stages one box for whichever is visible.
-        let hpad = self.overlay_text_hpad();
-        let rail_w = self.workspace_rail_w;
-        let gap = RAIL_GAP_CHARS * cw;
-        let interior = (card_w - 2.0 * hpad).max(0.0);
-        let (primary_x, primary_w, pane_x, pane_w) = match wide {
-            true => (
-                card_x + hpad,
-                rail_w,
-                card_x + hpad + rail_w + gap,
-                (card_w - 2.0 * hpad - rail_w - gap).max(0.0),
-            ),
-            false => (card_x + hpad, interior, card_x + hpad, interior),
-        };
+        let [card_x, card_y, card_w, card_h] = regions.card;
+        let ([primary_x, primary_w], [pane_x, pane_w]) = (regions.primary, regions.pane);
 
         // A LABEL RAIL is shaped only when the primary column shows LABELS
         // (`!rows_primary`) and only while visible; its grid is resolved from

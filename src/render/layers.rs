@@ -337,7 +337,9 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
-        if !crate::page::page_on() {
+        // ITEM 116b — the frame draws the PAGE's own edge, so it yields with the
+        // margin-orientation family (`margin_orientation_yields`).
+        if !crate::page::page_on() || self.margin_orientation_yields() {
             self.page_frame_pipeline
                 .prepare(device, queue, width, height, &[]);
             return;
@@ -415,10 +417,8 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        // DIFF-AS-PREVIEW: while the page column wears its card dressing, the
-        // document glyphs clip to the panel's interior band, so a scrolled
-        // transcript slides UNDER the card edge instead of over the margin.
-        let (clip_top, clip_bottom) = match self.doc_clip_band(height as f32) {
+        // Glyphs clip to the region the document layer draws in — item 84's
+        let (clip_top, clip_bottom) = match self.doc_clip_band() {
             Some((t, b)) => (t as i32, b as i32),
             None => (0, height as i32),
         };
@@ -862,7 +862,7 @@ impl TextPipeline {
         height: u32,
     ) -> anyhow::Result<()> {
         let frame = ornaments::OrnamentFrame::shape(self);
-        let (top, bottom) = match self.doc_clip_band(height as f32) {
+        let (top, bottom) = match self.doc_clip_band() {
             Some((top, bottom)) => (top as i32, bottom as i32),
             None => (0, height as i32),
         };

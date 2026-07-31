@@ -237,7 +237,6 @@ impl App {
             cjk_priority: self.config.cjk_priority_or_default(),
             eol: self.active.buffer.eol(),
             popover,
-            diff_panel: preview.is_some(),
             overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
             folds: Vec::new(),
             fold_tails: Vec::new(),

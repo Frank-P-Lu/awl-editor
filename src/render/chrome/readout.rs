@@ -239,7 +239,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let text = self.wordcount_text();
+        let text = self.wordcount_readout_text();
         let (gm, col_left, col_width) = (
             self.metrics.glyph_metrics(),
             self.column_left(),
@@ -285,7 +285,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let text = self.notice.clone();
+        let text = self.notice_readout_text();
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
         let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);

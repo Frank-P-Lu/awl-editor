@@ -661,7 +661,11 @@ contextual card. When it is true, `overlay.lens_strip` IS that rail (the same
 instead of repeating it as a header over the only bucket it lets through. The
 focus field was renamed because it was never diff-specific: it has always meant
 "the summoned surface's DETAIL stage holds the keyboard", which for History is
-its diff panel and for Settings is the content pane beside the rail; and
+its comparison and for Settings is the content pane beside the rail (item 116b
+retired the diff-panel card the History detail stage used to be dressed as; no
+document-layer surface reads this field any more, and
+`capture::tests::panels::history_preview_renders_the_transcript_as_the_document_in_every_world`
+asserts a `detail_focus` flip moves no pixel of it); and
 `overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the

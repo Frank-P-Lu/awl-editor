@@ -622,20 +622,20 @@ impl TextPipeline {
     /// content, selection-adjacent quad — the selection wash, the search-match
     /// highlight, the IME preedit underline, and the caret — must stay inside.
     /// Horizontally it is ALWAYS the writing column (`column_left()` ..
-    /// `+column_width()`) — the SAME box [`Self::diff_panel_rect`] draws its own
-    /// card at, so "the writing column" and "the active card" are one region,
-    /// never two competing ideas. Vertically it is the whole canvas on an
-    /// ordinary frame, narrowed to the diff panel's own inset band while a diff
-    /// preview is up ([`Self::doc_clip_band`]). A drag that clamps its
-    /// hit-test to the page's own left edge, or a diff transcript that scrolls a
-    /// selected / composing row out of the card, both resolve through this ONE
-    /// rect — this bounds PAINT only, never what's SELECTABLE (the document
-    /// range in the sidecar is untouched either way).
+    /// `+column_width()`) — which item 116b made the RELOCATED column while the
+    /// document draws into a workspace's comparison ([`Self::comparison_viewport`]),
+    /// so "where the document is" and "what bounds it" stay ONE idea. Vertically it is
+    /// the whole canvas on an ordinary frame, narrowed to that region's own
+    /// extent while it is up ([`Self::doc_clip_band`]). A drag that clamps its
+    /// hit-test to the page's own left edge, or a comparison scrolled so a
+    /// selected row leaves the region, both resolve through this ONE rect — it
+    /// bounds PAINT only, never what's SELECTABLE (the document range in the
+    /// sidecar is untouched either way).
     pub(super) fn content_clip(&self) -> (f32, f32, f32, f32) {
         let x0 = self.column_left();
         let x1 = x0 + self.column_width();
         let (y0, y1) = self
-            .doc_clip_band(self.window_h)
+            .doc_clip_band()
             .unwrap_or((f32::NEG_INFINITY, f32::INFINITY));
         (x0, y0, x1, y1)
     }
@@ -701,7 +701,7 @@ impl TextPipeline {
     /// for one consistent "decorative content, Y-clipped only" story rather
     /// than mixing the two owners without a reason.
     fn clip_decorative_rects_to_band(&self, mut rects: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
-        let Some((top, bottom)) = self.doc_clip_band(self.window_h) else {
+        let Some((top, bottom)) = self.doc_clip_band() else {
             return rects;
         };
         rects.retain_mut(|r| {
@@ -719,7 +719,7 @@ impl TextPipeline {
     }
 
     fn band_admits(&self, y: f32, h: f32) -> bool {
-        match self.doc_clip_band(self.window_h) {
+        match self.doc_clip_band() {
             Some((top, bottom)) => y >= top && y + h <= bottom,
             None => true,
         }

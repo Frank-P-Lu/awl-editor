@@ -87,14 +87,16 @@ fn history_picker_enter_emits_restore_id_of_the_highlighted_version() {
 }
 
 #[test]
-fn history_picker_tab_shifts_focus_into_the_diff_panel() {
-    // DIFF-AS-PREVIEW: TAB over a highlighted version shifts keyboard FOCUS into
-    // the diff PANEL (the picker STAYS OPEN — the old Tab-takeover into a
-    // separate view is retired). Under panel focus ↑/↓ scroll the diff
-    // step-wise, PgUp/PgDn page it, and Tab returns focus to the list.
-    // The highlighted (middle) row is a NAMED SAVE POINT here, deliberately:
-    // a named row rides the same parallel `history_ids`, so the diff panel
-    // works on it exactly like any snapshot — this pins that law.
+fn history_picker_tab_shifts_focus_into_the_comparison() {
+    // TAB over a highlighted version shifts keyboard FOCUS into the COMPARISON
+    // (the picker STAYS OPEN — the old Tab-takeover into a separate view is
+    // retired). Under that focus ↑/↓ scroll the transcript step-wise, PgUp/PgDn
+    // page it, and Tab returns focus to the list. The highlighted (middle) row
+    // is a NAMED SAVE POINT here, deliberately: a named row rides the same
+    // parallel `history_ids`, so the comparison works on it exactly like any
+    // snapshot — this pins that law. (Item 116b retired the CARD the comparison
+    // used to be dressed as; the focus fact itself is untouched, and lives in
+    // the shared core, so this test is unchanged apart from its name.)
     let row = |id: &str| crate::history::TimelineRow {
         when: "just now".into(),
         which: String::new(),

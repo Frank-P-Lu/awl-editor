@@ -89,9 +89,6 @@ impl TextPipeline {
         self.lava_pipeline.draw(pass);
         self.stars_pipeline.draw(pass);
         self.page_frame_pipeline.draw(pass);
-        self.diffpanel_shadow.draw(pass);
-        self.diffpanel_border.draw(pass);
-        self.diffpanel_card.draw(pass);
         self.fence_panel_pipeline.draw(pass);
         self.code_pill_pipeline.draw(pass);
         self.table_rule_pipeline.draw(pass);
