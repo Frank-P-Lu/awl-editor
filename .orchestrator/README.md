@@ -158,6 +158,14 @@ once, at landing.
 - **Keep the local toolchain level with CI's** — `rustup check`. CI tracks
   floating stable; a stale local clippy cannot see the lint it is pushing.
 
+**Do not commit while the merge train's own gate is running.** `native-gate.sh`
+records HEAD at start and end and refuses to issue a receipt if they differ —
+correctly, since a receipt naming a commit that moved underneath it certifies
+nothing. On 2026-07-31 the orchestrator committed a board note during item 186's
+gate and threw away a full native run: every test passed, no receipt. Write the
+board note first or hold it until the receipt lands; the gate is the one thing
+that cannot be redone cheaply.
+
 Integrate one branch at a time. Two branches each green alone can be red
 together — a roster or ownership law is designed to cause exactly that. For
 structs with per-call-site initializers, grep the construction sites before
