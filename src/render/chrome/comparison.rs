@@ -25,7 +25,8 @@
 //! [`TextPipeline::page_column_left`] / [`TextPipeline::page_column_width`] are
 //! that second idea. They stay crate-render-private and their call sites are
 //! ENUMERATED by
-//! `render::tests::comparison_viewport_item116b::the_unrelocated_page_column_has_exactly_the_named_consumers`
+//! `render::tests::comparison_viewport_item116b`'s
+//! `the_unrelocated_page_column_has_exactly_the_named_consumers`
 //! — the two definitions, the one public seam `TextPipeline::page_geometry`,
 //! and the page-resize hit-test, which reads the canvas edges in order to
 //! decide it must not arm. Every other consumer stays on
@@ -86,7 +87,8 @@ impl WorkspaceRegions {
     /// to build a plan, and because a document viewport is not a ROW (item 174's
     /// arithmetic ban is about a candidate row's slot, which this is not). The
     /// two are held to agree by
-    /// `render::tests::comparison_viewport_item116b::the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
+    /// `render::tests::comparison_viewport_item116b`'s
+    /// `the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
     fn content_top(&self, header_beat: f32) -> f32 {
         self.card[1] + WORKSPACE_PAD + header_beat
     }
@@ -187,5 +189,32 @@ impl TextPipeline {
     /// that rather than trusting it, over the whole roster.
     pub(in crate::render) fn margin_orientation_yields(&self) -> bool {
         self.comparison_viewport().is_some()
+    }
+
+    /// WHAT THE BOTTOM-RIGHT "how much?" READOUT SAYS THIS FRAME — one owner,
+    /// so the draw path and the item-116b margin-orientation law read the same
+    /// sentence. Empty parks the label off-screen.
+    ///
+    /// ITEM 116b: word count and reading time describe the user's OWN document.
+    /// While the document layer is relocated into a read-only comparison
+    /// ([`TextPipeline::margin_orientation_yields`]) that number would be about
+    /// a transcript nobody is writing, so it yields with the rest of the margin
+    /// family and returns the moment the workspace closes.
+    pub(in crate::render) fn wordcount_readout_text(&self) -> String {
+        match self.margin_orientation_yields() {
+            true => String::new(),
+            false => self.wordcount_text(),
+        }
+    }
+
+    /// WHAT THE CALM NOTICE SAYS THIS FRAME — the [`Self::wordcount_readout_text`]
+    /// twin. The notice is seated on the writing column's own bottom centre, so
+    /// it travels with the document layer; read against a relocated comparison
+    /// it would look like a message ABOUT that comparison.
+    pub(in crate::render) fn notice_readout_text(&self) -> String {
+        match self.margin_orientation_yields() {
+            true => String::new(),
+            false => self.notice.clone(),
+        }
     }
 }

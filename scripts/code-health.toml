@@ -76,7 +76,7 @@ lines = 500
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 544
+lines = 543
 reason = "item 114: +1 line — the `overlay_workspace` projection at the one exhaustive `ViewState` construction site. Item 116a: +10 lines net — the `overlay_rows_primary` projection (`WorkspaceShape::rows_are_primary`) at the same one exhaustive construction site, which must fail to compile on a new field by design."
 
 [[file_size_mark]]
@@ -106,7 +106,7 @@ reason = "item 188: +3 lines — the schema `/193` history row, which the ledger
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 552
+lines = 550
 reason = "item 114: +4 lines net — the workspace/detail-focus projection, minus the hand-copied per-kind window-row table this item replaced with the one `OverlayKind::window_rows` owner."
 
 [[file_size_mark]]
@@ -250,7 +250,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2454
+lines = 2450
 reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in. Item 116a: +4 lines — the `overlay_rows_primary` mirror field, at the same one declaration block."
 
 [[file_size_mark]]
@@ -279,7 +279,7 @@ lines = 612
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1108
+lines = 1048
 reason = "item 114: +23 lines. `OverlayGeom` gained the five workspace fields; its band/probe accessors moved to `chrome/workspace.rs`. The struct is the one resolved-geometry record every chrome consumer reads, so the fields cannot live elsewhere. Item 116a: +2 lines — the `rail` field's doc gained one clause naming the new `rows_are_primary` case where it is also `None`, at the one struct definition every chrome consumer reads."
 
 [[file_size_mark]]
@@ -324,7 +324,7 @@ lines = 1121
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1502
+lines = 1465
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
@@ -336,12 +336,12 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 563
+lines = 549
 reason = "item 114: +8 lines at the ONE `TextPipeline` initializer — the rail's glyph buffer and its four mirror fields. Item 116a: +1 line — the `overlay_rows_primary` field's default, at the same one initializer."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 604
+lines = 600
 reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirror, plus the rail-width measurement that must happen in the same `&mut FontSystem` window item 51's content-hug measurement already uses. Item 116a: +1 line — the `overlay_rows_primary` mirror, at the same one `set_view`."
 
 [[file_size_mark]]
@@ -464,8 +464,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (245/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46). Item 114 added the `overlay_workspace` projection to the one exhaustive construction site (+1). Item 116a added the `overlay_rows_primary` projection to the same site (+4 counted lines)."
+message = "this function has too many lines (244/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46). Item 114 added the `overlay_workspace` projection to the one exhaustive construction site (+1). Item 116a added the `overlay_rows_primary` projection to the same site (+4 counted lines). Item 116b: -1 line. `sync_view` lost the `diff_panel` field with the diff-panel dressing."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -534,8 +534,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 line = 201
-message = "this function has too many lines (213/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (212/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -765,8 +765,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (497/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6). Item 116a added the `overlay_rows_primary` field's default (+1)."
+message = "this function has too many lines (483/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6). Item 116a added the `overlay_rows_primary` field's default (+1). Item 116b: -14 lines. The three `diffpanel_*` pipelines are gone from the ONE `TextPipeline` initializer."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -820,9 +820,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 705
+line = 707
 message = "this function has too many lines (122/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -899,9 +899,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1640
-message = "this function has too many lines (126/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+line = 1656
+message = "this function has too many lines (138/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. Each of the three arms needs its own capture, which is what the growth is."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

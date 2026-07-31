@@ -80,9 +80,7 @@ fn assert_all_within(rects: &[[f32; 4]], clip: (f32, f32, f32, f32), what: &str)
 fn selection_and_search_rects_never_paint_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping selection_and_search_rects_never_paint_past_the_comparison_viewport: no wgpu adapter"
-        );
+        eprintln!("skipping selection_and_search_rects_never_paint_past_the_viewport: no adapter");
         return;
     };
     // SEARCH for a canvas whose region bottom lands MID-BAND rather than in the
@@ -225,9 +223,7 @@ fn preedit_rect_never_paints_past_the_comparison_viewport() {
 fn caret_parks_when_its_row_scrolls_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!(
-            "skipping caret_parks_when_its_row_scrolls_past_the_comparison_viewport: no wgpu adapter"
-        );
+        eprintln!("skipping caret_parks_when_its_row_scrolls_past_the_viewport: no adapter");
         return;
     };
     crate::caret::set_mode(crate::caret::CaretMode::Block);

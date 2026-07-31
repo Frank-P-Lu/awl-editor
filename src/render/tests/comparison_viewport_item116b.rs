@@ -30,6 +30,7 @@
 //! directly, which are the SAME flat projections `sync_view` will set once
 //! 116d flips the kind — the production seam, not a test-only door.
 
+use super::super::TextPipeline;
 use super::{comparison_view, headless_dqp, view};
 
 /// The document-geometry owners, and the file each one's body lives in. Named
@@ -91,9 +92,13 @@ fn all_four_document_geometry_owners_read_the_comparison_viewport() {
 /// the PAGE's on the canvas (never does). The second is real — the ground punch
 /// and the star margin band genuinely describe the backdrop — but it is exactly
 /// the shape that becomes a parallel geometry if anyone may reach for it. It
-/// stays `pub(in crate::render)` and this law pins the call sites: the two
-/// definitions, `page_geometry` (the one public seam), and the page-resize
-/// hit-test, which reads the canvas edges in order to decide it must NOT arm.
+/// stays `pub(in crate::render)` and this law pins its call sites to exactly two
+/// places: `render/geometry/page.rs`, which DEFINES it and holds its own
+/// consumers (`page_geometry`, the one public seam, and the page-resize
+/// hit-test, which reads the canvas edges in order to decide it must NOT arm),
+/// and the two FALLBACK arms inside `column_left`/`column_width` themselves —
+/// the whole point of the split, and the only lines outside the owner file that
+/// may name it.
 #[test]
 fn the_unrelocated_page_column_has_exactly_the_named_consumers() {
     let render_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render");
@@ -101,14 +106,14 @@ fn the_unrelocated_page_column_has_exactly_the_named_consumers() {
     scan(&render_root, &render_root, &mut hits);
     let strays: Vec<&String> = hits
         .iter()
-        .filter(|h| !h.starts_with("geometry.rs:"))
+        .filter(|h| !h.starts_with(BYPASS_OWNER) && !h.starts_with(BYPASS_FALLBACK))
         .collect();
     assert!(
         strays.is_empty(),
         "`page_column_left`/`page_column_width` are item 116b's module-private BYPASS — the \
          backdrop's own column, which the relocated document deliberately does not move. A \
-         consumer outside `render/geometry.rs` naming one is building a second geometry to \
-         keep in sync; read `column_left()`/`column_width()` and follow the document, or \
+         consumer outside `render/geometry/page.rs` naming one is building a second geometry \
+         to keep in sync; read `column_left()`/`column_width()` and follow the document, or \
          yield with the margin family. offending lines:\n{}",
         strays
             .iter()
@@ -119,11 +124,28 @@ fn the_unrelocated_page_column_has_exactly_the_named_consumers() {
     // NON-VACUOUS: the owner file really does carry them, so a rename that
     // emptied this scan trips here instead of going quiet.
     assert!(
-        hits.len() >= 4,
-        "the bypass must actually exist in `geometry.rs` (2 definitions + `page_geometry` + \
-         the page-resize hit-test); found {hits:?}"
+        hits.iter().filter(|h| h.starts_with(BYPASS_OWNER)).count() >= 4,
+        "the bypass must actually exist in `{BYPASS_OWNER}` (2 definitions + `page_geometry` \
+         + the page-resize hit-test); found {hits:?}"
+    );
+    // …and the fallback arms are exactly the two the split exists for — a third
+    // means a document owner started reading the backdrop's column.
+    assert_eq!(
+        hits.iter()
+            .filter(|h| h.starts_with(BYPASS_FALLBACK))
+            .count(),
+        BYPASS_FALLBACK_ARMS,
+        "`{BYPASS_FALLBACK}` may name the page column ONLY in `column_left`'s and \
+         `column_width`'s own fallback arms; found {hits:?}"
     );
 }
+
+/// The file that OWNS the unrelocated page column.
+const BYPASS_OWNER: &str = "geometry/page.rs:";
+/// The only other file that may name it — and only in the two fallback arms of
+/// the document owners it is the fallback FOR.
+const BYPASS_FALLBACK: &str = "geometry.rs:";
+const BYPASS_FALLBACK_ARMS: usize = 2;
 
 fn scan(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
@@ -162,6 +184,54 @@ fn scan(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<String>) {
                 out.push(format!("{rel}:{}", i + 1));
             }
         }
+    }
+}
+
+/// The RELOCATED beat of law 3, lifted out so the law itself reads as its three
+/// beats (baseline / relocated / returned) rather than as one long block.
+fn assert_relocated(p: &TextPipeline, vp: [f32; 4]) {
+    let [vx, vy, vw, vh] = vp;
+    assert_eq!(
+        p.column_left(),
+        vx,
+        "column_left must be the region's own x"
+    );
+    assert_eq!(
+        p.column_width(),
+        vw,
+        "column_width must be the region's own w"
+    );
+    assert_eq!(
+        p.doc_top(),
+        vy,
+        "doc_top at scroll 0 must be the region's own y"
+    );
+    assert_eq!(
+        p.doc_clip_band(),
+        Some((vy, vy + vh)),
+        "doc_clip_band must be the region's own vertical extent — item 84's clip, re-owned"
+    );
+    let clip = p.content_clip();
+    assert_eq!(
+        (clip.0, clip.2),
+        (vx, vx + vw),
+        "the content clip's X arm must be the region, not the page column"
+    );
+    assert!(
+        p.text_left() >= vx && p.text_left() < vx + vw,
+        "the text origin ({}) must sit inside the region {vp:?}",
+        p.text_left()
+    );
+    assert!(
+        p.text_wrap_width() <= vw + 0.01,
+        "the wrap width ({}) must fit the region's own width ({vw})",
+        p.text_wrap_width()
+    );
+    for r in p.selection_rects() {
+        assert!(
+            r[0] >= vx - 0.01 && r[0] + r[2] <= vx + vw + 0.01,
+            "a selection quad {r:?} escaped the relocated region {vp:?}"
+        );
     }
 }
 
@@ -211,51 +281,11 @@ fn the_comparison_viewport_relocates_the_entire_document_layer_and_returns_it() 
     let vp = p
         .comparison_viewport()
         .expect("a rows-primary workspace with a visible content region relocates the document");
-    let [vx, vy, vw, vh] = vp;
+    let [vx, _vy, vw, vh] = vp;
     assert!(vw > 0.0 && vh > 0.0, "the region must be real: {vp:?}");
 
-    assert_eq!(
-        p.column_left(),
-        vx,
-        "column_left must be the region's own x"
-    );
-    assert_eq!(
-        p.column_width(),
-        vw,
-        "column_width must be the region's own w"
-    );
-    assert_eq!(
-        p.doc_top(),
-        vy,
-        "doc_top at scroll 0 must be the region's own y"
-    );
-    assert_eq!(
-        p.doc_clip_band(),
-        Some((vy, vy + vh)),
-        "doc_clip_band must be the region's own vertical extent — item 84's clip, re-owned"
-    );
-    let clip = p.content_clip();
-    assert_eq!(
-        (clip.0, clip.2),
-        (vx, vx + vw),
-        "the content clip's X arm must be the region, not the page column"
-    );
-    assert!(
-        p.text_left() >= vx && p.text_left() < vx + vw,
-        "the text origin ({}) must sit inside the region {vp:?}",
-        p.text_left()
-    );
-    assert!(
-        p.text_wrap_width() <= vw + 0.01,
-        "the wrap width ({}) must fit the region's own width ({vw})",
-        p.text_wrap_width()
-    );
-    for r in p.selection_rects() {
-        assert!(
-            r[0] >= vx - 0.01 && r[0] + r[2] <= vx + vw + 0.01,
-            "a selection quad {r:?} escaped the relocated region {vp:?}"
-        );
-    }
+    assert_relocated(&p, vp);
+
     // The relocation is a genuine MOVE, not a coincidence that matches the page.
     assert!(
         (vx - base.0).abs() > 1.0,
@@ -344,6 +374,35 @@ fn the_comparison_viewport_opens_on_the_same_line_the_rows_do() {
     );
 }
 
+/// The CONTROL beat of law 5: every margin-orientation surface must genuinely be
+/// ON before "it yields" can mean anything. Returns how many frost seeds this
+/// world's control frame carried, so the caller can prove the lava arm is live.
+fn assert_control_frame_draws_the_margin_family(p: &mut TextPipeline, world: &str) -> usize {
+    assert!(
+        p.outline_visible(800),
+        "{}: precondition — the margin outline must be drawn on the control frame",
+        world
+    );
+    assert!(
+        p.gutter_visible(),
+        "{}: precondition — the gutter must be drawn on the control frame",
+        world
+    );
+    let page_edge = p.page_column_left();
+    assert!(
+        p.page_resize_edge_at(page_edge).is_some(),
+        "{}: precondition — the page's own left edge must be draggable on the control \
+         frame",
+        world
+    );
+    assert!(
+        !p.wordcount_readout_text().is_empty() && !p.notice_readout_text().is_empty(),
+        "{}: precondition — both corner readouts must speak on the control frame",
+        world
+    );
+    p.outline_frost_seeds(800).len() + p.gutter_frost_seeds(800).len()
+}
+
 /// LAW 5 — EVERY MARGIN-ORIENTATION SURFACE YIELDS.
 ///
 /// The persistent chrome DESIGN.md §5 bounds to answering "where am I?" and
@@ -389,32 +448,11 @@ fn every_margin_orientation_surface_yields_to_a_relocated_document() {
         ordinary.notice = "changed on disk outside awl".into();
         p.set_view(&ordinary);
         p.prepare(&device, &queue, 1200, 800).unwrap();
-        assert!(
-            p.outline_visible(800),
-            "{}: precondition — the margin outline must be drawn on the control frame",
-            world.name
-        );
-        assert!(
-            p.gutter_visible(),
-            "{}: precondition — the gutter must be drawn on the control frame",
-            world.name
-        );
-        let page_edge = p.page_column_left();
-        assert!(
-            p.page_resize_edge_at(page_edge).is_some(),
-            "{}: precondition — the page's own left edge must be draggable on the control \
-             frame",
-            world.name
-        );
-        assert!(
-            !p.wordcount_readout_text().is_empty() && !p.notice_readout_text().is_empty(),
-            "{}: precondition — both corner readouts must speak on the control frame",
-            world.name
-        );
-        let control_frost = p.outline_frost_seeds(800).len() + p.gutter_frost_seeds(800).len();
+        let control_frost = assert_control_frame_draws_the_margin_family(&mut p, world.name);
         if control_frost > 0 {
             frost_worlds += 1;
         }
+        let page_edge = p.page_column_left();
 
         // RELOCATED — every one of them yields.
         let mut relocated = comparison_view(&text, 0, 0);

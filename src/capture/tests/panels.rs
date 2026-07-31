@@ -1656,7 +1656,7 @@ fn popover_labels_demonstrate_their_own_effects() {
 fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
     if !adapter_available() {
         eprintln!(
-            "skipping history_preview_renders_the_transcript_as_the_document_in_every_world: no wgpu adapter"
+            "skipping history_preview_renders_the_transcript_as_the_document: no wgpu adapter"
         );
         return;
     }
@@ -1673,10 +1673,14 @@ fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
     let mut new = String::new();
     for i in 0..14 {
         old.push_str(&format!(
-            "Paragraph {i} stands unchanged across both drafts of the manuscript here.\n\nParagraph {i}b gets entirely rewritten in the newer draft below this one.\n\n"
+            "Paragraph {i} stands unchanged across both drafts of the manuscript \
+             here.\n\nParagraph {i}b gets entirely rewritten in the newer draft \
+             below this one.\n\n"
         ));
         new.push_str(&format!(
-            "Paragraph {i} stands unchanged across both drafts of the manuscript here.\n\nParagraph {i}b is now reworded completely for the fresher draft instead.\n\n"
+            "Paragraph {i} stands unchanged across both drafts of the manuscript \
+             here.\n\nParagraph {i}b is now reworded completely for the fresher \
+             draft instead.\n\n"
         ));
     }
     let (old, new) = (old.as_str(), new.as_str());
