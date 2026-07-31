@@ -203,6 +203,9 @@ pub struct CaptureInfo {
 /// (they show up in `replay_skips`), while a tier-2 capture drives a real `App`
 /// and performs them for real. An oracle that cannot say which it was is an
 /// oracle a reader has to guess about, so the sidecar says so itself.
+// `LiveApp` is constructed only by the native-only `--screenshot-app` mode; the
+// field itself, and `Replay`, are carried on every target.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub enum CaptureDriver {
     /// The SHARED CORE (`actions::apply_transition`) — every `--screenshot`,

@@ -42,9 +42,9 @@ pub use film::{FRAME_MS, FilmRenderer};
 #[cfg(not(target_arch = "wasm32"))]
 pub use frames::{DEFAULT_FRAME_STEP_MS, capture_frames};
 pub use modes::{capture_motion, capture_motion_diagonal, capture_motion_vertical, capture_with};
-pub use opts::{
-    BuffersInfo, CaptureDriver, CaptureInfo, CaptureOpts, DiffInfo, OverlayInfo, ProjectInfo,
-};
+#[cfg(not(target_arch = "wasm32"))]
+pub use opts::CaptureDriver;
+pub use opts::{BuffersInfo, CaptureInfo, CaptureOpts, DiffInfo, OverlayInfo, ProjectInfo};
 pub use oracle::build_oracle;
 pub(crate) use sidecar::json_string;
 

@@ -195,7 +195,9 @@ impl WorkspaceState {
     /// Read the WHOLE summoned-overlay journey, for the sidecar fold (item 188):
     /// a parked parent is lifecycle state, not card content, so `overlay()`
     /// cannot answer it — the same reason `ReplaySession::journey` exists.
-    /// Read-only; `core_slots` stays the only way to mutate it.
+    /// Read-only; `core_slots` stays the only way to mutate it. Native/test only,
+    /// like the `--screenshot-app` capture that is its consumer.
+    #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(in crate::app) fn journey(&self) -> &Journey {
         &self.journey
     }

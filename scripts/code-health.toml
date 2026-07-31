@@ -41,8 +41,8 @@ reason = "item 114: +8 lines net. The workspace's own two-region keyboard and it
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1802
-reason = "item 188: +4 lines — the `capture_state` and `press` module declarations, at the one module list. `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
+lines = 1805
+reason = "item 188: +7 lines — the `capture_state` and `press` module declarations at the one module list, each with the `#[cfg]` naming where it exists (`capture_state` is native-only like the `--screenshot-app` mode it serves; `press` is native-or-test). `capture_state.rs` carries the live-`App` capture constructor and the `CaptureSubject` impl (it needs `App`'s private fields); `press.rs` is item 183's headless press door, moved out of `app/tests/` because the `--screenshot-app` mode is now a production caller. Both bodies live in their own files precisely to keep them off this one."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
@@ -193,8 +193,8 @@ reason = "item 188: +31 lines net for one new capture mode in the one CLI parser
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1100
-reason = "item 188: +13 lines — the `#[path] mod live_app;` declaration (+4) and the `Mode::ScreenshotApp` dispatch arm (+9), a struct destructure plus a one-line delegate. The mode itself lives in the new run/live_app.rs, kept out of this file for the same reason item 190 kept settings_effects.rs out."
+lines = 1104
+reason = "item 188: +17 lines — the `#[path] mod live_app;` declaration (+4), the `Mode::ScreenshotApp` dispatch arm (+9, a struct destructure plus a one-line delegate), and the `CaptureSubject` re-export split onto its own native-only line (+4) so the wasm build gains no unused-import warning. The mode itself lives in the new run/live_app.rs, kept out of this file for the same reason item 190 kept settings_effects.rs out."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -474,16 +474,16 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 838
+line = 841
 message = "this function has too many lines (217/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 moved 6 lines of state out of the constructor into two owners. Line shifted by item 188's two module declarations (`capture_state`, `press`) landing earlier in the file (+7); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1340
+line = 1343
 message = "this function has too many lines (106/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -495,9 +495,9 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
-line = 1599
+line = 1602
 message = "this function has too many lines (102/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 172's field removals; count unchanged. Line shifted by item 188's two module declarations (+7); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -509,21 +509,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 293
+line = 297
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration landing earlier in the file (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export landing earlier in the file (+8); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 587
+line = 591
 message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration (+4); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export (+8); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 756
+line = 760
 message = "this function has too many lines (330/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9)."
 

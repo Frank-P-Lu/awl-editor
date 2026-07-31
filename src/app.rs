@@ -364,6 +364,8 @@ mod workspace;
 pub(crate) use schedule::RecordingScheduler;
 mod apply;
 /// ITEM 188 — the live `App`'s own SIDECAR FOLD + its capture constructor.
+/// Native-only, like the `--screenshot-app` mode that is its only consumer.
+#[cfg(not(target_arch = "wasm32"))]
 mod capture_state;
 mod daemon;
 mod menu;
@@ -371,6 +373,7 @@ mod menu;
 /// debounce+version pair, the save-feedback clocks, the title dirty cache.
 mod persistence;
 /// ITEM 183's HEADLESS PRESS DOOR — real chords into the live `App`, off-window.
+#[cfg(any(test, not(target_arch = "wasm32")))]
 mod press;
 mod probe;
 mod session;

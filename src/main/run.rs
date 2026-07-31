@@ -24,9 +24,13 @@ mod location;
 mod replay_effects;
 #[path = "run/settings_effects.rs"]
 mod settings_effects;
+/// Item 188's driver seam — `App` implements it only on native, where the
+/// `--screenshot-app` mode that reads it exists.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use capture_fold::CaptureSubject;
 #[cfg(test)]
 use capture_fold::history_preview_for;
-pub(crate) use capture_fold::{CaptureSubject, fold_capture_state, overlay_capture_info};
+pub(crate) use capture_fold::{fold_capture_state, overlay_capture_info};
 pub(crate) use location::{project_info, resolve_launch_context, resolve_root, resolve_workspace};
 
 /// Build the editor buffer. Refused files become unbound scratch buffers so a

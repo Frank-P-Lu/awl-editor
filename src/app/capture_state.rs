@@ -24,7 +24,6 @@
 use super::*;
 use crate::capture::CaptureOpts;
 
-#[cfg(not(target_arch = "wasm32"))]
 impl App {
     /// THE LIVE-`App` CAPTURE CONSTRUCTOR (`--screenshot-app`). Unlike its
     /// sibling [`new_headless_scheduler`](Self::new_headless_scheduler), it does
