@@ -1170,10 +1170,12 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   hides it.
 - **ROUND 1 SIZED THE COMPOSITION FROM THE PAGE, AND THAT WAS THE SECOND
   DEFECT.** Its repair for the first one was to stop re-planting the vanishing
-  region and to size the SECTION instead: `WARP_SECTION_PAGE_RATIO` made the
+  region and to size the SECTION instead: an authored page ratio made the
   anchor ring three page widths across, so the page hid a third of it and each
-  margin read two thirds; `WARP_ASPECT_FIT` then flattened the section until its
-  flank fitted the room. Every word of that is true at ONE page width, and the
+  margin read two thirds, and an authored fit then flattened the section until
+  its flank fitted the room. (Both numbers still exist, as
+  `WARP_PAGE_SCALED_RATIO` and `WARP_PAGE_SCALED_FIT`, alive only inside the
+  mutation arm.) Every word of that is true at ONE page width, and the
   live review approved exactly that width. Across awl's own measure band it
   swept the anchor from 432px to 1942px and the section's aspect ratio from 1.00
   to 4.00 — so widening the page grew the tunnel, flattened it, and doubled the
@@ -1241,11 +1243,13 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   outermost major cross-ring in each margin and solves the arc — with a FREE
   centre — for the ellipse it belongs to. Measured over rendered pixels: aspect
   0.943..1.016 with a median of 1.00, and every radius on the room's own ring
-  ladder to within 0.04 of a rung (a rung is a factor of 2.83). Round 1's
-  geometry, kept as `theme::Tunnel::PageScaled`, spreads the aspect over 3.00 and
-  walks the radius 1.5 rungs — an order of magnitude outside the bounds — and
-  `warp_page_scaled_projection_breaks_the_one_scale` asserts that spread, so the
-  replacement is proven capable of failing. It also asserts that the two models
+  ladder to within 0.04 of a rung (a rung is a factor of 2.83). Round 1's own arithmetic
+  over the same band runs the aspect 1.00 to 4.00 and the anchor 432px to 1942px
+  — a spread and a walk an order of magnitude outside those bounds — and that
+  geometry is kept as `theme::Tunnel::PageScaled`, with
+  `warp_page_scaled_projection_breaks_the_one_scale` asserting that the fit
+  SPREADS and leaves the ladder on it, so the replacement is proven capable of
+  failing. It also asserts that the two models
   AGREE at the narrowest page, which is the shape of the defect the review
   reported.
 - **THE ARC FIT'S OWN LIMITS, recorded rather than papered over.** Solving a

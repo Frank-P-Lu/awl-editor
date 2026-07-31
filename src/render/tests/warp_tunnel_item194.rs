@@ -28,13 +28,14 @@
 //! oracle item 86 authored, so the flat ground cancels and what is measured is
 //! the lattice alone.
 //!
-//! 1. **The scale.** Across the whole adaptive-column range, the outermost major
-//!    cross-ring is TRACED in each margin and solved — with a FREE centre — for
-//!    the ellipse it belongs to. Its ASPECT RATIO must be the constant 1.00 and
-//!    its radius must sit on the room's own fixed ring ladder. Recovering the
-//!    opening from an ARC rather than a whole ring is the point: no margin holds
-//!    the section's apex, so the eye infers the opening from the flank, and so
-//!    does this law.
+//! 1. **The scale.** Across the whole adaptive-column range, every major
+//!    cross-ring arc a margin offers is TRACED and solved — with a FREE centre —
+//!    for the ellipse it belongs to, and the best-corroborated survivor is the
+//!    margin's answer. Its ASPECT RATIO must be the constant 1.00 and its radius
+//!    must sit on the room's own fixed ring ladder. Recovering the opening from
+//!    an ARC rather than a whole ring is the point: no margin holds the
+//!    section's apex, so the eye infers the opening from the flank, and so does
+//!    this law.
 //! 2. **The windows.** The same fitted centres say where each window sits: the
 //!    two must TILE (both centres behind the page) while the margins are wide,
 //!    and OVERLAP (each centre out in its own margin) once they are not — with
@@ -631,7 +632,7 @@ fn measure_sweep() -> Vec<usize> {
 const TRACEABLE_MARGIN_PX: f32 = 120.0;
 
 /// Render the straight pose at every page width in the sweep, at the app's OWN
-/// adaptive column, and fit each margin's outermost major ring.
+/// adaptive column, and solve each margin's own arcs for the section it shows.
 fn sweep_cells(device: &wgpu::Device, queue: &wgpu::Queue, bg: theme::Background) -> Vec<Cell> {
     let mut out = Vec::new();
     let restore = crate::page::measure();
@@ -715,8 +716,8 @@ const RUNG_MEDIAN_TOL: f32 = 0.02;
 /// column range**, and so is its scale.
 ///
 /// Swept over the whole measure band at the app's own column owner, each
-/// margin's outermost major ring is traced and solved for the ellipse it belongs
-/// to with a free centre. Two numbers come out and neither may move: the ASPECT
+/// margin's major cross-ring arcs are traced and solved for the ellipse they
+/// belong to with a free centre. Two numbers come out and neither may move: the ASPECT
 /// must be the constant 1.00 (the section is a circle — round 2 removed the
 /// affine fit entirely), and the RADIUS must sit on the ladder the ROOM fixes,
 /// `anchor * 2^(-k * MAJOR_EVERY / rpo)`, so no page width can rescale the
