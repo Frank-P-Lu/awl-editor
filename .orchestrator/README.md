@@ -166,6 +166,15 @@ once, at landing.
 - **Check `main`'s CI before pushing and after** —
   `gh run list --branch main --limit 1`. A green local train says nothing about
   the remote. While `main` is red, the repair is the only thing that ships.
+  **A `cancelled` run is not a pass — it is no verification at all.** A push
+  supersedes the previous run, so pushing faster than CI's ~30 minute cycle
+  leaves a chain of cancellations and no green anywhere. On 2026-07-31 two
+  consecutive trains landed that way and `main` went three pushes without a
+  verified run. Check for the last **successful** sha, not the last run:
+  `gh run list --branch main --limit 12 --json headSha,conclusion -q '.[] |
+  select(.conclusion=="success")'`. When a wave is landing quickly, let one run
+  finish before pushing the next — CI's linux job is the only thing that tests
+  on real Linux, which no local gate covers.
 - **Keep the local toolchain level with CI's** — `rustup check`. CI tracks
   floating stable; a stale local clippy cannot see the lint it is pushing.
 

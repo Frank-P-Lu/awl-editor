@@ -701,22 +701,28 @@ pub(super) fn grow_span(x: f32, w: f32, grow: f32, mirror: bool) -> (f32, f32) {
     }
 }
 
-/// PURE geometry (SLANT-ON-BARS) — shift a bar's `(x, w)` right by the stair
-/// offset `dx` for its display row. A `hug` plate (never at the card's right
-/// edge) simply translates; a FULL-WIDTH plate keeps its RIGHT edge flush and
-/// sheds `dx` of width (mirroring the Pane band's `[card_x + dx, w - dx]`), so a
-/// slanted full-width bar can never paint past the card. `dx == 0.0` (the
-/// unslanted default, or a fan-in at rest) → the input span verbatim
-/// (byte-identical). The ONE owner both the unselected and selected slanted
-/// plates read, so the two extents cascade identically.
-pub(super) fn slant_bar_span(x: f32, w: f32, hug: bool, dx: f32) -> (f32, f32) {
-    if dx <= 0.0 {
+/// PURE geometry (SLANT-ON-BARS) — a bar's `(x, w)` extended by its display
+/// row's two-sided extent `(dx, dw)` (item 131a). A `hug` plate (never at the
+/// card's right edge) simply translates by `dx` — `dw` cannot mean anything to
+/// it, since a hug plate's own width already comes from its measured content,
+/// not from the band's width, and a right-hugging mirror plate is a
+/// COMPOSITION concern (item 131c/d), not this primitive's. A FULL-WIDTH plate
+/// keeps whichever edge is untouched flush and sheds the other: `dx` steps the
+/// left edge in with the right held at `x + w` (mirroring the Pane band's
+/// `[card_x + dx, w - dx]`), `dw` steps the right edge in with the left held at
+/// `x` — so a slanted full-width bar, mirrored either direction, can never
+/// paint past the card. `dx == 0.0 && dw == 0.0` (the unslanted default, or a
+/// fan-in at rest) → the input span verbatim (byte-identical). The ONE owner
+/// both the unselected and selected slanted plates read, so the two extents
+/// cascade identically.
+pub(super) fn slant_bar_span(x: f32, w: f32, hug: bool, dx: f32, dw: f32) -> (f32, f32) {
+    if dx == 0.0 && dw == 0.0 {
         return (x, w);
     }
     if hug {
         (x + dx, w)
     } else {
-        (x + dx, (w - dx).max(1.0))
+        (x + dx, (w + dw - dx).max(1.0))
     }
 }
 
