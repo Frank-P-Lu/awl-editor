@@ -192,10 +192,12 @@ workspace. `ReplaySession` used to hold its `root`, `workspace`, and file-index
 the accept still read the launch root's tree: a `Cmd-O` following a
 Switch-project listed the launch root's files even though the sidecar's own
 accepted-location block was already correct. `ReplaySession::
-resync_project_location` (`main/run.rs`) is now the one owner invoked the
-moment the accept fires — it rebuilds `corpus` (`crate::index::build_index`)
-and re-resolves `workspace` (`location::resolve_workspace`, against the SAME
-raw `--workspace` flag the constructor used) before `root` itself moves, so a
+resync_project_location` (`main/run/location.rs` — the module item 183
+already carries the rest of this exact derivation in) is now the one owner
+invoked the moment the accept fires — it rebuilds `corpus`
+(`crate::index::build_index`) and re-resolves `workspace`
+(`resolve_workspace`, against the SAME raw `--workspace` flag the constructor
+used) before `root` itself moves, so a
 chord applied after the accept sees the new tree exactly like live. Covered
 end to end, both keymap conventions, by
 `run::tests::keys_capture_switch_project_then_goto_lists_the_new_roots_files`;

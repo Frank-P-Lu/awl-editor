@@ -248,31 +248,6 @@ impl<'a> ReplaySession<'a> {
         }
     }
 
-    /// THE ONE RE-SCOPING OWNER (queue item 189) — re-derive `root`,
-    /// `workspace`, and the file `corpus` for a NEW project root, the
-    /// session's mirror of the live `App::resync_project_location`
-    /// (`app/files/open.rs`) and for the identical reason: before this fn
-    /// existed, a Switch-project accept re-derived the SIDECAR's project
-    /// block through `run::project_info` (item 183) but left these three
-    /// fields fixed at their launch values, so a chord applied after the
-    /// accept — a Cmd-O opening Goto against `corpus`, a Browse summon
-    /// against `root`/`workspace` — silently kept testing the OLD tree.
-    ///
-    /// Called ONLY from the `OverlayAccept(Project, ..)` arm in
-    /// `effect_interpreter.rs`, immediately before `self.accept` is set —
-    /// private, so no future consumer can read a stale copy of any of the
-    /// three by reaching around it. `workspace_flag` re-runs the SAME
-    /// `location::resolve_workspace` the constructor used, against the NEW
-    /// root: an explicit `--workspace` stays pinned across the switch; an
-    /// unset one re-derives the new root's parent, covering both the
-    /// same-parent coincidence and the no-parent (filesystem-root) edge item
-    /// 180 named, rather than carrying the OLD resolved value forward.
-    fn resync_project_location(&mut self, new_root: std::path::PathBuf) {
-        self.corpus = crate::index::build_index(&new_root);
-        self.workspace = location::resolve_workspace(&self.workspace_flag, &new_root);
-        self.root = new_root;
-    }
-
     /// ITEM 106 — THE POINTER-REPLAY STEP: move the replay's pointer to
     /// PHYSICAL `(px, py)` and, if an overlay is open, run it through the SAME
     /// hover resolution `App::overlay_hover` uses live (via `OraclePipeline::

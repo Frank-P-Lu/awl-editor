@@ -185,8 +185,8 @@ reason = "item 121: +14 lines, irreducibly one new CLI flag arm (`--ground-audit
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1110
-reason = "item 189: +56 lines, the ONE re-scoping owner (`ReplaySession::resync_project_location`) plus the owned `root`/`workspace`/`workspace_flag`/`corpus` fields and their doc comments it replaces the fixed `&'a` borrows with."
+lines = 1085
+reason = "item 189: +31 lines net — the owned `root`/`workspace`/`workspace_flag`/`corpus` fields and their doc comments, replacing the fixed `&'a` borrows. `resync_project_location` itself (the re-scoping owner these fields exist for) moved to run/location.rs, the module item 183 created for exactly this class of derivation — see its impl block there."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -490,21 +490,21 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 312
+line = 287
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's resync_project_location + owned root/workspace/corpus fields landing earlier in the same impl block; count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's owned root/workspace/workspace_flag/corpus fields landing earlier in the same impl block (resync_project_location itself moved to run/location.rs); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 606
+line = 581
 message = "this function has too many lines (112/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 775
+line = 750
 message = "this function has too many lines (321/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's earlier additions to the same impl block; count unchanged."
 
