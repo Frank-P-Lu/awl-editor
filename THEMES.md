@@ -74,16 +74,40 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
   **Item 176 (2026-07)** gave `Organic` — Bowerbird's ground, the tenth in this
   list — a theme-owned `Arrangement` dial of the same shape: `Masses` (the
-  shipped rounded cut-paper blobs) or `Finds`, a crisp COLLECTED-TREASURE
+  original rounded cut-paper blobs) or `Finds`, a crisp COLLECTED-TREASURE
   field where each cell draws one deliberately arranged collection of three
   objects, a large anchor with a smaller companion across its edge and a tiny
   cut-out, mixed from circles/squares/triangles with every proportion seeded
-  from the cell's own identity. `Finds` is reusable infrastructure carried by
-  no world yet (the `Weave::Fibres` shape), pending the user's own verdict on
-  the comparison it was built for. Both arrangements share the tones, the cell
+  from the cell's own identity. Both arrangements share the tones, the cell
   scale, the density dial and the one whole-field drift, and the crisp arm
   declares its own cell floor so a small cell cannot alias its cut-out into
-  speckle. Laws: `render::tests::bowerbird_finds_item176`.
+  speckle. `Finds` landed DORMANT (carried by no world), pending the user's
+  own verdict on the comparison it was built for. Laws:
+  `render::tests::bowerbird_finds_item176`. **Item 191 (2026-07)** shipped the
+  verdict: Bowerbird swapped its literal from `Masses` to `Finds` (approved
+  unchanged) and, in the same round, tuned the spacing the user flagged from
+  the live preview — the anchor/companion/cut-out composition grew ~15% as
+  ONE hierarchy-preserving move (scaling the anchor's own nominal-radius band
+  alone carries the companion and cut-out, both authored as FRACTIONS of the
+  anchor, up by the same factor for free), the cell PITCH opened separately
+  (156 -> 195 logical px, ~25%, so the lattice reads airier without merely
+  scaling the bigger objects apart), and the per-cell DROPOUT — an
+  unconstrained independent coin flip in item 176, which could and did let
+  neighbouring omissions align into a conspicuous dead patch — became a
+  DECORRELATED, still fully deterministic one: a cell may empty only when its
+  own hash is the strict minimum of its full 3x3 neighbourhood
+  (`finds_is_local_min`), which makes two lattice-adjacent cells both
+  emptying at once impossible by construction (`h0(A) < h0(B)` and
+  `h0(B) < h0(A)` cannot both hold). `Masses` is now the DORMANT arrangement
+  (item 191's swap retired it from every world's literal, the same "ships
+  until one wants it" shape `Finds` itself held a round earlier). `Weave` and
+  `LavaEdge` remain the roster's other examples of this one-word-in-a-literal
+  dial shape. Laws: `render::tests::bowerbird_spacing_item191` (the
+  composition-growth, separate-pitch, and void-bound claims, the last one
+  measured as the WORST nearest-neighbour gap between surviving collections
+  rather than an inscribed circle or a re-derived lattice grid — see that
+  file's own module doc for the two approaches tried and rejected first, on
+  real measurements).
   **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
   PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
   the settled/theme-crossing composition stay byte-identical) — see "The

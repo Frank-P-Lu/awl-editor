@@ -59,11 +59,14 @@ pub const DECKLE_SPREAD_GAIN: f32 = 1.2;
 // Organic world can author its way under it.
 #[cfg(test)]
 pub const ORGANIC_FINDS_MIN_SCALE_PX: f32 = 96.0;
-/// The anchor's nominal radius, in cell units.
+/// The anchor's nominal radius, in cell units. ITEM 191: 1.15x the item-176
+/// values (0.150/0.195) — see `shaders/background.wgsl`'s own comment on
+/// `FINDS_ANCHOR_LO`/`FINDS_ANCHOR_HI` for why bumping the anchor alone
+/// carries the whole three-role composition up by the same factor.
 #[cfg(test)]
-pub const ORGANIC_FINDS_ANCHOR_LO: f32 = 0.150;
+pub const ORGANIC_FINDS_ANCHOR_LO: f32 = 0.1725;
 #[cfg(test)]
-pub const ORGANIC_FINDS_ANCHOR_HI: f32 = 0.195;
+pub const ORGANIC_FINDS_ANCHOR_HI: f32 = 0.22425;
 /// The companion's radius, as a fraction of the anchor's.
 #[cfg(test)]
 pub const ORGANIC_FINDS_COMPANION_LO: f32 = 0.46;
@@ -72,9 +75,13 @@ pub const ORGANIC_FINDS_COMPANION_HI: f32 = 0.56;
 /// The cut-out's radius, as a fraction of the anchor's.
 #[cfg(test)]
 pub const ORGANIC_FINDS_ACCENT_HI: f32 = 0.26;
-/// The share of cells that deliberately hold nothing.
+/// The threshold on the WINNING hash of a cell's 3x3 neighbourhood (item
+/// 191's void-bound dropout, `finds_is_local_min` in the shader) — not a
+/// per-cell rate any more. See `FINDS_DROPOUT`'s own comment in
+/// `shaders/background.wgsl` for the order-statistics derivation that keeps
+/// the item-176 ~10%-of-cells breathing-room density.
 #[cfg(test)]
-pub const ORGANIC_FINDS_DROPOUT: f32 = 0.10;
+pub const ORGANIC_FINDS_DROPOUT: f32 = 0.226;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[rustfmt::skip]
@@ -108,12 +115,17 @@ pub enum Background {
 /// chosen.
 ///
 /// * [`Arrangement::Masses`] — rounded cut-paper blobs: large masses, small
-///   islands and occasional subtracted holes. Bowerbird's shipped ground.
+///   islands and occasional subtracted holes. Bowerbird's ORIGINAL ground;
+///   retired from any world's literal by item 191's swap to `Finds`, but kept
+///   as reusable infrastructure (the "ships until one wants it" shape) —
+///   `Weave::Fibres`/`Bands`/`Dots { edge: true }`'s own precedent.
 /// * [`Arrangement::Finds`] — the crisp COLLECTED-TREASURE grammar: one large
 ///   anchor, one smaller companion offset across its edge, and one tiny
 ///   cut-out, drawn from circles/squares/triangles with every proportion
-///   seeded from the cell's own identity. Reusable, currently carried by no
-///   world (the [`Weave::Fibres`] / `Bands` / `Dots { edge: true }` shape).
+///   seeded from the cell's own identity. Bowerbird's shipped ground since
+///   item 191 (approved by the user off item 176's dormant preview; item 191
+///   also enlarged the composition ~15%, opened the cell pitch separately,
+///   and bounded the dropout's largest contiguous void).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Arrangement {
     Masses,

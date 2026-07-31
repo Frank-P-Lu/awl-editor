@@ -32,7 +32,10 @@ use crate::theme;
 /// A `Background::Organic` at an explicit arrangement and cell scale, on
 /// Bowerbird's own authored tones and density — the direct-injection seam, so
 /// every claim below is about the MECHANISM rather than one world's literal.
-fn organic_bg(arrangement: theme::Arrangement, scale_px: f32) -> theme::Background {
+/// `pub(super)`: item 191's spacing/void laws (`bowerbird_spacing_item191.rs`)
+/// reuse this and the field reader below rather than duplicating them —
+/// same-behavior-same-code.
+pub(super) fn organic_bg(arrangement: theme::Arrangement, scale_px: f32) -> theme::Background {
     match theme::BOWERBIRD.background {
         theme::Background::Organic { tones, density, .. } => theme::Background::Organic {
             tones,
@@ -48,7 +51,7 @@ fn organic_bg(arrangement: theme::Arrangement, scale_px: f32) -> theme::Backgrou
 
 /// Open ground, the two object tones, and everything between them (a boundary
 /// pixel inside the shader's sub-pixel feather).
-const GROUND: u8 = 0;
+pub(super) const GROUND: u8 = 0;
 const EDGE: u8 = 3;
 
 /// The three plateau colours of a rendered field, DISCOVERED by frequency
@@ -56,7 +59,7 @@ const EDGE: u8 = 3;
 /// target re-encodes on write, so a host-side copy of that arithmetic would be
 /// a second implementation of the thing under test. Returned darkest-first, so
 /// index 0 is the open ground.
-fn plateau_tones(pixels: &[[u8; 4]]) -> [[u8; 4]; 3] {
+pub(super) fn plateau_tones(pixels: &[[u8; 4]]) -> [[u8; 4]; 3] {
     let mut counts: std::collections::HashMap<[u8; 4], usize> = std::collections::HashMap::new();
     for p in pixels {
         *counts.entry(*p).or_default() += 1;
@@ -78,7 +81,7 @@ fn plateau_tones(pixels: &[[u8; 4]]) -> [[u8; 4]; 3] {
 
 /// Label every pixel: `GROUND`, `1`/`2` for the two object tones, `EDGE` for
 /// anything else (the antialiased skirt).
-fn label_field(pixels: &[[u8; 4]], tones: [[u8; 4]; 3]) -> Vec<u8> {
+pub(super) fn label_field(pixels: &[[u8; 4]], tones: [[u8; 4]; 3]) -> Vec<u8> {
     pixels
         .iter()
         .map(|p| match tones.iter().position(|t| t == p) {
@@ -94,14 +97,14 @@ fn label_field(pixels: &[[u8; 4]], tones: [[u8; 4]; 3]) -> Vec<u8> {
 /// ordered by size (the tones themselves swap cluster to cluster), `cutout` the
 /// open-ground region their ink encloses.
 #[derive(Debug, Clone, Copy, Default)]
-struct Collection {
-    major_px: usize,
-    minor_px: usize,
-    cutout_px: usize,
-    width: u32,
-    height: u32,
-    cx: f32,
-    cy: f32,
+pub(super) struct Collection {
+    pub(super) major_px: usize,
+    pub(super) minor_px: usize,
+    pub(super) cutout_px: usize,
+    pub(super) width: u32,
+    pub(super) height: u32,
+    pub(super) cx: f32,
+    pub(super) cy: f32,
 }
 
 /// A real second piece: comfortably under the smallest companion the authored
@@ -112,8 +115,11 @@ const MIN_MINOR_PX: usize = 90;
 /// A real cut-out. Derived at the arrangement's own cell FLOOR, where the
 /// smallest authored cut-out (`ACCENT_LO * ANCHOR_LO * MIN_SCALE_PX` ~ 2.9px
 /// radius) keeps only a ~2px solid core once its antialiased skirt is taken
-/// off — so this gates a MISSING hole, not a small one. At Bowerbird's shipped
-/// 156px cell the same cut-outs measure five to ten times this.
+/// off — so this gates a MISSING hole, not a small one. At this file's own
+/// 156px reference cell (item 176's own scale; item 191 later opened
+/// Bowerbird's shipped `scale_px` to 195, read dynamically by
+/// `bowerbird_spacing_item191.rs` rather than duplicated here) the same
+/// cut-outs measure five to ten times this.
 const MIN_CUTOUT_PX: usize = 8;
 /// A real hierarchy. The authored companion is at most `COMPANION_HI` of the
 /// anchor radius, so even before the companion's own overlap is subtracted the
@@ -122,14 +128,14 @@ const MIN_CUTOUT_PX: usize = 8;
 const HIERARCHY_RATIO: f64 = 1.8;
 
 impl Collection {
-    fn has_three_roles(&self) -> bool {
+    pub(super) fn has_three_roles(&self) -> bool {
         self.minor_px >= MIN_MINOR_PX
             && self.cutout_px >= MIN_CUTOUT_PX
             && (self.major_px as f64) >= HIERARCHY_RATIO * self.minor_px as f64
             && self.minor_px > 2 * self.cutout_px
     }
 
-    fn describe(&self) -> String {
+    pub(super) fn describe(&self) -> String {
         format!(
             "major {}px, minor {}px, cut-out {}px, {}x{}px at ({:.0}, {:.0})",
             self.major_px, self.minor_px, self.cutout_px, self.width, self.height, self.cx, self.cy
@@ -209,7 +215,7 @@ fn outside_ground(labels: &[u8], w: usize, h: usize) -> Vec<bool> {
 /// Read every WHOLE collection out of a rendered field. Collections whose ink
 /// touches the canvas border are dropped: they are cropped by the viewport, not
 /// by the grammar, and a cropped collection has no honest role areas.
-fn read_collections(pixels: &[[u8; 4]], w: u32, h: u32) -> Vec<Collection> {
+pub(super) fn read_collections(pixels: &[[u8; 4]], w: u32, h: u32) -> Vec<Collection> {
     let (wi, hi) = (w as usize, h as usize);
     let tones = plateau_tones(pixels);
     let labels = label_field(pixels, tones);
@@ -286,10 +292,11 @@ fn read_collections(pixels: &[[u8; 4]], w: u32, h: u32) -> Vec<Collection> {
 
 const FIELD_W: u32 = 1800;
 const FIELD_H: u32 = 1200;
-/// A `FIELD_W x FIELD_H` canvas at the shipped 156px cell holds ~89 cells, ~10%
-/// of which are deliberately empty and ~40% of which touch the border and are
-/// dropped as cropped. Anything near or under this floor means the reader found
-/// almost nothing and every per-collection assertion below went vacuous.
+/// A `FIELD_W x FIELD_H` canvas at this file's 156px reference cell holds ~89
+/// cells, ~10% of which are deliberately empty and ~40% of which touch the
+/// border and are dropped as cropped. Anything near or under this floor means
+/// the reader found almost nothing and every per-collection assertion below
+/// went vacuous.
 const MIN_COLLECTIONS: usize = 25;
 
 /// The drift law's own canvas: several cells across in both axes, small enough
@@ -421,10 +428,10 @@ fn the_collection_reader_rejects_two_object_and_equal_object_fields() {
 }
 
 /// LAW (the axis a single-scale check would miss): the grammar must survive
-/// every cell scale a future Organic world could author, not only Bowerbird's
-/// shipped 156px. `32.0` is below the arrangement's own `FINDS_MIN_SCALE_PX`
-/// floor and must be CLAMPED up to it rather than aliasing into speckle, so it
-/// is swept here deliberately.
+/// every cell scale a future Organic world could author, not only this file's
+/// own 156px reference. `32.0` is below the arrangement's own
+/// `FINDS_MIN_SCALE_PX` floor and must be CLAMPED up to it rather than
+/// aliasing into speckle, so it is swept here deliberately.
 #[test]
 fn finds_holds_the_three_role_grammar_at_every_reachable_cell_scale() {
     let Some((device, queue)) = headless_dq() else {
@@ -816,11 +823,12 @@ fn finds_edges_stay_antialiased_and_crisp_at_1x_and_2x() {
 
 // --- The roster, and everything the arrangement must NOT touch --------------
 
-/// LAW (no-wildcard): the crisp arrangement ships DORMANT. Every world with an
-/// Organic ground carries `Masses` today, and every ground without one reports
-/// the inert profile scalar, so no other world's upload changes shape.
+/// LAW (no-wildcard): item 191 shipped the crisp arrangement — Bowerbird alone
+/// carries `Finds` now, `Masses` rides on as dormant reusable infrastructure
+/// (no world's literal), and every ground without a profile still reports the
+/// inert scalar, so no other world's upload changes shape.
 #[test]
-fn organic_arrangement_roster_is_masses_only_and_the_profile_slot_stays_inert() {
+fn organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays_inert() {
     for t in theme::THEMES {
         let arrangement = match t.background {
             theme::Background::Gradient { .. } => None,
@@ -837,8 +845,8 @@ fn organic_arrangement_roster_is_masses_only_and_the_profile_slot_stays_inert() 
         };
         assert_eq!(
             arrangement,
-            (t.name == "Bowerbird").then_some(theme::Arrangement::Masses),
-            "{}: the crisp arrangement is not shipped by any world yet",
+            (t.name == "Bowerbird").then_some(theme::Arrangement::Finds),
+            "{}: the crisp arrangement is not shipped where item 191 put it",
             t.name
         );
         assert_eq!(
@@ -880,25 +888,23 @@ fn both_arrangements_ride_the_one_shared_ambient_gate() {
     }
 }
 
-/// LAW: `Masses` uploads the SAME four params it did before the arrangement
-/// existed — the inert-default contract, checked at the packing seam every
-/// ground shares rather than at Bowerbird's literal.
+/// LAW: every ground's `profile` slot carries exactly its own theme-owned
+/// dial (Deckle's `Weave`, Organic's `Arrangement`), or the inert `0.0` for a
+/// ground with none — checked at the packing seam every ground shares, never
+/// at one world's literal. Before item 191 shipped `Finds`, this doubled as
+/// "every Organic-ground world carries the dormant `Masses`"; that held only
+/// because no world had picked `Finds` yet, a coincidence of the roster
+/// rather than a property of the packing seam, so it is not asserted here any
+/// more (`organic_arrangement_roster_is_bowerbird_finds_only_and_the_profile_slot_stays_inert`
+/// is the law that pins the roster itself).
 #[test]
 fn the_arrangement_rides_only_organics_own_param_slot() {
     for t in theme::THEMES {
         let desc = bg_desc_for(t.background);
-        if desc.shader != 8 {
-            assert_eq!(
-                desc.profile,
-                t.background.profile_mode(),
-                "{}: the profile slot must carry this ground's own dial",
-                t.name
-            );
-            continue;
-        }
         assert_eq!(
-            desc.profile, 0.0,
-            "{}: ships the dormant arrangement",
+            desc.profile,
+            t.background.profile_mode(),
+            "{}: the profile slot must carry this ground's own dial",
             t.name
         );
     }
