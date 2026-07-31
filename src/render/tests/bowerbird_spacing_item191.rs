@@ -219,8 +219,9 @@ fn measure_bowerbird_finds_distributions() {
                 let nn = nearest_neighbor_distances_px(&found, w * density, h * density, margin);
                 let (nn_mean, nn_max) = (mean(&nn) / density as f32, max_of(&nn) / density as f32);
                 println!(
-                    "{label:6} {density}x phase{pi}: n={:3} major_r={major:6.1} minor_r={minor:6.1} \
-                     cutout_r={cutout:5.1} nn_mean={nn_mean:6.1} nn_max={nn_max:6.1} (scale={scale})",
+                    "{label:6} {density}x phase{pi}: n={:3} major_r={major:6.1} \
+                     minor_r={minor:6.1} cutout_r={cutout:5.1} nn_mean={nn_mean:6.1} \
+                     nn_max={nn_max:6.1} (scale={scale})",
                     found.len()
                 );
             }
