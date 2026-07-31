@@ -14,7 +14,22 @@ jobs:
   linux:
     name: linux (build + test)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Item 196 (2026-08-01): this job was measured at 28.1m against the old
+    # 30m ceiling — 1.9m of headroom, and four of the last six mac/linux runs
+    # actually timed out (GitHub reports a timeout as `cancelled`, identical
+    # to a supersede). Two measured fixes land here: sccache installs AFTER
+    # the cache restore instead of compiling from source every run (was
+    # 4.0m of this job; near-zero once the restore supplies the binary), and
+    # tests/caret_punctuation_pixels.rs splits into five per-world `#[test]`s
+    # so cargo's default concurrent runner can parallelize what was one
+    # single-threaded 166s subprocess-spawn loop. 25m keeps real headroom
+    # over the reduced total while still catching the next growth spurt
+    # earlier than 30m would. Parallelizing the two keymap conventions as
+    # separate matrix legs (the largest remaining lever) is intentionally
+    # NOT done here: native-gate.sh's receipt is the sole authorization for
+    # "full native suite" and composing it from two split jobs is a contract
+    # change this task does not get to make alone (see the item).
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
@@ -37,10 +52,20 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: Swatinem/rust-cache@v2
+
+      # sccache installs AFTER the cache restore (item 196): install-sccache.sh
+      # short-circuits when the pinned version is already on PATH, but nothing
+      # puts it there before this step runs — so with this step first, every
+      # job did a full `cargo install sccache` (~4-7 wall-minutes) even though
+      # rust-cache's registry/target cache would have supplied cargo-machete
+      # and cargo-deny for free from the same restore, proven by those two
+      # installs measuring 0.0m right after it. Restoring first lets the
+      # install-sccache measurement decide whether the cache actually carries
+      # the sccache binary (`~/.cargo/bin`), which Swatinem/rust-cache@v2
+      # caches by default.
       - name: Install sccache
         run: scripts/install-sccache.sh
-
-      - uses: Swatinem/rust-cache@v2
 
       # The health command owns its exact tool version and every check. CI only
       # installs that requested checker before invoking the shared entry point.
@@ -89,12 +114,16 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - name: Install sccache
-        run: scripts/install-sccache.sh
-
       - uses: Swatinem/rust-cache@v2
         with:
           key: web
+
+      # sccache installs after the cache restore — see the linux job's
+      # comment (item 196): a full `cargo install sccache` ahead of the
+      # restore paid ~4-7 minutes every run regardless of whether the cache
+      # already carried the binary.
+      - name: Install sccache
+        run: scripts/install-sccache.sh
 
       - uses: actions/setup-node@v7
         with:
@@ -129,16 +158,24 @@ jobs:
   mac:
     name: mac (build + test)
     runs-on: macos-latest
-    timeout-minutes: 30
+    # Item 196 (2026-08-01): see the linux job's comment — same two fixes
+    # (sccache after cache restore, caret_punctuation_pixels.rs split into
+    # per-world tests). This job was measured at 29.9m against the old 30m
+    # ceiling, a pass by one second. 25m is the same reasoning as linux.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: Swatinem/rust-cache@v2
+
+      # sccache installs after the cache restore — see the linux job's
+      # comment (item 196): a full `cargo install sccache` ahead of the
+      # restore paid ~4-7 minutes every run regardless of whether the cache
+      # already carried the binary.
       - name: Install sccache
         run: scripts/install-sccache.sh
-
-      - uses: Swatinem/rust-cache@v2
 
       # This job is the only one that ever compiles `cfg(target_os = "macos")`
       # arms for real (About window, dock-icon adoption, menu bar,
@@ -196,10 +233,15 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: Swatinem/rust-cache@v2
+
+      # sccache installs after the cache restore — see the linux job's
+      # comment (item 196): a full `cargo install sccache` ahead of the
+      # restore paid ~4-7 minutes every run regardless of whether the cache
+      # already carried the binary — expensive here in particular, since this
+      # job otherwise only runs a 25s probe.
       - name: Install sccache
         run: scripts/install-sccache.sh
-
-      - uses: Swatinem/rust-cache@v2
 
       # Launches a SHORT headful --soak-gpu and propagates the binary's exit
       # status — the single verdict (presents floor / cycle contract / faults /

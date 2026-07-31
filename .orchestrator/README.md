@@ -166,15 +166,29 @@ once, at landing.
 - **Check `main`'s CI before pushing and after** —
   `gh run list --branch main --limit 1`. A green local train says nothing about
   the remote. While `main` is red, the repair is the only thing that ships.
-  **A `cancelled` run is not a pass — it is no verification at all.** A push
-  supersedes the previous run, so pushing faster than CI's ~30 minute cycle
-  leaves a chain of cancellations and no green anywhere. On 2026-07-31 two
-  consecutive trains landed that way and `main` went three pushes without a
-  verified run. Check for the last **successful** sha, not the last run:
+  **A `cancelled` run is not a pass — it is no verification at all.** Check for
+  the last **successful** sha, not the last run:
   `gh run list --branch main --limit 12 --json headSha,conclusion -q '.[] |
-  select(.conclusion=="success")'`. When a wave is landing quickly, let one run
-  finish before pushing the next — CI's linux job is the only thing that tests
-  on real Linux, which no local gate covers.
+  select(.conclusion=="success")'`.
+  **`cancelled` has two unrelated causes that read identically in the
+  conclusion field, and the fix is to check duration, not to slow down
+  pushing.** A genuine supersede (a newer push cancelled an in-flight run) is
+  usually short — it dies within minutes of the next push landing. GitHub also
+  reports a **timed-out** job as `cancelled`, with no separate status: item 196
+  (2026-08-01) found the orchestrator had misdiagnosed exactly this, twice,
+  attributing a string of cancellations to pushing faster than CI's cycle, when
+  four of the last six `mac`/`linux` runs had actually run the clock out on
+  `timeout-minutes: 30` (durations `30m21s`, `30m25s`, `30m18s`, `30m25s`
+  cancelled vs. `29m59s`, `27m05s` success — one of the two passes cleared the
+  wall by a single second). `gh run view <id> --json jobs` gives per-job
+  `startedAt`/`completedAt`; a `cancelled` job that ran close to its
+  `timeout-minutes` is a timeout, not a supersede, no matter how it was
+  triggered. Waiting longer between pushes never fixes a timeout — only
+  lowering the job's real cost or raising its ceiling does. When a wave is
+  landing quickly, still let one run finish before pushing the next — CI's
+  linux job is the only thing that tests on real Linux, which no local gate
+  covers — but do not assume a `cancelled` streak means "pushed too fast"
+  without checking the clock first.
 - **Keep the local toolchain level with CI's** — `rustup check`. CI tracks
   floating stable; a stale local clippy cannot see the lint it is pushing.
 
