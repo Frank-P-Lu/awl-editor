@@ -1449,8 +1449,14 @@ pub(crate) fn slant_offset(slant: &SlantProbe, row: usize) -> f32 {
     slant.px_per_row * row as f32
 }
 
+/// The deepest row's TOTAL inward step, as a magnitude — used to tax the width
+/// elision budgets against, never as a signed position. Item 131a: the probe's
+/// step is signed (which edge moves), but a mirrored (right-moving) stagger
+/// eats just as much usable width as a straight (left-moving) one, so the tax
+/// itself is always `>= 0`, `.abs()` of the signed step. Byte-identical to the
+/// pre-131a formula for every existing (positive-only) probe value.
 pub(crate) fn slant_max_offset(slant: &SlantProbe, n_rows: usize) -> f32 {
-    slant.px_per_row * n_rows.saturating_sub(1) as f32
+    slant.px_per_row.abs() * n_rows.saturating_sub(1) as f32
 }
 
 pub(crate) const BAR_OUTLINE_STROKE_PX: f32 = 1.5;

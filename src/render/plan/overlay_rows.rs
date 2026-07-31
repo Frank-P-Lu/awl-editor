@@ -26,17 +26,36 @@ pub(in crate::render) enum PlanLine {
 /// paints, the band the text clip admits, and the band a pointer must fall inside
 /// to select `item`. `item` is `None` for a section header (nothing to select).
 ///
-/// `dx` is the row's own HORIZONTAL offset from the content band's left edge —
-/// how far this row's whole composition (its glyph origin, its plate, its
-/// selected band, and the region a pointer must be inside to select it) is
-/// stepped in from `card_x`. `0.0` on every row of every shipping world today,
-/// which is why the whole field is a no-op there. It exists because a row
-/// composition that staggers rows horizontally is a real, already-drawable thing
-/// (the wild-menu slant probe draws one), and before this field the offset was
+/// `dx`/`dw` are the row's own HORIZONTAL EXTENT relative to the content
+/// band's own span `[card_x, card_x + card_w]` — how far this row's whole
+/// composition (its glyph origin, its plate, its selected band, and the
+/// region a pointer must be inside to select it) is stepped in from either
+/// edge: the row's drawn/clickable span is `[card_x + dx, card_x + card_w +
+/// dw]`. Both are `0.0` on every row of every shipping world today, which is
+/// why the whole pair is a no-op there. They exist because a row composition
+/// that staggers rows horizontally is a real, already-drawable thing (the
+/// wild-menu slant probe draws one), and before `dx` existed the offset was
 /// applied by the DRAW emitters alone while `row_at` kept testing the card's
-/// undisplaced x-span — so a staggered row was clickable where it was not drawn
-/// and not clickable where it was. DESIGN.md §8: drawn geometry and hit-test
-/// geometry have one owner.
+/// undisplaced x-span — so a staggered row was clickable where it was not
+/// drawn and not clickable where it was. DESIGN.md §8: drawn geometry and
+/// hit-test geometry have one owner.
+///
+/// ITEM 131a — ONE OFFSET COULD NOT EXPRESS THE MIRROR. Mangrove's descending
+/// `\` composition steps each successive row's LEFT edge further right, right
+/// edge flush (`dx > 0`, `dw == 0`) — the shape `dx` alone already described.
+/// Magpie's ascending `/` composition, with clusters right-aligned, steps each
+/// row's RIGHT edge further left, left edge flush (`dx == 0`, `dw < 0`) — the
+/// mirror image, which a single left-anchored offset cannot represent (moving
+/// `dx` negative would shift the row's origin left of the band, not narrow it
+/// from the right). `dw` is that second, independent edge: `[left_inset,
+/// right_inset]` and `dx`+`dw` are the same shape either way (an inset from
+/// each edge) — this crate keeps the existing `dx` name and adds `dw` as a
+/// width DELTA (`card_w + dw` is the row's own width) rather than a second
+/// `right_inset` magnitude, because every consumer already manipulates
+/// `(x, width)` pairs (`slant_bar_span`, `OverlayBarLayout::span`, the Pane
+/// band rect) — `dw` slots straight into the width term with no unit
+/// conversion at any call site, where a `right_inset` would need `card_w -
+/// right_inset` re-derived everywhere `width` is read.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(in crate::render) struct PlannedRow {
     pub display: usize,
@@ -44,6 +63,7 @@ pub(in crate::render) struct PlannedRow {
     pub top: f32,
     pub height: f32,
     pub dx: f32,
+    pub dw: f32,
 }
 
 impl PlannedRow {
@@ -76,10 +96,15 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// The GROUPED family's explicit display-line sequence, or `None` for a flat
     /// window.
     pub lines: Option<&'a [PlanLine]>,
-    /// The row composition's HORIZONTAL STEP: how much further in from the band's
-    /// left edge each successive display row's composition sits, in canvas px.
-    /// `0.0` for every shipping world (an upright list) — every planned `dx` is
-    /// then `0.0` and the whole feature is byte-identical.
+    /// The row composition's HORIZONTAL STEP, SIGNED, in canvas px per display
+    /// row. `0.0` for every shipping world (an upright list) — every planned
+    /// `dx`/`dw` is then `0.0` and the whole feature is byte-identical. Positive
+    /// plans a growing `dx` (left edge steps in, right edge flush — Mangrove's
+    /// shape); negative plans a growing-negative `dw` (right edge steps in, left
+    /// edge flush — Magpie's mirror). See [`PlannedRow`]'s doc for why one signed
+    /// input is enough: no named consumer needs both edges to move independently
+    /// at once, so this field stays the one owner of the composition's step
+    /// rather than shipping a second, unread axis.
     pub dx_per_row: f32,
 }
 
@@ -240,10 +265,17 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         0,
         input.lh,
     );
-    // A row's horizontal offset is planned exactly like its vertical one, off the
-    // same display index, so a composition that staggers rows cannot end up with
-    // the draw and the hit-test reading two different arithmetics.
-    let dx = |display: usize| input.dx_per_row * display as f32;
+    // A row's horizontal extent is planned exactly like its vertical one, off
+    // the same display index, so a composition that staggers rows cannot end up
+    // with the draw and the hit-test reading two different arithmetics.
+    //
+    // ITEM 131a — the ONE signed step splits into the two-sided extent here,
+    // and only here: the positive part grows `dx` (left edge steps in), the
+    // negative part grows `dw` (right edge steps in). Exactly one of the two is
+    // ever nonzero for a given `dx_per_row`, which is what lets both mirrored
+    // compositions share one input without a second knob.
+    let dx = |display: usize| input.dx_per_row.max(0.0) * display as f32;
+    let dw = |display: usize| input.dx_per_row.min(0.0) * display as f32;
     let rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
             .iter()
@@ -257,6 +289,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                 top: first_top + display as f32 * input.lh,
                 height: input.lh,
                 dx: dx(display),
+                dw: dw(display),
             })
             .collect(),
         None => (0..input.visible)
@@ -268,6 +301,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                     top: first_top + display as f32 * input.lh,
                     height: input.lh,
                     dx: dx(display),
+                    dw: dw(display),
                 }
             })
             .collect(),
@@ -395,11 +429,19 @@ impl OverlayRowPlan {
             .position(|r| py >= r.top && py < r.bottom())
     }
 
-    /// The planned HORIZONTAL OFFSET of display row `display` — `0.0` past the
+    /// The planned LEFT-edge inset of display row `display` — `0.0` past the
     /// band, and `0.0` on every row of every shipping world. The one door to a
-    /// row's x, exactly as [`Self::row_top`] is the one door to its y.
+    /// row's left x, exactly as [`Self::row_top`] is the one door to its y.
     pub(in crate::render) fn row_dx(&self, display: usize) -> f32 {
         self.rows.get(display).map_or(0.0, |r| r.dx)
+    }
+
+    /// The planned RIGHT-edge width delta of display row `display` (item 131a)
+    /// — `0.0` past the band, and `0.0` on every row of every shipping world.
+    /// The row's own right edge is `card_x + card_w + row_dw(display)`; a
+    /// mirrored (Magpie-shape) composition plans this negative, never `dx`.
+    pub(in crate::render) fn row_dw(&self, display: usize) -> f32 {
+        self.rows.get(display).map_or(0.0, |r| r.dw)
     }
 
     /// THE INTERACTION GEOMETRY — the `overlay_items` index a pointer at
@@ -408,15 +450,15 @@ impl OverlayRowPlan {
     /// [`PlannedRow`] slots the band is drawn from, so a click cannot land on a
     /// row other than the one under the pointer.
     ///
-    /// The x-test is PER ROW, not per card: a row's composition begins at its own
-    /// `card_x + dx` (the trailing edge stays the band's, which is where a
-    /// full-width plate keeps its right edge and a hug plate can never reach past).
-    /// With `dx == 0.0` — every shipping world — this is the card's own span,
-    /// verbatim.
+    /// The x-test is PER ROW, not per card: a row's composition spans its own
+    /// `[card_x + dx, card_x + card_w + dw]` (item 131a generalized this from a
+    /// left-only inset to both edges, for the mirrored composition where the
+    /// RIGHT edge is the one that steps in). With `dx == 0.0 && dw == 0.0` —
+    /// every shipping world — this is the card's own span, verbatim.
     pub(in crate::render) fn row_at(&self, px: f32, py: f32) -> Option<usize> {
         let display = self.display_at(py)?;
         let row = self.rows.get(display)?;
-        if px < self.card_x + row.dx || px > self.card_x + self.card_w {
+        if px < self.card_x + row.dx || px > self.card_x + self.card_w + row.dw {
             return None;
         }
         row.item

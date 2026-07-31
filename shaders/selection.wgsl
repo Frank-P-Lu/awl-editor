@@ -114,6 +114,22 @@ struct Instance {
     // `fs_invert`, which always writes pure white (the invert-blend trick
     // needs `src == 1.0` exactly — see its own doc below).
     @location(2) color: vec4<f32>,
+    // ITEM 131b — THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
+    // VERTEX POSITIONS are rotated onto, exactly mirroring `caret.wgsl`'s own
+    // `axis` field (down to the "so a diagonal streak draws as a true slant"
+    // reasoning that field's doc already carries). `(1.0, 0.0)` — upright, the
+    // construction default every existing consumer uploads via `prepare`/
+    // `prepare_multicolor` — leaves `rotated == local` below, so this is a
+    // total no-op for every one of them. Only `SelectionPipeline::
+    // prepare_rotated` ever uploads a non-inert value. The FRAGMENT stage never
+    // sees this: the SDF (`sd_round_rect`/`sd_card_rect`), the dither/halftone
+    // composites, and the shrunk-rect outline math all still run in the
+    // UNROTATED local frame (`in.local`/`in.hsize`, unchanged) — a rotated quad
+    // is still an upright rounded rect in its own frame, just seated at an
+    // angle in the world. `in.px` (the dither/halftone phase anchor) uses the
+    // ROTATED position, matching every existing (upright) consumer exactly
+    // when `axis == (1,0)`.
+    @location(3) axis: vec2<f32>,
 };
 
 struct VsOut {
@@ -140,8 +156,15 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     let corner = CORNERS[vid];
     // 1px margin so the antialiased edge is not clipped by the quad.
     let extent = inst.hsize + vec2<f32>(1.0, 1.0);
+    // `local` stays the rect's OWN (unrotated) frame — the SDF and every
+    // fragment-stage composite below run here, untouched by rotation. Only the
+    // vertex's WORLD position rotates onto `inst.axis` (item 131b, mirroring
+    // `caret.wgsl`'s identical rotate-the-position-not-the-shape split).
     let local = corner * extent;
-    let px = inst.center + local;
+    let ax = normalize(inst.axis);
+    let perp = vec2<f32>(-ax.y, ax.x);
+    let rotated = local.x * ax + local.y * perp;
+    let px = inst.center + rotated;
 
     let ndc = vec2<f32>(
         px.x / g.viewport.x * 2.0 - 1.0,
