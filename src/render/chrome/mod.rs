@@ -273,6 +273,9 @@ mod overlay;
 mod overlay_clamp;
 mod panel;
 // ITEM 114 — the SUMMONED WORKSPACE family: geometry, navigation rail, hit-test.
+// ITEM 116b — its two regions' shared box arithmetic, and the RELOCATED
+// DOCUMENT VIEWPORT one of them can become (`comparison_viewport`).
+mod comparison;
 mod workspace;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
