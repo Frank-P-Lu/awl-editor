@@ -100,12 +100,13 @@ fn rich_background_json(bg: crate::theme::Background, lava_phase: f32) -> String
             angle,
             density,
             banded
-        ), Background::Organic { tones, scale_px, density } => format!(
+        ), Background::Organic { tones, arrangement, scale_px, density } => format!(
             concat!(
                 "{{\"kind\":\"organic\",\"tones\":[{},{},{}],",
-                "\"scale_px\":{},\"density\":{},\"phase\":{}}}"
+                "\"arrangement\":\"{}\",\"scale_px\":{},\"density\":{},\"phase\":{}}}"
             ),
-            hex(tones[0]), hex(tones[1]), hex(tones[2]), scale_px, density, lava_phase
+            hex(tones[0]), hex(tones[1]), hex(tones[2]), arrangement.as_str(),
+            scale_px, density, lava_phase
         ), Background::Deckle {
             ground, layer, deckle, weave, anchor, period_px, wander_px, density
         } => format!(
