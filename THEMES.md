@@ -1062,6 +1062,30 @@ user sees, and every taste call on a ground was quietly density-dependent.
   abutment rule folds it into the row PITCH, so a physical thickness would make
   the field's own pitch density-dependent. Item 176's `FINDS_EDGE_AA_PX` (the
   0.75px crisp edge) is the canonical sampling quantity and did not move.
+- **KITE'S WARPED GRID joined the table in item 194, and moved one line of it.**
+  Nine quantities: the ring pitch where the rings clear the page, the bend gain,
+  the coverage, the route's pose triple, the section/aspect ratios, the drawn line
+  weights with the radius floor, and the page-edge/narrow-margin reaches are all
+  COMPOSITION; `WARP_AA_PX` (the 1.0px line skirt) is the ground's only SAMPLING
+  quantity. The interesting one is the MOIRE BOUND
+  (`WARP_ALIAS_FADE_LO_PX`/`HI_PX`), which shipped physical and was reclassified
+  LOGICAL: its motivation is a sampling one, but what it DECIDES is how deep the
+  tunnel is drawn — how many cross-rings the composition holds — so in physical
+  pixels the display would be choosing that, which is the same tension
+  `FINDS_MIN_SCALE_PX` and `DECKLE_MIN_PITCH_PX` were already settled on. Logical
+  is also the conservative reading: at 2x those logical pixels carry twice the
+  device samples, so the moire is further away, not nearer.
+- **THE `fwidth` TRAP, which is the item's own bug in miniature.** A converging
+  lattice draws its lines by dividing the distance to a level set by
+  `fwidth(coord)` — and `fwidth` differentiates against the RASTERISER's grid
+  however logical the coordinate handed to it was. So everything derived from it
+  is PHYSICAL by accident, which is exactly the shape item 186 exists to prevent,
+  and it slipped straight past `to_logical` because the fragment position really
+  had been converted. The warped grid's composition correlated at 0.767 against a
+  0.90 floor until both sides were named: the drawn line WEIGHT converts UP into
+  the device space `fwidth` measures in, the AA skirt is already there, and the
+  moire bound converts back DOWN into the logical space it is authored in. Any
+  future ground that reads a screen-space derivative inherits this.
 - **Two grounds were already right, by a different mechanism.** `Bands` and
   `Lava` author their composition as FRACTIONS of the viewport, so they carry no
   pixel pitch to convert; the item's premise does not reach them. Both are named
@@ -1087,7 +1111,7 @@ user sees, and every taste call on a ground was quietly density-dependent.
   doubled-width ramp gets gentler per pixel and vanishes under 8-bit
   quantization instead of reading as wider. Measuring the ramp's mean RUN LENGTH
   on a high-contrast literal is what made it able to fail.
-### The warped-grid law (`Background::WarpedGrid` — item 132)
+### The warped-grid law (`Background::WarpedGrid` — items 132 and 194)
 
 Kite's ground, and the roster's only TRAVELLING field. It is an explicit
 statement-world exception to `DESIGN.md` §4's motion restraint, NOT permission to
@@ -1095,49 +1119,125 @@ increase motion elsewhere: no other world's ground changed, and the mechanism ha
 an inert default (`Background::tunnel_mode` is `0.0` for every ground with no
 tunnel, the `LavaEdge::mask_mode` precedent).
 
-- **NOT A 3-D ENGINE, and not a per-world code path.** A tunnel in perspective is
-  fully described by a polar-logarithmic reading of the screen plane around one
-  vanishing point: cross-section RINGS are level sets of `log(radius)` (so their
-  projected spacing tightens with depth exactly as perspective requires) and
-  longitudinal RAILS are level sets of the polar angle. Forward travel is one
-  SUBTRACTION from the ring coordinate. No geometry, no depth buffer, no new
-  pipeline — the same single fullscreen-triangle draw every other ground rides,
-  with a handful of added fragment ALU ops.
-- **THE OUTWARD DISTORTION is a property of the shader, not a dial.** Composed
-  literally, the vanishing region sits behind the opaque writing page and the
-  reader sees only the tunnel's far outer walls — losing the convergence and the
-  whole top/bottom bend, i.e. every cue that says "travelling". So a fixed share
-  of the page column's own half-width is REMOVED from every horizontal distance,
-  pulling the useful curvature out into the margins. A world cannot author a
-  composition that hides its own vanishing region (item 89's abutment lesson).
-  `theme::Tunnel::Centred` keeps the literal placement as the explicit MUTATION
-  arm — the `DeckleAnchor::Page` precedent — so the outward laws can be watched
-  failing.
-- **ONE JOURNEY, TWO SLICES, with no per-side rule.** Steering moves the ONE
-  shared vanishing point. Ring pitch grows as `ln2*(spacing+r)/k` and rail pitch
-  as `pi*r/k`, so a left bend — which moves the point left — shrinks the left
-  margin's radii and TIGHTENS its lines while the right margin's grow and OPEN;
-  a climb moves the point up and the top/bottom halves respond in opposition,
-  identically in both margins. Every one of those readings falls out of the
-  geometry. Law: `render::tests::backgrounds_item132::
-  a_turn_compresses_one_margin_and_opens_the_other_coherently` — measured as ink
-  DENSITY, because a COUNT of lines crossed per margin falls on BOTH sides during
-  a turn (a margin spans less of the log-radial coordinate even as its lines
-  tighten), and a count law read "both margins opened" on a field that visibly
-  does the right thing.
+- **NOT A 3-D ENGINE, and not a per-world code path — but it IS a real ray cast.**
+  The camera sits inside a tube of radius `R` whose AXIS is a parabolic arc: a
+  wall point at depth `z` and angle `theta` is `C(z) + R*e(theta)` with
+  `C(z) = (kappa/2) z^2`, and it projects to `p = B/u + u*e(theta)` where
+  `u = f*R/z` is the cross-section's PROJECTED radius. Two consequences are the
+  whole of item 194: a RING (constant `u`) is an exact ellipse of radius `u`
+  centred at `B/u`, so a bend MOVES THE WHOLE OPENING off-centre as a unit; and a
+  RAIL (constant `theta`) is the curve `u -> B/u + u*e(theta)`, which curves
+  toward the same destination every ring centre is migrating toward, because both
+  are the same `B/u`. Forward travel is one SUBTRACTION from the ring coordinate.
+  No geometry, no depth buffer, no new pipeline — the same single
+  fullscreen-triangle draw every other ground rides.
+- **THE DEFECT ITEM 194 REPAIRED, because the shape of it is the lesson.** Item
+  132's first cut removed a fixed share of the page half-width from every
+  horizontal distance and called that "distorting the curvature outward". It is
+  not: subtracting a constant from `|x - vanishing point|` RE-PLANTS the tunnel's
+  own vanishing region at each page edge, once per margin. The straight pose
+  therefore read as two separately cropped circles, and the first turn was a
+  correctness failure rather than a taste one — the moved vanishing point drove
+  the inside margin's distance onto the proportional floor (a sharp off-centre
+  pinch) while the outside margin stayed a broad section, and the two disagreed
+  about the horizon, the curvature and the direction of travel. The live human
+  motion review failed the world on exactly that, in those words. There is no
+  version of "pull the picture outward" that is one camera: a camera has one
+  vanishing region, and if the page hides it, the honest answer is that the page
+  hides it.
+- **SO THE COMPOSITION IS SIZED INSTEAD, and it is a property of the shader (item
+  89's abutment lesson).** The vanishing region stays behind the page — a cylinder
+  continues behind an opaque page, it is not re-planted at its edges — and what is
+  composed is the SECTION's size: `WARP_SECTION_PAGE_RATIO` makes the anchor
+  ring's diameter three page widths, so the page hides ONE THIRD of the
+  cross-section and each margin shows one third directly, and therefore reads two
+  thirds — its own third plus the third behind the page that both margins imply.
+  `WARP_ASPECT_FIT` then flattens the section (ONE affine transform of the entire
+  picture, so it is still one tube seen by one camera) until its flank at the page
+  edge lands inside the room. Neither is a dial: a world cannot author a
+  composition that hides its own section, and cannot author one that disagrees
+  between the margins. Measured over rendered pixels at the canonical geometry:
+  the page hides **0.3334** of a 2850px section against a 950px page, and the two
+  margins independently agree on that section to 0.05%. Law:
+  `render::tests::warp_tunnel_item194::
+  the_page_hides_a_third_of_the_cross_section_both_margins_crop`, which TRACES the
+  outermost major cross-ring across each margin and solves the arc for the section
+  it belongs to — recovering the opening from a FLANK rather than an apex is not a
+  convenience: a section three page widths across cannot fit its apex in any
+  margin narrower than the page, so the eye infers the opening from the arc and so
+  does the law.
+- **A PREMISE THE ITEM GOT WRONG, recorded because the arithmetic is forced.**
+  "Two thirds of the cross-section VISIBLE in each margin" is not reachable at
+  awl's page geometry under any placement of one shared cylinder: showing a third
+  of a section `D` wide needs a margin at least `D/3` wide, and `D/3` is the page
+  column itself, which is always the widest region on the canvas. What each margin
+  can show DIRECTLY is a third; the two thirds is what it READS, its own third
+  plus the shared third behind the page (inclusion-exclusion: `2/3 + 2/3 - 1/3 =
+  1`). That is the figure the law asserts, and the number it measures is exact.
+- **SOLVING IT IS A BRACKETED BISECTION, not a fixed point.** Inverting
+  `p = B/u + u*e` means finding the LARGEST `u` with `h(u) = |p - B/u| - u = 0`
+  (the nearest wall along the ray — which is also correct occlusion, so a hard
+  bend genuinely shows the far wall passing behind the near one). Three facts make
+  that a closed bracket: `h` is positive as `u` approaches zero, negative past the
+  nearest wall (a second sign change would BE a larger root), and
+  `u <= (|p| + sqrt(|p|^2 + 4|B|))/2` by the triangle inequality. The obvious
+  alternative — iterating `w = p - B/|w|` from `w = p` — has contraction factor
+  `|B|/|w|^2` and diverges into a knot of aliasing exactly where a committed bend
+  swings the far end into a margin, which is where the picture matters most
+  (measured: a 14x14 tile at 72% ink). Two Newton steps polish the bracket so the
+  field stays smooth enough for `fwidth` to draw a constant-width line through it.
+- **ONE JOURNEY, TWO CROPS, with no per-side rule at all.** `fs_main` has already
+  returned for every fragment inside the page column, so the two margins are one
+  projected cylinder CROPPED — exactly what an opaque page does to a view. Nothing
+  in `warped_grid_rgb` asks which side it is on except the page-edge fade and the
+  narrow-margin simplification, which are legibility MASKS on one field rather
+  than cameras. Steering enters once, as ONE bend vector for the whole picture:
+  the near rings barely move (`|B|/u` is small where `u` is large) while the far
+  ones swing hard, which IS the near wall broadening continuously around the
+  outside of the turn while the far wall compresses continuously around the
+  inside. `theme::Tunnel::PerMargin` keeps the DEFECT as data — each margin
+  re-deriving the steering from its own side of the page — as the explicit
+  MUTATION arm (the `DeckleAnchor::Page` precedent), so the coherence laws can be
+  watched failing. Laws: `warp_tunnel_item194::
+  both_margins_are_one_camera_at_every_route_pose`, which scores each margin's ink
+  against the route's own camera IN PIXELS (the distance from a mark to the
+  nearest line that camera predicts, divided by the local gradient — in lattice
+  units a candidate that predicts a DENSE lattice wins for free, and a wrong
+  steering predicts exactly that by swinging the far end into the margin being
+  measured); worst margin of the worst pose reads 0.94px against a 1.6px bound,
+  with every materially different camera missing by 3x or more. Horizon, curvature
+  and vanishing direction are each a function of that one pose, so one comparison
+  settles all three of the disagreements the review reported. Item 132's own
+  `a_turn_compresses_one_margin_and_opens_the_other_coherently` still holds, still
+  measured as ink DENSITY: a COUNT of lines crossed per margin falls on BOTH sides
+  during a turn (a margin spans less of the log-radial coordinate even as its
+  lines tighten), and a count law once read "both margins opened" on a field that
+  visibly does the right thing.
+- **THE HOST MODEL THE COHERENCE LAW FITS WITH, and the term that cannot be left
+  out.** Item 132 deliberately kept the ROUTE out of WGSL (its consumer is Rust,
+  so a mirror could only drift); the PROJECTION is the opposite case — the GPU is
+  its only consumer — so the `lava`/`dither` precedent applies and the test file
+  carries a model held to the shader's own constants by name. Its forward-travel
+  term is load-bearing: forward travel is a pure subtraction from the ring
+  coordinate, so omitting it shifts every predicted ring by its FRACTIONAL part
+  and a perfectly coherent field reads as explained by nothing (measured 5.3px,
+  against 0.90px once corrected). The straight pose hid it completely, because
+  there the term is zero.
 - **NO-MOIRE IS STRUCTURAL, and the law that proves it needed the axis nobody
-  thought of.** The pulled distance keeps a PROPORTIONAL floor, never a constant
-  one (a constant pins a band of `x` to one coordinate, and a lattice on a
-  coordinate that has stopped moving collapses into an aliasing fan — a real
-  defect a left-turn capture found), and the radius is SOFTENED by a fixed core,
-  which bounds the projected pitch of both families everywhere. Both lattices
-  additionally retire INTO the vanishing region. The aliasing law's swept axis is
-  a WIDE canvas at a NARROW measure, where a committed bend swings the vanishing
-  point PAST the page edge and INTO a margin; every other geometry keeps it behind
-  the page, where the proportional floor alone suffices, which is why they all
-  stayed green over a deliberate removal of the radius floor — and why the law,
-  once swept properly, then failed on the shipped shader (70.9% ink in one 14x14
-  tile) and forced the both-families retirement. Law:
+  thought of.** The projected radius keeps a FLOOR (`WARP_CORE_FRAC` of the
+  anchor), which bounds the projected pitch of both families everywhere — ring
+  pitch grows as `u*ln2/rpo` and rail pitch as `pi*u/rails` — and both lattices
+  additionally retire INTO the far end, because the far end of a real tunnel is
+  haze rather than a solid lattice. The aliasing law's swept axis is a WIDE canvas
+  at a NARROW measure, where a committed bend swings the far end PAST the page
+  edge and INTO a margin; every other geometry keeps it behind the page, which is
+  why they all stayed green over a deliberate removal of the radius floor — and
+  why the law, once swept properly, then failed on the shipped shader (70.9% ink
+  in one 14x14 tile) and forced the both-families retirement. Item 194 re-earned
+  it twice more: the divergent fixed point above showed as 72% ink in the same
+  law, and the fold seam a hard bend leaves (where the far wall passes behind the
+  near one, and `fwidth` explodes) is dissolved by the same alias fade, widened to
+  4.5..9.0 logical px. Law:
   `the_lattice_never_saturates_a_patch_of_margin_at_any_scale`.
 - **THE ROUTE LIVES IN RUST ALONE** (`src/warpgrid.rs`): seven ~58-second legs,
   each HOLDING one authored direction for 55% of its length and then easing into
@@ -1188,9 +1288,11 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   construction identical to its neighbour's start) or a raw phase in seconds.
 - **Live-only, and never claimed verified here:** whether the travel FEELS calm
   at the shared ~10 fps ambient cadence, whether a steering transition reads as
-  seamless over real seconds, and whether the field is comfortable in peripheral
-  vision for a long writing session. The harness proves the arithmetic and the
-  pixels; the user is the oracle for the feel.
+  seamless over real seconds, whether the field is comfortable in peripheral
+  vision for a long writing session — and, after item 194, whether a bend READS
+  as one opening shifting off-centre. The harness proves the arithmetic and the
+  pixels; the user is the oracle for the feel, and item 132's own Verify requires
+  a live multi-minute human motion review that no law here can close.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 
