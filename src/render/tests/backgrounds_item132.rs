@@ -495,8 +495,8 @@ fn both_margins_carry_a_real_field_at_every_swept_geometry() {
 /// opened" and been green on a field that visibly does the right thing.
 ///
 /// This is the law the item's "rather than two unrelated animations" clause
-/// names, and `Tunnel::Centred` is what proves it can fail (see the mutation
-/// law).
+/// names, and `Tunnel::PerMargin` is what proves it can fail (see
+/// `warp_tunnel_item194::warp_per_margin_steering_breaks_the_shared_camera`).
 #[test]
 fn a_turn_compresses_one_margin_and_opens_the_other_coherently() {
     let Some((device, queue)) = headless_dq() else {
@@ -1108,17 +1108,20 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         // what makes the projection unconditional at every bend.
         "if (length(q - bend / mid) - mid > 0.0) { lo = mid; } else { hi = mid; }",
         "let w = q - bend / max(d, core);",
-        // The section is derived from the PAGE, never authored: the page hides
-        // one third of the cross-section by construction.
-        "let anchor = WARP_SECTION_PAGE_RATIO * page_half;",
+        // ITEM 194 ROUND 2 — the scale is the ROOM's and nothing else's. A page
+        // column reaching this line is the defect the live review failed the
+        // world on, and it now lives only inside the `PageScaled` mutation arm.
+        "var anchor = WARP_SECTION_ROOM_FRAC * max(vp.y, 1.0);",
+        // ...and the two windows onto it have ONE placement owner.
+        "let hide = select(warp_window_hide(span, page_half, anchor), page_half, page_scaled);",
         // ONE bend vector for the whole picture — not one per margin.
         "let bend = WARP_BEND_GAIN * curvature * anchor * anchor * steer;",
         // The radius floor: what bounds both lattices' projected density.
         "let u = max(u_raw, core);",
         // Both families retire into the far end rather than crowding into a knot.
         "let core_fade = smoothstep(core * WARP_CORE_FADE_LO, core * WARP_CORE_FADE_HI, u_raw);",
-        // The mutation arm, and the ONLY place a side test may reach the camera.
-        "if (g.params.w >= WARP_TUNNEL_PER_MARGIN) {",
+        // The mutation arm, and the ONLY place a side test may reach the STEERING.
+        "if (g.params.w >= WARP_TUNNEL_PER_MARGIN && !page_scaled) {",
     ] {
         assert!(
             wgsl.contains(expr),

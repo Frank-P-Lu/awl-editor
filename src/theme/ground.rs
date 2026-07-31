@@ -115,31 +115,42 @@ pub enum Background {
 /// * [`Tunnel::Shared`] — one camera pose, one projected cylinder, cropped at
 ///   the page. A bend moves and warps the shared opening as a unit; nothing
 ///   pinches or steers per margin. The only profile a world should author.
-/// * [`Tunnel::PerMargin`] — the DEFECT item 194 repaired, kept as data: each
-///   margin re-derives the steering from its own side of the page, so the two
-///   openings disagree on horizon, curvature and vanishing direction. It exists
-///   as the explicit MUTATION arm (the `DeckleAnchor::Page` precedent) — the
-///   turning-coherence laws are only evidence if the composition they name can
-///   be reverted and watched failing, by name.
+/// * [`Tunnel::PerMargin`] — the DEFECT item 194 ROUND 1 repaired, kept as data:
+///   each margin re-derives the steering from its own side of the page, so the
+///   two openings disagree on horizon, curvature and vanishing direction.
+/// * [`Tunnel::PageScaled`] — the DEFECT item 194 ROUND 2 repaired, kept as
+///   data: the projection's own SCALE is derived from the page column
+///   (`anchor = 3 * page_half`, with the section flattened to whatever flank the
+///   page edge cuts), so widening the page rescales and squashes the world
+///   instead of sliding the two windows across a fixed one. This is round 1's
+///   shipped geometry exactly, and the live review failed it.
+///
+/// Both defects exist as explicit MUTATION arms (the `DeckleAnchor::Page`
+/// precedent): a law about a composition is only evidence if the composition can
+/// be reverted and the law watched failing, by name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tunnel {
     Shared,
     PerMargin,
+    PageScaled,
 }
 
 impl Tunnel {
     /// The scalar the WGSL `warped_grid_rgb` branches on (`params.w`). MUST
-    /// match `shaders/background.wgsl`'s own `WARP_TUNNEL_PER_MARGIN` threshold.
+    /// match `shaders/background.wgsl`'s own `WARP_TUNNEL_PER_MARGIN` and
+    /// `WARP_TUNNEL_PAGE_SCALED` thresholds, which bracket each arm.
     pub fn mode(self) -> f32 {
         match self {
             Tunnel::Shared => 0.0,
             Tunnel::PerMargin => 1.0,
+            Tunnel::PageScaled => 2.0,
         }
     }
     pub fn as_str(self) -> &'static str {
         match self {
             Tunnel::Shared => "shared",
             Tunnel::PerMargin => "per-margin",
+            Tunnel::PageScaled => "page-scaled",
         }
     }
 }

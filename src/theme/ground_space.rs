@@ -154,13 +154,16 @@ impl Background {
                 (Weave::Strata, _) => DECKLE_STRATA,
                 (Weave::Fibres, _) => DECKLE_FIBRES,
             },
-            // Both tunnel profiles author the SAME numbers in the same spaces —
-            // `PerMargin` differs only in WHERE the steering comes from, which
-            // is a composition mistake rather than a coordinate one — so the
-            // arm is spelled out rather than wildcarded and answers alike.
+            // All three tunnel profiles author the SAME numbers in the same
+            // spaces — `PerMargin` differs only in WHERE the steering comes
+            // from and `PageScaled` in WHAT the scale is measured against, and
+            // both of those are composition mistakes rather than coordinate
+            // ones — so the arms are spelled out rather than wildcarded and
+            // answer alike.
             Background::WarpedGrid { tunnel, .. } => match tunnel {
                 Tunnel::Shared => WARPED_GRID,
                 Tunnel::PerMargin => WARPED_GRID,
+                Tunnel::PageScaled => WARPED_GRID,
             },
         }
     }

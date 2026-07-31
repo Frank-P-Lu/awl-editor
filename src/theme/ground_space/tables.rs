@@ -237,11 +237,12 @@ pub(super) const DECKLE_STRATA: &[GroundQuantity] = &[
 
 pub(super) const WARPED_GRID: &[GroundQuantity] = &[
     logical(
-        "spacing_px (the ring pitch where the rings clear the page)",
-        "the projected PITCH of the cross-rings at the one radius the reader can \
-         actually measure them against — the page edge they emerge from. It is \
-         what `WARP_RPO_MIN..MAX` bounds and what sets how many rings a margin \
-         holds, which is the composition itself",
+        "spacing_px (the ring pitch at WARP_RING_PITCH_AT of the anchor)",
+        "the projected PITCH of the cross-rings at one fixed place on a section \
+         that itself never rescales — so it is a length the reader measures \
+         against the marks beside it. It is what `WARP_RPO_MIN..MAX` bounds and \
+         what sets how many rings a margin holds, which is the composition \
+         itself",
     ),
     logical(
         "curvature (the bend gain)",
@@ -265,13 +266,23 @@ pub(super) const WARPED_GRID: &[GroundQuantity] = &[
          `crate::warpgrid::route_pose`; the shader carries no route arithmetic",
     ),
     logical(
-        "WARP_SECTION_PAGE_RATIO (the anchor ring's diameter, in page widths) \
-         and WARP_ASPECT_FIT (its flank's height, in viewport fractions)",
-        "the composition target of item 194 — the page hides one third of the \
-         cross-section and each margin shows one third directly. BOTH are \
-         authored as ratios of quantities the host measured (the page column, \
-         the viewport), so they are density-independent by construction, the \
-         same mechanism `Bands` and `Lava` are named here for",
+        "WARP_SECTION_ROOM_FRAC (the anchor ring's radius, in room heights)",
+        "the whole size and shape of the cross-section, and after item 194 round \
+         2 the whole of its SCALE: a ratio of a quantity the host measured (the \
+         room), so it is density-independent by construction — the same \
+         mechanism `Bands` and `Lava` are named here for. Round 1 authored it \
+         against the PAGE COLUMN instead, which is what let a wider page \
+         rescale and squash the world; that geometry survives only inside \
+         `Tunnel::PageScaled`, as the mutation arm",
+    ),
+    logical(
+        "WARP_WINDOW_FULL / WARP_WINDOW_TIGHT / WARP_WINDOW_STRADDLE (where each \
+         margin's window sits on the one projection)",
+        "the first two are margin widths measured in ANCHORS and the third a \
+         fraction of a margin's own width — all three dimensionless ratios of \
+         composition quantities, so they carry no pixel to convert. They move \
+         the WINDOW, never the world, which is exactly why the projection's \
+         aspect ratio survives the whole adaptive-column range",
     ),
     logical(
         "the ring/rail half-widths (0.45px minor, 1.00px major) and \
