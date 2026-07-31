@@ -373,17 +373,36 @@ impl App {
     /// the one edge this fires on.
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.cursor_px;
-        let (row_hit, lens_hit, card) = self
+        let (row_hit, lens_hit, rail_hit, card) = self
             .gpu
             .as_ref()
             .map(|g| {
                 (
                     g.pipeline.overlay_row_at(px, py),
                     g.pipeline.overlay_lens_at(px, py),
+                    g.pipeline.workspace_rail_at(px, py),
                     g.pipeline.overlay_card_rect(),
                 )
             })
-            .unwrap_or((None, None, None));
+            .unwrap_or((None, None, None, None));
+
+        // ITEM 114 — A CLICK IN THE WORKSPACE'S NAVIGATION RAIL means exactly what
+        // `↵` on that rail entry means: show me this category, and put me in it.
+        // Both halves go through their owners — the picker's own lens setter, and
+        // the lifecycle's focus transition — so the pointer and the keyboard reach
+        // one state, never two that agree by coincidence. Resolved before the row
+        // hit-test, though they cannot overlap: the row band stops at the pane.
+        if let Some(rail_idx) = rail_hit {
+            if let Some(ov) = self.workspace_state.overlay_mut() {
+                ov.set_facet_lens(rail_idx);
+            }
+            self.workspace_state.focus_workspace_detail();
+            self.sync_view(true);
+            if let Some(gpu) = self.gpu.as_ref() {
+                gpu.window.request_redraw();
+            }
+            return;
+        }
 
         // FACETED PICKER: a click on a LENS label switches the facet (keeping the
         // selection), then previews + re-tints — the pointing counterpart to LEFT/RIGHT.
@@ -689,7 +708,11 @@ impl App {
         // hit-test the strip's click handling uses (`overlay_click`), so a hovered
         // facet can never disagree with a clickable one. `None` for a non-faceting
         // picker (no strip drawn) or off the strip row.
-        let over_clickable_lens = overlay_open && gpu.pipeline.overlay_lens_at(px, py).is_some();
+        // ITEM 114 — a workspace's RAIL entry is clickable, so it earns the same
+        // pointing hand through the same owner its click handling uses.
+        let over_clickable_lens = overlay_open
+            && (gpu.pipeline.overlay_lens_at(px, py).is_some()
+                || gpu.pipeline.workspace_rail_at(px, py).is_some());
         let over_query_input = overlay_open && gpu.pipeline.over_overlay_query(px, py);
         // A clickable MARGIN-OUTLINE row reads as click-to-jump (the pointing hand),
         // reusing the outline's OWN row geometry (`outline_hit_line`, which folds in

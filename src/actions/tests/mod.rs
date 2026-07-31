@@ -21,6 +21,9 @@ mod pickers_nav;
 mod recoil_flinch;
 mod save_feedback;
 mod settings_reach;
+/// ITEM 114 — the summoned workspace's state, focus and back, in the lifecycle's
+/// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
+mod workspace_item114;
 
 /// A tiny in-memory tree for the browse navigator: root has `docs/` (dir) and
 /// `README.md` (file); `docs/` has `guide.md` (file) and `api/` (dir). The
@@ -193,6 +196,17 @@ pub(super) fn settings_overlay() -> OverlayState {
     ov
 }
 
+/// ITEM 114 — a Settings WORKSPACE standing in its CONTENT pane, which is where
+/// the picker's own row keys live. A fresh summon lands on the navigation RAIL
+/// (the workspace's primary list), so a test that means to drive a settings ROW
+/// walks in the way a user does — `→` through the real lifecycle — rather than
+/// writing the focus stage behind the lifecycle's back.
+pub(super) fn settings_journey() -> crate::overlay::Journey {
+    let mut journey = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    settings_drive(&mut journey, &Action::ForwardChar);
+    journey
+}
+
 /// ITEM 94 — like [`settings_drive`], but with the caller's OWN zoom scalar
 /// threaded through `ActionCtx`, so a test can assert what a rail step did to the
 /// live value (the same field the live App mirrors back after `apply_transition`).
@@ -233,6 +247,17 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
     let mut make_overlay = |k: OverlayKind| match k {
         OverlayKind::Settings => Some(settings_overlay()),
         OverlayKind::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
+        // ITEM 114 — the Theme audition is one of the two fast editor-backed
+        // pickers a Settings row descends into, so the shared drive builds it
+        // the same way `overlay::build` does (every world + the active index,
+        // which is what a revert restores).
+        OverlayKind::Theme => Some(OverlayState::new_theme(
+            crate::theme::THEMES
+                .iter()
+                .map(|t| t.name.to_string())
+                .collect(),
+            crate::theme::active_index(),
+        )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
             crate::frontmatter::cjk_priority()
                 .first()

@@ -936,7 +936,8 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
         lens_strip: Vec::new(),
         sections: Vec::new(),
         preview_id: None,
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         empty: None,
         show_hidden: false,
@@ -1009,7 +1010,8 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
         lens_strip: Vec::new(),
         sections: Vec::new(),
         preview_id: None,
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         empty: None,
         show_hidden: false,
@@ -1106,7 +1108,8 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
         lens_strip: Vec::new(),
         sections: Vec::new(),
         preview_id: None,
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         empty: None,
         show_hidden: false,
@@ -1656,7 +1659,7 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
         "Comparing with 2 hr ago",
     );
 
-    let history_overlay = |diff_focus: bool| OverlayInfo {
+    let history_overlay = |detail_focus: bool| OverlayInfo {
         // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
@@ -1678,7 +1681,8 @@ fn diff_panel_card_dressing_is_visible_around_the_column_in_every_world() {
         lens_strip: Vec::new(),
         sections: Vec::new(),
         preview_id: Some("1700000000000".into()),
-        diff_focus,
+        workspace: false,
+        detail_focus,
         diff_scroll: 0,
         empty: None,
         show_hidden: false,
@@ -1872,7 +1876,8 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
             lens_strip: Vec::new(),
             sections: Vec::new(),
             preview_id: None,
-            diff_focus: false,
+            workspace: false,
+            detail_focus: false,
             diff_scroll: 0,
             empty: None,
             show_hidden: false,

@@ -45,9 +45,13 @@ impl TextPipeline {
         // band, both ink columns, the accessory plates and the sidecar give ONE
         // answer to "which row is selected" at every intermediate frame.
         let vis = self.resolve_visual_selection(&geom, &plan);
+        // ITEM 114 — the workspace's navigation rail shapes into its own column
+        // buffer before the content pane does, so its measured mark rect is in
+        // hand by the time `overlay_draw_card` asks the facet-mark owner for it.
+        let has_rail = self.workspace_shape_rail(&geom, &plan);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
         self.overlay_upload_text(
-            device, queue, width, height, &geom, &plan, has_right, ink, muted, placard,
+            device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
         )?;
         self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
         self.overlay_place_caret(queue, width, height, &geom);
@@ -96,6 +100,10 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &[]);
+        // ITEM 114 — the workspace rail's placement and its active mark park with
+        // the card, so the frame after a workspace closes carries neither.
+        self.workspace_rail_placement = None;
+        self.workspace_rail_mark = None;
         // V6 P5: the Chips ghost pills park empty too, so a closed picker carries
         // no stale ghost-pill quads into the next frame.
         self.overlay_facet_ghost
@@ -197,6 +205,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
         has_right: bool,
+        has_rail: bool,
         ink: glyphon::Color,
         muted: glyphon::Color,
         placard: Option<(f32, f32, f32, f32)>,
@@ -348,6 +357,19 @@ impl TextPipeline {
                     custom_glyphs: &[],
                 });
             }
+        }
+        // ITEM 114 — the navigation rail, in the card's own z-slot.
+        if has_rail && let Some((left, top, bounds)) = self.workspace_rail_area(geom, width, height)
+        {
+            areas.push(TextArea {
+                buffer: &self.workspace_rail_buffer,
+                left,
+                top,
+                scale: 1.0,
+                bounds,
+                default_color: muted,
+                custom_glyphs: &[],
+            });
         }
         if has_right {
             areas.push(TextArea {

@@ -233,7 +233,7 @@ fn rebind_menu_summon_capture_key_and_reset() {
 #[test]
 fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
     // Row 0 is "Caret style" (a Picker); NextLine → row 1, "Page mode" (a Toggle).
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     settings_drive(&mut overlay, &Action::NextLine);
     assert_eq!(overlay.card().unwrap().selected_value(), Some("Page mode"));
     // Enter on a TOGGLE row signals SettingToggle for its config key and leaves
@@ -279,7 +279,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
         "the toggle roster changed size — update this sweep deliberately"
     );
     for row in toggle_rows {
-        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+        let mut overlay = super::settings_journey();
         let idx = crate::settings::visible_rows()
             .iter()
             .position(|r| r.name == row.name)
@@ -317,7 +317,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
 /// PALETTE-filtered corpus (`settings::palette_names`/`palette_value_cells`),
 /// which excludes any settings row covered by an available command
 /// (`settings::COVERED_BY` — see the "one palette door per destination" fix).
-fn command_overlay_with_settings() -> OverlayState {
+pub(super) fn command_overlay_with_settings() -> OverlayState {
     let mut ov = OverlayState::new_command(
         crate::commands::visible_names(),
         crate::commands::visible_effective_bindings(&[], &[]),
@@ -546,7 +546,7 @@ fn union_palette_ordinary_command_row_still_runs() {
 #[test]
 fn settings_action_row_opens_config_as_text_and_closes() {
     // Fuzzy-filter to the Advanced "Edit config as text" ACTION row.
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "edit config".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -562,7 +562,7 @@ fn settings_action_row_opens_config_as_text_and_closes() {
 
 #[test]
 fn settings_report_problem_row_reuses_the_report_effect_and_closes() {
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "report problem".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -581,7 +581,7 @@ fn settings_report_problem_row_reuses_the_report_effect_and_closes() {
 fn settings_picker_row_opens_sub_picker_with_breadcrumb_then_returns() {
     // Row 0 "Caret style" is a Picker → Enter swaps to the Caret sub-picker,
     // stamping a return_to = Settings breadcrumb (single-level).
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert_eq!(eff, Effect::None);
     {
@@ -606,7 +606,7 @@ fn settings_picker_row_opens_sub_picker_with_breadcrumb_then_returns() {
 #[test]
 fn settings_value_row_arms_inline_edit_then_commits_typed_value() {
     // Fuzzy-filter to "Page width (prose)" (a Value row).
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "prose".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -656,7 +656,7 @@ fn settings_value_row_arms_inline_edit_then_commits_typed_value() {
 
 #[test]
 fn settings_value_edit_cancel_restores_the_cell_and_keeps_menu_open() {
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "prose".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -690,7 +690,7 @@ fn settings_value_edit_cancel_restores_the_cell_and_keeps_menu_open() {
 #[test]
 fn settings_path_row_opens_navigator_with_breadcrumb_then_picks_the_named_key() {
     // Fuzzy-filter to "Default folder" (a Path row).
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "default folder".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -742,7 +742,7 @@ fn settings_path_navigator_keeps_breadcrumb_across_descend() {
     // breadcrumb), then DESCEND into a folder (Enter, now that Project facets).
     // The breadcrumb must survive the rebuild so the eventual "." pick still
     // writes the named key and returns to Settings.
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "default folder".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -776,7 +776,7 @@ fn settings_cjk_row_opens_language_picker_and_promotes_on_commit() {
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
 
     // "Ambiguous CJK reads as" is now a PICKER row (the List row grown up).
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "ambiguous".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -1194,7 +1194,7 @@ fn palette_query_word_motion_routes_through_apply_transition_list_move_untouched
 
 /// Fuzzy-filter the Settings menu down to the Zoom row and return the overlay.
 fn zoom_row_overlay() -> crate::overlay::Journey {
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "zoom".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -1265,7 +1265,7 @@ fn a_range_row_saturates_at_both_ends_of_its_authored_band() {
 #[test]
 fn left_right_still_cycle_the_lens_on_every_non_range_row() {
     let _g = crate::testlock::serial();
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     for c in "page mode".chars() {
         settings_drive(&mut overlay, &Action::InsertChar(c));
     }
@@ -1298,7 +1298,7 @@ fn enter_on_a_range_row_still_opens_the_exact_numeric_entry() {
         "the sweep includes both widths and percentages"
     );
     for row in rows {
-        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+        let mut overlay = super::settings_journey();
         for c in row.name.to_lowercase().chars() {
             settings_drive(&mut overlay, &Action::InsertChar(c));
         }
@@ -1380,7 +1380,7 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
     for row in range_rows {
         let key = crate::settings::value_key(row.id).expect("a Range row always has a key");
         let spec = crate::settings::range_spec(row.id).expect("a Range row always has a spec");
-        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+        let mut overlay = super::settings_journey();
         for c in row.name.to_lowercase().chars() {
             settings_drive(&mut overlay, &Action::InsertChar(c));
         }
@@ -1456,7 +1456,7 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
     for i in 0..rows {
         // A FRESH overlay per row: a lens cycle regroups the list, so each row is
         // judged from the same clean start rather than from the last row's aftermath.
-        let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+        let mut overlay = super::settings_journey();
         for _ in 0..i {
             settings_drive(&mut overlay, &Action::NextLine);
         }
@@ -1504,11 +1504,13 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
                     "{name}: the rail step genuinely moved"
                 );
             }
+            // ITEM 114 — on a workspace the lens IS the navigation rail's
+            // category, and the footer says the word the rail shows.
             false => assert_eq!(
                 advertised,
-                format!("{} lens", crate::overlay::ARROWS_LR),
-                "{name}: RIGHT cycled the lens, so the foot line must still say lens \
-                 (it said {advertised:?}) — full line: {hint:?}"
+                format!("{} category", crate::overlay::ARROWS_LR),
+                "{name}: RIGHT stepped the category rail, so the foot line must say \
+                 category (it said {advertised:?}) — full line: {hint:?}"
             ),
         }
     }

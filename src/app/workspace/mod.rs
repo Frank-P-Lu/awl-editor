@@ -222,6 +222,21 @@ impl WorkspaceState {
         self.search.as_mut()
     }
 
+    /// FOCUS the summoned workspace's DETAIL stage — its content pane — leaving
+    /// it there if it is already focused. The pointer's counterpart to `↵` on a
+    /// navigation-rail entry (`app/input/mouse.rs::overlay_click`): a rail click
+    /// means "show me this category, and put me in it" at every width, and a
+    /// click that landed you somewhere different from the key that means the same
+    /// thing would be two behaviours.
+    ///
+    /// A named transition rather than a `core_slots` borrow, because it is one:
+    /// the ladder's rule is that every write here has a name.
+    pub(in crate::app) fn focus_workspace_detail(&mut self) {
+        if self.journey.card().is_some_and(|card| !card.detail_focus) {
+            self.journey.toggle_detail();
+        }
+    }
+
     /// Close the find/replace panel. Called on every buffer swap (opening a
     /// file, starting a fresh document) — a panel's matches are indices into
     /// the buffer it was opened against, so it can never survive the swap.

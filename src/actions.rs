@@ -14,6 +14,7 @@ mod motion; // the oracle-aware caret motions + page scroll + search open
 mod overlay_nav; // the modal overlay intercept + browse-path helpers + live preview
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
 mod rebind; // the game-style rebind-menu key handling
+mod workspace_nav; // ITEM 114 — the workspace's two-region keys + the Cmd-P deep link
 use edit::*;
 pub use effects::*;
 use flinch::*;

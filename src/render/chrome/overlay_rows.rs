@@ -8,7 +8,7 @@
 
 use super::*;
 
-const FACET_CHIP_RADIUS: f32 = 6.0;
+pub(super) const FACET_CHIP_RADIUS: f32 = 6.0;
 
 impl TextPipeline {
     /// TEST HOOK: total shaped glyphs the overlay text renderer would draw this
@@ -69,6 +69,14 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
+        // ITEM 114 — A WORKSPACE IS ONE SURFACE. Item 50's split composition
+        // carves a card's query beat into a separate upper plate; that is a
+        // small-card gesture, and run across a workspace it would cut the
+        // navigation rail in half at an arbitrary height. A room does not have a
+        // seam through its wall.
+        if geom.workspace {
+            return vec![full];
+        }
         if !matches!(
             crate::render::effective_pane_split(),
             theme::PaneSplit::Split
@@ -197,6 +205,12 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
+        // ITEM 114 — a WORKSPACE'S RAIL takes this same "active lens mark" slot,
+        // and takes it whole: see `workspace::prepare_rail_mark`.
+        if geom.workspace {
+            self.prepare_rail_mark(device, queue, width, height, geom);
+            return;
+        }
         // PER-ITEM LIST SURFACES round: `Text` (default) keeps the content-ink
         // hairline byte-identically; `Band` recolors the ACTIVE mark to the
         // selected-row band VALUE (never amber) and rounds it into a pill.

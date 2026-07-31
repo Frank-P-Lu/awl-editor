@@ -104,10 +104,23 @@ fn the_whole_journey_leaves_the_document_byte_identical() {
     assert_eq!(journey.card().unwrap().kind, OverlayKind::Caret);
     assert_eq!(journey.parked_kind(), Some(OverlayKind::Settings));
     drive_on(&mut journey, &mut buffer, &Action::NextLine);
-    // Revert the audition; the workspace resumes.
+    // Revert the audition; the workspace resumes ON ITS CONTENT PANE — a child
+    // is opened from a row, so returning to the rail would lose the place the
+    // whole suspend/resume pair exists to keep.
     drive_on(&mut journey, &mut buffer, &Action::Cancel);
     assert_eq!(journey.card().unwrap().kind, OverlayKind::Settings);
-    // And leave.
+    assert!(
+        journey.card().unwrap().detail_focus,
+        "resumed in the content pane, where the row it descended from lives"
+    );
+    // And leave: back to the rail, then out (item 114 — a workspace's detail
+    // stage takes a BACK before it takes an exit; the table's own arm).
+    drive_on(&mut journey, &mut buffer, &Action::Cancel);
+    assert_eq!(
+        journey.card().map(|o| o.kind),
+        Some(OverlayKind::Settings),
+        "the first Esc off the content pane is a BACK to the rail, not an exit"
+    );
     drive_on(&mut journey, &mut buffer, &Action::Cancel);
     assert!(journey.card().is_none(), "the journey ended in the editor");
 

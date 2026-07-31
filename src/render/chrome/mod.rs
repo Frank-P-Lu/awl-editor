@@ -211,6 +211,22 @@ pub(super) struct OverlayGeom {
     pub(super) text_top: f32,
     pub(super) text_w: f32,
     card_narrow: bool,
+    /// ITEM 114 — this card is drawn as a SUMMONED WORKSPACE. `false` for every
+    /// contextual card, which keeps every arm reading it byte-identical there.
+    /// The family's own doc is `render/chrome/workspace.rs`.
+    pub(super) workspace: bool,
+    /// The navigation RAIL's COLUMN (`[x, w]`), or `None` when none is drawn.
+    /// Only the column: its vertical grid comes from the ROW PLAN's band origin
+    /// (`workspace_rail_box`), so a rail entry and the row beside it share a line.
+    pub(super) rail: Option<[f32; 2]>,
+    /// The CONTENT BAND's horizontal extent — read through `band_x`/`band_w`,
+    /// never directly, so a contextual card gets its card and a workspace its
+    /// pane from one owner.
+    pub(super) pane_x: f32,
+    pub(super) pane_w: f32,
+    /// Does the workspace's CONTENT pane hold focus (rather than its rail)? The
+    /// one input to the focus cue. Always `false` off a workspace.
+    pub(super) rows_focused: bool,
 }
 
 impl OverlayGeom {
@@ -237,6 +253,11 @@ impl OverlayGeom {
             text_top: 0.0,
             text_w: 0.0,
             card_narrow: false,
+            workspace: false,
+            rail: None,
+            pane_x: 0.0,
+            pane_w: 0.0,
+            rows_focused: false,
         }
     }
 }
@@ -249,6 +270,8 @@ impl OverlayGeom {
 mod overlay;
 mod overlay_clamp;
 mod panel;
+// ITEM 114 — the SUMMONED WORKSPACE family: geometry, navigation rail, hit-test.
+mod workspace;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
 pub(in crate::render) use overlay::{
@@ -415,7 +438,7 @@ impl TextPipeline {
         // touch larger than the card and draws BEHIND it (painter's order in
         // `render.rs`: shadow → border → card), so only the rim peeks out.
         if let Some([x, y, w, h]) = rect {
-            let focused = self.diff_panel_focus;
+            let focused = self.overlay_detail_focus;
             self.diffpanel_border.set_color(if focused {
                 theme::base_content().rgba_bytes()
             } else {

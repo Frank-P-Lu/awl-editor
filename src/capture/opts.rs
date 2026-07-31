@@ -142,10 +142,17 @@ pub struct OverlayInfo {
     /// other mode / the empty-state row. Emitted as `overlay.preview_id` so a
     /// `--keys`-driven history preview is assertable from the sidecar.
     pub preview_id: Option<String>,
-    /// DIFF-AS-PREVIEW (History only): whether keyboard FOCUS sits in the diff
-    /// PANEL (Tab pressed — ↑/↓ then scroll the diff; the panel border
-    /// strengthens). Emitted as `overlay.detail_focus`; always false elsewhere.
-    pub diff_focus: bool,
+    /// ITEM 114 — is this card drawn as a SUMMONED WORKSPACE (the viewport, with a
+    /// navigation rail beside its content) rather than a contextual card? Emitted
+    /// as `overlay.workspace`. When it is true, `lens_strip` IS the rail — the
+    /// same category data, stood on its end — so there is no second array to read.
+    pub workspace: bool,
+    /// Does the summoned surface's DETAIL stage hold the keyboard? For History's
+    /// diff-as-preview that is the diff panel (↑/↓ scroll it; its border
+    /// strengthens); for item 114's Settings workspace it is the content pane
+    /// beside the rail. One fact, one field: emitted as `overlay.detail_focus`,
+    /// and false for every card with no second region.
+    pub detail_focus: bool,
     /// DIFF-AS-PREVIEW (History only): the diff panel's scroll in VISUAL ROWS
     /// (PgUp/PgDn / panel ↑/↓ / the wheel over the page). Emitted as
     /// `overlay.diff_scroll`; always 0 elsewhere.

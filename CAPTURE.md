@@ -533,7 +533,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/190` (`/191` timeline, `/192` held)
+## The sidecar JSON — schema `awl-capture/191` (`/192` timeline, `/193` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -596,6 +596,17 @@ theme-owned profile `"strata"`/`"fibres"`, `/189`); `page.background`'s
 `organic` arm gaining `arrangement` (item 176 — the ground's own theme-owned
 profile, `"masses"` today, `"finds"` reserved for the crisp three-object
 collected-treasure field, `/190`); and
+`overlay.workspace` + the `overlay.diff_focus` → `overlay.detail_focus` rename
+(item 114's summoned workspace, `/191`): `overlay.workspace` is `true` when the
+summoned surface is drawn as a WORKSPACE — it takes the viewport, carries a
+navigation rail, and leaves the document as a quiet backdrop — rather than as a
+contextual card. When it is true, `overlay.lens_strip` IS that rail (the same
+`[label, active]` pairs, presented as a column instead of a strip) and
+`overlay.sections` is empty, because the rail names the active category once
+instead of repeating it as a header over the only bucket it lets through. The
+focus field was renamed because it was never diff-specific: it has always meant
+"the summoned surface's DETAIL stage holds the keyboard", which for History is
+its diff panel and for Settings is the content pane beside the rail; and
 `overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the
