@@ -77,6 +77,14 @@ impl App {
     ///     live from the config on demand).
     ///     Persistence rides the ONE `persist_pref` owner (its mirror-match now covers
     ///     every key here), so there is no bespoke per-toggle writer to drift.
+    ///
+    /// The read/negate/set core itself (item 193) lives in ONE place,
+    /// [`crate::settings::flip_toggle_global`], shared with the replay
+    /// interpreter (`main/run/settings_effects.rs::interpret_setting_toggle`)
+    /// — this method keeps only what is genuinely App's: the `keymap`/
+    /// `date_format` special cases (neither is a boolean flip) and the LIVE
+    /// tail below (gpu resize, `sync_view`, `run_spellcheck_now`), none of
+    /// which a headless replay has a pipeline for.
     pub(in crate::app) fn setting_toggle(&mut self, key: &str) {
         if key == "keymap" {
             self.toggle_keymap_flavor();
@@ -86,41 +94,9 @@ impl App {
             self.cycle_date_format();
             return;
         }
-        // Read the CURRENT value from the SAME owner the readout reads, then negate.
-        let now = match key {
-            "page_mode" => crate::page::page_on(),
-            "typewriter_scroll" => crate::typewriter::typewriter_on(),
-            "wysiwyg" => crate::markdown::wysiwyg_on(),
-            "popover" => crate::popover::popover_on(),
-            "inline_images" => crate::markdown::inline_images_on(),
-            "code_ligatures" => crate::render::code_ligatures_on(),
-            "spellcheck" => crate::spell::spellcheck_on(),
-            "writing_nits" => crate::nits::nits_on(),
-            "autosave" => self.config.autosave_on(),
-            "history" => self.config.history_on(),
-            "session_restore" => self.config.session_restore_on(),
-            "outline" => crate::outline::outline_on(),
-            "menu_bar" => crate::menubar::menu_bar_on(),
-            "reduce_motion" => crate::motion::reduced(),
-            "file_visibility" => crate::file_visibility::all_on(),
-            _ => return, // unknown key: a calm no-op
+        let Some(next) = crate::settings::flip_toggle_global(key, &self.config) else {
+            return; // unknown key: a calm no-op
         };
-        let next = !now;
-        match key {
-            "page_mode" => crate::page::set_page_on(next),
-            "typewriter_scroll" => crate::typewriter::set_typewriter_on(next),
-            "wysiwyg" => crate::markdown::set_wysiwyg_on(next),
-            "popover" => crate::popover::set_popover_on(next),
-            "inline_images" => crate::markdown::set_inline_images_on(next),
-            "code_ligatures" => crate::render::set_code_ligatures_on(next),
-            "spellcheck" => crate::spell::set_spellcheck_on(next),
-            "writing_nits" => crate::nits::set_nits_on(next),
-            "outline" => crate::outline::set_outline_on(next),
-            "reduce_motion" => crate::motion::set_reduced(next),
-            "menu_bar" => crate::menubar::set_menu_bar_on(next),
-            "file_visibility" => crate::file_visibility::set_all_on(next),
-            _ => {} // mechanism-B: config-only, applied on read
-        }
         self.persist_pref(key, if next { "true" } else { "false" });
         match key {
             "page_mode" | "wysiwyg" | "inline_images" => {
