@@ -68,7 +68,7 @@ impl<'a> ReplaySession<'a> {
             }
             actions::Effect::OverlayAccept(kind, value) => {
                 if kind == crate::overlay::OverlayKind::Goto {
-                    let path = crate::index::resolve(self.root, &value);
+                    let path = crate::index::resolve(&self.root, &value);
                     let new_key = crate::buffers::BufferKey::path(&path);
                     if crate::buffers::BufferKey::of(self.buffer).as_ref() != Some(&new_key) {
                         park_active(self.buffer, &mut self.registry);
@@ -78,6 +78,14 @@ impl<'a> ReplaySession<'a> {
                         };
                         crate::page::set_measure(self.config.measure_for(self.buffer.page_class()));
                     }
+                }
+                // SWITCH-PROJECT (queue item 189): re-scope root/workspace/corpus
+                // to the ACCEPTED root BEFORE recording the accept, so every chord
+                // the caller applies afterward (Cmd-O, Browse, the asset scan) reads
+                // the new tree — the sidecar's own re-derivation (`run::project_info`,
+                // item 183) and this session's internal state can no longer disagree.
+                if kind == crate::overlay::OverlayKind::Project {
+                    self.resync_project_location(std::path::PathBuf::from(&value));
                 }
                 self.accept = Some((kind, value));
             }

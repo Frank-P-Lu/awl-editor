@@ -7,6 +7,14 @@ opened, nothing animates, and the same input produces the same output. An agent
 verifies a change by reading the sidecar JSON (and, if it must, eyeballing the
 PNG) — never by driving a GUI.
 
+**Where this contract STOPS: `docs/harness-reach.md`.** A capture drives the
+shared core (`actions::apply_transition`), never the live winit `App`, so a
+transition the `App` owns can be classified Unsupported and skipped — and a
+Verify clause that asks for a capture over one of those is asking for something
+that cannot exist (queue items 180, 183). That map names the boundary per
+effect and per picker, lists what stays live-only, and says which tier to use
+instead. Read it before promising a capture oracle over `App` state.
+
 ## How to invoke a capture (non-interactively)
 
 The cargo invocation must be prefixed with the toolchain PATH on this machine:
@@ -525,7 +533,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/188` (`/189` timeline, `/190` held)
+## The sidecar JSON — schema `awl-capture/190` (`/191` timeline, `/192` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -584,7 +592,10 @@ block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 and Gumtree both moved to a repeating chevron ground, `/183`);
 `page.background`'s `deckle` arm (item 158's Paperbark — `{kind, ground, layer,
 deckle, weave, anchor, period_px, wander_px, density, static}`, where `weave` is the
-theme-owned profile `"strata"`/`"fibres"`, `/189`); and
+theme-owned profile `"strata"`/`"fibres"`, `/189`); `page.background`'s
+`organic` arm gaining `arrangement` (item 176 — the ground's own theme-owned
+profile, `"masses"` today, `"finds"` reserved for the crisp three-object
+collected-treasure field, `/190`); and
 `overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the
@@ -1213,7 +1224,7 @@ world.)
 | `spellcheck`   | GLOBAL spell-check on/off; default `true`. `false` silences every squiggle (prose and scoped code strings/comments alike) and makes the spell-suggest picker a no-op. Set via `--config` (`spellcheck = false`) or the "Toggle Spellcheck" palette command |
 | `date_format`  | INSERT DATE (schema `/178`): `{ format, example }` — the active `crate::dateformat::DateFormat`'s persisted slug (`"ddmmyy"`/`"mmddyy"`/`"iso"`/`"yyyymmdd"`/`"dmonthyyyy"`; default `"ddmmyy"`) and that format rendered against the FIXED placeholder civil date (2009-03-07 — a headless capture has no clock, so "today" is always this same date). Set via `--config` (`date_format = "iso"`) or the Settings menu's "Date format" cycling row. `example` for the default is `"07/03/09"` |
 | `text_origin`  | top-left pixel of the first glyph row (`left` = the page column left, centered in page mode; `16.0` edge-to-edge) |
-| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` today, `"fibres"` reserved)) |
+| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` today, `"fibres"` reserved), or `{kind:"organic", tones:[c0,c1,c2], arrangement, scale_px, density, phase}` (Bowerbird — `arrangement` is that ground's theme-owned profile, `"masses"` today, `"finds"` reserved)) |
 | `focus`        | FOCUS MODE: `mode` (`off`/`paragraph`/`sentence`) + `active_start`/`active_end` (char offsets of the full-ink unit, `null` when off) |
 | `wysiwyg`      | WYSIWYG conceal: `{ on, concealed }`. `on` mirrors the sticky `wysiwyg` config pref (default `true`). `concealed` is `[start_byte, end_byte, "kind"]` ranges the renderer drew transparent THIS frame — `"heading"`/`"emphasis"`/`"code"`/`"highlight"` (LINE-scoped: revealed only on the caret's own line OR a line the active selection touches) or `"fence"`/`"frontmatter"` (BLOCK-scoped: revealed only with the caret anywhere inside the block, or the selection touching any line inside it — a frontmatter block reuses the `fence` rule verbatim, see schema `/92`; selection reveal, 2026-07-22, no schema bump — see `render::spans::wysiwyg_reveals`). `"table"` (schema `/163`-ish, see the `tables` narrative above) NEVER leaves `concealed` in place — a selected/caret-touched table row instead swaps to the `xray` float mechanism; `tables[].revealed` and the render-only `xray` state are the ones to check for a table. Empty when `on` is false or nothing is concealed this frame |
 | `doc_lang`     | i18n round (schema `/92`): the document's own frontmatter `lang:` tag (`"ja"`/`"zh-Hans"`/`"zh-Hant"`/`"ko"`/`"en"`), or `null` for an untagged/non-markdown document |

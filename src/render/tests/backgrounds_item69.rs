@@ -52,7 +52,7 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
         amplitude_px: bg.amplitude_px(),
         density: bg.density(),
         banded: bg.zigzag_banded(),
-        weave: bg.weave_mode(),
+        profile: bg.profile_mode(),
         deckle_anchor: bg.deckle_anchor_mode(),
     }
 }

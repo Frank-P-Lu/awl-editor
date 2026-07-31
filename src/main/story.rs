@@ -61,18 +61,13 @@ pub(crate) fn run_storyboard(
     }
     // Same project resolution as capture_screenshot, inside the sandbox.
     let active_root = crate::run::resolve_root(&root, &file);
-    let proj = crate::project::Project::resolve(&active_root);
     let corpus = crate::index::build_index(&active_root);
-    let effective_workspace = crate::run::resolve_workspace(&workspace, &active_root);
-    let project = capture::ProjectInfo {
-        root: active_root.clone(),
-        name: proj.name.clone(),
-        branch: proj.branch.clone(),
-        dirty: proj.dirty,
-        default_folder: Some(default_folder.clone()),
-        workspace: Some(effective_workspace.clone()),
-        keymap_flavor: config.keymap_flavor().config_name(),
-    };
+    let project = crate::run::project_info(
+        &active_root,
+        &workspace,
+        Some(default_folder.as_path()),
+        &config,
+    );
     let mut buffer = crate::run::load_buffer(&file);
     // Sticky page measure for the OPENING buffer's own class (mirrors the
     // replay Goto arm / `App::sync_page_measure`).
@@ -92,7 +87,7 @@ pub(crate) fn run_storyboard(
         &mut buffer,
         &corpus,
         &active_root,
-        Some(effective_workspace.as_path()),
+        workspace.as_deref(),
         &config,
         oracle.as_mut(),
         &mut km,

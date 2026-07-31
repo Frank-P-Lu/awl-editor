@@ -99,10 +99,13 @@ def load_manifest(
     return expected, failures
 
 
-def load_file_size_marks(path: Path = MANIFEST) -> tuple[dict[str, int], list[str]]:
+def load_file_size_marks(
+    path: Path = MANIFEST,
+) -> tuple[dict[str, int], dict[str, str], list[str]]:
     data = tomllib.loads(path.read_text())
     failures: list[str] = []
     marks: dict[str, int] = {}
+    reasons: dict[str, str] = {}
     for entry in data.get("file_size_mark", []):
         missing = {"file", "lines"} - entry.keys()
         if missing:
@@ -119,8 +122,104 @@ def load_file_size_marks(path: Path = MANIFEST) -> tuple[dict[str, int], list[st
         if file in marks:
             failures.append(f"code-health: duplicate file-size mark for {file}")
             continue
+        reason = entry.get("reason")
+        if reason is not None:
+            if not isinstance(reason, str) or not reason.strip():
+                failures.append(f"code-health: empty file-size-mark reason for {file}")
+            else:
+                reasons[file] = reason
         marks[file] = lines
-    return marks, failures
+    return marks, reasons, failures
+
+
+def previous_marks(
+    manifest_path: str = "scripts/code-health.toml", head_ref: str = "HEAD"
+) -> tuple[dict[str, int] | None, str]:
+    """The file-size-mark table already committed on `main`, and a status
+    naming whether that comparison means anything.
+
+    Deliberately not the frozen BASELINE commit: marks did not exist that far
+    back (`git show BASELINE:scripts/code-health.toml` has no such path), and
+    BASELINE's own file sizes are the separate, much larger ceiling
+    `check_structural` enforces directly against history.
+
+    Status is one of:
+      "ok"           — `head_ref` differs from the resolved `main`/
+                        `origin/main` commit, so the returned table is a real
+                        prior state and a raise against it is meaningful.
+      "unresolvable" — neither `main` nor `origin/main` resolved (a shallow
+                        or detached checkout, or `head_ref` itself doesn't
+                        resolve). Skips the audit rather than failing every
+                        worker's gate — the same tolerance code-health.sh
+                        already grants its own Linux-target Clippy arm when
+                        that target isn't installed.
+      "head_is_main" — `head_ref` already IS the resolved commit, so there is
+                        no prior branch state to diff against: `main`'s
+                        manifest and the one being checked are the same
+                        object, and a raise can never be observed no matter
+                        what the table says. This is not a clean audit, it is
+                        a vacuous one, and it is the *normal* state in two of
+                        the three places this script runs on this
+                        push-straight-to-`main` repo: CI's `code-health.sh`
+                        job (always HEAD-on-`main`) and the merge train's
+                        post-merge candidate. The raise audit has real force
+                        in exactly one place — a worker's worktree branch,
+                        checked before landing, which is also where item 132
+                        would have been caught.
+
+    `head_ref` defaults to `HEAD` and is only overridden by a caller proving
+    the `head_is_main` behavior without actually checking out `main`.
+    """
+    ref_sha = None
+    for ref in ("main", "origin/main"):
+        try:
+            ref_sha = git("rev-parse", ref).strip()
+            break
+        except subprocess.CalledProcessError:
+            continue
+    if ref_sha is None:
+        return None, "unresolvable"
+    try:
+        head_sha = git("rev-parse", head_ref).strip()
+    except subprocess.CalledProcessError:
+        return None, "unresolvable"
+    if ref_sha == head_sha:
+        return None, "head_is_main"
+    text = git("show", f"{ref_sha}:{manifest_path}")
+    data = tomllib.loads(text)
+    marks = {
+        entry["file"]: entry["lines"]
+        for entry in data.get("file_size_mark", [])
+        if isinstance(entry.get("file"), str) and isinstance(entry.get("lines"), int)
+    }
+    return marks, "ok"
+
+
+def check_mark_raises(
+    marks: dict[str, int], reasons: dict[str, str], previous: dict[str, int] | None
+) -> list[str]:
+    """A mark may rise only with a reason recorded for that raise.
+
+    Never exceeding the frozen baseline is `check_structural`'s job, checked
+    directly against that fixed commit. This is the other half of the real
+    invariant: a raise below that baseline is only legitimate when growth is
+    unavoidable at a single-owner seam, and that judgment must be recorded,
+    not silent. `previous` is `None` for either non-"ok" status `previous_marks`
+    can return; neither an unresolvable reference nor a vacuous HEAD-is-main
+    comparison can prove a raise happened, so neither is treated as one.
+    """
+    if previous is None:
+        return []
+    failures: list[str] = []
+    for file, lines in sorted(marks.items()):
+        prior = previous.get(file)
+        if prior is not None and lines > prior and not reasons.get(file, "").strip():
+            failures.append(
+                f"{file}: file-size mark raised from {prior} to {lines} lines with no "
+                "recorded reason (a raise is legitimate only below the frozen baseline, "
+                "for growth unavoidable at a single-owner seam, named by a `reason`)"
+            )
+    return failures
 
 
 def clippy_diagnostics(output: str) -> set[tuple[str, str, int, str]]:
@@ -366,7 +465,23 @@ def self_test() -> int:
                 raise AssertionError("a legitimate shrink with a lowered mark must pass")
             failures = check_structural(set(), {"src/large.rs": 501})
             if not any("stored file-size mark is 501 lines but current file is 500" in failure for failure in failures):
-                raise AssertionError("a hand-raised file-size mark must fail")
+                raise AssertionError(
+                    "a mark that overstates the file's real current size (the manifest was not "
+                    "lowered to match a shrink) must fail"
+                )
+            # This is NOT a general "raises are forbidden" check — see the point
+            # below. A mark raised in lockstep with matching growth, staying
+            # under the frozen baseline (600 here), is the exact technique item
+            # 132 used, and check_structural alone accepts it: requiring a
+            # reason for that is check_mark_raises's job, not this function's.
+            large.write_text("x\n" * 501)
+            failures = check_structural(set(), {"src/large.rs": 501})
+            if failures != ["src/absent.rs: tracked Rust file is absent"]:
+                raise AssertionError(
+                    "a mark raised in lockstep with matching growth, still under the frozen "
+                    "baseline, is structurally legitimate on its own"
+                )
+            large.write_text("x\n" * 500)
             new = ROOT / "src/new.rs"
             new.write_text("x\n" * 501)
             globals()["tracked_rust"] = lambda: ["src/large.rs", "src/absent.rs", "src/new.rs"]
@@ -377,6 +492,94 @@ def self_test() -> int:
             globals()["ROOT"] = root
             globals()["tracked_rust"] = original_tracked_rust
             globals()["baseline"] = original_baseline
+    # check_mark_raises is the half of the invariant check_structural does not
+    # cover: a raise below the frozen baseline is only legitimate with a
+    # recorded reason. Pure and directly testable, unlike previous_marks
+    # (which shells out to git for the `main` reference).
+    raised_no_reason = check_mark_raises({"src/x.rs": 105}, {}, {"src/x.rs": 100})
+    if not any("raised from 100 to 105" in failure for failure in raised_no_reason):
+        raise AssertionError("a mark raised on this branch with no recorded reason must fail")
+    if check_mark_raises(
+        {"src/x.rs": 105},
+        {"src/x.rs": "item X: the one dispatch call site, irreducible"},
+        {"src/x.rs": 100},
+    ):
+        raise AssertionError("a mark raised with a recorded reason must pass")
+    if check_mark_raises({"src/x.rs": 95}, {}, {"src/x.rs": 100}):
+        raise AssertionError("a lowered mark needs no reason")
+    if check_mark_raises({"src/x.rs": 105}, {}, {"src/y.rs": 100}):
+        raise AssertionError("a brand-new mark absent from main's table is not a raise")
+    if check_mark_raises({"src/x.rs": 105}, {}, None):
+        raise AssertionError("an unresolvable `main` reference must skip the raise audit, not fail closed")
+    with tempfile.TemporaryDirectory() as directory:
+        manifest = Path(directory) / "marks.toml"
+        manifest.write_text(
+            '[[file_size_mark]]\n'
+            'file = "src/reasoned.rs"\n'
+            'lines = 600\n'
+            'reason = "item X: the one dispatch call site"\n\n'
+            '[[file_size_mark]]\n'
+            'file = "src/blank.rs"\n'
+            'lines = 600\n'
+            'reason = "   "\n'
+        )
+        _, reasons, failures = load_file_size_marks(manifest)
+        if reasons.get("src/reasoned.rs") != "item X: the one dispatch call site":
+            raise AssertionError("a non-empty file-size-mark reason must be captured")
+        if not any("empty file-size-mark reason for src/blank.rs" in failure for failure in failures):
+            raise AssertionError("a blank file-size-mark reason must fail")
+    # previous_marks must distinguish a real prior branch state from the two
+    # ways the comparison can mean nothing: an unresolvable reference, and the
+    # vacuous case a comparison-to-itself hides — HEAD already being `main`'s
+    # commit, which is the ordinary state for CI's push-to-`main` job and the
+    # merge train's post-merge candidate. Fully mocked, deterministic
+    # regardless of the environment running this self-test.
+    original_git = git
+    try:
+        def fake_git_ok(*args: str) -> str:
+            if args == ("rev-parse", "main"):
+                return "mainsha\n"
+            if args == ("rev-parse", "HEAD"):
+                return "branchsha\n"
+            if args[0] == "show":
+                return '[[file_size_mark]]\nfile = "src/mocked.rs"\nlines = 42\n'
+            raise subprocess.CalledProcessError(1, args)
+
+        globals()["git"] = fake_git_ok
+        marks, status = previous_marks()
+        if status != "ok" or marks != {"src/mocked.rs": 42}:
+            raise AssertionError("previous_marks must resolve a real prior table when HEAD differs from main")
+
+        def fake_git_same(*args: str) -> str:
+            if args in (("rev-parse", "main"), ("rev-parse", "HEAD")):
+                return "samesha\n"
+            raise subprocess.CalledProcessError(1, args)
+
+        globals()["git"] = fake_git_same
+        marks, status = previous_marks()
+        if status != "head_is_main" or marks is not None:
+            raise AssertionError(
+                "HEAD identical to main's commit must report head_is_main, not a clean 'ok' audit"
+            )
+
+        def fake_git_unresolvable(*args: str) -> str:
+            raise subprocess.CalledProcessError(1, args)
+
+        globals()["git"] = fake_git_unresolvable
+        marks, status = previous_marks()
+        if status != "unresolvable" or marks is not None:
+            raise AssertionError("an unresolvable main/origin-main must report unresolvable")
+    finally:
+        globals()["git"] = original_git
+    # And against the real repo, without checking out `main`: forcing
+    # `head_ref="main"` makes HEAD-vs-main trivially a comparison against
+    # itself, exercising the exact silent-vacuity shape live rather than
+    # mocked. It must never come back "ok".
+    marks, status = previous_marks(head_ref="main")
+    if status == "ok":
+        raise AssertionError("comparing main against itself must never report a real (ok) prior state")
+    if status == "head_is_main" and marks is not None:
+        raise AssertionError("head_is_main status must carry no marks")
     script = '''if (( $# != 0 )); then
 canary_command=(cargo test --test native_gate_canary)
 mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
@@ -439,11 +642,28 @@ def main() -> int:
     except subprocess.CalledProcessError as error:
         raise SystemExit(f"code-health: stale baseline {BASELINE}; refresh it deliberately") from error
     expected, failures = load_manifest()
-    file_size_marks, mark_failures = load_file_size_marks()
+    file_size_marks, mark_reasons, mark_failures = load_file_size_marks()
     failures.extend(mark_failures)
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
     failures.extend(check_structural(allowed, file_size_marks))
+    previous, previous_status = previous_marks()
+    if previous_status == "unresolvable":
+        print(
+            "code-health: SKIPPED the file-size-mark raise audit (`main`/`origin/main` not "
+            "resolvable in this checkout; a raise is not verified against a reason this run).",
+            file=sys.stderr,
+        )
+    elif previous_status == "head_is_main":
+        print(
+            "code-health: SKIPPED the file-size-mark raise audit — HEAD is already `main`'s "
+            "commit, so there is no prior branch state to diff against (comparing a commit's "
+            "manifest to itself). This is the normal state for CI's push-to-`main` run and the "
+            "merge train's post-merge candidate; the audit only has force on a worktree branch "
+            "checked before landing.",
+            file=sys.stderr,
+        )
+    failures.extend(check_mark_raises(file_size_marks, mark_reasons, previous))
     failures.extend(
         native_gate_audit(
             (ROOT / "scripts/native-gate.sh").read_text(),

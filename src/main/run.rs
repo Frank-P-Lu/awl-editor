@@ -14,10 +14,14 @@ use crate::{actions, app, bench};
 mod capture_fold;
 #[path = "run/effect_interpreter.rs"]
 mod effect_interpreter;
+/// WHERE AM I WORKING — the launch/project-location resolvers, one owner each.
+#[path = "run/location.rs"]
+mod location;
 mod replay_effects;
 #[cfg(test)]
 use capture_fold::history_preview_for;
 pub(crate) use capture_fold::overlay_capture_info;
+pub(crate) use location::{project_info, resolve_launch_context, resolve_root, resolve_workspace};
 
 /// Build the editor buffer. Refused files become unbound scratch buffers so a
 /// replayed save can never overwrite them.
@@ -31,65 +35,6 @@ pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
             None => Buffer::from_file(p),
         },
         None => Buffer::scratch(),
-    }
-}
-
-pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> PathBuf {
-    if let Some(r) = root {
-        return r.clone();
-    }
-    if let Some(f) = file {
-        if crate::fs::active().is_dir(f) {
-            return f.clone();
-        }
-        if let Some(p) = f.parent()
-            && !p.as_os_str().is_empty()
-        {
-            return p.to_path_buf();
-        }
-    }
-    crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
-
-/// THE ONE launch-precedence law (item 76), for the WINDOWED launch door
-/// only (`Mode::Windowed` in [`run`]):
-///
-/// 1. **EXPLICIT TARGET WINS** — `--root`, or a file/dir argument (`awl .`
-///    included) — delegates to [`resolve_root`], unaffected by anything
-///    remembered.
-/// 2. **ARGUMENT-FREE LAUNCH RESTORES** — bare `awl`: the remembered active
-///    folder (`remembered`, from `crate::session::remembered_root`, gated by
-///    the caller on `Config::session_restore_on()`) wins if there is one.
-/// 3. **FIRST RUN** — bare launch, nothing remembered (a fresh install, or
-///    the session kill-switch is off): `default_folder` (the resolved
-///    `--default-folder`/config/`~/notes` value).
-///
-/// The DOCUMENT half of a bare launch (which file becomes active, the rest
-/// parked behind it) is owned by `App::apply_session_restore`, reading the
-/// SAME underlying session state — see `app/session.rs`'s module doc for why
-/// the two halves can never disagree.
-pub(crate) fn resolve_launch_context(
-    root: &Option<PathBuf>,
-    file: &Option<PathBuf>,
-    remembered: Option<&std::path::Path>,
-    default_folder: &std::path::Path,
-) -> PathBuf {
-    if root.is_some() || file.is_some() {
-        return resolve_root(root, file);
-    }
-    match remembered {
-        Some(p) => p.to_path_buf(),
-        None => default_folder.to_path_buf(),
-    }
-}
-
-pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::Path) -> PathBuf {
-    if let Some(w) = workspace {
-        return w.clone();
-    }
-    match root.parent() {
-        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-        _ => root.to_path_buf(),
     }
 }
 
@@ -184,9 +129,29 @@ pub(crate) struct ReplaySession<'a> {
     mode: crate::replay::Mode,
     filesystem: crate::replay::FilesystemCapability,
     buffer: &'a mut Buffer,
-    corpus: &'a [String],
-    root: &'a std::path::Path,
-    workspace: Option<&'a std::path::Path>,
+    // RE-SCOPED PROJECT LOCATION (queue item 189) — `corpus`/`root`/`workspace`
+    // are OWNED, not borrowed, so [`Self::resync_project_location`] can rebuild
+    // them in place the moment a Switch-project accept lands. Before this,
+    // these three were fixed `&'a` borrows for the session's whole lifetime:
+    // the sidecar's *accepted* location was re-derived correctly (item 183,
+    // `run::project_info`), but a chord applied AFTER the accept — a Cmd-O
+    // opening Goto, a Browse summon — still read the LAUNCH root's file index
+    // and workspace. `docs/harness-reach.md` named the residue; this struct
+    // closes it. `resync_project_location` is the ONE place any of the three
+    // is ever reassigned after construction — mirrors `App::
+    // resync_project_location` (`app/files/open.rs`), the live analogue.
+    corpus: Vec<String>,
+    root: std::path::PathBuf,
+    // THE RAW `--workspace` flag (already folded over config by the caller —
+    // see `project_info`'s doc), kept alongside the RESOLVED `workspace` below
+    // so a re-scope can re-run `location::resolve_workspace` against the NEW
+    // root: an EXPLICIT flag stays pinned across a project switch; an UNSET
+    // one re-derives the new root's parent — the exact distinction `App`'s
+    // `cli_workspace` vs `workspace_root` makes, so a same-parent switch and a
+    // filesystem-root (no-parent) switch both re-derive honestly rather than
+    // by coincidence.
+    workspace_flag: Option<std::path::PathBuf>,
+    workspace: std::path::PathBuf,
     config: &'a Config,
     // The visual-line motion LAYOUT ORACLE (an offscreen-shaped pipeline), so the
     // headless replay sees the SAME wrap geometry the live window does. Held
@@ -242,21 +207,28 @@ impl<'a> ReplaySession<'a> {
     pub(crate) fn new(
         policy: ReplayPolicy,
         buffer: &'a mut Buffer,
-        corpus: &'a [String],
-        root: &'a std::path::Path,
-        workspace: Option<&'a std::path::Path>,
+        corpus: &[String],
+        root: &std::path::Path,
+        // THE RAW flag, not a pre-resolved value — see the struct's
+        // `workspace_flag` doc. `project_info`'s own derivation (used for the
+        // sidecar) takes the identical raw flag, so the two never disagree on
+        // what "unset" means.
+        workspace_flag: Option<&std::path::Path>,
         config: &'a Config,
         oracle: Option<&'a mut capture::OraclePipeline>,
         km: &'a mut crate::keymap::KeymapState,
     ) -> Self {
         let ReplayPolicy { mode, filesystem } = policy;
         let resolver = crate::keyspec::ChordResolver::new(km, mode == crate::replay::Mode::Strict);
+        let workspace_flag = workspace_flag.map(|p| p.to_path_buf());
+        let workspace = location::resolve_workspace(&workspace_flag, root);
         Self {
             mode,
             filesystem,
             buffer,
-            corpus,
-            root,
+            corpus: corpus.to_vec(),
+            root: root.to_path_buf(),
+            workspace_flag,
             workspace,
             config,
             oracle,
@@ -443,7 +415,7 @@ impl<'a> ReplaySession<'a> {
                     Vec::new()
                 };
             let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
-                crate::assets::scan(self.root, self.corpus)
+                crate::assets::scan(&self.root, &self.corpus)
             } else {
                 Vec::new()
             };
@@ -462,7 +434,7 @@ impl<'a> ReplaySession<'a> {
                 history_session_start: None,
                 settings_values: crate::settings::SettingsValues::gather(
                     self.config,
-                    self.root,
+                    &self.root,
                     self.zoom,
                     crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
                 ),
@@ -475,7 +447,7 @@ impl<'a> ReplaySession<'a> {
             };
             let mut make_overlay =
                 |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
-            let (root, workspace) = (self.root, self.workspace);
+            let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
             let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
                 // Shared one-level builder: Project navigates the workspace by absolute
                 // path, MoveDest and Browse both walk the SAME active root (item 76 —
@@ -624,18 +596,13 @@ fn capture_screenshot(
     // law) — `resolve_root` only ever consults the EXPLICIT `--root`/file,
     // never a "first run" default either (that's a windowed-launch concern).
     let active_root = resolve_root(&root, &file);
-    let proj = crate::project::Project::resolve(&active_root);
     let corpus = crate::index::build_index(&active_root);
-    let effective_workspace = resolve_workspace(&workspace, &active_root);
-    opts.project = Some(capture::ProjectInfo {
-        root: active_root.clone(),
-        name: proj.name.clone(),
-        branch: proj.branch.clone(),
-        dirty: proj.dirty,
-        default_folder: Some(default_folder.clone()),
-        workspace: Some(effective_workspace.clone()),
-        keymap_flavor: config.keymap_flavor().config_name(),
-    });
+    opts.project = Some(project_info(
+        &active_root,
+        &workspace,
+        Some(default_folder.as_path()),
+        &config,
+    ));
 
     let mut buffer = load_buffer(&file);
     if let Some((md, counts, label)) = crate::prosediff::env_capture_render() {
@@ -675,13 +642,17 @@ fn capture_screenshot(
     if strict && !keys.is_empty() && oracle.is_none() {
         return Err(crate::replay::missing_oracle_error());
     }
+    // `workspace` here is the RAW, already-config-folded flag (see
+    // `project_info`'s doc) — `ReplaySession` resolves it itself, both now and
+    // again on any Switch-project accept (`resync_project_location`), so the
+    // two derivations can never disagree on what "unset" means.
     let res = replay_effects::capture_replay(
         strict,
         &mut buffer,
         &keys,
         &corpus,
         &active_root,
-        Some(effective_workspace.as_path()),
+        workspace.as_deref(),
         &config,
         oracle.as_mut(),
         &mut km,
@@ -707,18 +678,21 @@ fn capture_screenshot(
     if let Some((kind, val)) = &res.accept {
         match kind {
             crate::overlay::OverlayKind::Goto => {}
+            // SWITCH-PROJECT: re-derive the WHOLE sidecar location from the
+            // accepted root through the one builder, never a subset of it —
+            // see [`project_info`] for the half-derivation this replaced. The
+            // replay session ITSELF re-scoped `root`/`workspace`/`corpus` the
+            // moment the accept fired (`ReplaySession::resync_project_location`,
+            // queue item 189 — `docs/harness-reach.md` named this as the
+            // residue item 183 left, now closed), so a chord applied AFTER the
+            // accept reads the new tree exactly like live.
             crate::overlay::OverlayKind::Project => {
-                let new_root = std::path::PathBuf::from(val);
-                let proj = crate::project::Project::resolve(&new_root);
-                opts.project = Some(capture::ProjectInfo {
-                    root: new_root,
-                    name: proj.name.clone(),
-                    branch: proj.branch.clone(),
-                    dirty: proj.dirty,
-                    default_folder: Some(default_folder.clone()),
-                    workspace: Some(effective_workspace.clone()),
-                    keymap_flavor: config.keymap_flavor().config_name(),
-                });
+                opts.project = Some(project_info(
+                    std::path::Path::new(val),
+                    &workspace,
+                    Some(default_folder.as_path()),
+                    &config,
+                ));
             }
             // History: RESTORE the accepted version into the buffer (an undoable
             // edit), so a `--keys "Cmd-S-h <down> <enter>"` capture reflects the

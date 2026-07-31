@@ -45,7 +45,7 @@ impl App {
     /// `sync_view(true)` rebuilds the ViewState the pipeline draws, and
     /// The transition's typed render requests own the sync + redraw, exactly
     /// as on the keyboard door; this handler adds no trailing repaint path.
-    pub(super) fn handle_menu_event(&mut self, id: String, event_loop: &ActiveEventLoop) {
+    pub(super) fn handle_menu_event(&mut self, id: String, exit: &dyn schedule::Exit) {
         // File ▸ "Open…" (`awl.open`, routed to `Action::OpenBrowse` on other
         // platforms) opens the NATIVE `NSOpenPanel` file picker instead — the
         // macOS convention, and it dodges the in-app-overlay path entirely. On
@@ -65,7 +65,7 @@ impl App {
         if let Some(action) = crate::menu::resolve(&id) {
             // MENU door: a click in the macOS menu bar (a SLOW discovery surface) —
             // attributed to `Door::Menu` in the silent usage ledger.
-            self.apply(action, false, event_loop, crate::stats::Door::Menu);
+            self.apply(action, false, exit, crate::stats::Door::Menu);
         }
     }
 }
