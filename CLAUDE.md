@@ -27,11 +27,11 @@ To RUN it on macOS use `scripts/dev-app.sh`, not `cargo run`: a bare binary has 
 cargo run -- --screenshot OUT.png [file]    # writes OUT.png + OUT.json sidecar
 ```
 
-Flags compose: `--keys` (chord replay through the real keymap), `--theme <World>`, `--caret-mode`, `--measure`, `--screenshot-motion[-v|-d]`, `--root/--workspace/--default-folder`, `--config`, `--debug`, `--hud`. Schema + semantics: CAPTURE.md. The schema number is one const, `capture::SCHEMA_VERSION`.
+Flags compose: `--keys` (chord replay through the real keymap), `--theme <World>`, `--caret-mode`, `--measure`, `--screenshot-motion[-v|-d]`, `--screenshot-app` (the same chords into a real headless `App`), `--root/--workspace/--default-folder`, `--config`, `--debug`, `--hud`. Schema + semantics: CAPTURE.md. The schema number is one const, `capture::SCHEMA_VERSION`.
 
 The sidecar is the source of truth for state; the PNG for geometry and appearance. The harness verifies state, geometry, colors, and deterministic single-frame trajectories; it cannot verify timing, feel over real time, or taste — flag those for live human confirmation rather than claiming them verified.
 
-A capture drives the shared core, not the live `App` — so a transition the `App` owns (settings writes, buffer switching, config reload) may be classified Unsupported and silently skipped. `docs/harness-reach.md` maps the exact edge, per effect and per picker; check it before a brief promises a capture over live-`App` state (item 180 asked for one that could not exist).
+An ordinary capture drives the shared core, not the live `App` — so a transition the `App` owns (settings writes, buffer switching, config reload) is classified Unsupported and skipped. `--screenshot-app` (item 188) drives the same `--keys` chords into a REAL headless `App` and writes the same schema from its state, stamped `driver: "live-app"`; it is hermetic and skips nothing. `docs/harness-reach.md` maps the edge, per effect and per picker; check it before a brief promises a capture over live-`App` state (item 180 asked for one that could not exist).
 
 Tripwire: the sidecar is a state oracle, not an appearance oracle — it once reported `selected_index: 2` while the row rendered fully invisible (Wagtail). Appearance claims (visible, distinct, legible) are asserted by arithmetic over the PNG's pixels.
 

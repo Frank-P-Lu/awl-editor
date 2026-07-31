@@ -25,11 +25,14 @@
 //! scenario is the only replay door explicitly granted isolated write
 //! capability, and that capability targets this sandbox.
 //!
-//! STRUCTURAL hermeticity: [`install_hermetic_fs`] has exactly ONE production
-//! call site — `args::parse_args`'s strict-replay arm, BEFORE `Config::load`
-//! — so "which fs does this run see" is decided in one place, once, and no
-//! later fs consumer can dodge the sandbox (they all go through
-//! `fs::active()`). The `.git` probe rides the same seam
+//! STRUCTURAL hermeticity: every production call to [`install_hermetic_fs`]
+//! lives in ONE function — `args::parse_args`, BEFORE `Config::load` — so
+//! "which fs does this run see" is decided in one place, once, and no later fs
+//! consumer can dodge the sandbox (they all go through `fs::active()`). Three
+//! arms select it today: the strict-replay arm, the storyboard arm, and (item
+//! 188) the `--screenshot-app` live-`App` capture, whose claim on the sandbox
+//! is the strongest of the three — that mode drives a real `App`, which
+//! PERFORMS the writes a replay only records. The `.git` probe rides the same seam
 //! (`project::Project::resolve`), so a sandboxed root resolves as non-git and
 //! the read-only `git` SUBPROCESSES (`git_branch`/`git_dirty` — the one fs
 //! reader that bypasses the trait) are structurally never spawned.
@@ -113,6 +116,21 @@ pub fn install_hermetic_fs(file: Option<&Path>, config_arg: Option<&Path>, root:
 // rides the `file` seed slot, and the sandbox's `write` already marks every
 // seeded file's parent as a directory, so the runner's root resolution + index
 // walk see the document's own directory with no extra marker.
+
+/// WHICH DOCUMENT SEEDS THE SANDBOX for the door that is opening it. A
+/// STORYBOARD run seeds the BOARD's own document (`board_file`, already resolved
+/// against the board file's own directory) and nothing else — a bare CLI file is
+/// not part of that scenario. Every other door — `--strict-replay`, item 188's
+/// `--screenshot-app` — seeds the CLI-named `cli_file`. One owner rather than a
+/// branch at the call site, so the three doors in `args::parse_args` cannot
+/// drift on it, and that one call stays a single unconditional statement.
+pub fn seed_document<'a>(
+    is_storyboard: bool,
+    board_file: Option<&'a Path>,
+    cli_file: Option<&'a Path>,
+) -> Option<&'a Path> {
+    if is_storyboard { board_file } else { cli_file }
+}
 
 #[cfg(test)]
 mod tests {

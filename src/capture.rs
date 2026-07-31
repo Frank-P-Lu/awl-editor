@@ -8,8 +8,9 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/190` — `page.background`'s `organic` arm gains `arrangement`.
 /// `/191` — `overlay.workspace` (item 114's summoned workspace), and
 ///          `overlay.diff_focus` renamed `overlay.detail_focus`.
+/// `/193` — top-level `driver` (item 188; `/192` was claimed by a parked branch).
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 191;
+pub const SCHEMA_VERSION: u32 = 193;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
@@ -41,7 +42,9 @@ pub use film::{FRAME_MS, FilmRenderer};
 #[cfg(not(target_arch = "wasm32"))]
 pub use frames::{DEFAULT_FRAME_STEP_MS, capture_frames};
 pub use modes::{capture_motion, capture_motion_diagonal, capture_motion_vertical, capture_with};
-pub use opts::{BuffersInfo, CaptureInfo, CaptureOpts, DiffInfo, OverlayInfo, ProjectInfo};
+pub use opts::{
+    BuffersInfo, CaptureDriver, CaptureInfo, CaptureOpts, DiffInfo, OverlayInfo, ProjectInfo,
+};
 pub use oracle::build_oracle;
 pub(crate) use sidecar::json_string;
 

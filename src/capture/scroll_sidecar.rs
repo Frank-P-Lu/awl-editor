@@ -6,6 +6,7 @@ macro_rules! sidecar_format {
             concat!(
                 "{{\n",
                 "  \"schema\": {schema_json},\n",
+                "  \"driver\": {driver},\n",
                 "  \"canvas\": {canvas},\n",
                 "  \"font\": {{ \"family\": {ff}, \"zoom\": {fz}, \"size\": {fs}, ",
                 "\"line_height\": {lh}, \"ornament\": {ornament}, \"cjk\": {cjk}, ",

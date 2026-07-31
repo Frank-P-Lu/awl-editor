@@ -1,7 +1,10 @@
 //! The HEADLESS PRESS DOOR — the tier-2 driver `docs/harness-reach.md` maps.
 //!
-//! Test-only, and test-only is the point: it drives the REAL live `App`, not a
-//! stand-in for it.
+//! It drives the REAL live `App`, not a stand-in for it. Item 183 opened it for
+//! Rust tests; item 188 moved it out of `app/tests/` into production, because the
+//! live-`App` CAPTURE MODE (`--screenshot-app`, `main/run/live_app.rs`) drives
+//! its chords through this same door. A test-only driver beside a production one
+//! would have been two input pipelines each claiming to be the live path.
 
 use super::*;
 
@@ -35,16 +38,28 @@ impl App {
         self.mods = winit::event::Modifiers::default();
     }
 
-    /// Parse a `--keys` spec and drive every chord in it through the real press
-    /// pipeline above. Returns whether any of them asked the loop to exit — the
-    /// live `event_loop.exit()` a `schedule::RecordingExit` stands in for.
-    /// Errors only on a structurally invalid token, exactly like `--keys`.
-    pub(crate) fn press_spec_headless(&mut self, spec: &str) -> anyhow::Result<bool> {
-        let chords = crate::keyspec::parse_chords(spec)?;
+    /// Drive every chord in `chords` through the real press pipeline above.
+    /// Returns whether any of them asked the loop to exit — the live
+    /// `event_loop.exit()` a `schedule::RecordingExit` stands in for. THE one
+    /// multi-chord driver: a spec string ([`press_spec_headless`](Self::
+    /// press_spec_headless)) and the `--screenshot-app` capture mode (chords
+    /// already parsed by `main/args.rs`) both land here, so a Rust-driven press
+    /// and a captured press are one code path rather than two.
+    pub(crate) fn press_chords_headless(&mut self, chords: &[crate::keyspec::Chord]) -> bool {
         let exit = crate::app::schedule::RecordingExit::new();
-        for chord in &chords {
+        for chord in chords {
             self.press_chord_headless(chord, &exit);
         }
-        Ok(exit.exit_requested())
+        exit.exit_requested()
+    }
+
+    /// Parse a `--keys` spec and drive it through
+    /// [`press_chords_headless`](Self::press_chords_headless). Errors only on a
+    /// structurally invalid token, exactly like `--keys`. `cfg(test)` because the
+    /// CLI hands over chords already parsed (`main/args.rs`); a Rust law spells
+    /// its spec inline. Same door either way — only the parse step differs.
+    #[cfg(test)]
+    pub(crate) fn press_spec_headless(&mut self, spec: &str) -> anyhow::Result<bool> {
+        Ok(self.press_chords_headless(&crate::keyspec::parse_chords(spec)?))
     }
 }

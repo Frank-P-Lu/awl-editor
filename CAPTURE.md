@@ -172,6 +172,49 @@ never a regression of the one-off permissive harness. Storyboards (the later
 phase) seed MORE files — fixtures, config, history — through the same
 `scenario::build_sandbox` door, not a new seam.
 
+## Live-`App` capture (`--screenshot-app`) — the tier-2 oracle (item 188)
+
+Every mode above replays the **shared core**: real chords, the real keymap, the
+real `apply_transition` — but no `App`. Effects only the live `App` can perform
+are therefore classified **Unsupported** and skipped, and the sidecar reports the
+skip rather than the state. `docs/harness-reach.md` is the map of exactly which.
+
+`--screenshot-app OUT.png [file]` drives the **same `--keys` chord stream into a
+real headless `App`** instead — `dispatch_pressed_key` → keymap resolve →
+`App::apply` → the live effect interpreter, the code a physical keypress takes —
+and then writes an **ordinary** PNG + sidecar from its state.
+
+```sh
+# Flip the Settings workspace's Keymap row and read the result from the sidecar.
+cargo run -- --screenshot-app OUT.png --root /some/proj \
+  --keys "s-, Tab Down Down ... Enter"
+# OUT.json: "driver": "live-app", project.keymap_flavor: "emacs",
+#           overlay.bindings[<row>]: "emacs", replay_skips: []
+# The same spec through --screenshot: keymap_flavor stays "native" and
+# replay_skips carries {"effect":"setting_toggle","action":"Newline"}.
+```
+
+**Same schema, same writer, same blocks.** There is one sidecar writer
+(`capture::sidecar::write_sidecar`) and one per-frame fold
+(`run::fold_capture_state`, shared with the storyboard stepper); this mode adds
+neither. The only difference in the artifact is the top-level `driver` field.
+
+**Hermetic, and for a stronger reason than a strict replay.** A live `App`
+*performs* the writes a replay only records — a settings persist, an autosave, a
+save. So this mode is a scenario door: `args::parse_args` swaps the process fs to
+the seeded `scenario` sandbox before the config loads, exactly as a storyboard
+run does, and `App::new_headless_capture` deliberately constructs on that fs. The
+PNG + JSON go out through `std::fs`, the documented sandbox bypass every capture
+deliverable already uses.
+
+**What it still cannot reach.** Tier 3: no window, no surface, no event loop
+(`gpu` is `None`, so the harness renders the App's buffer through its own
+offscreen pipeline, exactly as `--screenshot-frames` does). The
+`&ActiveEventLoop` census in `app::tests::source_audit` is the exact list of what
+that costs. Nothing here changes the sidecar-vs-appearance tripwire either: this
+is still a **state** oracle, and appearance claims are still asserted over the
+PNG's pixels.
+
 ## Deterministic timeline capture (`--capture-timeline`)
 
 A single frozen frame is great for *state*, but it can't show an animation's
@@ -533,9 +576,20 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/191` (`/192` timeline, `/193` held)
+## The sidecar JSON — schema `awl-capture/193` (`/194` timeline, `/195` held)
 
 Field order is stable; consumers may parse positionally or by key.
+
+Schema `/193` adds the top-level **`driver`** field, immediately after `schema`:
+which TIER produced this sidecar. `"replay"` — the shared core
+(`actions::apply_transition`), i.e. every `--screenshot` / `--keys` /
+`--storyboard` / `--capture-timeline` / `--capture-held` / `--screenshot-frames`
+capture. `"live-app"` — a real headless `App` (`--screenshot-app`, item 188; see
+that section above). The distinction is load-bearing rather than cosmetic: two
+sidecars can carry identical fields and mean different things, because a
+`"replay"` capture owns no capability for the live-`App`-only effects it skips
+(they appear in `replay_skips`) while a `"live-app"` capture performs them for
+real and skips nothing. One owner: `capture::CaptureDriver`.
 
 **Where the authoritative history lives.** The append-only per-round history
 table is the doc comment above `capture::SCHEMA_VERSION` in `src/capture.rs` —

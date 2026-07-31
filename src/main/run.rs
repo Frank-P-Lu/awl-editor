@@ -14,6 +14,10 @@ use crate::{actions, app, bench};
 mod capture_fold;
 #[path = "run/effect_interpreter.rs"]
 mod effect_interpreter;
+/// ITEM 188 — the live-`App` capture mode (`--screenshot-app`).
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "run/live_app.rs"]
+mod live_app;
 /// WHERE AM I WORKING — the launch/project-location resolvers, one owner each.
 #[path = "run/location.rs"]
 mod location;
@@ -22,7 +26,7 @@ mod replay_effects;
 mod settings_effects;
 #[cfg(test)]
 use capture_fold::history_preview_for;
-pub(crate) use capture_fold::overlay_capture_info;
+pub(crate) use capture_fold::{CaptureSubject, fold_capture_state, overlay_capture_info};
 pub(crate) use location::{project_info, resolve_launch_context, resolve_root, resolve_workspace};
 
 /// Build the editor buffer. Refused files become unbound scratch buffers so a
@@ -846,6 +850,15 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             );
             Ok(())
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        Mode::ScreenshotApp {
+            out,
+            file,
+            keys,
+            root,
+            workspace,
+            config,
+        } => live_app::capture_live_app(out, file, keys, root, workspace, config),
         #[cfg(not(target_arch = "wasm32"))]
         Mode::ScreenshotFrames {
             out,

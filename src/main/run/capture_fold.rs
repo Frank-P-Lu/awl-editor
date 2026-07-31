@@ -3,9 +3,84 @@
 //! runner and the one-shot `--keys` capture so the two can never drift. Lifted
 //! verbatim out of `main/run.rs` (queue item 173, to keep that file inside its
 //! size mark); behaviour is unchanged.
+//!
+//! ITEM 188 widened it by one level: [`CaptureSubject`] + [`fold_capture_state`]
+//! are now the one owner of the WHOLE per-frame fold (zoom / selection / search /
+//! overlay / diff-preview / buffers), because there is now a THIRD driver — a
+//! real headless live `App` (`--screenshot-app`, `main/run/live_app.rs`) — and a
+//! third hand-written copy of this fold is exactly the defect the file exists to
+//! prevent. The `ReplaySession` and the live `App` differ in what drives them,
+//! never in what a sidecar says about them.
 
 use crate::buffer::Buffer;
-use crate::capture;
+use crate::capture::{self, CaptureOpts};
+
+/// A DRIVEN EDITOR, as the sidecar fold reads it — the five facts
+/// [`fold_capture_state`] needs and nothing else. Implemented by
+/// [`super::ReplaySession`] (the shared-core driver behind `--keys`,
+/// `--storyboard` and `--capture-timeline`) and by [`crate::app::App`] (the live
+/// driver behind `--screenshot-app`). The trait is the seam that lets one fold
+/// serve both without either knowing the other exists.
+pub(crate) trait CaptureSubject {
+    fn buffer(&self) -> &Buffer;
+    fn zoom(&self) -> f32;
+    fn search(&self) -> Option<&crate::search::SearchState>;
+    fn journey(&self) -> &crate::overlay::Journey;
+    fn buffers_open(&self) -> usize;
+}
+
+/// THE ONE PER-FRAME FOLD: a driven editor's CURRENT state plus its already-built
+/// project block, into the [`CaptureOpts`] the single-frame capture path renders
+/// and [`crate::capture::sidecar`]'s ONE writer serializes. Lifted verbatim out
+/// of `main/story.rs::step_opts` (item 188), which now delegates here, so the
+/// storyboard stepper and the live-`App` capture cannot answer "what does this
+/// state look like in the sidecar" two different ways.
+///
+/// `project` arrives already derived — by `run::project_info`, the one builder
+/// (item 183) — rather than being re-derived here, because its inputs (the raw
+/// `--workspace` flag, the effective default folder) belong to the caller's door,
+/// not to the frame.
+pub(crate) fn fold_capture_state(
+    subject: &dyn CaptureSubject,
+    project: capture::ProjectInfo,
+) -> CaptureOpts {
+    let buffer = subject.buffer();
+    let mut opts = CaptureOpts {
+        project: Some(project),
+        zoom: (subject.zoom() != 1.0).then(|| subject.zoom()),
+        selection: buffer.selection_line_col(),
+        ..CaptureOpts::default()
+    };
+    if let Some(s) = subject.search() {
+        opts.search = Some(s.query().to_string());
+        opts.search_case_sensitive = s.is_case_sensitive();
+        opts.search_replace_active = s.is_replace_active();
+        opts.search_replacement = s.replacement().to_string();
+        opts.search_editing_replacement = s.is_editing_replacement();
+    }
+    if let Some((info, preview_text, diff)) = overlay_capture_info(subject.journey(), buffer) {
+        opts.overlay = Some(info);
+        opts.preview_text = preview_text;
+        // DIFF-AS-PREVIEW: mirror the one-shot capture's fold (diff state block
+        // + the overlay-owned diff scroll), so a stepped/live frame reports the
+        // same preview the single-frame path would.
+        if opts.diff.is_none() {
+            opts.diff = diff;
+        }
+        if opts.scroll.is_none() && opts.preview_text.is_some() {
+            let diff_scroll = subject.journey().card().map(|o| o.diff_scroll).unwrap_or(0);
+            opts.scroll = Some(crate::render::ScrollPos::at_row(diff_scroll));
+        }
+    }
+    opts.buffers = Some(capture::BuffersInfo {
+        open: subject.buffers_open(),
+        active: match buffer.path() {
+            Some(p) => p.display().to_string(),
+            None => "scratch".to_string(),
+        },
+    });
+    opts
+}
 
 /// Fold ONE still-open overlay into its sidecar [`capture::OverlayInfo`] block
 /// plus the History live-preview TEXT (if that overlay is the History timeline
@@ -76,6 +151,28 @@ pub(crate) fn overlay_capture_info(
         title: ov.kind.title(),
     };
     Some((info, preview_text, diff))
+}
+
+/// The SHARED-CORE driver's view of itself. Every method already existed as an
+/// inherent accessor on the session (`main/run.rs`); this impl only names them as
+/// the fold's five facts, so the storyboard stepper reads them through the same
+/// seam the live `App` does.
+impl CaptureSubject for super::ReplaySession<'_> {
+    fn buffer(&self) -> &Buffer {
+        super::ReplaySession::buffer(self)
+    }
+    fn zoom(&self) -> f32 {
+        super::ReplaySession::zoom(self)
+    }
+    fn search(&self) -> Option<&crate::search::SearchState> {
+        super::ReplaySession::search(self)
+    }
+    fn journey(&self) -> &crate::overlay::Journey {
+        super::ReplaySession::journey(self)
+    }
+    fn buffers_open(&self) -> usize {
+        super::ReplaySession::buffers_open(self)
+    }
 }
 
 /// The HISTORY timeline's headless live preview: when the replay left the History
