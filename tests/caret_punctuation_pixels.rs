@@ -4,22 +4,35 @@
 //! bounded spawned-binary sample covers the five materially different prose
 //! faces (serif/slab/sans/display/one-bit-adjacent) at both caret looks, two
 //! DPI/zoom products, every punctuation class, and letter/space/EOL controls.
+//!
+//! ITEM 196 — one `#[test]` per world, not one `#[test]` for all five. The
+//! original single function spawned the awl binary ~270 times *sequentially*
+//! on one libtest thread (118s mac / 166s linux measured, x4 per CI run: two
+//! platforms x two keymap conventions) because a single `#[test]` cannot be
+//! split across libtest's default thread pool. Five worlds are independent
+//! fixtures already — nothing here shares state across worlds — so five
+//! `#[test]` fns let cargo's default concurrent test runner reclaim that
+//! wall time on any box with more than one core. Each world keeps its own
+//! `active_comma` semantics unchanged: only Mopoke's run ever sets it, so
+//! only Mopoke's test asserts on it.
 
 use std::path::{Path, PathBuf};
 
 mod common;
 use common::ScratchDir;
 
-const WORLDS: [&str; 5] = ["Mopoke", "Gumtree", "Bilby", "Bombora", "Saltpan"];
 const PUNCT: [char; 10] = [',', '.', '\'', ':', ';', '-', '(', '[', '—', '。'];
 const SCALES: [(f32, f32); 2] = [(1.0, 1.0), (2.0, 1.5)];
 const DOC: &str = "a, . ' : ; - ( [ — 。 z\n\n\nreference\n";
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
 /// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
-/// used to never remove it at all).
-fn temp() -> ScratchDir {
-    let p = std::env::temp_dir().join(format!("awl-item126-pixels-{}", std::process::id()));
+/// used to never remove it at all). Keyed by world as well as pid: item 196
+/// split the single sequential test into one `#[test]` per world, so several
+/// of these now run concurrently in the same process and would otherwise
+/// collide on one shared directory.
+fn temp(world: &str) -> ScratchDir {
+    let p = std::env::temp_dir().join(format!("awl-item126-pixels-{}-{world}", std::process::id()));
     ScratchDir::new(p)
 }
 
@@ -281,102 +294,128 @@ fn assert_swallowed_control_is_red(
     );
 }
 
-#[test]
-fn proportional_punctuation_has_a_real_pixel_body() {
-    let dir = temp();
+/// The full per-world body: every scale, every punctuation class, both caret
+/// looks. Called once per `#[test]` below, one call per world — see the
+/// item-196 header comment for why this is no longer one function looping
+/// over all five.
+fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
+    let dir = temp(world);
     let doc = fixture(&dir);
     let mut active_comma = false;
-    for world in WORLDS {
-        for (dpi, zoom) in SCALES {
-            let tag = format!("{world}-{dpi}-{zoom}");
-            let reference = dir.join(format!("{tag}-ref.png"));
-            let capture = Capture {
-                sandbox: &dir,
-                doc: &doc,
-                world,
-                dpi,
-                zoom,
-            };
-            capture.run(&reference, None, "Down Down Down");
-            let side: serde_json::Value = serde_json::from_str(
-                &std::fs::read_to_string(reference.with_extension("json")).unwrap(),
-            )
-            .unwrap();
-            let top = side["text_origin"]["top"]
-                .as_f64()
-                .expect("text_origin.top") as u32;
-            let lh = side["font"]["line_height"]
-                .as_f64()
-                .expect("font.line_height") as u32;
-            let band_pad = (8.0 * dpi * zoom).ceil() as u32;
-            let caret_rgb = hex_rgb(&side["theme"]["primary"]);
-            let refimg = rgba(&reference);
-            assert_visible_controls(
-                &capture,
-                &dir,
-                &tag,
-                top.saturating_sub(band_pad),
-                top + lh + band_pad,
-                &refimg,
-            );
-            for ch in PUNCT {
-                let col = DOC
-                    .lines()
-                    .next()
-                    .unwrap()
-                    .chars()
-                    .position(|x| x == ch)
-                    .unwrap();
-                for mode in ["block", "morph"] {
-                    let c = if mode == "morph" { col + 1 } else { col };
-                    let out = dir.join(format!("{tag}-{ch:?}-{mode}.png"));
-                    capture.run(&out, Some(mode), &"Right ".repeat(c));
-                    let band_top = top.saturating_sub(band_pad);
-                    let band_bottom = top + lh + band_pad;
-                    let rendered = rgba(&out);
-                    let (left, outer_top, right, outer_bottom, area) =
-                        footprint(&rendered, &refimg, band_top, band_bottom);
-                    let w = right - left + 1;
-                    let h = outer_bottom - outer_top + 1;
-                    let scale = dpi * zoom;
-                    assert!(
-                        w as f32 >= 6.5 * scale - 2.0,
-                        "{world} {ch:?} {mode}: width floor in pixels"
-                    );
-                    assert!(
-                        h as f32 >= 12.0 * scale - 2.0,
-                        "{world} {ch:?} {mode}: height floor in pixels"
-                    );
-                    assert!(
-                        w as f32 * h as f32 >= 96.0 * scale * scale * 0.65,
-                        "{world} {ch:?} {mode}: outer bbox area"
-                    );
-                    assert!(
-                        outer_top > band_top && outer_bottom + 1 < band_bottom,
-                        "{world} {ch:?} {mode}: caret clipped by row band"
-                    );
-                    let rect = (left, outer_top, right, outer_bottom);
-                    assert_punctuation_glyph_contribution(
-                        &refimg, &rendered, rect, world, ch, mode,
-                    );
-                    if world == "Mopoke" && ch == ',' && mode == "block" {
-                        let swallowed = swallowed_control(&rendered, rect, caret_rgb);
-                        assert_swallowed_control_is_red(&refimg, &swallowed, rect);
-                    }
-                    assert!(
-                        area as f32 >= 96.0 * scale * scale * 0.25,
-                        "{world} {ch:?} {mode}: visible area floor / no swallowed glyph"
-                    );
-                    active_comma |= world == "Mopoke"
-                        && ch == ','
-                        && mode == "block"
-                        && w as f32 >= 6.5 * scale - 1.0;
+    for (dpi, zoom) in SCALES {
+        let tag = format!("{world}-{dpi}-{zoom}");
+        let reference = dir.join(format!("{tag}-ref.png"));
+        let capture = Capture {
+            sandbox: &dir,
+            doc: &doc,
+            world,
+            dpi,
+            zoom,
+        };
+        capture.run(&reference, None, "Down Down Down");
+        let side: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(reference.with_extension("json")).unwrap(),
+        )
+        .unwrap();
+        let top = side["text_origin"]["top"]
+            .as_f64()
+            .expect("text_origin.top") as u32;
+        let lh = side["font"]["line_height"]
+            .as_f64()
+            .expect("font.line_height") as u32;
+        let band_pad = (8.0 * dpi * zoom).ceil() as u32;
+        let caret_rgb = hex_rgb(&side["theme"]["primary"]);
+        let refimg = rgba(&reference);
+        assert_visible_controls(
+            &capture,
+            &dir,
+            &tag,
+            top.saturating_sub(band_pad),
+            top + lh + band_pad,
+            &refimg,
+        );
+        for ch in PUNCT {
+            let col = DOC
+                .lines()
+                .next()
+                .unwrap()
+                .chars()
+                .position(|x| x == ch)
+                .unwrap();
+            for mode in ["block", "morph"] {
+                let c = if mode == "morph" { col + 1 } else { col };
+                let out = dir.join(format!("{tag}-{ch:?}-{mode}.png"));
+                capture.run(&out, Some(mode), &"Right ".repeat(c));
+                let band_top = top.saturating_sub(band_pad);
+                let band_bottom = top + lh + band_pad;
+                let rendered = rgba(&out);
+                let (left, outer_top, right, outer_bottom, area) =
+                    footprint(&rendered, &refimg, band_top, band_bottom);
+                let w = right - left + 1;
+                let h = outer_bottom - outer_top + 1;
+                let scale = dpi * zoom;
+                assert!(
+                    w as f32 >= 6.5 * scale - 2.0,
+                    "{world} {ch:?} {mode}: width floor in pixels"
+                );
+                assert!(
+                    h as f32 >= 12.0 * scale - 2.0,
+                    "{world} {ch:?} {mode}: height floor in pixels"
+                );
+                assert!(
+                    w as f32 * h as f32 >= 96.0 * scale * scale * 0.65,
+                    "{world} {ch:?} {mode}: outer bbox area"
+                );
+                assert!(
+                    outer_top > band_top && outer_bottom + 1 < band_bottom,
+                    "{world} {ch:?} {mode}: caret clipped by row band"
+                );
+                let rect = (left, outer_top, right, outer_bottom);
+                assert_punctuation_glyph_contribution(&refimg, &rendered, rect, world, ch, mode);
+                if world == "Mopoke" && ch == ',' && mode == "block" {
+                    let swallowed = swallowed_control(&rendered, rect, caret_rgb);
+                    assert_swallowed_control_is_red(&refimg, &swallowed, rect);
                 }
+                assert!(
+                    area as f32 >= 96.0 * scale * scale * 0.25,
+                    "{world} {ch:?} {mode}: visible area floor / no swallowed glyph"
+                );
+                active_comma |= world == "Mopoke"
+                    && ch == ','
+                    && mode == "block"
+                    && w as f32 >= 6.5 * scale - 1.0;
             }
         }
     }
-    assert!(
-        active_comma,
-        "non-vacuity: Mopoke what, comma activated the floor in real pixels"
-    );
+    if world == "Mopoke" {
+        assert!(
+            active_comma,
+            "non-vacuity: Mopoke what, comma activated the floor in real pixels"
+        );
+    }
+}
+
+#[test]
+fn proportional_punctuation_has_a_real_pixel_body_mopoke() {
+    proportional_punctuation_has_a_real_pixel_body_for("Mopoke");
+}
+
+#[test]
+fn proportional_punctuation_has_a_real_pixel_body_gumtree() {
+    proportional_punctuation_has_a_real_pixel_body_for("Gumtree");
+}
+
+#[test]
+fn proportional_punctuation_has_a_real_pixel_body_bilby() {
+    proportional_punctuation_has_a_real_pixel_body_for("Bilby");
+}
+
+#[test]
+fn proportional_punctuation_has_a_real_pixel_body_bombora() {
+    proportional_punctuation_has_a_real_pixel_body_for("Bombora");
+}
+
+#[test]
+fn proportional_punctuation_has_a_real_pixel_body_saltpan() {
+    proportional_punctuation_has_a_real_pixel_body_for("Saltpan");
 }
