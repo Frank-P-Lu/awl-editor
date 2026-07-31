@@ -74,20 +74,38 @@ pub fn key_token_label(
     convention: Convention,
     platform: Platform,
 ) -> Option<String> {
+    key_token_spec(slug_want, convention, platform).map(|spec| match convention {
+        Convention::Mac => crate::keyspec::mac_glyph_chord(&spec),
+        Convention::Linux => crate::keyspec::linux_glyph_chord(&spec),
+    })
+}
+
+/// [`key_token_label`]'s SPEC half — the terse chord
+/// [`crate::keyspec::parse_chord`] accepts, before it becomes a ⌘ glyph or a
+/// `Ctrl+` word. `None` for an unknown slug; `Some("")` for a slug that
+/// resolves to NO chord on this convention/platform (Insert-link on Linux,
+/// where `C-k` stays kill-line; a browser-reserved chord with no alternate).
+///
+/// Every reader of "what does this doc teach" goes through here, so the law
+/// below can drive exactly the chord a reader is shown — never a second,
+/// possibly-diverging derivation of it.
+pub fn key_token_spec(
+    slug_want: &str,
+    convention: Convention,
+    platform: Platform,
+) -> Option<String> {
     if let Some(c) = commands::COMMANDS
         .iter()
         .find(|c| commands::slug(c.name) == slug_want)
     {
-        return Some(commands::resolved_native_label_truthful(
-            c, convention, platform,
-        ));
+        return Some(commands::resolved_native_truthful(c, convention, platform));
     }
     SYNTHETIC
         .iter()
         .find(|(s, _, _)| *s == slug_want)
         .map(|(_, mac, linux)| match convention {
-            Convention::Mac => crate::keyspec::mac_glyph_chord(mac),
-            Convention::Linux => crate::keyspec::linux_glyph_chord(linux),
+            Convention::Mac => (*mac).to_string(),
+            Convention::Linux => (*linux).to_string(),
         })
 }
 
@@ -335,6 +353,188 @@ mod tests {
             total > 0,
             "expected at least one {{{{cmd:..}}}} token across the starting docs"
         );
+    }
+
+    /// The four surfaces a starting doc is ever READ on. A `{{key:}}` token
+    /// resolves independently on each, so every law below sweeps all four
+    /// rather than the one the author happened to be running under.
+    const SURFACES: &[(Convention, Platform)] = &[
+        (Convention::Mac, Platform::Native),
+        (Convention::Mac, Platform::Web),
+        (Convention::Linux, Platform::Native),
+        (Convention::Linux, Platform::Web),
+    ];
+
+    /// THE NON-EMPTY LAW (queue item 24). `key_token_label` returning
+    /// `Some("")` is not a resolved token — it is a BLANK in the middle of a
+    /// sentence, and [`every_key_token_in_the_starting_docs_resolves`] above
+    /// says nothing about it, because `Some("")` is `Some`.
+    ///
+    /// The trap is real and sits in the catalog today: Insert-link is Cmd-K on
+    /// Mac and has NO Linux binding at all (`C-k` stays kill-line in both
+    /// keymap flavours — docs/config.md's tripwire), so a welcome document that
+    /// wrote `press {{key:insert_link}} to add a link` would seed a Linux
+    /// reader the sentence "press  to add a link". Cmd-W and Cmd-Q do the same
+    /// thing on the WEB surface, where the browser eats them and no
+    /// `WEB_ALTERNATE` exists to stand in.
+    #[test]
+    fn every_chord_the_starting_docs_teach_is_a_chord_that_exists() {
+        for (name, doc) in [
+            ("welcome.md", WELCOME),
+            ("tour.md", TOUR),
+            ("GUIDE.md", GUIDE),
+        ] {
+            for slug_want in extract_token_slugs(&strip_generated_table(doc)) {
+                for (convention, platform) in SURFACES {
+                    let label = key_token_label(&slug_want, *convention, *platform)
+                        .unwrap_or_else(|| panic!("{name}: unknown key token {slug_want:?}"));
+                    assert!(
+                        !label.trim().is_empty(),
+                        "{name}: {{{{key:{slug_want}}}}} renders EMPTY under \
+                         {convention:?}/{platform:?} — the doc would show a blank where a \
+                         chord should be. Cite the command by name ({{{{cmd:{slug_want}}}}}) \
+                         instead, or teach a command that has a binding everywhere."
+                    );
+                }
+            }
+        }
+    }
+
+    /// THE DISPATCH LAW (queue item 24). A chord that resolves to a non-empty
+    /// LABEL still proves nothing about whether pressing it does anything: the
+    /// label owner and the keymap are separate code. So every chord the
+    /// starting docs teach is pressed — through a real
+    /// [`crate::keymap::KeymapState`] built for that convention and flavour,
+    /// the same `resolve` a physical keypress takes — and must land on the
+    /// command it is taught as.
+    ///
+    /// On the WEB surface the keymap is built with
+    /// `commands::web_alternate_keys` folded in exactly as `App::new` folds it,
+    /// so a browser-reserved chord's replacement is proved to dispatch rather
+    /// than merely to print.
+    ///
+    /// SWEPT UNDER THE DEFAULT KEYMAP FLAVOUR ONLY, and that exclusion is a
+    /// product fact rather than a convenience. `keymap = "emacs"` is an opt-in
+    /// that asks awl to hand the whole bare-control cluster BACK to Emacs, so
+    /// under it Linux `C-s` is search and Save has no native chord at all —
+    /// deliberately, and documented in GUIDE's Keys section. The starting docs
+    /// teach the keymap a reader has before they configure anything. (The
+    /// separate, pre-existing fact that `resolved_native_label` takes no
+    /// flavour parameter — so the palette's own native column still prints
+    /// `Ctrl+S` for Save under that preset — is a surface this item did not
+    /// touch and did not fix.)
+    #[test]
+    fn every_chord_the_starting_docs_teach_dispatches_through_the_real_keymap() {
+        use crate::keymap::{KeymapState, linux_builtin_keep};
+
+        let native_keep: Vec<String> = linux_builtin_keep().iter().map(|s| s.to_string()).collect();
+
+        for (name, doc) in [
+            ("welcome.md", WELCOME),
+            ("tour.md", TOUR),
+            ("GUIDE.md", GUIDE),
+        ] {
+            for slug_want in extract_token_slugs(&strip_generated_table(doc)) {
+                let want = commands::COMMANDS
+                    .iter()
+                    .find(|c| commands::slug(c.name) == slug_want)
+                    .map(|c| c.action.clone());
+                for (convention, platform) in SURFACES {
+                    let spec = key_token_spec(&slug_want, *convention, *platform)
+                        .expect("resolved above");
+                    let keeps: &[&[String]] = match convention {
+                        Convention::Mac => &[&[]],
+                        Convention::Linux => &[&native_keep],
+                    };
+                    for keep in keeps {
+                        let overrides = crate::commands::web_alternate_keys(
+                            &[],
+                            *convention,
+                            *platform,
+                        );
+                        let mut km =
+                            KeymapState::with_overrides_and_convention(&overrides, *convention);
+                        km.apply_linux_keep(keep);
+                        let mut trace = Vec::new();
+                        for token in spec.split_whitespace() {
+                            let (key, mods) = crate::keyspec::parse_chord(token).unwrap_or_else(|e| {
+                                panic!("{name}: {slug_want:?} teaches unparsable chord {spec:?}: {e}")
+                            });
+                            trace.push(km.resolve(&key, &mods));
+                        }
+                        let landed = trace.last().cloned().unwrap_or_else(|| {
+                            panic!(
+                                "{name}: {{{{key:{slug_want}}}}} resolves to NO chord at all \
+                                 under {convention:?}/{platform:?} — there is nothing to press"
+                            )
+                        });
+                        match &want {
+                            Some(action) => assert_eq!(
+                                &landed, action,
+                                "{name}: {{{{key:{slug_want}}}}} is taught as {spec:?} under \
+                                 {convention:?}/{platform:?} (keep={keep:?}) but that chord \
+                                 resolves to {landed:?}, not the command it names"
+                            ),
+                            // The two SYNTHETIC chords have no catalog row to
+                            // compare against; what must hold is that they are
+                            // not inert.
+                            None => assert_ne!(
+                                landed,
+                                crate::keymap::Action::Ignore,
+                                "{name}: synthetic {{{{key:{slug_want}}}}} = {spec:?} resolves to \
+                                 nothing under {convention:?}/{platform:?}"
+                            ),
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// THE AVAILABILITY LAW (queue item 24). `samples/welcome.md` is SEEDED —
+    /// one set of bytes written per reader, on whichever platform they are on —
+    /// so every command it names must actually exist for that reader. A
+    /// native-only command cited in the welcome would be seeded into a browser
+    /// tab where the palette does not list it, and a web-only one into a
+    /// desktop where it does not either.
+    ///
+    /// `GUIDE.md` and `tour.md` are deliberately NOT swept: GUIDE is one
+    /// document that discusses both platforms explicitly (its "Hidden on web"
+    /// paragraph cites native-only commands ON PURPOSE, by name, as its
+    /// subject), so a blanket ban there would forbid the page from doing its
+    /// job.
+    #[test]
+    fn every_command_the_welcome_names_exists_on_both_platforms() {
+        for slug_want in extract_cmd_slugs(WELCOME) {
+            let command = commands::COMMANDS
+                .iter()
+                .find(|c| commands::slug(c.name) == slug_want)
+                .unwrap_or_else(|| panic!("welcome.md: unknown cmd token {slug_want:?}"));
+            for platform in [Platform::Native, Platform::Web] {
+                assert!(
+                    command.available_on(platform),
+                    "welcome.md names {:?}, which is not available on {platform:?} — the \
+                     seeded welcome would teach a reader a command their palette does not \
+                     list",
+                    command.name
+                );
+            }
+        }
+        for slug_want in extract_token_slugs(WELCOME) {
+            if let Some(command) = commands::COMMANDS
+                .iter()
+                .find(|c| commands::slug(c.name) == slug_want)
+            {
+                for platform in [Platform::Native, Platform::Web] {
+                    assert!(
+                        command.available_on(platform),
+                        "welcome.md teaches {:?}'s chord, but the command is not available \
+                         on {platform:?}",
+                        command.name
+                    );
+                }
+            }
+        }
     }
 
     /// THE GREP-LAW: no literal chord glyph survives in the STARTING docs'

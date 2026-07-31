@@ -1,43 +1,88 @@
-# awl
+# Welcome to awl
 
-A plain-text editor for prose, and light code. Type; the page renders
-as you write, and drops back to plain markdown the instant your caret
-lands on a line, so the markup is one keystroke away.
+This is a real file. Not a splash screen — an ordinary Markdown document,
+sitting in a folder, open for editing right now. Type into it. Delete this
+paragraph. Nothing here is protected, and nothing is waiting for you to
+finish reading.
 
-## Three doors, always open
-- {{key:command_palette}}   the command palette — every command, by name
-- {{key:switch_theme}}   switch theme — fifteen worlds, each its own type
-- {{key:settings}}   settings — the config, as a text file you edit here
+awl makes Markdown and nothing else. There is no project format, no library,
+no database. Every document you write here is a plain text file that opens
+unchanged in any other editor, today or in ten years.
 
-({{key:command_palette}} → "{{cmd:guide}}" opens the full user guide as a page, any time.)
+## The markup is one line away
 
-## Write
-Type to insert. {{key:undo}} undo, {{key:cut}} / {{key:copy}} / {{key:paste}} cut, copy, paste.
-{{key:bold}} bold, {{key:italic}} italic, {{key:inline_code}} inline code — the rest of the
-formatting toggles (lists, highlight, blockquote…) live in the palette.
+Put your caret on the line below this one, then move it off again.
 
-## Two more pages worth a look
-- /tour.md — a one-page tour of the markdown; try the
-  caret on each line and watch it reveal
-- /japanese.md — the bundled Japanese type, rendering
-  with no network request at all
+Away from the caret, a line reads as **finished writing**. Under the caret it
+shows its `backticks` and its *asterisks* and the `#` that starts a heading —
+the plain text the file actually holds. Then it settles back.
 
-## This is the browser build
+That is the whole idea, and it is the only one you need. The file never
+becomes rich; only the render does. What you see away from a line is what it
+means. What you see on it is what it says.
 
-| | Here | Desktop (macOS / Linux) |
-|---|---|---|
-| Storage | `localStorage`, capped around 5 MB — roughly eight to ten novels of plain text | Real files on disk |
-| Preferences, `[keys]` | A `config.toml` over `localStorage`, persists across reloads | `~/.config/awl/config.toml` |
-| Copy | Mirrors out to the OS clipboard | To the OS clipboard |
-| Paste | From awl's own kill ring only | From the OS clipboard |
-| Getting a file out | "{{cmd:download_file}}" ({{key:command_palette}}) | Already on disk |
+## Everything has a name
 
-A couple of native chords belong to the browser itself (new tab, new
-window, and similar) — {{key:new_document}} and {{key:switch_theme}}
-resolve to a working alternate here automatically. Every command is
-also reachable by name through {{key:command_palette}}.
+{{key:command_palette}} opens the command palette: every command awl has,
+listed by name, each with its shortcut beside it. You never have to remember
+a chord — only a word. Type a few letters and press Enter.
 
-The desktop build has no storage cap and full OS clipboard paste — see
-the project's releases page for macOS and Linux downloads.
+The shortcuts themselves are the ones your platform already taught you.
+{{key:save}} saves, {{key:undo}} undoes, {{key:new_document}} starts a new
+document in this same folder. {{key:bold}}, {{key:italic}} and
+{{key:inline_code}} wrap the selection in bold, italic or code. The rest —
+lists, quotes, headings, ==highlights== — waits in the palette under the name
+you would have guessed.
 
-The quick brown fox jumps over the lazy dog.
+## If your hand is on the mouse
+
+Drag across a few words. A small row of buttons appears beside the selection:
+bold, italic, highlight, code, strikethrough, heading, link. Each one runs
+exactly the command its keyboard twin runs, and a button lights up when the
+selection already carries that format.
+
+It leaves when the selection does. It is a bridge for the pointer, not a
+toolbar — awl does not grow one of those.
+
+## Change the room
+
+{{key:switch_theme}} opens the worlds. There are nineteen, and each is a whole
+environment: its own display face, its own ink, its own ground and caret. This
+document crosses over with you as you move down the list, so you are
+auditioning the room you would actually write in rather than picking a swatch.
+Enter keeps a world. Esc puts everything back the way it was.
+
+None of it changes how awl works. It is for the days when the writing has gone
+stale and the room should not have to.
+
+## Where this goes
+
+This file is called `welcome.md`, and awl put it in your writing folder on
+first launch. When the window is wide enough, the bottom of the left margin
+names the file and the folder it sits in.
+
+You do not have to save it. awl writes the file about a second after you stop
+typing, and again when the window loses focus, when you switch files, and when
+you quit. {{key:save}} forces the write immediately, if you would rather be
+sure than trusting.
+
+On a desktop these are real files in a real folder, and anything on your
+machine can open them. In a browser tab there is no disk, so awl keeps them in
+the tab's own storage instead.
+
+## Making it yours
+
+{{key:settings}} opens awl's settings the way awl thinks of them: as a text
+file, in this editor, like everything else. Change a line, save it, and it
+applies at once. An untouched settings file is simply today's defaults.
+
+awl is opinionated on purpose. It is meant to be good before you configure
+anything, and most of it cannot be configured at all — what is there is the
+short list of things writers genuinely differ about.
+
+---
+
+That is enough to begin with. {{key:command_palette}} → "{{cmd:guide}}" opens
+the full guide whenever you want the rest of it.
+
+Now write something.

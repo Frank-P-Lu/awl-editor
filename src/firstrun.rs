@@ -85,7 +85,7 @@ pub(crate) fn mark() {
     if let Some(parent) = path.parent() {
         let _ = crate::fs::active().create_dir_all(parent);
     }
-    let _ = crate::fs::active().write(&path, MARKER_TEXT.as_bytes());
+    let _ = crate::fs::write_atomic(&path, MARKER_TEXT.as_bytes());
 }
 
 /// PURE. Is this launch a first run in the product sense?
@@ -125,7 +125,9 @@ pub(crate) fn seed(path: &Path, convention: Convention, platform: Platform) -> s
         fs.create_dir_all(parent)?;
     }
     let text = crate::keytoken::render_key_tokens(WELCOME_MD, convention, platform);
-    fs.write(path, text.as_bytes())
+    // Through the durable-write owner, like every buffer save and the scratch
+    // stash: this document is the user's manuscript from the moment it lands.
+    crate::fs::write_atomic(path, text.as_bytes())
 }
 
 /// `samples/welcome.md`'s bytes. The `include_str!` itself lives in the one

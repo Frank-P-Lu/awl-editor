@@ -224,19 +224,68 @@ pub fn resolved_native_label_truthful(
     convention: Convention,
     platform: Platform,
 ) -> String {
-    let reserved = platform == Platform::Web
-        && crate::webreserved::is_reserved(&resolved_native(c, convention), convention);
-    if reserved {
-        match web_alternate_for(c, convention) {
-            Some(alt) => match convention {
-                Convention::Mac => crate::keyspec::mac_glyph_chord(alt),
-                Convention::Linux => crate::keyspec::linux_glyph_chord(alt),
-            },
-            None => String::new(),
-        }
-    } else {
-        resolved_native_label(c, convention)
+    let spec = resolved_native_truthful(c, convention, platform);
+    if spec.trim().is_empty() {
+        return String::new();
     }
+    match convention {
+        Convention::Mac => crate::keyspec::mac_glyph_chord(&spec),
+        Convention::Linux => crate::keyspec::linux_glyph_chord(&spec),
+    }
+}
+
+/// [`resolved_native_label_truthful`]'s own SPEC half, split out so a caller
+/// that needs to DISPATCH the chord — rather than print it — reads the same
+/// answer the label does. `""` when there is no chord worth showing: the
+/// command has no native slot at all, or its resolved chord is browser-reserved
+/// on [`Platform::Web`] and it has no [`WEB_ALTERNATE`] to fall back to.
+///
+/// The split exists because a label alone cannot be verified. `keytoken`'s
+/// starting-docs law drives every chord the welcome/tour/GUIDE actually teach
+/// through a real [`crate::keymap::KeymapState`] and asserts it lands on the
+/// command's own `Action` — which needs the terse spec `keyspec::parse_chord`
+/// accepts, not the ⌘-glyph a human reads.
+///
+/// THE LINUX BUILT-IN KEEP TIER (queue item 24) is applied here, and it is the
+/// tier this function was missing. `keymap::linux_builtin_keep()` (`["C-k"]`)
+/// is UNCONDITIONAL on `Convention::Linux` — every flavour, every config — so
+/// Insert-link's naively translated `C-k` never fires there; `C-k` is kill-line
+/// (docs/config.md's tripwire). [`join_slots_truthful`] already knew this and
+/// suppresses the label, which is why GUIDE's generated table correctly prints
+/// an EMPTY Linux cell for Insert link. Every other reader — the two-slot
+/// palette label's native half, and `keytoken`'s starting-doc tokens — reached
+/// [`resolved_native_label_truthful`] directly and got `Ctrl+K` back: a chord
+/// that resolves to kill-line, offered as the way to insert a link. A welcome
+/// document is the worst place for that, so the floor moved into the shared
+/// owner, where no reader can dodge it.
+///
+/// Only the UNCONDITIONAL builtin list is applied, never the config-dependent
+/// `effective_linux_keep()`: a caller that knows the user's own keep list still
+/// applies it on top ([`join_slots_truthful`] does), and a caller that does not
+/// must never over-claim a suppression that some configs would not have.
+pub fn resolved_native_truthful(
+    c: &Command,
+    convention: Convention,
+    platform: Platform,
+) -> String {
+    let native = resolved_native(c, convention);
+    if convention == Convention::Linux {
+        let builtin: Vec<String> = crate::keymap::linux_builtin_keep()
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        if crate::keymap::linux_keeps_chord(&builtin, &native) {
+            return String::new();
+        }
+    }
+    let reserved =
+        platform == Platform::Web && crate::webreserved::is_reserved(&native, convention);
+    if reserved {
+        return web_alternate_for(c, convention)
+            .map(str::to_string)
+            .unwrap_or_default();
+    }
+    native
 }
 
 const WEB_ALTERNATE: &[(&str, &str, &str)] = &[
