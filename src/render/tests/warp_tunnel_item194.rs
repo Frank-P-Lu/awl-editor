@@ -348,8 +348,9 @@ fn solve4(mut m: [[f64; 4]; 4], mut rhs: [f64; 4]) -> Option<[f64; 4]> {
                 continue;
             }
             let k = m[r][col] / m[col][col];
-            for c in col..4 {
-                m[r][c] -= k * m[col][c];
+            let pivot_row = m[col];
+            for (c, cell) in m[r].iter_mut().enumerate().skip(col) {
+                *cell -= k * pivot_row[c];
             }
             rhs[r] -= k * rhs[col];
         }

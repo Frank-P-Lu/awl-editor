@@ -109,25 +109,17 @@ pub enum Background {
         spacing_px: f32, curvature: f32, density: f32 },
 }
 
-/// WARPED GRID's one theme-owned profile dial — whether the two margins are
-/// cropped out of ONE projected cylinder or steered independently.
+/// WARPED GRID's one theme-owned profile dial: the shipped projection, and the
+/// two defects item 194 repaired, kept beside it as explicit MUTATION arms (the
+/// `DeckleAnchor::Page` precedent) so each law can be watched failing on the
+/// composition it names. `Shared` is the only profile a world should author.
 ///
-/// * [`Tunnel::Shared`] — one camera pose, one projected cylinder, cropped at
-///   the page. A bend moves and warps the shared opening as a unit; nothing
-///   pinches or steers per margin. The only profile a world should author.
-/// * [`Tunnel::PerMargin`] — the DEFECT item 194 ROUND 1 repaired, kept as data:
-///   each margin re-derives the steering from its own side of the page, so the
-///   two openings disagree on horizon, curvature and vanishing direction.
-/// * [`Tunnel::PageScaled`] — the DEFECT item 194 ROUND 2 repaired, kept as
-///   data: the projection's own SCALE is derived from the page column
-///   (`anchor = 3 * page_half`, with the section flattened to whatever flank the
-///   page edge cuts), so widening the page rescales and squashes the world
-///   instead of sliding the two windows across a fixed one. This is round 1's
-///   shipped geometry exactly, and the live review failed it.
-///
-/// Both defects exist as explicit MUTATION arms (the `DeckleAnchor::Page`
-/// precedent): a law about a composition is only evidence if the composition can
-/// be reverted and the law watched failing, by name.
+/// * [`Tunnel::Shared`] — one camera, one cylinder at one ROOM-derived scale,
+///   two windows onto it; a bend moves the shared opening as a unit.
+/// * [`Tunnel::PerMargin`] — round 1's defect: each margin re-derives the
+///   STEERING from its own side, so the two openings disagree.
+/// * [`Tunnel::PageScaled`] — round 2's: the SCALE comes from the page column,
+///   so a wider page rescales and squashes the world. Round 1's geometry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tunnel {
     Shared,
@@ -137,8 +129,8 @@ pub enum Tunnel {
 
 impl Tunnel {
     /// The scalar the WGSL `warped_grid_rgb` branches on (`params.w`). MUST
-    /// match `shaders/background.wgsl`'s own `WARP_TUNNEL_PER_MARGIN` and
-    /// `WARP_TUNNEL_PAGE_SCALED` thresholds, which bracket each arm.
+    /// match `background.wgsl`'s `WARP_TUNNEL_PER_MARGIN`/`_PAGE_SCALED`
+    /// thresholds, which bracket each arm.
     pub fn mode(self) -> f32 {
         match self {
             Tunnel::Shared => 0.0,

@@ -181,7 +181,8 @@ twenty-world target, and it is the deliberate LIGHT `5/5` counterpart to
 Firetail: cool rather than warm, geometric rather than organic, crisp rather than
 liquid, directional rather than drifting. A near-white mineral / pale-lavender
 room under deep cool graphite-violet prose, with one hot vermilion caret as the
-sole accent. It ships the roster's eleventh ground, **`Background::WarpedGrid`**
+sole accent — deepened once, in item 194 round 2, when the user answered the
+Kite↔Brolga distinctness question (see the roster-wide floor above). It ships the roster's eleventh ground, **`Background::WarpedGrid`**
 — see "The warped-grid law" below — and it is the roster's second world (after
 Firetail/Mangrove's lava) whose ground genuinely TRAVELS. Its palette was solved
 against the role laws rather than eyeballed: two successive first cuts failed
@@ -698,6 +699,28 @@ exactly like the monochrome and 1-bit laws fence Wagtail's:
   `primary_content` stays the shared dark-warm ink — an authored token, not
   derived from `primary`, and inert for Mopoke's `CaretBlockStyle::Normal`
   (the knockout-to-`primary_content` repaint is the `Filled` arm's alone).
+- **The ROSTER-WIDE floor (item 194 round 2 — it could not be written before).**
+  Kite arrived as the tightest pair the roster had ever carried: Kite↔Brolga at
+  **38.8** on the same ten-token recipe, under both floors this repo had chosen
+  to defend, and inherent to the item as written — "cool light world, near-white
+  ground, deep cool prose ink, vermilion caret" IS Brolga's definition. The user
+  answered it by taking the recommended shift rather than shipping 38.8 or
+  chasing the 57.8 ceiling (which costs the near-white mineral character for six
+  further points and still misses 60 — a worse world and not a passing number):
+  `base_200`/`base_300` to `#E5DEF3`/`#CDC0E7` and the caret to `#FF3B14`,
+  measuring **49.3** here. That unblocked
+  `every_pair_of_worlds_clears_the_roster_wide_distinctness_floor`, which grades
+  every pair rather than a hand-picked few. **Its threshold is 40.0 and it is
+  deliberately NOT Kite's number**: after the shift the roster's true closest
+  pair is **Tawny↔Bowerbird at 40.6**, with **Magpie↔Brolga at 40.8** behind it —
+  two pairs with nothing to do with Kite, and nobody had pinned either. A
+  Kite-derived floor would have failed on the day, and a round 35 would bless
+  pairs looser than anything shipping; 40.0 is the largest whole point under the
+  roster's own measured minimum, so the law is as tight as the roster actually
+  is and a new world cannot arrive closer than the closest pair already
+  standing. It sits BELOW the two pairwise floors above on purpose: those defend
+  specific decisions, this is a floor under everything. Item 99's lesson is why
+  it sweeps: the true closest pair is the one nobody pinned.
   Test: `theme::tests::tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct`.
 - **The 1-bit foil (why a lava world can NEVER be Wagtail).** A `Background::Lava`
   paints authored COLOR (wine, teal) at fractional metaball-blend coverage — the
@@ -1063,10 +1086,10 @@ user sees, and every taste call on a ground was quietly density-dependent.
   the field's own pitch density-dependent. Item 176's `FINDS_EDGE_AA_PX` (the
   0.75px crisp edge) is the canonical sampling quantity and did not move.
 - **KITE'S WARPED GRID joined the table in item 194, and moved one line of it.**
-  Nine quantities: the ring pitch where the rings clear the page, the bend gain,
-  the coverage, the route's pose triple, the section/aspect ratios, the drawn line
-  weights with the radius floor, and the page-edge/narrow-margin reaches are all
-  COMPOSITION; `WARP_AA_PX` (the 1.0px line skirt) is the ground's only SAMPLING
+  Ten quantities: the ring pitch, the bend gain, the coverage, the route's pose
+  triple, the section's room fraction, the three window-placement ratios, the
+  drawn line weights with the radius floor, and the page-edge/narrow-margin
+  reaches are all COMPOSITION; `WARP_AA_PX` (the 1.0px line skirt) is the ground's only SAMPLING
   quantity. The interesting one is the MOIRE BOUND
   (`WARP_ALIAS_FADE_LO_PX`/`HI_PX`), which shipped physical and was reclassified
   LOGICAL: its motivation is a sampling one, but what it DECIDES is how deep the
@@ -1145,35 +1168,122 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   version of "pull the picture outward" that is one camera: a camera has one
   vanishing region, and if the page hides it, the honest answer is that the page
   hides it.
-- **SO THE COMPOSITION IS SIZED INSTEAD, and it is a property of the shader (item
-  89's abutment lesson).** The vanishing region stays behind the page — a cylinder
-  continues behind an opaque page, it is not re-planted at its edges — and what is
-  composed is the SECTION's size: `WARP_SECTION_PAGE_RATIO` makes the anchor
-  ring's diameter three page widths, so the page hides ONE THIRD of the
-  cross-section and each margin shows one third directly, and therefore reads two
-  thirds — its own third plus the third behind the page that both margins imply.
-  `WARP_ASPECT_FIT` then flattens the section (ONE affine transform of the entire
-  picture, so it is still one tube seen by one camera) until its flank at the page
-  edge lands inside the room. Neither is a dial: a world cannot author a
-  composition that hides its own section, and cannot author one that disagrees
-  between the margins. Measured over rendered pixels at the canonical geometry:
-  the page hides **0.3334** of a 2850px section against a 950px page, and the two
-  margins independently agree on that section to 0.05%. Law:
-  `render::tests::warp_tunnel_item194::
-  the_page_hides_a_third_of_the_cross_section_both_margins_crop`, which TRACES the
-  outermost major cross-ring across each margin and solves the arc for the section
-  it belongs to — recovering the opening from a FLANK rather than an apex is not a
-  convenience: a section three page widths across cannot fit its apex in any
-  margin narrower than the page, so the eye infers the opening from the arc and so
-  does the law.
-- **A PREMISE THE ITEM GOT WRONG, recorded because the arithmetic is forced.**
-  "Two thirds of the cross-section VISIBLE in each margin" is not reachable at
-  awl's page geometry under any placement of one shared cylinder: showing a third
-  of a section `D` wide needs a margin at least `D/3` wide, and `D/3` is the page
-  column itself, which is always the widest region on the canvas. What each margin
-  can show DIRECTLY is a third; the two thirds is what it READS, its own third
-  plus the shared third behind the page (inclusion-exclusion: `2/3 + 2/3 - 1/3 =
-  1`). That is the figure the law asserts, and the number it measures is exact.
+- **ROUND 1 SIZED THE COMPOSITION FROM THE PAGE, AND THAT WAS THE SECOND
+  DEFECT.** Its repair for the first one was to stop re-planting the vanishing
+  region and to size the SECTION instead: `WARP_SECTION_PAGE_RATIO` made the
+  anchor ring three page widths across, so the page hid a third of it and each
+  margin read two thirds; `WARP_ASPECT_FIT` then flattened the section until its
+  flank fitted the room. Every word of that is true at ONE page width, and the
+  live review approved exactly that width. Across awl's own measure band it
+  swept the anchor from 432px to 1942px and the section's aspect ratio from 1.00
+  to 4.00 — so widening the page grew the tunnel, flattened it, and doubled the
+  ring density at a given radius. The user read it as the world being squashed
+  into whatever margin was left, and it is: **an authored scale that is a
+  function of the margin width is not a projection.**
+- **THE SCALE IS NOW THE ROOM'S, AND THE SECTION IS A CIRCLE (item 194 round 2).**
+  `WARP_SECTION_ROOM_FRAC` sizes the anchor ring's radius at 0.432 of the room's
+  HEIGHT and nothing else reaches it — no page column, no margin. The affine fit
+  is gone entirely: one isotropic space, so the projected cross-section's aspect
+  ratio is the constant 1.00 by construction rather than by tuning, and
+  `WARP_RING_PITCH_AT` hangs the authored ring pitch on a fixed place on that
+  fixed section so the lattice's scale is as constant as the section's. The
+  constants are chosen to reproduce round 1's numbers EXACTLY at the narrowest
+  page — the composition the review approved — which is also why the two models
+  agree there and diverge everywhere else, and why a law measured at one width
+  could pass while the world did something else.
+- **WHAT THE PAGE WIDTH MOVES INSTEAD: TWO WINDOWS ONTO ONE CYLINDER.**
+  `warp_window_hide` is their single owner, and it says how far INSIDE the page
+  edge each margin's copy of the axis falls. A margin at least one anchor wide
+  hides the axis behind the page's own centre line, so the two windows show
+  opposite sides of the section and TILE with no overlap — round 1's approved
+  reading, preserved exactly. As the margin narrows the window SLIDES INWARD,
+  until at `WARP_WINDOW_TIGHT` the axis has come out from behind the page and
+  sits `WARP_WINDOW_STRADDLE` (0.4) of the margin's own width outside it: each
+  window then shows about 60% of its own side of the cylinder and 40% of the
+  other's, so **the centre appears in both margins at once**. The duplication is
+  intended and was chosen by the user over the alternative, which is a thin
+  margin showing nothing but a sliver of far rim. The placement is a TRANSLATION
+  and nothing else — one camera, one steering vector, one scale, one lattice —
+  and that distinction is what the coherence law had to be re-aimed to state.
+- **THE LAW AUDIT, because round 1's laws could not simply be re-tuned.** Round
+  1's contract was "one cylinder continuing behind the page" with the overlap
+  implied by occlusion; round 2's is "two overlapping windows onto one cylinder"
+  with the overlap visible. A law asserting the first can keep passing while the
+  world does the second — the trap items 183, 186 and 192 each found in the same
+  week. So every law was asked whether it could survive the model change, and the
+  answers were run rather than reasoned:
+  - `the_page_hides_a_third_of_the_cross_section_both_margins_crop` — round 1's
+    headline. It asserted `col_w / 2u ∈ [0.30, 0.37]` at ONE geometry, which is
+    the continuation invariant itself. **Retired and replaced**, not re-tuned: the
+    replacement sweeps the whole measure band and asserts the two quantities that
+    cannot move under the corrected model, aspect ratio and scale.
+  - `both_margins_are_one_camera_at_every_route_pose` — fitted BOTH margins
+    against one axis on the page's centre line, so it encoded round 1's placement
+    as well as its camera. **Re-aimed**: each margin is now fitted through its own
+    window placement, and the surviving claim is that the two recover the same
+    STEERING. A translation is not a camera.
+  - `warp_per_margin_steering_breaks_the_shared_camera` — the mutation arm.
+    **Re-aimed and widened**, because how much a margin can say about the camera
+    is itself a function of the page width (below).
+  - Item 132's fifteen appearance laws — page exclusion, both margins alive, the
+    turn's opposing compression, climb/descent coherence, the hierarchy rungs, the
+    edge fade, no-moire, narrow simplification, the exact wrap, the freeze paths.
+    **All fifteen passed unchanged under the new model on the first run.** That is
+    the honest audit result and it is not a comfort: they are model-agnostic
+    (ink density, symmetry, value bands), so they were never going to catch a
+    rescaling — which is exactly why the scale needed a law of its own. Only the
+    WGSL structural tripwire failed, because it greps for the shader's own lines,
+    and that is what a structural tripwire is for.
+  - The route laws in `warpgrid.rs` — untouched by the projection, and untouched.
+- **THE REPLACEMENT LAW, AND WHAT IT MEASURES.**
+  `the_projection_never_rescales_across_the_adaptive_column_range` sweeps the
+  whole `page::MIN_MEASURE..96` band at the app's own adaptive column, traces the
+  outermost major cross-ring in each margin and solves the arc — with a FREE
+  centre — for the ellipse it belongs to. Measured over rendered pixels: aspect
+  0.943..1.016 with a median of 1.00, and every radius on the room's own ring
+  ladder to within 0.04 of a rung (a rung is a factor of 2.83). Round 1's
+  geometry, kept as `theme::Tunnel::PageScaled`, spreads the aspect over 3.00 and
+  walks the radius 1.5 rungs — an order of magnitude outside the bounds — and
+  `warp_page_scaled_projection_breaks_the_one_scale` asserts that spread, so the
+  replacement is proven capable of failing. It also asserts that the two models
+  AGREE at the narrowest page, which is the shape of the defect the review
+  reported.
+- **THE ARC FIT'S OWN LIMITS, recorded rather than papered over.** Solving a
+  section from an ARC is the only measurement a margin narrower than the page
+  allows, and an arc near its own apex trades curvature against radius: a smooth,
+  low-residual ellipse of the wrong size, which no residual can see. Three fixes
+  earned their place, each by measurement — a GEOMETRIC (Gauss-Newton) refit,
+  because the algebraic solve minimises the wrong quantity and read 0.82/306px on
+  an arc whose true answer was 1.00/432px; CORROBORATION between the margin's own
+  concentric arcs, because every ring shares a centre and a walk led astray by a
+  rail agrees with nothing; and an ARC-COVERAGE floor of 100 degrees, which is the
+  filter that finally separated the good fits from the plausible ones (below it,
+  0.87/335px against a true 1.00/432px). The band's middle — measures 40 to 60 at
+  1600x1000, where each window holds only the apex of one rung — yields no
+  qualifying arc and is therefore NOT measured by this law; the sweep covers 20
+  widths and grades 20 margins at both ends of the band, and the gap is stated
+  here rather than hidden behind a green tick.
+- **A PROPERTY OF THE REPAIR, worth knowing before the live review.** Steering
+  displaces a ring by `|B|/u`, so all the evidence about a turn lives at the deep
+  end. Round 1's flattening multiplied every pitch error on the glass by up to
+  4x; round 2's isotropic projection does not, and a WIDE page's window does not
+  reach the deep end at all. Measured: at the canonical column a committed left
+  bend and a straight camera differ by only 2.4x in the fit, and a 0.6 pitch on
+  top of that bend by 1.13x. So the coherence law asks its UNIQUENESS half only
+  of a window that reaches within half an anchor of the axis
+  (`identifies_the_camera`), and asks the fit half everywhere. **The wider the
+  page, the less of the cylinder each window holds and the less a turn can
+  possibly read** — that is a real consequence of a constant scale, it is stated
+  in a law's own terms rather than glossed, and how much less is too much is the
+  user's call on the width sheet.
+- **A PREMISE ROUND 1 GOT WRONG, kept because the arithmetic is forced.**
+  "Two thirds of the cross-section VISIBLE in each margin" was not reachable
+  under round 1's own model at awl's page geometry: showing a third of a section
+  `D` wide needs a margin at least `D/3` wide, and `D/3` was the page column
+  itself, always the widest region on the canvas. Round 2 dissolves the question
+  rather than answering it — the section is no longer sized in page widths at
+  all, and how much of it a margin shows is a consequence of the window, not a
+  target.
 - **SOLVING IT IS A BRACKETED BISECTION, not a fixed point.** Inverting
   `p = B/u + u*e` means finding the LARGEST `u` with `h(u) = |p - B/u| - u = 0`
   (the nearest wall along the ray — which is also correct occlusion, so a hard
@@ -1186,27 +1296,31 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   swings the far end into a margin, which is where the picture matters most
   (measured: a 14x14 tile at 72% ink). Two Newton steps polish the bracket so the
   field stays smooth enough for `fwidth` to draw a constant-width line through it.
-- **ONE JOURNEY, TWO CROPS, with no per-side rule at all.** `fs_main` has already
-  returned for every fragment inside the page column, so the two margins are one
-  projected cylinder CROPPED — exactly what an opaque page does to a view. Nothing
-  in `warped_grid_rgb` asks which side it is on except the page-edge fade and the
-  narrow-margin simplification, which are legibility MASKS on one field rather
-  than cameras. Steering enters once, as ONE bend vector for the whole picture:
-  the near rings barely move (`|B|/u` is small where `u` is large) while the far
-  ones swing hard, which IS the near wall broadening continuously around the
-  outside of the turn while the far wall compresses continuously around the
-  inside. `theme::Tunnel::PerMargin` keeps the DEFECT as data — each margin
-  re-deriving the steering from its own side of the page — as the explicit
-  MUTATION arm (the `DeckleAnchor::Page` precedent), so the coherence laws can be
-  watched failing. Laws: `warp_tunnel_item194::
+- **ONE JOURNEY, TWO WINDOWS, and the only per-side quantity is WHERE each window
+  sits.** `fs_main` has already returned for every fragment inside the page
+  column, so the two margins are one projected cylinder cropped — exactly what an
+  opaque page does to a view. What a margin decides for itself is its window's
+  own translation (`warp_window_hide`), plus the page-edge fade and the
+  narrow-margin simplification, which are legibility MASKS on one field. Steering
+  enters ONCE, as one bend vector for the whole picture: the near rings barely
+  move (`|B|/u` is small where `u` is large) while the far ones swing hard, which
+  IS the near wall broadening continuously around the outside of the turn while
+  the far wall compresses continuously around the inside. Both windows therefore
+  show the same opening shifting the same way at the same instant.
+  `theme::Tunnel` keeps BOTH defects as data — `PerMargin` (each margin
+  re-deriving the steering from its own side of the page) and `PageScaled` (round
+  1's page-derived scale) — as the explicit MUTATION arms (the
+  `DeckleAnchor::Page` precedent), so each law can be watched failing on the
+  composition it names. Laws: `warp_tunnel_item194::
   both_margins_are_one_camera_at_every_route_pose`, which scores each margin's ink
   against the route's own camera IN PIXELS (the distance from a mark to the
   nearest line that camera predicts, divided by the local gradient — in lattice
   units a candidate that predicts a DENSE lattice wins for free, and a wrong
   steering predicts exactly that by swinging the far end into the margin being
-  measured); worst margin of the worst pose reads 0.94px against a 1.6px bound,
-  with every materially different camera missing by 3x or more. Horizon, curvature
-  and vanishing direction are each a function of that one pose, so one comparison
+  measured); worst margin of the worst pose over two geometries reads 0.99px
+  against a 1.6px bound, with every materially different camera missing by 2.3x
+  or more wherever the window can see the deep end. Horizon, curvature and
+  vanishing direction are each a function of that one pose, so one comparison
   settles all three of the disagreements the review reported. Item 132's own
   `a_turn_compresses_one_margin_and_opens_the_other_coherently` still holds, still
   measured as ink DENSITY: a COUNT of lines crossed per margin falls on BOTH sides
@@ -1289,8 +1403,13 @@ tunnel, the `LavaEdge::mask_mode` precedent).
 - **Live-only, and never claimed verified here:** whether the travel FEELS calm
   at the shared ~10 fps ambient cadence, whether a steering transition reads as
   seamless over real seconds, whether the field is comfortable in peripheral
-  vision for a long writing session — and, after item 194, whether a bend READS
-  as one opening shifting off-centre. The harness proves the arithmetic and the
+  vision for a long writing session, whether a bend READS as one opening shifting
+  off-centre — and, after round 2, whether the DUPLICATION a narrow page produces
+  reads as one world seen twice rather than as two worlds, and whether a turn is
+  still legible at the widest page, where each window holds least of the cylinder.
+  `scripts/capture-warp-motion.sh` builds the two sheets those calls are made on
+  (a page-WIDTH sheet and a route sheet), and the width axis is the one round 1's
+  sheet lacked. The harness proves the arithmetic and the
   pixels; the user is the oracle for the feel, and item 132's own Verify requires
   a live multi-minute human motion review that no law here can close.
 

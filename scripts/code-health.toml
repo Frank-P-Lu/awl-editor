@@ -1178,14 +1178,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 1771
+line = 1870
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 2887
+line = 2986
 message = "this function has too many lines (161/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
