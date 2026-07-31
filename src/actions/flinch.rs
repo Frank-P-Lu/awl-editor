@@ -37,7 +37,7 @@ pub(super) fn impact_for(action: &Action, version_before: u64, ctx: &ActionCtx) 
         | Action::DeleteWordForward
         | Action::DeleteToLineStart => Some(Effect::DeleteSquash),
         Action::KillLine => Some(Effect::Gulp),
-        Action::Newline => Some(Effect::LineLand),
+        Action::Newline | Action::AcceptAlternate => Some(Effect::LineLand),
         _ => None,
     }
 }

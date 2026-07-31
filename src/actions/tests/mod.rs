@@ -12,6 +12,8 @@
 use super::*;
 use crate::overlay::OverlayKind;
 
+/// ITEM 116c — the alternate-accept (⇧↵) byte-identity law over `disk_bytes`.
+mod alternate_accept_item116c;
 mod folds;
 mod format_editing;
 mod lifecycle;
@@ -547,6 +549,7 @@ pub(super) fn delete_flinch_fixture(
         | Action::BufferEnd
         | Action::InsertChar(_)
         | Action::Newline
+        | Action::AcceptAlternate
         | Action::InsertTab
         | Action::Outdent
         | Action::KillLine
@@ -745,6 +748,7 @@ pub(super) fn all_actions() -> Vec<Action> {
             | Action::BufferEnd
             | Action::InsertChar(_)
             | Action::Newline
+            | Action::AcceptAlternate
             | Action::InsertTab
             | Action::Outdent
             | Action::DeleteBackward
@@ -855,6 +859,7 @@ pub(super) fn all_actions() -> Vec<Action> {
         Action::BufferEnd,
         Action::InsertChar('x'),
         Action::Newline,
+        Action::AcceptAlternate,
         Action::InsertTab,
         Action::Outdent,
         Action::DeleteBackward,
@@ -1113,6 +1118,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         // exhaustiveness only.
         Action::InsertChar(_)
         | Action::Newline
+        | Action::AcceptAlternate
         | Action::InsertTab
         | Action::Outdent
         | Action::DeleteBackward
