@@ -55,7 +55,7 @@ shoot() {
   # it claims, so a sheet cannot silently show the settled still six times.
   grep -q '"name": "Kite"' "$CAPTURES/$name.json" \
     || { echo "FAIL: $name did not render Kite"; exit 1; }
-  grep -q '"kind": "warped-grid"' "$CAPTURES/$name.json" \
+  grep -q '"kind":"warped-grid"' "$CAPTURES/$name.json" \
     || { echo "FAIL: $name did not render the warped grid"; exit 1; }
 }
 
