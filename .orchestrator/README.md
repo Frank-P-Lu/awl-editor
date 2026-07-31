@@ -42,13 +42,24 @@ receipt with the gate outcome, for example:
 ```
 
 **Tell the worker to run gates in the foreground, with an explicit long
-timeout.** A worker that launches a multi-minute gate in the background has
-nothing left to do and ends its turn, so the orchestrator must wake it once per
-gate; on 2026-07-31 three lanes in one wave each burned two or three round trips
-this way, and one of them ended a turn holding uncommitted work. The brief
-should name the timeout, because the default is shorter than a cold gate.
-A gate that genuinely exceeds the tool's maximum is a finding to report, not a
-reason to background it.
+timeout — except `native-gate.sh`, which cannot fit.** A worker that launches a
+multi-minute gate in the background has nothing left to do and ends its turn, so
+the orchestrator must wake it once per gate; on 2026-07-31 several lanes each
+burned two or three round trips this way, and some ended a turn holding
+uncommitted work. The brief should name the timeout, because the default is
+shorter than a cold gate.
+
+**But `native-gate.sh` genuinely exceeds the tool's 600 s maximum in this
+repo** — it runs the suite under both conventions, and `cargo test --bin awl`
+alone measured 276 s at `cargo_jobs=2` on 2026-08-01. The harness auto-
+backgrounds it; that is the tool, not the worker's choice. Briefs told lanes
+"never background a gate" for a full night before item 131 measured it, which
+made the instruction unfollowable for the one gate that issues the receipt.
+Say instead: run code-health and web-smoke in the foreground; expect
+`native-gate.sh` to be auto-backgrounded, and **wait on it rather than ending
+the turn** — ending the turn is the actual failure, because nothing wakes a
+worker but the orchestrator. Committing before any wait remains mandatory
+regardless.
 
 ## Disk-pressure preflight
 
