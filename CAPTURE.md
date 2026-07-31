@@ -533,7 +533,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/189` (`/190` timeline, `/191` held)
+## The sidecar JSON — schema `awl-capture/190` (`/191` timeline, `/192` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
