@@ -73,9 +73,15 @@ the tab's own storage instead.
 
 ## Making it yours
 
-{{key:settings}} opens awl's settings the way awl thinks of them: as a text
-file, in this editor, like everything else. Change a line, save it, and it
-applies at once. An untouched settings file is simply today's defaults.
+{{key:settings}} opens Settings, which takes the whole window rather than
+floating a panel over your sentence: categories down one side, the settings
+themselves beside them. Change one and it applies immediately — nothing waits
+for a restart and nothing needs an OK button. Esc gives the document back
+exactly as you left it.
+
+Underneath, all of it is a plain text file, and Settings has a row —
+"Edit config as text" — that opens that file here, as a document like any
+other. An untouched one is simply today's defaults.
 
 awl is opinionated on purpose. It is meant to be good before you configure
 anything, and most of it cannot be configured at all — what is there is the

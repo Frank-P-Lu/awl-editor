@@ -136,7 +136,8 @@ fn every_key_token_in_the_starting_docs_resolves() {
                 for platform in [Platform::Native, Platform::Web] {
                     assert!(
                         key_token_label(&slug_want, convention, platform).is_some(),
-                        "{name}: unknown key token slug {slug_want:?} under {convention:?}/{platform:?}"
+                        "{name}: unknown key token slug {slug_want:?} under \
+                         {convention:?}/{platform:?}"
                     );
                 }
             }
@@ -395,7 +396,8 @@ fn no_literal_chord_glyphs_survive_outside_tokens_and_the_generated_table() {
                     .any(|a| line.contains(a))
             {
                 panic!(
-                    "{name}: literal Ctrl+ word-form outside the generated table/allowlist: {line:?}"
+                    "{name}: literal Ctrl+ word-form outside the generated \
+                     table/allowlist: {line:?}"
                 );
             }
         }

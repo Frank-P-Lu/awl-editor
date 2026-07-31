@@ -309,6 +309,63 @@ fn site_guide_html_prose_glyph_chords_resolve() {
     );
 }
 
+/// Every SETTINGS-ROW name a user-facing doc cites, and the doc that cites it.
+///
+/// A settings row is not a catalog command, so it has no `{{cmd:slug}}` token
+/// and no `commands::slug` to resolve against — a doc naming one is naming
+/// literal text, exactly the drift `keytoken`'s `{{cmd:}}` convention exists to
+/// stop for commands. This table is the harvest for that surface: small,
+/// curated, and checked from BOTH ends below.
+const CITED_SETTINGS_ROWS: &[(&str, &str)] = &[
+    // GUIDE's pointer-bridge paragraph, and its Settings section.
+    ("GUIDE.md", "Format popover"),
+    ("GUIDE.md", "Edit config as text"),
+    // The welcome document's closing section: the settings ARE a text file,
+    // and this is the row that opens it.
+    ("samples/welcome.md", "Edit config as text"),
+    // The site's hand-mirrored copies of both.
+    ("site/guide.html", "Format popover"),
+    ("site/guide.html", "Edit config as text"),
+];
+
+/// THE SETTINGS-ROW CITATION LAW (queue item 24): every name in
+/// [`CITED_SETTINGS_ROWS`] must exist in the live settings catalog, AND still
+/// appear verbatim in the doc that claims to cite it.
+///
+/// The second half is what stops the table from rotting into a list of names
+/// nobody prints any more: a citation removed from a doc fails here and forces
+/// the row out of the table, so the first half never guards a dead entry. That
+/// is the same anti-vacuity shape `site_guide_html_keys_table_matches_catalog`
+/// gets for free by harvesting the page itself — a settings row cannot be
+/// harvested from running prose the way a `⌘`-glyph chord can, so it is bought
+/// explicitly here instead.
+#[test]
+fn every_settings_row_the_docs_cite_still_exists() {
+    let live = crate::settings::names();
+    assert!(
+        !live.is_empty(),
+        "sanity: the settings catalog is not empty"
+    );
+    for (doc, row) in CITED_SETTINGS_ROWS {
+        assert!(
+            live.iter().any(|n| n == row),
+            "{doc} cites the settings row {row:?}, which the live settings catalog no \
+             longer has (renamed or retired row?)"
+        );
+        let text = match *doc {
+            "GUIDE.md" => crate::embedded_docs::GUIDE_MD,
+            "samples/welcome.md" => crate::embedded_docs::WELCOME_MD,
+            "site/guide.html" => crate::embedded_docs::SITE_GUIDE_HTML,
+            other => panic!("unknown doc {other:?} in CITED_SETTINGS_ROWS"),
+        };
+        assert!(
+            text.contains(row),
+            "CITED_SETTINGS_ROWS claims {doc} cites {row:?}, but it does not — drop the \
+             entry rather than leaving this table guarding a citation nobody makes"
+        );
+    }
+}
+
 /// THE SIBLINGS GREP-LAW: `site/credits.html` / `site/index.html` /
 /// `site/check.html` carry NO chord-glyph or `Ctrl+`-word-form citations
 /// today (verified by hand while building this law — see the module doc). A

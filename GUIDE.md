@@ -137,8 +137,8 @@ highlight, code, strikethrough, heading, link. Each one fires the same
 command its chord does, and lights up when the selection already carries
 that format. Any key press, or losing the selection, dismisses it. A
 keyboard selection never summons it, and it never becomes a persistent
-toolbar. `popover = false` turns it off; the Settings row is "Format
-popover".
+toolbar. `popover = false` turns it off, and the settings row that does
+the same is "Format popover".
 
 Generated from the live command catalog — never hand-edited (see the
 law test `guide::tests::generated_keys_reference_matches_catalog`;
@@ -273,14 +273,22 @@ Motion" setting where one is reachable (macOS, the web build) and
 follows it. Set `reduce_motion = true` by hand on Linux, where there's
 no reliable cross-desktop signal yet.
 
-## The config file
+## Settings, and the config file behind them
 
-Settings live in a plain text file, edited inside awl:
-{{key:command_palette}} → "{{cmd:settings}}" opens `config.toml` into the
-buffer (writing the commented starter template first, if none exists).
-Edit it like any other document, then save — the keymap, folders, and
-every sticky preference re-apply live, no restart. A config with a
-syntax error keeps prior values in place and shows a notice.
+**"{{cmd:settings}}" ({{key:settings}}) is a summoned workspace, not an
+overlay.** It takes the viewport: a category rail — All, Editor,
+Appearance, Writing, Files, Keybindings, Advanced — beside the rows it
+governs. Up/Down moves the category, Enter transfers focus into the
+settings, Esc there is a *back* to the rail, and Esc on the rail returns
+to the editor exactly where you left it. Every change applies live; a
+sticky one is written to the config in the same step.
+
+**The settings are a plain text file, and you can edit it directly.**
+The Advanced category's "Edit config as text" row opens `config.toml`
+into the buffer (writing the commented starter template first, if none
+exists). Edit it like any other document, then save — the keymap,
+folders, and every sticky preference re-apply live, no restart. A config
+with a syntax error keeps prior values in place and shows a notice.
 
 An absent config is just today's defaults. Once you touch it, it
 remembers: theme, zoom, page widths, caret style, dictionary, and a
