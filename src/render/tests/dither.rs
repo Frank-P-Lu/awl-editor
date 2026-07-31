@@ -129,7 +129,7 @@ fn render_background(
     height: u32,
 ) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, FMT, desc);
-    bg.prepare(queue, width, height, 0.0, 0.0, 0.0);
+    bg.prepare(queue, width, height, 0.0, 0.0, 0.0, 1.0);
     let (texture, tview) = offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl dither-test bg encoder"),

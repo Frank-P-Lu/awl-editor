@@ -976,6 +976,76 @@ and typography of both worlds are untouched.
   inconvenient cells. Law:
   `render::tests::backgrounds_item89::zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`.
 
+### The ground coordinate-space law (item 186, 2026-07-31)
+
+Every procedural ground authored its composition in PHYSICAL pixels — `scale_px`,
+`period_px`, Dots' 24px cell, Deckle's pitch, the starfield's cell — simply
+because that is the coordinate a fragment shader runs in, and nothing said so.
+On a 2x display a ground therefore rendered at half its logical size and the
+user saw roughly twice as many elements. No law caught it in twelve rounds of
+ground work because every capture was internally consistent with itself; the
+defect is only visible when two DIFFERENT densities are compared, which nothing
+did. Item 158 could describe it as "a 2x user sees a finer sheet" — a difference
+of texture. Item 176's crisp, countable three-object grammar is what made it
+structural: it changes how many collections are visible and how large each
+reads, so the composition a user approves at one density is not the one another
+user sees, and every taste call on a ground was quietly density-dependent.
+
+- **The rule, and it is a rule about CLASSES, not a conversion.** Authored
+  COMPOSITION — a cell, a pitch, a mark size, a wander, a reach — lives in
+  LOGICAL pixels, so matched logical canvases show the same world composition at
+  1x and 2x. Authored SAMPLING — an antialias feather, a dither cell — stays
+  PHYSICAL, so a 2x display resolves that SAME composition more finely, which is
+  the whole benefit of the density. A blanket conversion of everything to
+  logical space satisfies the composition law and destroys the product: it makes
+  a crisp edge blurrier on a better display.
+- **The distinction is DATA, in `theme::ground_space`.** `GroundSpace` names the
+  two classes; `Background::authored_quantities` is a per-variant table naming
+  every authored number, its class, and WHY, with a wildcard-free match so a new
+  ground cannot inherit a classification it never made. The shader is the
+  consumer, not the authority: `shaders/background.wgsl` divides the fragment
+  position through the device ratio ONCE (`to_logical`) and converts each
+  physical feather back through one owner (`sampling_feather`). The page-column
+  punch and the banding-kill dither deliberately keep the device pixel.
+- **The judgment calls, recorded because they ARE the item.** A floor whose
+  motivation is a sampling one — `FINDS_MIN_SCALE_PX`, `DECKLE_MIN_PITCH_PX`,
+  both "below this the smallest feature falls under a pixel" — is still a floor
+  on a COMPOSITION quantity, and stays logical: in physical px it would clamp
+  the same authored cell differently at 1x and 2x, handing the composition back
+  to the display exactly where the floor binds. A soft ramp that is a visible
+  FRACTION of its own mark — Zigzag's `0.6*thickness..thickness` ribbon edge,
+  Deckle's fibre half-width ramp, a lane's `0.015..0.075` torn boundary — is
+  drawn character, not a resolve of the sample grid, and scales with the mark.
+  Zigzag's stroke thickness is composition for a second reason: item 89's
+  abutment rule folds it into the row PITCH, so a physical thickness would make
+  the field's own pitch density-dependent. Item 176's `FINDS_EDGE_AA_PX` (the
+  0.75px crisp edge) is the canonical sampling quantity and did not move.
+- **Two grounds were already right, by a different mechanism.** `Bands` and
+  `Lava` author their composition as FRACTIONS of the viewport, so they carry no
+  pixel pitch to convert; the item's premise does not reach them. Both are named
+  in the table anyway, so the absence is a decision on the record rather than an
+  omission.
+- **The ground does NOT scale with the user's text zoom**, only with the display
+  ratio: it belongs to the Room, not the type size, and never has.
+- **Laws** (`render::tests::ground_space_item186`): composition identity swept
+  over the WHOLE `Background` roster — every world's own ground plus an explicit
+  literal for each dormant shape — rendering the same logical canvas at device
+  ratio 1.0 and 2.0, box-averaging the 2x arm back onto the 1x grid, and
+  requiring the two to be the same picture. The oracle is the zero-lag
+  normalized cross-correlation of the two margin fields, deliberately blind to a
+  mark reading a little lighter or crisper at 2x and decisive about a mark
+  MOVING: healthy roster 0.965 at worst, and 1x-vs-2x on a single quantity
+  reverted to physical space scores -0.04. Separately, the crisp feather's own
+  law measures the mean transition-ramp WIDTH in device pixels and requires it
+  unchanged between densities (0.99 healthy, 1.61 when the feather is swept into
+  logical space with everything else). A no-wildcard completeness law and a WGSL
+  structural tripwire hold the sweep and the two shader owners in place.
+- **A metric trap worth keeping.** The feather law's first cut counted
+  edge-skirt PIXELS and passed its own mutation: at a whisper contrast a
+  doubled-width ramp gets gentler per pixel and vanishes under 8-bit
+  quantization instead of reading as wider. Measuring the ramp's mean RUN LENGTH
+  on a high-contrast literal is what made it able to fail.
+
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 
 Everything above (selection, elevation, decorative washes, backdrop, the

@@ -90,7 +90,7 @@ impl TextPipeline {
             0.0
         };
         self.background_pipeline
-            .prepare(queue, width, height, bg_left, bg_w, drift);
+            .prepare(queue, width, height, bg_left, bg_w, drift, self.dpi);
     }
 
     pub(crate) fn prepare_lava_layer(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
