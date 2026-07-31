@@ -1586,7 +1586,7 @@ fn label_truth_law_holds_across_the_whole_catalog() {
                     );
                     // Either a web alternate (non-blank) or blank (no alternate defined) — but
                     // never the reserved native chord itself.
-                    if let Some(alt) = web_alternate_for(c, convention) {
+                    if let Some(alt) = chords::web_alternate_for(c, convention) {
                         let expect = match convention {
                             Convention::Mac => crate::keyspec::mac_glyph_chord(alt),
                             Convention::Linux => crate::keyspec::linux_glyph_chord(alt),

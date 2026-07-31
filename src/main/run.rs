@@ -31,7 +31,11 @@ pub(crate) use capture_fold::CaptureSubject;
 #[cfg(test)]
 use capture_fold::history_preview_for;
 pub(crate) use capture_fold::{fold_capture_state, overlay_capture_info};
-pub(crate) use location::{project_info, resolve_launch_context, resolve_root, resolve_workspace};
+pub(crate) use location::{launch_windowed, project_info, resolve_root, resolve_workspace};
+// The launch-precedence law's own unit tests (`main/tests.rs`) drive it directly;
+// production reaches it only through `launch_windowed`, in its own module.
+#[cfg(test)]
+pub(crate) use location::resolve_launch_context;
 
 /// Build the editor buffer. Refused files become unbound scratch buffers so a
 /// replayed save can never overwrite them.
@@ -1050,69 +1054,7 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
             config,
             wait,
             live,
-        } => {
-            // THE ONE LAUNCH-PRECEDENCE LAW (item 76): explicit --root/file wins;
-            // else a bare launch restores the remembered active folder (the
-            // session's one owner, native + kill-switch gated); else (first run,
-            // or the switch is off) the configured default folder.
-            #[cfg(not(target_arch = "wasm32"))]
-            let remembered = if config.session_restore_on() {
-                crate::session::remembered_root()
-            } else {
-                None
-            };
-            #[cfg(target_arch = "wasm32")]
-            let remembered: Option<PathBuf> = None; // session is native-only
-            let default_folder_resolved = crate::args::resolve_default_folder(
-                &default_folder
-                    .clone()
-                    .or_else(|| config.default_folder.clone()),
-            );
-            let active_root = resolve_launch_context(
-                &root,
-                &file,
-                remembered.as_deref(),
-                &default_folder_resolved,
-            );
-            // THE DOCUMENT HALF OF THE SAME LAW (item 24): a launch that took
-            // branch 3 above — nothing asked for, nothing remembered, never
-            // welcomed — opens one real Markdown file in that folder instead of
-            // an empty scratch buffer. `crate::firstrun` seeds it write-if-
-            // absent and marks the profile; from here down it is an ordinary
-            // file argument, which is the whole point (see that module's
-            // header: there is no welcome state for a later session to leak).
-            #[cfg(not(target_arch = "wasm32"))]
-            let file = crate::firstrun::resolve_first_run_document(
-                file,
-                &root,
-                remembered.as_deref(),
-                &active_root,
-                crate::convention::Convention::current(),
-                crate::commands::Platform::current(),
-            );
-            // Pass the RAW flags + config; `App::new` folds them (flag > config >
-            // default) and re-folds on a live config reload. `wait` (native-only,
-            // the single-instance daemon's `--wait`) rides straight through, as
-            // does `live` (the `--live-script` probe — see `crate::probe`).
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                app::run(
-                    file,
-                    active_root,
-                    workspace,
-                    default_folder,
-                    config,
-                    wait,
-                    None,
-                    live,
-                )
-            }
-            #[cfg(target_arch = "wasm32")]
-            {
-                let _ = live; // native-live-only; parsed as None on wasm
-                app::run(file, active_root, workspace, default_folder, config, wait)
-            }
-        }
+        } => launch_windowed(file, root, workspace, default_folder, config, wait, live),
     }
 }
 

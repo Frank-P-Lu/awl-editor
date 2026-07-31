@@ -83,10 +83,7 @@ fn a_first_run_seeds_the_welcome_document_and_opens_it() {
         !text.is_empty() && !text.contains("{{key:") && !text.contains("{{cmd:"),
         "the seeded bytes are the RENDERED document, not the token source"
     );
-    assert!(
-        on(fs, || marked()),
-        "a successful first run marks the profile"
-    );
+    assert!(on(fs, marked), "a successful first run marks the profile");
 }
 
 /// The document is seeded with the chords of the machine that will read it —
@@ -105,9 +102,15 @@ fn the_seeded_document_carries_this_conventions_own_chords() {
         seed(&p, Convention::Linux, Platform::Native).unwrap();
         crate::fs::active().read_to_string(&p).unwrap()
     });
-    assert_ne!(mac_text, linux_text, "the two conventions render differently");
+    assert_ne!(
+        mac_text, linux_text,
+        "the two conventions render differently"
+    );
     assert!(mac_text.contains('\u{2318}'), "mac gets ⌘ glyphs");
-    assert!(!linux_text.contains('\u{2318}'), "linux never sees a ⌘ glyph");
+    assert!(
+        !linux_text.contains('\u{2318}'),
+        "linux never sees a ⌘ glyph"
+    );
     assert!(linux_text.contains("Ctrl+"), "linux gets word-form chords");
 }
 
@@ -177,7 +180,8 @@ fn a_second_launch_of_the_same_profile_opens_nothing() {
     });
     assert_eq!(second, None, "the welcome never comes back on its own");
     assert!(
-        on(fs, || !crate::fs::active().exists(&folder().join(WELCOME_FILE))),
+        on(fs, || !crate::fs::active()
+            .exists(&folder().join(WELCOME_FILE))),
         "and it is not silently re-written either"
     );
 }
@@ -237,9 +241,29 @@ fn the_marker_explains_itself_to_whoever_finds_it() {
 #[test]
 fn no_other_launch_shape_seeds_or_diverts() {
     let remembered = PathBuf::from("/home/u/work");
-    let cases: &[(&str, Option<PathBuf>, Option<PathBuf>, Option<&Path>, bool)] = &[
-        ("remembered session", None, None, Some(remembered.as_path()), false),
-        ("file argument", some("/home/u/work/draft.md"), None, None, false),
+    /// `(label, file argument, --root, remembered folder, already marked)`.
+    type Shape<'a> = (
+        &'a str,
+        Option<PathBuf>,
+        Option<PathBuf>,
+        Option<&'a Path>,
+        bool,
+    );
+    let cases: &[Shape] = &[
+        (
+            "remembered session",
+            None,
+            None,
+            Some(remembered.as_path()),
+            false,
+        ),
+        (
+            "file argument",
+            some("/home/u/work/draft.md"),
+            None,
+            None,
+            false,
+        ),
         ("--root", None, some("/home/u/work"), None, false),
         ("already marked", None, None, None, true),
     ];
@@ -260,7 +284,8 @@ fn no_other_launch_shape_seeds_or_diverts() {
         });
         assert_eq!(&got, file, "{label}: the launch's own file is unchanged");
         assert!(
-            on(fs, || !crate::fs::active().exists(&folder().join(WELCOME_FILE))),
+            on(fs, || !crate::fs::active()
+                .exists(&folder().join(WELCOME_FILE))),
             "{label}: nothing was seeded"
         );
     }
@@ -331,9 +356,9 @@ fn the_first_run_door_has_exactly_one_production_call_site() {
     hits.sort();
     assert_eq!(
         hits,
-        vec!["main/run.rs".to_string()],
-        "the first-run document has exactly ONE production call site — the windowed \
-         launch arm. A second one (especially on a capture path) breaks the capture \
-         gate this module's header states."
+        vec!["main/run/location.rs".to_string()],
+        "the first-run document has exactly ONE production call site — `launch_windowed`, \
+         the windowed launch door, beside the folder half of the same law. A second one \
+         (especially on a capture path) breaks the capture gate this module's header states."
     );
 }

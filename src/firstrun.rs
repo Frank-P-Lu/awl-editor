@@ -37,8 +37,9 @@
 //!
 //! # Capture gate
 //!
-//! This module is reachable from exactly ONE place — `main/run.rs`'s
-//! `Mode::Windowed` arm, the windowed-launch door — and `firstrun::tests::
+//! This module is reachable from exactly ONE place — `run::launch_windowed`
+//! (`main/run/location.rs`), the windowed-launch door, beside the FOLDER half of
+//! the same decision — and `firstrun::tests::
 //! the_first_run_door_has_exactly_one_production_call_site` holds that. Every
 //! headless capture mode resolves its own root through the explicit-only
 //! `run::resolve_root` and never comes near this file, exactly as item 76's
