@@ -105,7 +105,7 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
     for fid in facets {
         // FORWARD from index 0 (even) and index 1 (odd, when present) to the end.
         for start in [0usize, 1usize] {
-            let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+            let mut overlay = super::settings_journey();
             let ov = overlay.card_mut().unwrap();
             goto_facet(ov, fid);
             let n = ov.items.len();
@@ -127,7 +127,7 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
         // single step is caught here, not just in the (editor-only) Zoom
         // adjacency test.
         for end_offset in [0usize, 1usize] {
-            let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+            let mut overlay = super::settings_journey();
             let ov = overlay.card_mut().unwrap();
             goto_facet(ov, fid);
             let n = ov.items.len();
@@ -151,7 +151,7 @@ fn every_settings_facet_reaches_every_row_forward_and_backward_from_both_paritie
 #[test]
 fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
     let _g = crate::testlock::serial();
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     // "Page" fuzzy-matches "Page mode", "Page width (prose)", "Page width
     // (code)" — a real, non-trivial multi-row filter within the All home.
     for c in "page".chars() {
@@ -177,21 +177,29 @@ fn a_filtered_settings_list_still_steps_one_row_at_a_time() {
     );
 }
 
-/// A WINDOW-SCROLLED list: the full `All` home exceeds `window_rows()`, so this
-/// sweep forces the scroll window to advance mid-walk — the class of bug a small,
-/// always-fully-visible test corpus can't exercise. The law below derives its
-/// count from the registry rather than copying it here.
+/// A LONG list reached one row at a time: walking the whole `All` home must visit
+/// every row exactly once, the class of bug a small corpus can't exercise.
+///
+/// ITEM 114 — this used to force the CORE's own scroll window to advance
+/// mid-walk, and asserted `n > window_rows()` to prove it did. A summoned
+/// workspace is bounded by the canvas rather than by a card-sized row count
+/// (`OverlayKind::window_rows` now names the whole corpus for it, exactly as the
+/// theme picker's roster already did), so the core no longer scrolls here and
+/// that precondition is now FALSE by design rather than by accident. The
+/// non-vacuity it was protecting moves to what it always really meant: the walk
+/// must be long enough to cross the window the CANVAS gives it, which the
+/// renderer's own clamp law (`render::tests::overlay_height_clamp_law`) owns.
+/// What survives here is the reachability claim itself, over the full corpus.
 #[test]
 fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
     let _g = crate::testlock::serial();
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     let ov = overlay.card_mut().unwrap();
     let n = ov.items.len();
-    let window = ov.window_rows();
     assert!(
-        n > window,
-        "the All home ({n} rows) must exceed window_rows ({window}) \
-             for this law to actually force a scroll — else it is vacuous"
+        n >= 12,
+        "the All home ({n} rows) must be a genuinely long list for this law to \
+         say anything — else it is vacuous"
     );
     ov.selected = 0;
     let names = walk(&mut overlay, &Action::NextLine, n - 1);
@@ -213,7 +221,7 @@ fn a_window_scrolled_settings_list_reaches_every_row_exactly_once() {
 #[test]
 fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
     let _g = crate::testlock::serial();
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     let ov = overlay.card_mut().unwrap();
     goto_facet(ov, "editor");
     let zoom_row = ov
@@ -239,7 +247,7 @@ fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
     );
 
     // Approach from BELOW: land on Zoom via PreviousLine, then step off UP.
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     let ov = overlay.card_mut().unwrap();
     goto_facet(ov, "editor");
     ov.selected = zoom_row + 1;
@@ -253,7 +261,7 @@ fn the_zoom_range_row_does_not_poison_neighbouring_row_reachability() {
 
     // LEFT/RIGHT on the Zoom row steps its VALUE, not the selection — confirm
     // it stays selected (range_step's claim), then Up/Down off it still work.
-    let mut overlay = crate::overlay::Journey::seeded(Some(settings_overlay()));
+    let mut overlay = super::settings_journey();
     let ov = overlay.card_mut().unwrap();
     goto_facet(ov, "editor");
     ov.selected = zoom_row;

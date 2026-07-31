@@ -6,6 +6,8 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/187` — shaped-frame `layout` rows.
 /// `/188` — permissive replay `replay_skips`.
 /// `/189` — `page.background`'s `deckle` arm (item 158, Paperbark).
+/// `/190` — `overlay.workspace` (item 114's summoned workspace), and
+///          `overlay.diff_focus` renamed `overlay.detail_focus`.
 /// History lives in Git. Bump this row with the const.
 pub const SCHEMA_VERSION: u32 = 190;
 /// Plain single-frame schema; timeline and held take the next two versions.

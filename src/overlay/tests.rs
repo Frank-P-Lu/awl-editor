@@ -3270,14 +3270,21 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
 }
 
 /// THE FOOT LINE FOLLOWS THE SELECTION, and its wording is pinned here. Every
-/// authored rail row reads `adjust`; every ordinary row reads `lens`. The rest of
+/// authored rail row reads `adjust`; every ordinary row reads `category` (item
+/// 114 — on a workspace the lens IS the navigation rail's category). The rest of
 /// The sweep is derived from the complete settings registry, so adding a Range row
 /// cannot inherit a stale neighbour assumption. (The keys-vs-hint OUTCOME sweep is
 /// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)
 #[test]
 fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
     let _g = crate::testlock::serial();
-    let mut ov = settings_with_rails(1.0);
+    // ITEM 114 — this law is about the ROWS' keys, and the rows are the
+    // workspace's DETAIL stage. Focus is moved through the LIFECYCLE (the one
+    // writer of that bit), not by assignment, which is also why the card is held
+    // inside a `Journey` here.
+    let mut journey = crate::overlay::Journey::seeded(Some(settings_with_rails(1.0)));
+    journey.toggle_detail();
+    let ov = journey.card_mut().unwrap();
     let visible = crate::settings::visible_rows();
     assert_eq!(
         visible.len(),
@@ -3285,6 +3292,7 @@ fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
         "law sweeps every visible row"
     );
     for (selected, row) in visible.iter().enumerate() {
+        let ov = journey.card_mut().unwrap();
         ov.selected = selected;
         let expected = if row.kind == crate::settings::SettingKind::Range {
             OverlayKind::Settings.range_row_hint()
@@ -3312,7 +3320,7 @@ fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
     assert_eq!(plain.len(), ranged.len(), "the range variant adds no cells");
     for (a, b) in plain.iter().zip(&ranged) {
         if a != b {
-            assert_eq!(*a, "\u{2190}/\u{2192} lens");
+            assert_eq!(*a, "\u{2190}/\u{2192} category");
             assert_eq!(*b, "\u{2190}/\u{2192} adjust");
         }
     }

@@ -393,13 +393,10 @@ impl App {
         // one state, never two that agree by coincidence. Resolved before the row
         // hit-test, though they cannot overlap: the row band stops at the pane.
         if let Some(rail_idx) = rail_hit {
-            let (_, journey) = self.workspace_state.core_slots();
-            if let Some(ov) = journey.card_mut() {
+            if let Some(ov) = self.workspace_state.overlay_mut() {
                 ov.set_facet_lens(rail_idx);
             }
-            if journey.card().map(|o| o.detail_focus) == Some(false) {
-                journey.toggle_detail();
-            }
+            self.workspace_state.focus_workspace_detail();
             self.sync_view(true);
             if let Some(gpu) = self.gpu.as_ref() {
                 gpu.window.request_redraw();
