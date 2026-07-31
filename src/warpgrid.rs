@@ -176,6 +176,7 @@ fn parse_pose(raw: &str) -> Option<f32> {
 /// One of the knob's own NAMED poses, resolved to a route phase — so a law
 /// sweeping "every route pose" sweeps the same vocabulary `AWL_WARP_POSE`
 /// offers, rather than inventing a second list that could drift from it.
+#[cfg(test)]
 pub fn named_pose(name: &str) -> Option<f32> {
     parse_pose(name)
 }

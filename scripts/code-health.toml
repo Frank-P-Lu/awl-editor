@@ -84,7 +84,8 @@ lines = 690
 
 [[file_size_mark]]
 file = "src/background.rs"
-lines = 263
+lines = 286
+reason = "items 132/194: +23 lines — the grouped per-frame AmbientUpload (the shared ambient clock's fourth consumer pushed prepare past the argument ceiling, and a struct is the honest answer rather than an allow), the inert BgDesc::tunnel slot, and the Globals.pose row the host-resolved steering pose rides. Unavoidable at this seam: Globals IS the uniform's one Rust mirror, and a second file describing half of it is exactly the drift the byte-match law exists to stop."
 
 [[file_size_mark]]
 file = "src/buffer.rs"
@@ -100,8 +101,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 55
-reason = "item 188: +3 lines — the schema `/193` history row, which the ledger law requires to move with the const, plus the two lines rustfmt wraps `pub use opts::{..}` onto once `CaptureDriver` joins the re-export (the line passes 100 columns)."
+lines = 57
+reason = "items 188/194: +2 lines — the schema /194 history row, which the ledger law requires to move with the const, plus item 188's own /193 row and the rustfmt wrap of pub use opts::{..}. Not extractable: the ledger law's whole point is that the const and its row live together."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -110,8 +111,8 @@ reason = "item 114: +4 lines net — the workspace/detail-focus projection, minu
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 843
-reason = "item 188: +2 lines — the `driver` argument and its comment at the ONE sidecar format call. A second format site is exactly what this file exists to prevent."
+lines = 844
+reason = "items 188/194: +1 line — the warped-grid sidecar arm is dispatched from the ONE background_json call site, which gained the resolved route pose as a third argument. A second format site is exactly what this file exists to prevent."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -249,8 +250,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2450
-reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in."
+lines = 2455
+reason = "item 194: +5 lines — the warp route's phase accumulator joins the three ambient resolvers already here (waves, lava, stars). This file's GPU floor is declared; the addition is one more member of a family that must stay beside its siblings to share the single sparse tick."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -327,9 +328,8 @@ lines = 1502
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-# item 132: `prepare_background_layer` now hands the background pass the
-# grouped `AmbientUpload` rather than a bare drift scalar (1320 -> 1329).
-lines = 1329
+lines = 1330
+reason = "items 132/194: +10 lines — prepare_background_layer now hands the background pass the grouped AmbientUpload rather than a bare drift scalar, and the warp pose is resolved at the same one seam the drift is. Unavoidable: this function is the single owner of what the background uniform receives each frame."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -337,8 +337,8 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 562
-reason = "item 114: +8 lines at the ONE `TextPipeline` initializer — the rail's glyph buffer and its four mirror fields."
+lines = 563
+reason = "items 114/194: +9 lines — the workspace rail's glyph buffer and its four mirror fields, plus the warp phase accumulator, at the ONE TextPipeline initializer."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
@@ -347,11 +347,8 @@ reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirro
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-# item 132: the warped grid's two pipeline seams — the route-phase resolver
-# beside its three siblings, and the pose the shader receives — plus the two
-# lines that make `advance_lava`/`freeze_lava` the one door for every
-# accumulator the shared tick owns (400 -> 423).
 lines = 423
+reason = "items 132/194: +23 lines — the warped grid's two pipeline seams (the route-phase resolver beside its three siblings, and the pose the shader receives) plus the two lines that make advance_lava/freeze_lava the one door for every accumulator the shared tick owns. Extracting would put one member of a four-resolver family in its own file."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -436,10 +433,8 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-# item 132: `has_ambient_motion` gained the warped-grid arm, so the new
-# ground inherits the page-mode force and the move-stream present hold rather
-# than re-implementing them (535 -> 537).
 lines = 537
+reason = "items 132/194: +2 lines — has_ambient_motion gained the warped-grid arm, so the new ground inherits the page-mode force and the move-stream present hold rather than re-implementing them. The match is no-wildcard by design; the arm cannot live anywhere else."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
@@ -737,7 +732,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 949
+line = 950
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -773,7 +768,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (496/100)"
+message = "this function has too many lines (497/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6)."
 
 [[clippy_exception]]

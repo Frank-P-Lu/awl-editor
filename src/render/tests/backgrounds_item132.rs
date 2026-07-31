@@ -209,24 +209,6 @@ fn ink_in(f: &[i32], w: u32, h: u32, x0: u32, x1: u32) -> usize {
         .count()
 }
 
-/// How many times a horizontal scan at `y` crosses INTO a mark inside
-/// `[x0, x1)` — the field's projected line count along that scanline, read with
-/// a Schmitt trigger so an antialiased ramp counts once.
-fn crossings(f: &[i32], w: u32, y: u32, x0: u32, x1: u32, peak: i32) -> usize {
-    let mut n = 0;
-    let mut inside = false;
-    for x in x0..x1 {
-        let v = f[(y * w + x) as usize];
-        if !inside && v >= peak {
-            inside = true;
-            n += 1;
-        } else if inside && v <= INK_FLOOR {
-            inside = false;
-        }
-    }
-    n
-}
-
 /// The two page margins at the canonical geometry.
 fn canon_margins() -> [(u32, u32); 2] {
     margins(W, COL_LEFT, COL_W)
