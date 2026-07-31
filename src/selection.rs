@@ -21,7 +21,7 @@ struct SelInstance {
 }
 
 /// The inert, upright rotation axis every non-rotated `SelInstance` carries.
-const UPRIGHT_AXIS: [f32; 2] = [1.0, 0.0];
+pub(crate) const UPRIGHT_AXIS: [f32; 2] = [1.0, 0.0];
 
 /// Uniform globals. MUST match `Globals` in the WGSL.
 #[repr(C)]
@@ -675,51 +675,27 @@ impl SelectionPipeline {
     }
 }
 
-/// ITEM 131b — a rotated rounded-rect SPINE SEGMENT's `(center, half_size,
-/// axis)`, for [`SelectionPipeline::prepare_rotated`]: a bar running from
-/// `from` to `to`, `thickness_px` wide. Pure geometry, no clock, no device —
-/// `axis` degenerates to the inert `(1.0, 0.0)` (upright) when `from == to`
-/// (a zero-length segment has no direction to normalize), so a pathological
-/// input can never hand the shader a NaN.
-///
-/// No non-test caller yet — see [`SelectionPipeline::prepare_rotated`]'s doc.
-#[allow(dead_code)]
-pub fn spine_segment(
-    from: [f32; 2],
-    to: [f32; 2],
-    thickness_px: f32,
-) -> ([f32; 2], [f32; 2], [f32; 2]) {
-    let d = [to[0] - from[0], to[1] - from[1]];
-    let len = (d[0] * d[0] + d[1] * d[1]).sqrt();
-    let center = [(from[0] + to[0]) * 0.5, (from[1] + to[1]) * 0.5];
-    let half = [len * 0.5, (thickness_px * 0.5).max(0.0)];
-    let axis = if len > 1e-4 {
-        [d[0] / len, d[1] / len]
-    } else {
-        UPRIGHT_AXIS
-    };
-    (center, half, axis)
+mod bytemuck_lite {
+    /// Marker for types safe to reinterpret as bytes.
+    ///
+    /// # Safety
+    /// Implementors must be `#[repr(C)]`, contain no padding, and consist only
+    /// of plain-old-data fields (here: f32 arrays/scalars).
+    pub unsafe trait Pod: Copy + 'static {}
+
+    pub fn bytes_of<T: Pod>(t: &T) -> &[u8] {
+        unsafe {
+            core::slice::from_raw_parts((t as *const T) as *const u8, core::mem::size_of::<T>())
+        }
+    }
+
+    pub fn cast_slice<T: Pod>(s: &[T]) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(s.as_ptr() as *const u8, core::mem::size_of_val(s)) }
+    }
 }
 
-/// ITEM 131b — cap a spine segment's own corner radius to at most its
-/// SHORTER half-extent (half its length, half its thickness), mirroring
-/// `render::chrome::narrowed_chamfer_px`'s "clamp a decorative cut to the
-/// shape's own geometry" shape. The shader's per-fragment SDF already clamps
-/// `min(g.corner, min(hsize.x, hsize.y))` (`selection.wgsl`'s `fs_main`), so
-/// this CPU-side twin is belt-and-suspenders: it lets a caller reason about
-/// the drawn shape (and pick one shared `SelectionPipeline::set_corner` value
-/// across a whole spine of differently-sized segments) before anything
-/// reaches the GPU, rather than discovering the clamp only in the rendered
-/// pixels.
-///
-/// No non-test caller yet — see [`SelectionPipeline::prepare_rotated`]'s doc.
-#[allow(dead_code)]
-pub fn narrowed_spine_corner_px(corner_px: f32, half_len: f32, half_thick: f32) -> f32 {
-    corner_px
-        .min(half_len.max(0.0))
-        .min(half_thick.max(0.0))
-        .max(0.0)
-}
+unsafe impl bytemuck_lite::Pod for SelInstance {}
+unsafe impl bytemuck_lite::Pod for Globals {}
 
 fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
     [
@@ -745,27 +721,11 @@ fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
     [ch(c[0]), ch(c[1]), ch(c[2]), c[3] as f32 / 255.0]
 }
 
-mod bytemuck_lite {
-    /// Marker for types safe to reinterpret as bytes.
-    ///
-    /// # Safety
-    /// Implementors must be `#[repr(C)]`, contain no padding, and consist only
-    /// of plain-old-data fields (here: f32 arrays/scalars).
-    pub unsafe trait Pod: Copy + 'static {}
-
-    pub fn bytes_of<T: Pod>(t: &T) -> &[u8] {
-        unsafe {
-            core::slice::from_raw_parts((t as *const T) as *const u8, core::mem::size_of::<T>())
-        }
-    }
-
-    pub fn cast_slice<T: Pod>(s: &[T]) -> &[u8] {
-        unsafe { core::slice::from_raw_parts(s.as_ptr() as *const u8, core::mem::size_of_val(s)) }
-    }
-}
-
-unsafe impl bytemuck_lite::Pod for SelInstance {}
-unsafe impl bytemuck_lite::Pod for Globals {}
+mod spine;
+// No non-test caller yet — item 131c is these primitives' named first
+// consumer, so the re-export is unused exactly as the functions are.
+#[allow(unused_imports)]
+pub use spine::{narrowed_spine_corner_px, spine_segment};
 
 #[cfg(test)]
 mod tests;
