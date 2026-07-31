@@ -22,12 +22,27 @@
 //! that one number. `dx == 0.0` for every shipping world, so this is a no-op
 //! everywhere until a composition asks for it.
 //!
+//! ## Item 131a — the mirror
+//!
+//! A single `dx` can only ever move the row's LEFT edge. Mangrove's descending
+//! `\` composition steps rows that way (right edge flush) — but Magpie's
+//! ascending `/` composition, whose row clusters are right-aligned, steps the
+//! RIGHT edge instead (left edge flush), which `dx` alone cannot express.
+//! `PlannedRow` gained a second, independent field, `dw` (a width DELTA: the
+//! row's right edge is `card_x + card_w + dw`), and the ONE signed step
+//! (`TextPipeline::overlay_row_dx_step`, `OverlayRowPlanInput::dx_per_row`)
+//! splits by sign in `plan_overlay_rows` alone — positive grows `dx`, negative
+//! grows `dw` — so both mirrored compositions still ride one input and neither
+//! `row_at` nor `slant_bar_span` needed a second arithmetic to agree with the
+//! new direction, only a second term.
+//!
 //! ## The axis
 //!
 //! The staggering axis is swept against the FULL no-wildcard `OverlayKind`
-//! roster, both list styles, four canvases and both DPIs — the same axes item
-//! 174's own headline law sweeps, because the defect is not a property of one
-//! picker. Two independent production owners are compared: the quads
+//! roster, both list styles, four canvases, both DPIs, and (item 131a) BOTH
+//! signs of the step — the same axes item 174's own headline law sweeps, plus
+//! the mirror, because the defect is not a property of one picker or one
+//! direction. Two independent production owners are compared: the quads
 //! `overlay_bar_rects_probe` actually emits (the DRAWN evidence) and
 //! `overlay_row_at` (the INTERACTIVE evidence). They are not two readings of one
 //! accessor — one comes from `slant_bar_span` inside the selection emitter, the
@@ -88,49 +103,78 @@ const PLATED_BARS: theme::ListStyle = theme::ListStyle::Bars {
 };
 
 /// Grade one rendered card: every planned row's clickable span against its own
-/// drawn composition, plus the drawn plates. Returns
-/// `(rows graded, plates graded, deepest dx seen)`.
+/// drawn composition, plus the drawn plates. `step_px` is the SIGNED probe
+/// step driving this card (positive = Mangrove-shape, left edge steps in;
+/// negative = Magpie-shape, right edge steps in — item 131a's mirror). Returns
+/// `(rows graded, plates graded, deepest inward step seen)`.
 fn grade_staggered_card(
     p: &TextPipeline,
     cw: u32,
     plates: &[[f32; 4]],
+    step_px: f32,
     ctx: &str,
 ) -> (usize, usize, f32) {
     let geom = p.overlay_geometry(cw);
     let plan = p.overlay_row_plan(&geom);
     let (x0, x1) = plan.card_x_span();
     let vis_sel = plan.selected_display();
-    // The plate's own left edge against the row's step: a style insets its plates
+    // The plate's own edges against the row's step: a style insets its plates
     // from the band by its own constant, so what must hold is that the DRAWN
-    // origin advances by exactly `dx` per row — the same number the pointer
-    // boundary advances by.
-    let mut plate_origins: Vec<(usize, f32)> = Vec::new();
+    // origin (whichever edge the step moves) advances by exactly the planned
+    // step per row — the same number the pointer boundary advances by. Both
+    // invariants are checked on EVERY plate regardless of direction: the edge
+    // the step doesn't touch is provably unmoved (its own delta is `0.0`), so
+    // asserting both never disagrees with the single-direction sweeps the
+    // pre-131a law ran.
+    let mut plate_left_origins: Vec<(usize, f32)> = Vec::new();
+    let mut plate_right_origins: Vec<(usize, f32)> = Vec::new();
     let (mut rows_graded, mut deepest) = (0usize, 0.0f32);
     for row in plan.rows() {
+        let want_dx = step_px.max(0.0) * row.display as f32;
+        let want_dw = step_px.min(0.0) * row.display as f32;
         assert!(
-            (row.dx - STEP_PX * row.display as f32).abs() < 0.01,
-            "{ctx}: display row {} planned dx {} for a {STEP_PX}px step",
+            (row.dx - want_dx).abs() < 0.01,
+            "{ctx}: display row {} planned dx {} for a {step_px}px step (wanted {want_dx})",
             row.display,
             row.dx
         );
-        deepest = deepest.max(row.dx);
+        assert!(
+            (row.dw - want_dw).abs() < 0.01,
+            "{ctx}: display row {} planned dw {} for a {step_px}px step (wanted {want_dw})",
+            row.display,
+            row.dw
+        );
+        deepest = deepest.max(row.dx - row.dw); // total inward step, always >= 0
         let mid_y = row.top + row.height * 0.5;
-        // The row's own composition begins at `x0 + dx`. Anything left of that is
-        // bare card on this row.
-        if row.dx > 1.0 {
-            for probe_x in [x0, x0 + row.dx * 0.5, x0 + row.dx - 0.5] {
+        let left = x0 + row.dx;
+        let right = x1 + row.dw;
+        // Left of `left` (only possible when dx moved it off x0) is bare card.
+        if left - x0 > 1.0 {
+            for probe_x in [x0, (x0 + left) * 0.5, left - 0.5] {
                 assert_eq!(
                     p.overlay_row_at(probe_x, mid_y),
                     None,
-                    "{ctx}: display row {} is drawn starting at x {:.2} but a pointer at \
+                    "{ctx}: display row {} is drawn starting at x {left:.2} but a pointer at \
                      ({probe_x:.2}, {mid_y:.2}) — left of its own composition, over bare \
                      card — still selects it",
                     row.display,
-                    x0 + row.dx
                 );
             }
         }
-        for probe_x in [x0 + row.dx + 0.5, (x0 + row.dx + x1) * 0.5, x1] {
+        // Right of `right` (only possible when dw moved it off x1) is bare card.
+        if x1 - right > 1.0 {
+            for probe_x in [x1, (right + x1) * 0.5, right + 0.5] {
+                assert_eq!(
+                    p.overlay_row_at(probe_x, mid_y),
+                    None,
+                    "{ctx}: display row {} is drawn ending at x {right:.2} but a pointer at \
+                     ({probe_x:.2}, {mid_y:.2}) — right of its own composition, over bare \
+                     card — still selects it",
+                    row.display,
+                );
+            }
+        }
+        for probe_x in [left + 0.5, (left + right) * 0.5, right - 0.5] {
             assert_eq!(
                 p.overlay_row_at(probe_x, mid_y),
                 row.item,
@@ -152,32 +196,45 @@ fn grade_staggered_card(
             .iter()
             .find(|r| (r[1] - want_top).abs() < 0.51 && r[3] < row.height + 0.51)
         {
-            plate_origins.push((row.display, plate[0] - row.dx));
+            plate_left_origins.push((row.display, plate[0] - row.dx));
+            plate_right_origins.push((row.display, (plate[0] + plate[2]) - row.dw));
         }
     }
-    if let Some(&(_, base)) = plate_origins.first() {
-        for &(display, origin) in &plate_origins {
+    if let Some(&(_, base)) = plate_left_origins.first() {
+        for &(display, origin) in &plate_left_origins {
             assert!(
                 (origin - base).abs() < 0.51,
                 "{ctx}: display row {display}'s drawn plate does not advance by its own \
-                 planned step — its origin minus dx is {origin:.2} where row {}'s is \
+                 planned step — its LEFT origin minus dx is {origin:.2} where row {}'s is \
                  {base:.2}. The plate and the pointer boundary must move together.",
-                plate_origins[0].0
+                plate_left_origins[0].0
             );
         }
     }
-    (rows_graded, plate_origins.len(), deepest)
+    if let Some(&(_, base)) = plate_right_origins.first() {
+        for &(display, origin) in &plate_right_origins {
+            assert!(
+                (origin - base).abs() < 0.51,
+                "{ctx}: display row {display}'s drawn plate does not advance by its own \
+                 planned step — its RIGHT edge minus dw is {origin:.2} where row {}'s is \
+                 {base:.2}. The plate and the pointer boundary must move together.",
+                plate_right_origins[0].0
+            );
+        }
+    }
+    (rows_graded, plate_left_origins.len(), deepest)
 }
 
 /// THE HEADLINE LAW. With a composition that steps every successive row `STEP_PX`
 /// further in, on every `OverlayKind`, both list styles, four canvases and both
-/// DPIs:
+/// DPIs, EITHER SIGN of the step (item 131a's mirror — positive steps the left
+/// edge in, negative steps the right edge in):
 ///
 /// * a pointer INSIDE the row's own step — where the row is demonstrably not
 ///   drawn — must not select it;
 /// * a pointer just past the step must;
-/// * and (on the plated style) the drawn plate's own left edge must be that same
-///   boundary, so the two owners agree by measurement rather than by both
+/// * and (on the plated style) the drawn plate's own moved edge must be that
+///   same boundary, so the two owners agree by measurement rather than by both
 ///   reading one accessor.
 #[test]
 fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
@@ -189,40 +246,45 @@ fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
         return;
     };
     let saved_reduced = crate::motion::reduced();
-    crate::motion::set_reduced(true); // settle the entrance so `dx` is the full step
+    crate::motion::set_reduced(true); // settle the entrance so dx/dw are the full step
 
     let styles: [(&str, theme::ListStyle); 2] =
         [("pane", theme::ListStyle::Pane), ("bars", PLATED_BARS)];
     let canvases: [(u32, u32); 4] = [(1200, 800), (700, 800), (900, 460), (1400, 1600)];
 
-    crate::render::set_slant_test_override(Some(SlantProbe {
-        px_per_row: STEP_PX,
-        italic: false,
-    }));
-
     let mut graded_rows = 0usize;
     let mut graded_plates = 0usize;
     let mut deepest_dx = 0.0f32;
-    for dpi in [1.0f32, 2.0] {
-        p.set_dpi(dpi);
-        for (sname, style) in styles {
-            crate::render::set_list_style_test_override(Some(style));
-            for (lw, lh) in canvases {
-                let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
-                p.set_size(cw as f32, ch as f32);
-                for kind in OverlayKind::ALL {
-                    let v = staggered_view(kind, 24);
-                    p.set_view(&v);
-                    p.prepare(&device, &queue, cw, ch).unwrap();
-                    let ctx = format!("{kind:?} dpi={dpi} list={sname} canvas={cw}x{ch}");
-                    let plates = match sname {
-                        "bars" => p.overlay_bar_rects_probe().1,
-                        _ => Vec::new(),
-                    };
-                    let (rows, plated, deep) = grade_staggered_card(&p, cw, &plates, &ctx);
-                    graded_rows += rows;
-                    graded_plates += plated;
-                    deepest_dx = deepest_dx.max(deep);
+    // ITEM 131a — both mirror directions, not just Mangrove's left-moving shape.
+    for step_px in [STEP_PX, -STEP_PX] {
+        crate::render::set_slant_test_override(Some(SlantProbe {
+            px_per_row: step_px,
+            italic: false,
+        }));
+        for dpi in [1.0f32, 2.0] {
+            p.set_dpi(dpi);
+            for (sname, style) in styles {
+                crate::render::set_list_style_test_override(Some(style));
+                for (lw, lh) in canvases {
+                    let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
+                    p.set_size(cw as f32, ch as f32);
+                    for kind in OverlayKind::ALL {
+                        let v = staggered_view(kind, 24);
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, cw, ch).unwrap();
+                        let ctx = format!(
+                            "{kind:?} step={step_px} dpi={dpi} list={sname} canvas={cw}x{ch}"
+                        );
+                        let plates = match sname {
+                            "bars" => p.overlay_bar_rects_probe().1,
+                            _ => Vec::new(),
+                        };
+                        let (rows, plated, deep) =
+                            grade_staggered_card(&p, cw, &plates, step_px, &ctx);
+                        graded_rows += rows;
+                        graded_plates += plated;
+                        deepest_dx = deepest_dx.max(deep);
+                    }
                 }
             }
         }
@@ -234,18 +296,79 @@ fn a_staggered_row_is_clickable_exactly_where_its_composition_is_drawn() {
     theme::set_active(theme::DEFAULT_THEME);
 
     assert!(
-        graded_rows > 500,
-        "the sweep must grade hundreds of staggered rows, got {graded_rows}"
+        graded_rows > 1000,
+        "the sweep (both signs) must grade thousands of staggered rows, got {graded_rows}"
     );
     assert!(
-        graded_plates > 100,
+        graded_plates > 200,
         "the DRAWN-plate arm must actually find plates to compare against, got {graded_plates}"
     );
     assert!(
         deepest_dx > 4.0 * STEP_PX,
         "the sweep must reach genuinely deep rows or the x-test is never stressed, deepest \
-         dx was {deepest_dx}"
+         inward step was {deepest_dx}"
     );
+}
+
+/// THE PANE BAND'S OWN DRAWN EVIDENCE (item 131a): `overlay_bar_rects_probe`
+/// grades `Bars`, but the Pane world's selected band (`overlay_pane_selection`)
+/// is a THIRD independent production owner reading the same two-sided extent —
+/// `[geom.band_x() + dx, geom.band_w() + dw - dx]` — that could disagree with
+/// both the hit-test and the bars plate if its own `dw` term were dropped or
+/// mis-signed. Proven on both mirrors.
+#[test]
+fn the_pane_bands_own_rect_matches_the_planned_two_sided_extent_on_both_mirrors() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping the_pane_bands_own_rect_matches_the_planned_extent: no wgpu adapter");
+        return;
+    };
+    crate::render::set_list_style_test_override(Some(theme::ListStyle::Pane));
+    let saved_reduced = crate::motion::reduced();
+    crate::motion::set_reduced(true);
+
+    for step_px in [STEP_PX, -STEP_PX] {
+        crate::render::set_slant_test_override(Some(SlantProbe {
+            px_per_row: step_px,
+            italic: false,
+        }));
+        let v = staggered_view(OverlayKind::Command, 24);
+        p.set_view(&v);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        let geom = p.overlay_geometry(1200);
+        let plan = p.overlay_row_plan(&geom);
+        let selected = plan.selected_display().expect("a selected row");
+        let dx = plan.row_dx(selected);
+        let dw = plan.row_dw(selected);
+        assert!(
+            dx.abs() > 1.0 || dw.abs() > 1.0,
+            "step={step_px}: the fixture's selected row must genuinely carry a nonzero extent"
+        );
+        let rects = p.overlay_pane_rects_probe();
+        assert_eq!(
+            rects.len(),
+            1,
+            "step={step_px}: exactly one Pane band rect must be drawn for a real selection"
+        );
+        let [x, _, w, _] = rects[0];
+        // == geom.band_x()/.band_w() (private outside `chrome`)
+        let (band_x, band_x1) = plan.card_x_span();
+        let want_x = band_x + dx;
+        let want_w = (band_x1 - band_x) + dw - dx;
+        assert!(
+            (x - want_x).abs() < 0.01,
+            "step={step_px}: Pane band left edge {x} != planned {want_x} (dx {dx})"
+        );
+        assert!(
+            (w - want_w).abs() < 0.01,
+            "step={step_px}: Pane band width {w} != planned {want_w} (dw {dw}, dx {dx})"
+        );
+    }
+
+    crate::render::set_slant_test_override(None);
+    crate::render::set_list_style_test_override(None);
+    crate::motion::set_reduced(saved_reduced);
+    theme::set_active(theme::DEFAULT_THEME);
 }
 
 /// THE OTHER HALF, and the one that protects every shipping world: with no
@@ -277,6 +400,11 @@ fn an_upright_composition_plans_no_offset_and_keeps_the_cards_own_span() {
             assert_eq!(
                 row.dx, 0.0,
                 "{kind:?}: display row {} planned a nonzero dx",
+                row.display
+            );
+            assert_eq!(
+                row.dw, 0.0,
+                "{kind:?}: display row {} planned a nonzero dw",
                 row.display
             );
             let mid_y = row.top + row.height * 0.5;

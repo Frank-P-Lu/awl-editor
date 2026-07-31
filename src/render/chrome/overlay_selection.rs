@@ -117,6 +117,23 @@ impl TextPipeline {
         )
     }
 
+    /// TEST PROBE (item 131a) — the Pane world's selected-band rect this frame,
+    /// ACTUALLY emitted by [`Self::overlay_pane_selection`] rather than
+    /// rebuilt: the drawn-evidence oracle for the Pane band's own two-sided
+    /// extent, mirroring [`Self::overlay_bar_rects_probe`]'s role for `Bars`.
+    /// Empty when there is no living-band motion in flight and no logical
+    /// selection (nothing drawn this frame), or under `Bars`.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_pane_rects_probe(&mut self) -> Vec<[f32; 4]> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let vis = self.resolve_visual_selection(&geom, &plan);
+        match crate::render::effective_list_style() {
+            theme::ListStyle::Pane => self.overlay_pane_selection(&geom, &plan, &vis).selected,
+            theme::ListStyle::Bars { .. } => Vec::new(),
+        }
+    }
+
     /// TEST PROBE — the `(selected, unselected)` row-surface quads this frame
     /// ACTUALLY emits under a `Bars` world, read from the emitter rather than
     /// rebuilt: the only oracle for "where did the footer plate land" that cannot
@@ -207,7 +224,7 @@ impl TextPipeline {
     ) -> OverlaySelectionRects {
         let line_height = plan.lh();
         if let Some((force, from, to, t)) = vis.living() {
-            let (selected, unselected, cross) = self.living_band_rects(
+            let (mut selected, mut unselected, mut cross) = self.living_band_rects(
                 force,
                 from,
                 to,
@@ -216,6 +233,30 @@ impl TextPipeline {
                 geom.band_w(),
                 line_height,
             );
+            // ITEM 131a — the living morph drew the card's raw bounds, blind to
+            // any row's own two-sided extent (a gap that predates 131a: `dx`/`dw`
+            // didn't exist before the seam, so this path was never WRONG for
+            // anything that ever shipped — it read `0.0` implicitly by never
+            // reading anything). Apply the CURRENT logical row's extent uniformly
+            // to every emitted rect, the same formula the settled branch below
+            // uses: exact for the shipped default (`Choreo::Morph`, one shape,
+            // one row throughout the glide), and strictly better than the prior
+            // "never applied" for the non-default `TwoShape` echo too — though
+            // that echo's OWN row may differ from the logical target mid-glide,
+            // and resolving THAT precisely is a selection/composition question
+            // (item 131e), not one this plumbing fix can silently decide.
+            if let Some(row) = vis.logical() {
+                let dx = plan.row_dx(row);
+                let dw = plan.row_dw(row);
+                for r in selected
+                    .iter_mut()
+                    .chain(unselected.iter_mut())
+                    .chain(cross.iter_mut())
+                {
+                    r[0] += dx;
+                    r[2] += dw - dx;
+                }
+            }
             self.overlay_bars.set_corner(2.5);
             self.overlay_bars
                 .set_color(theme::surface_selected().rgba_bytes());
@@ -231,7 +272,13 @@ impl TextPipeline {
         let selected = match (vis.logical(), vis.band_top()) {
             (Some(row), Some(top)) => {
                 let dx = plan.row_dx(row);
-                vec![[geom.band_x() + dx, top, geom.band_w() - dx, line_height]]
+                let dw = plan.row_dw(row);
+                vec![[
+                    geom.band_x() + dx,
+                    top,
+                    geom.band_w() + dw - dx,
+                    line_height,
+                ]]
             }
             _ => Vec::new(),
         };
@@ -361,7 +408,7 @@ impl TextPipeline {
     ) -> [f32; 4] {
         let row = planned.display;
         let (x, width) = layout.span(geom, row);
-        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), planned.dx);
+        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), planned.dx, planned.dw);
         [x, planned.top + layout.bar_offset, width, layout.bar_height]
     }
 
@@ -380,7 +427,13 @@ impl TextPipeline {
             return Vec::new();
         };
         let (x, width) = layout.span(geom, row);
-        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), plan.row_dx(row));
+        let (x, width) = slant_bar_span(
+            x,
+            width,
+            layout.extent.hugs(),
+            plan.row_dx(row),
+            plan.row_dw(row),
+        );
         let grow = layout.grow_px * self.overlay_grow_progress();
         let mirror = crate::render::resolve_overlay_anchor(self.overlay_align).mirrors_growth();
         let (x, width) = grow_span(x, width, grow, mirror);
