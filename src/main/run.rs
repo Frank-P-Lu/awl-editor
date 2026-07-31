@@ -1074,6 +1074,22 @@ pub(crate) fn run(mode: Mode) -> Result<()> {
                 remembered.as_deref(),
                 &default_folder_resolved,
             );
+            // THE DOCUMENT HALF OF THE SAME LAW (item 24): a launch that took
+            // branch 3 above — nothing asked for, nothing remembered, never
+            // welcomed — opens one real Markdown file in that folder instead of
+            // an empty scratch buffer. `crate::firstrun` seeds it write-if-
+            // absent and marks the profile; from here down it is an ordinary
+            // file argument, which is the whole point (see that module's
+            // header: there is no welcome state for a later session to leak).
+            #[cfg(not(target_arch = "wasm32"))]
+            let file = crate::firstrun::resolve_first_run_document(
+                file,
+                &root,
+                remembered.as_deref(),
+                &active_root,
+                crate::convention::Convention::current(),
+                crate::commands::Platform::current(),
+            );
             // Pass the RAW flags + config; `App::new` folds them (flag > config >
             // default) and re-folds on a live config reload. `wait` (native-only,
             // the single-instance daemon's `--wait`) rides straight through, as

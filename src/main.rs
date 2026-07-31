@@ -73,6 +73,7 @@ mod embedded_docs_law;
 mod export;
 mod facets;
 mod file_visibility;
+mod firstrun;
 mod fold;
 mod frontmatter;
 mod fs;
