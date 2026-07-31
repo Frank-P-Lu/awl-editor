@@ -1665,9 +1665,21 @@ fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
         std::env::temp_dir().join(format!("awl_histpreview_test_{}", std::process::id())),
     );
 
-    // A real writer's-diff transcript, tall enough to fill the column vertically.
-    let old = "The opening paragraph stands unchanged across both drafts here.\n\nThe middle paragraph gets entirely rewritten in the newer draft below.\n\nA third paragraph the newer draft drops out of the manuscript wholesale.\n";
-    let new = "The opening paragraph stands unchanged across both drafts here.\n\nThe middle paragraph is now reworded completely for the fresher draft.\n\nA brand new closing paragraph arrives to take the tail position instead.\n";
+    // A real writer's-diff transcript, deliberately TALL enough that the document
+    // still paints in the bottom third of the canvas, well below the History
+    // card — the band arm 2 grades. A short transcript would make that arm
+    // vacuous by leaving the compared region empty in both frames.
+    let mut old = String::new();
+    let mut new = String::new();
+    for i in 0..14 {
+        old.push_str(&format!(
+            "Paragraph {i} stands unchanged across both drafts of the manuscript here.\n\nParagraph {i}b gets entirely rewritten in the newer draft below this one.\n\n"
+        ));
+        new.push_str(&format!(
+            "Paragraph {i} stands unchanged across both drafts of the manuscript here.\n\nParagraph {i}b is now reworded completely for the fresher draft instead.\n\n"
+        ));
+    }
+    let (old, new) = (old.as_str(), new.as_str());
     let (transcript, _counts) = crate::prosediff::diff_and_render(
         old,
         new,
@@ -1761,14 +1773,27 @@ fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
         let col_w = sidecar["page"]["column"]["width"]
             .as_f64()
             .expect("page.column.width") as u32;
+        // NON-VACUITY: the graded band must actually carry document INK in the
+        // plain frame, or "identical" would only mean "both empty" — the exact
+        // way this arm went quiet when its fixture transcript was short.
+        let ground = *img_plain.get_pixel(col_left + col_w / 2, h - 4);
+        let mut inked = 0u32;
         let mut differing = 0u32;
         for y in (h * 2 / 3)..h {
             for x in col_left..(col_left + col_w).min(w) {
                 if img.get_pixel(x, y) != img_plain.get_pixel(x, y) {
                     differing += 1;
                 }
+                if *img_plain.get_pixel(x, y) != ground {
+                    inked += 1;
+                }
             }
         }
+        assert!(
+            inked > 2_000,
+            "{world}: the graded band carries almost no document ink ({inked} px) — the \
+             transcript fixture is too short for this arm to mean anything"
+        );
         assert_eq!(
             differing, 0,
             "{world}: {differing} pixels below the History card differ between the \
@@ -1786,13 +1811,18 @@ fn history_preview_renders_the_transcript_as_the_document_in_every_world() {
         opts_f.overlay = Some(history_overlay(true));
         let png_f = dir.join(format!("{world}_focus.png"));
         capture_with(&png_f, &Buffer::from_str(new), &opts_f).expect("focused preview capture");
+        let img_f = image::open(&png_f).expect("decode focused PNG").to_rgba8();
+        let focus_diff = img
+            .pixels()
+            .zip(img_f.pixels())
+            .filter(|(a, b)| a != b)
+            .count();
         assert_eq!(
-            std::fs::read(&png).expect("rest png"),
-            std::fs::read(&png_f).expect("focus png"),
-            "{world}: Tab-into-the-content must not move a pixel of the document layer — \
-             the focus cue it used to strengthen was the diff panel's rim, and the rim is \
-             gone. A difference here means something in the document layer grew a \
-             `detail_focus` read."
+            focus_diff, 0,
+            "{world}: Tab-into-the-content moved {focus_diff} pixels. It must not move a \
+             pixel of the document layer — the focus cue it used to strengthen was the \
+             diff panel's rim, and the rim is gone. A difference here means something in \
+             the document layer grew a `detail_focus` read."
         );
     }
 

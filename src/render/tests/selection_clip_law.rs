@@ -93,6 +93,10 @@ fn selection_and_search_rects_never_paint_past_the_comparison_viewport() {
     // diff panel's fixed 8px inset).
     let text = tall_doc(60);
     let mut v = comparison_view(&text, 0, 0);
+    // The acceptance test is pure ROW GEOMETRY, deliberately not the output of
+    // the clip this law is about: a fixture chosen by asking `selection_rects`
+    // whether it trimmed anything would go quiet — not red — the day the clip
+    // was reverted.
     let mut chosen = None;
     for h in (690..=790).step_by(2) {
         p.set_size(1200.0, h as f32);
@@ -100,13 +104,13 @@ fn selection_and_search_rects_never_paint_past_the_comparison_viewport() {
         let Some((_, band_bottom)) = p.doc_clip_band() else {
             continue;
         };
-        let straddle = first_row_below(&p, band_bottom, 60).saturating_sub(2);
-        let mut probe = comparison_view(&text, straddle, 0);
-        probe.selection = Some(((straddle, 0), (straddle + 6, 0)));
-        p.set_view(&probe);
-        let rects = p.selection_rects();
-        if rects.len() < 7 && rects.iter().any(|r| r[3] < p.metrics.caret_h - 1.0) {
-            chosen = Some((h, straddle));
+        let last_in = first_row_below(&p, band_bottom, 60).saturating_sub(1);
+        let row_top = p.doc_top() + p.visual_rows(last_in)[0].line_top;
+        let band_top = row_top + (p.metrics.line_height - p.metrics.caret_h) * 0.5;
+        // The region's bottom must fall strictly INSIDE that row's own selection
+        // band, so clipping it is a partial trim rather than a whole-row drop.
+        if band_bottom > band_top + 1.0 && band_bottom < band_top + p.metrics.caret_h - 1.0 {
+            chosen = Some((h, last_in.saturating_sub(1)));
             break;
         }
     }
