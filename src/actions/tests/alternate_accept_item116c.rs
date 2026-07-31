@@ -143,8 +143,11 @@ fn active_selection_is_overwritten() -> Buffer {
     b
 }
 
+/// A fixture: its name (for assertion failures) and its builder.
+type Fixture = (&'static str, fn() -> Buffer);
+
 /// Every single-step fixture above, named for assertion failures.
-fn single_step_fixtures() -> Vec<(&'static str, fn() -> Buffer)> {
+fn single_step_fixtures() -> Vec<Fixture> {
     vec![
         ("plain_prose", plain_prose),
         ("bullet_continue", bullet_continue),
