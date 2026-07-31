@@ -230,7 +230,7 @@ impl TextPipeline {
         }
         let selected = match (vis.logical(), vis.band_top()) {
             (Some(row), Some(top)) => {
-                let dx = self.overlay_slant_dx(row);
+                let dx = plan.row_dx(row);
                 vec![[geom.band_x() + dx, top, geom.band_w() - dx, line_height]]
             }
             _ => Vec::new(),
@@ -261,7 +261,7 @@ impl TextPipeline {
         self.overlay_bars
             .set_color(theme::overlay_bar_unselected().rgba_bytes());
         let mut unselected = self.overlay_unselected_bar_rects(geom, plan, &layout, vis);
-        let mut selected = self.overlay_selected_bar_rects(geom, &layout, vis);
+        let mut selected = self.overlay_selected_bar_rects(geom, plan, &layout, vis);
         layout.append_chord_plates(geom, plan, vis, &mut selected, &mut unselected);
         OverlaySelectionRects {
             selected,
@@ -361,7 +361,7 @@ impl TextPipeline {
     ) -> [f32; 4] {
         let row = planned.display;
         let (x, width) = layout.span(geom, row);
-        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), self.overlay_slant_dx(row));
+        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), planned.dx);
         [x, planned.top + layout.bar_offset, width, layout.bar_height]
     }
 
@@ -372,6 +372,7 @@ impl TextPipeline {
     fn overlay_selected_bar_rects(
         &mut self,
         geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
         layout: &OverlayBarLayout,
         vis: &VisualSelection,
     ) -> Vec<[f32; 4]> {
@@ -379,7 +380,7 @@ impl TextPipeline {
             return Vec::new();
         };
         let (x, width) = layout.span(geom, row);
-        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), self.overlay_slant_dx(row));
+        let (x, width) = slant_bar_span(x, width, layout.extent.hugs(), plan.row_dx(row));
         let grow = layout.grow_px * self.overlay_grow_progress();
         let mirror = crate::render::resolve_overlay_anchor(self.overlay_align).mirrors_growth();
         let (x, width) = grow_span(x, width, grow, mirror);

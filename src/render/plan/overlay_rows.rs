@@ -25,12 +25,25 @@ pub(in crate::render) enum PlanLine {
 /// `top`/`height` are the row's SLOT in canvas px: the band the selected-row fill
 /// paints, the band the text clip admits, and the band a pointer must fall inside
 /// to select `item`. `item` is `None` for a section header (nothing to select).
+///
+/// `dx` is the row's own HORIZONTAL offset from the content band's left edge —
+/// how far this row's whole composition (its glyph origin, its plate, its
+/// selected band, and the region a pointer must be inside to select it) is
+/// stepped in from `card_x`. `0.0` on every row of every shipping world today,
+/// which is why the whole field is a no-op there. It exists because a row
+/// composition that staggers rows horizontally is a real, already-drawable thing
+/// (the wild-menu slant probe draws one), and before this field the offset was
+/// applied by the DRAW emitters alone while `row_at` kept testing the card's
+/// undisplaced x-span — so a staggered row was clickable where it was not drawn
+/// and not clickable where it was. DESIGN.md §8: drawn geometry and hit-test
+/// geometry have one owner.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(in crate::render) struct PlannedRow {
     pub display: usize,
     pub item: Option<usize>,
     pub top: f32,
     pub height: f32,
+    pub dx: f32,
 }
 
 impl PlannedRow {
@@ -63,6 +76,11 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// The GROUPED family's explicit display-line sequence, or `None` for a flat
     /// window.
     pub lines: Option<&'a [PlanLine]>,
+    /// The row composition's HORIZONTAL STEP: how much further in from the band's
+    /// left edge each successive display row's composition sits, in canvas px.
+    /// `0.0` for every shipping world (an upright list) — every planned `dx` is
+    /// then `0.0` and the whole feature is byte-identical.
+    pub dx_per_row: f32,
 }
 
 /// THE PLANNED CANDIDATE BAND. Built once per overlay frame; read by the draw
@@ -183,6 +201,7 @@ pub(in crate::render) fn test_row_top(
         selected: 0,
         empty_rows: 0,
         lines: None,
+        dx_per_row: 0.0,
     });
     plan.row_top(row).expect("row is inside the planned window")
 }
@@ -205,6 +224,7 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         selected: 0,
         empty_rows: 0,
         lines: None,
+        dx_per_row: 0.0,
     })
     .rows()
     .to_vec()
@@ -220,6 +240,10 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         0,
         input.lh,
     );
+    // A row's horizontal offset is planned exactly like its vertical one, off the
+    // same display index, so a composition that staggers rows cannot end up with
+    // the draw and the hit-test reading two different arithmetics.
+    let dx = |display: usize| input.dx_per_row * display as f32;
     let rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
             .iter()
@@ -232,6 +256,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                 },
                 top: first_top + display as f32 * input.lh,
                 height: input.lh,
+                dx: dx(display),
             })
             .collect(),
         None => (0..input.visible)
@@ -242,6 +267,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
                     item: (idx < input.n_items).then_some(idx),
                     top: first_top + display as f32 * input.lh,
                     height: input.lh,
+                    dx: dx(display),
                 }
             })
             .collect(),
@@ -369,16 +395,31 @@ impl OverlayRowPlan {
             .position(|r| py >= r.top && py < r.bottom())
     }
 
+    /// The planned HORIZONTAL OFFSET of display row `display` — `0.0` past the
+    /// band, and `0.0` on every row of every shipping world. The one door to a
+    /// row's x, exactly as [`Self::row_top`] is the one door to its y.
+    pub(in crate::render) fn row_dx(&self, display: usize) -> f32 {
+        self.rows.get(display).map_or(0.0, |r| r.dx)
+    }
+
     /// THE INTERACTION GEOMETRY — the `overlay_items` index a pointer at
     /// `(px, py)` selects, or `None` off the card, above the band, on a section
     /// header, or below the last planned row. The inverse of the same
     /// [`PlannedRow`] slots the band is drawn from, so a click cannot land on a
     /// row other than the one under the pointer.
+    ///
+    /// The x-test is PER ROW, not per card: a row's composition begins at its own
+    /// `card_x + dx` (the trailing edge stays the band's, which is where a
+    /// full-width plate keeps its right edge and a hug plate can never reach past).
+    /// With `dx == 0.0` — every shipping world — this is the card's own span,
+    /// verbatim.
     pub(in crate::render) fn row_at(&self, px: f32, py: f32) -> Option<usize> {
-        if px < self.card_x || px > self.card_x + self.card_w {
+        let display = self.display_at(py)?;
+        let row = self.rows.get(display)?;
+        if px < self.card_x + row.dx || px > self.card_x + self.card_w {
             return None;
         }
-        self.item_at(self.display_at(py)?)
+        row.item
     }
 
     /// The card's own horizontal bounds, as the hit-test reads them.
