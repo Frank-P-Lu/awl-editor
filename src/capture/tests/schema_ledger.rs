@@ -73,7 +73,7 @@ fn expected_header() -> String {
 
 #[test]
 fn capture_md_header_matches_schema_version() {
-    let doc = include_str!("../../../CAPTURE.md");
+    let doc = crate::embedded_docs::CAPTURE_MD;
     let found = doc
         .lines()
         .find(|line| line.starts_with("## The sidecar JSON — schema `awl-capture/"))
