@@ -380,8 +380,8 @@ lines = 855
 
 [[file_size_mark]]
 file = "src/selection.rs"
-lines = 768
-reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through, so the growth cannot live elsewhere. Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
+lines = 731
+reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through. The two pure spine helpers were later EXTRACTED to `selection/spine.rs` (merge train, item 182's rule: a mark may not rise for growth extraction can absorb) after rustfmt on the merge candidate pushed this file three lines past its old 768 mark; the mark came down to the measured size rather than up. Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
 
 [[file_size_mark]]
 file = "src/session.rs"
