@@ -11,11 +11,12 @@ unchanged in any other editor, today or in ten years.
 
 ## The markup is one line away
 
-Put your caret on the line below this one, then move it off again.
+Put your caret into the paragraph below, then move it off again.
 
 Away from the caret, a line reads as **finished writing**. Under the caret it
 shows its `backticks` and its *asterisks* and the `#` that starts a heading —
-the plain text the file actually holds. Then it settles back.
+the plain text the file actually holds. Then it settles back. It happens a
+line at a time, so the rest of the page stays where it was.
 
 That is the whole idea, and it is the only one you need. The file never
 becomes rich; only the render does. What you see away from a line is what it

@@ -8,8 +8,28 @@ covers the model underneath.
 
 ## Where your words live
 
-**A scratch buffer, always open.** Launch awl with no file and you land
-on a writing surface — no save dialog, no "untitled-1.md". It stashes
+**The first launch opens a document, not an empty editor.** With nothing
+to resume, awl writes `welcome.md` into the active folder and opens it.
+It is an ordinary Markdown file and nothing more: edit it, rename it,
+delete it, or replace it with your own. Later launches resume whatever
+you had open, exactly as they would for any other file — there is no
+welcome state to carry.
+
+| | |
+|---|---|
+| Where it lands | The active folder, which on a first launch is `default_folder` (`~/notes` unless you set it) |
+| Existing file | An existing `welcome.md` is never overwritten; awl opens yours |
+| Shown again? | No. awl records the fact once, in `$XDG_DATA_HOME/awl/welcomed` (or `~/.local/share/awl/welcomed`) |
+| To be welcomed again | Delete that marker file, then launch with nothing to resume |
+| In the browser | The same document is seeded into the tab's storage on a first load, alongside `tour.md`, `prose.md` and `japanese.md` |
+
+The chords the document teaches are substituted into it as it is
+written, from the same command catalog the palette reads, so it names
+your platform's own bindings rather than a hand-typed guess.
+
+**A scratch buffer, always open.** After that first launch, launch awl
+with no file and you land on a writing surface — no save dialog, no
+"untitled-1.md". It stashes
 itself to disk on the same rhythm as everything else: idle, window
 blur, buffer switch, quit (`$XDG_DATA_HOME/awl/scratch.md`, or
 `~/.local/share/awl/scratch.md` if `XDG_DATA_HOME` isn't set — on the
@@ -109,6 +129,16 @@ next key or chord becomes the new binding, written into your config.
 **The hold-⌘ peek.** Hold the arming modifier alone for a beat (⌘ on
 Mac, Ctrl on Linux) and a card of frequently-used shortcuts appears.
 Release the hold and the card is gone — no click, no dismiss.
+
+**The pointer gets a bounded bridge.** Select text with the mouse in a
+Markdown buffer — drag, double-click a word, triple-click a line — and a
+small row of buttons appears beside the selection: bold, italic,
+highlight, code, strikethrough, heading, link. Each one fires the same
+command its chord does, and lights up when the selection already carries
+that format. Any key press, or losing the selection, dismisses it. A
+keyboard selection never summons it, and it never becomes a persistent
+toolbar. `popover = false` turns it off; the Settings row is "Format
+popover".
 
 Generated from the live command catalog — never hand-edited (see the
 law test `guide::tests::generated_keys_reference_matches_catalog`;

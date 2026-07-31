@@ -266,6 +266,28 @@ fn no_other_launch_shape_seeds_or_diverts() {
     }
 }
 
+/// Print the EXACT bytes a first launch seeds, for the convention this pass is
+/// running under — the same `render_key_tokens` call [`seed`] makes, so a
+/// capture of the printed file is a capture of the real first-run document
+/// rather than of `samples/welcome.md`'s unrendered token source. Ignored by
+/// default; the `print_generated_keys_reference` precedent.
+///
+/// ```text
+/// cargo test --bin awl firstrun::tests::print_seeded_welcome -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn print_seeded_welcome() {
+    print!(
+        "{}",
+        crate::keytoken::render_key_tokens(
+            crate::embedded_docs::WELCOME_MD,
+            Convention::current(),
+            Platform::Native,
+        )
+    );
+}
+
 // ── Structural: the door has one production call site ──────────────────────
 
 /// THE CAPTURE GATE, structurally. Every headless capture mode resolves its
