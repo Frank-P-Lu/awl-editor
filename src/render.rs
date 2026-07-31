@@ -2239,6 +2239,10 @@ pub struct TextPipeline {
     /// `overlay_geometry` to its third family; every other overlay path stays
     /// byte-identical because this is `false` for them.
     overlay_workspace: bool,
+    /// Mirror of [`ViewState::overlay_rows_primary`] (item 116a) — within a
+    /// workspace, does the primary column carry rows rather than labels?
+    /// `false` for every kind that routes here today.
+    overlay_rows_primary: bool,
     /// The workspace navigation rail's MEASURED column width (device px),
     /// measured at `set_view` with a `&mut FontSystem` in hand — the item-51
     /// `overlay_content_w` pattern, for the same reason. `0.0` off a workspace.

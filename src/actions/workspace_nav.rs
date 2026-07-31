@@ -31,9 +31,7 @@ use super::*;
 /// editor. Spelling it here would be the second owner item 173 exists to prevent.
 pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let ov = ctx.journey.card().unwrap();
-    if !ov.workspace_shell() {
-        return None;
-    }
+    ov.workspace_shape()?;
     if matches!(action, Action::InsertTab) {
         ctx.journey.toggle_detail();
         return Some(Effect::None);

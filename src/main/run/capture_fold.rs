@@ -129,7 +129,7 @@ pub(crate) fn overlay_capture_info(
         return_to: journey.parked().map(|p| p.kind().as_str()),
         spell_target: ov.spell_target,
         preview_id: preview.map(|(id, _, _)| id),
-        workspace: ov.workspace_shell(),
+        workspace: ov.workspace_shape().is_some(),
         detail_focus: ov.detail_focus,
         diff_scroll: ov.diff_scroll,
         show_hidden: ov.kind.hides_dotfiles() && crate::file_visibility::all_on(),

@@ -90,6 +90,9 @@ mod webgl_shader_validation;
 /// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
 mod workspace_item114;
+/// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
+/// roster and the `rows_are_primary()` bypass-is-module-private law.
+mod workspace_shape_item116a;
 mod wrap_affinity;
 mod wysiwyg;
 mod zoom_anchor;
