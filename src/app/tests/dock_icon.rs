@@ -2,7 +2,7 @@
 //!
 //! The per-world app icon follows the ACTIVE world, which raises the obvious
 //! hazard: the theme picker previews live, so arrowing (or sweeping the mouse)
-//! down nineteen worlds would restamp the Dock tile nineteen times if the
+//! down twenty worlds would restamp the Dock tile twenty times if the
 //! adoption hung off the preview. It does not, and the reason is structural
 //! rather than careful — `crate::app_icon::adopt` is reachable from exactly two
 //! places, both settled: startup after the sticky theme is restored, and the

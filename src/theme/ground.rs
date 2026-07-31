@@ -105,6 +105,43 @@ pub enum Background {
     Organic { tones: [Srgb; 3], arrangement: Arrangement, scale_px: f32, density: f32 },
     Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave, anchor: DeckleAnchor,
         period_px: f32, wander_px: f32, density: f32 },
+    WarpedGrid { ground: Srgb, minor: Srgb, major: Srgb, tunnel: Tunnel,
+        spacing_px: f32, curvature: f32, density: f32 },
+}
+
+/// WARPED GRID's one theme-owned profile dial — whether the two margins are
+/// cropped out of ONE projected cylinder or steered independently.
+///
+/// * [`Tunnel::Shared`] — one camera pose, one projected cylinder, cropped at
+///   the page. A bend moves and warps the shared opening as a unit; nothing
+///   pinches or steers per margin. The only profile a world should author.
+/// * [`Tunnel::PerMargin`] — the DEFECT item 194 repaired, kept as data: each
+///   margin re-derives the steering from its own side of the page, so the two
+///   openings disagree on horizon, curvature and vanishing direction. It exists
+///   as the explicit MUTATION arm (the `DeckleAnchor::Page` precedent) — the
+///   turning-coherence laws are only evidence if the composition they name can
+///   be reverted and watched failing, by name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tunnel {
+    Shared,
+    PerMargin,
+}
+
+impl Tunnel {
+    /// The scalar the WGSL `warped_grid_rgb` branches on (`params.w`). MUST
+    /// match `shaders/background.wgsl`'s own `WARP_TUNNEL_PER_MARGIN` threshold.
+    pub fn mode(self) -> f32 {
+        match self {
+            Tunnel::Shared => 0.0,
+            Tunnel::PerMargin => 1.0,
+        }
+    }
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tunnel::Shared => "shared",
+            Tunnel::PerMargin => "per-margin",
+        }
+    }
 }
 
 /// ORGANIC's one theme-owned profile dial. Both arrangements read the SAME
@@ -250,6 +287,7 @@ impl Background {
             Background::Zigzag { .. } => 7,
             Background::Organic { .. } => 8,
             Background::Deckle { .. } => 9,
+            Background::WarpedGrid { .. } => 10,
         }
     }
     pub fn as_str(&self) -> &'static str {
@@ -265,6 +303,7 @@ impl Background {
             Background::Zigzag { .. } => "zigzag",
             Background::Organic { .. } => "organic",
             Background::Deckle { .. } => "deckle",
+            Background::WarpedGrid { .. } => "warped-grid",
         }
     }
     pub fn from(&self) -> Srgb {
@@ -275,7 +314,9 @@ impl Background {
             | Background::Pinstripe { from, .. }
             | Background::Stripes { from, .. }
             | Background::Zigzag { from, .. } => *from,
-            Background::Lava { ground, .. } | Background::Deckle { ground, .. } => *ground,
+            Background::Lava { ground, .. }
+            | Background::Deckle { ground, .. }
+            | Background::WarpedGrid { ground, .. } => *ground,
             Background::Bands { tones, .. }
             | Background::Waves { tones }
             | Background::Organic { tones, .. } => tones[0],
@@ -291,6 +332,7 @@ impl Background {
             | Background::Zigzag { to, .. } => *to,
             Background::Lava { ground, .. } => *ground,
             Background::Deckle { layer, .. } => *layer,
+            Background::WarpedGrid { major, .. } => *major,
             Background::Bands { tones, .. }
             | Background::Waves { tones }
             | Background::Organic { tones, .. } => tones[2],
@@ -309,7 +351,8 @@ impl Background {
             Background::Lava { .. }
             | Background::Waves { .. }
             | Background::Organic { .. }
-            | Background::Deckle { .. } => (0.0, 1.0),
+            | Background::Deckle { .. }
+            | Background::WarpedGrid { .. } => (0.0, 1.0),
         }
     }
     pub fn tint(&self) -> Srgb {
@@ -322,6 +365,7 @@ impl Background {
             Background::Gradient { from, .. } => *from,
             Background::Lava { ground, .. } => *ground,
             Background::Deckle { deckle, .. } => *deckle,
+            Background::WarpedGrid { minor, .. } => *minor,
             Background::Bands { tones, .. }
             | Background::Waves { tones }
             | Background::Organic { tones, .. } => tones[1],
@@ -343,6 +387,7 @@ impl Background {
             Background::Zigzag { period_px, .. } => *period_px,
             Background::Organic { scale_px, .. } => *scale_px,
             Background::Deckle { period_px, .. } => *period_px,
+            Background::WarpedGrid { spacing_px, .. } => *spacing_px,
             _ => 0.0,
         }
     }
@@ -355,6 +400,7 @@ impl Background {
         match self {
             Background::Zigzag { amplitude_px, .. } => *amplitude_px,
             Background::Deckle { wander_px, .. } => *wander_px,
+            Background::WarpedGrid { curvature, .. } => *curvature,
             _ => 0.0,
         }
     }
@@ -389,6 +435,23 @@ impl Background {
     pub fn is_deckle(&self) -> bool {
         matches!(self, Background::Deckle { .. })
     }
+    /// WARPED GRID's steering-response gain, by its own name (the shared slot is
+    /// `amplitude_px`, exactly as Deckle's `wander_px` rides it).
+    pub fn curvature(&self) -> f32 {
+        self.amplitude_px()
+    }
+    /// Warped grid's vanishing-region placement, as the scalar the shader
+    /// branches on — inert `0.0` for every ground that has no tunnel, so no
+    /// other world's upload changes shape. See [`Tunnel`].
+    pub fn tunnel_mode(&self) -> f32 {
+        match self {
+            Background::WarpedGrid { tunnel, .. } => tunnel.mode(),
+            _ => 0.0,
+        }
+    }
+    pub fn is_warped_grid(&self) -> bool {
+        matches!(self, Background::WarpedGrid { .. })
+    }
     #[cfg(test)]
     pub fn zigzag_stroke_px(&self) -> f32 {
         (self.amplitude_px() * ZIGZAG_STROKE_FRAC).max(ZIGZAG_MIN_STROKE_PX)
@@ -402,6 +465,7 @@ impl Background {
             Background::Zigzag { density, .. } => *density,
             Background::Organic { density, .. } => *density,
             Background::Deckle { density, .. } => *density,
+            Background::WarpedGrid { density, .. } => *density,
             _ => 0.0,
         }
     }

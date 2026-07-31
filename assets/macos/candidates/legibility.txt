@@ -56,3 +56,6 @@ Cassowary       Iosevka               narrow   64px
 Paperbark       EB Garamond           block    64px
 Paperbark       EB Garamond           pill     64px
 Paperbark       EB Garamond           narrow   64px
+Kite            Fira Sans             block    32px
+Kite            Fira Sans             pill     32px
+Kite            Fira Sans             narrow   64px

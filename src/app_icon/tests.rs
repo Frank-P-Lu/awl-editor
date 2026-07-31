@@ -329,7 +329,7 @@ fn the_canonical_bundle_icon_is_the_default_worlds_icon() {
     );
 }
 
-/// The taste verdict, PINNED. These nineteen assignments were judged by eye
+/// The taste verdict, PINNED. These twenty assignments were judged by eye
 /// against each face's own `l` at Dock and app-switcher sizes; a silent change
 /// to one is a change of the product's face, so it fails here and has to be
 /// argued for. The tally is asserted too, because "everything drifted to the
@@ -337,7 +337,7 @@ fn the_canonical_bundle_icon_is_the_default_worlds_icon() {
 #[test]
 fn the_shipped_preset_roster_is_the_judged_assignment() {
     let _g = crate::testlock::serial();
-    let expected: [(&str, IconCursor); 19] = [
+    let expected: [(&str, IconCursor); 20] = [
         ("Tawny", IconCursor::Block),
         ("Mopoke", IconCursor::Pill),
         ("Currawong", IconCursor::Pill),
@@ -365,6 +365,12 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
         // preset the same face already carries on Bombora, and it splits
         // Paperbark from Saltpan, the other warm-cream world, in a dock row.
         ("Paperbark", IconCursor::Block),
+        // ITEM 132: Fira Sans's `l` is a bare stem, so all three presets are
+        // structurally open to it — Block is the deliberate pick because it
+        // splits Kite's silhouette from BOTH of its nearest light neighbours in
+        // palette: Brolga's pill (pale periwinkle) and Galah's narrow (pale
+        // pink). A 24px dock row separates a near-pair by silhouette.
+        ("Kite", IconCursor::Block),
     ];
     for (name, want) in expected {
         assert_eq!(
@@ -382,8 +388,8 @@ fn the_shipped_preset_roster_is_the_judged_assignment() {
             count(IconCursor::Pill),
             count(IconCursor::Narrow)
         ),
-        (11, 7, 1),
-        "the judged tally: 11 block / 7 pill / 1 narrow"
+        (12, 7, 1),
+        "the judged tally: 12 block / 7 pill / 1 narrow"
     );
 }
 
@@ -1085,6 +1091,37 @@ const DIFFERING_BLESSED: &[Blessed] = &[
         b: "Paperbark",
         baseline: 0.26953125,
     },
+    // ITEM 132 (Kite, the twentieth world). Kite is a PALE LIGHT world, so at
+    // 32px — where this axis's own doc says the tile is mostly GROUND — it joins
+    // the same pale light cluster whose members already bless each other here
+    // (Bilby/Galah 19.7%, Bilby/Saltpan 22.4%, Galah/Magpie 24.0%,
+    // Bilby/Paperbark 20.1%). The crowding is PALETTE, not silhouette: Kite
+    // crowds worlds at all THREE presets (Magpie/Bilby block, Brolga pill,
+    // Galah narrow), so no preset swap relieves it, and the near-white
+    // mineral ground is world law authored with the room, not an icon choice.
+    // Kite becomes the champion on NO axis — the roster minimum stays
+    // Currawong/Cassowary at 13.1% here, 20.7 on mean, and Potoroo/Firetail
+    // 66.4% on ink.
+    Blessed {
+        a: "Magpie",
+        b: "Kite",
+        baseline: 0.201171875,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Kite",
+        baseline: 0.2216796875,
+    },
+    Blessed {
+        a: "Brolga",
+        b: "Kite",
+        baseline: 0.2236328125,
+    },
+    Blessed {
+        a: "Galah",
+        b: "Kite",
+        baseline: 0.234375,
+    },
     Blessed {
         a: "Wagtail",
         b: "Cassowary",
@@ -1174,6 +1211,24 @@ const MEAN_BLESSED: &[Blessed] = &[
         b: "Paperbark",
         baseline: 64.453125,
     },
+    // ITEM 132 — the same pale-light ground cluster as DIFFERING_BLESSED's own
+    // Kite note. Bilby/Galah, Bilby/Saltpan and Bilby/Paperbark are already
+    // blessed here for the identical reason.
+    Blessed {
+        a: "Magpie",
+        b: "Kite",
+        baseline: 42.064453125,
+    },
+    Blessed {
+        a: "Brolga",
+        b: "Kite",
+        baseline: 53.849609375,
+    },
+    Blessed {
+        a: "Bilby",
+        b: "Kite",
+        baseline: 68.30078125,
+    },
 ];
 
 /// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
@@ -1215,6 +1270,17 @@ const INK_BLESSED: &[Blessed] = &[
         a: "Bowerbird",
         b: "Firetail",
         baseline: 0.8763250883392226,
+    },
+    // ITEM 132: Kite's ONE ink-axis neighbour, and it sits at the top of the
+    // roster's existing cluster (88.39% Bowerbird/Firetail) rather than near
+    // its floor — 89.0% of the two marks' non-ground pixels differ, so the
+    // ground-independent axis says these tiles read as different apps. Blessed
+    // only because 89.0% is under the 92% danger threshold, not because it is
+    // close.
+    Blessed {
+        a: "Magpie",
+        b: "Kite",
+        baseline: 0.8903508771929824,
     },
 ];
 

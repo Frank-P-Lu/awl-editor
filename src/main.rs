@@ -187,6 +187,9 @@ mod toggle;
 mod typewriter;
 mod updates;
 mod view_policy;
+// THE WARPED-GRID ROUTE — the deterministic camera journey `Background::WarpedGrid`
+// travels. Pure; the shader receives only a finished steering pose.
+mod warpgrid;
 mod web_export;
 mod webreserved;
 mod whichkey;

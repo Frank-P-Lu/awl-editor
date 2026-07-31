@@ -410,7 +410,8 @@ fn page_json(pipeline: &TextPipeline) -> String {
         col_w,
         super::background_sidecar::background_json(
             pipeline.effective_background(),
-            pipeline.lava_render_phase()
+            pipeline.lava_render_phase(),
+            crate::warpgrid::route_pose(pipeline.warp_render_phase()),
         ),
         ambient_json(pipeline),
     )

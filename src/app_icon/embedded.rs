@@ -83,4 +83,5 @@ pub const WORLD_ICNS: &[(&str, &[u8])] = &[
         "Paperbark",
         include_bytes!("../../assets/macos/world/Paperbark.icns"),
     ),
+    ("Kite", include_bytes!("../../assets/macos/world/Kite.icns")),
 ];

@@ -13,7 +13,7 @@ world the design got wrong.
 ## 1. What a world is
 
 A **world** (`theme::Theme`, `src/theme.rs`) is a complete, curated mood — not a
-swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each with:
+swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
 
 - **An identity**: a name (Tawny, Saltpan, Potoroo, …), a one-line character
   description in its doc comment, and — critically — its own **display font**
@@ -34,7 +34,8 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   into a **true 1-bit world** ("only black or white, no gray") — see "The
   1-bit law" immediately below the monochrome law.
 - **A ground** (`Background`): the procedural margin pattern (Dots / Gradient /
-  Starfield / Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle)
+  Starfield / Pinstripe / Stripes / Bands / Waves / Zigzag / Organic / Deckle /
+  WarpedGrid)
   drawn only in the page-mode margins, never the
   document column itself (`every_world_has_a_valid_background`,
   `every_world_has_a_real_margin_gradient`). The sixteenth ground is **`Lava`** —
@@ -174,6 +175,23 @@ collapses either weave to a flat ground exactly, which is what lets every pixel
 law here be differential. Paperbark leaves Temperature untagged: it is plainly
 warm, but the picker's Warm band is already at its curated cap of four.
 Laws: `render::tests::backgrounds_item158`.
+
+The twentieth world, **Kite** (item 132), closes `PHILOSOPHY.md`'s authored
+twenty-world target, and it is the deliberate LIGHT `5/5` counterpart to
+Firetail: cool rather than warm, geometric rather than organic, crisp rather than
+liquid, directional rather than drifting. A near-white mineral / pale-lavender
+room under deep cool graphite-violet prose, with one hot vermilion caret as the
+sole accent. It ships the roster's eleventh ground, **`Background::WarpedGrid`**
+— see "The warped-grid law" below — and it is the roster's second world (after
+Firetail/Mangrove's lava) whose ground genuinely TRAVELS. Its palette was solved
+against the role laws rather than eyeballed: two successive first cuts failed
+`role_style_laws_hold_for_every_world` on two DIFFERENT floors (a string tint at
+4.38:1 against the ground, then Definition vs CommentCode at 38.1 redmean),
+because both are functions of the same `base_content`/`muted` lightness gap, so a
+fix for one moves the other; the shipped ladder clears the tighter of the two at
+5.22:1 and 47.8. Like Paperbark, it headlines ONE lens (Voice = Modern) and
+leaves the rest untagged — the Cool, Refined, Day, Dawn and Night bands are all
+at the picker's curated cap of four.
 
 The eighteenth world, **Cassowary**, is the dark-technical statement — a NERV
 operations terminal (an Evangelion wink): green phosphor data on near-black
@@ -1069,6 +1087,110 @@ user sees, and every taste call on a ground was quietly density-dependent.
   doubled-width ramp gets gentler per pixel and vanishes under 8-bit
   quantization instead of reading as wider. Measuring the ramp's mean RUN LENGTH
   on a high-contrast literal is what made it able to fail.
+### The warped-grid law (`Background::WarpedGrid` — item 132)
+
+Kite's ground, and the roster's only TRAVELLING field. It is an explicit
+statement-world exception to `DESIGN.md` §4's motion restraint, NOT permission to
+increase motion elsewhere: no other world's ground changed, and the mechanism has
+an inert default (`Background::tunnel_mode` is `0.0` for every ground with no
+tunnel, the `LavaEdge::mask_mode` precedent).
+
+- **NOT A 3-D ENGINE, and not a per-world code path.** A tunnel in perspective is
+  fully described by a polar-logarithmic reading of the screen plane around one
+  vanishing point: cross-section RINGS are level sets of `log(radius)` (so their
+  projected spacing tightens with depth exactly as perspective requires) and
+  longitudinal RAILS are level sets of the polar angle. Forward travel is one
+  SUBTRACTION from the ring coordinate. No geometry, no depth buffer, no new
+  pipeline — the same single fullscreen-triangle draw every other ground rides,
+  with a handful of added fragment ALU ops.
+- **THE OUTWARD DISTORTION is a property of the shader, not a dial.** Composed
+  literally, the vanishing region sits behind the opaque writing page and the
+  reader sees only the tunnel's far outer walls — losing the convergence and the
+  whole top/bottom bend, i.e. every cue that says "travelling". So a fixed share
+  of the page column's own half-width is REMOVED from every horizontal distance,
+  pulling the useful curvature out into the margins. A world cannot author a
+  composition that hides its own vanishing region (item 89's abutment lesson).
+  `theme::Tunnel::Centred` keeps the literal placement as the explicit MUTATION
+  arm — the `DeckleAnchor::Page` precedent — so the outward laws can be watched
+  failing.
+- **ONE JOURNEY, TWO SLICES, with no per-side rule.** Steering moves the ONE
+  shared vanishing point. Ring pitch grows as `ln2*(spacing+r)/k` and rail pitch
+  as `pi*r/k`, so a left bend — which moves the point left — shrinks the left
+  margin's radii and TIGHTENS its lines while the right margin's grow and OPEN;
+  a climb moves the point up and the top/bottom halves respond in opposition,
+  identically in both margins. Every one of those readings falls out of the
+  geometry. Law: `render::tests::backgrounds_item132::
+  a_turn_compresses_one_margin_and_opens_the_other_coherently` — measured as ink
+  DENSITY, because a COUNT of lines crossed per margin falls on BOTH sides during
+  a turn (a margin spans less of the log-radial coordinate even as its lines
+  tighten), and a count law read "both margins opened" on a field that visibly
+  does the right thing.
+- **NO-MOIRE IS STRUCTURAL, and the law that proves it needed the axis nobody
+  thought of.** The pulled distance keeps a PROPORTIONAL floor, never a constant
+  one (a constant pins a band of `x` to one coordinate, and a lattice on a
+  coordinate that has stopped moving collapses into an aliasing fan — a real
+  defect a left-turn capture found), and the radius is SOFTENED by a fixed core,
+  which bounds the projected pitch of both families everywhere. Both lattices
+  additionally retire INTO the vanishing region. The aliasing law's swept axis is
+  a WIDE canvas at a NARROW measure, where a committed bend swings the vanishing
+  point PAST the page edge and INTO a margin; every other geometry keeps it behind
+  the page, where the proportional floor alone suffices, which is why they all
+  stayed green over a deliberate removal of the radius floor — and why the law,
+  once swept properly, then failed on the shipped shader (70.9% ink in one 14x14
+  tile) and forced the both-families retirement. Law:
+  `the_lattice_never_saturates_a_patch_of_margin_at_any_scale`.
+- **THE ROUTE LIVES IN RUST ALONE** (`src/warpgrid.rs`): seven ~58-second legs,
+  each HOLDING one authored direction for 55% of its length and then easing into
+  the next with zero velocity at both ends, over a deterministic 7m 6s loop. 58,
+  not 60, so the cadence does not read as a clock. Forward travel is strictly
+  LINEAR in phase, so the camera never accelerates. No roll term exists at all.
+  A bend never runs straight into its opposite — every turn returns through a
+  straight leg. The shader receives only a finished `(yaw, pitch, forward_cells)`
+  pose through one added `Globals` row, identically zero for every other ground
+  on every frame, so there is no host/GPU mirror to drift and no other world's
+  upload changes shape.
+- **THE WRAP IS EXACT, not merely long.** `FORWARD_CELLS_PER_LOOP` must be a
+  MULTIPLE of the every-fifth-line modulus: travel enters the ring coordinate as
+  a pure subtraction, whose minor lattice has period 1 but whose MAJOR
+  classification has period 5, so an integer that is not a multiple of five wraps
+  the lines back onto themselves while rotating which of them are major — a
+  visible one-cell hierarchy jump at the loop endpoint. 65 keeps both invariant
+  (the salvaged prototype's 64 did not). Laws:
+  `warpgrid::tests::the_route_wraps_with_no_pose_seam_and_no_line_hierarchy_jump`
+  and `a_whole_loop_of_forward_travel_is_byte_identical_at_real_pixels` — the
+  latter drives an EXPLICIT pose one whole loop on, because comparing
+  `phase == LOOP` with `phase == 0` is vacuous (`route_pose` wraps its input) and
+  stayed green over the broken value.
+- **ONE TICK, TWO ACCUMULATORS.** The route rides the SAME sparse ~10 fps ambient
+  `WaitUntil` the lava lamp, the twinkling stars, the wave drift and the organic
+  drift already share, through the same `Theme::has_ambient_motion` /
+  `has_ambient_tick` gates — so it inherits the blur/move/resize pause, the
+  `ambient_motion` setting, the Reduce-Motion freeze, the page-mode force and the
+  headless `t = 0` pin with no scheduling machinery of its own. It keeps its own
+  phase ACCUMULATOR only because its loop is minutes long where the lamp's is
+  seconds, and `TextPipeline::advance_lava` is the one door that advances both, so
+  a future consumer cannot be forgotten at a second call site. Delayed wakes clamp
+  to one fixed step through the SAME `lava::ambient_tick_dt` owner: losing focus
+  pauses in place and resumes without catch-up.
+- **THE PAGE IS UNTOUCHED**, at every swept geometry and every pose — flat,
+  opaque, motionless, zero grid pixels inside the writing column. Laws:
+  `the_grid_never_enters_the_writing_page_at_any_geometry_or_pose` (twelve
+  viewport shapes x five poses), plus the page-edge fade, the narrow-margin
+  simplification, the major/minor value ladder, and figure/ground against the
+  worst pose.
+- **THE MID-MOTION GALLERY KNOB.** A headless `--screenshot` never ticks the
+  clock, so without a knob no mid-route pose is reachable at all and the motion
+  could not be proven over real pixels. `AWL_WARP_POSE` mirrors the shipped
+  `AWL_LAVA` / `AWL_STARS_PHASE` / `AWL_WAVES_PHASE` idiom exactly — read once,
+  memoized, a TOTAL no-op unless set — and takes either a named pose
+  (`straight` | `left` | `climb` | `right` | `descent` | `wrap`, each the
+  mid-HOLD of its leg rather than a leg boundary, where the pose is by
+  construction identical to its neighbour's start) or a raw phase in seconds.
+- **Live-only, and never claimed verified here:** whether the travel FEELS calm
+  at the shared ~10 fps ambient cadence, whether a steering transition reads as
+  seamless over real seconds, and whether the field is comfortable in peripheral
+  vision for a long writing session. The harness proves the arithmetic and the
+  pixels; the user is the oracle for the feel.
 
 ### Render capabilities as data (`Theme::render_caps` — the 2026-07 refactor)
 

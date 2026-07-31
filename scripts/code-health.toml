@@ -327,7 +327,9 @@ lines = 1502
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1320
+# item 132: `prepare_background_layer` now hands the background pass the
+# grouped `AmbientUpload` rather than a bare drift scalar (1320 -> 1329).
+lines = 1329
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -345,7 +347,11 @@ reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirro
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 400
+# item 132: the warped grid's two pipeline seams — the route-phase resolver
+# beside its three siblings, and the pose the shader receives — plus the two
+# lines that make `advance_lava`/`freeze_lava` the one door for every
+# accumulator the shared tick owns (400 -> 423).
+lines = 423
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -430,7 +436,10 @@ lines = 315
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 535
+# item 132: `has_ambient_motion` gained the warped-grid arm, so the new
+# ground inherits the page-mode force and the move-stream present hold rather
+# than re-implementing them (535 -> 537).
+lines = 537
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
@@ -440,8 +449,10 @@ file = "src/theme/worlds.rs"
 # deliberately rejects (item 121's mechanism note: represent the capability
 # as theme-owned data, never a silent default a world could skip choosing).
 # Combined with item 158's Paperbark addition + Ornaments::of compaction
-# (1110 -> 1099) on top of the rebased tree.
-lines = 1124
+# (1110 -> 1099) on top of the rebased tree. Item 132 added Kite and moved the
+# never-enrolled gallery audition out to theme/worlds_gallery.rs, so this file
+# holds only the shipped roster (1124 -> 1123).
+lines = 1123
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -726,7 +737,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
-line = 940
+line = 949
 message = "this function has too many lines (170/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
 
@@ -861,7 +872,7 @@ lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
 # `roster_growth_does_not_dilute_a_known_erosion` — same function, same
 # size, position fixed up after the item-121/158/161/168 rebase.
-line = 1843
+line = 1909
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
@@ -1047,7 +1058,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/markdown.rs"
 line = 260
-message = "this function has too many lines (131/100)"
+message = "this function has too many lines (132/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
@@ -1144,36 +1155,43 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 211
+line = 214
 message = "the function has a cognitive complexity of (30/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 211
-message = "this function has too many lines (154/100)"
+line = 214
+message = "this function has too many lines (155/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 621
+line = 965
+message = "this function has too many lines (101/100)"
+reason = "Item 132: a per-world roster sweep whose length IS the roster's, over a no-wildcard `Background` match that gained one arm for the warped grid. Its twin one function above (the outline rail) carries the same shape. The honest fix is merging the two frost-rail sweeps into one owner, a focused follow-up rather than metric-only churn here."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/theme/tests.rs"
+line = 625
 message = "this function has too many lines (130/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests.rs"
-line = 1763
+line = 1771
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests.rs"
-line = 2878
-message = "this function has too many lines (157/100)"
+line = 2887
+message = "this function has too many lines (161/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 # Add structural exceptions only for intentional URL/unbreakable/rustfmt-skip/generated/architectural cases.

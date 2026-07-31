@@ -147,20 +147,23 @@ fn bars_unselected_sits_a_quiet_rung_below_the_selected_band() {
 }
 
 #[test]
-fn worlds_eleven_dark_eight_light() {
-    assert_eq!(THEMES.len(), 19);
+fn worlds_eleven_dark_nine_light() {
+    assert_eq!(THEMES.len(), 20);
     let dark = THEMES.iter().filter(|t| t.dark).count();
     let light = THEMES.iter().filter(|t| !t.dark).count();
     // 11 dark (Tawny/Mopoke/Currawong/Potoroo/Bombora/Bowerbird/Mulga/
-    // Mangrove/Wagtail/Firetail/Cassowary) / 8 light (Gumtree/Bilby/Saltpan/
-    // Quokka/Galah/Magpie/Brolga/Paperbark). Brolga (the COOL LIGHT POLE) is a
+    // Mangrove/Wagtail/Firetail/Cassowary) / 9 light (Gumtree/Bilby/Saltpan/
+    // Quokka/Galah/Magpie/Brolga/Paperbark/Kite). Brolga (the COOL LIGHT POLE) is a
     // pale sky-blue light world filling the cool-light-blue hole the DAWN round
     // vacated when Bilby turned warm rose-gold; Cassowary (the NERV-terminal
     // statement world) was the eighteenth, an additive dark entry; Paperbark
     // (item 158) is the nineteenth, an additive LIGHT one — the handmade-paper
-    // studio, and the roster's only `Background::Deckle` ground.
+    // studio, and the roster's only `Background::Deckle` ground; Kite (item 132)
+    // is the twentieth and closes PHILOSOPHY.md's authored twenty-world target —
+    // the LIGHT statement world, travelling through a `Background::WarpedGrid`
+    // tunnel, and the deliberate counterpart to dark warm Firetail.
     assert_eq!(dark, 11);
-    assert_eq!(light, 8);
+    assert_eq!(light, 9);
 }
 
 /// `world_names()` (item 68's one code-owned roster source, read by `--help`,
@@ -226,8 +229,8 @@ fn every_world_has_a_valid_background() {
         );
         // 0..=4 the five original static grounds (Lava also degrades to 0 for
         // this base-margin pass), 5=Bands, 6=Waves, 7=Zigzag, 8=Organic,
-        // 9=Deckle.
-        assert!(bg.shader_id() <= 9, "{} bad shader id", t.name);
+        // 9=Deckle, 10=WarpedGrid.
+        assert!(bg.shader_id() <= 10, "{} bad shader id", t.name);
     }
     // Every STATIC ground type STILL SHIPPING is exercised across the worlds.
     // Bands is dormant infrastructure since item 86 moved Gumtree to Zigzag
@@ -244,6 +247,7 @@ fn every_world_has_a_valid_background() {
         "stripes",
         "waves",
         "zigzag",
+        "warped-grid",
     ] {
         assert!(used.contains(p), "ground {p} unused by any world");
     }
@@ -421,7 +425,7 @@ fn exactly_firetail_and_mangrove_ship_lava() {
     );
     for t in THEMES.iter().filter(|t| !t.background.is_lava()) {
         assert!(
-            t.background.shader_id() <= 9,
+            t.background.shader_id() <= 10,
             "{}: a non-lava world stays a non-lava ground",
             t.name
         );
@@ -812,7 +816,7 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
     for t in THEMES.iter() {
         // NO-WILDCARD: a future ground variant must decide its frost story here.
         let (ground, blob_lo, blob_hi) = match t.background {
-            // The eight static grounds carry no lava — no frost.
+            // Every non-lava ground carries no lava — no frost.
             Background::Gradient { .. }
             | Background::Dots { .. }
             | Background::Starfield { .. }
@@ -822,7 +826,9 @@ fn outline_frost_pills_keep_ink_contrast_on_every_lava_world() {
             | Background::Waves { .. }
             | Background::Zigzag { .. }
             | Background::Organic { .. }
-            | Background::Deckle { .. } => continue,
+            | Background::Deckle { .. }
+            // A moving ground, but not a LAVA one — no frost seeds.
+            | Background::WarpedGrid { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -970,7 +976,8 @@ fn gutter_frost_pill_keeps_ink_contrast_on_every_lava_world() {
             | Background::Waves { .. }
             | Background::Zigzag { .. }
             | Background::Organic { .. }
-            | Background::Deckle { .. } => continue,
+            | Background::Deckle { .. }
+            | Background::WarpedGrid { .. } => continue,
             Background::Lava {
                 ground,
                 blob_lo,
@@ -1558,6 +1565,7 @@ fn cjk_fallback_matches_world_character() {
         "Firetail",
         "Brolga",
         "Cassowary",
+        "Kite",
     ]; // neutral sans/mono (Noto Sans JP)
     for t in THEMES.iter() {
         assert!(!t.cjk.is_empty(), "{} has no CJK fallback list", t.name);
@@ -1955,6 +1963,7 @@ fn zh_hans_ladder_matches_world_character_with_klee_override() {
         "Firetail",
         "Brolga",
         "Cassowary",
+        "Kite",
     ];
     for t in THEMES.iter() {
         assert!(
@@ -3113,6 +3122,15 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // personality is its material ground; the summoned chrome stays out
             // of the way. Deliberately otherwise DEFAULT.
             "Paperbark" => RenderCaps {
+                elevation: Elevation::Bordered,
+                ..RenderCaps::DEFAULT
+            },
+            // KITE (item 132, the light warped-grid statement world): loud in
+            // the FRAME, quiet in the chrome. It takes the same light-world card
+            // border as its light neighbours and nothing else — the whole
+            // personality is the travelling ground, so a placard or a moved rail
+            // would compete with it. Deliberately otherwise DEFAULT.
+            "Kite" => RenderCaps {
                 elevation: Elevation::Bordered,
                 ..RenderCaps::DEFAULT
             },

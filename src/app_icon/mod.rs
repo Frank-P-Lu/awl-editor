@@ -32,7 +32,7 @@
 //! `theme_committed` arm — the same guard that decides whether the sticky
 //! preference is written at all. The theme picker's live preview runs through
 //! `retint_theme_preview`, which re-tints pipelines and reshapes text and has no
-//! route to this module: arrowing or sweeping the pointer through nineteen
+//! route to this module: arrowing or sweeping the pointer through twenty
 //! worlds moves the Dock zero times, because the preview path structurally
 //! cannot reach the door, not because it politely declines to. `app_icon_law.rs`
 //! pins that with a counter across a full preview sweep.

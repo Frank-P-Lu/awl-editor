@@ -7,7 +7,7 @@
 //! it. `Background::authored_quantities` below is the table; a no-wildcard
 //! match makes a new ground state its answer rather than inherit one.
 
-use super::ground::{Arrangement, Background, Weave};
+use super::ground::{Arrangement, Background, Tunnel, Weave};
 
 // ---------------------------------------------------------------------------
 // ITEM 186 — THE COORDINATE SPACE OF AN AUTHORED GROUND QUANTITY
@@ -148,6 +148,14 @@ impl Background {
                 (Weave::Strata, _) => DECKLE_STRATA,
                 (Weave::Fibres, _) => DECKLE_FIBRES,
             },
+            // Both tunnel profiles author the SAME numbers in the same spaces —
+            // `PerMargin` differs only in WHERE the steering comes from, which
+            // is a composition mistake rather than a coordinate one — so the
+            // arm is spelled out rather than wildcarded and answers alike.
+            Background::WarpedGrid { tunnel, .. } => match tunnel {
+                Tunnel::Shared => WARPED_GRID,
+                Tunnel::PerMargin => WARPED_GRID,
+            },
         }
     }
 
@@ -182,12 +190,13 @@ impl Background {
             Background::Zigzag { .. } => 8,
             Background::Organic { .. } => 9,
             Background::Deckle { .. } => 10,
+            Background::WarpedGrid { .. } => 11,
         }
     }
 
     /// How many members the `Background` roster has. Bumping this without
     /// enrolling a representative in the item-186 sweep fails that law by name.
-    pub const ROSTER_LEN: usize = 11;
+    pub const ROSTER_LEN: usize = 12;
 }
 
 const DOTS: &[GroundQuantity] = &[
@@ -413,6 +422,77 @@ const DECKLE_STRATA: &[GroundQuantity] = &[
         "already a FRACTION of the composition, so it widens with the lane. \
          Deckle carries NO sampling feather: a torn paper edge is a drawn thing, \
          not a resolve of the sample grid",
+    ),
+];
+
+const WARPED_GRID: &[GroundQuantity] = &[
+    logical(
+        "spacing_px (the ring pitch where the rings clear the page)",
+        "the projected PITCH of the cross-rings at the one radius the reader can \
+         actually measure them against — the page edge they emerge from. It is \
+         what `WARP_RPO_MIN..MAX` bounds and what sets how many rings a margin \
+         holds, which is the composition itself",
+    ),
+    logical(
+        "curvature (the bend gain)",
+        "a dimensionless gain multiplying `anchor^2`, a composition quantity, so \
+         it inherits its space: it decides HOW FAR the shared opening shifts \
+         off-centre in a turn, and the eye measures that shift against the \
+         section it moves, never against the sample grid",
+    ),
+    logical(
+        "density (the coverage multiplier)",
+        "dimensionless contrast, spaceless by construction, and named here so its \
+         absence from both classes is a recorded decision rather than an \
+         omission. `0.0` collapses the field to its flat ground EXACTLY, which \
+         is what gives the family item 86's `mark_field` differential oracle",
+    ),
+    logical(
+        "the route's pose triple (yaw, pitch, forward_cells)",
+        "yaw and pitch are dimensionless STEERING and forward travel is a COUNT \
+         of ring cells, so a 2x display travels the same journey at the same \
+         speed through the same lattice. Resolved on the host by \
+         `crate::warpgrid::route_pose`; the shader carries no route arithmetic",
+    ),
+    logical(
+        "WARP_SECTION_PAGE_RATIO (the anchor ring's diameter, in page widths) \
+         and WARP_ASPECT_FIT (its flank's height, in viewport fractions)",
+        "the composition target of item 194 — the page hides one third of the \
+         cross-section and each margin shows one third directly. BOTH are \
+         authored as ratios of quantities the host measured (the page column, \
+         the viewport), so they are density-independent by construction, the \
+         same mechanism `Bands` and `Lava` are named here for",
+    ),
+    logical(
+        "the ring/rail half-widths (0.45px minor, 1.00px major) and \
+         WARP_CORE_FRAC's radius floor",
+        "the drawn WEIGHT of a line, which the eye reads against its neighbours \
+         (the Pinstripe hairline rule), and a floor on a COMPOSITION quantity — \
+         which is itself composition, or the clamp hands the far end's pitch \
+         back to the display exactly where it binds (the FINDS_MIN_SCALE_PX \
+         argument)",
+    ),
+    logical(
+        "WARP_EDGE_QUIET_PX / WARP_EDGE_FADE_MAX_PX and \
+         WARP_NARROW_LO_PX / WARP_NARROW_HI_PX",
+        "a reach into the margin and the margin WIDTHS at which the minor \
+         lattice retires — both measured by the eye against the margin they \
+         describe, the same argument as the shared EDGE_FALLOFF",
+    ),
+    physical(
+        "WARP_AA_PX (the 1.0px line skirt)",
+        "the skirt that resolves a line's edge on the sample grid. A 2x display \
+         must draw the SAME hairline more crisply, not a fatter blur — the \
+         canonical sampling class, converted back through `sampling_feather`",
+    ),
+    physical(
+        "WARP_ALIAS_FADE_LO_PX / WARP_ALIAS_FADE_HI_PX (the 3.2..5.6px moire \
+         bound)",
+        "the whole point of the bound is the DEVICE's sample grid: a converging \
+         lattice aliases when its projected pitch approaches a device pixel, and \
+         a 2x display genuinely resolves a finer pitch safely. In logical px the \
+         bound would retire the lattice on a Retina display a full octave of \
+         depth earlier than it needs to",
     ),
 ];
 
