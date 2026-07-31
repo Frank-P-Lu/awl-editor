@@ -582,7 +582,7 @@ impl SelectionPipeline {
         self.instance_count = instances.len() as u32;
     }
 
-    /// ITEM 131b — THE ROTATED ROUNDED-RECT EMITTER. Every other builder
+    /// The rotated rounded-rect emitter. Every other builder
     /// (`prepare`, `prepare_multicolor`) draws axis-aligned quads; this is the
     /// one door that can draw a quad seated at an angle — the primitive a
     /// crisp diagonal spine needs, since every overlay quad pipeline is
@@ -595,11 +595,8 @@ impl SelectionPipeline {
     /// to normalize) is not this function's job to guard against; construct
     /// instances through [`spine_segment`], which never emits one.
     ///
-    /// No non-test caller yet — item 131c (the composition owner) is its
-    /// named, imminent consumer; item 131b's own job is proving the primitive
-    /// correct in isolation (see `tests::prepare_rotated_axis_actually_turns_the_quad`
-    /// / `tests::prepare_rotated_with_the_upright_axis_matches_prepare_byte_for_byte`),
-    /// not wiring a world to it.
+    /// No production caller uses it yet. The tests preserve the upright-axis
+    /// equivalence and verify that a non-upright axis rotates the quad.
     #[allow(dead_code)]
     pub fn prepare_rotated(
         &mut self,

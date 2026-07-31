@@ -1,4 +1,4 @@
-//! ITEM 186 — THE COORDINATE SPACE OF AN AUTHORED GROUND QUANTITY.
+//! The coordinate space of an authored ground quantity.
 //!
 //! The vocabulary [`super::ground`]'s dials are authored in, kept in its own
 //! file because it is the answer to a question, not another dial: every number
@@ -9,22 +9,7 @@
 
 use super::ground::{Arrangement, Background, Weave};
 
-// ---------------------------------------------------------------------------
-// ITEM 186 — THE COORDINATE SPACE OF AN AUTHORED GROUND QUANTITY
-// ---------------------------------------------------------------------------
-
 /// Which coordinate space one authored ground quantity lives in.
-///
-/// Before item 186 every number a ground carried — `scale_px`, `period_px`,
-/// Dots' 24px cell, Deckle's pitch, the starfield's cell — was a PHYSICAL pixel
-/// by accident of the coordinate a fragment shader happens to run in, and
-/// nothing said so. On a 2x display a ground therefore rendered at half its
-/// logical size and the user saw roughly twice as many elements. Every capture
-/// was internally consistent, so no law could see it; what made it stop being
-/// cosmetic was item 176's crisp, countable three-object grammar, where the
-/// difference is not texture but HOW MANY collections are visible and how large
-/// each reads — so the composition a user approves at one display density was
-/// not the one another user saw.
 ///
 /// The two classes are structurally different things and the distinction is the
 /// point; a blanket conversion of one into the other is the failure mode:
@@ -36,8 +21,7 @@ use super::ground::{Arrangement, Background, Weave};
 /// * [`GroundSpace::Physical`] — SAMPLING. An antialias feather, a dither cell.
 ///   It describes how the device's sample grid RESOLVES that composition, so it
 ///   belongs to the device pixel: a 2x display resolves the SAME composition
-///   more finely, which is the whole benefit of the density. Item 176's 0.75px
-///   crisp edge is this class, and converting it would make the same edge
+///   more finely, which is the whole benefit of the density. Converting it would make the same edge
 ///   blurrier on a better display.
 ///
 /// The renderer honours this in one place — `shaders/background.wgsl` divides
@@ -77,10 +61,8 @@ impl GroundSpace {
 ///
 /// `name` is the identifier as it is written — a field of the world literal
 /// (`period_px`) or the shader constant that shapes the field
-/// (`FINDS_EDGE_AA_PX`), since both are authored and both were physical before
-/// item 186. `why` is not decoration: classifying each quantity correctly IS
-/// the item, so a quantity that cannot state its reason has not been decided
-/// about.
+/// (`FINDS_EDGE_AA_PX`). `why` is not decoration: a quantity that cannot state
+/// its reason has not been classified.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GroundQuantity {
     pub name: &'static str,

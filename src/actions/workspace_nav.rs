@@ -1,4 +1,4 @@
-//! ITEM 114 — THE SUMMONED WORKSPACE'S OWN ACTION SEAM: the two-region keyboard,
+//! The summoned workspace's action seam: the two-region keyboard,
 //! and the Cmd-P deep link into it.
 //!
 //! Carved out of `overlay_nav.rs` (a grandfathered file already at its own
@@ -9,7 +9,7 @@
 
 use super::*;
 
-/// ITEM 114 — THE SUMMONED WORKSPACE'S TWO-REGION KEYBOARD.
+/// The summoned workspace's two-region keyboard.
 ///
 /// A workspace is one task in two coordinated regions: a navigation RAIL (its
 /// primary list) and a CONTENT pane (its detail stage). This is the whole of what
@@ -28,26 +28,20 @@ use super::*;
 /// `Esc` is deliberately absent from both arms: it belongs to
 /// [`crate::overlay::Journey`], whose table already says a cancel on the detail
 /// stage lands on the primary list and a cancel on the primary list lands in the
-/// editor. Spelling it here would be the second owner item 173 exists to prevent.
+/// editor. Spelling it here would create a second transition owner.
 ///
-/// ITEM 116c — SHAPE-AWARE, folding in what was a separate `history_intercept`.
-/// [`crate::overlay::workspace::WorkspaceShape::rows_are_primary`] (item 116a) is
+/// [`crate::overlay::workspace::WorkspaceShape::rows_are_primary`] is
 /// the one fact every consumer reduces to; this intercept reads it exactly once
 /// and never re-branches on which kind is open. History is the one named
-/// exception at the GATE, not in the body: `workspace_shape(History)` stays
-/// `None` on purpose (116d owns giving it a renderer), but its keyboard already
-/// reduces to the same "is the primary column the row list" fact its eventual
-/// `TimelineOverComparison` shape will report, so it is named once, here, rather
-/// than scattered through the body as kind checks.
+/// exception at the gate, not in the body: History has card presentation but
+/// its comparison keyboard follows the same primary-row rule. Keeping the
+/// exception here prevents kind checks from spreading through the handler.
 pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let ov = ctx.journey.card().unwrap();
     let rows_primary = match ov.workspace_shape() {
         Some(shape) => shape.rows_are_primary(),
-        // History's own future shape is `TimelineOverComparison`
-        // (`rows_are_primary() == true`) — it just has no renderer yet, so
-        // `workspace_shape` itself stays `None` (item 116a/116d). An empty
-        // history (nothing selected) has nothing for this intercept to do,
-        // same as before the fold.
+        // History's card presentation still uses comparison keyboard controls.
+        // An empty history has no selected version for those controls.
         None if ov.kind == crate::overlay::OverlayKind::History
             && ov.selected_history_id().is_some() =>
         {
@@ -106,13 +100,13 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
     }
 }
 
-/// The `TimelineOverComparison` arm — what was `history_intercept` (item 131),
-/// now reached through `rows_primary` rather than a kind check. Diff-paging
+/// The primary-rows arm, reached through `rows_primary` rather than a kind
+/// check. Diff-paging
 /// (`PageUp`/`PageDown`) always pages the comparison, focused on it or not — a
 /// browsing convenience predating this fold, kept verbatim. `CompareVersion`/
 /// `Tab` are handled by the caller before this runs.
 ///
-/// ITEM 116c'S OWN FIX: bare `Newline` no longer restores — unfocused it does
+/// Bare `Newline` never restores: unfocused it does
 /// what `CompareVersion`/`Tab` already do (move focus into the comparison);
 /// focused, there is nothing further to "enter", so it is a calm no-op. Only
 /// `AcceptAlternate` (⇧↵) restores, regardless of which region holds focus —
@@ -160,7 +154,7 @@ fn rows_primary_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect
     }
 }
 
-/// THE Cmd-P DEEP LINK. A Range row's control is item 94's rail, and the palette
+/// The Cmd-P deep link. A Range row's control is a rail, and the palette
 /// structurally cannot show one: its settings rows are appended by
 /// `attach_settings_rows`, which carries no `RangeCell`, so `item_range_fracs`
 /// reports nothing and the row offers a bare text field with no thumb, no band
@@ -207,7 +201,7 @@ pub(super) fn deep_link_settings(ctx: &mut ActionCtx, row: crate::settings::Sett
 /// test in `actions::tests::overlay_drive`, which calls this function
 /// directly for exactly that reason.
 ///
-/// `overlay::Journey` (item 173) already owns suspend/return — this reuses it
+/// `overlay::Journey` owns suspend/return — this reuses it
 /// rather than writing a second parking mechanism the way the old
 /// unconditional `ctx.journey.enter(...)` effectively was (it replaced
 /// whatever was up and parked nothing, silently stranding it).

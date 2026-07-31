@@ -1,4 +1,4 @@
-//! src/firstrun.rs — THE FIRST-RUN DOCUMENT (queue item 24): the DOCUMENT half
+//! The first-run document: the document half
 //! of a launch with nothing remembered.
 //!
 //! `main/run/location.rs::resolve_launch_context` owns the FOLDER half of the
@@ -42,8 +42,7 @@
 //! the same decision — and `firstrun::tests::
 //! the_first_run_door_has_exactly_one_production_call_site` holds that. Every
 //! headless capture mode resolves its own root through the explicit-only
-//! `run::resolve_root` and never comes near this file, exactly as item 76's
-//! session-restore tripwire describes: a capture invocation is not a
+//! `run::resolve_root` and never comes near this file: a capture invocation is not a
 //! "terminal/desktop launch" in the product sense, and must stay byte-identical
 //! whether or not the developer running it has ever launched awl.
 

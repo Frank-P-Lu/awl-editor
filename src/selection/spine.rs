@@ -1,11 +1,9 @@
-//! ITEM 131b — the rotated-quad SPINE primitives, carved out of
-//! `selection.rs` so that file stays under its own size mark: pure
-//! geometry with no device and no clock, consumed by
+//! Rotated-quad spine primitives: pure geometry with no device or clock, consumed by
 //! [`super::SelectionPipeline::prepare_rotated`].
 
 use super::UPRIGHT_AXIS;
 
-/// ITEM 131b — a rotated rounded-rect SPINE SEGMENT's `(center, half_size,
+/// A rotated rounded-rect spine segment's `(center, half_size,
 /// axis)`, for [`SelectionPipeline::prepare_rotated`]: a bar running from
 /// `from` to `to`, `thickness_px` wide. Pure geometry, no clock, no device —
 /// `axis` degenerates to the inert `(1.0, 0.0)` (upright) when `from == to`
@@ -31,7 +29,7 @@ pub fn spine_segment(
     (center, half, axis)
 }
 
-/// ITEM 131b — cap a spine segment's own corner radius to at most its
+/// Cap a spine segment's own corner radius to at most its
 /// SHORTER half-extent (half its length, half its thickness), mirroring
 /// `render::chrome::narrowed_chamfer_px`'s "clamp a decorative cut to the
 /// shape's own geometry" shape. The shader's per-fragment SDF already clamps

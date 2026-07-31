@@ -1,4 +1,4 @@
-//! ITEM 116a — THE SHAPE. `OverlayKind::workspace_shell() -> bool` became
+//! Workspace shapes. `OverlayKind::workspace_shell() -> bool` became
 //! `workspace_shape() -> Option<WorkspaceShape>`, and `WorkspaceShape::
 //! rows_are_primary()` is the single fact every consumer (geometry, keyboard
 //! handling, the footer hint) reduces to instead of re-deriving which region
@@ -15,8 +15,7 @@ use crate::overlay::OverlayKind;
 use crate::overlay::workspace::WorkspaceShape;
 
 /// THE CLASSIFICATION ITSELF, wildcard-free over both variants — the thing a
-/// third shape cannot dodge, and the thing item 116d must not have to
-/// re-derive.
+/// third shape cannot dodge.
 #[test]
 fn rows_are_primary_classifies_both_shapes() {
     assert!(
@@ -25,7 +24,7 @@ fn rows_are_primary_classifies_both_shapes() {
     );
     assert!(
         WorkspaceShape::TimelineOverComparison.rows_are_primary(),
-        "History's future timeline IS the primary list's rows"
+        "a timeline's rows are the primary list"
     );
 }
 
@@ -45,14 +44,14 @@ fn workspace_shape_roster_is_exact() {
         assert_eq!(shape, expected, "{kind:?} workspace_shape() drifted");
     }
     // Named directly, so a reader does not have to trust the loop above to
-    // know History is the one kind item 116d will flip.
+    // Make History's current card presentation explicit.
     assert_eq!(OverlayKind::History.workspace_shape(), None);
 }
 
 /// THE BYPASS IS MODULE-PRIVATE. `rows_are_primary`'s match over
 /// `WorkspaceShape`'s two variants is the ONLY place in the crate allowed to
 /// name them directly — every other reader (geometry, keyboard, hints, a
-/// future item 116b/c/d) must go through the method, or a third shape could
+/// must go through the method, or a third shape could
 /// silently carry a different answer in two places (CLAUDE.md's
 /// same-behavior-same-code rule). Scoped to the whole of `src/`, minus the two
 /// files that legitimately construct a literal: the type's own definition and

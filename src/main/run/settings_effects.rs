@@ -1,17 +1,16 @@
-//! ITEM 190 — the settings trio's capability grant, mirroring item 171's shape
-//! for `save`/`finish_save`: `SettingToggle`, `SettingValueCommit` and
+//! The settings effects replay can apply with an isolated filesystem capability:
+//! `SettingToggle`, `SettingValueCommit` and
 //! `SettingPathPick` are typed-effect requests a headless replay can only
 //! perform for real once its caller hands it [`crate::replay::
 //! FilesystemCapability::Isolated`] (`replay::classify_for`, `src/replay.rs`,
 //! is the one owner of WHETHER that promotion happens; this file is the
 //! INTERPRETATION half — what actually flips and what actually gets written).
 //!
-//! **Item 193** — `interpret_setting_toggle` used to restate `App::
-//! setting_toggle`'s whole key table by hand (a second copy of the exact
-//! shape item 185 eliminated elsewhere); the read/negate/set core the two
+//! `interpret_setting_toggle` and `App::setting_toggle` share the read/negate/set
+//! core in
 //! doors share now lives in ONE place, [`crate::settings::
 //! flip_toggle_global`], so this handler and `App::setting_toggle` can never
-//! disagree about WHAT a key does, only about which capability is doing it
+//! disagree about what a key does, only about which capability is doing it
 //! and what live-only tail follows. `interpret_setting_value_commit` and
 //! `interpret_setting_path_pick` are smaller, per-key bespoke bodies (a
 //! range clamp, a project re-scope) with no comparable shared roster to
@@ -19,7 +18,7 @@
 //! [`crate::config::Config::write_pref`] writer `App`'s doors call, by hand.
 //! One key, `"keymap"`, is never dispatched here: `replay::classify_for`
 //! keeps it Unsupported even under Isolated (flipping keymap flavor needs a
-//! LIVE keymap rebuild so a LATER chord in the same replay resolves against
+//! live keymap rebuild so a later chord in the same replay resolves against
 //! the new flavor, a capability this session does not own — the identical
 //! reason `RebindCommit`/`RebindReset` stay Unsupported).
 
@@ -42,7 +41,7 @@ impl<'a> ReplaySession<'a> {
 
     /// The live `SettingsValues` snapshot IF the Settings overlay is the one
     /// currently open — `None` otherwise, so a caller can skip the refresh
-    /// round trip when there is no cached row to correct.
+    /// refresh when there is no cached row to correct.
     fn settings_values_if_open(&self) -> Option<crate::settings::SettingsValues> {
         match self.journey.card() {
             Some(ov) if ov.kind == crate::overlay::OverlayKind::Settings => {
@@ -57,13 +56,12 @@ impl<'a> ReplaySession<'a> {
         }
     }
 
-    /// Push `values` into the STILL-OPEN Settings overlay's CACHED cells —
+    /// Push `values` into the still-open Settings overlay's cached cells —
     /// mirrors `App::refresh_settings_overlay`. A row's drawn/captured value
     /// is a cache set at build/refresh time, never re-derived at render time
     /// (`OverlayState::set_secondaries`/`set_range_cells`), so an effect that
     /// changes a setting's value must refresh it explicitly or a later
-    /// capture frame keeps showing the OLD cell — exactly the gap this item
-    /// closes.
+    /// capture frame keeps showing the old cell.
     fn apply_settings_overlay_values(&mut self, values: crate::settings::SettingsValues) {
         let secondaries = crate::settings::visible_value_cells(&values);
         let range_cells = crate::settings::visible_range_cells(&values);
@@ -74,7 +72,7 @@ impl<'a> ReplaySession<'a> {
     }
 
     /// `Effect::SettingToggle` — the Settings picker's Enter-to-flip door.
-    /// The read/negate/set core (item 193) is [`crate::settings::
+    /// The read/negate/set core is [`crate::settings::
     /// flip_toggle_global`], the SAME owner `App::setting_toggle` routes
     /// through — 12 keys flip a live process-global (the SAME global the
     /// renderer and `settings::value_for` read, so the flip is visible to
@@ -182,7 +180,7 @@ impl<'a> ReplaySession<'a> {
     /// `Effect::SettingPathPick` — the Settings picker's folder-navigator
     /// door. `project_root` re-scopes root/workspace/corpus through the SAME
     /// owner (`Self::resync_project_location`) a Project-picker accept
-    /// already uses (item 189); `default_folder` persists its key only (no
+    /// already uses; `default_folder` persists its key only (no
     /// replay-session field reads it back); `workspace` persists AND
     /// re-derives this session's own `workspace`/`corpus` (root unchanged) so
     /// a chord applied afterward reads the new scope — the one observable

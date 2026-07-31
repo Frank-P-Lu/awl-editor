@@ -1,4 +1,4 @@
-//! ITEM 116b — THE RELOCATED DOCUMENT VIEWPORT.
+//! The relocated document viewport.
 //!
 //! awl has exactly ONE prose renderer, the document layer, so a workspace whose
 //! content region holds prose has to MOVE it rather than grow a second one (the
@@ -523,12 +523,10 @@ fn every_margin_orientation_surface_yields_to_a_relocated_document() {
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
 
-/// LAW 6 — THE RESIDUE, PINNED RATHER THAN ABSORBED: **the relocated document
-/// currently draws BENEATH the workspace surface, so no pixel of it reaches the
-/// screen.**
+/// The relocated document currently draws beneath the workspace surface, so no
+/// pixel of it reaches the screen.
 ///
-/// Item 116b moved the document layer's GEOMETRY. It did not move the document
-/// layer's place in painter's order, and those are two changes, not one.
+/// Geometry and painter's order have independent owners.
 /// `TextPipeline::render` draws `draw_document_layers` first and
 /// `draw_overlay_card` over it (there is no depth buffer — submission order IS
 /// painter's order), and a workspace's card fill is its whole box by design
@@ -538,9 +536,8 @@ fn every_margin_orientation_surface_yields_to_a_relocated_document() {
 /// composition decision with its own arms — does the comparison sit ON the
 /// workspace's surface (the document content must then draw after the card,
 /// without re-drawing its own ground) or is it a window through it (the ground
-/// punch is at the PAGE column, not the region, so a hole would show the
-/// backdrop's ground, which is wrong)? — and it belongs with the round that
-/// presents History, not with the round that relocates the geometry.
+/// punch is at the page column, not the region, so a hole would show the
+/// backdrop's ground, which is wrong).
 ///
 /// This law asserts BOTH halves of today's honest state, so the day one changes
 /// without the other it fails BY NAME:
@@ -557,9 +554,8 @@ fn every_margin_orientation_surface_yields_to_a_relocated_document() {
 ///   the whole document layer into the frame AROUND the workspace, so the
 ///   transcript's ghost appears exactly where the region is not.
 ///
-/// **ITEM 116d MUST DELETE THIS LAW**, replacing it with the containment +
-/// visibility law item 84's diff-panel dressing law becomes once there is
-/// something to see (`capture/tests/panels.rs`'s
+/// A workspace that draws comparison content must replace this with a
+/// containment and visibility law (`capture/tests/panels.rs`'s
 /// `history_preview_renders_the_transcript_as_the_document_in_every_world`
 /// carries the capture-tier half in the meantime).
 #[test]
@@ -632,9 +628,8 @@ fn the_relocated_document_is_geometrically_placed_but_not_yet_composited() {
                 && fx + fw >= vx + vw
                 && fy + fh >= vy + vh),
             "{w}: no workspace surface covers the comparison region any more (fills \
-             {fills:?}, region {:?}) — the composition item 116d owes has landed. DELETE \
-             this law and replace it with the containment + visibility law item 84's \
-             dressing law becomes.",
+             {fills:?}, region {:?}) — replace this backdrop law with a containment and \
+             visibility law when the workspace draws comparison content.",
             [vx, vy, vw, vh]
         );
         graded += 1;

@@ -1,8 +1,8 @@
-//! THE SUMMONED WORKSPACE'S CONTENT MODEL (queue item 114).
+//! The summoned workspace's content model.
 //!
-//! Item 173 put the summoned-UI LIFECYCLE in [`super::Journey`] — entry, focus
-//! transfer, child suspend/return, Back, exit and the parked-parent position.
-//! This module is the other half: what a sustained workspace SHOWS, as data the
+//! [`super::Journey`] owns entry, focus transfer, child suspend/return, Back,
+//! exit and the parked-parent position. This module owns what a sustained
+//! workspace shows, as data the
 //! renderer and the sidecar both read, with no second copy of the navigation
 //! rules.
 //!
@@ -18,17 +18,15 @@
 //! shapes DESIGN.md §5 sanctions it draws as. It is deliberately NOT the same
 //! predicate as [`OverlayKind::sustained`]: `sustained` says a kind has
 //! workspace LIFECYCLE (a place you stay in, with a detail stage and a Back),
-//! and both Settings and Version History have had that since item 173.
+//! and both Settings and Version History are sustained surfaces.
 //! `workspace_shape` says a kind is PRESENTED as a relocated workspace and
-//! which shape, which today is `RailOverRows` for Settings alone — History's
-//! own migration is item 116, and giving it a shape here before its content
-//! exists would land that item's presentation without its content (item 116's
-//! own decomposition record, `.orchestrator/queue.md`, names this trap).
+//! which shape. Today Settings is the only relocated workspace; History remains
+//! a contextual card until it has a complete workspace presentation.
 //!
-//! # One shape is not enough (item 116's decomposition)
+//! # One shape is not enough
 //!
-//! Item 114 gave the workspace exactly one shape: a rail of category LABELS
-//! beside a pane of ROWS (`RailOverRows`) — the only shape Settings needs.
+//! A rail of category labels beside a pane of rows (`RailOverRows`) is the
+//! shape Settings needs.
 //! Version History needs the opposite arrangement: a narrow TIMELINE whose
 //! rows ARE the primary list, beside a large read-only comparison. Flipping a
 //! bare bool would put History's rows in the wide pane and leave the rail
@@ -60,7 +58,7 @@
 //! BACK to the rail and `Esc` on the rail an exit to the editor, at every width,
 //! without any arm of the transition table being able to see the width.
 //!
-//! WIDTH IS PRESENTATION, NOT LIFECYCLE (item 173's premise correction 3). Wide
+//! Width is presentation, not lifecycle. Wide
 //! draws both regions side by side and focus moves between them; narrow draws
 //! one at a time and the same focus fact becomes the stage you are on. The
 //! renderer decides that from the canvas; nothing here knows the width.
@@ -82,14 +80,12 @@ pub enum WorkspaceShape {
     /// Settings, today: the primary (narrow) column is a rail of category
     /// LABELS; the workspace's own rows live in the wide content pane.
     RailOverRows,
-    /// Version History's future shape (item 116d): the primary (narrow)
+    /// A timeline beside a comparison: the primary (narrow)
     /// column IS the workspace's row list — a timeline — and the wide region
     /// is a comparison this module does not draw into (item 116b).
     ///
-    /// Deliberately unconstructed until item 116d: no `OverlayKind` produces
-    /// it yet (`History` still returns `None` from `workspace_shape`), which
-    /// is item 116a's own acceptance criterion, not an oversight — `allow`
-    /// says so rather than a real-looking dead branch masking the same fact.
+    /// No current `OverlayKind` produces this shape. Keep that explicit so an
+    /// unused variant cannot be mistaken for a wired presentation.
     #[allow(dead_code)]
     TimelineOverComparison,
 }
@@ -126,11 +122,8 @@ impl OverlayKind {
     pub fn workspace_shape(self) -> Option<WorkspaceShape> {
         match self {
             OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
-            // Item 116 moves Version History onto `TimelineOverComparison`
-            // together with its timeline/comparison content. It keeps its
-            // card presentation until then (item 116d), because a shape with
-            // no content behind it is exactly the empty workspace item 114
-            // forbids.
+            // History remains a card until its timeline/comparison workspace is
+            // presented as a complete surface.
             OverlayKind::History => None,
             OverlayKind::Goto
             | OverlayKind::Project
@@ -152,7 +145,7 @@ impl OverlayKind {
     }
 
     /// The foot hint while a summoned WORKSPACE's PRIMARY list — its navigation
-    /// rail — holds focus (item 114). The rows pane's own hint is
+    /// rail — holds focus. The rows pane's own hint is
     /// [`Self::hint_actions`]; this is the other stage's, and the two differ in
     /// exactly the keys that differ: on the rail `↑/↓` steps categories and `esc`
     /// leaves for the editor, while on the rows `↑/↓` steps rows and `esc` comes

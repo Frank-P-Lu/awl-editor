@@ -1,4 +1,4 @@
-//! Laws for the first-run document (queue item 24).
+//! Laws for the first-run document.
 //!
 //! The pure branch predicate is swept over its WHOLE axis rather than over the
 //! cases the author happened to imagine (CLAUDE.md's law rule): four booleans,
