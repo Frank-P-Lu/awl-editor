@@ -21,7 +21,7 @@
 //! index-only check).
 
 use super::super::*;
-use super::{settings_drive, settings_overlay};
+use super::settings_drive;
 
 /// Switch `ov` to the facet whose sidecar id is `fid` (mirrors a `Right`/`Left`
 /// press or a lens-strip click — `set_facet_lens`, the one owner both use).
