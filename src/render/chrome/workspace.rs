@@ -126,6 +126,17 @@ impl TextPipeline {
         widest + 2.0 * self.overlay_text_hpad()
     }
 
+    /// TEST-ONLY readers for the item-114 law probe.
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_lens_len(&self) -> usize {
+        self.overlay_lens.len()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn workspace_rail_mark_probe(&self) -> Option<[f32; 4]> {
+        self.workspace_rail_mark
+    }
+
     /// IS THERE ROOM FOR BOTH REGIONS AT ONCE? The one width decision the whole
     /// workspace makes, and the only place width enters this feature at all
     /// (see the module doc). `true` draws the rail beside the content; `false`

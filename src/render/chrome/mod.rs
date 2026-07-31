@@ -286,6 +286,29 @@ impl OverlayGeom {
             false => self.card_w,
         }
     }
+
+    /// TEST-ONLY readers for the item-114 law probe (`render/tests/overlay_probe.rs`),
+    /// which lives outside this module so a law can compare against what the
+    /// frame committed without a render path growing an exception.
+    #[cfg(test)]
+    pub(in crate::render) fn band_x_probe(&self) -> f32 {
+        self.band_x()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn band_w_probe(&self) -> f32 {
+        self.band_w()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn card_probe(&self) -> [f32; 4] {
+        [self.card_x, self.card_y, self.card_w, self.card_h]
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn visible_probe(&self) -> usize {
+        self.visible
+    }
 }
 
 // The chrome cluster is decomposed into cohesive per-subsystem submodules; each

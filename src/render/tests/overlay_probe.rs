@@ -119,3 +119,56 @@ impl TextPipeline {
         )
     }
 }
+
+/// ITEM 114 — the SUMMONED WORKSPACE's law probe: what the frame just committed
+/// for its two regions, read off the same owners the draw and the hit-test read.
+///
+/// Reported rather than re-derived, for the reason this module exists: a law that
+/// recomputed the rail's grid would be comparing one arithmetic against another
+/// and would stay green through a change that moved only the pixels.
+pub(in crate::render) struct WorkspaceProbe {
+    /// The workspace surface itself, `[x, y, w, h]`.
+    pub card: [f32; 4],
+    /// The navigation rail's column box, or `None` when no rail is drawn.
+    pub rail: Option<[f32; 4]>,
+    /// Each rail entry's own rect, in strip order; `None` for an entry that
+    /// falls outside the rail's box.
+    pub rows: Vec<Option<[f32; 4]>>,
+    /// The ACTIVE rail entry's mark rect — the quad the facet-mark owner draws.
+    pub mark: Option<[f32; 4]>,
+    /// The content pane's horizontal extent — the band every settings row, its
+    /// selected-row quad and `overlay_row_at` are bounded to.
+    pub pane_x: f32,
+    pub pane_w: f32,
+    /// The content pane's selected-row band, `[x, y, w, h]`, or `None` when no
+    /// rows are drawn.
+    pub selected_band: Option<[f32; 4]>,
+    /// How many settings rows the pane drew.
+    pub visible: usize,
+}
+
+impl TextPipeline {
+    pub(in crate::render) fn workspace_rail_probe(&self, width: u32) -> WorkspaceProbe {
+        let geom = self.overlay_geometry(width);
+        let plan = self.overlay_row_plan(&geom);
+        let rail = self.workspace_rail_box(&geom, &plan);
+        let n = self.overlay_lens_len();
+        let rows = (0..n)
+            .map(|i| self.workspace_rail_rect(&geom, &plan, i))
+            .collect();
+        let selected_band = plan.selected_display().and_then(|d| {
+            let top = plan.row_top(d)?;
+            Some([geom.band_x_probe(), top, geom.band_w_probe(), plan.lh()])
+        });
+        WorkspaceProbe {
+            card: geom.card_probe(),
+            rail,
+            rows,
+            mark: self.workspace_rail_mark_probe(),
+            pane_x: geom.band_x_probe(),
+            pane_w: geom.band_w_probe(),
+            selected_band,
+            visible: geom.visible_probe(),
+        }
+    }
+}

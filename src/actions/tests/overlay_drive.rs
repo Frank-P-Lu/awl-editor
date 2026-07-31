@@ -317,7 +317,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
 /// PALETTE-filtered corpus (`settings::palette_names`/`palette_value_cells`),
 /// which excludes any settings row covered by an available command
 /// (`settings::COVERED_BY` — see the "one palette door per destination" fix).
-fn command_overlay_with_settings() -> OverlayState {
+pub(super) fn command_overlay_with_settings() -> OverlayState {
     let mut ov = OverlayState::new_command(
         crate::commands::visible_names(),
         crate::commands::visible_effective_bindings(&[], &[]),

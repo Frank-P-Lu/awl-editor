@@ -21,6 +21,9 @@ mod pickers_nav;
 mod recoil_flinch;
 mod save_feedback;
 mod settings_reach;
+/// ITEM 114 — the summoned workspace's state, focus and back, in the lifecycle's
+/// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
+mod workspace_item114;
 
 /// A tiny in-memory tree for the browse navigator: root has `docs/` (dir) and
 /// `README.md` (file); `docs/` has `guide.md` (file) and `api/` (dir). The
@@ -244,6 +247,14 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
     let mut make_overlay = |k: OverlayKind| match k {
         OverlayKind::Settings => Some(settings_overlay()),
         OverlayKind::Caret => Some(OverlayState::new_caret(crate::caret::mode())),
+        // ITEM 114 — the Theme audition is one of the two fast editor-backed
+        // pickers a Settings row descends into, so the shared drive builds it
+        // the same way `overlay::build` does (every world + the active index,
+        // which is what a revert restores).
+        OverlayKind::Theme => Some(OverlayState::new_theme(
+            crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect(),
+            crate::theme::active_index(),
+        )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
             crate::frontmatter::cjk_priority()
                 .first()

@@ -65,6 +65,9 @@ mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
 mod page_frame;
 mod pixeldiff;
+/// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
+/// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
+mod workspace_item114;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod range_rail;
