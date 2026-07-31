@@ -4,13 +4,24 @@ const CORNER_RADIUS: f32 = 2.5;
 
 /// Per-quad instance: a rectangle center + half-size in pixels, plus the shared
 /// RGBA color. MUST match `Instance` in the WGSL.
+///
+/// `axis` (item 131b) is the unit rotation axis (cos, sin) the quad's vertex
+/// positions are rotated onto — `(1.0, 0.0)` is upright, exactly mirroring
+/// `caret.wgsl`'s own `axis` field. [`SelectionPipeline::prepare`] and
+/// [`SelectionPipeline::prepare_multicolor`] both upload the inert default for
+/// every instance, so every existing consumer stays byte-identical; only
+/// [`SelectionPipeline::prepare_rotated`] ever uploads a real one.
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct SelInstance {
     center: [f32; 2],
     half: [f32; 2],
     color: [f32; 4],
+    axis: [f32; 2],
 }
+
+/// The inert, upright rotation axis every non-rotated `SelInstance` carries.
+const UPRIGHT_AXIS: [f32; 2] = [1.0, 0.0];
 
 /// Uniform globals. MUST match `Globals` in the WGSL.
 #[repr(C)]
@@ -258,6 +269,13 @@ impl SelectionPipeline {
                     format: wgpu::VertexFormat::Float32x4,
                     offset: 16,
                     shader_location: 2,
+                },
+                // ITEM 131b — `axis`, at the END of the struct so every offset
+                // above is untouched (no existing attribute moves).
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
+                    offset: 32,
+                    shader_location: 3,
                 },
             ],
         };
@@ -510,6 +528,7 @@ impl SelectionPipeline {
                 center: [x + w * 0.5, y + h * 0.5],
                 half: [w * 0.5, h * 0.5],
                 color,
+                axis: UPRIGHT_AXIS,
             });
         }
 
@@ -556,8 +575,66 @@ impl SelectionPipeline {
                 center: [x + w * 0.5, y + h * 0.5],
                 half: [w * 0.5, h * 0.5],
                 color: srgba_u8_to_linear(*srgba),
+                axis: UPRIGHT_AXIS,
             });
         }
+        self.upload_instances(device, queue, &instances);
+        self.instance_count = instances.len() as u32;
+    }
+
+    /// ITEM 131b — THE ROTATED ROUNDED-RECT EMITTER. Every other builder
+    /// (`prepare`, `prepare_multicolor`) draws axis-aligned quads; this is the
+    /// one door that can draw a quad seated at an angle — the primitive a
+    /// crisp diagonal spine needs, since every overlay quad pipeline is
+    /// otherwise axis-aligned. `quads` is `(center, half_size, axis)` per
+    /// instance, in the SAME pixel units `prepare`'s `[x, y, w, h]` uses (just
+    /// centered rather than corner-anchored, since a rotated quad has no
+    /// axis-aligned corner to anchor from). Globals (corner/dither/stroke/
+    /// chamfer/halftone) still apply uniformly across the batch, exactly as
+    /// they do for `prepare`. An `axis` of `(0.0, 0.0)` (degenerate — nothing
+    /// to normalize) is not this function's job to guard against; construct
+    /// instances through [`spine_segment`], which never emits one.
+    ///
+    /// No non-test caller yet — item 131c (the composition owner) is its
+    /// named, imminent consumer; item 131b's own job is proving the primitive
+    /// correct in isolation (see `tests::prepare_rotated_axis_actually_turns_the_quad`
+    /// / `tests::prepare_rotated_with_the_upright_axis_matches_prepare_byte_for_byte`),
+    /// not wiring a world to it.
+    #[allow(dead_code)]
+    pub fn prepare_rotated(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        quads: &[([f32; 2], [f32; 2], [f32; 2])],
+    ) {
+        let globals = Globals {
+            viewport: [width as f32, height as f32],
+            corner: self.corner,
+            dither: self.dither,
+            stroke: self.stroke,
+            cell: self.dither_cell,
+            chamfer: self.chamfer,
+            halftone: self.halftone,
+            halftone_angle: self.halftone_angle,
+            halftone_cell: self.halftone_cell,
+            _pad2: [0.0; 2],
+            dot_color: self.dot_color,
+        };
+        queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
+
+        let color = self.color;
+        let instances: Vec<SelInstance> = quads
+            .iter()
+            .filter(|(_, half, _)| half[0] > 0.0 && half[1] > 0.0)
+            .map(|&(center, half, axis)| SelInstance {
+                center,
+                half,
+                color,
+                axis,
+            })
+            .collect();
         self.upload_instances(device, queue, &instances);
         self.instance_count = instances.len() as u32;
     }
@@ -596,6 +673,49 @@ impl SelectionPipeline {
         pass.set_vertex_buffer(0, self.instance_buf.slice(..));
         pass.draw(0..6, 0..self.instance_count);
     }
+}
+
+/// ITEM 131b — a rotated rounded-rect SPINE SEGMENT's `(center, half_size,
+/// axis)`, for [`SelectionPipeline::prepare_rotated`]: a bar running from
+/// `from` to `to`, `thickness_px` wide. Pure geometry, no clock, no device —
+/// `axis` degenerates to the inert `(1.0, 0.0)` (upright) when `from == to`
+/// (a zero-length segment has no direction to normalize), so a pathological
+/// input can never hand the shader a NaN.
+///
+/// No non-test caller yet — see [`SelectionPipeline::prepare_rotated`]'s doc.
+#[allow(dead_code)]
+pub fn spine_segment(
+    from: [f32; 2],
+    to: [f32; 2],
+    thickness_px: f32,
+) -> ([f32; 2], [f32; 2], [f32; 2]) {
+    let d = [to[0] - from[0], to[1] - from[1]];
+    let len = (d[0] * d[0] + d[1] * d[1]).sqrt();
+    let center = [(from[0] + to[0]) * 0.5, (from[1] + to[1]) * 0.5];
+    let half = [len * 0.5, (thickness_px * 0.5).max(0.0)];
+    let axis = if len > 1e-4 {
+        [d[0] / len, d[1] / len]
+    } else {
+        UPRIGHT_AXIS
+    };
+    (center, half, axis)
+}
+
+/// ITEM 131b — cap a spine segment's own corner radius to at most its
+/// SHORTER half-extent (half its length, half its thickness), mirroring
+/// `render::chrome::narrowed_chamfer_px`'s "clamp a decorative cut to the
+/// shape's own geometry" shape. The shader's per-fragment SDF already clamps
+/// `min(g.corner, min(hsize.x, hsize.y))` (`selection.wgsl`'s `fs_main`), so
+/// this CPU-side twin is belt-and-suspenders: it lets a caller reason about
+/// the drawn shape (and pick one shared `SelectionPipeline::set_corner` value
+/// across a whole spine of differently-sized segments) before anything
+/// reaches the GPU, rather than discovering the clamp only in the rendered
+/// pixels.
+///
+/// No non-test caller yet — see [`SelectionPipeline::prepare_rotated`]'s doc.
+#[allow(dead_code)]
+pub fn narrowed_spine_corner_px(corner_px: f32, half_len: f32, half_thick: f32) -> f32 {
+    corner_px.min(half_len.max(0.0)).min(half_thick.max(0.0)).max(0.0)
 }
 
 fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
@@ -645,72 +765,4 @@ unsafe impl bytemuck_lite::Pod for SelInstance {}
 unsafe impl bytemuck_lite::Pod for Globals {}
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn srgba_linear_alpha_passthrough() {
-        let c = srgba_u8_to_linear([0x3A, 0x6F, 0xD8, 0x52]);
-        assert!((c[3] - 0.32156864).abs() < 1e-4);
-        for channel in c.iter().take(3) {
-            assert!(*channel >= 0.0 && *channel <= 1.0);
-        }
-    }
-
-    #[test]
-    fn lerp4_interpolates_linearly_between_endpoints() {
-        let a = [0.0, 0.2, 1.0, 0.5];
-        let b = [1.0, 0.8, 0.0, 0.1];
-        let at0 = lerp4(a, b, 0.0);
-        let at1 = lerp4(a, b, 1.0);
-        for k in 0..4 {
-            assert!((at0[k] - a[k]).abs() < 1e-6, "t=0 must be the first color");
-            assert!((at1[k] - b[k]).abs() < 1e-6, "t=1 must be the second color");
-        }
-        let mid = lerp4(a, b, 0.5);
-        for k in 0..4 {
-            assert!(
-                (mid[k] - (a[k] + b[k]) / 2.0).abs() < 1e-6,
-                "channel {k} must be the midpoint"
-            );
-        }
-    }
-
-    /// Regression: growing the instance buffer must size it to the FULL
-    /// power-of-two capacity, not the current contents. Otherwise a later frame
-    /// whose count sits between the grow-time count and the cap overruns the
-    /// buffer — the wgpu "Copy … would overrun the Destination buffer" write_buffer
-    /// validation panic that froze awl on a spell-heavy long file.
-    #[test]
-    fn grow_sizes_buffer_to_capacity_not_contents() {
-        let dq = pollster::block_on(async {
-            let instance =
-                wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions::default())
-                .await
-                .ok()?;
-            adapter
-                .request_device(&wgpu::DeviceDescriptor {
-                    label: Some("awl selection grow-test device"),
-                    ..Default::default()
-                })
-                .await
-                .ok()
-        });
-        let Some((device, queue)) = dq else {
-            return; // no GPU adapter available — skip
-        };
-        let mut pipe = SelectionPipeline::new(
-            &device,
-            &selection_shader(&device),
-            wgpu::TextureFormat::Rgba8UnormSrgb,
-            [255, 255, 255, 255],
-        );
-        let rects =
-            |n: usize| -> Vec<[f32; 4]> { (0..n).map(|i| [i as f32, 0.0, 10.0, 10.0]).collect() };
-        pipe.prepare(&device, &queue, 800, 600, &rects(65));
-        pipe.prepare(&device, &queue, 800, 600, &rects(100));
-        assert_eq!(pipe.instance_count(), 100);
-    }
-}
+mod tests;

@@ -250,8 +250,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2454
-reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in. Item 116a: +4 lines — the `overlay_rows_primary` mirror field, at the same one declaration block."
+lines = 2460
+reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in. Item 116a: +4 lines — the `overlay_rows_primary` mirror field, at the same one declaration block. Item 131a: +6 lines — `slant_max_offset`'s doc gained the width-tax-is-a-magnitude clause the mirrored (negative-step) composition needs; both `slant_offset`/`slant_max_offset` are the one owner of the composition's stair math and cannot move."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -279,8 +279,8 @@ lines = 612
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1108
-reason = "item 114: +23 lines. `OverlayGeom` gained the five workspace fields; its band/probe accessors moved to `chrome/workspace.rs`. The struct is the one resolved-geometry record every chrome consumer reads, so the fields cannot live elsewhere. Item 116a: +2 lines — the `rail` field's doc gained one clause naming the new `rows_are_primary` case where it is also `None`, at the one struct definition every chrome consumer reads."
+lines = 1114
+reason = "item 114: +23 lines. `OverlayGeom` gained the five workspace fields; its band/probe accessors moved to `chrome/workspace.rs`. The struct is the one resolved-geometry record every chrome consumer reads, so the fields cannot live elsewhere. Item 116a: +2 lines — the `rail` field's doc gained one clause naming the new `rows_are_primary` case where it is also `None`, at the one struct definition every chrome consumer reads. Item 131a: +6 lines — `slant_bar_span` gained a second parameter (`dw`) and its doc grew to explain the mirrored (right-edge) case; it is the ONE owner both the unselected and selected slanted plates read, so the two-sided extent cannot be resolved anywhere else."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -346,8 +346,8 @@ reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirro
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 407
-reason = "item 131 (row-composition seam): +7 lines. `overlay_slant_dx(row)` — a per-ROW offset any emitter could call, which is how the draw path and the pointer hit-test ended up with two answers for a staggered row's x — became `overlay_row_dx_step()`, the composition's single STEP, fed to the row planner. The growth is its doc comment, which states the ownership rule `render/tests/row_offset_item131.rs::only_the_planner_derives_an_overlay_rows_horizontal_offset` enforces by name. Nothing here is extractable: the method reads the pipeline's own settle phase (`overlay_slant_progress`), which lives beside it."
+lines = 410
+reason = "item 131 (row-composition seam): +7 lines. `overlay_slant_dx(row)` — a per-ROW offset any emitter could call, which is how the draw path and the pointer hit-test ended up with two answers for a staggered row's x — became `overlay_row_dx_step()`, the composition's single STEP, fed to the row planner. The growth is its doc comment, which states the ownership rule `render/tests/row_offset_item131.rs::only_the_planner_derives_an_overlay_rows_horizontal_offset` enforces by name. Nothing here is extractable: the method reads the pipeline's own settle phase (`overlay_slant_progress`), which lives beside it. Item 131a: +3 lines — the same doc comment gained the signed-step/mirror clause (the method's OWN return value didn't change; only what it may now mean did)."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -380,7 +380,8 @@ lines = 855
 
 [[file_size_mark]]
 file = "src/selection.rs"
-lines = 716
+lines = 768
+reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through, so the growth cannot live elsewhere. Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
 
 [[file_size_mark]]
 file = "src/session.rs"
@@ -778,9 +779,9 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/selection.rs"
-line = 198
-message = "this function has too many lines (106/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+line = 209
+message = "this function has too many lines (111/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 131b added the `axis` vertex attribute (+5 lines) to the one shared pipeline-construction body both `new`/`new_invert` route through."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
