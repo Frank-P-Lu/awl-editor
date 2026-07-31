@@ -192,8 +192,8 @@ reason = "item 121: +14 lines, irreducibly one new CLI flag arm (`--ground-audit
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1085
-reason = "item 189: +31 lines net — the owned `root`/`workspace`/`workspace_flag`/`corpus` fields and their doc comments, replacing the fixed `&'a` borrows. `resync_project_location` itself (the re-scoping owner these fields exist for) moved to run/location.rs, the module item 183 created for exactly this class of derivation — see its impl block there."
+lines = 1087
+reason = "item 190: +2 lines — the `#[path] mod settings_effects;` declaration wiring in the settings trio's capability grant. The interpretation itself lives in the new run/settings_effects.rs, kept out of this file precisely to avoid growing it further."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -364,8 +364,8 @@ lines = 1440
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 360
-reason = "item 189: +1 line, accept_class's Project-arm comment updated now that ReplaySession's own resync closes the residue it named."
+lines = 364
+reason = "item 190: +4 lines net — classify_for's three settings-trio arms now call the new `typed::classify_settings` (mirroring how `classify_persistence` already keeps this match's own line budget), passing the effect-specific Unsupported reason and, for SettingToggle, the one excluded key (`\"keymap\"`, which needs a live keymap rebuild no capability grant can supply)."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -508,23 +508,23 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 287
+line = 289
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's owned root/workspace/workspace_flag/corpus fields landing earlier in the same impl block (resync_project_location itself moved to run/location.rs); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 581
+line = 583
 message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 750
+line = 752
 message = "this function has too many lines (321/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's earlier additions to the same impl block; count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1229,23 +1229,23 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3386
+line = 3709
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3426
+line = 3749
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3460
+line = 3783
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"

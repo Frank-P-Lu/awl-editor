@@ -50,7 +50,7 @@ use crate::overlay::OverlayKind;
 mod skip;
 mod typed;
 pub use skip::{SkippedEffect, permissive_skip};
-use typed::{classify_buffer, classify_clipboard, classify_persistence, named};
+use typed::{classify_buffer, classify_clipboard, classify_persistence, classify_settings, named};
 
 /// How a replay treats the effects (and chords) it cannot honestly apply.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -213,23 +213,27 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
                 "the config write + live keymap reload are live-App-only; the reset would not take effect",
             ),
         ),
-        Effect::SettingToggle { .. } => c(
+        // ITEM 190 — the same grant item 171 gave `save`/`finish_save`, extracted
+        // to `typed::classify_settings` for the same reason `classify_persistence`
+        // is: this match's own line budget.
+        Effect::SettingToggle { key } => classify_settings(
             "setting_toggle",
-            unsupported(
-                "flipping the live global + persisting it are live-App-only; the setting would not change",
-            ),
+            "flipping the live global + persisting it are live-App-only; \
+             the setting would not change",
+            filesystem,
+            Some(key),
         ),
-        Effect::SettingValueCommit { .. } => c(
+        Effect::SettingValueCommit { .. } => classify_settings(
             "setting_value_commit",
-            unsupported(
-                "parse-clamp-apply-persist is live-App-only; the value would not take effect",
-            ),
+            "parse-clamp-apply-persist is live-App-only; the value would not take effect",
+            filesystem,
+            None,
         ),
-        Effect::SettingPathPick { .. } => c(
+        Effect::SettingPathPick { .. } => classify_settings(
             "setting_path_pick",
-            unsupported(
-                "the config folder-key write is live-App-only; the path would not take effect",
-            ),
+            "the config folder-key write is live-App-only; the path would not take effect",
+            filesystem,
+            None,
         ),
         // ITEM 94 — a RANGE row's step: unlike its Toggle/Value siblings above, the
         // VALUE CHANGE ITSELF already happened in the shared core (`apply_transition`

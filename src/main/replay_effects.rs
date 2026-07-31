@@ -172,6 +172,18 @@ impl<'a> ReplaySession<'a> {
                 crate::about::set_open(true);
                 true
             }
+            actions::Effect::SettingToggle { key } => {
+                self.interpret_setting_toggle(key);
+                true
+            }
+            actions::Effect::SettingValueCommit { key, value } => {
+                self.interpret_setting_value_commit(key, value);
+                true
+            }
+            actions::Effect::SettingPathPick { key, path } => {
+                self.interpret_setting_path_pick(key, path);
+                true
+            }
             actions::Effect::Notice(notice) => {
                 match notice {
                     actions::NoticeEffect::Toast(_)
@@ -210,9 +222,6 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::Export(_)
             | actions::Effect::CheckForUpdates
             | actions::Effect::CopyPulse
-            | actions::Effect::SettingToggle { .. }
-            | actions::Effect::SettingValueCommit { .. }
-            | actions::Effect::SettingPathPick { .. }
             | actions::Effect::SettingRangeStep { .. }
             | actions::Effect::TrashAsset { .. }
             | actions::Effect::RenameNoteCommit { .. }

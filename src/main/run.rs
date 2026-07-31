@@ -18,6 +18,8 @@ mod effect_interpreter;
 #[path = "run/location.rs"]
 mod location;
 mod replay_effects;
+#[path = "run/settings_effects.rs"]
+mod settings_effects;
 #[cfg(test)]
 use capture_fold::history_preview_for;
 pub(crate) use capture_fold::overlay_capture_info;

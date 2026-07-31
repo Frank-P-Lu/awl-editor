@@ -37,6 +37,41 @@ pub(super) fn classify_clipboard(effect: &crate::actions::ClipboardEffect) -> Cl
     }
 }
 
+/// ITEM 190 — the settings trio (`SettingToggle`/`SettingValueCommit`/
+/// `SettingPathPick`), promoted the same shape [`classify_persistence`]'s
+/// `Save` arm already is: under an Isolated filesystem,
+/// `main/run/settings_effects.rs::ReplaySession` performs the SAME
+/// process-global flip + `Config::write_pref` the live `App` door does, so
+/// the replay session ends in the identical state. `why` is the ordinary
+/// (`FilesystemCapability::None`) Unsupported reason, specific to the calling
+/// effect. `toggle_key` is `Some` only for `SettingToggle`, whose one key
+/// `"keymap"` stays Unsupported EVEN under Isolated: flipping it needs a LIVE
+/// keymap rebuild (`App::toggle_keymap_flavor`) so a LATER chord in the same
+/// replay resolves against the new flavor — a replay session owns no such
+/// capability, the identical reason `RebindCommit`/`RebindReset` stay
+/// Unsupported.
+pub(super) fn classify_settings(
+    name: &'static str,
+    why: &'static str,
+    filesystem: FilesystemCapability,
+    toggle_key: Option<&str>,
+) -> Classified {
+    if toggle_key == Some("keymap") {
+        return named(
+            name,
+            EffectClass::Unsupported {
+                why: "the live keymap reload is live-App-only; a later chord in the same \
+                      replay would keep resolving against the OLD flavor",
+            },
+        );
+    }
+    let class = match filesystem {
+        FilesystemCapability::None => EffectClass::Unsupported { why },
+        FilesystemCapability::Isolated => EffectClass::Applied,
+    };
+    named(name, class)
+}
+
 pub(super) fn classify_persistence(
     effect: &crate::actions::PersistenceEffect,
     filesystem: FilesystemCapability,
