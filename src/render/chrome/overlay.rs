@@ -304,12 +304,7 @@ impl TextPipeline {
         let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
 
-        let footer = self.keybindings_tips.clone();
-        let footer_rows = if footer.is_empty() {
-            0
-        } else {
-            footer.len() + 1
-        };
+        let (footer, footer_rows) = self.overlay_footer_lines();
 
         let empty = if n_items == 0 {
             self.overlay_empty.clone()

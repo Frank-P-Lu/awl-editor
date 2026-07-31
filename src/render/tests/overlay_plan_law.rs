@@ -35,6 +35,7 @@
 use super::super::*;
 use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
+use crate::render::chrome::OverlayGeom;
 
 /// How a picker kind lays its candidate area out. NOT a hand-copied match over
 /// `OverlayKind` — item 185's own lesson. `overlay_geometry` decides FLAT vs
@@ -158,6 +159,80 @@ fn grade_rows(
     (items, headers)
 }
 
+/// ITEM 185 — the REAL pipeline's own path must match production's OWN
+/// classifier, `facets::scheme`, checked directly — never `fam` itself,
+/// which would make this tautological (the fixture already built its state
+/// FROM `fam`). Before item 185 this failed for `Assets`: the hand-copied
+/// `family()` called it Grouped, so the fixture fed it a lens strip and
+/// `overlay_geometry` dutifully took the grouped path (`geom.theme`), even
+/// though `facets::scheme` says `Assets` should never facet at all.
+fn assert_faceted_state_matches_production(
+    p: &TextPipeline,
+    geom: &OverlayGeom,
+    kind: OverlayKind,
+    fam: Family,
+    ctx: &str,
+) {
+    let faceted = p.overlay_geom_is_faceted(geom);
+    let should_facet = crate::facets::scheme(kind).is_some();
+    assert_eq!(
+        faceted,
+        should_facet,
+        "{ctx}: the real pipeline took the {} path for this kind, but \
+         `facets::scheme({kind:?})` says it should{} facet — the law's \
+         family() (currently reporting {fam:?}) has drifted from the \
+         production owner it is supposed to describe",
+        if faceted {
+            "GROUPED"
+        } else {
+            "FLAT/CONTEXTUAL"
+        },
+        if should_facet { "" } else { " never" }
+    );
+}
+
+/// SIDECAR == PLAN, independently of the derivation for the last arm: the
+/// reported selected row must genuinely carry the selected ITEM, not just
+/// agree by construction (both sides reading the same accessor would keep a
+/// planner that forgot the grouped family's section headers in perfect
+/// agreement while pointing at the wrong row).
+fn assert_sidecar_matches_plan(
+    p: &TextPipeline,
+    plan: &crate::render::plan::OverlayRowPlan,
+    v: &ViewState,
+    ctx: &str,
+) {
+    assert!(
+        plan.candidate_rows() > 0,
+        "{ctx}: the card must plan at least one candidate row"
+    );
+    let (_top, lines, sel_row, _card_h, _canvas_h) = p
+        .overlay_window_report()
+        .unwrap_or_else(|| panic!("{ctx}: an open card must report a window"));
+    assert_eq!(
+        lines,
+        plan.candidate_rows(),
+        "{ctx}: the sidecar's `lines` must be the planned candidate band"
+    );
+    assert_eq!(
+        Some(sel_row),
+        plan.selected_display(),
+        "{ctx}: the sidecar's `sel_row` must be the planned selected line"
+    );
+    assert!(
+        sel_row < plan.candidate_rows(),
+        "{ctx}: the planned selection must stay inside the planned window"
+    );
+    assert_eq!(
+        plan.item_at(sel_row),
+        Some(v.overlay_selected),
+        "{ctx}: display line {sel_row} is reported as selected but carries item {:?}, not \
+         the selected item {}",
+        plan.item_at(sel_row),
+        v.overlay_selected
+    );
+}
+
 /// THE HEADLINE LAW. For every planned row of every picker kind, in both list
 /// styles, at four window geometries and both DPIs: the SHAPED glyph line sits in
 /// the planned slot, the pointer hit-test at that slot's own centre accepts that
@@ -187,7 +262,12 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
     ];
     // The whole geometry range, not one window: a roomy canvas, a narrow one that
     // forces the card into its edge-inset floor, a short one that clamps the
-    // grouped family's own row cap, and a tall one.
+    // grouped family's own row cap, and a tall one. LOGICAL sizes — physical is
+    // `logical * dpi` below, the same convention `overlay_height_clamp_law.rs`
+    // uses and for the same reason: read literally as physical pixels, the
+    // short 900x460 cell at dpi=2 is a logical ~450x230 window, BELOW the
+    // app's own enforced minimum (`app::lifecycle`'s `MIN_COLS`/`MIN_LINES`,
+    // ~464x288 logical) — not a window a live user can ever reach.
     let canvases: [(u32, u32); 4] = [(1200, 800), (700, 800), (900, 460), (1400, 1600)];
 
     let mut checked_rows = 0usize;
@@ -211,7 +291,8 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
         p.set_dpi(dpi);
         for (sname, style) in styles {
             crate::render::set_list_style_test_override(style);
-            for (cw, ch) in canvases {
+            for (lw, lh) in canvases {
+                let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
                 p.set_size(cw as f32, ch as f32);
                 for kind in OverlayKind::ALL {
                     let fam = family(kind);
@@ -224,71 +305,8 @@ fn drawn_hit_test_and_sidecar_agree_on_every_planned_row_for_every_overlay_kind(
                     let probe = p.overlay_row_y_probe();
                     let ctx = format!("{kind:?}/{fam:?} dpi={dpi} list={sname} canvas={cw}x{ch}");
 
-                    // ITEM 185 — the REAL pipeline's own path must match production's
-                    // OWN classifier, `facets::scheme`, checked directly — never `fam`
-                    // itself, which would make this tautological (the fixture already
-                    // built its state FROM `fam`). Before item 185 this failed for
-                    // `Assets`: the hand-copied `family()` called it Grouped, so the
-                    // fixture fed it a lens strip and `overlay_geometry` dutifully took
-                    // the grouped path (`geom.theme`), even though `facets::scheme`
-                    // says `Assets` should never facet at all.
-                    assert_eq!(
-                        p.overlay_geom_is_faceted(&geom),
-                        crate::facets::scheme(kind).is_some(),
-                        "{ctx}: the real pipeline took the {} path for this kind, but \
-                         `facets::scheme({kind:?})` says it should{} facet — the law's \
-                         family() (currently reporting {fam:?}) has drifted from the \
-                         production owner it is supposed to describe",
-                        if p.overlay_geom_is_faceted(&geom) {
-                            "GROUPED"
-                        } else {
-                            "FLAT/CONTEXTUAL"
-                        },
-                        if crate::facets::scheme(kind).is_some() {
-                            ""
-                        } else {
-                            " never"
-                        }
-                    );
-
-                    // The plan must not be empty — a vacuous sweep proves nothing.
-                    assert!(
-                        plan.candidate_rows() > 0,
-                        "{ctx}: the card must plan at least one candidate row"
-                    );
-
-                    // SIDECAR == PLAN.
-                    let (_top, lines, sel_row, _card_h, _canvas_h) = p
-                        .overlay_window_report()
-                        .unwrap_or_else(|| panic!("{ctx}: an open card must report a window"));
-                    assert_eq!(
-                        lines,
-                        plan.candidate_rows(),
-                        "{ctx}: the sidecar's `lines` must be the planned candidate band"
-                    );
-                    assert_eq!(
-                        Some(sel_row),
-                        plan.selected_display(),
-                        "{ctx}: the sidecar's `sel_row` must be the planned selected line"
-                    );
-                    assert!(
-                        sel_row < plan.candidate_rows(),
-                        "{ctx}: the planned selection must stay inside the planned window"
-                    );
-                    // …and INDEPENDENTLY of the derivation: the reported row must
-                    // genuinely carry the selected ITEM. Without this the sidecar
-                    // arm above is tautological — both sides read the same
-                    // accessor, so a planner that forgot the grouped family's
-                    // section headers would keep them in perfect agreement while
-                    // pointing at the wrong row (watched failing).
-                    assert_eq!(
-                        plan.item_at(sel_row),
-                        Some(v.overlay_selected),
-                        "{ctx}: display line {sel_row} is reported as selected but carries \
-                         item {:?}, not the selected item {}",
-                        plan.item_at(sel_row),
-                        v.overlay_selected
-                    );
+                    assert_faceted_state_matches_production(&p, &geom, kind, fam, &ctx);
+                    assert_sidecar_matches_plan(&p, &plan, &v, &ctx);
 
                     let (rows, headers) = grade_rows(&p, &plan, &probe, &ctx);
                     checked_rows += rows;

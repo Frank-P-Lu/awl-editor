@@ -123,17 +123,38 @@ fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f
 /// PLUS the section-header count for a grouped card (its caller's own
 /// concern; this function is generic over what counts as overhead).
 ///
-/// Floors at 1: a card always attempts to show its own selection. Below that
-/// floor no amount of item-count clamping can help — the fixed overhead alone
-/// already exceeds `avail_px` — and that residual is a chrome-overhead sizing
-/// question, not a row-count one (see `render/tests/overlay_height_clamp_law.rs`
-/// for the swept bound this floor is proven against).
-pub(in crate::render) fn fit_item_rows(avail_px: f32, lh: f32, overhead_rows: usize) -> usize {
+/// `min_items` is the FAMILY's own floor, never a bare constant: the FLAT
+/// family and the spell popup pass `1` — "a card always attempts to show its
+/// own selection" — because their fixed overhead (one query line, no lens
+/// strip) never grows past what a real canvas holds. ITEM 184: the GROUPED
+/// family passes `0`. Its own fixed overhead (the query line, the lens strip,
+/// and the query BEAT between them — `theme_overlay_geometry`'s
+/// `header_rows * lh + header_gap`) has no independent zoom ceiling, so at
+/// the documented zoom limit on a short canvas that overhead ALONE can already
+/// exceed `avail_px` before a single item or section header is counted (the
+/// 900x460/zoom-3.0 sectioned command-palette case, `render/tests/
+/// overlay_height_clamp_law.rs`). Forcing `.max(1)` there regardless, as item
+/// 181 originally did for both families, cannot be satisfied without
+/// overrunning the canvas — item 181's own doc named this "a chrome-overhead
+/// sizing question, not a row-count one" and left it to item 184. Below the
+/// floor no amount of item-count clamping can help either way; the difference
+/// is only whether the family is CONTRACTUALLY guaranteed a row at that
+/// floor (flat/spell) or willing to show an empty candidate band rather than
+/// overrun the canvas (grouped). This is a no-op change wherever the floor
+/// does not bind — `saturating_sub` already returns `>= min_items` whenever
+/// `fit_lines > overhead_rows`, so every already-fitting picker (either
+/// family) is byte-identical.
+pub(in crate::render) fn fit_item_rows(
+    avail_px: f32,
+    lh: f32,
+    overhead_rows: usize,
+    min_items: usize,
+) -> usize {
     if lh <= 0.0 {
-        return 1;
+        return min_items;
     }
     let fit_lines = (avail_px / lh).floor() as usize;
-    fit_lines.saturating_sub(overhead_rows).max(1)
+    fit_lines.saturating_sub(overhead_rows).max(min_items)
 }
 
 /// TEST-ONLY: the planned top of candidate display row `row` for a card with
@@ -232,7 +253,17 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
     // never over/underflow. NOT "which row looks selected" — that is the
     // visual-selection transaction's answer (`overlay_visual_sel`), which reads
     // this as its target.
-    let selected_display = if input.n_items == 0 {
+    //
+    // ITEM 184: `rows.is_empty()` is its own `None` case, checked before either
+    // branch — a GROUPED card whose own chrome overhead already exceeds
+    // `avail_px` (`fit_item_rows`'s `min_items: 0` floor) plans NO display
+    // lines at all, item or header, even though `n_items > 0`. Both branches'
+    // old fallbacks (`unwrap_or(0)` / `saturating_sub(1)` on a zero `visible`)
+    // used to read as "selection scrolled out of an otherwise real window" and
+    // silently answered `Some(0)` for a window that has no row 0 — dead code
+    // before this item (the shared floor never let a window go empty), now a
+    // real state this plan must describe honestly.
+    let selected_display = if input.n_items == 0 || rows.is_empty() {
         None
     } else if input.lines.is_some() {
         Some(
