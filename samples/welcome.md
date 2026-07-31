@@ -51,7 +51,7 @@ toolbar — awl does not grow one of those.
 environment: its own display face, its own ink, its own ground and caret. This
 document crosses over with you as you move down the list, so you are
 auditioning the room you would actually write in rather than picking a swatch.
-Enter keeps a world. Esc puts everything back the way it was.
+Enter keeps a world. Escape puts everything back the way it was.
 
 None of it changes how awl works. It is for the days when the writing has gone
 stale and the room should not have to.
@@ -76,12 +76,12 @@ the tab's own storage instead.
 {{key:settings}} opens Settings, which takes the whole window rather than
 floating a panel over your sentence: categories down one side, the settings
 themselves beside them. Change one and it applies immediately — nothing waits
-for a restart and nothing needs an OK button. Esc gives the document back
+for a restart and nothing needs an OK button. Escape gives the document back
 exactly as you left it.
 
-Underneath, all of it is a plain text file, and Settings has a row —
-"Edit config as text" — that opens that file here, as a document like any
-other. An untouched one is simply today's defaults.
+Underneath, all of it is a plain text file, and one of those rows opens that
+file here, as a document like any other. An untouched one is simply today's
+defaults.
 
 awl is opinionated on purpose. It is meant to be good before you configure
 anything, and most of it cannot be configured at all — what is there is the

@@ -320,9 +320,6 @@ const CITED_SETTINGS_ROWS: &[(&str, &str)] = &[
     // GUIDE's pointer-bridge paragraph, and its Settings section.
     ("GUIDE.md", "Format popover"),
     ("GUIDE.md", "Edit config as text"),
-    // The welcome document's closing section: the settings ARE a text file,
-    // and this is the row that opens it.
-    ("samples/welcome.md", "Edit config as text"),
     // The site's hand-mirrored copies of both.
     ("site/guide.html", "Format popover"),
     ("site/guide.html", "Edit config as text"),
