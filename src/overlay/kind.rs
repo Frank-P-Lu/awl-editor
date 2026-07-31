@@ -117,6 +117,11 @@ impl OverlayKind {
         match self {
             OverlayKind::Spell => Self::MAX_SUGGESTIONS + 1,
             OverlayKind::Theme => crate::theme::THEMES.len(),
+            // ITEM 114 — a workspace is bounded by the CANVAS (item 181's
+            // `fit_item_rows`, applied where the canvas is known), so naming the
+            // whole corpus here is what lets that bound be the binding one — the
+            // theme picker's own arrangement, one line above.
+            OverlayKind::Settings => crate::settings::SETTINGS.len(),
             _ => 12,
         }
     }
@@ -164,8 +169,15 @@ impl OverlayKind {
             OverlayKind::History => {
                 vec![enter("restore"), key("tab", "diff"), key(ARROWS_LR, "lens")]
             }
+            // ITEM 114 — the rows pane is the workspace's DETAIL stage, so `esc`
+            // is a BACK to the rail and `←/→` steps a named category. The footer
+            // is awl's only statement of what a key does (ACCESSIBILITY.md).
             OverlayKind::Settings => {
-                vec![enter("edit"), key(ARROWS_LR, "lens"), key("esc", "close")]
+                vec![
+                    enter("edit"),
+                    key(ARROWS_LR, "category"),
+                    key("esc", "back"),
+                ]
             }
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],

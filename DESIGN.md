@@ -162,6 +162,24 @@ guarantee than the implementation provides.
 
 One primary task owns the screen.
 
+### The rule that decides which surface
+
+**Overlays split attention for a brief contextual choice. Summoned workspaces
+relocate it for sustained work.**
+
+That is the whole test, and it is about the task rather than the amount of
+content. A choice you make *while* doing something else keeps the document in
+view, because you still need it — so it is an overlay, however many rows it has.
+A task you go *into*, work in, and come back from should not be read through a
+card with your unfinished sentence showing behind it — so it takes the viewport,
+leaves the document as a quiet backdrop, and returns you to the exact editor
+state when you leave.
+
+A workspace is still summoned. Relocating attention buys the viewport and a
+second coordinated region; it does not buy permanence. The roster is deliberately
+short — Settings and Version History — and a picker does not graduate onto it
+because it grew.
+
 ### Contextual overlays
 
 An overlay belongs to the current writing action. It keeps the document visible
@@ -182,9 +200,22 @@ A workspace relocates attention for a sustained task. Settings and Version
 History may occupy the viewport rather than competing with a readable document
 behind a small card.
 
-A workspace may use coordinated regions—navigation and controls, or timeline
-and comparison—when they form one task. Narrow windows stage those regions
-sequentially instead of compressing them into illegibility.
+A workspace uses two coordinated regions: a primary navigation list and the
+content it governs—categories beside controls, or a timeline beside a
+comparison. They are one task, so they share one search, one selection grammar,
+and one back path:
+
+- the primary list is where a workspace opens, and where a single `Esc` leaves
+  for the editor;
+- moving into the content is a focus transfer, and `Esc` there is a *back* to
+  the primary list, never a close;
+- exactly one region is live at a time, and the difference is expressed by
+  value—the same marker at less presence—rather than by a second decoration.
+
+Wide windows show both regions at once. Narrow windows stage them sequentially,
+with the same back path, because the alternative is compressing both into
+illegibility. Width is presentation: it decides what is drawn and never what a
+key means.
 
 Closing the workspace returns to the exact editor state. A workspace is still
 summoned; it is not a persistent application shell, page router, tab system, or

@@ -113,6 +113,14 @@ impl TextPipeline {
             text_top,
             text_w,
             card_narrow,
+            // ITEM 114 — the GROUPED CARD is not a workspace: it floats over a
+            // document the user still needs to read, so it has no navigation
+            // rail and its content band IS its card (`OverlayGeom::band_x`).
+            workspace: false,
+            rail: None,
+            pane_x: 0.0,
+            pane_w: 0.0,
+            rows_focused: false,
         }
     }
 

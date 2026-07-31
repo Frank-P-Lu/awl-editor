@@ -17,7 +17,7 @@
 //! Before this module those rules were `OverlayState::return_to` (a bare
 //! `Option<OverlayKind>` breadcrumb that re-summoned the parent FRESH, so the
 //! position was silently lost), `setting_path_key` (a `String` carried forward
-//! by hand at exactly the two rebuild seams somebody remembered), `diff_focus`
+//! by hand at exactly the two rebuild seams somebody remembered), `detail_focus`
 //! (a bool with its own exceptional `Esc` arm), and `original_theme` /
 //! `original_caret` / `original_caret_was_auto` (three loose fields whose
 //! inconsistent combinations were representable). Six fields, four hand-written

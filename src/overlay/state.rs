@@ -463,6 +463,19 @@ impl OverlayState {
         if !self.notice.is_empty() {
             return self.notice.clone();
         }
+        // ITEM 114 — a summoned WORKSPACE advertises the stage that holds focus.
+        // Its PRIMARY list is the navigation rail; its DETAIL stage is the rows
+        // pane, whose keys are the picker's ordinary row keys (including the
+        // per-row range variant below), because the rows really are the picker.
+        if self.workspace_shell() {
+            if !self.detail_focus {
+                return super::format_hint(&self.kind.rail_hint_actions());
+            }
+            if self.selected_range().is_some() {
+                return self.kind.range_row_hint();
+            }
+            return self.kind.hint();
+        }
         if self.detail_focus {
             return super::format_hint(&[
                 super::HintAction {

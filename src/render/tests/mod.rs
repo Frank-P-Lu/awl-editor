@@ -87,6 +87,9 @@ mod washes;
 mod waves_drift_item87;
 #[cfg(not(target_arch = "wasm32"))]
 mod webgl_shader_validation;
+/// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
+/// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
+mod workspace_item114;
 mod wrap_affinity;
 mod wysiwyg;
 mod zoom_anchor;

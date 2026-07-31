@@ -184,7 +184,7 @@ impl TextPipeline {
         let (band_top, bands) = match living {
             Some((force, from, to, t)) => {
                 let (primary, echo, _) =
-                    self.living_band_rects(force, from, to, t, geom.card_x, geom.card_w, lh);
+                    self.living_band_rects(force, from, to, t, geom.band_x(), geom.band_w(), lh);
                 let bands = primary
                     .iter()
                     .chain(echo.iter())

@@ -47,6 +47,12 @@ beside controls; History can place a timeline beside a comparison. Those regions
 serve one purpose together. awl does not show multiple editable documents at
 once in v1.
 
+The line between the two kinds of summoned surface is about the task, not the
+size: an overlay *splits* attention for a brief contextual choice and keeps the
+document visible because you still need it; a workspace *relocates* attention
+for sustained work and hands it back untouched. DESIGN.md §5 turns that into
+rules.
+
 ### WYSIWYG plain text
 
 The file stays ordinary Markdown. Only the rendering becomes rich.

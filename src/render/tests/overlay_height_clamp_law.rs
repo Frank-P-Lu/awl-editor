@@ -66,6 +66,11 @@ enum Family {
     Flat,
     Grouped,
     Contextual,
+    /// ITEM 114 — the SUMMONED WORKSPACE family. Its box comes from the canvas
+    /// rather than from a width cap, so item 181's clamp is bounded by a
+    /// different budget; it is swept here for the same reason the other three
+    /// are, not exempted.
+    Workspace,
 }
 
 /// Classify a kind by the SAME no-wildcard match production reads
@@ -74,6 +79,14 @@ enum Family {
 fn family(kind: OverlayKind) -> Family {
     if kind == OverlayKind::Spell {
         return Family::Contextual;
+    }
+    // ITEM 114 — asked BEFORE the faceting scheme, exactly as
+    // `overlay_geometry` asks it: a workspace's rail IS its facet strip stood on
+    // its end, so a kind that facets AND is a workspace is presented as the
+    // latter. Classifying it as Grouped here would have this law measuring a
+    // card production no longer draws.
+    if kind.workspace_shell() {
+        return Family::Workspace;
     }
     if crate::facets::scheme(kind).is_some() {
         return Family::Grouped;
@@ -130,6 +143,16 @@ fn overlay_view(kind: OverlayKind, n: usize, sectioned: bool) -> ViewState {
             v.overlay_bindings = Vec::new();
             v.overlay_selected = cap - 1;
             v.overlay_hint = String::new();
+        }
+        Family::Workspace => {
+            // The rail's data is the same lens strip; `overlay_workspace` is what
+            // routes it to the workspace geometry, exactly as `sync_view` sets it.
+            v.overlay_workspace = true;
+            v.overlay_lens = vec![
+                ("All".into(), true),
+                ("Editor".into(), false),
+                ("Appearance".into(), false),
+            ];
         }
         Family::Flat => {}
     }
@@ -617,9 +640,15 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 Some((25, 13, 12, 261.0, 1600.0)),
             ),
         ),
+        // ITEM 114 — this fifth cell used to be `Settings`, which is no longer a
+        // GROUPED picker: it is presented as a summoned workspace, whose box
+        // comes from the canvas rather than from a width cap, so its numbers
+        // here would be measuring a card production does not draw. `Browse` is
+        // the grouped kind that was not otherwise covered, held at the same
+        // short-canvas shape the Settings cell was chosen for.
         (
             Scenario {
-                kind: OverlayKind::Settings,
+                kind: OverlayKind::Browse,
                 sectioned: true,
                 canvas: (900, 460),
                 zoom: 1.0,

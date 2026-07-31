@@ -71,7 +71,8 @@ fn theme_picker_is_flat_and_reports_no_lens() {
         lens_strip: ov.lens_strip(),
         sections: ov.item_sections(),
         preview_id: None,
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         empty: None,
         show_hidden: false,
@@ -149,7 +150,8 @@ fn overlay_empty_state_renders_and_reports() {
         lens_strip: ov.lens_strip(),
         sections: ov.item_sections(),
         preview_id: None,
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         empty: ov.empty_notice(),
         show_hidden: false,
@@ -250,7 +252,8 @@ fn file_pickers_faceted_lens_render_and_report() {
             lens_strip: ov.lens_strip(),
             sections: ov.item_sections(),
             preview_id: None,
-            diff_focus: false,
+            workspace: false,
+            detail_focus: false,
             diff_scroll: 0,
             empty: None,
             show_hidden: false,
@@ -385,7 +388,8 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
             lens_strip: ov.lens_strip(),
             sections: ov.item_sections(),
             preview_id: None,
-            diff_focus: false,
+            workspace: false,
+            detail_focus: false,
             diff_scroll: 0,
             empty: ov.empty_notice(),
             show_hidden: false,
@@ -543,7 +547,8 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
             lens_strip: ov.lens_strip(),
             sections: ov.item_sections(),
             preview_id: None,
-            diff_focus: false,
+            workspace: false,
+            detail_focus: false,
             diff_scroll: 0,
             empty: None,
             show_hidden: false,
@@ -854,7 +859,8 @@ fn history_preview_folds_text_and_reports_preview_id() {
         lens_strip: Vec::new(),
         sections: Vec::new(),
         preview_id: Some("1700000000000".into()),
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         empty: None,
         show_hidden: false,
@@ -923,6 +929,11 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // headless session observes it exactly as the live app does.
     let mut zoom = spec.default;
     let mut overlay = crate::overlay::Journey::seeded(Some(ov));
+    // ITEM 114 — Settings is a summoned WORKSPACE: a fresh summon stands on its
+    // navigation rail, and the rail's `→` enters the content pane. `→` on a
+    // range ROW is the rail step this law is about, so put the card where a user
+    // pressing this chord would be, through the lifecycle's own transition.
+    overlay.toggle_detail();
     let mut shift = false;
     let mut search = None;
     let mut make = |_k: crate::overlay::OverlayKind| None;

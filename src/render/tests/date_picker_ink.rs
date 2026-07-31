@@ -144,7 +144,8 @@ fn capture_date_picker(
         lens_strip: Vec::new(),
         sections: Vec::new(),
         preview_id: None,
-        diff_focus: false,
+        workspace: false,
+        detail_focus: false,
         diff_scroll: 0,
         show_hidden: false,
     });

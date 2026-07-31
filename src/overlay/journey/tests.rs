@@ -588,12 +588,21 @@ fn scan(needle: &str) -> std::collections::BTreeMap<String, usize> {
 /// The needle is assembled at runtime so this file's own prose cannot match it,
 /// and the count is asserted rather than merely located: a law that only checks
 /// "is it in the right file" stays green while a second copy lives beside it.
+///
+/// It matches a FIELD write (`.detail_focus =`) rather than the bare name.
+/// Item 114 gave the render projection of this same fact its own field
+/// (`ViewState::overlay_detail_focus`, assigned at the two mirror sites every
+/// `ViewState` field is), and a bare-name needle read those projections as
+/// second writers of the card's bit. Requiring the receiver dot keeps every
+/// shape this law exists to catch — `ov.detail_focus = true` in an exceptional
+/// `Esc` arm is still a failure by name — while a distinct field whose name
+/// merely ENDS in these characters is not one.
 #[test]
 fn the_workspace_focus_stage_is_written_only_by_the_lifecycle() {
-    let writes = scan(&["detail_focus", "="].concat());
+    let writes = scan(&[".detail_focus", "="].concat());
     // Comparisons (`==`) are reads, not writes — subtract them so a reader is
     // never mistaken for a writer.
-    let compares = scan(&["detail_focus", "=="].concat());
+    let compares = scan(&[".detail_focus", "=="].concat());
     let mut owned = 0usize;
     let mut leaked: Vec<(String, usize)> = Vec::new();
     for (file, n) in &writes {

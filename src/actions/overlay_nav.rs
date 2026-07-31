@@ -147,6 +147,9 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     if let Some(effect) = history_intercept(ctx, action) {
         return effect;
     }
+    if let Some(effect) = super::workspace_nav::workspace_intercept(ctx, action) {
+        return effect;
+    }
     if let Some(effect) = navigate_overlay(ctx, action) {
         return effect;
     }
@@ -682,6 +685,11 @@ fn dispatch_settings_row(ctx: &mut ActionCtx, row: crate::settings::SettingRow) 
             }
         }
         crate::settings::SettingKind::Value | crate::settings::SettingKind::Range => {
+            // ITEM 114 — the Cmd-P DEEP LINK; its whole argument is on
+            // `deep_link_settings`.
+            if super::workspace_nav::deep_link_settings(ctx, row) {
+                return Effect::None;
+            }
             let key = crate::settings::value_key(row.id).expect(
                 "Value/Range row always resolves its config key — settings law \
                  value_and_path_keys_track_their_kinds",

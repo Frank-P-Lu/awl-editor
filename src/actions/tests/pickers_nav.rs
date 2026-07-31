@@ -1360,6 +1360,12 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
             let last = overlay.card().unwrap().item_strings().len() - 1;
             assert!(last >= 1, "{k:?}: sweep corpus lists multiple rows");
             let mut accept = None;
+            // ITEM 114 — a WORKSPACE lands on its navigation rail, where the
+            // vertical keys step CATEGORIES. The list-nav arm under test lives in
+            // its content pane, so enter it the way a user does.
+            if k.workspace_shell() {
+                drive(&mut overlay, &mut accept, &Action::InsertTab);
+            }
             // Start in the middle so each jump is a real, observable move.
             drive(&mut overlay, &mut accept, &Action::NextLine);
             drive(&mut overlay, &mut accept, &to_last);
