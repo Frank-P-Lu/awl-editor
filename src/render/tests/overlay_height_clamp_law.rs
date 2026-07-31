@@ -40,6 +40,22 @@
 //! canvas that DPI happens to shrink below `app::lifecycle`'s own enforced
 //! minimum, `MIN_COLS`x`MIN_LINES` — see the module doc below on the swept
 //! bound), and four points across the documented zoom range (0.5..3.0).
+//!
+//! ITEM 184 — the GROUPED family's own arm of this clamp was still
+//! incomplete at the zoom ceiling: a picker cycled onto a sectioned lens
+//! carries extra fixed header overhead (the lens strip + real section
+//! headers) this clamp did not shrink, and at zoom 3.0 on a short canvas that
+//! overhead ALONE — before a single item is counted — could still exceed
+//! `avail_px` (`card_h: 535.4` against `canvas_h: 460`, the command palette
+//! on its File lens, confirmed present on unmodified pre-184 code via `git
+//! stash`; item 181 left it "measurably unchanged"). `fit_item_rows` gained a
+//! `min_items` parameter (its own doc): the FLAT family and the spell popup
+//! keep `min_items: 1` (byte-identical), while the GROUPED family now passes
+//! `min_items: 0` — when its fixed chrome overhead alone cannot fit, the card
+//! answers with an empty candidate band rather than a forced row that
+//! overruns the canvas. A no-op everywhere the floor did not bind, proven —
+//! not merely asserted — by
+//! `already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix`.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -316,26 +332,29 @@ fn no_card_exceeds_its_canvas_for_any_overlay_kind() {
     );
 }
 
-/// THE ZOOM AXIS, against the two largest-corpus representatives: the theme
+/// THE ZOOM AXIS, against the three largest-corpus representatives: the theme
 /// picker (the reported regression, a FLAT card whose per-kind cap is its
-/// whole world roster) and the command palette on its "All" home lens (an
+/// whole world roster), the command palette on its "All" home lens (an
 /// already-clamped GROUPED card, its established sibling, in the state a
-/// grouped picker spends the vast majority of its open time in). The clamp
-/// arithmetic is identical code for every kind — only the corpus and the
-/// per-kind cap differ — so stressing it here across the documented zoom
-/// range (0.5..3.0) at both DPIs, on every logical canvas, covers the axis the
-/// headline law (fixed at zoom 1.0) cannot: the query-beat/row-pitch growth
-/// that only zoom drives.
+/// grouped picker spends the vast majority of its open time in), and — ITEM
+/// 184 — the command palette CYCLED onto a sectioned lens, the shape whose
+/// extra fixed header overhead item 181 left unswept here (`sectioned: true`
+/// below). The clamp arithmetic is identical code for every kind — only the
+/// corpus and the per-kind cap differ — so stressing it here across the
+/// documented zoom range (0.5..3.0) at both DPIs, on every logical canvas,
+/// covers the axis the headline law (fixed at zoom 1.0) cannot: the
+/// query-beat/row-pitch growth that only zoom drives.
 ///
-/// NOT SWEPT HERE: a grouped picker deliberately CYCLED onto a sectioned lens
-/// (`sectioned: true`) carries extra fixed header overhead this item's clamp
-/// does not touch, and at the documented zoom ceiling combined with a short
-/// canvas that overhead alone can still exceed the canvas — a real,
-/// reproducible, PRE-EXISTING gap (present on `main` before this item, in the
-/// grouped family's own already-established clamp, not introduced by it) in
-/// the chrome-overhead sizing itself, not the item-row count this clamp
-/// owns. Out of scope here; flagged in the landing report rather than folded
-/// silently into this law's assertion.
+/// ITEM 184 closed the gap this test used to carve out ("NOT SWEPT HERE"):
+/// at the documented zoom ceiling on a short canvas the sectioned grouped
+/// card's own fixed overhead (query line + lens strip + the section headers
+/// its window carries) can still exceed `avail_px` before a single item is
+/// counted — `fit_item_rows`'s `min_items: 0` floor for the grouped family
+/// (see its doc) means the card answers with an EMPTY candidate band rather
+/// than a forced row that overruns the canvas. `zero_rows_engaged` is the
+/// NON-VACUITY floor for that arm: without it, this test could pass just as
+/// well if the sectioned case never actually reached the pathological
+/// corner.
 #[test]
 fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     let _g = crate::testlock::serial();
@@ -347,25 +366,35 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     };
 
     let mut checked = 0usize;
-    for kind in [OverlayKind::Theme, OverlayKind::Command] {
+    let mut zero_rows_engaged = 0usize;
+    for (kind, sectioned) in [
+        (OverlayKind::Theme, false),
+        (OverlayKind::Command, false),
+        (OverlayKind::Command, true),
+    ] {
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             for (lw, lh) in LOGICAL_CANVASES {
                 let (cw, ch) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
                 p.set_size(cw as f32, ch as f32);
                 for &zoom in &ZOOMS {
-                    let mut v = overlay_view(kind, kind.window_rows() + 25, false);
+                    let mut v = overlay_view(kind, kind.window_rows() + 25, sectioned);
                     v.zoom = zoom;
                     p.set_view(&v);
                     p.prepare(&device, &queue, cw, ch).unwrap();
+                    let geom = p.overlay_geometry(cw);
+                    let plan = p.overlay_row_plan(&geom);
                     let (_t, _l, _s, card_h, canvas_h) = p
                         .overlay_window_report()
                         .expect("an open card must report a window");
                     checked += 1;
+                    if plan.candidate_rows() == 0 {
+                        zero_rows_engaged += 1;
+                    }
                     assert!(
                         card_h <= canvas_h + 0.01,
-                        "{kind:?} dpi={dpi} logical={lw}x{lh} zoom={zoom}: card_h {card_h} \
-                         exceeds canvas_h {canvas_h}"
+                        "{kind:?} sectioned={sectioned} dpi={dpi} logical={lw}x{lh} zoom={zoom}: \
+                         card_h {card_h} exceeds canvas_h {canvas_h}"
                     );
                 }
             }
@@ -373,8 +402,14 @@ fn no_card_exceeds_its_canvas_across_the_documented_zoom_range() {
     }
     p.set_dpi(1.0);
     assert!(
-        checked >= 64,
+        checked >= 96,
         "the zoom sweep graded too few cells: {checked}"
+    );
+    assert!(
+        zero_rows_engaged > 0,
+        "the sectioned grouped arm never actually reached the pathological corner (empty \
+         candidate band) — this law would pass just as well with item 184's `min_items: 0` \
+         floor deleted"
     );
 }
 
@@ -405,4 +440,202 @@ fn the_reported_theme_picker_regression_stays_fixed() {
          this is the item 181 regression itself, reproduced verbatim"
     );
     assert!(sel < lines, "the selected world must stay on screen");
+}
+
+/// THE ITEM 184 REGRESSION, pinned by name and by number: the command palette
+/// cycled onto a sectioned lens, 900x460, zoom 3.0 — used to report `card_h:
+/// 535.4` against `canvas_h: 460` verbatim (measured on the unmodified
+/// pre-184 code; item 181 left this arm "measurably unchanged" by its own
+/// landing note). After item 184's `min_items: 0` floor for the grouped
+/// family, the same view reports `card_h: 372.2`, an EMPTY candidate band
+/// (`plan.candidate_rows() == 0`) rather than the one forced, overrunning row
+/// the old `min_items: 1` floor demanded. This is the smallest possible
+/// non-vacuity witness for this item — reverting the grouped `min_items` to
+/// `1` reproduces the exact reported failure, watched red in the report.
+#[test]
+fn the_900x460_zoom3_sectioned_command_case_now_fits() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping the_900x460_zoom3_sectioned_command_case_now_fits: no wgpu adapter");
+        return;
+    };
+    let mut v = overlay_view(
+        OverlayKind::Command,
+        OverlayKind::Command.window_rows() + 25,
+        true,
+    );
+    v.zoom = 3.0;
+    p.set_size(900.0, 460.0);
+    p.set_view(&v);
+    p.prepare(&device, &queue, 900, 460).unwrap();
+    let geom = p.overlay_geometry(900);
+    let plan = p.overlay_row_plan(&geom);
+    let (_top, lines, sel_row, card_h, canvas_h) = p
+        .overlay_window_report()
+        .expect("the command palette must report a window");
+    assert!(
+        card_h <= canvas_h,
+        "the sectioned command palette's card_h {card_h} exceeds its canvas_h {canvas_h} at \
+         900x460/zoom3.0 — this is the item 184 regression itself, reproduced verbatim"
+    );
+    assert_eq!(
+        lines, 0,
+        "this exact cell's own fixed chrome overhead (query line + strip + the section \
+         header its one surviving item would need) already exceeds `avail_px` before any \
+         item is counted — an empty band is the correct, honest answer here, not a forced \
+         row that overruns the canvas; got {lines} lines"
+    );
+    assert_eq!(
+        plan.candidate_rows(),
+        0,
+        "the planner's own row count must agree with the sidecar's `lines`"
+    );
+    assert_eq!(
+        sel_row, 0,
+        "no row is selectable, so the sidecar reports the default 0"
+    );
+    p.set_dpi(1.0);
+}
+
+/// One byte-identity scenario: a kind, whether it is cycled to a sectioned
+/// lens, its canvas, and its zoom.
+struct Scenario {
+    kind: OverlayKind,
+    sectioned: bool,
+    canvas: (u32, u32),
+    zoom: f32,
+}
+
+/// A GEOMETRY fingerprint of one grouped-family scenario: the card's own
+/// height/x-span, the planned row count, and its sidecar report.
+type Fingerprint = (
+    f32,
+    (f32, f32),
+    usize,
+    Option<(usize, usize, usize, f32, f32)>,
+);
+
+/// Fingerprints `s`. Shared by the byte-identity law below. NOT a pixel
+/// hash: this file's `Cache`/`TextPipeline` ride a process-wide SHARED GPU
+/// device (`test_gpu::shared_device_queue`), and the glyph atlas it packs
+/// into carries real history from whichever OTHER tests happened to run
+/// earlier in the same binary — measured directly (`git stash` before/after,
+/// both in isolation and inside a full `render::tests` run): the geometry
+/// tuple below was IDENTICAL in every combination, while an exact hash of
+/// the rendered pixels moved with the atlas's own packing history alone,
+/// with no change to this item's code. That is exactly why item 181's own
+/// appearance oracle (`no_card_exceeds_its_canvas_for_any_overlay_kind`'s
+/// `ink_ok`) grades a LOCAL relative-luminance delta rather than a global
+/// exact hash — the same precedent applies here.
+fn fingerprint(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    s: &Scenario,
+) -> Fingerprint {
+    let (cw, ch) = s.canvas;
+    let mut v = overlay_view(s.kind, s.kind.window_rows() + 25, s.sectioned);
+    v.zoom = s.zoom;
+    p.set_size(cw as f32, ch as f32);
+    p.set_view(&v);
+    p.prepare(device, queue, cw, ch).unwrap();
+    let geom = p.overlay_geometry(cw);
+    let plan = p.overlay_row_plan(&geom);
+    let report = p.overlay_window_report();
+    // Still renders a real frame — a smoke check that the draw path does not
+    // panic for any of these scenarios, even though the pixels aren't
+    // compared byte-for-byte (see the doc above).
+    let _pixels = shoot(device, queue, p, cw, ch);
+    (geom.card_h, plan.card_x_span(), plan.rows().len(), report)
+}
+
+/// ALREADY-FITTING GROUPED PICKERS STAY BYTE-IDENTICAL (item 184), PROVEN not
+/// asserted: five representative scenarios — the command palette on "All"
+/// and cycled to a sectioned lens, a narrow canvas, a tall canvas at a small
+/// zoom, and a short canvas at zoom 1.0 (all comfortably clear of the
+/// pathological corner the test above pins) — fingerprinted (card geometry,
+/// planned row count, sidecar report) on the UNMODIFIED pre-184 code via
+/// `git stash` (production files only — `overlay.rs`, `overlay_clamp.rs`,
+/// `theme_picker.rs`, `plan/overlay_rows.rs`, `plan/tests.rs` — keeping this
+/// test itself) and pinned here verbatim; re-measured with the fix restored:
+/// identical, both times. `fit_item_rows`'s new `min_items: 0` path for the
+/// grouped family is a no-op wherever the floor does not bind
+/// (`saturating_sub` alone already clears 1 whenever `fit_lines >
+/// overhead_rows`), so every one of these must still match exactly — a
+/// mutation that touched the ordinary (non-floor) arithmetic would move one
+/// of these numbers even though it has nothing to do with the floor this
+/// item changed.
+#[test]
+fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let cases: [(Scenario, Fingerprint); 5] = [
+        (
+            Scenario {
+                kind: OverlayKind::Command,
+                sectioned: false,
+                canvas: (1200, 800),
+                zoom: 1.0,
+            },
+            (467.8, (300.0, 900.0), 12, Some((25, 12, 11, 467.8, 800.0))),
+        ),
+        (
+            Scenario {
+                kind: OverlayKind::Command,
+                sectioned: true,
+                canvas: (1200, 800),
+                zoom: 1.0,
+            },
+            (495.0, (300.0, 900.0), 13, Some((25, 13, 12, 495.0, 800.0))),
+        ),
+        (
+            Scenario {
+                kind: OverlayKind::Goto,
+                sectioned: false,
+                canvas: (700, 800),
+                zoom: 2.0,
+            },
+            (692.0, (10.0, 690.0), 8, Some((29, 8, 7, 692.0, 800.0))),
+        ),
+        (
+            Scenario {
+                kind: OverlayKind::History,
+                sectioned: true,
+                canvas: (1400, 1600),
+                zoom: 0.5,
+            },
+            (
+                261.0,
+                (400.0, 1000.0),
+                13,
+                Some((25, 13, 12, 261.0, 1600.0)),
+            ),
+        ),
+        (
+            Scenario {
+                kind: OverlayKind::Settings,
+                sectioned: true,
+                canvas: (900, 460),
+                zoom: 1.0,
+            },
+            (331.8, (150.0, 750.0), 7, Some((31, 7, 6, 331.8, 460.0))),
+        ),
+    ];
+    for (scenario, expected) in &cases {
+        let got = fingerprint(&device, &queue, &mut p, scenario);
+        assert_eq!(
+            got, *expected,
+            "{:?} sectioned={} {:?} zoom={}: this already-fitting grouped scenario changed \
+             (card_h, card_x_span, plan_len, report) from {expected:?} to {got:?} — item \
+             184's floor fix must be a no-op here",
+            scenario.kind, scenario.sectioned, scenario.canvas, scenario.zoom
+        );
+    }
+    p.set_dpi(1.0);
 }
