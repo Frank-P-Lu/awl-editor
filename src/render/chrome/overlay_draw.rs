@@ -338,7 +338,7 @@ impl TextPipeline {
                 for row in plan.rows() {
                     areas.push(TextArea {
                         buffer: &self.panel_buffer,
-                        left: text_left + self.overlay_slant_dx(row.display),
+                        left: text_left + row.dx,
                         top: text_top,
                         scale: 1.0,
                         bounds: clip(row.top, row.bottom()),

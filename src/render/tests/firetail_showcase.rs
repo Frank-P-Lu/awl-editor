@@ -968,7 +968,11 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
         enter: 0.0,
         band: 0.0,
     }));
-    assert_eq!(p.overlay_slant_dx(3), 0.0, "enter=0 draws the stair flush");
+    assert_eq!(
+        p.overlay_row_dx_step() * 3.0,
+        0.0,
+        "enter=0 draws the stair flush"
+    );
     assert_eq!(
         p.overlay_grow_progress(),
         0.0,
@@ -980,9 +984,9 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
         band: 1.0,
     }));
     assert!(
-        (p.overlay_slant_dx(3) - 30.0).abs() < 0.01,
+        ((p.overlay_row_dx_step() * 3.0) - 30.0).abs() < 0.01,
         "enter=1 draws the full 3-step stair ({})",
-        p.overlay_slant_dx(3)
+        (p.overlay_row_dx_step() * 3.0)
     );
     assert_eq!(
         p.overlay_grow_progress(),
@@ -996,7 +1000,7 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
         enter: 0.2,
         band: 0.2,
     }));
-    let mid = p.overlay_slant_dx(3);
+    let mid = p.overlay_row_dx_step() * 3.0;
     assert!(
         mid > 0.0 && mid < 30.0,
         "a partway phase is between flush and full ({mid})"

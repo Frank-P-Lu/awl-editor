@@ -32,6 +32,7 @@ fn flat(
         selected: 0,
         empty_rows: 0,
         lines: None,
+        dx_per_row: 0.0,
     }
 }
 

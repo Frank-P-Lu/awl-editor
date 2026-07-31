@@ -618,6 +618,7 @@ impl TextPipeline {
             selected: self.overlay_selected,
             empty_rows: geom.empty.is_some() as usize,
             lines: geom.theme.then_some(geom.plan.as_slice()),
+            dx_per_row: self.overlay_row_dx_step(),
         })
     }
 

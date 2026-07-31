@@ -286,10 +286,17 @@ impl TextPipeline {
         crate::ease::out_back(self.overlay_band_t)
     }
 
-    pub(in crate::render) fn overlay_slant_dx(&self, row: usize) -> f32 {
+    /// THE ROW COMPOSITION'S HORIZONTAL STEP this frame, in canvas px — how much
+    /// further in from the content band's left edge each successive display row
+    /// sits. `0.0` for every shipping world. Fed to the row planner, which is
+    /// where a row's own `dx` is derived and the ONLY place any consumer may read
+    /// it from: an emitter that multiplied this by a row index itself would be a
+    /// second row-x arithmetic, and the hit-test would have no way to agree with
+    /// it (see `PlannedRow::dx`).
+    pub(in crate::render) fn overlay_row_dx_step(&self) -> f32 {
         match crate::render::overlay_slant() {
             None => 0.0,
-            Some(s) => crate::render::slant_offset(&s, row) * self.overlay_slant_progress(),
+            Some(s) => crate::render::slant_offset(&s, 1) * self.overlay_slant_progress(),
         }
     }
 
