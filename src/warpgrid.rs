@@ -173,6 +173,13 @@ fn parse_pose(raw: &str) -> Option<f32> {
     }
 }
 
+/// One of the knob's own NAMED poses, resolved to a route phase — so a law
+/// sweeping "every route pose" sweeps the same vocabulary `AWL_WARP_POSE`
+/// offers, rather than inventing a second list that could drift from it.
+pub fn named_pose(name: &str) -> Option<f32> {
+    parse_pose(name)
+}
+
 /// `AWL_WARP_POSE`'s parsed value, or `None` (every normal + headless run).
 pub fn env_phase() -> Option<f32> {
     static ONCE: OnceLock<Option<f32>> = OnceLock::new();

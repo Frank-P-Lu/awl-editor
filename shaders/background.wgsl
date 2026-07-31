@@ -1065,10 +1065,16 @@ const WARP_MAJOR_HALF_PX: f32 = 1.00;
 // The antialias skirt — SAMPLING, in physical px, so a better display resolves
 // the same line more finely.
 const WARP_AA_PX: f32 = 1.0;
-// The minor lattice fades out BELOW this projected spacing, in PHYSICAL pixels,
-// so a converging grid can never reach the sub-pixel regime where a Retina or
-// WebGL2 rasteriser turns it into moire. It is also what quietly dissolves the
+// The lattice fades out BELOW this projected spacing, in LOGICAL pixels, so a
+// converging grid can never reach the regime where a Retina or WebGL2
+// rasteriser turns it into moire. It is also what quietly dissolves the
 // silhouette seam where a hard bend folds the far wall behind the near one.
+// LOGICAL, although its motivation is a sampling one: this bound decides HOW
+// DEEP the tunnel is drawn, so in physical pixels the display would choose how
+// much of the world the reader sees — item 186 already settled that tension the
+// same way for `FINDS_MIN_SCALE_PX` and `DECKLE_MIN_PITCH_PX`. It is also the
+// conservative reading: at 2x these logical pixels carry twice the device
+// samples, so the moire it exists to prevent is further away, not nearer.
 const WARP_ALIAS_FADE_LO_PX: f32 = 4.5;
 const WARP_ALIAS_FADE_HI_PX: f32 = 9.0;
 // Quiet beside the page: no mark reaches the page edge, so nothing competes
@@ -1108,12 +1114,20 @@ const WARP_POLISH_STEPS: i32 = 2;
 
 // Anti-aliased distance to the nearest integer level set of `coord`, in units of
 // its own screen-space gradient — so one expression draws a line of constant
-// width at every projected spacing, near and far. `half_px` is COMPOSITION
-// (logical); the skirt is SAMPLING and converts back through its one owner.
+// width at every projected spacing, near and far.
+//
+// ITEM 186, THE ONE PLACE THIS FILE MEASURES IN DEVICE PIXELS ON PURPOSE:
+// `fwidth` differentiates against the RASTERISER's grid whatever space its
+// argument was computed in, so `d` here is PHYSICAL however logical the
+// coordinate is. The two quantities meet it from their own sides — the drawn
+// WEIGHT is composition and converts UP into that space, the AA skirt is
+// sampling and is already in it — which is what keeps a 2x display drawing the
+// same line, more finely, rather than a line half as wide.
 fn warp_line(coord: f32, half_px: f32) -> f32 {
     let fw = max(fwidth(coord), 0.0001);
-    let d_px = abs(fract(coord + 0.5) - 0.5) / fw;
-    return 1.0 - smoothstep(half_px, half_px + sampling_feather(WARP_AA_PX), d_px);
+    let d = abs(fract(coord + 0.5) - 0.5) / fw;
+    let half_phys = half_px * dpr();
+    return 1.0 - smoothstep(half_phys, half_phys + WARP_AA_PX, d);
 }
 
 // Every fifth line is the strong one: classify the NEAREST integer level set,
@@ -1211,14 +1225,11 @@ fn warped_grid_rgb(p: vec2<f32>) -> vec3<f32> {
         WARP_EDGE_QUIET_PX + min(WARP_EDGE_FADE_MAX_PX, span * 0.5),
         edge_d,
     );
-    // The projected spacing of whichever lattice is finer here, in logical px,
-    // held against a PHYSICAL sampling bound.
-    let finest_px = 1.0 / max(max(fwidth(ring), fwidth(rail)), 0.0001);
-    let alias_fade = smoothstep(
-        sampling_feather(WARP_ALIAS_FADE_LO_PX),
-        sampling_feather(WARP_ALIAS_FADE_HI_PX),
-        finest_px,
-    );
+    // The projected spacing of whichever lattice is finer here. `fwidth` is a
+    // device-grid derivative (see `warp_line`), so the reciprocal is physical and
+    // is divided back into the LOGICAL space the bound is authored in.
+    let finest_px = 1.0 / (max(max(fwidth(ring), fwidth(rail)), 0.0001) * dpr());
+    let alias_fade = smoothstep(WARP_ALIAS_FADE_LO_PX, WARP_ALIAS_FADE_HI_PX, finest_px);
     let narrow_fade = smoothstep(WARP_NARROW_LO_PX, WARP_NARROW_HI_PX, span);
 
     let minor_cov = clamp(minor * alias_fade * narrow_fade * edge_fade * density * 0.60, 0.0, 1.0);

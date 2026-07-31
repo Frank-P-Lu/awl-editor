@@ -27,15 +27,15 @@ use crate::warpgrid;
 /// The canonical wide-Retina-ish scan surface: a real 1600x1000 gallery canvas
 /// with the app's own adaptive column at measure 66 (the geometry
 /// `scripts/capture-worlds.sh` shoots every world at).
-const W: u32 = 1600;
-const H: u32 = 1000;
-const COL_LEFT: f32 = 324.0;
-const COL_W: f32 = 950.0;
+pub(super) const W: u32 = 1600;
+pub(super) const H: u32 = 1000;
+pub(super) const COL_LEFT: f32 = 324.0;
+pub(super) const COL_W: f32 = 950.0;
 
 /// Total-channel deviation below this is 8-bit quantization, not a mark.
-const INK_FLOOR: i32 = 3;
+pub(super) const INK_FLOOR: i32 = 3;
 
-fn kite() -> theme::Background {
+pub(super) fn kite() -> theme::Background {
     theme::KITE.background
 }
 
@@ -62,7 +62,7 @@ fn with_density(bg: theme::Background, density: f32) -> theme::Background {
     }
 }
 
-fn with_tunnel(bg: theme::Background, tunnel: theme::Tunnel) -> theme::Background {
+pub(super) fn with_tunnel(bg: theme::Background, tunnel: theme::Tunnel) -> theme::Background {
     match bg {
         theme::Background::WarpedGrid {
             ground,
@@ -170,7 +170,7 @@ fn render_pose(
 /// as authored and the same ground with its coverage zeroed. Isolates the grid
 /// from the flat ground exactly, with no host colour mirror.
 #[allow(clippy::too_many_arguments)]
-fn field(
+pub(super) fn field(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     bg: theme::Background,

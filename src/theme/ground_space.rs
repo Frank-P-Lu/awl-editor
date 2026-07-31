@@ -481,18 +481,23 @@ const WARPED_GRID: &[GroundQuantity] = &[
     ),
     physical(
         "WARP_AA_PX (the 1.0px line skirt)",
-        "the skirt that resolves a line's edge on the sample grid. A 2x display \
-         must draw the SAME hairline more crisply, not a fatter blur — the \
-         canonical sampling class, converted back through `sampling_feather`",
+        "the skirt that resolves a line's edge on the sample grid, and this \
+         ground's ONLY sampling quantity. A 2x display must draw the SAME \
+         hairline more crisply, not a fatter blur. It is the one number here \
+         already in the device space `fwidth` measures in, so unlike the drawn \
+         line WEIGHT beside it, it needs no conversion at all",
     ),
-    physical(
-        "WARP_ALIAS_FADE_LO_PX / WARP_ALIAS_FADE_HI_PX (the 3.2..5.6px moire \
+    logical(
+        "WARP_ALIAS_FADE_LO_PX / WARP_ALIAS_FADE_HI_PX (the 4.5..9.0px moire \
          bound)",
-        "the whole point of the bound is the DEVICE's sample grid: a converging \
-         lattice aliases when its projected pitch approaches a device pixel, and \
-         a 2x display genuinely resolves a finer pitch safely. In logical px the \
-         bound would retire the lattice on a Retina display a full octave of \
-         depth earlier than it needs to",
+        "its MOTIVATION is a sampling one — a converging lattice aliases when its \
+         projected pitch approaches a device pixel — but what it DECIDES is how \
+         deep the tunnel is drawn, i.e. how many cross-rings the composition \
+         holds. In physical px the display would choose that, which is exactly \
+         the tension item 186 settled the same way for FINDS_MIN_SCALE_PX and \
+         DECKLE_MIN_PITCH_PX. Logical is also the conservative reading: at 2x \
+         these logical pixels carry twice the device samples, so the moire the \
+         bound exists to prevent is further away, not nearer",
     ),
 ];
 
