@@ -75,8 +75,8 @@ lines = 500
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 534
-reason = "item 114: +1 line — the `overlay_workspace` projection at the one exhaustive `ViewState` construction site."
+lines = 544
+reason = "item 114: +1 line — the `overlay_workspace` projection at the one exhaustive `ViewState` construction site. Item 116a: +10 lines net — the `overlay_rows_primary` projection (`WorkspaceShape::rows_are_primary`) at the same one exhaustive construction site, which must fail to compile on a new field by design."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -249,8 +249,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2450
-reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in."
+lines = 2454
+reason = "item 114: +17 lines. The pipeline's `ViewState` mirror gained the workspace flag, the measured rail width, the rail buffer and the rail's placement/mark — the one declaration block every `set_view` field lives in. Item 116a: +4 lines — the `overlay_rows_primary` mirror field, at the same one declaration block."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -278,8 +278,8 @@ lines = 612
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1106
-reason = "item 114: +23 lines. `OverlayGeom` gained the five workspace fields; its band/probe accessors moved to `chrome/workspace.rs`. The struct is the one resolved-geometry record every chrome consumer reads, so the fields cannot live elsewhere."
+lines = 1108
+reason = "item 114: +23 lines. `OverlayGeom` gained the five workspace fields; its band/probe accessors moved to `chrome/workspace.rs`. The struct is the one resolved-geometry record every chrome consumer reads, so the fields cannot live elsewhere. Item 116a: +2 lines — the `rail` field's doc gained one clause naming the new `rows_are_primary` case where it is also `None`, at the one struct definition every chrome consumer reads."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -335,13 +335,13 @@ lines = 579
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 562
-reason = "item 114: +8 lines at the ONE `TextPipeline` initializer — the rail's glyph buffer and its four mirror fields."
+lines = 563
+reason = "item 114: +8 lines at the ONE `TextPipeline` initializer — the rail's glyph buffer and its four mirror fields. Item 116a: +1 line — the `overlay_rows_primary` field's default, at the same one initializer."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 603
-reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirror, plus the rail-width measurement that must happen in the same `&mut FontSystem` window item 51's content-hug measurement already uses."
+lines = 604
+reason = "item 114: +11 lines in `set_view`, the one `ViewState`->pipeline mirror, plus the rail-width measurement that must happen in the same `&mut FontSystem` window item 51's content-hug measurement already uses. Item 116a: +1 line — the `overlay_rows_primary` mirror, at the same one `set_view`."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -461,8 +461,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (241/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46). Item 114 added the `overlay_workspace` projection to the one exhaustive construction site (+1)."
+message = "this function has too many lines (245/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46). Item 114 added the `overlay_workspace` projection to the one exhaustive construction site (+1). Item 116a added the `overlay_rows_primary` projection to the same site (+4 counted lines)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -762,8 +762,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (496/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6)."
+message = "this function has too many lines (497/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6). Item 116a added the `overlay_rows_primary` field's default (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

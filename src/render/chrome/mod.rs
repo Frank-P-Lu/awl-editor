@@ -215,8 +215,10 @@ pub(super) struct OverlayGeom {
     /// contextual card, which keeps every arm reading it byte-identical there.
     /// The family's own doc is `render/chrome/workspace.rs`.
     pub(super) workspace: bool,
-    /// The navigation RAIL's COLUMN (`[x, w]`), or `None` when none is drawn.
-    /// Only the column: its vertical grid comes from the ROW PLAN's band origin
+    /// The navigation RAIL's COLUMN (`[x, w]`), or `None` when no LABEL rail is
+    /// drawn — off a workspace, on the narrow detail stage, or (item 116a) on
+    /// a shape whose primary column carries rows instead of labels. Only the
+    /// column: its vertical grid comes from the ROW PLAN's band origin
     /// (`workspace_rail_box`), so a rail entry and the row beside it share a line.
     pub(super) rail: Option<[f32; 2]>,
     /// The CONTENT BAND's horizontal extent — read through `band_x`/`band_w`,

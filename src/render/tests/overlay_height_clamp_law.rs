@@ -85,7 +85,7 @@ fn family(kind: OverlayKind) -> Family {
     // its end, so a kind that facets AND is a workspace is presented as the
     // latter. Classifying it as Grouped here would have this law measuring a
     // card production no longer draws.
-    if kind.workspace_shell() {
+    if kind.workspace_shape().is_some() {
         return Family::Workspace;
     }
     if crate::facets::scheme(kind).is_some() {

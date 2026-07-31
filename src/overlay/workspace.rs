@@ -13,14 +13,31 @@
 //! RELOCATES attention for sustained work: it takes the viewport, leaves the
 //! document as a quiet backdrop, and returns to the exact editor state on exit.
 //!
-//! [`OverlayKind::workspace_shell`] is the one owner of which side of that line
-//! a kind falls on. It is deliberately NOT the same predicate as
-//! [`OverlayKind::sustained`]: `sustained` says a kind has workspace LIFECYCLE
-//! (a place you stay in, with a detail stage and a Back), and both Settings and
-//! Version History have had that since item 173. `workspace_shell` says a kind
-//! is PRESENTED as a relocated workspace, which today is Settings alone —
-//! History's own migration is item 116, and giving it the shell here would land
-//! that item's presentation without its content.
+//! [`OverlayKind::workspace_shape`] is the one owner of which side of that line
+//! a kind falls on, and — for a kind that IS a workspace — which of the two
+//! shapes DESIGN.md §5 sanctions it draws as. It is deliberately NOT the same
+//! predicate as [`OverlayKind::sustained`]: `sustained` says a kind has
+//! workspace LIFECYCLE (a place you stay in, with a detail stage and a Back),
+//! and both Settings and Version History have had that since item 173.
+//! `workspace_shape` says a kind is PRESENTED as a relocated workspace and
+//! which shape, which today is `RailOverRows` for Settings alone — History's
+//! own migration is item 116, and giving it a shape here before its content
+//! exists would land that item's presentation without its content (item 116's
+//! own decomposition record, `.orchestrator/queue.md`, names this trap).
+//!
+//! # One shape is not enough (item 116's decomposition)
+//!
+//! Item 114 gave the workspace exactly one shape: a rail of category LABELS
+//! beside a pane of ROWS (`RailOverRows`) — the only shape Settings needs.
+//! Version History needs the opposite arrangement: a narrow TIMELINE whose
+//! rows ARE the primary list, beside a large read-only comparison. Flipping a
+//! bare bool would put History's rows in the wide pane and leave the rail
+//! showing nothing — the wrong composition, not merely an incomplete one. Both
+//! shapes are named in [`WorkspaceShape`], and [`WorkspaceShape::rows_are_primary`]
+//! is the one fact every consumer — geometry, keyboard handling, the footer
+//! hint — reduces to, rather than each re-deriving which region is a workspace's
+//! row list. Its match over the two variants is the only one anywhere in the
+//! crate (a grep-law enforces this); every other reader calls the method.
 //!
 //! # The two regions
 //!
@@ -55,22 +72,66 @@ use super::{HintAction, OverlayKind, OverlayState};
 /// workspace's primary list advertises a vertical step as its headline key.
 const ARROWS_UD: &str = "\u{2191}/\u{2193}";
 
+/// Which of a summoned workspace's two coordinated regions is its PRIMARY
+/// list — DESIGN.md §5's "categories beside controls, or a timeline beside a
+/// comparison" — named rather than left as a bool because the two shapes
+/// place the SAME kind of content (a workspace's own row list) on opposite
+/// sides.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum WorkspaceShape {
+    /// Settings, today: the primary (narrow) column is a rail of category
+    /// LABELS; the workspace's own rows live in the wide content pane.
+    RailOverRows,
+    /// Version History's future shape (item 116d): the primary (narrow)
+    /// column IS the workspace's row list — a timeline — and the wide region
+    /// is a comparison this module does not draw into (item 116b).
+    ///
+    /// Deliberately unconstructed until item 116d: no `OverlayKind` produces
+    /// it yet (`History` still returns `None` from `workspace_shape`), which
+    /// is item 116a's own acceptance criterion, not an oversight — `allow`
+    /// says so rather than a real-looking dead branch masking the same fact.
+    #[allow(dead_code)]
+    TimelineOverComparison,
+}
+
+impl WorkspaceShape {
+    /// THE single fact geometry, keyboard handling and the footer hint all
+    /// reduce to, rather than each re-deriving which region holds a
+    /// workspace's own rows: `true` when the PRIMARY (narrow) column carries
+    /// them, `false` when they live in the content pane instead and the
+    /// primary column carries labels.
+    ///
+    /// This is the only match over [`WorkspaceShape`]'s variants anywhere in
+    /// the crate — a grep-law (`render::tests::workspace_shape_item116a`)
+    /// keeps it that way, so a third shape cannot silently carry a different
+    /// answer in two places.
+    pub(crate) fn rows_are_primary(self) -> bool {
+        match self {
+            WorkspaceShape::RailOverRows => false,
+            WorkspaceShape::TimelineOverComparison => true,
+        }
+    }
+}
+
 impl OverlayKind {
     /// Is this kind PRESENTED as a summoned workspace — relocating attention to
-    /// the viewport with a navigation rail beside its content — rather than as a
-    /// contextual card floating over a still-readable document?
+    /// the viewport with two coordinated regions — rather than as a contextual
+    /// card floating over a still-readable document? `Some` names which
+    /// [`WorkspaceShape`] it draws as; `None` keeps the kind on its existing
+    /// contextual-card or grouped-card presentation.
     ///
     /// Wildcard-free: a new picker kind must decide which surface grammar it
     /// belongs to before it compiles. See the module doc for why this is a
     /// different question from [`OverlayKind::sustained`].
-    pub fn workspace_shell(self) -> bool {
+    pub fn workspace_shape(self) -> Option<WorkspaceShape> {
         match self {
-            OverlayKind::Settings => true,
-            // Item 116 moves Version History onto this shell together with its
-            // timeline/comparison content. It keeps its card presentation until
-            // then, because a shell without the content it was designed for is
-            // exactly the empty workspace item 114 forbids.
-            OverlayKind::History => false,
+            OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
+            // Item 116 moves Version History onto `TimelineOverComparison`
+            // together with its timeline/comparison content. It keeps its
+            // card presentation until then (item 116d), because a shape with
+            // no content behind it is exactly the empty workspace item 114
+            // forbids.
+            OverlayKind::History => None,
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::Browse
@@ -86,7 +147,7 @@ impl OverlayKind {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => false,
+            | OverlayKind::KeepName => None,
         }
     }
 
@@ -101,7 +162,7 @@ impl OverlayKind {
     /// not drawn as a workspace still has to say what its rail would advertise,
     /// which is nothing, and it can never be reached because
     /// [`crate::overlay::OverlayState::foot_hint`] gates on
-    /// [`Self::workspace_shell`].
+    /// [`Self::workspace_shape`].
     pub fn rail_hint_actions(self) -> Vec<HintAction> {
         let enter = |label| HintAction {
             glyph: "\u{21B5}",
@@ -136,9 +197,9 @@ impl OverlayKind {
 }
 
 impl OverlayState {
-    /// Is this card drawn as a summoned workspace?
-    pub fn workspace_shell(&self) -> bool {
-        self.kind.workspace_shell()
+    /// Which [`WorkspaceShape`] this card draws as, or `None` off a workspace.
+    pub fn workspace_shape(&self) -> Option<WorkspaceShape> {
+        self.kind.workspace_shape()
     }
 
     /// Move the workspace's RAIL selection by `delta` categories. The one door

@@ -28,7 +28,7 @@ mod journey;
 mod kind;
 mod nav;
 mod state;
-mod workspace;
+pub(crate) mod workspace;
 
 pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};

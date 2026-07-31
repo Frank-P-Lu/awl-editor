@@ -205,7 +205,17 @@ impl App {
             overlay_window_rows: ov.map(|o| o.window_rows()).unwrap_or(12),
             overlay_hint: ov.map(|o| o.foot_hint()).unwrap_or_default(),
             overlay_lens: ov.map(|o| o.lens_strip()).unwrap_or_default(),
-            overlay_workspace: ov.map(|o| o.workspace_shell()).unwrap_or(false),
+            overlay_workspace: ov.is_some_and(|o| o.workspace_shape().is_some()),
+            // ITEM 116a — the one fact geometry, keyboard handling and the
+            // footer hint reduce to: does this workspace's PRIMARY column
+            // carry its own rows (a future timeline), rather than category
+            // labels? `false` off a workspace and for `RailOverRows`
+            // (Settings, today) — `true` is unreached until item 116d routes
+            // `TimelineOverComparison` to a real kind.
+            overlay_rows_primary: ov.is_some_and(|o| {
+                o.workspace_shape()
+                    .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)
+            }),
             overlay_sections: ov.map(|o| o.item_sections()).unwrap_or_default(),
             caret_preview: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)

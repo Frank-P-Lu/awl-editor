@@ -79,7 +79,10 @@ fn workspace_view(ov: &OverlayState) -> ViewState {
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();
     v.overlay_lens = ov.lens_strip();
-    v.overlay_workspace = ov.workspace_shell();
+    v.overlay_workspace = ov.workspace_shape().is_some();
+    v.overlay_rows_primary = ov
+        .workspace_shape()
+        .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary);
     v.overlay_detail_focus = ov.detail_focus;
     v.overlay_sections = ov.item_sections();
     v.overlay_hint = ov.foot_hint();
