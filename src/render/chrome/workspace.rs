@@ -179,7 +179,6 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &marks);
         self.overlay_facet_ghost
             .prepare(device, queue, width, height, &[]);
-        return;
     }
 
     /// The workspace inset for the current window — a pure function of the
