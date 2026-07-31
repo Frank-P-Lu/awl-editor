@@ -635,7 +635,7 @@ impl TextPipeline {
         let x0 = self.column_left();
         let x1 = x0 + self.column_width();
         let (y0, y1) = self
-            .doc_clip_band(self.window_h)
+            .doc_clip_band()
             .unwrap_or((f32::NEG_INFINITY, f32::INFINITY));
         (x0, y0, x1, y1)
     }
@@ -701,7 +701,7 @@ impl TextPipeline {
     /// for one consistent "decorative content, Y-clipped only" story rather
     /// than mixing the two owners without a reason.
     fn clip_decorative_rects_to_band(&self, mut rects: Vec<[f32; 4]>) -> Vec<[f32; 4]> {
-        let Some((top, bottom)) = self.doc_clip_band(self.window_h) else {
+        let Some((top, bottom)) = self.doc_clip_band() else {
             return rects;
         };
         rects.retain_mut(|r| {
@@ -719,7 +719,7 @@ impl TextPipeline {
     }
 
     fn band_admits(&self, y: f32, h: f32) -> bool {
-        match self.doc_clip_band(self.window_h) {
+        match self.doc_clip_band() {
             Some((top, bottom)) => y >= top && y + h <= bottom,
             None => true,
         }

@@ -23,13 +23,17 @@
 //!     margin orientation surfaces and its draggable edges, which never do.
 //!
 //! [`TextPipeline::page_column_left`] / [`TextPipeline::page_column_width`] are
-//! that second idea, `pub(super)`-scoped to `render::geometry`'s own module tree
-//! and read by exactly one public seam, `TextPipeline::page_geometry`. Every
-//! other consumer stays on `column_left`/`column_width` and follows the
-//! document. A margin-orientation surface that must NOT follow is GATED off
-//! instead of re-pointed (see `margin_orientation_yields`), because a surface
-//! that answers "where am I in the document?" has nothing true to say while the
-//! document on screen is a comparison of two other versions.
+//! that second idea. They stay crate-render-private and their call sites are
+//! ENUMERATED by
+//! `render::tests::comparison_viewport_item116b::the_unrelocated_page_column_has_exactly_the_named_consumers`
+//! — the two definitions, the one public seam `TextPipeline::page_geometry`,
+//! and the page-resize hit-test, which reads the canvas edges in order to
+//! decide it must not arm. Every other consumer stays on
+//! `column_left`/`column_width` and follows the document. A margin-orientation
+//! surface that must NOT follow is GATED off instead of re-pointed (see
+//! `margin_orientation_yields`), because a surface that answers "where am I in
+//! the document?" has nothing true to say while the document on screen is a
+//! comparison of two other versions.
 //!
 //! # Two regions, one arithmetic
 //!
@@ -40,8 +44,8 @@
 //! `column_left()` can afford to ask it on every call the way it already affords
 //! `adaptive_column_left`.
 
-use super::*;
 use super::workspace::{RAIL_GAP_CHARS, WORKSPACE_PAD};
+use super::*;
 
 /// The workspace's boxes for one frame: the card it fills, the PRIMARY (narrow)
 /// column, the CONTENT pane beside it, and which of them this width draws.

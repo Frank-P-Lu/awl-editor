@@ -831,7 +831,36 @@ impl TextPipeline {
         page_column_advance(self.metrics.char_width, self.metrics.zoom)
     }
 
+    /// The WRITING COLUMN's width (px) — the ONE owner every document consumer
+    /// reads, [`Self::comparison_viewport`]'s override folded in (item 116b).
     pub fn column_width(&self) -> f32 {
+        match self.comparison_viewport() {
+            Some([_, _, w, _]) => w,
+            None => self.page_column_width(),
+        }
+    }
+
+    /// PAGE MODE: the LEFT edge (px) of the writing column — the ONE owner every
+    /// downstream reader (caret/selection/washes, hit-test, the page-edge drag
+    /// handle, the corner readouts, the margin outline + gutter) goes through, so
+    /// the ADAPTIVE-COLUMN placement policy ([`adaptive_column_left`]) and the
+    /// RELOCATED document viewport ([`Self::comparison_viewport`], item 116b)
+    /// both compose for free everywhere without a parallel geometry to keep in
+    /// sync.
+    pub fn column_left(&self) -> f32 {
+        match self.comparison_viewport() {
+            Some([x, _, _, _]) => x,
+            None => self.page_column_left(),
+        }
+    }
+
+    /// THE PAGE's own column on the CANVAS, never relocated — the module-private
+    /// bypass item 116b's one owner leaves for the two consumers that genuinely
+    /// mean the backdrop rather than the document: [`Self::page_geometry`] (the
+    /// ground punch, the star margin band, the frost seed key) and the sidecar's
+    /// `page` block through it. Everything else stays on [`Self::column_width`]
+    /// and follows the document.
+    pub(in crate::render) fn page_column_width(&self) -> f32 {
         column_width_for(
             self.window_w,
             self.page_advance(),
@@ -840,16 +869,12 @@ impl TextPipeline {
         )
     }
 
-    /// PAGE MODE: the LEFT edge (px) of the writing column — the ONE owner every
-    /// downstream reader (caret/selection/washes, hit-test, the page-edge drag
-    /// handle, the corner readouts, the margin outline + gutter) goes through, so
-    /// the ADAPTIVE-COLUMN placement policy ([`adaptive_column_left`]) composes
-    /// for free everywhere without a parallel geometry to keep in sync. WIDE: a
+    /// The canvas-side twin of [`Self::page_column_width`]. WIDE: a
     /// byte-identical passthrough to [`column_left_for`]. NARROW + the margin
     /// outline wanting its rail ([`Self::outline_wants_rail`]): shifts right per
     /// [`adaptive_column_left`]'s pressure test. Zoom-independent (driven by
     /// [`Self::page_advance`]).
-    pub fn column_left(&self) -> f32 {
+    pub(in crate::render) fn page_column_left(&self) -> f32 {
         let label = crate::markdown::type_scale::LABEL;
         let char_width = self.page_advance();
         adaptive_column_left(
@@ -886,11 +911,20 @@ impl TextPipeline {
         self.page_resize_edge_at(pointer_x).is_some()
     }
 
+    /// ITEM 116b — a DRAGGABLE page edge is margin orientation in the direct-
+    /// manipulation register: it asks "how wide is my page?" of a document the
+    /// user is writing. While the document layer is relocated into a read-only
+    /// comparison ([`Self::margin_orientation_yields`]) there is no such page on
+    /// screen, so the affordance yields with the rest of the margin family
+    /// rather than arming a measure drag against the comparison pane's edge.
     pub fn page_resize_edge_at(&self, pointer_x: f32) -> Option<ResizeEdge> {
+        if self.margin_orientation_yields() {
+            return None;
+        }
         page_resize_edge_hit(
             crate::page::page_on(),
-            self.column_left(),
-            self.column_width(),
+            self.page_column_left(),
+            self.page_column_width(),
             pointer_x,
             PAGE_RESIZE_GRAB_PX,
         )
@@ -931,12 +965,17 @@ impl TextPipeline {
         )
     }
 
+    /// THE PAGE ON THE CANVAS — page state, measure, and the page column's own
+    /// unrelocated left/width. Read by the ground punch, the star margin band,
+    /// the frost seed key and the sidecar's `page` block: all of them describe
+    /// the BACKDROP, which item 116b's relocated document viewport deliberately
+    /// does not move. (The document's own column is [`Self::column_left`].)
     pub fn page_geometry(&self) -> (bool, usize, f32, f32) {
         (
             crate::page::page_on(),
             crate::page::measure(),
-            self.column_left(),
-            self.column_width(),
+            self.page_column_left(),
+            self.page_column_width(),
         )
     }
 
@@ -986,8 +1025,18 @@ impl TextPipeline {
         }
     }
 
+    /// The canvas y of the document's own first row at scroll 0, less the
+    /// rendered scroll offset — the ONE vertical origin every row, caret,
+    /// ornament and wash composes off. ITEM 116b: the relocated comparison
+    /// viewport supplies its own top, so the transcript begins inside the
+    /// content pane instead of at the canvas's `TEXT_TOP`; scrolling still
+    /// subtracts identically, so the whole document layer moves as one.
     pub(super) fn doc_top(&self) -> f32 {
-        TEXT_TOP + self.menubar_reserve() - self.rendered_scroll_top_px(self.scroll)
+        let top = match self.comparison_viewport() {
+            Some([_, y, _, _]) => y,
+            None => TEXT_TOP + self.menubar_reserve(),
+        };
+        top - self.rendered_scroll_top_px(self.scroll)
     }
 
     pub(super) fn row_top_px(&self, row: usize) -> f32 {

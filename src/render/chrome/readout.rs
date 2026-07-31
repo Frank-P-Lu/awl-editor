@@ -229,6 +229,33 @@ impl TextPipeline {
     /// parks it off-screen (markdown gate / empty doc), so a non-markdown buffer draws
     /// nothing and stays byte-identical.
     ///
+    /// WHAT THE BOTTOM-RIGHT "how much?" READOUT SAYS THIS FRAME — one owner,
+    /// so the draw path and the item-116b margin-orientation law read the same
+    /// sentence. Empty parks the label off-screen.
+    ///
+    /// ITEM 116b: word count and reading time describe the user's OWN document.
+    /// While the document layer is relocated into a read-only comparison
+    /// ([`TextPipeline::margin_orientation_yields`]) that number would be about
+    /// a transcript nobody is writing, so it yields with the rest of the margin
+    /// family and returns the moment the workspace closes.
+    pub(in crate::render) fn wordcount_readout_text(&self) -> String {
+        match self.margin_orientation_yields() {
+            true => String::new(),
+            false => self.wordcount_text(),
+        }
+    }
+
+    /// WHAT THE CALM NOTICE SAYS THIS FRAME — the [`Self::wordcount_readout_text`]
+    /// twin. The notice is seated on the writing column's own bottom centre, so
+    /// it travels with the document layer; read against a relocated comparison
+    /// it would look like a message ABOUT that comparison.
+    pub(in crate::render) fn notice_readout_text(&self) -> String {
+        match self.margin_orientation_yields() {
+            true => String::new(),
+            false => self.notice.clone(),
+        }
+    }
+
     /// RETAINED (unused) for phase 2: the persistent readout was removed from the
     /// chrome layer (it moves into the held HUD); this shaper stays for that reuse.
     #[allow(dead_code)]
@@ -239,7 +266,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let text = self.wordcount_text();
+        let text = self.wordcount_readout_text();
         let (gm, col_left, col_width) = (
             self.metrics.glyph_metrics(),
             self.column_left(),
@@ -285,7 +312,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        let text = self.notice.clone();
+        let text = self.notice_readout_text();
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
         let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);

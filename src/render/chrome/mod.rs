@@ -15,9 +15,6 @@ const PREFIX_HEADER: &str = "C-x";
 
 pub(in crate::render) const MARGIN_COLUMN_GAP_CHARS: f32 = 1.5;
 
-const DIFF_PANEL_TOP: f32 = 8.0;
-const DIFF_PANEL_BOTTOM: f32 = 14.0;
-
 #[derive(Clone, Copy)]
 pub(in crate::render) struct CardHalftone {
     pub density: f32,
@@ -414,81 +411,21 @@ impl TextPipeline {
         );
     }
 
-    pub(super) fn prepare_diff_panel(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-    ) {
-        let rect = self.diff_panel_rect(height as f32);
-        set_float_quads(
-            &mut self.diffpanel_shadow,
-            &mut self.diffpanel_border,
-            &mut self.diffpanel_card,
-            device,
-            queue,
-            width,
-            height,
-            rect,
-            FloatElevation::Rimmed, // shadow parked; rim + card carry the depth
-            0.0, // item 70: the diff panel is a document preview, never a Quokka card
-            None,
-        );
-        // FOCUS CUE — refine the rim `set_float_quads` just drew: the panel's own
-        // value by default, stepped up to content ink AND widened 1→2px when Tab
-        // moved focus in. The color is baked per-instance at `prepare` time, so
-        // `set_color` needs the following `prepare` (which also re-tints the rim
-        // the shared owner drew with the pipeline's stale color). The rect sits a
-        // touch larger than the card and draws BEHIND it (painter's order in
-        // `render.rs`: shadow → border → card), so only the rim peeks out.
-        if let Some([x, y, w, h]) = rect {
-            let focused = self.overlay_detail_focus;
-            self.diffpanel_border.set_color(if focused {
-                theme::base_content().rgba_bytes()
-            } else {
-                theme::surface_selected().rgba_bytes()
-            });
-            let pad = if focused { 2.0 } else { 1.0 };
-            self.diffpanel_border.prepare(
-                device,
-                queue,
-                width,
-                height,
-                &[[x - pad, y - pad, w + 2.0 * pad, h + 2.0 * pad]],
-            );
-        }
-    }
-
-    /// The diff panel's card RECT (`[x, y, w, h]`), or `None` when no diff
-    /// preview is up — the ONE geometry owner [`Self::prepare_diff_panel`] (the
-    /// dressing) and [`Self::doc_clip_band`] (the content clip) both read, so the
-    /// border and the clipped content can never disagree. Horizontally it IS the
-    /// page column (`column_left`/`column_width` — the full measure, adaptive
-    /// placement composing for free); vertically it is inset from the canvas so
-    /// the card reads as a card ([`DIFF_PANEL_TOP`]/[`DIFF_PANEL_BOTTOM`] — the
-    /// bottom reserve leaves room for the shadow tail). The document's TEXT_TOP
-    /// (16px) lands the transcript's title 8px inside the card's top edge.
-    pub(in crate::render) fn diff_panel_rect(&self, height: f32) -> Option<[f32; 4]> {
-        if !self.diff_panel {
-            return None;
-        }
-        let x = self.column_left();
-        let w = self.column_width();
-        let h = (height - DIFF_PANEL_TOP - DIFF_PANEL_BOTTOM).max(1.0);
-        Some([x, DIFF_PANEL_TOP, w, h])
-    }
-
-    /// The vertical band (`(top, bottom)` in px) DOCUMENT CONTENT may paint into
-    /// while the diff panel is up, or `None` on an ordinary frame (no clipping).
-    /// Derived from [`Self::diff_panel_rect`] inset by the rim, and applied at
-    /// every content emitter — the text layer's `TextBounds`, the wash / pill /
-    /// fence-panel quads, the strike / squiggle lines, the ornament glyphs, and
-    /// the caret quad — so a scrolled transcript clips AT the card's edge instead
-    /// of sliding over the margin band above/below it.
-    pub(in crate::render) fn doc_clip_band(&self, height: f32) -> Option<(f32, f32)> {
-        self.diff_panel_rect(height)
-            .map(|[_, y, _, h]| (y + 2.0, y + h - 2.0))
+    /// **THE DOCUMENT CONTENT CLIP's VERTICAL HALF (item 84, re-owned by item
+    /// 116b).** The band (`(top, bottom)` in px) document content may paint
+    /// into, or `None` on an ordinary frame (the whole canvas, no clipping).
+    ///
+    /// Item 84 derived it from the diff-preview panel's own card rect — the one
+    /// place a document ever drew somewhere other than the canvas. Item 116b
+    /// replaced that composition with a real relocated viewport, so the band is
+    /// now [`Self::comparison_viewport`]'s own vertical extent and the LAW is
+    /// unchanged: applied at every content emitter — the text layer's
+    /// `TextBounds`, the wash / pill / fence-panel quads, the strike / squiggle
+    /// lines, the ornament glyphs, and the caret quad — so a scrolled
+    /// comparison clips AT the region's edge instead of sliding over the
+    /// workspace around it.
+    pub(in crate::render) fn doc_clip_band(&self) -> Option<(f32, f32)> {
+        self.comparison_viewport().map(|[_, y, _, h]| (y, y + h))
     }
 
     pub(super) fn prepare_panel_card_elevation(

@@ -148,16 +148,6 @@ impl TextPipeline {
         );
         let float_card =
             SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
-        let diffpanel_shadow =
-            SelectionPipeline::new(device, &sel_shader, format, float_shadow_srgba());
-        let diffpanel_border = SelectionPipeline::new(
-            device,
-            &sel_shader,
-            format,
-            theme::surface_selected().rgba_bytes(),
-        );
-        let diffpanel_card =
-            SelectionPipeline::new(device, &sel_shader, format, theme::base_300().rgba_bytes());
         let preview_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let preview_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
@@ -350,9 +340,6 @@ impl TextPipeline {
             float_border,
             float_card,
             float_panel_model: None,
-            diffpanel_shadow,
-            diffpanel_border,
-            diffpanel_card,
             preview_renderer,
             preview_buffer,
             spell_pipeline,
@@ -523,7 +510,6 @@ impl TextPipeline {
             overlay_lens: Vec::new(),
             overlay_sections: Vec::new(),
             overlay_spell: None,
-            diff_panel: false,
             overlay_detail_focus: false,
             overlay_workspace: false,
             overlay_rows_primary: false,

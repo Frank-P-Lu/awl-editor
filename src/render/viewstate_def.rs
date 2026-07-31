@@ -104,7 +104,6 @@ pub struct ViewState {
     /// `None` parks every popover quad/glyph empty, so a default capture is
     /// byte-identical.
     pub popover: Option<crate::popover::PopoverModel>,
-    pub diff_panel: bool,
     pub overlay_detail_focus: bool,
     /// COLLAPSED SECTIONS (folds): the FULL-document logical lines of the ATX
     /// headings whose sections are folded, ascending. VIEW state only — the rope is
@@ -197,7 +196,6 @@ impl ViewState {
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),
             eol: crate::buffer::Eol::Lf,
             popover: None,
-            diff_panel: false,
             overlay_detail_focus: false,
             folds: Vec::new(),
             fold_tails: Vec::new(),

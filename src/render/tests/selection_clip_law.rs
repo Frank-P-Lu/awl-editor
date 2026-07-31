@@ -1,32 +1,55 @@
-//! ITEM 84 — THE SELECTION-QUAD CONTENT-CLIP LAW.
+//! ITEM 84 — THE SELECTION-QUAD CONTENT-CLIP LAW, RE-AIMED BY ITEM 116b.
 //!
 //! Every quad that rides the SAME translucent-quad family as the document
 //! selection wash — the search-match highlight (both via `range_rects`), the
 //! IME preedit underline, and the caret — must stay inside
 //! `TextPipeline::content_clip()`: the writing column horizontally (always),
-//! narrowed to the diff-preview panel's own inset band vertically while a
-//! preview is up (see `rects.rs::content_clip`'s doc). A drag that clamps its
-//! hit-test to the page's own left edge, or a diff transcript scrolled so a
-//! selected/composing/caret row leaves the card, both resolve through that
+//! narrowed vertically to whatever region the document layer is actually
+//! drawing in (see `rects.rs::content_clip`'s doc). A drag that clamps its
+//! hit-test to the page's own left edge, or a comparison scrolled so a
+//! selected/composing/caret row leaves the region, both resolve through that
 //! ONE owner — bounding PAINT only, never the SELECTABLE range itself (the
 //! document positions above are untouched by any of this).
+//!
+//! **WHAT ITEM 116b CHANGED, AND WHAT IT DID NOT.** Item 84's vertical bound
+//! came from the diff-as-preview panel's own card rect: the single case where
+//! the document drew somewhere other than the whole canvas. That composition —
+//! a card drawn AROUND the page column while the transcript rendered inside it
+//! — is gone, replaced by a real relocated viewport
+//! (`TextPipeline::comparison_viewport`), which is now `doc_clip_band`'s owner.
+//! The LAW is untouched: the same four emitters, the same one owner, the same
+//! by-name sweep. Only the scenario that narrows the band is different, and it
+//! is a stronger one — the region now moves horizontally as well as
+//! vertically, so the X arm of the clip is genuinely exercised for the first
+//! time instead of being a no-op the page column satisfied by construction.
 //!
 //! NO-WILDCARD: each quad-emitting method below is called BY NAME — a future
 //! emitter that skips the clip has to dodge an explicit line here, not a
 //! generic loop that would silently pass it by.
 //!
-//! NON-VACUOUS: before this round, `range_rects` (feeding both
-//! `selection_rects` and `search_match_rects`), `preedit_rects`, and the
-//! caret's own gate in `prepare_caret_layer` never read the clip at all for
-//! the WIDTH axis, and `range_rects`/`preedit_rects` never read it on EITHER
-//! axis — a selection/search/preedit row scrolled past the diff panel's own
-//! bottom edge painted straight over the margin below the card. Reverting the
-//! `self.clip_rects_to_band(rects)` calls this file exercises (see
-//! `rects.rs`) reproduces that: the tests below fail immediately, because the
-//! very rows this scenario selects are engineered to sit past the band.
+//! NON-VACUOUS: before item 84, `range_rects` (feeding both `selection_rects`
+//! and `search_match_rects`), `preedit_rects`, and the caret's own gate in
+//! `prepare_caret_layer` never read the clip at all for the WIDTH axis, and
+//! `range_rects`/`preedit_rects` never read it on EITHER axis — a
+//! selection/search/preedit row scrolled past the document region's own bottom
+//! edge painted straight over everything below it. Reverting the
+//! `self.clip_rects_to_band(rects)` calls this file exercises (see `rects.rs`)
+//! reproduces that: the tests below fail immediately, because every fixture
+//! here is DERIVED from the live band so that the rows it selects genuinely
+//! straddle and pass it.
 
 use super::super::*;
-use super::{headless_dqp, headless_pipeline, view};
+use super::{comparison_view, headless_dqp, headless_pipeline};
+
+/// The first document line whose visual row begins strictly BELOW `y` — derived
+/// from the pipeline's own row geometry, so a fixture can never quietly stop
+/// straddling the band when the workspace's own metrics move.
+fn first_row_below(p: &TextPipeline, y: f32, lines: usize) -> usize {
+    let doc_top = p.doc_top();
+    (0..lines)
+        .find(|&l| doc_top + p.visual_rows(l)[0].line_top > y)
+        .expect("the fixture must be tall enough to reach past the band")
+}
 
 /// A plain (non-markdown, non-wrapping) doc with `n` short numbered lines —
 /// uniform `line_height` rows at zero scroll, so row `k`'s screen top is
@@ -54,25 +77,50 @@ fn assert_all_within(rects: &[[f32; 4]], clip: (f32, f32, f32, f32), what: &str)
 }
 
 #[test]
-fn selection_and_search_rects_never_paint_past_the_diff_panel_band() {
+fn selection_and_search_rects_never_paint_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping selection_and_search_rects_never_paint_past_the_diff_panel_band: no wgpu adapter"
+            "skipping selection_and_search_rects_never_paint_past_the_comparison_viewport: no wgpu adapter"
         );
         return;
     };
-    // Shrink the canvas so the diff panel's content band ends MID-ROW (not on
-    // a row boundary) — a genuine PARTIAL trim, not just a whole-row drop.
-    p.set_size(1200.0, 716.0);
-
-    let text = tall_doc(30);
-    let mut v = view(&text, 18, 0);
-    v.diff_panel = true;
-    // Seven full lines: the first few sit inside the band, the rest cross or
-    // fall entirely past its bottom edge.
-    v.selection = Some(((18, 0), (24, 0)));
-    v.search_matches = vec![((20, 0), (21, 0))];
+    // SEARCH for a canvas whose region bottom lands MID-BAND rather than in the
+    // leading between two rows — a genuine PARTIAL trim, not just a whole-row
+    // drop. Derived rather than hardcoded: the region's own top moves with the
+    // workspace's header beat, so a fixed height stops straddling the moment any
+    // overlay metric is retuned (it did, when item 116b re-aimed this law off the
+    // diff panel's fixed 8px inset).
+    let text = tall_doc(60);
+    let mut v = comparison_view(&text, 0, 0);
+    let mut chosen = None;
+    for h in (690..=790).step_by(2) {
+        p.set_size(1200.0, h as f32);
+        p.set_view(&v);
+        let Some((_, band_bottom)) = p.doc_clip_band() else {
+            continue;
+        };
+        let straddle = first_row_below(&p, band_bottom, 60).saturating_sub(2);
+        let mut probe = comparison_view(&text, straddle, 0);
+        probe.selection = Some(((straddle, 0), (straddle + 6, 0)));
+        p.set_view(&probe);
+        let rects = p.selection_rects();
+        if rects.len() < 7 && rects.iter().any(|r| r[3] < p.metrics.caret_h - 1.0) {
+            chosen = Some((h, straddle));
+            break;
+        }
+    }
+    let (canvas_h, straddle) = chosen.expect(
+        "no swept canvas height put the comparison region's bottom edge mid-band — the \
+         partial-trim arm of this law cannot be exercised",
+    );
+    p.set_size(1200.0, canvas_h as f32);
+    v.cursor_line = straddle;
+    v.selection = Some(((straddle, 0), (straddle + 6, 0)));
+    // The match sits on the FIRST selected row, which the sweep above proved is
+    // still inside the region — so its own arm asserts a clipped-but-painted
+    // rect rather than an empty vector.
+    v.search_matches = vec![((straddle, 0), (straddle, 4))];
     p.set_view(&v);
 
     let clip = p.content_clip();
@@ -90,6 +138,15 @@ fn selection_and_search_rects_never_paint_past_the_diff_panel_band() {
         sel.len() < 7,
         "precondition: the band must actually drop some of the 7 selected rows, got {} rects: {sel:?}",
         sel.len()
+    );
+    // NON-VACUOUS, part 0: the clip's X arm is a REAL constraint here, not the
+    // page column's by-construction no-op — the relocated region's left edge
+    // sits well inside the canvas and away from the page column's own.
+    assert!(
+        clip.0 > 1.0 && clip.2 < 1199.0,
+        "precondition: the relocated region must be genuinely inset, got x {}..{}",
+        clip.0,
+        clip.2
     );
     // NON-VACUOUS, part 2: at least one surviving rect is a genuine PARTIAL
     // trim (shorter than the untrimmed caret-height band), proving the clip
@@ -109,18 +166,24 @@ fn selection_and_search_rects_never_paint_past_the_diff_panel_band() {
 }
 
 #[test]
-fn preedit_rect_never_paints_past_the_diff_panel_band() {
+fn preedit_rect_never_paints_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping preedit_rect_never_paints_past_the_diff_panel_band: no wgpu adapter");
+        eprintln!(
+            "skipping preedit_rect_never_paints_past_the_comparison_viewport: no wgpu adapter"
+        );
         return;
     };
-    let text = tall_doc(40);
-    // Line 30's row top sits at TEXT_TOP(16) + 30*LINE_HEIGHT(32) == 976, well
-    // past an ordinary 800-tall canvas's diff band — no `set_size` override
-    // needed here.
-    let mut v = view(&text, 30, 4);
-    v.diff_panel = true;
+    let text = tall_doc(60);
+    let mut v = comparison_view(&text, 0, 0);
+    p.set_view(&v);
+    let (_, band_bottom) = p
+        .doc_clip_band()
+        .expect("precondition: the comparison viewport narrows the document band");
+    // A composing row whose own top is past the region's bottom edge.
+    let past = first_row_below(&p, band_bottom, 60) + 1;
+    v.cursor_line = past;
+    v.cursor_col = 4;
     v.preedit = "ab".to_string();
     p.set_view(&v);
 
@@ -129,10 +192,10 @@ fn preedit_rect_never_paints_past_the_diff_panel_band() {
     // clip's bottom edge, so an UNCLIPPED preedit rect would have to escape —
     // this is not a scenario that happens to already sit in-band.
     let doc_top = p.doc_top();
-    let row_top = doc_top + p.visual_rows(30)[0].line_top;
+    let row_top = doc_top + p.visual_rows(past)[0].line_top;
     assert!(
         row_top > clip.3,
-        "precondition: line 30's row (top={row_top}) must sit past the clip bottom ({}) \
+        "precondition: line {past}'s row (top={row_top}) must sit past the clip bottom ({}) \
          for this test to mean anything",
         clip.3
     );
@@ -144,8 +207,8 @@ fn preedit_rect_never_paints_past_the_diff_panel_band() {
     assert_all_within(&rects, clip, "a preedit underline rect");
     assert!(
         rects.is_empty(),
-        "a preedit underline whose whole row sits past the diff panel band must be dropped \
-         outright, not trimmed to a sliver: {rects:?}"
+        "a preedit underline whose whole row sits past the comparison viewport must be \
+         dropped outright, not trimmed to a sliver: {rects:?}"
     );
 }
 
@@ -155,39 +218,41 @@ fn preedit_rect_never_paints_past_the_diff_panel_band() {
 /// pass (not just the geometry function) so the actual uploaded instance
 /// count is what's asserted, mirroring `one_bit.rs`'s `is_drawn()` seam.
 #[test]
-fn caret_parks_when_its_row_scrolls_past_the_diff_panel_band() {
+fn caret_parks_when_its_row_scrolls_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping caret_parks_when_its_row_scrolls_past_the_diff_panel_band: no wgpu adapter"
+            "skipping caret_parks_when_its_row_scrolls_past_the_comparison_viewport: no wgpu adapter"
         );
         return;
     };
     crate::caret::set_mode(crate::caret::CaretMode::Block);
 
-    let text = tall_doc(40);
+    let text = tall_doc(60);
     // In-band control: the caret on line 1 draws normally.
-    let mut v_in = view(&text, 1, 0);
-    v_in.diff_panel = true;
+    let v_in = comparison_view(&text, 1, 0);
     p.set_view(&v_in);
     p.settle_caret();
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert!(
         p.caret_pipeline.is_drawn(),
-        "precondition: an ordinary in-band caret still draws while the diff panel is up"
+        "precondition: an ordinary in-region caret still draws while the document is \
+         relocated into the comparison viewport"
     );
+    let (_, band_bottom) = p
+        .doc_clip_band()
+        .expect("precondition: the comparison viewport narrows the document band");
+    let past = first_row_below(&p, band_bottom, 60) + 1;
 
-    // Out-of-band: line 30's row (top ~976) sits well past an 800-tall
-    // canvas's content band.
-    let mut v_out = view(&text, 30, 0);
-    v_out.diff_panel = true;
+    // Out-of-band: a row past the relocated region's own bottom edge.
+    let v_out = comparison_view(&text, past, 0);
     p.set_view(&v_out);
     p.settle_caret();
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert!(
         !p.caret_pipeline.is_drawn(),
-        "a caret whose row scrolled past the diff panel's band must park (never paint over \
-         the card's rim / the margin below it)"
+        "a caret whose row scrolled past the comparison viewport must park (never paint \
+         over the workspace around it)"
     );
     assert!(
         !p.caret_glyph_pipeline.is_drawn(),

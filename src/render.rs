@@ -1795,9 +1795,6 @@ pub struct TextPipeline {
     pub float_border: SelectionPipeline,
     pub float_card: SelectionPipeline,
     pub(in crate::render) float_panel_model: Option<chrome::FloatPanelModel>,
-    pub diffpanel_shadow: SelectionPipeline,
-    pub diffpanel_border: SelectionPipeline,
-    pub diffpanel_card: SelectionPipeline,
     pub preview_renderer: TextRenderer,
     pub preview_buffer: GlyphBuffer,
     /// The GPU quad pipeline that draws the wavy spell-check underlines.
@@ -2232,7 +2229,6 @@ pub struct TextPipeline {
     overlay_lens: Vec<(String, bool)>,
     overlay_sections: Vec<String>,
     overlay_spell: Option<(usize, usize, usize)>,
-    diff_panel: bool,
     overlay_detail_focus: bool,
     /// ITEM 114 — the summoned card is drawn as a WORKSPACE this frame (mirror of
     /// [`ViewState::overlay_workspace`]). The one input that routes
