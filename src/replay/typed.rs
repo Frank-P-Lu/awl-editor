@@ -50,20 +50,46 @@ pub(super) fn classify_clipboard(effect: &crate::actions::ClipboardEffect) -> Cl
 /// replay resolves against the new flavor — a replay session owns no such
 /// capability, the identical reason `RebindCommit`/`RebindReset` stay
 /// Unsupported.
+///
+/// **ITEM 193** — this used to promise `Applied` for every `toggle_key`
+/// except `"keymap"`, while `ReplaySession::interpret_setting_toggle` handled
+/// a hand-copied roster behind its own `_ => return`: a key added to
+/// `settings::toggle_key` without a matching interpreter arm would have
+/// worked live and silently no-op'd through replay while this classifier
+/// still reported `Applied` — the sidecar's own headline tripwire (a state
+/// oracle that lies about the state) in a new place. The `toggle_key` arm
+/// below now asks [`crate::settings::is_core_toggle_key`] — the SAME
+/// recognizer [`crate::settings::flip_toggle_global`] (the interpreter's own
+/// core) is built from — so a key the interpreter cannot handle is
+/// classified `Unsupported` by construction, never a promise the interpreter
+/// can't keep. `the_settings_toggle_core_handles_every_key_toggle_key_names`
+/// (`replay::tests`) sweeps the whole roster with a no-wildcard match over
+/// `SettingId` to prove the two can never drift apart again.
 pub(super) fn classify_settings(
     name: &'static str,
     why: &'static str,
     filesystem: FilesystemCapability,
     toggle_key: Option<&str>,
 ) -> Classified {
-    if toggle_key == Some("keymap") {
-        return named(
-            name,
-            EffectClass::Unsupported {
-                why: "the live keymap reload is live-App-only; a later chord in the same \
-                      replay would keep resolving against the OLD flavor",
-            },
-        );
+    if let Some(key) = toggle_key {
+        if key == "keymap" {
+            return named(
+                name,
+                EffectClass::Unsupported {
+                    why: "the live keymap reload is live-App-only; a later chord in the same \
+                          replay would keep resolving against the OLD flavor",
+                },
+            );
+        }
+        if !crate::settings::is_core_toggle_key(key) {
+            return named(
+                name,
+                EffectClass::Unsupported {
+                    why: "the replay's shared toggle core does not recognize this key; \
+                          a live App may still handle it, but a replay cannot",
+                },
+            );
+        }
     }
     let class = match filesystem {
         FilesystemCapability::None => EffectClass::Unsupported { why },

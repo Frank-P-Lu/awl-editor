@@ -50,7 +50,8 @@ lines = 1037
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
-lines = 382
+lines = 358
+reason = "item 193: -24 lines — App::setting_toggle's hand-copied read/negate/set match pair is gone, replaced by one call into the new shared owner crate::settings::flip_toggle_global (src/settings/toggle_core.rs), the same core the replay interpreter now also routes through."
 
 [[file_size_mark]]
 file = "src/app/gpu.rs"
@@ -386,7 +387,8 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/settings.rs"
-lines = 730
+lines = 735
+reason = "item 193: +5 lines — the `mod toggle_core;` declaration and its `pub(crate) use` re-export, the one place a new submodule can be named. The shared toggle core itself (the read/negate/set behavior `App::setting_toggle` and the replay interpreter now both route through, ~90 lines) was extracted into its own file, `src/settings/toggle_core.rs`, precisely so this file's mark did not have to move by more than the unavoidable declaration line."
 
 [[file_size_mark]]
 file = "src/soak_gpu/mod.rs"

@@ -6,17 +6,22 @@
 //! is the one owner of WHETHER that promotion happens; this file is the
 //! INTERPRETATION half — what actually flips and what actually gets written).
 //!
-//! Each handler below mirrors the LIVE `App` door it has no access to
-//! (`app/files/settings.rs::setting_toggle`/`setting_path_pick`,
-//! `app/files/range_settings.rs::setting_value_commit`) key for key, calling
-//! the SAME process-global setters and the SAME [`crate::config::Config::
-//! write_pref`] writer those doors call — so the two doors can never disagree
-//! about WHAT a key does, only about which capability is doing it. One key,
-//! `"keymap"`, is never dispatched here: `replay::classify_for` keeps it
-//! Unsupported even under Isolated (flipping keymap flavor needs a LIVE
-//! keymap rebuild so a LATER chord in the same replay resolves against the
-//! new flavor, a capability this session does not own — the identical reason
-//! `RebindCommit`/`RebindReset` stay Unsupported).
+//! **Item 193** — `interpret_setting_toggle` used to restate `App::
+//! setting_toggle`'s whole key table by hand (a second copy of the exact
+//! shape item 185 eliminated elsewhere); the read/negate/set core the two
+//! doors share now lives in ONE place, [`crate::settings::
+//! flip_toggle_global`], so this handler and `App::setting_toggle` can never
+//! disagree about WHAT a key does, only about which capability is doing it
+//! and what live-only tail follows. `interpret_setting_value_commit` and
+//! `interpret_setting_path_pick` are smaller, per-key bespoke bodies (a
+//! range clamp, a project re-scope) with no comparable shared roster to
+//! extract, so they still call the SAME process-global setters and the SAME
+//! [`crate::config::Config::write_pref`] writer `App`'s doors call, by hand.
+//! One key, `"keymap"`, is never dispatched here: `replay::classify_for`
+//! keeps it Unsupported even under Isolated (flipping keymap flavor needs a
+//! LIVE keymap rebuild so a LATER chord in the same replay resolves against
+//! the new flavor, a capability this session does not own — the identical
+//! reason `RebindCommit`/`RebindReset` stay Unsupported).
 
 use super::*;
 use crate::settings::SettingId;
@@ -69,53 +74,24 @@ impl<'a> ReplaySession<'a> {
     }
 
     /// `Effect::SettingToggle` — the Settings picker's Enter-to-flip door.
-    /// Mirrors `App::setting_toggle`'s key table: 12 keys flip a live
-    /// process-global (the SAME global the renderer and `settings::value_for`
-    /// read, so the flip is visible to any later chord in this replay with no
-    /// further bookkeeping); 3 (`autosave`/`history`/`session_restore`) are
-    /// config-only — no global exists, so persisting the flipped value IS the
-    /// whole effect, per `App::setting_toggle`'s own doc. A no-op on any
-    /// other key (`"keymap"` included, though `classify_for` never routes it
-    /// here), mirroring App's own "unknown key: a calm no-op" catch-all.
+    /// The read/negate/set core (item 193) is [`crate::settings::
+    /// flip_toggle_global`], the SAME owner `App::setting_toggle` routes
+    /// through — 12 keys flip a live process-global (the SAME global the
+    /// renderer and `settings::value_for` read, so the flip is visible to
+    /// any later chord in this replay with no further bookkeeping); 3
+    /// (`autosave`/`history`/`session_restore`) are config-only — no global
+    /// exists, so persisting the flipped value IS the whole effect, per
+    /// `App::setting_toggle`'s own doc. A no-op on any other key (`"keymap"`
+    /// included, though `classify_for` never routes it here): the two doors
+    /// can no longer disagree about WHICH keys that is, because there is
+    /// only one match to consult.
     pub(super) fn interpret_setting_toggle(&mut self, key: &str) {
         if self.filesystem != crate::replay::FilesystemCapability::Isolated {
             return;
         }
-        let now = match key {
-            "page_mode" => crate::page::page_on(),
-            "typewriter_scroll" => crate::typewriter::typewriter_on(),
-            "wysiwyg" => crate::markdown::wysiwyg_on(),
-            "popover" => crate::popover::popover_on(),
-            "inline_images" => crate::markdown::inline_images_on(),
-            "code_ligatures" => crate::render::code_ligatures_on(),
-            "spellcheck" => crate::spell::spellcheck_on(),
-            "writing_nits" => crate::nits::nits_on(),
-            "outline" => crate::outline::outline_on(),
-            "menu_bar" => crate::menubar::menu_bar_on(),
-            "reduce_motion" => crate::motion::reduced(),
-            "file_visibility" => crate::file_visibility::all_on(),
-            "autosave" => self.config.autosave_on(),
-            "history" => self.config.history_on(),
-            "session_restore" => self.config.session_restore_on(),
-            _ => return,
+        let Some(next) = crate::settings::flip_toggle_global(key, self.config) else {
+            return;
         };
-        let next = !now;
-        match key {
-            "page_mode" => crate::page::set_page_on(next),
-            "typewriter_scroll" => crate::typewriter::set_typewriter_on(next),
-            "wysiwyg" => crate::markdown::set_wysiwyg_on(next),
-            "popover" => crate::popover::set_popover_on(next),
-            "inline_images" => crate::markdown::set_inline_images_on(next),
-            "code_ligatures" => crate::render::set_code_ligatures_on(next),
-            "spellcheck" => crate::spell::set_spellcheck_on(next),
-            "writing_nits" => crate::nits::set_nits_on(next),
-            "outline" => crate::outline::set_outline_on(next),
-            "menu_bar" => crate::menubar::set_menu_bar_on(next),
-            "reduce_motion" => crate::motion::set_reduced(next),
-            "file_visibility" => crate::file_visibility::set_all_on(next),
-            // Config-only: autosave/history/session_restore have no global.
-            _ => {}
-        }
         self.persist_setting(key, if next { "true" } else { "false" });
         if let Some(mut values) = self.settings_values_if_open() {
             match key {
