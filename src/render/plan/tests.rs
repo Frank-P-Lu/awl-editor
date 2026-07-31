@@ -364,16 +364,30 @@ fn a_positive_step_plans_dx_only_and_a_negative_step_plans_dw_only() {
     mangrove.dx_per_row = 6.0;
     let plan = plan_overlay_rows(&mangrove);
     for (i, row) in plan.rows().iter().enumerate() {
-        assert_eq!(row.dx, 6.0 * i as f32, "row {i}: dx must be the positive stair");
-        assert_eq!(row.dw, 0.0, "row {i}: dw must stay zero under a positive step");
+        assert_eq!(
+            row.dx,
+            6.0 * i as f32,
+            "row {i}: dx must be the positive stair"
+        );
+        assert_eq!(
+            row.dw, 0.0,
+            "row {i}: dw must stay zero under a positive step"
+        );
     }
 
     let mut magpie = flat(4, 0, 4, 0);
     magpie.dx_per_row = -6.0;
     let plan = plan_overlay_rows(&magpie);
     for (i, row) in plan.rows().iter().enumerate() {
-        assert_eq!(row.dx, 0.0, "row {i}: dx must stay zero under a negative step");
-        assert_eq!(row.dw, -6.0 * i as f32, "row {i}: dw must be the negative stair");
+        assert_eq!(
+            row.dx, 0.0,
+            "row {i}: dx must stay zero under a negative step"
+        );
+        assert_eq!(
+            row.dw,
+            -6.0 * i as f32,
+            "row {i}: dw must be the negative stair"
+        );
     }
 }
 

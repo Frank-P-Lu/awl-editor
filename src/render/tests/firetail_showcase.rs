@@ -580,7 +580,11 @@ fn slant_offset_math_is_a_stair_with_row_zero_unshifted() {
         px_per_row: -8.0,
         italic: false,
     };
-    assert_eq!(slant_offset(&mirrored, 3), -24.0, "the signed step itself stays signed");
+    assert_eq!(
+        slant_offset(&mirrored, 3),
+        -24.0,
+        "the signed step itself stays signed"
+    );
     assert_eq!(
         slant_max_offset(&mirrored, 12),
         88.0,
@@ -870,7 +874,10 @@ fn slant_bar_span_cascades_without_overrunning_the_card() {
     // ITEM 131a — FULL, dw (Magpie's mirror): LEFT edge stays flush, the RIGHT
     // edge steps in by `dw` (negative).
     let (x, w) = chrome::slant_bar_span(30.0, 200.0, false, 0.0, -40.0);
-    assert_eq!(x, 30.0, "the mirrored full-width plate's left edge stays flush");
+    assert_eq!(
+        x, 30.0,
+        "the mirrored full-width plate's left edge stays flush"
+    );
     assert!(
         (x + w - (30.0 + 200.0 - 40.0)).abs() < 0.001,
         "the mirrored full-width plate's right edge steps in by dw ({} vs {})",

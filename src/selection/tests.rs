@@ -63,8 +63,7 @@ fn grow_sizes_buffer_to_capacity_not_contents() {
 /// no wgpu adapter — the same tolerance every other headless render test grants.
 fn headless_device() -> Option<(wgpu::Device, wgpu::Queue)> {
     pollster::block_on(async {
-        let instance =
-            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
@@ -85,7 +84,10 @@ fn headless_device() -> Option<(wgpu::Device, wgpu::Queue)> {
 fn spine_segment_computes_center_half_and_normalized_axis() {
     let (center, half, axis) = spine_segment([0.0, 0.0], [30.0, 40.0], 8.0);
     assert_eq!(center, [15.0, 20.0], "center is the segment's midpoint");
-    assert_eq!(half[0], 25.0, "half-length is half the 3-4-5 segment's length 50");
+    assert_eq!(
+        half[0], 25.0,
+        "half-length is half the 3-4-5 segment's length 50"
+    );
     assert_eq!(half[1], 4.0, "half-thickness is half of thickness_px");
     assert!((axis[0] - 0.6).abs() < 1e-6, "axis.x == dx/len == 30/50");
     assert!((axis[1] - 0.8).abs() < 1e-6, "axis.y == dy/len == 40/50");
@@ -284,7 +286,8 @@ fn prepare_rotated_with_the_upright_axis_matches_prepare_byte_for_byte() {
     assert_eq!(a.len(), b.len());
     let differing = a.iter().zip(b.iter()).filter(|(x, y)| x != y).count();
     assert_eq!(
-        differing, 0,
+        differing,
+        0,
         "prepare_rotated(axis=(1,0)) must be byte-identical to prepare() for the same \
          rect, {differing} of {} pixels differed",
         a.len()
@@ -313,7 +316,10 @@ fn prepare_rotated_axis_actually_turns_the_quad() {
     upright.prepare_rotated(&device, &queue, w, h, &[(center, half, UPRIGHT_AXIS)]);
     let upright_px = render_alone(&upright, &device, &queue, w, h);
 
-    let diag_axis = [std::f32::consts::FRAC_1_SQRT_2, std::f32::consts::FRAC_1_SQRT_2];
+    let diag_axis = [
+        std::f32::consts::FRAC_1_SQRT_2,
+        std::f32::consts::FRAC_1_SQRT_2,
+    ];
     let mut rotated = SelectionPipeline::new(&device, &shader, OFFSCREEN_FMT, [255, 255, 255, 255]);
     rotated.prepare_rotated(&device, &queue, w, h, &[(center, half, diag_axis)]);
     let rotated_px = render_alone(&rotated, &device, &queue, w, h);

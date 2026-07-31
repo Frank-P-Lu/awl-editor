@@ -715,7 +715,10 @@ pub fn spine_segment(
 /// No non-test caller yet — see [`SelectionPipeline::prepare_rotated`]'s doc.
 #[allow(dead_code)]
 pub fn narrowed_spine_corner_px(corner_px: f32, half_len: f32, half_thick: f32) -> f32 {
-    corner_px.min(half_len.max(0.0)).min(half_thick.max(0.0)).max(0.0)
+    corner_px
+        .min(half_len.max(0.0))
+        .min(half_thick.max(0.0))
+        .max(0.0)
 }
 
 fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
