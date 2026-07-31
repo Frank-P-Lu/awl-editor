@@ -364,8 +364,8 @@ lines = 1440
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 385
-reason = "item 190: +25 lines — classify_for's SettingToggle/SettingValueCommit/SettingPathPick arms now branch on `FilesystemCapability` (mirroring Save's own item-171 shape) and, for SettingToggle, on the one excluded key (`\"keymap\"`, which needs a live keymap rebuild no capability grant can supply); this is the one owner of that classification, so the growth is the doc comments + match arms themselves, not extractable elsewhere."
+lines = 364
+reason = "item 190: +4 lines net — classify_for's three settings-trio arms now call the new `typed::classify_settings` (mirroring how `classify_persistence` already keeps this match's own line budget), passing the effect-specific Unsupported reason and, for SettingToggle, the one excluded key (`\"keymap\"`, which needs a live keymap rebuild no capability grant can supply)."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -508,23 +508,23 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 287
+line = 289
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's owned root/workspace/workspace_flag/corpus fields landing earlier in the same impl block (resync_project_location itself moved to run/location.rs); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 581
+line = 583
 message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 750
+line = 752
 message = "this function has too many lines (321/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's earlier additions to the same impl block; count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1229,23 +1229,23 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3386
+line = 3709
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3426
+line = 3749
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3460
+line = 3783
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"

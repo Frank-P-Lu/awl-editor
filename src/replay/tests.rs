@@ -268,7 +268,10 @@ fn isolated_filesystem_authority_promotes_only_save_and_setting_requests() {
         let is_promoted_setting = matches!(
             &effect,
             Effect::SettingToggle { key } if key != "keymap"
-        ) || matches!(effect, Effect::SettingValueCommit { .. } | Effect::SettingPathPick { .. });
+        ) || matches!(
+            effect,
+            Effect::SettingValueCommit { .. } | Effect::SettingPathPick { .. }
+        );
         if !is_save && !is_promoted_setting {
             assert_eq!(
                 classify_for(&effect, FilesystemCapability::None).class,

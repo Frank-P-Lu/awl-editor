@@ -911,8 +911,7 @@ fn isolated_strict_replay_picks_a_settings_path_and_persists_it() {
     // navigator standing at the WORKSPACE (the project root's parent — the
     // same level item 114's own `sweep_path` picks from); `Up` reaches its
     // synthetic `.` row (the level you are standing in), `Enter` accepts it.
-    let keys =
-        keyspec::parse_keys("s-, d e f a u l t Space f o l d e r Enter Up Enter").unwrap();
+    let keys = keyspec::parse_keys("s-, d e f a u l t Space f o l d e r Enter Up Enter").unwrap();
     let root = PathBuf::from("/ws/proj");
     let cfg = Config {
         path: PathBuf::from("/cfg/config.toml"),
@@ -934,7 +933,9 @@ fn isolated_strict_replay_picks_a_settings_path_and_persists_it() {
         .read_to_string(std::path::Path::new("/cfg/config.toml"))
         .expect("the isolated config file exists");
     assert!(
-        written.lines().any(|l| l.trim() == "default_folder = \"/ws\""),
+        written
+            .lines()
+            .any(|l| l.trim() == "default_folder = \"/ws\""),
         "the isolated config must carry the picked workspace folder — config was:\n{written}"
     );
 }
@@ -3009,7 +3010,9 @@ fn setting_path_pick_workspace_persists_and_resyncs_the_workspace_field() {
         .read_to_string(std::path::Path::new("/cfg/config.toml"))
         .expect("the isolated config file exists");
     assert!(
-        written.lines().any(|l| l.trim() == "workspace = \"/elsewhere\""),
+        written
+            .lines()
+            .any(|l| l.trim() == "workspace = \"/elsewhere\""),
         "the isolated config must carry the picked workspace — config was:\n{written}"
     );
 }
