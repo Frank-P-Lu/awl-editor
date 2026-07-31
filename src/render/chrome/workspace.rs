@@ -68,7 +68,9 @@ pub(in crate::render) const UNFOCUSED_MARK_ALPHA: f32 = 0.34;
 /// Scale a theme colour's ALPHA only, leaving its hue and value alone.
 pub(in crate::render) fn dimmed(color: theme::Srgb, f: f32) -> [u8; 4] {
     let mut rgba = color.rgba_bytes();
-    rgba[3] = (rgba[3] as f32 * f.clamp(0.0, 1.0)).round().clamp(0.0, 255.0) as u8;
+    rgba[3] = (rgba[3] as f32 * f.clamp(0.0, 1.0))
+        .round()
+        .clamp(0.0, 255.0) as u8;
     rgba
 }
 

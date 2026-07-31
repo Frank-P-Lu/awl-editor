@@ -451,11 +451,7 @@ pub(super) fn settled_viewstate(
     // every capture that carries an overlay, not only a previewing one: a
     // workspace has two regions whether or not anything is previewed beneath it,
     // and the focus stage is what says which of them is live.
-    vstate.overlay_workspace = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.workspace)
-        .unwrap_or(false);
+    vstate.overlay_workspace = opts.overlay.as_ref().map(|o| o.workspace).unwrap_or(false);
     vstate.overlay_detail_focus = opts
         .overlay
         .as_ref()
@@ -498,7 +494,11 @@ pub(super) fn settled_viewstate(
         // Dress the page column as the diff panel card, with the focus cue
         // mirrored from the overlay state.
         vstate.diff_panel = true;
-        vstate.overlay_detail_focus = opts.overlay.as_ref().map(|o| o.detail_focus).unwrap_or(false);
+        vstate.overlay_detail_focus = opts
+            .overlay
+            .as_ref()
+            .map(|o| o.detail_focus)
+            .unwrap_or(false);
         vstate.selection = None;
         vstate.misspelled = Vec::new();
         vstate.search_matches = Vec::new();

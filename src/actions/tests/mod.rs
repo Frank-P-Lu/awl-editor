@@ -252,7 +252,10 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
         // the same way `overlay::build` does (every world + the active index,
         // which is what a revert restores).
         OverlayKind::Theme => Some(OverlayState::new_theme(
-            crate::theme::THEMES.iter().map(|t| t.name.to_string()).collect(),
+            crate::theme::THEMES
+                .iter()
+                .map(|t| t.name.to_string())
+                .collect(),
             crate::theme::active_index(),
         )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(

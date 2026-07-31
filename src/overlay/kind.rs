@@ -179,7 +179,11 @@ impl OverlayKind {
             // awl's only statement of what a key does (ACCESSIBILITY.md), so
             // these two cells change with the presentation, not after it.
             OverlayKind::Settings => {
-                vec![enter("edit"), key(ARROWS_LR, "category"), key("esc", "back")]
+                vec![
+                    enter("edit"),
+                    key(ARROWS_LR, "category"),
+                    key("esc", "back"),
+                ]
             }
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],

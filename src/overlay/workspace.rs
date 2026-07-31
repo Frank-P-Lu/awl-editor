@@ -106,7 +106,9 @@ impl OverlayState {
     /// no lens, so an unknown category degrades to the `All` home rather than
     /// landing nowhere.
     pub fn rail_focus_category(&mut self, category: &str) {
-        let Some(sc) = self.facet_scheme() else { return };
+        let Some(sc) = self.facet_scheme() else {
+            return;
+        };
         let Some(idx) = sc
             .strip
             .iter()

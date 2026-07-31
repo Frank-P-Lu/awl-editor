@@ -99,8 +99,15 @@ impl TextPipeline {
         let selected_row = vis.logical().expect("a selected row");
         let line_height = plan.lh();
         let first_top = plan.first_top();
-        let (primary, _, _) =
-            self.living_band_rects(motion, from, to, t, geom.band_x(), geom.band_w(), line_height);
+        let (primary, _, _) = self.living_band_rects(
+            motion,
+            from,
+            to,
+            t,
+            geom.band_x(),
+            geom.band_w(),
+            line_height,
+        );
         (
             vis.rows().to_vec(),
             selected_row,
@@ -200,8 +207,15 @@ impl TextPipeline {
     ) -> OverlaySelectionRects {
         let line_height = plan.lh();
         if let Some((force, from, to, t)) = vis.living() {
-            let (selected, unselected, cross) =
-                self.living_band_rects(force, from, to, t, geom.band_x(), geom.band_w(), line_height);
+            let (selected, unselected, cross) = self.living_band_rects(
+                force,
+                from,
+                to,
+                t,
+                geom.band_x(),
+                geom.band_w(),
+                line_height,
+            );
             self.overlay_bars.set_corner(2.5);
             self.overlay_bars
                 .set_color(theme::surface_selected().rgba_bytes());

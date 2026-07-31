@@ -65,9 +65,6 @@ mod overlay_rhythm_item112;
 mod overlay_right_hug_law;
 mod page_frame;
 mod pixeldiff;
-/// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
-/// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
-mod workspace_item114;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
 mod range_rail;
@@ -87,6 +84,9 @@ mod washes;
 mod waves_drift_item87;
 #[cfg(not(target_arch = "wasm32"))]
 mod webgl_shader_validation;
+/// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
+/// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
+mod workspace_item114;
 mod wrap_affinity;
 mod wysiwyg;
 mod zoom_anchor;

@@ -143,14 +143,285 @@ fn stand_on(app: &mut App, row: &SettingRow) {
     );
 }
 
+/// The `Toggle` arm of the sweep below: Enter flips the LIVE value, persists it
+/// under its own key, keeps the workspace open, and the same key puts it back —
+/// on disk as well as live, so a persist that never moved reads as a failure
+/// rather than as symmetry.
+fn sweep_toggle(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
+    let key = crate::settings::toggle_key(row.id).expect("a Toggle has a key");
+    stand_on(app, row);
+    let before = readout(app, row);
+    app.press_spec_headless("Enter").expect("Enter parses");
+    let after = readout(app, row);
+    assert_ne!(
+        before, after,
+        "{:?}: Enter on the row must flip the LIVE value",
+        row.name
+    );
+    let written = persisted(&mem, key).unwrap_or_else(|| {
+        panic!(
+            "{:?}: nothing persisted under {key:?} — config was:\n{}",
+            row.name,
+            config_text(&mem)
+        )
+    });
+    assert!(
+        written.starts_with(&format!("{key} = ")),
+        "{:?}: the write landed under its OWN key, not {written:?}",
+        row.name
+    );
+    assert_eq!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Settings),
+        "{:?}: a toggle keeps you configuring",
+        row.name
+    );
+    // Restore, and prove the flip is reversible from the same door —
+    // in BOTH the live readout and what was written to disk, so a
+    // toggle that moved the global without persisting (or the other
+    // way round) fails here rather than looking symmetric.
+    app.press_spec_headless("Enter").expect("Enter parses");
+    assert_eq!(
+        readout(app, row),
+        before,
+        "{:?}: the same key restores the live value",
+        row.name
+    );
+    let restored = persisted(&mem, key).expect("the restore persisted too");
+    assert_ne!(
+        written, restored,
+        "{:?}: the restore wrote the OTHER bool — a persist that never \
+                 moved would read identical here",
+        row.name
+    );
+}
+
+/// The `Range` arm: the rail's own `→` step, then the EXACT numeric entry, both
+/// landing on the authored grid and both persisting.
+fn sweep_range(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
+    let key = crate::settings::value_key(row.id).expect("a Range has a key");
+    let spec = crate::settings::range_spec(row.id).expect("a Range has a spec");
+    stand_on(app, row);
+    let before = readout(app, row);
+    // ARROW STEP — the rail's own keyboard.
+    app.press_spec_headless("Right").expect("Right parses");
+    let stepped = readout(app, row);
+    assert_ne!(
+        before, stepped,
+        "{:?}: → must move the LIVE value one authored step",
+        row.name
+    );
+    assert!(
+        persisted(&mem, key).is_some(),
+        "{:?}: a discrete step persists at once — config was:\n{}",
+        row.name,
+        config_text(&mem)
+    );
+    // EXACT ENTRY — Enter opens the numeric field, and a typed value
+    // lands on the authored grid.
+    let target = spec.stepped(spec.parse(&stepped).unwrap_or(spec.default), 3);
+    let typed: String = spec
+        .format(target)
+        .chars()
+        .filter(|c| c.is_ascii_digit())
+        .collect();
+    app.press_spec_headless("Enter").expect("Enter parses");
+    assert!(
+        app.workspace_state
+            .overlay()
+            .is_some_and(|o| o.value_edit.is_some()),
+        "{:?}: Enter on a range row opens the exact numeric entry",
+        row.name
+    );
+    // The field opens SEEDED with the row's current value (retyping
+    // over what is shown is the point), so clear it before typing —
+    // more Backspaces than any readout is long.
+    app.press_spec_headless(&["Backspace"; 10].join(" "))
+        .expect("Backspace parses");
+    let keys: Vec<String> = typed.chars().map(|c| c.to_string()).collect();
+    app.press_spec_headless(&keys.join(" "))
+        .expect("digits parse");
+    app.press_spec_headless("Enter").expect("Enter parses");
+    let committed = readout(app, row);
+    assert_eq!(
+        committed,
+        spec.format(spec.parse(&typed).unwrap_or(target)),
+        "{:?}: the typed value {typed:?} commits onto the authored grid",
+        row.name
+    );
+    let written = persisted(&mem, key).expect("the typed commit persisted");
+    assert!(
+        written.contains(&spec.persist_value(spec.parse(&typed).unwrap_or(target))),
+        "{:?}: the persisted line {written:?} must carry the committed value",
+        row.name
+    );
+    assert_eq!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Settings),
+        "{:?}: a value commit keeps you configuring",
+        row.name
+    );
+}
+
+/// The `Picker`/`Submenu` arm: descend into the row's own sub-picker, commit (or
+/// leave, for a Submenu), and come back to the exact row, in the content pane.
+fn sweep_picker(app: &mut App, row: &SettingRow) {
+    let child = crate::settings::sub_overlay(row.id).expect("a Picker opens a sub-overlay");
+    stand_on(app, row);
+    let before = readout(app, row);
+    app.press_spec_headless("Enter").expect("Enter parses");
+    assert_eq!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(child),
+        "{:?}: Enter opens its own sub-picker",
+        row.name
+    );
+    if row.kind == SettingKind::Picker {
+        // Pick a DIFFERENT value and come back.
+        app.press_spec_headless("Down Enter")
+            .expect("Down/Enter parse");
+        assert_ne!(
+            readout(app, row),
+            before,
+            "{:?}: committing in the sub-picker changes the live value",
+            row.name
+        );
+    } else {
+        // A Submenu (Keybindings) is a place, not a value: leaving it
+        // must put you back where you were.
+        app.press_spec_headless("Escape").expect("Escape parses");
+    }
+    let back = app
+        .workspace_state
+        .overlay()
+        .expect("the workspace resumed");
+    assert_eq!(
+        back.kind,
+        crate::overlay::OverlayKind::Settings,
+        "{:?}: the child returned to the workspace",
+        row.name
+    );
+    assert_eq!(
+        back.selected_value(),
+        Some(row.name),
+        "{:?}: and to the exact row it was opened from",
+        row.name
+    );
+    assert!(
+        back.detail_focus,
+        "{:?}: resumed in the content pane, where that row lives",
+        row.name
+    );
+}
+
+/// The `Path` arm: the real folder navigator, its `.` row accepting the level you
+/// are standing in, and what that does — which is per-id and wildcard-free.
+fn sweep_path(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
+    let key = crate::settings::path_key(row.id).expect("a Path has a key");
+    stand_on(app, row);
+    app.press_spec_headless("Enter").expect("Enter parses");
+    assert_eq!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Project),
+        "{:?}: Enter opens the real folder navigator",
+        row.name
+    );
+    // The navigator opens with the first real FOLDER highlighted (a
+    // folder row DESCENDS); its synthetic `.` row on top is the one
+    // that accepts the level you are standing in. `Up` reaches it.
+    app.press_spec_headless("Up Enter").expect("Up/Enter parse");
+    // WHAT A PICKED FOLDER DOES is per-id and wildcard-free: two of
+    // the three write a config key, and the third RE-SCOPES the live
+    // project instead — `App::setting_path_pick`'s own arms. A sweep
+    // that demanded a config write from all three would be asserting
+    // something false about the one that does not.
+    match row.id {
+        SettingId::DefaultFolder | SettingId::ProjectsFolder => {
+            let written = persisted(&mem, key).unwrap_or_else(|| {
+                panic!(
+                    "{:?}: picking a folder must persist {key:?} — config was:\n{}",
+                    row.name,
+                    config_text(&mem)
+                )
+            });
+            assert!(
+                written.contains("/ws"),
+                "{:?}: the persisted line {written:?} must carry the \
+                         picked folder",
+                row.name
+            );
+            assert_eq!(
+                readout(app, row),
+                "/ws",
+                "{:?}: and the row now READS OUT the folder it was given",
+                row.name
+            );
+        }
+        SettingId::ProjectRoot => {
+            assert_eq!(
+                app.root,
+                std::path::PathBuf::from("/ws"),
+                "{:?}: picking a folder re-scopes the live project",
+                row.name
+            );
+            assert_eq!(
+                readout(app, row),
+                "/ws",
+                "{:?}: and the row reads out the new root",
+                row.name
+            );
+        }
+        other => panic!(
+            "{other:?} is a new `Path` row — say what picking a folder \
+                     does for it rather than inheriting a neighbour's answer"
+        ),
+    }
+}
+
+/// The `Action` arm.
+fn sweep_action(app: &mut App, row: &SettingRow) {
+    match row.id {
+        SettingId::EditConfigAsText => {
+            stand_on(app, row);
+            app.press_spec_headless("Enter").expect("Enter parses");
+            assert!(
+                !app.workspace_state.overlay_open(),
+                "{:?}: going somewhere ends the journey",
+                row.name
+            );
+            assert_eq!(
+                app.active.buffer.path(),
+                Some(std::path::Path::new(CFG)),
+                "{:?}: the config file itself is now the open buffer",
+                row.name
+            );
+        }
+        // DELIBERATE, NAMED HOLE. `Report a Problem` composes a `mailto:`
+        // URL and hands it to the OS through `App::follow_link`, which
+        // spawns `open`/`xdg-open`. Driving it live in a test would launch
+        // a mail client on the machine running the suite. It changes no
+        // editor state and no config, so what is left to verify is that
+        // the row reaches its effect through the workspace's own
+        // dispatcher — which `actions::tests::overlay_drive::
+        // settings_report_problem_row_reuses_the_report_effect_and_closes`
+        // asserts at the core seam. Recorded here rather than skipped
+        // silently, so the sweep's coverage is honest.
+        SettingId::ReportProblem => {}
+        other => panic!(
+            "{other:?} is a new `Action` row — give it an arm rather than \
+                     letting it fall through"
+        ),
+    }
+}
+
 /// THE HEADLINE TIER-2 LAW — every `SettingId × SettingKind`, changed and
 /// persisted through the Settings workspace's own door, by real chords.
 ///
-/// The per-kind arms are a wildcard-free `match` on `SettingKind`, so a new kind
+/// The dispatcher is a wildcard-free `match` on `SettingKind`, so a new kind
 /// stops this file compiling, and the corpus is read from `visible_rows()`, so a
 /// new ROW is swept the moment it exists. Each arm restores what it changed
 /// before the next row runs, which is also a second assertion: a setting that
-/// could be flipped but not flipped back would fail here.
+/// could be flipped but not flipped back would fail there.
 #[test]
 fn every_setting_changes_and_persists_through_the_real_workspace_door() {
     let mem = seeded_fs();
@@ -168,277 +439,34 @@ fn every_setting_changes_and_persists_through_the_real_workspace_door() {
         let mut app = workspace_app(&mem);
         match row.kind {
             SettingKind::Toggle => {
-                let key = crate::settings::toggle_key(row.id).expect("a Toggle has a key");
-                stand_on(&mut app, row);
-                let before = readout(&app, row);
-                app.press_spec_headless("Enter").expect("Enter parses");
-                let after = readout(&app, row);
-                assert_ne!(
-                    before, after,
-                    "{:?}: Enter on the row must flip the LIVE value",
-                    row.name
-                );
-                let written = persisted(&mem, key).unwrap_or_else(|| {
-                    panic!(
-                        "{:?}: nothing persisted under {key:?} — config was:\n{}",
-                        row.name,
-                        config_text(&mem)
-                    )
-                });
-                assert!(
-                    written.starts_with(&format!("{key} = ")),
-                    "{:?}: the write landed under its OWN key, not {written:?}",
-                    row.name
-                );
-                assert_eq!(
-                    app.workspace_state.overlay().map(|o| o.kind),
-                    Some(crate::overlay::OverlayKind::Settings),
-                    "{:?}: a toggle keeps you configuring",
-                    row.name
-                );
-                // Restore, and prove the flip is reversible from the same door —
-                // in BOTH the live readout and what was written to disk, so a
-                // toggle that moved the global without persisting (or the other
-                // way round) fails here rather than looking symmetric.
-                app.press_spec_headless("Enter").expect("Enter parses");
-                assert_eq!(
-                    readout(&app, row),
-                    before,
-                    "{:?}: the same key restores the live value",
-                    row.name
-                );
-                let restored = persisted(&mem, key).expect("the restore persisted too");
-                assert_ne!(
-                    written, restored,
-                    "{:?}: the restore wrote the OTHER bool — a persist that never \
-                     moved would read identical here",
-                    row.name
-                );
+                sweep_toggle(&mut app, &mem, row);
                 swept.push((row.id, "toggle: flipped, persisted, restored"));
             }
             SettingKind::Range => {
-                let key = crate::settings::value_key(row.id).expect("a Range has a key");
-                let spec = crate::settings::range_spec(row.id).expect("a Range has a spec");
-                stand_on(&mut app, row);
-                let before = readout(&app, row);
-                // ARROW STEP — the rail's own keyboard.
-                app.press_spec_headless("Right").expect("Right parses");
-                let stepped = readout(&app, row);
-                assert_ne!(
-                    before, stepped,
-                    "{:?}: → must move the LIVE value one authored step",
-                    row.name
-                );
-                assert!(
-                    persisted(&mem, key).is_some(),
-                    "{:?}: a discrete step persists at once — config was:\n{}",
-                    row.name,
-                    config_text(&mem)
-                );
-                // EXACT ENTRY — Enter opens the numeric field, and a typed value
-                // lands on the authored grid.
-                let target = spec.stepped(spec.parse(&stepped).unwrap_or(spec.default), 3);
-                let typed: String = spec
-                    .format(target)
-                    .chars()
-                    .filter(|c| c.is_ascii_digit())
-                    .collect();
-                app.press_spec_headless("Enter").expect("Enter parses");
-                assert!(
-                    app.workspace_state
-                        .overlay()
-                        .is_some_and(|o| o.value_edit.is_some()),
-                    "{:?}: Enter on a range row opens the exact numeric entry",
-                    row.name
-                );
-                // The field opens SEEDED with the row's current value (retyping
-                // over what is shown is the point), so clear it before typing —
-                // more Backspaces than any readout is long.
-                app.press_spec_headless(&vec!["Backspace"; 10].join(" "))
-                    .expect("Backspace parses");
-                let keys: Vec<String> = typed.chars().map(|c| c.to_string()).collect();
-                app.press_spec_headless(&keys.join(" "))
-                    .expect("digits parse");
-                app.press_spec_headless("Enter").expect("Enter parses");
-                let committed = readout(&app, row);
-                assert_eq!(
-                    committed,
-                    spec.format(spec.parse(&typed).unwrap_or(target)),
-                    "{:?}: the typed value {typed:?} commits onto the authored grid",
-                    row.name
-                );
-                let written = persisted(&mem, key).expect("the typed commit persisted");
-                assert!(
-                    written.contains(&spec.persist_value(spec.parse(&typed).unwrap_or(target))),
-                    "{:?}: the persisted line {written:?} must carry the committed value",
-                    row.name
-                );
-                assert_eq!(
-                    app.workspace_state.overlay().map(|o| o.kind),
-                    Some(crate::overlay::OverlayKind::Settings),
-                    "{:?}: a value commit keeps you configuring",
-                    row.name
-                );
+                sweep_range(&mut app, &mem, row);
                 swept.push((row.id, "range: stepped, typed, persisted"));
             }
-            SettingKind::Value => {
-                // No row is authored `Value` today — every bounded numeric is a
-                // `Range`. The arm exists so the match stays wildcard-free, and
-                // it asserts the corpus really is empty of them rather than
-                // silently passing over one that appeared.
-                panic!(
-                    "{:?} is authored `Value`; this sweep has no arm for one yet \
-                     — write it rather than widening the match",
-                    row.name
-                );
-            }
+            // No row is authored `Value` today — every bounded numeric is a
+            // `Range`. The arm exists so the match stays wildcard-free, and it
+            // says so out loud rather than silently passing over one that
+            // appeared.
+            SettingKind::Value => panic!(
+                "{:?} is authored `Value`; this sweep has no arm for one yet — \
+                 write it rather than widening the match",
+                row.name
+            ),
             SettingKind::Picker | SettingKind::Submenu => {
-                let child =
-                    crate::settings::sub_overlay(row.id).expect("a Picker opens a sub-overlay");
-                stand_on(&mut app, row);
-                let before = readout(&app, row);
-                app.press_spec_headless("Enter").expect("Enter parses");
-                assert_eq!(
-                    app.workspace_state.overlay().map(|o| o.kind),
-                    Some(child),
-                    "{:?}: Enter opens its own sub-picker",
-                    row.name
-                );
-                if row.kind == SettingKind::Picker {
-                    // Pick a DIFFERENT value and come back.
-                    app.press_spec_headless("Down Enter")
-                        .expect("Down/Enter parse");
-                    assert_ne!(
-                        readout(&app, row),
-                        before,
-                        "{:?}: committing in the sub-picker changes the live value",
-                        row.name
-                    );
-                } else {
-                    // A Submenu (Keybindings) is a place, not a value: leaving it
-                    // must put you back where you were.
-                    app.press_spec_headless("Escape").expect("Escape parses");
-                }
-                let back = app
-                    .workspace_state
-                    .overlay()
-                    .expect("the workspace resumed");
-                assert_eq!(
-                    back.kind,
-                    crate::overlay::OverlayKind::Settings,
-                    "{:?}: the child returned to the workspace",
-                    row.name
-                );
-                assert_eq!(
-                    back.selected_value(),
-                    Some(row.name),
-                    "{:?}: and to the exact row it was opened from",
-                    row.name
-                );
-                assert!(
-                    back.detail_focus,
-                    "{:?}: resumed in the content pane, where that row lives",
-                    row.name
-                );
+                sweep_picker(&mut app, row);
                 swept.push((row.id, "picker: descended, committed, returned in place"));
             }
             SettingKind::Path => {
-                let key = crate::settings::path_key(row.id).expect("a Path has a key");
-                stand_on(&mut app, row);
-                app.press_spec_headless("Enter").expect("Enter parses");
-                assert_eq!(
-                    app.workspace_state.overlay().map(|o| o.kind),
-                    Some(crate::overlay::OverlayKind::Project),
-                    "{:?}: Enter opens the real folder navigator",
-                    row.name
-                );
-                // The navigator opens with the first real FOLDER highlighted (a
-                // folder row DESCENDS); its synthetic `.` row on top is the one
-                // that accepts the level you are standing in. `Up` reaches it.
-                app.press_spec_headless("Up Enter").expect("Up/Enter parse");
-                // WHAT A PICKED FOLDER DOES is per-id and wildcard-free: two of
-                // the three write a config key, and the third RE-SCOPES the live
-                // project instead — `App::setting_path_pick`'s own arms. A sweep
-                // that demanded a config write from all three would be asserting
-                // something false about the one that does not.
-                match row.id {
-                    SettingId::DefaultFolder | SettingId::ProjectsFolder => {
-                        let written = persisted(&mem, key).unwrap_or_else(|| {
-                            panic!(
-                                "{:?}: picking a folder must persist {key:?} — config was:\n{}",
-                                row.name,
-                                config_text(&mem)
-                            )
-                        });
-                        assert!(
-                            written.contains("/ws"),
-                            "{:?}: the persisted line {written:?} must carry the \
-                             picked folder",
-                            row.name
-                        );
-                        assert_eq!(
-                            readout(&app, row),
-                            "/ws",
-                            "{:?}: and the row now READS OUT the folder it was given",
-                            row.name
-                        );
-                    }
-                    SettingId::ProjectRoot => {
-                        assert_eq!(
-                            app.root,
-                            std::path::PathBuf::from("/ws"),
-                            "{:?}: picking a folder re-scopes the live project",
-                            row.name
-                        );
-                        assert_eq!(
-                            readout(&app, row),
-                            "/ws",
-                            "{:?}: and the row reads out the new root",
-                            row.name
-                        );
-                    }
-                    other => panic!(
-                        "{other:?} is a new `Path` row — say what picking a folder \
-                         does for it rather than inheriting a neighbour's answer"
-                    ),
-                }
+                sweep_path(&mut app, &mem, row);
                 swept.push((row.id, "path: navigator, picked, applied"));
             }
-            SettingKind::Action => match row.id {
-                SettingId::EditConfigAsText => {
-                    stand_on(&mut app, row);
-                    app.press_spec_headless("Enter").expect("Enter parses");
-                    assert!(
-                        !app.workspace_state.overlay_open(),
-                        "{:?}: going somewhere ends the journey",
-                        row.name
-                    );
-                    assert_eq!(
-                        app.active.buffer.path(),
-                        Some(std::path::Path::new(CFG)),
-                        "{:?}: the config file itself is now the open buffer",
-                        row.name
-                    );
-                    swept.push((row.id, "action: opened the config as text"));
-                }
-                // DELIBERATE, NAMED HOLE. `Report a Problem` composes a `mailto:`
-                // URL and hands it to the OS through `App::follow_link`, which
-                // spawns `open`/`xdg-open`. Driving it live in a test would launch
-                // a mail client on the machine running the suite. It changes no
-                // editor state and no config, so what is left to verify is that
-                // the row reaches its effect through the workspace's own
-                // dispatcher — which `actions::tests::overlay_drive::
-                // settings_report_problem_row_reuses_the_report_effect_and_closes`
-                // asserts at the core seam. Recorded here rather than skipped
-                // silently, so the sweep's coverage is honest.
-                SettingId::ReportProblem => {
-                    swept.push((row.id, "action: core-seam only (OS handoff)"));
-                }
-                other => panic!(
-                    "{other:?} is a new `Action` row — give it an arm rather than \
-                     letting it fall through"
-                ),
-            },
+            SettingKind::Action => {
+                sweep_action(&mut app, row);
+                swept.push((row.id, "action: run through the workspace's own dispatcher"));
+            }
         }
     }
     assert_eq!(
@@ -466,16 +494,13 @@ fn every_setting_changes_and_persists_through_the_real_workspace_door() {
 #[test]
 fn the_sweep_drives_the_picker_door_and_names_no_app_side_door() {
     let src = include_str!("workspace_item114.rs");
-    // The sweep's own BODY, bounded by its closing brace at column 0 — not by
-    // the next `#[test]`, which would swallow this test's own prose and let a
-    // doc comment naming a banned door fail the law it belongs to.
+    // THE SWEEP is its dispatcher plus its five per-kind arms, so the scan is
+    // this whole file up to (but excluding) THIS test — whose own prose names
+    // the very doors it bans and would otherwise fail the law it belongs to.
     let body = src
-        .split_once("fn every_setting_changes_and_persists_through_the_real_workspace_door")
-        .expect("the sweep is in this file")
-        .1
-        .split_once("\n}\n")
-        .map(|(body, _)| body)
-        .expect("the sweep has a closing brace");
+        .split_once("/// THE ANTI-VACUITY LAW")
+        .map(|(before, _)| before)
+        .expect("this law follows the sweep it guards");
     // Prose is not a call site.
     let body: String = body
         .lines()
@@ -500,7 +525,7 @@ fn the_sweep_drives_the_picker_door_and_names_no_app_side_door() {
     }
     let presses = body.matches("press_spec_headless").count();
     assert!(
-        presses >= 8,
+        presses >= 15,
         "the sweep only pressed {presses} chord specs — it is no longer driving \
          the real input pipeline, and the ban above is vacuous"
     );

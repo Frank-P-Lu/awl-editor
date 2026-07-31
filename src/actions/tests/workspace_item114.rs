@@ -11,8 +11,8 @@
 //! The VALUE side is deliberately absent — `SettingToggle` and friends are
 //! replay-Unsupported and live in `app::tests::workspace_item114`.
 
-use super::*;
 use super::overlay_drive::command_overlay_with_settings;
+use super::*;
 use crate::overlay::{Beneath, Event, OverlayKind, State, Surface, landing_of};
 
 fn journey_state(journey: &crate::overlay::Journey) -> State {
@@ -64,7 +64,11 @@ fn the_workspaces_keys_land_where_the_transition_table_says() {
 
     // Tab crosses back, and crosses again — the same one event, both ways.
     settings_drive(&mut journey, &Action::InsertTab);
-    assert_eq!(surface(&journey), Some(Surface::Workspace), "Tab crosses back");
+    assert_eq!(
+        surface(&journey),
+        Some(Surface::Workspace),
+        "Tab crosses back"
+    );
     settings_drive(&mut journey, &Action::InsertTab);
     assert_eq!(surface(&journey), Some(Surface::WorkspaceDetail));
 
@@ -271,7 +275,12 @@ fn a_workspace_audition_commits_or_reverts_and_returns_to_its_exact_row() {
             );
             // Audition a different value.
             settings_drive(&mut journey, &Action::NextLine);
-            let auditioned = journey.card().unwrap().selected_value().unwrap().to_string();
+            let auditioned = journey
+                .card()
+                .unwrap()
+                .selected_value()
+                .unwrap()
+                .to_string();
 
             settings_drive(
                 &mut journey,

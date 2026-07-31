@@ -22,10 +22,10 @@ mod openable;
 mod press;
 mod source_audit;
 mod spell;
+mod which_key;
 /// ITEM 114's TIER-2 SWEEP: every setting changed and persisted through the
 /// Settings WORKSPACE's own door, by real chords into the live `App`. Why this
 /// tier and not a capture: `docs/harness-reach.md`.
 mod workspace_item114;
-mod which_key;
 
 use common::*;
