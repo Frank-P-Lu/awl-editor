@@ -2250,7 +2250,7 @@ pub struct TextPipeline {
     workspace_rail_mark: Option<[f32; 4]>,
     /// Where the shaped rail buffer is placed (`(left, top)`), or `None` when no
     /// rail is drawn this frame.
-    workspace_rail_area: Option<(f32, f32)>,
+    workspace_rail_placement: Option<(f32, f32)>,
     overlay_spell_w: f32,
     overlay_content_w: f32,
     caret_preview: Option<CaretMode>,

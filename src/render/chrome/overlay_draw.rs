@@ -102,7 +102,7 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
         // ITEM 114 — the workspace rail's placement and its active mark park with
         // the card, so the frame after a workspace closes carries neither.
-        self.workspace_rail_area = None;
+        self.workspace_rail_placement = None;
         self.workspace_rail_mark = None;
         // V6 P5: the Chips ghost pills park empty too, so a closed picker carries
         // no stale ghost-pill quads into the next frame.
@@ -358,23 +358,15 @@ impl TextPipeline {
                 });
             }
         }
-        // ITEM 114 — the navigation rail, clipped to its own measured column so a
-        // label can never bleed into the content pane it sits beside. It rides
-        // this same batch (rather than a pass of its own) because it is card
-        // chrome in the card's own z-slot: over the card fill, under nothing.
-        if has_rail && let Some((rail_left, rail_top)) = self.workspace_rail_area {
-            let rail_w = geom.rail.map(|[_, w]| w).unwrap_or(0.0);
+        // ITEM 114 — the navigation rail, in the card's own z-slot.
+        if has_rail && let Some((left, top, bounds)) = self.workspace_rail_area(geom, width, height)
+        {
             areas.push(TextArea {
                 buffer: &self.workspace_rail_buffer,
-                left: rail_left,
-                top: rail_top,
+                left,
+                top,
                 scale: 1.0,
-                bounds: TextBounds {
-                    left: rail_left.max(0.0) as i32,
-                    top: 0,
-                    right: ((rail_left + rail_w).min(width as f32)) as i32,
-                    bottom: height as i32,
-                },
+                bounds,
                 default_color: muted,
                 custom_glyphs: &[],
             });

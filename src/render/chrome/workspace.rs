@@ -74,7 +74,114 @@ pub(in crate::render) fn dimmed(color: theme::Srgb, f: f32) -> [u8; 4] {
     rgba
 }
 
+impl OverlayGeom {
+    /// The CONTENT BAND's horizontal extent — the one owner every row-band
+    /// consumer (the plan, the selected-row quads, the bar plates, the pointer
+    /// hit-test) reads. It is the card for a contextual overlay and the content
+    /// pane for a workspace, so none of those consumers has to know which it is.
+    pub(super) fn band_x(&self) -> f32 {
+        match self.workspace {
+            true => self.pane_x,
+            false => self.card_x,
+        }
+    }
+
+    pub(super) fn band_w(&self) -> f32 {
+        match self.workspace {
+            true => self.pane_w,
+            false => self.card_w,
+        }
+    }
+
+    /// TEST-ONLY readers for the item-114 law probe (`render/tests/overlay_probe.rs`),
+    /// which lives outside this module so a law can compare against what the
+    /// frame committed without a render path growing an exception.
+    #[cfg(test)]
+    pub(in crate::render) fn band_x_probe(&self) -> f32 {
+        self.band_x()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn band_w_probe(&self) -> f32 {
+        self.band_w()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn card_probe(&self) -> [f32; 4] {
+        [self.card_x, self.card_y, self.card_w, self.card_h]
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn visible_probe(&self) -> usize {
+        self.visible
+    }
+}
+
 impl TextPipeline {
+    /// ITEM 114 — WHERE the navigation rail's shaped labels go, and the clip
+    /// that keeps them there: its measured column, so a label can never bleed
+    /// into the content pane it sits beside. Returns placement rather than a
+    /// `TextArea` so the caller's own field borrows stay disjoint from the
+    /// renderer it is about to prepare.
+    pub(super) fn workspace_rail_area(
+        &self,
+        geom: &OverlayGeom,
+        width: u32,
+        height: u32,
+    ) -> Option<(f32, f32, TextBounds)> {
+        let (left, top) = self.workspace_rail_placement?;
+        let rail_w = geom.rail.map(|[_, w]| w).unwrap_or(0.0);
+        Some((
+            left,
+            top,
+            TextBounds {
+                left: left.max(0.0) as i32,
+                top: 0,
+                right: ((left + rail_w).min(width as f32)) as i32,
+                bottom: height as i32,
+            },
+        ))
+    }
+
+    /// ITEM 114 — THE RAIL'S ACTIVE MARK, in the shared "active lens mark" slot,
+    /// because that is exactly what it is: the rail IS the facet strip stood on
+    /// its end, and its active entry is that strip's active label.
+    ///
+    /// It bypasses the `FacetStyle` skins on purpose — those describe a
+    /// horizontal chip run (a bracket, an underline hugging a baseline) and none
+    /// of them says anything about a column — and takes the world's own
+    /// selected-row band instead, at the same reduced presence the content pane's
+    /// band takes when IT is the unfocused region.
+    pub(super) fn prepare_rail_mark(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        geom: &OverlayGeom,
+    ) {
+        let band = match theme::active()
+            .highlight_treatment(crate::render::effective_overlay_selrow_band())
+        {
+            theme::HighlightTreatment::ValueBand(c) => c,
+            theme::HighlightTreatment::InverseFill { band, .. } => band,
+        };
+        let rgba = match geom.rows_focused {
+            true => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
+            false => band.rgba_bytes(),
+        };
+        self.overlay_lens_underline.set_color(rgba);
+        self.overlay_lens_underline
+            .set_corner(super::overlay_rows::FACET_CHIP_RADIUS);
+        self.overlay_lens_underline.set_stroke(0.0);
+        let marks: Vec<[f32; 4]> = self.workspace_rail_mark.into_iter().collect();
+        self.overlay_lens_underline
+            .prepare(device, queue, width, height, &marks);
+        self.overlay_facet_ghost
+            .prepare(device, queue, width, height, &[]);
+        return;
+    }
+
     /// The workspace inset for the current window — a pure function of the
     /// canvas, read by the geometry and by the laws that check it.
     pub(in crate::render) fn workspace_margin(&self) -> f32 {
@@ -321,7 +428,7 @@ impl TextPipeline {
     ) -> bool {
         self.workspace_rail_mark = None;
         let Some([x, top, w, _]) = self.workspace_rail_box(geom, plan) else {
-            self.workspace_rail_area = None;
+            self.workspace_rail_placement = None;
             return false;
         };
         let ui_metrics = self.overlay_metrics();
@@ -367,7 +474,7 @@ impl TextPipeline {
         );
         self.workspace_rail_buffer
             .shape_until_scroll(&mut self.font_system, false);
-        self.workspace_rail_area = Some((x, top));
+        self.workspace_rail_placement = Some((x, top));
         self.workspace_rail_mark = active.and_then(|i| self.workspace_rail_rect(geom, plan, i));
         true
     }

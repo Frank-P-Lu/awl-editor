@@ -211,29 +211,21 @@ pub(super) struct OverlayGeom {
     pub(super) text_top: f32,
     pub(super) text_w: f32,
     card_narrow: bool,
-    /// ITEM 114 — this card is drawn as a SUMMONED WORKSPACE: it takes the
-    /// viewport rather than floating over a still-readable document, and carries
-    /// a navigation rail beside its content. `false` for every contextual card,
-    /// which is what keeps every arm below byte-identical for them.
+    /// ITEM 114 — this card is drawn as a SUMMONED WORKSPACE. `false` for every
+    /// contextual card, which keeps every arm reading it byte-identical there.
+    /// The family's own doc is `render/chrome/workspace.rs`.
     pub(super) workspace: bool,
-    /// The workspace's navigation RAIL COLUMN (`[x, w]`), or `None` when no rail
-    /// is drawn — a contextual card, or the narrow stage that is showing the
-    /// content instead. Only the column: the rail's vertical grid is resolved
-    /// from the ROW PLAN's own band origin (`workspace_rail_box`), so a rail
-    /// entry sits on the same line as the settings row beside it by construction,
-    /// and the shaped labels, the active mark and the pointer hit-test all read
-    /// that one grid (DESIGN.md §8's drawn-equals-clickable rule).
+    /// The navigation RAIL's COLUMN (`[x, w]`), or `None` when none is drawn.
+    /// Only the column: its vertical grid comes from the ROW PLAN's band origin
+    /// (`workspace_rail_box`), so a rail entry and the row beside it share a line.
     pub(super) rail: Option<[f32; 2]>,
-    /// The horizontal extent of the CONTENT BAND — the rows, their selected-row
-    /// band and their pointer hit-test. Equal to `card_x`/`card_w` for every
-    /// contextual card; narrowed to the workspace's content pane beside the rail,
-    /// so a click in the rail column can never resolve to a settings row.
+    /// The CONTENT BAND's horizontal extent — read through `band_x`/`band_w`,
+    /// never directly, so a contextual card gets its card and a workspace its
+    /// pane from one owner.
     pub(super) pane_x: f32,
     pub(super) pane_w: f32,
     /// Does the workspace's CONTENT pane hold focus (rather than its rail)? The
-    /// one input to the focus cue: the focused region's marker is the world's
-    /// full selected-row band, the other region's the same rect at reduced
-    /// presence. Always `false` off a workspace.
+    /// one input to the focus cue. Always `false` off a workspace.
     pub(super) rows_focused: bool,
 }
 
@@ -267,47 +259,6 @@ impl OverlayGeom {
             pane_w: 0.0,
             rows_focused: false,
         }
-    }
-
-    /// The CONTENT BAND's horizontal extent — the one owner every row-band
-    /// consumer (the plan, the selected-row quads, the bar plates, the pointer
-    /// hit-test) reads. It is the card for a contextual overlay and the content
-    /// pane for a workspace, so none of those consumers has to know which it is.
-    pub(super) fn band_x(&self) -> f32 {
-        match self.workspace {
-            true => self.pane_x,
-            false => self.card_x,
-        }
-    }
-
-    pub(super) fn band_w(&self) -> f32 {
-        match self.workspace {
-            true => self.pane_w,
-            false => self.card_w,
-        }
-    }
-
-    /// TEST-ONLY readers for the item-114 law probe (`render/tests/overlay_probe.rs`),
-    /// which lives outside this module so a law can compare against what the
-    /// frame committed without a render path growing an exception.
-    #[cfg(test)]
-    pub(in crate::render) fn band_x_probe(&self) -> f32 {
-        self.band_x()
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn band_w_probe(&self) -> f32 {
-        self.band_w()
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn card_probe(&self) -> [f32; 4] {
-        [self.card_x, self.card_y, self.card_w, self.card_h]
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn visible_probe(&self) -> usize {
-        self.visible
     }
 }
 

@@ -8,7 +8,7 @@
 
 use super::*;
 
-const FACET_CHIP_RADIUS: f32 = 6.0;
+pub(super) const FACET_CHIP_RADIUS: f32 = 6.0;
 
 impl TextPipeline {
     /// TEST HOOK: total shaped glyphs the overlay text renderer would draw this
@@ -205,33 +205,10 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        // ITEM 114 — A WORKSPACE'S RAIL takes this same "active lens mark" slot,
-        // because that is exactly what it is: the rail is the facet strip stood on
-        // its end, and its active entry is that strip's active label. It bypasses
-        // the `FacetStyle` skins below on purpose — those describe a horizontal
-        // chip run (a bracket, an underline hugging a baseline) and none of them
-        // says anything about a column — and takes the world's own selected-row
-        // band instead, at the same reduced presence the content pane's band takes
-        // when IT is the unfocused region.
+        // ITEM 114 — a WORKSPACE'S RAIL takes this same "active lens mark" slot,
+        // and takes it whole: see `workspace::prepare_rail_mark`.
         if geom.workspace {
-            let band = match theme::active()
-                .highlight_treatment(crate::render::effective_overlay_selrow_band())
-            {
-                theme::HighlightTreatment::ValueBand(c) => c,
-                theme::HighlightTreatment::InverseFill { band, .. } => band,
-            };
-            let rgba = match geom.rows_focused {
-                true => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
-                false => band.rgba_bytes(),
-            };
-            self.overlay_lens_underline.set_color(rgba);
-            self.overlay_lens_underline.set_corner(FACET_CHIP_RADIUS);
-            self.overlay_lens_underline.set_stroke(0.0);
-            let marks: Vec<[f32; 4]> = self.workspace_rail_mark.into_iter().collect();
-            self.overlay_lens_underline
-                .prepare(device, queue, width, height, &marks);
-            self.overlay_facet_ghost
-                .prepare(device, queue, width, height, &[]);
+            self.prepare_rail_mark(device, queue, width, height, geom);
             return;
         }
         // PER-ITEM LIST SURFACES round: `Text` (default) keeps the content-ink

@@ -529,7 +529,7 @@ impl TextPipeline {
             workspace_rail_w: 0.0,
             workspace_rail_buffer,
             workspace_rail_mark: None,
-            workspace_rail_area: None,
+            workspace_rail_placement: None,
             overlay_spell_w: 0.0,
             overlay_content_w: 0.0,
             caret_preview: None,

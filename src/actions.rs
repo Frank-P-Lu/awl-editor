@@ -11,9 +11,11 @@ mod flinch; // the caret-feedback triggers (impact_for / recoil_for)
 mod format; // the markdown formatting-command toggles (block + inline)
 mod link; // LINKS V2 — Cmd-K insert/edit-link (plan + commit, mirrors format.rs)
 mod motion; // the oracle-aware caret motions + page scroll + search open
-mod overlay_nav; // the modal overlay intercept + browse-path helpers + live preview
+mod overlay_nav;
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
-mod rebind; // the game-style rebind-menu key handling
+mod rebind;
+/// ITEM 114 — the summoned workspace's two-region keyboard + the Cmd-P deep link.
+mod workspace_nav; // the modal overlay intercept + browse-path helpers + live preview // the game-style rebind-menu key handling
 use edit::*;
 pub use effects::*;
 use flinch::*;
