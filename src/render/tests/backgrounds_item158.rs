@@ -152,18 +152,22 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
         );
     }
     // The weave is a THEME-OWNED scalar, and the inert default is what every
-    // other ground reports — the shader's own `params.w` slot never changes
-    // shape for a world that has no weave.
+    // ground with NO profile dial reports — the shader's own `params.w`/`.z`
+    // slot never changes shape for a world with none. `profile_mode` is
+    // shared with Organic's own `Arrangement` dial (item 176/191), so
+    // Bowerbird's own non-inert value is expected here too, not a Deckle
+    // exception — it carries `Finds` (item 191), never `Weave`.
     for t in theme::THEMES {
         let want = match t.name {
             "Paperbark" => Weave::Strata.mode(),
             "Galah" => Weave::Fibres.mode(),
+            "Bowerbird" => theme::Arrangement::Finds.mode(),
             _ => 0.0,
         };
         assert_eq!(
             t.background.profile_mode(),
             want,
-            "{}: profile_mode is inert off Deckle",
+            "{}: profile_mode is inert off both Deckle and Organic",
             t.name
         );
     }

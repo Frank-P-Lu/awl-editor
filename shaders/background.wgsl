@@ -488,16 +488,30 @@ const ORGANIC_DRIFT_MIN_Y_PX: f32 = 9.0;
 //     companion and inside the anchor's own inradius, so it always reads as a
 //     hole through the collection and never as a fourth object.
 // A collection reaches at most `JITTER/2 + ANCHOR_HI * (OFFSET_HI +
-// COMPANION_HI * 1.5551)` ~ 0.44 of a cell from its centre — the 1.5551 is the
+// COMPANION_HI * 1.5551)` of a cell from its centre — the 1.5551 is the
 // triangle's circumradius per unit nominal radius, the largest reach of the
-// three kinds — so it stays comfortably inside the half cell, neighbouring
-// collections never merge, and each one is separately readable on the open
-// ground between them.
+// three kinds. ITEM 191 raised `ANCHOR_HI` (below) for the composition-growth
+// move, which raises this worst-case reach from item 176's ~0.44 to ~0.499 —
+// still inside the half cell, so neighbouring collections still never merge,
+// but the margin is now thin rather than generous, so this claim is a
+// SWEPT PIXEL LAW (`render::tests::bowerbird_finds_item176`'s three-role
+// hierarchy check — a merge would fuse two collections' ink and fail it), not
+// a comment asserted on the strength of the arithmetic alone.
 const FINDS_SQUARE_HALF: f32 = 0.8862269; // (2a)^2 == pi*r^2
 const FINDS_TRI_HALF_SIDE: f32 = 1.3468; // sqrt(3)*h^2 == pi*r^2
 const FINDS_TRI_INRADIUS: f32 = 0.7776; // the smallest inradius of the three kinds
-const FINDS_ANCHOR_LO: f32 = 0.150;
-const FINDS_ANCHOR_HI: f32 = 0.195;
+// ITEM 191 — the anchor's own nominal-radius range is 1.15x its item-176
+// values, ONE hierarchy-preserving move: the companion and cut-out are both
+// authored as FRACTIONS of the anchor's radius (`r_b`/`r_c` below), and their
+// offsets are fractions of the anchor's radius too, so scaling the anchor
+// alone carries the whole collection — all three roles, and their spacing —
+// up by the same 15% without retuning a single ratio. Measured effect: about
+// 15% more linear size (~32% more inked area) per collection, exactly the
+// "more physical presence" the user asked for, with the role ordering and
+// every overlap/enclosure guarantee in the comment above untouched (they are
+// stated in ratios, which this change never touches).
+const FINDS_ANCHOR_LO: f32 = 0.1725;
+const FINDS_ANCHOR_HI: f32 = 0.22425;
 const FINDS_COMPANION_LO: f32 = 0.46;
 const FINDS_COMPANION_HI: f32 = 0.56;
 const FINDS_OFFSET_LO: f32 = 0.80;
@@ -508,7 +522,14 @@ const FINDS_ACCENT_OFFSET_LO: f32 = 0.10;
 const FINDS_ACCENT_OFFSET_HI: f32 = 0.34;
 const FINDS_JITTER: f32 = 0.15;
 const FINDS_LATTICE_ANGLE: f32 = 0.42;
-const FINDS_DROPOUT: f32 = 0.10;
+// ITEM 191 — the WINNING hash's threshold, not a per-cell rate any more (see
+// `finds_is_local_min` below). Raised from the item-176 0.10 so the
+// decorrelated mechanism still draws roughly one breathing cell in ten:
+// a cell's own hash is one of 9 i.i.d. draws (itself plus its full
+// neighbourhood), so P(cell empty) = P(its draw is both the neighbourhood's
+// minimum AND under this threshold) = (1-(1-t)^9)/9, solved for the
+// item-176 target of 0.10 at t ~= 0.226.
+const FINDS_DROPOUT: f32 = 0.226;
 const FINDS_TAU: f32 = 6.2831855;
 // The feather half-width, in PHYSICAL pixels. Crisp is the whole point, so
 // this is a fixed sub-pixel skirt rather than a fraction of a cell: the same
@@ -535,6 +556,48 @@ const FINDS_EDGE_AA_PX: f32 = 0.75;
 // at 2x the floor's own 96 logical px carry 192 device pixels of detail, which
 // is strictly more resolution than the number was calibrated against.
 const FINDS_MIN_SCALE_PX: f32 = 96.0;
+
+// ITEM 191 — THE VOID-BOUND DROPOUT. The item-176 mechanism drew a cell empty
+// on an UNCONSTRAINED per-cell coin flip (`hash21(cell) < 0.10`), independent
+// cell to cell. Independent flips have no memory of their neighbours, so nothing
+// stopped a run of several adjacent cells from all landing empty at once — rare
+// for any one pair, but a real margin holds thousands of cells, and the user's
+// own verdict named the result: conspicuous dead patches where the omissions
+// happened to align.
+//
+// The fix keeps the decision fully deterministic and local (no clock, no
+// stored state — still a pure function of `cell`) but decorrelates
+// neighbours: a cell may become empty only when its own hash is the STRICT
+// MINIMUM among its full 3x3 Moore neighbourhood (itself plus all 8
+// neighbours). Two mutually-adjacent cells can never both win that
+// comparison — `h0(A) < h0(B)` and `h0(B) < h0(A)` cannot both hold — so no
+// two lattice-adjacent cells are EVER simultaneously empty, which bounds the
+// largest contiguous void to roughly one cell's own reach, structurally,
+// however large the field is (proved over real pixels by
+// `render::tests::bowerbird_spacing_item191`).
+//
+// The neighbour lookup reuses the exact lattice-cell index space
+// `organic_finds_rgb` computes `cell` in. Only the horizontal axis is
+// row-sheared (`qx = q.x + hash21(row, 91.0)`, a per-row offset in [0,1)), so
+// the shear DELTA between any two adjacent rows sits strictly inside (-1, 1)
+// — the true nearest cell one row up or down always rounds to one of
+// `{col-1, col, col+1}`, so the 3x3 window below is exact, not an
+// approximation that could miss a genuine geometric neighbour.
+fn finds_h0(cell: vec2<f32>) -> f32 {
+    return hash21(cell + vec2<f32>(19.0, 5.0));
+}
+
+fn finds_is_local_min(cell: vec2<f32>, h0: f32) -> bool {
+    var min_other = finds_h0(cell + vec2<f32>(-1.0, -1.0));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(0.0, -1.0)));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(1.0, -1.0)));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(-1.0, 0.0)));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(1.0, 0.0)));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(-1.0, 1.0)));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(0.0, 1.0)));
+    min_other = min(min_other, finds_h0(cell + vec2<f32>(1.0, 1.0)));
+    return h0 < min_other;
+}
 
 fn finds_rot(p: vec2<f32>, a: f32) -> vec2<f32> {
     let c = cos(a);
@@ -587,9 +650,12 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f3
     let cell = vec2<f32>(floor(qx), row);
     let local = vec2<f32>(fract(qx), fract(q.y)) - vec2<f32>(0.5, 0.5);
 
-    let h0 = hash21(cell + vec2<f32>(19.0, 5.0));
-    // Some cells hold nothing: open ground is part of the arrangement.
-    if (h0 < FINDS_DROPOUT) {
+    let h0 = finds_h0(cell);
+    // Some cells hold nothing: open ground is part of the arrangement. Item
+    // 191 added the local-minimum gate (`finds_is_local_min`) so this can
+    // never fire on two lattice-adjacent cells at once — see the comment on
+    // that function.
+    if (h0 < FINDS_DROPOUT && finds_is_local_min(cell, h0)) {
         return g.c_from.rgb;
     }
     let h1 = hash21(cell + vec2<f32>(3.0, 41.0));

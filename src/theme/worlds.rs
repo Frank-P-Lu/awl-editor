@@ -468,8 +468,8 @@ pub const BOWERBIRD: Theme = Theme {
             Srgb::rgb(0x13, 0x1D, 0x33),
             Srgb::rgb(0x1F, 0x2C, 0x49),
         ],
-        arrangement: Arrangement::Masses,
-        scale_px: 156.0,
+        arrangement: Arrangement::Finds, // item 191: was Masses (item 176 preview)
+        scale_px: 195.0,
         density: 0.46,
     },
     font: "IBM Plex Sans",
