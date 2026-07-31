@@ -89,22 +89,39 @@ fn workspace_view(ov: &OverlayState) -> ViewState {
     v
 }
 
+/// One swept cell of the geometry axis: a canvas, a zoom and a DPI.
+#[derive(Clone, Copy)]
+struct Cell {
+    w: u32,
+    h: u32,
+    zoom: f32,
+    dpi: f32,
+}
+
+impl Cell {
+    fn plain(w: u32, h: u32) -> Self {
+        Cell {
+            w,
+            h,
+            zoom: 1.0,
+            dpi: 1.0,
+        }
+    }
+}
+
 fn prepared(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     p: &mut TextPipeline,
     ov: &OverlayState,
-    w: u32,
-    h: u32,
-    zoom: f32,
-    dpi: f32,
+    cell: Cell,
 ) {
-    p.set_dpi(dpi);
-    p.set_size(w as f32, h as f32);
+    p.set_dpi(cell.dpi);
+    p.set_size(cell.w as f32, cell.h as f32);
     let mut v = workspace_view(ov);
-    v.zoom = zoom;
+    v.zoom = cell.zoom;
     p.set_view(&v);
-    p.prepare(device, queue, w, h).unwrap();
+    p.prepare(device, queue, cell.w, cell.h).unwrap();
 }
 
 /// THE RAIL IS THE AUTHORED CATEGORY LIST, and it is derived from the settings
@@ -179,7 +196,7 @@ fn the_rail_is_clickable_exactly_where_it_is_drawn() {
             for &dpi in &[1.0f32, 2.0] {
                 for &detail in &[false, true] {
                     let ov = workspace_card(0, detail);
-                    prepared(&device, &queue, &mut p, &ov, w, h, zoom, dpi);
+                    prepared(&device, &queue, &mut p, &ov, Cell { w, h, zoom, dpi });
                     let n = ov.lens_strip().len();
                     let drawn = p.workspace_rail_probe(w);
                     let Some(rail_box) = drawn.rail else {
@@ -268,7 +285,7 @@ fn wide_shows_both_regions_and_narrow_stages_exactly_one() {
     for &(w, h) in CANVASES {
         for &detail in &[false, true] {
             let ov = workspace_card(0, detail);
-            prepared(&device, &queue, &mut p, &ov, w, h, 1.0, 1.0);
+            prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
             let drawn = p.workspace_rail_probe(w);
             match p.workspace_is_wide(w) {
                 true => {
@@ -321,7 +338,7 @@ fn the_workspace_takes_the_viewport_and_leaves_the_document_framing_it() {
         headless_dqp(1400.0, 900.0).expect("workspace laws require a wgpu adapter");
     for &(w, h) in CANVASES {
         let ov = workspace_card(0, false);
-        prepared(&device, &queue, &mut p, &ov, w, h, 1.0, 1.0);
+        prepared(&device, &queue, &mut p, &ov, Cell::plain(w, h));
         let drawn = p.workspace_rail_probe(w);
         let [cx, cy, cw, ch] = drawn.card;
         let area = (cw * ch) / (w as f32 * h as f32);
@@ -355,14 +372,14 @@ fn the_focused_regions_marker_carries_more_ink_than_the_unfocused_ones() {
         headless_dqp(w as f32, h as f32).expect("workspace laws require a wgpu adapter");
 
     let on_rail = workspace_card(0, false);
-    prepared(&device, &queue, &mut p, &on_rail, w, h, 1.0, 1.0);
+    prepared(&device, &queue, &mut p, &on_rail, Cell::plain(w, h));
     let geom = p.workspace_rail_probe(w);
     let rail_mark = geom.mark.expect("the rail marks its active category");
     let row_band = geom.selected_band.expect("the content pane marks its row");
     let rail_focused = render_frame(&mut p, &device, &queue, w, h);
 
     let on_rows = workspace_card(0, true);
-    prepared(&device, &queue, &mut p, &on_rows, w, h, 1.0, 1.0);
+    prepared(&device, &queue, &mut p, &on_rows, Cell::plain(w, h));
     let rows_focused = render_frame(&mut p, &device, &queue, w, h);
 
     // The measurement is DIFFERENTIAL against the card's own ground, so the

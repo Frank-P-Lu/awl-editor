@@ -158,11 +158,11 @@ fn sweep_toggle(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
         "{:?}: Enter on the row must flip the LIVE value",
         row.name
     );
-    let written = persisted(&mem, key).unwrap_or_else(|| {
+    let written = persisted(mem, key).unwrap_or_else(|| {
         panic!(
             "{:?}: nothing persisted under {key:?} — config was:\n{}",
             row.name,
-            config_text(&mem)
+            config_text(mem)
         )
     });
     assert!(
@@ -187,7 +187,7 @@ fn sweep_toggle(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
         "{:?}: the same key restores the live value",
         row.name
     );
-    let restored = persisted(&mem, key).expect("the restore persisted too");
+    let restored = persisted(mem, key).expect("the restore persisted too");
     assert_ne!(
         written, restored,
         "{:?}: the restore wrote the OTHER bool — a persist that never \
@@ -212,10 +212,10 @@ fn sweep_range(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
         row.name
     );
     assert!(
-        persisted(&mem, key).is_some(),
+        persisted(mem, key).is_some(),
         "{:?}: a discrete step persists at once — config was:\n{}",
         row.name,
-        config_text(&mem)
+        config_text(mem)
     );
     // EXACT ENTRY — Enter opens the numeric field, and a typed value
     // lands on the authored grid.
@@ -249,7 +249,7 @@ fn sweep_range(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
         "{:?}: the typed value {typed:?} commits onto the authored grid",
         row.name
     );
-    let written = persisted(&mem, key).expect("the typed commit persisted");
+    let written = persisted(mem, key).expect("the typed commit persisted");
     assert!(
         written.contains(&spec.persist_value(spec.parse(&typed).unwrap_or(target))),
         "{:?}: the persisted line {written:?} must carry the committed value",
@@ -337,11 +337,11 @@ fn sweep_path(app: &mut App, mem: &crate::fs::InMemoryFs, row: &SettingRow) {
     // something false about the one that does not.
     match row.id {
         SettingId::DefaultFolder | SettingId::ProjectsFolder => {
-            let written = persisted(&mem, key).unwrap_or_else(|| {
+            let written = persisted(mem, key).unwrap_or_else(|| {
                 panic!(
                     "{:?}: picking a folder must persist {key:?} — config was:\n{}",
                     row.name,
-                    config_text(&mem)
+                    config_text(mem)
                 )
             });
             assert!(

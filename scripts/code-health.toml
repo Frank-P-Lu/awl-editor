@@ -431,16 +431,16 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
-line = 843
+line = 866
 message = "this function has too many lines (107/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call. Item 183 narrowed the &ActiveEventLoop parameter to app::Exit, collapsing the wrapped signatures (-5)."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 replaced two hand-written ladder conjunctions with one call. Item 183 narrowed the &ActiveEventLoop parameter to app::Exit, collapsing the wrapped signatures (-5). Line shifted by queue item 114's summoned Settings workspace (the navigation rail's own click resolution)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 line = 5
-message = "this function has too many lines (240/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46)."
+message = "this function has too many lines (241/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172 bound the summoned picker once for the whole ViewState projection (-46). Item 114 added the `overlay_workspace` projection to the one exhaustive construction site (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -523,8 +523,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 line = 242
-message = "this function has too many lines (123/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
+message = "this function has too many lines (124/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 114 added the `overlay.workspace` field to the one format string (+1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -578,9 +578,9 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
-line = 191
-message = "this function has too many lines (170/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
+line = 199
+message = "this function has too many lines (187/100)"
+reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -740,8 +740,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 line = 7
-message = "this function has too many lines (490/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
+message = "this function has too many lines (496/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Item 114 added the workspace rail's buffer and its four mirror fields (+6)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -809,9 +809,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 708
-message = "this function has too many lines (220/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+line = 734
+message = "this function has too many lines (109/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -823,9 +823,9 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 960
+line = 985
 message = "this function has too many lines (109/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -860,51 +860,51 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1180
+line = 1183
 message = "this function has too many lines (138/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1483
+line = 1486
 message = "this function has too many lines (111/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
-line = 1637
-message = "this function has too many lines (125/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
+line = 1640
+message = "this function has too many lines (126/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
-line = 216
-message = "this function has too many lines (112/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/tests/pickers_faceted.rs"
-line = 349
-message = "this function has too many lines (127/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/tests/pickers_faceted.rs"
-line = 507
-message = "this function has too many lines (156/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/tests/pickers_faceted.rs"
-line = 890
+line = 218
 message = "this function has too many lines (113/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/capture/tests/pickers_faceted.rs"
+line = 352
+message = "this function has too many lines (128/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/capture/tests/pickers_faceted.rs"
+line = 511
+message = "this function has too many lines (157/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/capture/tests/pickers_faceted.rs"
+line = 896
+message = "this function has too many lines (114/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
