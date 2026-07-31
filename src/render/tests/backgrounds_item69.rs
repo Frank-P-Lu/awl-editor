@@ -76,8 +76,26 @@ pub(super) fn render_bg(
     col_w: f32,
     drift: f32,
 ) -> Vec<[u8; 4]> {
+    render_bg_scaled(device, queue, desc, width, height, col_left, col_w, drift, 1.0)
+}
+
+/// [`render_bg`] with the item-186 device ratio (PHYSICAL px per LOGICAL px)
+/// spelled out — `1.0` is the 1:1 screen every pre-186 law renders at, and the
+/// ground-space sweep drives the same seam at `2.0` on a doubled canvas.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_bg_scaled(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    desc: BgDesc,
+    width: u32,
+    height: u32,
+    col_left: f32,
+    col_w: f32,
+    drift: f32,
+    scale: f32,
+) -> Vec<[u8; 4]> {
     let mut bg = crate::background::BackgroundPipeline::new(device, super::dither::FMT, desc);
-    bg.prepare(queue, width, height, col_left, col_w, drift);
+    bg.prepare(queue, width, height, col_left, col_w, drift, scale);
     let (texture, tview) = super::dither::offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
         label: Some("awl item69-bg-test encoder"),
@@ -571,10 +589,10 @@ fn bands_boundary_scales_proportionally_with_physical_resolution() {
 /// "no hidden DPI multiplier" law Dots' 24px cell / Starfield's 34px cell
 /// already hold, generalized to a wobble amplitude instead of a grid period).
 #[test]
-fn bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled() {
+fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
     let Some((device, queue)) = headless_dq() else {
         eprintln!(
-            "skipping bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled: no wgpu adapter"
+            "skipping bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled: no wgpu adapter"
         );
         return;
     };
@@ -599,19 +617,23 @@ fn bombora_wave_wobble_is_a_fixed_physical_pixel_amplitude_not_resolution_scaled
     let large = wobble_amplitude(1200, 800);
     // Both should land near 2*WAVE_AMP (44px, the boundary's own sin() peak-
     // to-peak range) regardless of canvas size — NOT roughly double at the
-    // larger canvas, which is what a (wrongly) resolution-scaled wobble would
-    // show.
+    // larger canvas, which is what a wobble authored as a FRACTION of the
+    // viewport would show. (ITEM 186 renamed this law: it sweeps CANVAS SIZE at
+    // one device ratio and always has, so "physical pixel" was never what it
+    // proved. `WAVE_AMP` is a fixed LOGICAL px constant — the device-ratio half
+    // of the claim is `ground_space_item186`'s to make.)
     for (label, amp) in [("small", small), ("large", large)] {
         assert!(
             (30..60).contains(&amp),
             "{label} canvas wobble amplitude {amp}px escaped the fixed ~44px band \
-             (2*WAVE_AMP) — the scallop should be a fixed physical-pixel constant"
+             (2*WAVE_AMP) — the scallop should be a fixed authored constant, not a \
+             fraction of the canvas"
         );
     }
     assert!(
         (small as i32 - large as i32).abs() < 20,
         "wobble amplitude small={small}px vs large={large}px diverged too far — \
-         looks resolution-scaled, not the fixed physical-pixel constant it's meant to be"
+         looks canvas-scaled, not the fixed authored constant it's meant to be"
     );
 }
 

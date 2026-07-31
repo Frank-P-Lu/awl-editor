@@ -9,6 +9,10 @@
 
 use super::color::Srgb;
 
+// ITEM 186 — the coordinate SPACE each authored quantity below lives in
+// (composition/logical vs sampling/physical) is declared next door, in
+// `theme::ground_space`: one enum, one per-quantity table, and the no-wildcard
+// sweep that makes a new ground declare itself. Read it before authoring a dial.
 #[cfg(test)]
 pub const ZIGZAG_STROKE_FRAC: f32 = 0.10;
 #[cfg(test)]

@@ -38,6 +38,7 @@ mod cjk;
 mod color;
 mod derive;
 mod ground;
+mod ground_space;
 mod icon_ground;
 mod model;
 mod ornament;
@@ -69,6 +70,13 @@ pub use derive::{
 #[allow(unused_imports)]
 // DeckleAnchor is public theme data; production literals use ground directly.
 pub use ground::{Arrangement, Background, DeckleAnchor, LavaEdge};
+// ITEM 186 — the coordinate-space vocabulary every authored ground quantity
+// is classified in (`ground_space` holds the table; `Background`'s own
+// accessors are inherent, so they need no import).
+#[allow(unused_imports)] // GroundQuantity/GroundSpace: read by the item-186
+// laws and by anyone authoring a new ground; product code reaches the table
+// through `Background::authored_quantities` itself.
+pub use ground_space::{GroundQuantity, GroundSpace};
 pub use model::{Theme, WashOverride};
 // ITEM 89's ZIGZAG geometry mirror — `cfg(test)` at the source (see their own
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state

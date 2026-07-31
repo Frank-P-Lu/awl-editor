@@ -68,9 +68,73 @@ struct Globals {
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
     // the dedicated `drift` slot above.)
     params: vec4<f32>,
+    // ITEM 186 — PHYSICAL PIXELS PER LOGICAL PIXEL (the display's device ratio:
+    // 1.0 on a 1:1 screen, 2.0 on a Retina one). The host uploads it from the
+    // SAME `scale_factor` the window reports (`--capture-dpi` headlessly);
+    // deliberately NOT folded with the user's text zoom, because the ground is a
+    // property of the Room, not of the type size. Every COMPOSITION quantity
+    // below is divided through this before it is used; every SAMPLING quantity
+    // is not. See `to_logical` / `sampling_feather` and the classification table
+    // in `src/theme/ground.rs`, which is the authority this file mirrors.
+    scale: f32,
+    // std140 tail padding — a uniform struct is rounded up to its 16-byte
+    // alignment, and the Rust mirror must allocate the same bytes. THREE
+    // SCALARS, never a `vec3<f32>`: a vec3 carries 16-byte alignment, which
+    // would push the tail to offset 112 and the struct to 128, and wgpu
+    // validates the binding against that size (it does, by name, the moment
+    // this drifts).
+    pad0: f32,
+    pad1: f32,
+    pad2: f32,
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;
+
+// --- ITEM 186 — THE TWO COORDINATE SPACES OF A PROCEDURAL GROUND ---
+//
+// A ground carries two structurally different classes of authored number, and
+// before this item both were physical pixels by accident of the coordinate the
+// fragment shader happens to run in:
+//
+//   * COMPOSITION — a cell, a pitch, a mark size, a wander, a falloff reach.
+//     These describe WHAT THE USER SEES: how many elements a margin holds and
+//     how large each reads. They must live in LOGICAL pixels, so two matched
+//     logical canvases show the same world composition at 1x and at 2x. Every
+//     one of them is evaluated against `to_logical(px)`.
+//   * SAMPLING — an antialias feather, a dither cell. These describe HOW THE
+//     SAMPLE GRID RESOLVES that composition, so they are properties of the
+//     device pixel and must stay PHYSICAL: a 2x display resolves the SAME
+//     composition more finely, which is exactly the benefit of the density.
+//     A feather used inside logical-space math is converted back through
+//     `sampling_feather`, so its width on the glass never moves.
+//
+// A feather is NOT a small composition quantity: converting one would make a
+// crisp edge blurrier on a better display, which is the opposite of the fix.
+// `src/theme/ground.rs`'s `Background::authored_quantities` names every one of
+// these numbers, its class, and why; a grep-law holds the two in lockstep.
+fn dpr() -> f32 {
+    return max(g.scale, 0.01);
+}
+// A fragment's position in LOGICAL pixels — the space every composition
+// quantity below is authored in.
+fn to_logical(p: vec2<f32>) -> vec2<f32> {
+    return p / dpr();
+}
+// A SAMPLING feather authored in PHYSICAL pixels, expressed in the logical
+// units the composition math runs in. Its width on the glass is `physical_px`
+// at every device ratio — that invariance is the whole point of the call.
+fn sampling_feather(physical_px: f32) -> f32 {
+    return physical_px / dpr();
+}
+fn viewport_l() -> vec2<f32> {
+    return g.viewport / dpr();
+}
+fn col_left_l() -> f32 {
+    return g.col_left / dpr();
+}
+fn col_w_l() -> f32 {
+    return g.col_w / dpr();
+}
 
 struct VsOut {
     @builtin(position) clip: vec4<f32>,
@@ -106,7 +170,9 @@ fn hash21(p: vec2<f32>) -> f32 {
 // Proximity to the PAGE-COLUMN boundary as an intensity in [0,1]: 1.0 right at
 // the page edge, decaying outward into the margin (exp falloff). Drives the
 // Stripes band + the proximity-scaled Dots — the "play area radiates into the
-// ground" feel. Pure pixel math, no time.
+// ground" feel. Pure pixel math, no time. COMPOSITION (logical px): how far the
+// band radiates is a thing the eye measures against the margin, not against the
+// sample grid.
 const EDGE_FALLOFF: f32 = 90.0;
 
 // ZIGZAG (shader 7) — the chevron ribbon's own stroke half-width as a fraction
@@ -119,12 +185,14 @@ const EDGE_FALLOFF: f32 = 90.0;
 // grep-law asserts this line still reads it.
 const ZIGZAG_STROKE_FRAC: f32 = 0.10;
 
+// `px` is LOGICAL (item 186), so the column bounds it is measured against are
+// taken in logical units too.
 fn edge_intensity(px: vec2<f32>) -> f32 {
     var d = 0.0;
-    if (px.x < g.col_left) {
-        d = g.col_left - px.x;
+    if (px.x < col_left_l()) {
+        d = col_left_l() - px.x;
     } else {
-        d = px.x - (g.col_left + g.col_w);
+        d = px.x - (col_left_l() + col_w_l());
     }
     return exp(-max(d, 0.0) / EDGE_FALLOFF);
 }
@@ -137,21 +205,25 @@ fn edge_intensity(px: vec2<f32>) -> f32 {
 fn edge_proximity(px: vec2<f32>) -> f32 {
     var d = 0.0;
     var span = 1.0;
-    if (px.x < g.col_left) {
-        d = g.col_left - px.x;
-        span = max(g.col_left, 1.0);
+    if (px.x < col_left_l()) {
+        d = col_left_l() - px.x;
+        span = max(col_left_l(), 1.0);
     } else {
-        d = px.x - (g.col_left + g.col_w);
-        span = max(g.viewport.x - (g.col_left + g.col_w), 1.0);
+        d = px.x - (col_left_l() + col_w_l());
+        span = max(viewport_l().x - (col_left_l() + col_w_l()), 1.0);
     }
     return clamp(1.0 - d / span, 0.0, 1.0);
 }
 
-// Coverage [0,1] of the assigned margin ground at pixel `px`. All grounds are
-// pure functions of pixel coordinates — STATIC, no time. Tuned to whisper.
+// Coverage [0,1] of the assigned margin ground at LOGICAL pixel `px` (item 186
+// — the caller divides through the device ratio, so every cell/period/mark size
+// below is a logical quantity and the composition is the same at 1x and 2x).
+// All grounds are pure functions of position — STATIC, no time. Tuned to
+// whisper.
 fn pattern_coverage(px: vec2<f32>) -> f32 {
     // --- 1: DOTS — a grid of round dots; `params.x` flips proximity scaling. ---
     if (g.shader == 1u) {
+        // COMPOSITION: the dot lattice pitch.
         let cell = 24.0;
         let c = fract(px / cell) - vec2<f32>(0.5, 0.5);
         let d = length(c * cell);
@@ -163,13 +235,17 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
             // band), so the alpha only floors GENTLY — far dots stay visible-small
             // instead of dissolving before their size can read.
             let p = edge_proximity(px);
+            // COMPOSITION: the dot's own radius, in logical px. SAMPLING: the
+            // 0.9px skirt that resolves its rim.
             let radius = mix(0.85, 3.0, p); // ~28% far -> a full fat dot at the edge
-            let dot = 1.0 - smoothstep(radius, radius + 0.9, d);
+            let dot = 1.0 - smoothstep(radius, radius + sampling_feather(0.9), d);
             let alpha = mix(0.5, 1.0, p);   // gentle falloff; brightest hugging the page
             return dot * alpha;
         }
-        // edge=false: today's UNIFORM ~1.4px dots with a 1px feather (unchanged).
-        return 1.0 - smoothstep(1.4, 2.4, d);
+        // edge=false: UNIFORM ~1.4 LOGICAL px dots (COMPOSITION) with a 1
+        // PHYSICAL px feather (SAMPLING) — at 1x this is the original
+        // `smoothstep(1.4, 2.4, d)`, byte for byte.
+        return 1.0 - smoothstep(1.4, 1.4 + sampling_feather(1.0), d);
     }
     // --- 4: STRIPES — diagonal stripes in a bright band hugging the page edge,
     // dissolving outward into the gradient (the N++ look). The band peaks at the
@@ -178,19 +254,26 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let a = g.params.y;
         // Coordinate across the stripes (perpendicular bands give the diagonal look).
         let coord = px.x * cos(a) + px.y * sin(a);
+        // COMPOSITION: the stripe pitch and the stripe's own half-width.
+        // SAMPLING: the 1.5px skirt that resolves its edge.
         let period = 13.0;
-        let f = abs(fract(coord / period) - 0.5) * period; // px distance to a stripe
-        let line = 1.0 - smoothstep(2.0, 3.5, f);          // ~bright diagonal stripe
+        let f = abs(fract(coord / period) - 0.5) * period; // logical px to a stripe
+        let line = 1.0 - smoothstep(2.0, 2.0 + sampling_feather(1.5), f);
         return line * edge_intensity(px);                  // dissolve outward
     }
     // --- 3: PINSTRIPE — fine vertical parallel lines (ledger / print rules). ---
     if (g.shader == 3u) {
+        // COMPOSITION: the rule pitch and half-width. SAMPLING: the 0.7px skirt.
         let period = 9.0;
-        let x = abs(fract(px.x / period) - 0.5) * period; // px distance to line
-        return 1.0 - smoothstep(0.5, 1.2, x);
+        let x = abs(fract(px.x / period) - 0.5) * period; // logical px to a line
+        return 1.0 - smoothstep(0.5, 0.5 + sampling_feather(0.7), x);
     }
     // --- 2: STARFIELD — scattered dots + the occasional 4-point sparkle. ---
     if (g.shader == 2u) {
+        // COMPOSITION: the star lattice pitch, the dot radius, and the
+        // sparkle's arm half-thickness AND arm length — the cross's long taper
+        // is its drawn SHAPE, not a sample-grid skirt, so it scales with the
+        // star. SAMPLING: only the two rim feathers (1.0px, 0.6px).
         let cell = 34.0;
         let id = floor(px / cell);
         let local = fract(px / cell);
@@ -202,11 +285,13 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
         let dpx = (local - star) * cell;
         let r = length(dpx);
         // A small round dot for every lit cell.
-        var cov = (1.0 - smoothstep(0.7, 1.7, r)) * step(0.55, present);
+        var cov = (1.0 - smoothstep(0.7, 0.7 + sampling_feather(1.0), r)) * step(0.55, present);
         // The brightest ~1/6 cells also get a thin 4-point sparkle cross.
         if (present > 0.84) {
-            let cross = (1.0 - smoothstep(0.4, 1.0, abs(dpx.x))) * (1.0 - smoothstep(2.5, 4.5, abs(dpx.y)))
-                      + (1.0 - smoothstep(0.4, 1.0, abs(dpx.y))) * (1.0 - smoothstep(2.5, 4.5, abs(dpx.x)));
+            let arm_w = 0.4;
+            let arm_aa = arm_w + sampling_feather(0.6);
+            let cross = (1.0 - smoothstep(arm_w, arm_aa, abs(dpx.x))) * (1.0 - smoothstep(2.5, 4.5, abs(dpx.y)))
+                      + (1.0 - smoothstep(arm_w, arm_aa, abs(dpx.y))) * (1.0 - smoothstep(2.5, 4.5, abs(dpx.x)));
             cov = max(cov, clamp(cross, 0.0, 1.0));
         }
         return cov;
@@ -224,6 +309,13 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
     // gradient's own `dir`), and `dens` an extra per-world coverage
     // multiplier (the CONTRAST dial) stacked with the shared
     // `PATTERN_MAX_COVERAGE` ceiling every mark ground already carries. ---
+    // ITEM 186: every one of Zigzag's numbers is COMPOSITION and therefore
+    // logical — `period`, `amp`, and the derived `thickness`. The stroke's soft
+    // edge is `thickness * 0.6 .. thickness`, a PROPORTION of the ribbon rather
+    // than a fixed skirt, so it is part of the drawn profile and not a sampling
+    // feather; and the abutment rule folds `thickness` straight into the row
+    // PITCH, so a thickness in physical px would make the field's own pitch
+    // density-dependent — the exact defect this item closes.
     if (g.shader == 7u) {
         let period = max(g.params.x, 1.0);
         let a = g.params.y;
@@ -359,6 +451,12 @@ fn tri_tone_mix(coord: f32, b1: f32, b2: f32, aa: f32) -> vec3<f32> {
 // alone already clears it and wins the `max`), so a future Organic world
 // authored with a smaller cell can't silently ship the exact defect this
 // item fixed.
+//
+// ITEM 186: both the fractions and the two floors are COMPOSITION — a drift is
+// a displacement the eye measures against the collage it moves, so the floors
+// are LOGICAL px. In physical px a 2x display would slide the field half as far
+// as a 1x one, re-opening item 163's "genuinely could not see it move" defect
+// on exactly the displays that show the most detail.
 const ORGANIC_DRIFT_X_FRAC: f32 = 0.13;
 const ORGANIC_DRIFT_Y_FRAC: f32 = 0.10;
 const ORGANIC_DRIFT_MIN_X_PX: f32 = 12.0;
@@ -416,11 +514,26 @@ const FINDS_TAU: f32 = 6.2831855;
 // this is a fixed sub-pixel skirt rather than a fraction of a cell: the same
 // hard edge resolves without stair-stepping at 1x and at 2x, and at any cell
 // scale a future Organic world might author.
+//
+// ITEM 186 — THIS IS THE CANONICAL SAMPLING QUANTITY AND IT DID NOT MOVE. Every
+// composition number around it became logical; this one stays physical, and
+// `finds_fill` converts it INTO the logical space the SDFs are evaluated in so
+// that its width on the glass is 0.75px at 1x and 0.75px at 2x. Converting it
+// would make the same edge blurrier on a better display — the opposite of what
+// a feather is for.
 const FINDS_EDGE_AA_PX: f32 = 0.75;
 // FINDS declares its own cell FLOOR, the way Deckle declares a lane pitch
 // floor: the cut-out is a FRACTION of the anchor, so below this scale it falls
 // under a pixel and a collection aliases into speckle instead of reading as
 // three arranged objects. A property of the shader, not of the dial pair.
+//
+// ITEM 186 — LOGICAL, even though its MOTIVATION is a sampling one. It is a
+// floor on a COMPOSITION quantity (the cell), and a floor applied in physical
+// px would clamp a small authored cell differently at 1x and 2x, putting the
+// composition back under the display's control at exactly the sizes the floor
+// exists to protect. Clamping in logical px is also the conservative reading:
+// at 2x the floor's own 96 logical px carry 192 device pixels of detail, which
+// is strictly more resolution than the number was calibrated against.
 const FINDS_MIN_SCALE_PX: f32 = 96.0;
 
 fn finds_rot(p: vec2<f32>, a: f32) -> vec2<f32> {
@@ -451,10 +564,14 @@ fn finds_shape(p: vec2<f32>, kind: u32, r: f32) -> f32 {
     return sd_triangle(p, r * FINDS_TRI_HALF_SIDE);
 }
 
-// The SDFs above are in CELL units; `* s` puts them in physical pixels, where
-// the feather is a fixed fraction of one pixel at any scale or device ratio.
+// The SDFs above are in CELL units; `* s` puts them in LOGICAL pixels (item
+// 186 — `s` is the logical cell scale). The feather is authored in PHYSICAL
+// pixels and converted into that logical space, so the transition band measures
+// `2 * FINDS_EDGE_AA_PX` device pixels wide on the glass at EVERY device ratio
+// and at any cell scale.
 fn finds_fill(sd_cell: f32, s: f32) -> f32 {
-    return 1.0 - smoothstep(-FINDS_EDGE_AA_PX, FINDS_EDGE_AA_PX, sd_cell * s);
+    let aa = sampling_feather(FINDS_EDGE_AA_PX);
+    return 1.0 - smoothstep(-aa, aa, sd_cell * s);
 }
 
 fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f32> {
@@ -527,6 +644,8 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f3
 // and it enters as ONE whole-field translation before the lattice is derived —
 // so a shape is a pure function of its cell, and the field can only pan, never
 // morph, spawn, dissolve, or animate one object of a collection on its own.
+// `px` is LOGICAL (item 186), so `s` — the authored cell — is a logical cell,
+// and every fraction-of-a-cell threshold in both arms follows it for free.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
     let finds = g.params.z >= 0.5;
     let s = max(g.params.x, select(32.0, FINDS_MIN_SCALE_PX, finds));
@@ -575,6 +694,14 @@ fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
 // amplitude (`wander_px`), params.z = the ONE coverage/contrast multiplier
 // (`density`), params.w = the weave.
 //
+// ITEM 186: this whole field is COMPOSITION and runs in LOGICAL pixels — the
+// pitch, the wander, the wander FREQUENCIES (per logical px), the fibre and
+// vein half-width ramps, and the pitch floor. Deckle carries no sampling
+// feather at all: a lane boundary's softness is `DECKLE_EDGE_LO..HI`, a
+// FRACTION of a lane, so it is already relative to the composition and widens
+// with it. That is the point of the class distinction — a torn paper edge is a
+// drawn thing, not a resolve of the sample grid.
+//
 // `density == 0.0` collapses BOTH profiles to their flat ground EXACTLY — the
 // lane values converge on DECKLE_MID and every tint drops out. That is not a
 // nicety: it is the differential oracle every pixel law for this ground
@@ -614,10 +741,13 @@ const DECKLE_VEIN_GAIN: f32 = 1.3;
 const DECKLE_VEIN_HALF_LO: f32 = 0.5;
 const DECKLE_VEIN_HALF_HI: f32 = 1.45;
 const DECKLE_TAU: f32 = 6.2831855;
-// The lane pitch FLOOR. The deckle edge is a FRACTION of a lane, so below this
-// the boundary falls under a pixel and the field aliases into moire instead of
-// reading as paper. Enforced HERE (a property of the shader, not of the dial
-// pair — item 89's abutment lesson) and mirrored by `theme::DECKLE_MIN_PERIOD_PX`.
+// The lane pitch FLOOR, in LOGICAL px. The deckle edge is a FRACTION of a lane,
+// so below this the boundary falls under a pixel and the field aliases into
+// moire instead of reading as paper. Enforced HERE (a property of the shader,
+// not of the dial pair — item 89's abutment lesson) and mirrored by
+// `theme::DECKLE_MIN_PERIOD_PX`. Logical for the same reason
+// `FINDS_MIN_SCALE_PX` is: a floor on a composition quantity is itself a
+// composition quantity, or the clamp hands the composition back to the display.
 const DECKLE_MIN_PITCH_PX: f32 = 40.0;
 // The weave threshold `theme::Weave::mode` writes either side of.
 const DECKLE_WEAVE_FIBRES: f32 = 0.5;
@@ -627,10 +757,10 @@ const DECKLE_WEAVE_FIBRES: f32 = 0.5;
 // stable viewport coordinate by default; this stays named so the pixel law can
 // restore the defect and prove it goes red.
 fn deckle_page_distance(px: vec2<f32>) -> f32 {
-    if (px.x > g.col_left + g.col_w) {
-        return px.x - (g.col_left + g.col_w);
+    if (px.x > col_left_l() + col_w_l()) {
+        return px.x - (col_left_l() + col_w_l());
     }
-    return g.col_left - px.x;
+    return col_left_l() - px.x;
 }
 
 // The Room/viewport owner: a page-width drag moves only the opaque mask above
@@ -638,7 +768,7 @@ fn deckle_page_distance(px: vec2<f32>) -> f32 {
 // the adaptive-column shift, so an exposed screen point cannot translate,
 // stretch, reseed, or reflow its paper contours.
 fn deckle_viewport_distance(px: vec2<f32>) -> f32 {
-    return abs(px.x - g.viewport.x * 0.5);
+    return abs(px.x - viewport_l().x * 0.5);
 }
 
 fn deckle_strata(px: vec2<f32>, pitch: f32, wander: f32, density: f32) -> vec3<f32> {
@@ -704,14 +834,22 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
 // the same crop/scale behavior the type's own doc promises for responsive
 // views. Tuned so canonical's margins each catch a crossing while the
 // existing mid-field ">15% per band" law still holds comfortably.
+//
+// ITEM 186: Bands has NO composition quantity in pixels at all — every boundary
+// is a FRACTION of the viewport, so the same three bands span any canvas at any
+// density by construction (this ground was already density-independent, and the
+// item's premise does not reach it). Its one pixel number is the 1.5px boundary
+// feather, which is SAMPLING and stays physical; it is converted into the
+// normalized `t` space through the same owner every other feather uses.
 const BANDS_MARGIN_SPAN: f32 = 1.35;
 fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
     let a = g.params.y;
     let dir = vec2<f32>(cos(a), sin(a));
-    let center = g.viewport * 0.5;
-    let extent = max(dot(g.viewport, dir), 1.0) * BANDS_MARGIN_SPAN;
+    let vp = viewport_l();
+    let center = vp * 0.5;
+    let extent = max(dot(vp, dir), 1.0) * BANDS_MARGIN_SPAN;
     let t = clamp(dot(px - center, dir) / extent + 0.5, 0.0, 1.0);
-    let aa = 1.5 / extent;
+    let aa = sampling_feather(1.5) / extent;
     return tri_tone_mix(t, 1.0 / 3.0, 2.0 / 3.0, aa);
 }
 
@@ -743,15 +881,22 @@ fn bands_rgb(px: vec2<f32>) -> vec3<f32> {
 // sweeps with its own single boundary curve's sign, while the MIDDLE tier —
 // bounded by both — visibly shears/breathes counter to them: the sea reads as
 // independently layered swells, never a sheet translating behind the margin.
+//
+// ITEM 186: the scallop AMPLITUDE and WAVELENGTH are COMPOSITION — they say how
+// tall and how wide a swell reads — so both are logical (`WAVE_FREQ` is
+// radians per LOGICAL px, and `px`/`viewport` arrive logical). The tier
+// boundaries themselves are viewport THIRDS, already dimensionless. The 1.5px
+// boundary feather is SAMPLING and stays physical.
 const WAVE_AMP: f32 = 22.0;
 const WAVE_FREQ: f32 = 0.024166097; // 2*pi / 260px — wide, shallow scallops
 const WAVE_PHASE_1: f32 = 0.0;
 const WAVE_PHASE_2: f32 = 2.4;
 fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
     let drift = g.drift;
-    let b1 = g.viewport.y * (1.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_1 + drift);
-    let b2 = g.viewport.y * (2.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_2 - drift);
-    return tri_tone_mix(px.y, b1, b2, 1.5);
+    let vh = viewport_l().y;
+    let b1 = vh * (1.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_1 + drift);
+    let b2 = vh * (2.0 / 3.0) + WAVE_AMP * sin(px.x * WAVE_FREQ + WAVE_PHASE_2 - drift);
+    return tri_tone_mix(px.y, b1, b2, sampling_feather(1.5));
 }
 
 // BANDING KILL — the classic 8x8 ordered (Bayer) dither matrix, values 0..64.
@@ -771,6 +916,11 @@ var<private> BAYER8: array<u32, 64> = array<u32, 64>(
 );
 
 // The Bayer threshold at pixel `px`, normalized to [0,1) — tiles every 8px.
+// ITEM 186: called with the PHYSICAL fragment position, deliberately. This is
+// the purest SAMPLING quantity in the file — a threshold matrix whose job is to
+// perturb each DEVICE pixel by half a quantization step before the render
+// target rounds it to 8 bits. Tiling it in logical px would put four device
+// pixels on one threshold at 2x and hand the banding back.
 fn bayer_threshold01(px: vec2<f32>) -> f32 {
     let x = u32(floor(px.x)) % 8u;
     let y = u32(floor(px.y)) % 8u;
@@ -808,18 +958,23 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     if (in.px.x >= g.col_left && in.px.x < g.col_left + g.col_w) {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
+    // ITEM 186 — the ONE conversion. Every ground below composes in LOGICAL
+    // pixels; the PAGE-COLUMN punch above and the dither below deliberately do
+    // not (the column is a physical geometry fact the host measured, and the
+    // dither belongs to the device grid).
+    let lp = to_logical(in.px);
     // 5/6: BANDS / WAVES compute their own final rgb directly (three opaque
     // authored tones ARE the field) — bypass the gradient/dither/pattern-
     // overlay pipeline below entirely, which every OTHER ground still takes
     // unchanged (byte-identical).
     if (g.shader == 5u) {
-        return vec4<f32>(bands_rgb(in.px), 1.0);
+        return vec4<f32>(bands_rgb(lp), 1.0);
     }
     if (g.shader == 6u) {
-        return vec4<f32>(waves_rgb(in.px), 1.0);
+        return vec4<f32>(waves_rgb(lp), 1.0);
     }
-    if (g.shader == 8u) { return vec4<f32>(organic_rgb(in.px), 1.0); }
-    if (g.shader == 9u) { return vec4<f32>(deckle_rgb(in.px), 1.0); }
+    if (g.shader == 8u) { return vec4<f32>(organic_rgb(lp), 1.0); }
+    if (g.shader == 9u) { return vec4<f32>(deckle_rgb(lp), 1.0); }
     // Margin: evaluate the gradient along `dir`. UV is centered so the diagonal
     // worlds read symmetrically; t is clamped to [0,1].
     let uv = in.px / g.viewport;
@@ -843,7 +998,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     }
     // Overlay the procedural pattern: mix the dim tint in at a low coverage so the
     // marks whisper and the page column stays the clear figure.
-    let cov = pattern_coverage(in.px) * g.c_pat.a;
+    let cov = pattern_coverage(lp) * g.c_pat.a;
     rgb = mix(rgb, g.c_pat.rgb, cov);
     return vec4<f32>(rgb, a);
 }
