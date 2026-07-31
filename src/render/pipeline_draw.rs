@@ -129,6 +129,9 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let panel_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let panel_bind_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
+        // ITEM 114 — the summoned workspace's navigation rail shapes into its own
+        // buffer: it is a column, not more lines of the card's own list.
+        let workspace_rail_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let placard_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let panel_caret = CaretPipeline::new(device, format, theme::primary().rgb_bytes());
         let caret_preview_pipeline =
@@ -521,7 +524,12 @@ impl TextPipeline {
             overlay_sections: Vec::new(),
             overlay_spell: None,
             diff_panel: false,
-            diff_panel_focus: false,
+            overlay_detail_focus: false,
+            overlay_workspace: false,
+            workspace_rail_w: 0.0,
+            workspace_rail_buffer,
+            workspace_rail_mark: None,
+            workspace_rail_area: None,
             overlay_spell_w: 0.0,
             overlay_content_w: 0.0,
             caret_preview: None,

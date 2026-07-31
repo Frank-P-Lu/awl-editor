@@ -205,6 +205,7 @@ impl App {
             overlay_window_rows: ov.map(|o| o.window_rows()).unwrap_or(12),
             overlay_hint: ov.map(|o| o.foot_hint()).unwrap_or_default(),
             overlay_lens: ov.map(|o| o.lens_strip()).unwrap_or_default(),
+            overlay_workspace: ov.map(|o| o.workspace_shell()).unwrap_or(false),
             overlay_sections: ov.map(|o| o.item_sections()).unwrap_or_default(),
             caret_preview: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
@@ -227,7 +228,7 @@ impl App {
             eol: self.active.buffer.eol(),
             popover,
             diff_panel: preview.is_some(),
-            diff_panel_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
+            overlay_detail_focus: ov.map(|o| o.detail_focus).unwrap_or(false),
             folds: Vec::new(),
             fold_tails: Vec::new(),
         };

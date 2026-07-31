@@ -45,9 +45,13 @@ impl TextPipeline {
         // band, both ink columns, the accessory plates and the sidecar give ONE
         // answer to "which row is selected" at every intermediate frame.
         let vis = self.resolve_visual_selection(&geom, &plan);
+        // ITEM 114 — the workspace's navigation rail shapes into its own column
+        // buffer before the content pane does, so its measured mark rect is in
+        // hand by the time `overlay_draw_card` asks the facet-mark owner for it.
+        let has_rail = self.workspace_shape_rail(&geom, &plan);
         let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
         self.overlay_upload_text(
-            device, queue, width, height, &geom, &plan, has_right, ink, muted, placard,
+            device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
         )?;
         self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
         self.overlay_place_caret(queue, width, height, &geom);
@@ -96,6 +100,10 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &[]);
+        // ITEM 114 — the workspace rail's placement and its active mark park with
+        // the card, so the frame after a workspace closes carries neither.
+        self.workspace_rail_area = None;
+        self.workspace_rail_mark = None;
         // V6 P5: the Chips ghost pills park empty too, so a closed picker carries
         // no stale ghost-pill quads into the next frame.
         self.overlay_facet_ghost
@@ -197,6 +205,7 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
         has_right: bool,
+        has_rail: bool,
         ink: glyphon::Color,
         muted: glyphon::Color,
         placard: Option<(f32, f32, f32, f32)>,
@@ -348,6 +357,27 @@ impl TextPipeline {
                     custom_glyphs: &[],
                 });
             }
+        }
+        // ITEM 114 — the navigation rail, clipped to its own measured column so a
+        // label can never bleed into the content pane it sits beside. It rides
+        // this same batch (rather than a pass of its own) because it is card
+        // chrome in the card's own z-slot: over the card fill, under nothing.
+        if has_rail && let Some((rail_left, rail_top)) = self.workspace_rail_area {
+            let rail_w = geom.rail.map(|[_, w]| w).unwrap_or(0.0);
+            areas.push(TextArea {
+                buffer: &self.workspace_rail_buffer,
+                left: rail_left,
+                top: rail_top,
+                scale: 1.0,
+                bounds: TextBounds {
+                    left: rail_left.max(0.0) as i32,
+                    top: 0,
+                    right: ((rail_left + rail_w).min(width as f32)) as i32,
+                    bottom: height as i32,
+                },
+                default_color: muted,
+                custom_glyphs: &[],
+            });
         }
         if has_right {
             areas.push(TextArea {

@@ -294,6 +294,12 @@ impl TextPipeline {
         if let Some((line, start_col, end_col)) = self.overlay_spell {
             return self.spell_overlay_geometry(width, line, start_col, end_col);
         }
+        // ITEM 114 — the THIRD family. Checked before the faceted one because a
+        // workspace's rail IS its facet strip, stood on its end: the same data
+        // reaches a different presentation, and there is no card to place.
+        if self.overlay_is_workspace() {
+            return self.workspace_geometry(width);
+        }
         if !self.overlay_lens.is_empty() {
             return self.theme_overlay_geometry(width);
         }
@@ -600,8 +606,13 @@ impl TextPipeline {
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
         plan_overlay_rows(&OverlayRowPlanInput {
-            card_x: geom.card_x,
-            card_w: geom.card_w,
+            // ITEM 114 — the CONTENT BAND, not necessarily the card: a workspace's
+            // rows occupy the pane beside its rail, so the planned slots (and with
+            // them the selected band and `row_at`'s own x bounds) stop at the rail
+            // rather than running under it. Identical to the card for every
+            // contextual overlay.
+            card_x: geom.band_x(),
+            card_w: geom.band_w(),
             text_top: geom.text_top,
             lh: self.overlay_lh(),
             header_gap: geom.header_gap,

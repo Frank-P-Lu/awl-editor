@@ -381,40 +381,30 @@ pub(super) fn settled_viewstate(
         .unwrap_or_default();
     vstate.overlay_selected = opts.overlay.as_ref().map(|o| o.selected_index).unwrap_or(0);
     // Scroll window: keep the selection visible with the same min-scroll math
-    // `OverlayState::scroll_to_selected` uses (item 64's row cap for the spell
-    // popup, else 12), so a JSON-driven capture windows a long list identically to
-    // the live picker. The pipeline re-clamps to the item count, so this needs no
-    // `n_items` here.
-    let spell_panel = opts
-        .overlay
-        .as_ref()
-        .map(|o| o.mode == "spell")
-        .unwrap_or(false);
+    // `OverlayState::scroll_to_selected` uses, so a JSON-driven capture windows a
+    // long list identically to the live picker. The pipeline re-clamps to the item
+    // count, so this needs no `n_items` here.
     let theme_panel = opts
         .overlay
         .as_ref()
         .map(|o| o.mode == "theme")
         .unwrap_or(false);
-    // Reads the SAME `OverlayKind::window_rows` owner as `overlay_window_rows`
-    // below, rather than a second hand-copied magic number, so a re-tune of the
-    // spell cap can't leave the scroll HINT and the drawn window disagreeing.
-    let win = if spell_panel {
-        crate::overlay::OverlayKind::Spell.window_rows()
-    } else {
-        12
-    };
-    // The per-kind visible-row cap, mirroring `OverlayState::window_rows` (spell =
-    // item 64's MAX_SUGGESTIONS + 1, theme shows every world = 64, else 12) so a
-    // JSON-driven capture windows the faceted card exactly as the live picker
-    // does. The item-space scroll HINT stays the min-scroll form below; the cap is
-    // what bounds the drawn window.
-    vstate.overlay_window_rows = if spell_panel {
-        crate::overlay::OverlayKind::Spell.window_rows()
-    } else if theme_panel {
-        crate::overlay::OverlayKind::Theme.window_rows()
-    } else {
-        12
-    };
+    // THE PER-KIND VISIBLE-ROW CAP, resolved from the mode string through the ONE
+    // owner (`OverlayKind::window_rows`) rather than a hand-copied per-kind table.
+    // It used to be spelled out here twice — once for the scroll HINT, once for
+    // the cap — with every kind but Spell and Theme flattened to a literal 12, so
+    // item 114's workspace (whose window is the canvas, not a row count) would
+    // have been silently capped at twelve rows in every capture while the live app
+    // filled its viewport. A `mode` with no kind (there is none) keeps the old
+    // literal. The item-space scroll HINT below reads the SAME number, so the
+    // drawn window and the hint cannot disagree.
+    let win = opts
+        .overlay
+        .as_ref()
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
+        .map(|k| k.window_rows())
+        .unwrap_or(12);
+    vstate.overlay_window_rows = win;
     // The THEME picker's item-space scroll is pinned at 0 (a valid window HINT — the
     // grouped-path geometry converts it to a display line and then slides the display
     // window to keep the selected row visible, bounding the card to the canvas even when
@@ -457,6 +447,20 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.sections.clone())
         .unwrap_or_default();
+    // ITEM 114 — the SUMMONED WORKSPACE's presentation + focus stage. Set for
+    // every capture that carries an overlay, not only a previewing one: a
+    // workspace has two regions whether or not anything is previewed beneath it,
+    // and the focus stage is what says which of them is live.
+    vstate.overlay_workspace = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.workspace)
+        .unwrap_or(false);
+    vstate.overlay_detail_focus = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.detail_focus)
+        .unwrap_or(false);
     // SPELL contextual panel: the misspelled word's span (from the still-open spell
     // picker) anchors the small floating panel at the word — no blur backdrop.
     vstate.overlay_spell = opts.overlay.as_ref().and_then(|o| o.spell_target);
@@ -494,7 +498,7 @@ pub(super) fn settled_viewstate(
         // Dress the page column as the diff panel card, with the focus cue
         // mirrored from the overlay state.
         vstate.diff_panel = true;
-        vstate.diff_panel_focus = opts.overlay.as_ref().map(|o| o.diff_focus).unwrap_or(false);
+        vstate.overlay_detail_focus = opts.overlay.as_ref().map(|o| o.detail_focus).unwrap_or(false);
         vstate.selection = None;
         vstate.misspelled = Vec::new();
         vstate.search_matches = Vec::new();

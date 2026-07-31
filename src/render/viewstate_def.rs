@@ -69,6 +69,11 @@ pub struct ViewState {
     /// In strip order with All parked at the far left. EMPTY for every other overlay
     /// kind (so the pipeline draws no strip). Drives the theme picker's branch.
     pub overlay_lens: Vec<(String, bool)>,
+    /// ITEM 114 — is the summoned card drawn as a SUMMONED WORKSPACE (viewport,
+    /// navigation rail, document as a quiet backdrop) rather than a contextual
+    /// card? Owned by [`crate::overlay::OverlayKind::workspace_shell`]; the
+    /// renderer never re-tests the kind.
+    pub overlay_workspace: bool,
     pub overlay_sections: Vec<String>,
     pub caret_preview: Option<CaretMode>,
     pub gutter_name: String,
@@ -92,7 +97,7 @@ pub struct ViewState {
     /// byte-identical.
     pub popover: Option<crate::popover::PopoverModel>,
     pub diff_panel: bool,
-    pub diff_panel_focus: bool,
+    pub overlay_detail_focus: bool,
     /// COLLAPSED SECTIONS (folds): the FULL-document logical lines of the ATX
     /// headings whose sections are folded, ascending. VIEW state only — the rope is
     /// untouched. `text` above is already the FOLD-FILTERED document (hidden lines
@@ -170,6 +175,7 @@ impl ViewState {
             overlay_window_rows: 12,
             overlay_hint: String::new(),
             overlay_lens: Vec::new(),
+            overlay_workspace: false,
             overlay_sections: Vec::new(),
             caret_preview: None,
             gutter_name: String::new(),
@@ -183,7 +189,7 @@ impl ViewState {
             eol: crate::buffer::Eol::Lf,
             popover: None,
             diff_panel: false,
-            diff_panel_focus: false,
+            overlay_detail_focus: false,
             folds: Vec::new(),
             fold_tails: Vec::new(),
         }

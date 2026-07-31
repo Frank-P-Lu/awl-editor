@@ -2233,7 +2233,24 @@ pub struct TextPipeline {
     overlay_sections: Vec<String>,
     overlay_spell: Option<(usize, usize, usize)>,
     diff_panel: bool,
-    diff_panel_focus: bool,
+    overlay_detail_focus: bool,
+    /// ITEM 114 — the summoned card is drawn as a WORKSPACE this frame (mirror of
+    /// [`ViewState::overlay_workspace`]). The one input that routes
+    /// `overlay_geometry` to its third family; every other overlay path stays
+    /// byte-identical because this is `false` for them.
+    overlay_workspace: bool,
+    /// The workspace navigation rail's MEASURED column width (device px),
+    /// measured at `set_view` with a `&mut FontSystem` in hand — the item-51
+    /// `overlay_content_w` pattern, for the same reason. `0.0` off a workspace.
+    workspace_rail_w: f32,
+    workspace_rail_buffer: GlyphBuffer,
+    /// The rail's ACTIVE entry's mark rect for this frame, recorded by the rail
+    /// shaper and drawn by the shared facet-mark owner. `None` when no rail is
+    /// drawn, so the mark parks with the rail.
+    workspace_rail_mark: Option<[f32; 4]>,
+    /// Where the shaped rail buffer is placed (`(left, top)`), or `None` when no
+    /// rail is drawn this frame.
+    workspace_rail_area: Option<(f32, f32)>,
     overlay_spell_w: f32,
     overlay_content_w: f32,
     caret_preview: Option<CaretMode>,

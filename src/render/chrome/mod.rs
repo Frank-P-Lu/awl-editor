@@ -211,6 +211,30 @@ pub(super) struct OverlayGeom {
     pub(super) text_top: f32,
     pub(super) text_w: f32,
     card_narrow: bool,
+    /// ITEM 114 — this card is drawn as a SUMMONED WORKSPACE: it takes the
+    /// viewport rather than floating over a still-readable document, and carries
+    /// a navigation rail beside its content. `false` for every contextual card,
+    /// which is what keeps every arm below byte-identical for them.
+    pub(super) workspace: bool,
+    /// The workspace's navigation RAIL COLUMN (`[x, w]`), or `None` when no rail
+    /// is drawn — a contextual card, or the narrow stage that is showing the
+    /// content instead. Only the column: the rail's vertical grid is resolved
+    /// from the ROW PLAN's own band origin (`workspace_rail_box`), so a rail
+    /// entry sits on the same line as the settings row beside it by construction,
+    /// and the shaped labels, the active mark and the pointer hit-test all read
+    /// that one grid (DESIGN.md §8's drawn-equals-clickable rule).
+    pub(super) rail: Option<[f32; 2]>,
+    /// The horizontal extent of the CONTENT BAND — the rows, their selected-row
+    /// band and their pointer hit-test. Equal to `card_x`/`card_w` for every
+    /// contextual card; narrowed to the workspace's content pane beside the rail,
+    /// so a click in the rail column can never resolve to a settings row.
+    pub(super) pane_x: f32,
+    pub(super) pane_w: f32,
+    /// Does the workspace's CONTENT pane hold focus (rather than its rail)? The
+    /// one input to the focus cue: the focused region's marker is the world's
+    /// full selected-row band, the other region's the same rect at reduced
+    /// presence. Always `false` off a workspace.
+    pub(super) rows_focused: bool,
 }
 
 impl OverlayGeom {
@@ -237,6 +261,29 @@ impl OverlayGeom {
             text_top: 0.0,
             text_w: 0.0,
             card_narrow: false,
+            workspace: false,
+            rail: None,
+            pane_x: 0.0,
+            pane_w: 0.0,
+            rows_focused: false,
+        }
+    }
+
+    /// The CONTENT BAND's horizontal extent — the one owner every row-band
+    /// consumer (the plan, the selected-row quads, the bar plates, the pointer
+    /// hit-test) reads. It is the card for a contextual overlay and the content
+    /// pane for a workspace, so none of those consumers has to know which it is.
+    pub(super) fn band_x(&self) -> f32 {
+        match self.workspace {
+            true => self.pane_x,
+            false => self.card_x,
+        }
+    }
+
+    pub(super) fn band_w(&self) -> f32 {
+        match self.workspace {
+            true => self.pane_w,
+            false => self.card_w,
         }
     }
 }
@@ -249,6 +296,8 @@ impl OverlayGeom {
 mod overlay;
 mod overlay_clamp;
 mod panel;
+// ITEM 114 — the SUMMONED WORKSPACE family: geometry, navigation rail, hit-test.
+mod workspace;
 pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
 #[cfg(test)]
 pub(in crate::render) use overlay::{
@@ -415,7 +464,7 @@ impl TextPipeline {
         // touch larger than the card and draws BEHIND it (painter's order in
         // `render.rs`: shadow → border → card), so only the rim peeks out.
         if let Some([x, y, w, h]) = rect {
-            let focused = self.diff_panel_focus;
+            let focused = self.overlay_detail_focus;
             self.diffpanel_border.set_color(if focused {
                 theme::base_content().rgba_bytes()
             } else {

@@ -117,6 +117,14 @@ impl OverlayKind {
         match self {
             OverlayKind::Spell => Self::MAX_SUGGESTIONS + 1,
             OverlayKind::Theme => crate::theme::THEMES.len(),
+            // ITEM 114 — a SUMMONED WORKSPACE is bounded by the canvas, not by a
+            // card-sized row count: it already occupies the viewport, so a
+            // twelve-row cap would leave two thirds of it empty and scroll a list
+            // that fits. The canvas bound is item 181's `fit_item_rows`, applied
+            // in the renderer where the canvas is actually known; naming the whole
+            // corpus here is what lets that bound BE the binding one — the same
+            // arrangement the theme picker's own roster already uses above.
+            OverlayKind::Settings => crate::settings::SETTINGS.len(),
             _ => 12,
         }
     }
@@ -164,8 +172,14 @@ impl OverlayKind {
             OverlayKind::History => {
                 vec![enter("restore"), key("tab", "diff"), key(ARROWS_LR, "lens")]
             }
+            // ITEM 114 — the Settings ROWS pane is the workspace's DETAIL stage,
+            // so `esc` is a BACK to the category rail (the table's
+            // `WorkspaceDetail × Cancel → Primary` cell), and `←/→` steps the
+            // rail's own category rather than an anonymous "lens". The footer is
+            // awl's only statement of what a key does (ACCESSIBILITY.md), so
+            // these two cells change with the presentation, not after it.
             OverlayKind::Settings => {
-                vec![enter("edit"), key(ARROWS_LR, "lens"), key("esc", "close")]
+                vec![enter("edit"), key(ARROWS_LR, "category"), key("esc", "back")]
             }
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
@@ -176,6 +190,50 @@ impl OverlayKind {
 
     pub fn hint(self) -> String {
         format_hint(&self.hint_actions())
+    }
+
+    /// The foot hint while a summoned WORKSPACE's PRIMARY list — its navigation
+    /// rail — holds focus (item 114). The rows pane's own hint is
+    /// [`Self::hint_actions`]; this is the other stage's, and the two differ in
+    /// exactly the keys that differ: on the rail `↑/↓` steps categories and `esc`
+    /// leaves for the editor, while on the rows `↑/↓` steps rows and `esc` comes
+    /// back here.
+    ///
+    /// Wildcard-free, like every other per-kind statement here: a kind that is
+    /// not drawn as a workspace still has to say what its rail would advertise,
+    /// which is nothing, and it can never be reached because
+    /// [`crate::overlay::OverlayState::foot_hint`] gates on
+    /// [`Self::workspace_shell`].
+    pub fn rail_hint_actions(self) -> Vec<HintAction> {
+        let enter = |label| HintAction {
+            glyph: "\u{21B5}",
+            label,
+        };
+        let key = |glyph, label| HintAction { glyph, label };
+        match self {
+            OverlayKind::Settings => vec![
+                key(ARROWS_UD, "category"),
+                enter("settings"),
+                key("esc", "close"),
+            ],
+            OverlayKind::History
+            | OverlayKind::Goto
+            | OverlayKind::Project
+            | OverlayKind::Browse
+            | OverlayKind::Theme
+            | OverlayKind::Caret
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::MoveDest
+            | OverlayKind::Command
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName => Vec::new(),
+        }
     }
 
     pub fn range_row_hint(self) -> String {
@@ -288,6 +346,8 @@ pub struct HintAction {
 pub const HINT_SEP: &str = "   ";
 
 pub const ARROWS_LR: &str = "\u{2190}/\u{2192}";
+
+pub const ARROWS_UD: &str = "\u{2191}/\u{2193}";
 
 pub const RANGE_LR_LABEL: &str = "adjust";
 

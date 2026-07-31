@@ -334,7 +334,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 .map(|m| json_string(m))
                 .unwrap_or_else(|| "null".into());
             format!(
-                "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, \"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, \"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, \"lens_strip\": [{}], \"sections\": [{}], \"preview_id\": {}, \"diff_focus\": {}, \"diff_scroll\": {}, \"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, \"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], \"git\": [{}] }}",
+                "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, \"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, \"spell_target\": {}, \"hint\": {}, \"notice\": {}, \"lens\": {}, \"workspace\": {}, \"lens_strip\": [{}], \"sections\": [{}], \"preview_id\": {}, \"detail_focus\": {}, \"diff_scroll\": {}, \"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, \"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], \"git\": [{}] }}",
                 o.active,
                 json_string(o.mode),
                 json_string(o.title),
@@ -346,10 +346,11 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 json_string(&o.hint),
                 json_string(&o.notice),
                 lens,
+                o.workspace,
                 lens_strip,
                 sections,
                 preview_id,
-                o.diff_focus,
+                o.detail_focus,
                 o.diff_scroll,
                 o.show_hidden,
                 capture,
@@ -361,7 +362,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 git
             )
         }
-        None => "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", \"selected_index\": null, \"browse_dir\": null, \"return_to\": null, \"spell_target\": null, \"hint\": null, \"notice\": \"\", \"lens\": null, \"lens_strip\": [], \"sections\": [], \"preview_id\": null, \"diff_focus\": false, \"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, \"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], \"ranges\": [], \"git\": [] }".to_string(),
+        None => "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", \"selected_index\": null, \"browse_dir\": null, \"return_to\": null, \"spell_target\": null, \"hint\": null, \"notice\": \"\", \"lens\": null, \"workspace\": false, \"lens_strip\": [], \"sections\": [], \"preview_id\": null, \"detail_focus\": false, \"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, \"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], \"ranges\": [], \"git\": [] }".to_string(),
     }
 }
 

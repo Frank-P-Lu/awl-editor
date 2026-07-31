@@ -24,13 +24,13 @@ impl OverlayBarLayout {
     fn span(&self, geom: &OverlayGeom, row: usize) -> (f32, f32) {
         if self.extent.hugs() {
             bar_hug_span(
-                geom.card_x,
-                geom.card_w,
+                geom.band_x(),
+                geom.band_w(),
                 geom.text_left,
                 self.primary_px.get(&row).copied().unwrap_or(0.0),
             )
         } else {
-            bar_full_span(geom.card_x, geom.card_w)
+            bar_full_span(geom.band_x(), geom.band_w())
         }
     }
 
@@ -54,7 +54,7 @@ impl OverlayBarLayout {
         if self.chord_px.is_empty() {
             return;
         }
-        let (full_x, full_width) = bar_full_span(geom.card_x, geom.card_w);
+        let (full_x, full_width) = bar_full_span(geom.band_x(), geom.band_w());
         let full_right = full_x + full_width;
         let chord_right = geom.text_left + geom.text_w;
         for planned in plan.rows().iter().filter(|r| r.item.is_some()) {
@@ -100,7 +100,7 @@ impl TextPipeline {
         let line_height = plan.lh();
         let first_top = plan.first_top();
         let (primary, _, _) =
-            self.living_band_rects(motion, from, to, t, geom.card_x, geom.card_w, line_height);
+            self.living_band_rects(motion, from, to, t, geom.band_x(), geom.band_w(), line_height);
         (
             vis.rows().to_vec(),
             selected_row,
@@ -155,7 +155,16 @@ impl TextPipeline {
             theme::HighlightTreatment::ValueBand(color) => color,
             theme::HighlightTreatment::InverseFill { band, .. } => band,
         };
-        self.overlay_rows.set_color(band_color.rgba_bytes());
+        // ITEM 114 — THE FOCUS CUE, and the whole of it. A workspace has two
+        // regions that both keep a selection, so one of the two markers has to
+        // say "this one is live". It stays the SAME rect in the SAME place and
+        // only loses presence — figure/ground by value, not a second decoration
+        // bolted on (DESIGN.md §5). Off a workspace this is the identity.
+        let rgba = match geom.workspace && !geom.rows_focused {
+            true => super::workspace::dimmed(band_color, super::workspace::UNFOCUSED_MARK_ALPHA),
+            false => band_color.rgba_bytes(),
+        };
+        self.overlay_rows.set_color(rgba);
         let rects = match list_style {
             theme::ListStyle::Pane => self.overlay_pane_selection(geom, plan, vis),
             theme::ListStyle::Bars {
@@ -192,7 +201,7 @@ impl TextPipeline {
         let line_height = plan.lh();
         if let Some((force, from, to, t)) = vis.living() {
             let (selected, unselected, cross) =
-                self.living_band_rects(force, from, to, t, geom.card_x, geom.card_w, line_height);
+                self.living_band_rects(force, from, to, t, geom.band_x(), geom.band_w(), line_height);
             self.overlay_bars.set_corner(2.5);
             self.overlay_bars
                 .set_color(theme::surface_selected().rgba_bytes());
@@ -208,7 +217,7 @@ impl TextPipeline {
         let selected = match (vis.logical(), vis.band_top()) {
             (Some(row), Some(top)) => {
                 let dx = self.overlay_slant_dx(row);
-                vec![[geom.card_x + dx, top, geom.card_w - dx, line_height]]
+                vec![[geom.band_x() + dx, top, geom.band_w() - dx, line_height]]
             }
             _ => Vec::new(),
         };
@@ -314,8 +323,8 @@ impl TextPipeline {
             });
             rects.push(footer_plate_rect(
                 plan.footer_top(),
-                geom.card_x,
-                geom.card_w,
+                geom.band_x(),
+                geom.band_w(),
                 geom.card_y + geom.card_h,
                 footer_hug,
             ));

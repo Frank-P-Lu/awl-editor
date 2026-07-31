@@ -472,10 +472,11 @@ impl TextPipeline {
         self.overlay_window_rows = view.overlay_window_rows;
         self.overlay_hint = view.overlay_hint.clone();
         self.overlay_lens = view.overlay_lens.clone();
+        self.overlay_workspace = view.overlay_workspace;
         self.overlay_sections = view.overlay_sections.clone();
         self.overlay_spell = view.overlay_spell;
         self.diff_panel = view.diff_panel;
-        self.diff_panel_focus = view.diff_panel_focus;
+        self.overlay_detail_focus = view.overlay_detail_focus;
         self.overlay_spell_w = if self.overlay_spell.is_some() {
             self.measure_spell_content_w()
         } else {
@@ -492,6 +493,16 @@ impl TextPipeline {
         self.overlay_content_w = 0.0;
         if self.overlay_active && self.overlay_spell.is_none() && self.overlay_right_anchored() {
             self.overlay_content_w = self.measure_overlay_content_w();
+        }
+        // ITEM 114 — the workspace rail's column is MEASURED, never estimated
+        // from a mean character width: its labels are display-face words and the
+        // column has to hold the widest of them exactly, because that same number
+        // is the rail's clip, its mark rect and its pointer hit band. Same
+        // `&mut FontSystem` window as the item-51 measurement above; `0.0` for
+        // every card that is not a workspace, so the geometry is untouched there.
+        self.workspace_rail_w = 0.0;
+        if self.overlay_active && self.overlay_is_workspace() {
+            self.workspace_rail_w = self.measure_workspace_rail_w();
         }
         self.caret_preview = view.caret_preview;
         match view.caret_preview {

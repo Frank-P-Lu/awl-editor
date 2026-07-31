@@ -139,7 +139,19 @@ impl OverlayState {
         self.diff_scroll = 0;
     }
 
+    /// The per-row SECTION labels the grouped card draws as faint headers above
+    /// each bucket.
+    ///
+    /// ITEM 114 — EMPTY for a summoned WORKSPACE. A workspace names the active
+    /// category once, in its navigation rail, and repeating it as a header over
+    /// the only bucket the rail lets through is the same fact twice. Returning
+    /// nothing here (rather than teaching the renderer to skip headers) keeps one
+    /// answer to "what sections does this card show", so the drawn rows, the row
+    /// plan and the sidecar's `sections` array cannot disagree.
     pub fn item_sections(&self) -> Vec<String> {
+        if self.workspace_shell() {
+            return Vec::new();
+        }
         self.item_sections.clone()
     }
 

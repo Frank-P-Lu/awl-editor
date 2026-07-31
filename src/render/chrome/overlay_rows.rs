@@ -69,6 +69,14 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> Vec<[f32; 4]> {
         let full = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
+        // ITEM 114 — A WORKSPACE IS ONE SURFACE. Item 50's split composition
+        // carves a card's query beat into a separate upper plate; that is a
+        // small-card gesture, and run across a workspace it would cut the
+        // navigation rail in half at an arbitrary height. A room does not have a
+        // seam through its wall.
+        if geom.workspace {
+            return vec![full];
+        }
         if !matches!(
             crate::render::effective_pane_split(),
             theme::PaneSplit::Split
@@ -197,6 +205,35 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
+        // ITEM 114 — A WORKSPACE'S RAIL takes this same "active lens mark" slot,
+        // because that is exactly what it is: the rail is the facet strip stood on
+        // its end, and its active entry is that strip's active label. It bypasses
+        // the `FacetStyle` skins below on purpose — those describe a horizontal
+        // chip run (a bracket, an underline hugging a baseline) and none of them
+        // says anything about a column — and takes the world's own selected-row
+        // band instead, at the same reduced presence the content pane's band takes
+        // when IT is the unfocused region.
+        if geom.workspace {
+            let band = match theme::active()
+                .highlight_treatment(crate::render::effective_overlay_selrow_band())
+            {
+                theme::HighlightTreatment::ValueBand(c) => c,
+                theme::HighlightTreatment::InverseFill { band, .. } => band,
+            };
+            let rgba = match geom.rows_focused {
+                true => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
+                false => band.rgba_bytes(),
+            };
+            self.overlay_lens_underline.set_color(rgba);
+            self.overlay_lens_underline.set_corner(FACET_CHIP_RADIUS);
+            self.overlay_lens_underline.set_stroke(0.0);
+            let marks: Vec<[f32; 4]> = self.workspace_rail_mark.into_iter().collect();
+            self.overlay_lens_underline
+                .prepare(device, queue, width, height, &marks);
+            self.overlay_facet_ghost
+                .prepare(device, queue, width, height, &[]);
+            return;
+        }
         // PER-ITEM LIST SURFACES round: `Text` (default) keeps the content-ink
         // hairline byte-identically; `Band` recolors the ACTIVE mark to the
         // selected-row band VALUE (never amber) and rounds it into a pill.
