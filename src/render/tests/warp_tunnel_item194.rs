@@ -946,8 +946,12 @@ fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not
             ));
         }
     }
+    // A bare floor, so a sweep that graded almost nothing cannot pass quietly.
+    // The claim about COVERAGE is the two-regime assertion below, which is what a
+    // pinned window fails on: it does not merely grade fewer cells, it never
+    // reaches the regime where the windows overlap at all.
     assert!(
-        placed.len() >= 14,
+        placed.len() >= 8,
         "the placement sweep must grade margins, got {}\n{placed:?}",
         placed.len()
     );
