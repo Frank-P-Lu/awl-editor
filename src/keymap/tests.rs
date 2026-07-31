@@ -1666,3 +1666,57 @@ fn changing_one_valid_default_slot_changes_both_label_and_dispatch() {
     assert_eq!(resolve_spec(&mut km, "Cmd-J").last(), Some(&Action::Save));
     assert_eq!(resolve_spec(&mut km, "Cmd-S").last(), Some(&Action::Ignore));
 }
+
+/// ITEM 116c — THE ALTERNATE-ACCEPT CHORD (⇧↵), swept over BOTH conventions
+/// and BOTH keymap flavors. Shift reads identically on Mac and Linux (unlike
+/// Cmd/Ctrl, which the whole rest of this module exists to translate), so
+/// `AcceptAlternate` needs no native/emacs catalog slot and no
+/// `linux_keep_emacs` entry at all — proven here rather than assumed, over
+/// the axis a chord resolved only in `resolve_named` (never through the
+/// catalog-seeded maps) could still silently get wrong: a convention or
+/// flavor that quietly shadowed it. Bare Enter is swept alongside it so a
+/// future change can't make Shift+Enter "leak" its meaning onto the
+/// unshifted chord (or vice versa).
+#[test]
+fn accept_alternate_resolves_identically_on_every_convention_and_keymap_flavor() {
+    for convention in [Convention::Mac, Convention::Linux] {
+        for (flavor, keep) in [
+            ("native", Vec::new()),
+            ("emacs", crate::keymap::linux_emacs_preset_keep()),
+        ] {
+            let mut km = KeymapState::new_with_convention(convention);
+            km.apply_linux_keep(&keep);
+            assert_eq!(
+                km.resolve(&Key::Named(NamedKey::Enter), &shift()),
+                Action::AcceptAlternate,
+                "{convention:?}/{flavor}: Shift+Enter must resolve to the alternate accept"
+            );
+            assert_eq!(
+                km.resolve(&Key::Named(NamedKey::Enter), &none()),
+                Action::Newline,
+                "{convention:?}/{flavor}: bare Enter stays a plain newline"
+            );
+        }
+    }
+}
+
+/// THE LINUX KEEP-LIST HAS NOTHING TO SAY ABOUT IT: `AcceptAlternate` is not a
+/// single Ctrl-letter chord, so it can never appear in `LINUX_DISPLACED_LETTERS`
+/// or `linux_builtin_keep()` — named directly here so a reader does not have
+/// to infer it from the resolver sweep above.
+#[test]
+fn accept_alternate_is_not_a_linux_keep_list_member() {
+    assert!(
+        crate::keymap::linux_builtin_keep()
+            .iter()
+            .all(|c| !c.to_ascii_lowercase().contains("s-return")
+                && !c.to_ascii_lowercase().contains("enter")),
+        "the unconditional Linux keep floor names no Enter chord"
+    );
+    assert!(
+        crate::keymap::linux_emacs_preset_keep()
+            .iter()
+            .all(|c| !c.to_ascii_lowercase().contains("enter")),
+        "the emacs-flavor keep preset (every displaced Ctrl-letter) names no Enter chord either"
+    );
+}

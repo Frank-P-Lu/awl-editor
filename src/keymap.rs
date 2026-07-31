@@ -18,6 +18,12 @@ pub enum Action {
     BufferEnd,
     InsertChar(char),
     Newline,
+    /// SHIFT-HELD ACCEPT (`⇧↵`, item 116c) — the deliberate, footer-taught
+    /// "yes, really" (restores a History row; bare `Enter` no longer does).
+    /// Resolved in [`KeymapState::resolve_named`], never a catalog chord. IN
+    /// THE EDITOR it rides the exact same arm as [`Action::Newline`] — see
+    /// `actions::tests::alternate_accept_item116c`.
+    AcceptAlternate,
     InsertTab,
     Outdent,
     DeleteBackward,
@@ -257,6 +263,7 @@ impl Action {
             self,
             Action::InsertChar(_)
                 | Action::Newline
+                | Action::AcceptAlternate
                 | Action::InsertTab
                 | Action::Outdent
                 | Action::DeleteBackward
@@ -798,6 +805,7 @@ impl KeymapState {
             NamedKey::End => Action::LineEnd,
             NamedKey::PageUp => Action::PageScrollUp,
             NamedKey::PageDown => Action::PageScrollDown,
+            NamedKey::Enter if state.contains(ModifiersState::SHIFT) => Action::AcceptAlternate,
             NamedKey::Enter => Action::Newline,
             // Ctrl-Tab: switch to the LAST (previously-open) buffer — the native
             // slot-1 door (the emacs `C-x b` default is retired). Checked before the

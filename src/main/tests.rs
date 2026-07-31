@@ -1159,16 +1159,38 @@ fn replay_keys_drives_the_keep_version_minibuffer_prompt_and_sidecar_reflects_ty
 }
 
 #[test]
-fn replay_keys_keep_version_minibuffer_esc_cancels_with_no_overlay_left() {
+fn replay_keys_keep_version_minibuffer_esc_pops_back_to_the_palette() {
+    // ITEM 116c: the minibuffer's Cancel arm routes through the ONE lifecycle
+    // door (`Journey::cancel`) instead of a hand-rolled `dismiss()` that always
+    // dropped to the editor regardless of what was parked. Reached via the
+    // palette (like `replay_keys_palette_theme_esc_pops_back_to_palette`), Esc
+    // now pops back to the Command palette exactly like every other
+    // palette-launched picker — nothing is kept.
     let mut buffer = Buffer::scratch();
     let keys = keyspec::parse_keys("s-p k e e p RET x Esc").unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(
-        res.journey.card().is_none(),
-        "Esc closes the minibuffer outright, nothing kept"
+    let ov = res
+        .journey
+        .card()
+        .expect("Esc pops back to the palette, not the buffer");
+    assert_eq!(
+        ov.kind,
+        crate::overlay::OverlayKind::Command,
+        "back at the command palette, consistent with every other palette-launched picker"
+    );
+    assert_eq!(
+        res.journey.parked_kind(),
+        None,
+        "single-level: the resumed palette parks nothing itself"
     );
 }
+// The OTHER branch — `Action::KeepVersion` reached with NO card open at all
+// (no palette, nothing parked) still `enter`s rather than `descend`s, so Esc
+// still lands with nothing left, exactly as before the fix (only the PARKED
+// case above changes): `actions::tests::overlay_drive::
+// keep_version_blank_enter_is_the_plain_keep_and_esc_cancels` pins it at the
+// pure `apply_transition` seam this replay test builds on.
 
 #[test]
 fn replay_keys_keep_version_commit_closes_and_defers_the_store_write() {
@@ -2447,12 +2469,16 @@ fn replay_history_esc_leaves_buffer_text_exact() {
 
 #[test]
 fn replay_history_enter_restores_undoably() {
+    // ITEM 116c: restore moved behind the ALTERNATE ACCEPT (⇧↵) — bare `RET`
+    // only opens the comparison now, so the restoring chord is `S-RET`.
     with_seeded_history(|p| {
         let mut buffer = Buffer::from_file(&p);
-        let keys = keyspec::parse_keys("Cmd-S-h C-n RET").unwrap();
+        let keys = keyspec::parse_keys("Cmd-S-h C-n S-RET").unwrap();
         let root = PathBuf::from("/notes");
         let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-        let (kind, id) = res.accept.expect("Enter accepts the highlighted version");
+        let (kind, id) = res
+            .accept
+            .expect("Shift+Enter accepts the highlighted version");
         assert_eq!(kind, crate::overlay::OverlayKind::History);
         // The capture arm's restore (same shared source_path + load + set_text).
         let path = crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())

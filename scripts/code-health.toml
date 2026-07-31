@@ -27,8 +27,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 817
-reason = "item 114: +1 line — the `workspace_nav` module declaration, at the one module list."
+lines = 818
+reason = "item 114: +1 line — the `workspace_nav` module declaration, at the one module list. Item 116c: +1 line — `Action::AcceptAlternate` classified in the one exhaustive `classify_action_family!` macro (a new `Action` variant must be placed there to compile); the Newline/OpenHistory/KeepVersion doc-comment growth elsewhere was trimmed back to net zero, and `KeepVersion`'s own arm now delegates to `workspace_nav::open_keep_version`, whose body lives there instead."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -36,8 +36,8 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 791
-reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them."
+lines = 768
+reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -178,7 +178,8 @@ lines = 841
 
 [[file_size_mark]]
 file = "src/keymap.rs"
-lines = 1133
+lines = 1141
+reason = "item 116c: +8 lines — the new `Action::AcceptAlternate` variant (a 4-line doc + itself, at the one `Action` enum), its `is_edit()` classification (the one exhaustive match), and its `resolve_named` Shift+Enter arm (the one dispatch site for `NamedKey::Enter`). Trimmed twice already; each site is a single-owner exhaustive seam a new keymap Action structurally cannot avoid."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
@@ -220,8 +221,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 314
-reason = "item 114: +12 lines at the per-kind statement site — the Settings foot-hint cells that now name a category and a back, and the workspace's canvas-bounded `window_rows` arm. Both are single no-wildcard matches over `OverlayKind`; splitting one would be splitting the exhaustiveness."
+lines = 317
+reason = "item 114: +12 lines at the per-kind statement site — the Settings foot-hint cells that now name a category and a back, and the workspace's canvas-bounded `window_rows` arm. Both are single no-wildcard matches over `OverlayKind`; splitting one would be splitting the exhaustiveness. Item 116c: +3 lines — the History `kind_actions` arm's third hint cell (the new ⇧↵ restore glyph) no longer fits one line, at the same no-wildcard match."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -230,8 +231,8 @@ reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sect
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 652
-reason = "item 114: +13 lines in `foot_hint`, the ONE owner of what a summoned surface advertises; a workspace has two stages and each must say its own keys (ACCESSIBILITY.md — the footer is awl's only such statement)."
+lines = 653
+reason = "item 114: +13 lines in `foot_hint`, the ONE owner of what a summoned surface advertises; a workspace has two stages and each must say its own keys (ACCESSIBILITY.md — the footer is awl's only such statement). Item 116c: +1 line — a one-line note at the same owner's detail-focused arm, whose ↵ glyph changed to ⇧↵ (restore moved behind the alternate accept)."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -822,37 +823,37 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/picker_misc_smoke.rs"
-line = 707
+line = 748
 message = "this function has too many lines (122/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 528
-message = "this function has too many lines (109/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace."
+line = 530
+message = "this function has too many lines (110/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 734
-message = "this function has too many lines (109/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace."
+line = 737
+message = "this function has too many lines (110/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm in the no-wildcard roster match."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 733
-message = "this function has too many lines (220/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace."
+line = 736
+message = "this function has too many lines (222/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +2 lines — `Action::AcceptAlternate` added to the nested roster match plus the returned `vec!` literal."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/actions/tests/mod.rs"
-line = 985
-message = "this function has too many lines (109/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace."
+line = 990
+message = "this function has too many lines (110/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1235,23 +1236,23 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3709
+line = 3735
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, item 190's settings-trio hermetic tests, and item 116c's KeepVersion coherent-return + History bare-Enter tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3749
+line = 3775
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, item 190's settings-trio hermetic tests, and item 116c's KeepVersion coherent-return + History bare-Enter tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3783
+line = 3809
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, and item 190's settings-trio hermetic tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, item 189's Switch-project-then-Goto law + edge-case tests, item 190's settings-trio hermetic tests, and item 116c's KeepVersion coherent-return + History bare-Enter tests."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"

@@ -75,7 +75,17 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::DeleteWordForward => overlay.keep_edit_delete_word_forward(),
         Action::Newline => {
             let target = overlay.keep_edit_target();
-            ctx.journey.dismiss();
+            // ITEM 116c — route the completion through the SAME lifecycle
+            // door every other accept uses (`dispose_after_accept`'s
+            // pattern), rather than a blanket `dismiss()`: if `KeepVersion`
+            // was reached by `descend`ing over a parked workspace (see
+            // `Action::KeepVersion`'s own dispatch), this is what lets the
+            // table's own rules decide the landing instead of unconditionally
+            // dropping the parked position.
+            ctx.journey.accept(
+                crate::overlay::OverlayKind::KeepName.accept_disposition(),
+                ctx.make_overlay,
+            );
             return Some(
                 target
                     .map(|name| Effect::KeepVersion { name })
@@ -83,7 +93,12 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             );
         }
         Action::Cancel => {
-            ctx.journey.dismiss();
+            // ITEM 116c — `cancel()`, not `dismiss()`: the table's own Cancel
+            // arm reverts nothing here (`KeepName` never auditions) but DOES
+            // resume a parked parent when there is one (`descend`ed from an
+            // open workspace) instead of unconditionally dropping to the
+            // editor — the coherent-return half of the fix.
+            ctx.journey.cancel(ctx.make_overlay);
         }
         _ => {}
     }
@@ -144,9 +159,8 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     {
         return eff;
     }
-    if let Some(effect) = history_intercept(ctx, action) {
-        return effect;
-    }
+    // ITEM 116c — the shape-aware intercept: folds in what was a separate
+    // `history_intercept`. See `workspace_nav::workspace_intercept`'s doc.
     if let Some(effect) = super::workspace_nav::workspace_intercept(ctx, action) {
         return effect;
     }
@@ -183,7 +197,14 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             preview_move(ctx.journey.card_mut().unwrap());
             Effect::None
         }
-        Action::Newline => accept_overlay(ctx),
+        // ITEM 116c — `AcceptAlternate` (⇧↵) defaults to the SAME accept every
+        // ordinary overlay kind already gives `Newline` (Goto opens, Theme
+        // commits, …): only the shape-aware intercept above declares a
+        // different meaning for bare `Newline` (History's timeline), and it
+        // deliberately lets `AcceptAlternate` fall all the way through to
+        // here so History's own accept — restoring the highlighted version —
+        // fires exactly where bare Enter used to.
+        Action::Newline | Action::AcceptAlternate => accept_overlay(ctx),
         Action::ForwardWord => {
             ctx.journey.card_mut().unwrap().query_word_right();
             preview_move(ctx.journey.card_mut().unwrap());
@@ -218,50 +239,6 @@ fn cancel_overlay(ctx: &mut ActionCtx) -> Effect {
         Effect::None
     }
 }
-fn history_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    let ov = ctx.journey.card().unwrap();
-    if ov.kind != crate::overlay::OverlayKind::History || ov.selected_history_id().is_none() {
-        return None;
-    }
-    let page = ctx.scroll_page_lines.max(1);
-    let focused = ov.detail_focus;
-    match action {
-        Action::PageScrollDown => {
-            let ov = ctx.journey.card_mut().unwrap();
-            ov.diff_scroll = ov.diff_scroll.saturating_add(page);
-            Some(Effect::None)
-        }
-        Action::PageScrollUp => {
-            let ov = ctx.journey.card_mut().unwrap();
-            ov.diff_scroll = ov.diff_scroll.saturating_sub(page);
-            Some(Effect::None)
-        }
-        Action::CompareVersion | Action::InsertTab => {
-            ctx.journey.toggle_detail();
-            Some(Effect::None)
-        }
-        _ if focused => match action {
-            Action::NextLine => {
-                let ov = ctx.journey.card_mut().unwrap();
-                ov.diff_scroll = ov.diff_scroll.saturating_add(1);
-                Some(Effect::None)
-            }
-            Action::PreviousLine => {
-                let ov = ctx.journey.card_mut().unwrap();
-                ov.diff_scroll = ov.diff_scroll.saturating_sub(1);
-                Some(Effect::None)
-            }
-            // Esc and Enter both fall through to the shared owners: the table
-            // already says a cancel on the detail stage lands on the primary
-            // list, and an accept there restores the version.
-            Action::Cancel => None,
-            Action::Newline => None,
-            _ => Some(Effect::None),
-        },
-        _ => None,
-    }
-}
-
 fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     match action {
         Action::NextLine => {
