@@ -554,9 +554,15 @@ fn the_settings_row_and_its_command_twin_reach_the_same_live_state() {
     let start = crate::typewriter::typewriter_on();
     let palette = match crate::convention::Convention::current() {
         crate::convention::Convention::Mac => "s-p",
-        crate::convention::Convention::Linux => "C-S-p",
+        crate::convention::Convention::Linux => "C-p",
     };
     app.press_spec_headless(palette).expect("the palette opens");
+    assert_eq!(
+        app.workspace_state.overlay().map(|o| o.kind),
+        Some(crate::overlay::OverlayKind::Command),
+        "the palette chord for this convention really summoned the palette — a \
+         mis-bound chord here would make the command door look broken instead"
+    );
     for c in "typewriter".chars() {
         app.press_spec_headless(&c.to_string()).expect("a letter");
     }
