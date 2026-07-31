@@ -927,8 +927,13 @@ fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not
     /// it. A traced arc recovers its centre to a pixel or two; this is the slack
     /// that leaves, not the claim.
     const PLACEMENT_TOL_PX: f32 = 12.0;
-    // (measure, span, span/anchor, measured hide, predicted hide) per margin.
-    let mut placed: Vec<(usize, f32, f32, f32, f32)> = Vec::new();
+    // (measure, span, span/anchor, measured hide, predicted hide, page half) per
+    // margin. The PAGE HALF is carried separately on purpose: the tiling claim
+    // below is that the axis sits on the page column's own centre line, and
+    // reading that off the placement owner's prediction — which equals it in that
+    // regime — would make the claim a restatement of the assertion above it
+    // rather than an independent measurement of the composition.
+    let mut placed: Vec<(usize, f32, f32, f32, f32, f32)> = Vec::new();
     for c in &cells {
         let page_half = (c.col_w * 0.5).max(1.0);
         for (i, f) in c.fit.iter().enumerate() {
@@ -944,6 +949,7 @@ fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not
                 c.span[i] / cam.anchor,
                 hide,
                 cam.hide(c.span[i], page_half),
+                page_half,
             ));
         }
     }
@@ -958,7 +964,7 @@ fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not
     );
     let mut wide = 0usize;
     let mut tight = 0usize;
-    for &(measure, span, ratio, hide, want) in &placed {
+    for &(measure, span, ratio, hide, want, page_half) in &placed {
         assert!(
             (hide - want).abs() <= PLACEMENT_TOL_PX,
             "m{measure}: a {span:.0}px margin puts its window's axis {hide:.0}px inside \
@@ -970,7 +976,6 @@ fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not
             // TILING: the axis is on the page's own centre line, hidden behind
             // it, so each window shows its own side and nothing is duplicated.
             // This is round 1's approved composition, preserved exactly.
-            let page_half = span.mul_add(0.0, want); // `want` IS page_half here
             assert!(
                 hide > 0.0 && (hide - page_half).abs() <= PLACEMENT_TOL_PX,
                 "m{measure}: a margin {ratio:.2} anchors wide must TILE — its axis \
@@ -1015,7 +1020,7 @@ fn the_two_windows_tile_while_the_margins_are_wide_and_overlap_once_they_are_not
     by_ratio.sort_by(|a, b| a.2.total_cmp(&b.2));
     for pair in by_ratio.windows(2) {
         let (a, b) = (pair[0], pair[1]);
-        let slide = |x: &(usize, f32, f32, f32, f32)| x.3 / x.1; // hide, per own width
+        let slide = |x: &(usize, f32, f32, f32, f32, f32)| x.3 / x.1; // hide, per own width
         assert!(
             slide(&b) >= slide(&a) - 0.02,
             "the slide must be monotone in the margin's width: a margin {:.2} anchors \
