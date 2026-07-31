@@ -124,7 +124,8 @@ lines = 539
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 828
+lines = 669
+reason = "item 24: LOWERED by 159. The convention/platform chord resolver (the Linux-native override table, `resolved_native*`, the truthful pair, and the web-alternate trio) moved out whole to the new src/commands/chords.rs — one subject, every label surface in the codebase reading down from `resolved_native` at its base."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -194,8 +195,8 @@ reason = "item 188: +31 lines net for one new capture mode in the one CLI parser
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1104
-reason = "item 188: +17 lines — the `#[path] mod live_app;` declaration (+4), the `Mode::ScreenshotApp` dispatch arm (+9, a struct destructure plus a one-line delegate), and the `CaptureSubject` re-export split onto its own native-only line (+4) so the wasm build gains no unused-import warning. The mode itself lives in the new run/live_app.rs, kept out of this file for the same reason item 190 kept settings_effects.rs out."
+lines = 1062
+reason = "item 24: LOWERED by 42. The whole `Mode::Windowed` arm body moved to run/location.rs as `launch_windowed` — that module already owns the launch-precedence law this arm's first half IS, and item 24's first-run document is the same law's document half. Previously: item 188: +17 lines — the `#[path] mod live_app;` declaration (+4), the `Mode::ScreenshotApp` dispatch arm (+9, a struct destructure plus a one-line delegate), and the `CaptureSubject` re-export split onto its own native-only line (+4) so the wasm build gains no unused-import warning. The mode itself lives in the new run/live_app.rs, kept out of this file for the same reason item 190 kept settings_effects.rs out."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -381,7 +382,7 @@ lines = 855
 [[file_size_mark]]
 file = "src/selection.rs"
 lines = 731
-reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through. The two pure spine helpers were later EXTRACTED to `selection/spine.rs` (merge train, item 182's rule: a mark may not rise for growth extraction can absorb) after rustfmt on the merge candidate pushed this file three lines past its old 768 mark; the mark came down to the measured size rather than up. Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
+reason = "item 131b: +52 lines. `SelInstance` gained the `axis` field (+ its `UPRIGHT_AXIS` default), the vertex layout gained a fourth attribute, `prepare`/`prepare_multicolor` upload the inert default, and the new `prepare_rotated` emitter + `spine_segment`/`narrowed_spine_corner_px` pure helpers are the one place a rotated quad's geometry is built — the shared pipeline-construction body every SelectionPipeline instance goes through. The two pure spine helpers were later EXTRACTED to `selection/spine.rs` (merge train, item 182's rule: a mark may not rise for growth extraction can absorb) after rustfmt on the merge candidate pushed this file three lines past its old 768 mark; the mark came down to the measured size rather than up. (Item 24's branch independently repaired the same red by RAISING it to 771 on the reading that rustfmt's wrapping left nothing to extract; the merge train kept the extraction, because item 182's rule prefers it and the spine helpers were in fact extractable.) Its own tests moved to the sibling `selection/tests.rs` (production() exemption) once they pushed the inline `mod tests` well past this ceiling; no behavior moved, only which file counts the lines."
 
 [[file_size_mark]]
 file = "src/session.rs"
@@ -513,23 +514,23 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 297
+line = 301
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export landing earlier in the file (+8); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export landing earlier in the file (+8); count unchanged. Line shifted by item 24's `launch_windowed` re-export and its test-only `resolve_launch_context` sibling (+4); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 591
+line = 595
 message = "this function has too many lines (112/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export (+8); count unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Line shifted by item 188's `mod live_app;` declaration and the native-only `CaptureSubject` re-export (+8); count unchanged. Line shifted by item 24's `launch_windowed` re-export and its test-only `resolve_launch_context` sibling (+4); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 760
-message = "this function has too many lines (330/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9)."
+line = 764
+message = "this function has too many lines (292/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 190's `mod settings_effects;` declaration landing earlier in the file (+2); count unchanged. Item 188 added the `Mode::ScreenshotApp` dispatch arm — a struct destructure plus a one-line delegate into `run/live_app.rs`, where the mode itself lives (+9). Item 24 REDUCED it 330 -> 292: `run`'s `Mode::Windowed` arm is now a one-line delegate into `run/location.rs::launch_windowed`, beside the launch-precedence law it opens with."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

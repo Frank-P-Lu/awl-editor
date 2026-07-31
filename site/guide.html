@@ -49,7 +49,28 @@
         <hr class="rule">
 
         <h2>Where your words live</h2>
-        <p><strong>A scratch buffer, always open.</strong> Launch awl with no
+        <p><strong>The first launch opens a document, not an empty
+        editor.</strong> With nothing to resume, awl writes
+        <code>welcome.md</code> into the active folder and opens it. It is an
+        ordinary Markdown file and nothing more: edit it, rename it, delete
+        it, or replace it with your own. Later launches resume whatever you
+        had open, exactly as they would for any other file — there is no
+        welcome state to carry.</p>
+        <table>
+          <tbody>
+          <tr><td>Where it lands</td><td>The active folder, which on a first launch is <code>default_folder</code> (<code>~/notes</code> unless you set it)</td></tr>
+          <tr><td>Existing file</td><td>An existing <code>welcome.md</code> is never overwritten; awl opens yours</td></tr>
+          <tr><td>Shown again?</td><td>No. awl records the fact once, in <code>$XDG_DATA_HOME/awl/welcomed</code> (or <code>~/.local/share/awl/welcomed</code>)</td></tr>
+          <tr><td>To be welcomed again</td><td>Delete that marker file, then launch with nothing to resume</td></tr>
+          <tr><td>In the browser</td><td>The same document is seeded into the tab's storage on a first load, alongside <code>tour.md</code>, <code>prose.md</code> and <code>japanese.md</code></td></tr>
+          </tbody>
+        </table>
+        <p>The chords the document teaches are substituted into it as it is
+        written, from the same command catalog the palette reads, so it names
+        your platform's own bindings rather than a hand-typed guess.</p>
+
+        <p><strong>A scratch buffer, always open.</strong> After that first
+        launch, launch awl with no
         file and you land on a writing surface — no save dialog, no
         "untitled-1.md". It stashes itself to disk on the same rhythm as
         everything else: idle, window blur, buffer switch, quit
@@ -154,6 +175,17 @@ backward_word = ["M-Left", "M-b"]</code></pre>
         shortcuts appears. Release the hold and the card is gone — no click,
         no dismiss.</p>
 
+        <p><strong>The pointer gets a bounded bridge.</strong> Select text
+        with the mouse in a Markdown buffer — drag, double-click a word,
+        triple-click a line — and a small row of buttons appears beside the
+        selection: bold, italic, highlight, code, strikethrough, heading,
+        link. Each one fires the same command its chord does, and lights up
+        when the selection already carries that format. Any key press, or
+        losing the selection, dismisses it. A keyboard selection never
+        summons it, and it never becomes a persistent toolbar.
+        <code>popover = false</code> turns it off, and the settings row that
+        does the same is "Format popover".</p>
+
         <p>Generated from the live command catalog — never hand-edited (see
         the law test in <code>src/guide.rs</code>). Every catalog command's
         resolved default chord, mac glyphs beside Linux words:</p>
@@ -168,8 +200,9 @@ backward_word = ["M-Left", "M-b"]</code></pre>
           <tr><td>Go to heading…</td><td></td><td></td></tr>
           <tr><td>Spell suggestions…</td><td>⌘;</td><td>Ctrl+;</td></tr>
           <tr><td>Version history…</td><td>⌘⇧H</td><td>Ctrl+Shift+H</td></tr>
+          <tr><td>Compare with version…</td><td></td><td></td></tr>
           <tr><td>Clean unused assets…</td><td></td><td></td></tr>
-          <tr><td>Keep version</td><td></td><td></td></tr>
+          <tr><td>Keep version…</td><td></td><td></td></tr>
           <tr><td>Last file</td><td>⌃Tab</td><td>Ctrl+Tab</td></tr>
           <tr><td>New document</td><td>⌘N</td><td>Ctrl+N</td></tr>
           <tr><td>Move…</td><td></td><td></td></tr>
@@ -189,14 +222,18 @@ backward_word = ["M-Left", "M-b"]</code></pre>
           <tr><td>Reset page width</td><td></td><td></td></tr>
           <tr><td>Toggle debug</td><td></td><td></td></tr>
           <tr><td>Toggle outline</td><td>⌘⇧O</td><td>Ctrl+Shift+O</td></tr>
+          <tr><td>Fold section</td><td>⌘⇧E · C-c C-f</td><td>Ctrl+Shift+E</td></tr>
+          <tr><td>Collapse other sections</td><td>⌘⇧M · C-c C-t</td><td>Ctrl+Shift+M</td></tr>
           <tr><td>Toggle typewriter scroll</td><td></td><td></td></tr>
           <tr><td>Toggle menu bar</td><td></td><td></td></tr>
           <tr><td>About</td><td></td><td></td></tr>
           <tr><td>Credits</td><td></td><td></td></tr>
           <tr><td>Guide</td><td></td><td></td></tr>
           <tr><td>Lifetime stats</td><td></td><td></td></tr>
+          <tr><td>Writing streaks</td><td></td><td></td></tr>
           <tr><td>Line endings…</td><td></td><td></td></tr>
           <tr><td>Align table</td><td></td><td></td></tr>
+          <tr><td>Insert Date</td><td>⌘⇧D · C-c .</td><td>Ctrl+Shift+D</td></tr>
           <tr><td>Report a Problem</td><td></td><td></td></tr>
           <tr><td>Download file</td><td></td><td></td></tr>
           <tr><td>Check for Updates</td><td></td><td></td></tr>
@@ -205,12 +242,16 @@ backward_word = ["M-Left", "M-b"]</code></pre>
           <tr><td>Numbered list</td><td></td><td></td></tr>
           <tr><td>Task list</td><td>⌘⇧L</td><td>Ctrl+Shift+L</td></tr>
           <tr><td>Heading</td><td></td><td></td></tr>
+          <tr><td>Cycle heading</td><td></td><td></td></tr>
           <tr><td>Code block</td><td></td><td></td></tr>
           <tr><td>Bold</td><td>⌘B</td><td>Ctrl+B</td></tr>
           <tr><td>Italic</td><td>⌘I</td><td>Ctrl+I</td></tr>
           <tr><td>Inline code</td><td>⌘E</td><td>Ctrl+E</td></tr>
           <tr><td>Highlight</td><td></td><td></td></tr>
           <tr><td>Strikethrough</td><td></td><td></td></tr>
+          <tr><td>Export as Word…</td><td></td><td></td></tr>
+          <tr><td>Export as HTML…</td><td></td><td></td></tr>
+          <tr><td>Export as PDF…</td><td></td><td></td></tr>
           <tr><td>Insert link…</td><td>⌘K</td><td></td></tr>
           <tr><td>Save</td><td>⌘S</td><td>Ctrl+S</td></tr>
           <tr><td>Quit</td><td>⌘Q</td><td>Ctrl+Q</td></tr>
@@ -236,6 +277,8 @@ backward_word = ["M-Left", "M-b"]</code></pre>
           <tr><td>Backward char</td><td>C-b</td><td></td></tr>
           <tr><td>Next line</td><td>C-n</td><td></td></tr>
           <tr><td>Previous line</td><td>C-p</td><td></td></tr>
+          <tr><td>Delete word forward</td><td></td><td></td></tr>
+          <tr><td>Delete word backward</td><td></td><td></td></tr>
           <tr><td>Settings…</td><td>⌘,</td><td>Ctrl+,</td></tr>
           <tr><td>Keybindings…</td><td></td><td></td></tr>
           </tbody>
@@ -269,13 +312,22 @@ backward_word = ["M-Left", "M-b"]</code></pre>
         <code>reduce_motion = true</code> by hand on Linux, where there's no
         reliable cross-desktop signal yet.</p>
 
-        <h2>The config file</h2>
-        <p>Settings live in a plain text file, edited inside awl: ⌘P →
-        "Settings" opens <code>config.toml</code> into the buffer (writing
-        the commented starter template first, if none exists). Edit it like
-        any other document, then save — the keymap, folders, and every
-        sticky preference re-apply live, no restart. A config with a syntax
-        error keeps prior values in place and shows a notice.</p>
+        <h2>Settings, and the config file behind them</h2>
+        <p><strong>"Settings…" is a summoned workspace, not an
+        overlay.</strong> It takes the viewport: a category rail — All,
+        Editor, Appearance, Writing, Files, Keybindings, Advanced — beside
+        the rows it governs. Up/Down moves the category, Enter transfers focus
+        into the settings, Esc there is a <em>back</em> to the rail, and Esc on
+        the rail returns to the editor exactly where you left it. Every change
+        applies live; a sticky one is written to the config in the same
+        step.</p>
+        <p><strong>The settings are a plain text file, and you can edit it
+        directly.</strong> The Advanced category's "Edit config as text" row
+        opens <code>config.toml</code> into the buffer (writing the commented
+        starter template first, if none exists). Edit it like any other
+        document, then save — the keymap, folders, and every sticky
+        preference re-apply live, no restart. A config with a syntax error
+        keeps prior values in place and shows a notice.</p>
 
         <p>An absent config is just today's defaults. Once you touch it, it
         remembers: theme, zoom, page widths, caret style, dictionary, and a
@@ -298,10 +350,10 @@ backward_word = ["M-Left", "M-b"]</code></pre>
           </tbody>
         </table>
         <p><strong>Hidden on web:</strong> Recent projects…, Version
-        history…, Clean unused assets…, Keep version, Finish file, Lifetime
-        stats, Quit, Check for Updates — daemon, session-restore, and
-        local-version-history machinery with nothing to attach to in a
-        browser tab.</p>
+        history…, Compare with version…, Clean unused assets…, Keep version…,
+        Finish file, Lifetime stats, Writing streaks, Quit, Check for Updates
+        — daemon, session-restore, and local-version-history machinery with
+        nothing to attach to in a browser tab.</p>
         <p>A couple of native chords belong to the browser itself (new tab,
         new window, and similar). New document and Switch theme… resolve to a
         working alternate chord on web automatically; every command is also

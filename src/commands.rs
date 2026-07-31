@@ -3,7 +3,13 @@ use crate::facets::{Facet, FacetItem, FacetScheme};
 use crate::keymap::Action;
 use std::sync::Mutex;
 mod catalog;
+/// The convention/platform chord resolver — one subject, one file.
+mod chords;
 use catalog::COMMAND_SEED;
+pub use chords::{
+    resolved_native, resolved_native_label, resolved_native_label_truthful,
+    resolved_native_truthful, web_alternate_keys,
+};
 
 pub struct Command {
     pub name: &'static str,
@@ -122,171 +128,6 @@ pub fn join_slots(native: &str, emacs: &str) -> String {
         (true, false) => emacs.to_string(),
         (true, true) => String::new(),
     }
-}
-
-// ── LINUX-NATIVE KEYMAP: convention-resolved slot 1 ────────────────────────────
-//
-// THE DATA DESIGN (chosen over per-convention chord COLUMNS): each catalog row
-// keeps its ONE mac-flavored `native` string, unchanged — that stays the source
-// of truth `bindings()`/`join_slots` read for the Mac baseline. A Linux label or
-// dispatch NEVER reads a second stored column; instead it's a PURE, TOTAL
-// TRANSLATION of that same string (`keyspec::translate_native_for_linux`, a plain
-// Cmd→Ctrl modifier swap) with an EXPLICIT OVERRIDE table below for the handful of
-// commands where that naive swap is WRONG. Why this over per-convention columns:
-// (1) it keeps the catalog's ONE mac-native field as the single hand-maintained
-// fact per command (no risk of the two columns drifting when a mac chord changes
-// and the Linux column isn't updated to match); (2) the override table is a
-// SHORT, auditable exceptions list rather than 60+ rows of mostly-identical data;
-// (3) `keymap.rs`'s dispatch reuses the EXACT SAME override for the handful of
-// commands whose action needs a genuinely different resolve-time chord (not just
-// a translated label) — see `commands::LINUX_NATIVE_OVERRIDE`'s doc for why those
-// three exist.
-//
-// THE OVERRIDE TABLE, keyed by catalog command NAME, holding the LITERAL Linux
-// chord spec to use instead of the naive Cmd→Ctrl swap:
-//   - "Line start" / "Line end": mac native is Cmd-Left/Right; naively swapping
-//     Super→Control would collide with Ctrl-Left/Right, which the keymap ALREADY
-//     binds to word motion (`resolve_named`'s `alt || ctrl` arm, convention-
-//     agnostic) — so the Linux-native chord is plain `Home`/`End` instead (no
-//     modifier needed; `resolve_named`'s unconditional Home/End arms already fire
-//     LineStart/LineEnd on every convention, so no keymap change is needed here —
-//     only the LABEL differs from the naive swap).
-//   - "Document start" / "Document end": mac native is Cmd-Up/Down; the Linux
-//     convention for buffer start/end is Ctrl-Home/Ctrl-End (gedit/VS Code/GTK),
-//     not the naively-translated Ctrl-Up/Down — `keymap.rs` gains a matching
-//     `Convention::Linux`-gated `Ctrl-Home`/`Ctrl-End` arm (see its module doc).
-const LINUX_NATIVE_OVERRIDE: &[(&str, &str)] = &[
-    ("Line start", "Home"),
-    ("Line end", "End"),
-    ("Document start", "C-Home"),
-    ("Document end", "C-End"),
-];
-
-/// The RESOLVED native chord spec for `c` under `convention` — Mac returns `c.native`
-/// UNCHANGED (byte-identical to today, the hard law of this round); Linux consults
-/// [`LINUX_NATIVE_OVERRIDE`] first, else falls back to the naive Cmd→Ctrl translation
-/// (`keyspec::translate_native_for_linux`). Empty on either convention when the
-/// command has no native slot to begin with. This is the ONE owner both `keymap.rs`'s
-/// dispatch (for the handful of commands whose ACTION needs the resolved chord, not
-/// just its label — via `[keys]`-style literal resolution) and every label surface
-/// below route through.
-pub fn resolved_native(c: &Command, convention: Convention) -> String {
-    if c.native.trim().is_empty() {
-        return String::new();
-    }
-    match convention {
-        Convention::Mac => c.native.to_string(),
-        Convention::Linux => LINUX_NATIVE_OVERRIDE
-            .iter()
-            .find(|(name, _)| *name == c.name)
-            .map(|(_, chord)| chord.to_string())
-            .unwrap_or_else(|| crate::keyspec::translate_native_for_linux(c.native)),
-    }
-}
-
-/// The DISPLAY LABEL for `c`'s resolved native chord under `convention` — Mac glyphs
-/// (`⌘S`) on [`Convention::Mac`], word labels (`Ctrl+S`) on [`Convention::Linux`].
-/// `""` when the command has no native slot. THE ONE OWNER every label surface reads
-/// (palette rows, the rebind menu, the in-app menubar hints, the hold-⌘ peek) — never
-/// call [`crate::keyspec::mac_glyph_chord`] on a raw `c.native` directly outside this
-/// function, or a Linux/web build would show a mac glyph under its own convention.
-pub fn resolved_native_label(c: &Command, convention: Convention) -> String {
-    let native = resolved_native(c, convention);
-    if native.trim().is_empty() {
-        return String::new();
-    }
-    match convention {
-        Convention::Mac => crate::keyspec::mac_glyph_chord(&native),
-        Convention::Linux => crate::keyspec::linux_glyph_chord(&native),
-    }
-}
-
-/// THE WEB CHORD SANITY ROUND, Tier 2 — [`resolved_native_label`]'s TRUTHFUL
-/// sibling: when `c`'s resolved native chord is a browser-reserved accelerator
-/// ([`crate::webreserved::is_reserved`]) on `platform`, this shows the command's
-/// [`WEB_ALTERNATE`] chord instead (see that table's doc — v2 of the web-chord
-/// sanity round, closing the v1 "no replacement chord" gap), or `""` if it has
-/// none; otherwise identical to [`resolved_native_label`]. `platform` is an
-/// EXPLICIT parameter (not read from [`Platform::current`] internally) — the
-/// same testability pattern [`Command::available_on`]/[`action_available`]
-/// already use — so a native-run test can assert the WEB view directly by
-/// passing [`Platform::Web`] without any cfg gymnastics; every real call site
-/// passes [`Platform::current`]. The reserved check only ever fires on
-/// [`Platform::Web`] — a native build's chords are never browser-shadowed, so
-/// this is byte-identical to [`resolved_native_label`] on every native call
-/// site. THE ONE OWNER of "is this command's native chord actually worth
-/// showing" — [`join_slots_truthful`] (the two-slot palette/rebind label),
-/// `menu::item_chord` (the awl-rendered menu bar's native-only column, which
-/// shows on web too), and `keytoken::key_token_label` (the starting docs'
-/// chord tokens) all route through it.
-pub fn resolved_native_label_truthful(
-    c: &Command,
-    convention: Convention,
-    platform: Platform,
-) -> String {
-    let reserved = platform == Platform::Web
-        && crate::webreserved::is_reserved(&resolved_native(c, convention), convention);
-    if reserved {
-        match web_alternate_for(c, convention) {
-            Some(alt) => match convention {
-                Convention::Mac => crate::keyspec::mac_glyph_chord(alt),
-                Convention::Linux => crate::keyspec::linux_glyph_chord(alt),
-            },
-            None => String::new(),
-        }
-    } else {
-        resolved_native_label(c, convention)
-    }
-}
-
-const WEB_ALTERNATE: &[(&str, &str, &str)] = &[
-    ("New document", "C-j", "M-n"),
-    ("Switch theme…", "C-t", "M-t"),
-];
-
-fn web_alternate_for(c: &Command, convention: Convention) -> Option<&'static str> {
-    WEB_ALTERNATE
-        .iter()
-        .find(|(name, _, _)| *name == c.name)
-        .map(|(_, mac, linux)| match convention {
-            Convention::Mac => *mac,
-            Convention::Linux => *linux,
-        })
-}
-
-/// The config `[keys]`-shaped entries that wire every [`WEB_ALTERNATE`] chord
-/// into REAL dispatch on [`Platform::Web`] — the keymap has no other seam for
-/// "a chord outside the native/emacs static arms," so this reuses the SAME
-/// override machinery a user's own `[keys]` line rides
-/// (`KeymapState::apply_overrides`, fed from `App::new`'s keymap construction).
-/// `existing` is the user's OWN config `[keys]` list — **config still trumps
-/// everything**: a command the user has already rebound (by its slug) is
-/// skipped here entirely, so their chosen chord is never shadowed by the
-/// default alternate. `convention`/`platform` are EXPLICIT parameters,
-/// mirroring [`resolved_native_label_truthful`]'s own testability pattern
-/// (`Convention::current`/`Platform::current` can't be pinned from a plain
-/// native test) — every real call site passes both `::current()`. Returns an
-/// empty list on [`Platform::Native`], so a native build's keymap
-/// construction is unaffected byte-for-byte.
-pub fn web_alternate_keys(
-    existing: &[(String, Vec<String>)],
-    convention: Convention,
-    platform: Platform,
-) -> Vec<(String, Vec<String>)> {
-    if platform != Platform::Web {
-        return Vec::new();
-    }
-    COMMANDS
-        .iter()
-        .filter_map(|c| {
-            let alt = web_alternate_for(c, convention)?;
-            let want = slug(c.name);
-            if existing.iter().any(|(name, _)| slug(name) == want) {
-                return None; // a `[keys]` override already claims this command
-            }
-            Some((want, vec![alt.to_string()]))
-        })
-        .collect()
 }
 
 pub fn slug(name: &str) -> String {
