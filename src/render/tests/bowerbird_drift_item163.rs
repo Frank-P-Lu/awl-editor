@@ -267,8 +267,13 @@ fn bowerbird_organic_drift_clears_the_floor_at_every_reachable_cell_scale() {
         return;
     };
     let _g = crate::testlock::serial();
-    let (tones, density) = match theme::BOWERBIRD.background {
-        theme::Background::Organic { tones, density, .. } => (tones, density),
+    let (tones, arrangement, density) = match theme::BOWERBIRD.background {
+        theme::Background::Organic {
+            tones,
+            arrangement,
+            density,
+            ..
+        } => (tones, arrangement, density),
         _ => panic!("Bowerbird must ship Background::Organic"),
     };
     const W: u32 = 900;
@@ -280,6 +285,7 @@ fn bowerbird_organic_drift_clears_the_floor_at_every_reachable_cell_scale() {
     for scale_px in [32.0f32, 60.0, 156.0, 400.0] {
         let bg = theme::Background::Organic {
             tones,
+            arrangement,
             scale_px,
             density,
         };

@@ -72,6 +72,18 @@ swatch. Eighteen ship today (eleven dark, seven light; `theme::THEMES`), each wi
   Quokka; angles, tints, densities and every palette rung unchanged). See "The
   zigzag field law" below. `Bands` is now DORMANT
   reusable infrastructure (Gumtree was its one assignee) — see §3's own note.
+  **Item 176 (2026-07)** gave `Organic` — Bowerbird's ground, the tenth in this
+  list — a theme-owned `Arrangement` dial of the same shape: `Masses` (the
+  shipped rounded cut-paper blobs) or `Finds`, a crisp COLLECTED-TREASURE
+  field where each cell draws one deliberately arranged collection of three
+  objects, a large anchor with a smaller companion across its edge and a tiny
+  cut-out, mixed from circles/squares/triangles with every proportion seeded
+  from the cell's own identity. `Finds` is reusable infrastructure carried by
+  no world yet (the `Weave::Fibres` shape), pending the user's own verdict on
+  the comparison it was built for. Both arrangements share the tones, the cell
+  scale, the density dial and the one whole-field drift, and the crisp arm
+  declares its own cell floor so a small cell cannot alias its cut-out into
+  speckle. Laws: `render::tests::bowerbird_finds_item176`.
   **Item 87 (2026-07)** gave `Waves` alone a very slow, seamless horizontal
   PHASE DRIFT on top of that otherwise-static shape (palette, band count, and
   the settled/theme-crossing composition stay byte-identical) — see "The
