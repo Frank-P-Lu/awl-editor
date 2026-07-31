@@ -62,7 +62,6 @@ pub(crate) fn run_storyboard(
     // Same project resolution as capture_screenshot, inside the sandbox.
     let active_root = crate::run::resolve_root(&root, &file);
     let corpus = crate::index::build_index(&active_root);
-    let effective_workspace = crate::run::resolve_workspace(&workspace, &active_root);
     let project = crate::run::project_info(
         &active_root,
         &workspace,
@@ -88,7 +87,7 @@ pub(crate) fn run_storyboard(
         &mut buffer,
         &corpus,
         &active_root,
-        Some(effective_workspace.as_path()),
+        workspace.as_deref(),
         &config,
         oracle.as_mut(),
         &mut km,

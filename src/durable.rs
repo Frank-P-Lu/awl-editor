@@ -442,8 +442,11 @@ mod tests {
             // two more are the hermetic-scenario tests' real-disk inputs
             // (seeded precisely to prove the sandbox never writes them back).
             // The item 76 launch-context law and strict-replay no-artifact law
-            // add two temp input fixtures of the same shape.
-            ("main/tests.rs", 19),
+            // add two temp input fixtures of the same shape. Item 189's
+            // Switch-project-then-Goto law adds two more: the launch and
+            // accepted roots' marker files for its real-`capture_screenshot`
+            // fixture tree.
+            ("main/tests.rs", 21),
             // The storyboard runner's `trace.json` write (`write_trace`): a
             // HARNESS DELIVERABLE, not app state — a storyboard run's active
             // backend IS the hermetic sandbox, so routing this through

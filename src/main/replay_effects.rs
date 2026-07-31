@@ -89,7 +89,7 @@ impl<'a> ReplaySession<'a> {
                     // The caller handed this replay an isolated, test-owned
                     // filesystem. Manual save performs the live scratch-
                     // promotion/plain-save split only through that sandbox.
-                    let _ = self.buffer.save_into_folder(self.root);
+                    let _ = self.buffer.save_into_folder(&self.root);
                 }
             }
             actions::PersistenceEffect::Save(actions::SaveKind::Finish) => {
@@ -117,7 +117,7 @@ impl<'a> ReplaySession<'a> {
             actions::BufferEffect::Previous { .. } => {}
             actions::BufferEffect::NewDocument => {
                 park_active(self.buffer, &mut self.registry);
-                self.buffer.start_fresh_doc(self.root.to_path_buf());
+                self.buffer.start_fresh_doc(self.root.clone());
             }
             actions::BufferEffect::OpenSettings => {
                 // Existing, explicitly configured files may be read. Absence

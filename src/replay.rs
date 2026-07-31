@@ -264,9 +264,10 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
     match kind {
         // Applied for real: Goto drives the multi-buffer registry switch inline in the
         // replay loop; Project re-roots (whole sidecar block re-derived from the accepted
-        // root by the ONE builder `run::project_info` — item 183; its residue, that a
-        // LATER chord is not re-scoped, is in `docs/harness-reach.md`) and History
-        // restores, both in `capture_screenshot`'s accept stage; Theme / Caret /
+        // root by the ONE builder `run::project_info` — item 183; the session's OWN
+        // root/workspace/corpus re-scope through `ReplaySession::resync_project_location`
+        // — item 189 — so a chord applied after the accept reads the new tree too) and
+        // History restores, both in `capture_screenshot`'s accept stage; Theme / Caret /
         // Dictionary / CjkLang / Date set their process-global CORE-level, so the replay
         // observes them exactly as live (`actions/overlay_nav.rs`).
         OverlayKind::Goto
