@@ -280,31 +280,53 @@ fn a_zero_row_pitch_answers_no_pointer() {
 // --- ITEM 181 — the height-clamp owner ---------------------------------------
 
 /// The ordinary case: enough `avail_px` for some rows but not the whole ask,
-/// after the overhead (non-item) rows are paid for.
+/// after the overhead (non-item) rows are paid for. `min_items` doesn't bind
+/// here for either family — both floors give the same answer.
 #[test]
 fn fit_item_rows_divides_the_budget_after_overhead() {
     // 10 rows of pitch 20 fit in 200px; 3 are overhead, so 7 items fit.
-    assert_eq!(fit_item_rows(200.0, 20.0, 3), 7);
+    assert_eq!(fit_item_rows(200.0, 20.0, 3, 1), 7);
+    assert_eq!(fit_item_rows(200.0, 20.0, 3, 0), 7);
     // A partial row's pixels don't count — floor, not round.
-    assert_eq!(fit_item_rows(199.9, 20.0, 3), 6);
+    assert_eq!(fit_item_rows(199.9, 20.0, 3, 1), 6);
 }
 
-/// THE FLOOR: a card always attempts at least one item row, however small
-/// `avail_px` is — this is the theme-picker regression itself (item 181): a
-/// big flat corpus must lose rows to the clamp, never collapse to zero and
-/// never keep every row regardless of the canvas.
+/// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one
+/// item row, however small `avail_px` is — this is the theme-picker
+/// regression itself (item 181): a big flat corpus must lose rows to the
+/// clamp, never collapse to zero and never keep every row regardless of the
+/// canvas.
 #[test]
 fn fit_item_rows_floors_at_one_even_when_nothing_fits() {
-    assert_eq!(fit_item_rows(0.0, 20.0, 0), 1);
-    assert_eq!(fit_item_rows(5.0, 20.0, 0), 1);
-    assert_eq!(fit_item_rows(20.0, 20.0, 10), 1); // overhead alone exceeds the budget
+    assert_eq!(fit_item_rows(0.0, 20.0, 0, 1), 1);
+    assert_eq!(fit_item_rows(5.0, 20.0, 0, 1), 1);
+    assert_eq!(fit_item_rows(20.0, 20.0, 10, 1), 1); // overhead alone exceeds the budget
+}
+
+/// THE GROUPED FLOOR (`min_items: 0`, item 184): when the fixed chrome
+/// overhead ALONE already meets or exceeds what `avail_px` holds — the
+/// residual item 181's own doc named "a chrome-overhead sizing question, not
+/// a row-count one" — the grouped family shows an empty candidate band
+/// rather than a forced row that would overrun the canvas. Wherever the
+/// overhead does NOT already consume the whole budget this is unchanged from
+/// the `min_items: 1` case (`saturating_sub` alone already clears 1), so
+/// every already-fitting grouped picker is untouched — only the exact
+/// pathological case answers differently.
+#[test]
+fn fit_item_rows_allows_zero_once_the_groups_own_chrome_overruns_the_budget() {
+    assert_eq!(fit_item_rows(20.0, 20.0, 10, 0), 0); // overhead alone exceeds the budget
+    assert_eq!(fit_item_rows(0.0, 20.0, 0, 0), 0);
+    // Not vacuous the other direction either: an ordinary budget still fits
+    // items even with `min_items: 0`.
+    assert_eq!(fit_item_rows(200.0, 20.0, 3, 0), 7);
 }
 
 /// A degenerate row pitch cannot be divided by; the clamp still answers a
-/// usable (non-zero, non-panicking) row count.
+/// usable, non-panicking row count — the family's own floor, not a bare `1`.
 #[test]
 fn fit_item_rows_guards_a_zero_row_pitch() {
-    assert_eq!(fit_item_rows(500.0, 0.0, 2), 1);
+    assert_eq!(fit_item_rows(500.0, 0.0, 2, 1), 1);
+    assert_eq!(fit_item_rows(500.0, 0.0, 2, 0), 0);
 }
 
 /// NON-VACUITY: the clamp genuinely BINDS below a big per-kind row cap once
@@ -317,7 +339,7 @@ fn fit_item_rows_guards_a_zero_row_pitch() {
 fn fit_item_rows_binds_below_a_big_per_kind_cap_once_the_canvas_cannot_hold_it() {
     let per_kind_cap = 19usize; // `OverlayKind::Theme::window_rows()` == THEMES.len()
     let avail_px = 550.0; // canvas minus card_y/margin/pad/header_gap, in the real overlay's range
-    let fit = fit_item_rows(avail_px, 27.0, 3); // lh, chrome_rows in the real overlay's range
+    let fit = fit_item_rows(avail_px, 27.0, 3, 1); // lh, chrome_rows in the real overlay's range
     assert!(
         fit < per_kind_cap,
         "the canvas-derived fit ({fit}) must bind below the per-kind cap \

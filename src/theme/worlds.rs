@@ -3,7 +3,7 @@ use super::cjk::{
     CJK_ZH_HANS_KLEE, CJK_ZH_HANS_SANS, CJK_ZH_HANS_SERIF, CJK_ZH_HANT,
 };
 use super::color::Srgb;
-use super::ground::{Background, DeckleAnchor, LavaEdge, Weave};
+use super::ground::{Arrangement, Background, DeckleAnchor, LavaEdge, Weave};
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, Frost, HighlightTexture,
@@ -468,6 +468,7 @@ pub const BOWERBIRD: Theme = Theme {
             Srgb::rgb(0x13, 0x1D, 0x33),
             Srgb::rgb(0x1F, 0x2C, 0x49),
         ],
+        arrangement: Arrangement::Masses,
         scale_px: 156.0,
         density: 0.46,
     },
@@ -624,8 +625,7 @@ pub const GALAH: Theme = Theme {
     primary_content: Srgb::rgb(0xFB, 0xEA, 0xEE),
     error: Srgb::rgb(0xC0, 0x39, 0x2B),
     selection: Srgb::rgba(0x9A, 0x6B, 0x86, 0x52),
-    // Sparse, fine plumage in Galah's existing mauve ladder. Fibres own their
-    // screen coordinates, so the anchor is deliberately inert for this weave.
+    // Sparse plumage in Galah's mauve ladder; the anchor is inert for Fibres.
     background: Background::Deckle {
         ground: Srgb::rgb(0xF8, 0xE0, 0xE6),
         layer: Srgb::rgb(0xF1, 0xCF, 0xD9),

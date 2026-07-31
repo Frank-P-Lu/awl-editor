@@ -49,3 +49,48 @@ fn schema_version_matches_latest_history_row() {
          (see the CLAIM CONVENTION doc above SCHEMA_VERSION)."
     );
 }
+
+// ── ITEM 187 — CAPTURE.md's reservation header must equal the const ────────
+//
+// CAPTURE.md's "## The sidecar JSON" header is the RESERVATION TABLE: the
+// artefact a worker reads to answer "which schema number do I take next".
+// Nothing else reads it, so it drifted a full round behind `SCHEMA_VERSION`
+// (item 187) with no law noticing. The three numbers it prints are not an
+// independent design — `schema_plain`/`schema_timeline`/`schema_held` above
+// are `SCHEMA_VERSION`, `+1`, `+2` — so the header is DERIVED from the same
+// const the history rows are, and must be checked against it directly rather
+// than only against itself.
+
+/// The exact header line CAPTURE.md must carry for the current const.
+fn expected_header() -> String {
+    format!(
+        "## The sidecar JSON — schema `awl-capture/{SCHEMA_VERSION}` \
+         (`/{}` timeline, `/{}` held)",
+        SCHEMA_VERSION + 1,
+        SCHEMA_VERSION + 2
+    )
+}
+
+#[test]
+fn capture_md_header_matches_schema_version() {
+    let doc = crate::embedded_docs::CAPTURE_MD;
+    let found = doc
+        .lines()
+        .find(|line| line.starts_with("## The sidecar JSON — schema `awl-capture/"))
+        .unwrap_or_else(|| {
+            panic!(
+                "CAPTURE.md has no \"## The sidecar JSON — schema `awl-capture/…`\" \
+                 header — has it been renamed or removed? The reservation table \
+                 workers read to pick the next schema number must still exist."
+            )
+        });
+    let expected = expected_header();
+    assert_eq!(
+        found, expected,
+        "CAPTURE.md's schema reservation header has drifted from \
+         `capture::SCHEMA_VERSION` ({SCHEMA_VERSION}) — this is the table a \
+         worker reads to learn which schema number is free, so a stale header \
+         hands out an already-taken number. Replace the header line with \
+         exactly:\n{expected}"
+    );
+}

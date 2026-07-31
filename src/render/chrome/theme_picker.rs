@@ -1,36 +1,10 @@
+use super::overlay_clamp::window_plan;
 use super::*;
 
 /// Pixels the active-lens UNDERLINE sits BELOW the strip run's shaped baseline
 /// (`overlay_shape_theme`). Small so the rule hugs the label — enough to clear
 /// the baseline for every chrome/mono/display face without striking the glyphs.
 const UNDERLINE_BASELINE_DROP: f32 = 2.0;
-
-/// Slice a full display plan (headers + item rows, from [`TextPipeline::theme_plan`]) to
-/// the ITEM window `[lo, hi)`: keep every `Item(i)` with `lo ≤ i < hi`, and re-hang the
-/// SECTION HEADER above the first surviving item of each section (a header whose whole
-/// section fell outside the window is dropped). Items in the window form a contiguous run
-/// in the plan (the plan is built in item-index order), so one forward pass — carrying
-/// the most-recent header until an in-window item consumes it — yields the correct
-/// header→rows grouping for the visible slice. A window at the start of a section shows
-/// that section's header at the top (`a section header at the window top is fine`).
-fn window_plan(full: &[PlanLine], lo: usize, hi: usize) -> Vec<PlanLine> {
-    let mut out: Vec<PlanLine> = Vec::new();
-    let mut pending: Option<&PlanLine> = None;
-    for line in full {
-        match line {
-            PlanLine::Header(_) => pending = Some(line),
-            PlanLine::Item(i) => {
-                if *i >= lo && *i < hi {
-                    if let Some(h) = pending.take() {
-                        out.push(h.clone());
-                    }
-                    out.push(line.clone());
-                }
-            }
-        }
-    }
-    out
-}
 
 impl TextPipeline {
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
@@ -69,6 +43,7 @@ impl TextPipeline {
         let full_plan = self.theme_plan();
         let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
+        let (footer, footer_rows) = self.overlay_footer_lines();
         let empty = if n_items == 0 {
             self.overlay_empty.clone()
         } else {
@@ -79,10 +54,12 @@ impl TextPipeline {
         let header_gap = self.overlay_header_gap();
         let card_y = margin + 40.0 + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
-        let chrome_rows = header_rows + hint_rows + empty_rows;
+        // ITEM 184 — strip + headers + footer count here; `min_items: 0`
+        // empties the band rather than overrun it (`fit_item_rows`'s doc).
+        let chrome_rows = header_rows + hint_rows + empty_rows + footer_rows;
         // ITEM 181 — THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
-        let item_cap = self.overlay_item_cap(avail_px, lh, chrome_rows + total_headers);
+        let item_cap = self.overlay_item_cap(avail_px, lh, chrome_rows + total_headers, 0);
         let (item_top, item_visible) = scroll_window(
             n_items,
             self.overlay_selected,
@@ -90,7 +67,7 @@ impl TextPipeline {
             item_cap,
         );
         let plan = window_plan(&full_plan, item_top, item_top + item_visible);
-        let total_rows = header_rows + plan.len() + empty_rows + hint_rows;
+        let total_rows = header_rows + plan.len() + empty_rows + hint_rows + footer_rows;
         // Wider than the flat pickers so the whole lens strip (Time … All) fits on
         // one line even on a WIDE mono world face without the far-right All clipping
         // — via the SAME horizontal-box owner (edge inset + narrow-window fallback),
@@ -120,6 +97,8 @@ impl TextPipeline {
             n_items,
             hint,
             hint_rows,
+            footer,
+            footer_rows,
             theme: true,
             strip: self.overlay_lens.clone(),
             plan,
@@ -134,7 +113,6 @@ impl TextPipeline {
             text_top,
             text_w,
             card_narrow,
-            ..OverlayGeom::base()
         }
     }
 
@@ -578,65 +556,5 @@ impl TextPipeline {
             }
         }
         w
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{PlanLine, window_plan};
-
-    fn sample_plan() -> Vec<PlanLine> {
-        vec![
-            PlanLine::Header("A".into()),
-            PlanLine::Item(0),
-            PlanLine::Item(1),
-            PlanLine::Item(2),
-            PlanLine::Header("B".into()),
-            PlanLine::Item(3),
-            PlanLine::Item(4),
-        ]
-    }
-
-    fn shape(plan: &[PlanLine]) -> Vec<String> {
-        plan.iter()
-            .map(|l| match l {
-                PlanLine::Header(h) => format!("#{h}"),
-                PlanLine::Item(i) => format!("i{i}"),
-            })
-            .collect()
-    }
-
-    #[test]
-    fn window_plan_returns_the_full_plan_when_it_fits() {
-        assert_eq!(
-            shape(&window_plan(&sample_plan(), 0, 5)),
-            shape(&sample_plan())
-        );
-    }
-
-    #[test]
-    fn window_plan_keeps_only_touched_sections_headers() {
-        assert_eq!(
-            shape(&window_plan(&sample_plan(), 2, 4)),
-            vec!["#A", "i2", "#B", "i3"]
-        );
-        assert_eq!(
-            shape(&window_plan(&sample_plan(), 3, 5)),
-            vec!["#B", "i3", "i4"]
-        );
-    }
-
-    #[test]
-    fn window_plan_header_at_window_top_and_no_duplicates() {
-        assert_eq!(
-            shape(&window_plan(&sample_plan(), 1, 3)),
-            vec!["#A", "i1", "i2"]
-        );
-    }
-
-    #[test]
-    fn window_plan_empty_range_is_empty() {
-        assert!(window_plan(&sample_plan(), 9, 9).is_empty());
-        assert!(window_plan(&sample_plan(), 5, 5).is_empty());
     }
 }

@@ -161,9 +161,9 @@ fn deckle_roster_assigns_paperbark_strata_and_galah_fibres_no_wildcard() {
             _ => 0.0,
         };
         assert_eq!(
-            t.background.weave_mode(),
+            t.background.profile_mode(),
             want,
-            "{}: weave_mode is inert off Deckle",
+            "{}: profile_mode is inert off Deckle",
             t.name
         );
     }

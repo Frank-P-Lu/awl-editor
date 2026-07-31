@@ -61,3 +61,9 @@ pub const FONT_OFL_TXT: &str = include_str!("../assets/fonts/OFL.txt");
 /// static file, not by the binary).
 #[cfg(test)]
 pub const SITE_GUIDE_HTML: &str = include_str!("../site/guide.html");
+
+/// The repo's `CAPTURE.md` — verified test-only against
+/// `capture::SCHEMA_VERSION` by `capture::tests::schema_ledger` (item 187), so
+/// the sidecar-schema reservation header can't drift from the const.
+#[cfg(test)]
+pub const CAPTURE_MD: &str = include_str!("../CAPTURE.md");

@@ -68,7 +68,7 @@ pub use derive::{
 };
 #[allow(unused_imports)]
 // DeckleAnchor is public theme data; production literals use ground directly.
-pub use ground::{Background, DeckleAnchor, LavaEdge};
+pub use ground::{Arrangement, Background, DeckleAnchor, LavaEdge};
 pub use model::{Theme, WashOverride};
 // ITEM 89's ZIGZAG geometry mirror — `cfg(test)` at the source (see their own
 // docs: the GPU is the only runtime consumer; the host reads them ONLY to state
@@ -80,6 +80,12 @@ pub use model::{Theme, WashOverride};
 pub use ground::Weave;
 #[cfg(test)]
 pub use ground::{DECKLE_MAX_PERIOD_PX, DECKLE_MID, DECKLE_MIN_PERIOD_PX, DECKLE_SPREAD_GAIN};
+#[cfg(test)]
+pub use ground::{
+    ORGANIC_FINDS_ACCENT_HI, ORGANIC_FINDS_ANCHOR_HI, ORGANIC_FINDS_ANCHOR_LO,
+    ORGANIC_FINDS_COMPANION_HI, ORGANIC_FINDS_COMPANION_LO, ORGANIC_FINDS_DROPOUT,
+    ORGANIC_FINDS_MIN_SCALE_PX,
+};
 #[cfg(test)]
 pub use ground::{ZIGZAG_MAX_ROW_PITCH_PX, ZIGZAG_MIN_STROKE_PX, ZIGZAG_STROKE_FRAC};
 #[allow(unused_imports)]

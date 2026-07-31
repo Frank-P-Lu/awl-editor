@@ -60,7 +60,10 @@ struct Globals {
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
     // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
     // 158) reads all four with its OWN meanings — lane pitch / wander
-    // amplitude / density / weave; see `deckle_rgb`. All four are 0 for
+    // amplitude / density / weave; see `deckle_rgb`. Shader 8 (Organic) reads
+    // params.z as its own theme-owned ARRANGEMENT scalar (`theme::
+    // Arrangement`): `0.0` = the rounded MASSES field, `1.0` = the crisp
+    // three-object FINDS field; see `organic_rgb`. All four are 0 for
     // every ground this round didn't touch, so those grounds take their
     // exact original code path. (Waves' item-87 drift is NOT here — it rides
     // the dedicated `drift` slot above.)
@@ -361,16 +364,180 @@ const ORGANIC_DRIFT_Y_FRAC: f32 = 0.10;
 const ORGANIC_DRIFT_MIN_X_PX: f32 = 12.0;
 const ORGANIC_DRIFT_MIN_Y_PX: f32 = 9.0;
 
-// 8: cut-paper blobs. Three differently-offset rounded cell fields make
-// large masses, islands, and droplets; subtracting a small inner field leaves
-// occasional holes. The only time input is the shared, slow ambient phase.
+// --- FINDS: the COLLECTED-TREASURE arrangement (`theme::Arrangement::Finds`,
+// params.z >= 0.5). One cell draws one deliberately arranged collection of
+// THREE crisp objects — a large ANCHOR, a smaller COMPANION offset across its
+// edge, and a tiny CUT-OUT punched back to the open ground — mixed from
+// circles, squares and triangles. Scale hierarchy, offset, rotation, overlap
+// and tone assignment are all seeded from the cell's own identity, so they
+// vary collection to collection while the three roles never do. ---
+//
+// The ranges below are chosen so the role ordering (visible anchor area >
+// visible companion area > cut-out area) holds for EVERY reachable hash
+// combination, not on average:
+//   * all three kinds enclose the SAME area at a given nominal radius (the
+//     kind constants equalize it), so a role's area follows from its radius
+//     alone whatever kinds its hashes drew;
+//   * the companion is at least FINDS_COMPANION_LO of the anchor radius and
+//     the cut-out at most FINDS_ACCENT_HI, and
+//     `ACCENT_HI^2 < COMPANION_LO^2 - ACCENT_HI^2`, so even a cut-out landing
+//     wholly inside the companion cannot invert that pair;
+//   * the companion centre sits within FINDS_OFFSET_HI anchor-radii, under the
+//     sum of the two shapes' SMALLEST reaches (their inradii, the triangle's
+//     being the smallest of the three), so the pair always overlaps and a
+//     collection is one connected arrangement rather than scattered pieces;
+//   * the cut-out sits on the far side of the anchor centre from the
+//     companion and inside the anchor's own inradius, so it always reads as a
+//     hole through the collection and never as a fourth object.
+// A collection reaches at most `JITTER/2 + ANCHOR_HI * (OFFSET_HI +
+// COMPANION_HI * 1.5551)` ~ 0.44 of a cell from its centre — the 1.5551 is the
+// triangle's circumradius per unit nominal radius, the largest reach of the
+// three kinds — so it stays comfortably inside the half cell, neighbouring
+// collections never merge, and each one is separately readable on the open
+// ground between them.
+const FINDS_SQUARE_HALF: f32 = 0.8862269; // (2a)^2 == pi*r^2
+const FINDS_TRI_HALF_SIDE: f32 = 1.3468; // sqrt(3)*h^2 == pi*r^2
+const FINDS_TRI_INRADIUS: f32 = 0.7776; // the smallest inradius of the three kinds
+const FINDS_ANCHOR_LO: f32 = 0.150;
+const FINDS_ANCHOR_HI: f32 = 0.195;
+const FINDS_COMPANION_LO: f32 = 0.46;
+const FINDS_COMPANION_HI: f32 = 0.56;
+const FINDS_OFFSET_LO: f32 = 0.80;
+const FINDS_OFFSET_HI: f32 = 1.02;
+const FINDS_ACCENT_LO: f32 = 0.20;
+const FINDS_ACCENT_HI: f32 = 0.26;
+const FINDS_ACCENT_OFFSET_LO: f32 = 0.10;
+const FINDS_ACCENT_OFFSET_HI: f32 = 0.34;
+const FINDS_JITTER: f32 = 0.15;
+const FINDS_LATTICE_ANGLE: f32 = 0.42;
+const FINDS_DROPOUT: f32 = 0.10;
+const FINDS_TAU: f32 = 6.2831855;
+// The feather half-width, in PHYSICAL pixels. Crisp is the whole point, so
+// this is a fixed sub-pixel skirt rather than a fraction of a cell: the same
+// hard edge resolves without stair-stepping at 1x and at 2x, and at any cell
+// scale a future Organic world might author.
+const FINDS_EDGE_AA_PX: f32 = 0.75;
+// FINDS declares its own cell FLOOR, the way Deckle declares a lane pitch
+// floor: the cut-out is a FRACTION of the anchor, so below this scale it falls
+// under a pixel and a collection aliases into speckle instead of reading as
+// three arranged objects. A property of the shader, not of the dial pair.
+const FINDS_MIN_SCALE_PX: f32 = 96.0;
+
+fn finds_rot(p: vec2<f32>, a: f32) -> vec2<f32> {
+    let c = cos(a);
+    let s = sin(a);
+    return vec2<f32>(c * p.x + s * p.y, -s * p.x + c * p.y);
+}
+
+fn sd_square(p: vec2<f32>, h: f32) -> f32 {
+    let q = abs(p) - vec2<f32>(h, h);
+    return length(max(q, vec2<f32>(0.0))) + min(max(q.x, q.y), 0.0);
+}
+
+// Exact signed distance to an equilateral triangle of half-side `h`.
+fn sd_triangle(p: vec2<f32>, h: f32) -> f32 {
+    let k = 1.7320508;
+    var q = vec2<f32>(abs(p.x) - h, p.y + h / k);
+    if (q.x + k * q.y > 0.0) {
+        q = vec2<f32>(q.x - k * q.y, -k * q.x - q.y) * 0.5;
+    }
+    q.x = q.x - clamp(q.x, -2.0 * h, 0.0);
+    return -length(q) * sign(q.y);
+}
+
+fn finds_shape(p: vec2<f32>, kind: u32, r: f32) -> f32 {
+    if (kind == 0u) { return length(p) - r; }
+    if (kind == 1u) { return sd_square(p, r * FINDS_SQUARE_HALF); }
+    return sd_triangle(p, r * FINDS_TRI_HALF_SIDE);
+}
+
+// The SDFs above are in CELL units; `* s` puts them in physical pixels, where
+// the feather is a fixed fraction of one pixel at any scale or device ratio.
+fn finds_fill(sd_cell: f32, s: f32) -> f32 {
+    return 1.0 - smoothstep(-FINDS_EDGE_AA_PX, FINDS_EDGE_AA_PX, sd_cell * s);
+}
+
+fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32, drift: vec2<f32>) -> vec3<f32> {
+    // The lattice is ROTATED and then per-row sheared: the scattered rhythm
+    // survives, its rows and columns do not, so the field never resolves into
+    // the visible grid a plain `floor(px / s)` would draw.
+    let w = px + drift;
+    let ca = cos(FINDS_LATTICE_ANGLE);
+    let sa = sin(FINDS_LATTICE_ANGLE);
+    let q = vec2<f32>(w.x * ca - w.y * sa, w.x * sa + w.y * ca) / s;
+    let row = floor(q.y);
+    let qx = q.x + hash21(vec2<f32>(row, 91.0));
+    let cell = vec2<f32>(floor(qx), row);
+    let local = vec2<f32>(fract(qx), fract(q.y)) - vec2<f32>(0.5, 0.5);
+
+    let h0 = hash21(cell + vec2<f32>(19.0, 5.0));
+    // Some cells hold nothing: open ground is part of the arrangement.
+    if (h0 < FINDS_DROPOUT) {
+        return g.c_from.rgb;
+    }
+    let h1 = hash21(cell + vec2<f32>(3.0, 41.0));
+    let h2 = hash21(cell + vec2<f32>(57.0, 13.0));
+    let h3 = hash21(cell + vec2<f32>(7.0, 71.0));
+    let h4 = hash21(cell + vec2<f32>(31.0, 23.0));
+    let h5 = hash21(cell + vec2<f32>(11.0, 89.0));
+
+    let centre = (vec2<f32>(fract(h0 * 17.0), fract(h1 * 13.0)) - vec2<f32>(0.5, 0.5)) * FINDS_JITTER;
+    let r_a = mix(FINDS_ANCHOR_LO, FINDS_ANCHOR_HI, h1);
+    let r_b = r_a * mix(FINDS_COMPANION_LO, FINDS_COMPANION_HI, h4);
+    let r_c = r_a * mix(FINDS_ACCENT_LO, FINDS_ACCENT_HI, h5);
+    let kind_a = u32(floor(fract(h2 * 5.0) * 3.0));
+    let kind_b = (kind_a + 1u + u32(floor(fract(h3 * 7.0) * 2.0))) % 3u;
+    let kind_c = u32(floor(fract(h4 * 11.0) * 3.0));
+    let phi = h2 * FINDS_TAU;
+    let arm = vec2<f32>(cos(phi), sin(phi));
+    let c_b = centre + arm * (r_a * mix(FINDS_OFFSET_LO, FINDS_OFFSET_HI, fract(h3 * 3.0)));
+    let c_c = centre - arm * (r_a * FINDS_TRI_INRADIUS
+        * mix(FINDS_ACCENT_OFFSET_LO, FINDS_ACCENT_OFFSET_HI, fract(h5 * 3.0)));
+
+    let cov_a = finds_fill(
+        finds_shape(finds_rot(local - centre, fract(h3 * 23.0) * FINDS_TAU), kind_a, r_a), s);
+    let cov_b = finds_fill(
+        finds_shape(finds_rot(local - c_b, fract(h4 * 29.0) * FINDS_TAU), kind_b, r_b), s);
+    let cov_c = finds_fill(
+        finds_shape(finds_rot(local - c_c, fract(h5 * 19.0) * FINDS_TAU), kind_c, r_c), s);
+
+    // The cut-out is removed from BOTH pieces, so a collection reads as one
+    // arranged thing with a hole through it rather than three stacked marks —
+    // and the hole returns to EXACTLY the open ground at any density, which is
+    // what lets a pixel law find it as an enclosed region of ground tone.
+    let keep = 1.0 - cov_c;
+    let swap = fract(h2 * 31.0) > 0.5;
+    // Each piece carries its OWN opaque ink, already mixed toward the ground by
+    // the authored density, and is then composited by coverage alone. Blending
+    // the second piece through the first instead would give the overlap a
+    // fourth, half-transparent value — a stack of films rather than one
+    // arrangement of cut objects, and the exact haze this arrangement replaces.
+    // `density == 0.0` still collapses both inks onto the ground exactly.
+    let ink_a = mix(g.c_from.rgb, select(g.c_pat.rgb, g.c_to.rgb, swap), d);
+    let ink_b = mix(g.c_from.rgb, select(g.c_to.rgb, g.c_pat.rgb, swap), d);
+    var rgb = mix(g.c_from.rgb, ink_a, cov_a * keep);
+    return mix(rgb, ink_b, cov_b * keep);
+}
+
+// 8: the ORGANIC ground, in either theme-owned arrangement (params.z). MASSES
+// (0.0) is cut-paper blobs: three differently-offset rounded cell fields make
+// large masses, islands, and droplets, and subtracting a small inner field
+// leaves occasional holes. FINDS (1.0) is the crisp collected-treasure field
+// above. The only time input either takes is the shared, slow ambient phase,
+// and it enters as ONE whole-field translation before the lattice is derived —
+// so a shape is a pure function of its cell, and the field can only pan, never
+// morph, spawn, dissolve, or animate one object of a collection on its own.
 fn organic_rgb(px: vec2<f32>) -> vec3<f32> {
-    let s = max(g.params.x, 32.0);
+    let finds = g.params.z >= 0.5;
+    let s = max(g.params.x, select(32.0, FINDS_MIN_SCALE_PX, finds));
     let d = clamp(g.params.y, 0.0, 1.0);
     let drift = vec2<f32>(
         sin(g.drift) * max(s * ORGANIC_DRIFT_X_FRAC, ORGANIC_DRIFT_MIN_X_PX),
         cos(g.drift * 0.73) * max(s * ORGANIC_DRIFT_Y_FRAC, ORGANIC_DRIFT_MIN_Y_PX),
     );
+    if (finds) {
+        return organic_finds_rgb(px, s, d, drift);
+    }
     let cell = floor((px + drift) / s);
     let local = fract((px + drift) / s) - vec2<f32>(0.5);
     let jitter = vec2<f32>(hash21(cell), hash21(cell + vec2<f32>(7.0, 3.0))) - vec2<f32>(0.5);

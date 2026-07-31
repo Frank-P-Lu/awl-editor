@@ -42,6 +42,36 @@ pub const DECKLE_MID: f32 = 0.46;
 #[cfg(test)]
 pub const DECKLE_SPREAD_GAIN: f32 = 1.2;
 
+// ORGANIC/FINDS's shader mirrors (`shaders/background.wgsl`'s `FINDS_*`).
+// `cfg(test)` for the same reason the ZIGZAG and DECKLE mirrors are: the GPU
+// is the only runtime consumer, and the host reads these ONLY to state the
+// field's laws. A grep-law holds them in lockstep with the WGSL.
+//
+// `ORGANIC_FINDS_MIN_SCALE_PX` is the cell FLOOR the shader clamps to on that
+// arrangement — the cut-out is a fraction of the anchor, so below it the
+// smallest of the three roles falls under a pixel and a collection aliases
+// into speckle. Enforced in the shader (a property of the field, not of a dial
+// pair — item 89's abutment lesson, item 158's pitch floor), so no future
+// Organic world can author its way under it.
+#[cfg(test)]
+pub const ORGANIC_FINDS_MIN_SCALE_PX: f32 = 96.0;
+/// The anchor's nominal radius, in cell units.
+#[cfg(test)]
+pub const ORGANIC_FINDS_ANCHOR_LO: f32 = 0.150;
+#[cfg(test)]
+pub const ORGANIC_FINDS_ANCHOR_HI: f32 = 0.195;
+/// The companion's radius, as a fraction of the anchor's.
+#[cfg(test)]
+pub const ORGANIC_FINDS_COMPANION_LO: f32 = 0.46;
+#[cfg(test)]
+pub const ORGANIC_FINDS_COMPANION_HI: f32 = 0.56;
+/// The cut-out's radius, as a fraction of the anchor's.
+#[cfg(test)]
+pub const ORGANIC_FINDS_ACCENT_HI: f32 = 0.26;
+/// The share of cells that deliberately hold nothing.
+#[cfg(test)]
+pub const ORGANIC_FINDS_DROPOUT: f32 = 0.10;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[rustfmt::skip]
 pub enum Background {
@@ -61,9 +91,47 @@ pub enum Background {
     Waves { tones: [Srgb; 3] },
     Zigzag { from: Srgb, to: Srgb, dir: (f32, f32), tint: Srgb,
         period_px: f32, amplitude_px: f32, angle: f32, density: f32, banded: bool },
-    Organic { tones: [Srgb; 3], scale_px: f32, density: f32 },
+    Organic { tones: [Srgb; 3], arrangement: Arrangement, scale_px: f32, density: f32 },
     Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave, anchor: DeckleAnchor,
         period_px: f32, wander_px: f32, density: f32 },
+}
+
+/// ORGANIC's one theme-owned profile dial. Both arrangements read the SAME
+/// three tones, the same cell scale, the same density and the same whole-field
+/// drift; they differ only in what one cell draws, and nothing in the renderer
+/// ever asks which world is active — a world adopts an arrangement by writing
+/// this word in its own literal, exactly as [`Weave`] and `LavaEdge` are
+/// chosen.
+///
+/// * [`Arrangement::Masses`] — rounded cut-paper blobs: large masses, small
+///   islands and occasional subtracted holes. Bowerbird's shipped ground.
+/// * [`Arrangement::Finds`] — the crisp COLLECTED-TREASURE grammar: one large
+///   anchor, one smaller companion offset across its edge, and one tiny
+///   cut-out, drawn from circles/squares/triangles with every proportion
+///   seeded from the cell's own identity. Reusable, currently carried by no
+///   world (the [`Weave::Fibres`] / `Bands` / `Dots { edge: true }` shape).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Arrangement {
+    Masses,
+    Finds,
+}
+
+impl Arrangement {
+    /// The scalar the WGSL `organic_rgb` branches on (`params.z`). MUST match
+    /// `shaders/background.wgsl`'s own threshold.
+    pub fn mode(self) -> f32 {
+        match self {
+            Self::Masses => 0.0,
+            Self::Finds => 1.0,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Masses => "masses",
+            Self::Finds => "finds",
+        }
+    }
 }
 
 /// The coordinate owner for Deckle's `Strata` weave. The material belongs to
@@ -274,13 +342,24 @@ impl Background {
             _ => 0.0,
         }
     }
-    /// DECKLE's weave, as the scalar the shader branches on — `0.0` (the INERT
-    /// default) for every ground that has no weave, so nothing else in the
-    /// pipeline changes shape. See [`Weave`].
-    pub fn weave_mode(&self) -> f32 {
+    /// The ground's own theme-owned PROFILE dial, as the scalar its shader
+    /// branches on — Deckle's [`Weave`], Organic's [`Arrangement`]. `0.0` (the
+    /// INERT default) for every ground that has no profile AND for each
+    /// profile's own default member, so nothing else in the pipeline changes
+    /// shape. One slot: exactly one ground is ever active at a time, and each
+    /// reads it through its own `params` position.
+    pub fn profile_mode(&self) -> f32 {
         match self {
             Background::Deckle { weave, .. } => weave.mode(),
+            Background::Organic { arrangement, .. } => arrangement.mode(),
             _ => 0.0,
+        }
+    }
+    /// ORGANIC's authored arrangement, or `None` off that ground.
+    pub fn arrangement(&self) -> Option<Arrangement> {
+        match self {
+            Background::Organic { arrangement, .. } => Some(*arrangement),
+            _ => None,
         }
     }
     /// Deckle's coordinate owner. Inert `0.0` off Deckle; Fibres deliberately

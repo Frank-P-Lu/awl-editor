@@ -3,13 +3,13 @@
 pub const CANVAS_WIDTH: u32 = 1200;
 pub const CANVAS_HEIGHT: u32 = 800;
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
-/// `/187` — shaped-frame `layout` rows.
 /// `/188` — permissive replay `replay_skips`.
 /// `/189` — `page.background`'s `deckle` arm (item 158, Paperbark).
-/// `/190` — `overlay.workspace` (item 114's summoned workspace), and
+/// `/190` — `page.background`'s `organic` arm gains `arrangement`.
+/// `/191` — `overlay.workspace` (item 114's summoned workspace), and
 ///          `overlay.diff_focus` renamed `overlay.detail_focus`.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 190;
+pub const SCHEMA_VERSION: u32 = 191;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

@@ -184,14 +184,26 @@ are both `App`-side). `setting_value_commit` and `setting_path_pick` are
 Unsupported for the same reason; only `setting_range_step` is Applied, because
 the value change itself already happened in the core.
 
-**`overlay_accept:Project` is Applied with a residue.** The accepted root
-re-derives the sidecar's whole project block through one builder
+**`overlay_accept:Project` is Applied, no residue (closed — item 189).** The
+accepted root re-derives the sidecar's whole project block through one builder
 (`run::project_info`), so a capture reports the new root *and* the new
-workspace. But `ReplaySession` holds its `root`, `workspace` and file-index
-corpus fixed for the session's lifetime, so a chord that runs **after** the
-accept is not re-scoped the way live is: a `Cmd-O` following a Switch-project
-still lists the launch root's files. Assert the accepted location, not what a
-later chord in the same spec sees.
+workspace. `ReplaySession` used to hold its `root`, `workspace`, and file-index
+`corpus` fixed for the session's whole lifetime, so a chord that ran **after**
+the accept still read the launch root's tree: a `Cmd-O` following a
+Switch-project listed the launch root's files even though the sidecar's own
+accepted-location block was already correct. `ReplaySession::
+resync_project_location` (`main/run/location.rs` — the module item 183
+already carries the rest of this exact derivation in) is now the one owner
+invoked the moment the accept fires — it rebuilds `corpus`
+(`crate::index::build_index`) and re-resolves `workspace`
+(`resolve_workspace`, against the SAME raw `--workspace` flag the constructor
+used) before `root` itself moves, so a
+chord applied after the accept sees the new tree exactly like live. Covered
+end to end, both keymap conventions, by
+`run::tests::keys_capture_switch_project_then_goto_lists_the_new_roots_files`;
+the same-parent and no-parent (filesystem-root) edges item 180 named are swept
+by `run::tests::resync_project_location_same_parent_switch_still_rebuilds_the_corpus`
+and `run::tests::resync_project_location_no_parent_root_falls_back_to_itself_not_the_old_workspace`.
 
 ## What went wrong here once, so it does not again
 
@@ -283,9 +295,15 @@ Named here rather than quietly absorbed:
    close it is a capture mode that drives a real headless `App`
    (`App::new_headless_scheduler` already exists for `--screenshot-frames`) and
    folds its state through the existing sidecar writer.
-2. **`ReplaySession` re-scoping.** Its `root`/`workspace`/corpus are fixed for
-   the session, so a Project or root change mid-spec does not re-scope later
-   chords (the residue named above). Live re-derives immediately.
+2. ~~**`ReplaySession` re-scoping.**~~ Closed by item 189 — see
+   `overlay_accept:Project`'s entry above. **Still open:** the storyboard
+   runner (`main/story.rs::run_storyboard`) computes its own `capture::
+   ProjectInfo` once before the run and folds the SAME value into every
+   step's sidecar (`step_opts`), so a storyboard whose steps include a
+   Switch-project would show the stale project block on every step after
+   it — the identical defect shape, one call site removed. No storyboard
+   fixture drives a Switch-project today, so this is undiagnosed rather than
+   reproduced; flag it before writing one.
 3. **The Unsupported bucket is a work list, not a verdict.** Each row above is
    Unsupported because the replay owns no capability for it, not because the
    behaviour is unobservable in principle — item 171's `FilesystemCapability`

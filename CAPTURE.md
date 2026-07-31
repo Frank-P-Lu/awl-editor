@@ -533,7 +533,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/190` (`/191` timeline, `/192` held)
+## The sidecar JSON — schema `awl-capture/191` (`/192` timeline, `/193` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -592,9 +592,12 @@ block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 and Gumtree both moved to a repeating chevron ground, `/183`);
 `page.background`'s `deckle` arm (item 158's Paperbark — `{kind, ground, layer,
 deckle, weave, anchor, period_px, wander_px, density, static}`, where `weave` is the
-theme-owned profile `"strata"`/`"fibres"`, `/189`); and
+theme-owned profile `"strata"`/`"fibres"`, `/189`); `page.background`'s
+`organic` arm gaining `arrangement` (item 176 — the ground's own theme-owned
+profile, `"masses"` today, `"finds"` reserved for the crisp three-object
+collected-treasure field, `/190`); and
 `overlay.workspace` + the `overlay.diff_focus` → `overlay.detail_focus` rename
-(item 114's summoned workspace, `/190`): `overlay.workspace` is `true` when the
+(item 114's summoned workspace, `/191`): `overlay.workspace` is `true` when the
 summoned surface is drawn as a WORKSPACE — it takes the viewport, carries a
 navigation rail, and leaves the document as a quiet backdrop — rather than as a
 contextual card. When it is true, `overlay.lens_strip` IS that rail (the same
@@ -1232,7 +1235,7 @@ world.)
 | `spellcheck`   | GLOBAL spell-check on/off; default `true`. `false` silences every squiggle (prose and scoped code strings/comments alike) and makes the spell-suggest picker a no-op. Set via `--config` (`spellcheck = false`) or the "Toggle Spellcheck" palette command |
 | `date_format`  | INSERT DATE (schema `/178`): `{ format, example }` — the active `crate::dateformat::DateFormat`'s persisted slug (`"ddmmyy"`/`"mmddyy"`/`"iso"`/`"yyyymmdd"`/`"dmonthyyyy"`; default `"ddmmyy"`) and that format rendered against the FIXED placeholder civil date (2009-03-07 — a headless capture has no clock, so "today" is always this same date). Set via `--config` (`date_format = "iso"`) or the Settings menu's "Date format" cycling row. `example` for the default is `"07/03/09"` |
 | `text_origin`  | top-left pixel of the first glyph row (`left` = the page column left, centered in page mode; `16.0` edge-to-edge) |
-| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` today, `"fibres"` reserved)) |
+| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` today, `"fibres"` reserved), or `{kind:"organic", tones:[c0,c1,c2], arrangement, scale_px, density, phase}` (Bowerbird — `arrangement` is that ground's theme-owned profile, `"masses"` today, `"finds"` reserved)) |
 | `focus`        | FOCUS MODE: `mode` (`off`/`paragraph`/`sentence`) + `active_start`/`active_end` (char offsets of the full-ink unit, `null` when off) |
 | `wysiwyg`      | WYSIWYG conceal: `{ on, concealed }`. `on` mirrors the sticky `wysiwyg` config pref (default `true`). `concealed` is `[start_byte, end_byte, "kind"]` ranges the renderer drew transparent THIS frame — `"heading"`/`"emphasis"`/`"code"`/`"highlight"` (LINE-scoped: revealed only on the caret's own line OR a line the active selection touches) or `"fence"`/`"frontmatter"` (BLOCK-scoped: revealed only with the caret anywhere inside the block, or the selection touching any line inside it — a frontmatter block reuses the `fence` rule verbatim, see schema `/92`; selection reveal, 2026-07-22, no schema bump — see `render::spans::wysiwyg_reveals`). `"table"` (schema `/163`-ish, see the `tables` narrative above) NEVER leaves `concealed` in place — a selected/caret-touched table row instead swaps to the `xray` float mechanism; `tables[].revealed` and the render-only `xray` state are the ones to check for a table. Empty when `on` is false or nothing is concealed this frame |
 | `doc_lang`     | i18n round (schema `/92`): the document's own frontmatter `lang:` tag (`"ja"`/`"zh-Hans"`/`"zh-Hant"`/`"ko"`/`"en"`), or `null` for an untagged/non-markdown document |
