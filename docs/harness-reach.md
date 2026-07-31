@@ -210,6 +210,37 @@ and `run::tests::every_capture_project_info_literal_is_accounted_for` accounts
 for every construction site — because a parity test proves the builder is
 right, never that every call site uses it, and the bug was in a call site.
 
+## Item 114 landed on this map — what it actually used
+
+The split below was written before item 114 started; this is what it built
+against it, so a later reader can check the map against a real consumer.
+
+- **Tier 1, as predicted.** The lifecycle laws are driven through
+  `actions::apply_transition` and read the table's own vocabulary
+  (`actions::tests::workspace_item114`); the presentation laws render a real
+  pipeline and assert pixels (`render::tests::workspace_item114`). Nothing there
+  needed a capability the map said did not exist.
+- **Tier 2, as predicted, and it was the larger half.**
+  `app::tests::workspace_item114` drives every `SettingId × SettingKind` by real
+  chords into a hermetic `App` over an `InMemoryFs`. It carries its own
+  anti-vacuity law, `the_sweep_drives_the_picker_door_and_names_no_app_side_door`,
+  which forbids the sweep's source from naming `setting_toggle` /
+  `setting_value_commit` / `setting_path_pick` / `range_persist` at all — the
+  substitution the asymmetry below invites — and asserts a floor on how many
+  chord specs it actually presses, so the ban cannot be satisfied by an empty
+  file.
+- **The asymmetry is now covered from both sides.**
+  `the_settings_row_and_its_command_twin_reach_the_same_live_state` drives the
+  same setting through its COMMAND (Applied, capturable) and through its Settings
+  ROW (Unsupported, not), and asserts they land on the same live global and the
+  same config key. That is what makes "the picker door works" a claim about the
+  picker door rather than an inference from the command door's captures.
+- **One deliberate, named hole.** `Report a Problem` is not driven live: it hands
+  a `mailto:` URL to `App::follow_link`, which spawns the OS opener. It changes no
+  editor state and no config; the row's dispatch is asserted at the core seam
+  instead, and the sweep records the exclusion in its own coverage list rather
+  than skipping it silently.
+
 ## For item 114 (Settings as the first summoned workspace)
 
 Item 114's Verify clause asks for "deterministic capture/sidecar" oracles over
