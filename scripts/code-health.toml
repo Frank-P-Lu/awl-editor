@@ -139,7 +139,8 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 524
+lines = 527
+reason = "item 189: +3 lines, the main/tests.rs bare-write accounted-for count moved 19->21 for two real-fixture marker-file writes the Switch-project-then-Goto capture law seeds."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -184,7 +185,8 @@ reason = "item 121: +14 lines, irreducibly one new CLI flag arm (`--ground-audit
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1054
+lines = 1085
+reason = "item 189: +31 lines net — the owned `root`/`workspace`/`workspace_flag`/`corpus` fields and their doc comments, replacing the fixed `&'a` borrows. `resync_project_location` itself (the re-scoping owner these fields exist for) moved to run/location.rs, the module item 183 created for exactly this class of derivation — see its impl block there."
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -344,7 +346,8 @@ lines = 1440
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 359
+lines = 360
+reason = "item 189: +1 line, accept_class's Project-arm comment updated now that ReplaySession's own resync closes the residue it named."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -487,23 +490,23 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 260
+line = 287
 message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 183 lifting the launch/location resolvers into run/location.rs."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's owned root/workspace/workspace_flag/corpus fields landing earlier in the same impl block (resync_project_location itself moved to run/location.rs); count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 554
-message = "this function has too many lines (113/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 183 routed both project-location sites through the one builder run::project_info (-9)."
+line = 581
+message = "this function has too many lines (112/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
-line = 719
+line = 750
 message = "this function has too many lines (321/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 183 lifting the launch/location resolvers into run/location.rs."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Line shifted by item 189's earlier additions to the same impl block; count unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -551,8 +554,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/story.rs"
 line = 42
-message = "this function has too many lines (123/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 183 routed its ProjectInfo through the one builder run::project_info (-4)."
+message = "this function has too many lines (122/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1208,23 +1211,23 @@ reason = "Pure relocation from the inline src/commands.rs test module; this exac
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3212
+line = 3386
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3252
+line = 3426
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
 
 [[structural_exception]]
 target = "src/main/tests.rs"
 kind = "architectural"
-line = 3286
+line = 3460
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion and item 171's replay tests."
+reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there. Line number shifted by queue item 168's testscratch::ScratchDir conversion, item 171's replay tests, and item 189's Switch-project-then-Goto law + edge-case tests."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"

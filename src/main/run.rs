@@ -129,9 +129,29 @@ pub(crate) struct ReplaySession<'a> {
     mode: crate::replay::Mode,
     filesystem: crate::replay::FilesystemCapability,
     buffer: &'a mut Buffer,
-    corpus: &'a [String],
-    root: &'a std::path::Path,
-    workspace: Option<&'a std::path::Path>,
+    // RE-SCOPED PROJECT LOCATION (queue item 189) — `corpus`/`root`/`workspace`
+    // are OWNED, not borrowed, so [`Self::resync_project_location`] can rebuild
+    // them in place the moment a Switch-project accept lands. Before this,
+    // these three were fixed `&'a` borrows for the session's whole lifetime:
+    // the sidecar's *accepted* location was re-derived correctly (item 183,
+    // `run::project_info`), but a chord applied AFTER the accept — a Cmd-O
+    // opening Goto, a Browse summon — still read the LAUNCH root's file index
+    // and workspace. `docs/harness-reach.md` named the residue; this struct
+    // closes it. `resync_project_location` is the ONE place any of the three
+    // is ever reassigned after construction — mirrors `App::
+    // resync_project_location` (`app/files/open.rs`), the live analogue.
+    corpus: Vec<String>,
+    root: std::path::PathBuf,
+    // THE RAW `--workspace` flag (already folded over config by the caller —
+    // see `project_info`'s doc), kept alongside the RESOLVED `workspace` below
+    // so a re-scope can re-run `location::resolve_workspace` against the NEW
+    // root: an EXPLICIT flag stays pinned across a project switch; an UNSET
+    // one re-derives the new root's parent — the exact distinction `App`'s
+    // `cli_workspace` vs `workspace_root` makes, so a same-parent switch and a
+    // filesystem-root (no-parent) switch both re-derive honestly rather than
+    // by coincidence.
+    workspace_flag: Option<std::path::PathBuf>,
+    workspace: std::path::PathBuf,
     config: &'a Config,
     // The visual-line motion LAYOUT ORACLE (an offscreen-shaped pipeline), so the
     // headless replay sees the SAME wrap geometry the live window does. Held
@@ -187,21 +207,28 @@ impl<'a> ReplaySession<'a> {
     pub(crate) fn new(
         policy: ReplayPolicy,
         buffer: &'a mut Buffer,
-        corpus: &'a [String],
-        root: &'a std::path::Path,
-        workspace: Option<&'a std::path::Path>,
+        corpus: &[String],
+        root: &std::path::Path,
+        // THE RAW flag, not a pre-resolved value — see the struct's
+        // `workspace_flag` doc. `project_info`'s own derivation (used for the
+        // sidecar) takes the identical raw flag, so the two never disagree on
+        // what "unset" means.
+        workspace_flag: Option<&std::path::Path>,
         config: &'a Config,
         oracle: Option<&'a mut capture::OraclePipeline>,
         km: &'a mut crate::keymap::KeymapState,
     ) -> Self {
         let ReplayPolicy { mode, filesystem } = policy;
         let resolver = crate::keyspec::ChordResolver::new(km, mode == crate::replay::Mode::Strict);
+        let workspace_flag = workspace_flag.map(|p| p.to_path_buf());
+        let workspace = location::resolve_workspace(&workspace_flag, root);
         Self {
             mode,
             filesystem,
             buffer,
-            corpus,
-            root,
+            corpus: corpus.to_vec(),
+            root: root.to_path_buf(),
+            workspace_flag,
             workspace,
             config,
             oracle,
@@ -388,7 +415,7 @@ impl<'a> ReplaySession<'a> {
                     Vec::new()
                 };
             let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
-                crate::assets::scan(self.root, self.corpus)
+                crate::assets::scan(&self.root, &self.corpus)
             } else {
                 Vec::new()
             };
@@ -407,7 +434,7 @@ impl<'a> ReplaySession<'a> {
                 history_session_start: None,
                 settings_values: crate::settings::SettingsValues::gather(
                     self.config,
-                    self.root,
+                    &self.root,
                     self.zoom,
                     crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
                 ),
@@ -420,7 +447,7 @@ impl<'a> ReplaySession<'a> {
             };
             let mut make_overlay =
                 |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
-            let (root, workspace) = (self.root, self.workspace);
+            let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
             let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
                 // Shared one-level builder: Project navigates the workspace by absolute
                 // path, MoveDest and Browse both walk the SAME active root (item 76 —
@@ -570,7 +597,6 @@ fn capture_screenshot(
     // never a "first run" default either (that's a windowed-launch concern).
     let active_root = resolve_root(&root, &file);
     let corpus = crate::index::build_index(&active_root);
-    let effective_workspace = resolve_workspace(&workspace, &active_root);
     opts.project = Some(project_info(
         &active_root,
         &workspace,
@@ -616,13 +642,17 @@ fn capture_screenshot(
     if strict && !keys.is_empty() && oracle.is_none() {
         return Err(crate::replay::missing_oracle_error());
     }
+    // `workspace` here is the RAW, already-config-folded flag (see
+    // `project_info`'s doc) — `ReplaySession` resolves it itself, both now and
+    // again on any Switch-project accept (`resync_project_location`), so the
+    // two derivations can never disagree on what "unset" means.
     let res = replay_effects::capture_replay(
         strict,
         &mut buffer,
         &keys,
         &corpus,
         &active_root,
-        Some(effective_workspace.as_path()),
+        workspace.as_deref(),
         &config,
         oracle.as_mut(),
         &mut km,
@@ -648,13 +678,14 @@ fn capture_screenshot(
     if let Some((kind, val)) = &res.accept {
         match kind {
             crate::overlay::OverlayKind::Goto => {}
-            // SWITCH-PROJECT: re-derive the WHOLE location from the accepted
-            // root through the one builder, never a subset of it — see
-            // [`project_info`] for the half-derivation this replaced. The
-            // replay itself still ran every chord against the LAUNCH root
-            // (`ReplaySession` holds `root`/`workspace`/`corpus` fixed for its
-            // lifetime), so a chord AFTER the accept is not re-scoped the way
-            // live is; that residue is named in `docs/harness-reach.md`.
+            // SWITCH-PROJECT: re-derive the WHOLE sidecar location from the
+            // accepted root through the one builder, never a subset of it —
+            // see [`project_info`] for the half-derivation this replaced. The
+            // replay session ITSELF re-scoped `root`/`workspace`/`corpus` the
+            // moment the accept fired (`ReplaySession::resync_project_location`,
+            // queue item 189 — `docs/harness-reach.md` named this as the
+            // residue item 183 left, now closed), so a chord applied AFTER the
+            // accept reads the new tree exactly like live.
             crate::overlay::OverlayKind::Project => {
                 opts.project = Some(project_info(
                     std::path::Path::new(val),

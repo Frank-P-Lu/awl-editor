@@ -2568,6 +2568,180 @@ fn capture_sidecar_traces_permissive_replay_skips_and_strict_writes_nothing() {
     assert!(!strict.exists() && !strict.with_extension("json").exists());
 }
 
+/// QUEUE ITEM 189, THE PRIMARY LAW: `ReplaySession` used to resolve `root` /
+/// `workspace` / `corpus` ONCE before replay and hold them fixed for its whole
+/// lifetime. Item 183 fixed the *accepted* sidecar location (`run::project_info`
+/// re-derives it whole on a Project accept), but a chord applied AFTER the
+/// accept still read the LAUNCH root's file index — a `Cmd-O` following a
+/// Switch-project quietly listed the wrong tree while the capture reported
+/// success. Drives the REAL `capture_screenshot` door in BOTH conventions,
+/// mirroring `app::files::tests::
+/// switch_project_driven_by_real_chords_through_apply_repoints_the_workspace`
+/// (the model this test follows) — mac `s-S-p`, linux `C-S-p`, then Goto's own
+/// `s-o`/`C-o`.
+#[test]
+fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
+    let _fs = crate::testlock::serial();
+    for convention in [
+        crate::convention::Convention::Mac,
+        crate::convention::Convention::Linux,
+    ] {
+        let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+            "awl-item189-switch-goto-{convention:?}-{}",
+            std::process::id()
+        )));
+        std::fs::create_dir_all(dir.join("old-ws/proj-a")).unwrap();
+        std::fs::create_dir_all(dir.join("old-ws/sibling")).unwrap();
+        std::fs::create_dir_all(dir.join("new-ws/other")).unwrap();
+        std::fs::create_dir_all(dir.join("new-ws/proj-b")).unwrap();
+        std::fs::write(dir.join("old-ws/proj-a/keep.md"), "keep").unwrap();
+        std::fs::write(dir.join("new-ws/proj-b/target.md"), "target").unwrap();
+
+        let (switch_project, open_goto) = match convention {
+            crate::convention::Convention::Mac => ("s-S-p", "s-o"),
+            crate::convention::Convention::Linux => ("C-S-p", "C-o"),
+        };
+        // Backspace ascends above the old workspace to `dir`; Enter descends
+        // into `new-ws`; Down moves off `other` onto `proj-b`; Enter descends
+        // into it; the next Enter accepts the drilled-in directory as the new
+        // root — the exact navigation item 183's model test drives. The final
+        // chord opens Goto in the (now, or not yet, re-scoped) session.
+        let spec = format!("{switch_project} Backspace Enter Down Enter Enter {open_goto}");
+        let keys = keyspec::parse_keys(&spec).unwrap();
+        let out = dir.join("cap.png");
+        capture_screenshot(
+            out.clone(),
+            None,
+            CaptureOpts::default(),
+            keys,
+            crate::keymap::KeymapState::new_with_convention(convention),
+            Some(dir.join("old-ws/proj-a")),
+            None,
+            dir.join("notes"),
+            Config::empty(),
+            false,
+        )
+        .unwrap_or_else(|e| panic!("[{convention:?}] capture succeeds: {e}"));
+        let json = std::fs::read_to_string(out.with_extension("json")).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            v["project"]["root"].as_str().unwrap(),
+            dir.join("new-ws/proj-b").to_string_lossy(),
+            "[{convention:?}] the sidecar's accepted root is the new project (item 183's half)"
+        );
+        let items: Vec<String> = v["overlay"]["items"]
+            .as_array()
+            .unwrap_or_else(|| panic!("[{convention:?}] goto overlay open"))
+            .iter()
+            .map(|s| s.as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            items,
+            vec!["target.md".to_string()],
+            "[{convention:?}] Cmd-O after Switch-project must list the NEW root's \
+             files, not the launch root's — a `keep.md` row here is item 189's \
+             stale-corpus bug"
+        );
+    }
+}
+
+/// SAME-PARENT EDGE (item 180 named it, item 189 must sweep it too): switching
+/// between two projects that share a parent must still rebuild `corpus` from
+/// the NEW root — a fix that only re-derives `workspace` when the parent
+/// visibly changes would leave this case green by coincidence. Calls
+/// `resync_project_location` directly (this test lives in `run::tests`, a
+/// descendant module, so the private fields are readable) to isolate the
+/// re-scoping mechanism from chord resolution, which the law above already
+/// covers end to end.
+#[test]
+fn resync_project_location_same_parent_switch_still_rebuilds_the_corpus() {
+    use std::sync::Arc;
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_file("/ws/proj-a/keep.md", "keep")
+            .with_file("/ws/proj-b/target.md", "target"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut buffer = Buffer::scratch();
+        let root = PathBuf::from("/ws/proj-a");
+        let config = Config::empty();
+        let mut km =
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+        let mut session = ReplaySession::new(
+            ReplayPolicy::ordinary(),
+            &mut buffer,
+            &["keep.md".to_string()],
+            &root,
+            None,
+            &config,
+            None,
+            &mut km,
+        );
+        assert_eq!(session.workspace, PathBuf::from("/ws"));
+        session.resync_project_location(PathBuf::from("/ws/proj-b"));
+        assert_eq!(session.root, PathBuf::from("/ws/proj-b"));
+        assert_eq!(
+            session.workspace,
+            PathBuf::from("/ws"),
+            "the parent is unchanged, but freshly re-derived, not merely untouched"
+        );
+        assert_eq!(
+            session.corpus,
+            vec!["target.md".to_string()],
+            "a same-parent switch must still rebuild the corpus from the NEW root; \
+             the stale ['keep.md'] here would be a half-fix that only watches workspace"
+        );
+    });
+}
+
+/// NO-PARENT / FILESYSTEM-ROOT EDGE (item 180 named it, item 189 must sweep it
+/// too): `Path::parent()` returns `None` only for a root component itself, so
+/// switching TO the filesystem root is the one case that exercises
+/// `location::resolve_workspace`'s fallback-to-self arm inside a re-scope,
+/// not just at the free-function level (`workspace_falls_back_to_root_when_
+/// no_parent` above). A half-fix that leaves the OLD workspace in place when
+/// the new root has no parent would pass every other test and fail only here.
+#[test]
+fn resync_project_location_no_parent_root_falls_back_to_itself_not_the_old_workspace() {
+    use std::sync::Arc;
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_file("/ws/proj-a/keep.md", "keep")
+            .with_file("/marker.md", "marker"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut buffer = Buffer::scratch();
+        let root = PathBuf::from("/ws/proj-a");
+        let config = Config::empty();
+        let mut km =
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+        let mut session = ReplaySession::new(
+            ReplayPolicy::ordinary(),
+            &mut buffer,
+            &["keep.md".to_string()],
+            &root,
+            None,
+            &config,
+            None,
+            &mut km,
+        );
+        assert_eq!(session.workspace, PathBuf::from("/ws"));
+        session.resync_project_location(PathBuf::from("/"));
+        assert_eq!(session.root, PathBuf::from("/"));
+        assert_eq!(
+            session.workspace,
+            PathBuf::from("/"),
+            "no parent: the workspace must fall back to the root itself, not stay \
+             stuck at the old `/ws`"
+        );
+        assert!(
+            session.corpus.contains(&"marker.md".to_string()),
+            "corpus rebuilt from the new (rootless-parent) root: {:?}",
+            session.corpus
+        );
+    });
+}
+
 #[test]
 fn permissive_skip_sweeps_the_four_known_live_only_effects() {
     let cases = [

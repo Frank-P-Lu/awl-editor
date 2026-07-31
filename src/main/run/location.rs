@@ -1,13 +1,18 @@
-//! WHERE AM I WORKING — the launch root, the workspace scope, and the capture
-//! sidecar's project block. One owner each, lifted out of `run.rs` whole.
+//! WHERE AM I WORKING — the launch root, the workspace scope, the capture
+//! sidecar's project block, and (queue item 189) `ReplaySession`'s own
+//! re-scope on a Switch-project accept. One owner each, lifted out of
+//! `run.rs` whole — this module IS the location-derivation owner, so a
+//! derivation belongs here even when the struct it mutates is declared in
+//! the parent file.
 //!
 //! The live `App` derives the same three facts in `App::resync_project_location`
 //! and shares [`resolve_workspace`] with this file. Keeping the capture's own
 //! derivation in ONE place here is what stops the two from drifting again — see
-//! [`project_info`], `docs/harness-reach.md`, and queue items 180/183.
+//! [`project_info`], `docs/harness-reach.md`, and queue items 180/183/189.
 
 use std::path::PathBuf;
 
+use super::ReplaySession;
 use crate::capture;
 use crate::config::Config;
 
@@ -101,5 +106,32 @@ pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::P
     match root.parent() {
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => root.to_path_buf(),
+    }
+}
+
+impl<'a> ReplaySession<'a> {
+    /// THE ONE RE-SCOPING OWNER (queue item 189) — re-derive `root`,
+    /// `workspace`, and the file `corpus` for a NEW project root, the
+    /// session's mirror of the live `App::resync_project_location`
+    /// (`app/files/open.rs`) and for the identical reason: before this fn
+    /// existed, a Switch-project accept re-derived the SIDECAR's project
+    /// block through [`project_info`] (item 183) but left these three
+    /// fields fixed at their launch values, so a chord applied after the
+    /// accept — a Cmd-O opening Goto against `corpus`, a Browse summon
+    /// against `root`/`workspace` — silently kept testing the OLD tree.
+    ///
+    /// Called ONLY from the `OverlayAccept(Project, ..)` arm in
+    /// `effect_interpreter.rs`, immediately before `self.accept` is set —
+    /// `pub(super)` rather than `pub`, so no consumer outside `run` can read
+    /// a stale copy of any of the three by reaching around it. `workspace_flag`
+    /// re-runs the SAME [`resolve_workspace`] the constructor used, against
+    /// the NEW root: an explicit `--workspace` stays pinned across the
+    /// switch; an unset one re-derives the new root's parent, covering both
+    /// the same-parent coincidence and the no-parent (filesystem-root) edge
+    /// item 180 named, rather than carrying the OLD resolved value forward.
+    pub(super) fn resync_project_location(&mut self, new_root: PathBuf) {
+        self.corpus = crate::index::build_index(&new_root);
+        self.workspace = resolve_workspace(&self.workspace_flag, &new_root);
+        self.root = new_root;
     }
 }
