@@ -94,7 +94,11 @@ fn mark_field_scaled(
     let b = render_bg_scaled(device, queue, bare, w, h, col_left, col_w, 0.0, scale);
     a.iter()
         .zip(b.iter())
-        .map(|(p, q)| (0..3).map(|k| (p[k] as i32 - q[k] as i32).abs()).sum::<i32>())
+        .map(|(p, q)| {
+            (0..3)
+                .map(|k| (p[k] as i32 - q[k] as i32).abs())
+                .sum::<i32>()
+        })
         .collect()
 }
 
@@ -194,7 +198,9 @@ const RESTORED_PERIOD_PX: f32 = 47.0;
 #[test]
 fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!("skipping paperbark_contour_separation_matches_the_restored_density: no wgpu adapter");
+        eprintln!(
+            "skipping paperbark_contour_separation_matches_the_restored_density: no wgpu adapter"
+        );
         return;
     };
     let _g = crate::testlock::serial();
@@ -327,14 +333,21 @@ fn mean_transition_run_px(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32, min
 #[test]
 fn paperbark_edge_run_length_widens_with_device_ratio_because_it_is_composition() {
     let Some((device, queue)) = headless_dq() else {
-        eprintln!(
-            "skipping paperbark_edge_run_length_widens_with_device_ratio: no wgpu adapter"
-        );
+        eprintln!("skipping paperbark_edge_run_length_widens_with_device_ratio: no wgpu adapter");
         return;
     };
     let _g = crate::testlock::serial();
     let bg = deckle_high_contrast();
-    let one_x = mark_field_scaled(&device, &queue, bg, W, H, COL_LEFT as f32, COL_W as f32, 1.0);
+    let one_x = mark_field_scaled(
+        &device,
+        &queue,
+        bg,
+        W,
+        H,
+        COL_LEFT as f32,
+        COL_W as f32,
+        1.0,
+    );
     let two_x = mark_field_scaled(
         &device,
         &queue,
@@ -401,7 +414,10 @@ fn paperbark_lane_density_is_stable_across_page_width_at_1x_and_2x() {
             graded += 1;
         }
     }
-    assert!(graded >= 6, "the page-width sweep must actually grade margins (graded {graded})");
+    assert!(
+        graded >= 6,
+        "the page-width sweep must actually grade margins (graded {graded})"
+    );
     eprintln!("item-201 page-width stability: {graded} margins graded across 5 widths");
 }
 
@@ -553,5 +569,3 @@ fn paperbark_retina_before_after_sheet() {
         "gallery/item-201-paperbark-retina/galah-2x-neighbourhood.png",
     );
 }
-
-

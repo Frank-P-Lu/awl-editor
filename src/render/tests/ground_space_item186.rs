@@ -470,7 +470,13 @@ fn finds_high_contrast() -> Background {
 // pub(super) (item 201): the same ramp-run-length oracle measures Deckle's
 // edge, which (unlike Finds') is COMPOSITION and must scale WITH the device
 // ratio — reused rather than re-derived.
-pub(super) fn mean_edge_ramp_px(pixels: &[[u8; 4]], w: u32, h: u32, col_left: u32, col_w: u32) -> f32 {
+pub(super) fn mean_edge_ramp_px(
+    pixels: &[[u8; 4]],
+    w: u32,
+    h: u32,
+    col_left: u32,
+    col_w: u32,
+) -> f32 {
     let mut total = 0u64;
     let mut runs = 0u64;
     for y in 0..h {
