@@ -1580,12 +1580,14 @@ fn forward_travel_grows_the_projected_rings() {
     let _g = crate::testlock::serial();
     let (spacing, _) = kite_dials();
     let cam = Camera::new(H, spacing);
-    let (cells, radii) = direction_ladder(&device, &queue, kite(), &cam, Seed::Innermost);
+    let (cells, radii) = tracked_ladder(&device, &queue, kite(), &cam);
+    // The DIRECTION claim is asserted before the coverage one, so that a world
+    // travelling the wrong way fails by its own name rather than as a tracker
+    // that ran out of ring to follow.
     assert!(
-        radii.len() >= DIRECTION_SWEEP_STEPS,
-        "the direction ladder must grade every phase, got {} of {DIRECTION_SWEEP_STEPS}\n\
-         {cells:?} {radii:?}",
-        radii.len()
+        radii.len() >= 2,
+        "the direction ladder could not track one ring for even two phases\n\
+         {cells:?} {radii:?}"
     );
     for w in radii.windows(2) {
         assert!(
@@ -1597,6 +1599,12 @@ fn forward_travel_grows_the_projected_rings() {
             w[1]
         );
     }
+    assert!(
+        radii.len() >= DIRECTION_SWEEP_STEPS,
+        "the direction ladder must grade every phase, got {} of {DIRECTION_SWEEP_STEPS}\n\
+         {cells:?} {radii:?}",
+        radii.len()
+    );
     // ...at the rate the projection predicts, so a merely-positive drift cannot
     // pass for travel. Slope of log2(radius) against cells travelled is 1/rpo.
     let n = radii.len() as f64;
@@ -1628,7 +1636,7 @@ fn warp_reversed_travel_recedes() {
     let (spacing, _) = kite_dials();
     let cam = Camera::new(H, spacing);
     let bad = with_tunnel(kite(), theme::Tunnel::Reversed);
-    let (cells, radii) = direction_ladder(&device, &queue, bad, &cam, Seed::Outermost);
+    let (cells, radii) = tracked_ladder(&device, &queue, bad, &cam);
     assert!(
         radii.len() >= DIRECTION_SWEEP_STEPS,
         "the direction ladder must grade every phase under the mutation too, got {}\n\
@@ -1643,6 +1651,27 @@ fn warp_reversed_travel_recedes() {
          the defect, and the world reading as backwards is what it looks like.\n\
          cells: {cells:?}\nradii: {radii:?}"
     );
+}
+
+/// Run the ladder from BOTH ends and keep the longer track. A ring only stays
+/// traceable in the direction it has room to move, and which end that is depends
+/// on which way the world is travelling — which is the very thing being
+/// measured, so it cannot be assumed. Seeding both ways and keeping whichever
+/// ring survived means a reversed world fails on the DIRECTION claim, by its own
+/// name, instead of on a tracker that ran out of ring.
+fn tracked_ladder(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    bg: theme::Background,
+    cam: &Camera,
+) -> (Vec<f32>, Vec<f32>) {
+    let inner = direction_ladder(device, queue, bg, cam, Seed::Innermost);
+    let outer = direction_ladder(device, queue, bg, cam, Seed::Outermost);
+    if outer.1.len() > inner.1.len() {
+        outer
+    } else {
+        inner
+    }
 }
 
 /// Which ring the ladder follows. A ring only stays traceable in the direction
@@ -1728,15 +1757,16 @@ fn direction_ladder(
         // steps are a few percent, so a `best_section` that jumped to the
         // neighbouring ring shows up as a step of more than half a rung.
         let rung_factor = (MAJOR_EVERY / cam.rpo).exp2();
-        if let Some(prev) = radii.last() {
+        if let Some(&prev) = radii.last() {
             let step = (fit.u / prev).max(prev / fit.u);
-            assert!(
-                step < rung_factor.sqrt(),
-                "the direction ladder crossed onto a different ring ({prev:.1}px -> \
-                 {:.1}px, a factor of {step:.2} against a rung of {rung_factor:.2}) — \
-                 shorten DIRECTION_SWEEP_CELLS",
-                fit.u
-            );
+            // The tracked ring is LOST rather than swapped: stop the ladder and
+            // let the caller judge what it has. A panic here would mask the
+            // claim — under a reversed sign the tracked ring shrinks out of the
+            // window, and the reader needs to be told the world is receding, not
+            // that a tracker gave up.
+            if step >= rung_factor.sqrt() {
+                break;
+            }
         }
         cells.push(pose.forward_cells);
         radii.push(fit.u);

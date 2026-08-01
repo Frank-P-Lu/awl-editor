@@ -1193,20 +1193,80 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   page — the composition the review approved — which is also why the two models
   agree there and diverge everywhere else, and why a law measured at one width
   could pass while the world did something else.
-- **WHAT THE PAGE WIDTH MOVES INSTEAD: TWO WINDOWS ONTO ONE CYLINDER.**
-  `warp_window_hide` is their single owner, and it says how far INSIDE the page
-  edge each margin's copy of the axis falls. A margin at least one anchor wide
-  hides the axis behind the page's own centre line, so the two windows show
-  opposite sides of the section and TILE with no overlap — round 1's approved
-  reading, preserved exactly. As the margin narrows the window SLIDES INWARD,
-  until at `WARP_WINDOW_TIGHT` the axis has come out from behind the page and
-  sits `WARP_WINDOW_STRADDLE` (0.4) of the margin's own width outside it: each
-  window then shows about 60% of its own side of the cylinder and 40% of the
-  other's, so **the centre appears in both margins at once**. The duplication is
-  intended and was chosen by the user over the alternative, which is a thin
-  margin showing nothing but a sliver of far rim. The placement is a TRANSLATION
-  and nothing else — one camera, one steering vector, one scale, one lattice —
-  and that distinction is what the coherence law had to be re-aimed to state.
+- **ROUND 2 MOVED THE PAGE DEPENDENCE INTO THE WINDOW PLACEMENT, AND THE LIVE
+  REVIEW FAILED IT AGAIN.** `warp_window_hide` owned where each margin's copy of
+  the axis fell, as a function of THAT MARGIN'S OWN WIDTH: a wide margin hid the
+  axis behind the page's centre line and the windows tiled; a narrow one slid the
+  window inward until the axis came out into the margin. The scale really was
+  constant. The composition was not. Swept over awl's own measure band on a
+  2560x1440 room, the innermost VISIBLE section radius climbed 144px to 624px as
+  the page widened — the vanishing region progressively swallowed, which is the
+  review's "measure 60 exposes too little background" — and then the axis slid out
+  into the margin and the whole opening snapped back at measure 140.
+- **AND ITS WIDTH LAW STAYED GREEN OVER IT, WHICH IS THE LESSON.** The law
+  asserted the section's ASPECT RATIO and its RADIUS-ON-THE-LADDER. Both are
+  exactly what a TRANSLATION preserves, and round 2's remaining defect was a
+  translation. Two further gaps compounded it: the sweep ran `MIN_MEASURE..=96`
+  while `page::MAX_MEASURE` is **140**, so the two widths the review named were
+  never rendered; and it swept one room with a bare test view, so awl's column was
+  always centred. **The general form: when a fix moves a dependence rather than
+  removing it, re-aim the law at what the NEW mechanism can do, not at what the
+  old one did.**
+- **AND IT HAD BROKEN THE TWO MARGINS APART AGAIN** — round 1's rejected defect,
+  re-created by the fix for something else. awl's column is not always centred,
+  because the margin outline reserves a gutter, so at measure 140 on that room the
+  margins measure **405px and 139px**. A placement read from `span` put the left
+  axis BEHIND the page and the right axis OUT IN the margin at the same instant:
+  one margin showed outer arcs, the other a complete converging tunnel. No law saw
+  it, because every cell in the sweep was symmetric.
+- **THE PLACEMENT IS NOW THE ROOM'S, AND THE PAGE IS A MASK (item 194 round 3).**
+  `warp_window_axis` takes a viewport and a side, and nothing else — no page
+  column, no margin span. Each window's axis sits `WARP_WINDOW_INSET` (0.4)
+  anchors in from its OWN room edge, so the two windows are a constant offset
+  apart, the scene is framed once, and a page-width change can only reveal or
+  cover it. The two windows OVERLAP and the centre appears in both: that
+  duplication is intended and was chosen by the user over the alternative, which
+  is a thin margin showing nothing but a sliver of far rim. The placement is a
+  TRANSLATION and nothing else — one camera, one steering vector, one scale, one
+  lattice.
+- **THE COST OF ONE FIXED PLACEMENT, NAMED RATHER THAN HIDDEN.** A margin
+  narrower than the inset has its axis covered by the page and shows outer wall
+  instead of the opening; on that 2560x1440 room that is the 139px right margin at
+  measure 140. It sits inside the world's own narrow-margin simplification band
+  (`WARP_NARROW_LO_PX..HI_PX` = 84..210px), where the minor lattice has already
+  retired by design, so a quiet field there is consistent rather than a surprise.
+  A smaller inset would rescue it and was measured: at the floor
+  (`WARP_CORE_FRAC * WARP_CORE_FADE_HI` = 0.22, below which the room's edge cuts
+  the far end's haze in half) the opening is jammed against the room edge at every
+  wide margin, crowding measures 20 through 104 — most of the range — to rescue
+  one margin. **The same widths are a MEASUREMENT GAP for the laws**: a margin
+  whose axis the page has covered holds only a short outer flank, and this
+  module's own arc-coverage finding says what a short cap does — in the 1000px
+  room a 137px margin returned aspect 0.902 and a radius 0.32 rungs off the ladder
+  from a 164-degree arc, against 1.000 and 0.00 everywhere the axis was visible.
+  Those cells are excluded from grading by name, not quietly dropped.
+- **FORWARD TRAVEL RAN BACKWARDS, and it was one character.** The ring coordinate
+  is `rpo*log2(anchor/u) + Z`, so the ring labelled `n` is drawn at
+  `u = anchor * 2^((Z - n)/rpo)` and its projected radius GROWS as the route's
+  `forward_cells` grows — the lattice sweeps outward past the reader. Subtracting
+  `Z`, as it did, shrinks every radius toward the axis: the rings converge into
+  the far end, which is what receding looks like. The law tracks ONE ring across a
+  ladder of phases inside a single straight leg and checks the growth RATE
+  (`+1/rpo` octaves per cell), so a world travelling forward at the wrong speed
+  cannot pass a bare sign test.
+- **AND IT TRAVELLED AT 10 fps.** Kite's route phase was advanced by
+  `advance_lava`, the shared ~10 fps ambient tick (`lava::LAVA_TICK_MS` = 100)
+  that the lava lamp, the stars and Bombora's waves ride. Those grounds DRIFT and
+  a sparse cadence is what they are; this one TRAVELS, and a camera moving through
+  a lattice at 10 fps does not read as slow, it reads as broken, because the eye
+  tracks the individual rings. The route now advances on the hot per-frame loop
+  the caret spring already owns (`TextPipeline::advance_warp`), under the tick's
+  own unchanged gates — ambient motion on, motion not reduced, window focused, no
+  resize/move transaction in flight — so every other world, and every
+  blurred/reduced/ambient-off moment of this one, still schedules exactly zero
+  frames. **One clock was the right answer for drift and the wrong one for
+  travel.**
+
 - **THE LAW AUDIT, because round 1's laws could not simply be re-tuned.** Round
   1's contract was "one cylinder continuing behind the page" with the overlap
   implied by occlusion; round 2's is "two overlapping windows onto one cylinder"
@@ -1311,7 +1371,9 @@ tunnel, the `LavaEdge::mask_mode` precedent).
   IS the near wall broadening continuously around the outside of the turn while
   the far wall compresses continuously around the inside. Both windows therefore
   show the same opening shifting the same way at the same instant.
-  `theme::Tunnel` keeps BOTH defects as data — `PerMargin` (each margin
+  `theme::Tunnel` keeps EVERY defect as data — `MarginPlaced` (round 2's
+  margin-derived window placement), `Reversed` (the inverted travel sign),
+  `PerMargin` (each margin
   re-deriving the steering from its own side of the page) and `PageScaled` (round
   1's page-derived scale) — as the explicit MUTATION arms (the
   `DeckleAnchor::Page` precedent), so each law can be watched failing on the
