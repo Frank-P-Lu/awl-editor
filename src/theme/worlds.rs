@@ -1052,18 +1052,6 @@ pub const PAPERBARK: Theme = Theme {
         deckle: Srgb::rgb(0x9F, 0x69, 0x37),
         weave: Weave::Strata,
         anchor: DeckleAnchor::Viewport,
-        // ITEM 201: item 158 tuned these two by eye against the pre-186
-        // convention, where `period_px`/`wander_px` were consumed as PHYSICAL
-        // pixels — so the approved read is whatever a 2x/Retina display showed
-        // at HALF these numbers (94/13), not what 94/13 mean now that item 186
-        // made them logical and stopped that accidental halving. Halved to
-        // restore the lane density that was actually approved: a real-pixel
-        // measurement on a matched physical canvas (`render/tests/
-        // paperbark_retina_item201.rs`) shows the pre-186 Retina render's mean
-        // lane gap at ~95 device px, against ~181 device px (matched-logical,
-        // i.e. flat ~90 at both densities) for the un-halved dial — almost
-        // exactly 2x too sparse. 47.0 clears `DECKLE_MIN_PITCH_PX` (40 logical)
-        // with room; 6.5 keeps the same wander:pitch ratio item 158 authored.
         period_px: 47.0,
         wander_px: 6.5,
         density: 0.20,
