@@ -48,7 +48,7 @@ impl TextPipeline {
     /// The sole proportional-cell vertical owner. Horizontal support-body
     /// dimensions remain ink-derived; only this centre and height use the
     /// row's insertion envelope.
-    pub(super) fn caret_cell_vertical_from_ink(
+    pub(in crate::render) fn caret_cell_vertical_from_ink(
         &self,
         ink: InkBox,
         baseline: f32,

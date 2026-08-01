@@ -50,15 +50,14 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
-        let needs_body = self
-            .caret_anchor_ink_box()
-            .map(|ink| {
-                let px = self.metrics.caret_h / CARET_H;
-                let (w, h) = caret_visual_body_dims(ink, px);
-                w > ink.width + f32::EPSILON
-                    || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
-            })
-            .unwrap_or(false);
+        let ink = self.caret_anchor_ink_box();
+        let needs_body = ink.is_some_and(|ink| {
+            let px = self.metrics.caret_h / CARET_H;
+            let (w, _) = caret_visual_body_dims(ink, px);
+            let (baseline, ascent, font) = self.caret_row_metrics();
+            let (_, h) = self.caret_cell_vertical_from_ink(ink, baseline, ascent, font, px);
+            w > ink.width + f32::EPSILON || h > ink.height + 2.0 * CARET_INK_PAD * px + f32::EPSILON
+        });
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);
             // The support body is the accent (`primary`), drawn behind the glyph,
