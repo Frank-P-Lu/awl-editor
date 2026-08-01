@@ -61,12 +61,27 @@ impl TextPipeline {
             .unwrap_or(false);
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);
-            // The support body is the accent itself, so an accent-coloured Morph
-            // silhouette would disappear into it. Knock the inhabited glyph back
-            // through in the authored primary-content colour, matching the Filled
-            // block's existing covered-glyph rule.
+            // ITEM 200 — the support body is the accent (`primary`), drawn behind
+            // the glyph, so this is an ordinary Normal-caret-style world (a Filled/
+            // InverseVideo world folds Morph to Block before this function is ever
+            // reached — see `folds_morph_to_block`), where `primary` is a genuine
+            // accent distinct from the page's own text ink. The glyph therefore
+            // needs NO contrast correction at all: ordinary prose ink
+            // (`base_content`) already reads over the accent body exactly as it
+            // reads over any other surface — that is the whole "one accent, ink by
+            // value" rule (DESIGN.md). The prior code instead knocked the glyph
+            // back through `primary_content` — the colour authored to sit ON TOP
+            // of a FILLED ink-caret block, where `primary == base_content` and a
+            // second copy of the same ink would vanish into it (see
+            // `prepare_caret_block`'s `CaretBlockStyle::Filled` arm, the only other
+            // caller of `primary_content` on this path). Reusing that rule here
+            // recoloured every landed punctuation mark in a colour with no relation
+            // to the page's own ink or the world's accent, reading as an inverted/
+            // flipped glyph (Bombora, Bowerbird) — and on a world where
+            // `primary_content` happens to sit close to the page ground, as a
+            // glyph that reads as swallowed/shrunk (the reported defect, item 200).
             self.caret_glyph_pipeline
-                .set_color(theme::primary_content().rgb_bytes());
+                .set_color(theme::base_content().rgb_bytes());
         } else {
             self.caret_pipeline.prepare_empty();
             self.caret_glyph_pipeline
