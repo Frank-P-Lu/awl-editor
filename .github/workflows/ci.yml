@@ -146,9 +146,9 @@ jobs:
   mac:
     name: mac (build + test)
     runs-on: macos-latest
-    # Match Linux's variance allowance: the same exhaustive gate runs here,
-    # and hosted macOS performance varies substantially between runs.
-    timeout-minutes: 50
+    # The same exhaustive gate is markedly slower and more variable on hosted
+    # macOS; keep measured completion time well clear of the hang ceiling.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v7
 
