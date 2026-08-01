@@ -27,7 +27,8 @@ pub fn parse_binding(spec: &str) -> Result<Chord, String> {
             let is_cc = modifiers.state() == ModifiersState::CONTROL && key_is_char(&prefix, 'c');
             if !is_cx && !is_cc {
                 return Err(format!(
-                    "only the C-x / C-c prefixes are supported for two-chord bindings, got {first:?}"
+                    "only the C-x / C-c prefixes are supported for two-chord bindings, \
+                     got {first:?}"
                 ));
             }
             let (key, modifiers) =
