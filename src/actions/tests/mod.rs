@@ -10,6 +10,7 @@
 //! whichever helpers it actually calls.
 
 use super::*;
+use crate::caret::RecoilDir::{Left, Right};
 use crate::overlay::OverlayKind;
 
 /// ITEM 116c — the alternate-accept (⇧↵) byte-identity law over `disk_bytes`.
@@ -530,14 +531,13 @@ pub(super) fn drive_effect(text: &str, cursor: usize, action: &Action) -> Effect
 pub(super) fn delete_flinch_fixture(
     action: &Action,
 ) -> Option<(&'static str, usize, usize, crate::caret::RecoilDir)> {
-    use crate::caret::RecoilDir::{Left, Right};
     match action {
         Action::DeleteBackward | Action::DeleteWordBackward | Action::DeleteToLineStart => {
             Some(("hi", 1, 0, Right))
         }
         Action::DeleteForward | Action::DeleteWordForward => Some(("hi", 0, 2, Left)),
-        // Not a squash/recoil delete: KillLine gulps; the rest never delete.
         Action::ForwardChar
+        | Action::KeepTutorial
         | Action::BackwardChar
         | Action::NextLine
         | Action::PreviousLine
@@ -733,119 +733,121 @@ pub(super) fn drive_shift(
 /// wildcard arm, so ADDING a new Action variant fails to compile here until
 /// the new variant is added to this list — the sweep can never silently miss
 /// a new motion.
-pub(super) fn all_actions() -> Vec<Action> {
-    fn _assert_covers(a: &Action) {
-        match a {
-            Action::ForwardChar
-            | Action::BackwardChar
-            | Action::NextLine
-            | Action::PreviousLine
-            | Action::LineStart
-            | Action::LineEnd
-            | Action::ForwardWord
-            | Action::BackwardWord
-            | Action::BufferStart
-            | Action::BufferEnd
-            | Action::InsertChar(_)
-            | Action::Newline
-            | Action::AcceptAlternate
-            | Action::InsertTab
-            | Action::Outdent
-            | Action::DeleteBackward
-            | Action::DeleteWordBackward
-            | Action::DeleteWordForward
-            | Action::DeleteToLineStart
-            | Action::DeleteForward
-            | Action::KillLine
-            | Action::Yank
-            | Action::YankText
-            | Action::InsertImageReference(_)
-            | Action::Undo
-            | Action::Redo
-            | Action::SetMark
-            | Action::CopyRegion
-            | Action::KillRegion
-            | Action::SelectAll
-            | Action::ZoomIn
-            | Action::ZoomOut
-            | Action::ZoomReset
-            | Action::PageScrollDown
-            | Action::PageScrollUp
-            | Action::Save
-            | Action::Quit
-            | Action::SearchForward
-            | Action::SearchBackward
-            | Action::OpenReplace
-            | Action::Cancel
-            | Action::OpenThemeMenu
-            | Action::OpenCommandPalette
-            | Action::OpenOutline
-            | Action::OpenSpellSuggest
-            | Action::ToggleCaretMode
-            | Action::OpenCaretMenu
-            | Action::OpenDictionaryMenu
-            | Action::ToggleSpellcheck
-            | Action::TogglePageMode
-            | Action::PageWider
-            | Action::PageNarrower
-            | Action::PageReset
-            | Action::ToggleDebug
-            | Action::ToggleOutline
-            | Action::ToggleTypewriter
-            | Action::ToggleMenuBar
-            | Action::ToggleFold
-            | Action::CollapseOtherSections
-            | Action::ToggleWritingNits
-            | Action::ShowStatsHud
-            | Action::OpenGoto
-            | Action::OpenProject
-            | Action::OpenRecentProjects
-            | Action::OpenBrowse
-            | Action::LastBuffer
-            | Action::NewDocument
-            | Action::MoveFile
-            | Action::OpenRenameNote
-            | Action::DuplicateNote
-            | Action::OpenSettings
-            | Action::OpenSettingsMenu
-            | Action::OpenKeybindings
-            | Action::OpenCredits
-            | Action::OpenGuide
-            | Action::OpenHistory
-            | Action::CompareVersion
-            | Action::OpenAssetClean
-            | Action::KeepVersion
-            | Action::FinishBuffer
-            | Action::FollowLink
-            | Action::InsertLink
-            | Action::ReportProblem
-            | Action::DownloadFile
-            | Action::CheckForUpdates
-            | Action::BeginPrefix
-            | Action::About
-            | Action::LifetimeStats
-            | Action::WritingStreaks
-            | Action::ConvertLineEndings
-            | Action::AlignTable
-            | Action::ToggleBlockquote
-            | Action::ToggleBulletList
-            | Action::ToggleNumberedList
-            | Action::ToggleTaskList
-            | Action::ToggleHeading
-            | Action::HeadingCycle
-            | Action::ToggleCodeBlock
-            | Action::Bold
-            | Action::Italic
-            | Action::InlineCode
-            | Action::Highlight
-            | Action::Strikethrough
-            | Action::ExportWord
-            | Action::ExportHtml
-            | Action::ExportPdf
-            | Action::InsertDate
-            | Action::Ignore => {}
-        }
+fn assert_action_roster_covers(a: &Action) {
+    match a {
+        Action::ForwardChar
+        | Action::KeepTutorial
+        | Action::BackwardChar
+        | Action::NextLine
+        | Action::PreviousLine
+        | Action::LineStart
+        | Action::LineEnd
+        | Action::ForwardWord
+        | Action::BackwardWord
+        | Action::BufferStart
+        | Action::BufferEnd
+        | Action::InsertChar(_)
+        | Action::Newline
+        | Action::AcceptAlternate
+        | Action::InsertTab
+        | Action::Outdent
+        | Action::DeleteBackward
+        | Action::DeleteWordBackward
+        | Action::DeleteWordForward
+        | Action::DeleteToLineStart
+        | Action::DeleteForward
+        | Action::KillLine
+        | Action::Yank
+        | Action::YankText
+        | Action::InsertImageReference(_)
+        | Action::Undo
+        | Action::Redo
+        | Action::SetMark
+        | Action::CopyRegion
+        | Action::KillRegion
+        | Action::SelectAll
+        | Action::ZoomIn
+        | Action::ZoomOut
+        | Action::ZoomReset
+        | Action::PageScrollDown
+        | Action::PageScrollUp
+        | Action::Save
+        | Action::Quit
+        | Action::SearchForward
+        | Action::SearchBackward
+        | Action::OpenReplace
+        | Action::Cancel
+        | Action::OpenThemeMenu
+        | Action::OpenCommandPalette
+        | Action::OpenOutline
+        | Action::OpenSpellSuggest
+        | Action::ToggleCaretMode
+        | Action::OpenCaretMenu
+        | Action::OpenDictionaryMenu
+        | Action::ToggleSpellcheck
+        | Action::TogglePageMode
+        | Action::PageWider
+        | Action::PageNarrower
+        | Action::PageReset
+        | Action::ToggleDebug
+        | Action::ToggleOutline
+        | Action::ToggleTypewriter
+        | Action::ToggleMenuBar
+        | Action::ToggleFold
+        | Action::CollapseOtherSections
+        | Action::ToggleWritingNits
+        | Action::ShowStatsHud
+        | Action::OpenGoto
+        | Action::OpenProject
+        | Action::OpenRecentProjects
+        | Action::OpenBrowse
+        | Action::LastBuffer
+        | Action::NewDocument
+        | Action::MoveFile
+        | Action::OpenRenameNote
+        | Action::DuplicateNote
+        | Action::OpenSettings
+        | Action::OpenSettingsMenu
+        | Action::OpenKeybindings
+        | Action::OpenCredits
+        | Action::OpenGuide
+        | Action::OpenHistory
+        | Action::CompareVersion
+        | Action::OpenAssetClean
+        | Action::KeepVersion
+        | Action::FinishBuffer
+        | Action::FollowLink
+        | Action::InsertLink
+        | Action::ReportProblem
+        | Action::DownloadFile
+        | Action::CheckForUpdates
+        | Action::BeginPrefix
+        | Action::About
+        | Action::LifetimeStats
+        | Action::WritingStreaks
+        | Action::ConvertLineEndings
+        | Action::AlignTable
+        | Action::ToggleBlockquote
+        | Action::ToggleBulletList
+        | Action::ToggleNumberedList
+        | Action::ToggleTaskList
+        | Action::ToggleHeading
+        | Action::HeadingCycle
+        | Action::ToggleCodeBlock
+        | Action::Bold
+        | Action::Italic
+        | Action::InlineCode
+        | Action::Highlight
+        | Action::Strikethrough
+        | Action::ExportWord
+        | Action::ExportHtml
+        | Action::ExportPdf
+        | Action::InsertDate
+        | Action::Ignore => {}
     }
+}
+
+fn editor_action_roster() -> Vec<Action> {
     vec![
         Action::ForwardChar,
         Action::BackwardChar,
@@ -914,6 +916,12 @@ pub(super) fn all_actions() -> Vec<Action> {
         Action::OpenBrowse,
         Action::LastBuffer,
         Action::NewDocument,
+        Action::KeepTutorial,
+    ]
+}
+
+fn command_action_roster() -> Vec<Action> {
+    vec![
         Action::MoveFile,
         Action::OpenRenameNote,
         Action::DuplicateNote,
@@ -956,6 +964,15 @@ pub(super) fn all_actions() -> Vec<Action> {
         Action::InsertDate,
         Action::Ignore,
     ]
+}
+
+pub(super) fn all_actions() -> Vec<Action> {
+    let mut actions = editor_action_roster();
+    actions.extend(command_action_roster());
+    for action in &actions {
+        assert_action_roster_covers(action);
+    }
+    actions
 }
 
 /// How the every-command smoke sweep classifies a catalog Action's expected
@@ -1022,7 +1039,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         // Deferred effects (the pure core signals; the live App performs).
         Action::Quit
         | Action::LastBuffer
-        | Action::NewDocument
+        | Action::NewDocument | Action::KeepTutorial
         | Action::OpenCredits
         | Action::OpenGuide
         | Action::FinishBuffer

@@ -3,9 +3,7 @@
 //! roster; the spawned PNG law in `tests/caret_punctuation_pixels.rs` checks the
 //! resulting pixels.
 
-use super::super::caret_body::{
-    CARET_VISUAL_BODY_MIN_AREA, CARET_VISUAL_BODY_MIN_H, CARET_VISUAL_BODY_MIN_W,
-};
+use super::super::caret_body::CARET_VISUAL_BODY_MIN_W;
 use super::super::*;
 use super::{headless_pipeline, view};
 use crate::caret::CaretMode;
@@ -14,7 +12,7 @@ use crate::theme::{self, THEMES};
 const PUNCTUATION: [char; 10] = [',', '.', '\'', ':', ';', '-', '(', '[', '—', '。'];
 
 #[test]
-fn proportional_punctuation_uses_the_shared_minimum_visual_body() {
+fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
     let _serial = crate::testlock::serial();
     let _world = theme::WorldPin::snapshot();
     let _caret = crate::testlock::serial();
@@ -53,25 +51,19 @@ fn proportional_punctuation_uses_the_shared_minimum_visual_body() {
                         )
                     });
                     let px = p.metrics.caret_h / CARET_H;
-                    let (w, h) = super::super::caret::caret_visual_body_dims(ink, px);
+                    let (w, _h) = super::super::caret::caret_visual_body_dims(ink, px);
                     assert!(
                         w >= CARET_VISUAL_BODY_MIN_W * px - 1e-3,
                         "{} {mode:?} {ch:?}: width floor",
                         world.name
                     );
-                    assert!(
-                        h >= CARET_VISUAL_BODY_MIN_H * px - 1e-3,
-                        "{} {mode:?} {ch:?}: height floor",
-                        world.name
-                    );
-                    assert!(
-                        w * h >= CARET_VISUAL_BODY_MIN_AREA * px * px - 1e-2,
-                        "{} {mode:?} {ch:?}: area floor",
-                        world.name
-                    );
+                    // Item 205 moves vertical sizing to the row's measured
+                    // x-height band.  This helper still owns only the
+                    // horizontal ink hug/support-body floor; asserting its
+                    // height here would bless the old punctuation-sized
+                    // resting rectangle instead of the drawn caret.
                     if world.name == "Mopoke" && ch == ',' && mode == CaretMode::Block {
-                        comma_was_floored =
-                            w > ink.width + 0.1 && h > ink.height + 2.0 * CARET_INK_PAD * px + 0.1;
+                        comma_was_floored = w > ink.width + 0.1;
                     }
                 }
             }

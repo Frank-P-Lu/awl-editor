@@ -43,9 +43,10 @@ pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> Pa
 /// 2. **ARGUMENT-FREE LAUNCH RESTORES** — bare `awl`: the remembered active
 ///    folder (`remembered`, from `crate::session::remembered_root`, gated by
 ///    the caller on `Config::session_restore_on()`) wins if there is one.
-/// 3. **FIRST RUN** — bare launch, nothing remembered (a fresh install, or
-///    the session kill-switch is off): `default_folder` (the resolved
-///    `--default-folder`/config/`~/notes` value).
+/// 3. **FIRST RUN** — bare launch, nothing remembered: an explicitly
+///    configured default folder is authoritative. Without one, the live App
+///    starts from its own recoverable data area; `firstrun` supplies Welcome
+///    through the scratch stash and never creates `~/notes`.
 ///
 /// The DOCUMENT half of a bare launch (which file becomes active, the rest
 /// parked behind it) is owned by `App::apply_session_restore`, reading the
@@ -56,13 +57,15 @@ pub(crate) fn resolve_launch_context(
     file: &Option<PathBuf>,
     remembered: Option<&std::path::Path>,
     default_folder: &std::path::Path,
+    default_folder_configured: bool,
 ) -> PathBuf {
     if root.is_some() || file.is_some() {
         return resolve_root(root, file);
     }
     match remembered {
         Some(p) => p.to_path_buf(),
-        None => default_folder.to_path_buf(),
+        None if default_folder_configured => default_folder.to_path_buf(),
+        None => crate::fs::data_root(),
     }
 }
 
@@ -170,11 +173,13 @@ pub(crate) fn launch_windowed(
             .clone()
             .or_else(|| config.default_folder.clone()),
     );
+    let default_folder_configured = default_folder.is_some() || config.default_folder.is_some();
     let active_root = resolve_launch_context(
         &root,
         &file,
         remembered.as_deref(),
         &default_folder_resolved,
+        default_folder_configured,
     );
     // THE DOCUMENT HALF OF THE SAME LAW (item 24): a launch that took
     // branch 3 above — nothing asked for, nothing remembered, never
@@ -189,6 +194,7 @@ pub(crate) fn launch_windowed(
         &root,
         remembered.as_deref(),
         &active_root,
+        default_folder_configured,
         crate::convention::Convention::current(),
         crate::commands::Platform::current(),
     );

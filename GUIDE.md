@@ -9,18 +9,21 @@ covers the model underneath.
 ## Where your words live
 
 **The first launch opens a document, not an empty editor.** With nothing
-to resume, awl writes `welcome.md` into the active folder and opens it.
-It is an ordinary Markdown file and nothing more: edit it, rename it,
-delete it, or replace it with your own. Later launches resume whatever
-you had open, exactly as they would for any other file — there is no
-welcome state to carry.
+to resume and no configured writing folder, awl opens its authored Welcome
+through the same recoverable scratch store it uses for unfinished writing. It
+does not create `~/notes` or place a file in a user folder. Edit it freely;
+those edits survive relaunch.
+
+The first {{key:new_document}} asks for a writing folder, then opens the
+ordinary unnamed document there. "{{cmd:keep_tutorial}}" uses the same folder
+choice and saves the edited Welcome as an ordinary Markdown file.
 
 | | |
 |---|---|
-| Where it lands | The active folder, which on a first launch is `default_folder` (`~/notes` unless you set it) |
-| Existing file | An existing `welcome.md` is never overwritten; awl opens yours |
+| Where it lives first | awl's recoverable scratch store, not a user folder |
+| Configured folder | `default_folder` is intentional: Welcome is an ordinary `welcome.md` there |
 | Shown again? | No. awl records the fact once, in `$XDG_DATA_HOME/awl/welcomed` (or `~/.local/share/awl/welcomed`) |
-| To be welcomed again | Delete that marker file, then launch with nothing to resume |
+| To be welcomed again | Delete that marker file and the scratch document, then launch with nothing to resume |
 | In the browser | The same document is seeded into the tab's storage on a first load, alongside `tour.md`, `prose.md` and `japanese.md` |
 
 The chords the document teaches are substituted into it as it is
@@ -40,9 +43,8 @@ never explicitly saved.
 you're already in.** {{key:new_document}} opens a new, unnamed document
 in the ACTIVE folder — wherever you last opened a file or switched
 projects, never a separate jump. Nothing writes to disk until you type
-something. On a first launch with nothing to resume, that active
-folder starts out as `~/notes` (configurable — `default_folder` in the
-config).
+something. An explicitly configured `default_folder` is used as that initial
+folder; otherwise awl asks before the first real file is created.
 
 **Autosave runs on four triggers:** idle (about a second after you
 stop typing), window blur, buffer switch, quit. Writes are atomic (a

@@ -363,6 +363,35 @@ fn every_settings_row_the_docs_cite_still_exists() {
     }
 }
 
+/// The first-launch promise spans authored Markdown and the static site. It is
+/// not a command-name citation, so the token laws cannot see a stale claim
+/// that bare awl creates `~/notes`; pin both the positive scratch truth and
+/// the retired sentence across every public surface.
+#[test]
+fn first_launch_docs_never_assign_an_implicit_notes_folder() {
+    let docs = [
+        ("PHILOSOPHY.md", include_str!("../PHILOSOPHY.md")),
+        ("GUIDE.md", crate::embedded_docs::GUIDE_MD),
+        ("samples/welcome.md", crate::embedded_docs::WELCOME_MD),
+        ("site/guide.html", crate::embedded_docs::SITE_GUIDE_HTML),
+    ];
+    for (name, text) in docs {
+        assert!(
+            !text.contains("active folder starts out as")
+                && !text.contains("writes `welcome.md` into the active folder"),
+            "{name} still claims that a bare first launch assigns a user folder"
+        );
+    }
+    assert!(
+        crate::embedded_docs::GUIDE_MD.contains("does not create `~/notes`"),
+        "the Guide must state the no-surprise filesystem promise"
+    );
+    assert!(
+        crate::embedded_docs::SITE_GUIDE_HTML.contains("does not create <code>~/notes</code>"),
+        "the site mirror must state the same no-surprise filesystem promise"
+    );
+}
+
 /// THE SIBLINGS GREP-LAW: `site/credits.html` / `site/index.html` /
 /// `site/check.html` carry NO chord-glyph or `Ctrl+`-word-form citations
 /// today (verified by hand while building this law — see the module doc). A

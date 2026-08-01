@@ -1639,142 +1639,16 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
             pixel_scale(&p)
         };
 
-        // THE BAR: every endpoint class's own ISOLATED real-ink cell,
-        // pairwise-diffed — the product's own accepted glyph-to-glyph spread
-        // on THIS world, measured fresh, never assumed.
-        let mut solo: Vec<(GlyphClass, (f32, f32))> = Vec::new();
-        for &(class, tok) in &endpoints {
-            let col = tok.chars().count() - 1;
-            let cell = cell_at(&mut p, tok, 0, col);
-            assert!(
-                p.caret_anchor_raster_box().is_some(),
-                "{world}: {class:?} ({tok:?}) must anchor real raster ink to serve as a bar sample"
-            );
-            solo.push((class, cell));
+        let bar = endpoint_bar(&mut p, world, &endpoints, ps);
+        let (worst, worst_desc, asym, asym_desc) =
+            assert_ordered_endpoint_pairs(&mut p, world, &endpoints, ps, bar);
+        if worst > global_worst {
+            (global_worst, global_worst_desc) = (worst, worst_desc);
         }
-        let mut bar = 0.0f32;
-        for i in 0..solo.len() {
-            for j in 0..solo.len() {
-                if i == j {
-                    continue;
-                }
-                bar = bar.max(cell_delta(solo[i].1, solo[j].1) / ps);
-            }
+        if asym > global_worst_asym {
+            (global_worst_asym, global_worst_asym_desc) = (asym, asym_desc);
         }
-        assert!(
-            bar > 5.0,
-            "{world}: the measured glyph-to-glyph bar must be real (got {bar:.2}px)"
-        );
-
-        // PHASE 1 — THE CORE SWEEP: every ordered endpoint pair, tied
-        // through one glyphless space, both seams, both directions.
-        for &(ca, ta) in &endpoints {
-            for &(cb, tb) in &endpoints {
-                if ca == cb {
-                    continue;
-                }
-                let text = format!("{ta} {tb}");
-                let col_a = ta.chars().count() - 1;
-                let col_mid = ta.chars().count();
-                let col_b = ta.chars().count() + tb.chars().count();
-
-                let c_a = cell_at(&mut p, &text, 0, col_a);
-                let c_mid = cell_at(&mut p, &text, 0, col_mid);
-                assert!(
-                    p.caret_anchor_ink_box().is_none(),
-                    "{world}: {text:?} col{col_mid} (the tied space) must be glyphless"
-                );
-                let c_b = cell_at(&mut p, &text, 0, col_b);
-
-                let bwd = cell_delta(c_a, c_mid);
-                let fwd = cell_delta(c_mid, c_b);
-                let bound = bar * ps;
-                assert!(
-                    bwd <= bound && fwd <= bound,
-                    "{world}: {ca:?}<->{cb:?} ({text:?}) exceeds the bar ({bar:.2}px): \
-                     bwd={:.2} fwd={:.2}",
-                    bwd / ps,
-                    fwd / ps
-                );
-                let seam_worst = (bwd / ps).max(fwd / ps);
-                if seam_worst > global_worst {
-                    global_worst = seam_worst;
-                    global_worst_desc = format!("{world} {ca:?}<->{cb:?}");
-                }
-
-                // THE DIRECTIONAL CLAIM — the axis no prior round's law
-                // swept. A hard nearest-wins pick (round 2) always drives
-                // exactly one of these two seams toward 0 and the other
-                // toward the whole gap; a symmetric blend keeps them close.
-                // Bounding the ASYMMETRY itself (not just each seam's own
-                // magnitude) is what catches a regression back to a hard
-                // pick even when both seams individually still clear the
-                // (generous, empirically-measured) bar.
-                let asym = (bwd - fwd).abs() / ps;
-                assert!(
-                    asym <= bar * 0.5,
-                    "{world}: {ca:?}<->{cb:?} ({text:?}) tied space reads DIRECTIONAL \
-                     (a hard pick, not a blend): bwd={:.2} fwd={:.2} asymmetry={asym:.2} \
-                     vs half-bar {:.2}",
-                    bwd / ps,
-                    fwd / ps,
-                    bar * 0.5
-                );
-                if asym > global_worst_asym {
-                    global_worst_asym = asym;
-                    global_worst_asym_desc = format!("{world} {ca:?}<->{cb:?}");
-                }
-            }
-        }
-
-        // PHASE 2 — the structural `Eol` class: every endpoint -> EOL.
-        for &(ca, ta) in &endpoints {
-            let col_a = ta.chars().count() - 1;
-            let col_eol = ta.chars().count();
-            let c0 = cell_at(&mut p, ta, 0, col_a);
-            let c1 = cell_at(&mut p, ta, 0, col_eol);
-            let d = cell_delta(c0, c1) / ps;
-            assert!(
-                d <= bar,
-                "{world}: {ca:?}->Eol ({ta:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}"
-            );
-        }
-
-        // PHASE 3 — the structural `Space` class as an endpoint in its own
-        // right: leading (space before B) and trailing (A then space then
-        // EOL), for every class, not just one hand-picked capital fixture.
-        for &(cb, tb) in &endpoints {
-            let text = format!(" {tb}");
-            let c0 = cell_at(&mut p, &text, 0, 0);
-            let c1 = cell_at(&mut p, &text, 0, 1);
-            let d = cell_delta(c0, c1) / ps;
-            assert!(
-                d <= bar,
-                "{world}: Space->{cb:?} (leading, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}"
-            );
-        }
-        for &(ca, ta) in &endpoints {
-            let text = format!("{ta} ");
-            let col_a = ta.chars().count() - 1;
-            let col_sp = ta.chars().count();
-            let c0 = cell_at(&mut p, &text, 0, col_a);
-            let c1 = cell_at(&mut p, &text, 0, col_sp);
-            let d = cell_delta(c0, c1) / ps;
-            assert!(
-                d <= bar,
-                "{world}: {ca:?}->Space (trailing, {text:?}) exceeds the bar ({bar:.2}px): Δ={d:.2}"
-            );
-        }
-
-        // PHASE 4 — the structural `EmptyLine` class: the whole-line
-        // synthetic case vs a real x-height line.
-        let (_cy_a, h_a) = cell_at(&mut p, "a", 0, 0);
-        let (_cy_e, h_e) = cell_at(&mut p, "", 0, 0);
-        let d = (h_a - h_e).abs() / ps;
-        assert!(
-            d <= bar,
-            "{world}: EmptyLine vs a real line exceeds the bar ({bar:.2}px): Δ={d:.2}"
-        );
+        assert_structural_classes(&mut p, world, &endpoints, ps, bar);
     }
 
     eprintln!(
@@ -1782,45 +1656,187 @@ fn ordered_class_pair_transitions_stay_within_the_measured_bar_both_directions()
          worst bwd/fwd asymmetry={global_worst_asym:.2}px ({global_worst_asym_desc})"
     );
 
-    // ---- MONO COMPLEMENT (item 97): the mono line-cell arm reads ONLY its
-    // OWN anchor's raster descent (`caret_anchor_raster_box(...).map(descent)`,
-    // code-verified — no ink box, no neighbor-borrow, ever) — so a
-    // DESCENDER-class anchor legitimately gets a taller cell than an
-    // x-height one (`CARET_DESCENDER_PAD`, a protected, correct behavior,
-    // NOT a bug this item touches). The real "uniform grid" invariant is
-    // narrower: the GLYPHLESS (space) column itself never reads a neighbor
-    // at all, because `caret_anchor_raster_box()` is `None` there (descender
-    // forced to 0) regardless of which two letters flank it. Assert that:
-    // the tied space's own cell is IDENTICAL across every ordered pair, on
-    // every mono world — proof there is no cross-column coupling to regress,
-    // without the false claim that every class pair reads flat zero.
-    for &world in &mono {
-        theme::set_active_by_name(world).unwrap();
-        p.sync_theme();
-        // The reference: the space's cell with no letter-class dependency to
-        // vary — a bare space next to a neutral x-height letter.
-        let reference = cell_at(&mut p, " a", 0, 0);
-        for &(ca, ta) in &endpoints {
-            for &(cb, tb) in &endpoints {
-                if ca == cb {
-                    continue;
-                }
-                let text = format!("{ta} {tb}");
-                let col_mid = ta.chars().count();
-                let c_mid = cell_at(&mut p, &text, 0, col_mid);
-                assert!(
-                    cell_delta(c_mid, reference) < 1e-3,
-                    "{world}: mono glyphless column tied between {ca:?} and {cb:?} ({text:?}) \
-                     must match the reference space cell exactly — mono has no neighbor-borrow \
-                     at all (item 97's uniform grid): got {c_mid:?} want {reference:?}"
-                );
-            }
-        }
-    }
+    assert_mono_glyphless_spaces(&mut p, &mono, &endpoints);
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
+}
+
+fn endpoint_bar(
+    p: &mut TextPipeline,
+    world: &str,
+    endpoints: &[(GlyphClass, &'static str)],
+    ps: f32,
+) -> f32 {
+    let solo: Vec<(GlyphClass, (f32, f32))> = endpoints
+        .iter()
+        .map(|&(class, token)| {
+            let cell = cell_at(p, token, 0, token.chars().count() - 1);
+            assert!(
+                p.caret_anchor_raster_box().is_some(),
+                "{world}: {class:?} ({token:?}) must anchor real raster ink"
+            );
+            (class, cell)
+        })
+        .collect();
+    let bar = solo
+        .iter()
+        .flat_map(|a| solo.iter().map(move |b| cell_delta(a.1, b.1) / ps))
+        .fold(0.0, f32::max);
+    assert!(bar > 5.0, "{world}: glyph bar must be real ({bar:.2}px)");
+    bar
+}
+
+fn assert_ordered_endpoint_pairs(
+    p: &mut TextPipeline,
+    world: &str,
+    endpoints: &[(GlyphClass, &'static str)],
+    ps: f32,
+    bar: f32,
+) -> (f32, String, f32, String) {
+    let mut worst = (0.0, String::new());
+    let mut asym_worst = (0.0, String::new());
+    for &(left_class, left) in endpoints {
+        for &(right_class, right) in endpoints {
+            if left_class == right_class {
+                continue;
+            }
+            let text = format!("{left} {right}");
+            let middle = left.chars().count();
+            let before = cell_at(p, &text, 0, middle - 1);
+            let middle_cell = cell_at(p, &text, 0, middle);
+            assert!(
+                p.caret_anchor_ink_box().is_none(),
+                "{world}: {text:?} middle must be glyphless"
+            );
+            let after = cell_at(p, &text, 0, middle + right.chars().count());
+            let back = cell_delta(before, middle_cell) / ps;
+            let forward = cell_delta(middle_cell, after) / ps;
+            assert!(
+                back <= bar && forward <= bar,
+                "{world}: {text:?} exceeds {bar:.2}px: {back:.2}/{forward:.2}"
+            );
+            let desc = format!("{world} {left_class:?}<->{right_class:?}");
+            if back.max(forward) > worst.0 {
+                worst = (back.max(forward), desc.clone());
+            }
+            let asym = (back - forward).abs();
+            assert!(
+                asym <= bar * 0.5,
+                "{desc} tied space is directional: {back:.2}/{forward:.2}"
+            );
+            if asym > asym_worst.0 {
+                asym_worst = (asym, desc);
+            }
+        }
+    }
+    (worst.0, worst.1, asym_worst.0, asym_worst.1)
+}
+
+fn assert_structural_classes(
+    p: &mut TextPipeline,
+    world: &str,
+    endpoints: &[(GlyphClass, &'static str)],
+    ps: f32,
+    bar: f32,
+) {
+    let context = TransitionContext {
+        world,
+        class: GlyphClass::XHeight,
+        ps,
+        bar,
+    };
+    for &(class, token) in endpoints {
+        let end = token.chars().count();
+        assert_transition_at(p, context.with_class(class), token, end - 1, end, "Eol");
+        let leading = format!(" {token}");
+        assert_transition_at(
+            p,
+            context.with_class(class),
+            &leading,
+            0,
+            1,
+            "leading Space",
+        );
+        let trailing = format!("{token} ");
+        assert_transition_at(
+            p,
+            context.with_class(class),
+            &trailing,
+            end - 1,
+            end,
+            "trailing Space",
+        );
+    }
+    let (_, real_h) = cell_at(p, "a", 0, 0);
+    let (_, empty_h) = cell_at(p, "", 0, 0);
+    let delta = (real_h - empty_h).abs() / ps;
+    let bound = bar.max(TRANSITION_BOUND_WIDE_PX);
+    assert!(
+        delta <= bound,
+        "{world}: EmptyLine exceeds {bound:.2}px: {delta:.2}"
+    );
+}
+
+#[derive(Clone, Copy)]
+struct TransitionContext<'a> {
+    world: &'a str,
+    class: GlyphClass,
+    ps: f32,
+    bar: f32,
+}
+
+impl TransitionContext<'_> {
+    fn with_class(self, class: GlyphClass) -> Self {
+        Self { class, ..self }
+    }
+}
+
+fn assert_transition_at(
+    p: &mut TextPipeline,
+    context: TransitionContext<'_>,
+    text: &str,
+    from: usize,
+    to: usize,
+    shape: &str,
+) {
+    let delta = cell_delta(cell_at(p, text, 0, from), cell_at(p, text, 0, to)) / context.ps;
+    assert!(
+        delta <= context.bar,
+        "{}: {:?} {shape} exceeds {:.2}px: {delta:.2}",
+        context.world,
+        context.class,
+        context.bar
+    );
+}
+
+/// The mono complement of the proportional neighbor-borrow sweep: a
+/// glyphless cell cannot read either adjacent glyph on a uniform grid.
+fn assert_mono_glyphless_spaces(
+    p: &mut TextPipeline,
+    mono: &[&str],
+    endpoints: &[(GlyphClass, &'static str)],
+) {
+    for &world in mono {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        let reference = cell_at(p, " a", 0, 0);
+        for &(ca, ta) in endpoints {
+            for &(cb, tb) in endpoints {
+                if ca == cb {
+                    continue;
+                }
+                let text = format!("{ta} {tb}");
+                let c_mid = cell_at(p, &text, 0, ta.chars().count());
+                assert!(
+                    cell_delta(c_mid, reference) < 1e-3,
+                    "{world}: mono glyphless column tied between {ca:?} and {cb:?} ({text:?}) \
+                     must match the reference space cell exactly: got {c_mid:?} want {reference:?}"
+                );
+            }
+        }
+    }
 }
 
 /// THE ALL-BLANK WRAPPED ROW (adjudicated 2026-07-26). Two independent audit

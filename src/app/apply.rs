@@ -1,45 +1,9 @@
 //! Live-only effects layered around shared pure action application.
 
+use super::apply_context::{CoreBefore, CoreRun};
 use super::*;
 
 type SpellTarget = (Vec<String>, (usize, usize, usize), String);
-
-struct CoreRun {
-    transition: actions::Transition,
-    theme_overlay_before: bool,
-    theme_before: crate::theme::Theme,
-    history_overlay_before: bool,
-}
-
-struct CoreBefore {
-    theme_overlay_before: bool,
-    theme_before: crate::theme::Theme,
-    history_overlay_before: bool,
-}
-
-impl CoreBefore {
-    /// The three facts that must be snapshotted BEFORE the core runs, because
-    /// the core mutates them: whether the THEME picker is open (its live preview
-    /// mutates the process-global active theme while open, so the GPU pipelines
-    /// need a re-tint even with no accept), the OUTGOING world (so
-    /// `retint_theme_preview` can detect a heavyweight-pipeline boundary
-    /// crossing — the present-race bracket), and whether the HISTORY timeline is
-    /// open (its derived preview + saved scroll must be put down the moment the
-    /// overlay closes, accept or not).
-    ///
-    /// Takes `Option<&OverlayState>` — the shape `WorkspaceState::overlay` hands
-    /// out (item 172), so the summoned-layer owner never lends the whole slot
-    /// just to be asked which picker is up.
-    fn of(overlay: Option<&crate::overlay::OverlayState>) -> Self {
-        Self {
-            theme_overlay_before: overlay
-                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::Theme),
-            theme_before: crate::theme::active(),
-            history_overlay_before: overlay
-                .is_some_and(|o| o.kind == crate::overlay::OverlayKind::History),
-        }
-    }
-}
 
 struct OverlayInputs {
     spell_target: Option<SpellTarget>,
@@ -313,6 +277,7 @@ impl App {
         exit: &dyn schedule::Exit,
         door: crate::stats::Door,
     ) -> bool {
+        let action = self.prepare_tutorial_action(action);
         self.pre_apply(&action, door);
 
         let CoreRun {
@@ -756,7 +721,10 @@ impl App {
         use crate::overlay::OverlayKind::*;
         match kind {
             Goto => self.open_rel(value),
-            Project => self.switch_project(PathBuf::from(value)),
+            Project => {
+                self.switch_project(PathBuf::from(value));
+                self.complete_tutorial_folder_choice();
+            }
             MoveDest => self.move_current_file(value),
             Caret => self.persist_caret_mode(),
             Dictionary => self.set_dictionary(crate::spell::active_variant()),

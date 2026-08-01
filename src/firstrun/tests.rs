@@ -69,6 +69,7 @@ fn a_first_run_seeds_the_welcome_document_and_opens_it() {
             &None,
             None,
             &folder(),
+            true,
             Convention::Mac,
             Platform::Native,
         )
@@ -84,6 +85,59 @@ fn a_first_run_seeds_the_welcome_document_and_opens_it() {
         "the seeded bytes are the RENDERED document, not the token source"
     );
     assert!(on(fs, marked), "a successful first run marks the profile");
+}
+
+#[test]
+fn bare_first_run_keeps_welcome_in_recoverable_app_data_not_a_user_folder() {
+    let fs = mem();
+    let user_folder = folder();
+    let opened = on(fs.clone(), || {
+        resolve_first_run_document(
+            None,
+            &None,
+            None,
+            &user_folder,
+            false,
+            Convention::Mac,
+            Platform::Native,
+        )
+    });
+    assert_eq!(opened, None, "Welcome stays a scratch-backed document");
+    let stash = on(fs.clone(), crate::fs::scratch_stash_path);
+    let welcome = on(fs.clone(), || {
+        crate::fs::active().read_to_string(&stash).unwrap()
+    });
+    assert!(welcome.starts_with("# Welcome to awl"));
+    assert!(on(fs.clone(), marked));
+    assert!(on(fs, || !crate::fs::active()
+        .exists(&user_folder.join(WELCOME_FILE))));
+}
+
+#[test]
+fn bare_welcome_recovery_never_replaces_existing_scratch_words() {
+    let fs = mem();
+    on(fs.clone(), || {
+        let stash = crate::fs::scratch_stash_path();
+        crate::fs::active()
+            .create_dir_all(stash.parent().unwrap())
+            .unwrap();
+        crate::fs::active()
+            .write(&stash, b"my recovered draft")
+            .unwrap();
+        let _ = resolve_first_run_document(
+            None,
+            &None,
+            None,
+            &folder(),
+            false,
+            Convention::Mac,
+            Platform::Native,
+        );
+        assert_eq!(
+            crate::fs::active().read_to_string(&stash).unwrap(),
+            "my recovered draft"
+        );
+    });
 }
 
 /// The document is seeded with the chords of the machine that will read it —
@@ -126,6 +180,7 @@ fn seeding_never_clobbers_a_welcome_the_user_already_has() {
             &None,
             None,
             &folder(),
+            true,
             Convention::Mac,
             Platform::Native,
         )
@@ -155,6 +210,7 @@ fn a_second_launch_of_the_same_profile_opens_nothing() {
             &None,
             None,
             &folder(),
+            true,
             Convention::Mac,
             Platform::Native,
         )
@@ -174,6 +230,7 @@ fn a_second_launch_of_the_same_profile_opens_nothing() {
             &None,
             None,
             &folder(),
+            true,
             Convention::Mac,
             Platform::Native,
         )
@@ -198,6 +255,7 @@ fn deleting_the_marker_asks_for_the_welcome_again() {
             &None,
             None,
             &folder(),
+            true,
             Convention::Mac,
             Platform::Native,
         )
@@ -214,6 +272,7 @@ fn deleting_the_marker_asks_for_the_welcome_again() {
             &None,
             None,
             &folder(),
+            true,
             Convention::Mac,
             Platform::Native,
         )
@@ -278,6 +337,7 @@ fn no_other_launch_shape_seeds_or_diverts() {
                 root,
                 *remembered,
                 &folder(),
+                true,
                 Convention::Mac,
                 Platform::Native,
             )

@@ -5,6 +5,7 @@ use crate::keymap::Action;
 use crate::overlay::{OverlayKind, OverlayState};
 use crate::search::{Direction, SearchState};
 // Shared dispatch types stay here; cohesive action families live in submodules.
+mod deferred; // filesystem/UI work returned to the live App
 mod edit; // the markdown smart-Enter edit (smart_newline + its pure decision)
 mod effects; // the closed typed-effect vocabulary + transition decoration
 mod flinch; // the caret-feedback triggers (impact_for / recoil_for)
@@ -15,6 +16,7 @@ mod overlay_nav; // the modal overlay intercept + browse-path helpers + live pre
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
 mod rebind; // the game-style rebind-menu key handling
 mod workspace_nav; // ITEM 114 — the workspace's two-region keys + the Cmd-P deep link
+use deferred::*;
 use edit::*;
 pub use effects::*;
 use flinch::*;
@@ -277,45 +279,6 @@ fn apply_session_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> 
             }
             Effect::None
         }
-        _ => return None,
-    };
-    Some(effect)
-}
-
-fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
-    let effect = match action {
-        Action::LastBuffer => Effect::Buffer(BufferEffect::Previous { finished: false }),
-        Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
-        Action::MoveFile => {
-            ctx.journey
-                .enter((ctx.browse_to)(OverlayKind::MoveDest, None));
-            Effect::None
-        }
-        Action::OpenRenameNote => {
-            if let Some(path) = ctx.buffer.path() {
-                let name = path
-                    .file_name()
-                    .map(|s| s.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                ctx.journey.enter(Some(OverlayState::new_rename(name)));
-            }
-            Effect::None
-        }
-        Action::DuplicateNote => Effect::DuplicateNote,
-        Action::OpenSettings => Effect::Buffer(BufferEffect::OpenSettings),
-        Action::OpenCredits => Effect::Buffer(BufferEffect::OpenCredits),
-        Action::OpenGuide => Effect::Buffer(BufferEffect::OpenGuide),
-        Action::OpenSettingsMenu => {
-            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Settings));
-            Effect::None
-        }
-        Action::FinishBuffer => Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish)),
-        Action::FollowLink => {
-            crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
-                .map(Effect::FollowLink)
-                .unwrap_or(Effect::None)
-        }
-        Action::BeginPrefix | Action::Ignore => Effect::None,
         _ => return None,
     };
     Some(effect)
@@ -642,6 +605,7 @@ macro_rules! classify_action_family {
             | Action::OpenBrowse => ActionFamily::Overlay,
             Action::LastBuffer
             | Action::NewDocument
+            | Action::KeepTutorial
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote

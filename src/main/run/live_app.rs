@@ -100,6 +100,13 @@ mod tests {
         }
     }
 
+    fn new_document_chord() -> &'static str {
+        match crate::convention::Convention::current() {
+            crate::convention::Convention::Mac => "s-n",
+            crate::convention::Convention::Linux => "C-n",
+        }
+    }
+
     /// The real chords a user walks in with: summon the workspace, `Tab` from
     /// the navigation rail into the content pane, one `Down` per row of the
     /// corpus, then `Enter` on the row. The row INDEX is derived from
@@ -161,6 +168,29 @@ mod tests {
         let o = &v["overlay"];
         let i = o["selected_index"].as_u64().expect("a selected row") as usize;
         o["items"][i].as_str().expect("a row label").to_string()
+    }
+
+    #[test]
+    fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
+        let _g = crate::testlock::serial();
+        let dir = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-item208-live-app-{}", std::process::id())),
+        );
+        let png = dir.join("folder-choice.png");
+        let json = in_sandbox(|| {
+            capture_live_app(
+                png.clone(),
+                None,
+                crate::keyspec::parse_chords(new_document_chord()).unwrap(),
+                Some(crate::fs::data_root()),
+                None,
+                cfg(),
+            )
+            .unwrap();
+            sidecar(&png)
+        });
+        assert_eq!(json["driver"].as_str(), Some("live-app"));
+        assert_eq!(json["overlay"]["mode"].as_str(), Some("switch"));
     }
 
     /// QUEUE ITEM 188, THE PRIMARY LAW — the transition converted from
