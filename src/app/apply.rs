@@ -379,19 +379,17 @@ impl App {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
-        let recency_now = if self.project_location.root == self.config.default_folder {
+        let location = &self.project_location;
+        let recency_now = if location.root == self.config.default_folder {
             Some(crate::clock::system_now())
         } else {
             None
         };
-        let (goto_corpus, goto_times) = crate::index::with_recency(
-            &self.project_location.root,
-            self.project_location.file_index.clone(),
-            recency_now,
-        );
+        let (goto_corpus, goto_times) =
+            crate::index::with_recency(&location.root, location.file_index.clone(), recency_now);
         let goto_open: Vec<usize> = {
             let active_rel = self.active.buffer.path().and_then(|p| {
-                p.strip_prefix(&self.project_location.root)
+                p.strip_prefix(&location.root)
                     .ok()
                     .map(|r| r.to_string_lossy().replace('\\', "/"))
             });
@@ -402,12 +400,11 @@ impl App {
                 .map(|(i, _)| i)
                 .collect()
         };
-        let goto_recent: Vec<usize> = self
-            .project_location
+        let goto_recent: Vec<usize> = location
             .recent_files
             .iter()
             .filter_map(|abs| {
-                abs.strip_prefix(&self.project_location.root)
+                abs.strip_prefix(&location.root)
                     .ok()
                     .map(|r| r.to_string_lossy().replace('\\', "/"))
             })
@@ -488,10 +485,8 @@ impl App {
             };
         #[cfg(not(target_arch = "wasm32"))]
         let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
-            crate::assets::scan(
-                &self.project_location.root,
-                &self.project_location.file_index,
-            )
+            let location = &self.project_location;
+            crate::assets::scan(&location.root, &location.file_index)
         } else {
             Vec::new()
         };
@@ -521,9 +516,7 @@ impl App {
         let page_scroll_lines = self.page_scroll_rows();
         let mut shift_selecting = self.active.extra.shift_selecting;
         let mut zoom = self.zoom;
-        // THE SUMMONED-LAYER SLOTS are borrowed IN PLACE from their owner for
-        // the one `apply_transition` run (item 172) — see `core_slots`. This
-        // replaced a `take()` … `= put_back` pair 120 lines apart.
+        // Borrow the summoned-layer slots in place for the transition run.
         let overlay_was_open = self.workspace_state.overlay_open();
         let CoreBefore {
             theme_overlay_before,
@@ -532,18 +525,9 @@ impl App {
         } = CoreBefore::of(self.workspace_state.overlay());
         let config_keys = self.config.keys.clone();
         let config_linux_keep = self.config.effective_linux_keep();
-        // Pre-build the overlay-open closure WITHOUT borrowing `self` (the buffer
-        // is borrowed mutably below): clone the small bits `make_overlay` needs.
-        // GOTO FRESHNESS (queue: "file picker freshness") — RE-SCAN ON EVERY
-        // SUMMON: rebuild the file index right as `C-x f` opens, through the
-        // `FileSystem` trait (`rescan_file_index`), so a file created on disk
-        // since launch (or the last scan) is never missing. No cache TTL, no
-        // watcher — a summoned overlay is transient and the walk is disk-cheap
-        // for a real project tree. Gated on the action like outline/spell/
-        // history below: walking the tree on every OTHER keystroke would be
-        // needless disk I/O.
-        // The asset cleaner ALSO re-scans on summon (an asset added/removed on disk
-        // since launch is caught, same freshness rationale as go-to).
+        // Gather live picker inputs before the mutable buffer borrow below. File
+        // and asset pickers rescan only when summoned, so their transient corpus
+        // reflects disk changes without a watcher or per-keystroke I/O.
         let GotoInputs {
             goto_corpus,
             goto_times,
@@ -557,6 +541,7 @@ impl App {
             assets,
             has_waiter,
         } = self.gather_overlay_inputs(action);
+        let location = &self.project_location;
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,
@@ -571,7 +556,7 @@ impl App {
             history_session_start: crate::history::session_epoch_ms(),
             settings_values: crate::settings::SettingsValues::gather(
                 &self.config,
-                &self.project_location.root,
+                &location.root,
                 self.zoom,
                 crate::dateformat::today_from_system_clock(),
             ),
@@ -586,10 +571,9 @@ impl App {
         // move a document into a folder within it); `Project` (C-x p) walks the
         // workspace by absolute path. Cloned roots dodge the &mut self.active.buffer
         // borrow.
-        let browse_root = self.project_location.root.clone();
-        let workspace = self.project_location.workspace_root.clone();
-        let recent_projects: Vec<String> = self
-            .project_location
+        let browse_root = location.root.clone();
+        let workspace = location.workspace_root.clone();
+        let recent_projects: Vec<String> = location
             .recent_projects
             .iter()
             .map(|p| p.display().to_string())
