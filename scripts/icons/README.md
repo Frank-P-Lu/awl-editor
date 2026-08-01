@@ -21,6 +21,12 @@ Three cursor presets, and only three:
 | `pill` | capsule | grows past the glyph; radius = half the box |
 | `narrow` | super-narrow pill | sits *inside* the glyph's advance; capsule |
 
+All three receive one global `-4%`-of-font-size optical lift. At the reported
+156px preview size that is 3px (`156 × 0.48 × 0.04`), the smallest end of the
+measured 3–4px correction. It moves the fake cursor only: the `awl` run, shared
+baseline, lockup scale, and squircle placement do not move. The favicon keeps
+its independent centred-cell composition.
+
 Colors come from the world's real theme tokens and nowhere else: `base_100`
 ground, `base_content` for `aw`, `primary` for the cursor, `primary_content` for
 the `l`. Ambient (lava/stars) grounds flatten to `base_100` — an icon is one

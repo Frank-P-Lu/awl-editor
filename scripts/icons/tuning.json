@@ -1,13 +1,16 @@
 {
   "_note": "BOUNDED OPTICAL TUNING. A PRESET (the three logo-cursor shapes) plus a per-FAMILY delta, plus one optional narrower layer: a per-family SEAT override scoped to the one PRESET a face is composed with, under a face's own 'presets' key (e.g. Bitter.presets.pill). It exists because a shared face is worn by two worlds at two different presets (Bitter: Mopoke=pill/Magpie=block; Iosevka: Currawong=pill/Cassowary=block) — the override lands on the (family, preset) PAIR, which is already the axis the base preset varies by, so it reaches exactly the worlds that share both without ever naming one. Composition is additive: preset base + face delta + seat override, each still bounded by 'delta'/'final'. Absent 'presets', or an absent entry for the preset actually in play, composes to zero — every face and every (family, preset) pair that doesn't declare one is byte-identical to having none. Family keys — never world keys — are what make the five shared faces (Bitter, IBM Plex Sans, Iosevka, JetBrains Mono, Monaspace Xenon) carry exactly one tuning across both of their worlds; a per-world special case is not expressible here, and build.mjs rejects any key that is not a family named by the manifest, any preset name under 'presets' that isn't one of the three shapes, and any key under a preset override that isn't in 'allowed'.",
 
-  "_units": "insetX/insetTop/insetBottom are PERCENTAGES of the 'l' glyph's own inline box (advance width; font-derived content height). Negative grows the cursor past the glyph, positive shrinks it inside. A face delta is ADDED to the preset value (percentage points) — mono faces pull in, because a monospaced 'l' carries wide side bearings the cursor should not inherit; tight serifs push out. seatY is a bounded per-family optical correction in percent of the shared wordmark font size: positive moves the complete inline 'awl' run down, negative moves it up. radius is in em, or the string 'capsule'. weight names which bundled FILE to use, and the CSS weight is then whatever that file declares (IBM Plex Mono's regular is 300 — docs/fonts.md).",
+  "_units": "cursorOpticalY is the ONE global fake-cursor correction, in percent of the shared wordmark font size: negative moves only the cursor up while the glyph run and its baseline remain untouched. insetX/insetTop/insetBottom are PERCENTAGES of the 'l' glyph's own inline box (advance width; font-derived content height). Negative grows the cursor past the glyph, positive shrinks it inside. A face delta is ADDED to the preset value (percentage points) — mono faces pull in, because a monospaced 'l' carries wide side bearings the cursor should not inherit; tight serifs push out. seatY is a bounded per-family optical correction in percent of the shared wordmark font size: positive moves the complete inline 'awl' run down, negative moves it up. radius is in em, or the string 'capsule'. weight names which bundled FILE to use, and the CSS weight is then whatever that file declares (IBM Plex Mono's regular is 300 — docs/fonts.md).",
+
+  "cursorOpticalY": -4,
 
   "allowed": ["insetX", "insetTop", "insetBottom", "seatY", "radius", "weight"],
 
   "bounds": {
     "delta": [-20, 20],
     "final": [-30, 45],
+    "cursorOpticalY": [-6, 0],
     "radius": [0, 0.6],
     "weight": ["regular", "bold"]
   },
