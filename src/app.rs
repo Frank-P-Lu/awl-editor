@@ -823,7 +823,7 @@ pub struct App {
     /// `resumed()` stores it; `Option` only so the field can start `None`
     /// before the window/NSApp exist.
     #[cfg(target_os = "macos")]
-    _menu_bar: Option<muda::Menu>,
+    _menu_bar: Option<crate::menu::InstalledMenu>,
 }
 
 impl App {

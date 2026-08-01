@@ -106,6 +106,27 @@ use crate::menu_icons;
 #[cfg(target_os = "macos")]
 use muda::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
+/// Context policy shared by the native updater and the roster laws. This stays
+/// platform-neutral so the state transition can be proved without constructing
+/// AppKit objects in a test process.
+pub fn markdown_submenu_enabled(is_markdown: bool) -> bool {
+    is_markdown
+}
+
+#[cfg(target_os = "macos")]
+pub struct InstalledMenu {
+    menu: Menu,
+    markdown: Submenu,
+}
+
+#[cfg(target_os = "macos")]
+impl InstalledMenu {
+    pub fn set_markdown_enabled(&self, is_markdown: bool) {
+        self.markdown
+            .set_enabled(markdown_submenu_enabled(is_markdown));
+    }
+}
+
 /// One ROUTED menu item: the muda [`muda::MenuId`] string assigned to a plain
 /// [`MenuItem`], the exact `commands::COMMANDS` display NAME it fires on
 /// activation, its menu-facing DISPLAY LABEL, and whether it carries an
@@ -679,12 +700,16 @@ pub fn dropdown_items(menu: &RosterMenu) -> Vec<RosterItem> {
 /// see [`roster`]'s tests for the structure this function is not re-tested
 /// against directly.
 #[cfg(target_os = "macos")]
-pub fn build_menu() -> Menu {
+pub fn build_menu() -> InstalledMenu {
+    let mut markdown = None;
     let submenus: Vec<Submenu> = roster()
         .into_iter()
         .map(|m| {
-            let items: Vec<Box<dyn muda::IsMenuItem>> =
-                m.items.iter().map(to_native_item).collect();
+            let items: Vec<Box<dyn muda::IsMenuItem>> = m
+                .items
+                .iter()
+                .map(|item| to_native_item(item, &mut markdown))
+                .collect();
             let refs: Vec<&dyn muda::IsMenuItem> = items.iter().map(|b| b.as_ref()).collect();
             Submenu::with_items(m.title, true, &refs).expect("submenu build")
         })
@@ -693,21 +718,33 @@ pub fn build_menu() -> Menu {
         .iter()
         .map(|s| s as &dyn muda::IsMenuItem)
         .collect();
-    Menu::with_items(&refs).expect("root menu build")
+    InstalledMenu {
+        menu: Menu::with_items(&refs).expect("root menu build"),
+        markdown: markdown.expect("the menu roster must carry the Markdown submenu"),
+    }
 }
 
 #[cfg(target_os = "macos")]
-fn to_native_item(item: &RosterItem) -> Box<dyn muda::IsMenuItem> {
+fn to_native_item(item: &RosterItem, markdown: &mut Option<Submenu>) -> Box<dyn muda::IsMenuItem> {
     match item {
         RosterItem::Routed { id, label, icon } => to_menu_item(id, label, *icon),
         RosterItem::Separator => Box::new(PredefinedMenuItem::separator()),
         RosterItem::Predefined(kind) => Box::new(to_predefined(*kind)),
         RosterItem::Submenu { label, items } => {
-            let children: Vec<Box<dyn muda::IsMenuItem>> =
-                items.iter().map(to_native_item).collect();
+            let children: Vec<Box<dyn muda::IsMenuItem>> = items
+                .iter()
+                .map(|item| to_native_item(item, markdown))
+                .collect();
             let refs: Vec<&dyn muda::IsMenuItem> =
                 children.iter().map(|item| item.as_ref()).collect();
-            Box::new(Submenu::with_items(label, true, &refs).expect("submenu build"))
+            let submenu = Submenu::with_items(label, true, &refs).expect("submenu build");
+            if *label == "Markdown" {
+                assert!(
+                    markdown.replace(submenu.clone()).is_none(),
+                    "one Markdown submenu"
+                );
+            }
+            Box::new(submenu)
         }
     }
 }
@@ -744,9 +781,9 @@ fn to_native_item(item: &RosterItem) -> Box<dyn muda::IsMenuItem> {
 pub fn install<E: Send + 'static>(
     proxy: winit::event_loop::EventLoopProxy<E>,
     wrap: impl Fn(String) -> E + Send + Sync + 'static,
-) -> Menu {
+) -> InstalledMenu {
     let menu = build_menu();
-    menu.init_for_nsapp();
+    menu.menu.init_for_nsapp();
     muda::MenuEvent::set_event_handler(Some(move |event: muda::MenuEvent| {
         let _ = proxy.send_event(wrap(event.id().0.clone()));
     }));
@@ -771,6 +808,22 @@ mod tests {
                 RosterItem::Separator => Vec::new(),
             })
             .collect()
+    }
+
+    #[test]
+    fn markdown_submenu_context_changes_with_the_active_buffer_kind() {
+        assert!(
+            markdown_submenu_enabled(true),
+            "Markdown enables its stable submenu"
+        );
+        assert!(
+            !markdown_submenu_enabled(false),
+            "plain/code buffers visibly disable the Markdown submenu"
+        );
+        assert!(
+            markdown_submenu_enabled(true),
+            "switching back re-enables it"
+        );
     }
 
     /// LAW TEST: every routed table entry's `command` name must resolve to a
@@ -991,7 +1044,7 @@ mod tests {
         let menus = roster();
         let roster_ids: Vec<&str> = menus
             .iter()
-            .flat_map(|m| dropdown_items(m))
+            .flat_map(dropdown_items)
             .filter_map(|i| match i {
                 RosterItem::Routed { id, .. } => Some(id),
                 _ => None,

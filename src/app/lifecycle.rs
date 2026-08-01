@@ -184,6 +184,7 @@ impl ApplicationHandler<AwlEvent> for App {
                 #[cfg(target_os = "macos")]
                 if let Some(proxy) = self.menu_proxy.take() {
                     self._menu_bar = Some(crate::menu::install(proxy, AwlEvent::Menu));
+                    self.sync_native_menu_context();
                     // TEMPLATE ICONS: mark every routed item's NSImage a template
                     // image so AppKit tints it to the current appearance's label
                     // ink (and the correct on-highlight tint) instead of the
