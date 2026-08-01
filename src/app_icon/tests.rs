@@ -993,7 +993,7 @@ impl Blessed {
 /// Measured 2026-07-26 (item 102): every pair whose `differing` sits under
 /// 28.33% today, i.e. the whole low cluster below the roster's own cliff to
 /// 80.47% (Potoroo/Firetail) — see `axes()`'s `danger` value.
-/// Item 213 remeasured the affected baselines after applying the same global
+/// The global cursor lift remeasured the affected baselines across the full
 /// cursor lift to the full roster; palettes and preset assignments are intact.
 const DIFFERING_BLESSED: &[Blessed] = &[
     Blessed {
@@ -1136,7 +1136,7 @@ const DIFFERING_BLESSED: &[Blessed] = &[
 /// individually well before its own distant cliff (173.79 -> 473.61,
 /// Bombora/Wagtail -> Gumtree/Mangrove), so this axis's `danger` is set with
 /// margin above the tightest 10, not at that far cliff (see `axes()`'s doc).
-/// Item 213 remeasured the affected baselines after the roster-wide cursor
+/// The global cursor lift remeasured the affected baselines across the roster;
 /// lift; Bilby/Kite widened past 70 and is therefore removed rather than kept.
 const MEAN_BLESSED: &[Blessed] = &[
     Blessed {
@@ -1233,10 +1233,10 @@ const MEAN_BLESSED: &[Blessed] = &[
 /// Measured 2026-07-26 (item 102): every pair whose `ink` sits under 92%
 /// today — the roster's own cluster tops out at 88.39% (Bowerbird/Firetail)
 /// before a cliff to 94.22%; 92% sits between the two so the axis still
-/// catches a scenario shaped like `Ibis` (84.08% after item 213, see
+/// catches a scenario shaped like `Ibis` (84.08% with current geometry, see
 /// `ibis_near_duplicate_is_caught_without_becoming_champion`) without
 /// pulling the entire 94%+ plateau into the blessed list.
-/// Item 213 remeasured the affected baseline after the roster-wide lift.
+/// The affected baseline is remeasured against the roster-wide lift.
 const INK_BLESSED: &[Blessed] = &[
     // Item 121: Firetail's Block cursor first closed Potoroo/Firetail's ink
     // to 49.81% (from 54.31%, briefly the roster's global minimum) — then
@@ -1732,8 +1732,7 @@ fn ibis_near_duplicate_is_caught_without_becoming_champion() {
     // Sanity: replay the same Ibis-vs-Galah construction before asking
     // whether the law catches it. Item 110 moved Bilby's rendered seat to
     // 16.80% / 18.77 / 85.57% from item 102's historical 18.16% / 20.46 /
-    // 90.73%; item 161's further restrained lift on Bilby moves it again, to
-    // Item 213's global cursor lift moves only its ink figure again, to
+    // 90.73%; the current global cursor lift moves only its ink figure, to
     // today's 16.60% / 18.72 / 84.08%, without weakening the probe.
     let ibis_vs_galah = pairs
         .iter()
