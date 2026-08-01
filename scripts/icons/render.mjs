@@ -330,6 +330,39 @@ async function main() {
       );
       if (ready.result.value !== "loaded") throw new Error(`${page.file}: fonts did not load`);
 
+      // THE OPTICAL-OFFSET LAW. The builder supplies one font-relative lift
+      // to every app-icon cursor. Check the browser's actual pseudo-element
+      // transform, not merely the authored custom property: removing the CSS
+      // use-site (or dropping it from one shape) must make export fail before
+      // it can bless a geometrically centred regression. Tiles pages contain
+      // the complete world x Block/Pill/Narrow product; favicons deliberately
+      // keep their independent centred-cell composition.
+      if (page.file.startsWith("tiles-")) {
+        const optical = await at(
+          `${page.file}: fake-cursor optical offset`,
+          cdp.send("Runtime.evaluate", {
+            expression: `(() => {
+              for (const tile of document.querySelectorAll('.tile:not(.favicon)')) {
+                const mark = tile.querySelector('.mark');
+                const cursor = tile.querySelector('.cur');
+                const expected = parseFloat(getComputedStyle(tile).getPropertyValue('--cy')) *
+                  parseFloat(getComputedStyle(mark).fontSize);
+                const transform = getComputedStyle(cursor, '::before').transform;
+                const matrix = new DOMMatrixReadOnly(transform);
+                if (Math.abs(matrix.m42 - expected) > 0.02) {
+                  return JSON.stringify({ expected, actual: matrix.m42, transform });
+                }
+              }
+              return '';
+            })()`,
+            returnByValue: true,
+          })
+        );
+        if (optical.result.value) {
+          throw new Error(`${page.file}: fake-cursor optical-offset law failed ${optical.result.value}`);
+        }
+      }
+
       // THE VIEWPORT IS GROWN TO FIT THE WHOLE DOCUMENT, plus a margin.
       // Determinism depends on it: with the viewport ending exactly where the
       // content does, tiles in the last column straddle the raster edge and
